@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:sparkles",
+  "version": 1,
+  "name": "Sparkles",
+  "description": "Small cyan-white sparkle pings for positive emphasis.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "sparkles",
+    "slots": {
+      "particle_vfx": {
+        "label": "Sparkles",
+        "description": "Small cyan-white sparkle pings for positive emphasis.",
+        "anchor": "chest",
+        "duration_seconds": 1.6,
+        "max_duration_seconds": 2,
+        "preload_tier": "tier_a",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.18,
+            "z": 0
+          },
+          "depth_offset": 0.14,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 15
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/brackeys-flare.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/sparkle.png",
+      "role": "texture"
+    }
+  ]
+}

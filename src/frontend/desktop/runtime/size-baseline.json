@@ -1,0 +1,6 @@
+{
+  "schema": "animama-size-baseline/1",
+  "app_version": null,
+  "targets": {},
+  "note": "No self-contained desktop release exists. Phase 1 measurements are evidence, not a released baseline. Populate from verified release artifacts in Phase 4."
+}

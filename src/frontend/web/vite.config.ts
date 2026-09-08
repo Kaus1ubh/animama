@@ -1,0 +1,258 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath, URL } from "node:url";
+import { defineConfig } from "vite";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import react from "@vitejs/plugin-react";
+
+import {
+  includedContentCompatibilityPlugin,
+  type IncludedContentAlias,
+} from "./vite-plugins/included-content-compat";
+import { localParakeetModelPlugin } from "./vite-plugins/local-parakeet-models";
+import { appAssetCachePlugin } from "./vite-plugins/app-asset-cache";
+
+const webRoot = fileURLToPath(new URL(".", import.meta.url));
+const webSrc = fileURLToPath(new URL("./src", import.meta.url));
+const publicPackagesRoot = fileURLToPath(new URL("../packages", import.meta.url));
+const includedContentRoot = fileURLToPath(
+  new URL("../../../content/included", import.meta.url),
+);
+export const includedContentAliases: readonly IncludedContentAlias[] = [
+  { route: "/background", source: "appearances" },
+  { route: "/effects/scene-vfx", source: "vfx/scene" },
+  { route: "/effects/vfx/quark", source: "vfx/particle/quark" },
+  {
+    route: "/effects/vfx/particle-vfx",
+    source: "vfx/particle/particle-vfx",
+  },
+  { route: "/effects/vfx/face", source: "vfx/avatar/face" },
+  { route: "/effects/vfx/legacy", source: "vfx/avatar/legacy" },
+  {
+    route: "/effects/resources/scene-vfx/twemoji",
+    source: "resources/scene-vfx/twemoji",
+  },
+  {
+    route: "/effects/face-material.png",
+    source: "vfx/avatar/materials/face-material.png",
+  },
+  {
+    route: "/effects/face-material-2.png",
+    source: "vfx/avatar/materials/face-material-2.png",
+  },
+  {
+    route: "/effects/face-material-3.png",
+    source: "vfx/avatar/materials/face-material-3.png",
+  },
+] as const;
+const publicParakeetModelBaseUrl = "/onnx/models/parakeet-tdt-0.6b-v2";
+const localParakeetModelBaseUrl = "/__client-parakeet-models";
+const rechartsEsToolkitCompat = fileURLToPath(
+  new URL("./src/lib/recharts/es-toolkit-compat", import.meta.url),
+);
+const defaultParakeetModelDir = fileURLToPath(
+  new URL("../../../parakeet-tdt-0.6b-v2", import.meta.url),
+);
+const configuredParakeetModelDir =
+  process.env.VITE_CLIENT_PARAKEET_MODEL_DIR?.trim() ||
+  process.env.VITE_CLIENT_PARAKEET_DEV_MODEL_DIR?.trim();
+const parakeetModelDir = configuredParakeetModelDir
+  ? path.resolve(configuredParakeetModelDir)
+  : defaultParakeetModelDir;
+
+const routerConfig = {
+  target: "react",
+  routesDirectory: "./src/routes",
+  generatedRouteTree: "./src/routeTree.gen.ts",
+  quoteStyle: "double",
+  semicolons: true,
+  autoCodeSplitting: true,
+} as const;
+
+const appDependencies = [
+  "@gltf-transform/core",
+  "@gltf-transform/extensions",
+  "@hookform/resolvers",
+  "@opentelemetry/api",
+  "@pixiv/three-vrm",
+  "@pixiv/three-vrm-animation",
+  "@radix-ui/react-avatar",
+  "@radix-ui/react-checkbox",
+  "@radix-ui/react-dialog",
+  "@radix-ui/react-dropdown-menu",
+  "@radix-ui/react-label",
+  "@radix-ui/react-popover",
+  "@radix-ui/react-radio-group",
+  "@radix-ui/react-select",
+  "@radix-ui/react-slot",
+  "@radix-ui/react-switch",
+  "@radix-ui/react-tabs",
+  "@radix-ui/react-tooltip",
+  "@react-three/drei",
+  "@react-three/fiber",
+  "@ricky0123/vad-web",
+  "@tanstack/react-query",
+  "@tanstack/react-router",
+  "class-variance-authority",
+  "clsx",
+  "color",
+  "lucide-react",
+  "motion",
+  "next-themes",
+  "onnxruntime-web",
+  "parakeet.js",
+  "radix-ui",
+  "react",
+  "react-dom",
+  "react-hook-form",
+  "sonner",
+  "streamdown",
+  "tailwind-merge",
+  "three",
+  "twemoji",
+  "use-stick-to-bottom",
+  "zod",
+  "zustand",
+] as const;
+
+export const devOptimizedDependencies = [
+  // The hashing worker is requested only after a user starts an Asset upload,
+  // so Vite's startup crawler cannot discover this import on a cold dev stack.
+  // Pre-bundle it at startup; otherwise the first hash triggers Vite's
+  // late-dependency optimization and a full-page reload that strands the draft.
+  "@noble/hashes/sha2.js",
+  "onnxruntime-web",
+  "parakeet.js",
+] as const;
+
+// Hono reaches the private Compose Vite service by its stable service name.
+// Keep the allowlist exact instead of disabling Vite's host protection.
+export const localViteAllowedHosts = ["web"] as const;
+
+export default defineConfig(({ mode, command, isPreview }) => {
+  const embeddedDesktop = mode === "embedded-desktop";
+  const envParakeetModelBaseUrl =
+    process.env.VITE_CLIENT_PARAKEET_MODEL_BASE_URL?.trim();
+  const useLocalParakeetModels =
+    !embeddedDesktop &&
+    !envParakeetModelBaseUrl &&
+    (Boolean(configuredParakeetModelDir) || existsSync(parakeetModelDir));
+  const clientParakeetModelBaseUrl =
+    (!embeddedDesktop && envParakeetModelBaseUrl) ||
+    (useLocalParakeetModels
+      ? localParakeetModelBaseUrl
+      : publicParakeetModelBaseUrl);
+
+  return {
+    plugins: [
+      appAssetCachePlugin(),
+      includedContentCompatibilityPlugin({
+        includedRoot: includedContentRoot,
+        aliases: includedContentAliases,
+        copyBuildAliases: !embeddedDesktop,
+      }),
+      tanstackRouter(routerConfig),
+      react(),
+      ...(useLocalParakeetModels
+        ? [
+            // Keep the large Parakeet ONNX files out of Vite public/dist while
+            // still giving browser code a same-origin URL in local dev/preview.
+            localParakeetModelPlugin({
+              modelDir: parakeetModelDir,
+              routeBaseUrl: localParakeetModelBaseUrl,
+            }),
+          ]
+        : []),
+    ],
+    build: {
+      manifest: true,
+      rollupOptions: {
+        output: {
+          // Keep React out of route/app chunks so route splitting never creates
+          // a circular dependency through the shared framework runtime.
+          manualChunks(id) {
+            if (
+              id.includes("/node_modules/react/") ||
+              id.includes("/node_modules/react-dom/") ||
+              id.includes("/node_modules/scheduler/")
+            ) {
+              return "react-vendor";
+            }
+          },
+        },
+      },
+    },
+    define: {
+      // Keep this literal at dynamic-import sites: cross-chunk exported flags
+      // alone can leave unreachable inspector chunks in Rolldown's output.
+      __ANIMAMA_DEV_BUILD__: JSON.stringify(command === "serve" && !isPreview),
+      // A custom mode or inherited development NODE_ENV cannot enable debug
+      // imports in a built app, including the embedded-desktop renderer.
+      ...(command === "build" || isPreview
+        ? { "import.meta.env.VITE_ENABLE_DEBUG_PANEL": JSON.stringify("false") }
+        : {}),
+      __CLIENT_PARAKEET_MODEL_BASE_URL__: JSON.stringify(
+        clientParakeetModelBaseUrl,
+      ),
+    },
+    optimizeDeps: {
+      include: [...devOptimizedDependencies],
+    },
+    resolve: {
+      alias: {
+        "@": webSrc,
+        "@web": webSrc,
+        // Recharts imports `es-toolkit/compat/*`, but Vite's dep optimizer can
+        // mis-bundle those CJS wrappers into broken self-calling requires
+        // (`require_isUnsafeProperty is not a function`). Keep `es-toolkit`
+        // direct and route Recharts through our ESM wrapper files.
+        "es-toolkit/compat/get": path.join(rechartsEsToolkitCompat, "get.js"),
+        "es-toolkit/compat/isPlainObject": path.join(
+          rechartsEsToolkitCompat,
+          "isPlainObject.js",
+        ),
+        "es-toolkit/compat/last": path.join(rechartsEsToolkitCompat, "last.js"),
+        "es-toolkit/compat/maxBy": path.join(
+          rechartsEsToolkitCompat,
+          "maxBy.js",
+        ),
+        "es-toolkit/compat/minBy": path.join(
+          rechartsEsToolkitCompat,
+          "minBy.js",
+        ),
+        "es-toolkit/compat/omit": path.join(rechartsEsToolkitCompat, "omit.js"),
+        "es-toolkit/compat/range": path.join(
+          rechartsEsToolkitCompat,
+          "range.js",
+        ),
+        "es-toolkit/compat/sortBy": path.join(
+          rechartsEsToolkitCompat,
+          "sortBy.js",
+        ),
+        "es-toolkit/compat/sumBy": path.join(
+          rechartsEsToolkitCompat,
+          "sumBy.js",
+        ),
+        "es-toolkit/compat/throttle": path.join(
+          rechartsEsToolkitCompat,
+          "throttle.js",
+        ),
+        "es-toolkit/compat/uniqBy": path.join(
+          rechartsEsToolkitCompat,
+          "uniqBy.js",
+        ),
+      },
+      dedupe: [...appDependencies],
+      tsconfigPaths: true,
+    },
+    server: {
+      allowedHosts: [...localViteAllowedHosts],
+      fs: {
+        allow: [webRoot, publicPackagesRoot],
+      },
+    },
+    preview: {
+      allowedHosts: [...localViteAllowedHosts],
+    },
+  };
+});

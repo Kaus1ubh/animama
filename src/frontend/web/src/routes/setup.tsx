@@ -1,0 +1,143 @@
+import { Navigate, createFileRoute } from "@tanstack/react-router";
+import { useState, type FormEvent } from "react";
+
+import { useLocalRuntime } from "@web/app/local-runtime/LocalRuntimeProvider";
+import { Button } from "@/ui/components/button";
+import { Input } from "@/ui/components/input";
+import { Label } from "@/ui/components/label";
+import { DesktopCredentialsPanel } from "@/ui/settings/DesktopCredentialsPanel";
+import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
+import { packSizeSummary } from "@/ui/settings/DesktopFeaturePacksPanel";
+import {
+  DISPLAY_NAME_MAX_LENGTH,
+  normalizeLocalDisplayName,
+} from "@/lib/user-profile/display-name";
+
+export const Route = createFileRoute("/setup")({
+  component: LocalSetupRoute,
+});
+
+function LocalSetupRoute() {
+  const { state, completeOnboarding } = useLocalRuntime();
+  const [displayName, setDisplayName] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [providerBusy, setProviderBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const featurePacks = useDesktopFeaturePacks();
+  const [installSpeech, setInstallSpeech] = useState(false);
+  const speechPack = featurePacks.packs.find(
+    (pack) => pack.id === "parakeet-stt",
+  );
+  const normalizedName = normalizeLocalDisplayName(displayName);
+
+  if (state.status !== "ready") return null;
+  if (state.firstRunComplete) return <Navigate to="/a" replace />;
+
+  const submit = async (name: string) => {
+    if (isSubmitting || providerBusy) return;
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await completeOnboarding(name);
+      // Save first-run state before an optional pack's activation reload.
+      if (installSpeech && speechPack?.available)
+        void featurePacks.run("install", "parakeet-stt");
+    } catch {
+      setError(
+        "Setup could not be saved. Your local runtime may have completed it already; try again safely.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!normalizedName) {
+      setError("Enter a display name between 1 and 80 characters.");
+      return;
+    }
+    void submit(normalizedName);
+  };
+
+  return (
+    <main className="bg-background text-foreground flex min-h-screen items-center justify-center px-6 py-12">
+      <form
+        onSubmit={handleSubmit}
+        className="border-border bg-card w-full max-w-xl space-y-6 rounded-3xl border p-7 shadow-sm sm:p-9"
+      >
+        <header className="space-y-2">
+          <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
+            Welcome to Animama
+          </p>
+          <h1 className="text-2xl font-semibold">
+            What should Animama call you?
+          </h1>
+          <p className="text-muted-foreground text-sm leading-6">
+            This name stays private on this installation. It is not an account
+            or a credential.
+          </p>
+        </header>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <Label htmlFor="local-display-name">Display name</Label>
+            <span className="text-muted-foreground text-xs">
+              {displayName.length}/{DISPLAY_NAME_MAX_LENGTH}
+            </span>
+          </div>
+          <Input
+            id="local-display-name"
+            value={displayName}
+            maxLength={DISPLAY_NAME_MAX_LENGTH}
+            required
+            autoComplete="name"
+            autoFocus
+            disabled={isSubmitting}
+            placeholder="Your name"
+            onChange={(event) => {
+              setDisplayName(event.target.value);
+              setError(null);
+            }}
+          />
+        </div>
+        <DesktopCredentialsPanel onBusyChange={setProviderBusy} />
+        {featurePacks.available && speechPack ? (
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={installSpeech}
+                disabled={
+                  isSubmitting ||
+                  !speechPack.available ||
+                  speechPack.state === "installed"
+                }
+                onChange={(event) => setInstallSpeech(event.target.checked)}
+              />
+              Install offline speech recognition
+            </label>
+            <p className="text-muted-foreground text-xs">
+              {packSizeSummary(speechPack)}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              Optional. Select this to download after Continue; the app briefly
+              reloads when it is ready. You can install it later in Settings.
+            </p>
+          </div>
+        ) : null}
+        {error ? (
+          <p className="text-destructive text-sm" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="flex justify-end">
+          <Button
+            type="submit"
+            disabled={!normalizedName || isSubmitting || providerBusy}
+          >
+            {isSubmitting ? "Saving…" : "Continue"}
+          </Button>
+        </div>
+      </form>
+    </main>
+  );
+}

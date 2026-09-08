@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:confusion-orbit-marks",
+  "version": 1,
+  "name": "Confusion Orbit Marks",
+  "description": "Orbiting question marks and dots for confused or curious reactions.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "confusion-orbit-marks",
+    "slots": {
+      "particle_vfx": {
+        "label": "Confusion Orbit Marks",
+        "description": "Orbiting question marks and dots for confused or curious reactions.",
+        "anchor": "head",
+        "duration_seconds": 2.3,
+        "max_duration_seconds": 2.8,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0.08,
+            "y": 0.35,
+            "z": 0
+          },
+          "depth_offset": 0.13,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": false,
+        "max_particles": 32
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/glow-soft.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/question.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/spark-dot.png",
+      "role": "texture"
+    }
+  ]
+}

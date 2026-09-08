@@ -1,0 +1,29 @@
+ANIMAMA INCLUDED CONTENT ATTRIBUTION
+
+Adobe Mixamo animations
+The converted VRMA animations shipped with Animama originate from Adobe Mixamo
+FBX animations and are embedded for avatar playback. They are not offered as a
+standalone animation library and must not be used to create, train, test, or
+improve machine-learning systems.
+Source and terms:
+https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html
+https://wwwimages2.adobe.com/content/dam/cc/en/legal/servicetou/Mixamo-Addl-Terms-en_US-20210623.pdf
+
+Twemoji graphics 14.0.2
+Copyright 2020 Twitter, Inc and other contributors.
+Graphics licensed under Creative Commons Attribution 4.0 International.
+Source: https://github.com/jdecked/twemoji/tree/v14.0.2/assets/svg
+License: https://creativecommons.org/licenses/by/4.0/
+
+Kenney Particle Pack 1.1
+By Kenney Vleugels, with filter-template contributors named in the packaged
+License.txt. Dedicated under Creative Commons Zero 1.0.
+Source: https://kenney.nl/assets/particle-pack
+
+Brackeys VFX bundle
+The packaged LICENSE & CREDITS.txt declares the bundle CC0 and credits Picster,
+Kenney, Thomas Iche, and CodeManu for its source assets.
+
+LeLu's Noise Pack
+The packaged readme by LeLu VFX permits use of its textures in hobby and
+commercial games without attribution.

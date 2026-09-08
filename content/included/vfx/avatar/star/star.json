@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:star",
+  "version": 1,
+  "name": "Star",
+  "description": "Bright star pupils that emphasize adoration, delight, or being deeply impressed.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/1",
+    "kind": "texture",
+    "region": "eyes",
+    "targetRole": "eye_iris",
+    "disableTargetRoles": [
+      "eye_highlight"
+    ],
+    "assetShape": "single_eye",
+    "applyMode": "overlay",
+    "animationConfig": {
+      "pulseScaleMin": 0.8,
+      "pulseScaleMax": 1.2,
+      "pulseCyclesPerSecond": 1.6
+    },
+    "lifetime": {
+      "kind": "duration",
+      "runEndBufferSec": 5
+    },
+    "image": "star.png"
+  },
+  "files": [
+    {
+      "path": "star.png",
+      "role": "image"
+    }
+  ]
+}

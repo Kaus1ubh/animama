@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:texture_sick_2",
+  "version": 1,
+  "name": "Texture Sick 2",
+  "description": "Uneasy face overlay variant for lingering disgust or stressed discomfort.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/1",
+    "kind": "texture",
+    "region": "full_face",
+    "targetRole": "face_skin",
+    "assetShape": "full_face",
+    "applyMode": "overlay",
+    "lifetime": {
+      "kind": "turns",
+      "turns": 3
+    },
+    "image": "texture_sick_2.png"
+  },
+  "files": [
+    {
+      "path": "texture_sick_2.png",
+      "role": "image"
+    }
+  ]
+}

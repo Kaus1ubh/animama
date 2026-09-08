@@ -1,0 +1,1373 @@
+{
+  "metadata": {
+    "version": 4.6,
+    "type": "Object",
+    "generator": "Animama particle VFX generator"
+  },
+  "geometries": [
+    {
+      "uuid": "animama-particle-vfx-billboard-geometry",
+      "type": "PlaneGeometry",
+      "width": 1,
+      "height": 1,
+      "widthSegments": 1,
+      "heightSegments": 1
+    }
+  ],
+  "materials": [
+    {
+      "uuid": "animama-kenney-ember-spark-png-additive-material",
+      "type": "MeshBasicMaterial",
+      "color": 16777215,
+      "map": "animama-kenney-ember-spark-png-texture",
+      "reflectivity": 1,
+      "refractionRatio": 0.98,
+      "blending": 2,
+      "side": 2,
+      "transparent": true,
+      "depthFunc": 3,
+      "depthTest": true,
+      "depthWrite": false,
+      "colorWrite": true,
+      "stencilWrite": false,
+      "stencilWriteMask": 255,
+      "stencilFunc": 519,
+      "stencilRef": 0,
+      "stencilFuncMask": 255,
+      "stencilFail": 7680,
+      "stencilZFail": 7680,
+      "stencilZPass": 7680
+    },
+    {
+      "uuid": "animama-kenney-fire-glow-png-additive-material",
+      "type": "MeshBasicMaterial",
+      "color": 16777215,
+      "map": "animama-kenney-fire-glow-png-texture",
+      "reflectivity": 1,
+      "refractionRatio": 0.98,
+      "blending": 2,
+      "side": 2,
+      "transparent": true,
+      "depthFunc": 3,
+      "depthTest": true,
+      "depthWrite": false,
+      "colorWrite": true,
+      "stencilWrite": false,
+      "stencilWriteMask": 255,
+      "stencilFunc": 519,
+      "stencilRef": 0,
+      "stencilFuncMask": 255,
+      "stencilFail": 7680,
+      "stencilZFail": 7680,
+      "stencilZPass": 7680
+    },
+    {
+      "uuid": "animama-kenney-flame-core-png-additive-material",
+      "type": "MeshBasicMaterial",
+      "color": 16777215,
+      "map": "animama-kenney-flame-core-png-texture",
+      "reflectivity": 1,
+      "refractionRatio": 0.98,
+      "blending": 2,
+      "side": 2,
+      "transparent": true,
+      "depthFunc": 3,
+      "depthTest": true,
+      "depthWrite": false,
+      "colorWrite": true,
+      "stencilWrite": false,
+      "stencilWriteMask": 255,
+      "stencilFunc": 519,
+      "stencilRef": 0,
+      "stencilFuncMask": 255,
+      "stencilFail": 7680,
+      "stencilZFail": 7680,
+      "stencilZPass": 7680
+    },
+    {
+      "uuid": "animama-kenney-flame-tongue-png-additive-material",
+      "type": "MeshBasicMaterial",
+      "color": 16777215,
+      "map": "animama-kenney-flame-tongue-png-texture",
+      "reflectivity": 1,
+      "refractionRatio": 0.98,
+      "blending": 2,
+      "side": 2,
+      "transparent": true,
+      "depthFunc": 3,
+      "depthTest": true,
+      "depthWrite": false,
+      "colorWrite": true,
+      "stencilWrite": false,
+      "stencilWriteMask": 255,
+      "stencilFunc": 519,
+      "stencilRef": 0,
+      "stencilFuncMask": 255,
+      "stencilFail": 7680,
+      "stencilZFail": 7680,
+      "stencilZPass": 7680
+    },
+    {
+      "uuid": "animama-kenney-smoke-wisp-png-normal-material",
+      "type": "MeshBasicMaterial",
+      "color": 16777215,
+      "map": "animama-kenney-smoke-wisp-png-texture",
+      "reflectivity": 1,
+      "refractionRatio": 0.98,
+      "blending": 1,
+      "side": 2,
+      "transparent": true,
+      "depthFunc": 3,
+      "depthTest": true,
+      "depthWrite": false,
+      "colorWrite": true,
+      "stencilWrite": false,
+      "stencilWriteMask": 255,
+      "stencilFunc": 519,
+      "stencilRef": 0,
+      "stencilFuncMask": 255,
+      "stencilFail": 7680,
+      "stencilZFail": 7680,
+      "stencilZPass": 7680
+    }
+  ],
+  "textures": [
+    {
+      "uuid": "animama-kenney-ember-spark-png-texture",
+      "name": "kenney-ember-spark.png",
+      "image": "animama-kenney-ember-spark-png-image",
+      "mapping": 300,
+      "channel": 0,
+      "repeat": [
+        1,
+        1
+      ],
+      "offset": [
+        0,
+        0
+      ],
+      "center": [
+        0,
+        0
+      ],
+      "rotation": 0,
+      "wrap": [
+        1001,
+        1001
+      ],
+      "format": 1023,
+      "internalFormat": null,
+      "type": 1009,
+      "colorSpace": "",
+      "minFilter": 1008,
+      "magFilter": 1006,
+      "anisotropy": 1,
+      "flipY": true,
+      "generateMipmaps": true,
+      "premultiplyAlpha": false,
+      "unpackAlignment": 4
+    },
+    {
+      "uuid": "animama-kenney-fire-glow-png-texture",
+      "name": "kenney-fire-glow.png",
+      "image": "animama-kenney-fire-glow-png-image",
+      "mapping": 300,
+      "channel": 0,
+      "repeat": [
+        1,
+        1
+      ],
+      "offset": [
+        0,
+        0
+      ],
+      "center": [
+        0,
+        0
+      ],
+      "rotation": 0,
+      "wrap": [
+        1001,
+        1001
+      ],
+      "format": 1023,
+      "internalFormat": null,
+      "type": 1009,
+      "colorSpace": "",
+      "minFilter": 1008,
+      "magFilter": 1006,
+      "anisotropy": 1,
+      "flipY": true,
+      "generateMipmaps": true,
+      "premultiplyAlpha": false,
+      "unpackAlignment": 4
+    },
+    {
+      "uuid": "animama-kenney-flame-core-png-texture",
+      "name": "kenney-flame-core.png",
+      "image": "animama-kenney-flame-core-png-image",
+      "mapping": 300,
+      "channel": 0,
+      "repeat": [
+        1,
+        1
+      ],
+      "offset": [
+        0,
+        0
+      ],
+      "center": [
+        0,
+        0
+      ],
+      "rotation": 0,
+      "wrap": [
+        1001,
+        1001
+      ],
+      "format": 1023,
+      "internalFormat": null,
+      "type": 1009,
+      "colorSpace": "",
+      "minFilter": 1008,
+      "magFilter": 1006,
+      "anisotropy": 1,
+      "flipY": true,
+      "generateMipmaps": true,
+      "premultiplyAlpha": false,
+      "unpackAlignment": 4
+    },
+    {
+      "uuid": "animama-kenney-flame-tongue-png-texture",
+      "name": "kenney-flame-tongue.png",
+      "image": "animama-kenney-flame-tongue-png-image",
+      "mapping": 300,
+      "channel": 0,
+      "repeat": [
+        1,
+        1
+      ],
+      "offset": [
+        0,
+        0
+      ],
+      "center": [
+        0,
+        0
+      ],
+      "rotation": 0,
+      "wrap": [
+        1001,
+        1001
+      ],
+      "format": 1023,
+      "internalFormat": null,
+      "type": 1009,
+      "colorSpace": "",
+      "minFilter": 1008,
+      "magFilter": 1006,
+      "anisotropy": 1,
+      "flipY": true,
+      "generateMipmaps": true,
+      "premultiplyAlpha": false,
+      "unpackAlignment": 4
+    },
+    {
+      "uuid": "animama-kenney-smoke-wisp-png-texture",
+      "name": "kenney-smoke-wisp.png",
+      "image": "animama-kenney-smoke-wisp-png-image",
+      "mapping": 300,
+      "channel": 0,
+      "repeat": [
+        1,
+        1
+      ],
+      "offset": [
+        0,
+        0
+      ],
+      "center": [
+        0,
+        0
+      ],
+      "rotation": 0,
+      "wrap": [
+        1001,
+        1001
+      ],
+      "format": 1023,
+      "internalFormat": null,
+      "type": 1009,
+      "colorSpace": "",
+      "minFilter": 1008,
+      "magFilter": 1006,
+      "anisotropy": 1,
+      "flipY": true,
+      "generateMipmaps": true,
+      "premultiplyAlpha": false,
+      "unpackAlignment": 4
+    }
+  ],
+  "images": [
+    {
+      "uuid": "animama-kenney-ember-spark-png-image",
+      "url": "textures/kenney-ember-spark.png"
+    },
+    {
+      "uuid": "animama-kenney-fire-glow-png-image",
+      "url": "textures/kenney-fire-glow.png"
+    },
+    {
+      "uuid": "animama-kenney-flame-core-png-image",
+      "url": "textures/kenney-flame-core.png"
+    },
+    {
+      "uuid": "animama-kenney-flame-tongue-png-image",
+      "url": "textures/kenney-flame-tongue.png"
+    },
+    {
+      "uuid": "animama-kenney-smoke-wisp-png-image",
+      "url": "textures/kenney-smoke-wisp.png"
+    }
+  ],
+  "object": {
+    "uuid": "animama-flame-loop-group",
+    "type": "Group",
+    "name": "Flame Loop",
+    "layers": 1,
+    "matrix": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    "up": [
+      0,
+      1,
+      0
+    ],
+    "children": [
+      {
+        "uuid": "animama-flame-loop-flame-base-glow-emitter",
+        "type": "ParticleEmitter",
+        "name": "flame-base-glow",
+        "layers": 1,
+        "matrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          -0.08,
+          0,
+          1
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "ps": {
+          "version": "3.0",
+          "autoDestroy": false,
+          "looping": true,
+          "prewarm": true,
+          "duration": 1.4,
+          "shape": {
+            "type": "sphere",
+            "radius": 0.06,
+            "arc": 6.283185307179586,
+            "thickness": 1,
+            "mode": 0,
+            "spread": 0,
+            "speed": {
+              "type": "ConstantValue",
+              "value": 1
+            }
+          },
+          "startLife": {
+            "type": "IntervalValue",
+            "a": 0.8,
+            "b": 1.25
+          },
+          "startSpeed": {
+            "type": "IntervalValue",
+            "a": 0,
+            "b": 0.025
+          },
+          "startRotation": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "startSize": {
+            "type": "IntervalValue",
+            "a": 0.42,
+            "b": 0.62
+          },
+          "startColor": {
+            "type": "ConstantColor",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            }
+          },
+          "emissionOverTime": {
+            "type": "ConstantValue",
+            "value": 1.5
+          },
+          "emissionOverDistance": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "emissionBursts": [
+            {
+              "time": 0,
+              "count": {
+                "type": "ConstantValue",
+                "value": 1
+              },
+              "probability": 1,
+              "interval": 0.01,
+              "cycle": 1
+            }
+          ],
+          "onlyUsedByOther": false,
+          "instancingGeometry": "animama-particle-vfx-billboard-geometry",
+          "renderOrder": 16,
+          "renderMode": 0,
+          "rendererEmitterSettings": {},
+          "material": "animama-kenney-fire-glow-png-additive-material",
+          "layers": 1,
+          "startTileIndex": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "uTileCount": 1,
+          "vTileCount": 1,
+          "blendTiles": false,
+          "softParticles": false,
+          "softFarFade": 0,
+          "softNearFade": 0,
+          "behaviors": [
+            {
+              "type": "ForceOverLife",
+              "x": {
+                "type": "ConstantValue",
+                "value": 0
+              },
+              "y": {
+                "type": "ConstantValue",
+                "value": 0.035
+              },
+              "z": {
+                "type": "ConstantValue",
+                "value": 0
+              }
+            },
+            {
+              "type": "SizeOverLife",
+              "size": {
+                "type": "PiecewiseBezier",
+                "functions": [
+                  {
+                    "function": {
+                      "p0": 0.55,
+                      "p1": 1,
+                      "p2": 0.85,
+                      "p3": 0.25
+                    },
+                    "start": 0
+                  }
+                ]
+              }
+            },
+            {
+              "type": "ColorOverLife",
+              "color": {
+                "type": "Gradient",
+                "color": {
+                  "type": "CLinearFunction",
+                  "subType": "Color",
+                  "keys": [
+                    {
+                      "value": {
+                        "r": 1,
+                        "g": 0.58,
+                        "b": 0.16
+                      },
+                      "pos": 0
+                    },
+                    {
+                      "value": {
+                        "r": 1,
+                        "g": 0.22,
+                        "b": 0.08
+                      },
+                      "pos": 1
+                    }
+                  ]
+                },
+                "alpha": {
+                  "type": "CLinearFunction",
+                  "subType": "Number",
+                  "keys": [
+                    {
+                      "value": 0,
+                      "pos": 0
+                    },
+                    {
+                      "value": 0.65,
+                      "pos": 0.18
+                    },
+                    {
+                      "value": 0.45,
+                      "pos": 0.68
+                    },
+                    {
+                      "value": 0,
+                      "pos": 1
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "RotationOverLife",
+              "angularVelocity": {
+                "type": "IntervalValue",
+                "a": -0.35,
+                "b": 0.35
+              }
+            }
+          ],
+          "worldSpace": false
+        }
+      },
+      {
+        "uuid": "animama-flame-loop-flame-inner-core-emitter",
+        "type": "ParticleEmitter",
+        "name": "flame-inner-core",
+        "layers": 1,
+        "matrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          -0.08,
+          0,
+          1
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "ps": {
+          "version": "3.0",
+          "autoDestroy": false,
+          "looping": true,
+          "prewarm": true,
+          "duration": 1.05,
+          "shape": {
+            "type": "cone",
+            "radius": 0.08,
+            "arc": 6.283185307179586,
+            "thickness": 1,
+            "angle": 0.4,
+            "mode": 0,
+            "spread": 0,
+            "speed": {
+              "type": "ConstantValue",
+              "value": 1
+            }
+          },
+          "startLife": {
+            "type": "IntervalValue",
+            "a": 0.45,
+            "b": 0.72
+          },
+          "startSpeed": {
+            "type": "IntervalValue",
+            "a": 0.16,
+            "b": 0.32
+          },
+          "startRotation": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "startSize": {
+            "type": "IntervalValue",
+            "a": 0.14,
+            "b": 0.24
+          },
+          "startColor": {
+            "type": "ConstantColor",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            }
+          },
+          "emissionOverTime": {
+            "type": "ConstantValue",
+            "value": 18
+          },
+          "emissionOverDistance": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "emissionBursts": [],
+          "onlyUsedByOther": false,
+          "instancingGeometry": "animama-particle-vfx-billboard-geometry",
+          "renderOrder": 22,
+          "renderMode": 0,
+          "rendererEmitterSettings": {},
+          "material": "animama-kenney-flame-core-png-additive-material",
+          "layers": 1,
+          "startTileIndex": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "uTileCount": 1,
+          "vTileCount": 1,
+          "blendTiles": false,
+          "softParticles": false,
+          "softFarFade": 0,
+          "softNearFade": 0,
+          "behaviors": [
+            {
+              "type": "ForceOverLife",
+              "x": {
+                "type": "ConstantValue",
+                "value": 0
+              },
+              "y": {
+                "type": "ConstantValue",
+                "value": 0.24
+              },
+              "z": {
+                "type": "ConstantValue",
+                "value": 0
+              }
+            },
+            {
+              "type": "SizeOverLife",
+              "size": {
+                "type": "PiecewiseBezier",
+                "functions": [
+                  {
+                    "function": {
+                      "p0": 0.25,
+                      "p1": 1.05,
+                      "p2": 0.7,
+                      "p3": 0
+                    },
+                    "start": 0
+                  }
+                ]
+              }
+            },
+            {
+              "type": "ColorOverLife",
+              "color": {
+                "type": "Gradient",
+                "color": {
+                  "type": "CLinearFunction",
+                  "subType": "Color",
+                  "keys": [
+                    {
+                      "value": {
+                        "r": 1,
+                        "g": 0.95,
+                        "b": 0.58
+                      },
+                      "pos": 0
+                    },
+                    {
+                      "value": {
+                        "r": 1,
+                        "g": 0.52,
+                        "b": 0.14
+                      },
+                      "pos": 0.72
+                    },
+                    {
+                      "value": {
+                        "r": 1,
+                        "g": 0.28,
+                        "b": 0.08
+                      },
+                      "pos": 1
+                    }
+                  ]
+                },
+                "alpha": {
+                  "type": "CLinearFunction",
+                  "subType": "Number",
+                  "keys": [
+                    {
+                      "value": 0,
+                      "pos": 0
+                    },
+                    {
+                      "value": 1,
+                      "pos": 0.1
+                    },
+                    {
+                      "value": 0.78,
+                      "pos": 0.58
+                    },
+                    {
+                      "value": 0,
+                      "pos": 1
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "RotationOverLife",
+              "angularVelocity": {
+                "type": "IntervalValue",
+                "a": -2.6,
+                "b": 2.6
+              }
+            }
+          ],
+          "worldSpace": false
+        }
+      },
+      {
+        "uuid": "animama-flame-loop-flame-outer-tongues-emitter",
+        "type": "ParticleEmitter",
+        "name": "flame-outer-tongues",
+        "layers": 1,
+        "matrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          -0.1,
+          0,
+          1
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "ps": {
+          "version": "3.0",
+          "autoDestroy": false,
+          "looping": true,
+          "prewarm": true,
+          "duration": 1.2,
+          "shape": {
+            "type": "cone",
+            "radius": 0.13,
+            "arc": 6.283185307179586,
+            "thickness": 1,
+            "angle": 0.55,
+            "mode": 0,
+            "spread": 0,
+            "speed": {
+              "type": "ConstantValue",
+              "value": 1
+            }
+          },
+          "startLife": {
+            "type": "IntervalValue",
+            "a": 0.55,
+            "b": 0.9
+          },
+          "startSpeed": {
+            "type": "IntervalValue",
+            "a": 0.1,
+            "b": 0.22
+          },
+          "startRotation": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "startSize": {
+            "type": "IntervalValue",
+            "a": 0.2,
+            "b": 0.34
+          },
+          "startColor": {
+            "type": "ConstantColor",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            }
+          },
+          "emissionOverTime": {
+            "type": "ConstantValue",
+            "value": 12
+          },
+          "emissionOverDistance": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "emissionBursts": [],
+          "onlyUsedByOther": false,
+          "instancingGeometry": "animama-particle-vfx-billboard-geometry",
+          "renderOrder": 21,
+          "renderMode": 0,
+          "rendererEmitterSettings": {},
+          "material": "animama-kenney-flame-tongue-png-additive-material",
+          "layers": 1,
+          "startTileIndex": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "uTileCount": 1,
+          "vTileCount": 1,
+          "blendTiles": false,
+          "softParticles": false,
+          "softFarFade": 0,
+          "softNearFade": 0,
+          "behaviors": [
+            {
+              "type": "ForceOverLife",
+              "x": {
+                "type": "ConstantValue",
+                "value": 0
+              },
+              "y": {
+                "type": "ConstantValue",
+                "value": 0.18
+              },
+              "z": {
+                "type": "ConstantValue",
+                "value": 0
+              }
+            },
+            {
+              "type": "SizeOverLife",
+              "size": {
+                "type": "PiecewiseBezier",
+                "functions": [
+                  {
+                    "function": {
+                      "p0": 0.22,
+                      "p1": 1.1,
+                      "p2": 0.8,
+                      "p3": 0
+                    },
+                    "start": 0
+                  }
+                ]
+              }
+            },
+            {
+              "type": "ColorOverLife",
+              "color": {
+                "type": "Gradient",
+                "color": {
+                  "type": "CLinearFunction",
+                  "subType": "Color",
+                  "keys": [
+                    {
+                      "value": {
+                        "r": 1,
+                        "g": 0.64,
+                        "b": 0.18
+                      },
+                      "pos": 0
+                    },
+                    {
+                      "value": {
+                        "r": 1,
+                        "g": 0.28,
+                        "b": 0.08
+                      },
+                      "pos": 0.62
+                    },
+                    {
+                      "value": {
+                        "r": 0.72,
+                        "g": 0.05,
+                        "b": 0.02
+                      },
+                      "pos": 1
+                    }
+                  ]
+                },
+                "alpha": {
+                  "type": "CLinearFunction",
+                  "subType": "Number",
+                  "keys": [
+                    {
+                      "value": 0,
+                      "pos": 0
+                    },
+                    {
+                      "value": 0.86,
+                      "pos": 0.12
+                    },
+                    {
+                      "value": 0.55,
+                      "pos": 0.66
+                    },
+                    {
+                      "value": 0,
+                      "pos": 1
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "RotationOverLife",
+              "angularVelocity": {
+                "type": "IntervalValue",
+                "a": -3.2,
+                "b": 3.2
+              }
+            }
+          ],
+          "worldSpace": false
+        }
+      },
+      {
+        "uuid": "animama-flame-loop-flame-embers-emitter",
+        "type": "ParticleEmitter",
+        "name": "flame-embers",
+        "layers": 1,
+        "matrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0.02,
+          0,
+          1
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "ps": {
+          "version": "3.0",
+          "autoDestroy": false,
+          "looping": true,
+          "prewarm": true,
+          "duration": 1.15,
+          "shape": {
+            "type": "cone",
+            "radius": 0.16,
+            "arc": 6.283185307179586,
+            "thickness": 1,
+            "angle": 0.62,
+            "mode": 0,
+            "spread": 0,
+            "speed": {
+              "type": "ConstantValue",
+              "value": 1
+            }
+          },
+          "startLife": {
+            "type": "IntervalValue",
+            "a": 0.45,
+            "b": 0.9
+          },
+          "startSpeed": {
+            "type": "IntervalValue",
+            "a": 0.28,
+            "b": 0.55
+          },
+          "startRotation": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "startSize": {
+            "type": "IntervalValue",
+            "a": 0.025,
+            "b": 0.055
+          },
+          "startColor": {
+            "type": "ConstantColor",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            }
+          },
+          "emissionOverTime": {
+            "type": "ConstantValue",
+            "value": 8
+          },
+          "emissionOverDistance": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "emissionBursts": [],
+          "onlyUsedByOther": false,
+          "instancingGeometry": "animama-particle-vfx-billboard-geometry",
+          "renderOrder": 24,
+          "renderMode": 1,
+          "rendererEmitterSettings": {
+            "speedFactor": 0.02,
+            "lengthFactor": 1.75
+          },
+          "material": "animama-kenney-ember-spark-png-additive-material",
+          "layers": 1,
+          "startTileIndex": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "uTileCount": 1,
+          "vTileCount": 1,
+          "blendTiles": false,
+          "softParticles": false,
+          "softFarFade": 0,
+          "softNearFade": 0,
+          "behaviors": [
+            {
+              "type": "ForceOverLife",
+              "x": {
+                "type": "ConstantValue",
+                "value": 0
+              },
+              "y": {
+                "type": "ConstantValue",
+                "value": 0.35
+              },
+              "z": {
+                "type": "ConstantValue",
+                "value": 0
+              }
+            },
+            {
+              "type": "SizeOverLife",
+              "size": {
+                "type": "PiecewiseBezier",
+                "functions": [
+                  {
+                    "function": {
+                      "p0": 0.35,
+                      "p1": 1,
+                      "p2": 0.65,
+                      "p3": 0
+                    },
+                    "start": 0
+                  }
+                ]
+              }
+            },
+            {
+              "type": "ColorOverLife",
+              "color": {
+                "type": "Gradient",
+                "color": {
+                  "type": "CLinearFunction",
+                  "subType": "Color",
+                  "keys": [
+                    {
+                      "value": {
+                        "r": 1,
+                        "g": 0.85,
+                        "b": 0.28
+                      },
+                      "pos": 0
+                    },
+                    {
+                      "value": {
+                        "r": 1,
+                        "g": 0.34,
+                        "b": 0.08
+                      },
+                      "pos": 1
+                    }
+                  ]
+                },
+                "alpha": {
+                  "type": "CLinearFunction",
+                  "subType": "Number",
+                  "keys": [
+                    {
+                      "value": 0,
+                      "pos": 0
+                    },
+                    {
+                      "value": 1,
+                      "pos": 0.08
+                    },
+                    {
+                      "value": 0.88,
+                      "pos": 0.58
+                    },
+                    {
+                      "value": 0,
+                      "pos": 1
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "RotationOverLife",
+              "angularVelocity": {
+                "type": "IntervalValue",
+                "a": -5,
+                "b": 5
+              }
+            }
+          ],
+          "worldSpace": false
+        }
+      },
+      {
+        "uuid": "animama-flame-loop-flame-smoke-wisps-emitter",
+        "type": "ParticleEmitter",
+        "name": "flame-smoke-wisps",
+        "layers": 1,
+        "matrix": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0.16,
+          -0.01,
+          1
+        ],
+        "up": [
+          0,
+          1,
+          0
+        ],
+        "ps": {
+          "version": "3.0",
+          "autoDestroy": false,
+          "looping": true,
+          "prewarm": true,
+          "duration": 1.8,
+          "shape": {
+            "type": "cone",
+            "radius": 0.16,
+            "arc": 6.283185307179586,
+            "thickness": 1,
+            "angle": 0.45,
+            "mode": 0,
+            "spread": 0,
+            "speed": {
+              "type": "ConstantValue",
+              "value": 1
+            }
+          },
+          "startLife": {
+            "type": "IntervalValue",
+            "a": 1.15,
+            "b": 1.8
+          },
+          "startSpeed": {
+            "type": "IntervalValue",
+            "a": 0.05,
+            "b": 0.13
+          },
+          "startRotation": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "startSize": {
+            "type": "IntervalValue",
+            "a": 0.16,
+            "b": 0.34
+          },
+          "startColor": {
+            "type": "ConstantColor",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            }
+          },
+          "emissionOverTime": {
+            "type": "ConstantValue",
+            "value": 2.2
+          },
+          "emissionOverDistance": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "emissionBursts": [],
+          "onlyUsedByOther": false,
+          "instancingGeometry": "animama-particle-vfx-billboard-geometry",
+          "renderOrder": 18,
+          "renderMode": 0,
+          "rendererEmitterSettings": {},
+          "material": "animama-kenney-smoke-wisp-png-normal-material",
+          "layers": 1,
+          "startTileIndex": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "uTileCount": 1,
+          "vTileCount": 1,
+          "blendTiles": false,
+          "softParticles": false,
+          "softFarFade": 0,
+          "softNearFade": 0,
+          "behaviors": [
+            {
+              "type": "ForceOverLife",
+              "x": {
+                "type": "ConstantValue",
+                "value": 0
+              },
+              "y": {
+                "type": "ConstantValue",
+                "value": 0.1
+              },
+              "z": {
+                "type": "ConstantValue",
+                "value": 0
+              }
+            },
+            {
+              "type": "SizeOverLife",
+              "size": {
+                "type": "PiecewiseBezier",
+                "functions": [
+                  {
+                    "function": {
+                      "p0": 0.35,
+                      "p1": 0.85,
+                      "p2": 1.1,
+                      "p3": 0
+                    },
+                    "start": 0
+                  }
+                ]
+              }
+            },
+            {
+              "type": "ColorOverLife",
+              "color": {
+                "type": "Gradient",
+                "color": {
+                  "type": "CLinearFunction",
+                  "subType": "Color",
+                  "keys": [
+                    {
+                      "value": {
+                        "r": 0.58,
+                        "g": 0.54,
+                        "b": 0.5
+                      },
+                      "pos": 0
+                    },
+                    {
+                      "value": {
+                        "r": 0.42,
+                        "g": 0.38,
+                        "b": 0.34
+                      },
+                      "pos": 1
+                    }
+                  ]
+                },
+                "alpha": {
+                  "type": "CLinearFunction",
+                  "subType": "Number",
+                  "keys": [
+                    {
+                      "value": 0,
+                      "pos": 0
+                    },
+                    {
+                      "value": 0.28,
+                      "pos": 0.18
+                    },
+                    {
+                      "value": 0.18,
+                      "pos": 0.62
+                    },
+                    {
+                      "value": 0,
+                      "pos": 1
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "RotationOverLife",
+              "angularVelocity": {
+                "type": "IntervalValue",
+                "a": -0.7,
+                "b": 0.7
+              }
+            }
+          ],
+          "worldSpace": false
+        }
+      }
+    ]
+  }
+}

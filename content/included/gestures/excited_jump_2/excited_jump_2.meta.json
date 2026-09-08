@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:excited_jump_2",
+  "version": 1,
+  "semantic_key": "excited_jump_2",
+  "name": "excited_jump_2",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "excited_jump_2.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

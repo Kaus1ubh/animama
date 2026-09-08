@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:arms-crossed",
+  "version": 1,
+  "semantic_key": "arms-crossed",
+  "name": "arms-crossed",
+  "ai_description": "Reusable avatar pose clip",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "arms-crossed.json",
+      "role": "sequence"
+    }
+  ]
+}

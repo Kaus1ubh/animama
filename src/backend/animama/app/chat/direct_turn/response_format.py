@@ -1,0 +1,68 @@
+from __future__ import annotations
+
+from typing import Any
+
+from pydantic import BaseModel
+
+from animama.app.chat.memory_context import MAIN_STRUCTURED_OUTPUT_GUIDANCE
+from animama.app.main_structured_response import (
+    MAIN_STRUCTURED_RESPONSE_FORMAT,
+    build_main_structured_prompt,
+    build_main_structured_response_json_schema,
+)
+from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
+from animama.domain import ModelProvider
+
+from ..options import DirectChatOptions
+
+
+def build_main_structured_response_format(
+    output_type: type[BaseModel],
+    *,
+    name: str,
+) -> dict[str, Any]:
+    """Build the OpenAI-compatible strict JSON schema response_format."""
+
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": name,
+            "strict": True,
+            "schema": build_main_structured_response_json_schema(output_type),
+        },
+    }
+
+
+def main_structured_response_guidance(
+    model_provider: ModelProvider,
+    output_type: type[BaseModel],
+) -> str:
+    """Return prompt guidance matching the selected provider row's transport."""
+
+    guidance = MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()
+    if model_provider.capabilities.structured_output_transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT:
+        return "\n\n".join((guidance, build_main_structured_prompt(output_type).strip()))
+    return guidance
+
+
+def response_model_agent_id(node_id: str) -> str:
+    return "".join(char if char.isalnum() else "_" for char in node_id).strip("_") or "direct_chat"
+
+
+def turn_response_format(request_options: DirectChatOptions) -> str:
+    _ = request_options
+    return MAIN_STRUCTURED_RESPONSE_FORMAT
+
+
+def turn_response_schema_name(request_options: DirectChatOptions) -> str:
+    _ = request_options
+    return "direct_chat_main_response"
+
+
+__all__ = [
+    "build_main_structured_response_format",
+    "main_structured_response_guidance",
+    "response_model_agent_id",
+    "turn_response_format",
+    "turn_response_schema_name",
+]

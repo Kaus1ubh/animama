@@ -1,0 +1,70 @@
+name: Portable product validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portable-product-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  portable-product:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          lfs: true
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "24.15.0"
+          package-manager-cache: false
+      - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
+        with:
+          version: "0.11.28"
+      - run: npm install --global pnpm@10.33.0
+      - run: uv sync --frozen --python 3.12.13 --extra server
+      - run: pnpm install --frozen-lockfile
+        working-directory: src/frontend
+      - name: Check shared import and boundary tooling regressions
+        run: |
+          uv run --no-sync python scripts/repository-boundary/audit-classification.py --check
+          uv run --no-sync python scripts/repository-boundary/build-provenance.py --check
+          uv run --no-sync python scripts/repository-boundary/check-python-imports.py
+          uv run --no-sync python -m unittest discover -s scripts/repository-boundary -p 'test_*.py'
+          git lfs fsck
+      - name: Check and test browser, gateway and desktop source
+        working-directory: src/frontend
+        run: |
+          pnpm check
+          pnpm packages:check
+          pnpm packages:test
+          pnpm web:lint
+          pnpm web:test
+          pnpm server:test
+          pnpm desktop:test
+          pnpm build
+      - name: Build unpublished distribution artifacts
+        run: |
+          uv build --wheel --out-dir "$RUNNER_TEMP/public-artifacts"
+          pnpm --dir src/frontend packages:pack --destination "$RUNNER_TEMP/public-artifacts"
+      - name: Install the isolated browser test runtime
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: src/frontend
+      - name: Verify consumers without a source checkout
+        run: |
+          uv run --no-sync python scripts/repository-boundary/check-packed-artifacts.py \
+            "$RUNNER_TEMP/public-artifacts" \
+            --work-dir "$RUNNER_TEMP/public-consumer"
+      - name: Check Compose structure
+        run: |
+          bash -n reset.sh
+          docker compose config --quiet

@@ -1,0 +1,175 @@
+@custom-variant dark (&:is(.dark *));
+
+.pointer-events-none-deep,
+.pointer-events-none-deep * {
+  pointer-events: none !important;
+}
+
+[data-animama-pip="true"] {
+  background: transparent !important;
+}
+
+[data-animama-quick-chat="true"] {
+  background: transparent !important;
+}
+
+[data-animama-quick-chat="true"] [data-slot="dialog-overlay"] {
+  background: transparent !important;
+  backdrop-filter: none !important;
+}
+
+.anima-pip-drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.anima-pip-no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+@keyframes scene-vfx-marquee-shift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(
+      var(--scene-vfx-marquee-translate-x, 0px),
+      var(--scene-vfx-marquee-translate-y, 0px),
+      0
+    );
+  }
+}
+
+@keyframes scene-vfx-focus-lines-flicker {
+  0%,
+  18%,
+  100% {
+    opacity: 0;
+  }
+  24%,
+  72% {
+    opacity: var(--scene-vfx-focus-line-opacity, 1);
+  }
+  80% {
+    opacity: calc(var(--scene-vfx-focus-line-opacity, 1) * 0.45);
+  }
+}
+
+@property --shine-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes shine {
+  to {
+    --shine-angle: 360deg;
+  }
+}
+
+.sidebar-scrollbar-hover {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.sidebar-scrollbar-hover:hover {
+  scrollbar-color: hsl(var(--sidebar-foreground) / 0.28) transparent;
+}
+
+.sidebar-scrollbar-hover::-webkit-scrollbar {
+  width: 10px;
+}
+
+.sidebar-scrollbar-hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scrollbar-hover::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background-clip: padding-box;
+}
+
+.sidebar-scrollbar-hover:hover::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--sidebar-foreground) / 0.28);
+}
+
+.anima-identity-scrollbar {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.anima-identity-scrollbar:hover {
+  scrollbar-color: color-mix(in oklab, var(--muted-foreground) 45%, transparent)
+    transparent;
+}
+
+.anima-identity-scrollbar::-webkit-scrollbar {
+  width: 10px;
+}
+
+.anima-identity-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.anima-identity-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border: 3px solid transparent;
+  border-radius: 9999px;
+  background-clip: padding-box;
+}
+
+.anima-identity-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: color-mix(
+    in oklab,
+    var(--muted-foreground) 45%,
+    transparent
+  );
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    font-size: 18px;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-weight: 600;
+  }
+
+  :where(button, [role="button"], a[href], summary, select):not(:disabled):not(
+      [aria-disabled="true"]
+    ) {
+    cursor: pointer;
+  }
+
+  :where(
+    input:not([type]),
+    input[type="email"],
+    input[type="number"],
+    input[type="password"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="text"],
+    input[type="url"],
+    textarea,
+    [contenteditable="true"],
+    [contenteditable="plaintext-only"]
+  ) {
+    cursor: text;
+  }
+
+  :where(button, input, textarea, select):disabled,
+  :where([aria-disabled="true"], [data-disabled]) {
+    cursor: not-allowed;
+  }
+}
+
+/* For response component: https://ui.elevenlabs.io/docs/components/response */
+@source "../../node_modules/streamdown/dist/*.js";

@@ -1,0 +1,274 @@
+export const queryKeys = {
+  runtimeCapabilities: (ownerId: string) =>
+    ["runtime-capabilities", ownerId] as const,
+  animaCreation: {
+    all: (userId: string) => ["anima-creation", userId] as const,
+    options: (userId: string) =>
+      [...queryKeys.animaCreation.all(userId), "options"] as const,
+    list: (userId: string, kind: string) =>
+      [...queryKeys.animaCreation.all(userId), "list", kind] as const,
+    preview: (userId: string, kind: string, itemId: string, revision: string) =>
+      [
+        ...queryKeys.animaCreation.all(userId),
+        "preview",
+        kind,
+        itemId,
+        revision,
+      ] as const,
+    image: (userId: string, itemId: string, revision: string) =>
+      [
+        ...queryKeys.animaCreation.all(userId),
+        "image",
+        itemId,
+        revision,
+      ] as const,
+  },
+  userProfile: {
+    all: (userId: string) => ["user-profile", userId] as const,
+    current: (userId: string) =>
+      [...queryKeys.userProfile.all(userId), "current"] as const,
+  },
+  particleEffects: {
+    all: (userId: string) => ["particle-effects", userId] as const,
+    list: (userId: string, query: string, origin: string, sort = "updated") =>
+      [
+        ...queryKeys.particleEffects.all(userId),
+        "list",
+        query,
+        origin,
+        sort,
+      ] as const,
+    detail: (userId: string, itemId: string) =>
+      [...queryKeys.particleEffects.all(userId), "detail", itemId] as const,
+  },
+  soundEffects: {
+    all: (userId: string) => ["sound-effects", userId] as const,
+    list: (userId: string, query: string, origin: string, sort = "updated") =>
+      [
+        ...queryKeys.soundEffects.all(userId),
+        "list",
+        query,
+        origin,
+        sort,
+      ] as const,
+    detail: (userId: string, itemId: string) =>
+      [...queryKeys.soundEffects.all(userId), "detail", itemId] as const,
+  },
+  avatarEffects: {
+    all: (userId: string) => ["avatar-effects", userId] as const,
+    list: (userId: string, query: string, origin: string, sort = "updated") =>
+      [
+        ...queryKeys.avatarEffects.all(userId),
+        "list",
+        query,
+        origin,
+        sort,
+      ] as const,
+    detail: (userId: string, itemId: string) =>
+      [...queryKeys.avatarEffects.all(userId), "detail", itemId] as const,
+  },
+  sceneEffects: {
+    all: (userId: string) => ["scene-effects", userId] as const,
+    detail: (userId: string, itemId: string) =>
+      [...queryKeys.sceneEffects.all(userId), "detail", itemId] as const,
+  },
+  actionComponentPreviews: {
+    bundle: (userId: string, digest: string) =>
+      ["action-component-previews", userId, "bundle", digest] as const,
+  },
+  gestures: {
+    all: (userId: string) => ["gestures", userId] as const,
+    detail: (userId: string, itemId: string) =>
+      [...queryKeys.gestures.all(userId), "detail", itemId] as const,
+    list: (
+      userId: string,
+      query: string,
+      origin: string,
+      sort = "name",
+      implementationKind = "all",
+    ) =>
+      [
+        ...queryKeys.gestures.all(userId),
+        "list",
+        query,
+        origin,
+        sort,
+        implementationKind,
+      ] as const,
+  },
+  reactions: {
+    all: (userId: string) => ["reactions", userId] as const,
+    detail: (userId: string, itemId: string) =>
+      [...queryKeys.reactions.all(userId), "detail", itemId] as const,
+    list: (userId: string, query: string, origin: string, sort = "name") =>
+      [
+        ...queryKeys.reactions.all(userId),
+        "list",
+        query,
+        origin,
+        sort,
+      ] as const,
+  },
+  idleStyles: {
+    all: (userId: string) => ["idle-styles", userId] as const,
+    detail: (userId: string, itemId: string) =>
+      [...queryKeys.idleStyles.all(userId), "detail", itemId] as const,
+    list: (userId: string, query: string, origin: string, sort = "name") =>
+      [
+        ...queryKeys.idleStyles.all(userId),
+        "list",
+        query,
+        origin,
+        sort,
+      ] as const,
+  },
+  musicTracks: {
+    all: (userId: string) => ["music-tracks", userId] as const,
+    detail: (userId: string, itemId: string) =>
+      [...queryKeys.musicTracks.all(userId), "detail", itemId] as const,
+    list: (userId: string, query: string, origin: string, sort = "name") =>
+      [
+        ...queryKeys.musicTracks.all(userId),
+        "list",
+        query,
+        origin,
+        sort,
+      ] as const,
+  },
+  appearanceImages: {
+    all: (userId: string) => ["appearance-images", userId] as const,
+    list: (userId: string) =>
+      [...queryKeys.appearanceImages.all(userId), "list"] as const,
+    preview: (userId: string, releaseId: string, use: string) =>
+      [
+        ...queryKeys.appearanceImages.all(userId),
+        "preview",
+        releaseId,
+        use,
+      ] as const,
+  },
+  animaLoadouts: {
+    detail: (userId: string, animaId: string) =>
+      ["anima-loadout", userId, animaId] as const,
+    runtime: (userId: string, animaId: string) =>
+      ["anima-runtime", userId, animaId] as const,
+  },
+  avatars: {
+    all: (userId: string) => ["avatars", userId] as const,
+    list: (userId: string, includePrivate: boolean) =>
+      [...queryKeys.avatars.all(userId), "list", includePrivate] as const,
+    releases: (userId: string, avatarId: string) =>
+      [...queryKeys.avatars.all(userId), "releases", avatarId] as const,
+  },
+  avatarCatalog: {
+    all: (userId: string) => ["avatar-catalog", userId] as const,
+    list: (userId: string, query: string, origin: string, sort: string) =>
+      ["avatar-catalog", userId, "list", query, origin, sort] as const,
+  },
+  modelProviders: {
+    all: (userId: string) => ["model-providers", userId] as const,
+  },
+  userFiles: {
+    all: (userId: string) => ["user-files", userId] as const,
+    list: (userId: string) =>
+      [...queryKeys.userFiles.all(userId), "list"] as const,
+  },
+  content: {
+    all: (userId: string) => ["content", userId] as const,
+    catalog: (userId: string) =>
+      [...queryKeys.content.all(userId), "catalog"] as const,
+  },
+  memoryEntries: {
+    all: (userId: string) => ["memory-entries", userId] as const,
+    list: (
+      userId: string,
+      opts?: {
+        animaId?: string | null;
+        parentId?: string | null;
+        recursive?: boolean;
+      },
+    ) =>
+      [
+        ...queryKeys.memoryEntries.all(userId),
+        "list",
+        opts?.animaId ?? "__user__",
+        opts?.parentId ?? "__root__",
+        opts?.recursive === true ? 1 : 0,
+      ] as const,
+    detail: (userId: string, entryId: string) =>
+      [...queryKeys.memoryEntries.all(userId), "detail", entryId] as const,
+    versions: (userId: string, entryId: string) =>
+      [...queryKeys.memoryEntries.all(userId), "versions", entryId] as const,
+    versionDetail: (userId: string, entryId: string, version: number) =>
+      [
+        ...queryKeys.memoryEntries.versions(userId, entryId),
+        "detail",
+        version,
+      ] as const,
+    byPath: (
+      userId: string,
+      opts: {
+        animaId?: string | null;
+        path: string;
+        type?: "file" | "directory";
+      },
+    ) =>
+      [
+        ...queryKeys.memoryEntries.all(userId),
+        "by-path",
+        opts.animaId ?? "__user__",
+        opts.path,
+        opts.type ?? "file",
+      ] as const,
+  },
+  memoryEpisodes: {
+    all: (userId: string) => ["memory-episodes", userId] as const,
+    list: (
+      userId: string,
+      opts?: {
+        status?: "pending" | "processed" | null;
+        limit?: number;
+      },
+    ) =>
+      [
+        ...queryKeys.memoryEpisodes.all(userId),
+        "list",
+        opts?.status ?? "__all__",
+        opts?.limit ?? 100,
+      ] as const,
+  },
+  memoryManager: {
+    all: (userId: string) => ["memory-manager", userId] as const,
+    current: (userId: string) =>
+      [...queryKeys.memoryManager.all(userId), "current"] as const,
+    run: (userId: string, runId: string) =>
+      [...queryKeys.memoryManager.all(userId), "run", runId] as const,
+  },
+  settings: {
+    all: (userId: string) => ["settings", userId] as const,
+    user: (userId: string) =>
+      [...queryKeys.settings.all(userId), "user"] as const,
+    anima: (userId: string, animaId: string) =>
+      [...queryKeys.settings.all(userId), "anima", animaId] as const,
+  },
+  animas: {
+    all: (userId: string) => ["animas", userId] as const,
+    list: (userId: string) =>
+      [...queryKeys.animas.all(userId), "list"] as const,
+    detail: (userId: string, id: string) =>
+      [...queryKeys.animas.all(userId), "detail", id] as const,
+  },
+  chats: {
+    all: (userId: string) => ["chats", userId] as const,
+    detail: (userId: string, chatId: string) =>
+      [...queryKeys.chats.all(userId), "detail", chatId] as const,
+    list: (userId: string, opts?: { includeLastMessageAt?: boolean }) =>
+      [
+        ...queryKeys.chats.all(userId),
+        "list",
+        opts?.includeLastMessageAt === false ? 0 : 1,
+      ] as const,
+    messages: (userId: string, chatId: string) =>
+      [...queryKeys.chats.all(userId), "messages", chatId] as const,
+  },
+} as const;

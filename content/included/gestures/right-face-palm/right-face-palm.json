@@ -1,0 +1,188 @@
+{
+  "schema": "animaPoseClip/1.0",
+  "id": "right-face-palm",
+  "name": "right-face-palm",
+  "duration": 2.6,
+  "basePose": "right-face-palm",
+  "defaultTransition": {
+    "easing": "easeInOutSine",
+    "interpolation": {
+      "humanoidRotation": "slerp",
+      "humanoidPosition": "linear",
+      "expression": "linear"
+    }
+  },
+  "poses": {
+    "relaxedRest": {
+      "humanoid": {
+        "neck": {
+          "rotation": [0, 0, 0, 1]
+        },
+        "head": {
+          "rotation": [0, 0, 0, 1]
+        },
+        "rightShoulder": {
+          "rotation": [0, 0, 0.02394363, 0.99971331]
+        },
+        "rightUpperArm": {
+          "rotation": [-0.04933448, -0.06972919, 0.57546185, 0.81335577]
+        },
+        "rightLowerArm": {
+          "rotation": [0, 0.04701928, 0, 0.99889398]
+        },
+        "rightHand": {
+          "rotation": [0, 0, 0.05129017, 0.99868379]
+        },
+        "rightThumbMetacarpal": {
+          "rotation": [-0.02097527, -0.26531717, 0.07596894, 0.96093473]
+        },
+        "rightThumbProximal": {
+          "rotation": [0, 0, 0.06836354, 0.99766048]
+        },
+        "rightThumbDistal": {
+          "rotation": [0, 0, 0.05129017, 0.99868379]
+        }
+      },
+      "expressions": {
+        "surprised": 0,
+        "blinkLeft": 0,
+        "blinkRight": 0,
+        "sad": 0
+      }
+    },
+    "facePalmContact": {
+      "rotationOrder": "XYZ",
+      "humanoid": {
+        "neck": {
+          "rotationEulerDegrees": [13, 0, 0]
+        },
+        "head": {
+          "rotationEulerDegrees": [1, 0, 0]
+        },
+        "rightShoulder": {
+          "rotationEulerDegrees": [-4, -3, 5]
+        },
+        "rightHand": {
+          "rotationEulerDegrees": [0, -5, 3]
+        }
+      },
+      "expressions": {
+        "surprised": 0.45,
+        "blinkLeft": 0.82,
+        "blinkRight": 0.82,
+        "sad": 0.1
+      }
+    },
+    "facePalmShakeLeft": {
+      "rotationOrder": "XYZ",
+      "humanoid": {
+        "neck": {
+          "rotationEulerDegrees": [13, -2, 1]
+        },
+        "head": {
+          "rotationEulerDegrees": [2, -5, 2]
+        },
+        "rightShoulder": {
+          "rotationEulerDegrees": [-4, -4, 6]
+        },
+        "rightHand": {
+          "rotationEulerDegrees": [0, -6, 4]
+        }
+      },
+      "expressions": {
+        "surprised": 0.38,
+        "blinkLeft": 0.9,
+        "blinkRight": 0.9,
+        "sad": 0.16
+      }
+    },
+    "facePalmShakeRight": {
+      "rotationOrder": "XYZ",
+      "humanoid": {
+        "neck": {
+          "rotationEulerDegrees": [13, 2, -1]
+        },
+        "head": {
+          "rotationEulerDegrees": [2, 5, -2]
+        },
+        "rightShoulder": {
+          "rotationEulerDegrees": [-3, -2, 4]
+        },
+        "rightHand": {
+          "rotationEulerDegrees": [0, -4, 1]
+        }
+      },
+      "expressions": {
+        "surprised": 0.38,
+        "blinkLeft": 0.88,
+        "blinkRight": 0.88,
+        "sad": 0.16
+      }
+    },
+    "facePalmShakeSettle": {
+      "rotationOrder": "XYZ",
+      "humanoid": {
+        "neck": {
+          "rotationEulerDegrees": [13, -1, 0.5]
+        },
+        "head": {
+          "rotationEulerDegrees": [1, -3, 1]
+        },
+        "rightShoulder": {
+          "rotationEulerDegrees": [-4, -3, 5]
+        },
+        "rightHand": {
+          "rotationEulerDegrees": [0, -5, 3]
+        }
+      },
+      "expressions": {
+        "surprised": 0.42,
+        "blinkLeft": 0.84,
+        "blinkRight": 0.84,
+        "sad": 0.12
+      }
+    }
+  },
+  "poseKeyframes": [
+    {
+      "time": 0,
+      "pose": "relaxedRest"
+    },
+    {
+      "time": 0.6,
+      "pose": "facePalmContact",
+      "transition": {
+        "easing": "easeInOutSine"
+      }
+    },
+    {
+      "time": 0.95,
+      "pose": "facePalmShakeLeft",
+      "transition": {
+        "easing": "easeInOutSine"
+      }
+    },
+    {
+      "time": 1.28,
+      "pose": "facePalmShakeRight",
+      "transition": {
+        "easing": "easeInOutSine"
+      }
+    },
+    {
+      "time": 1.62,
+      "pose": "facePalmShakeSettle"
+    },
+    {
+      "time": 2.05,
+      "pose": "facePalmContact"
+    },
+    {
+      "time": 2.6,
+      "pose": "relaxedRest",
+      "transition": {
+        "easing": "easeInOutSine"
+      }
+    }
+  ]
+}

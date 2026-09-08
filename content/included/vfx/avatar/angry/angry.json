@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:angry",
+  "version": 1,
+  "name": "Angry",
+  "description": "Comic anger glyph that sharpens irritated, disapproving, or combative reactions.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/1",
+    "kind": "hover",
+    "region": "emote",
+    "hoverKind": "box_hover",
+    "placement": "forehead-left",
+    "transform": {
+      "scale": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 1
+      }
+    },
+    "animationConfig": {
+      "pulseScaleMin": 0.5,
+      "pulseScaleMax": 0.8,
+      "rotationRadiansPerSecond": 1.2,
+      "rotationAmountTurns": 0.03,
+      "rotationDirection": "clockwise"
+    },
+    "lifetime": {
+      "kind": "duration",
+      "runEndBufferSec": 5
+    },
+    "image": "angry.png"
+  },
+  "files": [
+    {
+      "path": "angry.png",
+      "role": "image"
+    }
+  ]
+}

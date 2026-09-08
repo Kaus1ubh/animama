@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:finger-heart-pose",
+  "version": 1,
+  "semantic_key": "finger-heart-pose",
+  "name": "finger-heart-pose",
+  "ai_description": "Reusable avatar pose clip",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "finger-heart-pose.json",
+      "role": "sequence"
+    }
+  ]
+}

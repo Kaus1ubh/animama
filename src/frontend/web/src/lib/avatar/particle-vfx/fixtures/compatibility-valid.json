@@ -1,0 +1,95 @@
+{
+  "metadata": {
+    "version": 4.6,
+    "type": "Object",
+    "generator": "Animama compatibility fixture"
+  },
+  "geometries": [
+    {
+      "uuid": "fixture-geometry",
+      "type": "PlaneGeometry",
+      "width": 1,
+      "height": 1
+    }
+  ],
+  "materials": [
+    {
+      "uuid": "fixture-material",
+      "type": "MeshBasicMaterial",
+      "color": 16777215,
+      "transparent": true
+    }
+  ],
+  "textures": [],
+  "images": [],
+  "object": {
+    "uuid": "fixture-root",
+    "type": "Group",
+    "children": [
+      {
+        "uuid": "fixture-emitter",
+        "type": "ParticleEmitter",
+        "ps": {
+          "version": "3.0",
+          "looping": false,
+          "duration": 0.5,
+          "shape": {
+            "type": "point"
+          },
+          "startLife": {
+            "type": "ConstantValue",
+            "value": 0.5
+          },
+          "startSpeed": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "startRotation": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "startSize": {
+            "type": "ConstantValue",
+            "value": 0.1
+          },
+          "startColor": {
+            "type": "ConstantColor",
+            "color": {
+              "r": 1,
+              "g": 1,
+              "b": 1,
+              "a": 1
+            }
+          },
+          "emissionOverTime": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "emissionOverDistance": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "emissionBursts": [
+            {
+              "time": 0,
+              "count": {
+                "type": "ConstantValue",
+                "value": 1
+              },
+              "cycle": 1
+            }
+          ],
+          "instancingGeometry": "fixture-geometry",
+          "material": "fixture-material",
+          "renderMode": 0,
+          "startTileIndex": {
+            "type": "ConstantValue",
+            "value": 0
+          },
+          "behaviors": []
+        },
+        "children": []
+      }
+    ]
+  }
+}

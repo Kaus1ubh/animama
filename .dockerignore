@@ -1,0 +1,99 @@
+src/letta/
+
+# Root Dockerfile builds backend images. Keep large frontend/legacy trees out of
+# that context, except the small catalogs the backend reads for prompt metadata.
+src/legacy/
+src/frontend/**
+!src/frontend/
+!src/frontend/web/
+!src/frontend/web/src/
+!src/frontend/web/src/assets/
+!src/frontend/web/src/assets/effects/
+!src/frontend/web/src/assets/effects/vfx/
+!src/frontend/web/src/assets/effects/vfx/catalog.json
+!src/frontend/web/src/assets/vrm/
+!src/frontend/web/src/assets/vrm/animations/
+!src/frontend/web/src/assets/vrm/animations/manifest.json
+cloud/
+parakeet-tdt-0.6b-v2/
+
+# Local caches (models, downloads, etc.)
+cache/
+
+# Database data directory
+db/data/
+db/pgadmin/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+src/agents/.venv/
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# Node modules (for web-ui)
+node_modules/
+.next/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.*
+.env.local
+.env.*.local
+
+# Test coverage
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+.sst/
+
+deprecated/
+
+.mypy_cache/
+.pnpm-store/
+.pytest_cache
+.ruff_cache
+.serena/cache
+.animama-logs/
+.animama/
+
+# CDK output (prevents recursive asset staging when building DockerImageAssets)
+cloud/cdk.out*/
+
+
+# sst
+.sst

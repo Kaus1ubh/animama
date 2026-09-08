@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:happy_walk",
+  "version": 1,
+  "semantic_key": "happy_walk",
+  "name": "happy_walk",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "happy_walk.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

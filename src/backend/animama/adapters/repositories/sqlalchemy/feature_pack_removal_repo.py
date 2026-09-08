@@ -1,0 +1,105 @@
+"""Reference and lease checks used before withdrawal and desktop pack removal."""
+
+import hashlib
+from datetime import datetime, timedelta
+
+from sqlalchemy import exists, select, text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from animama.domain.feature_packs import PackRemovalBlocker
+from animama.orm.anima import ORMAnima
+from animama.orm.anima_loadout import ORMAnimaRuntimeSnapshot
+from animama.orm.avatar import ORMAvatar
+from animama.orm.content_catalog import (
+    ORMAnimaContentBinding,
+    ORMContentCatalogDependency,
+    ORMContentCatalogItem,
+    ORMContentPreview,
+    ORMContentPreviewFile,
+)
+from animama.orm.user_file import ORMUserFile
+from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
+
+
+def _label(value: str) -> str:
+    return "".join(char for char in value if ord(char) >= 32 and ord(char) != 127)[:120]
+
+
+async def included_source_blockers(
+    session: AsyncSession, *, mount_ids: list[str], now: datetime, limit: int = 32
+) -> list[PackRemovalBlocker]:
+    """Check the same references for a user preflight and actual catalog withdrawal."""
+
+    ids = select(ORMContentCatalogItem.id).where(ORMContentCatalogItem.source_mount_id.in_(mount_ids))
+    checks = (
+        (
+            "anima_loadout",
+            select(ORMAnima.id, ORMAnima.display_name)
+            .join(ORMAnimaContentBinding, ORMAnimaContentBinding.anima_id == ORMAnima.id)
+            .where(ORMAnimaContentBinding.catalog_item_id.in_(ids))
+            .distinct(),
+        ),
+        ("anima_loadout", select(ORMAvatar.id, ORMAvatar.name).where(ORMAvatar.catalog_item_id.in_(ids))),
+        (
+            "anima_loadout",
+            select(ORMContentCatalogItem.id, ORMContentCatalogItem.display_name)
+            .join(ORMContentCatalogDependency, ORMContentCatalogDependency.item_id == ORMContentCatalogItem.id)
+            .where(ORMContentCatalogDependency.target_item_id.in_(ids), ORMContentCatalogDependency.item_id.not_in(ids))
+            .distinct(),
+        ),
+        (
+            "preview_lease",
+            select(ORMContentPreview.id)
+            .join(ORMContentPreviewFile)
+            .where(ORMContentPreview.expires_at > now, ORMContentPreviewFile.source_mount_id.in_(mount_ids))
+            .distinct(),
+        ),
+        (
+            "runtime_lease",
+            select(ORMAnimaRuntimeSnapshot.id).where(
+                ORMAnimaRuntimeSnapshot.expires_at > now,
+                exists(
+                    select(ORMContentCatalogItem.id).where(
+                        ORMContentCatalogItem.source_mount_id.in_(mount_ids),
+                        ORMAnimaRuntimeSnapshot.admitted_item_revisions.has_key(ORMContentCatalogItem.id),
+                    )
+                ),
+            ),
+        ),
+    )
+    blockers = {}
+    for kind, query in checks:
+        for row in await session.execute(query.order_by(text("1")).limit(limit)):
+            identifier = str(row[0])[:128]
+            blockers[(kind, identifier)] = PackRemovalBlocker(
+                kind, identifier, _label(str(row[1])) if len(row) > 1 else kind.replace("_", " ").capitalize()
+            )
+    return [blockers[key] for key in sorted(blockers)[:limit]]
+
+
+async def content_operations_idle(session: AsyncSession) -> bool:
+    """Never wait behind a scan/import while presenting it as a safe removal."""
+
+    for source in ("included", "local"):
+        key = int.from_bytes(hashlib.sha256(f"content-source:{source}".encode()).digest()[:8], "big", signed=True)
+        if not await session.scalar(text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": key}):
+            return False
+    return True
+
+
+async def document_job_blockers(
+    session: AsyncSession, *, now: datetime, lease_seconds: int
+) -> list[PackRemovalBlocker]:
+    """Queued work survives removal. A live, claimed job prevents removal."""
+
+    rows = await session.execute(
+        select(ORMUserFileProcessingJob.id, ORMUserFile.original_filename)
+        .join(ORMUserFile)
+        .where(
+            ORMUserFileProcessingJob.status == "running",
+            ORMUserFileProcessingJob.locked_at > now - timedelta(seconds=lease_seconds),
+        )
+        .order_by(ORMUserFileProcessingJob.id)
+        .limit(32)
+    )
+    return [PackRemovalBlocker("document_job", row.id[:128], _label(row.original_filename)) for row in rows]

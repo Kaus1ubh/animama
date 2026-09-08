@@ -1,0 +1,204 @@
+{
+  "uid": "animama-webui",
+  "title": "Anima Web UI",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "UI Interactions (range)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(increase(animama_webui_ui_interactions_total[$__range]))",
+          "legendFormat": "interactions",
+          "instant": true
+        }
+      ],
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 6 }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "SSE Starts (range)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(increase(animama_webui_sse_starts_total[$__range]))",
+          "legendFormat": "starts",
+          "instant": true
+        }
+      ],
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 6 }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "SSE Errors (range)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(increase(animama_webui_sse_errors_total[$__range]))",
+          "legendFormat": "errors",
+          "instant": true
+        }
+      ],
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 6 }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Active WS Connections",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(animama_webui_ws_active_connections)",
+          "legendFormat": "active",
+          "instant": true
+        }
+      ],
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 6 }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "UI Interactions / sec",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(animama_webui_ui_interactions_total[5m]))",
+          "legendFormat": "interactions/s"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "SSE Tokens / sec",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(animama_webui_sse_tokens_total[5m]))",
+          "legendFormat": "tokens/s"
+        }
+      ],
+      "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "SSE Duration p95",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(animama_webui_sse_duration_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 14, "w": 12, "h": 8 }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "WS Messages / sec",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(animama_webui_ws_messages_total[5m])) by (direction)",
+          "legendFormat": "{{direction}}"
+        }
+      ],
+      "gridPos": { "x": 12, "y": 14, "w": 12, "h": 8 }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Web Vital LCP p75",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.75, sum(rate(animama_webui_web_vital_lcp_bucket[5m])) by (le))",
+          "legendFormat": "LCP p75"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 22, "w": 8, "h": 8 }
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "Web Vital INP p75",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.75, sum(rate(animama_webui_web_vital_inp_bucket[5m])) by (le))",
+          "legendFormat": "INP p75"
+        }
+      ],
+      "gridPos": { "x": 8, "y": 22, "w": 8, "h": 8 }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Web Vital CLS p75",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.75, sum(rate(animama_webui_web_vital_cls_bucket[5m])) by (le))",
+          "legendFormat": "CLS p75"
+        }
+      ],
+      "gridPos": { "x": 16, "y": 22, "w": 8, "h": 8 }
+    },
+    {
+      "id": 12,
+      "type": "logs",
+      "title": "Web UI Client Logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "{service_name=\"animama-webui-client\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showTime": true,
+        "wrapLogMessage": true
+      },
+      "gridPos": { "x": 0, "y": 30, "w": 12, "h": 10 }
+    },
+    {
+      "id": 13,
+      "type": "logs",
+      "title": "Web UI Server Logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "{service_name=\"animama-webui\"}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "showTime": true,
+        "wrapLogMessage": true
+      },
+      "gridPos": { "x": 12, "y": 30, "w": 12, "h": 10 }
+    }
+  ]
+}

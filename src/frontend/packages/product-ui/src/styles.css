@@ -1,0 +1,10 @@
+@import "tailwindcss" source(none);
+@import "./theme.css";
+@source "./components";
+@source "../node_modules/streamdown/dist/*.js";
+
+/* Preserve the ordinary transcript wrapper while exposing a stable product surface. */
+.animama-chat-conversation {
+  display: block;
+  overflow-wrap: anywhere;
+}

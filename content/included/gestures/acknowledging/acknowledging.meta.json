@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:acknowledging",
+  "version": 1,
+  "semantic_key": "acknowledging",
+  "name": "acknowledging",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "acknowledging.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

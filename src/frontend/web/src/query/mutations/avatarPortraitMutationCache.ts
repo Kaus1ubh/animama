@@ -1,0 +1,18 @@
+import type { QueryClient } from "@tanstack/react-query";
+
+import { queryKeys } from "@/query/keys";
+
+/** Refresh Avatar metadata and every Anima surface that projects its portrait. */
+export async function invalidateAvatarPortraitPresentation(
+  queryClient: QueryClient,
+  userId: string,
+): Promise<void> {
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.avatars.all(userId),
+    }),
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.animas.all(userId),
+    }),
+  ]);
+}

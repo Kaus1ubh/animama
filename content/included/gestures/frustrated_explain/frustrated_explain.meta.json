@@ -1,0 +1,20 @@
+{
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:frustrated_explain",
+  "version": 1,
+  "semantic_key": "frustrated_explain",
+  "name": "Frustrated Explain",
+  "ai_description": "Explaining something while visibly frustrated.",
+  "schema_version": 1,
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "frustrated_explain.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

@@ -1,0 +1,3 @@
+# Rebuildable package outputs and unpublished tarballs.
+packages/*/dist/
+.artifacts/

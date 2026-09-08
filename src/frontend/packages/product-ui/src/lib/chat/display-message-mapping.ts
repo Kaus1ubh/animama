@@ -1,0 +1,103 @@
+import type { PyChatMessage } from "@animama/runtime-contracts/api-types";
+
+export type ChatDisplayMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  isPending?: boolean;
+  animateOnEnter?: boolean;
+  animateTextEffect?: boolean;
+  streamingSegments?: string[];
+};
+
+export function chatRunMessageId(
+  runId: string,
+  role: "user" | "assistant",
+  ordinal = 0,
+): string {
+  const base = `run-${runId}-${role}`;
+  return ordinal > 0 ? `${base}-${ordinal}` : base;
+}
+
+export function mapServerMessagesForDisplay(
+  messages: PyChatMessage[],
+): ChatDisplayMessage[] {
+  const messageIdCounts = new Map<string, number>();
+  const displayMessages: ChatDisplayMessage[] = [];
+
+  messages.forEach((message, index) => {
+    if (message.internal) return;
+
+    const role = message.role === "user" ? "user" : "assistant";
+    const structuredTexts =
+      role === "assistant" ? structuredAssistantTexts(message) : [];
+    const rawContent = message.content ?? "";
+    const texts = structuredTexts.length
+      ? structuredTexts
+      : rawContent.trim()
+        ? [rawContent]
+        : [];
+
+    texts.forEach((text) => {
+      displayMessages.push({
+        id: serverMessageDisplayId(message, role, index, messageIdCounts),
+        role,
+        text,
+      });
+    });
+  });
+
+  return displayMessages;
+}
+
+/**
+ * Restores the live SSE speech/display projection from one provider-shaped
+ * persisted assistant row. The history API keeps both values in
+ * `data.structured`, while its legacy `content` projection prefers display.
+ */
+function structuredAssistantTexts(message: PyChatMessage): string[] {
+  const structured = message.data?.structured;
+  if (
+    !structured ||
+    typeof structured !== "object" ||
+    Array.isArray(structured)
+  ) {
+    return [];
+  }
+
+  const structuredRecord = structured as Record<string, unknown>;
+  const speechValue = structuredRecord.speech;
+  const displayValue = structuredRecord.display;
+  const speech = typeof speechValue === "string" ? speechValue.trim() : "";
+  const display = typeof displayValue === "string" ? displayValue.trim() : "";
+  const texts = speech ? [speech] : [];
+
+  if (display && display !== speech) {
+    texts.push(display);
+  }
+
+  return texts;
+}
+
+function serverMessageDisplayId(
+  message: PyChatMessage,
+  role: "user" | "assistant",
+  index: number,
+  messageIdCounts: Map<string, number>,
+): string {
+  const runId = typeof message.run_id === "string" ? message.run_id.trim() : "";
+  if (runId) {
+    const countKey = `${runId}:${role}`;
+    const ordinal = messageIdCounts.get(countKey) ?? 0;
+    messageIdCounts.set(countKey, ordinal + 1);
+    return chatRunMessageId(runId, role, ordinal);
+  }
+
+  const idBase =
+    message.id ?? message.created_at ?? message.chat_id ?? `${role}-${index}`;
+  const base = `msg-${idBase}`;
+  const countKey = `persisted:${base}`;
+  const ordinal = messageIdCounts.get(countKey) ?? 0;
+  messageIdCounts.set(countKey, ordinal + 1);
+  return ordinal > 0 ? `${base}-${ordinal}` : base;
+}

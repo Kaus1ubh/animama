@@ -1,0 +1,3 @@
+interface:
+  display_name: "Improve Codebase Architecture — Full"
+  short_description: "Review all subsystems with resumable coverage"

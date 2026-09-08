@@ -1,0 +1,154 @@
+"""Local FastAPI composition root for desktop and self-hosted installations."""
+
+from __future__ import annotations
+
+import os
+
+from fastapi import FastAPI, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from animama.local.database import LocalDatabase
+from animama.local.gateway_principal import (
+    FailClosedLocalPrincipalResolver,
+    LocalGatewayPrincipalResolver,
+    load_internal_gateway_token,
+)
+from animama.logging_config import configure_logging
+from animama.server.config import Settings, settings
+from animama.server.content_startup import start_content_runtime, stop_content_runtime
+from animama.server.deps import get_async_session_factory
+from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
+from animama.server.local_runtime import initialize_local_runtime
+from animama.server.request_principal import RequestPrincipalResolver
+from animama.server.routers import router
+from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
+from animama.server.telemetry import setup_telemetry
+
+
+def create_local_app(
+    *,
+    runtime_settings: Settings | None = None,
+    principal_resolver: RequestPrincipalResolver | None = None,
+    internal_gateway_token: str | None = None,
+    session_factory: async_sessionmaker[AsyncSession] | None = None,
+) -> FastAPI:
+    """Create only the local accountless composition.
+
+    Product traffic stays fail-closed until startup loads the migration-owned
+    principal and the Hono-to-FastAPI credential.
+    """
+
+    local_settings = runtime_settings or settings
+    application = FastAPI(title="Animama Local Server", version="0.1.0")
+    application.state.runtime_settings = local_settings
+    database = LocalDatabase(local_settings) if session_factory is None else None
+    application.state.session_factory = session_factory
+    if database is not None:
+        application.state.session_factory_provider = database.session_factory
+    application.state.request_principal_resolver = (
+        principal_resolver if principal_resolver is not None else FailClosedLocalPrincipalResolver()
+    )
+    setup_telemetry(application, service_name="animama-server", service_version=application.version)
+
+    @application.get("/health")
+    async def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    application.include_router(router)
+    application.include_router(desktop_control_router)
+
+    @application.get("/_desktop/health", include_in_schema=False)
+    async def desktop_health(request: Request) -> dict[str, object]:
+        """Private supervisor readiness; Hono never forwards this control prefix."""
+
+        require_desktop_control(request)
+        state = getattr(application.state, "local_bootstrap_state", None)
+        if state is None or not state.content_ready:
+            raise HTTPException(status_code=503, detail="runtime_starting")
+        from alembic.script import ScriptDirectory
+        from animama.runtime.resources import alembic_config
+
+        return {
+            "schema_version": 1,
+            "runtime_version": application.version,
+            "build_id": os.getenv("ANIMAMA_DESKTOP_BUILD_ID", "development"),
+            "alembic_head": ScriptDirectory.from_config(alembic_config()).get_current_head(),
+            "installation_principal_id": state.principal_id,
+        }
+
+    @application.on_event("startup")
+    async def initialize_accountless_runtime() -> None:  # pragma: no cover - startup IO
+        """Validate local paths, require the principal, and ensure owner defaults."""
+
+        paths = initialize_local_runtime(local_settings)
+        application.state.local_runtime_paths = paths
+        bootstrap = create_local_installation_bootstrap_service(
+            session_factory=get_async_session_factory(application),
+            paths=paths,
+            settings=local_settings,
+        )
+        application.state.local_installation_bootstrap_service = bootstrap
+        state = await bootstrap.ensure()
+        application.state.local_bootstrap_state = state
+        if principal_resolver is None:
+            token = load_internal_gateway_token(
+                value=internal_gateway_token,
+                path=local_settings.animama_internal_token_file,
+            )
+            application.state.request_principal_resolver = LocalGatewayPrincipalResolver(
+                principal_id=state.principal_id,
+                internal_token=token,
+            )
+        await start_content_runtime(
+            application,
+            owner_id=state.principal_id,
+            perform_initial_scan=False,
+        )
+
+    @application.on_event("shutdown")
+    async def stop_accountless_runtime() -> None:  # pragma: no cover - startup IO
+        await stop_content_runtime(application)
+        if database is not None:
+            await database.close()
+
+    @application.on_event("startup")
+    async def configure_anima_logging() -> None:  # pragma: no cover - simple IO
+        try:
+            configure_logging()
+        except Exception:
+            pass
+
+    @application.on_event("startup")
+    async def init_model_clients() -> None:  # pragma: no cover - simple IO
+        try:
+            from animama.server.model_clients import init_model_client_registry
+
+            await init_model_client_registry(application)
+        except Exception:
+            application.state.model_client_registry = None
+
+    @application.on_event("shutdown")
+    async def close_model_clients() -> None:  # pragma: no cover - simple IO
+        try:
+            from animama.server.model_clients import close_model_client_registry
+
+            await close_model_client_registry(application)
+        except Exception:
+            pass
+
+    @application.on_event("startup")
+    async def init_voice_providers() -> None:  # pragma: no cover - simple IO
+        if os.getenv("ANIMAMA_ENABLE_VOICE"):
+            try:
+                from animama.server.voice_providers import ensure_voice_providers
+
+                await ensure_voice_providers()
+            except Exception:
+                pass
+
+    return application
+
+
+app = create_local_app()
+
+__all__ = ["app", "create_local_app"]

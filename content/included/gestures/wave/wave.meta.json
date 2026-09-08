@@ -1,0 +1,20 @@
+{
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:wave",
+  "version": 1,
+  "semantic_key": "wave",
+  "name": "Quick Wave",
+  "ai_description": "Use to greet someone or wave hello/goodbye.",
+  "schema_version": 1,
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "wave.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

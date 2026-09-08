@@ -1,0 +1,20 @@
+{
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:exclaim_frustrated",
+  "version": 1,
+  "semantic_key": "exclaim_frustrated",
+  "name": "Exclaim Frustrated",
+  "ai_description": "Use when the character expresses strong frustration.",
+  "schema_version": 1,
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "exclaim_frustrated.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

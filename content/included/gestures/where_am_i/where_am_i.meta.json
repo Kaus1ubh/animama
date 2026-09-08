@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:where_am_i",
+  "version": 1,
+  "semantic_key": "where_am_i",
+  "name": "where_am_i",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "where_am_i.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

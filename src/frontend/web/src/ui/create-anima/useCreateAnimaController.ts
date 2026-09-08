@@ -1,0 +1,736 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import type {
+  AnimaCreationDiagnostic,
+  AnimaCreationOptions,
+  AnimaSpecInput,
+  ItemRevisionRef,
+  PyTypedContentPreview,
+} from "@animama/runtime-contracts/sdk";
+import {
+  AnimaCreationApiError,
+  creationEvidence,
+  useAnimaCreationOperations,
+  useAnimaCreationSources,
+} from "@/query/hooks/useAnimaCreation";
+import { itemReference } from "./createAnimaContent";
+import {
+  canonicalJson,
+  createAnimaDraftReducer,
+  creationRoots,
+  draftIssues,
+  issueStep,
+  newCreateAnimaDraft,
+  reconcileCreationIssues,
+  submissionLocksEditing,
+  type CreateAnimaDraft,
+  type CreateAnimaDraftAction,
+  type CreationStep,
+  type DraftEdit,
+} from "./createAnimaDraft";
+import {
+  CreateAnimaDraftStorage,
+  CreationDraftConflict,
+  creationStorageKey,
+  type CreationRecord,
+} from "./createAnimaDraftStorage";
+import {
+  classifyCreationFailure,
+  freezeCreation,
+} from "./createAnimaSubmission";
+
+type Recovery = "loading" | "resume" | "appearance" | "corrupt" | "ready";
+type Validation = {
+  signature: string;
+  spec: AnimaSpecInput;
+  warnings: AnimaCreationDiagnostic[];
+};
+type Repair =
+  | { kind: "source"; preview: PyTypedContentPreview }
+  | { kind: "policy"; options: AnimaCreationOptions };
+
+/** Navigation and fresh evidence cannot invalidate a form revision; actual inputs can. */
+export function creationDraftSignature(draft: CreateAnimaDraft): string {
+  const inputs = Object.fromEntries(
+    Object.entries(draft).filter(
+      ([key]) =>
+        ![
+          "step",
+          "furthest_step",
+          "meaningful",
+          "evidence",
+          "submission",
+        ].includes(key),
+    ),
+  );
+  return canonicalJson(inputs);
+}
+
+const errorText = (error: unknown) =>
+  error instanceof Error
+    ? error.message
+    : "This operation could not be completed. Your draft has been preserved.";
+
+/** Own recovery and dispatch independently of rendering. No effect ever sends a creation POST. */
+export function useCreateAnimaController(
+  owner: string,
+  avatarHandoff?: string,
+) {
+  const [draft, setDraft] = useState(newCreateAnimaDraft);
+  const latest = useRef(draft);
+  latest.current = draft;
+  const store = useRef<CreateAnimaDraftStorage | null>(null);
+  const saved = useRef<CreationRecord | null>(null);
+  const [recovery, setRecovery] = useState<Recovery>("loading");
+  const [storageError, setStorageError] = useState<string | null>(null);
+  const [conflict, setConflict] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [issues, setIssues] = useState<AnimaCreationDiagnostic[]>([]);
+  const [validation, setValidation] = useState<Validation | null>(null);
+  const [completedId, setCompletedId] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [working, setWorking] = useState(false);
+  const [repair, setRepair] = useState<Repair | null>(null);
+  const [returnToReview, setReturnToReview] = useState(false);
+  const [focus, setFocus] = useState<{
+    target: string;
+    sequence: number;
+  } | null>(null);
+  const [focusErrors, setFocusErrors] = useState(0);
+  const inFlight = useRef(false);
+  const handoffApplied = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  const locked = submissionLocksEditing(draft);
+  const sources = useAnimaCreationSources(
+    recovery === "ready" && !locked && !completedId && !conflict,
+  );
+  const operations = useAnimaCreationOperations();
+  const resolve = operations.resolve;
+  const busy =
+    working ||
+    operations.validate.isPending ||
+    operations.create.isPending ||
+    operations.saveAvatar.isPending;
+  const identityLimit = Math.min(
+    32768,
+    sources.options.data?.limits.identity_max_bytes ?? 32768,
+  );
+  const displayNameLimit = Math.min(
+    40,
+    sources.options.data?.limits.display_name_max_characters ?? 40,
+  );
+
+  const storageFailure = useCallback((error: unknown) => {
+    setStorageError(errorText(error));
+    if (error instanceof CreationDraftConflict) setConflict(true);
+  }, []);
+  const persist = useCallback((next: CreateAnimaDraft) => {
+    if (!store.current)
+      throw new Error(
+        "Draft storage is unavailable. Enable browser storage before creating an Anima.",
+      );
+    store.current.save(next);
+    setStorageError(null);
+  }, []);
+  const update = useCallback(
+    (next: CreateAnimaDraft, save = true) => {
+      const previous = latest.current;
+      latest.current = next;
+      setDraft(next);
+      if (creationDraftSignature(previous) !== creationDraftSignature(next))
+        setIssues((current) =>
+          reconcileCreationIssues(
+            current,
+            previous,
+            next,
+            identityLimit,
+            displayNameLimit,
+          ),
+        );
+      if (save && (next.meaningful || next.submission)) {
+        try {
+          persist(next);
+        } catch (error) {
+          storageFailure(error);
+        }
+      }
+    },
+    [displayNameLimit, identityLimit, persist, storageFailure],
+  );
+  const dispatch = useCallback(
+    (action: CreateAnimaDraftAction) => {
+      if (inFlight.current || conflict) return;
+      update(createAnimaDraftReducer(latest.current, action));
+    },
+    [conflict, update],
+  );
+  const edit = useCallback(
+    (patch: DraftEdit) => {
+      dispatch({ type: "edit", patch });
+      setMessage(null);
+    },
+    [dispatch],
+  );
+
+  useEffect(() => {
+    try {
+      const storage = new CreateAnimaDraftStorage(
+        creationStorageKey(owner, window.location.origin),
+        window.localStorage,
+      );
+      store.current = storage;
+      const record = storage.read();
+      saved.current = record;
+      if (record?.kind === "complete") {
+        setCompletedId(record.anima_id);
+        setRecovery("ready");
+      } else if (
+        record?.kind === "draft" &&
+        submissionLocksEditing(record.draft)
+      ) {
+        // Restore the exact command before any mutable-source queries can run.
+        latest.current = record.draft;
+        setDraft(record.draft);
+        setRecovery("ready");
+      } else setRecovery(record ? "resume" : "ready");
+    } catch (error) {
+      storageFailure(error);
+      setRecovery(store.current ? "corrupt" : "ready");
+    }
+  }, [owner, storageFailure]);
+
+  useEffect(() => {
+    const changed = (event: StorageEvent) => {
+      if (
+        event.key === store.current?.key &&
+        store.current?.changedElsewhere()
+      ) {
+        setConflict(true);
+        setStorageError(
+          "This draft changed in another tab. Review the latest saved state before continuing.",
+        );
+      }
+    };
+    window.addEventListener("storage", changed);
+    return () => window.removeEventListener("storage", changed);
+  }, []);
+
+  useEffect(() => {
+    if (
+      recovery === "ready" &&
+      !locked &&
+      !conflict &&
+      !completedId &&
+      sources.options.data &&
+      !draft.starter_pack
+    )
+      dispatch({ type: "seed", options: sources.options.data });
+  }, [
+    completedId,
+    conflict,
+    dispatch,
+    draft.starter_pack,
+    locked,
+    recovery,
+    sources.options.data,
+  ]);
+
+  const chooseAvatar = useCallback(
+    async (source: ItemRevisionRef, meaningful = true) => {
+      const preview = await resolve("avatar", source, { fresh: true });
+      if (!alive.current || submissionLocksEditing(latest.current)) return;
+      if (preview.item.kind !== "avatar")
+        throw new Error("This source is not an Avatar.");
+      const next = createAnimaDraftReducer(latest.current, {
+        type: "avatar",
+        source,
+        evidence: creationEvidence(preview),
+        meaningful,
+      });
+      update(next);
+    },
+    [resolve, update],
+  );
+
+  useEffect(() => {
+    if (
+      handoffApplied.current ||
+      !avatarHandoff ||
+      recovery !== "ready" ||
+      locked ||
+      completedId ||
+      conflict
+    )
+      return;
+    // A saved draft always wins over a new Library URL hint.
+    handoffApplied.current = true;
+    if (latest.current.meaningful || latest.current.avatar) return;
+    setWorking(true);
+    void resolve(
+      "avatar",
+      { item_id: avatarHandoff, revision_sha256: "0".repeat(64) },
+      { fresh: true, acceptCurrent: true },
+    )
+      .then((preview) => chooseAvatar(itemReference(preview.item), false))
+      .catch((error) => {
+        if (alive.current)
+          setMessage(
+            `The Library Avatar could not be selected: ${errorText(error)} Choose an available Avatar below.`,
+          );
+      })
+      .finally(() => {
+        if (alive.current) setWorking(false);
+      });
+  }, [
+    avatarHandoff,
+    chooseAvatar,
+    completedId,
+    conflict,
+    locked,
+    recovery,
+    resolve,
+  ]);
+
+  const showIssues = (next: AnimaCreationDiagnostic[]) => {
+    setIssues(next);
+    setFocusErrors((value) => value + 1);
+  };
+  const validate = async (advance = false) => {
+    if (busy || inFlight.current || locked || conflict) return;
+    const snapshot = latest.current;
+    const errors = draftIssues(snapshot, 3, identityLimit, displayNameLimit);
+    if (errors.length) {
+      showIssues(errors);
+      return;
+    }
+    const signature = creationDraftSignature(snapshot);
+    setMessage(null);
+    setValidation(null);
+    try {
+      const result = await operations.validate.mutateAsync(snapshot);
+      if (
+        !alive.current ||
+        signature !== creationDraftSignature(latest.current) ||
+        submissionLocksEditing(latest.current)
+      )
+        return;
+      let next = createAnimaDraftReducer(latest.current, {
+        type: "evidence",
+        evidence: result.draft.evidence,
+      });
+      if (advance)
+        next = createAnimaDraftReducer(next, { type: "step", step: 3 });
+      update(next);
+      setIssues([]);
+      setValidation({
+        signature,
+        spec: result.result.spec,
+        warnings: result.result.warnings,
+      });
+      setReturnToReview(false);
+    } catch (error) {
+      if (
+        !alive.current ||
+        signature !== creationDraftSignature(latest.current)
+      )
+        return;
+      if (error instanceof AnimaCreationApiError)
+        showIssues(
+          error.failure.detail.issues.length
+            ? error.failure.detail.issues
+            : [
+                {
+                  code: error.failure.detail.code,
+                  path: "/starter_pack",
+                  message: error.message,
+                },
+              ],
+        );
+      else
+        showIssues([
+          {
+            code: "validation_unavailable",
+            path: "/expected_source_revisions",
+            message: errorText(error),
+          },
+        ]);
+    }
+  };
+  const go = (step: CreationStep, fromReview = false) => {
+    if (busy || locked || conflict) return;
+    if (step > latest.current.step) {
+      const errors = draftIssues(
+        latest.current,
+        Math.min(step - 1, 2) as CreationStep,
+        identityLimit,
+        displayNameLimit,
+      );
+      if (errors.length) {
+        showIssues(errors);
+        return;
+      }
+      if (step === 3) {
+        void validate(true);
+        return;
+      }
+    }
+    if (fromReview) setReturnToReview(true);
+    dispatch({ type: "step", step });
+  };
+  const resume = () => {
+    const record = saved.current;
+    if (record?.kind !== "draft") return;
+    handoffApplied.current = true;
+    update(record.draft);
+    setRecovery(
+      record.draft.appearance_migration === "confirmation_required"
+        ? "appearance"
+        : "ready",
+    );
+    if (
+      record.draft.step === 3 &&
+      record.draft.appearance_migration !== "confirmation_required"
+    )
+      void validate(false);
+  };
+  const continueWithoutImages = () => {
+    const next = {
+      ...latest.current,
+      appearance_migration: "none" as const,
+    };
+    update(next);
+    setRecovery("ready");
+    if (next.step === 3) void validate(false);
+  };
+  const discard = (acknowledgeDeleted = false) => {
+    try {
+      store.current?.discard({
+        acknowledgeDeleted,
+        corruptConfirmed: recovery === "corrupt",
+      });
+      const next = newCreateAnimaDraft();
+      latest.current = next;
+      setDraft(next);
+      saved.current = null;
+      setFile(null);
+      setValidation(null);
+      setIssues([]);
+      setStorageError(null);
+      setRecovery("ready");
+      setCompletedId(null);
+      // An explicit Start over may apply the current URL hint to a clean draft.
+      handoffApplied.current = false;
+      return true;
+    } catch (error) {
+      storageFailure(error);
+      return false;
+    }
+  };
+  const reviewOtherTab = () => {
+    try {
+      const record = store.current?.read() ?? null;
+      saved.current = record;
+      setConflict(false);
+      setStorageError(null);
+      setFile(null);
+      setValidation(null);
+      setIssues([]);
+      if (record?.kind === "complete") {
+        setCompletedId(record.anima_id);
+        setRecovery("ready");
+      } else if (
+        record?.kind === "draft" &&
+        submissionLocksEditing(record.draft)
+      ) {
+        update(record.draft, false);
+        setRecovery("ready");
+      } else if (record?.kind === "draft") {
+        setRecovery("resume");
+      } else {
+        update(newCreateAnimaDraft(), false);
+        setRecovery("ready");
+      }
+    } catch (error) {
+      storageFailure(error);
+    }
+  };
+  const retrySave = () => {
+    try {
+      if (!store.current) {
+        store.current = new CreateAnimaDraftStorage(
+          creationStorageKey(owner, window.location.origin),
+          window.localStorage,
+        );
+        const record = store.current.read();
+        if (record) throw new CreationDraftConflict();
+      }
+      if (completedId) {
+        store.current.complete(completedId);
+        setStorageError(null);
+      } else persist(latest.current);
+    } catch (error) {
+      storageFailure(error);
+    }
+  };
+
+  const valid =
+    validation?.signature === creationDraftSignature(draft) ? validation : null;
+  const submit = async (replay = false) => {
+    if (inFlight.current || busy || conflict || completedId) return;
+    if (!replay && (!valid || locked)) {
+      await validate(false);
+      return;
+    }
+    const prior = latest.current.submission;
+    if (replay && (!prior || !["pending", "unknown"].includes(prior.state)))
+      return;
+    inFlight.current = true;
+    setWorking(true);
+    setMessage(null);
+    try {
+      if (!navigator.locks)
+        throw new Error(
+          "This browser cannot safely coordinate creation between tabs. Use a current browser with local storage and Web Locks enabled.",
+        );
+      await navigator.locks.request(
+        `${store.current?.key ?? owner}:submit`,
+        { ifAvailable: true },
+        async (lock) => {
+          if (!lock)
+            throw new Error(
+              "Another tab is checking this creation request. Wait for it to finish, then check the same result here.",
+            );
+          const request = replay
+            ? prior!.request
+            : freezeCreation(latest.current, valid!.spec);
+          const pending = {
+            ...latest.current,
+            submission: { request, state: "pending" as const },
+          };
+          // No POST can escape before durable, owner-scoped recovery succeeds.
+          persist(pending);
+          update(pending, false);
+          try {
+            const result = await operations.create.mutateAsync(request);
+            try {
+              store.current!.complete(result.anima_id);
+              setStorageError(null);
+            } catch (error) {
+              storageFailure(error);
+            }
+            if (!alive.current) return;
+            setCompletedId(result.anima_id);
+            setFile(null);
+            setValidation(null);
+            setIssues([]);
+            update(newCreateAnimaDraft(), false);
+          } catch (error) {
+            if (!alive.current) return;
+            const failure =
+              error instanceof AnimaCreationApiError
+                ? error.failure
+                : classifyCreationFailure(error);
+            const next = {
+              ...pending,
+              submission: { request, state: failure.state },
+            };
+            update(next);
+            setMessage(failure.detail.message);
+            if (failure.state === "rejected") {
+              setValidation(null);
+              showIssues(failure.detail.issues);
+              if (next.appearance_migration === "confirmation_required")
+                setRecovery("appearance");
+            }
+          }
+        },
+      );
+    } catch (error) {
+      if (alive.current) {
+        storageFailure(error);
+        setMessage(errorText(error));
+      }
+    } finally {
+      inFlight.current = false;
+      if (alive.current) setWorking(false);
+    }
+  };
+
+  const proposeRepair = async (issue: AnimaCreationDiagnostic) => {
+    if (busy || locked) return;
+    setWorking(true);
+    setMessage(null);
+    try {
+      const current = latest.current;
+      const root =
+        creationRoots(current).find(
+          (candidate) =>
+            candidate.source.item_id ===
+            (issue.declaring_action_item_id ?? issue.item_id),
+        ) ??
+        creationRoots(current).find((candidate) =>
+          Boolean(
+            issue.item_id &&
+            current.evidence[candidate.source.item_id]?.revisions[
+              issue.item_id
+            ],
+          ),
+        );
+      if (root)
+        setRepair({
+          kind: "source",
+          preview: await resolve(root.kind, root.source, {
+            fresh: true,
+            acceptCurrent: true,
+          }),
+        });
+      else {
+        const response = await sources.options.refetch();
+        if (!response.data || response.error)
+          throw new Error(
+            "Creation defaults are unavailable. Ask the installation owner to repair them, then retry.",
+          );
+        setRepair({ kind: "policy", options: response.data });
+      }
+    } catch (error) {
+      setMessage(errorText(error));
+    } finally {
+      setWorking(false);
+    }
+  };
+  const acceptRepair = async () => {
+    if (!repair || locked || busy) return;
+    setWorking(true);
+    try {
+      if (repair.kind === "policy") {
+        // Explicitly rebase fixed policy only; never reseed the user's Actions.
+        update({
+          ...latest.current,
+          starter_pack: repair.options.starter_pack,
+          default_idle: repair.options.default_idle.source,
+          idle_revisions: repair.options.default_idle.expected_source_revisions,
+          meaningful: true,
+        });
+      } else {
+        const preview = repair.preview;
+        const ref = itemReference(preview.item);
+        const current = latest.current;
+        if (current.avatar?.item_id === ref.item_id) {
+          await chooseAvatar(ref);
+        } else {
+          const reactions = structuredClone(current.reactions);
+          for (const row of Object.values(reactions))
+            for (const intensity of ["1", "2", "3"] as const)
+              if (row[intensity]?.item_id === ref.item_id) row[intensity] = ref;
+          edit({
+            reactions,
+            gestures: current.gestures.map((gesture) =>
+              gesture.source.item_id === ref.item_id
+                ? { ...gesture, source: ref }
+                : gesture,
+            ),
+            evidence: {
+              ...current.evidence,
+              [ref.item_id]: creationEvidence(preview),
+            },
+          });
+        }
+      }
+      setRepair(null);
+      setValidation(null);
+      setMessage(
+        "Updated revisions accepted. Recheck the full draft before creating.",
+      );
+    } catch (error) {
+      if (alive.current) setMessage(errorText(error));
+    } finally {
+      if (alive.current) setWorking(false);
+    }
+  };
+
+  const completeHandoff = useCallback((animaId: string) => {
+    try {
+      const record = store.current?.read();
+      if (record?.kind === "complete" && record.anima_id === animaId)
+        store.current!.discard();
+    } catch {
+      /* The completion marker remains a safe route back to the existing Anima. */
+    }
+  }, []);
+
+  return {
+    draft,
+    sources,
+    operations,
+    recovery,
+    storageError,
+    conflict,
+    message,
+    issues,
+    valid,
+    completedId,
+    file,
+    busy,
+    locked,
+    working,
+    setWorking,
+    repair,
+    setRepair,
+    focus,
+    focusErrors,
+    identityLimit,
+    displayNameLimit,
+    returnToReview,
+    edit,
+    dispatch,
+    go,
+    resume,
+    continueWithoutImages,
+    discard,
+    reviewOtherTab,
+    retrySave,
+    validate,
+    submit,
+    chooseAvatar,
+    proposeRepair,
+    acceptRepair,
+    setFile: (next: File | null) => {
+      setFile(next);
+      edit({ needs_file_reselection: Boolean(next) });
+    },
+    resetActions: async () => {
+      if (busy || locked || conflict) return;
+      setWorking(true);
+      try {
+        const response = await sources.options.refetch();
+        if (response.error || !response.data)
+          throw new Error(
+            "The Recommended Starter Pack could not be refreshed. Your Actions were kept.",
+          );
+        if (alive.current)
+          dispatch({ type: "reset-actions", options: response.data });
+      } catch (error) {
+        if (alive.current) setMessage(errorText(error));
+      } finally {
+        if (alive.current) setWorking(false);
+      }
+    },
+    focusIssue: (issue: AnimaCreationDiagnostic, target: string) => {
+      const step = issueStep(issue.path);
+      if (step !== null) dispatch({ type: "step", step });
+      setFocus((value) => ({
+        target: step === null ? "creation-display-name" : target,
+        sequence: (value?.sequence ?? 0) + 1,
+      }));
+    },
+    saveForLeave: () => persist(latest.current),
+    completeHandoff,
+  };
+}

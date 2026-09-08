@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:focus:dark",
+  "version": 1,
+  "name": "Focus Lines Dark",
+  "description": "Scene focus-lines effect preset",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "focus_lines",
+    "dismissOnInput": false,
+    "renderPlacement": "behind_avatar",
+    "lineCount": 100,
+    "color": "#111111",
+    "opacity": 0.92,
+    "baseThicknessPx": 10,
+    "thicknessVariationPx": 5,
+    "lengthVariation": 0.18,
+    "overscanPx": 48,
+    "target": {
+      "kind": "avatar_face",
+      "paddingXPx": 48,
+      "paddingYPx": 96
+    },
+    "animation": {
+      "minVisibleMs": 90,
+      "maxVisibleMs": 280,
+      "minHiddenMs": 50,
+      "maxHiddenMs": 200,
+      "opacityJitter": 0.18
+    }
+  }
+}

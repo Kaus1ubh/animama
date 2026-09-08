@@ -1,0 +1,20 @@
+{
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:proud_of_self",
+  "version": 1,
+  "semantic_key": "proud_of_self",
+  "name": "Proud of Self",
+  "ai_description": "Use when the character accomplished something or feels confident.",
+  "schema_version": 1,
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "proud_of_self.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

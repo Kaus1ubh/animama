@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Animama PostgreSQL",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "animama",
+      "Username": "animama",
+      "SSLMode": "prefer",
+      "Comment": "Animama project PostgreSQL database with pgvector"
+    }
+  }
+}

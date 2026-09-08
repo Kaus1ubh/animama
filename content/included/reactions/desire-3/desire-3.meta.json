@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:desire-3",
+  "version": 1,
+  "name": "Desire Reaction 3",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "desire",
+    "intensity": 3
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:blush-2-r",
+      "alias": "blush 2 r",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:hearts",
+      "alias": "hearts",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-desire",
+      "alias": "scene-vfx-emotion-desire",
+      "content_type": "scene_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "desire-3.json",
+      "role": "sequence"
+    }
+  ]
+}

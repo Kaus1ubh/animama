@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:mouth_w",
+  "version": 1,
+  "name": "Mouth w",
+  "description": "Small w-shaped mouth decal for cute, puckered, or bashfully playful expressions.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/1",
+    "kind": "face_anchored",
+    "region": "mouth",
+    "anchor": "mouth",
+    "pivot": "center",
+    "image": "mouth_w.png"
+  },
+  "files": [
+    {
+      "path": "mouth_w.png",
+      "role": "image"
+    }
+  ]
+}

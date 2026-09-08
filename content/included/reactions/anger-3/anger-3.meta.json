@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:anger-3",
+  "version": 1,
+  "name": "Anger Reaction 3",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "anger",
+    "intensity": 3
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:angry",
+      "alias": "angry",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-anger",
+      "alias": "scene-vfx-emotion-anger",
+      "content_type": "scene_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "anger-3.json",
+      "role": "sequence"
+    }
+  ]
+}

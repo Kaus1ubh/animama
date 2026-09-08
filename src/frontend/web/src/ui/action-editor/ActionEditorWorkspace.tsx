@@ -1,0 +1,956 @@
+"use client";
+
+import {
+  BoneIcon,
+  Clock3Icon,
+  LibraryIcon,
+  Settings2Icon,
+  SlidersHorizontalIcon,
+  SmileIcon,
+} from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+} from "react";
+
+import {
+  ANIMA_POSE_SCHEMA,
+  getResolvedAvatarPose,
+  isAnimaPoseClipRef,
+  parseAnimaPose,
+  type AnimaPose,
+  type AnimaPoseClipPose,
+} from "@/lib/avatar";
+import { cn } from "@/lib/utils";
+import {
+  selectCanRedoClip,
+  selectCanUndoClip,
+  usePoseCreatorStore,
+} from "@/stores/pose-creator-store";
+import { Button } from "@/ui/components/button";
+import { PlaybackObservationOutput } from "@/ui/avatar-preview/PlaybackObservationOutput";
+import { Input } from "@/ui/components/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/ui/components/select";
+import { Textarea } from "@/ui/components/textarea";
+import {
+  CreatorHistoryShortcut,
+  type CreatorHistoryController,
+} from "@/ui/creator-history/CreatorHistory";
+import {
+  buildActionEditorPose,
+  ActionEditorBoneSection,
+  ActionEditorClipInspector,
+  ActionEditorClipPreviewSync,
+  ActionEditorExpressionSection,
+  ActionEditorPreviewSettings,
+  replaceActionEditorPose,
+} from "./ActionEditorPrimitives";
+import { ActionEditorScene } from "./ActionEditorScene";
+import { ActionEditorEffectsPanel } from "./ActionEditorEffectsPanel";
+import { ActionEditorHeader } from "./ActionEditorHeader";
+import {
+  ActionTimelineDocumentSync,
+  ActionTimelineEditor,
+} from "./ActionTimelineEditor";
+import {
+  CreatorCollapsedPanelHeader,
+  CreatorPanelCollapseButton,
+} from "./CreatorPanelChrome";
+import { useActionEditorWorkspace } from "./ActionEditorWorkspaceContext";
+import { useActionEditorPreview } from "./ActionEditorPreviewProvider";
+import { useSceneVFXStore } from "@/stores/scene-vfx-store";
+import { pruneUnusedTimelineDependencies } from "./actionDependencies";
+import { renameActionDocument } from "./actionDocument";
+import { actionEditorCapabilities } from "./actionEditorCapabilities";
+import { retainActionEditorWorkspace } from "./actionEditorStoreLifecycle";
+import { findPoseCreatorClipKeyframeAtTime } from "@/ui/pose-creator/poseCreatorClipAuthoring";
+import { samplePoseCreatorClipExpressions } from "@/ui/pose-creator/poseCreatorClipPreview";
+
+type MobileTool =
+  | "timeline"
+  | "components"
+  | "inspector"
+  | "settings"
+  | "bones"
+  | "expressions";
+
+type ToolOption = {
+  id: MobileTool;
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+};
+
+const CLIP_TOOLS: ToolOption[] = [
+  { id: "timeline", label: "Timeline", icon: Clock3Icon },
+  { id: "components", label: "Effects", icon: LibraryIcon },
+  { id: "inspector", label: "Inspector", icon: SlidersHorizontalIcon },
+  { id: "settings", label: "Settings", icon: Settings2Icon },
+];
+
+const REACTION_TOOLS: ToolOption[] = [
+  { id: "timeline", label: "Timeline", icon: Clock3Icon },
+  { id: "expressions", label: "Expressions", icon: SmileIcon },
+  ...CLIP_TOOLS.slice(1),
+];
+
+const POSE_TOOLS: ToolOption[] = [
+  { id: "bones", label: "Bones", icon: BoneIcon },
+  { id: "expressions", label: "Expressions", icon: SmileIcon },
+  { id: "settings", label: "Preview", icon: Settings2Icon },
+];
+
+/** Immersive product editor shared by typed Gesture and Reaction routes. */
+export function ActionEditorWorkspace() {
+  const workspace = useActionEditorWorkspace();
+  const capabilities = actionEditorCapabilities(workspace.document.intent);
+  const timelineBased = workspace.document.implementation === "anima_clip";
+  const [mobileTool, setMobileTool] = useState<MobileTool>("timeline");
+  const [componentsExpanded, setComponentsExpanded] = useState(true);
+  const [timelineExpanded, setTimelineExpanded] = useState(true);
+  const [bonesExpanded, setBonesExpanded] = useState(true);
+  const [expressionsExpanded, setExpressionsExpanded] = useState(true);
+  const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
+  const selectedBone = usePoseCreatorStore((state) => state.selectedBone);
+  const clipInlineEdit = usePoseCreatorStore((state) => state.clipInlineEdit);
+  const clipDraft = usePoseCreatorStore((state) => state.clipDraft);
+  const clipPlaybackPlaying = usePoseCreatorStore(
+    (state) => state.clipPlaybackPlaying,
+  );
+  const clipPlaybackAbsoluteTimeSec = usePoseCreatorStore(
+    (state) => state.clipPlaybackAbsoluteTimeSec,
+  );
+  const loadStatus = usePoseCreatorStore((state) => state.loadStatus);
+  const loadError = usePoseCreatorStore((state) => state.loadError);
+  const preview = useActionEditorPreview();
+  const sceneVFXActiveByKind = useSceneVFXStore((state) => state.activeByKind);
+  const sceneVFX = useMemo(
+    () =>
+      Object.values(sceneVFXActiveByKind).filter(
+        (entry): entry is NonNullable<typeof entry> => Boolean(entry),
+      ),
+    [sceneVFXActiveByKind],
+  );
+  const setClipExpressionsAtPlayhead = usePoseCreatorStore(
+    (state) => state.setClipExpressionsAtPlayhead,
+  );
+  const setAuthoringMode = usePoseCreatorStore(
+    (state) => state.setAuthoringMode,
+  );
+  const resetWorkspace = usePoseCreatorStore((state) => state.resetWorkspace);
+  const hydrateLocalDrafts = usePoseCreatorStore(
+    (state) => state.hydrateLocalDrafts,
+  );
+  const historyController = useActionHistoryController(
+    workspace.history,
+    Boolean(clipInlineEdit),
+  );
+
+  useEffect(() => {
+    setAuthoringMode("clip");
+    hydrateLocalDrafts();
+  }, [hydrateLocalDrafts, setAuthoringMode]);
+  useEffect(
+    () => retainActionEditorWorkspace(resetWorkspace),
+    [resetWorkspace],
+  );
+
+  const sampledExpressionValues = useMemo(
+    () => samplePoseCreatorClipExpressions(clipDraft),
+    [clipDraft],
+  );
+  const observationExpressionNames = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          Object.values(clipDraft.poses).flatMap((pose) =>
+            isAnimaPoseClipRef(pose) || !pose.expressions
+              ? []
+              : Object.keys(pose.expressions),
+          ),
+        ),
+      ).sort(),
+    [clipDraft.poses],
+  );
+  const expressionKeyframeAtPlayhead = useMemo(
+    () =>
+      findPoseCreatorClipKeyframeAtTime(
+        clipDraft.keyframes,
+        clipDraft.currentTimeSec,
+      ),
+    [clipDraft.currentTimeSec, clipDraft.keyframes],
+  );
+  const updateExpressionAtPlayhead = useCallback(
+    (expressionName: string, value: number) => {
+      const next = { ...sampledExpressionValues };
+      if (Math.abs(value) <= 1e-6) delete next[expressionName];
+      else next[expressionName] = value;
+      setClipExpressionsAtPlayhead(next);
+    },
+    [sampledExpressionValues, setClipExpressionsAtPlayhead],
+  );
+  const clearExpressionsAtPlayhead = useCallback(
+    () => setClipExpressionsAtPlayhead({}),
+    [setClipExpressionsAtPlayhead],
+  );
+  const ensureExpressionKeyframeAtPlayhead = useCallback(
+    () => setClipExpressionsAtPlayhead(sampledExpressionValues),
+    [sampledExpressionValues, setClipExpressionsAtPlayhead],
+  );
+
+  const beginInlineKeyframeEdit = useCallback(() => {
+    const state = usePoseCreatorStore.getState();
+    if (!state.activeAvatar || state.clipInlineEdit) return false;
+    let keyframe = state.clipDraft.keyframes.find(
+      (value) => value.id === state.clipDraft.selectedKeyframeId,
+    );
+    if (!keyframe) {
+      state.captureClipPoseAtPlayhead(
+        getResolvedAvatarPose(state.clipDraft.basePose),
+      );
+      const next = usePoseCreatorStore.getState();
+      keyframe = next.clipDraft.keyframes.find(
+        (value) => value.id === next.clipDraft.selectedKeyframeId,
+      );
+    }
+    if (!keyframe) return false;
+    let next = usePoseCreatorStore.getState();
+    let alias = keyframe.pose;
+    let pose = next.clipDraft.poses[alias];
+    if (!pose) return false;
+    if (isAnimaPoseClipRef(pose)) {
+      const converted = next.convertSelectedClipPoseRefToInline();
+      if (!converted) return false;
+      alias = converted;
+      next = usePoseCreatorStore.getState();
+      pose = next.clipDraft.poses[alias];
+    }
+    if (!pose) return false;
+    const animaPose = clipPoseToAnimaPose(alias, pose);
+    const drafts = replaceActionEditorPose(
+      next.activeAvatar,
+      animaPose,
+      next.clipDraft.basePose,
+    );
+    next.beginClipInlinePoseEdit({
+      alias,
+      keyframeId: keyframe.id,
+      originalPose: pose,
+      boneDrafts: drafts.boneDrafts,
+      expressionDrafts: drafts.expressionDrafts,
+      draftName: `Keyframe ${alias}`,
+    });
+    return true;
+  }, []);
+
+  useEffect(() => {
+    if (workspace.mode === "pose") void beginInlineKeyframeEdit();
+  }, [activeAvatar, beginInlineKeyframeEdit, workspace.mode]);
+
+  const applyInlineKeyframe = () => {
+    const state = usePoseCreatorStore.getState();
+    const edit = state.clipInlineEdit;
+    if (!edit) return;
+    const pose = buildActionEditorPose(
+      state.boneDrafts,
+      state.expressionDrafts,
+      {
+        id: edit.alias,
+        name: `Keyframe ${edit.alias}`,
+        parentPose: state.clipDraft.basePose,
+      },
+    );
+    if (!pose) return;
+    state.commitClipInlinePoseEdit(pose);
+    workspace.setMode("clip");
+  };
+
+  const cancelInlineKeyframe = () => {
+    const state = usePoseCreatorStore.getState();
+    state.cancelClipInlinePoseEdit();
+    workspace.setMode("clip");
+  };
+
+  const updateTimeline = (sequence: Record<string, unknown>) => {
+    workspace.history.commit(
+      pruneUnusedTimelineDependencies({
+        ...workspace.history.present,
+        sequence,
+      }),
+    );
+  };
+  const desktopTimeline = (
+    <ActionTimelineEditor
+      reaction={workspace.document.intent === "reaction"}
+      isBusy={workspace.busy}
+      playbackPending={workspace.localPreviewPending}
+      onAddExpressionKeyframe={
+        workspace.document.intent === "reaction"
+          ? ensureExpressionKeyframeAtPlayhead
+          : undefined
+      }
+      expanded={timelineExpanded}
+      onExpandedChange={setTimelineExpanded}
+    />
+  );
+  const mobileTimeline = (
+    <ActionTimelineEditor
+      reaction={workspace.document.intent === "reaction"}
+      isBusy={workspace.busy}
+      playbackPending={workspace.localPreviewPending}
+      onAddExpressionKeyframe={
+        workspace.document.intent === "reaction"
+          ? ensureExpressionKeyframeAtPlayhead
+          : undefined
+      }
+    />
+  );
+  const visiblePreviewError =
+    loadError ??
+    preview.modelError ??
+    preview.runtimeError ??
+    preview.animaError;
+  const previewPreparing =
+    !preview.modelEntry &&
+    (preview.isAnimaPending ||
+      preview.isRuntimePending ||
+      Boolean(preview.selectedModel));
+  const observationStatus = visiblePreviewError
+    ? ("error" as const)
+    : previewPreparing || loadStatus === "loading"
+      ? ("loading" as const)
+      : !activeAvatar
+        ? ("unavailable" as const)
+        : clipPlaybackPlaying
+          ? ("playing" as const)
+          : ("stopped" as const);
+  const observationRuntimeId =
+    typeof workspace.document.sequence.id === "string" &&
+    workspace.document.sequence.id.trim()
+      ? workspace.document.sequence.id
+      : `new-${workspace.document.intent}`;
+
+  return (
+    <main
+      className="bg-background relative flex h-full min-h-0 w-full flex-col overflow-hidden"
+      data-playback-surface="creator-stage"
+    >
+      <PlaybackObservationOutput
+        active
+        avatar={activeAvatar}
+        expressionNames={observationExpressionNames}
+        poseClipSample={
+          timelineBased
+            ? {
+                runtimeId: observationRuntimeId,
+                active: clipPlaybackPlaying,
+                playheadSec: clipPlaybackAbsoluteTimeSec,
+                durationSec: clipDraft.duration,
+              }
+            : undefined
+        }
+        sceneVFX={sceneVFX}
+        status={observationStatus}
+        surface="creator-stage"
+        target={{
+          kind:
+            workspace.document.implementation === "vrma"
+              ? "animation"
+              : "anima_pose_clip",
+          runtimeId: observationRuntimeId,
+        }}
+      />
+      <CreatorHistoryShortcut
+        controller={historyController}
+        isBusy={workspace.busy}
+      />
+      <ActionTimelineDocumentSync
+        key={`timeline-document-${workspace.timelineSession}`}
+        sequence={workspace.document.sequence}
+        session={workspace.timelineSession}
+        reaction={workspace.document.intent === "reaction"}
+        onHistoryGroupStart={workspace.history.beginGroup}
+        onHistoryGroupEnd={workspace.history.endGroup}
+        onChange={updateTimeline}
+      />
+      <ActionEditorClipPreviewSync />
+      <ActionEditorHeader
+        history={historyController}
+        onModeChange={workspace.setMode}
+        inspector={
+          <div className="max-h-[min(70dvh,640px)] overflow-y-auto p-1">
+            <ActionEditorClipInspector
+              allowHumanoid={capabilities.allowsHumanoid}
+            />
+            <div className="border-border mt-3 border-t pt-3">
+              <MetadataPanel />
+            </div>
+          </div>
+        }
+      />
+
+      {timelineBased ? (
+        <>
+          <div className="relative hidden min-h-0 flex-1 overflow-hidden lg:block">
+            <ActionEditorScene capabilities={capabilities} />
+            {workspace.mode === "pose" ? (
+              <div className="pointer-events-none absolute inset-x-0 top-[88px] bottom-0 z-30">
+                <ActionEditorBoneSection
+                  variant="workspace"
+                  browserExpanded={bonesExpanded}
+                  onCollapse={() => setBonesExpanded(false)}
+                />
+                {!bonesExpanded ? (
+                  <CreatorCollapsedPanelHeader
+                    label="Bones"
+                    summary="Pose controls"
+                    onExpand={() => setBonesExpanded(true)}
+                    className="absolute top-4 left-[calc(var(--app-shell-sidebar-inset)+1rem)] w-[248px] transition-[left] duration-150 ease-in-out xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)] xl:w-[288px] 2xl:w-[340px]"
+                  />
+                ) : null}
+                {expressionsExpanded ? (
+                  <ActionEditorExpressionSection
+                    variant="workspace"
+                    onCollapse={() => setExpressionsExpanded(false)}
+                  />
+                ) : (
+                  <CreatorCollapsedPanelHeader
+                    label="Expressions"
+                    summary="Avatar blendshapes"
+                    onExpand={() => setExpressionsExpanded(true)}
+                    className={cn(
+                      "absolute right-4 w-[248px] xl:right-8 xl:w-[296px] 2xl:w-[308px]",
+                      selectedBone ? "top-[19.5rem]" : "top-[5.75rem]",
+                    )}
+                  />
+                )}
+                <div className="pointer-events-auto absolute right-[280px] bottom-6 left-[calc(var(--app-shell-sidebar-inset)+280px)] flex justify-center gap-2 transition-[left] duration-150 ease-in-out">
+                  <ActionEditorPreviewSettings />
+                  <Button variant="outline" onClick={cancelInlineKeyframe}>
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={applyInlineKeyframe}
+                    disabled={!clipInlineEdit}
+                  >
+                    Apply to Clip
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  "pointer-events-none absolute inset-x-0 bottom-0 z-30",
+                  workspace.document.intent === "gesture"
+                    ? "top-[88px]"
+                    : "top-[72px]",
+                )}
+              >
+                <div
+                  className={cn(
+                    "pointer-events-auto absolute top-4 left-[calc(var(--app-shell-sidebar-inset)+1rem)] z-20 w-[312px] transition-[left,bottom,height] duration-200 motion-reduce:transition-none xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)] xl:w-[360px] 2xl:w-[392px]",
+                    componentsExpanded
+                      ? timelineExpanded
+                        ? "bottom-[264px]"
+                        : "bottom-[80px]"
+                      : "h-16",
+                  )}
+                >
+                  <EffectsPanel
+                    expanded={componentsExpanded}
+                    onExpandedChange={setComponentsExpanded}
+                  />
+                </div>
+                {workspace.document.intent === "reaction" ? (
+                  <div
+                    className={cn(
+                      "pointer-events-auto absolute top-4 right-4 z-20 flex w-[min(320px,24vw)] flex-col transition-[bottom] duration-200 motion-reduce:transition-none xl:right-8 2xl:w-[360px]",
+                      timelineExpanded ? "bottom-[264px]" : "bottom-[80px]",
+                    )}
+                  >
+                    <ReactionExpressionPanel
+                      expanded={expressionsExpanded}
+                      onExpandedChange={setExpressionsExpanded}
+                      currentTimeSec={clipDraft.currentTimeSec}
+                      hasKeyframe={Boolean(expressionKeyframeAtPlayhead)}
+                      values={sampledExpressionValues}
+                      onEnsureKeyframe={ensureExpressionKeyframeAtPlayhead}
+                      onExpressionChange={updateExpressionAtPlayhead}
+                      onClear={clearExpressionsAtPlayhead}
+                    />
+                  </div>
+                ) : null}
+                <div
+                  className={cn(
+                    "pointer-events-auto absolute right-4 bottom-4 left-[calc(var(--app-shell-sidebar-inset)+1rem)] z-20 flex justify-center transition-[left,height] duration-200 motion-reduce:transition-none xl:right-8 xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)]",
+                    timelineExpanded ? "h-[244px]" : "h-[60px]",
+                  )}
+                >
+                  {desktopTimeline}
+                </div>
+              </div>
+            )}
+          </div>
+          <MobileWorkspace
+            capabilities={capabilities}
+            tool={mobileTool}
+            onToolChange={(tool) => {
+              setMobileTool(tool);
+            }}
+            timeline={mobileTimeline}
+            reactionExpressions={
+              <ActionEditorExpressionSection
+                variant="mobile"
+                timelineValues={sampledExpressionValues}
+                onTimelineExpressionChange={updateExpressionAtPlayhead}
+                onTimelineExpressionsClear={clearExpressionsAtPlayhead}
+              />
+            }
+            onApply={applyInlineKeyframe}
+            onCancel={cancelInlineKeyframe}
+          />
+        </>
+      ) : (
+        <VrmaWorkspace capabilities={capabilities} />
+      )}
+    </main>
+  );
+}
+
+/** Reaction-only facial keyframe authoring, separate from generic selection. */
+function ReactionExpressionPanel({
+  expanded,
+  onExpandedChange,
+  currentTimeSec,
+  hasKeyframe,
+  values,
+  onEnsureKeyframe,
+  onExpressionChange,
+  onClear,
+}: {
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+  currentTimeSec: number;
+  hasKeyframe: boolean;
+  values: Record<string, number>;
+  onEnsureKeyframe: () => void;
+  onExpressionChange: (expressionName: string, value: number) => void;
+  onClear: () => void;
+}) {
+  return (
+    <section
+      className={cn(
+        "bg-background/92 flex min-h-14 flex-col overflow-hidden rounded-2xl border shadow-xl backdrop-blur-xl",
+        expanded ? "min-h-[220px] flex-1" : "h-auto shrink-0",
+      )}
+    >
+      <div
+        className={cn(
+          "flex min-h-14 shrink-0 items-center justify-between gap-3 px-3 py-2",
+          expanded && "border-border/60 border-b",
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-sm font-semibold">Expressions</h2>
+          <p className="text-muted-foreground truncate text-[11px]">
+            {hasKeyframe
+              ? `Keyframe at ${currentTimeSec.toFixed(2)}s`
+              : `Interpolated at ${currentTimeSec.toFixed(2)}s`}
+          </p>
+        </div>
+        {!expanded && !hasKeyframe ? (
+          <Button
+            size="sm"
+            className="h-7 px-2 text-[11px]"
+            onClick={onEnsureKeyframe}
+          >
+            + Keyframe
+          </Button>
+        ) : null}
+        <CreatorPanelCollapseButton
+          label="expressions"
+          expanded={expanded}
+          collapseDirection="up"
+          onExpandedChange={onExpandedChange}
+        />
+      </div>
+      {expanded ? (
+        <div className="flex min-h-0 flex-1 flex-col p-3">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            {!hasKeyframe ? (
+              <Button size="sm" onClick={onEnsureKeyframe}>
+                + Keyframe at playhead
+              </Button>
+            ) : (
+              <span className="text-muted-foreground text-xs">
+                Slider changes update this keyframe.
+              </span>
+            )}
+          </div>
+          <div className="min-h-0 flex-1">
+            <ActionEditorExpressionSection
+              variant="mobile"
+              embedded
+              timelineValues={values}
+              onTimelineExpressionChange={onExpressionChange}
+              onTimelineExpressionsClear={onClear}
+            />
+          </div>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function useActionHistoryController(
+  documentHistory: Pick<
+    CreatorHistoryController<unknown>,
+    "canRedo" | "canUndo" | "redo" | "undo"
+  >,
+  inlineEditing: boolean,
+) {
+  const canUndoInline = usePoseCreatorStore(selectCanUndoClip);
+  const canRedoInline = usePoseCreatorStore(selectCanRedoClip);
+  const undoClip = usePoseCreatorStore((state) => state.undoClip);
+  const redoClip = usePoseCreatorStore((state) => state.redoClip);
+  return useMemo(
+    () => ({
+      canUndo: inlineEditing ? canUndoInline : documentHistory.canUndo,
+      canRedo: inlineEditing ? canRedoInline : documentHistory.canRedo,
+      undo: inlineEditing ? undoClip : documentHistory.undo,
+      redo: inlineEditing ? redoClip : documentHistory.redo,
+    }),
+    [
+      canRedoInline,
+      canUndoInline,
+      documentHistory,
+      inlineEditing,
+      redoClip,
+      undoClip,
+    ],
+  );
+}
+
+function clipPoseToAnimaPose(
+  alias: string,
+  pose: AnimaPoseClipPose,
+): AnimaPose {
+  if (isAnimaPoseClipRef(pose)) return getResolvedAvatarPose(pose.ref);
+  return parseAnimaPose({
+    schema: ANIMA_POSE_SCHEMA,
+    id: alias,
+    name: `Keyframe ${alias}`,
+    ...(pose.humanoid ? { humanoid: pose.humanoid } : {}),
+    ...(pose.expressions ? { expressions: pose.expressions } : {}),
+  });
+}
+
+function EffectsPanel({
+  mobile = false,
+  expanded = true,
+  onExpandedChange,
+}: {
+  mobile?: boolean;
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
+}) {
+  const workspace = useActionEditorWorkspace();
+  const savedPoses = usePoseCreatorStore((state) => state.savedDrafts);
+  const addPoseToClip = usePoseCreatorStore((state) => state.addPoseToClip);
+  const gesture = workspace.document.intent === "gesture";
+  return (
+    <ActionEditorEffectsPanel
+      mobile={mobile}
+      expanded={expanded}
+      onExpandedChange={onExpandedChange}
+      query={workspace.dependencyQuery}
+      onQueryChange={workspace.setDependencyQuery}
+      activeType={workspace.activeDependencyType}
+      onActiveTypeChange={workspace.setActiveDependencyType}
+      sections={workspace.dependencySections}
+      dependencies={workspace.document.dependencies}
+      onAdd={workspace.addComponent}
+      onRemove={workspace.removeDependency}
+      poses={gesture ? savedPoses : undefined}
+      onAddPose={
+        gesture
+          ? (pose) => addPoseToClip(pose.pose, pose.name, { atPlayhead: true })
+          : undefined
+      }
+    />
+  );
+}
+
+function MetadataPanel() {
+  const workspace = useActionEditorWorkspace();
+  const document = workspace.document;
+  return (
+    <div className="space-y-4 p-1">
+      <label className="grid gap-1 text-xs font-medium">
+        Name
+        <Input
+          value={document.name}
+          onChange={(event) =>
+            workspace.setDocument((value) =>
+              renameActionDocument(
+                value,
+                event.target.value,
+                !workspace.identityExists,
+              ),
+            )
+          }
+        />
+      </label>
+      <label className="grid gap-1 text-xs font-medium">
+        {document.intent === "gesture"
+          ? "Library description (optional)"
+          : "Description (optional)"}
+        <Textarea
+          value={
+            document.intent === "gesture"
+              ? document.description
+              : document.aiDescription
+          }
+          placeholder={
+            document.intent === "gesture"
+              ? "Describe this Gesture for your Library."
+              : "Describe this Reaction for your Library."
+          }
+          onChange={(event) =>
+            workspace.setDocument((value) => ({
+              ...value,
+              ...(value.intent === "gesture"
+                ? { description: event.target.value }
+                : { aiDescription: event.target.value }),
+            }))
+          }
+        />
+      </label>
+      {document.intent === "gesture" ? (
+        <label className="grid gap-1 text-xs font-medium">
+          Implementation
+          <Select
+            value={document.implementation}
+            onValueChange={(implementation) =>
+              workspace.setDocument((value) => ({
+                ...value,
+                implementation: implementation as typeof value.implementation,
+                dependencies:
+                  implementation === "vrma" ? [] : value.dependencies,
+              }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="anima_clip">Timeline</SelectItem>
+              <SelectItem value="vrma">VRMA import</SelectItem>
+            </SelectContent>
+          </Select>
+        </label>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <label className="grid gap-1 text-xs font-medium">
+            Emotion
+            <Input
+              value={document.suggestedEmotion}
+              onChange={(event) =>
+                workspace.setDocument((value) => ({
+                  ...value,
+                  suggestedEmotion: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <label className="grid gap-1 text-xs font-medium">
+            Intensity
+            <Select
+              value={String(document.suggestedIntensity)}
+              onValueChange={(value) =>
+                workspace.setDocument((current) => ({
+                  ...current,
+                  suggestedIntensity: Number(value) as 1 | 2 | 3,
+                }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Mild</SelectItem>
+                <SelectItem value="2">Medium</SelectItem>
+                <SelectItem value="3">Strong</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
+        </div>
+      )}
+      <label className="grid gap-1 text-xs font-medium">
+        Notes
+        <Textarea
+          value={document.notes}
+          onChange={(event) =>
+            workspace.setDocument((value) => ({
+              ...value,
+              notes: event.target.value,
+            }))
+          }
+        />
+      </label>
+    </div>
+  );
+}
+
+function MobileSettingsPanel({ allowHumanoid }: { allowHumanoid: boolean }) {
+  return (
+    <div className="h-full overflow-y-auto p-3">
+      <ActionEditorClipInspector
+        variant="mobile"
+        section="settings"
+        allowHumanoid={allowHumanoid}
+      />
+      <div className="border-border mt-3 border-t pt-3">
+        <MetadataPanel />
+      </div>
+    </div>
+  );
+}
+
+function MobileWorkspace({
+  capabilities,
+  tool,
+  onToolChange,
+  timeline,
+  reactionExpressions,
+  onApply,
+  onCancel,
+}: {
+  capabilities: ReturnType<typeof actionEditorCapabilities>;
+  tool: MobileTool;
+  onToolChange: (tool: MobileTool) => void;
+  timeline: React.ReactNode;
+  reactionExpressions: React.ReactNode;
+  onApply: () => void;
+  onCancel: () => void;
+}) {
+  const workspace = useActionEditorWorkspace();
+  const pose = workspace.mode === "pose";
+  const tools = pose
+    ? POSE_TOOLS
+    : workspace.document.intent === "reaction"
+      ? REACTION_TOOLS
+      : CLIP_TOOLS;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
+      <div className="h-[38dvh] min-h-[230px] shrink-0">
+        <ActionEditorScene capabilities={capabilities} />
+      </div>
+      <nav
+        className="border-border bg-background overflow-x-auto border-y p-2"
+        aria-label="Authoring tools"
+      >
+        <div className="flex w-max min-w-full gap-1" role="tablist">
+          {tools.map((option) => {
+            const Icon = option.icon;
+            return (
+              <Button
+                key={option.id}
+                variant="ghost"
+                className={cn(
+                  "h-10 min-w-24 gap-1.5 text-xs",
+                  tool === option.id && "bg-muted",
+                )}
+                role="tab"
+                aria-selected={tool === option.id}
+                onClick={() => onToolChange(option.id)}
+              >
+                <Icon className="size-4" />
+                {option.label}
+              </Button>
+            );
+          })}
+        </div>
+      </nav>
+      <section className="bg-background min-h-0 flex-1 overflow-hidden">
+        {tool === "timeline" ? (
+          timeline
+        ) : tool === "components" ? (
+          <EffectsPanel mobile />
+        ) : tool === "inspector" ? (
+          <ActionEditorClipInspector
+            variant="mobile"
+            section="inspector"
+            allowHumanoid={capabilities.allowsHumanoid}
+          />
+        ) : tool === "settings" ? (
+          pose ? (
+            <ActionEditorPreviewSettings variant="mobile" />
+          ) : (
+            <MobileSettingsPanel allowHumanoid={capabilities.allowsHumanoid} />
+          )
+        ) : tool === "bones" ? (
+          <ActionEditorBoneSection variant="mobile" />
+        ) : workspace.document.intent === "reaction" ? (
+          reactionExpressions
+        ) : (
+          <ActionEditorExpressionSection variant="mobile" />
+        )}
+      </section>
+      {pose || usePoseCreatorStore.getState().clipInlineEdit ? (
+        <div className="border-border flex shrink-0 justify-end gap-2 border-t p-2">
+          <Button variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button onClick={onApply}>Apply to Clip</Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function VrmaWorkspace({
+  capabilities,
+}: {
+  capabilities: ReturnType<typeof actionEditorCapabilities>;
+}) {
+  const workspace = useActionEditorWorkspace();
+  return (
+    <div className="grid min-h-0 flex-1 lg:grid-cols-[1fr_22rem]">
+      <ActionEditorScene capabilities={capabilities} />
+      <aside className="border-border overflow-y-auto border-l p-5">
+        <MetadataPanel />
+        <label
+          className={cn(
+            "mt-5 grid gap-2 rounded-lg text-sm font-medium",
+            workspace.errorField === "files" &&
+              "bg-destructive/5 text-destructive ring-destructive/40 p-2 ring-1",
+          )}
+        >
+          VRMA animation
+          <Input
+            type="file"
+            accept=".vrma,model/gltf-binary"
+            aria-invalid={workspace.errorField === "files"}
+            onChange={(event) => {
+              workspace.clearSaveErrorField("files");
+              workspace.setVrma(event.target.files?.[0] ?? null);
+            }}
+          />
+        </label>
+        <p className="text-muted-foreground mt-3 text-xs">
+          VRMA Gestures use the immersive Avatar preview but do not expose Pose,
+          Clip, or component authoring.
+        </p>
+      </aside>
+    </div>
+  );
+}

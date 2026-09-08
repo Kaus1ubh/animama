@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:chaos-chibi",
+  "version": 1,
+  "name": "Chaos Chibi",
+  "description": "Scene background effect preset",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "solid": {
+      "enabled": true,
+      "color": "#fff6cf"
+    },
+    "pattern": {
+      "enabled": true,
+      "pattern": "polkadot",
+      "color": "#ff8cb0",
+      "size": 18,
+      "spacing": 20,
+      "opacity": 0.28
+    },
+    "marquee": {
+      "enabled": true,
+      "itemSize": 84,
+      "gap": 22,
+      "rowGap": 18,
+      "direction": "diagonal-up-left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 180,
+      "opacity": 0.9,
+      "items": [
+        {
+          "id": "chibi-1",
+          "kind": "image",
+          "label": "Chibi 1",
+          "image": "chibi-1.png"
+        },
+        {
+          "id": "chibi-2",
+          "kind": "image",
+          "label": "Chibi 2",
+          "image": "chibi-2.png"
+        }
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "chibi-1.png",
+      "role": "image"
+    },
+    {
+      "path": "chibi-2.png",
+      "role": "image"
+    }
+  ]
+}

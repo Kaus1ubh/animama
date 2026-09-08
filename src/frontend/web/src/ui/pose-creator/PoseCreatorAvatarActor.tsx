@@ -1,0 +1,189 @@
+"use client";
+
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Object3D } from "three";
+
+import { Avatar } from "@/lib/avatar";
+import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
+import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
+import type { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCatalog";
+import {
+  runtimeContentDeliveryUrl,
+  runtimeContentDownloadUrl,
+} from "@/lib/runtime-content/runtimeContentDelivery";
+import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
+import { createLogger } from "@/lib/logger";
+import { redactUrlForLogging } from "@/lib/utils";
+import { usePoseCreatorStore } from "@/stores/pose-creator-store";
+import {
+  applyPoseCreatorBasePose,
+  applyPoseCreatorDraftsToAvatar,
+} from "./poseCreatorAuthoring";
+import { PoseCreatorBoneGizmo } from "./PoseCreatorBoneGizmo";
+import { PoseCreatorBoneMarkers } from "./PoseCreatorBoneMarkers";
+import { PoseCreatorClipPlaybackTicker } from "./PoseCreatorClipPlaybackTicker";
+import { updatePoseCreatorAvatarFrame } from "./poseCreatorAvatarFrame";
+
+type PoseCreatorAvatarActorProps = {
+  entry: RuntimeCatalogEntry;
+  catalog: AnimaRuntimeCatalog | null;
+  onAvatarInstanceChange?: (avatar: Avatar | null) => void;
+  showHumanoidTools?: boolean;
+};
+
+function formatLoadError(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  return "The selected Avatar could not be rendered.";
+}
+
+export function PoseCreatorAvatarActor({
+  entry,
+  catalog,
+  onAvatarInstanceChange,
+  showHumanoidTools = true,
+}: PoseCreatorAvatarActorProps) {
+  const logger = useMemo(() => createLogger("PoseCreatorAvatarActor"), []);
+  const { camera, gl } = useThree();
+  const viewportElement = gl.domElement;
+  const basePose = usePoseCreatorStore((state) => state.basePose);
+  const boneDrafts = usePoseCreatorStore((state) => state.boneDrafts);
+  const expressionDrafts = usePoseCreatorStore(
+    (state) => state.expressionDrafts,
+  );
+  const avatarRef = useRef<Avatar | null>(null);
+  const basePoseRef = useRef(basePose);
+  const [sceneObject, setSceneObject] = useState<Object3D | null>(null);
+  const setLoadStatus = usePoseCreatorStore((state) => state.setLoadStatus);
+  const setLoadProgress = usePoseCreatorStore((state) => state.setLoadProgress);
+
+  useEffect(() => {
+    basePoseRef.current = basePose;
+  }, [basePose]);
+
+  useEffect(() => {
+    let isCancelled = false;
+    const controller = new AbortController();
+    const avatar = new Avatar(camera, viewportElement, {
+      motionCatalog: catalog ?? BUILT_IN_AVATAR_MOTION_CATALOG,
+      mediaCatalog: catalog ?? EMPTY_RUNTIME_MEDIA_PROVIDER,
+    });
+    avatarRef.current = avatar;
+    setSceneObject(null);
+    onAvatarInstanceChange?.(null);
+    setLoadStatus("loading");
+    setLoadProgress({
+      phase: "setup",
+      message: "Setting up...",
+    });
+
+    const loadAvatar = async () => {
+      const logicalUrl = runtimeContentDeliveryUrl(entry);
+      try {
+        if (!logicalUrl) {
+          throw new Error("The selected Avatar Model has no runtime file.");
+        }
+        const filePath = await runtimeContentDownloadUrl(entry, logicalUrl, {
+          signal: controller.signal,
+        });
+        if (!filePath) {
+          throw new Error("The selected Avatar Model could not be authorized.");
+        }
+        await avatar.load(
+          {
+            filePath,
+            sourceUrl: logicalUrl,
+            sourceKey: entry.content_revision,
+          },
+          (progress) => {
+            if (!isCancelled) {
+              setLoadProgress(progress);
+            }
+          },
+        );
+
+        avatar.setAutomaticAnimationPlaybackEnabled(false);
+        applyPoseCreatorBasePose(avatar, basePoseRef.current);
+        avatar.vrm?.update(0);
+
+        if (isCancelled || avatar.isDisposed || !avatar.scene) {
+          avatar.dispose();
+          return;
+        }
+
+        avatarRef.current = avatar;
+        setSceneObject(avatar.scene);
+        onAvatarInstanceChange?.(avatar);
+        setLoadStatus("ready");
+        logger.info("Load", "Pose creator avatar loaded", {
+          sourceKey: entry.content_revision,
+          url: redactUrlForLogging(logicalUrl),
+        });
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        logger.error("Load", "Failed to load pose creator avatar", {
+          sourceKey: entry.content_revision,
+          url: redactUrlForLogging(logicalUrl),
+          error,
+        });
+        if (!isCancelled) {
+          setLoadStatus("error", formatLoadError(error));
+          onAvatarInstanceChange?.(null);
+        }
+        avatar.dispose();
+      }
+    };
+
+    void loadAvatar();
+
+    return () => {
+      isCancelled = true;
+      controller.abort();
+      if (avatarRef.current === avatar) {
+        avatarRef.current = null;
+      }
+      setSceneObject(null);
+      onAvatarInstanceChange?.(null);
+      avatar.dispose();
+    };
+  }, [
+    camera,
+    catalog,
+    entry,
+    logger,
+    onAvatarInstanceChange,
+    setLoadProgress,
+    setLoadStatus,
+    viewportElement,
+  ]);
+
+  useFrame((_state, delta) => {
+    updatePoseCreatorAvatarFrame(avatarRef.current, delta);
+  });
+
+  useEffect(() => {
+    if (!sceneObject || !avatarRef.current) return;
+    applyPoseCreatorDraftsToAvatar(
+      avatarRef.current,
+      basePose,
+      boneDrafts,
+      expressionDrafts,
+    );
+  }, [basePose, boneDrafts, expressionDrafts, sceneObject]);
+
+  if (!sceneObject) return null;
+  return (
+    <>
+      <primitive object={sceneObject} dispose={null} />
+      <PoseCreatorClipPlaybackTicker />
+      {showHumanoidTools ? (
+        <>
+          <PoseCreatorBoneMarkers avatar={avatarRef.current} />
+          <PoseCreatorBoneGizmo avatar={avatarRef.current} />
+        </>
+      ) : null}
+    </>
+  );
+}

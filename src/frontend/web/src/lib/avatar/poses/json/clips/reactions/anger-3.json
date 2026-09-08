@@ -1,0 +1,56 @@
+{
+  "schema": "animaPoseClip/1.0",
+  "id": "anger-3",
+  "name": "Anger Reaction 3",
+  "role": "reaction",
+  "playback": {
+    "lifetime": {
+      "kind": "whileInteractionPhase",
+      "phases": ["talking"],
+      "scope": "activeRun"
+    }
+  },
+  "defaultTransition": {
+    "easing": "easeInOutSine",
+    "interpolation": {
+      "expression": "linear"
+    }
+  },
+  "fadeIn": {
+    "duration": 0.14,
+    "easing": "easeOutSine"
+  },
+  "fadeOut": {
+    "duration": 0.66,
+    "easing": "easeInOutSine"
+  },
+  "poses": {
+    "peak": {
+      "expressions": {
+        "angry": 0.78,
+        "blink": 0.18
+      }
+    }
+  },
+  "poseKeyframes": [
+    {
+      "time": 0,
+      "pose": "peak"
+    }
+  ],
+  "events": [
+    {
+      "id": "scene-emotion-background",
+      "time": 0,
+      "kind": "scene_vfx",
+      "sceneKind": "background_layers",
+      "presetId": "scene-vfx-emotion-anger"
+    },
+    {
+      "id": "avatar-angry",
+      "time": 0.1,
+      "kind": "avatar_vfx",
+      "effectId": "angry"
+    }
+  ]
+}

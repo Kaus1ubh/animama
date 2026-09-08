@@ -1,0 +1,20 @@
+{
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:darn_it",
+  "version": 1,
+  "semantic_key": "darn_it",
+  "name": "Darn It",
+  "ai_description": "Use when something goes wrong or the character makes a mistake.",
+  "schema_version": 1,
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "darn_it.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

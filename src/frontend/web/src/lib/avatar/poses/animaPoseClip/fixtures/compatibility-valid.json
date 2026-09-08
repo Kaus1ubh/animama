@@ -1,0 +1,143 @@
+{
+  "schema": "animaPoseClip/1.0",
+  "id": "compatibility-valid",
+  "name": "Compatibility Valid",
+  "role": "reaction",
+  "duration": 2,
+  "loop": false,
+  "playback": {
+    "lifetime": {
+      "kind": "whileAvatarState",
+      "states": ["gesture"],
+      "scope": "activeRun"
+    }
+  },
+  "basePose": "neutral",
+  "defaultTransition": {
+    "easing": "easeInOutSine",
+    "interpolation": {
+      "humanoidRotation": "slerp",
+      "humanoidPosition": "linear",
+      "expression": "linear"
+    }
+  },
+  "fadeIn": {
+    "duration": 0.1,
+    "easing": "linear"
+  },
+  "fadeOut": {
+    "duration": 0.15,
+    "easing": "easeOutSine"
+  },
+  "poses": {
+    "neutral": {
+      "humanoid": {
+        "hips": {
+          "position": [0, 0, 0],
+          "rotation": [0, 0, 0, 1]
+        },
+        "head": {
+          "rotationEulerDegrees": [0, 0, 0]
+        }
+      },
+      "expressions": {
+        "happy": 0
+      }
+    },
+    "accent": {
+      "humanoid": {
+        "head": {
+          "rotationEulerDegrees": [0, 12, 0]
+        }
+      },
+      "expressions": {
+        "happy": 0.8
+      }
+    }
+  },
+  "poseKeyframes": [
+    {
+      "time": 0,
+      "pose": "neutral"
+    },
+    {
+      "time": 1,
+      "pose": "accent",
+      "transition": {
+        "easing": "easeInCubic"
+      }
+    },
+    {
+      "time": 2,
+      "pose": "neutral"
+    }
+  ],
+  "events": [
+    {
+      "id": "avatar-vfx",
+      "time": 0.1,
+      "kind": "avatar_vfx",
+      "effectId": "star",
+      "duration": 0.4,
+      "envelope": {
+        "intensity": {
+          "from": 0,
+          "to": 1,
+          "fadeIn": 0.1,
+          "fadeOut": 0.1,
+          "easing": "linear"
+        }
+      },
+      "parameterKeyframes": [
+        {
+          "time": 0,
+          "values": {
+            "intensity": 0
+          }
+        },
+        {
+          "time": 0.4,
+          "values": {
+            "intensity": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "scene-vfx",
+      "time": 0.2,
+      "kind": "scene_vfx",
+      "sceneKind": "focus_lines",
+      "presetId": "light-streak"
+    },
+    {
+      "id": "particle-vfx",
+      "time": 0.3,
+      "kind": "particle_vfx",
+      "effectId": "sparkles",
+      "anchor": "head",
+      "followAnchor": true,
+      "transform": {
+        "offset": {
+          "y": 0.2
+        },
+        "depthOffset": 0.1,
+        "rotation": {
+          "z": 0.25
+        },
+        "scale": {
+          "x": 1,
+          "y": 1,
+          "z": 1
+        }
+      }
+    },
+    {
+      "id": "sfx",
+      "time": 0.4,
+      "kind": "sfx",
+      "cueId": "bright_idea_01",
+      "volume": 0.8
+    }
+  ]
+}

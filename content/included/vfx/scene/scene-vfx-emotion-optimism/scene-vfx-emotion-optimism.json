@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-optimism",
+  "version": 1,
+  "name": "Emotion Optimism",
+  "description": "Scene background effect preset",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": true,
+      "color": "#dff7c7"
+    },
+    "pattern": {
+      "enabled": true,
+      "pattern": "star",
+      "color": "#ffffff",
+      "size": 24,
+      "spacing": 18,
+      "opacity": 0.34
+    },
+    "marquee": {
+      "enabled": true,
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "diagonal-up-left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 170,
+      "opacity": 0.92,
+      "items": [
+        {
+          "id": "emoji-sunrise",
+          "kind": "image",
+          "label": "Sunrise 🌅",
+          "image": "emoji-sunrise-1f305.svg"
+        }
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "emoji-sunrise-1f305.svg",
+      "role": "image"
+    }
+  ]
+}

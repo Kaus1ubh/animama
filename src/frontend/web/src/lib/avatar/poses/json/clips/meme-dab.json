@@ -1,0 +1,39 @@
+{
+  "schema": "animaPoseClip/1.0",
+  "id": "meme-dab",
+  "name": "meme-dab",
+  "duration": 1,
+  "loop": true,
+  "basePose": "relaxedRest",
+  "defaultTransition": {
+    "easing": "easeInOutSine",
+    "interpolation": {
+      "humanoidRotation": "slerp",
+      "humanoidPosition": "linear",
+      "expression": "linear"
+    }
+  },
+  "fadeIn": {
+    "duration": 0.7,
+    "easing": "easeInOutSine"
+  },
+  "fadeOut": {
+    "duration": 0.7,
+    "easing": "easeInOutSine"
+  },
+  "poses": {
+    "meme-dab": {
+      "ref": "meme-dab"
+    }
+  },
+  "poseKeyframes": [
+    {
+      "time": 0,
+      "pose": "meme-dab"
+    },
+    {
+      "time": 1,
+      "pose": "meme-dab"
+    }
+  ]
+}

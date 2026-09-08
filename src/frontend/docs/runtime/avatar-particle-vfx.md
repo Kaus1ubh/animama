@@ -1,0 +1,219 @@
+# Avatar Particle VFX
+
+Particle VFX are Three.js particle effects loaded through `three.quarks` and
+owned by the live `Avatar` runtime. They are separate from avatar texture VFX
+and DOM scene VFX.
+
+Particle Effect is the product-domain name exposed under
+`/a/particle-effects`. Typed Local entries reuse the existing Three.quarks
+validation and budgets, preview without an Anima loadout write, and compose
+directly into Gestures/Reactions. A Gesture or Reaction references the exact
+typed catalog item by dependency alias. Complete Preview mounts its current
+validated revision automatically; it is never a separate equip choice.
+
+The Gesture and Reaction editors browse this typed catalog directly. Adding a
+Particle Effect records its exact source plus a local alias and creates its
+timeline event in the same editor change. Removing its final use prunes the
+declaration before Save.
+
+Runtime code lives under:
+
+- `src/frontend/web/src/lib/avatar/particle-vfx/`
+- `src/frontend/web/src/lib/avatar/poses/animaPoseClip/`
+- `src/frontend/web/src/lib/avatar/Avatar.ts`
+
+The built-in App provider currently contains `cartoon-bang`, `hearts`, `stars`,
+`sparkles`, `question-marks`, `exclamation`, `zzz`, `rain-cloud`,
+`hearts-v1`, `exclamation-v1`, `question-v1`, `hearts-v2`, `star-v2`, and
+`flame-loop`, plus the Phase 5 polished catalog entries
+`magic-sparkle-burst`, `soft-heart-pop`, `surprise-shock-pop`,
+`confusion-orbit-marks`, `sleep-bubbles`, and `sad-rain-puff`.
+Live Anima routes can resolve only the subset mounted in that Anima's
+`AnimaRuntimeCatalog`; the full built-in provider is reserved for explicit
+editor/debug use.
+
+## Bundled media
+
+Curated particle media is tracked under
+`content/included/vfx/particle`. Each playable Particle Effect directory owns
+its manifest and referenced textures as registered catalog files. Raw
+downloaded texture packs are authoring source material only; mounted runtime
+entries do not fetch them through public paths.
+
+Regenerate the curated textures and authored quarks JSON with:
+
+```bash
+pnpm generate:particle-vfx-assets
+```
+
+The generator writes transparent PNG textures and quarks JSON into the
+Included authoring tree. Final typed entries reference textures with safe paths
+relative to their own manifest instead of embedding large base64 payloads or
+root-relative `/effects/...` URLs.
+
+Use PNG or WebP with transparent alpha for billboards, prefer square 256x256 or
+512x512 textures for static sprites, disable particle material depth writes,
+and keep local-space emitters for effects that should follow avatar anchors.
+Curated flipbook atlases are tracked in the same texture directory. The
+generator normalizes Brackeys TGA flipbooks and predrawn PNG atlases into PNG
+runtime assets, then records `uTileCount`, `vTileCount`, frame counts,
+`blendTiles`, and recommended `FrameOverLife` ranges in the editor manifest.
+It also normalizes Kenney fire, flame, ember, smoke, and light sprites used by
+the layered `flame-loop` catalog effect.
+
+The editor texture picker is driven by
+`web/src/lib/avatar/particle-vfx/editor/textureManifest.ts`. Each manifest
+entry records a stable id, display label, runtime file name, authoring role
+such as glow, spark, smoke/dust, trail/streak, or symbol, and recommended
+blending and render mode defaults. Atlas entries also carry tile metadata and a
+recommended linear frame-over-life range. New blank emitters use those
+recommendations when a texture is selected so stretched streak textures start
+with the stretched billboard render mode, smoke/dust textures start with normal
+blending, and flipbook textures start with matching tile counts and frame
+animation.
+
+## Particle Effect creator
+
+The protected `/a/particle-effects/new` and
+`/a/particle-effects/:particleEffectId/edit` routes provide the
+Animama-owned authoring surface. The editor creates a direct Particle Effect
+document, selects its bounded resources, previews it in its isolated Canvas,
+and saves one editable Local entry.
+
+Included sources are read-only. Editing an Included template starts a new Local
+typed item rather than modifying shipped files. Unsaved recovery stays browser
+authoring state; the stable editor route carries only the catalog item ID.
+
+The editor preserves the existing curated texture manifest, particle-budget
+validation, import/export tools, and Three.quarks preview lifecycle. Save uses
+`PUT /v1/particle-effects/{entry_name}` and atomically replaces the ordinary
+Local entry. It never equips the effect to an Anima; Gesture and Reaction
+creators reference it as a dependency.
+
+The creator is scene-first on desktop. Its route-owned Canvas docks beside the
+expanded application sidebar and resizes to that usable workspace; when the
+sidebar collapses, the Canvas returns to full viewport width beneath the
+compact controls. Interactive chrome uses the remaining local sidebar inset:
+zero after the expanded surface has moved, or the compact control inset while
+the rail overlays the scene. The document toolbar, Emitters/effect setup panel,
+System/Emission/Shape/Behavior/Appearance Inspector, model/Avatar controls,
+and Preview Timeline float above the scene. Appearance groups the existing
+Texture, Color, and Renderer fields; no authored `three.quarks` fields are
+removed by the presentation change.
+Import and JSON inspection use focused dialogs, and the Preview Timeline only
+pauses, resumes, or restarts this local creator preview—it does not author clip
+events or typed dependencies.
+
+## Clip Events
+
+`animaPoseClip/1.0` supports timed particle events:
+
+```json
+{
+  "id": "bang-1",
+  "time": 0.25,
+  "kind": "particle_vfx",
+  "effectId": "cartoon-bang",
+  "anchor": "head",
+  "duration": 2,
+  "followAnchor": true,
+  "transform": {
+    "offset": { "x": 0, "y": 0.2, "z": 0 },
+    "depthOffset": 0.2,
+    "scale": { "x": 1, "y": 1, "z": 1 }
+  }
+}
+```
+
+`effectId` must be an effective runtime ID mounted for the current Anima. Raw
+quarks JSON locators stay behind the authoring provider or the prepared
+registered catalog files. An unavailable ID fails locally and is never replaced by a
+similarly named built-in effect.
+
+Supported anchors are `root`, `hips`, `spine`, `chest`, `neck`, `head`,
+`leftHand`, `rightHand`, `leftFoot`, and `rightFoot`. `transform.offset` is in
+avatar-local meters. `transform.depthOffset` is avatar-local Z: positive means
+in front of the avatar and negative means behind.
+
+If `duration`, `anchor`, `transform`, or `followAnchor` are omitted, the runtime
+uses the catalog defaults and follows the anchor. Requested durations are capped
+by each catalog entry's performance budget. `envelope` and
+`parameterKeyframes` parse for forward compatibility, but Phase 2 does not map
+them onto quarks emitter internals.
+
+Clip-owned particle events are always duration-backed. Manual particle lifetime
+is available through explicit runtime/debug calls to
+`ParticleVFXController.playEffect({ lifetime: { kind: "manual" } })` for
+catalog entries whose budget allows looping. Manual instances still follow
+anchors, update quarks batches, report diagnostics, and clear through
+`clearEffect`, `clearAll`, avatar unload, or controller disposal, but they do
+not expire from elapsed time.
+
+Authored quarks JSON can contain `worldSpace: true` particle systems, especially
+when imported from public examples. Animama still spawns those effects at the
+selected anchor, but disables continuous anchor follow for that active instance
+and records a diagnostic warning. Use local-space emitters for effects that must
+stay attached to a moving head, hand, or foot for their full lifetime.
+
+Avatar-bounds rectangle auto-fit is resolved once per play from rendered mesh
+bounds. It ignores existing particle roots so active effects do not inflate the
+avatar bounds, patches cloned `emitterShape` objects only, and leaves cached
+prefabs untouched. If bounds cannot be computed or no matching rectangle
+emitter is found, playback falls back to normal anchor placement and records a
+warning.
+
+## Runtime Flow
+
+`PoseController` and `ReactionClipPlayer` dispatch `particle_vfx` events through
+the same clip event sink used by avatar VFX, scene VFX, and SFX. `Avatar`
+handles those sink callbacks by calling `particleVFXController.playEffect(...)`
+with the clip `appliedId`, then clears the same id when the event duration
+expires or the clip stops.
+
+The Phase 5 polished catalog expansion does not wire the new effects into chat
+reaction clips or the planner. That integration is deferred to Phase 6. Until
+then, the planner still selects `role: "reaction"` clips from
+`poses/json/clips/reactions/`, and particle playback uses whatever
+`particle_vfx` events those clips already own. There is no direct
+`AvatarPlanner` `particleVfx` lane, so clip-owned particles inherit the same
+same-run reaction lifecycle and the existing non-TTS presentation completion
+policy.
+
+For a Local Particle Effect, Save validation accepts only safe
+relative image references and derives bounded system, duration, looping, and
+particle-capacity metadata. Runtime loading fetches the private manifest and
+exact referenced textures with authorization, enforces the declared sizes and
+the 64 MiB package limit, rewrites only those validated image references to
+owned Blob URLs, and rejects missing, extra, external, absolute, encoded, or
+traversal references. The manifest body is not exposed by the runtime API.
+
+The `presentation.disable_vfx` preference suppresses clip-owned avatar VFX,
+scene VFX, and particle VFX from pose and reaction clip playback. Toggling it
+off clears currently tracked clip-owned avatar, scene, and particle effects.
+Manual/debug particle controls, manual runtime avatar VFX controls, and SFX
+events are intentionally unaffected.
+
+The pose creator can import, preserve, validate, preview, create, and edit
+particle events. Use the Effect Catalog `Particle` tab to insert an event at
+the playhead, then use Event Inspector controls for effect id, timing,
+duration, anchor, follow-anchor behavior, local offset, depth offset, rotation,
+and scale.
+
+`AnimationDebugModal` keeps the manual runtime Particle VFX surface and also
+shows particle runtime state from clip/reaction diagnostics: active count,
+loaded count, latest warning or error, lifetime mode, and active applied ids.
+The `flame-loop` effect defaults to manual lifetime in this debug surface so it
+can stay active as a chest-centered flame aura until cleared.
+
+The runtime evicts failed JSON load promises so transient asset fetch errors can
+be retried, and controller disposal clears active systems, cached prefab
+references, quarks batch renderer resources, pending fetches, and owned Blob
+URLs. It permits at most four concurrent particle instances and accounts at
+most 512 active particles. An effect with `can_coexist=false` clears conflicting
+instances before it starts.
+
+Tier-A particle entries preload after the avatar is live through
+`ParticleVFXController.preloadCatalogTier("tierA")`. Preload is non-blocking:
+failures are diagnostic warnings and do not block avatar readiness or normal
+chat runtime behavior. All eager private model/motion/particle work shares a
+64 MiB budget per mounted Anima; entries beyond it remain available lazily.

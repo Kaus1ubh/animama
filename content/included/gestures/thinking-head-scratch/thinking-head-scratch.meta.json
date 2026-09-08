@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:thinking-head-scratch",
+  "version": 1,
+  "semantic_key": "thinking-head-scratch",
+  "name": "thinking-head-scratch",
+  "ai_description": "Reusable avatar pose clip",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "thinking-head-scratch.json",
+      "role": "sequence"
+    }
+  ]
+}

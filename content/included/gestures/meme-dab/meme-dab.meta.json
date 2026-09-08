@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:meme-dab",
+  "version": 1,
+  "semantic_key": "meme-dab",
+  "name": "meme-dab",
+  "ai_description": "Reusable avatar pose clip",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "files": [
+    {
+      "path": "meme-dab.json",
+      "role": "sequence"
+    }
+  ],
+  "dependencies": []
+}

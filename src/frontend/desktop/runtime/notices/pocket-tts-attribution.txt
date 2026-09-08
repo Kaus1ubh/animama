@@ -1,0 +1,26 @@
+Pocket TTS model and voice assets
+
+Upstream model: Kyutai Pocket TTS
+Source: https://huggingface.co/kyutai/pocket-tts
+Pinned model metadata revision: 492522650173a0653b7575cdc25ae09810e5d741
+Model-card license: Creative Commons Attribution 4.0 International (CC BY 4.0)
+Model-card license URL: https://creativecommons.org/licenses/by/4.0/
+Initial-release export treatment: Creative Commons
+Attribution-NonCommercial 4.0 International (CC BY-NC 4.0). The owner elected
+to comply with these stricter terms for Animama's entirely free,
+noncommercial initial desktop release despite the web snapshot README's
+CC BY 4.0 declaration.
+Export license URL: https://creativecommons.org/licenses/by-nc/4.0/
+
+The tokenizer.model and voices.bin files match the files published by the
+Pocket TTS web snapshot at revision
+3cf6daa623e2b09992c972cab32568ee8679a154. All five ONNX files exactly match
+https://huggingface.co/spaces/codexxx/pocket-tts-web/tree/6fbae64699d94f60dde9c3975984b383a6a3d950/onnx
+
+Both web snapshots include ONNX-LICENSE with CC BY-NC 4.0 terms, while their
+README declares CC BY 4.0. Animama conservatively applies CC BY-NC 4.0 to these
+assets for the initial release. Replace the exports or obtain commercial
+permission before charging for Animama, connecting them to a paid service,
+using the release for lead generation, monetizing its data, or otherwise
+directing it toward commercial advantage. This attribution record is not the
+final hash-bound redistribution approval.

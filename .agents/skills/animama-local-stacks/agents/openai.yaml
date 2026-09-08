@@ -1,0 +1,4 @@
+interface:
+  display_name: "Animama Local Stacks"
+  short_description: "Run isolated local stacks for worktree testing"
+  default_prompt: "Use $animama-local-stacks to start or debug an isolated local Animama stack for this worktree."

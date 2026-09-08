@@ -1,0 +1,26 @@
+{
+  "schema": "animama-runtime-sources/1",
+  "python": "3.12.13",
+  "pyinstaller": "6.22.2",
+  "electron": "39.8.9",
+  "esbuild": "0.27.7",
+  "gateway_schema_version": 1,
+  "targets": {
+    "darwin-arm64": { "minimum_os": "15.0", "status": "phase-1-feasibility" }
+  },
+  "core": [
+    "electron",
+    "bundled-main-and-preload",
+    "embedded-desktop-web",
+    "frozen-server",
+    "native-postgresql-pgvector",
+    "typed-starter-closure",
+    "pocket-tts",
+    "vad",
+    "smart-turn",
+    "all-current-onnx-variants"
+  ],
+  "packs": ["parakeet-stt"],
+  "deferred_packs": ["expanded-included-content", "document-processing"],
+  "release_approved": false
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:left-ok-sign",
+  "version": 1,
+  "semantic_key": "left-ok-sign",
+  "name": "left-ok-sign",
+  "ai_description": "Reusable avatar pose clip",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "left-ok-sign.json",
+      "role": "sequence"
+    }
+  ]
+}

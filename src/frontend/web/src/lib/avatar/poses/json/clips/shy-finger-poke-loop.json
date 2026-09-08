@@ -1,0 +1,49 @@
+{
+  "schema": "animaPoseClip/1.0",
+  "id": "shy-finger-poke-loop",
+  "name": "shy-finger-poke-loop",
+  "duration": 0.6,
+  "loop": true,
+  "basePose": "relaxedRest",
+  "defaultTransition": {
+    "easing": "easeInOutSine",
+    "interpolation": {
+      "humanoidRotation": "slerp",
+      "humanoidPosition": "linear",
+      "expression": "linear"
+    }
+  },
+  "fadeIn": {
+    "duration": 0.25,
+    "easing": "easeInOutSine"
+  },
+  "fadeOut": {
+    "duration": 0.25,
+    "easing": "easeInOutSine"
+  },
+  "poses": {
+    "shyFingerPoke1": {
+      "ref": "shy-finger-poke-1"
+    },
+    "shyFingerPoke2": {
+      "ref": "shy-finger-poke-2"
+    },
+    "shyFingerPoke1_2": {
+      "ref": "shy-finger-poke-1"
+    }
+  },
+  "poseKeyframes": [
+    {
+      "time": 0,
+      "pose": "shyFingerPoke1"
+    },
+    {
+      "time": 0.3,
+      "pose": "shyFingerPoke2"
+    },
+    {
+      "time": 0.6,
+      "pose": "shyFingerPoke1_2"
+    }
+  ]
+}

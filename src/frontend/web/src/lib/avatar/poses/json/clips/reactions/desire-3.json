@@ -1,0 +1,63 @@
+{
+  "schema": "animaPoseClip/1.0",
+  "id": "desire-3",
+  "name": "Desire Reaction 3",
+  "role": "reaction",
+  "playback": {
+    "lifetime": {
+      "kind": "whileInteractionPhase",
+      "phases": ["talking"],
+      "scope": "activeRun"
+    }
+  },
+  "defaultTransition": {
+    "easing": "easeInOutSine",
+    "interpolation": {
+      "expression": "linear"
+    }
+  },
+  "fadeIn": {
+    "duration": 0.14,
+    "easing": "easeOutSine"
+  },
+  "fadeOut": {
+    "duration": 0.66,
+    "easing": "easeInOutSine"
+  },
+  "poses": {
+    "peak": {
+      "expressions": {
+        "happy": 0.62,
+        "relaxed": 0.32
+      }
+    }
+  },
+  "poseKeyframes": [
+    {
+      "time": 0,
+      "pose": "peak"
+    }
+  ],
+  "events": [
+    {
+      "id": "scene-emotion-background",
+      "time": 0,
+      "kind": "scene_vfx",
+      "sceneKind": "background_layers",
+      "presetId": "scene-vfx-emotion-desire"
+    },
+    {
+      "id": "avatar-blush-2-r",
+      "time": 0.1,
+      "kind": "avatar_vfx",
+      "effectId": "blush 2 r"
+    },
+    {
+      "id": "particle-hearts",
+      "time": 0.1,
+      "kind": "particle_vfx",
+      "effectId": "hearts",
+      "duration": 1.8
+    }
+  ]
+}

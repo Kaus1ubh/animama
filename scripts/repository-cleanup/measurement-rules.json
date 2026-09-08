@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "scc_version": "4.0.0",
+  "scc_release": "https://github.com/boyter/scc/releases/tag/v4.0.0",
+  "verified_download": {
+    "platform": "Darwin_arm64",
+    "url": "https://github.com/boyter/scc/releases/download/v4.0.0/scc_Darwin_arm64.tar.gz",
+    "sha256": "02cfdfcaf5baf7f6595746efdfcc6301fce89cfc6a5bf8b52ed78064937fd933"
+  },
+  "scc_flags": [
+    "--no-config", "--no-gitignore", "--no-ignore", "--no-scc-ignore",
+    "--no-gitmodule", "--count-ignore", "--count-unsupported",
+    "--no-cocomo", "--by-file", "--format", "json", "--count-as", "spec:py",
+    "--count-as-pattern", ".gitattributes:Git attributes:gitignore",
+    "--count-as-pattern", ".prettierignore:Prettier ignore:gitignore",
+    "--count-as-pattern", ".prettierrc:Prettier config:JSON",
+    "--count-as-pattern", "TODO:Notes:Plain Text"
+  ],
+  "scc_builtin_excluded_names": [
+    "package-lock.json", "Cargo.lock", "yarn.lock", "pubspec.lock", "Podfile.lock", "pnpm-lock.yaml"
+  ],
+  "excluded_components": [
+    ".git", ".ua", "node_modules", ".venv", "__pycache__", ".sst",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache", ".pnpm-store",
+    ".electron-cache", ".desktop-runtime", ".animama-logs"
+  ],
+  "excluded_prefixes": [
+    "src/frontend/web/dist/", "src/frontend/server/dist/", "src/frontend/desktop/dist/",
+    "src/frontend/desktop/release/", "content/local/", "data/", "backups/"
+  ],
+  "excluded_suffixes": [".pyc", ".pyo", ".tsbuildinfo"],
+  "included_exceptions": ["content/local/README.md", "data/README.md"],
+  "category_rules": [
+    {
+      "id": "generated-sdk-and-router",
+      "category": "generated",
+      "prefixes": ["src/frontend/web/src/client/"],
+      "paths": ["src/frontend/web/src/routeTree.gen.ts"]
+    },
+    {
+      "id": "vendored-speech-and-browser-runtimes",
+      "category": "vendored",
+      "prefixes": [
+        "src/frontend/web/src/lib/speech/pocket/core/",
+        "src/frontend/web/src/lib/speech/pocket/audio/",
+        "src/frontend/web/public/basis/",
+        "src/frontend/web/public/onnx/ort/",
+        "src/frontend/web/public/tts/vendor/"
+      ],
+      "paths": [
+        "src/frontend/web/src/lib/speech/pocket/index.js",
+        "src/frontend/web/public/onnx/models/vad/vad.worklet.bundle.min.js"
+      ]
+    },
+    {
+      "id": "tests-and-fixtures",
+      "category": "tests_fixtures",
+      "components": ["tests", "test", "fixtures", "loadtest", "e2e"],
+      "patterns": ["*.test.*", "*.spec.ts", "*.spec.tsx", "*.spec.js", "*.spec.mjs", "test_*.py", "*_test.py", "conftest.py"]
+    },
+    {
+      "id": "documentation-and-agent-guidance",
+      "category": "docs_config",
+      "components": ["docs", ".agents"],
+      "suffixes": [".md", ".rst", ".adoc"],
+      "patterns": ["LICENSE*", "NOTICE*", "COPYING*", "README*"]
+    },
+    {
+      "id": "content-catalog-and-model-data",
+      "category": "runtime_assets",
+      "prefixes": ["content/included/", "parakeet-tdt-0.6b-v2/"]
+    },
+    {
+      "id": "media-and-binary-assets",
+      "category": "runtime_assets",
+      "suffixes": [
+        ".onnx", ".wasm", ".bin", ".model", ".vrm", ".vrma", ".glb", ".gltf",
+        ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico", ".icns",
+        ".mp3", ".wav", ".ogg", ".mp4", ".webm", ".woff", ".woff2", ".ttf",
+        ".tga", ".unitypackage", ".ani", ".cur", ".npy", ".npz", ".safetensors"
+      ]
+    },
+    {
+      "id": "executable-tool-configuration",
+      "category": "docs_config",
+      "patterns": ["*.config.*", ".*rc.js", ".*rc.cjs", ".*rc.mjs"]
+    },
+    {
+      "id": "authored-source-and-tooling",
+      "category": "authored",
+      "suffixes": [
+        ".py", ".pyi", ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs",
+        ".cjs", ".css", ".scss", ".html", ".sh", ".bash", ".zsh", ".sql",
+        ".c", ".h", ".cpp", ".rs", ".go", ".spec", ".ps1"
+      ],
+      "names": ["Makefile", "Dockerfile"],
+      "patterns": ["Dockerfile.*", "*.Dockerfile"]
+    }
+  ],
+  "default_category": "docs_config"
+}

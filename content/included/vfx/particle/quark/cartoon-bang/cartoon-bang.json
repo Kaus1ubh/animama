@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:cartoon-bang",
+  "version": 1,
+  "name": "Cartoon Bang",
+  "description": "A one-shot comic burst for validating quarks particles.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "cartoon-bang",
+    "slots": {
+      "particle_vfx": {
+        "label": "Cartoon Bang",
+        "description": "A one-shot comic burst for validating quarks particles.",
+        "anchor": "head",
+        "duration_seconds": 2,
+        "max_duration_seconds": 2.5,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.22,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 0.16,
+            "y": 0.16,
+            "z": 0.16
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": false,
+        "max_particles": 96
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/cartoon-bang-0.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/cartoon-bang-1.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/cartoon-bang-2.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/cartoon-bang-3.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/cartoon-bang-4.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/cartoon-bang-5.png",
+      "role": "texture"
+    }
+  ]
+}

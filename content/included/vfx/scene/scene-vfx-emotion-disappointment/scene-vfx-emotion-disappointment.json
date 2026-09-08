@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-disappointment",
+  "version": 1,
+  "name": "Emotion Disappointment",
+  "description": "Scene background effect preset",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": true,
+      "color": "#d7dbe6"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 24,
+      "spacing": 18,
+      "opacity": 0.32
+    },
+    "marquee": {
+      "enabled": true,
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "diagonal-up-left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 170,
+      "opacity": 0.92,
+      "items": [
+        {
+          "id": "emoji-disappointed-face",
+          "kind": "image",
+          "label": "Disappointed Face 😞",
+          "image": "emoji-disappointed-face-1f61e.svg"
+        }
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "emoji-disappointed-face-1f61e.svg",
+      "role": "image"
+    }
+  ]
+}

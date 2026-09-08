@@ -1,0 +1,40 @@
+{
+  "name": "@animama/runtime-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./sdk": {
+      "types": "./dist/types/sdk.d.ts",
+      "import": "./dist/sdk.js"
+    },
+    "./api-types": {
+      "types": "./dist/types/api-types.d.ts",
+      "import": "./dist/api-types.js"
+    },
+    "./validators": {
+      "types": "./dist/types/validators.d.ts",
+      "import": "./dist/validators.js"
+    },
+    "./default-client": {
+      "types": "./dist/types/default-client.d.ts",
+      "import": "./dist/default-client.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-typescript-package.mjs src/index.ts src/sdk.ts src/api-types.ts src/validators.ts src/default-client.ts",
+    "check": "tsc -p tsconfig.json --noEmit --emitDeclarationOnly false",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "zod": "4.3.6"
+  }
+}

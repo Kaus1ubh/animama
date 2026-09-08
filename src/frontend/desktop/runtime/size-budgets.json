@@ -1,0 +1,19 @@
+{
+  "schema": "animama-size-budgets/1",
+  "regression_percent": 5,
+  "core": { "download_bytes": 786432000, "installed_bytes": 1610612736 },
+  "packs": {
+    "parakeet-stt": {
+      "download_bytes": 524288000,
+      "installed_bytes": 681574400
+    },
+    "expanded-included-content": {
+      "download_bytes": null,
+      "installed_bytes": 524288000
+    },
+    "document-processing": {
+      "download_bytes": null,
+      "installed_bytes": 1610612736
+    }
+  }
+}

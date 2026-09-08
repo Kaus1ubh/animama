@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:optimism-2",
+  "version": 1,
+  "name": "Optimism Reaction 2",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "optimism",
+    "intensity": 2
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:particle-effect:sparkles",
+      "alias": "sparkles",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:star",
+      "alias": "star",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "optimism-2.json",
+      "role": "sequence"
+    }
+  ]
+}

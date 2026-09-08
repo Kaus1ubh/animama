@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "content_type": "reaction",
+  "content_id": "builtin:reaction:amusement-1",
+  "version": 1,
+  "name": "Amusement Reaction 1",
+  "ai_description": "Reusable avatar reaction clip",
+  "placement_hint": {
+    "emotion": "amusement",
+    "intensity": 1
+  },
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "amusement-1.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:texture_black_1",
+  "version": 1,
+  "name": "Texture Black 1",
+  "description": "Dark face overlay for heavy gloom, dread, or emotionally sinking moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/1",
+    "kind": "texture",
+    "region": "full_face",
+    "targetRole": "face_skin",
+    "assetShape": "full_face",
+    "applyMode": "overlay",
+    "lifetime": {
+      "kind": "turns",
+      "turns": 3
+    },
+    "image": "texture_black_1.png"
+  },
+  "files": [
+    {
+      "path": "texture_black_1.png",
+      "role": "image"
+    }
+  ]
+}

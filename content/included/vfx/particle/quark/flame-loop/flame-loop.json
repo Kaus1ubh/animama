@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:flame-loop",
+  "version": 1,
+  "name": "Flame Loop",
+  "description": "A layered chest-centered flame aura for persistent manual debug playback.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "flame-loop",
+    "slots": {
+      "particle_vfx": {
+        "label": "Flame Loop",
+        "description": "A layered chest-centered flame aura for persistent manual debug playback.",
+        "anchor": "chest",
+        "duration_seconds": 8,
+        "max_duration_seconds": 30,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.06,
+            "z": 0
+          },
+          "depth_offset": 0.08,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 0.88,
+            "y": 0.88,
+            "z": 0.88
+          }
+        },
+        "looping_allowed": true,
+        "can_coexist": false,
+        "max_particles": 64
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/kenney-ember-spark.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/kenney-fire-glow.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/kenney-flame-core.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/kenney-flame-tongue.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/kenney-smoke-wisp.png",
+      "role": "texture"
+    }
+  ]
+}

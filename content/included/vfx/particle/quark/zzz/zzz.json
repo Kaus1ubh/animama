@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:zzz",
+  "version": 1,
+  "name": "Zzz",
+  "description": "Sleepy drifting Zs for tired or bored moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "zzz",
+    "slots": {
+      "particle_vfx": {
+        "label": "Zzz",
+        "description": "Sleepy drifting Zs for tired or bored moments.",
+        "anchor": "head",
+        "duration_seconds": 2.5,
+        "max_duration_seconds": 2.8,
+        "preload_tier": "tier_a",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0.08,
+            "y": 0.32,
+            "z": 0
+          },
+          "depth_offset": 0.1,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 5
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/zzz.png",
+      "role": "texture"
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+appId: com.animama.desktop
+productName: Animama
+copyright: Copyright (c) 2026 Raymond Van. All rights reserved.
+directories:
+  output: release
+beforeBuild: ./scripts/before-build.mjs
+electronDownload:
+  cache: .electron-cache
+files:
+  - dist/**/*
+  - package.json
+  - from: ../../..
+    to: .
+    filter:
+      - LICENSE
+extraResources:
+  - from: .desktop-runtime/darwin-arm64/runtime
+    to: runtime
+    filter:
+      - "**/*"
+asarUnpack:
+  - dist/native/*.node
+extraMetadata:
+  main: dist/main.js
+linux:
+  target:
+    - AppImage
+  category: Utility
+  artifactName: ${productName}-${version}-${arch}.${ext}
+mac:
+  category: public.app-category.utilities
+  minimumSystemVersion: "15.0"
+  defaultArch: arm64
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  extendInfo:
+    NSMicrophoneUsageDescription: Animama uses the microphone for dictation and voice mode.
+win:
+  defaultArch: x64
+  artifactName: ${productName}-${version}-${arch}.${ext}

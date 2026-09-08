@@ -1,0 +1,625 @@
+{
+  "schema_version": 1,
+  "id": "builtin:starter-loadout",
+  "version": 1,
+  "gestures": [
+    {
+      "content_id": "builtin:gesture:exclaim_frustrated",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:frustrated_explain",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:sarcastic_response",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:silly_slap",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:flattered",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:proud_of_self",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:excited_jump_1",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:explain",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:listening_head_nod",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:talk",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:being_cocky",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:blush",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:darn_it",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:head_shake",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:lookaround",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:plead",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:shrug",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:wave",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:slight_bow",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:surprised",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:tired",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:whatever",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:crying",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:posture_sad",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:posture_sad_custom",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:shy-finger-poke",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:shy-finger-poke-loop",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:thinking-head-scratch",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:thinking-hand-on-chin-hold",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:right-thumbs-up",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:right-thumbs-down",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:right-finger-point",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:left-peace-sign",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:left-ok-sign",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:hands-on-hips",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:arms-crossed",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:double-thumbs-down",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:double-thumbs-up",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:right-face-palm",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:finger-heart-pose",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:double-peace-pop",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:heart-hands-build",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:soldier-salute",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:cheeky-finger-guns",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:cat-monster-rawr",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:single-hand-on-heart",
+      "version": 1
+    }
+  ],
+  "reactions": [
+    {
+      "content_id": "builtin:reaction:admiration-1",
+      "version": 1,
+      "emotion": "admiration",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:admiration-2",
+      "version": 1,
+      "emotion": "admiration",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:admiration-3",
+      "version": 1,
+      "emotion": "admiration",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:amusement-1",
+      "version": 1,
+      "emotion": "amusement",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:amusement-2",
+      "version": 1,
+      "emotion": "amusement",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:amusement-3",
+      "version": 1,
+      "emotion": "amusement",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:anger-1",
+      "version": 1,
+      "emotion": "anger",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:anger-2",
+      "version": 1,
+      "emotion": "anger",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:anger-3",
+      "version": 1,
+      "emotion": "anger",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:annoyance-1",
+      "version": 1,
+      "emotion": "annoyance",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:annoyance-2",
+      "version": 1,
+      "emotion": "annoyance",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:annoyance-3",
+      "version": 1,
+      "emotion": "annoyance",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:caring-1",
+      "version": 1,
+      "emotion": "caring",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:caring-2",
+      "version": 1,
+      "emotion": "caring",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:caring-3",
+      "version": 1,
+      "emotion": "caring",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:confidence-1",
+      "version": 1,
+      "emotion": "confidence",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:confidence-2",
+      "version": 1,
+      "emotion": "confidence",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:confidence-3",
+      "version": 1,
+      "emotion": "confidence",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:confusion-1",
+      "version": 1,
+      "emotion": "confusion",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:confusion-2",
+      "version": 1,
+      "emotion": "confusion",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:confusion-3",
+      "version": 1,
+      "emotion": "confusion",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:curiosity-1",
+      "version": 1,
+      "emotion": "curiosity",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:curiosity-2",
+      "version": 1,
+      "emotion": "curiosity",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:curiosity-3",
+      "version": 1,
+      "emotion": "curiosity",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:desire-1",
+      "version": 1,
+      "emotion": "desire",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:desire-2",
+      "version": 1,
+      "emotion": "desire",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:desire-3",
+      "version": 1,
+      "emotion": "desire",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:disappointment-1",
+      "version": 1,
+      "emotion": "disappointment",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:disappointment-2",
+      "version": 1,
+      "emotion": "disappointment",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:disappointment-3",
+      "version": 1,
+      "emotion": "disappointment",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:disapproval-1",
+      "version": 1,
+      "emotion": "disapproval",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:disapproval-2",
+      "version": 1,
+      "emotion": "disapproval",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:disapproval-3",
+      "version": 1,
+      "emotion": "disapproval",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:disgust-1",
+      "version": 1,
+      "emotion": "disgust",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:disgust-2",
+      "version": 1,
+      "emotion": "disgust",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:disgust-3",
+      "version": 1,
+      "emotion": "disgust",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:embarrassment-1",
+      "version": 1,
+      "emotion": "embarrassment",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:embarrassment-2",
+      "version": 1,
+      "emotion": "embarrassment",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:embarrassment-3",
+      "version": 1,
+      "emotion": "embarrassment",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:excitement-1",
+      "version": 1,
+      "emotion": "excitement",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:excitement-2",
+      "version": 1,
+      "emotion": "excitement",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:excitement-3",
+      "version": 1,
+      "emotion": "excitement",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:fear-1",
+      "version": 1,
+      "emotion": "fear",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:fear-2",
+      "version": 1,
+      "emotion": "fear",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:fear-3",
+      "version": 1,
+      "emotion": "fear",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:gratitude-1",
+      "version": 1,
+      "emotion": "gratitude",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:gratitude-2",
+      "version": 1,
+      "emotion": "gratitude",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:gratitude-3",
+      "version": 1,
+      "emotion": "gratitude",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:grief-1",
+      "version": 1,
+      "emotion": "grief",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:grief-2",
+      "version": 1,
+      "emotion": "grief",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:grief-3",
+      "version": 1,
+      "emotion": "grief",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:joy-1",
+      "version": 1,
+      "emotion": "joy",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:joy-2",
+      "version": 1,
+      "emotion": "joy",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:joy-3",
+      "version": 1,
+      "emotion": "joy",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:love-1",
+      "version": 1,
+      "emotion": "love",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:love-2",
+      "version": 1,
+      "emotion": "love",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:love-3",
+      "version": 1,
+      "emotion": "love",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:nervousness-1",
+      "version": 1,
+      "emotion": "nervousness",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:nervousness-2",
+      "version": 1,
+      "emotion": "nervousness",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:nervousness-3",
+      "version": 1,
+      "emotion": "nervousness",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:optimism-1",
+      "version": 1,
+      "emotion": "optimism",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:optimism-2",
+      "version": 1,
+      "emotion": "optimism",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:optimism-3",
+      "version": 1,
+      "emotion": "optimism",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:remorse-1",
+      "version": 1,
+      "emotion": "remorse",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:remorse-2",
+      "version": 1,
+      "emotion": "remorse",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:remorse-3",
+      "version": 1,
+      "emotion": "remorse",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:respect-1",
+      "version": 1,
+      "emotion": "respect",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:respect-2",
+      "version": 1,
+      "emotion": "respect",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:respect-3",
+      "version": 1,
+      "emotion": "respect",
+      "intensity": 3
+    },
+    {
+      "content_id": "builtin:reaction:sadness-1",
+      "version": 1,
+      "emotion": "sadness",
+      "intensity": 1
+    },
+    {
+      "content_id": "builtin:reaction:sadness-2",
+      "version": 1,
+      "emotion": "sadness",
+      "intensity": 2
+    },
+    {
+      "content_id": "builtin:reaction:sadness-3",
+      "version": 1,
+      "emotion": "sadness",
+      "intensity": 3
+    }
+  ]
+}

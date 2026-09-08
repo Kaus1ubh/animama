@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:idle_idle3",
+  "version": 1,
+  "semantic_key": "idle_idle3",
+  "name": "idle_idle3",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "idle_idle3.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

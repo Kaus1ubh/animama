@@ -1,0 +1,68 @@
+{
+  "schema": "animaPose/1.0",
+  "id": "right-finger-point",
+  "name": "Right Finger Point",
+  "parent": {
+    "ref": "relaxedRest"
+  },
+  "rotationOrder": "XYZ",
+  "humanoid": {
+    "rightShoulder": {
+      "rotationEulerDegrees": [-12, -2, 3]
+    },
+    "rightUpperArm": {
+      "rotationEulerDegrees": [-5, -16, 66]
+    },
+    "rightLowerArm": {
+      "rotationEulerDegrees": [180, 50, -162]
+    },
+    "rightHand": {
+      "rotationEulerDegrees": [0, -8, 0]
+    },
+    "rightThumbMetacarpal": {
+      "rotationEulerDegrees": [-5, -42, 35]
+    },
+    "rightThumbProximal": {
+      "rotationEulerDegrees": [0, 0, 20]
+    },
+    "rightThumbDistal": {
+      "rotationEulerDegrees": [0, 0, 10]
+    },
+    "rightIndexProximal": {
+      "rotationEulerDegrees": [0, 0, 0]
+    },
+    "rightIndexIntermediate": {
+      "rotationEulerDegrees": [0, 0, 0]
+    },
+    "rightIndexDistal": {
+      "rotationEulerDegrees": [0, 0, 0]
+    },
+    "rightMiddleProximal": {
+      "rotationEulerDegrees": [0, 0, 70]
+    },
+    "rightMiddleIntermediate": {
+      "rotationEulerDegrees": [0, 0, 95]
+    },
+    "rightMiddleDistal": {
+      "rotationEulerDegrees": [0, 0, 55]
+    },
+    "rightRingProximal": {
+      "rotationEulerDegrees": [0, 0, 70]
+    },
+    "rightRingIntermediate": {
+      "rotationEulerDegrees": [0, 0, 95]
+    },
+    "rightRingDistal": {
+      "rotationEulerDegrees": [0, 0, 55]
+    },
+    "rightLittleProximal": {
+      "rotationEulerDegrees": [0, 0, 70]
+    },
+    "rightLittleIntermediate": {
+      "rotationEulerDegrees": [0, 0, 95]
+    },
+    "rightLittleDistal": {
+      "rotationEulerDegrees": [0, 0, 55]
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schema": "animama-macos-acceptance/1",
+  "app_version": "0.1.0",
+  "dmg_sha256": null,
+  "reviewed_by": null,
+  "reviewed_on": null,
+  "prior_signed_version": null,
+  "checks": {
+    "avatar_animation": false,
+    "pocket_tts": false,
+    "microphone": false,
+    "pip": false,
+    "quick_chat": false,
+    "offline_dictation": false,
+    "document_processing": false,
+    "expanded_content": false,
+    "pack_interruption": false,
+    "update_preserves_local_state": false,
+    "migration_snapshot_recovery": false,
+    "native_network": false
+  }
+}

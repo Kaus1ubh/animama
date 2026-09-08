@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "strategy": "create",
+  "anima": {
+    "name": "Travel Concierge"
+  },
+  "agents": {
+    "test-agent": {
+      "instruction_profile": "default",
+      "instructions": "You are a helpful assistant!!",
+      "model": "gemini-3.1-flash-lite-preview",
+      "model_provider": "GeminiAgent"
+    }
+  },
+  "graph": {
+    "nodes": [
+      {
+        "type": "ingress",
+        "id": "ingress:user",
+        "name": "user"
+      },
+      {
+        "type": "agent",
+        "id": "agent:test-agent",
+        "name": "test-agent"
+      },
+      {
+        "type": "egress",
+        "id": "egress:user",
+        "name": "user-egress"
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "ingress:user",
+        "target": "agent:test-agent"
+      },
+      {
+        "id": "e2",
+        "source": "agent:test-agent",
+        "target": "egress:user"
+      }
+    ]
+  }
+}

@@ -1,0 +1,281 @@
+"""SQLAlchemy repository for episodic memory items."""
+
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
+from datetime import date, datetime
+from typing import Any
+
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from animama.app.ports.memory_episode_port import (
+    MemoryEpisodeRepository,
+    MemoryEpisodeRepositoryConflictError,
+)
+from animama.domain.memory_episode import MEMORY_EPISODE_STATUS_PENDING, MemoryEpisodeItem
+from animama.orm.memory_episode import ORMMemoryEpisodeItem
+
+_MEMORY_EPISODE_CONFLICT_CONSTRAINTS = frozenset({"uq_memory_episode_items_chat_turn_run"})
+
+
+def _constraint_name_from_integrity_error(exc: IntegrityError) -> str | None:
+    candidates: list[object | None] = [exc, exc.orig]
+    seen: set[int] = set()
+    text_parts = [str(exc)]
+
+    while candidates:
+        candidate = candidates.pop()
+        if candidate is None or id(candidate) in seen:
+            continue
+        seen.add(id(candidate))
+        text_parts.append(str(candidate))
+
+        for attr in ("constraint_name", "constraint"):
+            value = getattr(candidate, attr, None)
+            if isinstance(value, str) and value:
+                if value in _MEMORY_EPISODE_CONFLICT_CONSTRAINTS:
+                    return value
+                text_parts.append(value)
+
+        diag = getattr(candidate, "diag", None)
+        diag_constraint = getattr(diag, "constraint_name", None)
+        if isinstance(diag_constraint, str) and diag_constraint:
+            if diag_constraint in _MEMORY_EPISODE_CONFLICT_CONSTRAINTS:
+                return diag_constraint
+            text_parts.append(diag_constraint)
+
+        candidates.extend(
+            (
+                getattr(candidate, "__cause__", None),
+                getattr(candidate, "__context__", None),
+            )
+        )
+
+    error_text = "\n".join(text_parts)
+    for constraint_name in _MEMORY_EPISODE_CONFLICT_CONSTRAINTS:
+        if constraint_name in error_text:
+            return constraint_name
+    return None
+
+
+def _memory_episode_conflict_from_integrity_error(
+    exc: IntegrityError,
+) -> MemoryEpisodeRepositoryConflictError | None:
+    constraint_name = _constraint_name_from_integrity_error(exc)
+    if constraint_name not in _MEMORY_EPISODE_CONFLICT_CONSTRAINTS:
+        return None
+    return MemoryEpisodeRepositoryConflictError(constraint_name=constraint_name)
+
+
+class SQLAlchemyMemoryEpisodeRepository(MemoryEpisodeRepository):
+    """Persist source-of-truth episodic memory rows using SQLAlchemy."""
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._s = session
+
+    @staticmethod
+    def _orm_to_domain(obj: ORMMemoryEpisodeItem) -> MemoryEpisodeItem:
+        return MemoryEpisodeItem(
+            id=obj.id,
+            user_id=obj.user_id,
+            source_anima_id=obj.source_anima_id,
+            source_chat_id=obj.source_chat_id,
+            source_run_id=obj.source_run_id,
+            source_message_id=obj.source_message_id,
+            occurred_at=obj.occurred_at,
+            local_date=obj.local_date,
+            local_timezone=obj.local_timezone,
+            episode_path=obj.episode_path,
+            kind=obj.kind,
+            text=obj.text,
+            status=obj.status,
+            processed_at=obj.processed_at,
+            processed_by_run_id=obj.processed_by_run_id,
+            metadata=dict(obj.metadata_ or {}),
+            created_at=obj.created_at,
+            updated_at=obj.updated_at,
+        )
+
+    @staticmethod
+    def _row_to_domain(row: Mapping[str, Any]) -> MemoryEpisodeItem:
+        return MemoryEpisodeItem(
+            id=row["id"],
+            user_id=row["user_id"],
+            source_anima_id=row["source_anima_id"],
+            source_chat_id=row["source_chat_id"],
+            source_run_id=row["source_run_id"],
+            source_message_id=row["source_message_id"],
+            occurred_at=row["occurred_at"],
+            local_date=row["local_date"],
+            local_timezone=row["local_timezone"],
+            episode_path=row["episode_path"],
+            kind=row["kind"],
+            text=row["text"],
+            status=row["status"],
+            processed_at=row["processed_at"],
+            processed_by_run_id=row["processed_by_run_id"],
+            metadata=dict(row["metadata_"] or {}),
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+
+    @staticmethod
+    def _item_columns() -> tuple[object, ...]:
+        return (
+            ORMMemoryEpisodeItem.id,
+            ORMMemoryEpisodeItem.user_id,
+            ORMMemoryEpisodeItem.source_anima_id,
+            ORMMemoryEpisodeItem.source_chat_id,
+            ORMMemoryEpisodeItem.source_run_id,
+            ORMMemoryEpisodeItem.source_message_id,
+            ORMMemoryEpisodeItem.occurred_at,
+            ORMMemoryEpisodeItem.local_date,
+            ORMMemoryEpisodeItem.local_timezone,
+            ORMMemoryEpisodeItem.episode_path,
+            ORMMemoryEpisodeItem.kind,
+            ORMMemoryEpisodeItem.text,
+            ORMMemoryEpisodeItem.status,
+            ORMMemoryEpisodeItem.processed_at,
+            ORMMemoryEpisodeItem.processed_by_run_id,
+            ORMMemoryEpisodeItem.metadata_.label("metadata_"),
+            ORMMemoryEpisodeItem.created_at,
+            ORMMemoryEpisodeItem.updated_at,
+        )
+
+    async def create_item(self, item: MemoryEpisodeItem) -> MemoryEpisodeItem:
+        obj = ORMMemoryEpisodeItem(
+            id=item.id,
+            user_id=item.user_id,
+            source_anima_id=item.source_anima_id,
+            source_chat_id=item.source_chat_id,
+            source_run_id=item.source_run_id,
+            source_message_id=item.source_message_id,
+            occurred_at=item.occurred_at,
+            local_date=item.local_date,
+            local_timezone=item.local_timezone,
+            episode_path=item.episode_path,
+            kind=item.kind,
+            text=item.text,
+            status=item.status,
+            processed_at=item.processed_at,
+            processed_by_run_id=item.processed_by_run_id,
+            metadata_=dict(item.metadata or {}),
+        )
+        self._s.add(obj)
+        try:
+            await self._s.flush()
+        except IntegrityError as exc:
+            if conflict := _memory_episode_conflict_from_integrity_error(exc):
+                raise conflict from exc
+            raise
+        await self._s.refresh(obj)
+        return self._orm_to_domain(obj)
+
+    async def list_items(
+        self,
+        *,
+        user_id: str,
+        status: str | None = None,
+        local_date: date | None = None,
+        episode_path: str | None = None,
+        before: datetime | None = None,
+        item_ids: Iterable[str] | None = None,
+        limit: int | None = 100,
+    ) -> list[MemoryEpisodeItem]:
+        stmt = select(*self._item_columns()).where(ORMMemoryEpisodeItem.user_id == user_id)
+        if status is not None:
+            stmt = stmt.where(ORMMemoryEpisodeItem.status == status)
+        if local_date is not None:
+            stmt = stmt.where(ORMMemoryEpisodeItem.local_date == local_date)
+        if episode_path is not None:
+            stmt = stmt.where(ORMMemoryEpisodeItem.episode_path == episode_path)
+        if before is not None:
+            stmt = stmt.where(ORMMemoryEpisodeItem.occurred_at < before)
+        if item_ids is not None:
+            unique_ids = tuple(dict.fromkeys(item_ids))
+            if not unique_ids:
+                return []
+            stmt = stmt.where(ORMMemoryEpisodeItem.id.in_(unique_ids))
+        stmt = stmt.order_by(ORMMemoryEpisodeItem.occurred_at.asc(), ORMMemoryEpisodeItem.id.asc())
+        if limit is not None:
+            stmt = stmt.limit(max(1, int(limit)))
+        result = await self._s.execute(stmt)
+        return [self._row_to_domain(row._mapping) for row in result]
+
+    async def update_items_status(
+        self,
+        *,
+        user_id: str,
+        item_ids: Iterable[str],
+        status: str,
+        processed_at: datetime | None,
+        processed_by_run_id: str | None,
+    ) -> list[MemoryEpisodeItem]:
+        unique_ids = tuple(dict.fromkeys(item_ids))
+        if not unique_ids:
+            return []
+        stmt = (
+            select(ORMMemoryEpisodeItem)
+            .where(
+                ORMMemoryEpisodeItem.user_id == user_id,
+                ORMMemoryEpisodeItem.id.in_(unique_ids),
+            )
+            .order_by(ORMMemoryEpisodeItem.occurred_at.asc(), ORMMemoryEpisodeItem.id.asc())
+            .with_for_update()
+        )
+        result = await self._s.execute(stmt)
+        rows = list(result.scalars())
+        for obj in rows:
+            obj.status = status
+            obj.processed_at = processed_at
+            obj.processed_by_run_id = processed_by_run_id
+        if rows:
+            await self._s.flush()
+            for obj in rows:
+                await self._s.refresh(obj)
+        return [self._orm_to_domain(obj) for obj in rows]
+
+    async def list_pending_items_for_update(
+        self,
+        *,
+        user_id: str,
+        limit: int,
+    ) -> list[MemoryEpisodeItem]:
+        stmt = (
+            select(ORMMemoryEpisodeItem)
+            .where(
+                ORMMemoryEpisodeItem.user_id == user_id,
+                ORMMemoryEpisodeItem.status == MEMORY_EPISODE_STATUS_PENDING,
+            )
+            .order_by(ORMMemoryEpisodeItem.occurred_at.asc(), ORMMemoryEpisodeItem.id.asc())
+            .limit(max(1, int(limit)))
+            .with_for_update()
+        )
+        result = await self._s.execute(stmt)
+        return [self._orm_to_domain(obj) for obj in result.scalars()]
+
+    async def list_items_by_ids_for_update(
+        self,
+        *,
+        user_id: str,
+        item_ids: Iterable[str],
+    ) -> list[MemoryEpisodeItem]:
+        unique_ids = tuple(dict.fromkeys(item_ids))
+        if not unique_ids:
+            return []
+        stmt = (
+            select(ORMMemoryEpisodeItem)
+            .where(
+                ORMMemoryEpisodeItem.user_id == user_id,
+                ORMMemoryEpisodeItem.id.in_(unique_ids),
+            )
+            .order_by(ORMMemoryEpisodeItem.occurred_at.asc(), ORMMemoryEpisodeItem.id.asc())
+            .with_for_update()
+        )
+        result = await self._s.execute(stmt)
+        return [self._orm_to_domain(obj) for obj in result.scalars()]
+
+
+__all__ = ["SQLAlchemyMemoryEpisodeRepository"]

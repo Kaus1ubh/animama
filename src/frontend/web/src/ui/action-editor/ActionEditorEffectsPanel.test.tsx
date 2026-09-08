@@ -1,0 +1,225 @@
+import { renderToString } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+
+import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
+import { parseAnimaPose } from "@/lib/avatar/poses/animaPose";
+import type { PoseCreatorSavedDraft } from "@/stores/pose-creator-store";
+import { ActionEditorEffectsPanel } from "./ActionEditorEffectsPanel";
+import type { ActionDependencySection } from "./ActionEditorWorkspaceContext";
+
+const particle: PyCatalogViewItem = {
+  item_id: "particle-1",
+  name: "Cartoon Bang",
+  description: null,
+  catalog_source: "included",
+  origin: "builtin",
+  source: {
+    type: "builtin",
+    content_id: "cartoon-bang",
+    version: 1,
+  },
+  state: "ready",
+  created_at: null,
+  updated_at: null,
+};
+
+const sections: ActionDependencySection[] = [
+  {
+    label: "Particle Effects",
+    contentType: "particle_effect",
+    items: [particle],
+    isPending: false,
+    errorMessage: null,
+    hasNextPage: true,
+    isFetchingNextPage: false,
+    fetchNextPage: async () => undefined,
+    retry: async () => undefined,
+  },
+  {
+    label: "Avatar Effects",
+    contentType: "avatar_effect",
+    items: [],
+    isPending: false,
+    errorMessage: null,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: async () => undefined,
+    retry: async () => undefined,
+  },
+  {
+    label: "Scene Effects",
+    contentType: "scene_effect",
+    items: [],
+    isPending: false,
+    errorMessage: null,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: async () => undefined,
+    retry: async () => undefined,
+  },
+  {
+    label: "Sound Effects",
+    contentType: "sound_effect",
+    items: [],
+    isPending: false,
+    errorMessage: null,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: async () => undefined,
+    retry: async () => undefined,
+  },
+];
+
+const savedPose: PoseCreatorSavedDraft = {
+  id: "friendly-wave",
+  name: "Friendly Wave",
+  createdAt: "2026-08-16T12:00:00.000Z",
+  updatedAt: "2026-08-16T12:00:00.000Z",
+  source: {
+    key: "preview-anima",
+    sourceType: "resolved_entry",
+    displayName: "Annie",
+    sourceLabel: "Preview Anima",
+    versionLabel: "Current",
+  },
+  basePose: "relaxedRest",
+  pose: parseAnimaPose({
+    schema: "animaPose/1.0",
+    id: "friendly-wave",
+    name: "Friendly Wave",
+  }),
+};
+
+describe("ActionEditorEffectsPanel", () => {
+  it("shows browser-local Poses before Effects for Gesture authoring", () => {
+    const html = renderToString(
+      <ActionEditorEffectsPanel
+        query=""
+        onQueryChange={() => undefined}
+        activeType="particle_effect"
+        onActiveTypeChange={() => undefined}
+        sections={sections}
+        dependencies={[]}
+        onAdd={() => undefined}
+        onRemove={() => undefined}
+        poses={[savedPose]}
+        onAddPose={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("Poses &amp; Effects");
+    expect(html.indexOf(">Poses<")).toBeLessThan(html.indexOf(">Particle FX<"));
+    expect(html).toContain('placeholder="Search saved poses"');
+    expect(html).toContain("My saved poses");
+    expect(html).toContain("Friendly Wave");
+    expect(html).toContain(
+      'aria-label="Add Friendly Wave at current playhead"',
+    );
+  });
+
+  it("renders a tabbed metadata-first catalog without thumbnails", () => {
+    const html = renderToString(
+      <ActionEditorEffectsPanel
+        query=""
+        onQueryChange={() => undefined}
+        activeType="particle_effect"
+        onActiveTypeChange={() => undefined}
+        sections={sections}
+        dependencies={[
+          {
+            alias: "cartoon_bang",
+            content_type: "particle_effect",
+            source: particle.source!,
+          },
+        ]}
+        onAdd={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("Effects");
+    expect(html).toContain("Particle FX");
+    expect(html).toContain("Avatar FX");
+    expect(html).toContain("Scene FX");
+    expect(html).toContain("SFX");
+    expect(html).toContain('placeholder="Search particle effects"');
+    expect(html).toContain("Cartoon Bang");
+    expect(html).toContain("Added to timeline ·");
+    expect(html).toContain("<!-- -->1");
+    expect(html).toContain("Added");
+    expect(html).toContain('aria-label="Add Cartoon Bang at current playhead"');
+    expect(html).not.toContain("<img");
+  });
+
+  it("keeps the collapsed effect count and integrated expansion control", () => {
+    const html = renderToString(
+      <ActionEditorEffectsPanel
+        expanded={false}
+        onExpandedChange={() => undefined}
+        query=""
+        onQueryChange={() => undefined}
+        activeType="particle_effect"
+        onActiveTypeChange={() => undefined}
+        sections={sections}
+        dependencies={[
+          {
+            alias: "cartoon_bang",
+            content_type: "particle_effect",
+            source: particle.source!,
+          },
+        ]}
+        onAdd={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+
+    expect(html).toContain("1 added");
+    expect(html).toContain('aria-label="Expand effects"');
+    expect(html).not.toContain("Search particle effects");
+  });
+
+  it("renders the selected category and distinguishes loading, errors, and empties", () => {
+    const loading = renderToString(
+      <ActionEditorEffectsPanel
+        query=""
+        onQueryChange={() => undefined}
+        activeType="sound_effect"
+        onActiveTypeChange={() => undefined}
+        sections={sections.map((section) =>
+          section.contentType === "sound_effect"
+            ? { ...section, isPending: true }
+            : section,
+        )}
+        dependencies={[]}
+        onAdd={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+    expect(loading).toContain('placeholder="Search sound effects"');
+    expect(loading).toContain("Loading");
+    expect(loading).toContain("sound effects");
+    expect(loading).not.toContain("No effects found");
+
+    const failed = renderToString(
+      <ActionEditorEffectsPanel
+        query=""
+        onQueryChange={() => undefined}
+        activeType="avatar_effect"
+        onActiveTypeChange={() => undefined}
+        sections={sections.map((section) =>
+          section.contentType === "avatar_effect"
+            ? { ...section, errorMessage: "Catalog unavailable" }
+            : section,
+        )}
+        dependencies={[]}
+        onAdd={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+    expect(failed).toContain("Could not load");
+    expect(failed).toContain("avatar effects");
+    expect(failed).toContain("Catalog unavailable");
+    expect(failed).toContain("Try again");
+    expect(failed).not.toContain("No effects found");
+  });
+});

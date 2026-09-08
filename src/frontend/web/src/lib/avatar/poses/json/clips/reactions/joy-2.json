@@ -1,0 +1,55 @@
+{
+  "schema": "animaPoseClip/1.0",
+  "id": "joy-2",
+  "name": "Joy Reaction 2",
+  "role": "reaction",
+  "playback": {
+    "lifetime": {
+      "kind": "whileInteractionPhase",
+      "phases": ["talking"],
+      "scope": "activeRun"
+    }
+  },
+  "defaultTransition": {
+    "easing": "easeInOutSine",
+    "interpolation": {
+      "expression": "linear"
+    }
+  },
+  "fadeIn": {
+    "duration": 0.16,
+    "easing": "easeOutSine"
+  },
+  "fadeOut": {
+    "duration": 0.48,
+    "easing": "easeInOutSine"
+  },
+  "poses": {
+    "peak": {
+      "expressions": {
+        "happy": 0.56
+      }
+    }
+  },
+  "poseKeyframes": [
+    {
+      "time": 0,
+      "pose": "peak"
+    }
+  ],
+  "events": [
+    {
+      "id": "avatar-star",
+      "time": 0.12,
+      "kind": "avatar_vfx",
+      "effectId": "star"
+    },
+    {
+      "id": "particle-stars",
+      "time": 0.12,
+      "kind": "particle_vfx",
+      "effectId": "stars",
+      "duration": 1.4
+    }
+  ]
+}

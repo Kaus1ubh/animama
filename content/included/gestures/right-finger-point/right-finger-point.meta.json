@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:right-finger-point",
+  "version": 1,
+  "semantic_key": "right-finger-point",
+  "name": "right-finger-point",
+  "ai_description": "Reusable avatar pose clip",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "right-finger-point.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-excitement",
+  "version": 1,
+  "name": "Emotion Excitement",
+  "description": "Scene background effect preset",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": true,
+      "color": "#ffdc8a"
+    },
+    "pattern": {
+      "enabled": true,
+      "pattern": "star",
+      "color": "#ffffff",
+      "size": 24,
+      "spacing": 18,
+      "opacity": 0.38
+    },
+    "marquee": {
+      "enabled": true,
+      "itemSize": 80,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "diagonal-up-left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 170,
+      "opacity": 0.92,
+      "items": [
+        {
+          "id": "emoji-party-popper",
+          "kind": "image",
+          "label": "Party Popper 🎉",
+          "image": "emoji-party-popper-1f389.svg"
+        },
+        {
+          "id": "emoji-star",
+          "kind": "image",
+          "label": "Star ⭐",
+          "image": "emoji-star-2b50.svg"
+        }
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "emoji-party-popper-1f389.svg",
+      "role": "image"
+    },
+    {
+      "path": "emoji-star-2b50.svg",
+      "role": "image"
+    }
+  ]
+}

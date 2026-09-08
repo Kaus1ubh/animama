@@ -1,0 +1,431 @@
+# Desktop App Overview
+
+Animama Desktop runs the React app and its local services under Electron. The
+desktop package owns native windows, service supervision, protected credentials,
+preload IPC, permissions, and packaging. React still owns the product UI,
+runtime-owner context, data fetching, avatar runtime, and settings. No local
+account or hosted Animama account is needed to open the app.
+
+Phase 2 implements the embedded macOS runtime; Phase 3 adds optional pack
+installation, capability-aware UI, and the separate document-worker pipeline.
+Phase 4 adds guarded application updates, snapshot retention, and signed-release
+tooling. The unlicensed decorative SFX have been removed from shipped content.
+Downloaded voice samples, background examples and BGM are also excluded from
+desktop distribution; generated portraits and speech-engine assets remain.
+The unsigned core has passed native setup, chat/PocketTTS, private-byte,
+window, restart, and port-recovery checks; Phase 2 awaits user verification.
+Release acceptance still needs redistribution review, applying the verified Apple
+signing inputs, real signed artifacts, and their separate native tests. Local
+candidate builds do not require a public repository; public distribution is not
+currently authorized, and private GitHub pack/update downloads are unsupported.
+Start with [Installation](installation.md), [Feature packs](feature-packs.md)
+and [Troubleshooting](troubleshooting.md). Maintainers use the initial
+[manual release process](release-process.md) and [Runtime staging](runtime-staging.md).
+Phase 6 documentation can be reviewed now; component tests are not release evidence.
+
+## Runtime Shape
+
+The desktop package lives in `src/frontend/desktop`.
+
+Packaged builds always select embedded mode. At startup, `desktop/src/main.ts`:
+
+1. Sets the Animama name and user-data directory, moving an existing legacy
+   `Anima` tree only into an absent destination, and acquires the single-instance
+   lock before sessions, logs, vault access, or services.
+2. Opens an Electron-owned startup/recovery page and validates the staged
+   manifest, required resource hashes, platform, and versions. Reconciles saved
+   pack pointers against the exact embedded catalog and verified file inventories.
+3. Unlocks the encrypted vault, binds the saved loopback Hono port (or chooses
+   and persists one on first launch), and keeps that listener in bootstrap mode.
+4. Initializes or starts owned PostgreSQL 16 with pgvector, verifies the exact
+   PGDATA, backs up an existing schema before upgrading, and runs the frozen
+   bootstrap CLI. Migrations own installation-principal generation.
+5. Starts upload cleanup, the document worker if its pack passes inventory and
+   OS-signature verification, and private FastAPI. Private readiness must match
+   the build, schema, and owner after Included-source reconciliation succeeds.
+6. Promotes the same Hono listener to serve the packaged SPA and proxy `/v1`,
+   then installs the fresh HttpOnly renderer capability before loading React.
+
+The browser-facing origin is a persisted `http://127.0.0.1:<port>`. PostgreSQL
+and FastAPI use separate private loopback ports. An occupied saved gateway port
+shows recovery; it does not silently switch origins or create another owner.
+Quitting drains requests and stops retained child handles. The app never kills
+a process merely because it occupies a port or appears in an old PID record.
+
+Unpackaged `pnpm desktop:dev` remains the external-stack workflow. It loads
+`ANIMAMA_DESKTOP_WEB_URL` or `http://localhost:3000` and does not start services.
+An explicit unpackaged `ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` selects embedded
+testing against a complete staged runtime. Packaged builds reject web-URL,
+development runtime/data, and sandbox overrides. See [Platform builds](platforms.md).
+
+The separate Compose self-host default publishes its gateway on loopback and stores
+typed content in the backend-managed, host-inspectable `content/` library.
+Electron consumes catalog and byte APIs exactly like browser web; it does not
+enumerate `content/`, receive absolute host paths, or gain arbitrary filesystem
+IPC. Creator routes and authoritative scanning make valid typed files available
+through the shared FastAPI catalog. Newly scanned files become selectable but
+are never automatically equipped.
+
+```text
+http://localhost:3000  Hono gateway
+```
+
+FastAPI, Vite, and PostgreSQL remain private Compose services.
+That fixed development URL is not the embedded app's saved random loopback port.
+The optional `dev-tools` Compose profile enables localhost pgAdmin and Dozzle
+for developers; see [local administration tools](../../../backend/docs/operations/development.md#local-administration-tools).
+They are not Electron resources, renderer services, or hosted endpoints.
+
+The renderer starts through `main.local.tsx`. On a fresh database it shows the
+required private display-name setup; after completion it opens Annie's chat.
+Later launches use the last visited owned Anima, or the first remaining Anima.
+There is no desktop-local signup, sign-in, session, bearer token, or logout.
+Electron's HttpOnly renderer capability authenticates the renderer process to
+Hono and is separate from the stable, non-secret installation owner ID.
+
+Once React opens an Anima, it shares the browser's progressive runtime: verify
+the model, draw canonical relaxed-rest, then prepare optional animations/effects
+in the background. No IPC byte path or second desktop loader is involved.
+Service readiness and the first avatar frame are separate milestones; see
+[Mounted runtime preparation](../architecture/local-content-runtime.md#mounted-runtime-preparation).
+
+## Main Process
+
+The Electron main process owns capabilities outside the browser boundary:
+
+- the local runtime graph, readiness, owned shutdown, and recovery
+- main window creation and stable-origin loading
+- the encrypted credential vault and provider-consumer restart
+- catalog-bound pack installation, cancellation, removal, and worker verification
+- stable-channel update checks, explicit download/restart consent, and pack preflight
+- navigation and permission guards
+- native fullscreen
+- native desktop PiP
+- desktop voice keyboard shortcuts
+- main-process logging
+- packaging entrypoints
+
+Important files:
+
+```text
+desktop/src/main.ts
+desktop/src/main-process/config.ts
+desktop/src/main-process/window/create-window.ts
+desktop/src/main-process/security/guards.ts
+desktop/src/main-process/security/renderer-capability.ts
+desktop/src/main-process/runtime/supervisor.ts
+desktop/src/main-process/runtime/paths.ts
+desktop/src/main-process/runtime/vault.ts
+desktop/src/main-process/runtime/ipc.ts
+desktop/src/main-process/feature-packs/
+desktop/src/main-process/updates/
+server/src/gateway/lifecycle.ts
+server/src/gateway/model-pack.ts
+desktop/src/main-process/fullscreen/fullscreen-ipc.ts
+desktop/src/main-process/pip/pip-window-manager.ts
+desktop/src/main-process/shortcuts/shortcuts-ipc.ts
+```
+
+The main process validates the configured web URL and restricts renderer
+navigation to the configured origin. External HTTP(S) links are opened through
+the OS shell instead of inside Anima windows.
+
+## Preload Bridge
+
+Renderer access to Electron goes through `window.animamaDesktop`, exposed by the
+sandboxed preload at `desktop/src/preload.cts`.
+
+The bridge exposes:
+
+```ts
+window.animamaDesktop = {
+  version: 2,
+  isDesktop: true,
+  platform: process.platform,
+  windowRole: "main" | "pip" | "quick-chat" | "recovery",
+  runtime: { status, retry, openLogs, openBackups, quit, onStatus },
+  credentials: { list, set, delete },
+  featurePacks: { list, install, cancel, remove, onProgress },
+  updates: { status, check, download, restart, onStatus },
+  fullscreen: { ... },
+  pip: { ... },
+  quickChat: { ... },
+  shortcuts: { ... },
+};
+```
+
+The preload source uses `.cts` and is bundled to `dist/preload.cjs` after
+TypeScript compilation. Keep new bridge APIs narrow, serializable, and explicit.
+Do not expose Node or arbitrary Electron APIs directly to the renderer.
+
+Shared serializable runtime contracts live in `shared/desktop-runtime.ts`.
+Credential results contain only provider/configured/update/restart status;
+there is no read-key API. Main accepts these operations only from a registered,
+live main window's top-level frame at the exact application origin. The
+recovery window has access only to runtime actions. PiP, quick chat, unknown
+windows, and subframes cannot access credentials or mutate packs. Pack requests
+accept only the three fixed catalog IDs, never renderer-supplied URLs, paths,
+versions, hashes, or commands. Progress subscriptions return cleanup functions;
+destroyed windows stop receiving events. Update controls also require the main
+window and accept zero arguments; recovery can open only the fixed backup folder.
+
+## Provider Settings And Local State
+
+Embedded setup and Settings show optional OpenAI, DeepSeek, Hugging Face,
+Gemini, and ElevenLabs key controls. Keys are never read back or saved to
+browser storage. Saving or removing one encrypts the vault through Electron
+`safeStorage`, drains active requests, restarts FastAPI and the installed document
+worker with the new environment,
+and reports readiness. PostgreSQL, the stable origin, and local ownership do
+not change. Unavailable secure storage fails closed; it never falls back to
+plaintext storage. Browser and external-stack development do not show these
+desktop credential controls.
+
+On macOS the user-data root is `~/Library/Application Support/Animama`:
+
+| Relative path            | Purpose                                                     |
+| ------------------------ | ----------------------------------------------------------- |
+| `runtime/state.json`     | Saved gateway port                                          |
+| `runtime/processes.json` | Child ownership evidence, not permission to kill stale PIDs |
+| `runtime/logs/main.log`  | Redacted supervisor and child logs                          |
+| `secrets/vault.bin`      | Encrypted database password and optional provider keys      |
+| `postgres/16/data`       | Private PostgreSQL cluster                                  |
+| `content/local`          | Writable typed Local library                                |
+| `data`                   | Private uploads and runtime staging                         |
+| `backups/pre-migration`  | Verified custom-format upgrade dumps and migration journal  |
+| `packs/<id>/versions`    | Immutable optional pack versions and retained prior bytes   |
+| `packs/active.json`      | Atomic active pointers, reverified before use               |
+| `downloads`              | Bounded partial archives and strong-ETag resume metadata    |
+
+Packaged `resources/runtime/content/included-core` is immutable and separate
+from that writable tree. The backend records `source-id@version` provenance
+and resolves protected bytes beneath the exact mounted source. React receives
+neither source paths nor arbitrary filesystem access. Only Local is watched.
+
+## Optional Feature Packs
+
+Setup offers **Install offline speech recognition** unchecked. Continue saves
+first-run state before starting an explicitly selected download. An unchecked
+option never downloads. The main window's Settings shows available catalog packs (and retained installed files for recovery) with their exact
+catalog byte counts, disk requirement, progress, Cancel, and confirmed Remove.
+An unpublished or incompatible catalog entry has no enabled Install action.
+
+Expanded Included content and document processing are explicitly deferred from
+the first release, so they have no catalog entries and are hidden on a fresh
+installation. Their code remains supported for a future reviewed release; the
+two starters remain complete. Parakeet is the only active initial pack.
+
+| Pack                                   | Enabled behavior                              | When absent                                                                  |
+| -------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------- |
+| `parakeet-stt`                         | Offline dictation and Voice Mode              | Text chat, microphone permission, avatars, and PocketTTS still work          |
+| `expanded-included-content` (deferred) | More selectable Included content              | The generated core starter closure remains available                         |
+| `document-processing` (deferred)       | Extraction and indexing of uploaded documents | Originals and already indexed chunks remain; new process requests return 409 |
+
+The owner-protected `GET /v1/runtime-capabilities` is the renderer's capability
+authority. Pack status is separate from document-worker liveness. An installed
+worker may be `starting` or `stale` while new jobs remain safely queued; an absent
+pack cannot enqueue. See backend [User files](../../../backend/docs/features/user-files.md).
+
+Electron downloads only app-matched catalog archives, checks real free space,
+size and SHA-256, strictly extracts regular USTAR members, and verifies the full
+inventory before an atomic pointer switch. Interrupted extraction has no mount
+authority. Failed installation retains the prior version; verified ETag/range
+metadata permits download resume. See [Runtime staging](runtime-staging.md) for
+producer, approval, and executable-signature gates.
+
+Activation/removal keeps Hono at the same origin. It checks private backend
+removal blockers, drains requests, reloads the main renderer, closes companion
+windows, stops the worker, repeats the check, and restarts FastAPI around the
+pointer switch. Reloading disposes Parakeet workers even if React cleanup fails.
+Save unfinished edits first. Anima references, unexpired preview/runtime leases,
+active import/reconciliation work, and running document jobs prevent removal;
+affected labels appear in Settings. Expanded entries are never auto-equipped.
+Queued document jobs survive removal and resume with the worker installed again.
+
+Parakeet files use the protected same-origin
+`/onnx/models/parakeet-tdt-0.6b-v2/` mount. Exact `?v=<asset-version>` requests
+support immutable private caching, ETags, HEAD, and single byte ranges. Stale
+versions and unlisted files return 404. No pack root or executable path enters React.
+
+## Startup Recovery
+
+The independent recovery page works even when the gateway cannot bind. It
+shows a safe error code with Retry, Open Logs, Open Backups, and Quit. Retry does
+not reset data; Open Backups appears only for a relevant snapshot. See
+[Troubleshooting](troubleshooting.md) before changing files. A damaged runtime
+requires a complete build to be reinstalled. A missing
+vault beside a database requires recovery of the matching vault and data;
+restoring a vault on another machine may also require its original OS keychain.
+Missing installation ownership fails closed, rather than generating a new owner
+over existing data.
+
+Close Animama before backing up its user-data directory; preserve the database,
+vault, Local content, and private data together. Premigration database dumps
+alone are not a complete backup. Verified dumps live under
+`backups/pre-migration/<from>-to-<to>/`. After two successful distinct app
+launches on a new schema, older known-successful dumps may be pruned. The newest
+dump, failed/interrupted upgrade snapshots, and unknown/legacy entries remain.
+Recovery shows the relative dump location; it never automatically restores or
+downgrades the database. See [Release recovery](releases.md#recovery-and-retention).
+Gateway/control tokens and the renderer capability are generated per launch and
+are not backup secrets. A stale live-process record requires quitting the old
+instance or restarting the computer, then Retry. Never delete PGDATA to clear a
+startup error.
+
+Pack state is reconstructed, not trusted from the UI. A corrupt version is
+unmounted and can be reinstalled; a replacement is verified before damaged
+bytes are moved aside. Incompatible old versions remain on disk and report
+`update_available`, but are not mounted or executed. Application update preflight
+blocks a candidate that would strand referenced expanded content; clear its
+references or arrange a compatible pack before retrying. Do not manually replace
+an app to bypass this check: source withdrawal deliberately fails closed. Never erase pack files
+manually to bypass references or leases.
+
+## Application Updates
+
+A signed, configured macOS app checks the public GitHub feed after startup and
+on demand in Settings → General. Checks never download. Download and confirmed
+Restart are separate actions; normal Quit does not install. Offline checks do
+not prevent startup. Unpackaged and unconfigured builds hide these controls.
+
+Before downloading or stopping services, the supervisor verifies disk capacity,
+pack compatibility and in-use references. Native replacement verification begins
+only after every owned service stops. Explicit native failure can resume the old
+app; a timeout keeps services stopped for safe recovery. A replacement verifies
+its own runtime manifest before database work. No hosted account or GitHub token
+is stored in the app. See [Releases](releases.md) for policy and acceptance gates.
+
+## Runtime Platform Provider
+
+The web app reads the preload bridge once through
+`web/src/platform/RuntimePlatformProvider.tsx`.
+
+This produces a stable runtime platform object:
+
+- `kind: "web" | "desktop"`
+- `isDesktop`
+- `desktopBridgeVersion`
+- `os`
+- `capabilities.nativeFullscreen`
+- `capabilities.nativePiP`
+- `desktopBridge`, only in desktop mode
+
+React code should depend on `useRuntimePlatform()` rather than probing
+`window.animamaDesktop` directly. Product surfaces such as `MainShell` stay
+platform-agnostic by calling hooks like `useFullscreen()` and
+`usePictureInPicture()`.
+
+## Native Fullscreen
+
+Desktop fullscreen uses Electron `BrowserWindow` fullscreen APIs instead of DOM
+element fullscreen.
+
+Flow:
+
+```text
+Canvas control
+  -> useFullscreen()
+  -> useDesktopFullscreen()
+  -> window.animamaDesktop.fullscreen
+  -> ipcMain handler
+  -> BrowserWindow.setFullScreen(...)
+```
+
+The main process emits fullscreen state changes on native
+`enter-full-screen`/`leave-full-screen` events. Escape is handled in the main
+process so the React button state stays aligned with the native window state.
+
+Browser web still falls back to DOM fullscreen.
+
+## Desktop Picture-In-Picture
+
+Desktop PiP is a second frameless Electron `BrowserWindow`, not Chromium
+Document Picture-in-Picture.
+
+The main window owns audio and runtime state. The PiP window renders a
+scene-only route and receives visual state over Electron IPC. On supported
+platforms, the PiP body is click-through while close, resize, the hover drag
+handle, and the size slider remain interactive. Browser web still uses Document
+PiP when available.
+
+See `picture-in-picture.md` for the implementation details.
+
+## Desktop Keyboard Shortcuts
+
+Desktop voice shortcuts are owned by the Electron main process. One-shot keys
+use Electron, while global hold-to-talk uses Animama's first-party macOS/Windows
+native addon and exposes only matched down/up transitions to JavaScript. The web
+app stores and displays the application preferences, but shortcut capture only
+applies inside the desktop app. The default shortcuts toggle Voice Mode, toggle
+Voice Mode mute, and skip active TTS playback.
+
+See `keyboard-shortcuts.md` for the implementation details.
+
+## Security Model
+
+Desktop windows use:
+
+- `contextIsolation: true`
+- `nodeIntegration: false`
+- `sandbox: true`
+- `webSecurity: true`
+- a bundled preload bridge with explicit IPC surfaces
+- the dedicated `persist:animama` session partition
+- a fresh per-launch, host-only, HttpOnly renderer-capability cookie
+
+The session permission guard currently allows only media permissions from the
+configured web origin. Navigation guards block or externalize URLs outside the
+configured origin.
+
+IPC handlers resolve target windows from `event.sender`. Renderers do not choose
+window ids, target webContents ids, or arbitrary URLs.
+
+## Speech And Audio Behavior
+
+Electron can expose browser Web Speech APIs while still failing recognition in
+practice. Desktop mode hides browser STT/TTS options from the app UI.
+
+Desktop speech behavior:
+
+- STT uses client-side Parakeet only when runtime capabilities report it
+  available. Embedded mode requires the verified optional pack; external-stack
+  development retains its configured same-origin model source.
+- TTS uses PocketTTS or ElevenLabs.
+- Browser TTS/STT providers are not offered in desktop settings.
+- Desktop PiP is visual-only; the main renderer remains the audio owner.
+
+## Logging And Diagnostics
+
+Main-process logs are written to:
+
+```text
+~/Library/Application Support/Animama/runtime/logs/main.log
+```
+
+Useful checks from `src/frontend`:
+
+```sh
+pnpm desktop:check
+pnpm desktop:build
+pnpm web:check
+```
+
+Renderer DevTools are available with `Ctrl+Shift+I`. Use
+`pnpm desktop:dev_inspect` to debug the Electron main process on port `9229`.
+
+## Packaging
+
+Platform-specific packaging details live in `platforms.md`.
+
+The Phase 2 package target is an unsigned macOS 15+ arm64 `.app`, requiring a
+complete freshly audited stage. The unlicensed SFX input gate is resolved by
+source exclusion; the unsigned native core journey passed on macOS 26.6.2.
+Windows packaging is gated on Phase 5; Linux packaging is outside this plan.
+External-stack `desktop:dev` remains available on those platforms. Phase 4
+provides core signing, notarization, updates, and a clean-machine smoke harness,
+but no signed release, minimum-OS proof, or signed native acceptance is claimed.
+Publication will initially be run manually by `raymond-van` from reviewed
+`main` inputs; no CI publishing credentials or public feed are configured.
+The optional executable worker already
+requires Developer ID signing, notarization, and pinned-publisher verification;
+there is no unsigned worker mode.

@@ -1,0 +1,826 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import {
+  previewGesture,
+  previewIdleStyle,
+  previewMusicTrack,
+  previewReaction,
+} from "@animama/runtime-contracts/sdk";
+import type {
+  PyCatalogLoadoutSource,
+  PyGestureIntent,
+  PyIdleStyleIntent,
+  PyLoadoutPlan,
+  PyAnimaMusicTrack,
+  PyMusicTrackIntent,
+  PyReactionIntent,
+} from "@animama/runtime-contracts/api-types";
+import type {
+  PyExactContentSource,
+  PyGesture,
+  PyIdleStyle,
+  PyMusicTrack,
+  PyMusicTrackPreview,
+  PyReaction,
+} from "@/lib/content/catalogTypes";
+import type { ContentPreviewTarget } from "@/lib/content-preview/types";
+import { withLibraryPreviewAnimaContext } from "@/lib/content-preview/targets";
+import { actionPreviewTarget } from "@/lib/content-preview/actionPreviewTarget";
+import { idleStylePreviewTarget } from "@/lib/content-preview/idleStylePreviewTarget";
+import {
+  typedActionPreview,
+  typedIdleStylePreview,
+  typedMusicTrackPreview,
+} from "@/lib/content/typedPreviewAdapters";
+import {
+  presentCustomGestureCatalog,
+  presentGestureLoadout,
+} from "@/lib/loadout/animaLoadoutPresentation";
+import { buildReactionLoadoutGrid } from "@/lib/loadout/reactionLoadoutGrid";
+import { adaptRuntimeSnapshot } from "@/lib/runtime-content/runtimeSnapshotAdapter";
+import { useAnimaLoadout as useLoadout } from "@/query/hooks/useAnimaLoadout";
+import { useIdleStyles } from "@/query/hooks/useIdleStyles";
+import { useMusicTracks } from "@/query/hooks/useMusicTracks";
+import { useGestures, useReactions } from "@/query/hooks/useActions";
+import { useAnimaRuntimeCatalog } from "@/query/hooks/useAnimaRuntimeCatalog";
+import { useAnimaLoadoutMutations } from "@/query/mutations/useAnimaLoadoutMutations";
+import { GestureLoadoutSection } from "@/ui/animas/GestureLoadoutSection";
+import { IdleStyleLoadoutSection } from "@/ui/animas/IdleStyleLoadoutSection";
+import { MusicTrackLoadoutSection } from "@/ui/animas/MusicTrackLoadoutSection";
+import { ReactionLoadoutGrid } from "@/ui/animas/ReactionLoadoutGrid";
+import { Button } from "@/ui/components/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/ui/components/dialog";
+
+type ReviewedChange =
+  | {
+      family: "gesture";
+      intent: PyGestureIntent;
+      plan: PyLoadoutPlan;
+      idempotencyKey: string;
+    }
+  | {
+      family: "reaction";
+      intent: PyReactionIntent;
+      plan: PyLoadoutPlan;
+      idempotencyKey: string;
+    }
+  | {
+      family: "idle_style";
+      intent: PyIdleStyleIntent;
+      plan: PyLoadoutPlan;
+      idempotencyKey: string;
+    }
+  | {
+      family: "music_track";
+      intent: PyMusicTrackIntent;
+      plan: PyLoadoutPlan;
+      idempotencyKey: string;
+    };
+
+type PreviewableAction = {
+  name?: string | null;
+  source?: PyExactContentSource | PyCatalogLoadoutSource | null;
+};
+
+function intentSource(
+  source: PyExactContentSource | PyCatalogLoadoutSource | null | undefined,
+): PyCatalogLoadoutSource | null {
+  if (!source || !("catalog_item_id" in source) || !source.source) return null;
+  return {
+    type: "catalog",
+    catalog_item_id: source.catalog_item_id,
+    logical_key: source.logical_key,
+    source: source.source,
+  };
+}
+
+/** Typed Gesture/Reaction configuration; dependencies remain resolver-owned. */
+export function AnimaLoadout({
+  animaId,
+  onStagePreview,
+}: {
+  animaId: string;
+  onStagePreview: (target: ContentPreviewTarget) => void;
+}) {
+  const query = useLoadout(animaId);
+  const runtimeSnapshotQuery = useAnimaRuntimeCatalog(animaId);
+  const runtimeData = useMemo(
+    () =>
+      runtimeSnapshotQuery.data
+        ? adaptRuntimeSnapshot(runtimeSnapshotQuery.data)
+        : undefined,
+    [runtimeSnapshotQuery.data],
+  );
+  const runtimeQuery = { ...runtimeSnapshotQuery, data: runtimeData };
+  const idleStylesQuery = useIdleStyles({ sort: "name" });
+  const musicTracksQuery = useMusicTracks({ sort: "name" });
+  const customGesturesQuery = useGestures({ origin: "owned", sort: "name" });
+  const builtinGesturesQuery = useGestures({
+    origin: "builtin",
+    sort: "name",
+  });
+  const reactionsQuery = useReactions({ origin: "all", sort: "name" });
+  const {
+    fetchNextPage: fetchNextCustomGesturesPage,
+    hasNextPage: hasNextCustomGesturesPage,
+    isFetchNextPageError: customGesturesNextPageError,
+    isFetchingNextPage: customGesturesFetchingNextPage,
+  } = customGesturesQuery;
+  const {
+    fetchNextPage: fetchNextBuiltinGesturesPage,
+    hasNextPage: hasNextBuiltinGesturesPage,
+    isFetchNextPageError: builtinGesturesNextPageError,
+    isFetchingNextPage: builtinGesturesFetchingNextPage,
+  } = builtinGesturesQuery;
+  const {
+    fetchNextPage: fetchNextReactionsPage,
+    hasNextPage: hasNextReactionsPage,
+    isFetchNextPageError: reactionsNextPageError,
+    isFetchingNextPage: reactionsFetchingNextPage,
+  } = reactionsQuery;
+  const {
+    fetchNextPage: fetchNextIdleStylesPage,
+    hasNextPage: hasNextIdleStylesPage,
+    isFetchNextPageError: idleStylesNextPageError,
+    isFetchingNextPage: idleStylesFetchingNextPage,
+  } = idleStylesQuery;
+  const mutations = useAnimaLoadoutMutations(animaId);
+  const [reviewed, setReviewed] = useState<ReviewedChange | null>(null);
+  const [reviewing, setReviewing] = useState(false);
+  const [editingMusic, setEditingMusic] = useState<PyAnimaMusicTrack | null>(
+    null,
+  );
+  const [musicLoop, setMusicLoop] = useState(true);
+  const [musicGain, setMusicGain] = useState(1);
+  const [musicPreview, setMusicPreview] = useState<PyMusicTrackPreview | null>(
+    null,
+  );
+  const loadout = query.data;
+
+  useEffect(() => {
+    if (
+      hasNextCustomGesturesPage &&
+      !customGesturesFetchingNextPage &&
+      !customGesturesNextPageError
+    ) {
+      void fetchNextCustomGesturesPage();
+    }
+  }, [
+    customGesturesFetchingNextPage,
+    customGesturesNextPageError,
+    fetchNextCustomGesturesPage,
+    hasNextCustomGesturesPage,
+  ]);
+
+  useEffect(() => {
+    if (
+      hasNextBuiltinGesturesPage &&
+      !builtinGesturesFetchingNextPage &&
+      !builtinGesturesNextPageError
+    ) {
+      void fetchNextBuiltinGesturesPage();
+    }
+  }, [
+    builtinGesturesFetchingNextPage,
+    builtinGesturesNextPageError,
+    fetchNextBuiltinGesturesPage,
+    hasNextBuiltinGesturesPage,
+  ]);
+
+  useEffect(() => {
+    if (
+      hasNextReactionsPage &&
+      !reactionsFetchingNextPage &&
+      !reactionsNextPageError
+    ) {
+      void fetchNextReactionsPage();
+    }
+  }, [
+    fetchNextReactionsPage,
+    hasNextReactionsPage,
+    reactionsFetchingNextPage,
+    reactionsNextPageError,
+  ]);
+
+  useEffect(() => {
+    if (
+      hasNextIdleStylesPage &&
+      !idleStylesFetchingNextPage &&
+      !idleStylesNextPageError
+    ) {
+      void fetchNextIdleStylesPage();
+    }
+  }, [
+    fetchNextIdleStylesPage,
+    hasNextIdleStylesPage,
+    idleStylesFetchingNextPage,
+    idleStylesNextPageError,
+  ]);
+
+  const gesturePresentation = useMemo(
+    () =>
+      loadout
+        ? presentGestureLoadout(
+            loadout,
+            builtinGesturesQuery.data?.pages.flatMap((page) => page.items) ??
+              [],
+          )
+        : null,
+    [builtinGesturesQuery.data, loadout],
+  );
+  const customGestureCatalog = useMemo(
+    () =>
+      presentCustomGestureCatalog(
+        customGesturesQuery.data?.pages.flatMap((page) => page.items) ?? [],
+        gesturePresentation?.custom ?? [],
+      ),
+    [customGesturesQuery.data, gesturePresentation?.custom],
+  );
+  const reactionRows = useMemo(
+    () => buildReactionLoadoutGrid(loadout?.reactions ?? []),
+    [loadout?.reactions],
+  );
+  const availableReactions = useMemo(
+    () =>
+      (reactionsQuery.data?.pages.flatMap((page) => page.items) ?? []).filter(
+        (reaction) => reaction.state === "ready" && reaction.source,
+      ),
+    [reactionsQuery.data],
+  );
+  const availableIdleStyles =
+    idleStylesQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const availableMusicTracks =
+    musicTracksQuery.data?.pages.flatMap((page) => page.items) ?? [];
+
+  const preview = async (
+    family: "gesture" | "reaction",
+    row: PreviewableAction,
+  ) => {
+    const catalogSource = intentSource(row.source);
+    if (!catalogSource) {
+      toast.error("This Loadout entry does not have a preview source.");
+      return;
+    }
+    try {
+      const itemId = catalogSource.catalog_item_id;
+      const options = {
+        path: { item_id: itemId },
+        responseValidator: undefined,
+        throwOnError: true as const,
+      };
+      const result =
+        family === "gesture"
+          ? await previewGesture(options)
+          : await previewReaction(options);
+      const target = actionPreviewTarget(
+        typedActionPreview(result.data),
+        row.name ?? "Reaction",
+      );
+      if (!runtimeQuery.data) {
+        throw new Error("The Anima preview context is still loading.");
+      }
+      onStagePreview(
+        withLibraryPreviewAnimaContext(target, animaId, runtimeQuery.data),
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Preview is unavailable.",
+      );
+    }
+  };
+
+  const planGesture = async (intent: PyGestureIntent) => {
+    if (!loadout) return;
+    setReviewing(true);
+    try {
+      const plan = await mutations.planGesture.mutateAsync({
+        expected_revision: loadout.revision,
+        intent,
+      });
+      setReviewed({
+        family: "gesture",
+        intent,
+        plan,
+        idempotencyKey: crypto.randomUUID(),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Review failed.");
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const planReaction = async (intent: PyReactionIntent) => {
+    if (!loadout) return;
+    setReviewing(true);
+    try {
+      const plan = await mutations.planReaction.mutateAsync({
+        expected_revision: loadout.revision,
+        intent,
+      });
+      setReviewed({
+        family: "reaction",
+        intent,
+        plan,
+        idempotencyKey: crypto.randomUUID(),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Review failed.");
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const planIdleStyle = async (intent: PyIdleStyleIntent) => {
+    if (!loadout) return;
+    setReviewing(true);
+    try {
+      const plan = await mutations.planIdleStyle.mutateAsync({
+        expected_revision: loadout.revision,
+        intent,
+      });
+      setReviewed({
+        family: "idle_style",
+        intent,
+        plan,
+        idempotencyKey: crypto.randomUUID(),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Review failed.");
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const planMusicTrack = async (intent: PyMusicTrackIntent) => {
+    if (!loadout) return;
+    setReviewing(true);
+    try {
+      const plan = await mutations.planMusicTrack.mutateAsync({
+        expected_revision: loadout.revision,
+        intent,
+      });
+      setReviewed({
+        family: "music_track",
+        intent,
+        plan,
+        idempotencyKey: crypto.randomUUID(),
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Review failed.");
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const musicIntent = (
+    track: PyAnimaMusicTrack,
+    changes: Partial<
+      Pick<PyMusicTrackIntent, "enabled" | "autoplay" | "loop" | "gain">
+    >,
+  ): PyMusicTrackIntent => ({
+    operation: "reconfigure",
+    binding_id: track.binding_id,
+    source: track.source,
+    enabled: changes.enabled ?? track.enabled,
+    autoplay: changes.autoplay ?? track.autoplay,
+    loop: changes.loop ?? track.loop_override,
+    gain: changes.gain ?? track.gain_override,
+  });
+
+  const previewMusic = async (track: PyAnimaMusicTrack) => {
+    try {
+      setMusicPreview(
+        typedMusicTrackPreview(
+          (
+            await previewMusicTrack({
+              path: { item_id: track.source.catalog_item_id },
+              responseValidator: undefined,
+              throwOnError: true,
+            })
+          ).data,
+        ),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Preview failed.");
+    }
+  };
+
+  const selectIdleStyle = (style: PyIdleStyle) => {
+    const source = intentSource(style.source);
+    if (!source) return;
+    void planIdleStyle({
+      operation: "set",
+      source,
+      pool_overrides: {},
+    });
+  };
+
+  const previewIdle = async (
+    emotion = "default",
+    poolOverrides?: Record<string, string[]>,
+  ) => {
+    if (!loadout?.idle_style.source || !runtimeQuery.data) return;
+    try {
+      const pools = poolOverrides ?? loadout.idle_style.pool_overrides ?? {};
+      const animationId =
+        pools[emotion]?.[0] ??
+        (emotion === "default"
+          ? loadout.idle_style.effective_default_pool?.[0]
+          : loadout.idle_style.effective_emotion_pools?.[emotion]?.[0]) ??
+        loadout.idle_style.effective_default_pool?.[0];
+      const result = (
+        await previewIdleStyle({
+          path: { item_id: loadout.idle_style.source.catalog_item_id },
+          responseValidator: undefined,
+          throwOnError: true,
+        })
+      ).data;
+      onStagePreview(
+        idleStylePreviewTarget(
+          typedIdleStylePreview(result, animationId),
+          loadout.idle_style.name ?? "Idle Style",
+          animaId,
+          runtimeQuery.data,
+        ),
+      );
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Preview failed.");
+    }
+  };
+
+  const updateIdlePool = (emotion: string, animationIds: string[]) => {
+    if (!loadout?.idle_style.source || !animationIds.length) return;
+    void planIdleStyle({
+      operation: "reconfigure",
+      source: loadout.idle_style.source,
+      pool_overrides: {
+        ...(loadout.idle_style.pool_overrides ?? {}),
+        [emotion]: animationIds,
+      },
+    });
+  };
+
+  const restoreIdlePool = (emotion: string) => {
+    if (!loadout?.idle_style.source) return;
+    const overrides = { ...(loadout.idle_style.pool_overrides ?? {}) };
+    delete overrides[emotion];
+    void planIdleStyle({
+      operation: "reconfigure",
+      source: loadout.idle_style.source,
+      pool_overrides: overrides,
+    });
+  };
+
+  const confirm = async () => {
+    if (!loadout || !reviewed) return;
+    try {
+      if (reviewed.family === "gesture")
+        await mutations.commitGesture.mutateAsync({
+          expected_revision: loadout.revision,
+          intent: reviewed.intent,
+          plan_digest: reviewed.plan.plan_digest,
+          idempotency_key: reviewed.idempotencyKey,
+        });
+      else if (reviewed.family === "reaction")
+        await mutations.commitReaction.mutateAsync({
+          expected_revision: loadout.revision,
+          intent: reviewed.intent,
+          plan_digest: reviewed.plan.plan_digest,
+          idempotency_key: reviewed.idempotencyKey,
+        });
+      else if (reviewed.family === "idle_style")
+        await mutations.commitIdleStyle.mutateAsync({
+          expected_revision: loadout.revision,
+          intent: reviewed.intent,
+          plan_digest: reviewed.plan.plan_digest,
+          idempotency_key: reviewed.idempotencyKey,
+        });
+      else
+        await mutations.commitMusicTrack.mutateAsync({
+          expected_revision: loadout.revision,
+          intent: reviewed.intent,
+          plan_digest: reviewed.plan.plan_digest,
+          idempotency_key: reviewed.idempotencyKey,
+        });
+      toast.success("Loadout updated. Changes apply to the next chat mount.");
+      setReviewed(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Update failed.");
+    }
+  };
+
+  if (query.isPending) {
+    return (
+      <p className="text-muted-foreground py-10 text-center text-sm">
+        Loading Gesture and Reaction Loadout…
+      </p>
+    );
+  }
+  if (query.isError || !loadout || !gesturePresentation) {
+    return (
+      <div className="space-y-3 rounded-xl border p-5 text-sm">
+        <p className="text-destructive">The Loadout is unavailable.</p>
+        <Button variant="outline" onClick={() => void query.refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+  const mutationsDisabled = reviewing;
+  const committing =
+    mutations.commitGesture.isPending ||
+    mutations.commitReaction.isPending ||
+    mutations.commitIdleStyle.isPending ||
+    mutations.commitMusicTrack.isPending;
+
+  return (
+    <div className="space-y-8 pt-5 md:pt-6">
+      <h1 className="text-2xl font-semibold">Loadout</h1>
+      {loadout.warnings?.length ? (
+        <div className="rounded-lg border border-amber-500/35 p-3 text-sm">
+          {loadout.warnings.map((warning) => (
+            <p key={`${warning.code}:${warning.message}`}>{warning.message}</p>
+          ))}
+        </div>
+      ) : null}
+      <GestureLoadoutSection
+        presentation={gesturePresentation}
+        customCatalog={customGestureCatalog}
+        customCatalogLoading={
+          customGesturesQuery.isPending ||
+          customGesturesFetchingNextPage ||
+          Boolean(hasNextCustomGesturesPage && !customGesturesNextPageError)
+        }
+        customCatalogError={customGesturesQuery.isError}
+        mutationsDisabled={mutationsDisabled}
+        onPreview={(row) => void preview("gesture", row)}
+        onPreviewAvailable={(gesture) => void preview("gesture", gesture)}
+        onEquip={(gesture: PyGesture) => {
+          const source = intentSource(gesture.source);
+          if (!source) {
+            toast.error("This Gesture is not available in the local catalog.");
+            return;
+          }
+          void planGesture({
+            operation: "add",
+            source,
+            config_overrides: {},
+          });
+        }}
+        onRemove={(row) =>
+          void planGesture({
+            operation: "remove",
+            binding_id: row.binding_id,
+            config_overrides: {},
+          })
+        }
+        onDisableStarter={(row) =>
+          void planGesture({
+            operation: "disable_starter",
+            starter_id: row.semantic_key,
+            config_overrides: {},
+          })
+        }
+        onRestoreStarter={(starterId) =>
+          void planGesture({
+            operation: "restore_starter",
+            starter_id: starterId,
+            config_overrides: {},
+          })
+        }
+        onRetryCustomCatalog={() => void customGesturesQuery.refetch()}
+      />
+      <ReactionLoadoutGrid
+        rows={reactionRows}
+        available={availableReactions}
+        availableLoading={
+          reactionsQuery.isPending ||
+          reactionsFetchingNextPage ||
+          Boolean(hasNextReactionsPage && !reactionsNextPageError)
+        }
+        availableError={reactionsQuery.isError}
+        mutationsDisabled={mutationsDisabled}
+        onPreview={(cell) => void preview("reaction", cell)}
+        onPreviewAvailable={(reaction) => void preview("reaction", reaction)}
+        onSelect={(cell, reaction: PyReaction) => {
+          const source = intentSource(reaction.source);
+          if (!source) {
+            toast.error("This Reaction is not available in the local catalog.");
+            return;
+          }
+          void planReaction({
+            operation: "replace",
+            emotion: cell.emotion,
+            intensity: cell.intensity,
+            source,
+            config_overrides: {},
+          });
+        }}
+        onRevert={(cell) =>
+          void planReaction({
+            operation: "revert",
+            emotion: cell.emotion,
+            intensity: cell.intensity,
+            config_overrides: {},
+          })
+        }
+        onLeaveEmpty={(cell) =>
+          void planReaction({
+            operation: "leave_empty",
+            emotion: cell.emotion,
+            intensity: cell.intensity,
+            config_overrides: {},
+          })
+        }
+        onRetryAvailable={() => void reactionsQuery.refetch()}
+      />
+      <IdleStyleLoadoutSection
+        style={loadout.idle_style}
+        available={availableIdleStyles}
+        availableLoading={
+          idleStylesQuery.isPending ||
+          idleStylesFetchingNextPage ||
+          Boolean(hasNextIdleStylesPage && !idleStylesNextPageError)
+        }
+        disabled={mutationsDisabled}
+        onPreview={() => void previewIdle("default")}
+        onPreviewAnimation={(emotion, animationId) =>
+          void previewIdle(emotion, {
+            ...(loadout.idle_style.pool_overrides ?? {}),
+            [emotion]: [animationId],
+          })
+        }
+        onSelect={selectIdleStyle}
+        onUpdatePool={updateIdlePool}
+        onRestorePool={restoreIdlePool}
+        onRevert={() =>
+          void planIdleStyle({
+            operation: "revert",
+            pool_overrides: {},
+          })
+        }
+        onLeaveEmpty={() =>
+          void planIdleStyle({
+            operation: "leave_empty",
+            pool_overrides: {},
+          })
+        }
+      />
+      <MusicTrackLoadoutSection
+        tracks={loadout.music_tracks ?? []}
+        available={availableMusicTracks}
+        preview={musicPreview}
+        disabled={mutationsDisabled}
+        onPreview={(track) => void previewMusic(track)}
+        onAdd={(track: PyMusicTrack) => {
+          const source = intentSource(track.source);
+          if (!source) return;
+          void planMusicTrack({
+            operation: "add",
+            source,
+            enabled: true,
+            autoplay: false,
+          });
+        }}
+        onToggle={(track) =>
+          void planMusicTrack(
+            musicIntent(track, {
+              enabled: !track.enabled,
+              autoplay: track.enabled ? false : track.autoplay,
+            }),
+          )
+        }
+        onAutoplay={(track) =>
+          void planMusicTrack(musicIntent(track, { autoplay: !track.autoplay }))
+        }
+        onConfigure={(track) => {
+          setEditingMusic(track);
+          setMusicLoop(track.effective_loop);
+          setMusicGain(track.effective_gain);
+        }}
+        onRemove={(track) =>
+          void planMusicTrack({
+            operation: "remove",
+            binding_id: track.binding_id,
+          })
+        }
+      />
+
+      <Dialog
+        open={Boolean(editingMusic)}
+        onOpenChange={(open) => !open && setEditingMusic(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Configure Music Track</DialogTitle>
+            <DialogDescription>
+              These loop and gain choices persist in this Anima&apos;s Loadout.
+              Temporary mute and playback position remain local to the player.
+            </DialogDescription>
+          </DialogHeader>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={musicLoop}
+              onChange={(event) => setMusicLoop(event.target.checked)}
+            />
+            Loop this track
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
+            Gain: {Math.round(musicGain * 100)}%
+            <input
+              type="range"
+              min="0"
+              max="2"
+              step="0.05"
+              value={musicGain}
+              onChange={(event) => setMusicGain(Number(event.target.value))}
+            />
+          </label>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                if (!editingMusic) return;
+                const intent = musicIntent(editingMusic, {
+                  loop: musicLoop,
+                  gain: musicGain,
+                });
+                setEditingMusic(null);
+                void planMusicTrack(intent);
+              }}
+            >
+              Review configuration
+            </Button>
+            <Button variant="outline" onClick={() => setEditingMusic(null)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(reviewed)} onOpenChange={() => setReviewed(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Review Loadout change</DialogTitle>
+            <DialogDescription>
+              This changes the next mounted chat runtime. An active chat keeps
+              its current revision.
+            </DialogDescription>
+          </DialogHeader>
+          {reviewed ? (
+            <div className="space-y-2 rounded-lg border p-4 text-sm">
+              <p>
+                <span className="text-muted-foreground">Action:</span>{" "}
+                {reviewed.plan.action.replaceAll("_", " ")}
+              </p>
+              {reviewed.plan.current_name ? (
+                <p>
+                  <span className="text-muted-foreground">Current:</span>{" "}
+                  {reviewed.plan.current_name}
+                </p>
+              ) : null}
+              {reviewed.plan.target_name ? (
+                <p>
+                  <span className="text-muted-foreground">Result:</span>{" "}
+                  {reviewed.plan.target_name}
+                </p>
+              ) : null}
+              {(reviewed.plan.warnings ?? []).map((warning) => (
+                <p
+                  key={warning.code}
+                  className="text-amber-700 dark:text-amber-300"
+                >
+                  {warning.message}
+                </p>
+              ))}
+            </div>
+          ) : null}
+          <DialogFooter>
+            <Button
+              onClick={() => void confirm()}
+              disabled={
+                committing || !reviewed || reviewed.plan.action === "unchanged"
+              }
+            >
+              Confirm change
+            </Button>
+            <Button variant="outline" onClick={() => setReviewed(null)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

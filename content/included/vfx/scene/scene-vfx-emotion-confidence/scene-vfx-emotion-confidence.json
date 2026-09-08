@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-confidence",
+  "version": 1,
+  "name": "Emotion Confidence",
+  "description": "Scene background effect preset",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": true,
+      "color": "#ffe2a8"
+    },
+    "pattern": {
+      "enabled": true,
+      "pattern": "star",
+      "color": "#ffffff",
+      "size": 24,
+      "spacing": 18,
+      "opacity": 0.34
+    },
+    "marquee": {
+      "enabled": true,
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "diagonal-up-left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 170,
+      "opacity": 0.92,
+      "items": [
+        {
+          "id": "emoji-crown",
+          "kind": "image",
+          "label": "Crown 👑",
+          "image": "emoji-crown-1f451.svg"
+        }
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "emoji-crown-1f451.svg",
+      "role": "image"
+    }
+  ]
+}

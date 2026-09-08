@@ -1,0 +1,20 @@
+{
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:plead",
+  "version": 1,
+  "semantic_key": "plead",
+  "name": "Plead",
+  "ai_description": "Use when the character is begging or desperately asking for something.",
+  "schema_version": 1,
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "plead.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

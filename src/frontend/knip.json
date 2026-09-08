@@ -1,0 +1,149 @@
+{
+  "$schema": "https://unpkg.com/knip@6.34.0/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "playwright.config.ts",
+        "scripts/verify-web-public-assets.mjs",
+        "scripts/**/*.test.mjs",
+        "e2e/**/*.spec.ts",
+        "e2e/**/*.test.ts",
+        "e2e/setup/*.ts"
+      ],
+      "project": [
+        "*.{ts,mjs}",
+        "scripts/**/*.{ts,mts,js,mjs}",
+        "e2e/**/*.ts",
+        "shared/**/*.ts"
+      ],
+      "playwright": false,
+      "typescript": { "config": ["tsconfig.e2e.json"] }
+    },
+    "web": {
+      "entry": [
+        "index.html",
+        "src/main.local.tsx",
+        "src/routes/**/*.{ts,tsx}",
+        "src/workers/{content-hash,viseme,client-parakeet,smart-turn}-worker.ts",
+        "src/lib/recharts/es-toolkit-compat/*.js",
+        "public/tts/workers/inference-worker.js",
+        "public/tts/audio/pcm-processor.worklet.js",
+        "public/tts/vendor/sentencepiece.js",
+        "public/onnx/models/vad/vad.worklet.bundle.min.js",
+        "public/basis/basis_transcoder.js"
+      ],
+      "project": [
+        "*.{js,mjs,ts}",
+        "src/**/*.{ts,tsx,js,jsx}",
+        "scripts/**/*.{ts,mjs}",
+        "vite-plugins/**/*.ts",
+        "tests/**/*.{ts,tsx}",
+        "public/**/*.js"
+      ],
+      "paths": { "@/*": ["./src/*"], "@web/*": ["./src/*"] },
+      "typescript": {
+        "config": ["tsconfig.json", "tsconfig.app.json", "tsconfig.node.json"]
+      },
+      "vite": { "config": ["vite.config.ts"] },
+      "vitest": {
+        "config": ["vitest.config.ts"],
+        "entry": ["{src,tests}/**/*.{test,spec}.{ts,tsx}"]
+      },
+      "ignoreIssues": {
+        "src/routeTree.gen.ts": [
+          "files",
+          "exports",
+          "types",
+          "nsExports",
+          "nsTypes"
+        ],
+        "src/lib/speech/pocket/{core,audio}/**": [
+          "files",
+          "exports",
+          "types",
+          "nsExports",
+          "nsTypes",
+          "enumMembers",
+          "duplicates"
+        ],
+        "src/lib/speech/pocket/index.js": [
+          "files",
+          "exports",
+          "types",
+          "nsExports",
+          "nsTypes"
+        ],
+        "public/tts/vendor/sentencepiece.js": [
+          "files",
+          "exports",
+          "types",
+          "nsExports",
+          "nsTypes"
+        ],
+        "public/onnx/models/vad/vad.worklet.bundle.min.js": [
+          "files",
+          "exports",
+          "types",
+          "nsExports",
+          "nsTypes"
+        ],
+        "public/basis/basis_transcoder.js": [
+          "files",
+          "exports",
+          "types",
+          "nsExports",
+          "nsTypes"
+        ]
+      }
+    },
+    "packages/runtime-contracts": {
+      "entry": ["src/{index,sdk,api-types,validators,default-client}.ts"],
+      "project": ["src/**/*.ts", "tests/**/*.mjs"],
+      "ignoreIssues": {
+        "src/generated/**": [
+          "files", "exports", "types", "nsExports", "nsTypes", "enumMembers", "duplicates"
+        ]
+      }
+    },
+    "packages/discover-client": {
+      "entry": ["src/{index,fixtures}.ts"],
+      "project": ["src/**/*.ts", "tests/**/*.mjs"]
+    },
+    "packages/product-ui": {
+      "entry": ["src/{index,query,chat,components,emotion,anima-profile}.ts"],
+      "project": ["src/**/*.{ts,tsx}", "build-styles.mjs"]
+    },
+    "server": {
+      "entry": [
+        "src/index.ts",
+        "src/compose-index.ts",
+        "src/gateway/lifecycle.ts"
+      ],
+      "project": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
+      "vitest": { "entry": ["{src,tests}/**/*.{test,spec}.ts"] }
+    },
+    "desktop": {
+      "entry": [
+        "src/main.ts",
+        "src/preload.cts",
+        "scripts/before-build.mjs",
+        "scripts/runtime/ci-keychain.mjs",
+        "scripts/runtime/ci-smoke.mjs",
+        "scripts/runtime/publish-macos.mjs",
+        "scripts/runtime/native-build.mjs",
+        "scripts/runtime/sign-macos.mjs",
+        "scripts/runtime/worker-input.mjs"
+      ],
+      "project": [
+        "*.ts",
+        "src/**/*.{ts,cts}",
+        "scripts/**/*.{ts,mjs}",
+        "tests/**/*.{ts,mjs}"
+      ],
+      "vitest": {
+        "config": ["vitest.config.ts"],
+        "entry": ["tests/**/*.test.{ts,mjs}"]
+      }
+    }
+  }
+}

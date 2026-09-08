@@ -1,0 +1,71 @@
+{
+  "name": "@animama/product-ui",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./query": {
+      "types": "./dist/types/query.d.ts",
+      "import": "./dist/query.js"
+    },
+    "./chat": {
+      "types": "./dist/types/chat.d.ts",
+      "import": "./dist/chat.js"
+    },
+    "./components": {
+      "types": "./dist/types/components.d.ts",
+      "import": "./dist/components.js"
+    },
+    "./emotion": {
+      "types": "./dist/types/emotion.d.ts",
+      "import": "./dist/emotion.js"
+    },
+    "./anima-profile": {
+      "types": "./dist/types/anima-profile.d.ts",
+      "import": "./dist/anima-profile.js"
+    },
+    "./styles.css": "./dist/styles.css",
+    "./theme.css": "./dist/theme.css"
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-typescript-package.mjs src/index.ts src/query.ts src/chat.ts src/components.ts src/emotion.ts src/anima-profile.ts src/theme.css && node build-styles.mjs",
+    "check": "tsc -p tsconfig.json --noEmit --emitDeclarationOnly false"
+  },
+  "dependencies": {
+    "@animama/runtime-contracts": "workspace:*",
+    "@radix-ui/react-avatar": "^1.1.11",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.562.0",
+    "motion": "^12.24.12",
+    "sonner": "^2.0.7",
+    "streamdown": "^2.5.0",
+    "tailwind-merge": "^3.4.0",
+    "use-stick-to-bottom": "^1.1.1"
+  },
+  "peerDependencies": {
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "@tanstack/react-query": "^5.90.16"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@tailwindcss/postcss": "^4",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4"
+  }
+}

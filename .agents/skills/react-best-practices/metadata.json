@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0-animama.1",
+  "organization": "Vercel Engineering (adapted for Animama)",
+  "date": "September 2026",
+  "abstract": "Performance guidance for Animama's client-rendered React, Vite, TanStack Router and Query application. Maintained rule files cover async work, bundles, client data, re-renders, browser rendering, JavaScript, and advanced React patterns.",
+  "references": [
+    "https://react.dev",
+    "https://vite.dev/guide/",
+    "https://tanstack.com/query/latest/docs/framework/react/overview",
+    "https://tanstack.com/router/latest/docs/framework/react/overview",
+    "https://github.com/vercel-labs/agent-skills/tree/main/skills/react-best-practices"
+  ]
+}

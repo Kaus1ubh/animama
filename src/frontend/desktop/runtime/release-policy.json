@@ -1,0 +1,14 @@
+{
+  "schema": "animama-release-policy/1",
+  "github": { "owner": "raymond-van", "repo": "animama-releases" },
+  "channel": "stable",
+  "distribution_basis": {
+    "commercial": false,
+    "pocket_tts_onnx_license": "CC-BY-NC-4.0"
+  },
+  "redistribution_review": {
+    "inventory_sha256": "2ad5d4abe684245b89b228cbe4aa0511dd906532a1105a285d3bfd78431b3c26",
+    "reviewed_by": "raymond-van",
+    "reviewed_on": "2026-09-03"
+  }
+}

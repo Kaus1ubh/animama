@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:sleep-bubbles",
+  "version": 1,
+  "name": "Sleep Bubbles",
+  "description": "Soft drifting sleep bubbles with sleepy Zs and tiny glints.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "sleep-bubbles",
+    "slots": {
+      "particle_vfx": {
+        "label": "Sleep Bubbles",
+        "description": "Soft drifting sleep bubbles with sleepy Zs and tiny glints.",
+        "anchor": "head",
+        "duration_seconds": 2.8,
+        "max_duration_seconds": 3.2,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0.1,
+            "y": 0.32,
+            "z": 0
+          },
+          "depth_offset": 0.12,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 0.95,
+            "y": 0.95,
+            "z": 0.95
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": false,
+        "max_particles": 28
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/soft-dot.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/spark-dot.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/zzz.png",
+      "role": "texture"
+    }
+  ]
+}

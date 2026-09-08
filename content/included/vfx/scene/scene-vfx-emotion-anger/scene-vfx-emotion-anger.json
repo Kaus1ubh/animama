@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-anger",
+  "version": 1,
+  "name": "Emotion Anger",
+  "description": "Scene background effect preset",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": true,
+      "color": "#ffb3a8"
+    },
+    "pattern": {
+      "enabled": true,
+      "pattern": "star",
+      "color": "#ffffff",
+      "size": 24,
+      "spacing": 18,
+      "opacity": 0.34
+    },
+    "marquee": {
+      "enabled": true,
+      "itemSize": 80,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "diagonal-up-left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 170,
+      "opacity": 0.92,
+      "items": [
+        {
+          "id": "emoji-anger-symbol",
+          "kind": "image",
+          "label": "Anger Symbol 💢",
+          "image": "emoji-anger-symbol-1f4a2.svg"
+        },
+        {
+          "id": "emoji-collision",
+          "kind": "image",
+          "label": "Collision 💥",
+          "image": "emoji-collision-1f4a5.svg"
+        }
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "emoji-anger-symbol-1f4a2.svg",
+      "role": "image"
+    },
+    {
+      "path": "emoji-collision-1f4a5.svg",
+      "role": "image"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:hearts",
+  "version": 1,
+  "name": "Hearts",
+  "description": "Soft hearts that float upward for affection or admiration.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "hearts",
+    "slots": {
+      "particle_vfx": {
+        "label": "Hearts",
+        "description": "Soft hearts that float upward for affection or admiration.",
+        "anchor": "head",
+        "duration_seconds": 1.8,
+        "max_duration_seconds": 2.2,
+        "preload_tier": "tier_a",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.32,
+            "z": 0
+          },
+          "depth_offset": 0.12,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 8
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/heart.png",
+      "role": "texture"
+    }
+  ]
+}

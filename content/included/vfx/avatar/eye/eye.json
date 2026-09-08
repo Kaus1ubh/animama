@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:eye",
+  "version": 1,
+  "name": "Eye =",
+  "description": "Flat eye hover for deadpan displeasure, disgust, or emotionally drained reactions.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/1",
+    "kind": "hover",
+    "region": "eyes",
+    "hoverKind": "eye_hover",
+    "disableTargetRoles": [
+      "eye_highlight"
+    ],
+    "side": "right",
+    "requiresMirror": true,
+    "transform": {
+      "scale": {
+        "x": 0.6,
+        "y": 0.6,
+        "z": 1
+      }
+    },
+    "lifetime": {
+      "kind": "duration",
+      "runEndBufferSec": 5
+    },
+    "image": "eye_=_r.png"
+  },
+  "files": [
+    {
+      "path": "eye_=_r.png",
+      "role": "image"
+    }
+  ]
+}

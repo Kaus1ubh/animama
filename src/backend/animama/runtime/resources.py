@@ -1,0 +1,98 @@
+"""One resource map for source execution and the frozen desktop executable.
+
+Only the source adapter knows the checkout layout. Frozen code resolves all
+resources through importlib and fails closed instead of looking in a checkout.
+The PyInstaller spec consumes the same map, including the full migration tree.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from importlib.resources import files
+from pathlib import Path
+from typing import Any
+
+RESOURCE_INPUTS = {
+    "alembic": "alembic",
+    "alembic.ini": "alembic.ini",
+    "sql": "alembic/seeds",
+    "animation-manifest.json": "src/frontend/web/src/assets/vrm/animations/manifest.json",
+    "vfx-catalog.json": "src/frontend/web/src/assets/effects/vfx/catalog.json",
+}
+
+
+def runtime_resource(name: str) -> Path:
+    """Resolve a declared resource in a source tree or onedir installation."""
+
+    if name not in RESOURCE_INPUTS:
+        raise ValueError(f"Unknown runtime resource: {name}")
+    packaged = files("animama.resources").joinpath("runtime", name)
+    if packaged.is_file() or packaged.is_dir():
+        # onedir is an unpacked filesystem package, not a transient zip resource.
+        return Path(str(packaged))
+    if getattr(sys, "frozen", False):
+        raise FileNotFoundError(f"Required packaged resource is missing: {name}")
+    return Path(__file__).resolve().parents[4] / RESOURCE_INPUTS[name]
+
+
+def alembic_config():  # noqa: ANN201
+    """Use packaged migration scripts without invoking an external executable."""
+
+    from alembic.config import Config
+
+    config = Config(str(runtime_resource("alembic.ini")))
+    config.set_main_option("script_location", str(runtime_resource("alembic")))
+    return config
+
+
+def audit_resources() -> dict[str, Any]:
+    """Validate resource structure without a database, gateway, or provider key."""
+
+    from alembic.script import ScriptDirectory
+    from animama.app.services.starter_loadout_policy import starter_loadout_policy
+    from animama.domain.vfx import load_avatar_vfx_catalog
+    from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory
+    from animama.prompts.template_profiles import render_template_profile
+    from animama.server.app import app
+
+    for name in RESOURCE_INPUTS:
+        if not runtime_resource(name).exists():
+            raise FileNotFoundError(f"Required runtime resource is missing: {name}")
+    migrations = ScriptDirectory.from_config(alembic_config())
+    head = migrations.get_current_head()
+    if not head:
+        raise ValueError("Packaged Alembic head is missing or ambiguous")
+    # Walk every revision so an omitted migration or its SQL fails the audit.
+    revisions = list(migrations.walk_revisions())
+    baseline = runtime_resource("alembic") / "versions" / "0001_baseline.sql"
+    if not baseline.is_file() or not baseline.read_text(encoding="utf-8").strip():
+        raise ValueError("Packaged baseline SQL is missing")
+    sql = sorted(runtime_resource("sql").glob("*.sql"))
+    if not sql or not all(p.read_text(encoding="utf-8").strip() for p in sql):
+        raise ValueError("Packaged bootstrap SQL is missing or empty")
+    policy = starter_loadout_policy()
+    gestures = get_manifest_gesture_inventory()
+    effects = load_avatar_vfx_catalog()
+    if not policy["gestures"] or not policy["reactions"] or not gestures or not effects:
+        raise ValueError("Packaged starter or animation/effect resources are empty")
+    for profile in ("luna", "marine", "korone"):
+        if not render_template_profile(profile):
+            raise ValueError(f"Packaged prompt profile is missing: {profile}")
+    if "/v1/animas/{anima_id}/chat:sse" not in {getattr(route, "path", "") for route in app.routes}:
+        raise ValueError("Frozen FastAPI application is missing its chat route")
+    return {
+        "schema": "animama-resource-audit/1",
+        "frozen": bool(getattr(sys, "frozen", False)),
+        "alembic_head": head,
+        "migration_count": len(revisions),
+        "sql_count": len(sql),
+        "gesture_count": len(gestures),
+        "effect_count": len(effects),
+        "starter_policy": policy["id"],
+        "api_route_count": len(app.routes),
+    }
+
+
+def print_resource_audit() -> None:
+    print(json.dumps(audit_resources(), indent=2, sort_keys=True))

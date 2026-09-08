@@ -1,0 +1,236 @@
+import type {
+  ParticleVFXEditorTextureManifestEntry,
+  ParticleVFXEditorTextureRole,
+} from "./types";
+
+type TextureBlending =
+  ParticleVFXEditorTextureManifestEntry["recommendedBlending"];
+type TextureRenderMode =
+  ParticleVFXEditorTextureManifestEntry["recommendedRenderMode"];
+type TextureAtlas = ParticleVFXEditorTextureManifestEntry["atlas"];
+
+export const PARTICLE_VFX_EDITOR_TEXTURE_ROLE_ORDER = [
+  "glow",
+  "spark",
+  "smoke",
+  "trail",
+  "symbol",
+] as const satisfies readonly ParticleVFXEditorTextureRole[];
+
+export const PARTICLE_VFX_EDITOR_TEXTURE_ROLE_LABELS = {
+  glow: "Glow",
+  spark: "Spark",
+  smoke: "Smoke/Dust",
+  trail: "Trail/Streak",
+  symbol: "Symbol",
+} as const satisfies Record<ParticleVFXEditorTextureRole, string>;
+
+export const PARTICLE_VFX_EDITOR_TEXTURE_MANIFEST = [
+  texture("soft-dot", "Soft Dot", "soft-dot.png", "glow", "additive", 0),
+  texture("glow-soft", "Glow Soft", "glow-soft.png", "glow", "additive", 0),
+  texture("glow-sharp", "Glow Sharp", "glow-sharp.png", "glow", "additive", 0),
+  texture("flare-star", "Flare Star", "flare-star.png", "glow", "additive", 0),
+  texture(
+    "brackeys-flare",
+    "Flare",
+    "brackeys-flare.png",
+    "glow",
+    "additive",
+    0,
+  ),
+  texture("fire-8x8", "Fire 8x8", "fire-8x8.png", "glow", "additive", 0, {
+    uTileCount: 8,
+    vTileCount: 8,
+    frameCount: 64,
+    blendTiles: false,
+    frameOverLife: {
+      startFrame: 0,
+      endFrame: 63,
+    },
+  }),
+  texture("flame-16x4", "Flame 16x4", "flame-16x4.png", "glow", "additive", 0, {
+    uTileCount: 16,
+    vTileCount: 4,
+    frameCount: 64,
+    blendTiles: false,
+    frameOverLife: {
+      startFrame: 0,
+      endFrame: 63,
+    },
+  }),
+  texture(
+    "kenney-fire-glow",
+    "Kenney Fire Glow",
+    "kenney-fire-glow.png",
+    "glow",
+    "additive",
+    0,
+  ),
+  texture(
+    "kenney-flame-core",
+    "Kenney Flame Core",
+    "kenney-flame-core.png",
+    "glow",
+    "additive",
+    0,
+  ),
+  texture(
+    "kenney-flame-tongue",
+    "Kenney Flame Tongue",
+    "kenney-flame-tongue.png",
+    "glow",
+    "additive",
+    0,
+  ),
+  texture("sparkle", "Sparkle", "sparkle.png", "spark", "additive", 0),
+  texture(
+    "spark-cross",
+    "Spark Cross",
+    "spark-cross.png",
+    "spark",
+    "additive",
+    0,
+  ),
+  texture("spark-dot", "Spark Dot", "spark-dot.png", "spark", "additive", 0),
+  texture(
+    "spark-streak",
+    "Spark Streak",
+    "spark-streak.png",
+    "spark",
+    "additive",
+    1,
+  ),
+  texture(
+    "brackeys-spark",
+    "Spark",
+    "brackeys-spark.png",
+    "spark",
+    "additive",
+    0,
+  ),
+  texture(
+    "spark-pop-6x5",
+    "Spark Pop 6x5",
+    "spark-pop-6x5.png",
+    "spark",
+    "additive",
+    0,
+    {
+      uTileCount: 6,
+      vTileCount: 5,
+      frameCount: 26,
+      blendTiles: false,
+      frameOverLife: {
+        startFrame: 0,
+        endFrame: 25,
+      },
+    },
+  ),
+  texture(
+    "kenney-ember-spark",
+    "Kenney Ember Spark",
+    "kenney-ember-spark.png",
+    "spark",
+    "additive",
+    1,
+  ),
+  texture("smoke-puff", "Smoke Puff", "smoke-puff.png", "smoke", "normal", 0),
+  texture("smoke-wisp", "Smoke Wisp", "smoke-wisp.png", "smoke", "normal", 0),
+  texture("dust-soft", "Dust Soft", "dust-soft.png", "smoke", "normal", 0),
+  texture(
+    "brackeys-smoke",
+    "Smoke",
+    "brackeys-smoke.png",
+    "smoke",
+    "normal",
+    0,
+  ),
+  texture("smoke-8x8", "Smoke 8x8", "smoke-8x8.png", "smoke", "normal", 0, {
+    uTileCount: 8,
+    vTileCount: 8,
+    frameCount: 64,
+    blendTiles: false,
+    frameOverLife: {
+      startFrame: 0,
+      endFrame: 63,
+    },
+  }),
+  texture(
+    "kenney-smoke-wisp",
+    "Kenney Smoke Wisp",
+    "kenney-smoke-wisp.png",
+    "smoke",
+    "normal",
+    0,
+  ),
+  texture(
+    "trail-taper",
+    "Trail Taper",
+    "trail-taper.png",
+    "trail",
+    "additive",
+    1,
+  ),
+  texture("slash-arc", "Slash Arc", "slash-arc.png", "trail", "additive", 1),
+  texture("speed-line", "Speed Line", "speed-line.png", "trail", "additive", 1),
+  texture("heart", "Heart", "heart.png", "symbol", "additive", 0),
+  texture("star", "Star", "star.png", "symbol", "additive", 0),
+  texture("cloud", "Cloud", "cloud.png", "symbol", "normal", 0),
+  texture("raindrop", "Raindrop", "raindrop.png", "symbol", "normal", 0),
+  texture("question", "Question", "question.png", "symbol", "additive", 0),
+  texture(
+    "exclamation",
+    "Exclamation",
+    "exclamation.png",
+    "symbol",
+    "additive",
+    0,
+  ),
+  texture("zzz", "Zzz", "zzz.png", "symbol", "additive", 0),
+  texture("star-v2", "Star-v2", "star-v2.png", "symbol", "additive", 0),
+  texture("heart-v2", "Heart-v2", "heart-v2.png", "symbol", "additive", 0),
+  texture(
+    "magic-ring",
+    "Magic Ring",
+    "magic-ring.png",
+    "symbol",
+    "additive",
+    0,
+  ),
+  texture(
+    "rune-circle",
+    "Rune Circle",
+    "rune-circle.png",
+    "symbol",
+    "additive",
+    0,
+  ),
+  texture(
+    "shock-ring",
+    "Shock Ring",
+    "shock-ring.png",
+    "symbol",
+    "additive",
+    0,
+  ),
+] as const satisfies readonly ParticleVFXEditorTextureManifestEntry[];
+
+function texture(
+  id: string,
+  label: string,
+  fileName: string,
+  role: ParticleVFXEditorTextureRole,
+  recommendedBlending: TextureBlending,
+  recommendedRenderMode: TextureRenderMode,
+  atlas?: TextureAtlas,
+): ParticleVFXEditorTextureManifestEntry {
+  return {
+    id,
+    label,
+    fileName,
+    role,
+    recommendedBlending,
+    recommendedRenderMode,
+    atlas,
+  };
+}

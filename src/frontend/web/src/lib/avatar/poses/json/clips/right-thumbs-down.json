@@ -1,0 +1,39 @@
+{
+  "schema": "animaPoseClip/1.0",
+  "id": "right-thumbs-down",
+  "name": "right-thumbs-down",
+  "duration": 1,
+  "loop": true,
+  "basePose": "relaxedRest",
+  "defaultTransition": {
+    "easing": "easeInOutSine",
+    "interpolation": {
+      "humanoidRotation": "slerp",
+      "humanoidPosition": "linear",
+      "expression": "linear"
+    }
+  },
+  "fadeIn": {
+    "duration": 0.7,
+    "easing": "easeInOutSine"
+  },
+  "fadeOut": {
+    "duration": 0.7,
+    "easing": "easeInOutSine"
+  },
+  "poses": {
+    "rightThumbsDown": {
+      "ref": "right-thumbs-down"
+    }
+  },
+  "poseKeyframes": [
+    {
+      "time": 0,
+      "pose": "rightThumbsDown"
+    },
+    {
+      "time": 1,
+      "pose": "rightThumbsDown"
+    }
+  ]
+}

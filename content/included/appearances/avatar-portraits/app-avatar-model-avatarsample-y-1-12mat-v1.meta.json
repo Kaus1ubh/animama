@@ -1,0 +1,9 @@
+{
+  "content_id": "builtin:avatar-portrait:AvatarSample_Y_1_12Mat",
+  "name": "Avatar Sample Y 1 12Mat Portrait",
+  "avatar_model": "AvatarSample_Y_1_12Mat",
+  "width": 256,
+  "height": 256,
+  "renderer_version": 1,
+  "capture_preset_version": 2
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:sexy_step_forward",
+  "version": 1,
+  "semantic_key": "sexy_step_forward",
+  "name": "sexy_step_forward",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "sexy_step_forward.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

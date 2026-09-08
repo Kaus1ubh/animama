@@ -1,0 +1,1624 @@
+{
+  "Animations": {
+    "idle": [
+      {
+        "name": "Idle Angry",
+        "file": "idle_angry.vrma",
+        "type": "vrma",
+        "description": "Use when the character is upset or frustrated with someone.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {
+          "anger": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disapproval": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "idle",
+        "duration": 3.93,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Anxious Look Around",
+        "file": "idle_anxious_look_around.vrma",
+        "type": "vrma",
+        "description": "Use when the character is nervous or worried about surroundings.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "fear": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "nervousness": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "idle",
+        "duration": 11.25,
+        "blend_mode": "override",
+        "time_scale": 0.8,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Idle Happy",
+        "file": "idle_happy.vrma",
+        "type": "vrma",
+        "description": "Character happily idling.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "excitement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "amusement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "idle",
+        "duration": 10,
+        "blend_mode": "override",
+        "time_scale": 0.6,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Idle Sway",
+        "file": "idle_sway.vrma",
+        "type": "vrma",
+        "description": "Gentle swaying idle for relaxed or chill contexts.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "optimism": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "idle",
+        "duration": 9.92,
+        "blend_mode": "override",
+        "time_scale": 0.6,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Bored Idle",
+        "file": "idle_bored.vrma",
+        "type": "vrma",
+        "description": "Bored looking around idle Feminine",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "disappointment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "idle",
+        "duration": 13.33,
+        "blend_mode": "override",
+        "time_scale": 0.5,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Feminine Idle",
+        "file": "idle_fem.vrma",
+        "type": "vrma",
+        "description": "Feminine idle stance with relaxed posture.",
+        "disabled": true,
+        "loop_type": "pingpong",
+        "emotions": {},
+        "base_pose": "relaxedRest",
+        "animation_type": "idle",
+        "duration": 3.33,
+        "blend_mode": "override",
+        "time_scale": 0.9,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Sad Idle",
+        "file": "idle_sad.vrma",
+        "type": "vrma",
+        "description": "Use when the character is feeling down or melancholic.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {
+          "sadness": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disappointment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "grief": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "idle",
+        "duration": 3.93,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      }
+    ],
+    "gesture": [
+      {
+        "name": "Exclaim Frustrated",
+        "file": "exclaim_frustrated.vrma",
+        "type": "vrma",
+        "description": "Use when the character expresses strong frustration.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {
+          "anger": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 7.83,
+        "blend_mode": "override",
+        "time_scale": 0.8,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Frustrated Explain",
+        "file": "frustrated_explain.vrma",
+        "type": "vrma",
+        "description": "Explaining something while visibly frustrated.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "anger": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disapproval": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 20.75,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Sarcastic Response",
+        "file": "sarcastic_response.vrma",
+        "type": "vrma",
+        "description": "Use when giving a sarcastic or ironic reply.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {
+          "disgust": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disapproval": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 3.75,
+        "blend_mode": "override",
+        "time_scale": 0.75,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Silly Slap",
+        "file": "silly_slap.vrma",
+        "type": "vrma",
+        "description": "Playful slapping motion for the user says something inappropriate.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "disgust": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disapproval": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 3.83,
+        "blend_mode": "override",
+        "time_scale": 0.8,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Flattered",
+        "file": "flattered.vrma",
+        "type": "vrma",
+        "description": "Use when the character receives a compliment.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "gratitude": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "admiration": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 4.21,
+        "blend_mode": "override",
+        "time_scale": 0.8,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Proud of Self",
+        "file": "proud_of_self.vrma",
+        "type": "vrma",
+        "description": "Use when the character accomplished something or feels confident.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "respect": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.83,
+        "blend_mode": "override",
+        "time_scale": 0.8,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Quick Excited Jump 1",
+        "file": "excited_jump_1.vrma",
+        "type": "vrma",
+        "description": "Jumping with excitement and joy.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "excitement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "amusement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.83,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Explain",
+        "file": "explain.vrma",
+        "type": "vrma",
+        "description": "Use when the character is explaining or teaching something.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "curiosity": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 3.33,
+        "blend_mode": "override",
+        "time_scale": 0.5,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Listening Head Nod",
+        "file": "listening_head_nod.vrma",
+        "type": "vrma",
+        "description": "Subtle nodding while actively listening to someone.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {
+          "curiosity": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "respect": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "caring": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.92,
+        "blend_mode": "override",
+        "time_scale": 0.6,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Thinking",
+        "file": "thinking.vrma",
+        "type": "vrma",
+        "description": "Use when the character is pondering or considering something.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {
+          "curiosity": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "confusion": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "thinking",
+        "duration": 3.93,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Talk",
+        "file": "talk.vrma",
+        "type": "vrma",
+        "description": "General talking gesture for conversational responses.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {},
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 2.92,
+        "blend_mode": "override",
+        "time_scale": 0.5,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Being Cocky",
+        "file": "being_cocky.vrma",
+        "type": "vrma",
+        "description": "Use when the character is being arrogant, confident or showing off.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "amusement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 2.88,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Blush Head scratch",
+        "file": "blush.vrma",
+        "type": "vrma",
+        "description": "Use when the character is embarrassed, shy or unsure about something.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "embarrassment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "nervousness": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "confusion": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 3.93,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Darn It",
+        "file": "darn_it.vrma",
+        "type": "vrma",
+        "description": "Use when something goes wrong or the character makes a mistake.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "remorse": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disappointment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 4.17,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Head Shake",
+        "file": "head_shake.vrma",
+        "type": "vrma",
+        "description": "Use when the character disagrees with something the user said",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "disapproval": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 2.54,
+        "blend_mode": "override",
+        "time_scale": 0.9,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Look Around",
+        "file": "lookaround.vrma",
+        "type": "vrma",
+        "description": "Character casually looks around the environment.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {
+          "curiosity": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 3.93,
+        "blend_mode": "override",
+        "time_scale": 0.8,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Plead",
+        "file": "plead.vrma",
+        "type": "vrma",
+        "description": "Use when the character is begging or desperately asking for something.",
+        "disabled": false,
+        "loop_type": "pingpong",
+        "emotions": {
+          "desire": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "fear": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "nervousness": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 6.67,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Quick Shrug",
+        "file": "shrug.vrma",
+        "type": "vrma",
+        "description": "Use when the character doesn't know or is indifferent.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "confusion": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disappointment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.38,
+        "blend_mode": "override",
+        "time_scale": 0.7,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Quick Wave",
+        "file": "wave.vrma",
+        "type": "vrma",
+        "description": "Use to greet someone or wave hello/goodbye.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "caring": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.46,
+        "blend_mode": "override",
+        "time_scale": 0.9,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Slight Bow",
+        "file": "slight_bow.vrma",
+        "type": "vrma",
+        "description": "Polite bow for formal greetings or showing respect to a senior.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "respect": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "gratitude": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 2.71,
+        "blend_mode": "override",
+        "time_scale": 0.7,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Surprised",
+        "file": "surprised.vrma",
+        "type": "vrma",
+        "description": "Use when the character encounters something unexpected.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "confusion": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "excitement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "fear": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 3.93,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Tired Idle_F",
+        "file": "tired.vrma",
+        "type": "vrma",
+        "description": "Exhausted idle state",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "sadness": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disappointment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 9.33,
+        "blend_mode": "override",
+        "time_scale": 0.7,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Whatever",
+        "file": "whatever.vrma",
+        "type": "vrma",
+        "description": "Dismissive gesture showing disinterest or resignation. More exaggerated version of shrug animation",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disapproval": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disappointment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.38,
+        "blend_mode": "override",
+        "time_scale": 0.6,
+        "weight": 1,
+        "loop_count": 0.5
+      },
+      {
+        "name": "Crying",
+        "file": "crying.vrma",
+        "type": "vrma",
+        "description": "Use when the character is very upset or moved to tears.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "sadness": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "grief": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 6.25,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Pose Sad",
+        "file": "posture_sad.vrma",
+        "type": "vrma",
+        "description": "Sad posture",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "sadness": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disappointment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 4,
+        "blend_mode": "additive",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Pose Sad (custom)",
+        "file": "posture_sad_custom.vrma",
+        "type": "vrma",
+        "description": "Sad posture",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "sadness": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disappointment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 4,
+        "blend_mode": "additive",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Arms Crossed",
+        "file": "arms-crossed",
+        "type": "animaPoseClip",
+        "description": "Hold an arms-crossed stance for skeptical, guarded, or self-assured moments.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "disapproval": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Double Peace Pop",
+        "file": "double-peace-pop",
+        "type": "animaPoseClip",
+        "description": "Pop into a double peace sign for playful excitement or upbeat celebration.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "excitement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "amusement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 2.4,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Double Thumbs Down",
+        "file": "double-thumbs-down",
+        "type": "animaPoseClip",
+        "description": "Give a clear double thumbs-down reaction for disapproval or disappointment.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "disapproval": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disappointment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "double-thumbs-down",
+        "animation_type": "gesture",
+        "duration": 2.35,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Double Thumbs Up",
+        "file": "double-thumbs-up",
+        "type": "animaPoseClip",
+        "description": "Give an enthusiastic double thumbs-up for approval, confidence, or encouragement.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "gratitude": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "double-thumbs-up",
+        "animation_type": "gesture",
+        "duration": 2.25,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Finger Heart",
+        "file": "finger-heart-pose",
+        "type": "animaPoseClip",
+        "description": "Form a small finger heart for affectionate, appreciative, or caring moments.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "love": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "caring": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "gratitude": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.35,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Hands On Hips",
+        "file": "hands-on-hips",
+        "type": "animaPoseClip",
+        "description": "Hold a hands-on-hips stance for confident, assertive, or mildly challenging moments.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disapproval": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Heart Hands",
+        "file": "heart-hands-build",
+        "type": "animaPoseClip",
+        "description": "Build into a heart-hands pose for warm affection, love, or support.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "love": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "caring": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.55,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Left OK Sign",
+        "file": "left-ok-sign",
+        "type": "animaPoseClip",
+        "description": "Hold an OK hand sign for agreement, reassurance, or confident approval.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "respect": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "gratitude": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Left Peace Sign",
+        "file": "left-peace-sign",
+        "type": "animaPoseClip",
+        "description": "Hold a peace sign for cheerful, playful, or relaxed positive moments.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "amusement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Right Face Palm",
+        "file": "right-face-palm",
+        "type": "animaPoseClip",
+        "description": "Facepalm for embarrassment, regret, or disappointed disbelief.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "embarrassment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "remorse": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disappointment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "right-face-palm",
+        "animation_type": "gesture",
+        "duration": 2.6,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Right Finger Point",
+        "file": "right-finger-point",
+        "type": "animaPoseClip",
+        "description": "Point forward for emphasis, explanation, or a confident correction.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "curiosity": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disapproval": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Right Thumbs Down",
+        "file": "right-thumbs-down",
+        "type": "animaPoseClip",
+        "description": "Hold a right thumbs-down gesture for disapproval or dissatisfaction.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "disapproval": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "annoyance": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "disappointment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Right Thumbs Up",
+        "file": "right-thumbs-up",
+        "type": "animaPoseClip",
+        "description": "Hold a right thumbs-up gesture for approval, encouragement, or confidence.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "gratitude": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Shy Finger Poke",
+        "file": "shy-finger-poke",
+        "type": "animaPoseClip",
+        "description": "Play a shy finger-poke gesture with cute VFX for bashful or nervous affection.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "embarrassment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "nervousness": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "caring": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.2,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Shy Finger Poke Loop",
+        "file": "shy-finger-poke-loop",
+        "type": "animaPoseClip",
+        "description": "Loop a shy finger-poke motion for sustained bashful or nervous affection.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "embarrassment": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "nervousness": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "caring": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 0.6,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Thinking Hand On Chin",
+        "file": "thinking-hand-on-chin-hold",
+        "type": "animaPoseClip",
+        "description": "Hold a hand-on-chin thinking pose for curiosity, consideration, or uncertainty.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "curiosity": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "confusion": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Thinking Head Scratch",
+        "file": "thinking-head-scratch",
+        "type": "animaPoseClip",
+        "description": "Loop a head-scratch thinking gesture for curiosity, confusion, or uncertainty.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "curiosity": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "confusion": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "nervousness": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.2,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      },
+      {
+        "name": "Soldier Salute",
+        "file": "soldier-salute",
+        "type": "animaPoseClip",
+        "description": "Snap into a salute for respectful, admiring, or confident acknowledgement.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "respect": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "admiration": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.6,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Cheeky Finger Guns",
+        "file": "cheeky-finger-guns",
+        "type": "animaPoseClip",
+        "description": "Pop into playful finger guns for cheeky confidence, amusement, or upbeat approval.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "amusement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "confidence": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "excitement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.45,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Cat Monster Rawr",
+        "file": "cat-monster-rawr",
+        "type": "animaPoseClip",
+        "description": "Play a cute monster rawr pose for playful excitement, amusement, or mock surprise.",
+        "disabled": false,
+        "loop_type": "once",
+        "emotions": {
+          "amusement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "excitement": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "joy": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "fear": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1.55,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 1
+      },
+      {
+        "name": "Single Hand On Heart",
+        "file": "single-hand-on-heart",
+        "type": "animaPoseClip",
+        "description": "Hold one hand over the heart for gratitude, caring, love, or sincere remorse.",
+        "disabled": false,
+        "loop_type": "repeat",
+        "emotions": {
+          "gratitude": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "caring": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "love": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          },
+          "remorse": {
+            "1": 1,
+            "2": 1,
+            "3": 1
+          }
+        },
+        "base_pose": "relaxedRest",
+        "animation_type": "gesture",
+        "duration": 1,
+        "blend_mode": "override",
+        "time_scale": 1,
+        "weight": 1,
+        "loop_count": 2
+      }
+    ]
+  }
+}

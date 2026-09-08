@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:eye_vv_pair",
+  "version": 1,
+  "name": "Eye VV Pair",
+  "description": "Double-eye playful hover for broad giggly delight or flustered excitement.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/1",
+    "kind": "hover",
+    "region": "eyes",
+    "hoverKind": "eye_hover",
+    "disableTargetRoles": [
+      "eye_highlight"
+    ],
+    "lifetime": {
+      "kind": "duration",
+      "runEndBufferSec": 5
+    },
+    "image": "eye_vv.png"
+  },
+  "files": [
+    {
+      "path": "eye_vv.png",
+      "role": "image"
+    }
+  ]
+}

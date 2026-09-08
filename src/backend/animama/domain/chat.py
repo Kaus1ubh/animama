@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any
+
+from .chat_compaction import ChatCompaction
+from .usage import Usage
+
+
+class MessageRole(Enum):
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+    DEVELOPER = "developer"
+    TOOL = "tool"
+
+
+@dataclass(slots=True)
+class Chat:
+    """User-facing chat thread for one anima/avatar."""
+
+    id: str
+    anima_id: str
+    user_id: str | None = None
+    title: str | None = None
+    api_standard: str | None = None
+    last_model_client: str | None = None
+    last_model_id: str | None = None
+    openai_previous_response_id: str | None = None
+    metadata: dict[str, Any] | None = field(default_factory=dict)
+    usage: Usage = field(default_factory=Usage)
+    active_context_tokens: int = 0
+    next_turn: int = 1
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+@dataclass(slots=True)
+class ChatMessage:
+    """Persisted message belonging directly to a chat."""
+
+    id: int | None
+    chat_id: str | None
+    run_id: str | None
+    message_type: str | None
+    role: MessageRole | None
+    content: str | None
+    data: Mapping[str, Any] | None
+    usage: Usage | None
+    turn: int | None
+    created_at: datetime | None
+    model: str | None = None
+    model_provider: str | None = None
+    internal: bool = False
+    raw_provider_message: Mapping[str, Any] | None = None
+
+
+@dataclass(slots=True)
+class ChatSearchResult:
+    """Best visible message hit representing a user-owned chat search result."""
+
+    message_id: int
+    chat_id: str
+    anima_id: str
+    anima_name: str | None
+    anima_profile_picture_url: str | None
+    chat_title: str | None
+    snippet: str
+    score: float
+    turn: int | None
+    created_at: datetime | None
+
+
+@dataclass(slots=True)
+class ChatContext:
+    """Prompt context built from visible chat history and active compaction."""
+
+    messages: list[ChatMessage]
+    active_compaction: ChatCompaction | None = None
+
+
+__all__ = ["Chat", "ChatContext", "ChatMessage", "ChatSearchResult", "MessageRole"]

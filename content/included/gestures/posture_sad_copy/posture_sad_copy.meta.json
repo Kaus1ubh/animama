@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:posture_sad_copy",
+  "version": 1,
+  "semantic_key": "posture_sad_copy",
+  "name": "posture_sad_copy",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "posture_sad_copy.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

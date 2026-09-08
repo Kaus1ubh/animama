@@ -1,0 +1,646 @@
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+} from "node:fs";
+import { createRequire } from "node:module";
+import { homedir, tmpdir } from "node:os";
+import path from "node:path";
+import {
+  desktopRoot,
+  frontendRoot,
+  parseTarget,
+  readJson,
+  run,
+  sha256,
+  writeJson,
+} from "./common.mjs";
+import { assertInventory, inventoryId } from "./inventory.mjs";
+import { loadReleasePolicy } from "./release-policy.mjs";
+import { verifySignedApp } from "./macos-signing.mjs";
+import { classifySmokeRequest } from "./smoke-policy.mjs";
+
+/** Runs in the renderer; delete through the normal vault API and verify status only. */
+export async function removeTemporarySmokeProvider() {
+  const credentials = window.animamaDesktop.credentials;
+  await credentials.delete("openai");
+  const status = (await credentials.list()).find(
+    (entry) => entry.provider === "openai",
+  );
+  if (!status || status.configured)
+    throw new Error("temporary_provider_cleanup_failed");
+}
+
+/** Exercise the real signed artifact using its canonical profile; never add packaged developer overrides. */
+export async function smokeMac(args) {
+  parseTarget(["--platform", "darwin", "--arch", "arm64"]);
+  if (
+    args[0] !== "--artifact" ||
+    !args[1] ||
+    (args.length !== 2 &&
+      !(args.length === 4 && args[2] === "--setup" && args[3] === "name"))
+  )
+    throw new Error(
+      "Expected --artifact <signed.dmg> [--setup name]. Each run requires a fresh macOS account.",
+    );
+  const mode = "name";
+  // Workspace scripts run in the filtered desktop package; documented relative
+  // artifacts are rooted at src/frontend, independent of pnpm's child cwd.
+  const artifact = path.resolve(frontendRoot, args[1]);
+  const stat = lstatSync(artifact);
+  if (!stat.isFile() || stat.isSymbolicLink() || !artifact.endsWith(".dmg"))
+    throw new Error("Smoke input must be a regular signed DMG");
+  const release = loadReleasePolicy();
+  const userData = path.join(homedir(), "Library/Application Support/Animama");
+  const installed = path.join(homedir(), "Applications/Animama.app");
+  for (const existing of [
+    userData,
+    installed,
+    path.join(homedir(), "Library/Application Support/Anima"),
+    path.join(homedir(), ".config/Anima"),
+  ])
+    if (existsSync(existing))
+      throw new Error(
+        "This is not a fresh macOS profile. Use a dedicated test account or fresh runner; smoke never resets existing app data.",
+      );
+  // Credentials are supplied only for this explicit smoke journey; never load a developer .env.
+  const provider = process.env.ANIMAMA_SMOKE_OPENAI_KEY;
+  if (!provider || provider.length > 8192)
+    throw new Error(
+      "Set ANIMAMA_SMOKE_OPENAI_KEY for the bounded real chat smoke; missing provider coverage is not a pass.",
+    );
+  const output = path.join(desktopRoot, `release/smoke-${mode}`);
+  mkdirSync(output, { recursive: true });
+  const report = {
+    schema: "animama-macos-smoke/1",
+    app_version: release.version,
+    dmg_sha256: sha256(artifact),
+    setup: mode,
+    passed: false,
+    checks: {},
+    scope:
+      "Real packaged app, canonical fresh profile, minimal app PATH. Renderer network events and owned process observations only; manual native/audio/update checks remain separate.",
+    manual_checks: "required-separately",
+  };
+  const work = mkdtempSync(
+    path.join(realpathSync(tmpdir()), "animama-artifact-smoke-"),
+  );
+  const mount = path.join(work, "volume");
+  let mounted = false;
+  let application;
+  let providerMayBeSaved = false;
+  let step = "artifact-verification";
+  let origin;
+  const trace = [];
+  const traceFailures = new Set();
+  const evidence = (name, condition) => {
+    report.checks[name] = Boolean(condition);
+    if (!condition) throw new Error("check_failed");
+  };
+  const require = createRequire(path.join(frontendRoot, "package.json"));
+  const { _electron } = require("playwright");
+  // Do not inherit build tools, developer credentials, NODE_OPTIONS, or desktop overrides.
+  const env = { PATH: "/usr/bin:/bin:/usr/sbin:/sbin" };
+  for (const key of [
+    "HOME",
+    "TMPDIR",
+    "LANG",
+    "LC_ALL",
+    "TZ",
+    "USER",
+    "LOGNAME",
+  ])
+    if (process.env[key]) env[key] = process.env[key];
+  const launch = async () => {
+    const app = await _electron.launch({
+      executablePath: path.join(installed, "Contents/MacOS/Animama"),
+      env,
+      timeout: 120_000,
+    });
+    const recordNetwork = (url, method, phase, status) => {
+      if (!origin && existsSync(path.join(userData, "runtime/state.json")))
+        origin = `http://127.0.0.1:${readJson(path.join(userData, "runtime/state.json")).gatewayPort}`;
+      if (!origin || trace.length >= 20_000) {
+        if (trace.length >= 20_000) traceFailures.add("trace_limit");
+        return;
+      }
+      const category = classifySmokeRequest(url, origin);
+      trace.push({
+        ...category,
+        phase,
+        ...(status === undefined ? {} : { status }),
+        method: [
+          "GET",
+          "HEAD",
+          "POST",
+          "PUT",
+          "PATCH",
+          "DELETE",
+          "OPTIONS",
+        ].includes(method)
+          ? method
+          : "OTHER",
+      });
+      if (category.forbidden) traceFailures.add("unexpected_renderer_network");
+    };
+    app
+      .context()
+      .on("request", (request) =>
+        recordNetwork(request.url(), request.method(), "request"),
+      );
+    app
+      .context()
+      .on("response", (response) =>
+        recordNetwork(
+          response.url(),
+          response.request().method(),
+          "response",
+          response.status(),
+        ),
+      );
+    return app;
+  };
+  const readyPage = async () => {
+    const deadline = Date.now() + 120_000;
+    while (Date.now() < deadline) {
+      for (const page of application.windows()) {
+        const state = await page
+          .evaluate(async () => {
+            const bridge = window.animamaDesktop;
+            return {
+              role: bridge?.windowRole,
+              runtime: await bridge?.runtime?.status(),
+            };
+          })
+          .catch(() => null);
+        if (state?.runtime?.state === "error")
+          throw new Error("runtime_recovery");
+        if (state?.role === "main" && state.runtime?.state === "ready") {
+          origin = state.runtime.origin;
+          if (new URL(page.url()).origin === origin) return page;
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    throw new Error("startup_timeout");
+  };
+  const request = (page, url, options) =>
+    page.evaluate(
+      async ({ url, options }) => {
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            "X-Animama-CSRF": "1",
+          },
+          signal: AbortSignal.timeout(120_000),
+        });
+        if (!response.ok) throw new Error("smoke_api_failed");
+        return response.json();
+      },
+      { url, options },
+    );
+  const observeChildren = () => {
+    const record = readJson(path.join(userData, "runtime/processes.json"));
+    evidence(
+      "owned_child_paths",
+      record.children.length >= 3 &&
+        record.children.every((child) => {
+          const binary = realpathSync(child.executable);
+          if (
+            !binary.startsWith(
+              `${realpathSync(installed)}/Contents/Resources/runtime/`,
+            )
+          )
+            return false;
+          const actual = run(
+            "/bin/ps",
+            ["-p", String(child.pid), "-o", "comm="],
+            { capture: true },
+          ).trim();
+          return actual === child.executable;
+        }),
+    );
+    report.children = record.children.map((child) => ({
+      role: child.name,
+      executable: path.relative(installed, child.executable),
+    }));
+  };
+  const close = async () => {
+    await application.close();
+    application = undefined;
+    const record = readJson(path.join(userData, "runtime/processes.json"));
+    evidence("owned_children_stopped", record.children.length === 0);
+  };
+  const cleanupProvider = async () => {
+    if (!providerMayBeSaved) return;
+    if (!application) application = await launch();
+    const page = await readyPage();
+    await page.evaluate(removeTemporarySmokeProvider);
+    evidence("temporary_provider_removed", true);
+    providerMayBeSaved = false;
+  };
+  try {
+    run(
+      "/usr/bin/codesign",
+      [
+        "--verify",
+        "--strict",
+        "-R",
+        `=anchor apple generic and certificate leaf[subject.OU] = "${release.publisher.team_id}"`,
+        artifact,
+      ],
+      { capture: true },
+    );
+    run("/usr/bin/xcrun", ["stapler", "validate", artifact], { capture: true });
+    mkdirSync(mount);
+    run(
+      "/usr/bin/hdiutil",
+      ["attach", "-readonly", "-nobrowse", "-mountpoint", mount, artifact],
+      { capture: true },
+    );
+    mounted = true;
+    verifySignedApp(path.join(mount, "Animama.app"), release.publisher.team_id);
+    const manifest = readJson(
+      path.join(mount, "Animama.app/Contents/Resources/runtime/manifest.json"),
+    );
+    evidence(
+      "runtime_inventory",
+      manifest.build_id === inventoryId(manifest.files) &&
+        manifest.app_version === release.version,
+    );
+    assertInventory(
+      path.join(mount, "Animama.app/Contents/Resources/runtime"),
+      manifest.files,
+    );
+    report.runtime_build_id = manifest.build_id;
+    // ditto retains the code signature and stapled ticket; do not touch a pre-existing application.
+    mkdirSync(path.dirname(installed), { recursive: true });
+    run("/usr/bin/ditto", [path.join(mount, "Animama.app"), installed], {
+      capture: true,
+    });
+    verifySignedApp(installed, release.publisher.team_id);
+    run("/usr/bin/hdiutil", ["detach", mount], { capture: true });
+    mounted = false;
+    step = "fresh-launch";
+    application = await launch();
+    let page = await readyPage();
+    await page
+      .getByRole("heading", { name: "What should Animama call you?" })
+      .waitFor({ timeout: 60_000 });
+    const initial = await request(page, "/v1/runtime-context");
+    evidence(
+      "generated_principal",
+      typeof initial.principal_id === "string" &&
+        initial.principal_id.length > 0 &&
+        initial.first_run_complete === false,
+    );
+    evidence(
+      "minimal_app_path",
+      await application.evaluate(
+        () => process.env.PATH === "/usr/bin:/bin:/usr/sbin:/sbin",
+      ),
+    );
+    observeChildren();
+    step = "provider-and-first-run";
+    // Set before submission: even a failed save response may have persisted it.
+    providerMayBeSaved = true;
+    await page.getByLabel("API key", { exact: true }).fill(provider);
+    await page.getByRole("button", { name: "Save key", exact: true }).click();
+    await page
+      .getByText("Key saved. Local services are ready.", { exact: true })
+      .waitFor({ timeout: 120_000 });
+    const providerStatuses = await page.evaluate(() =>
+      window.animamaDesktop.credentials.list(),
+    );
+    evidence(
+      "provider_status_only",
+      providerStatuses.some(
+        (entry) => entry.provider === "openai" && entry.configured,
+      ) && !JSON.stringify(providerStatuses).includes(provider),
+    );
+    const continueButton = page.getByRole("button", {
+      name: "Continue",
+      exact: true,
+    });
+    evidence("empty_name_rejected", await continueButton.isDisabled());
+    await page.getByLabel("Display name", { exact: true }).fill("   ");
+    evidence("blank_name_rejected", await continueButton.isDisabled());
+    await page
+      .getByLabel("Display name", { exact: true })
+      .fill("Desktop smoke");
+    await page
+      .getByRole("button", {
+        name: "Continue",
+        exact: true,
+      })
+      .click();
+    await page.waitForURL(/\/a(?:\/|$)/u, { timeout: 60_000 });
+    const context = await request(page, "/v1/runtime-context");
+    evidence(
+      "required_private_name",
+      context.first_run_complete === true &&
+        context.principal_id === initial.principal_id &&
+        context.display_name === "Desktop smoke",
+    );
+    const firstAnima = (await request(page, "/v1/animas"))[0];
+    await page.waitForURL((url) => url.pathname === `/a/${firstAnima?.id}`, {
+      timeout: 60_000,
+    });
+    evidence("first_anima_chat", firstAnima?.display_name === "Annie");
+    const capabilities = await request(page, "/v1/runtime-capabilities");
+    evidence(
+      "no_automatic_optional_download",
+      capabilities.runtime_kind === "desktop" &&
+        capabilities.offline_speech_enabled === false &&
+        capabilities.user_file_processing?.enabled === false,
+    );
+    step = "gateway-rejection";
+    for (const headers of [
+      {},
+      { Origin: "https://hostile.invalid", "Sec-Fetch-Site": "cross-site" },
+      {
+        "X-Animama-Principal-Id": initial.principal_id,
+        "X-Animama-Internal-Token": "spoof",
+      },
+    ]) {
+      const response = await fetch(`${origin}/v1/runtime-context`, {
+        headers,
+        signal: AbortSignal.timeout(5000),
+      });
+      evidence("gateway_rejection", [401, 403, 404].includes(response.status));
+      await response.body?.cancel();
+    }
+    const control = await page.evaluate(
+      async () => (await fetch("/_desktop/health")).status,
+    );
+    evidence("private_control_not_proxied", control === 404);
+    step = "starter-chat-and-typed-bytes";
+    const animas = await request(page, "/v1/animas");
+    const list = Array.isArray(animas) ? animas : animas.items;
+    evidence(
+      "two_starters",
+      ["Annie", "Caitlyn"].every((name) =>
+        list?.some((entry) => entry.display_name === name),
+      ),
+    );
+    const chatIds = [];
+    for (const name of ["Annie", "Caitlyn"]) {
+      const anima = list.find((entry) => entry.display_name === name);
+      await page.goto(`${origin}/a/${anima.id}`);
+      const chat = await request(page, "/v1/chats", {
+        method: "POST",
+        body: JSON.stringify({
+          anima_id: anima.id,
+          title: "Desktop release smoke",
+        }),
+      });
+      chatIds.push(chat.id);
+      // Use the same prepared runtime and public gateway as chat UI. Never bypass
+      // ownership or inject an internal principal/control token in this harness.
+      const result = await page.evaluate(
+        async ({ animaId, chatId }) => {
+          const runtimeResponse = await fetch(`/v1/animas/${animaId}/runtime`);
+          const runtime = await runtimeResponse.json();
+          if (
+            !runtimeResponse.ok ||
+            !runtime.effective_revision ||
+            runtime.content_descriptor?.diagnostics?.length
+          )
+            return { completed: false };
+          // Fetch at least one exact prepared member even if GPU/avatar startup is
+          // slow on CI; successful rendering remains a separate manual gate.
+          const member = runtime.content_descriptor.members
+            ?.filter(
+              (file) =>
+                Number.isSafeInteger(file.size_bytes) &&
+                file.size_bytes > 0 &&
+                file.size_bytes <= 16 * 1024 * 1024,
+            )
+            .sort((a, b) => a.size_bytes - b.size_bytes)[0];
+          if (
+            !member ||
+            new URL(member.url, location.origin).origin !== location.origin
+          )
+            return { completed: false };
+          const bytes = await fetch(member.url, {
+            signal: AbortSignal.timeout(30_000),
+          });
+          if (!bytes.ok) return { completed: false };
+          const byteReader = bytes.body.getReader();
+          const parts = [];
+          let length = 0;
+          for (;;) {
+            const { done, value } = await byteReader.read();
+            if (done) break;
+            length += value.length;
+            if (length > member.size_bytes) {
+              await byteReader.cancel();
+              return { completed: false };
+            }
+            parts.push(value);
+          }
+          if (length !== member.size_bytes) return { completed: false };
+          const delivered = await new Blob(parts).arrayBuffer();
+          const digest = Array.from(
+            new Uint8Array(await crypto.subtle.digest("SHA-256", delivered)),
+            (byte) => byte.toString(16).padStart(2, "0"),
+          ).join("");
+          if (digest !== member.sha256) return { completed: false };
+          const response = await fetch(`/v1/animas/${animaId}/chat:sse`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Animama-CSRF": "1",
+            },
+            body: JSON.stringify({
+              chat_id: chatId,
+              message: "Say hello in one short sentence.",
+              runtime_revision: runtime.effective_revision,
+            }),
+            signal: AbortSignal.timeout(120_000),
+          });
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let body = "";
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            body += decoder.decode(value, { stream: true });
+            if (body.length > 1024 * 1024) {
+              await reader.cancel();
+              return { completed: false };
+            }
+          }
+          return {
+            completed:
+              response.ok &&
+              !/event:\s*error/u.test(body) &&
+              /event:\s*run\.completed/u.test(body),
+          };
+        },
+        { animaId: anima.id, chatId: chat.id },
+      );
+      evidence(`chat_${name.toLowerCase()}`, result.completed);
+      const messages = await request(page, `/v1/chats/${chat.id}/messages`);
+      evidence(
+        `persisted_assistant_${name.toLowerCase()}`,
+        messages.messages.some(
+          (message) => message.role === "assistant" && message.content?.trim(),
+        ),
+      );
+    }
+    step = "private-file-upload";
+    const file = await page.evaluate(async () => {
+      const text = "Animama signed desktop smoke fixture.\n";
+      const init = await fetch("/v1/files/uploads", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Animama-CSRF": "1",
+        },
+        body: JSON.stringify({
+          filename: "desktop-smoke.txt",
+          content_type: "text/plain",
+          size_bytes: new TextEncoder().encode(text).length,
+        }),
+      });
+      if (!init.ok) return null;
+      const upload = await init.json();
+      if (
+        new URL(upload.upload_url, location.origin).origin !==
+          location.origin ||
+        upload.method !== "PUT"
+      )
+        return null;
+      const sent = await fetch(upload.upload_url, {
+        method: "PUT",
+        headers: { ...upload.headers, "X-Animama-CSRF": "1" },
+        body: text,
+      });
+      if (!sent.ok) return null;
+      const finalized = await fetch(`/v1/files/${upload.file_id}:finalize`, {
+        method: "POST",
+        headers: { "X-Animama-CSRF": "1" },
+      });
+      if (!finalized.ok) return null;
+      return finalized.json();
+    });
+    evidence(
+      "private_file_creation",
+      file?.status === "uploaded" && file?.stored_size_bytes > 0,
+    );
+    step = "restart-persistence";
+    const stableOrigin = origin;
+    await close();
+    application = await launch();
+    page = await readyPage();
+    const restarted = await request(page, "/v1/runtime-context");
+    evidence(
+      "restart_identity_and_setup",
+      restarted.principal_id === initial.principal_id &&
+        restarted.first_run_complete &&
+        origin === stableOrigin,
+    );
+    for (const id of chatIds) {
+      const chat = await request(page, `/v1/chats/${id}`);
+      evidence("chat_persistence", chat.id === id);
+    }
+    const persistedFile = await request(page, `/v1/files/${file.file_id}`);
+    evidence(
+      "private_file_persistence",
+      persistedFile.sha256 === file.sha256 &&
+        persistedFile.status === "uploaded",
+    );
+    evidence(
+      "provider_persistence",
+      await page.evaluate(async () =>
+        (await window.animamaDesktop.credentials.list()).some(
+          (entry) => entry.provider === "openai" && entry.configured,
+        ),
+      ),
+    );
+    step = "temporary-provider-cleanup";
+    await cleanupProvider();
+    await readyPage();
+    observeChildren();
+    await close();
+    application = await launch();
+    page = await readyPage();
+    evidence(
+      "temporary_provider_removal_persists",
+      await page.evaluate(async () =>
+        (await window.animamaDesktop.credentials.list()).some(
+          (entry) => entry.provider === "openai" && !entry.configured,
+        ),
+      ),
+    );
+    observeChildren();
+    await close();
+    step = "sanitized-evidence";
+    evidence(
+      "typed_bytes_same_origin",
+      trace.some(
+        (entry) => entry.family === "typed-byte" && entry.status === 200,
+      ) && traceFailures.size === 0,
+    );
+    let scanned = 0;
+    for (const name of readdirSync(path.join(userData, "runtime/logs"), {
+      recursive: true,
+    })) {
+      const file = path.join(userData, "runtime/logs", String(name));
+      if (!lstatSync(file).isFile()) continue;
+      scanned++;
+      evidence(
+        "provider_secret_absent_from_logs",
+        !readFileSync(file, "utf8").includes(provider),
+      );
+    }
+    evidence("logs_present", scanned > 0);
+    report.passed = true;
+  } catch {
+    // Playwright/OS exceptions may contain key input, URLs and machine paths.
+    report.failed_step = step;
+  } finally {
+    await cleanupProvider().catch(() => {
+      report.passed = false;
+      report.cleanup_required =
+        "Remove the temporary OpenAI credential from this test account in Animama settings.";
+      report.failed_step = "temporary-provider-cleanup";
+    });
+    if (application)
+      await close().catch(() => {
+        report.passed = false;
+        report.failed_step = "owned-child-shutdown";
+      });
+    if (mounted) {
+      try {
+        run("/usr/bin/hdiutil", ["detach", mount], { capture: true });
+        mounted = false;
+      } catch {
+        report.passed = false;
+        report.failed_step = "artifact-unmount";
+      }
+    }
+    if (!mounted) rmSync(work, { recursive: true, force: true });
+    writeJson(path.join(output, "smoke-report.json"), report);
+    writeJson(path.join(output, "network-report.json"), {
+      schema: "animama-smoke-network/1",
+      scope: "renderer-requests-and-responses-after-harness-attachment",
+      events: trace,
+      violations: traceFailures.size,
+    });
+  }
+  if (!report.passed)
+    throw new Error(
+      `Native artifact smoke did not pass (${report.failed_step}); inspect the sanitized smoke report. Existing test data has been preserved.${report.cleanup_required ? ` ${report.cleanup_required}` : ""}`,
+    );
+  console.log(
+    `Signed artifact smoke passed (${mode}); the temporary OpenAI key was removed. Manual native/update acceptance is still required. Profile and app are preserved for inspection.`,
+  );
+}

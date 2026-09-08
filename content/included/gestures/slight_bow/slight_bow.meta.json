@@ -1,0 +1,20 @@
+{
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:slight_bow",
+  "version": 1,
+  "semantic_key": "slight_bow",
+  "name": "Slight Bow",
+  "ai_description": "Polite bow for formal greetings or showing respect to a senior.",
+  "schema_version": 1,
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "slight_bow.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

@@ -1,0 +1,69 @@
+**/__pycache__/
+node_modules/
+.sst/
+**/sst.pyi
+**/sst-env.d.ts
+
+.env
+**/.env
+.animama-stack.env
+.venv/
+
+.ua/
+
+**/CLAUDE.md
+.serena/
+# src/web-ui/
+
+deprecated/
+!src/animama/deprecated/
+!src/animama/deprecated/README.md
+
+.mypy_cache/
+.pnpm-store/
+.pytest_cache
+.ruff_cache
+.serena/cache
+.animama-logs/
+.animama-e2e/
+cache/
+artifacts/synthetic-user-files/
+.animama-stacks/
+backups/
+
+# Durable self-hosted files are operator data. Keep only their guides tracked.
+content/local/*
+!content/local/README.md
+data/*
+!data/README.md
+src/livekit-agents/
+
+TODO.md
+
+src/web-ui/public/vrm/
+src/shared/
+src/legacy/
+src/motion/gesture/translate/models
+src/motion/gesture/app/emage_evaltools
+src/motion/gesture/datasets
+src/webui/public/effects/sfx/kenney_ui-audio
+
+.codex
+/cloud/
+**/Anime_*
+
+**/brackeys_*
+**/kenney_*
+
+**/LeLu*
+
+# Included is application source even when an asset name matches broad local
+# pack-ignore patterns above.
+!content/included/**
+content/included/**/.DS_Store
+
+# Do not ship the current third-party SFX or raw particle source packs.
+/content/included/sfx/
+/content/included/vfx/particle/brackeys_vfx_bundle/
+/content/included/vfx/particle/kenney_particle-pack/
+/content/included/vfx/particle/LeLu's Noise Pack/

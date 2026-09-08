@@ -1,0 +1,398 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type {
+  PyGesture,
+  PyActionPreview,
+  PyReaction,
+} from "@/lib/content/catalogTypes";
+import { createGestureDocument } from "@/ui/gesture-editor/gestureDocument";
+import { createReactionDocument } from "@/ui/reaction-editor/reactionDocument";
+import {
+  isCustomizableStarterAction,
+  actionDocumentFromPreview,
+  starterGestureSemanticKey,
+} from "./actionDocumentLoader";
+
+afterEach(() => vi.unstubAllGlobals());
+
+function item(input: {
+  intent: "gesture" | "reaction";
+  id: string;
+  name: string;
+}): PyGesture | PyReaction {
+  return {
+    item_id: input.id,
+    name: input.name,
+    description: "Starter description",
+    catalog_source: "included",
+    logical_key: input.id,
+    origin: "builtin",
+    source: { type: "builtin", content_id: input.id, version: 1 },
+    state: "ready",
+    revision: 1,
+    created_at: null,
+    updated_at: null,
+    update_available: false,
+    included_resource_counts: {},
+    ...(input.intent === "gesture" ? { semantic_key: "starter_key" } : {}),
+  } as PyGesture | PyReaction;
+}
+
+function preview(input: {
+  intent: "gesture" | "reaction";
+  id: string;
+  key: string;
+  semanticKey?: string;
+}): PyActionPreview {
+  return {
+    preview_id: `preview:${input.id}`,
+    revision: "revision-1",
+    revision_sha256: "revision-1",
+    expires_at: "2026-08-16T12:00:00Z",
+    files: [],
+    metadata: {},
+    closure: {
+      root: {
+        content_type: input.intent,
+        catalog_source: "included",
+        source: { type: "builtin", content_id: input.id, version: 1 },
+        name: input.id,
+        description: "Starter AI description",
+        semantic_key: input.semanticKey,
+        placement_hint: { emotion: "admiration", intensity: 2 },
+        implementation: {
+          kind: "anima_clip",
+          technical_source: {
+            type: "runtime_catalog",
+            catalog:
+              input.intent === "gesture"
+                ? "avatar_pose_clips"
+                : "avatar_reaction_clips",
+            key: input.key,
+          },
+        },
+        reference_map: { sparkle: "support-1" },
+        files: [],
+      },
+      supports: [
+        {
+          runtime_id: "support-1",
+          content_type: "particle_effect",
+          source: {
+            type: "builtin",
+            content_id: "builtin:particle-effect:hearts",
+            version: 1,
+          },
+        },
+      ],
+      revision: "revision-1",
+      diagnostics: [],
+    },
+  } as PyActionPreview;
+}
+
+function ownedReaction(): PyReaction {
+  return {
+    ...(item({
+      intent: "reaction",
+      id: "reaction-owned",
+      name: "My Reaction",
+    }) as PyReaction),
+    origin: "owned",
+    catalog_source: "local",
+    logical_key: "local:reaction:my-reaction",
+    source: {
+      type: "catalog",
+      catalog_item_id: "reaction-owned",
+      logical_key: "local:reaction:my-reaction",
+    },
+    metadata: { notes: "Saved reaction" },
+  } as PyReaction;
+}
+
+function privateReactionPreview(): PyActionPreview {
+  return {
+    preview_id: "preview-private",
+    revision: "revision-private",
+    revision_sha256: "revision-private",
+    expires_at: "2026-08-16T12:00:00Z",
+    files: [],
+    metadata: {},
+    closure: {
+      root: {
+        content_type: "reaction",
+        catalog_source: "local",
+        source: {
+          type: "catalog",
+          catalog_item_id: "reaction-owned",
+          logical_key: "local:reaction:my-reaction",
+        },
+        name: "My Reaction",
+        description: "Saved description",
+        ai_description: "Saved AI selection description",
+        placement_hint: { emotion: "joy", intensity: 2 },
+        implementation: { kind: "anima_clip" },
+        reference_map: { sparkle: "support-1" },
+        files: [
+          {
+            source_key: "local:reaction:my-reaction",
+            role: "sequence",
+            ordinal: 1,
+            file_ref: "sequence-ref",
+          },
+        ],
+      },
+      supports: [
+        {
+          runtime_id: "support-1",
+          content_type: "particle_effect",
+          source: {
+            type: "builtin",
+            content_id: "builtin:particle-effect:sparkle",
+            version: 1,
+          },
+        },
+      ],
+      revision: "revision-private",
+      diagnostics: [],
+    },
+  } as PyActionPreview;
+}
+
+describe("Starter action customization", () => {
+  it("offers built-in pose clips but excludes built-in VRMA Gestures", () => {
+    expect(
+      isCustomizableStarterAction(
+        item({
+          intent: "gesture",
+          id: "builtin:gesture:shy-finger-poke",
+          name: "Shy Finger Poke",
+        }),
+        "gesture",
+      ),
+    ).toBe(true);
+    expect(
+      isCustomizableStarterAction(
+        item({
+          intent: "gesture",
+          id: "builtin:gesture:explain",
+          name: "Explain",
+        }),
+        "gesture",
+      ),
+    ).toBe(false);
+  });
+
+  it("hydrates a Starter Reaction as a new document with exact dependencies", async () => {
+    const starter = item({
+      intent: "reaction",
+      id: "builtin:reaction:admiration-2",
+      name: "Admiration Reaction 2",
+    });
+    const document = await actionDocumentFromPreview({
+      intent: "reaction",
+      item: starter,
+      preview: preview({
+        intent: "reaction",
+        id: starter.item_id,
+        key: "admiration-2",
+      }),
+      base: createReactionDocument(),
+      customizeStarter: true,
+      semanticSuffix: "abcdef12",
+    });
+
+    expect(document.name).toBe("Admiration Reaction 2 Custom");
+    expect(document.implementation).toBe("anima_clip");
+    expect(document.suggestedEmotion).toBe("admiration");
+    expect(document.suggestedIntensity).toBe(2);
+    expect(document.dependencies).toEqual([
+      {
+        alias: "sparkle",
+        content_type: "particle_effect",
+        source: {
+          type: "builtin",
+          content_id: "builtin:particle-effect:hearts",
+          version: 1,
+        },
+      },
+    ]);
+    expect(document.sequence.schema).toBe("animaPoseClip/1.0");
+    expect(document.sequence.id).toBe("admiration-reaction-2-custom");
+    expect(document.sequence.name).toBe("Admiration Reaction 2 Custom");
+    expect(document.notes).toContain("Customized from Starter");
+  });
+
+  it("reconstructs exact sources from readable Included dependency refs", async () => {
+    const starter = item({
+      intent: "reaction",
+      id: "builtin:reaction:confusion-3",
+      name: "Confusion Reaction 3",
+    });
+    const starterPreview = preview({
+      intent: "reaction",
+      id: starter.item_id,
+      key: "confusion-3",
+    });
+    const starterClosure = starterPreview.closure as {
+      root: {
+        reference_map: Record<string, string>;
+        dependencies: unknown[];
+      };
+      supports: unknown[];
+    };
+    starterClosure.root.reference_map = {
+      "emote_!": "builtin:avatar-effect:emote",
+      "question-marks": "builtin:particle-effect:question-marks",
+    };
+    starterClosure.root.dependencies = [
+      {
+        ref: "builtin:avatar-effect:emote",
+        alias: "emote_!",
+        content_type: "avatar_effect",
+        config: {},
+      },
+      {
+        ref: "builtin:particle-effect:question-marks",
+        alias: "question-marks",
+        content_type: "particle_effect",
+        config: {},
+      },
+    ];
+    starterClosure.supports = [];
+
+    const document = await actionDocumentFromPreview({
+      intent: "reaction",
+      item: starter,
+      preview: starterPreview,
+      base: createReactionDocument(),
+      customizeStarter: true,
+      semanticSuffix: "abcdef12",
+    });
+
+    expect(document.dependencies).toEqual([
+      {
+        alias: "emote_!",
+        content_type: "avatar_effect",
+        source: {
+          type: "builtin",
+          content_id: "builtin:avatar-effect:emote",
+          version: 1,
+        },
+        config: {},
+      },
+      {
+        alias: "question-marks",
+        content_type: "particle_effect",
+        source: {
+          type: "builtin",
+          content_id: "builtin:particle-effect:question-marks",
+          version: 1,
+        },
+        config: {},
+      },
+    ]);
+  });
+
+  it("gives a Starter Gesture fork a distinct valid model selector", async () => {
+    const starter = item({
+      intent: "gesture",
+      id: "builtin:gesture:shy-finger-poke",
+      name: "Shy Finger Poke",
+    });
+    const document = await actionDocumentFromPreview({
+      intent: "gesture",
+      item: starter,
+      preview: preview({
+        intent: "gesture",
+        id: starter.item_id,
+        key: "shy-finger-poke",
+        semanticKey: "shy-finger-poke",
+      }),
+      base: createGestureDocument(),
+      customizeStarter: true,
+      semanticSuffix: "abcdef12",
+    });
+
+    expect(document.semanticKey).toBe("shy_finger_poke_custom_abcdef12");
+    expect(document.semanticKey).not.toBe("shy-finger-poke");
+    expect(document.semanticKey).toMatch(/^[a-z0-9_]{1,64}$/);
+  });
+
+  it("bounds generated custom selectors to the backend limit", () => {
+    expect(starterGestureSemanticKey("x".repeat(100), "abcdef12")).toHaveLength(
+      64,
+    );
+  });
+});
+
+describe("owned action reopening", () => {
+  it("restores expression and effect keyframes plus exact dependencies", async () => {
+    const sequence = {
+      schema: "animaPoseClip/1.0",
+      id: "saved-reaction",
+      name: "Saved Reaction",
+      duration: 1.2,
+      poses: {
+        happy: { expressions: { happy: 0.8 } },
+        surprised: { expressions: { surprised: 1 } },
+      },
+      poseKeyframes: [
+        { time: 0.2, pose: "happy" },
+        { time: 0.8, pose: "surprised" },
+      ],
+      events: [
+        {
+          id: "sparkle-event",
+          time: 0.5,
+          kind: "particle_vfx",
+          effectId: "sparkle",
+          duration: 0.4,
+        },
+      ],
+    };
+    const fetchMock = vi.fn<typeof fetch>(
+      async () =>
+        new Response(JSON.stringify(sequence), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const document = await actionDocumentFromPreview({
+      intent: "reaction",
+      item: ownedReaction(),
+      preview: privateReactionPreview(),
+      base: createReactionDocument(),
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "/v1/content/previews/preview-private/revisions/revision-private/files/sequence-ref",
+      ),
+      expect.objectContaining({
+        credentials: "same-origin",
+      }),
+    );
+    expect(
+      new Headers(fetchMock.mock.calls[0]?.[1]?.headers).has("Authorization"),
+    ).toBe(false);
+    expect(document.sequence).toEqual({
+      ...sequence,
+      id: "my-reaction",
+      name: "My Reaction",
+    });
+    expect(document.aiDescription).toBe("Saved AI selection description");
+    expect(document.dependencies).toEqual([
+      {
+        alias: "sparkle",
+        content_type: "particle_effect",
+        source: {
+          type: "builtin",
+          content_id: "builtin:particle-effect:sparkle",
+          version: 1,
+        },
+      },
+    ]);
+  });
+});

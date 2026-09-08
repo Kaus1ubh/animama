@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:idle_loop",
+  "version": 1,
+  "semantic_key": "idle_loop",
+  "name": "idle_loop",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "idle_loop.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

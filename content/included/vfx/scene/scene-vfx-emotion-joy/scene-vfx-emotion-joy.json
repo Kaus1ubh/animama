@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-joy",
+  "version": 1,
+  "name": "Emotion Joy",
+  "description": "Scene background effect preset",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "dismissOnInput": false,
+    "coverUiOverlays": false,
+    "solid": {
+      "enabled": true,
+      "color": "#ffe869"
+    },
+    "pattern": {
+      "enabled": true,
+      "pattern": "star",
+      "color": "#ffffff",
+      "size": 24,
+      "spacing": 18,
+      "opacity": 0.36
+    },
+    "marquee": {
+      "enabled": true,
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "diagonal-up-left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 170,
+      "opacity": 0.92,
+      "items": [
+        {
+          "id": "emoji-sparkles",
+          "kind": "image",
+          "label": "Sparkles ✨",
+          "image": "emoji-sparkles-2728.svg"
+        },
+        {
+          "id": "emoji-star",
+          "kind": "image",
+          "label": "Star ⭐",
+          "image": "emoji-star-2b50.svg"
+        }
+      ]
+    }
+  },
+  "files": [
+    {
+      "path": "emoji-sparkles-2728.svg",
+      "role": "image"
+    },
+    {
+      "path": "emoji-star-2b50.svg",
+      "role": "image"
+    }
+  ]
+}

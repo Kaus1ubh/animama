@@ -1,0 +1,20 @@
+{
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:listening_head_nod",
+  "version": 1,
+  "semantic_key": "listening_head_nod",
+  "name": "Listening Head Nod",
+  "ai_description": "Subtle nodding while actively listening to someone.",
+  "schema_version": 1,
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "listening_head_nod.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

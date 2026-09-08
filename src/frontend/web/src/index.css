@@ -1,0 +1,11 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@uppy/core/css/style.min.css";
+@import "@uppy/dashboard/css/style.min.css";
+@import "@animama/product-ui/theme.css";
+@import "./styles/globals.css";
+@plugin "@tailwindcss/typography";
+@source ".";
+@source "../node_modules/streamdown/dist/*.js";
+
+@source "../../packages/product-ui/dist/**/*.js";

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:heart-hands-build",
+  "version": 1,
+  "semantic_key": "heart-hands-build",
+  "name": "heart-hands-build",
+  "ai_description": "Reusable avatar pose clip",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "heart-hands-build.json",
+      "role": "sequence"
+    }
+  ]
+}

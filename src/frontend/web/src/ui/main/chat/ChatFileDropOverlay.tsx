@@ -1,0 +1,176 @@
+"use client";
+
+import type { UserFileUploadUppy } from "@/hooks/useUserFileUpload";
+import { getUserFileErrorMessage } from "@/lib/user-files/uploads";
+import { cn } from "@/lib/utils";
+import { FileUp } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+
+type ChatFileDropOverlayProps = {
+  accepting: boolean;
+  className?: string;
+  enabled: boolean;
+  uppy?: UserFileUploadUppy;
+};
+
+function hasFilePayload(event: DragEvent): boolean {
+  const types = event.dataTransfer?.types;
+  return Boolean(types && Array.from(types).includes("Files"));
+}
+
+function droppedFiles(event: DragEvent): File[] {
+  return Array.from(event.dataTransfer?.files ?? []);
+}
+
+function addFileToUppy(uppy: UserFileUploadUppy, file: File) {
+  uppy.addFile({
+    data: file,
+    isRemote: false,
+    name: file.name,
+    source: "chat-page-drop",
+    type: file.type || "application/octet-stream",
+  });
+}
+
+export function ChatFileDropOverlay({
+  accepting,
+  className,
+  enabled,
+  uppy,
+}: ChatFileDropOverlayProps) {
+  const [draggingFiles, setDraggingFiles] = useState(false);
+  const dragDepthRef = useRef(0);
+
+  const resetDragState = useCallback(() => {
+    dragDepthRef.current = 0;
+    setDraggingFiles(false);
+  }, []);
+
+  const addDroppedFiles = useCallback(
+    (files: File[]) => {
+      if (!uppy || files.length === 0) return;
+
+      let failedCount = 0;
+      let firstError: unknown = null;
+
+      for (const file of files) {
+        try {
+          addFileToUppy(uppy, file);
+        } catch (error) {
+          failedCount += 1;
+          firstError ??= error;
+        }
+      }
+
+      if (firstError) {
+        const title =
+          failedCount === files.length
+            ? "Files could not be added."
+            : `${failedCount} file${failedCount === 1 ? "" : "s"} could not be added.`;
+        toast.error(title, {
+          description: getUserFileErrorMessage(
+            firstError,
+            "Check the file type and size, then try again.",
+          ),
+        });
+      }
+    },
+    [uppy],
+  );
+
+  useEffect(() => {
+    if (!enabled) {
+      resetDragState();
+      return;
+    }
+
+    const setDropEffect = (event: DragEvent) => {
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = accepting ? "copy" : "none";
+      }
+    };
+
+    const handleDragEnter = (event: DragEvent) => {
+      if (!hasFilePayload(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setDropEffect(event);
+      dragDepthRef.current += 1;
+      setDraggingFiles(accepting);
+    };
+
+    const handleDragOver = (event: DragEvent) => {
+      if (!hasFilePayload(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setDropEffect(event);
+      setDraggingFiles(accepting);
+    };
+
+    const handleDragLeave = (event: DragEvent) => {
+      if (!hasFilePayload(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) {
+        setDraggingFiles(false);
+      }
+    };
+
+    const handleDrop = (event: DragEvent) => {
+      if (!hasFilePayload(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const files = droppedFiles(event);
+      resetDragState();
+
+      if (files.length === 0) return;
+      if (!accepting || !uppy) {
+        toast.error("File uploads are unavailable right now.");
+        return;
+      }
+
+      addDroppedFiles(files);
+    };
+
+    const listenerOptions = { capture: true };
+
+    window.addEventListener("dragenter", handleDragEnter, listenerOptions);
+    window.addEventListener("dragover", handleDragOver, listenerOptions);
+    window.addEventListener("dragleave", handleDragLeave, listenerOptions);
+    window.addEventListener("drop", handleDrop, listenerOptions);
+    window.addEventListener("blur", resetDragState);
+    window.addEventListener("dragend", resetDragState);
+
+    return () => {
+      window.removeEventListener("dragenter", handleDragEnter, listenerOptions);
+      window.removeEventListener("dragover", handleDragOver, listenerOptions);
+      window.removeEventListener("dragleave", handleDragLeave, listenerOptions);
+      window.removeEventListener("drop", handleDrop, listenerOptions);
+      window.removeEventListener("blur", resetDragState);
+      window.removeEventListener("dragend", resetDragState);
+    };
+  }, [accepting, addDroppedFiles, enabled, resetDragState, uppy]);
+
+  if (!draggingFiles) {
+    return null;
+  }
+
+  return (
+    <div
+      className={cn(
+        "bg-background/72 pointer-events-none fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm",
+        className,
+      )}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="text-foreground flex flex-col items-center gap-3 text-center">
+        <FileUp className="text-primary size-14" aria-hidden="true" />
+        <p className="text-2xl font-semibold">Drop files here</p>
+      </div>
+    </div>
+  );
+}

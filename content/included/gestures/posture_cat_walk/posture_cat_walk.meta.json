@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:posture_cat_walk",
+  "version": 1,
+  "semantic_key": "posture_cat_walk",
+  "name": "posture_cat_walk",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "posture_cat_walk.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

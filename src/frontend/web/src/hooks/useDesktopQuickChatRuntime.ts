@@ -1,0 +1,496 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
+import type { PyChatResponse } from "@/lib/content/catalogTypes";
+import type { ChatMessage } from "@/ui/main/chat/useChatSession";
+
+const QUICK_CHAT_RENDER_READY_FALLBACK_MS = 150;
+const QUICK_CHAT_BASE_HEIGHT_PX = 760;
+
+type AnimamaDesktopQuickChatBridge = NonNullable<
+  NonNullable<Window["animamaDesktop"]>["quickChat"]
+>;
+
+export type DesktopQuickChatMicMode = "dictation" | "voice";
+
+export type DesktopQuickChatPromptSuggestion = {
+  label: string;
+  text: string;
+};
+
+export type DesktopQuickChatVoiceState = {
+  activeMode: DesktopQuickChatMicMode | null;
+  isMicCaptureActive: boolean;
+  isDictationPreparing: boolean;
+  isUserSpeaking: boolean;
+  isVoiceMicMuted: boolean;
+};
+
+export type DesktopQuickChatSnapshot = {
+  activeChat: PyChatResponse | null;
+  animaId: string;
+  chatId: string | null;
+  input: string;
+  inputPlaceholder: string;
+  canChat: boolean;
+  chatMarkdownEnabled?: boolean;
+  isStreaming: boolean;
+  isAwaitingStreamingAnimationFinalization: boolean;
+  displayMessages: ChatMessage[];
+  promptSuggestions: DesktopQuickChatPromptSuggestion[];
+  showPromptSuggestions: boolean;
+  voice: DesktopQuickChatVoiceState;
+};
+
+export type DesktopQuickChatCommand =
+  | { type: "set-input"; input: string }
+  | { type: "submit" }
+  | { type: "submit-text"; text: string }
+  | { type: "stop" }
+  | { type: "start-dictation" }
+  | { type: "start-voice-mode" }
+  | { type: "stop-mic-session" }
+  | { type: "toggle-voice-mute" }
+  | { type: "refresh-model-state" };
+
+export type DesktopQuickChatCommandHandlers = {
+  setInput: (input: string) => void;
+  submit: () => void;
+  submitText: (text: string) => void;
+  stop: () => void;
+  startDictation: () => void;
+  startVoiceMode: () => void;
+  stopMicSession: () => void;
+  toggleVoiceMute: () => void;
+  refreshModelState: () => void;
+};
+
+type UseDesktopQuickChatOwnerArgs = {
+  chatId: string | null;
+  enabled: boolean;
+  handlers: DesktopQuickChatCommandHandlers;
+  animaId: string;
+  snapshot: DesktopQuickChatSnapshot;
+};
+
+type DesktopQuickChatOwnerControls = {
+  quickChatAvailable: boolean;
+  toggleQuickChat: () => void;
+};
+
+type DesktopQuickChatConsumerControls = {
+  close: () => void;
+  focusInputSignal: number;
+  sendCommand: (command: DesktopQuickChatCommand) => void;
+  snapshot: DesktopQuickChatSnapshot | null;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function createQuickChatRuntimeMessage(
+  type: DesktopQuickChatRuntimeMessage["type"],
+  animaId: string,
+  sequence: number,
+  payload: unknown = null,
+): DesktopQuickChatRuntimeMessage {
+  return {
+    type,
+    animaId,
+    sequence,
+    sentAtMs: Date.now(),
+    payload,
+  };
+}
+
+function isQuickChatCommand(value: unknown): value is DesktopQuickChatCommand {
+  if (!isRecord(value) || typeof value.type !== "string") return false;
+  switch (value.type) {
+    case "set-input":
+      return typeof value.input === "string";
+    case "submit-text":
+      return typeof value.text === "string";
+    case "submit":
+    case "stop":
+    case "start-dictation":
+    case "start-voice-mode":
+    case "stop-mic-session":
+    case "toggle-voice-mute":
+    case "refresh-model-state":
+      return true;
+    default:
+      return false;
+  }
+}
+
+function isQuickChatSnapshot(
+  value: unknown,
+): value is DesktopQuickChatSnapshot {
+  if (!isRecord(value)) return false;
+  if (!(isRecord(value.activeChat) || value.activeChat === null)) return false;
+  if (typeof value.animaId !== "string") return false;
+  if (!(typeof value.chatId === "string" || value.chatId === null)) {
+    return false;
+  }
+  if (typeof value.input !== "string") return false;
+  if (typeof value.inputPlaceholder !== "string") return false;
+  if (typeof value.canChat !== "boolean") return false;
+  if (
+    "chatMarkdownEnabled" in value &&
+    typeof value.chatMarkdownEnabled !== "boolean"
+  ) {
+    return false;
+  }
+  if (typeof value.isStreaming !== "boolean") return false;
+  if (
+    typeof value.isAwaitingStreamingAnimationFinalization !== "boolean" ||
+    !Array.isArray(value.displayMessages) ||
+    !Array.isArray(value.promptSuggestions) ||
+    typeof value.showPromptSuggestions !== "boolean" ||
+    !isRecord(value.voice)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function resolveQuickChatBridge(
+  platform: ReturnType<typeof useRuntimePlatform>,
+): AnimamaDesktopQuickChatBridge | null {
+  return platform.kind === "desktop" && platform.capabilities.nativeQuickChat
+    ? (platform.desktopBridge.quickChat ?? null)
+    : null;
+}
+
+export function useDesktopQuickChatOwner({
+  chatId,
+  enabled,
+  handlers,
+  animaId,
+  snapshot,
+}: UseDesktopQuickChatOwnerArgs): DesktopQuickChatOwnerControls {
+  const platform = useRuntimePlatform();
+  const bridge = resolveQuickChatBridge(platform);
+  const isMainWindow =
+    platform.kind === "desktop" && platform.desktopBridge.windowRole === "main";
+  const quickChatAvailable = Boolean(enabled && bridge && isMainWindow);
+  const sequenceRef = useRef(0);
+  const handlersRef = useRef(handlers);
+  const snapshotRef = useRef(snapshot);
+
+  useEffect(() => {
+    handlersRef.current = handlers;
+  }, [handlers]);
+
+  useEffect(() => {
+    snapshotRef.current = snapshot;
+  }, [snapshot]);
+
+  const publishSnapshot = useCallback(() => {
+    if (!bridge || !quickChatAvailable) return;
+    const message = createQuickChatRuntimeMessage(
+      "snapshot",
+      animaId,
+      ++sequenceRef.current,
+      snapshotRef.current,
+    );
+    void bridge.publishRuntimeMessage(message).catch(() => {});
+  }, [bridge, animaId, quickChatAvailable]);
+
+  useEffect(() => {
+    if (!bridge || !quickChatAvailable) return;
+    void bridge
+      .prepare({
+        animaId,
+        chatId,
+      })
+      .then(() => {
+        publishSnapshot();
+      })
+      .catch(() => {});
+  }, [bridge, chatId, animaId, publishSnapshot, quickChatAvailable]);
+
+  useEffect(() => {
+    publishSnapshot();
+  }, [publishSnapshot, snapshot]);
+
+  useEffect(() => {
+    if (!bridge || !quickChatAvailable) return;
+    return bridge.onRuntimeMessage((message) => {
+      if (message.animaId !== animaId) return;
+      if (message.type === "request-snapshot") {
+        publishSnapshot();
+        return;
+      }
+      if (message.type !== "command" || !isQuickChatCommand(message.payload)) {
+        return;
+      }
+
+      const currentHandlers = handlersRef.current;
+      switch (message.payload.type) {
+        case "set-input":
+          currentHandlers.setInput(message.payload.input);
+          return;
+        case "submit":
+          currentHandlers.submit();
+          return;
+        case "submit-text":
+          currentHandlers.submitText(message.payload.text);
+          return;
+        case "stop":
+          currentHandlers.stop();
+          return;
+        case "start-dictation":
+          currentHandlers.startDictation();
+          return;
+        case "start-voice-mode":
+          currentHandlers.startVoiceMode();
+          return;
+        case "stop-mic-session":
+          currentHandlers.stopMicSession();
+          return;
+        case "toggle-voice-mute":
+          currentHandlers.toggleVoiceMute();
+          return;
+        case "refresh-model-state":
+          currentHandlers.refreshModelState();
+          return;
+      }
+    });
+  }, [bridge, animaId, publishSnapshot, quickChatAvailable]);
+
+  const toggleQuickChat = useCallback(() => {
+    if (!bridge || !quickChatAvailable) {
+      toast.error(
+        "Quick Chat is available from a anima chat in the desktop app.",
+      );
+      return;
+    }
+    void bridge
+      .toggle({
+        animaId,
+        chatId,
+      })
+      .then(() => {
+        publishSnapshot();
+      })
+      .catch((error: unknown) => {
+        toast.error("Failed to toggle Quick Chat", {
+          description:
+            error instanceof Error ? error.message : "Unknown desktop error.",
+        });
+      });
+  }, [bridge, chatId, animaId, publishSnapshot, quickChatAvailable]);
+
+  return {
+    quickChatAvailable,
+    toggleQuickChat,
+  };
+}
+
+export function useDesktopQuickChatConsumer(
+  animaId: string,
+): DesktopQuickChatConsumerControls {
+  const platform = useRuntimePlatform();
+  const bridge = resolveQuickChatBridge(platform);
+  const isQuickChatWindow =
+    platform.kind === "desktop" &&
+    platform.desktopBridge.windowRole === "quick-chat";
+  const sequenceRef = useRef(0);
+  const [snapshot, setSnapshot] = useState<DesktopQuickChatSnapshot | null>(
+    null,
+  );
+  const [focusInputSignal, setFocusInputSignal] = useState(0);
+  const readyPublishedRef = useRef(false);
+
+  const publish = useCallback(
+    (type: DesktopQuickChatRuntimeMessage["type"], payload: unknown = null) => {
+      if (!bridge || !isQuickChatWindow) return;
+      const message = createQuickChatRuntimeMessage(
+        type,
+        animaId,
+        ++sequenceRef.current,
+        payload,
+      );
+      void bridge.publishRuntimeMessage(message).catch(() => {});
+    },
+    [bridge, isQuickChatWindow, animaId],
+  );
+
+  useEffect(() => {
+    if (!bridge || !isQuickChatWindow) return;
+    return bridge.onRuntimeMessage((message) => {
+      if (message.animaId !== animaId) return;
+      if (message.type === "snapshot" && isQuickChatSnapshot(message.payload)) {
+        setSnapshot(message.payload);
+        return;
+      }
+      if (message.type === "focus-input") {
+        setFocusInputSignal((current) => current + 1);
+      }
+    });
+  }, [bridge, isQuickChatWindow, animaId]);
+
+  useEffect(() => {
+    readyPublishedRef.current = false;
+    setSnapshot(null);
+    setFocusInputSignal(0);
+  }, [bridge, isQuickChatWindow, animaId]);
+
+  useEffect(() => {
+    if (!bridge || !isQuickChatWindow) return;
+    publish("request-snapshot");
+  }, [bridge, isQuickChatWindow, publish]);
+
+  useEffect(() => {
+    if (
+      !bridge ||
+      !isQuickChatWindow ||
+      !snapshot ||
+      snapshot.animaId !== animaId ||
+      readyPublishedRef.current
+    ) {
+      return;
+    }
+
+    let timeoutId: number | null = null;
+    const publishReady = () => {
+      if (readyPublishedRef.current) return;
+      readyPublishedRef.current = true;
+      publish("ready");
+    };
+
+    const frameId = window.requestAnimationFrame(() => {
+      timeoutId = window.setTimeout(publishReady, 0);
+    });
+    const fallbackTimeoutId = window.setTimeout(() => {
+      window.cancelAnimationFrame(frameId);
+      publishReady();
+    }, QUICK_CHAT_RENDER_READY_FALLBACK_MS);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(fallbackTimeoutId);
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [bridge, isQuickChatWindow, animaId, publish, snapshot]);
+
+  const sendCommand = useCallback(
+    (command: DesktopQuickChatCommand) => {
+      publish("command", command);
+    },
+    [publish],
+  );
+
+  const close = useCallback(() => {
+    if (!bridge || !isQuickChatWindow) return;
+    void bridge.close().catch(() => {});
+  }, [bridge, isQuickChatWindow]);
+
+  return {
+    close,
+    focusInputSignal,
+    sendCommand,
+    snapshot,
+  };
+}
+
+export function useDesktopQuickChatInteractiveRegions(active: boolean): void {
+  const platform = useRuntimePlatform();
+  const bridge = resolveQuickChatBridge(platform);
+  const isQuickChatWindow =
+    platform.kind === "desktop" &&
+    platform.desktopBridge.windowRole === "quick-chat";
+
+  useEffect(() => {
+    if (!active || !bridge || !isQuickChatWindow) return;
+
+    const publishRegions = () => {
+      const regions = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          [
+            "[data-quick-chat-interactive]",
+            "[data-slot='dialog-content']",
+            "[data-slot='popover-content']",
+          ].join(","),
+        ),
+      )
+        .map((element) => element.getBoundingClientRect())
+        .filter(
+          (rect) =>
+            rect.width > 0 &&
+            rect.height > 0 &&
+            rect.bottom > 0 &&
+            rect.right > 0 &&
+            rect.left < window.innerWidth &&
+            rect.top < window.innerHeight,
+        )
+        .map((rect) => ({
+          x: Math.max(0, rect.left),
+          y: Math.max(0, rect.top),
+          width:
+            Math.min(window.innerWidth, rect.right) - Math.max(0, rect.left),
+          height:
+            Math.min(window.innerHeight, rect.bottom) - Math.max(0, rect.top),
+        }));
+
+      void bridge.setInteractiveRegions(regions).catch(() => {});
+
+      const inputRegion = document.querySelector<HTMLElement>(
+        "[data-quick-chat-input-region]",
+      );
+      const messageStack = document.querySelector<HTMLElement>(
+        "[data-quick-chat-message-stack]",
+      );
+      const messageViewport = messageStack?.parentElement;
+      if (!inputRegion || !messageStack || !messageViewport) return;
+
+      const inputHeight = inputRegion.getBoundingClientRect().height;
+      const bottomSpacerHeight = Math.max(
+        0,
+        (QUICK_CHAT_BASE_HEIGHT_PX - inputHeight) / 2,
+      );
+      document.documentElement.style.setProperty(
+        "--anima-quick-chat-bottom-spacer",
+        `${bottomSpacerHeight}px`,
+      );
+
+      const viewportStyle = window.getComputedStyle(messageViewport);
+      const viewportPadding =
+        Number.parseFloat(viewportStyle.paddingTop) +
+        Number.parseFloat(viewportStyle.paddingBottom);
+      const desiredMessageViewportHeight =
+        messageStack.scrollHeight + viewportPadding;
+
+      void bridge
+        .setLayoutMetrics({
+          desiredHeight: Math.max(
+            QUICK_CHAT_BASE_HEIGHT_PX,
+            inputHeight + bottomSpacerHeight + desiredMessageViewportHeight,
+          ),
+        })
+        .catch(() => {});
+    };
+
+    publishRegions();
+    const interval = window.setInterval(publishRegions, 100);
+    window.addEventListener("resize", publishRegions);
+    window.addEventListener("scroll", publishRegions, true);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("resize", publishRegions);
+      window.removeEventListener("scroll", publishRegions, true);
+      document.documentElement.style.removeProperty(
+        "--anima-quick-chat-bottom-spacer",
+      );
+      void bridge.setInteractiveRegions([]).catch(() => {});
+    };
+  }, [active, bridge, isQuickChatWindow]);
+}

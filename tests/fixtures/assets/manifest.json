@@ -1,0 +1,212 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "document-utf8-text-valid",
+      "phase": 1,
+      "kind": "document",
+      "source_representation": "utf8_text",
+      "expected_outcome": "accept",
+      "canonical_representation": "utf8_text",
+      "runtime_consumer": "document reader"
+    },
+    {
+      "id": "document-json-valid",
+      "phase": 1,
+      "kind": "document",
+      "source_representation": "json",
+      "expected_outcome": "accept",
+      "canonical_representation": "json",
+      "runtime_consumer": "document reader"
+    },
+    {
+      "id": "document-pdf-malformed",
+      "phase": 4,
+      "kind": "document",
+      "source_representation": "malformed_pdf",
+      "expected_outcome": "reject",
+      "canonical_representation": null,
+      "runtime_consumer": "PDF parser"
+    },
+    {
+      "id": "avatar-vrm1-glb-valid",
+      "phase": 4,
+      "kind": "avatar_model",
+      "source_representation": "vrm1_glb",
+      "expected_outcome": "accept",
+      "canonical_representation": "glb2",
+      "runtime_consumer": "@pixiv/three-vrm GLTFLoader"
+    },
+    {
+      "id": "avatar-vrm-invalid-range",
+      "phase": 4,
+      "kind": "avatar_model",
+      "source_representation": "vrm_glb_invalid_accessor_range",
+      "expected_outcome": "reject",
+      "canonical_representation": null,
+      "runtime_consumer": "@pixiv/three-vrm GLTFLoader"
+    },
+    {
+      "id": "image-png-static",
+      "phase": 2,
+      "kind": "image",
+      "source_representation": "png_static",
+      "expected_outcome": "accept",
+      "canonical_representation": "webp_static",
+      "runtime_consumer": "browser image decoder"
+    },
+    {
+      "id": "image-jpeg-static",
+      "phase": 2,
+      "kind": "image",
+      "source_representation": "jpeg_static",
+      "expected_outcome": "accept",
+      "canonical_representation": "webp_static",
+      "runtime_consumer": "browser image decoder"
+    },
+    {
+      "id": "image-webp-static",
+      "phase": 2,
+      "kind": "image",
+      "source_representation": "webp_static",
+      "expected_outcome": "accept",
+      "canonical_representation": "webp_static",
+      "runtime_consumer": "browser image decoder"
+    },
+    {
+      "id": "image-jpeg-mpo-primary",
+      "phase": 2,
+      "kind": "image",
+      "source_representation": "jpeg_mpo",
+      "expected_outcome": "warning",
+      "canonical_representation": "webp_static",
+      "runtime_consumer": "browser image decoder"
+    },
+    {
+      "id": "image-apng-animated",
+      "phase": 2,
+      "kind": "image",
+      "source_representation": "apng_animated",
+      "expected_outcome": "reject",
+      "canonical_representation": null,
+      "runtime_consumer": "browser image decoder"
+    },
+    {
+      "id": "image-webp-animated",
+      "phase": 2,
+      "kind": "image",
+      "source_representation": "webp_animated",
+      "expected_outcome": "reject",
+      "canonical_representation": null,
+      "runtime_consumer": "browser image decoder"
+    },
+    {
+      "id": "audio-wav-pcm-valid",
+      "phase": 4,
+      "kind": "audio",
+      "source_representation": "wav_pcm",
+      "expected_outcome": "accept",
+      "canonical_representation": "wav_pcm",
+      "runtime_consumer": "Chromium HTMLAudioElement"
+    },
+    {
+      "id": "audio-mp3-valid",
+      "phase": 4,
+      "kind": "audio",
+      "source_representation": "mp3_layer3",
+      "expected_outcome": "accept",
+      "canonical_representation": "mp3_layer3",
+      "runtime_consumer": "Chromium HTMLAudioElement"
+    },
+    {
+      "id": "audio-ogg-unsupported-codec",
+      "phase": 4,
+      "kind": "audio",
+      "source_representation": "ogg_unsupported_codec",
+      "expected_outcome": "reject",
+      "canonical_representation": null,
+      "runtime_consumer": "Chromium HTMLAudioElement"
+    },
+    {
+      "id": "animation-vrma-json-embedded",
+      "phase": 3,
+      "kind": "animation",
+      "source_representation": "json_gltf_vrma",
+      "expected_outcome": "accept",
+      "canonical_representation": "glb2_vrma",
+      "runtime_consumer": "@pixiv/three-vrm VRMAnimationLoaderPlugin"
+    },
+    {
+      "id": "animation-vrma-glb-valid",
+      "phase": 3,
+      "kind": "animation",
+      "source_representation": "glb_vrma",
+      "expected_outcome": "accept",
+      "canonical_representation": "glb2_vrma",
+      "runtime_consumer": "@pixiv/three-vrm VRMAnimationLoaderPlugin"
+    },
+    {
+      "id": "animation-vrma-external-buffer",
+      "phase": 3,
+      "kind": "animation",
+      "source_representation": "json_gltf_external_buffer",
+      "expected_outcome": "reject",
+      "canonical_representation": null,
+      "runtime_consumer": "@pixiv/three-vrm VRMAnimationLoaderPlugin"
+    },
+    {
+      "id": "animation-vrma-multiple-animations",
+      "phase": 3,
+      "kind": "animation",
+      "source_representation": "glb_vrma_multiple_animations",
+      "expected_outcome": "reject",
+      "canonical_representation": null,
+      "runtime_consumer": "@pixiv/three-vrm VRMAnimationLoaderPlugin"
+    },
+    {
+      "id": "pose-valid",
+      "phase": 4,
+      "kind": "anima_pose_clip",
+      "source_representation": "animaPoseClip_1_0_json",
+      "expected_outcome": "accept",
+      "canonical_representation": "animaPoseClip_1_0_json",
+      "runtime_consumer": "frontend pose parser"
+    },
+    {
+      "id": "pose-invalid-numeric",
+      "phase": 4,
+      "kind": "anima_pose_clip",
+      "source_representation": "animaPoseClip_nonfinite_keyframe",
+      "expected_outcome": "reject",
+      "canonical_representation": null,
+      "runtime_consumer": "frontend pose parser"
+    },
+    {
+      "id": "particle-valid-package",
+      "phase": 4,
+      "kind": "particle_vfx",
+      "source_representation": "three_quarks_json_with_texture",
+      "expected_outcome": "accept",
+      "canonical_representation": "three_quarks_json_with_webp_texture",
+      "runtime_consumer": "Three.quarks deserializer"
+    },
+    {
+      "id": "particle-invalid-schema",
+      "phase": 4,
+      "kind": "particle_vfx",
+      "source_representation": "three_quarks_invalid_object",
+      "expected_outcome": "reject",
+      "canonical_representation": null,
+      "runtime_consumer": "Three.quarks deserializer"
+    },
+    {
+      "id": "particle-case-colliding-textures",
+      "phase": 2,
+      "kind": "particle_vfx",
+      "source_representation": "texture_filename_case_collision",
+      "expected_outcome": "reject",
+      "canonical_representation": null,
+      "runtime_consumer": "Three.quarks deserializer"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:transition_getting_up",
+  "version": 1,
+  "semantic_key": "transition_getting_up",
+  "name": "transition_getting_up",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "transition_getting_up.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

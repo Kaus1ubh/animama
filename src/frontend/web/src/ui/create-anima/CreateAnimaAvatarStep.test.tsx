@@ -1,0 +1,145 @@
+import { createRef } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+import type { PyAvatarContent } from "@animama/runtime-contracts/sdk";
+import type {
+  AnimaCreationOperations,
+  AnimaCreationSources,
+} from "@/query/hooks/useAnimaCreation";
+import {
+  avatarCollisionTarget,
+  CreateAnimaAvatarStep,
+} from "./CreateAnimaAvatarStep";
+import { newCreateAnimaDraft } from "./createAnimaDraft";
+import { checkCreationVrm } from "./createAnimaFiles";
+import { parseCreateAnimaSearch } from "./createAnimaSearch";
+import { ref } from "./createAnimaTestFixtures";
+
+function avatar(
+  item_id: string,
+  source: "included" | "local",
+  filename: string,
+) {
+  return {
+    ...ref(item_id),
+    source,
+    editable: source === "local",
+    files: [{ filename, role: "model" }],
+  } as PyAvatarContent;
+}
+
+function binaryVrm(document: string) {
+  const bytes = new TextEncoder().encode(
+    document.padEnd(Math.ceil(document.length / 4) * 4, " "),
+  );
+  const result = new Uint8Array(20 + bytes.length);
+  const header = new DataView(result.buffer);
+  [0x46546c67, 2, result.length, bytes.length, 0x4e4f534a].forEach(
+    (value, index) => header.setUint32(index * 4, value, true),
+  );
+  result.set(bytes, 20);
+  return new File([result], "test.vrm");
+}
+
+function vrm(version: string, uri?: string) {
+  return binaryVrm(
+    JSON.stringify({
+      extensions: {
+        [version === "0.0" ? "VRM" : "VRMC_vrm"]: { specVersion: version },
+      },
+      buffers: [{ ...(uri ? { uri } : {}) }],
+    }),
+  );
+}
+
+describe("Avatar handoff and admission", () => {
+  it("accepts only a normalized optional logical Avatar ID", () => {
+    expect(
+      parseCreateAnimaSearch({ avatar: "  content-a  ", owner: "ignored" }),
+    ).toEqual({ avatar: "content-a" });
+    for (const avatar of [
+      null,
+      {},
+      "",
+      "../model.vrm",
+      "file:///model.vrm",
+      "https://example.test/model",
+      "blob:test",
+    ])
+      expect(parseCreateAnimaSearch({ avatar }).avatar).toBeUndefined();
+  });
+
+  it.each(["0.0", "1.0"])(
+    "permits a self-contained VRM %s provisional preview",
+    async (version) => {
+      await expect(checkCreationVrm(vrm(version))).resolves.toBeUndefined();
+    },
+  );
+
+  it("rejects wrong containers, unsupported versions, oversized and external-resource VRMs", async () => {
+    await expect(
+      checkCreationVrm(new File(["not a VRM"], "test.vrm")),
+    ).rejects.toThrow();
+    await expect(checkCreationVrm(binaryVrm("{invalid"))).rejects.toThrow(
+      "valid VRM document",
+    );
+    await expect(checkCreationVrm(vrm("2.0"))).rejects.toThrow("VRM 0.x");
+    await expect(
+      checkCreationVrm(vrm("1.0", "https://example.test/texture")),
+    ).rejects.toThrow("External");
+    await expect(checkCreationVrm(vrm("1.0"), 32)).rejects.toThrow(
+      "self-contained",
+    );
+  });
+
+  it("offers Replace only for one caller-editable matching entry", () => {
+    const mine = avatar("mine", "local", "my-avatar.vrm");
+    expect(avatarCollisionTarget("My Avatar", [mine])).toBe(mine);
+    expect(
+      avatarCollisionTarget("My Avatar", [
+        avatar("included", "included", "my-avatar.vrm"),
+      ]),
+    ).toBeUndefined();
+    expect(
+      avatarCollisionTarget("My Avatar", [mine, { ...mine, item_id: "other" }]),
+    ).toBeUndefined();
+  });
+
+  it("opens VRM selection directly without a nested upload section", () => {
+    const html = renderToStaticMarkup(
+      <CreateAnimaAvatarStep
+        draft={{ ...newCreateAnimaDraft(), avatar: ref("selected-avatar") }}
+        sources={
+          {
+            avatars: {
+              data: [],
+              isLoading: false,
+              isError: false,
+              refetch: vi.fn(),
+            },
+          } as unknown as AnimaCreationSources
+        }
+        operations={
+          {
+            saveAvatar: { mutateAsync: vi.fn() },
+          } as unknown as AnimaCreationOperations
+        }
+        file={null}
+        fileInputRef={createRef<HTMLInputElement>()}
+        onFile={vi.fn()}
+        onSelect={vi.fn(async () => undefined)}
+        onWorking={vi.fn()}
+      />,
+    );
+    expect(html.match(/role="tab"/g)).toHaveLength(2);
+    expect(html).toContain("Included");
+    expect(html).toContain("My Content");
+    expect(html).toContain("Upload VRM");
+    expect(html).toContain('aria-label="Choose a VRM file"');
+    expect(html).toMatch(/class="[^"]*\bhidden\b/);
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).not.toContain("Choose a VRM file</button>");
+    expect(html).not.toContain("VRM 0.0 or 1.0");
+    expect(html).not.toContain("Selected: selected-avatar");
+  });
+});

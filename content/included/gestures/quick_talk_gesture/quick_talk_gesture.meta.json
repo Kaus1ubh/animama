@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:quick_talk_gesture",
+  "version": 1,
+  "semantic_key": "quick_talk_gesture",
+  "name": "quick_talk_gesture",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "quick_talk_gesture.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

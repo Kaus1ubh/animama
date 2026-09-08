@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:emote",
+  "version": 1,
+  "name": "Emote !",
+  "description": "Floating exclamation mark for sudden alarm, urgency, or alerted curiosity.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/1",
+    "kind": "hover",
+    "region": "emote",
+    "hoverKind": "box_hover",
+    "placement": "top-edge-right-corner",
+    "transform": {
+      "scale": {
+        "x": 1.4,
+        "y": 1.4,
+        "z": 1
+      }
+    },
+    "animationConfig": {
+      "rotationRadiansPerSecond": 1.4,
+      "rotationAmountTurns": 0.02
+    },
+    "lifetime": {
+      "kind": "duration",
+      "runEndBufferSec": 5
+    },
+    "image": "emote.png"
+  },
+  "files": [
+    {
+      "path": "emote.png",
+      "role": "image"
+    }
+  ]
+}

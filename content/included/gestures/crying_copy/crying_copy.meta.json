@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:crying_copy",
+  "version": 1,
+  "semantic_key": "crying_copy",
+  "name": "crying_copy",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "crying_copy.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:goodbye",
+  "version": 1,
+  "semantic_key": "goodbye",
+  "name": "goodbye",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "goodbye.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}

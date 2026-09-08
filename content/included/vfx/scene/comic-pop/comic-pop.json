@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:comic-pop",
+  "version": 1,
+  "name": "Comic Pop",
+  "description": "Scene background effect preset",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "solid": {
+      "enabled": true,
+      "color": "#ffe869"
+    },
+    "pattern": {
+      "enabled": true,
+      "pattern": "star",
+      "color": "#ff547d",
+      "size": 24,
+      "spacing": 18,
+      "opacity": 0.42
+    },
+    "marquee": {
+      "enabled": false,
+      "itemSize": 72,
+      "gap": 22,
+      "rowGap": 18,
+      "direction": "diagonal-up-left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 160,
+      "opacity": 0.95,
+      "items": []
+    }
+  }
+}

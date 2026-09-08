@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:sad-rain-puff",
+  "version": 1,
+  "name": "Sad Rain Puff",
+  "description": "A small rain cloud with falling drops and muted smoke puffs for sad moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "sad-rain-puff",
+    "slots": {
+      "particle_vfx": {
+        "label": "Sad Rain Puff",
+        "description": "A small rain cloud with falling drops and muted smoke puffs for sad moments.",
+        "anchor": "head",
+        "duration_seconds": 2.5,
+        "max_duration_seconds": 3,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.42,
+            "z": 0
+          },
+          "depth_offset": 0.08,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": false,
+        "max_particles": 42
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/cloud.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/dust-soft.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/raindrop.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/smoke-puff.png",
+      "role": "texture"
+    }
+  ]
+}

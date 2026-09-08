@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:blush-left",
+  "version": 1,
+  "name": "Blush left",
+  "description": "Single cheek blush for shy warmth, attraction, gratitude, or affectionate embarrassment.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/1",
+    "kind": "face_anchored",
+    "region": "blush",
+    "anchor": "blush",
+    "layout": "single",
+    "side": "left",
+    "requiresMirror": true,
+    "pivot": "center",
+    "transform": {
+      "scale": {
+        "x": 2,
+        "y": 2,
+        "z": 1
+      }
+    },
+    "lifetime": {
+      "kind": "turns",
+      "turns": 3
+    },
+    "image": "blush_left.png"
+  },
+  "files": [
+    {
+      "path": "blush_left.png",
+      "role": "image"
+    }
+  ]
+}

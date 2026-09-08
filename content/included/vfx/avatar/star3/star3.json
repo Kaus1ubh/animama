@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:star3",
+  "version": 1,
+  "name": "Star3",
+  "description": "Larger star pupils for stronger awe, delight, or energized admiration.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/1",
+    "kind": "texture",
+    "region": "eyes",
+    "targetRole": "eye_iris",
+    "disableTargetRoles": [
+      "eye_highlight"
+    ],
+    "assetShape": "single_eye",
+    "applyMode": "overlay",
+    "animationConfig": {
+      "pulseScaleMin": 1.2,
+      "pulseScaleMax": 1.6,
+      "pulseCyclesPerSecond": 1.6
+    },
+    "lifetime": {
+      "kind": "duration",
+      "runEndBufferSec": 5
+    },
+    "image": "star3.png"
+  },
+  "files": [
+    {
+      "path": "star3.png",
+      "role": "image"
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+import { describe, expect, it } from "vitest";
+
+import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
+import {
+  filterLibraryUploads,
+  hasActiveLibraryUpload,
+  libraryUploadRefetchInterval,
+  libraryUploadViewState,
+  presentLibraryUpload,
+} from "@/lib/uploads/libraryUploads";
+
+function upload(
+  overrides: Partial<PyUserFileResponse> = {},
+): PyUserFileResponse {
+  return {
+    file_id: "file-1",
+    original_filename: "Project Notes.md",
+    normalized_extension: ".md",
+    status: "ready",
+    declared_content_type: "text/markdown",
+    declared_size_bytes: 1536,
+    chunk_count: 4,
+    created_at: "2026-07-18T12:00:00Z",
+    ...overrides,
+  };
+}
+
+describe("Library Chat Uploads", () => {
+  it("projects native file facts and active job status", () => {
+    const row = presentLibraryUpload(
+      upload({
+        status: "processing",
+        stored_size_bytes: 2048,
+        latest_processing_job: {
+          attempts: 1,
+          job_id: "job-1",
+          max_attempts: 3,
+          status: "running",
+        },
+      }),
+    );
+
+    expect(row).toMatchObject({
+      key: "upload:file-1",
+      name: "Project Notes.md",
+      extension: "MD",
+      size: "2.0 KB",
+      contentType: "text/markdown",
+      chunkCount: 4,
+      statusLabel: "Processing",
+      statusTone: "active",
+      active: true,
+    });
+  });
+
+  it("filters the complete list by filename, extension, type, and status", () => {
+    const files = [
+      upload(),
+      upload({
+        file_id: "file-2",
+        original_filename: "Budget.csv",
+        normalized_extension: ".csv",
+        declared_content_type: "text/csv",
+        status: "failed",
+      }),
+    ];
+
+    expect(
+      filterLibraryUploads(files, { query: "notes", status: "all" }),
+    ).toHaveLength(1);
+    expect(
+      filterLibraryUploads(files, { query: "CSV", status: "failed" }),
+    ).toMatchObject([{ file_id: "file-2" }]);
+    expect(
+      filterLibraryUploads(files, { query: "markdown", status: "failed" }),
+    ).toEqual([]);
+  });
+
+  it("polls only while a file or processing job is active", () => {
+    const ready = [upload()];
+    const uploadedWithQueuedJob = [
+      upload({
+        status: "uploaded",
+        latest_processing_job: {
+          attempts: 0,
+          job_id: "job-1",
+          max_attempts: 3,
+          status: "queued",
+        },
+      }),
+    ];
+
+    expect(hasActiveLibraryUpload(ready)).toBe(false);
+    expect(hasActiveLibraryUpload([upload({ status: "uploaded" })])).toBe(
+      false,
+    );
+    expect(libraryUploadRefetchInterval(ready, true)).toBe(false);
+    expect(hasActiveLibraryUpload([upload({ status: "processing" })])).toBe(
+      true,
+    );
+    expect(libraryUploadRefetchInterval(uploadedWithQueuedJob, true)).toBe(
+      3000,
+    );
+    expect(libraryUploadRefetchInterval(uploadedWithQueuedJob, false)).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    [
+      { isPending: true, isError: false, totalCount: 0, filteredCount: 0 },
+      "loading",
+    ],
+    [
+      { isPending: false, isError: true, totalCount: 0, filteredCount: 0 },
+      "error",
+    ],
+    [
+      { isPending: false, isError: false, totalCount: 0, filteredCount: 0 },
+      "empty",
+    ],
+    [
+      { isPending: false, isError: false, totalCount: 2, filteredCount: 0 },
+      "no_results",
+    ],
+    [
+      { isPending: false, isError: false, totalCount: 2, filteredCount: 1 },
+      "ready",
+    ],
+  ] as const)("resolves list state %#", (options, expected) => {
+    expect(libraryUploadViewState(options)).toBe(expected);
+  });
+
+  it("preserves native failure details for the manager handoff", () => {
+    expect(
+      presentLibraryUpload(
+        upload({ status: "failed", last_error: "Could not parse document." }),
+      ),
+    ).toMatchObject({
+      statusLabel: "Failed",
+      statusTone: "destructive",
+      error: "Could not parse document.",
+    });
+  });
+});

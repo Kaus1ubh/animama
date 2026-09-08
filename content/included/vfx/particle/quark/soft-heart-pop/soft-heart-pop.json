@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:soft-heart-pop",
+  "version": 1,
+  "name": "Soft Heart Pop",
+  "description": "A warm affection pop with hearts, a gentle glow, and small sparkle dots.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "soft-heart-pop",
+    "slots": {
+      "particle_vfx": {
+        "label": "Soft Heart Pop",
+        "description": "A warm affection pop with hearts, a gentle glow, and small sparkle dots.",
+        "anchor": "head",
+        "duration_seconds": 1.9,
+        "max_duration_seconds": 2.4,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.34,
+            "z": 0
+          },
+          "depth_offset": 0.12,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 0.95,
+            "y": 0.95,
+            "z": 0.95
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 36
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/glow-soft.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/heart-v2.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/heart.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/spark-dot.png",
+      "role": "texture"
+    }
+  ]
+}

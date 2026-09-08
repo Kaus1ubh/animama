@@ -1,0 +1,226 @@
+import { describe, expect, it, vi } from "vitest";
+
+import {
+  addParticleVFXEditorEmitter,
+  applyParticleVFXEmitterPatch,
+  createParticleVFXEditorDraftFromBlank,
+  updateParticleVFXEditorCatalogDraft,
+} from "@/lib/avatar/particle-vfx";
+import {
+  buildParticleVFXContentPackage,
+  ParticleVFXContentPackageError,
+  type ParticleVFXContentPackageResource,
+} from "./particleVFXContentPackage";
+
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const WEBP = new TextEncoder().encode("RIFF0000WEBP");
+
+function resource(
+  logicalReference: string,
+  bytes: Uint8Array,
+  contentType: string,
+): ParticleVFXContentPackageResource {
+  const blob = new Blob([Uint8Array.from(bytes).buffer], {
+    type: contentType,
+  });
+  return {
+    logicalReference,
+    previewUrl: "blob:preview-only",
+    blob,
+    contentType,
+  };
+}
+
+describe("Particle VFX editable content package", () => {
+  it("copies one curated texture and never mutates raw editor JSON", async () => {
+    const draft = createParticleVFXEditorDraftFromBlank();
+    const before = JSON.stringify(draft.quarksJson);
+    const fetcher = vi.fn(
+      async () =>
+        new Response(PNG, { headers: { "content-type": "image/png" } }),
+    );
+
+    const built = await buildParticleVFXContentPackage({
+      draft,
+      resources: [],
+      fetcher,
+    });
+    const manifest = JSON.parse(await built.manifestFile.text()) as {
+      images: { url: string }[];
+    };
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/effects/vfx/particle-vfx/textures/soft-dot.png",
+      { signal: undefined },
+    );
+    expect(built.textures).toHaveLength(1);
+    expect(built.textures[0]).toMatchObject({
+      packageReference: "textures/soft-dot.png",
+      ordinal: 1,
+    });
+    expect(manifest.images[0]?.url).toBe("textures/soft-dot.png");
+    expect(JSON.stringify(draft.quarksJson)).toBe(before);
+  });
+
+  it("normalizes canonical WebP names and keeps them stable on re-save", async () => {
+    const draft = createParticleVFXEditorDraftFromBlank();
+    const first = await buildParticleVFXContentPackage({
+      draft,
+      resources: [resource("textures/soft-dot.png", WEBP, "image/webp")],
+    });
+    expect(first.textures[0]?.packageReference).toBe("textures/soft-dot.webp");
+
+    const second = await buildParticleVFXContentPackage({
+      draft: first.normalizedDraft,
+      resources: [resource("textures/soft-dot.webp", WEBP, "image/webp")],
+    });
+    expect(second.textures[0]?.packageReference).toBe("textures/soft-dot.webp");
+  });
+
+  it("deduplicates repeated references and suffixes same-stem output collisions", async () => {
+    const draft = createParticleVFXEditorDraftFromBlank();
+    const images = draft.quarksJson.images as { uuid: string; url: string }[];
+    images[0]!.url = "textures/glow.png";
+    images.push({ uuid: "second-image", url: "legacy/glow.jpg" });
+    images.push({ uuid: "repeated-image", url: "textures/glow.png" });
+
+    const built = await buildParticleVFXContentPackage({
+      draft,
+      resources: [
+        resource("textures/glow.png", WEBP, "image/webp"),
+        resource("legacy/glow.jpg", WEBP, "image/webp"),
+      ],
+    });
+
+    expect(
+      built.textures.map(({ packageReference }) => packageReference),
+    ).toEqual(["textures/glow.webp", "textures/glow-2.webp"]);
+    expect(
+      (built.normalizedDraft.quarksJson.images as { url: string }[]).map(
+        ({ url }) => url,
+      ),
+    ).toEqual([
+      "textures/glow.webp",
+      "textures/glow-2.webp",
+      "textures/glow.webp",
+    ]);
+  });
+
+  it("serializes complete runtime defaults and reports deterministic cap reductions", async () => {
+    const draft = createParticleVFXEditorDraftFromBlank();
+    draft.catalog.defaultFollowAnchor = false;
+    draft.catalog.performanceBudget.maxParticles = 900;
+    draft.catalog.performanceBudget.maxDurationSec = 45;
+    draft.catalog.shapeAutoFit = {
+      kind: "avatarBoundsRectangle",
+      padding: { width: 0.2, height: 0.3 },
+      emitterNames: ["Emitter 1"],
+    };
+    const built = await buildParticleVFXContentPackage({
+      draft,
+      resources: [resource("textures/soft-dot.png", PNG, "image/png")],
+    });
+    const defaults = (
+      built.authoringManifest.runtime_defaults as {
+        slots: { particle_vfx: Record<string, unknown> };
+      }
+    ).slots.particle_vfx;
+
+    expect(defaults).toMatchObject({
+      follow_anchor: false,
+      max_duration_seconds: 30,
+      max_particles: 512,
+      shape_auto_fit: {
+        kind: "avatar_bounds_rectangle",
+        padding: { width: 0.2, height: 0.3 },
+        emitter_names: ["Emitter 1"],
+      },
+    });
+    expect(built.notices).toHaveLength(2);
+  });
+
+  it("round-trips a multi-emitter authoring package with shared texture and runtime metadata", async () => {
+    let draft = createParticleVFXEditorDraftFromBlank();
+    draft = addParticleVFXEditorEmitter(draft);
+    draft = addParticleVFXEditorEmitter(draft);
+    draft = applyParticleVFXEmitterPatch(draft, draft.emitters[0]!.path, {
+      emitterTemplateId: "sparkle-burst",
+      shape: { type: "rectangle", width: 1.4, height: 2.2 },
+    });
+    draft = updateParticleVFXEditorCatalogDraft(draft, {
+      defaultAnchor: "chest",
+      defaultFollowAnchor: false,
+      defaultDurationSec: 2.75,
+      preloadTier: "tierA",
+      performanceBudget: {
+        maxDurationSec: 6,
+        maxParticles: 180,
+        loopingAllowed: false,
+        canCoexist: false,
+      },
+      shapeAutoFit: {
+        kind: "avatarBoundsRectangle",
+        padding: { width: 0.15, height: 0.25 },
+        minSize: { width: 0.5, height: 1 },
+        maxSize: { width: 3, height: 4 },
+        emitterNames: [draft.emitters[0]!.name],
+      },
+    });
+
+    const built = await buildParticleVFXContentPackage({
+      draft,
+      resources: [
+        resource("textures/soft-dot.png", PNG, "image/png"),
+        resource("textures/spark-pop-6x5.png", PNG, "image/png"),
+      ],
+    });
+    const manifest = JSON.parse(await built.manifestFile.text()) as {
+      images: { url: string }[];
+      object: { children: unknown[] };
+    };
+    const defaults = (
+      built.authoringManifest.runtime_defaults as {
+        slots: { particle_vfx: Record<string, unknown> };
+      }
+    ).slots.particle_vfx;
+
+    expect(manifest.object.children).toHaveLength(3);
+    expect(new Set(manifest.images.map(({ url }) => url))).toEqual(
+      new Set(["textures/soft-dot.png", "textures/spark-pop-6x5.png"]),
+    );
+    expect(
+      manifest.images.filter(({ url }) => url === "textures/soft-dot.png"),
+    ).toHaveLength(2);
+    expect(built.textures).toHaveLength(2);
+    expect(JSON.stringify(manifest)).toContain("Noise");
+    expect(defaults).toMatchObject({
+      anchor: "chest",
+      follow_anchor: false,
+      duration_seconds: 2.75,
+      max_duration_seconds: 6,
+      preload_tier: "tier_a",
+      can_coexist: false,
+      max_particles: 180,
+      shape_auto_fit: {
+        kind: "avatar_bounds_rectangle",
+        padding: { width: 0.15, height: 0.25 },
+      },
+    });
+  });
+
+  it("rejects unsafe and content-type-mismatched resources before upload", async () => {
+    const unsafe = createParticleVFXEditorDraftFromBlank();
+    (unsafe.quarksJson.images as { url: string }[])[0]!.url = "blob:secret";
+    await expect(
+      buildParticleVFXContentPackage({ draft: unsafe, resources: [] }),
+    ).rejects.toBeInstanceOf(ParticleVFXContentPackageError);
+
+    const mismatched = createParticleVFXEditorDraftFromBlank();
+    await expect(
+      buildParticleVFXContentPackage({
+        draft: mismatched,
+        resources: [resource("textures/soft-dot.png", PNG, "image/webp")],
+      }),
+    ).rejects.toThrow("mismatched or unsupported image bytes");
+  });
+});

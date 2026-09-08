@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "rules": [
+    {
+      "glob": "avatars/AvatarChibi_2.vrm",
+      "creator": "灰色の猫",
+      "provenance": "Former Caitlyn model; embedded terms prohibit redistribution and no separate permission was supplied. The owner corrected the replacement to Janna's AvatarSample_R1 on 2026-09-02. Retain only in the private development source library.",
+      "license_id": "LicenseRef-chibi-akari-unapproved",
+      "redistribution_review": "pending",
+      "distribution": "excluded"
+    },
+    {
+      "glob": "appearances/avatar-portraits/app-avatar-model-avatarchibi-2-v1.*",
+      "creator": "Animama render of 灰色の猫 model",
+      "provenance": "Portrait and metadata derived from the excluded former Caitlyn model; excluded from both desktop content partitions with that model.",
+      "license_id": "LicenseRef-chibi-akari-unapproved",
+      "redistribution_review": "pending",
+      "distribution": "excluded"
+    },
+    {
+      "glob": "avatars/AvatarSample_A_1_New.vrm",
+      "creator": "pixiv VRoid Project",
+      "provenance": "Owner confirms this Annie model is an unmodified VRoid Studio free preset, with no external assets or modifications (2026-09-02). Official terms: https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z ; AvatarSample_A redistribution conditions: https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604 . Source identification is resolved; review product use and required notices before release. Do not replace embedded metadata or describe the preset terms as CC0.",
+      "license_id": "LicenseRef-pixiv-VRoidPreset",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1.*",
+      "creator": "Animama render of pixiv VRoid Project model",
+      "provenance": "The owner confirms the WebP portrait is a direct Animama renderer capture of Annie's unmodified VRoid Studio free preset, contains no external artwork, and its metadata is project-authored (2026-09-03). The underlying model uses https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z . Product-use and required-notice review remains part of release approval.",
+      "license_id": "LicenseRef-pixiv-VRoidPreset",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "avatars/AvatarSample_R2.vrm",
+      "creator": "Unverified third-party source",
+      "provenance": "The owner corrected the earlier R2 identification on 2026-09-02: Janna's AvatarSample_R1, not Gwen's AvatarSample_R2, is their own model. R2's earlier owner-created attribution is withdrawn. Excluded from desktop distribution pending source and permission review; retained privately.",
+      "license_id": "LicenseRef-avatarsample-r2-review-required",
+      "redistribution_review": "pending",
+      "distribution": "excluded"
+    },
+    {
+      "glob": "appearances/avatar-portraits/app-avatar-model-avatarsample-r2-v1.*",
+      "creator": "Animama render of unverified model",
+      "provenance": "Portrait and metadata derived from the excluded R2 model. The owner's authorship clarification applies to R1, not R2; excluded with R2 pending source review.",
+      "license_id": "LicenseRef-avatarsample-r2-review-required",
+      "redistribution_review": "pending",
+      "distribution": "excluded"
+    },
+    {
+      "glob": "avatars/AvatarSample_R1.vrm",
+      "creator": "Animama project owner",
+      "provenance": "Owner confirms the VRM associated with Janna is their own VRoid Studio model with no external components, and reports it rendered correctly (2026-09-02). The backend avatar seed maps Janna (avt_sample_r1) to AvatarSample_R1.vrm. Selected as Caitlyn's version-3 default, superseding the mistaken R2 selection. Underlying VRoid terms and the final artifact notices remain part of release review; this is not a blanket approval for other assets.",
+      "license_id": "LicenseRef-Animama-owner-created-VRoid",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "appearances/avatar-portraits/app-avatar-model-avatarsample-r1-v1.*",
+      "creator": "Animama project owner",
+      "provenance": "The owner confirms the WebP portrait is a direct Animama renderer capture of their Janna/AvatarSample_R1 model, contains no external artwork, and its metadata is project-authored (2026-09-03). Janna remains Caitlyn's corrected replacement.",
+      "license_id": "LicenseRef-Animama-owner-created-VRoid",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "voices/*",
+      "creator": "Unverified third-party source",
+      "provenance": "Downloaded voice samples and their derived inputs are excluded from desktop distribution by the owner's decision on 2026-09-02. Retain privately; any future inclusion needs source, recording/model-rights, and redistribution review. This does not exclude the separately inventoried speech-engine models or built-in voices.",
+      "license_id": "LicenseRef-downloaded-voice-review-required",
+      "redistribution_review": "pending",
+      "distribution": "excluded"
+    },
+    {
+      "glob": "music/*",
+      "creator": "Unverified source",
+      "provenance": "BGM examples and their metadata are excluded from desktop distribution by the owner's decision on 2026-09-02. Retain privately; source and redistribution permission must be reviewed before future inclusion.",
+      "license_id": "LicenseRef-bgm-review-required",
+      "redistribution_review": "pending",
+      "distribution": "excluded"
+    },
+    {
+      "glob": "appearances/tokyo-*",
+      "creator": "Unverified third-party source",
+      "provenance": "The four downloaded Tokyo background images are excluded from desktop distribution by the owner's decision on 2026-09-02. Retain privately; any future inclusion requires source and redistribution review. Generated avatar portraits are separate inputs.",
+      "license_id": "LicenseRef-downloaded-background-review-required",
+      "redistribution_review": "pending",
+      "distribution": "excluded"
+    },
+    {
+      "glob": "appearances/thumbs/tokyo-*",
+      "creator": "Animama thumbnails of unverified third-party images",
+      "provenance": "Thumbnails derived from the excluded Tokyo background images; excluded with their originals from both desktop content partitions on 2026-09-02.",
+      "license_id": "LicenseRef-downloaded-background-review-required",
+      "redistribution_review": "pending",
+      "distribution": "excluded"
+    },
+    {
+      "glob": "gestures/**/*.json",
+      "creator": "Animama project owner",
+      "provenance": "The owner confirms they authored the JSON gesture and pose definitions and their metadata (2026-09-03). Any referenced VRMA animation retains its separate Adobe Mixamo provenance and product-use terms.",
+      "license_id": "LicenseRef-Animama-owner-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "gestures/**/*.vrma",
+      "creator": "Adobe Mixamo; converted to VRMA by the Animama project owner",
+      "provenance": "The owner confirms these VRMA files were converted from free FBX animations supplied by Adobe Mixamo and explicitly decided on 2026-09-03 to ship the converted VRMA files as embedded Animama runtime content, not as a standalone animation library. Adobe's Mixamo FAQ permits royalty-free use of characters and animations in personal, commercial, and non-profit projects, including video games: https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html . The applicable terms prohibit redistributing content as a standalone asset and prohibit using Mixamo content to create, train, test, or improve machine-learning systems: https://wwwimages2.adobe.com/content/dam/cc/en/legal/servicetou/Mixamo-Addl-Terms-en_US-20210623.pdf . Animama uses these converted animations only for avatar playback. Preserve this product-use limitation and re-review if the files are ever offered separately.",
+      "license_id": "LicenseRef-Adobe-Mixamo-embedded-product",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "idle-styles/starter/animations/*.vrma",
+      "creator": "Adobe Mixamo; converted to VRMA by the Animama project owner",
+      "provenance": "The owner confirms these VRMA files were converted from free FBX animations supplied by Adobe Mixamo and explicitly decided on 2026-09-03 to ship the converted VRMA files as embedded Animama runtime content, not as a standalone animation library. Adobe's Mixamo FAQ permits royalty-free use of characters and animations in personal, commercial, and non-profit projects, including video games: https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html . The applicable terms prohibit redistributing content as a standalone asset and prohibit using Mixamo content to create, train, test, or improve machine-learning systems: https://wwwimages2.adobe.com/content/dam/cc/en/legal/servicetou/Mixamo-Addl-Terms-en_US-20210623.pdf . Animama uses these converted animations only for avatar playback. Preserve this product-use limitation and re-review if the files are ever offered separately.",
+      "license_id": "LicenseRef-Adobe-Mixamo-embedded-product",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "reactions/**/*",
+      "creator": "Animama project owner",
+      "provenance": "The owner confirms they authored the reaction JSON and metadata. Referenced gesture and visual-effect assets retain their own separate provenance and terms.",
+      "license_id": "LicenseRef-Animama-owner-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "vfx/avatar/**/*",
+      "creator": "Animama project owner",
+      "provenance": "The owner confirms they created the avatar-expression assets.",
+      "license_id": "LicenseRef-Animama-owner-authored",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "vfx/particle/brackeys_vfx_bundle/**",
+      "creator": "Brackeys bundle contributors",
+      "provenance": "The included LICENSE & CREDITS.txt declares the repackaged/modified bundle CC0 and credits Picster and Kenney for particle textures, Thomas Iche for flipbooks, and CodeManu for predrawn spritesheets. Preserve that license-and-credits file with the content.",
+      "license_id": "CC0-1.0-Brackeys-VFX-bundle",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "vfx/particle/kenney_particle-pack/**",
+      "creator": "Kenney Vleugels and credited filter-template contributors",
+      "provenance": "The included Particle Pack 1.1 License.txt dedicates these assets under CC0 1.0 and permits personal and commercial projects. Preserve the license file; attribution is appreciated but not required.",
+      "license_id": "CC0-1.0-Kenney-Particle-Pack",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "vfx/particle/LeLu's Noise Pack/**",
+      "creator": "LeLu VFX",
+      "provenance": "The included readme permits unrestricted use of the textures in hobby or commercial games without attribution. Preserve that source readme with the content; no SPDX license was supplied.",
+      "license_id": "LicenseRef-LeLu-VFX-permissive",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "vfx/particle/particle-vfx/**",
+      "creator": "Animama project owner; derivatives of CC0 Kenney and Brackeys inputs",
+      "provenance": "Generated by src/frontend/scripts/generate-particle-vfx-assets.mjs. The tracked README and generator map project-created bitmap symbols and normalized derivatives of the separately inventoried CC0 Kenney Particle Pack and Brackeys VFX bundle. Preserve the upstream pack notices and this generation record.",
+      "license_id": "LicenseRef-Animama-generated-and-CC0-particle-VFX",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "vfx/particle/quark/**",
+      "creator": "Animama project owner; derivatives of CC0 Kenney and Brackeys inputs",
+      "provenance": "Generated by src/frontend/scripts/generate-particle-vfx-assets.mjs from project-authored effect definitions and the curated texture set. Texture copies are project-generated symbols or normalized derivatives of the separately inventoried CC0 Kenney Particle Pack and Brackeys VFX bundle. Preserve the upstream pack notices and generator record.",
+      "license_id": "LicenseRef-Animama-generated-and-CC0-particle-VFX",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "vfx/scene/**/emoji-*.svg",
+      "creator": "Twitter Twemoji contributors",
+      "provenance": "All 31 scene copies match the checked-in Twemoji 14.0.2 mirrors under resources/scene-vfx/twemoji byte for byte. Twemoji graphics are CC BY 4.0: https://github.com/jdecked/twemoji/tree/v14.0.2/assets/svg . Include the Twemoji graphics attribution and license notice.",
+      "license_id": "CC-BY-4.0-Twemoji-graphics",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "resources/scene-vfx/twemoji/**",
+      "creator": "Twitter Twemoji contributors",
+      "provenance": "Checked-in authoring mirrors from Twemoji 14.0.2 assets/svg, as recorded by the adjacent README. Twemoji graphics are CC BY 4.0: https://github.com/jdecked/twemoji/tree/v14.0.2/assets/svg . Include the Twemoji graphics attribution and license notice.",
+      "license_id": "CC-BY-4.0-Twemoji-graphics",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "vfx/scene/**/svg-*.svg",
+      "creator": "Animama project owner using an AI image generator",
+      "provenance": "The owner confirms the custom SVG artwork was AI-generated for Animama. Retain the owner's generation/tool records if available; no external source asset was reported.",
+      "license_id": "LicenseRef-Animama-owner-ai-generated",
+      "redistribution_review": "pending"
+    },
+    {
+      "glob": "**/*",
+      "creator": "Animama project owner",
+      "provenance": "Legacy development attribution, not verified release clearance. On 2026-09-02 the owner reported downloaded voice MP3s, SFX, and background pictures, and said remaining content should be fine. Match each distributed asset to its actual source and terms; this fallback must not override third-party rights.",
+      "license_id": "animama-project-owned-development",
+      "redistribution_review": "pending"
+    }
+  ]
+}

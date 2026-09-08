@@ -1,0 +1,28 @@
+{
+  "name": "@animama/discover-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./fixtures": {
+      "types": "./dist/types/fixtures.d.ts",
+      "import": "./dist/fixtures.js"
+    }
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-typescript-package.mjs src/index.ts src/fixtures.ts",
+    "check": "tsc -p tsconfig.json --noEmit --emitDeclarationOnly false",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@animama/runtime-contracts": "workspace:*"
+  }
+}

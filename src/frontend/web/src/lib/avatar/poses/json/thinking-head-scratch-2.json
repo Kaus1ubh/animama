@@ -1,0 +1,22 @@
+{
+  "schema": "animaPose/1.0",
+  "id": "thinking-head-scratch-2",
+  "name": "thinking-head-scratch-2",
+  "parent": {
+    "ref": "relaxedRest"
+  },
+  "humanoid": {
+    "rightLowerArm": {
+      "rotation": [0, -0.9238795329797028, 0, -0.3826834312342333]
+    },
+    "rightUpperArm": {
+      "rotation": [
+        -0.6077439191921861, 0.46633830938014253, 0.3913042994798778,
+        0.5099576993221636
+      ]
+    },
+    "head": {
+      "rotation": [0.13052619021560735, 0, 0, 0.9914448616377005]
+    }
+  }
+}

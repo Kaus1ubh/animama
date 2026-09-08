@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:single-hand-on-heart",
+  "version": 1,
+  "semantic_key": "single-hand-on-heart",
+  "name": "single-hand-on-heart",
+  "ai_description": "Reusable avatar pose clip",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "single-hand-on-heart.json",
+      "role": "sequence"
+    }
+  ]
+}

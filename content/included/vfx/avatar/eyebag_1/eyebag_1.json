@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:eyebag_1",
+  "version": 1,
+  "name": "Eyebag",
+  "description": "Under-eye fatigue overlay for worn down, drained, or sleep-deprived looks.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/1",
+    "kind": "texture",
+    "region": "full_face",
+    "targetRole": "face_skin",
+    "assetShape": "full_face",
+    "applyMode": "overlay",
+    "image": "eyebag_1.png"
+  },
+  "files": [
+    {
+      "path": "eyebag_1.png",
+      "role": "image"
+    }
+  ]
+}

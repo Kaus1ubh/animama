@@ -1,0 +1,4226 @@
+from __future__ import annotations
+
+import asyncio
+import base64
+import hashlib
+import json
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+
+import pytest
+from fastapi import HTTPException
+from pydantic import ValidationError
+from sqlalchemy import select
+
+from animama.app.main_structured_response import MAIN_STRUCTURED_RESPONSE_FORMAT, MAIN_STRUCTURED_RESPONSE_KIND
+from animama.app.model_catalog import DEEPSEEK_BASE_URL, HUGGINGFACE_ROUTER_BASE_URL
+from animama.app.model_clients import (
+    ModelClientDelta,
+    ModelClientFinal,
+    ModelClientProviderError,
+    ModelClientRequest,
+    ModelClientToolCall,
+    StaticModelClientRegistry,
+)
+from animama.app.model_clients.prompt import prompt_last_user_message
+from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
+from animama.app.services.direct_model_prompt_runner import DirectModelPromptResult
+from animama.domain.anima_chat_profile import AnimaChatProfile
+from animama.domain.chat import ChatMessage
+from animama.domain.events import EmotionUpdatePayload
+from animama.domain.model_provider import ModelProvider, ModelProviderCapabilities
+from animama.domain.request_principal import RequestPrincipal
+from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
+from animama.domain.user_file import STATUS_READY, STATUS_UPLOADED
+from animama.orm import (
+    ORMAnimaChatProfile,
+    ORMChat,
+    ORMChatCompaction,
+    ORMChatMessage,
+    ORMMemoryEntry,
+    ORMMemoryEntryVersion,
+    ORMModelProvider,
+)
+from animama.orm.anima import ORMAnima
+from animama.orm.user_file import ORMUserFile
+from animama.orm.user_file_chunk import ORMUserFileChunk
+from animama.server.routers import router as api_router
+from animama.server.routers.anima import chat_anima_direct_sse, router
+from animama.server.routers.chat import (
+    chat_sse,
+    compaction as chat_compaction,
+    title as chat_title,
+    tts as chat_tts,
+    turn_setup as chat_turn_setup,
+)
+from animama.server.schemas.chat import PyAnimaChatRequest
+from animama.server.schemas.elevenlabs import PyElevenLabsRealtimeTtsSessionResponse
+from animama.server.sse_events import SsePreparedTtsSpeechSegment
+
+
+class _FakeSession:
+    def __init__(
+        self,
+        *,
+        anima_row: object | None = None,
+        execute_result: object | None = None,
+    ) -> None:
+        self.close_calls = 0
+        self.flush_calls = 0
+        self.commit_calls = 0
+        self.execute_calls = 0
+        self.anima_row = anima_row or SimpleNamespace(
+            id="anima-1",
+            name="Anima",
+            description=None,
+            user_id="user-1",
+            metadata_={},
+            personality=None,
+            emotional_state=None,
+        )
+        self.execute_result = execute_result
+
+    async def get(self, model, key):
+        if model is ORMAnima and key == "anima-1":
+            return self.anima_row
+        return None
+
+    async def execute(self, _stmt):
+        self.execute_calls += 1
+        if self.execute_result is not None:
+            return self.execute_result
+        raise AssertionError("Unexpected execute")
+
+    async def flush(self) -> None:
+        self.flush_calls += 1
+
+    async def commit(self) -> None:
+        self.commit_calls += 1
+
+    async def close(self) -> None:
+        self.close_calls += 1
+
+
+class _FakeSessionFactory:
+    def __init__(self, session: _FakeSession, extra_sessions: list[_FakeSession] | None = None) -> None:
+        self.session = session
+        self.sessions = [session, *(extra_sessions or [])]
+        self.created_sessions: list[_FakeSession] = []
+
+    def __call__(self) -> _FakeSession:
+        index = len(self.created_sessions)
+        if index < len(self.sessions):
+            session = self.sessions[index]
+        else:
+            session = _FakeSession(anima_row=self.session.anima_row)
+        self.created_sessions.append(session)
+        return session
+
+
+class _FakeChatManager:
+    def __init__(self, *, openai_previous_response_id: str | None = None) -> None:
+        self.openai_previous_response_id = openai_previous_response_id
+        self.record_turn_calls = 0
+        self.record_turn_payloads: list[dict[str, Any]] = []
+        self.ensure_chat_calls: list[dict[str, Any]] = []
+        self.context_calls: list[dict[str, Any]] = []
+
+    async def ensure_owned_chat(self, **kwargs):  # noqa: ANN001
+        self.ensure_chat_calls.append(dict(kwargs))
+        return SimpleNamespace(
+            id=kwargs.get("chat_id"),
+            anima_id=kwargs.get("anima_id"),
+            user_id=kwargs.get("user_id"),
+            metadata={},
+            openai_previous_response_id=self.openai_previous_response_id,
+        )
+
+    async def get_chat_context(self, **kwargs):  # noqa: ANN001
+        self.context_calls.append(dict(kwargs))
+        return SimpleNamespace(messages=[], blocks=[])
+
+    async def prepare_chat_context(self, **kwargs):  # noqa: ANN001
+        chat = await self.ensure_owned_chat(**kwargs)
+        context = await self.get_chat_context(chat_id=kwargs["chat_id"])
+        return chat, context
+
+    async def record_turn(self, **kwargs) -> None:  # noqa: ANN001
+        self.record_turn_calls += 1
+        self.record_turn_payloads.append(dict(kwargs))
+
+
+def _direct_structured_response(
+    *,
+    speech: str = "Hello",
+    emotional_tone: str = "neutral",
+    emotional_intensity: int = 1,
+    display: str | None = None,
+    gesture: str = "",
+    remember: str | None = None,
+) -> str:
+    return json.dumps(
+        {
+            "emotional_tone": emotional_tone,
+            "emotional_intensity": emotional_intensity,
+            "speech": speech,
+            "gesture": gesture,
+            "display": display,
+            "remember": remember,
+        },
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+
+
+class _RouteModelClient:
+    def __init__(
+        self,
+        *,
+        text: str | None = None,
+        usage: Usage | None = None,
+        fail: bool = False,
+        on_stream_start: Any | None = None,
+        finals: list[ModelClientFinal] | None = None,
+    ) -> None:
+        self.text = text or _direct_structured_response()
+        self.usage = usage or Usage()
+        self.fail = fail
+        self.on_stream_start = on_stream_start
+        self.finals = list(finals or [])
+        self.seen_specs: list[ModelClientRequest] = []
+        self.close_calls = 0
+
+    async def stream(self, spec: ModelClientRequest):  # noqa: ANN201
+        if self.on_stream_start is not None:
+            self.on_stream_start()
+        self.seen_specs.append(spec)
+        if self.fail:
+            raise ModelClientProviderError("provider failed", code="provider_failed")
+        scripted_final = self.finals.pop(0) if self.finals else None
+        if scripted_final is not None:
+            if scripted_final.text:
+                yield ModelClientDelta(kind="text_delta", text=scripted_final.text)
+            yield ModelClientDelta(kind="final", final=scripted_final)
+            yield ModelClientDelta(kind="done")
+            return
+        yield ModelClientDelta(kind="text_delta", text=self.text)
+        yield ModelClientDelta(
+            kind="final",
+            final=ModelClientFinal(
+                text=self.text,
+                usage=self.usage,
+                raw_provider_metadata={"provider_run_id": spec.prompt.metadata.get("run_id")},
+            ),
+        )
+        yield ModelClientDelta(kind="done")
+
+    async def aclose(self) -> None:
+        self.close_calls += 1
+
+
+class _FakePromptRunner:
+    def __init__(
+        self,
+        *,
+        text: str,
+        usage: Usage | None = None,
+        fail: bool = False,
+        started_event: asyncio.Event | None = None,
+        release_event: asyncio.Event | None = None,
+    ) -> None:
+        self.text = text
+        self.usage = usage
+        self.fail = fail
+        self.started_event = started_event
+        self.release_event = release_event
+        self.calls: list[Any] = []
+
+    async def run_prompt(self, request):
+        self.calls.append(request)
+        if self.started_event is not None:
+            self.started_event.set()
+        if self.release_event is not None:
+            await self.release_event.wait()
+        if self.fail:
+            raise RuntimeError("prompt runner failed")
+        return DirectModelPromptResult(
+            text=self.text,
+            usage=self.usage,
+            model_provider=ModelProvider(
+                id=f"{request.model_provider}:{request.model}",
+                provider_type=request.model_provider,
+                model=request.model,
+                model_label=request.model,
+                provider_label=request.model_provider,
+                active=True,
+            ),
+        )
+
+
+class _FakeModelProviderRepository:
+    def __init__(self, _session, provider: ModelProvider | None = None) -> None:
+        self.provider = provider or _model_provider()
+        self.calls: list[str] = []
+
+    async def get(self, model_provider_id: str) -> ModelProvider | None:
+        self.calls.append(model_provider_id)
+        return self.provider if self.provider.id == model_provider_id else None
+
+
+class _FakeAnimaChatProfileRepository:
+    def __init__(self, _session, profile: AnimaChatProfile | None = None) -> None:
+        self.profile = profile or AnimaChatProfile(
+            anima_id="anima-1",
+            default_model_provider_id=_model_provider().id,
+            metadata={"source": "test"},
+        )
+
+    async def get(self, _anima_id: str) -> AnimaChatProfile | None:
+        return self.profile
+
+
+def _model_provider(
+    *,
+    model_provider_id: str = "OpenAIHTTPAgent:gpt-5-nano",
+    provider_type: str = "OpenAIHTTPAgent",
+    model: str = "gpt-5-nano",
+    active: bool = True,
+    supports_streaming: bool = True,
+    structured_kinds: list[str] | None = None,
+    supports_reasoning: bool | None = True,
+    supported_reasoning_efforts: list[str] | None = None,
+    supports_tools: bool = True,
+    native_tool_support: list[str] | None = None,
+) -> ModelProvider:
+    return ModelProvider(
+        id=model_provider_id,
+        provider_type=provider_type,
+        model=model,
+        model_label=model,
+        provider_label=provider_type,
+        active=active,
+        capabilities=ModelProviderCapabilities(
+            supports_streaming=supports_streaming,
+            structured_kinds=structured_kinds if structured_kinds is not None else [MAIN_STRUCTURED_RESPONSE_KIND],
+            supports_reasoning=supports_reasoning,
+            supported_reasoning_efforts=supported_reasoning_efforts
+            if supported_reasoning_efforts is not None
+            else ["low", "medium", "high"],
+            supports_tools=supports_tools,
+            native_tool_support=native_tool_support if native_tool_support is not None else ["web_search"],
+        ),
+    )
+
+
+_CURRENT_TEST_REGISTRY: StaticModelClientRegistry | None = None
+
+
+def _test_request() -> SimpleNamespace:
+    return SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(model_client_registry=_CURRENT_TEST_REGISTRY)))
+
+
+def _chat_request(**values: Any) -> PyAnimaChatRequest:
+    """Create a chat request against the required frozen typed runtime."""
+
+    values.setdefault("runtime_revision", "tr1-test")
+    return PyAnimaChatRequest(**values)
+
+
+def _install_route_mocks(
+    monkeypatch,
+    *,
+    session: _FakeSession | None = None,
+    chat_options: dict[str, object] | None = None,
+    emotional_state: dict[str, int] | None = None,
+    chat_manager: _FakeChatManager | None = None,
+    model_client: _RouteModelClient | None = None,
+    model_provider: ModelProvider | None = None,
+    runtime_catalog: dict[str, object] | None = None,
+) -> _FakeSession:
+    global _CURRENT_TEST_REGISTRY
+
+    model_provider = model_provider or _model_provider()
+    model_client = model_client or _RouteModelClient()
+    _CURRENT_TEST_REGISTRY = StaticModelClientRegistry({model_provider.provider_type: model_client})
+    anima_row = SimpleNamespace(
+        id="anima-1",
+        name="Anima",
+        description=None,
+        user_id="user-1",
+        metadata_={},
+        personality=None,
+        emotional_state=emotional_state,
+    )
+    session = session or _FakeSession(anima_row=anima_row)
+    monkeypatch.setattr(chat_sse, "get_async_session_factory", lambda _app: _FakeSessionFactory(session))
+
+    async def _fake_resolve_chat_request_options(**_kwargs):
+        return chat_options or {}
+
+    monkeypatch.setattr(chat_turn_setup, "resolve_chat_request_options", _fake_resolve_chat_request_options)
+    monkeypatch.setattr(
+        chat_turn_setup,
+        "SQLAlchemyModelProviderRepository",
+        lambda _session: _FakeModelProviderRepository(_session, model_provider),
+    )
+    monkeypatch.setattr(
+        chat_turn_setup,
+        "SQLAlchemyAnimaChatProfileRepository",
+        lambda _session: _FakeAnimaChatProfileRepository(
+            _session,
+            AnimaChatProfile(
+                anima_id="anima-1",
+                default_model_provider_id=model_provider.id,
+                metadata={"source": "test"},
+            ),
+        ),
+    )
+    fake_chat_manager = chat_manager or _FakeChatManager()
+    monkeypatch.setattr(chat_sse, "_chat_manager", lambda *_args, **_kwargs: fake_chat_manager)
+    monkeypatch.setattr(chat_turn_setup, "chat_manager", lambda *_args, **_kwargs: fake_chat_manager)
+
+    class _MemoryContextService:
+        def __init__(self, **_kwargs) -> None:
+            pass
+
+        async def build_context(self, **kwargs):  # noqa: ANN003
+            return SimpleNamespace(
+                anima_identity="Test anima identity.",
+                anima_name="Anima",
+                manifest={
+                    "version": 1,
+                    "anima_id": kwargs["anima_id"],
+                    "opened_files": [
+                        {
+                            "anima_id": kwargs["anima_id"],
+                            "path": "identity.md",
+                            "status": "opened",
+                            "version": 1,
+                            "sha256": "test-sha",
+                            "kind": "anima_identity",
+                        }
+                    ],
+                },
+            )
+
+    monkeypatch.setattr(chat_turn_setup, "DirectChatMemoryContextService", _MemoryContextService)
+
+    class _RuntimeService:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def get_snapshot(self, **_kwargs):  # noqa: ANN003
+            return SimpleNamespace(
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                catalog=runtime_catalog
+                or {
+                    "gestures": [
+                        {
+                            "semantic_key": "wave",
+                            "name": "Wave",
+                            "description": "A friendly wave.",
+                        }
+                    ]
+                },
+            )
+
+    monkeypatch.setattr(chat_turn_setup, "AnimaRuntimeService", _RuntimeService)
+    return session
+
+
+async def _collect_chunks(response) -> list[str]:
+    chunks: list[str] = []
+    async for chunk in response.body_iterator:
+        chunks.append(chunk.decode() if isinstance(chunk, bytes) else chunk)
+    return chunks
+
+
+def _event_data(chunks: list[str], event_name: str) -> dict[str, Any]:
+    for chunk in chunks:
+        if f"event: {event_name}" not in chunk:
+            continue
+        for line in chunk.splitlines():
+            if line.startswith("data: "):
+                return json.loads(line.removeprefix("data: "))
+    raise AssertionError(f"event {event_name!r} not found")
+
+
+def _event_data_all(chunks: list[str], event_name: str) -> list[dict[str, Any]]:
+    events: list[dict[str, Any]] = []
+    for chunk in chunks:
+        if f"event: {event_name}" not in chunk:
+            continue
+        for line in chunk.splitlines():
+            if line.startswith("data: "):
+                events.append(json.loads(line.removeprefix("data: ")))
+                break
+    return events
+
+
+def _event_count(chunks: list[str], event_name: str) -> int:
+    return sum(1 for chunk in chunks if f"event: {event_name}" in chunk)
+
+
+def _prepared_tts_segment(
+    text: str,
+    *,
+    part_index: int,
+    paragraph_index: int = 0,
+    paragraph_break_before: bool = False,
+) -> SsePreparedTtsSpeechSegment:
+    return SsePreparedTtsSpeechSegment(
+        visible_text=text,
+        tts_text=text.strip(),
+        tts_phonemized_text=[["PH"]],
+        text_basis="gruut_text_with_ws",
+        part_index=part_index,
+        part_final=False,
+        paragraph_index=paragraph_index,
+        paragraph_break_before=paragraph_break_before,
+    )
+
+
+def _install_db_route_mocks(
+    monkeypatch,
+    session_factory,
+    *,
+    chat_options: dict[str, object] | None = None,
+    model_client: _RouteModelClient | None = None,
+    default_model_provider_id: str = "OpenAIHTTPAgent:gpt-5-nano",
+    patch_profile_service: bool = True,
+) -> None:
+    global _CURRENT_TEST_REGISTRY
+
+    model_client = model_client or _RouteModelClient()
+    _CURRENT_TEST_REGISTRY = StaticModelClientRegistry(
+        {
+            "OpenAIHTTPAgent": model_client,
+            "OpenAIResponsesHTTPAgent": model_client,
+            "GeminiAgent": model_client,
+            "LiteLLMAgent": model_client,
+        }
+    )
+    monkeypatch.setattr(chat_sse, "get_async_session_factory", lambda _app: session_factory)
+
+    async def _fake_resolve_chat_request_options(**_kwargs):
+        return chat_options or {}
+
+    monkeypatch.setattr(chat_turn_setup, "resolve_chat_request_options", _fake_resolve_chat_request_options)
+
+    class _RuntimeService:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def get_snapshot(self, **_kwargs):  # noqa: ANN003
+            return SimpleNamespace(
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                catalog={
+                    "gestures": [
+                        {
+                            "semantic_key": "wave",
+                            "name": "Wave",
+                            "description": "A friendly wave.",
+                        }
+                    ]
+                },
+            )
+
+    monkeypatch.setattr(chat_turn_setup, "AnimaRuntimeService", _RuntimeService)
+
+    if patch_profile_service:
+
+        class _ProfileService:
+            def __init__(self, **_kwargs) -> None:
+                pass
+
+            async def resolve_for_anima(self, anima_id: str) -> AnimaChatProfile:
+                return AnimaChatProfile(
+                    anima_id=anima_id,
+                    default_model_provider_id=default_model_provider_id,
+                    metadata={"source": "test"},
+                )
+
+        monkeypatch.setattr(chat_turn_setup, "AnimaChatProfileService", _ProfileService)
+    monkeypatch.setattr(
+        chat_title,
+        "chat_title_generation_settings",
+        lambda: ChatTitleGenerationSettings(enabled=False),
+    )
+
+
+async def _seed_chat_model_provider(
+    async_session,  # noqa: ANN001
+    model_provider_id: str,
+    *,
+    provider_type: str = "OpenAIResponsesHTTPAgent",
+    model: str = "gpt-5-nano",
+    provider_label: str = "OpenAI",
+    provider_base_url: str | None = "https://api.openai.com/v1",
+    api_family: str | None = "openai",
+    metadata: dict[str, Any] | None = None,
+    active: bool = True,
+    supports_streaming: bool = True,
+    structured_kinds: list[str] | None = None,
+    supports_reasoning: bool | None = True,
+    supported_reasoning_efforts: list[str] | None = None,
+    supports_tools: bool = True,
+    native_tool_support: list[str] | None = None,
+) -> None:
+    existing = await async_session.get(ORMModelProvider, model_provider_id)
+    values = {
+        "provider_type": provider_type,
+        "model": model,
+        "model_label": model,
+        "provider_label": provider_label,
+        "provider_base_url": provider_base_url,
+        "api_family": api_family,
+        "active": active,
+        "accepts": ["text"],
+        "produces": ["text"],
+        "supports_tools": supports_tools,
+        "supports_streaming": supports_streaming,
+        "structured_kinds": structured_kinds if structured_kinds is not None else [MAIN_STRUCTURED_RESPONSE_KIND],
+        "supports_reasoning": supports_reasoning,
+        "supported_reasoning_efforts": supported_reasoning_efforts
+        if supported_reasoning_efforts is not None
+        else ["low", "medium", "high"],
+        "native_tool_support": native_tool_support if native_tool_support is not None else ["web_search"],
+        "metadata_": metadata or {},
+    }
+    if existing is None:
+        async_session.add(ORMModelProvider(id=model_provider_id, **values))
+    else:
+        for field_name, value in values.items():
+            setattr(existing, field_name, value)
+    await async_session.commit()
+
+
+async def _seed_default_chat_model_provider(async_session) -> None:  # noqa: ANN001
+    await _seed_chat_model_provider(
+        async_session,
+        "OpenAIHTTPAgent:gpt-5-nano",
+        provider_type="OpenAIHTTPAgent",
+        model="gpt-5-nano",
+    )
+
+
+async def _seed_uploaded_file_chunk(
+    async_session,  # noqa: ANN001
+    *,
+    file_id: str,
+    user_id: str = "user-1",
+    status: str = STATUS_READY,
+    text: str | list[str] = "Attached file text.",
+    original_filename: str | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    texts = [text] if isinstance(text, str) else text
+    total_size = sum(len(chunk_text) for chunk_text in texts)
+    async_session.add(
+        ORMUserFile(
+            id=file_id,
+            user_id=user_id,
+            storage_locator=f"users/{user_id}/files/{file_id}/object.txt",
+            original_filename=original_filename or f"{file_id}.txt",
+            normalized_extension=".txt",
+            declared_content_type="text/plain",
+            declared_size_bytes=max(1, total_size),
+            stored_size_bytes=max(1, total_size),
+            status=status,
+            upload_expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+            metadata_=metadata or {},
+        )
+    )
+    async_session.add_all(
+        [
+            ORMUserFileChunk(
+                id=f"chunk-{file_id}-{chunk_index:06d}",
+                file_id=file_id,
+                user_id=user_id,
+                chunk_index=chunk_index,
+                text=chunk_text,
+                embedding=[1.0, 0.0, 0.0],
+                char_count=len(chunk_text),
+                token_estimate=max(1, len(chunk_text) // 4),
+                metadata_={},
+            )
+            for chunk_index, chunk_text in enumerate(texts)
+        ]
+    )
+    await async_session.commit()
+
+
+async def _seed_anima_identity_file(async_session, *, anima_id: str, user_id: str = "user-1") -> None:  # noqa: ANN001
+    content = f"Identity for {anima_id}."
+    async_session.add(
+        ORMMemoryEntry(
+            id=f"mem-{anima_id}",
+            user_id=user_id,
+            anima_id=anima_id,
+            parent_id=None,
+            type="file",
+            name="identity.md",
+            normalized_name="identity.md",
+            path="identity.md",
+            normalized_path="identity.md",
+            content=content,
+            content_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            version=1,
+            size_bytes=len(content.encode("utf-8")),
+            kind="anima_identity",
+            metadata_={"anima_id": anima_id, "source": {"type": "test"}},
+        )
+    )
+    await async_session.commit()
+
+
+async def _seed_user_memory_file(
+    async_session,  # noqa: ANN001
+    *,
+    relative_path: str,
+    content: str,
+    user_id: str = "user-1",
+    description: str | None = None,
+) -> None:
+    async_session.add(
+        ORMMemoryEntry(
+            id=f"mem-user-{relative_path.replace('/', '-')}",
+            user_id=user_id,
+            anima_id=None,
+            parent_id=None,
+            type="file",
+            name=relative_path.rsplit("/", 1)[-1],
+            normalized_name=relative_path.rsplit("/", 1)[-1].casefold(),
+            path=relative_path,
+            normalized_path=relative_path.casefold(),
+            content=content,
+            content_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            version=1,
+            size_bytes=len(content.encode("utf-8")),
+            kind="user_memory",
+            description=description,
+            metadata_={"source": {"type": "test"}},
+        )
+    )
+    await async_session.commit()
+
+
+def _install_route_compaction_mocks(
+    monkeypatch,
+    *,
+    threshold_tokens: int = 1,
+    recent_message_min_count: int = 2,
+    summary: str = "Compacted continuity summary.",
+    usage: Usage | None = None,
+    fail: bool = False,
+    started_event: asyncio.Event | None = None,
+    release_event: asyncio.Event | None = None,
+) -> list[_FakePromptRunner]:
+    monkeypatch.setattr(
+        chat_compaction,
+        "chat_compaction_settings",
+        lambda: chat_compaction.ChatCompactionSettings(
+            enabled=True,
+            threshold_tokens=threshold_tokens,
+            recent_message_min_count=recent_message_min_count,
+            model_provider="OpenAIResponsesHTTPAgent",
+            model="gpt-5-nano",
+            prompt_version="chat-compaction-v1-test",
+        ),
+    )
+    runners: list[_FakePromptRunner] = []
+
+    def _fake_direct_model_prompt_runner(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        runner = _FakePromptRunner(
+            text=summary,
+            usage=usage,
+            fail=fail,
+            started_event=started_event,
+            release_event=release_event,
+        )
+        runners.append(runner)
+        return runner
+
+    monkeypatch.setattr(chat_compaction, "direct_model_prompt_runner", _fake_direct_model_prompt_runner)
+    return runners
+
+
+def _install_route_title_mocks(
+    monkeypatch,
+    *,
+    title: str = "Generated title",
+    usage: Usage | None = None,
+    fail: bool = False,
+    started_event: asyncio.Event | None = None,
+    release_event: asyncio.Event | None = None,
+) -> list[_FakePromptRunner]:
+    monkeypatch.setattr(
+        chat_title,
+        "chat_title_generation_settings",
+        lambda: ChatTitleGenerationSettings(
+            enabled=True,
+            model_provider="OpenAIResponsesHTTPAgent",
+            model="gpt-5-nano",
+            prompt_version="chat-title-v1-test",
+            max_chars=48,
+            timeout_seconds=1.0,
+        ),
+    )
+    runners: list[_FakePromptRunner] = []
+
+    def _fake_direct_model_prompt_runner(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        runner = _FakePromptRunner(
+            text=title,
+            usage=usage,
+            fail=fail,
+            started_event=started_event,
+            release_event=release_event,
+        )
+        runners.append(runner)
+        return runner
+
+    monkeypatch.setattr(chat_title, "direct_model_prompt_runner", _fake_direct_model_prompt_runner)
+    return runners
+
+
+def _prompt_runner_call_count(runners: list[_FakePromptRunner]) -> int:
+    return sum(len(runner.calls) for runner in runners)
+
+
+async def _seed_visible_chat_messages(async_session, *, chat_id: str, contents: list[str]) -> list[ORMChatMessage]:
+    rows: list[ORMChatMessage] = []
+    for index, content in enumerate(contents):
+        rows.append(
+            ORMChatMessage(
+                chat_id=chat_id,
+                run_id=f"old-run-{index}",
+                message_type="message",
+                role="user" if index % 2 == 0 else "assistant",
+                content=content,
+                message_data={},
+                turn=index + 1,
+                internal=False,
+            )
+        )
+    async_session.add_all(rows)
+    chat = await async_session.get(ORMChat, chat_id)
+    if chat is not None:
+        chat.next_turn = len(contents) + 1
+    await async_session.commit()
+    return rows
+
+
+def test_chat_sse_route_is_mounted_and_dispatch_sse_is_retired() -> None:
+    paths = {getattr(route, "path", None) for route in router.routes}
+    api_paths = {getattr(route, "path", None) for route in api_router.routes}
+    endpoints = {getattr(route, "path", None): getattr(route, "endpoint", None) for route in api_router.routes}
+    assert "/v1/animas/{anima_id}/chat:sse" in paths
+    assert "/v1/animas/{anima_id}/chat:sse" in api_paths
+    assert endpoints["/v1/animas/{anima_id}/chat:sse"].__name__ == "chat_anima_direct_sse"
+    assert "/v1/animas/{anima_id}/dispatch:sse" not in paths
+    assert "/v1/animas/{anima_id}/dispatch:sse" not in api_paths
+
+
+def test_anima_gruut_wrapper_accepts_tokenized_text_source(monkeypatch) -> None:
+    from animama.server.routers import anima as anima_router
+
+    calls: list[dict[str, Any]] = []
+
+    def _fake_build_gruut_sse_text(text: str, **kwargs: Any) -> dict[str, Any]:
+        calls.append({"text": text, **kwargs})
+        return {"tokenized_text": "Speak this.", "phonemized_text": [["S"]]}
+
+    monkeypatch.setattr(anima_router, "build_gruut_sse_text", _fake_build_gruut_sse_text)
+
+    assert anima_router._build_gruut_sse_text(
+        "Speak this.",
+        lang="en_US",
+        tokenized_text_source="text_with_ws",
+    ) == {"tokenized_text": "Speak this.", "phonemized_text": [["S"]]}
+    assert calls == [
+        {
+            "text": "Speak this.",
+            "lang": "en_US",
+            "tokenized_text_source": "text_with_ws",
+        }
+    ]
+
+
+def test_anima_chat_request_rejects_blank_message() -> None:
+    with pytest.raises(ValidationError):
+        _chat_request(message=" \n\t ")
+    assert _chat_request(message="  hello  ").message == "hello"
+
+
+def test_anima_chat_request_requires_runtime_revision() -> None:
+    with pytest.raises(ValidationError):
+        PyAnimaChatRequest(message="hello")
+
+
+def test_anima_chat_request_accepts_model_provider_id() -> None:
+    request = _chat_request(message="hello", model_provider_id="  OpenAIResponsesHTTPAgent:gpt-5-nano  ")
+
+    assert request.model_provider_id == "OpenAIResponsesHTTPAgent:gpt-5-nano"
+    with pytest.raises(ValidationError):
+        _chat_request(message="hello", model_provider_id=" \n\t ")
+
+
+def test_anima_chat_request_accepts_chat_id_alias() -> None:
+    request = _chat_request(message="hello", chat_id="chat-1")
+
+    assert request.chat_id == "chat-1"
+
+
+def test_anima_chat_request_accepts_elevenlabs_v3_tts_model() -> None:
+    request = _chat_request(
+        message="hello",
+        dispatch_options={
+            "tts": {
+                "enabled": True,
+                "provider": "elevenlabs",
+                "model_id": "eleven_v3",
+                "finalized_chunking": "paragraph",
+            }
+        },
+    )
+
+    assert request.dispatch_options is not None
+    assert request.dispatch_options.tts is not None
+    assert request.dispatch_options.tts.model_id == "eleven_v3"
+    assert request.dispatch_options.tts.finalized_chunking == "paragraph"
+
+
+def test_anima_chat_request_rejects_unknown_elevenlabs_tts_model() -> None:
+    with pytest.raises(ValidationError):
+        _chat_request(
+            message="hello",
+            dispatch_options={
+                "tts": {
+                    "enabled": True,
+                    "provider": "elevenlabs",
+                    "model_id": "eleven_turbo_v2",
+                }
+            },
+        )
+
+
+def test_anima_chat_request_rejects_unknown_finalized_tts_chunking() -> None:
+    with pytest.raises(ValidationError):
+        _chat_request(
+            message="hello",
+            dispatch_options={
+                "tts": {
+                    "enabled": True,
+                    "provider": "elevenlabs",
+                    "model_id": "eleven_v3",
+                    "finalized_chunking": "chapter",
+                }
+            },
+        )
+
+
+def test_finalized_tts_paragraph_batcher_flushes_at_visible_char_limit() -> None:
+    batcher = chat_tts.FinalizedTtsSegmentBatcher("paragraph")
+    first = "A" * 350
+    second = "B" * 260
+
+    batcher.add_segment(_prepared_tts_segment(first, part_index=0))
+    assert batcher.pop_ready() is None
+
+    batcher.add_segment(_prepared_tts_segment(f" {second}", part_index=1))
+    batch = batcher.pop_ready()
+
+    assert batch is not None
+    assert batch.text == f"{first} {second}"
+    assert batch.text_basis == "visible_text"
+    assert batcher.pop_ready() is None
+
+
+def test_finalized_tts_silence_audio_is_400ms_pcm() -> None:
+    audio_base64 = chat_tts._finalized_tts_silence_audio_base64(
+        duration_sec=chat_tts.FINALIZED_TTS_PARAGRAPH_LEADING_PAUSE_SEC,
+        sample_rate=chat_tts.FINALIZED_TTS_PCM_SAMPLE_RATE,
+    )
+    audio_bytes = base64.b64decode(audio_base64)
+
+    assert len(audio_bytes) == round(
+        chat_tts.FINALIZED_TTS_PARAGRAPH_LEADING_PAUSE_SEC * chat_tts.FINALIZED_TTS_PCM_SAMPLE_RATE * 2
+    )
+    assert set(audio_bytes) == {0}
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_success_emits_user_response_and_completed(monkeypatch) -> None:
+    model_client = _RouteModelClient()
+    session = _install_route_mocks(monkeypatch, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: user.response" in chunk for chunk in chunks)
+    assert any('"text": "Hello"' in chunk for chunk in chunks)
+    assert not any('"tts_text"' in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert _event_count(chunks, "run.completed") == 1
+    assert any('"chat_id": "chat-1"' in chunk for chunk in chunks if "event: run.completed" in chunk)
+    assert session.close_calls == 1
+    assert model_client.close_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_closes_setup_session_before_model_stream(monkeypatch) -> None:
+    session = _FakeSession()
+    stream_start_close_calls: list[int] = []
+
+    def _capture_setup_session_close_count() -> None:
+        stream_start_close_calls.append(session.close_calls)
+
+    model_client = _RouteModelClient(on_stream_start=_capture_setup_session_close_count)
+    _install_route_mocks(monkeypatch, session=session, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert stream_start_close_calls == [1]
+    assert session.close_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_uses_chat_id_when_provided(monkeypatch) -> None:
+    chats = _FakeChatManager()
+    _install_route_mocks(monkeypatch, chat_manager=chats)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert chats.ensure_chat_calls[0]["chat_id"] == "chat-1"
+    assert chats.context_calls[0]["chat_id"] == "chat-1"
+    assert any('"chat_id": "chat-1"' in chunk for chunk in chunks if "event: run.completed" in chunk)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_emits_tts_session_for_elevenlabs_intent(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "tts": {
+                "enabled": True,
+                "provider": "elevenlabs",
+                "transport": "auto",
+                "language_code": "en",
+                "model_id": "eleven_flash_v2_5",
+            }
+        },
+    )
+    calls: list[dict[str, Any]] = []
+
+    async def _fake_resolve_realtime_tts_session(**kwargs):
+        calls.append(kwargs)
+        return PyElevenLabsRealtimeTtsSessionResponse(
+            voice_id="voice-primary",
+            model_id="eleven_flash_v2_5",
+            output_format="pcm_24000",
+            sync_alignment=False,
+            language_code="en",
+            token="sutkn-chat",
+            websocket_base_url="wss://api.elevenlabs.io",
+        )
+
+    monkeypatch.setattr(chat_tts, "resolve_realtime_tts_session", _fake_resolve_realtime_tts_session)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    tts_index = next(index for index, chunk in enumerate(chunks) if "event: tts.session" in chunk)
+    completed_index = next(index for index, chunk in enumerate(chunks) if "event: run.completed" in chunk)
+    assert tts_index < completed_index
+    assert any("event: user.response" in chunk for chunk in chunks)
+    assert '"type": "tts.session"' in chunks[tts_index]
+    assert '"provider": "elevenlabs"' in chunks[tts_index]
+    assert '"transport": "direct"' in chunks[tts_index]
+    assert '"model_id": "eleven_flash_v2_5"' in chunks[tts_index]
+    assert '"token": "sutkn-chat"' in chunks[tts_index]
+    assert calls[0]["anima_id"] == "anima-1"
+    assert calls[0]["user_id"] == "user-1"
+    assert calls[0]["language_code"] == "en"
+    assert calls[0]["model_id"] == "eleven_flash_v2_5"
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_streams_user_response_while_tts_session_pending(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "tts": {
+                "enabled": True,
+                "provider": "elevenlabs",
+                "transport": "auto",
+            }
+        },
+    )
+    release_tts_session = asyncio.Event()
+
+    async def _fake_resolve_realtime_tts_session(**_kwargs):
+        await release_tts_session.wait()
+        return PyElevenLabsRealtimeTtsSessionResponse(
+            voice_id="voice-primary",
+            model_id="eleven_multilingual_v2",
+            output_format="pcm_24000",
+            sync_alignment=False,
+            token="sutkn-chat",
+            websocket_base_url="wss://api.elevenlabs.io",
+        )
+
+    monkeypatch.setattr(chat_tts, "resolve_realtime_tts_session", _fake_resolve_realtime_tts_session)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+
+    chunks: list[str] = []
+    body_iterator = response.body_iterator
+    while True:
+        raw_chunk = await asyncio.wait_for(anext(body_iterator), timeout=1.0)
+        chunk = raw_chunk.decode() if isinstance(raw_chunk, bytes) else raw_chunk
+        chunks.append(chunk)
+        if "event: user.response" in chunk:
+            break
+
+    assert not any("event: tts.session" in chunk for chunk in chunks)
+
+    release_tts_session.set()
+    while True:
+        try:
+            raw_chunk = await asyncio.wait_for(anext(body_iterator), timeout=1.0)
+        except StopAsyncIteration:
+            break
+        chunk = raw_chunk.decode() if isinstance(raw_chunk, bytes) else raw_chunk
+        chunks.append(chunk)
+
+    user_index = next(index for index, chunk in enumerate(chunks) if "event: user.response" in chunk)
+    tts_index = next(index for index, chunk in enumerate(chunks) if "event: tts.session" in chunk)
+    completed_index = next(index for index, chunk in enumerate(chunks) if "event: run.completed" in chunk)
+    assert user_index < tts_index < completed_index
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "tts_options",
+    [
+        None,
+        {"enabled": False, "provider": "elevenlabs"},
+        {"enabled": True, "provider": "browser"},
+        {"enabled": True, "provider": "pocket_tts"},
+    ],
+)
+async def test_chat_sse_does_not_resolve_tts_session_without_elevenlabs_intent(
+    monkeypatch,
+    tts_options: dict[str, object] | None,
+) -> None:
+    chat_options = {"tts": tts_options} if tts_options is not None else {}
+    _install_route_mocks(monkeypatch, chat_options=chat_options)
+
+    async def _unexpected_resolve_realtime_tts_session(**_kwargs):
+        raise AssertionError("TTS session resolution should not be called")
+
+    monkeypatch.setattr(chat_tts, "resolve_realtime_tts_session", _unexpected_resolve_realtime_tts_session)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert not any("event: tts.session" in chunk for chunk in chunks)
+    assert any("event: user.response" in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_does_not_resolve_tts_session_for_elevenlabs_v3(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"}},
+    )
+
+    async def _unexpected_resolve_realtime_tts_session(**_kwargs):
+        raise AssertionError("v3 should use finalized-text TTS, not realtime session setup")
+
+    monkeypatch.setattr(chat_tts, "resolve_realtime_tts_session", _unexpected_resolve_realtime_tts_session)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert not any("event: tts.session" in chunk for chunk in chunks)
+    assert not any("event: tts.session.error" in chunk for chunk in chunks)
+    assert any("event: tts.error" in chunk for chunk in chunks)
+    assert any("event: user.response" in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_tts_session_error_continues_chat_stream(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"tts": {"enabled": True, "provider": "elevenlabs"}},
+    )
+
+    async def _fail_resolve_realtime_tts_session(**_kwargs):
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "voice_missing", "message": "Anima voice is missing"},
+        )
+
+    monkeypatch.setattr(chat_tts, "resolve_realtime_tts_session", _fail_resolve_realtime_tts_session)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    error_index = next(index for index, chunk in enumerate(chunks) if "event: tts.session.error" in chunk)
+    completed_index = next(index for index, chunk in enumerate(chunks) if "event: run.completed" in chunk)
+    assert error_index < completed_index
+    assert '"type": "tts.session.error"' in chunks[error_index]
+    assert '"code": "voice_missing"' in chunks[error_index]
+    assert '"status_code": 409' in chunks[error_index]
+    assert any("event: user.response" in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_does_not_call_graph_runtime_or_runner_registry(monkeypatch) -> None:
+    model_client = _RouteModelClient()
+    _install_route_mocks(monkeypatch, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    await _collect_chunks(response)
+    assert len(model_client.seen_specs) == 1
+    assert prompt_last_user_message(model_client.seen_specs[0].prompt, fallback="") == "hello"
+
+
+def test_direct_chat_production_code_has_no_graph_runtime_imports() -> None:
+    root = Path(__file__).resolve().parents[1]
+    checked_paths = [
+        root / "src/backend/animama/server/routers/chat/chat_sse.py",
+        root / "src/backend/animama/server/routers/anima.py",
+    ]
+    forbidden = (
+        "from animama.app.runtime.runtime import AnimaRuntime",
+        "make_runner_registry_for_graph",
+        "stream_stateless_dispatch_sse",
+        "resolve_direct_chat_runtime_config",
+        "build_direct_chat_agents_for_config",
+        "AgentRunner",
+    )
+    offenders: list[str] = []
+
+    for path in checked_paths:
+        text = path.read_text(encoding="utf-8")
+        hits = [token for token in forbidden if token in text]
+        if hits:
+            offenders.append(f"{path.relative_to(root)}: {', '.join(hits)}")
+
+    assert not offenders
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_chat_options_flow_into_runtime_context(monkeypatch) -> None:
+    model_client = _RouteModelClient()
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "disable_emotion_updates": True,
+            "disable_memory_influence": True,
+            "disable_memory_updates": True,
+            "main_structured_response": True,
+            "native_tools": ["web_search"],
+            "reasoning_effort": "low",
+        },
+        model_client=model_client,
+        model_provider=_model_provider(
+            model_provider_id="OpenAIResponsesHTTPAgent:gpt-5-nano",
+            provider_type="OpenAIResponsesHTTPAgent",
+        ),
+    )
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    await _collect_chunks(response)
+
+    model_request = model_client.seen_specs[0]
+    assert model_request.provider_options["native_tools"] == ("web_search",) or model_request.provider_options[
+        "native_tools"
+    ] == ["web_search"]
+    assert model_request.prompt.reasoning_effort == "low"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("response_part", "expected_gruut_call_count"),
+    [
+        ("speech", 1),
+        ("display", 1),
+    ],
+)
+async def test_chat_sse_main_structured_gruut_behavior(
+    monkeypatch,
+    response_part: str,
+    expected_gruut_call_count: int,
+) -> None:
+    display = "Display this." if response_part == "display" else None
+    model_client = _RouteModelClient(text=_direct_structured_response(speech="Speak this.", display=display))
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"main_structured_response": True},
+        model_client=model_client,
+    )
+    gruut_calls: list[dict[str, Any]] = []
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        gruut_calls.append({"text": final_text, "lang": lang, **kwargs})
+        return {"tokenized_text": final_text, "phonemized_text": [["S"], ["DH"]]}
+
+    monkeypatch.setattr("animama.server.routers.anima._build_gruut_sse_text", _fake_gruut)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={"main_structured_response": True},
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any('"response_format": "main_structured_json"' in chunk for chunk in chunks)
+    assert any('"response_part": "speech"' in chunk for chunk in chunks)
+    if display:
+        assert any('"response_part": "display"' in chunk for chunk in chunks)
+        assert any('"text": "Display this."' in chunk for chunk in chunks)
+    assert len(gruut_calls) == expected_gruut_call_count
+    assert gruut_calls == [
+        {"text": "Speak this.", "lang": "en_US"},
+    ]
+    assert any('"tokenized_text": "Speak this."' in chunk for chunk in chunks)
+    assert not any('"tokenized_text": "Display this."' in chunk for chunk in chunks)
+    assert not any('"tts_text"' in chunk for chunk in chunks)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_main_structured_emotional_tone_is_internal(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"main_structured_response": True},
+        model_client=_RouteModelClient(text=_direct_structured_response(speech="Speak this.", emotional_tone="joy")),
+    )
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={"main_structured_response": True},
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any('"response_part": "speech"' in chunk for chunk in chunks)
+    assert any('"text": "Speak this."' in chunk for chunk in chunks)
+    assert not any('"response_part": "emotional_tone"' in chunk for chunk in chunks)
+    assert not any('"text": "joy"' in chunk for chunk in chunks)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_primary_structured_uses_main_structured_sse_behavior(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"disable_emotion_updates": True},
+        model_client=_RouteModelClient(text=_direct_structured_response(speech="Speak this.", emotional_tone="joy")),
+    )
+    gruut_calls: list[dict[str, Any]] = []
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        gruut_calls.append({"text": final_text, "lang": lang, **kwargs})
+        return {"tokenized_text": final_text, "phonemized_text": [["S"], ["DH"]]}
+
+    monkeypatch.setattr("animama.server.routers.anima._build_gruut_sse_text", _fake_gruut)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any(f'"response_format": "{MAIN_STRUCTURED_RESPONSE_FORMAT}"' in chunk for chunk in chunks)
+    assert any('"response_part": "speech"' in chunk for chunk in chunks)
+    assert any('"text": "Speak this."' in chunk for chunk in chunks)
+    assert not any('"response_part": "emotional_tone"' in chunk for chunk in chunks)
+    assert not any('"text": "joy"' in chunk for chunk in chunks)
+    assert gruut_calls == [{"text": "Speak this.", "lang": "en_US"}]
+    assert any('"tokenized_text": "Speak this."' in chunk for chunk in chunks)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_main_structured_tts_speech_includes_tts_text(
+    monkeypatch,
+) -> None:
+    session = _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "main_structured_response": True,
+            "disable_emotion_updates": True,
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+        },
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(text=_direct_structured_response(speech="Speak this.", emotional_tone="joy")),
+    )
+    gruut_calls: list[dict[str, Any]] = []
+    prepared_calls: list[dict[str, Any]] = []
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        gruut_calls.append({"text": final_text, "lang": lang, **kwargs})
+        return {"tokenized_text": final_text, "phonemized_text": [["S"], ["DH"]]}
+
+    async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
+        prepared_calls.append(kwargs)
+        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000")
+
+    async def _fake_stream_finalized_tts_chunks(_prepared):
+        yield {
+            "type": "audio",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+            "audio_base64": "AQACAA==",
+        }
+        yield {
+            "type": "done",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+        }
+
+    monkeypatch.setattr("animama.server.routers.anima._build_gruut_sse_text", _fake_gruut)
+    monkeypatch.setattr(
+        chat_tts,
+        "prepare_finalized_tts_stream_from_text",
+        _fake_prepare_finalized_tts_stream_from_text,
+    )
+    monkeypatch.setattr(chat_tts, "stream_finalized_tts_chunks", _fake_stream_finalized_tts_chunks)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={
+                "main_structured_response": True,
+                "tts": {
+                    "enabled": True,
+                    "provider": "elevenlabs",
+                    "model_id": "eleven_v3",
+                },
+            },
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert gruut_calls == [
+        {"text": "Speak this.", "lang": "en_US"},
+        {
+            "text": "Speak this.",
+            "lang": "en_US",
+            "tokenized_text_source": "text_with_ws",
+        },
+    ]
+    assert any('"tokenized_text": "Speak this."' in chunk for chunk in chunks)
+    assert any('"tts_text": "Speak this."' in chunk for chunk in chunks)
+    assert any('"tts_text_basis": "gruut_text_with_ws"' in chunk for chunk in chunks)
+    assert len(prepared_calls) == 1
+    prepared_call = dict(prepared_calls[0])
+    prepared_session = prepared_call.pop("session")
+    assert prepared_session is not session
+    assert prepared_session.close_calls == 1
+    assert prepared_call == {
+        "user_id": "user-1",
+        "anima_id": "anima-1",
+        "run_id": "run-1",
+        "text": "Speak this.",
+        "model_id": "eleven_v3",
+        "language_code": None,
+        "text_basis": "gruut_text_with_ws",
+        "emotional_tone": "joy",
+        "emotional_state": {
+            "admiration": 0,
+            "caring": 0,
+            "love": 0,
+            "respect": 0,
+            "confidence": 0,
+            "gratitude": 0,
+            "amusement": 0,
+            "excitement": 0,
+            "joy": 16,
+            "desire": 0,
+            "curiosity": 0,
+            "optimism": 0,
+            "fear": 0,
+            "nervousness": 0,
+            "confusion": 0,
+            "anger": 0,
+            "annoyance": 0,
+            "disapproval": 0,
+            "disgust": 0,
+            "embarrassment": 0,
+            "remorse": 0,
+            "disappointment": 0,
+            "grief": 0,
+            "sadness": 0,
+        },
+        "previous_text": None,
+        "apply_emotional_prefix": True,
+    }
+    user_response_index = next(index for index, chunk in enumerate(chunks) if "event: user.response" in chunk)
+    audio_index = next(index for index, chunk in enumerate(chunks) if "event: tts.audio" in chunk)
+    done_index = next(index for index, chunk in enumerate(chunks) if "event: tts.done" in chunk)
+    completed_index = next(index for index, chunk in enumerate(chunks) if "event: run.completed" in chunk)
+    assert user_response_index < audio_index < done_index < completed_index
+    assert '"audio_base64": "AQACAA=="' in chunks[audio_index]
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_elevenlabs_v3_segments_structured_speech_in_order(monkeypatch) -> None:
+    session = _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "main_structured_response": True,
+            "disable_emotion_updates": True,
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+        },
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(
+            text=_direct_structured_response(
+                speech="First sentence. Second sentence.",
+                emotional_tone="joy",
+            )
+        ),
+    )
+    prepared_calls: list[dict[str, Any]] = []
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        del lang
+        return {"tokenized_text": " ".join(final_text.split()), "phonemized_text": [["S"], ["DH"]]}
+
+    async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
+        prepared_calls.append(kwargs)
+        return SimpleNamespace(
+            model_id="eleven_v3",
+            output_format="pcm_24000",
+            text=kwargs["text"],
+            voice_id=kwargs.get("voice_id") or "voice-primary",
+        )
+
+    async def _fake_stream_finalized_tts_chunks(prepared):
+        audio_base64 = "FIRST" if prepared.text == "First sentence." else "SECOND"
+        yield {
+            "type": "audio",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+            "audio_base64": audio_base64,
+        }
+        yield {
+            "type": "done",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+        }
+
+    monkeypatch.setattr("animama.server.routers.anima._build_gruut_sse_text", _fake_gruut)
+    monkeypatch.setattr(
+        chat_tts,
+        "prepare_finalized_tts_stream_from_text",
+        _fake_prepare_finalized_tts_stream_from_text,
+    )
+    monkeypatch.setattr(chat_tts, "stream_finalized_tts_chunks", _fake_stream_finalized_tts_chunks)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={
+                "main_structured_response": True,
+                "tts": {
+                    "enabled": True,
+                    "provider": "elevenlabs",
+                    "model_id": "eleven_v3",
+                },
+            },
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert [event["audio_base64"] for event in _event_data_all(chunks, "tts.audio")] == [
+        "FIRST",
+        "SECOND",
+    ]
+    assert _event_count(chunks, "tts.done") == 1
+    assert _event_count(chunks, "run.completed") == 1
+    normalized_calls: list[dict[str, Any]] = []
+    first_call = dict(prepared_calls[0])
+    prepared_session = first_call.pop("session")
+    assert prepared_session is not session
+    assert prepared_session.close_calls == 1
+    normalized_calls.append(first_call)
+
+    second_call = dict(prepared_calls[1])
+    assert "session" not in second_call
+    assert second_call.pop("voice_id") == "voice-primary"
+    normalized_calls.append(second_call)
+
+    assert [call["text"] for call in normalized_calls] == ["First sentence.", "Second sentence."]
+    assert [call["previous_text"] for call in normalized_calls] == [None, None]
+    assert [call["apply_emotional_prefix"] for call in normalized_calls] == [True, False]
+
+    first_audio_index = next(index for index, chunk in enumerate(chunks) if '"audio_base64": "FIRST"' in chunk)
+    second_audio_index = next(index for index, chunk in enumerate(chunks) if '"audio_base64": "SECOND"' in chunk)
+    done_index = next(index for index, chunk in enumerate(chunks) if "event: tts.done" in chunk)
+    completed_index = next(index for index, chunk in enumerate(chunks) if "event: run.completed" in chunk)
+    assert first_audio_index < second_audio_index < done_index < completed_index
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_elevenlabs_v3_paragraph_chunking_batches_sentence_segments(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "main_structured_response": True,
+            "disable_emotion_updates": True,
+            "tts": {
+                "enabled": True,
+                "provider": "elevenlabs",
+                "model_id": "eleven_v3",
+                "finalized_chunking": "paragraph",
+            },
+        },
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(
+            text=_direct_structured_response(
+                speech="First sentence. Second sentence.",
+                emotional_tone="joy",
+            )
+        ),
+    )
+    prepared_calls: list[dict[str, Any]] = []
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        del lang, kwargs
+        return {"tokenized_text": " ".join(final_text.split()), "phonemized_text": [["S"], ["DH"]]}
+
+    async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
+        prepared_calls.append(kwargs)
+        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000", text=kwargs["text"])
+
+    async def _fake_stream_finalized_tts_chunks(prepared):
+        yield {
+            "type": "audio",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+            "audio_base64": "PARAGRAPH",
+        }
+        yield {
+            "type": "done",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+        }
+
+    monkeypatch.setattr("animama.server.routers.anima._build_gruut_sse_text", _fake_gruut)
+    monkeypatch.setattr(
+        chat_tts,
+        "prepare_finalized_tts_stream_from_text",
+        _fake_prepare_finalized_tts_stream_from_text,
+    )
+    monkeypatch.setattr(chat_tts, "stream_finalized_tts_chunks", _fake_stream_finalized_tts_chunks)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={
+                "main_structured_response": True,
+                "tts": {
+                    "enabled": True,
+                    "provider": "elevenlabs",
+                    "model_id": "eleven_v3",
+                    "finalized_chunking": "paragraph",
+                },
+            },
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert [event["audio_base64"] for event in _event_data_all(chunks, "tts.audio")] == ["PARAGRAPH"]
+    assert _event_count(chunks, "tts.done") == 1
+    assert len(prepared_calls) == 1
+    assert prepared_calls[0]["text"] == "First sentence. Second sentence."
+    assert prepared_calls[0]["text_basis"] == "visible_text"
+    assert prepared_calls[0]["previous_text"] is None
+    assert prepared_calls[0]["apply_emotional_prefix"] is True
+    assert not any("paragraph_index" in chunk or "paragraph_break_before" in chunk for chunk in chunks)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_elevenlabs_v3_paragraph_chunking_splits_paragraph_breaks(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "main_structured_response": True,
+            "disable_emotion_updates": True,
+            "tts": {
+                "enabled": True,
+                "provider": "elevenlabs",
+                "model_id": "eleven_v3",
+                "finalized_chunking": "paragraph",
+            },
+        },
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(
+            text=_direct_structured_response(
+                speech="First paragraph.\n\nSecond paragraph.",
+                emotional_tone="joy",
+            )
+        ),
+    )
+    prepared_calls: list[dict[str, Any]] = []
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        del lang, kwargs
+        return {"tokenized_text": " ".join(final_text.split()), "phonemized_text": [["S"], ["DH"]]}
+
+    async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
+        prepared_calls.append(kwargs)
+        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000", text=kwargs["text"])
+
+    async def _fake_stream_finalized_tts_chunks(prepared):
+        yield {
+            "type": "audio",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+            "audio_base64": "FIRST" if prepared.text == "First paragraph." else "SECOND",
+        }
+        yield {
+            "type": "done",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+        }
+
+    monkeypatch.setattr("animama.server.routers.anima._build_gruut_sse_text", _fake_gruut)
+    monkeypatch.setattr(
+        chat_tts,
+        "prepare_finalized_tts_stream_from_text",
+        _fake_prepare_finalized_tts_stream_from_text,
+    )
+    monkeypatch.setattr(chat_tts, "stream_finalized_tts_chunks", _fake_stream_finalized_tts_chunks)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={
+                "main_structured_response": True,
+                "tts": {
+                    "enabled": True,
+                    "provider": "elevenlabs",
+                    "model_id": "eleven_v3",
+                    "finalized_chunking": "paragraph",
+                },
+            },
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert [call["text"] for call in prepared_calls] == ["First paragraph.", "Second paragraph."]
+    assert [call["text_basis"] for call in prepared_calls] == ["visible_text", "visible_text"]
+    assert [call["previous_text"] for call in prepared_calls] == [None, None]
+    assert [call["apply_emotional_prefix"] for call in prepared_calls] == [True, True]
+    audio_events = _event_data_all(chunks, "tts.audio")
+    assert len(audio_events) == 3
+    assert audio_events[0]["audio_base64"] == "FIRST"
+    assert audio_events[2]["audio_base64"] == "SECOND"
+    silence_bytes = base64.b64decode(audio_events[1]["audio_base64"])
+    assert len(silence_bytes) == round(
+        chat_tts.FINALIZED_TTS_PARAGRAPH_LEADING_PAUSE_SEC * chat_tts.FINALIZED_TTS_PCM_SAMPLE_RATE * 2
+    )
+    assert set(silence_bytes) == {0}
+    assert _event_count(chunks, "tts.done") == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_elevenlabs_v3_paragraph_chunking_flushes_after_four_sentences(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "main_structured_response": True,
+            "disable_emotion_updates": True,
+            "tts": {
+                "enabled": True,
+                "provider": "elevenlabs",
+                "model_id": "eleven_v3",
+                "finalized_chunking": "paragraph",
+            },
+        },
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(
+            text=_direct_structured_response(
+                speech="One. Two. Three. Four. Five.",
+                emotional_tone="joy",
+            )
+        ),
+    )
+    prepared_calls: list[dict[str, Any]] = []
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        del lang, kwargs
+        return {"tokenized_text": " ".join(final_text.split()), "phonemized_text": [["S"], ["DH"]]}
+
+    async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
+        prepared_calls.append(kwargs)
+        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000", text=kwargs["text"])
+
+    async def _fake_stream_finalized_tts_chunks(prepared):
+        yield {
+            "type": "audio",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+            "audio_base64": "BATCH1" if prepared.text.startswith("One.") else "BATCH2",
+        }
+        yield {
+            "type": "done",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+        }
+
+    monkeypatch.setattr("animama.server.routers.anima._build_gruut_sse_text", _fake_gruut)
+    monkeypatch.setattr(
+        chat_tts,
+        "prepare_finalized_tts_stream_from_text",
+        _fake_prepare_finalized_tts_stream_from_text,
+    )
+    monkeypatch.setattr(chat_tts, "stream_finalized_tts_chunks", _fake_stream_finalized_tts_chunks)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={
+                "main_structured_response": True,
+                "tts": {
+                    "enabled": True,
+                    "provider": "elevenlabs",
+                    "model_id": "eleven_v3",
+                    "finalized_chunking": "paragraph",
+                },
+            },
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert [call["text"] for call in prepared_calls] == ["One. Two. Three. Four.", "Five."]
+    assert [call["text_basis"] for call in prepared_calls] == ["visible_text", "visible_text"]
+    assert [call["previous_text"] for call in prepared_calls] == [None, None]
+    assert [call["apply_emotional_prefix"] for call in prepared_calls] == [True, True]
+    assert [event["audio_base64"] for event in _event_data_all(chunks, "tts.audio")] == ["BATCH1", "BATCH2"]
+    assert _event_count(chunks, "tts.done") == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_elevenlabs_v3_segment_failure_emits_error_without_done(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "main_structured_response": True,
+            "disable_emotion_updates": True,
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+        },
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(
+            text=_direct_structured_response(
+                speech="First sentence. Second sentence.",
+                emotional_tone="joy",
+            )
+        ),
+    )
+    prepared_calls: list[dict[str, Any]] = []
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        del lang, kwargs
+        return {"tokenized_text": " ".join(final_text.split()), "phonemized_text": [["S"], ["DH"]]}
+
+    async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
+        prepared_calls.append(kwargs)
+        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000")
+
+    async def _fake_stream_finalized_tts_chunks(_prepared):
+        yield {
+            "type": "error",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+            "error": "stream failed",
+            "code": "elevenlabs_stream_failed",
+        }
+
+    monkeypatch.setattr("animama.server.routers.anima._build_gruut_sse_text", _fake_gruut)
+    monkeypatch.setattr(
+        chat_tts,
+        "prepare_finalized_tts_stream_from_text",
+        _fake_prepare_finalized_tts_stream_from_text,
+    )
+    monkeypatch.setattr(chat_tts, "stream_finalized_tts_chunks", _fake_stream_finalized_tts_chunks)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={
+                "main_structured_response": True,
+                "tts": {
+                    "enabled": True,
+                    "provider": "elevenlabs",
+                    "model_id": "eleven_v3",
+                },
+            },
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert len(prepared_calls) == 1
+    assert _event_count(chunks, "tts.error") == 1
+    assert _event_count(chunks, "tts.done") == 0
+    assert _event_count(chunks, "run.completed") == 1
+    assert _event_data(chunks, "tts.error")["error"] == "stream failed"
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_early_stream_close_cancels_finalized_tts_work(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "main_structured_response": True,
+            "disable_emotion_updates": True,
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+        },
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(
+            text=_direct_structured_response(
+                speech="First sentence. Second sentence.",
+                emotional_tone="joy",
+            )
+        ),
+    )
+    stream_waiting = asyncio.Event()
+    stream_cancelled = asyncio.Event()
+    release_stream = asyncio.Event()
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        del lang, kwargs
+        return {"tokenized_text": " ".join(final_text.split()), "phonemized_text": [["S"], ["DH"]]}
+
+    async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
+        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000", text=kwargs["text"])
+
+    async def _fake_stream_finalized_tts_chunks(_prepared):
+        yield {
+            "type": "audio",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+            "audio_base64": "FIRST",
+        }
+        stream_waiting.set()
+        try:
+            await release_stream.wait()
+        except asyncio.CancelledError:
+            stream_cancelled.set()
+            raise
+        yield {
+            "type": "done",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+        }
+
+    monkeypatch.setattr("animama.server.routers.anima._build_gruut_sse_text", _fake_gruut)
+    monkeypatch.setattr(
+        chat_tts,
+        "prepare_finalized_tts_stream_from_text",
+        _fake_prepare_finalized_tts_stream_from_text,
+    )
+    monkeypatch.setattr(chat_tts, "stream_finalized_tts_chunks", _fake_stream_finalized_tts_chunks)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={
+                "main_structured_response": True,
+                "tts": {
+                    "enabled": True,
+                    "provider": "elevenlabs",
+                    "model_id": "eleven_v3",
+                },
+            },
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    body_iterator = response.body_iterator
+    while True:
+        raw_chunk = await asyncio.wait_for(anext(body_iterator), timeout=1.0)
+        chunk = raw_chunk.decode() if isinstance(raw_chunk, bytes) else raw_chunk
+        if "event: tts.audio" in chunk:
+            break
+
+    await asyncio.wait_for(stream_waiting.wait(), timeout=1.0)
+    await body_iterator.aclose()
+    await asyncio.wait_for(stream_cancelled.wait(), timeout=1.0)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_elevenlabs_v3_audio_streams_before_run_completed(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "main_structured_response": True,
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+        },
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(text=_direct_structured_response(speech="Speak this.", emotional_tone="joy")),
+    )
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        return {"tokenized_text": final_text, "phonemized_text": [["S"], ["DH"]]}
+
+    async def _fake_prepare_finalized_tts_stream_from_text(**_kwargs):
+        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000")
+
+    async def _fake_stream_finalized_tts_chunks(_prepared):
+        yield {
+            "type": "audio",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+            "audio_base64": "AQACAA==",
+        }
+        yield {
+            "type": "done",
+            "run_id": "run-1",
+            "model_id": "eleven_v3",
+            "output_format": "pcm_24000",
+        }
+
+    monkeypatch.setattr("animama.server.routers.anima._build_gruut_sse_text", _fake_gruut)
+    monkeypatch.setattr(
+        chat_tts,
+        "prepare_finalized_tts_stream_from_text",
+        _fake_prepare_finalized_tts_stream_from_text,
+    )
+    monkeypatch.setattr(chat_tts, "stream_finalized_tts_chunks", _fake_stream_finalized_tts_chunks)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={
+                "main_structured_response": True,
+                "tts": {
+                    "enabled": True,
+                    "provider": "elevenlabs",
+                    "model_id": "eleven_v3",
+                },
+            },
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+
+    chunks: list[str] = []
+    body_iterator = response.body_iterator
+    while True:
+        raw_chunk = await asyncio.wait_for(anext(body_iterator), timeout=1.0)
+        chunk = raw_chunk.decode() if isinstance(raw_chunk, bytes) else raw_chunk
+        chunks.append(chunk)
+        if "event: tts.audio" in chunk:
+            break
+
+    user_response_index = next(index for index, chunk in enumerate(chunks) if "event: user.response" in chunk)
+    audio_index = next(index for index, chunk in enumerate(chunks) if "event: tts.audio" in chunk)
+    assert user_response_index < audio_index
+
+    while True:
+        try:
+            raw_chunk = await asyncio.wait_for(anext(body_iterator), timeout=1.0)
+        except StopAsyncIteration:
+            break
+        chunk = raw_chunk.decode() if isinstance(raw_chunk, bytes) else raw_chunk
+        chunks.append(chunk)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_emotion_update_is_persisted_and_streamed(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"main_structured_response": True},
+        emotional_state={"joy": 1, "sadness": 5},
+        model_client=_RouteModelClient(
+            text=_direct_structured_response(
+                speech="Speak this.",
+                emotional_tone="joy",
+                emotional_intensity=5,
+            )
+        ),
+    )
+    persist_calls: list[tuple[str, object]] = []
+
+    async def _fake_persist_emotional_state_update(session_factory, anima_id, payload):
+        persist_calls.append((anima_id, payload))
+        return True
+
+    monkeypatch.setattr("animama.app.primary_emotion_update.random.choice", lambda _candidates: "sadness")
+    monkeypatch.setattr(
+        "animama.server.sse_events.persist_emotional_state_update",
+        _fake_persist_emotional_state_update,
+    )
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: emotion.update" in chunk for chunk in chunks)
+    assert any('"node_id": "direct-chat:model-client"' in chunk for chunk in chunks)
+    assert any('"emotional_tone": "joy"' in chunk for chunk in chunks)
+    assert any('"emotional_intensity": 2' in chunk for chunk in chunks)
+    assert not any('"emotion_intensity"' in chunk for chunk in chunks)
+    assert any('"promoted_emotion": "joy"' in chunk for chunk in chunks)
+    assert any('"demoted_emotion": "sadness"' in chunk for chunk in chunks)
+    assert not any('"animation"' in chunk for chunk in chunks)
+    assert not any('"vfx"' in chunk for chunk in chunks)
+    assert len(persist_calls) == 1
+    assert persist_calls[0][0] == "anima-1"
+    payload = persist_calls[0][1]
+    assert isinstance(payload, EmotionUpdatePayload)
+    state = {item.emotion: item.value for item in payload.emotions}
+    assert state["joy"] == 3
+    assert state["sadness"] == 3
+    assert payload.node_id == "direct-chat:model-client"
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_neutral_emotion_update_is_streamed_as_noop(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"main_structured_response": True},
+        emotional_state={"joy": 5},
+        model_client=_RouteModelClient(
+            text=_direct_structured_response(
+                speech="Speak this.",
+                emotional_tone="friendly",
+                emotional_intensity=10,
+            )
+        ),
+    )
+    persist_calls: list[tuple[str, object]] = []
+
+    async def _fake_persist_emotional_state_update(session_factory, anima_id, payload):
+        persist_calls.append((anima_id, payload))
+        return True
+
+    monkeypatch.setattr(
+        "animama.server.sse_events.persist_emotional_state_update",
+        _fake_persist_emotional_state_update,
+    )
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: emotion.update" in chunk for chunk in chunks)
+    assert any('"emotional_tone": "neutral"' in chunk for chunk in chunks)
+    assert any('"emotional_intensity": 0' in chunk for chunk in chunks)
+    assert not any('"emotion_intensity"' in chunk for chunk in chunks)
+    assert any('"promoted_emotion": null' in chunk for chunk in chunks)
+    assert any('"demoted_emotion": null' in chunk for chunk in chunks)
+    assert len(persist_calls) == 1
+    payload = persist_calls[0][1]
+    assert isinstance(payload, EmotionUpdatePayload)
+    state = {item.emotion: item.value for item in payload.emotions}
+    assert state["joy"] == 5
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_disable_emotion_updates_suppresses_primary_update(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"main_structured_response": True, "disable_emotion_updates": True},
+        emotional_state={"joy": 1},
+        model_client=_RouteModelClient(
+            text=_direct_structured_response(
+                speech="Speak this.",
+                emotional_tone="joy",
+                emotional_intensity=10,
+            )
+        ),
+    )
+    persist_calls: list[tuple[str, object]] = []
+
+    async def _fake_persist_emotional_state_update(session_factory, anima_id, payload):
+        persist_calls.append((anima_id, payload))
+        return True
+
+    monkeypatch.setattr(
+        "animama.server.sse_events.persist_emotional_state_update",
+        _fake_persist_emotional_state_update,
+    )
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert not any("event: emotion.update" in chunk for chunk in chunks)
+    assert persist_calls == []
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_avatar_gesture_requested_is_streamed(monkeypatch) -> None:
+    _install_route_mocks(
+        monkeypatch,
+        model_client=_RouteModelClient(text=_direct_structured_response(gesture="wave")),
+    )
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: avatar.gesture.requested" in chunk for chunk in chunks)
+    assert any('"gesture": "wave"' in chunk for chunk in chunks)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_revision_conflict_happens_before_model_invocation(monkeypatch) -> None:
+    model_client = _RouteModelClient()
+    _install_route_mocks(monkeypatch, model_client=model_client)
+
+    class _RuntimeService:
+        def __init__(self, _session) -> None:
+            pass
+
+        async def get_snapshot(self, **_kwargs):  # noqa: ANN003
+            return None
+
+    monkeypatch.setattr(
+        chat_turn_setup,
+        "AnimaRuntimeService",
+        _RuntimeService,
+    )
+
+    with pytest.raises(HTTPException) as raised:
+        await chat_anima_direct_sse(
+            "anima-1",
+            _chat_request(
+                message="hello",
+                run_id="run-1",
+                chat_id="chat-1",
+                runtime_revision="tr1-stale",
+            ),
+            request=_test_request(),
+            user=RequestPrincipal(id="user-1"),
+        )
+
+    assert raised.value.status_code == 409
+    assert raised.value.detail == {"code": "runtime_remount_required"}
+    assert model_client.seen_specs == []
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_custom_runtime_gesture_carries_matching_revision(monkeypatch) -> None:
+    model_client = _RouteModelClient(
+        text=_direct_structured_response(gesture="victory-dance"),
+    )
+    _install_route_mocks(
+        monkeypatch,
+        model_client=model_client,
+        runtime_catalog={
+            "gestures": [
+                {
+                    "semantic_key": "victory-dance",
+                    "name": "Victory Dance",
+                    "description": "Celebrate an exciting success.",
+                }
+            ]
+        },
+    )
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            runtime_revision="tr1-custom",
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+    event = _event_data(chunks, "avatar.gesture.requested")
+
+    assert event["gesture"] == "victory-dance"
+    assert event["runtime_revision"] == "tr1-custom"
+    schema = model_client.seen_specs[0].prompt.response_format
+    assert schema is not None
+    assert schema["json_schema"]["schema"]["properties"]["gesture"]["enum"] == [
+        None,
+        "victory-dance",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_direct_executor_persists_chat_turn(monkeypatch) -> None:
+    chats = _FakeChatManager()
+    _install_route_mocks(monkeypatch, chat_manager=chats)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    await _collect_chunks(response)
+
+    assert chats.record_turn_calls == 1
+    payload = chats.record_turn_payloads[0]
+    assert payload["chat_id"] == "chat-1"
+    assert payload["last_model_client"] == "openai_chat_completions"
+    assert payload["last_model_id"] == "gpt-5-nano"
+    assert payload["user_msg"].model is None
+    assert payload["user_msg"].model_provider is None
+    assistant_messages = payload["assistant_msg"]
+    assert isinstance(assistant_messages, ChatMessage)
+    assistant_messages = [assistant_messages]
+    assert [(message.model_provider, message.model) for message in assistant_messages] == [
+        ("OpenAIHTTPAgent", "gpt-5-nano")
+    ]
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_model_provider_override_persists_selected_snapshot(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-model-override"
+    chat_id = "chat-db-model-override"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_chat_model_provider(
+        async_session,
+        "OpenAIHTTPAgent:gpt-5-mini",
+        provider_type="OpenAIHTTPAgent",
+        model="gpt-5-mini",
+    )
+    model_client = _RouteModelClient(text=_direct_structured_response(speech="using gpt-5-mini"))
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="hello",
+            run_id="run-db-model-override",
+            chat_id=chat_id,
+            model_provider_id="OpenAIHTTPAgent:gpt-5-mini",
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert _event_data(chunks, "run.completed")["chat_id"] == chat_id
+    assert model_client.seen_specs[0].model_provider.id == "OpenAIHTTPAgent:gpt-5-mini"
+    assistant = (
+        await async_session.execute(
+            select(ORMChatMessage).where(
+                ORMChatMessage.chat_id == chat_id,
+                ORMChatMessage.role == "assistant",
+            )
+        )
+    ).scalar_one()
+    assert assistant.content == model_client.text
+    assert assistant.raw_provider_message == {"role": "assistant", "content": model_client.text}
+    assert assistant.model_provider == "OpenAIHTTPAgent"
+    assert assistant.model == "gpt-5-mini"
+    chat = await async_session.get(ORMChat, chat_id)
+    assert chat is not None
+    assert chat.last_model_client == "openai_chat_completions"
+    assert chat.last_model_id == "gpt-5-mini"
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_deepseek_provider_initializes_chat_completions_and_persists_snapshot(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-deepseek"
+    chat_id = "chat-db-deepseek"
+    model_provider_id = "OpenAIHTTPAgent:deepseek-v4-flash"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_chat_model_provider(
+        async_session,
+        model_provider_id,
+        provider_type="OpenAIHTTPAgent",
+        model="deepseek-v4-flash",
+        provider_label="DeepSeek",
+        provider_base_url=DEEPSEEK_BASE_URL,
+        api_family="deepseek",
+        supported_reasoning_efforts=["none", "high", "max"],
+        metadata={
+            "openai_compatible_provider": "deepseek",
+        },
+    )
+    model_client = _RouteModelClient(text=_direct_structured_response(speech="using deepseek"))
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="hello",
+            run_id="run-db-deepseek",
+            chat_id=chat_id,
+            model_provider_id=model_provider_id,
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert _event_data(chunks, "run.completed")["chat_id"] == chat_id
+    spec = model_client.seen_specs[0]
+    assert spec.model_provider.id == model_provider_id
+    assert spec.model_provider.provider_base_url == DEEPSEEK_BASE_URL
+    chat = await async_session.get(ORMChat, chat_id)
+    assert chat is not None
+    assert chat.api_standard == "chat_completions"
+    assert chat.last_model_client == "openai_chat_completions"
+    assert chat.last_model_id == "deepseek-v4-flash"
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_deepseek_provider_is_rejected_for_responses_chat_before_model_call(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-deepseek-mismatch"
+    chat_id = "chat-db-deepseek-mismatch"
+    model_provider_id = "OpenAIHTTPAgent:deepseek-v4-pro"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(
+            id=chat_id,
+            anima_id=anima_id,
+            user_id="user-1",
+            api_standard="responses",
+            metadata_={},
+        )
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_chat_model_provider(
+        async_session,
+        model_provider_id,
+        provider_type="OpenAIHTTPAgent",
+        model="deepseek-v4-pro",
+        provider_label="DeepSeek",
+        provider_base_url=DEEPSEEK_BASE_URL,
+        api_family="deepseek",
+        supported_reasoning_efforts=["none", "high", "max"],
+        metadata={"openai_compatible_provider": "deepseek"},
+    )
+    model_client = _RouteModelClient()
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await chat_anima_direct_sse(
+            anima_id,
+            _chat_request(
+                message="hello",
+                run_id="run-db-deepseek-mismatch",
+                chat_id=chat_id,
+                model_provider_id=model_provider_id,
+            ),
+            request=_test_request(),
+            user=RequestPrincipal(id="user-1"),
+        )
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail["code"] == "chat_api_standard_mismatch"
+    assert exc_info.value.detail["chat_api_standard"] == "responses"
+    assert exc_info.value.detail["requested_api_standard"] == "chat_completions"
+    assert exc_info.value.detail["requested_model_provider_id"] == model_provider_id
+    assert model_client.seen_specs == []
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_huggingface_provider_initializes_chat_completions_and_persists_snapshot(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-huggingface"
+    chat_id = "chat-db-huggingface"
+    model_provider_id = "OpenAIHTTPAgent:deepseek-ai/DeepSeek-V4-Pro:deepinfra"
+    model = "deepseek-ai/DeepSeek-V4-Pro:deepinfra"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_chat_model_provider(
+        async_session,
+        model_provider_id,
+        provider_type="OpenAIHTTPAgent",
+        model=model,
+        provider_label="Hugging Face",
+        provider_base_url=HUGGINGFACE_ROUTER_BASE_URL,
+        api_family="huggingface",
+        supports_reasoning=None,
+        supported_reasoning_efforts=[],
+        native_tool_support=[],
+        metadata={"openai_compatible_provider": "huggingface"},
+    )
+    model_client = _RouteModelClient(text=_direct_structured_response(speech="using hugging face"))
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="hello",
+            run_id="run-db-huggingface",
+            chat_id=chat_id,
+            model_provider_id=model_provider_id,
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert _event_data(chunks, "run.completed")["chat_id"] == chat_id
+    spec = model_client.seen_specs[0]
+    assert spec.model_provider.id == model_provider_id
+    assert spec.model_provider.model == model
+    assert spec.model_provider.provider_base_url == HUGGINGFACE_ROUTER_BASE_URL
+    chat = await async_session.get(ORMChat, chat_id)
+    assert chat is not None
+    assert chat.api_standard == "chat_completions"
+    assert chat.last_model_client == "openai_chat_completions"
+    assert chat.last_model_id == model
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_huggingface_provider_is_rejected_for_responses_chat_before_model_call(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-huggingface-mismatch"
+    chat_id = "chat-db-huggingface-mismatch"
+    model_provider_id = "OpenAIHTTPAgent:zai-org/GLM-5.2:deepinfra"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(
+            id=chat_id,
+            anima_id=anima_id,
+            user_id="user-1",
+            api_standard="responses",
+            metadata_={},
+        )
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_chat_model_provider(
+        async_session,
+        model_provider_id,
+        provider_type="OpenAIHTTPAgent",
+        model="zai-org/GLM-5.2:deepinfra",
+        provider_label="Hugging Face",
+        provider_base_url=HUGGINGFACE_ROUTER_BASE_URL,
+        api_family="huggingface",
+        supports_reasoning=None,
+        supported_reasoning_efforts=[],
+        native_tool_support=[],
+        metadata={"openai_compatible_provider": "huggingface"},
+    )
+    model_client = _RouteModelClient()
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await chat_anima_direct_sse(
+            anima_id,
+            _chat_request(
+                message="hello",
+                run_id="run-db-huggingface-mismatch",
+                chat_id=chat_id,
+                model_provider_id=model_provider_id,
+            ),
+            request=_test_request(),
+            user=RequestPrincipal(id="user-1"),
+        )
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail["code"] == "chat_api_standard_mismatch"
+    assert exc_info.value.detail["chat_api_standard"] == "responses"
+    assert exc_info.value.detail["requested_api_standard"] == "chat_completions"
+    assert exc_info.value.detail["requested_model_provider_id"] == model_provider_id
+    assert model_client.seen_specs == []
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_uses_anima_chat_profile_default_model_provider(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-profile-model-default"
+    chat_id = "chat-db-profile-model-default"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_chat_model_provider(
+        async_session,
+        "OpenAIHTTPAgent:gpt-5-profile",
+        provider_type="OpenAIHTTPAgent",
+        model="gpt-5-profile",
+    )
+    async_session.add(
+        ORMAnimaChatProfile(
+            anima_id=anima_id,
+            default_model_provider_id="OpenAIHTTPAgent:gpt-5-profile",
+            metadata_={"source": "test"},
+        )
+    )
+    await async_session.commit()
+
+    model_client = _RouteModelClient(text=_direct_structured_response(speech="default gpt-5-profile"))
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=model_client,
+        default_model_provider_id="OpenAIHTTPAgent:gpt-5-profile",
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-profile-default", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    await _collect_chunks(response)
+
+    assert model_client.seen_specs[0].model_provider.id == "OpenAIHTTPAgent:gpt-5-profile"
+    assistant = (
+        await async_session.execute(
+            select(ORMChatMessage).where(
+                ORMChatMessage.chat_id == chat_id,
+                ORMChatMessage.role == "assistant",
+            )
+        )
+    ).scalar_one()
+    assert assistant.content == model_client.text
+    assert assistant.raw_provider_message == {"role": "assistant", "content": model_client.text}
+    assert assistant.model_provider == "OpenAIHTTPAgent"
+    assert assistant.model == "gpt-5-profile"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("model_provider_id", "seed_kwargs", "expected_detail"),
+    [
+        ("OpenAIHTTPAgent:missing", None, "Model provider not found"),
+        (
+            "OpenAIHTTPAgent:inactive",
+            {"provider_type": "OpenAIHTTPAgent", "model": "gpt-5-inactive", "active": False},
+            "inactive",
+        ),
+        (
+            "OpenAIHTTPAgent:no-stream",
+            {"provider_type": "OpenAIHTTPAgent", "model": "gpt-5-no-stream", "supports_streaming": False},
+            "streaming",
+        ),
+        (
+            "OpenAIHTTPAgent:no-primary-structured",
+            {"provider_type": "OpenAIHTTPAgent", "model": "gpt-5-no-primary", "structured_kinds": []},
+            MAIN_STRUCTURED_RESPONSE_KIND,
+        ),
+    ],
+)
+async def test_chat_sse_model_provider_override_rejects_missing_inactive_or_unsupported_catalog_rows(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+    model_provider_id: str,
+    seed_kwargs: dict[str, object] | None,
+    expected_detail: str,
+) -> None:
+    anima_id = f"anima-db-{model_provider_id}".replace(":", "-")
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    if seed_kwargs is not None:
+        await _seed_chat_model_provider(async_session, model_provider_id, **seed_kwargs)
+
+    _install_db_route_mocks(monkeypatch, async_session_factory)
+
+    with pytest.raises(HTTPException) as exc:
+        await chat_anima_direct_sse(
+            anima_id,
+            _chat_request(message="hello", model_provider_id=model_provider_id),
+            request=_test_request(),
+            user=RequestPrincipal(id="user-1"),
+        )
+
+    assert exc.value.status_code == 400
+    assert expected_detail in str(exc.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_model_provider_override_rejects_missing_provider(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-missing-provider-override"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    _install_db_route_mocks(monkeypatch, async_session_factory)
+
+    with pytest.raises(HTTPException) as exc:
+        await chat_anima_direct_sse(
+            anima_id,
+            _chat_request(message="hello", model_provider_id="MissingProvider:gpt-5-nano"),
+            request=_test_request(),
+            user=RequestPrincipal(id="user-1"),
+        )
+
+    assert exc.value.status_code == 400
+    assert "Model provider not found" in str(exc.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_missing_profile_without_override_fails_setup(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-missing-chat-profile"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_default_chat_model_provider(async_session)
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        patch_profile_service=False,
+    )
+
+    with pytest.raises(HTTPException) as exc:
+        await chat_anima_direct_sse(
+            anima_id,
+            _chat_request(message="hello"),
+            request=_test_request(),
+            user=RequestPrincipal(id="user-1"),
+        )
+
+    assert exc.value.status_code == 400
+    assert "Anima chat profile is required" in str(exc.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_model_provider_override_works_without_profile(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-override-without-chat-profile"
+    chat_id = "chat-db-override-without-chat-profile"
+    model_provider_id = "OpenAIHTTPAgent:gpt-5-override-no-profile"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_chat_model_provider(
+        async_session,
+        model_provider_id,
+        provider_type="OpenAIHTTPAgent",
+        model="gpt-5-override-no-profile",
+    )
+    model_client = _RouteModelClient(text=_direct_structured_response(speech="override without profile"))
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=model_client,
+        patch_profile_service=False,
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="hello",
+            run_id="run-db-override-without-profile",
+            chat_id=chat_id,
+            model_provider_id=model_provider_id,
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert _event_data(chunks, "run.completed")["chat_id"] == chat_id
+    assert model_client.seen_specs[0].model_provider.id == model_provider_id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("model_provider_id", "seed_kwargs", "chat_options", "dispatch_options", "expected_detail"),
+    [
+        (
+            "OpenAIHTTPAgent:no-reasoning",
+            {
+                "provider_type": "OpenAIHTTPAgent",
+                "model": "gpt-5-no-reasoning",
+                "supports_reasoning": False,
+                "supported_reasoning_efforts": [],
+            },
+            {"reasoning_effort": "high"},
+            {"reasoning_effort": "high"},
+            "reasoning effort high",
+        ),
+        (
+            "OpenAIHTTPAgent:no-native-tools",
+            {
+                "provider_type": "OpenAIHTTPAgent",
+                "model": "gpt-5-no-tools",
+                "supports_tools": False,
+                "native_tool_support": [],
+            },
+            {"native_tools": ["web_search"]},
+            {"native_tools": ["web_search"]},
+            "native tools web_search",
+        ),
+        (
+            "OpenAIHTTPAgent:no-main-structured",
+            {
+                "provider_type": "OpenAIHTTPAgent",
+                "model": "gpt-5-no-main",
+                "structured_kinds": [],
+            },
+            {"main_structured_response": True},
+            {"main_structured_response": True},
+            MAIN_STRUCTURED_RESPONSE_KIND,
+        ),
+    ],
+)
+async def test_chat_sse_model_provider_override_rejects_unsupported_requested_turn_features(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+    model_provider_id: str,
+    seed_kwargs: dict[str, object],
+    chat_options: dict[str, object],
+    dispatch_options: dict[str, object],
+    expected_detail: str,
+) -> None:
+    anima_id = f"anima-db-{model_provider_id}".replace(":", "-")
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_chat_model_provider(async_session, model_provider_id, **seed_kwargs)
+
+    _install_db_route_mocks(monkeypatch, async_session_factory, chat_options=chat_options)
+
+    with pytest.raises(HTTPException) as exc:
+        await chat_anima_direct_sse(
+            anima_id,
+            _chat_request(
+                message="hello",
+                model_provider_id=model_provider_id,
+                dispatch_options=dispatch_options,
+            ),
+            request=_test_request(),
+            user=RequestPrincipal(id="user-1"),
+        )
+
+    assert exc.value.status_code == 400
+    assert expected_detail in str(exc.value.detail)
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_responses_memory_tools_active_and_gated_by_options(monkeypatch) -> None:
+    model_provider = _model_provider(
+        model_provider_id="OpenAIResponsesHTTPAgent:gpt-test",
+        provider_type="OpenAIResponsesHTTPAgent",
+        model="gpt-test",
+        native_tool_support=["web_search"],
+    )
+    model_client = _RouteModelClient()
+    _install_route_mocks(monkeypatch, model_provider=model_provider, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-responses-tools", chat_id="chat-responses-tools"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert [tool["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
+        "memory_list_files",
+        "memory_read_files",
+        "search_memory_files",
+        "memory_apply_patch",
+        "memory_write_file",
+    ]
+    assert model_client.seen_specs[0].provider_options.memory_apply_patch_enabled is False
+
+    capable_provider = _model_provider(
+        model_provider_id="OpenAIResponsesHTTPAgent:gpt-5.4-nano",
+        provider_type="OpenAIResponsesHTTPAgent",
+        model="gpt-5.4-nano",
+        native_tool_support=["web_search", "apply_patch"],
+    )
+    model_client = _RouteModelClient()
+    _install_route_mocks(monkeypatch, model_provider=capable_provider, model_client=model_client)
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-responses-native", chat_id="chat-responses-native"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert [tool["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
+        "memory_list_files",
+        "memory_read_files",
+        "search_memory_files",
+    ]
+    assert model_client.seen_specs[0].provider_options.memory_apply_patch_enabled is True
+
+    model_client = _RouteModelClient()
+    _install_route_mocks(
+        monkeypatch,
+        model_provider=capable_provider,
+        model_client=model_client,
+        chat_options={"disable_memory_influence": True, "disable_memory_updates": True},
+    )
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-responses-no-tools",
+            chat_id="chat-responses-no-tools",
+            dispatch_options={"disable_memory_influence": True, "disable_memory_updates": True},
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert model_client.seen_specs[0].prompt.tools == ()
+    assert model_client.seen_specs[0].provider_options.memory_apply_patch_enabled is False
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_equips_uploaded_file_search_for_attached_searchable_uploads(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-uploads"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await _seed_default_chat_model_provider(async_session)
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_uploaded_file_chunk(
+        async_session,
+        file_id="file-ready",
+        text=[
+            "The attached Atlas upload can be searched.",
+            "A second persisted chunk proves the prompt count is not a constant.",
+        ],
+        original_filename="atlas-dossier.md",
+        metadata={
+            "overview": {
+                "version": 1,
+                "description": "An Atlas project dossier.",
+                "outline": [
+                    {"level": 1, "title": "Atlas"},
+                    {"level": 2, "title": "Launch Plan"},
+                ],
+                "method": "structured",
+                "outline_truncated": False,
+            }
+        },
+    )
+    await _seed_uploaded_file_chunk(
+        async_session,
+        file_id="file-malformed-overview",
+        text="This searchable upload has malformed historical overview metadata.",
+        original_filename="legacy-notes.txt",
+        metadata={"overview": {"version": 999, "description": "do not trust"}},
+    )
+    await _seed_uploaded_file_chunk(
+        async_session,
+        file_id="file-unattached",
+        text="The unattached Atlas upload must not influence tool availability.",
+    )
+    await _seed_uploaded_file_chunk(
+        async_session,
+        file_id="file-unprocessed",
+        status=STATUS_UPLOADED,
+        text="The unprocessed Atlas upload must not validate.",
+    )
+    await _seed_uploaded_file_chunk(
+        async_session,
+        file_id="file-foreign",
+        user_id="user-2",
+        text="The foreign Atlas upload must not validate.",
+    )
+    model_client = _RouteModelClient()
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="hello",
+            run_id="run-upload-tools",
+            chat_id="chat-upload-tools",
+            attached_file_ids=[
+                "file-ready",
+                "file-malformed-overview",
+                "file-unprocessed",
+                "file-foreign",
+            ],
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert [tool["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
+        "memory_list_files",
+        "memory_read_files",
+        "search_memory_files",
+        "search_uploaded_files",
+        "read_uploaded_file_chunks",
+        "memory_apply_patch",
+        "memory_write_file",
+    ]
+    request_context = model_client.seen_specs[0].prompt.messages[-2]["content"]
+    assert 'filename: "atlas-dossier.md"' in request_context
+    assert "chunk_count: 2" in request_context
+    assert 'description: "An Atlas project dossier."' in request_context
+    assert 'title: "Atlas"' in request_context
+    assert 'title: "Launch Plan"' in request_context
+    assert 'filename: "legacy-notes.txt"' in request_context
+    assert request_context.count("chunk_count: 1") == 1
+    assert "description: null" in request_context
+    assert "file-ready" not in request_context
+    assert "file-malformed-overview" not in request_context
+    assert "file-unprocessed.txt" not in request_context
+    assert "file-foreign.txt" not in request_context
+    assert "storage_locator" not in request_context
+    assert "storage" not in request_context
+    assert "untrusted user-provided document metadata" in request_context
+    messages = (
+        await async_session.execute(
+            select(ORMChatMessage).where(ORMChatMessage.chat_id == "chat-upload-tools").order_by(ORMChatMessage.turn)
+        )
+    ).scalars()
+    persisted = list(messages)
+    assert persisted[0].message_data == {"attached_file_ids": ["file-ready", "file-malformed-overview"]}
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_incognito_skips_chat_persistence(monkeypatch) -> None:
+    chats = _FakeChatManager()
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"incognito": True},
+        chat_manager=chats,
+    )
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={"incognito": True},
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    await _collect_chunks(response)
+
+    assert chats.record_turn_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_with_chat_id_persists_visible_turn_and_usage(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-persist"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    usage = Usage(
+        input_tokens=3,
+        output_tokens=4,
+        total_tokens=7,
+        input_tokens_details=UsageInputDetails(cached_tokens=1),
+        output_tokens_details=UsageOutputDetails(reasoning_tokens=2),
+    )
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=_RouteModelClient(usage=usage),
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-1", chat_id="chat-db-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert _event_data(chunks, "run.completed")["chat_id"] == "chat-db-1"
+    rows = (
+        (
+            await async_session.execute(
+                select(ORMChatMessage).where(ORMChatMessage.chat_id == "chat-db-1").order_by(ORMChatMessage.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [(row.role, row.content, row.internal) for row in rows] == [
+        ("user", "hello", False),
+        ("assistant", _direct_structured_response(), False),
+    ]
+    assert rows[0].raw_provider_message == {"role": "user", "content": "hello"}
+    assert rows[1].raw_provider_message == {"role": "assistant", "content": _direct_structured_response()}
+    chat = await async_session.get(ORMChat, "chat-db-1")
+    assert chat is not None
+    assert chat.cum_input_tokens == 3
+    assert chat.cum_output_tokens == 4
+    assert chat.cum_total_tokens == 7
+    assert chat.cum_cached_input_tokens == 1
+    assert chat.cum_output_reasoning_tokens == 2
+    assert chat.active_context_tokens == 5
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_tool_assisted_turn_emits_normal_frames_and_persists_internal_messages(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-memory-tools"
+    chat_id = "chat-db-memory-tools"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_user_memory_file(
+        async_session,
+        relative_path="profile.md",
+        content="Ray likes concise answers.",
+        description="RequestPrincipal profile",
+    )
+    await _seed_default_chat_model_provider(async_session)
+    model_client = _RouteModelClient(
+        finals=[
+            ModelClientFinal(
+                text="",
+                usage=Usage(requests=1, input_tokens=5, output_tokens=1, total_tokens=6),
+                tool_calls=(
+                    ModelClientToolCall(
+                        id="call-read",
+                        name="memory_read_files",
+                        arguments=json.dumps({"paths": "profile.md"}),
+                    ),
+                ),
+            ),
+            ModelClientFinal(
+                text=_direct_structured_response(speech="I checked your profile."),
+                usage=Usage(requests=1, input_tokens=7, output_tokens=3, total_tokens=10),
+            ),
+        ]
+    )
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-memory-tools", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: user.response" in chunk for chunk in chunks)
+    assert any('"text": "I checked your profile."' in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert not any("event: error" in chunk for chunk in chunks)
+    rows = (
+        (
+            await async_session.execute(
+                select(ORMChatMessage).where(ORMChatMessage.chat_id == chat_id).order_by(ORMChatMessage.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [(row.role, row.message_type, row.internal) for row in rows] == [
+        ("user", "message", False),
+        ("assistant", "tool_call", True),
+        ("tool", "tool_result", True),
+        ("assistant", "message", False),
+    ]
+    assert rows[-1].total_tokens == 16
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_capable_responses_model_commits_native_patch_and_persists_exchange(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-native-patch"
+    chat_id = "chat-db-native-patch"
+    provider_id = "OpenAIResponsesHTTPAgent:gpt-5.4-nano"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_chat_model_provider(
+        async_session,
+        provider_id,
+        model="gpt-5.4-nano",
+        native_tool_support=["web_search", "apply_patch"],
+    )
+    operation = {
+        "type": "create_file",
+        "path": "native.md",
+        "diff": (
+            "+---\n"
+            '+description: "Memory saved through native OpenAI Apply Patch."\n'
+            "+---\n"
+            "+# Native memory\n"
+            "+\n"
+            "+Saved through OpenAI Apply Patch.\n"
+        ),
+    }
+    model_client = _RouteModelClient(
+        finals=[
+            ModelClientFinal(
+                text="",
+                usage=Usage(requests=1, input_tokens=5, output_tokens=1, total_tokens=6),
+                raw_provider_metadata={"response_id": "resp-native-patch"},
+                tool_calls=(
+                    ModelClientToolCall(
+                        id="call-native-patch",
+                        name="apply_patch",
+                        arguments=json.dumps(operation),
+                        tool_type="apply_patch",
+                    ),
+                ),
+            ),
+            ModelClientFinal(
+                text=_direct_structured_response(speech="I saved that memory."),
+                usage=Usage(requests=1, input_tokens=7, output_tokens=3, total_tokens=10),
+                raw_provider_metadata={
+                    "response_id": "resp-native-final",
+                    "previous_response_id": "resp-native-patch",
+                },
+            ),
+        ]
+    )
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=model_client,
+        default_model_provider_id=provider_id,
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="remember this", run_id="run-db-native-patch", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any('"text": "I saved that memory."' in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert not any("event: error" in chunk for chunk in chunks)
+    assert model_client.seen_specs[0].provider_options.memory_apply_patch_enabled is True
+    assert [tool["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
+        "memory_list_files",
+        "memory_read_files",
+        "search_memory_files",
+    ]
+    stored = await async_session.scalar(
+        select(ORMMemoryEntry).where(
+            ORMMemoryEntry.user_id == "user-1",
+            ORMMemoryEntry.path == "native.md",
+        )
+    )
+    assert stored is not None
+    assert stored.content == "# Native memory\n\nSaved through OpenAI Apply Patch."
+    assert stored.description == "Memory saved through native OpenAI Apply Patch."
+    version = await async_session.scalar(
+        select(ORMMemoryEntryVersion).where(
+            ORMMemoryEntryVersion.entry_id == stored.id,
+            ORMMemoryEntryVersion.version == 1,
+        )
+    )
+    assert version is not None
+    assert version.metadata_["last_ai_write"]["chat_id"] == chat_id
+    assert version.metadata_["last_ai_write"]["run_id"] == "run-db-native-patch"
+    assert version.metadata_["last_ai_write"]["tool_call_id"] == "call-native-patch"
+    assert version.metadata_["last_ai_write"]["tool_type"] == "apply_patch"
+    rows = (
+        (
+            await async_session.execute(
+                select(ORMChatMessage).where(ORMChatMessage.chat_id == chat_id).order_by(ORMChatMessage.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [(row.role, row.message_type, row.internal) for row in rows] == [
+        ("user", "message", False),
+        ("assistant", "tool_call", True),
+        ("tool", "tool_result", True),
+        ("assistant", "message", False),
+    ]
+    assert rows[1].raw_provider_message["type"] == "model_client_tool_call"
+    assert rows[1].raw_provider_message["tool_type"] == "apply_patch"
+    assert rows[2].raw_provider_message["type"] == "model_client_tool_result"
+    assert rows[2].raw_provider_message["status"] == "completed"
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_with_existing_chat_id_persists_visible_turn_and_usage(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-existing-persist"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(
+            id="chat-db-existing",
+            anima_id=anima_id,
+            user_id="user-1",
+            title="Existing",
+            metadata_={},
+        )
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    usage = Usage(
+        input_tokens=3,
+        output_tokens=4,
+        total_tokens=7,
+        input_tokens_details=UsageInputDetails(cached_tokens=1),
+        output_tokens_details=UsageOutputDetails(reasoning_tokens=2),
+    )
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=_RouteModelClient(usage=usage),
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-existing", chat_id="chat-db-existing"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert _event_data(chunks, "run.completed")["chat_id"] == "chat-db-existing"
+    rows = (
+        (
+            await async_session.execute(
+                select(ORMChatMessage).where(ORMChatMessage.chat_id == "chat-db-existing").order_by(ORMChatMessage.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [(row.role, row.content, row.internal) for row in rows] == [
+        ("user", "hello", False),
+        ("assistant", _direct_structured_response(), False),
+    ]
+    chat = await async_session.get(ORMChat, "chat-db-existing")
+    assert chat is not None
+    assert chat.cum_input_tokens == 3
+    assert chat.cum_output_tokens == 4
+    assert chat.cum_total_tokens == 7
+    assert chat.cum_cached_input_tokens == 1
+    assert chat.cum_output_reasoning_tokens == 2
+    assert chat.active_context_tokens == 5
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_generates_title_for_first_untitled_chat(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-title"
+    chat_id = "chat-db-title"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(ORMChat(id=chat_id, anima_id=anima_id, user_id="user-1", metadata_={}))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=_RouteModelClient(usage=Usage(input_tokens=3, output_tokens=4, total_tokens=7)),
+    )
+    title_runners = _install_route_title_mocks(
+        monkeypatch,
+        title="A generated title that is deliberately longer than forty eight characters.",
+        usage=Usage(input_tokens=2, output_tokens=3, total_tokens=5),
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="help me plan a React refactor", run_id="run-db-title", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    title_event = _event_data(chunks, "chat.title.updated")
+    title_index = next(index for index, chunk in enumerate(chunks) if "event: chat.title.updated" in chunk)
+    completed_index = next(index for index, chunk in enumerate(chunks) if "event: run.completed" in chunk)
+    chat = await async_session.get(ORMChat, chat_id)
+
+    assert title_index < completed_index
+    assert title_event["chat_id"] == chat_id
+    assert title_event["run_id"] == "run-db-title"
+    assert title_event["title"] == "A generated title that is deliberately longer th"
+    assert len(title_event["title"]) <= 48
+    assert chat is not None
+    assert chat.title == title_event["title"]
+    assert chat.metadata_["title_generation"]["prompt_version"] == "chat-title-v1-test"
+    assert chat.metadata_["title_generation"]["usage"]["total_tokens"] == 5
+    assert _prompt_runner_call_count(title_runners) == 1
+    assert dict(title_runners[0].calls[0].request_options) == {"reasoning_effort": "minimal"}
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_title_generation_does_not_block_primary_response(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-title-primary-response"
+    chat_id = "chat-db-title-primary-response"
+    speech = "Primary response while title generation waits."
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(ORMChat(id=chat_id, anima_id=anima_id, user_id="user-1", metadata_={}))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=_RouteModelClient(text=_direct_structured_response(speech=speech)),
+    )
+    title_started = asyncio.Event()
+    title_release = asyncio.Event()
+    title_runners = _install_route_title_mocks(
+        monkeypatch,
+        title="Generated after response",
+        started_event=title_started,
+        release_event=title_release,
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="show the primary response first",
+            run_id="run-db-title-primary-response",
+            chat_id=chat_id,
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks: list[str] = []
+    iterator = response.body_iterator.__aiter__()
+
+    async def _read_until_primary_response() -> str:
+        while True:
+            chunk = await iterator.__anext__()
+            text = chunk.decode() if isinstance(chunk, bytes) else chunk
+            chunks.append(text)
+            if "event: user.response" in text and speech in text:
+                return text
+
+    reader = asyncio.create_task(_read_until_primary_response())
+    await asyncio.wait_for(title_started.wait(), timeout=1.0)
+    primary_chunk = await asyncio.wait_for(reader, timeout=1.0)
+
+    assert speech in primary_chunk
+    assert not title_release.is_set()
+
+    title_release.set()
+    while True:
+        try:
+            chunk = await asyncio.wait_for(iterator.__anext__(), timeout=1.0)
+        except StopAsyncIteration:
+            break
+        text = chunk.decode() if isinstance(chunk, bytes) else chunk
+        chunks.append(text)
+
+    assert any("event: chat.title.updated" in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert _prompt_runner_call_count(title_runners) == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_does_not_generate_title_for_existing_title(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-title-existing"
+    chat_id = "chat-db-title-existing"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(
+            id=chat_id,
+            anima_id=anima_id,
+            user_id="user-1",
+            title="Existing title",
+            metadata_={},
+        )
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=_RouteModelClient(usage=Usage(input_tokens=3, output_tokens=4, total_tokens=7)),
+    )
+    title_runners = _install_route_title_mocks(monkeypatch, title="Replacement title")
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-title-existing", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+    chat = await async_session.get(ORMChat, chat_id)
+
+    assert not any("event: chat.title.updated" in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert chat is not None
+    assert chat.title == "Existing title"
+    assert _prompt_runner_call_count(title_runners) == 0
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_incognito_skips_title_generation(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-title-incognito"
+    chat_id = "chat-db-title-incognito"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(ORMChat(id=chat_id, anima_id=anima_id, user_id="user-1", metadata_={}))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        chat_options={"incognito": True},
+        model_client=_RouteModelClient(usage=Usage(input_tokens=3, output_tokens=4, total_tokens=7)),
+    )
+    title_runners = _install_route_title_mocks(monkeypatch, title="Incognito title")
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="secret",
+            run_id="run-db-title-incognito",
+            chat_id=chat_id,
+            dispatch_options={"incognito": True},
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+    chat = await async_session.get(ORMChat, chat_id)
+
+    assert not any("event: chat.title.updated" in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert chat is not None
+    assert chat.title is None
+    assert _prompt_runner_call_count(title_runners) == 0
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_title_generation_failure_does_not_fail_stream(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-title-failure"
+    chat_id = "chat-db-title-failure"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(ORMChat(id=chat_id, anima_id=anima_id, user_id="user-1", metadata_={}))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=_RouteModelClient(usage=Usage(input_tokens=3, output_tokens=4, total_tokens=7)),
+    )
+    title_runners = _install_route_title_mocks(monkeypatch, fail=True)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-title-failure", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+    chat = await async_session.get(ORMChat, chat_id)
+
+    assert not any("event: chat.title.updated" in chunk for chunk in chunks)
+    assert not any("event: error" in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert chat is not None
+    assert chat.title is None
+    assert _prompt_runner_call_count(title_runners) == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_compacts_after_successful_response_without_streaming_summary(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-post-compact"
+    chat_id = "chat-db-post-compact"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(
+            id=chat_id,
+            anima_id=anima_id,
+            user_id="user-1",
+            api_standard="chat_completions",
+            metadata_={},
+        )
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    old_rows = await _seed_visible_chat_messages(
+        async_session,
+        chat_id=chat_id,
+        contents=["old-user-1", "old-assistant-1", "old-user-2", "old-assistant-2"],
+    )
+    primary_usage = Usage(
+        input_tokens=20,
+        output_tokens=22,
+        total_tokens=42,
+        output_tokens_details=UsageOutputDetails(reasoning_tokens=10),
+    )
+    compaction_usage = Usage(input_tokens=9, output_tokens=3, total_tokens=12)
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=_RouteModelClient(usage=primary_usage),
+    )
+    compaction_runners = _install_route_compaction_mocks(
+        monkeypatch,
+        summary="Compacted summary should stay hidden.",
+        usage=compaction_usage,
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-post-compact", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert sum(1 for chunk in chunks if "event: user.response" in chunk) == 1
+    assert any('"text": "Hello"' in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert not any("Compacted summary should stay hidden." in chunk for chunk in chunks)
+    active = (
+        await async_session.execute(
+            select(ORMChatCompaction).where(
+                ORMChatCompaction.chat_id == chat_id,
+                ORMChatCompaction.status == "active",
+            )
+        )
+    ).scalar_one()
+    assert active.summary_text == "Compacted summary should stay hidden."
+    assert active.start_turn == old_rows[0].turn
+    assert active.end_turn == old_rows[-1].turn
+    assert active.source_message_count == 4
+    assert active.total_tokens == 12
+    assert active.metadata_["trigger_active_context_tokens"] == 32
+    assert active.metadata_["preserved_message_count"] == 2
+    chat = await async_session.get(ORMChat, chat_id)
+    assert chat is not None
+    assert chat.cum_total_tokens == 42
+    assert chat.cum_output_reasoning_tokens == 10
+    assert chat.active_context_tokens == 32
+    assert chat.next_turn == 7
+    context = await chat_sse._chat_manager(async_session).get_chat_context(
+        chat_id=chat_id,
+    )
+    assert context.active_compaction is not None
+    assert context.active_compaction.summary_text == "Compacted summary should stay hidden."
+    assert [message.content for message in context.messages] == ["hello", _direct_structured_response()]
+    assert len(compaction_runners) == 1
+    assert len(compaction_runners[0].calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_openai_responses_skips_local_compaction_for_native_compaction(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-responses-native-compact"
+    chat_id = "chat-db-responses-native-compact"
+    model_provider_id = "OpenAIResponsesHTTPAgent:gpt-5-nano"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(
+            id=chat_id,
+            anima_id=anima_id,
+            user_id="user-1",
+            api_standard="responses",
+            metadata_={},
+            active_context_tokens=100,
+        )
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_chat_model_provider(
+        async_session,
+        model_provider_id,
+        provider_type="OpenAIResponsesHTTPAgent",
+        model="gpt-5-nano",
+    )
+    await _seed_visible_chat_messages(
+        async_session,
+        chat_id=chat_id,
+        contents=["old-user-1", "old-assistant-1", "old-user-2", "old-assistant-2"],
+    )
+    model_client = _RouteModelClient(usage=Usage(input_tokens=20, output_tokens=22, total_tokens=42))
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=model_client,
+        default_model_provider_id=model_provider_id,
+    )
+    compaction_runners = _install_route_compaction_mocks(monkeypatch)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-responses-native-compact", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert model_client.seen_specs[0].model_provider.provider_type == "OpenAIResponsesHTTPAgent"
+    assert compaction_runners == []
+    active = (
+        await async_session.execute(
+            select(ORMChatCompaction).where(
+                ORMChatCompaction.chat_id == chat_id,
+                ORMChatCompaction.status == "active",
+            )
+        )
+    ).scalar_one_or_none()
+    assert active is None
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_finishes_compaction_before_run_completed(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-compact-before-complete"
+    chat_id = "chat-db-compact-before-complete"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(
+            id=chat_id,
+            anima_id=anima_id,
+            user_id="user-1",
+            api_standard="chat_completions",
+            metadata_={},
+        )
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    await _seed_visible_chat_messages(
+        async_session,
+        chat_id=chat_id,
+        contents=["old-user-1", "old-assistant-1", "old-user-2", "old-assistant-2"],
+    )
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        chat_options={"disable_emotion_updates": True},
+        model_client=_RouteModelClient(usage=Usage(input_tokens=20, output_tokens=22, total_tokens=42)),
+    )
+    compaction_started = asyncio.Event()
+    compaction_release = asyncio.Event()
+    _install_route_compaction_mocks(
+        monkeypatch,
+        summary="Summary created before completion.",
+        started_event=compaction_started,
+        release_event=compaction_release,
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-compact-before-complete", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    iterator = response.body_iterator.__aiter__()
+    chunks: list[str] = []
+
+    while True:
+        chunk = await asyncio.wait_for(iterator.__anext__(), timeout=1.0)
+        text = chunk.decode() if isinstance(chunk, bytes) else chunk
+        chunks.append(text)
+        if "event: user.response" in text:
+            break
+
+    next_chunk_task = asyncio.create_task(iterator.__anext__())
+    await asyncio.wait_for(compaction_started.wait(), timeout=1.0)
+    await asyncio.sleep(0.05)
+    assert not next_chunk_task.done()
+
+    compaction_release.set()
+    chunk = await asyncio.wait_for(next_chunk_task, timeout=1.0)
+    chunks.append(chunk.decode() if isinstance(chunk, bytes) else chunk)
+    while True:
+        try:
+            chunk = await asyncio.wait_for(iterator.__anext__(), timeout=1.0)
+        except StopAsyncIteration:
+            break
+        text = chunk.decode() if isinstance(chunk, bytes) else chunk
+        chunks.append(text)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    active = (
+        await async_session.execute(
+            select(ORMChatCompaction).where(
+                ORMChatCompaction.chat_id == chat_id,
+                ORMChatCompaction.status == "active",
+            )
+        )
+    ).scalar_one()
+    assert active.summary_text == "Summary created before completion."
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_incognito_skips_post_response_compaction(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-incognito-compact"
+    chat_id = "chat-db-incognito-compact"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(
+            id=chat_id,
+            anima_id=anima_id,
+            user_id="user-1",
+            api_standard="chat_completions",
+            metadata_={},
+            active_context_tokens=99,
+        )
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_visible_chat_messages(
+        async_session,
+        chat_id=chat_id,
+        contents=["old-user-1", "old-assistant-1", "old-user-2", "old-assistant-2"],
+    )
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        chat_options={"incognito": True},
+        model_client=_RouteModelClient(usage=Usage(input_tokens=3, output_tokens=4, total_tokens=7)),
+    )
+    compaction_runners = _install_route_compaction_mocks(monkeypatch)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="hello",
+            run_id="run-db-incognito-compact",
+            chat_id=chat_id,
+            dispatch_options={"incognito": True},
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    active = (
+        await async_session.execute(
+            select(ORMChatCompaction).where(
+                ORMChatCompaction.chat_id == chat_id,
+                ORMChatCompaction.status == "active",
+            )
+        )
+    ).scalar_one_or_none()
+    assert active is None
+    assert compaction_runners == []
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_post_response_compaction_failure_does_not_emit_error_or_revert_turn(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-compact-failure"
+    chat_id = "chat-db-compact-failure"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(
+            id=chat_id,
+            anima_id=anima_id,
+            user_id="user-1",
+            api_standard="chat_completions",
+            metadata_={},
+        )
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    await _seed_visible_chat_messages(
+        async_session,
+        chat_id=chat_id,
+        contents=["old-user-1", "old-assistant-1", "old-user-2", "old-assistant-2"],
+    )
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        model_client=_RouteModelClient(usage=Usage(input_tokens=3, output_tokens=40, total_tokens=43)),
+    )
+    compaction_runners = _install_route_compaction_mocks(monkeypatch, fail=True)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-compact-failure", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: user.response" in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert not any("event: error" in chunk for chunk in chunks)
+    active = (
+        await async_session.execute(
+            select(ORMChatCompaction).where(
+                ORMChatCompaction.chat_id == chat_id,
+                ORMChatCompaction.status == "active",
+            )
+        )
+    ).scalar_one_or_none()
+    assert active is None
+    rows = (
+        (
+            await async_session.execute(
+                select(ORMChatMessage).where(ORMChatMessage.chat_id == chat_id).order_by(ORMChatMessage.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [row.content for row in rows][-2:] == ["hello", _direct_structured_response()]
+    chat = await async_session.get(ORMChat, chat_id)
+    assert chat is not None
+    assert chat.cum_total_tokens == 43
+    assert chat.active_context_tokens == 43
+    assert len(compaction_runners) == 1
+    assert len(compaction_runners[0].calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_without_id_creates_chat_and_emits_generated_chat_id(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-generated"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    _install_db_route_mocks(monkeypatch, async_session_factory)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-2"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    chat_id = _event_data(chunks, "run.completed")["chat_id"]
+    assert chat_id.startswith("chat-")
+    chat = await async_session.get(ORMChat, chat_id)
+    assert chat is not None
+    rows = (
+        (
+            await async_session.execute(
+                select(ORMChatMessage).where(ORMChatMessage.chat_id == chat_id).order_by(ORMChatMessage.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [row.content for row in rows] == ["hello", _direct_structured_response()]
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_incognito_does_not_persist_messages_or_usage(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-incognito"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(ORMChat(id="chat-incognito", anima_id=anima_id, user_id="user-1", metadata_={}))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    usage = Usage(input_tokens=3, output_tokens=4, total_tokens=7)
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        chat_options={"incognito": True},
+        model_client=_RouteModelClient(usage=usage),
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="hello",
+            run_id="run-db-incognito",
+            chat_id="chat-incognito",
+            dispatch_options={"incognito": True},
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    await _collect_chunks(response)
+
+    rows = (
+        (
+            await async_session.execute(
+                select(ORMChatMessage).where(ORMChatMessage.chat_id == "chat-incognito").order_by(ORMChatMessage.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert rows == []
+    chat = await async_session.get(ORMChat, "chat-incognito")
+    assert chat is not None
+    assert chat.api_standard == "chat_completions"
+    assert chat.cum_total_tokens == 0
+    assert chat.active_context_tokens == 0
+    assert chat.last_model_client is None
+    assert chat.last_model_id is None
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_provider_error_emits_error_and_completed(monkeypatch) -> None:
+    _install_route_mocks(monkeypatch, model_client=_RouteModelClient(fail=True))
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: error" in chunk for chunk in chunks)
+    assert any('"error": "provider failed"' in chunk for chunk in chunks)
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert _event_count(chunks, "run.completed") == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_cleans_up_when_stream_closes_early(monkeypatch) -> None:
+    model_client = _RouteModelClient()
+    session = _install_route_mocks(monkeypatch, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(message="hello", run_id="run-1", chat_id="chat-1"),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+
+    first_chunk = await anext(response.body_iterator)
+    first_chunk_text = first_chunk.decode() if isinstance(first_chunk, bytes) else first_chunk
+    assert "event: user.response" in first_chunk_text
+
+    await response.body_iterator.aclose()
+
+    assert session.close_calls == 1
+    assert model_client.close_calls == 0

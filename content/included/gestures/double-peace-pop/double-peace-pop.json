@@ -1,0 +1,50 @@
+{
+  "schema": "animaPoseClip/1.0",
+  "id": "double-peace-pop",
+  "name": "double-peace-pop",
+  "duration": 2.4,
+  "basePose": "relaxedRest",
+  "defaultTransition": {
+    "easing": "easeInOutSine",
+    "interpolation": {
+      "humanoidRotation": "slerp",
+      "humanoidPosition": "linear",
+      "expression": "linear"
+    }
+  },
+  "poses": {
+    "relaxedRest": {
+      "ref": "relaxedRest"
+    },
+    "doublePeaceHit": {
+      "ref": "double-peace-sign"
+    }
+  },
+  "poseKeyframes": [
+    {
+      "time": 0,
+      "pose": "relaxedRest"
+    },
+    {
+      "time": 0.7,
+      "pose": "doublePeaceHit",
+      "transition": {
+        "easing": "easeInOutSine"
+      }
+    },
+    {
+      "time": 1.8,
+      "pose": "doublePeaceHit",
+      "transition": {
+        "easing": "easeInOutSine"
+      }
+    },
+    {
+      "time": 2.4,
+      "pose": "relaxedRest",
+      "transition": {
+        "easing": "easeInOutSine"
+      }
+    }
+  ]
+}

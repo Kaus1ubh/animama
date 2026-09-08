@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:posture_a",
+  "version": 1,
+  "semantic_key": "posture_a",
+  "name": "posture_a",
+  "implementation": {
+    "kind": "vrma",
+    "file_role": "animation"
+  },
+  "files": [
+    {
+      "path": "posture_a.vrma",
+      "role": "animation"
+    }
+  ],
+  "dependencies": []
+}
