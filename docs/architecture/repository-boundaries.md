@@ -12,8 +12,8 @@ require those files.
 
 The two new source repositories are `raymond-van/animama` and
 `raymond-van/animama-cloud`. Both are private. Their technical cutover is
-complete and the source freeze is lifted; final owner verification remains
-pending. The existing
+complete, owner verification is recorded on 2026-09-08, and the source freeze is
+lifted. These are the active source repositories. The existing
 `raymond-van/animama-releases` remains the binary installer/update/feature-pack
 repository with its own release approvals.
 
@@ -272,9 +272,9 @@ by the 29 intentionally archived source files, with no unexpected missing items
 or deletion. The local application at http://localhost:3000 passes the focused
 avatar/navigation/composer smoke. Native/audio/voice acceptance was not repeated.
 The legacy remote is private and archived with Actions disabled. Technical
-cutover is complete and the source freeze is lifted; final owner verification
-remains pending. Initial commits and tags stay immutable; later documentation
-changes are recorded separately.
+cutover is complete and owner-verified on 2026-09-08; the source freeze is lifted.
+Both new checkouts are the active sources of truth. Initial commits and tags
+stay immutable; later documentation changes are recorded separately.
 
 Enforced default-branch protection has an explicit owner-approved exception
 until the owner says otherwise. There is no automatic expiry, recurring

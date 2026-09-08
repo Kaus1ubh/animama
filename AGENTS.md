@@ -163,6 +163,16 @@ startup, debugging, and reporting.
 
 ## Ownership Boundaries
 
+- This repository must build, test and run without a Cloud checkout or private
+  source. Do not add Cloud imports, sibling path dependencies, symlinks or build
+  inputs. Documented hosted HTTP contracts are allowed; private service databases
+  are not a local integration surface. Shared reusable code belongs here;
+  Cloud consumes reviewed, immutable public artifacts.
+- In a workspace containing multiple repositories, read the target repository's
+  root and scoped agent guides before editing there; secondary-folder guidance
+  may not load automatically. Run commands with an explicit repository working
+  directory and keep Git status, commits and pull requests separate. A worktree
+  for this repository does not isolate edits in an attached sibling repository.
 - Backend API, persistence, runtime, workers, and backend docs belong under
   `src/backend`.
 - Browser UI, frontend gateway, generated clients, Electron, and frontend
