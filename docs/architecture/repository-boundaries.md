@@ -10,8 +10,10 @@ require those files.
 
 ## Repositories and dependency direction
 
-The two active source repositories will be `raymond-van/animama` and
-`raymond-van/animama-cloud`. Both start private. The existing
+The two new source repositories are `raymond-van/animama` and
+`raymond-van/animama-cloud`. Both are private. Their technical cutover is
+complete and the source freeze is lifted; final owner verification remains
+pending. The existing
 `raymond-van/animama-releases` remains the binary installer/update/feature-pack
 repository with its own release approvals.
 
@@ -86,10 +88,12 @@ Planning paths are preserved relative to the source unless the manifest records
 an explicit collision-safe mapping. Export no public stub ExecPlans. Public
 indexes and contributor guidance use durable architecture, contracts and
 operations; retained documentation no longer depends on private planning files.
-These are ownership destinations; they do not imply that private services have
-been built. The public packages and bounded Anima/chat consumer now exist in the
-monorepo. The export inputs supply explicit mappings, private health-only
-skeletons, manifests and link rewrites using this inventory.
+These source boundaries do not imply that private product services have been
+built. Public packages and the bounded Anima/chat consumer live in `animama`.
+Cloud contains a health-only foundation and consumes the packed public
+artifacts; authentication, Discover and hosted product behavior remain
+unimplemented. All full plans have migrated to private Cloud, including plans
+for local code; public guides are sufficient without access to those records.
 
 ## Executable shared boundary
 
@@ -214,9 +218,12 @@ desktop distribution decisions do not establish permission to publish standalone
 source assets. Specifically:
 
 - Existing explicit exclusions for downloaded voices/music/backgrounds and
-  unapproved avatars/derived metadata are assigned `archive`. Phase 3 must
-  prove the candidate's supported catalog and starter journeys without those
-  inputs; resolve any retained reference in the source checkpoint first.
+  unapproved avatars/derived metadata are assigned `archive`. The private split
+  rehearsal audited the retained catalog and exercised the isolated local
+  application without those inputs. Recorded backend test limitations remain;
+  this is not a claim that every starter-materialization test passed. Future
+  changes must preserve that independence; fix
+  retained references in reviewed source before regenerating candidates.
 - Mixamo-derived animation inputs retain their recorded embedded-product
   limitation and block raw publication pending a separate disposition. Their
   existing private runtime remains unchanged. A private candidate is not a
@@ -237,36 +244,63 @@ must be explicitly selected before soliciting public contributions.
 
 [Scanner pins](../../scripts/repository-boundary/scanner-pins.json) record exact
 Gitleaks and ScanCode versions, official release digests, command shapes and
-verification limits for Phase 3. Gitleaks's native archive hash/version and a
-synthetic detection canary were checked; full candidate/file/history scans and
-ScanCode execution have not run. ScanCode is pinned to Linux/Python 3.12 rather
-than assuming native Apple Silicon compatibility. Phase 7 refreshes these pins
-and adds the planned history/REUSE audit. Raw findings, removal recipes,
+verification limits. The private split rehearsal ran pinned Gitleaks file and
+history scans and Linux/Python 3.12 ScanCode checks, with findings reviewed
+against the exact export inventory. One raw model license-scan timeout remains
+an explicit adjudicated limitation, supported by complete byte accounting and
+separate text-field scanning; this is not a wholly green raw license scan.
+The later source-publication audit must refresh coverage, resolve rights and
+perform the planned history/REUSE review. These scans do not authorize public
+visibility or clear pending asset rights. Raw findings, removal recipes,
 credentials and backup material remain outside public Git and release assets.
 
-## Cutover checkpoint and recovery proposal
+## Cutover status and recovery policy
 
-Accountless Phases 1–5 were user-verified at `9c6f8588`. The user has confirmed
-Phase 0 complete; the cleanup's recorded baseline failures, two owned mutation
-deferrals and unrun human/native checks remain accurately described. Optional
-accountless tooling and broad module restructuring are not added prerequisites.
+The owner approved the private source cutover on 2026-09-08 after deterministic
+exports, independent candidate validation and private Git/LFS recovery checks.
+The old monorepo is preserved under the approved private name
+`raymond-van/animama-legacy` and the local preservation path
+`/Users/ray/code/animama-legacy`. The new working checkouts are fresh clones at
+`/Users/ray/code/animama` and `/Users/ray/code/animama-cloud`, each with its own
+Git root. The local root move and linked-worktree repair are complete. The
+runtime snapshot and database backup are durably retained privately. Both
+initial-root GitHub CI workflows, public staging integrity and final-path clone
+checks passed. Runtime transfer, restart and continuity checks passed, including
+the preserved reference stack. All 11 important database tables match the
+pre-cutover state; the catalog's 24 unavailable items are exactly accounted for
+by the 29 intentionally archived source files, with no unexpected missing items
+or deletion. The local application at http://localhost:3000 passes the focused
+avatar/navigation/composer smoke. Native/audio/voice acceptance was not repeated.
+The legacy remote is private and archived with Actions disabled. Technical
+cutover is complete and the source freeze is lifted; final owner verification
+remains pending. Initial commits and tags stay immutable; later documentation
+changes are recorded separately.
 
-The selected gate is a user-reviewed quiet source commit after Phase 2, followed
-by deterministic Phase 3 export and successful independent candidate validation.
-The quiet commit will be selected then; today's inventory base is not an advance
-approval of that future cutover. Split Phases 1–6 precede private cloud feature
-implementation. Permitted identity contract/feasibility work may continue under
-its own plan before cutover; identity feature implementation begins after split
-Phase 6. Desktop/local development can continue with inventory refreshes.
+Enforced default-branch protection has an explicit owner-approved exception
+until the owner says otherwise. There is no automatic expiry, recurring
+approval or Pro prerequisite. Both source repositories remain private; reviewed
+changes and CI remain the development workflow, without claiming branch rules
+are technically enforced. Actions use read-only default workflow tokens and
+cannot approve pull requests automatically. Optional secret scanning and push
+protection were not enabled by this cutover; no paid entitlement or public
+fallback is assumed.
 
-For Phase 4, the concrete recovery proposal is to preserve the old remote as
-private `raymond-van/animama-monorepo-private-archive`, disable normal writes,
-and create the two new private roots only after a verified private Git bundle
-and separately retained LFS payloads exist. A Git bundle alone does not contain
-LFS payloads. Rehearsal candidates must start from reviewed committed blobs;
-never patch exported candidates to hide a source/mapping problem. Remote name
-availability, actual preservation/push and the cutover window are verified and
-authorized in Phase 4. No remote operation has happened in Phase 1.
+Keep the complete old Git history and separately verified LFS payloads private.
+A Git bundle does not contain LFS or ignored local runtime data. Preserve
+configuration, local content/data/runtime directories, Compose volumes and
+gateway-token pairing when moving a checkout. Never transplant the old `.git`
+directory, purge runtime data, or pair an existing database with an empty new
+content directory. Repair linked worktree references and keep active processes
+associated with the correct checkout. Initial candidates remain immutable;
+later corrections belong in separately reviewed commits.
+
+The binary `animama-releases` repository, release/pack URLs,
+`com.animama.desktop`, signing identities and reviewed release receipts remain
+unchanged. Source cutover grants no release dispatch or publication approval.
+Cloud product implementation remains subject to its own implementation gates;
+the health-only foundation does not implement identity, Discover or hosted use.
+
+## Historical classification checkpoints
 
 The source inventory began at `fdada45a`. Concurrent separately committed work
 removed four mockup PNGs (`6bd95998`), updated the split plan (`b276046c`),
