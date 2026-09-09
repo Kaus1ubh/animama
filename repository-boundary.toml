@@ -2989,3 +2989,20 @@ rationale = "Deterministic source identifiers for this candidate."
 paths = [
   "SPLIT_PROVENANCE.md",
 ]
+
+[[groups]]
+id = "public-package-set-workflow"
+owner = "public"
+rationale = "Public-only immutable artifact production, contract policy and issue boundaries."
+paths = [
+  ".github/ISSUE_TEMPLATE/local-bug.yml",
+  "SECURITY.md",
+  "contracts/runtime-owner/schema.json",
+  "contracts/versions.json",
+  "scripts/check-repository-dependencies.py",
+  "scripts/package-sets/README.md",
+  "scripts/package-sets/build-constraints.txt",
+  "scripts/package-sets/build.py",
+  "scripts/package-sets/package_set.py",
+  "scripts/package-sets/test_package_sets.py",
+]

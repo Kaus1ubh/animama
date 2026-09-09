@@ -38,6 +38,8 @@ jobs:
         run: |
           uv run --no-sync python scripts/repository-boundary/audit-classification.py --check
           uv run --no-sync python scripts/repository-boundary/build-provenance.py --check
+          uv run --no-sync python scripts/check-repository-dependencies.py
+          uv run --no-sync python -m unittest discover -s scripts/package-sets -p 'test_*.py'
           uv run --no-sync python scripts/repository-boundary/check-python-imports.py
           uv run --no-sync python -m unittest discover -s scripts/repository-boundary -p 'test_*.py'
           git lfs fsck
@@ -54,17 +56,88 @@ jobs:
           pnpm build
       - name: Build unpublished distribution artifacts
         run: |
-          uv build --wheel --out-dir "$RUNNER_TEMP/public-artifacts"
-          pnpm --dir src/frontend packages:pack --destination "$RUNNER_TEMP/public-artifacts"
+          uv run --no-sync python scripts/package-sets/build.py build \
+            --source "$GITHUB_WORKSPACE" --commit "$GITHUB_SHA" \
+            --output "$RUNNER_TEMP/public-artifacts"
       - name: Install the isolated browser test runtime
         run: pnpm exec playwright install --with-deps chromium
         working-directory: src/frontend
       - name: Verify consumers without a source checkout
         run: |
-          uv run --no-sync python scripts/repository-boundary/check-packed-artifacts.py \
+          uv run --no-sync python scripts/package-sets/build.py validate \
             "$RUNNER_TEMP/public-artifacts" \
             --work-dir "$RUNNER_TEMP/public-consumer"
       - name: Check Compose structure
         run: |
           bash -n reset.sh
           docker compose config --quiet
+      - name: Resolve exact compatibility baseline
+        id: compatibility
+        run: |
+          python - <<'PYTHON'
+          import json, os, re, subprocess
+          from pathlib import Path
+          event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
+          if os.environ['GITHUB_EVENT_NAME'] == 'pull_request':
+              base = event['pull_request']['base']['sha']
+          elif os.environ['GITHUB_EVENT_NAME'] == 'push':
+              base = event['before']
+          else:
+              result = subprocess.run(['git', 'rev-parse', 'HEAD^'], capture_output=True, text=True)
+              base = result.stdout.strip() if result.returncode == 0 else '0' * 40
+          if not re.fullmatch('[0-9a-f]{40}', base):
+              raise SystemExit('Invalid compatibility baseline')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('commit=' + ('' if base == '0' * 40 else base) + '\n')
+          PYTHON
+      - name: Check out exact baseline for provider compatibility
+        if: steps.compatibility.outputs.commit != ''
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ steps.compatibility.outputs.commit }}
+          path: .compatibility-base
+          lfs: true
+          persist-credentials: false
+      - name: Check provider compatibility against exact baseline
+        if: steps.compatibility.outputs.commit != ''
+        env:
+          BASE_COMMIT: ${{ steps.compatibility.outputs.commit }}
+        run: |
+          if [ -f .compatibility-base/contracts/versions.json ]; then
+            uv run --no-sync python scripts/package-sets/build.py build \
+              --source "$GITHUB_WORKSPACE/.compatibility-base" --commit "$BASE_COMMIT" \
+              --output "$RUNNER_TEMP/base-artifacts"
+            uv run --no-sync python scripts/package-sets/build.py compare \
+              "$RUNNER_TEMP/base-artifacts" "$RUNNER_TEMP/public-artifacts"
+          else
+            echo "Baseline predates the initial versioned package-set contract policy."
+          fi
+      - name: Read package-set identity
+        id: package-set
+        env:
+          SET_DIRECTORY: ${{ runner.temp }}/public-artifacts
+        run: |
+          python - <<'PYTHON'
+          import hashlib, os
+          from pathlib import Path
+          digest = hashlib.sha256((Path(os.environ['SET_DIRECTORY']) / 'manifest.json').read_bytes()).hexdigest()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write('name=animama-set-' + os.environ['GITHUB_SHA'] + '-' + digest + '\n')
+          PYTHON
+      - name: Retain temporary validated PR or commit outputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.package-set.outputs.name }}
+          path: ${{ runner.temp }}/public-artifacts/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retain focused test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: portable-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/public-consumer/summary.json
+            ${{ runner.temp }}/public-consumer/logs/
+            ${{ runner.temp }}/public-consumer/frontend/*.png
+          retention-days: 14

@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "contracts": {
+    "runtime-owner": { "version": "1.0.0", "file": "runtime-owner.schema.json", "source": "contracts/runtime-owner/schema.json" },
+    "local-http": { "version": "1.0.0", "file": "openapi.json", "source": "generated-offline" }
+  }
+}

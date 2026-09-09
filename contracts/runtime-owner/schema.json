@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://animama.app/contracts/runtime-owner/1/schema.json",
+  "title": "RuntimeOwner",
+  "description": "Opaque product owner supplied by the current composition; this schema grants no authentication.",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "displayName": { "type": "string" }
+  },
+  "required": ["id"],
+  "additionalProperties": true
+}

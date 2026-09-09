@@ -67,3 +67,6 @@ content/included/**/.DS_Store
 /content/included/vfx/particle/brackeys_vfx_bundle/
 /content/included/vfx/particle/kenney_particle-pack/
 /content/included/vfx/particle/LeLu's Noise Pack/
+
+# Isolated CI checkout used only for provider compatibility.
+.compatibility-base/

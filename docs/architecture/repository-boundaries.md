@@ -30,7 +30,7 @@ Cloud consumes an immutable public-repository commit plus wheel, npm and
 contract artifact identities/hashes in its own `upstream/animama.lock`. No
 public/local build imports private source, requires the private checkout, or
 reads a private service database. A local client may use a documented hosted
-HTTP contract. Sibling-checkout development will be checked against that lock;
+HTTP contract. Artifact-based sibling development is checked against that lock;
 it is not the normal dependency format and introduces no submodule.
 
 ## Source ownership
@@ -392,3 +392,17 @@ release acceptance requirements.
 Portable regression fixtures exercise audio parsing and pack exclusions with
 generated samples. Catalog checks cover the committed content set and validate
 optional content when present, without requiring private development examples.
+
+## Package-set development workflow
+
+The [public package producer](../../scripts/package-sets/README.md) builds and
+validates exact-commit wheel/npm/schema sets without private source or storage
+credentials. GitHub Actions retains temporary PR/main outputs and test evidence.
+Private maintainers select validated content-addressed sets for a dedicated
+private package bucket; that storage is independent of ordinary public builds
+and of the desktop distribution repository. Cross-repository workflow and
+storage approval records remain private. The publication boundary and
+source-license gates above are unchanged.
+
+Shared/local bug reports belong here; sensitive hosted/abuse/customer details
+belong in a private channel. See [the security policy](../../SECURITY.md).
