@@ -5,7 +5,7 @@
   "description": "Opaque product owner supplied by the current composition; this schema grants no authentication.",
   "type": "object",
   "properties": {
-    "id": { "type": "string" },
+    "id": { "type": "string", "description": "Opaque owner identifier; consumers must not infer credentials or permissions from its value." },
     "displayName": { "type": "string" }
   },
   "required": ["id"],
