@@ -73,6 +73,14 @@ jobs:
         run: |
           bash -n reset.sh
           docker compose config --quiet
+      - name: Reclaim completed test environments before the baseline rebuild
+        # The next build creates another isolated dependency tree. Retain package
+        # bytes and test evidence, but release dependencies from completed tests.
+        run: |
+          rm -rf -- "$GITHUB_WORKSPACE/src/frontend/node_modules" \
+            "$RUNNER_TEMP/public-consumer/frontend/node_modules" \
+            "$RUNNER_TEMP/public-consumer/backend/.venv"
+          df -h "$RUNNER_TEMP"
       - name: Resolve exact compatibility baseline
         id: compatibility
         run: |
