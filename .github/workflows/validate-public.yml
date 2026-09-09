@@ -60,7 +60,9 @@ jobs:
             --source "$GITHUB_WORKSPACE" --commit "$GITHUB_SHA" \
             --output "$RUNNER_TEMP/public-artifacts"
       - name: Install the isolated browser test runtime
-        run: pnpm exec playwright install --with-deps chromium
+        # Hosted Ubuntu supplies the runtime libraries. The real browser checks
+        # below verify launch without reinstalling fonts through the apt mirror.
+        run: pnpm exec playwright install chromium
         working-directory: src/frontend
       - name: Verify consumers without a source checkout
         run: |
