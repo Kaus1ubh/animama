@@ -43,6 +43,13 @@ is needed. A separate private maintainer workflow may select an exact successful
 main-branch set for private durable storage after its own approval. Desktop
 binaries and feature packs continue to use `animama-releases`.
 
+To identify a CI output, record the successful run ID, artifact ID, full source
+commit and manifest SHA-256 from the artifact name. The Actions ZIP digest
+checks the downloaded transport archive; the manifest digest identifies the
+package set inside it. Retain both when recording a selection. The separate
+`portable-evidence-<commit>-<attempt>` artifact contains consumer logs and browser
+screenshots and is not an installable package set.
+
 ## Compatibility policy
 
 The workflow compares package sets against the PR base, pre-push commit, or
