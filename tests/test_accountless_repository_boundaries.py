@@ -95,7 +95,15 @@ def test_browser_and_load_tools_have_no_direct_fastapi_or_bearer_path() -> None:
 def test_python_route_tests_do_not_restore_header_authentication_fixtures() -> None:
     """Route-unit ownership uses dependency overrides, never magic headers."""
 
-    files = [path for path in (REPO_ROOT / "tests").glob("test_*.py") if path.name != Path(__file__).name]
+    # These boundary tests deliberately send forged credentials to prove that
+    # the resolver ignores them and the collector never receives them. They do
+    # not grant route-unit ownership through headers or introduce an auth mode.
+    credential_rejection_tests = {"test_local_http_lifecycle.py", "test_local_http_telemetry.py"}
+    files = [
+        path
+        for path in (REPO_ROOT / "tests").glob("test_*.py")
+        if path.name not in {Path(__file__).name, *credential_rejection_tests}
+    ]
     assert (
         _matches(
             files,

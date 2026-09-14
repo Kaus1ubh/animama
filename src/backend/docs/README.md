@@ -70,6 +70,9 @@ browser UI, client-side STT, avatar rendering, and most realtime audio UX.
   server-side STT, and retired LiveKit integration points.
 - [Development and operations](operations/development.md): local commands,
   migrations, tests, workers, and deployment guidance.
+- [Local HTTP replacement components](operations/local-http-components.md):
+  isolated FastAPI admission, assets, telemetry and drain verification before
+  the coordinated Hono cutover; the shipped composition is unchanged.
 - [Embedded desktop backend](operations/desktop-runtime.md): owned native
   services, frozen CLI, private environment, mounts, vault/token distinctions,
   migration snapshots and the separate Compose boundary.

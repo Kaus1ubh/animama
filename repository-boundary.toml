@@ -3006,3 +3006,26 @@ paths = [
   "scripts/package-sets/package_set.py",
   "scripts/package-sets/test_package_sets.py",
 ]
+
+[[groups]]
+id = "local-http-replacement-components"
+owner = "public"
+rationale = "Local-only HTTP replacement components, isolated acceptance tests and contributor guidance; no hosted dependency or product cutover."
+paths = [
+  "src/backend/animama/local/http/__init__.py",
+  "src/backend/animama/local/http/admission.py",
+  "src/backend/animama/local/http/assets.py",
+  "src/backend/animama/local/http/composition.py",
+  "src/backend/animama/local/http/config.py",
+  "src/backend/animama/local/http/lifecycle.py",
+  "src/backend/animama/local/http/protocol.py",
+  "src/backend/animama/local/http/telemetry.py",
+  "src/backend/docs/operations/local-http-components.md",
+  "tests/test_local_http_admission.py",
+  "tests/test_local_http_assets.py",
+  "tests/test_local_http_composition.py",
+  "tests/test_local_http_config.py",
+  "tests/test_local_http_lifecycle.py",
+  "tests/test_local_http_telemetry.py",
+  "tests/test_local_http_transport.py",
+]
