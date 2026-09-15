@@ -3,7 +3,7 @@ import { attachPlaybackCheckpoint } from "../helpers/checkpoints";
 import {
   expectBottomRightDock,
   proveAvatarVFXPlayback,
-  proveChaosChibiDom,
+  proveKawaiiSparklesDom,
   proveParticlePlayback,
   provePoseClipPlayback,
   proveReactionPlayback,
@@ -35,29 +35,25 @@ type LibraryJourney = {
 
 const JOURNEYS: readonly LibraryJourney[] = [
   {
-    key: "library-scene-fx-chaos-chibi",
+    key: "library-scene-fx-kawaii-sparkles",
     channel: "scene-vfx",
-    contentName: "Chaos Chibi",
+    contentName: "Kawaii Sparkles",
     section: "scene",
     proof: "scene",
-    target: { kind: "scene_vfx", runtimeId: "chaos-chibi" },
-    requiredFiles: ["chibi-1.png", "chibi-2.png"],
+    target: { kind: "scene_vfx", runtimeId: "kawaii-sparkles" },
+    requiredFiles: [
+      "emoji-sparkles-2728.svg",
+      "emoji-sparkling-heart-1f496.svg",
+    ],
   },
   {
-    key: "library-particle-vfx-cartoon-bang",
+    key: "library-particle-vfx-hearts",
     channel: "particle-vfx",
-    contentName: "Cartoon Bang",
+    contentName: "Hearts",
     section: "particle",
     proof: "particle",
-    target: { kind: "particle_vfx", runtimeId: "cartoon-bang" },
-    requiredFiles: [
-      "cartoon-bang-0.png",
-      "cartoon-bang-1.png",
-      "cartoon-bang-2.png",
-      "cartoon-bang-3.png",
-      "cartoon-bang-4.png",
-      "cartoon-bang-5.png",
-    ],
+    target: { kind: "particle_vfx", runtimeId: "hearts" },
+    requiredFiles: ["heart.png"],
   },
   {
     key: "library-avatar-vfx-eye-confused-swirl",
@@ -140,8 +136,8 @@ for (const journey of JOURNEYS) {
             });
           samples = result.samples;
           checkpoint = result.effectRoot;
-          await test.step("Assert both Chibi resources and moving marquee layers are visible", async () => {
-            await proveChaosChibiDom(result.effectRoot);
+          await test.step("Assert both sparkle resources and moving marquee layers are visible", async () => {
+            await proveKawaiiSparklesDom(result.effectRoot);
           });
           break;
         }

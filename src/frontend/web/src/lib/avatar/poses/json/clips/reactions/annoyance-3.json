@@ -40,13 +40,6 @@
   ],
   "events": [
     {
-      "id": "scene-emotion-background",
-      "time": 0,
-      "kind": "scene_vfx",
-      "sceneKind": "background_layers",
-      "presetId": "scene-vfx-emotion-annoyance"
-    },
-    {
       "id": "avatar-angry",
       "time": 0.1,
       "kind": "avatar_vfx",

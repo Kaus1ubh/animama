@@ -46,12 +46,6 @@
       "kind": "scene_vfx",
       "sceneKind": "background_layers",
       "presetId": "scene-vfx-emotion-embarrassment"
-    },
-    {
-      "id": "avatar-blush-2-r",
-      "time": 0.1,
-      "kind": "avatar_vfx",
-      "effectId": "blush 2 r"
     }
   ]
 }

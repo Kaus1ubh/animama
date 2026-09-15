@@ -25,12 +25,6 @@
       "alias": "scene-vfx-emotion-nervousness",
       "content_type": "scene_effect",
       "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:texture_sweat_1",
-      "alias": "texture_sweat_1",
-      "content_type": "avatar_effect",
-      "config": {}
     }
   ],
   "files": [

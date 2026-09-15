@@ -14,8 +14,8 @@ function runtimeEntry(
   return {
     kind: "background_layers",
     entry: {
-      id: "chaos-chibi",
-      label: "Chaos Chibi",
+      id: "preview-scene",
+      label: "Preview Scene",
       kind: "background_layers",
       enabled: true,
       durationMs: null,
@@ -34,16 +34,16 @@ function runtimeEntry(
         enabled,
         items: [
           {
-            id: "chibi-1",
+            id: "preview-image-1",
             kind: "png",
-            src: "/effects/chibi-1.png",
-            label: "Chibi 1",
+            src: "/effects/preview-image-1.png",
+            label: "Preview image 1",
           },
           {
-            id: "chibi-2",
+            id: "preview-image-2",
             kind: "png",
-            src: "/effects/chibi-2.png",
-            label: "Chibi 2",
+            src: "/effects/preview-image-2.png",
+            label: "Preview image 2",
           },
         ],
         itemSize: 72,
@@ -75,13 +75,13 @@ describe("Scene VFX observation metadata", () => {
   it("exposes effect, layer, animation-owner, and resolved-item identities", () => {
     const html = renderEffect(true);
 
-    expect(html).toContain('data-scene-vfx-id="chaos-chibi"');
+    expect(html).toContain('data-scene-vfx-id="preview-scene"');
     expect(html).toContain('data-scene-vfx-kind="background_layers"');
     expect(html).toContain('data-scene-vfx-layer="pattern"');
     expect(html).toContain('data-scene-vfx-layer="marquee"');
     expect(html).toContain('data-scene-vfx-marquee-track="0"');
-    expect(html).toContain('data-scene-vfx-item-id="chibi-1"');
-    expect(html).toContain('data-scene-vfx-item-id="chibi-2"');
+    expect(html).toContain('data-scene-vfx-item-id="preview-image-1"');
+    expect(html).toContain('data-scene-vfx-item-id="preview-image-2"');
     expect(html).toContain("animation-name:scene-vfx-marquee-shift");
     expect(html).toContain("opacity:0.8");
   });
@@ -89,7 +89,7 @@ describe("Scene VFX observation metadata", () => {
   it("renders no layer metadata or cells when the layers are disabled", () => {
     const html = renderEffect(false);
 
-    expect(html).toContain('data-scene-vfx-id="chaos-chibi"');
+    expect(html).toContain('data-scene-vfx-id="preview-scene"');
     expect(html).not.toContain("data-scene-vfx-layer");
     expect(html).not.toContain("data-scene-vfx-marquee-track");
     expect(html).not.toContain("data-scene-vfx-item-id");

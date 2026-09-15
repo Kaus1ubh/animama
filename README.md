@@ -11,6 +11,13 @@ Compose; Windows and Linux packaging are not supported release targets.
 
 ## Run from source
 
+Mixamo animation bytes are now excluded from source. The
+[manual acquisition helper](docs/frontend/runtime/mixamo-acquisition.md) prepares
+a download checklist; conversion and installation are deferred. A fresh clone
+cannot yet reproduce the complete starter experience or native package. The
+commands below describe the existing development flow, not verified fresh-clone
+release instructions.
+
 Install Docker with Compose and Git LFS, and hydrate the checkout assets with
 `git lfs pull`. Then start the development stack from the repository root:
 
@@ -55,3 +62,8 @@ project-authored assets are not currently offered under an open-source license.
 See [LICENSE](LICENSE) for third-party and prior-license exceptions. Source
 publication is being prepared separately; that preparation grants no additional
 rights to the current checkout.
+
+The [source licensing review](licenses/README.md) records third-party exceptions
+and remaining publication gates. The [clean snapshot tools](scripts/public-release/README.md)
+prepare a separate review copy without exporting development history or changing
+this checkout's license.

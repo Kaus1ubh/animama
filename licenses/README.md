@@ -1,0 +1,36 @@
+# Source licensing review
+
+The working repository remains proprietary. Raymond Van is the recorded owner
+of original Animama code, documentation and original artwork. The separately
+prepared source candidate proposes AGPL-3.0-only for that work; access to this
+checkout grants no new rights. Third-party code and assets retain their own terms.
+
+[source-review.json](source-review.json) maps every classified source input to
+the candidate license treatment, evidence and review state. Its original-work
+entries rely on the owner's authorship attestation and bounded source review;
+they are not forensic certification that no external influence exists. Known
+third-party sources override that default. Exact third-party bytes, revisions,
+modifications and full notices are in [third-party](third-party/):
+
+- [Code, speech models and dashboards](third-party/code-and-models.md).
+- [Artwork and particle sources](third-party/art-NOTICES.md).
+- [VRoid owner confirmation and metadata](third-party/art-vroid-review.json).
+
+All recorded dispositions are preparation evidence. Public-source acceptance
+and signed binary distribution are separately gated. Raymond confirmed the
+retained model identities and authorized correcting their use/redistribution
+metadata; their derived portraits retain the corresponding model terms. Retained
+PocketTTS assets use the owner's stricter noncommercial election despite the
+upstream README/license conflict. They are not relicensed as AGPL.
+
+Imported skills, removed artwork and Mixamo clips are excluded from the source
+candidate. Private ignored files and old Git/LFS history are not publication
+inputs. Original replacement textures have checked-in SVG sources; Raymond approved
+the replacement artwork. Runtime/native appearance acceptance remains separate. A candidate is regenerated after subsequent source
+changes using the [source preparation tools](../scripts/public-release/README.md).
+
+Keep upstream notices intact. The complete AGPL template and third-party legal
+texts are preserved documents, not claims that Raymond authored their wording.
+Installed dependencies and binary build inputs require the existing runtime
+notice generation and final artifact review; a source inventory does not replace
+that dependency or redistribution audit.

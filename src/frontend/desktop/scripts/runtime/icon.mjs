@@ -10,7 +10,7 @@ export async function buildIcon() {
   const output = path.join(cacheRoot, "release-icon");
   const iconset = path.join(output, "Animama.iconset");
   mkdirSync(iconset, { recursive: true });
-  const svg = readFileSync(path.join(desktopRoot, "build/icon.svg"));
+  const svg = readFileSync(path.join(desktopRoot, "build/original-icon.svg"));
   for (const size of [16, 32, 128, 256, 512])
     for (const scale of [1, 2]) {
       await sharp(svg)

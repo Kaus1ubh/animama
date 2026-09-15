@@ -1,0 +1,506 @@
+{
+  "schema_version": 1,
+  "status": "manual-acquisition-planning-only",
+  "mixamo_url": "https://www.mixamo.com/",
+  "workflow_url": "https://helpx.adobe.com/creative-cloud/help/animate-characters-mixamo.html",
+  "notes": "Local labels are unverified search hints. Original Adobe animation IDs, rig selection and export settings are not recorded. No download or VRMA conversion is implemented. This manifest conveys no third-party asset license.",
+  "assets": [
+    {
+      "target_path": "content/included/gestures/acknowledging/acknowledging.vrma",
+      "category": "gesture",
+      "label_hint": "acknowledging",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/being_cocky/being_cocky.vrma",
+      "category": "gesture",
+      "label_hint": "Being Cocky",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/being_electrocuted/being_electrocuted.vrma",
+      "category": "gesture",
+      "label_hint": "being_electrocuted",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/blush/blush.vrma",
+      "category": "gesture",
+      "label_hint": "Blush Head scratch",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/cheering/cheering.vrma",
+      "category": "gesture",
+      "label_hint": "cheering",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/clapping_v1/clapping_v1.vrma",
+      "category": "gesture",
+      "label_hint": "clapping_v1",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/crying/crying.vrma",
+      "category": "gesture",
+      "label_hint": "Crying",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/crying_copy/crying_copy.vrma",
+      "category": "gesture",
+      "label_hint": "crying_copy",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/darn_it/darn_it.vrma",
+      "category": "gesture",
+      "label_hint": "Darn It",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/excited/excited.vrma",
+      "category": "gesture",
+      "label_hint": "excited",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/excited_jump_1/excited_jump_1.vrma",
+      "category": "gesture",
+      "label_hint": "Quick Excited Jump 1",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/excited_jump_2/excited_jump_2.vrma",
+      "category": "gesture",
+      "label_hint": "excited_jump_2",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/exclaim_frustrated/exclaim_frustrated.vrma",
+      "category": "gesture",
+      "label_hint": "Exclaim Frustrated",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/explain/explain.vrma",
+      "category": "gesture",
+      "label_hint": "Explain",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/flattered/flattered.vrma",
+      "category": "gesture",
+      "label_hint": "Flattered",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/frustrated_explain/frustrated_explain.vrma",
+      "category": "gesture",
+      "label_hint": "Frustrated Explain",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/goodbye/goodbye.vrma",
+      "category": "gesture",
+      "label_hint": "goodbye",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/happy_walk/happy_walk.vrma",
+      "category": "gesture",
+      "label_hint": "happy_walk",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/happy_walk_backward/happy_walk_backward.vrma",
+      "category": "gesture",
+      "label_hint": "happy_walk_backward",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/head_shake/head_shake.vrma",
+      "category": "gesture",
+      "label_hint": "Head Shake",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/idle_fem/idle_fem.vrma",
+      "category": "gesture",
+      "label_hint": "idle_fem",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/idle_idle1/idle_idle1.vrma",
+      "category": "gesture",
+      "label_hint": "idle_idle1",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/idle_idle2/idle_idle2.vrma",
+      "category": "gesture",
+      "label_hint": "idle_idle2",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/idle_idle3/idle_idle3.vrma",
+      "category": "gesture",
+      "label_hint": "idle_idle3",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/idle_idle4/idle_idle4.vrma",
+      "category": "gesture",
+      "label_hint": "idle_idle4",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/idle_look_around/idle_look_around.vrma",
+      "category": "gesture",
+      "label_hint": "idle_look_around",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/idle_loop/idle_loop.vrma",
+      "category": "gesture",
+      "label_hint": "idle_loop",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/idle_loop_copy/idle_loop_copy.vrma",
+      "category": "gesture",
+      "label_hint": "idle_loop_copy",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/idle_sexy_dance/idle_sexy_dance.vrma",
+      "category": "gesture",
+      "label_hint": "idle_sexy_dance",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/listening_head_nod/listening_head_nod.vrma",
+      "category": "gesture",
+      "label_hint": "Listening Head Nod",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/lookaround/lookaround.vrma",
+      "category": "gesture",
+      "label_hint": "Look Around",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/lookaround2/lookaround2.vrma",
+      "category": "gesture",
+      "label_hint": "lookaround2",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/plead/plead.vrma",
+      "category": "gesture",
+      "label_hint": "Plead",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/posture_a/posture_a.vrma",
+      "category": "gesture",
+      "label_hint": "posture_a",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/posture_cat_walk/posture_cat_walk.vrma",
+      "category": "gesture",
+      "label_hint": "posture_cat_walk",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/posture_da/posture_da.vrma",
+      "category": "gesture",
+      "label_hint": "posture_da",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/posture_jump/posture_jump.vrma",
+      "category": "gesture",
+      "label_hint": "posture_jump",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/posture_jumphigh/posture_jumphigh.vrma",
+      "category": "gesture",
+      "label_hint": "posture_jumphigh",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/posture_sad/posture_sad.vrma",
+      "category": "gesture",
+      "label_hint": "Pose Sad",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/posture_sad_copy/posture_sad_copy.vrma",
+      "category": "gesture",
+      "label_hint": "posture_sad_copy",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/posture_sad_custom/posture_sad_custom.vrma",
+      "category": "gesture",
+      "label_hint": "Pose Sad (custom)",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/posture_step_forward/posture_step_forward.vrma",
+      "category": "gesture",
+      "label_hint": "posture_step_forward",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/posture_t/posture_t.vrma",
+      "category": "gesture",
+      "label_hint": "posture_t",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/posure_sad_upper/posure_sad_upper.vrma",
+      "category": "gesture",
+      "label_hint": "posure_sad_upper",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/proud_of_self/proud_of_self.vrma",
+      "category": "gesture",
+      "label_hint": "Proud of Self",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/quick_talk_gesture/quick_talk_gesture.vrma",
+      "category": "gesture",
+      "label_hint": "quick_talk_gesture",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/relax/relax.vrma",
+      "category": "gesture",
+      "label_hint": "relax",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/rumba_dancing/rumba_dancing.vrma",
+      "category": "gesture",
+      "label_hint": "rumba_dancing",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/sarcastic_response/sarcastic_response.vrma",
+      "category": "gesture",
+      "label_hint": "Sarcastic Response",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/sexy_step_forward/sexy_step_forward.vrma",
+      "category": "gesture",
+      "label_hint": "sexy_step_forward",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/shrug/shrug.vrma",
+      "category": "gesture",
+      "label_hint": "Quick Shrug",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/silly_slap/silly_slap.vrma",
+      "category": "gesture",
+      "label_hint": "Silly Slap",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/sleepy/sleepy.vrma",
+      "category": "gesture",
+      "label_hint": "sleepy",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/slight_bow/slight_bow.vrma",
+      "category": "gesture",
+      "label_hint": "Slight Bow",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/surprised/surprised.vrma",
+      "category": "gesture",
+      "label_hint": "Surprised",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/talk/talk.vrma",
+      "category": "gesture",
+      "label_hint": "Talk",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/telling_secret/telling_secret.vrma",
+      "category": "gesture",
+      "label_hint": "telling_secret",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/thinking/thinking.vrma",
+      "category": "gesture",
+      "label_hint": "thinking",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/tired/tired.vrma",
+      "category": "gesture",
+      "label_hint": "Tired Idle_F",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/transition_getting_up/transition_getting_up.vrma",
+      "category": "gesture",
+      "label_hint": "transition_getting_up",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/transition_lying_to_stand/transition_lying_to_stand.vrma",
+      "category": "gesture",
+      "label_hint": "transition_lying_to_stand",
+      "starter_target": false,
+      "retired_by_owner": true
+    },
+    {
+      "target_path": "content/included/gestures/wave/wave.vrma",
+      "category": "gesture",
+      "label_hint": "Quick Wave",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/whatever/whatever.vrma",
+      "category": "gesture",
+      "label_hint": "Whatever",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/where_am_i/where_am_i.vrma",
+      "category": "gesture",
+      "label_hint": "where_am_i",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/gestures/youre_right/youre_right.vrma",
+      "category": "gesture",
+      "label_hint": "youre_right",
+      "starter_target": false,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/idle-styles/starter/animations/angry.vrma",
+      "category": "idle",
+      "label_hint": "angry",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/idle-styles/starter/animations/anxious_look_around.vrma",
+      "category": "idle",
+      "label_hint": "anxious look around",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/idle-styles/starter/animations/bored.vrma",
+      "category": "idle",
+      "label_hint": "bored",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/idle-styles/starter/animations/happy.vrma",
+      "category": "idle",
+      "label_hint": "happy",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/idle-styles/starter/animations/sad.vrma",
+      "category": "idle",
+      "label_hint": "sad",
+      "starter_target": true,
+      "retired_by_owner": false
+    },
+    {
+      "target_path": "content/included/idle-styles/starter/animations/sway.vrma",
+      "category": "idle",
+      "label_hint": "sway",
+      "starter_target": true,
+      "retired_by_owner": false
+    }
+  ]
+}

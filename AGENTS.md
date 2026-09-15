@@ -198,9 +198,10 @@ routes, workflows, or commands change. Use the existing docs information
 architecture before adding new pages.
 
 Use `$docs-sync` when asked to audit documentation coverage or propose doc
-updates. Use `$openai-knowledge` before changing OpenAI platform integrations,
-models, request fields, streaming behavior, tools, auth assumptions, or rate
-limit assumptions.
+updates. Before changing OpenAI platform integrations, verify models, request
+fields, streaming behavior, tools, auth assumptions and rate limits against
+current official OpenAI documentation. Imported agent skills are optional local
+tools, not contributor or build prerequisites.
 
 ## Verification
 

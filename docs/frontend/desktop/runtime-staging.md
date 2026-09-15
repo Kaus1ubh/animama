@@ -66,9 +66,9 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 3. Freezes Python 3.12.13 and the locked server dependencies with PyInstaller
    6.22.2. The build environment is separate from the repository's `.venv`.
 4. Builds Vite in `embedded-desktop` mode, without duplicate Included aliases.
-   Removes the copied legacy `korone-pfp.png`, `marine-pfp.png`, and
-   `gojo-pfp.png` files; the independent audit rejects their reintroduction.
-   Their private development source files remain unchanged.
+   Rejects the retired legacy `korone-pfp.png`, `marine-pfp.png`, and
+   `gojo-pfp.png` files if reintroduced. Their source files have been removed;
+   the stage filter and independent audit remain as defense against stale builds.
    All current PocketTTS, VAD, smart-turn, and ONNX variants remain. Ordinary
    `pnpm web:build` still writes the compatibility copies.
    This is a production build: application debug imports stay excluded even

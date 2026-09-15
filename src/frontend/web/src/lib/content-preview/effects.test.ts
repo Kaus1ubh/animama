@@ -214,7 +214,7 @@ describe("Asset preview effect playback", () => {
   });
 
   it("bridges clip-owned Scene VFX and SFX into the preview surface", async () => {
-    const effect = getSceneBackgroundLayerPresetById("chaos-chibi");
+    const effect = getSceneBackgroundLayerPresetById("kawaii-sparkles");
     if (!effect) throw new Error("Missing scene VFX test fixture");
     const onSceneVFXChange = vi.fn();
     const playSfx = vi.fn();
@@ -236,7 +236,7 @@ describe("Asset preview effect playback", () => {
       time: 0.2,
       kind: "scene_vfx" as const,
       sceneKind: "background_layers" as const,
-      presetId: "chaos_chibi",
+      presetId: "kawaii_sparkles",
     };
 
     await bridge.sink.applySceneVFX?.(event, context);

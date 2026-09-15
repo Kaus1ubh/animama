@@ -1,0 +1,23 @@
+Parakeet TDT 0.6B v2 model derivatives
+
+Base model: NVIDIA Parakeet, Creative Commons Attribution 4.0 International.
+https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2
+License: https://creativecommons.org/licenses/by/4.0/
+
+ONNX conversion and INT8 exports: istupakov/parakeet-tdt-0.6b-v2-onnx,
+revision 0bbb45a3365852604aef28b538a8f066f4ccaa85.
+Rebuilt nemo128 preprocessor, config and vocabulary: ysdede/
+parakeet-tdt-0.6b-v2-onnx, revision db4a768f5795e0f508187a34241fbeeef6ebb0d3.
+https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx/blob/db4a768f5795e0f508187a34241fbeeef6ebb0d3/ATTRIBUTION.md
+
+These are upstream adaptations of the original NVIDIA model: ONNX conversion,
+INT8 quantization, and a rebuilt preprocessor. Animama redistributes a subset;
+no FP16 or FP32 model is included. Preserve this attribution, the CC BY 4.0
+reference, the source ATTRIBUTION.md and the identified changes with model
+source archives and optional packs. No endorsement by NVIDIA is implied.
+The producer's config/vocab manifest hashes are stale; direct files at the
+pinned revision match the local bytes and are the applicable source receipts.
+
+The preprocessor conversion credits onnx-asr by Ivan Stupakov under MIT.
+Its full license is in parakeet-onnx-asr-mit.txt. The model derivatives remain
+CC BY 4.0; the conversion tool's MIT grant does not replace the model license.

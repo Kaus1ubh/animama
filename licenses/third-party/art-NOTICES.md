@@ -1,0 +1,82 @@
+# Third-party artwork notices
+
+Application-source licensing does not replace the following artwork terms.
+Exact paths and hashes are recorded in the adjacent `art-*.json` inventories.
+These notices preserve source evidence and owner-confirmed model permissions.
+Final source and binary publication approvals remain separate.
+
+## Twemoji
+
+Copyright Twitter, Inc. and other contributors. The 28 authoring SVGs and their
+26 retained scene copies are unchanged Twemoji v14.0.2 graphics, licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The full text is
+[art-CC-BY-4.0.txt](art-CC-BY-4.0.txt). Source and per-file mappings:
+[Twitter Twemoji v14.0.2](https://github.com/twitter/twemoji/tree/v14.0.2) and
+[art-twemoji.json](art-twemoji.json). This is the graphics license, not Twemoji's
+separate code license. Attribution does not imply endorsement.
+
+## Kenney and Brackeys particles
+
+Kenney Particle Pack 1.1 is dedicated under CC0. Credit Kenney Vleugels and the
+contributors named in the unmodified [archive notice](art-Kenney-License.txt).
+[Primary source](https://kenney.nl/assets/particle-pack).
+
+Brackeys' VFX Bundle v1 contains repackaged/remixed work by Picster/Raffaele
+Picca, Kenney, Thomas Iché and CodeManu. Its original
+[license and credits](art-Brackeys-License-and-Credits.txt) declare CC0.
+[Primary source](https://brackeysgames.itch.io/brackeys-vfx-bundle).
+[CC0 legal text](art-CC0-1.0.txt).
+
+Animama normalizes selected alpha textures to 256×256 PNG, converts TGA
+flipbooks to PNG, and resizes the CodeManu star atlas to 768×640. Exact source
+filenames, input hashes, derivative hashes and unchanged registered copies are
+in [art-particles.json](art-particles.json). All 27 derivations were reproduced
+byte-for-byte with the recorded Sharp version.
+
+CodeManu's [primary page](https://codemanu.itch.io/vfx-free-pack) describes the
+work as public domain while its metadata lists CC BY 4.0. Although the Brackeys
+archive declares CC0, retain CodeManu credit, [CC BY 4.0](art-CC-BY-4.0.txt), the
+source link and the change notice for `spark-pop-6x5.png` and its exact copies.
+This conservative treatment satisfies the attribution requirements rather than
+assuming the conflicting declaration away.
+
+## VRoid models and portraits: owner-confirmed permissions
+
+On 2026-09-15 Raymond confirmed that Annie (`AvatarSample_A_1_New.vrm`) is the
+freely distributable pixiv VRoid preset and Caitlyn (`AvatarSample_R1.vrm`) is
+his own VRoid Studio creation. He authorized correcting their embedded license
+metadata. Both now permit redistribution and use by everyone. Caitlyn credits
+Raymond Van as the character author; applicable VRoid component terms remain.
+Their portraits are unchanged direct Animama renderer captures.
+
+Annie retains pixiv VRoid Project credit and now links the applicable
+[VRoidPreset A–Z conditions](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z)
+through `otherLicenseUrl`. The model is not CC0 or AGPL; preserve the prohibitions
+on fee-based redistribution of the unmodified sample data and using its data in
+a character-creation service. The official [AvatarSample A page](https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604)
+links those same terms.
+
+Caitlyn retains [VRM Public License 1.0](https://vrm.dev/licenses/1.0/) with its
+embedded settings and the applicable [VRoid Studio guidelines](https://vroid.com/en/studio/guidelines).
+This correction does not grant CC0/AGPL rights over underlying third-party
+components or expand the other existing use/modification settings. Both models
+retain their noncommercial setting. Geometry, textures, non-metadata JSON and
+portrait bytes are unchanged; current hashes and metadata are recorded in
+[art-vroid-review.json](art-vroid-review.json).
+
+The earlier metadata discrepancy is resolved for source preparation by the
+owner's explicit identification and authorization, together with the published
+preset conditions. Final candidate and binary acceptance remain separate.
+
+Current source inspection found model inspection, runtime preview edits, and
+transport of existing model bytes in typed content packages. It found no export
+of newly combined/deformed model meshes or textures. Recheck the character-tool
+conditions before adding such an export feature.
+
+## Excluded raw packs
+
+LeLu's Noise Pack is ignored and has no tracked files or identified retained
+texture derivatives. No LeLu bytes or license grant are being included here.
+Its old inventory entry is historical acquisition information, not permission
+for future reintroduction. Mixamo raw/converted clips are likewise outside this
+art inventory and remain user-supplied inputs under their separate terms.

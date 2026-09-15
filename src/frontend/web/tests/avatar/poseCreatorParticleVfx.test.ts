@@ -13,12 +13,12 @@ import {
 
 const PARTICLE_DEFAULTS = {
   defaultAnchor: "head",
-  defaultDurationSec: 2,
+  defaultDurationSec: 1.8,
   defaultTransform: {
-    offset: { x: 0, y: 0.22, z: 0 },
-    depthOffset: 0,
+    offset: { x: 0, y: 0.32, z: 0 },
+    depthOffset: 0.12,
     rotation: { x: 0, y: 0, z: 0 },
-    scale: { x: 0.16, y: 0.16, z: 0.16 },
+    scale: { x: 1, y: 1, z: 1 },
   },
 } satisfies Pick<
   ParticleVFXCatalogEntry,
@@ -57,7 +57,7 @@ describe("pose creator particle VFX authoring", () => {
     const draft = createReadyClipDraft();
     const event = createPoseCreatorClipParticleVFXEventDraft(
       draft,
-      "cartoon-bang",
+      "hearts",
       0.35,
       PARTICLE_DEFAULTS,
     );
@@ -65,15 +65,15 @@ describe("pose creator particle VFX authoring", () => {
     expect(event).toMatchObject({
       time: 0.35,
       kind: "particle_vfx",
-      effectId: "cartoon-bang",
+      effectId: "hearts",
       anchor: "head",
-      duration: 2,
+      duration: 1.8,
       followAnchor: true,
       transform: {
-        offset: { x: 0, y: 0.22, z: 0 },
-        depthOffset: 0,
+        offset: { x: 0, y: 0.32, z: 0 },
+        depthOffset: 0.12,
         rotation: { x: 0, y: 0, z: 0 },
-        scale: { x: 0.16, y: 0.16, z: 0.16 },
+        scale: { x: 1, y: 1, z: 1 },
       },
     });
   });
@@ -82,7 +82,7 @@ describe("pose creator particle VFX authoring", () => {
     const draft = createReadyClipDraft();
     const event = createPoseCreatorClipParticleVFXEventDraft(
       draft,
-      "cartoon-bang",
+      "hearts",
       0,
       PARTICLE_DEFAULTS,
     );
@@ -107,10 +107,10 @@ describe("pose creator particle VFX authoring", () => {
       anchor: "leftHand",
       followAnchor: false,
       transform: {
-        offset: { x: 0.15, y: 0.22, z: 0 },
+        offset: { x: 0.15, y: 0.32, z: 0 },
         depthOffset: -0.2,
         rotation: { x: 0, y: 0, z: 0.75 },
-        scale: { x: 0.5, y: 0.16, z: 0.16 },
+        scale: { x: 0.5, y: 1, z: 1 },
       },
     });
   });
@@ -130,7 +130,7 @@ describe("pose creator particle VFX authoring", () => {
     expect(
       validatePoseCreatorClipDraft(draft, {
         eventCatalogRefs: {
-          particleVFXIds: ["cartoon-bang"],
+          particleVFXIds: ["hearts"],
         },
       }),
     ).toContainEqual(
@@ -147,7 +147,7 @@ describe("pose creator particle VFX authoring", () => {
     const particleEvent = patchPoseCreatorClipEventDraft(
       createPoseCreatorClipParticleVFXEventDraft(
         draft,
-        "cartoon-bang",
+        "hearts",
         0.25,
         PARTICLE_DEFAULTS,
       ),
@@ -180,13 +180,13 @@ describe("pose creator particle VFX authoring", () => {
     expect(importedDraft.events).toHaveLength(1);
     expect(importedDraft.events[0]).toMatchObject({
       kind: "particle_vfx",
-      effectId: "cartoon-bang",
+      effectId: "hearts",
       anchor: "rightHand",
       followAnchor: false,
       transform: {
         offset: { x: -0.1, y: 0.3, z: 0 },
         depthOffset: 0.4,
-        scale: { x: 0.16, y: 0.16, z: 0.16 },
+        scale: { x: 1, y: 1, z: 1 },
       },
     });
   });

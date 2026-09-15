@@ -110,18 +110,16 @@ Critical route composition:
 - `web/src/routes/a/$animaId/c/$chatId.tsx` is intentionally minimal so
   chat-id URL changes do not remount runtime effects.
 
-## Frontend Skills
+## Frontend Review Guidance
 
-Use the repository-adapted skills when relevant:
+Follow this guide and the checked-in React/Vite/TanStack documentation. Imported
+agent skills are optional local tools and are not included as contributor or
+build prerequisites.
 
-- `$vercel-react-best-practices` for React implementation and performance.
-- `$vercel-composition-patterns` for component API and composition work.
-- `$web-design-guidelines` for UI, UX, and accessibility reviews.
-- `$vercel-react-view-transitions` for transition work, following its
-  installed-runtime compatibility gate.
-
-Read the selected `SKILL.md` and only the supporting references needed
-for the task. Apply the repository's React/Vite/TanStack conventions.
+For component changes, preserve clear APIs, keyboard access and semantic HTML.
+Measure rendering or loading problems before optimizing them. Before adding
+transitions, verify support in the installed React and browser runtimes and
+respect reduced-motion preferences.
 
 ## Implementation Patterns
 

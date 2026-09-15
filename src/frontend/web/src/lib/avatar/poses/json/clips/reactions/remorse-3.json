@@ -40,23 +40,10 @@
   ],
   "events": [
     {
-      "id": "scene-emotion-background",
-      "time": 0,
-      "kind": "scene_vfx",
-      "sceneKind": "background_layers",
-      "presetId": "scene-vfx-emotion-remorse"
-    },
-    {
       "id": "avatar-texture-black-1",
       "time": 0.1,
       "kind": "avatar_vfx",
       "effectId": "texture_black_1"
-    },
-    {
-      "id": "avatar-texture-sweat-1",
-      "time": 0.22,
-      "kind": "avatar_vfx",
-      "effectId": "texture_sweat_1"
     }
   ]
 }

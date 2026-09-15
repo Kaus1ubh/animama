@@ -40,12 +40,6 @@
   ],
   "events": [
     {
-      "id": "avatar-eyebag-1",
-      "time": 0.12,
-      "kind": "avatar_vfx",
-      "effectId": "eyebag_1"
-    },
-    {
       "id": "particle-rain-cloud",
       "time": 0.12,
       "kind": "particle_vfx",

@@ -11,8 +11,6 @@
     "verify:tts-assets": "node scripts/verify-tts-assets.mjs",
     "generate:particle-vfx-assets": "node scripts/generate-particle-vfx-assets.mjs",
     "typed-content:audit": "bash ../../scripts/audit-typed-content.sh",
-    "detect:face-material-bounds": "node --experimental-strip-types scripts/detect-face-material-bounds.mts",
-    "compose:face-material-overlays": "node --experimental-strip-types scripts/composite-face-material-overlays.mts",
     "e2e:list": "node scripts/run-playwright-e2e.mjs --list",
     "e2e:check": "tsc -p tsconfig.e2e.json",
     "e2e:test:unit": "node --experimental-strip-types --test e2e/helpers/*.test.ts",
@@ -62,7 +60,8 @@
     "packages:test": "pnpm -r --filter './packages/*' --if-present run test",
     "packages:pack": "node scripts/pack-public-packages.mjs",
     "local:smoke:accountless": "node --experimental-strip-types scripts/smoke-accountless-http.ts",
-    "local:verify:accountless": "node --experimental-strip-types scripts/verify-accountless-journey.ts"
+    "local:verify:accountless": "node --experimental-strip-types scripts/verify-accountless-journey.ts",
+    "generate:original-effects": "node scripts/render-original-effects.mjs"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.90.3",

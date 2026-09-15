@@ -57,7 +57,7 @@ function runtimeCapture(): PlaybackObservationRuntimeCapture {
       hasError: false,
       active: [
         {
-          runtimeId: "cartoon-bang",
+          runtimeId: "hearts",
           elapsedSec: 0.3118,
           owner: "preview:particle",
           anchor: "head",
@@ -83,8 +83,8 @@ function runtimeCapture(): PlaybackObservationRuntimeCapture {
 const sceneVFX = {
   kind: "background_layers",
   entry: {
-    id: "chaos-chibi",
-    label: "Chaos Chibi",
+    id: "preview-scene",
+    label: "Preview Scene",
     kind: "background_layers",
     enabled: true,
     durationMs: null,
@@ -166,7 +166,7 @@ describe("PlaybackObservationV1", () => {
           lastError: null,
           activeInstances: [
             {
-              effectId: "cartoon-bang",
+              effectId: "hearts",
               elapsedSec: 0.1,
               ownerId: "preview:particle",
               anchor: "head",
@@ -218,7 +218,7 @@ describe("PlaybackObservationV1", () => {
       "sad",
       "surprised",
     ]);
-    expect(capture.particle.active[0]?.runtimeId).toBe("cartoon-bang");
+    expect(capture.particle.active[0]?.runtimeId).toBe("hearts");
     expect(capture.avatarVFX.active[0]?.runtimeId).toBe("eye-confused-swirl");
   });
 
@@ -265,7 +265,7 @@ describe("PlaybackObservationV1", () => {
   it("projects all playback channels with stable rounding and logical fields", () => {
     const observation = buildPlaybackObservationV1({
       surface: "library-dock",
-      target: { kind: "scene_vfx", runtimeId: "chaos-chibi" },
+      target: { kind: "scene_vfx", runtimeId: "preview-scene" },
       status: "playing",
       runtime: runtimeCapture(),
       sceneVFX,
@@ -275,7 +275,7 @@ describe("PlaybackObservationV1", () => {
     expect(observation.version).toBe(1);
     expect(observation.target).toEqual({
       kind: "scene_vfx",
-      runtimeId: "chaos-chibi",
+      runtimeId: "preview-scene",
       status: "playing",
     });
     expect(observation.motion.vrma[0]).toMatchObject({
@@ -294,7 +294,7 @@ describe("PlaybackObservationV1", () => {
     expect(observation.effects.avatar[0]?.elapsedSec).toBeNull();
     expect(observation.effects.scene).toEqual([
       {
-        runtimeId: "chaos-chibi",
+        runtimeId: "preview-scene",
         kind: "background_layers",
         active: true,
       },
@@ -333,7 +333,7 @@ describe("PlaybackObservationV1", () => {
     });
 
     expect(observation.effects.scene).toEqual([
-      { runtimeId: "chaos-chibi", kind: "background_layers", active: true },
+      { runtimeId: "preview-scene", kind: "background_layers", active: true },
       { runtimeId: "expired-scene", kind: "background_layers", active: false },
     ]);
   });

@@ -35,7 +35,7 @@ describe("componentPreviewTarget", () => {
       ],
       metadata: {
         content_type: "particle_effect",
-        content_id: "builtin:particle-effect:cartoon-bang",
+        content_id: "builtin:particle-effect:hearts",
         spec: { defaults: {} },
         runtime_defaults: {
           slots: {
@@ -50,8 +50,8 @@ describe("componentPreviewTarget", () => {
     const target = componentPreviewTarget(preview, "particle_effect", "Spark");
     expect(target.sourceType).toBe("resolved_entry");
     if (target.sourceType !== "resolved_entry") throw new Error("fixture");
-    expect(target.runtimeId).toBe("cartoon-bang");
-    expect(target.entry.runtime_id).toBe("cartoon-bang");
+    expect(target.runtimeId).toBe("hearts");
+    expect(target.entry.runtime_id).toBe("hearts");
     expect(target.entry.source).toMatchObject({
       type: "authorized_files",
       logical_resource_urls: {

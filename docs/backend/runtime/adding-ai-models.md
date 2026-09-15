@@ -15,7 +15,9 @@ Use this page together with:
 When a change depends on current vendor behavior, verify the model ID, endpoint,
 request fields, reasoning values, tools, context limits, and pricing against the
 provider's authoritative documentation before editing the catalog or adapter.
-OpenAI changes must follow the repository's `openai-knowledge` workflow.
+For OpenAI changes, use current official OpenAI Developer Docs through an
+available documentation MCP server or the official website; no imported agent
+skill is required.
 
 ## Mental Model
 

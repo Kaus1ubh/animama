@@ -38,12 +38,5 @@
       "pose": "peak"
     }
   ],
-  "events": [
-    {
-      "id": "avatar-texture-sweat-1",
-      "time": 0.12,
-      "kind": "avatar_vfx",
-      "effectId": "texture_sweat_1"
-    }
-  ]
+  "events": []
 }

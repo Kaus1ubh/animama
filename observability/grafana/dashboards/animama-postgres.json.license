@@ -1,0 +1,5 @@
+SPDX-License-Identifier: Apache-2.0
+
+Modified for Animama by Raymond Van. Local provisioning, query and dashboard
+configuration differ from upstream. Original source, reviewed revision,
+copyright and full license: licenses/third-party/code-and-models.md.

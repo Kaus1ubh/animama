@@ -15,21 +15,9 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:blush-2-r",
-      "alias": "blush 2 r",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:particle-effect:hearts",
       "alias": "hearts",
       "content_type": "particle_effect",
-      "config": {}
-    },
-    {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-caring",
-      "alias": "scene-vfx-emotion-caring",
-      "content_type": "scene_effect",
       "config": {}
     }
   ],

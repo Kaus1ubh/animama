@@ -1,0 +1,829 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-09-15",
+  "source_archives": [
+    {
+      "id": "kenney",
+      "url": "https://kenney.nl/media/pages/assets/particle-pack/f8fe0f8cb8-1677578741/kenney_particle-pack.zip",
+      "sha256": "b631d4b07f7002549fdcf155f01141ad482f79f3440e4e301eed49ce5f1d8958",
+      "version": "Particle Pack 1.1 (archive notice)"
+    },
+    {
+      "id": "brackeys",
+      "url": "https://brackeysgames.itch.io/brackeys-vfx-bundle",
+      "upload_id": 16114075,
+      "version": "Brackeys VFX Bundle v1",
+      "size_bytes": 28227919,
+      "sha256": "ac0fbf5d5a07688a5d4d35fd0bbae783597d819a3d8a92893b05eb69ddb144c5"
+    }
+  ],
+  "generator": "src/frontend/scripts/generate-particle-vfx-assets.mjs",
+  "sharp_version": "0.34.5",
+  "files": [
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/glow-soft.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/light_01.png",
+      "source_sha256": "caedcc5df5bcac4470244d2520d6a64b45b20c1ccf4d918da516c55e3fa365a6",
+      "sha256": "fb8d2680a2574b3fb76cf674948006afd3f631a2804dfec75cd337372b365863",
+      "regenerated_sha256": "fb8d2680a2574b3fb76cf674948006afd3f631a2804dfec75cd337372b365863",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/glow-sharp.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/light_02.png",
+      "source_sha256": "f1bdb57478703fec539f7b8eeceb494c4a23664652b296389f310104be80cfe0",
+      "sha256": "8b04fac99361e103b1ed20dbe101de555f803fb9a3e226fd92232b93e06981f8",
+      "regenerated_sha256": "8b04fac99361e103b1ed20dbe101de555f803fb9a3e226fd92232b93e06981f8",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/flare-star.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/flare_01.png",
+      "source_sha256": "254f5bd4f0548612bf29305d27899efdee8cb8d8306292761ebbddebd3e57935",
+      "sha256": "5afb3d88a62a07e74635f9203224a6b299fcbfbe87f3b138b9955a3e7c629ba6",
+      "regenerated_sha256": "5afb3d88a62a07e74635f9203224a6b299fcbfbe87f3b138b9955a3e7c629ba6",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/spark-cross.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/spark_05.png",
+      "source_sha256": "9624ea2017b8b2767a9d3b82e978b7fdf5154d83e6756cd919da51447bb97138",
+      "sha256": "028f7a45efe353b0cd9b1b30ccc48af1c9d342c44fc7c29b2e5dd4258e1d13c4",
+      "regenerated_sha256": "028f7a45efe353b0cd9b1b30ccc48af1c9d342c44fc7c29b2e5dd4258e1d13c4",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/spark-dot.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/spark_01.png",
+      "source_sha256": "5902da3a324cad0a4b5a88ce1e3c9cc18fee50922c358ce93d8c9f1ad7708f0a",
+      "sha256": "81450a47f9f4beeedd211413046bdf807ecc01dcf13194073013832c9b0ec184",
+      "regenerated_sha256": "81450a47f9f4beeedd211413046bdf807ecc01dcf13194073013832c9b0ec184",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/spark-streak.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/trace_01.png",
+      "source_sha256": "34de69bc3f665b23fe9bed15f388efd8e8e4dc1a99f2fc5db9ba8715c525711f",
+      "sha256": "3c4c2ec97d193febd325092bb09aed41007d7eceb11803cb40bb0d03be588c5c",
+      "regenerated_sha256": "3c4c2ec97d193febd325092bb09aed41007d7eceb11803cb40bb0d03be588c5c",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/smoke-puff.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/smoke_01.png",
+      "source_sha256": "e8724c219e8d35859167fc0a7e207e13c72ccf0c29704909b9bb3d3dc71c6cf7",
+      "sha256": "73747ed985da996b60ca029714cb78e0b5554bb5109223977744afa811dc2016",
+      "regenerated_sha256": "73747ed985da996b60ca029714cb78e0b5554bb5109223977744afa811dc2016",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/smoke-wisp.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/smoke_06.png",
+      "source_sha256": "d988b03bb46797be913333f06b26ff2aad55ec082cfb7d3d18ce86ccb71559b5",
+      "sha256": "1f170fb1011eb7d21b6050c19b7cd91496bf0b4967b6e677b0bd91fec4b8c4ca",
+      "regenerated_sha256": "1f170fb1011eb7d21b6050c19b7cd91496bf0b4967b6e677b0bd91fec4b8c4ca",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/dust-soft.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/dirt_01.png",
+      "source_sha256": "6827a0a32a293ec9570fb98d63963b8dd6e6aaba9e1096afad932e93a378bea9",
+      "sha256": "bf208a17bf91fd6c88b899751601f7ed5978d65a6593e7d32deaa1a8a5ac6b0a",
+      "regenerated_sha256": "bf208a17bf91fd6c88b899751601f7ed5978d65a6593e7d32deaa1a8a5ac6b0a",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/trail-taper.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/trace_05.png",
+      "source_sha256": "3f3d687bd2c70b10add33bdbd4616deda28f0138f757d358f9f0b78fb38bde6e",
+      "sha256": "aef9ee257ff27ab650e6f12530f379af0ca72e6671540567b117a411abb17555",
+      "regenerated_sha256": "aef9ee257ff27ab650e6f12530f379af0ca72e6671540567b117a411abb17555",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/slash-arc.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/slash_01.png",
+      "source_sha256": "cb4787978122bb863866a1681af22a7dec39a4566f08c400f233740eb1d3730c",
+      "sha256": "5c2510f083378fe9d01cf22fb04143939752d18db994d9ecfdf6f49f2a6df59e",
+      "regenerated_sha256": "5c2510f083378fe9d01cf22fb04143939752d18db994d9ecfdf6f49f2a6df59e",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/speed-line.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/trace_07.png",
+      "source_sha256": "4e5f177b7717d291464f01538756eb2f471961b09b39ea82ea72447210af7110",
+      "sha256": "c1ca52f993317aefdbf668ccdce8d167637a6fe11a2e3ef9a0c237e83416e0db",
+      "regenerated_sha256": "c1ca52f993317aefdbf668ccdce8d167637a6fe11a2e3ef9a0c237e83416e0db",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/magic-ring.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/magic_01.png",
+      "source_sha256": "398479ea280c8161d0b6d509ca97eefb27e989c7832b404abcb65faae3e922ff",
+      "sha256": "bf39d47007d8cd651052c208b69ba533f82d7260f2ba05f0cd8fc839e01e5289",
+      "regenerated_sha256": "bf39d47007d8cd651052c208b69ba533f82d7260f2ba05f0cd8fc839e01e5289",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/rune-circle.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/symbol_01.png",
+      "source_sha256": "3eb3988f3e80acf3fda9df07733f49c3585eafa7d6a7ce5b31765fe180dd6d9c",
+      "sha256": "df403f88aad7aa6130928c130bf325d42933d4aca16657d79cc0a08ee73b7eaa",
+      "regenerated_sha256": "df403f88aad7aa6130928c130bf325d42933d4aca16657d79cc0a08ee73b7eaa",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/shock-ring.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/circle_05.png",
+      "source_sha256": "925b8ac284436f74f9cadf0ecd058da1c08fba65c098e4e34fd220603022f02e",
+      "sha256": "345319ac29400f0b81c25c7116a5132cce12f90e9305f85620c146c7236827ed",
+      "regenerated_sha256": "345319ac29400f0b81c25c7116a5132cce12f90e9305f85620c146c7236827ed",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/kenney-fire-glow.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/light_03.png",
+      "source_sha256": "b68627734d08aab3eaf3f94718521553628c75aace1de6c74de28501c1a4c147",
+      "sha256": "7c576ea983b8f687c5ed955b2506ff531a958638a96f8003693a72ae0a6fea16",
+      "regenerated_sha256": "7c576ea983b8f687c5ed955b2506ff531a958638a96f8003693a72ae0a6fea16",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/kenney-flame-core.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/fire_01.png",
+      "source_sha256": "9727a9743ac6ab8dd4dd79f5fc5b0266290efae45f4d4452279eb5e4bcf3a978",
+      "sha256": "26f1119d512dc01180e61b0099026234a0efa645e943437c525c7dbd1c3ba435",
+      "regenerated_sha256": "26f1119d512dc01180e61b0099026234a0efa645e943437c525c7dbd1c3ba435",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/kenney-flame-tongue.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/flame_04.png",
+      "source_sha256": "71deb274feea6ae5e6bb82c802a6e4d22f168397aa36b7a9e89de863948f3cf5",
+      "sha256": "4e50cba78e057f6f020162ac38c9fa0dfea6f4ae8672f699a08ba9cf925387d3",
+      "regenerated_sha256": "4e50cba78e057f6f020162ac38c9fa0dfea6f4ae8672f699a08ba9cf925387d3",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/kenney-ember-spark.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/spark_07.png",
+      "source_sha256": "216101e7b54c627b4aa780649a21f0ef9146d2566f52699284d091ef00825a26",
+      "sha256": "6c43f8b1872dc689106712853783d39692904f235b76f7f36dfebc20e26f43cc",
+      "regenerated_sha256": "6c43f8b1872dc689106712853783d39692904f235b76f7f36dfebc20e26f43cc",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/kenney-smoke-wisp.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/smoke_06.png",
+      "source_sha256": "d988b03bb46797be913333f06b26ff2aad55ec082cfb7d3d18ce86ccb71559b5",
+      "sha256": "1f170fb1011eb7d21b6050c19b7cd91496bf0b4967b6e677b0bd91fec4b8c4ca",
+      "regenerated_sha256": "1f170fb1011eb7d21b6050c19b7cd91496bf0b4967b6e677b0bd91fec4b8c4ca",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/brackeys-spark.png",
+      "source_pack": "brackeys",
+      "source_path": "particles/alpha/spark_04_a.png",
+      "source_sha256": "73f896e549a63d566be6dba5ab0858d7224b1754ee41f9dee481668b32c395c9",
+      "sha256": "5ecf0c3a65a297aa3526bcdd9c35c37ff4bdbbf4997c13686ae742e15616d6de",
+      "regenerated_sha256": "5ecf0c3a65a297aa3526bcdd9c35c37ff4bdbbf4997c13686ae742e15616d6de",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/brackeys-smoke.png",
+      "source_pack": "brackeys",
+      "source_path": "particles/alpha/smoke_02_a.png",
+      "source_sha256": "8fe73eb593d5f696e63b979f8e2f17bc554ce20279313adc693a0dd18067e3e6",
+      "sha256": "f1bdc8be7782656bf16f38c42430727758b9821711f2bec4b6dca5cc062632f5",
+      "regenerated_sha256": "f1bdc8be7782656bf16f38c42430727758b9821711f2bec4b6dca5cc062632f5",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/brackeys-flare.png",
+      "source_pack": "brackeys",
+      "source_path": "particles/alpha/flare_01_a.png",
+      "source_sha256": "c26077fc6d3a05e0322476aef5ea595ecef07bd5571404a7aae9df8d4a7ccd7c",
+      "sha256": "28778f88d1d954fc5d86565c86d1a3bc3093866c2395f3a295ca49358d4c9eec",
+      "regenerated_sha256": "28778f88d1d954fc5d86565c86d1a3bc3093866c2395f3a295ca49358d4c9eec",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/fire-8x8.png",
+      "source_pack": "brackeys",
+      "source_path": "flipbooks/fire_01_8x8.tga",
+      "source_sha256": "74eaf8aea246368edc30abd5fdc29db3e12b0275a0de7490020ea004d1b23d43",
+      "sha256": "0ee29536fdf97fe9f1bb2f7bda0ed3ee5dc8b894274adfea45d857c1dbefa455",
+      "regenerated_sha256": "0ee29536fdf97fe9f1bb2f7bda0ed3ee5dc8b894274adfea45d857c1dbefa455",
+      "transform": "decode TGA RGBA; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Thomas Iché; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/smoke-8x8.png",
+      "source_pack": "brackeys",
+      "source_path": "flipbooks/wispy_smoke_01_8x8.tga",
+      "source_sha256": "8274f0e67635fc72071b1790960f3bfddec907e113929b7c29ab8962ab411788",
+      "sha256": "0af9bbea4fb10eeb6bf45dbbd467f9ae4c842d8fb6a60a2fecc825fb11ec9a17",
+      "regenerated_sha256": "0af9bbea4fb10eeb6bf45dbbd467f9ae4c842d8fb6a60a2fecc825fb11ec9a17",
+      "transform": "decode TGA RGBA; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Thomas Iché; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/flame-16x4.png",
+      "source_pack": "brackeys",
+      "source_path": "flipbooks/flame_01_16x4.tga",
+      "source_sha256": "6ae2158bc06e0b035196db2695c19e7cb29a23f59b345d4c5c2764c6c10ce3a6",
+      "sha256": "924077a0d3adab10eb080b2144be5327e181fc5c4ec6081999119f37a6c046dd",
+      "regenerated_sha256": "924077a0d3adab10eb080b2144be5327e181fc5c4ec6081999119f37a6c046dd",
+      "transform": "decode TGA RGBA; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Thomas Iché; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/particle-vfx/textures/spark-pop-6x5.png",
+      "source_pack": "brackeys",
+      "source_path": "predrawn/star_explosion_6x5.png",
+      "source_sha256": "f6bd0cf936d3ae02133fb1364b70eb289323b9f140fa8c7df13f6549c94f1fa9",
+      "sha256": "2d36f02fa7b0554475b9d75330f5c3f93a63059bd82fcce9386d1648dee7fe70",
+      "regenerated_sha256": "2d36f02fa7b0554475b9d75330f5c3f93a63059bd82fcce9386d1648dee7fe70",
+      "transform": "Sharp ensureAlpha; resize 768x640 fill; PNG",
+      "license": "CC-BY-4.0",
+      "copyright": "CodeManu; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC-BY-4.0.txt"
+      ],
+      "status": "source-evidence-verified"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/confusion-orbit-marks/textures/glow-soft.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/light_01.png",
+      "source_sha256": "caedcc5df5bcac4470244d2520d6a64b45b20c1ccf4d918da516c55e3fa365a6",
+      "sha256": "fb8d2680a2574b3fb76cf674948006afd3f631a2804dfec75cd337372b365863",
+      "regenerated_sha256": "fb8d2680a2574b3fb76cf674948006afd3f631a2804dfec75cd337372b365863",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/glow-soft.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/confusion-orbit-marks/textures/spark-dot.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/spark_01.png",
+      "source_sha256": "5902da3a324cad0a4b5a88ce1e3c9cc18fee50922c358ce93d8c9f1ad7708f0a",
+      "sha256": "81450a47f9f4beeedd211413046bdf807ecc01dcf13194073013832c9b0ec184",
+      "regenerated_sha256": "81450a47f9f4beeedd211413046bdf807ecc01dcf13194073013832c9b0ec184",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/spark-dot.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/exclamation/textures/brackeys-flare.png",
+      "source_pack": "brackeys",
+      "source_path": "particles/alpha/flare_01_a.png",
+      "source_sha256": "c26077fc6d3a05e0322476aef5ea595ecef07bd5571404a7aae9df8d4a7ccd7c",
+      "sha256": "28778f88d1d954fc5d86565c86d1a3bc3093866c2395f3a295ca49358d4c9eec",
+      "regenerated_sha256": "28778f88d1d954fc5d86565c86d1a3bc3093866c2395f3a295ca49358d4c9eec",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/brackeys-flare.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/flame-loop/textures/kenney-ember-spark.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/spark_07.png",
+      "source_sha256": "216101e7b54c627b4aa780649a21f0ef9146d2566f52699284d091ef00825a26",
+      "sha256": "6c43f8b1872dc689106712853783d39692904f235b76f7f36dfebc20e26f43cc",
+      "regenerated_sha256": "6c43f8b1872dc689106712853783d39692904f235b76f7f36dfebc20e26f43cc",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/kenney-ember-spark.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/flame-loop/textures/kenney-fire-glow.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/light_03.png",
+      "source_sha256": "b68627734d08aab3eaf3f94718521553628c75aace1de6c74de28501c1a4c147",
+      "sha256": "7c576ea983b8f687c5ed955b2506ff531a958638a96f8003693a72ae0a6fea16",
+      "regenerated_sha256": "7c576ea983b8f687c5ed955b2506ff531a958638a96f8003693a72ae0a6fea16",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/kenney-fire-glow.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/flame-loop/textures/kenney-flame-core.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/fire_01.png",
+      "source_sha256": "9727a9743ac6ab8dd4dd79f5fc5b0266290efae45f4d4452279eb5e4bcf3a978",
+      "sha256": "26f1119d512dc01180e61b0099026234a0efa645e943437c525c7dbd1c3ba435",
+      "regenerated_sha256": "26f1119d512dc01180e61b0099026234a0efa645e943437c525c7dbd1c3ba435",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/kenney-flame-core.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/flame-loop/textures/kenney-flame-tongue.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/flame_04.png",
+      "source_sha256": "71deb274feea6ae5e6bb82c802a6e4d22f168397aa36b7a9e89de863948f3cf5",
+      "sha256": "4e50cba78e057f6f020162ac38c9fa0dfea6f4ae8672f699a08ba9cf925387d3",
+      "regenerated_sha256": "4e50cba78e057f6f020162ac38c9fa0dfea6f4ae8672f699a08ba9cf925387d3",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/kenney-flame-tongue.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/flame-loop/textures/kenney-smoke-wisp.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/smoke_06.png",
+      "source_sha256": "d988b03bb46797be913333f06b26ff2aad55ec082cfb7d3d18ce86ccb71559b5",
+      "sha256": "1f170fb1011eb7d21b6050c19b7cd91496bf0b4967b6e677b0bd91fec4b8c4ca",
+      "regenerated_sha256": "1f170fb1011eb7d21b6050c19b7cd91496bf0b4967b6e677b0bd91fec4b8c4ca",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/kenney-smoke-wisp.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/magic-sparkle-burst/textures/brackeys-flare.png",
+      "source_pack": "brackeys",
+      "source_path": "particles/alpha/flare_01_a.png",
+      "source_sha256": "c26077fc6d3a05e0322476aef5ea595ecef07bd5571404a7aae9df8d4a7ccd7c",
+      "sha256": "28778f88d1d954fc5d86565c86d1a3bc3093866c2395f3a295ca49358d4c9eec",
+      "regenerated_sha256": "28778f88d1d954fc5d86565c86d1a3bc3093866c2395f3a295ca49358d4c9eec",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/brackeys-flare.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/magic-sparkle-burst/textures/magic-ring.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/magic_01.png",
+      "source_sha256": "398479ea280c8161d0b6d509ca97eefb27e989c7832b404abcb65faae3e922ff",
+      "sha256": "bf39d47007d8cd651052c208b69ba533f82d7260f2ba05f0cd8fc839e01e5289",
+      "regenerated_sha256": "bf39d47007d8cd651052c208b69ba533f82d7260f2ba05f0cd8fc839e01e5289",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/magic-ring.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/magic-sparkle-burst/textures/spark-pop-6x5.png",
+      "source_pack": "brackeys",
+      "source_path": "predrawn/star_explosion_6x5.png",
+      "source_sha256": "f6bd0cf936d3ae02133fb1364b70eb289323b9f140fa8c7df13f6549c94f1fa9",
+      "sha256": "2d36f02fa7b0554475b9d75330f5c3f93a63059bd82fcce9386d1648dee7fe70",
+      "regenerated_sha256": "2d36f02fa7b0554475b9d75330f5c3f93a63059bd82fcce9386d1648dee7fe70",
+      "transform": "Sharp ensureAlpha; resize 768x640 fill; PNG",
+      "license": "CC-BY-4.0",
+      "copyright": "CodeManu; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC-BY-4.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/spark-pop-6x5.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/magic-sparkle-burst/textures/spark-streak.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/trace_01.png",
+      "source_sha256": "34de69bc3f665b23fe9bed15f388efd8e8e4dc1a99f2fc5db9ba8715c525711f",
+      "sha256": "3c4c2ec97d193febd325092bb09aed41007d7eceb11803cb40bb0d03be588c5c",
+      "regenerated_sha256": "3c4c2ec97d193febd325092bb09aed41007d7eceb11803cb40bb0d03be588c5c",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/spark-streak.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/sad-rain-puff/textures/dust-soft.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/dirt_01.png",
+      "source_sha256": "6827a0a32a293ec9570fb98d63963b8dd6e6aaba9e1096afad932e93a378bea9",
+      "sha256": "bf208a17bf91fd6c88b899751601f7ed5978d65a6593e7d32deaa1a8a5ac6b0a",
+      "regenerated_sha256": "bf208a17bf91fd6c88b899751601f7ed5978d65a6593e7d32deaa1a8a5ac6b0a",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/dust-soft.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/sad-rain-puff/textures/smoke-puff.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/smoke_01.png",
+      "source_sha256": "e8724c219e8d35859167fc0a7e207e13c72ccf0c29704909b9bb3d3dc71c6cf7",
+      "sha256": "73747ed985da996b60ca029714cb78e0b5554bb5109223977744afa811dc2016",
+      "regenerated_sha256": "73747ed985da996b60ca029714cb78e0b5554bb5109223977744afa811dc2016",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/smoke-puff.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/sleep-bubbles/textures/spark-dot.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/spark_01.png",
+      "source_sha256": "5902da3a324cad0a4b5a88ce1e3c9cc18fee50922c358ce93d8c9f1ad7708f0a",
+      "sha256": "81450a47f9f4beeedd211413046bdf807ecc01dcf13194073013832c9b0ec184",
+      "regenerated_sha256": "81450a47f9f4beeedd211413046bdf807ecc01dcf13194073013832c9b0ec184",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/spark-dot.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/soft-heart-pop/textures/glow-soft.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/light_01.png",
+      "source_sha256": "caedcc5df5bcac4470244d2520d6a64b45b20c1ccf4d918da516c55e3fa365a6",
+      "sha256": "fb8d2680a2574b3fb76cf674948006afd3f631a2804dfec75cd337372b365863",
+      "regenerated_sha256": "fb8d2680a2574b3fb76cf674948006afd3f631a2804dfec75cd337372b365863",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/glow-soft.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/soft-heart-pop/textures/spark-dot.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/spark_01.png",
+      "source_sha256": "5902da3a324cad0a4b5a88ce1e3c9cc18fee50922c358ce93d8c9f1ad7708f0a",
+      "sha256": "81450a47f9f4beeedd211413046bdf807ecc01dcf13194073013832c9b0ec184",
+      "regenerated_sha256": "81450a47f9f4beeedd211413046bdf807ecc01dcf13194073013832c9b0ec184",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/spark-dot.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/sparkles/textures/brackeys-flare.png",
+      "source_pack": "brackeys",
+      "source_path": "particles/alpha/flare_01_a.png",
+      "source_sha256": "c26077fc6d3a05e0322476aef5ea595ecef07bd5571404a7aae9df8d4a7ccd7c",
+      "sha256": "28778f88d1d954fc5d86565c86d1a3bc3093866c2395f3a295ca49358d4c9eec",
+      "regenerated_sha256": "28778f88d1d954fc5d86565c86d1a3bc3093866c2395f3a295ca49358d4c9eec",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/brackeys-flare.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/surprise-shock-pop/textures/brackeys-flare.png",
+      "source_pack": "brackeys",
+      "source_path": "particles/alpha/flare_01_a.png",
+      "source_sha256": "c26077fc6d3a05e0322476aef5ea595ecef07bd5571404a7aae9df8d4a7ccd7c",
+      "sha256": "28778f88d1d954fc5d86565c86d1a3bc3093866c2395f3a295ca49358d4c9eec",
+      "regenerated_sha256": "28778f88d1d954fc5d86565c86d1a3bc3093866c2395f3a295ca49358d4c9eec",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
+      "notice_paths": [
+        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
+        "licenses/third-party/art-NOTICES.md",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/brackeys-flare.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/surprise-shock-pop/textures/shock-ring.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/circle_05.png",
+      "source_sha256": "925b8ac284436f74f9cadf0ecd058da1c08fba65c098e4e34fd220603022f02e",
+      "sha256": "345319ac29400f0b81c25c7116a5132cce12f90e9305f85620c146c7236827ed",
+      "regenerated_sha256": "345319ac29400f0b81c25c7116a5132cce12f90e9305f85620c146c7236827ed",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/shock-ring.png"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/surprise-shock-pop/textures/spark-streak.png",
+      "source_pack": "kenney",
+      "source_path": "PNG (Transparent)/trace_01.png",
+      "source_sha256": "34de69bc3f665b23fe9bed15f388efd8e8e4dc1a99f2fc5db9ba8715c525711f",
+      "sha256": "3c4c2ec97d193febd325092bb09aed41007d7eceb11803cb40bb0d03be588c5c",
+      "regenerated_sha256": "3c4c2ec97d193febd325092bb09aed41007d7eceb11803cb40bb0d03be588c5c",
+      "transform": "Sharp ensureAlpha; resize 256x256 contain transparent; PNG",
+      "license": "CC0-1.0",
+      "copyright": "Kenney Vleugels and credited contributors",
+      "notice_paths": [
+        "licenses/third-party/art-Kenney-License.txt",
+        "licenses/third-party/art-CC0-1.0.txt"
+      ],
+      "status": "source-evidence-verified",
+      "copied_from": "content/included/vfx/particle/particle-vfx/textures/spark-streak.png"
+    }
+  ],
+  "conditions": [
+    "Preserve notices and source/change mappings. CodeManu retains conservative CC BY 4.0 treatment despite bundle CC0 declaration.",
+    "Regeneration validates derivatives; it is not application or release acceptance."
+  ]
+}

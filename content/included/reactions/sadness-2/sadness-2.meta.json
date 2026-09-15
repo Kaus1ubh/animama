@@ -15,12 +15,6 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:eyebag_1",
-      "alias": "eyebag_1",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:particle-effect:rain-cloud",
       "alias": "rain-cloud",
       "content_type": "particle_effect",

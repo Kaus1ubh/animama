@@ -348,15 +348,15 @@ export async function expectBottomRightDock(dock: Locator): Promise<void> {
   );
 }
 
-/** Prove Chaos Chibi's pattern, Blob-backed cells, and running marquee motion. */
-export async function proveChaosChibiDom(effectRoot: Locator): Promise<void> {
+/** Prove Kawaii Sparkles' pattern, Blob-backed cells, and running marquee motion. */
+export async function proveKawaiiSparklesDom(effectRoot: Locator): Promise<void> {
   await expect(
     effectRoot.locator('[data-scene-vfx-layer="pattern"]'),
   ).toBeVisible();
   await expect(
     effectRoot.locator('[data-scene-vfx-layer="marquee"]'),
   ).toBeVisible();
-  for (const itemId of ["chibi-1", "chibi-2"]) {
+  for (const itemId of ["emoji-sparkles", "emoji-sparkling-heart"]) {
     const matching = effectRoot.locator(`[data-scene-vfx-item-id="${itemId}"]`);
     await expect(matching).not.toHaveCount(0);
     await expect(matching.first()).toBeVisible();

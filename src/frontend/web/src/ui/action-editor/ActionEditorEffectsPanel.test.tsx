@@ -9,13 +9,13 @@ import type { ActionDependencySection } from "./ActionEditorWorkspaceContext";
 
 const particle: PyCatalogViewItem = {
   item_id: "particle-1",
-  name: "Cartoon Bang",
+  name: "Hearts",
   description: null,
   catalog_source: "included",
   origin: "builtin",
   source: {
     type: "builtin",
-    content_id: "cartoon-bang",
+    content_id: "hearts",
     version: 1,
   },
   state: "ready",
@@ -127,7 +127,7 @@ describe("ActionEditorEffectsPanel", () => {
         sections={sections}
         dependencies={[
           {
-            alias: "cartoon_bang",
+            alias: "hearts",
             content_type: "particle_effect",
             source: particle.source!,
           },
@@ -143,11 +143,11 @@ describe("ActionEditorEffectsPanel", () => {
     expect(html).toContain("Scene FX");
     expect(html).toContain("SFX");
     expect(html).toContain('placeholder="Search particle effects"');
-    expect(html).toContain("Cartoon Bang");
+    expect(html).toContain("Hearts");
     expect(html).toContain("Added to timeline ·");
     expect(html).toContain("<!-- -->1");
     expect(html).toContain("Added");
-    expect(html).toContain('aria-label="Add Cartoon Bang at current playhead"');
+    expect(html).toContain('aria-label="Add Hearts at current playhead"');
     expect(html).not.toContain("<img");
   });
 
@@ -163,7 +163,7 @@ describe("ActionEditorEffectsPanel", () => {
         sections={sections}
         dependencies={[
           {
-            alias: "cartoon_bang",
+            alias: "hearts",
             content_type: "particle_effect",
             source: particle.source!,
           },

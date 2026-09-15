@@ -443,9 +443,8 @@ Current preset ids:
 - `none`
 - `shoujo-hearts`
 - `comic-pop`
-- `chaos-chibi`
 - `kawaii-sparkles`
-- `scene-vfx-emotion-<emotion>` for each canonical tracked emotion
+- `scene-vfx-emotion-<emotion>` for retained emotion backgrounds; annoyance, caring, confusion, desire and remorse no longer include scene backgrounds
 
 `none` clears the live background effect. The other presets are full `background_layers` snapshots.
 
@@ -593,7 +592,7 @@ The modal now keeps independent draft state per scene-VFX kind:
 When the modal opens for a target:
 
 - if a live `background_layers` effect exists, the background draft is seeded from it
-- otherwise the background draft is seeded from `chaos-chibi`
+- otherwise the background draft is seeded from `kawaii-sparkles`
 - if a live `focus_lines` effect exists, the focus-lines draft is seeded from it
 - otherwise the focus-lines draft is seeded from `createDefaultSceneFocusLinesVFXEntry()`
 

@@ -39,6 +39,8 @@ class StarterAnimaSpec:
 
 # Version 1 retains the LF-normalized SQL seed text. Later versions may change
 # defaults, but never rewrite a receipt or the historical adoption identifiers.
+# Legacy portrait URLs identify old database rows; they are not fetched assets.
+# Keep these identifiers after retiring the corresponding public image files.
 STARTER_ANIMA_SPECS = (
     StarterAnimaSpec(
         "starter:annie",

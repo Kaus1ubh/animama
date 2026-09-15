@@ -205,10 +205,11 @@ voice route modules were retired.
 
 ## OpenAI Integrations
 
-Use `$openai-knowledge` when changing model-provider behavior or OpenAI platform
-integrations. Pull current OpenAI Developer Docs via the configured MCP server
-before changing request fields, model names, tool behavior, streaming semantics,
-or rate-limit/auth assumptions.
+When changing model-provider behavior or OpenAI platform integrations, consult
+current official OpenAI Developer Docs through an available documentation MCP
+server or the official website before changing request fields, model names,
+tool behavior, streaming semantics, or rate-limit/auth assumptions. No imported
+agent skill is required for this workflow.
 
 ## Commands
 

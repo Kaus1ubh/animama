@@ -28,7 +28,7 @@ def test_included_license_inventory_records_the_release_gate() -> None:
 def test_typed_media_moved_but_browser_engine_assets_remained_public() -> None:
     public = ROOT / "src/frontend/web/public"
 
-    assert (ROOT / "content/included/avatars/AvatarSample_C.vrm").is_file()
+    assert (ROOT / "content/included/avatars/AvatarSample_A_1_New.vrm").is_file()
     assert (ROOT / "content/included/gestures/wave/wave.vrma").is_file()
     assert (ROOT / "content/included/gestures/wave/wave.meta.json").is_file()
     assert not any((public / "vrm").glob("*.vrm"))

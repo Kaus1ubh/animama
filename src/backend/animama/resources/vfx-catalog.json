@@ -239,81 +239,6 @@
     ]
   },
   {
-    "id": "blush left",
-    "label": "Blush left",
-    "description": "Single cheek blush for shy warmth, attraction, gratitude, or affectionate embarrassment.",
-    "assetPath": "/effects/vfx/face/blush/blush_left.png",
-    "kind": "face_anchored",
-    "region": "blush",
-    "anchor": "blush",
-    "layout": "single",
-    "side": "left",
-    "requiresMirror": true,
-    "pivot": "center",
-    "transform": {
-      "scale": {
-        "x": 2,
-        "y": 2,
-        "z": 1
-      }
-    },
-    "lifetime": {
-      "kind": "turns",
-      "turns": 3
-    },
-    "emotions": [
-      { "emotion": "admiration", "value": 0 },
-      { "emotion": "love", "value": 0 },
-      { "emotion": "gratitude", "value": 0 },
-      { "emotion": "desire", "value": 0 },
-      { "emotion": "curiosity", "value": 0 },
-      { "emotion": "embarrassment", "value": 0 }
-    ]
-  },
-  {
-    "id": "blush 2 r",
-    "label": "Blush 2 r",
-    "description": "Right cheek blush variant for flustered warmth, attraction, or bashful delight.",
-    "assetPath": "/effects/vfx/face/blush/blush_2_r.png",
-    "kind": "face_anchored",
-    "region": "blush",
-    "anchor": "blush",
-    "layout": "single",
-    "side": "right",
-    "requiresMirror": true,
-    "pivot": "center",
-    "transform": {
-      "scale": {
-        "x": 2,
-        "y": 2,
-        "z": 1
-      }
-    },
-    "lifetime": {
-      "kind": "turns",
-      "turns": 3
-    },
-    "emotions": [
-      { "emotion": "admiration", "value": 0 },
-      { "emotion": "love", "value": 0 },
-      { "emotion": "gratitude", "value": 0 },
-      { "emotion": "desire", "value": 0 },
-      { "emotion": "curiosity", "value": 0 },
-      { "emotion": "embarrassment", "value": 0 }
-    ]
-  },
-  {
-    "id": "eyebag_1",
-    "label": "Eyebag",
-    "description": "Under-eye fatigue overlay for worn down, drained, or sleep-deprived looks.",
-    "assetPath": "/effects/vfx/face/full/eyebag_1.png",
-    "kind": "texture",
-    "region": "full_face",
-    "targetRole": "face_skin",
-    "assetShape": "full_face",
-    "applyMode": "overlay"
-  },
-  {
     "id": "texture_black_1",
     "label": "Texture Black 1",
     "description": "Dark face overlay for heavy gloom, dread, or emotionally sinking moments.",
@@ -401,27 +326,6 @@
         "z": 0
       }
     },
-    "lifetime": {
-      "kind": "turns",
-      "turns": 3
-    },
-    "emotions": [
-      { "emotion": "disgust", "value": 5 },
-      { "emotion": "annoyance", "value": 5 },
-      { "emotion": "nervousness", "value": 15 },
-      { "emotion": "confusion", "value": 15 }
-    ]
-  },
-  {
-    "id": "texture_sweat_1",
-    "label": "Texture Sweat 1",
-    "description": "Sweat overlay for nervous pressure, panic, or socially stressed discomfort.",
-    "assetPath": "/effects/vfx/face/full/texture_sweat_1.png",
-    "kind": "texture",
-    "region": "full_face",
-    "targetRole": "face_skin",
-    "assetShape": "full_face",
-    "applyMode": "overlay",
     "lifetime": {
       "kind": "turns",
       "turns": 3

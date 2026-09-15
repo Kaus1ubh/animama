@@ -24,3 +24,9 @@ permission before charging for Animama, connecting them to a paid service,
 using the release for lead generation, monetizing its data, or otherwise
 directing it toward commercial advantage. This attribution record is not the
 final hash-bound redistribution approval.
+
+Owner decision reaffirmed 2026-09-15: Animama is noncommercial, with no planned
+commercial integration. Retain these assets on the stricter noncommercial basis;
+replace them before introducing commercial use unless adequate permission is
+obtained. This does not resolve the upstream license-text conflict or change
+the separate licenses of Pocket code, dependencies or original Animama source.

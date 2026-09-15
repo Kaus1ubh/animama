@@ -40,12 +40,6 @@
   ],
   "events": [
     {
-      "id": "avatar-blush-left",
-      "time": 0.12,
-      "kind": "avatar_vfx",
-      "effectId": "blush left"
-    },
-    {
       "id": "particle-sparkles",
       "time": 0.12,
       "kind": "particle_vfx",

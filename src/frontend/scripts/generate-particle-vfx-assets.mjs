@@ -6,30 +6,35 @@ import sharp from "sharp";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const workspaceRoot = path.resolve(scriptDir, "..");
-const publicRoot = path.join(workspaceRoot, "web/public");
-const textureDir = path.join(publicRoot, "effects/vfx/particle-vfx/textures");
-const particleVfxDir = path.join(publicRoot, "effects/vfx/particle-vfx");
-const quarkDir = path.join(publicRoot, "effects/vfx/quark");
-const textureManifestPath = path.join(
-  workspaceRoot,
-  "web/src/lib/avatar/particle-vfx/editor/textureManifest.ts",
-);
-const kenneyTransparentDir = path.join(
-  publicRoot,
-  "effects/vfx/kenney_particle-pack/PNG (Transparent)",
-);
-const brackeysAlphaDir = path.join(
-  publicRoot,
-  "effects/vfx/brackeys_vfx_bundle/particles/alpha",
-);
-const brackeysFlipbookDir = path.join(
-  publicRoot,
-  "effects/vfx/brackeys_vfx_bundle/flipbooks",
-);
-const brackeysPredrawnDir = path.join(
-  publicRoot,
-  "effects/vfx/brackeys_vfx_bundle/predrawn",
-);
+// Generate into an explicit staging directory; never overwrite Included content.
+const args = process.argv.slice(2);
+const options = new Map();
+for (let index = 0; index < args.length; index += 2) {
+  const name = args[index];
+  if (!["--output-dir", "--kenney-root", "--brackeys-root"].includes(name) ||
+      !args[index + 1] || options.has(name)) {
+    throw new Error("Use --output-dir DIR --kenney-root DIR --brackeys-root DIR");
+  }
+  options.set(name, path.resolve(args[index + 1]));
+}
+for (const required of ["--output-dir", "--kenney-root", "--brackeys-root"]) {
+  if (!options.has(required)) throw new Error(`Missing ${required}`);
+}
+const particleVfxDir = options.get("--output-dir");
+const repositoryRoot = path.resolve(workspaceRoot, "../..");
+const includedRoot = path.join(repositoryRoot, "content/included");
+if (particleVfxDir === includedRoot || particleVfxDir.startsWith(`${includedRoot}${path.sep}`)) {
+  throw new Error("Choose a staging directory outside content/included; review outputs before copying.");
+}
+// Refuse an existing destination to preserve prior results and unrelated files.
+await fs.mkdir(particleVfxDir, { recursive: false });
+const textureDir = path.join(particleVfxDir, "textures");
+const quarkDir = path.join(particleVfxDir, "quark");
+const textureManifestPath = path.join(particleVfxDir, "textureManifest.ts");
+const kenneyTransparentDir = path.join(options.get("--kenney-root"), "PNG (Transparent)");
+const brackeysAlphaDir = path.join(options.get("--brackeys-root"), "particles/alpha");
+const brackeysFlipbookDir = path.join(options.get("--brackeys-root"), "flipbooks");
+const brackeysPredrawnDir = path.join(options.get("--brackeys-root"), "predrawn");
 const quarkRelativeTextureRoot = "../particle-vfx/textures";
 const runtimeTextureSize = 256;
 
@@ -198,19 +203,16 @@ const RUNTIME_TEXTURES = [
     output: "brackeys-spark.png",
     sourceRoot: brackeysAlphaDir,
     source: "spark_04_a.png",
-    fallbackSvg: sparkleSvg(),
   }),
   sourceTexture({
     output: "brackeys-smoke.png",
     sourceRoot: brackeysAlphaDir,
     source: "smoke_02_a.png",
-    fallbackSvg: softSmokeSvg(),
   }),
   sourceTexture({
     output: "brackeys-flare.png",
     sourceRoot: brackeysAlphaDir,
     source: "flare_01_a.png",
-    fallbackSvg: flareSvg(),
   }),
   sourceTexture({
     output: "glow-soft.png",
@@ -1555,13 +1557,9 @@ async function writeRuntimeTexture(texture) {
   try {
     await fs.access(sourcePath);
   } catch (error) {
-    if (texture.fallbackSvg) {
-      await writeSvgPng(texture.output, texture.fallbackSvg);
-      return;
-    }
     throw new Error(
       `Particle VFX source texture missing: ${sourcePath}. ` +
-        `Add the source asset or configure a fallback for ${texture.output}.`,
+        `Add the exact licensed source asset for ${texture.output}.`,
       { cause: error },
     );
   }
@@ -2200,18 +2198,6 @@ function softDotSvg() {
   );
 }
 
-function flareSvg() {
-  return svgWrap(
-    '<defs><radialGradient id="g" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff" stop-opacity="1"/><stop offset=".28" stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><circle cx="128" cy="128" r="88" fill="url(#g)"/><path fill="#fff" opacity=".86" d="M128 4 146 110 252 128 146 146 128 252 110 146 4 128 110 110 128 4z"/>',
-  );
-}
-
-function softSmokeSvg() {
-  return svgWrap(
-    '<defs><radialGradient id="a" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs><circle cx="91" cy="126" r="70" fill="url(#a)"/><circle cx="143" cy="95" r="82" fill="url(#a)"/><circle cx="159" cy="151" r="74" fill="url(#a)"/>',
-  );
-}
-
 function textSvg(text, options) {
   return svgWrap(
     `<text x="128" y="${options.y}" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="${options.fontSize}" font-weight="900" fill="#fff" stroke="${options.stroke}" stroke-width="${options.strokeWidth}" paint-order="stroke" dominant-baseline="middle">${text}</text>`,
@@ -2227,7 +2213,7 @@ This folder contains the tracked particle VFX texture set used by the avatar
 Generated by:
 
 \`\`\`bash
-pnpm generate:particle-vfx-assets
+pnpm generate:particle-vfx-assets --output-dir /tmp/particle-review --kenney-root /path/to/kenney-pack --brackeys-root /path/to/brackeys_vfx_bundle
 \`\`\`
 
 Sources:
@@ -2244,6 +2230,9 @@ Sources:
   \`brackeys_vfx_bundle/flipbooks\`, decoded and normalized into PNG atlases.
   The Brackeys bundle license file declares the pack CC0.
 
+Outputs are staged separately; review before copying them to Included content.
+Source archive hashes, exact output mappings, and notices are in
+\`licenses/third-party/art-particles.json\` and \`licenses/third-party/art-NOTICES.md\`.
 The raw downloaded packs remain ignored and are not referenced by the runtime
 catalog. Runtime JSON files live in \`../quark\` and reference these textures
 with paths relative to the quarks JSON file. The editor-facing texture manifest

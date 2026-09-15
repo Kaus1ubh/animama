@@ -1,0 +1,47 @@
+Pocket TTS browser implementation and SentencePiece runtime
+
+Browser integration upstream: KevinAHM/pocket-tts-web
+Reviewed revision: 3cf6daa623e2b09992c972cab32568ee8679a154
+https://huggingface.co/spaces/KevinAHM/pocket-tts-web/tree/3cf6daa623e2b09992c972cab32568ee8679a154
+The upstream CODE-LICENSE supplies Apache-2.0 terms for code. This does not
+license the separately identified model or voice assets as Apache-2.0.
+
+Animama adaptations by Raymond Van include worker/controller integration,
+stream cancellation, debug/reporting support, asset URL resolution, audio
+queueing and shared PCM playback. Local additions retain the repository's
+license. Preserve the upstream Apache terms and these change notices.
+
+sentencepiece.js was an exact copy of the reviewed KevinAHM snapshot at intake.
+Its embedded WASM also exactly matches @sctg/sentencepiece-js 1.3.3:
+https://registry.npmjs.org/@sctg/sentencepiece-js/-/sentencepiece-js-1.3.3.tgz
+npm gitHead: 30916b62bae58f8bb9cd038d3b5e449eee4cae6e
+WASM SHA-256: 762f35161c22bb6561c2300dd6f32e5ab682025dc718fd6568c71d1730283619
+Wrapper authors recorded by upstream: devilyouwei, Jan Kaul, Ronan Le Meillat.
+Wrapper source review: sctg-development/sentencepiece-js at
+ed260044938b4ee7b35d45c2e03dd19e7a47e5b0 (Apache-2.0).
+Its Google SentencePiece submodule is d8f741853847553169444afc12c00f4bbff3e9ce.
+Retain Google Apache-2.0, abseil Apache-2.0, Darts-clone BSD, esaxx MIT and
+protobuf-lite BSD notices supplied alongside this file. Emscripten-generated
+runtime code carries the preserved MIT/NCSA license text; 4.0.8 identifies
+the license-text source, not a verified compiler build version.
+
+Animama modification, 2026-09-15: removed three unused bundled example-model
+constants and exports (clean_30k_b64, llama_3_1_tokeniser_b64, smart_b64).
+The processor implementation and embedded WASM are unchanged. Animama loads
+its separately licensed Pocket tokenizer.model explicitly. The removed
+example model payloads are not covered by this distribution's Apache claim.
+The pre-existing browser shims were supplied by the Pocket upstream snapshot.
+
+The Microsoft helper notice remains in sentencepiece.js and is reproduced here:
+Copyright (c) Microsoft Corporation.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.

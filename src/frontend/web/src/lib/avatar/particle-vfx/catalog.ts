@@ -17,10 +17,6 @@ export function createDefaultParticleVFXTransform(): ParticleVFXTransform {
   };
 }
 
-const cartoonBangTransform = createDefaultParticleVFXTransform();
-cartoonBangTransform.offset.y = 0.22;
-cartoonBangTransform.scale = { x: 0.16, y: 0.16, z: 0.16 };
-
 function transform(override: ParticleVFXTransformInput): ParticleVFXTransform {
   const next = createDefaultParticleVFXTransform();
   next.offset = { ...next.offset, ...override.offset };
@@ -63,20 +59,6 @@ function entry(args: {
 }
 
 export const AVATAR_PARTICLE_VFX_CATALOG = [
-  entry({
-    id: "cartoon-bang",
-    label: "Cartoon Bang",
-    description: "A one-shot comic burst for validating quarks particles.",
-    assetPath: "/effects/vfx/quark/cartoon-bang/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 2,
-    defaultTransform: cartoonBangTransform,
-    preloadTier: "none",
-    performanceBudget: {
-      ...budget(2.5, 96, { canCoexist: false }),
-      loopingAllowed: false,
-    },
-  }),
   entry({
     id: "hearts",
     label: "Hearts",

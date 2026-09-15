@@ -1,5 +1,8 @@
 /*
  * Local Whisper feature extraction utilities for Smart-Turn.
+ * Modified for Animama by Raymond Van; local integrations differ from upstream.
+ * P2FFT also derives from fft.js (MIT, Copyright Fedor Indutny, 2017).
+ * Full terms and modification record: licenses/third-party/code-and-models.md.
  *
  * Portions are adapted from Transformers.js (Apache-2.0), pinned to tag 3.8.1:
  * - Whisper feature-extractor flow:

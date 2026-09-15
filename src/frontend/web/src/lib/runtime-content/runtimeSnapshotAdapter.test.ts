@@ -258,7 +258,7 @@ describe("adaptRuntimeSnapshot", () => {
       gestures: [],
       reactions: [
         {
-          binding_id: "reaction-confusion-3",
+          binding_id: "reaction-joy-3",
           content_type: "reaction",
           source: {
             type: "catalog_item",
@@ -266,22 +266,22 @@ describe("adaptRuntimeSnapshot", () => {
             source: "included",
             revision: "reaction-revision",
           },
-          name: "Confusion Reaction 3",
-          semantic_key: "confusion-3",
-          emotion: "confusion",
+          name: "Joy Reaction 3",
+          semantic_key: "joy-3",
+          emotion: "joy",
           intensity: 3,
           implementation: { kind: "anima_clip", file_role: "sequence" },
           config: {},
           reference_map: {
             "emote_!": "emote",
-            "scene-vfx-emotion-confusion": "scene-confusion",
+            "scene-vfx-emotion-joy": "scene-joy",
           },
           files: [
             {
               file_ref: "reaction-sequence",
               role: "sequence",
               ordinal: 1,
-              filename: "confusion-3.json",
+              filename: "joy-3.json",
               media_type: "application/json",
               size_bytes: 512,
               sha256: "d".repeat(64),
@@ -328,7 +328,7 @@ describe("adaptRuntimeSnapshot", () => {
       ],
       scene_effects: [
         {
-          runtime_id: "scene-confusion",
+          runtime_id: "scene-joy",
           content_type: "scene_effect",
           source: {
             type: "catalog_item",
@@ -336,7 +336,7 @@ describe("adaptRuntimeSnapshot", () => {
             source: "included",
             revision: "scene-effect-revision",
           },
-          name: "Emotion Confusion",
+          name: "Emotion Joy",
           config: {},
           definition: {
             schema: "animama/scene-effect/1",
@@ -372,8 +372,8 @@ describe("adaptRuntimeSnapshot", () => {
         new Response(
           JSON.stringify({
             schema: "animaPoseClip/1.0",
-            id: "confusion-3",
-            name: "Confusion Reaction 3",
+            id: "joy-3",
+            name: "Joy Reaction 3",
             duration: 1,
             poses: { rest: { humanoid: {} } },
             poseKeyframes: [{ time: 0, pose: "rest" }],
@@ -385,11 +385,11 @@ describe("adaptRuntimeSnapshot", () => {
                 effectId: "emote_!",
               },
               {
-                id: "scene-confusion",
+                id: "scene-joy",
                 time: 0,
                 kind: "scene_vfx",
                 sceneKind: "background_layers",
-                presetId: "scene-vfx-emotion-confusion",
+                presetId: "scene-vfx-emotion-joy",
               },
             ],
           }),
@@ -398,11 +398,11 @@ describe("adaptRuntimeSnapshot", () => {
     });
 
     await expect(
-      catalog.loadReactionClip("confusion-3"),
+      catalog.loadReactionClip("joy-3"),
     ).resolves.toMatchObject({
       events: [
         expect.objectContaining({ effectId: "emote" }),
-        expect.objectContaining({ presetId: "scene-confusion" }),
+        expect.objectContaining({ presetId: "scene-joy" }),
       ],
     });
   });

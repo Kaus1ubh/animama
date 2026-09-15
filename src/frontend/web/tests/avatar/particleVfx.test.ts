@@ -341,11 +341,10 @@ beforeEach(() => {
 });
 
 describe("particle VFX catalog", () => {
-  it("has the expected catalog ids and resolves cartoon-bang", () => {
+  it("has the expected catalog ids and resolves hearts", () => {
     const ids = AVATAR_PARTICLE_VFX_CATALOG.map((entry) => entry.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).toEqual([
-      "cartoon-bang",
       "hearts",
       "stars",
       "sparkles",
@@ -361,8 +360,8 @@ describe("particle VFX catalog", () => {
       "flame-loop",
       ...PHASE_5_PARTICLE_VFX_IDS,
     ]);
-    expect(getParticleVFXCatalogEntryById("cartoon-bang")).toMatchObject({
-      id: "cartoon-bang",
+    expect(getParticleVFXCatalogEntryById("hearts")).toMatchObject({
+      id: "hearts",
       defaultAnchor: "head",
     });
     expect(getParticleVFXCatalogEntryById("flame-loop")).toMatchObject({
@@ -415,7 +414,7 @@ describe("particle VFX catalog", () => {
       expect(typeof entry.performanceBudget.canCoexist).toBe("boolean");
     }
 
-    expect(getParticleVFXCatalogEntryById("cartoon-bang")?.preloadTier).toBe(
+    expect(getParticleVFXCatalogEntryById("exclamation-v1")?.preloadTier).toBe(
       "none",
     );
     expect(getParticleVFXCatalogEntryById("hearts")?.preloadTier).toBe("tierA");
@@ -946,7 +945,7 @@ describe("ParticleVFXController", () => {
       tierAEntries.map((entry) => entry.id).sort(),
     );
     expect(quarksMockState.loadAssetPaths).not.toContain(
-      "/effects/vfx/quark/Cartoon Bang.json",
+      "/effects/vfx/quark/exclamation-v1/particle.json",
     );
     controller.dispose();
   });
@@ -1054,8 +1053,8 @@ describe("ParticleVFXController", () => {
     quarksMockState.playThrows = true;
 
     const didApply = await controller.playEffect({
-      effectId: "cartoon-bang",
-      appliedId: "failed-bang",
+      effectId: "hearts",
+      appliedId: "failed-hearts",
     });
 
     expect(didApply).toBe(false);
@@ -1083,8 +1082,8 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "cartoon-bang",
-        appliedId: "retry-bang",
+        effectId: "hearts",
+        appliedId: "retry-hearts",
       }),
     ).resolves.toBe(false);
     expect(quarksMockState.loadAttempts).toBe(1);
@@ -1096,8 +1095,8 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "cartoon-bang",
-        appliedId: "retry-bang",
+        effectId: "hearts",
+        appliedId: "retry-hearts",
       }),
     ).resolves.toBe(true);
     expect(quarksMockState.loadAttempts).toBe(2);
@@ -1118,14 +1117,14 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "cartoon-bang",
-        appliedId: "world-space-bang",
+        effectId: "hearts",
+        appliedId: "world-space-hearts",
       }),
     ).resolves.toBe(true);
 
     const snapshot = controller.getSnapshot();
     expect(snapshot.activeInstances[0]).toMatchObject({
-      appliedId: "world-space-bang",
+      appliedId: "world-space-hearts",
       followAnchor: false,
       usesWorldSpace: true,
     });
@@ -1146,8 +1145,8 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "cartoon-bang",
-        appliedId: "disposable-bang",
+        effectId: "hearts",
+        appliedId: "disposable-hearts",
       }),
     ).resolves.toBe(true);
     const batch = quarksMockState.lastBatchRenderer?.batches[0];

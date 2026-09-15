@@ -49,3 +49,21 @@ deleted. Owner-provided typed Sound Effects remain supported.
 
 Browser-engine dependencies such as ONNX runtimes, Basis decoders, workers,
 fonts, and UI images remain frontend application assets.
+
+## Retained avatar and effect artwork
+
+The source library contains only the Annie (`AvatarSample_A_1_New.vrm`) and
+Caitlyn (`AvatarSample_R1.vrm`) models and their generated portrait pairs.
+Other sample models, portraits and the combined contact sheet have been retired.
+Existing installations are not rewritten by this source cleanup; a saved
+reference to retired Included content needs an explicit replacement.
+
+The exclamation hover sprite and four dark/uneasy face overlays use original
+geometric SVG masters under `src/frontend/scripts/assets/original-effects/`.
+From `src/frontend`, regenerate their nine PNG files with
+`pnpm generate:original-effects`. The command uses pinned Sharp and writes each
+registered effect and its matching authoring copy together. These masters were
+authored for Animama under Raymond Van's ownership; they contain no pixels from
+the retired textures. Canvas sizes and face-region placement are retained,
+while the artwork is new. Rendered acceptance on both avatars is still required
+before release.

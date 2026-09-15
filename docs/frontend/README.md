@@ -43,6 +43,7 @@ Runtime guides:
 - `runtime/elevenlabs-tts.md` (ElevenLabs realtime and v3 finalized TTS)
 - `runtime/sound.md`
 - `runtime/avatar-animation.md`
+- `runtime/mixamo-acquisition.md`: private manual-download checklist and deferred conversion.
 - `runtime/content-previews.md`
 - `runtime/avatar-planner.md`
 - `runtime/avatar-lipsync.md`

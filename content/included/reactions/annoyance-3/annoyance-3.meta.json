@@ -19,12 +19,6 @@
       "alias": "angry",
       "content_type": "avatar_effect",
       "config": {}
-    },
-    {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-annoyance",
-      "alias": "scene-vfx-emotion-annoyance",
-      "content_type": "scene_effect",
-      "config": {}
     }
   ],
   "files": [

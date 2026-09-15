@@ -47,12 +47,6 @@
       "presetId": "scene-vfx-emotion-gratitude"
     },
     {
-      "id": "avatar-blush-2-r",
-      "time": 0.1,
-      "kind": "avatar_vfx",
-      "effectId": "blush 2 r"
-    },
-    {
       "id": "particle-sparkles",
       "time": 0.1,
       "kind": "particle_vfx",

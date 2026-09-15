@@ -22,7 +22,7 @@ Runtime code lives under:
 - `src/frontend/web/src/lib/avatar/poses/animaPoseClip/`
 - `src/frontend/web/src/lib/avatar/Avatar.ts`
 
-The built-in App provider currently contains `cartoon-bang`, `hearts`, `stars`,
+The built-in App provider currently contains `hearts`, `stars`,
 `sparkles`, `question-marks`, `exclamation`, `zzz`, `rain-cloud`,
 `hearts-v1`, `exclamation-v1`, `question-v1`, `hearts-v2`, `star-v2`, and
 `flame-loop`, plus the Phase 5 polished catalog entries
@@ -113,7 +113,7 @@ events or typed dependencies.
   "id": "bang-1",
   "time": 0.25,
   "kind": "particle_vfx",
-  "effectId": "cartoon-bang",
+  "effectId": "hearts",
   "anchor": "head",
   "duration": 2,
   "followAnchor": true,

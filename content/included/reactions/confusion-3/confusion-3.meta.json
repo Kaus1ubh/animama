@@ -31,12 +31,6 @@
       "alias": "question-marks",
       "content_type": "particle_effect",
       "config": {}
-    },
-    {
-      "ref": "builtin:scene-effect:background:scene-vfx-emotion-confusion",
-      "alias": "scene-vfx-emotion-confusion",
-      "content_type": "scene_effect",
-      "config": {}
     }
   ],
   "files": [

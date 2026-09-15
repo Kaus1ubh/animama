@@ -1,0 +1,14 @@
+Local Whisper feature extractor for Smart Turn
+
+Adapted for Animama by Raymond Van from Hugging Face Transformers.js tag 3.8.1:
+https://github.com/huggingface/transformers.js/blob/3.8.1/src/models/whisper/feature_extraction_whisper.js
+https://github.com/huggingface/transformers.js/blob/3.8.1/src/utils/audio.js
+https://github.com/huggingface/transformers.js/blob/3.8.1/src/utils/maths.js
+Upstream license: Apache-2.0, preserved in transformers-js-apache-2.0.txt.
+Local changes extract only needed feature/math routines, remove the Transformers
+package dependency and integrate fixed Smart-Turn audio windows.
+
+The upstream P2FFT implementation expressly adapts fft.js. Preserve its MIT
+notice (Copyright Fedor Indutny, 2017) in fft-js-mit.txt. The notice was verified
+against https://github.com/indutny/fft.js/blob/v4.0.4/README.md; this is a notice
+source revision, not a claim to recover the original Transformers import commit.

@@ -7,8 +7,9 @@ Copyright (c) 2024-2025, Daily
 
 The exact staged model SHA-256 is
 2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f.
-The full license text is available in the upstream model repository and must
-remain part of release review. This notice is not an owner redistribution
+The pinned model card declares BSD-2-Clause. Its standalone LICENSE URL
+returns 404; the text below comes from the linked pipecat-ai/smart-turn code
+repository, and is retained together with that model-card declaration. This notice is not an owner redistribution
 approval.
 
 --- Upstream license text ---

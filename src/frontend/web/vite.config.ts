@@ -38,18 +38,6 @@ export const includedContentAliases: readonly IncludedContentAlias[] = [
     route: "/effects/resources/scene-vfx/twemoji",
     source: "resources/scene-vfx/twemoji",
   },
-  {
-    route: "/effects/face-material.png",
-    source: "vfx/avatar/materials/face-material.png",
-  },
-  {
-    route: "/effects/face-material-2.png",
-    source: "vfx/avatar/materials/face-material-2.png",
-  },
-  {
-    route: "/effects/face-material-3.png",
-    source: "vfx/avatar/materials/face-material-3.png",
-  },
 ] as const;
 const publicParakeetModelBaseUrl = "/onnx/models/parakeet-tdt-0.6b-v2";
 const localParakeetModelBaseUrl = "/__client-parakeet-models";

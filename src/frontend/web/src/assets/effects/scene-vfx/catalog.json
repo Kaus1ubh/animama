@@ -2,48 +2,6 @@
   "version": 1,
   "backgroundLineItems": [
     {
-      "id": "chibi-1",
-      "kind": "png",
-      "src": "/effects/scene-vfx/chaos-chibi/chibi-1.png",
-      "label": "Chibi 1"
-    },
-    {
-      "id": "chibi-2",
-      "kind": "png",
-      "src": "/effects/scene-vfx/chaos-chibi/chibi-2.png",
-      "label": "Chibi 2"
-    },
-    {
-      "id": "svg-gentle-hands",
-      "kind": "svg",
-      "src": "/effects/scene-vfx/svg/gentle-hands.svg",
-      "label": "Gentle Hands"
-    },
-    {
-      "id": "svg-target-heart",
-      "kind": "svg",
-      "src": "/effects/scene-vfx/svg/target-heart.svg",
-      "label": "Target Heart"
-    },
-    {
-      "id": "svg-dizzy-question",
-      "kind": "svg",
-      "src": "/effects/scene-vfx/svg/dizzy-question.svg",
-      "label": "Dizzy Question"
-    },
-    {
-      "id": "svg-irritation-mark",
-      "kind": "svg",
-      "src": "/effects/scene-vfx/svg/irritation-mark.svg",
-      "label": "Irritation Mark"
-    },
-    {
-      "id": "svg-droop-tear",
-      "kind": "svg",
-      "src": "/effects/scene-vfx/svg/droop-tear.svg",
-      "label": "Droop Tear"
-    },
-    {
       "id": "emoji-sparkles",
       "kind": "emoji",
       "emoji": "\u2728",
@@ -308,39 +266,6 @@
       }
     },
     {
-      "presetId": "chaos-chibi",
-      "entry": {
-        "id": "scene-vfx-chaos-chibi",
-        "label": "Chaos Chibi",
-        "kind": "background_layers",
-        "enabled": true,
-        "solid": {
-          "enabled": true,
-          "color": "#fff6cf"
-        },
-        "pattern": {
-          "enabled": true,
-          "pattern": "polkadot",
-          "color": "#ff8cb0",
-          "size": 18,
-          "spacing": 20,
-          "opacity": 0.28
-        },
-        "marquee": {
-          "enabled": true,
-          "itemIds": ["chibi-1", "chibi-2"],
-          "itemSize": 84,
-          "gap": 22,
-          "rowGap": 18,
-          "direction": "diagonal-up-left",
-          "itemRotationMode": "upright",
-          "itemRotationOffsetDeg": 0,
-          "speedPxPerSec": 180,
-          "opacity": 0.9
-        }
-      }
-    },
-    {
       "presetId": "kawaii-sparkles",
       "entry": {
         "id": "scene-vfx-kawaii-sparkles",
@@ -395,39 +320,6 @@
         "marquee": {
           "enabled": true,
           "itemIds": ["emoji-star-struck", "emoji-sparkles"],
-          "itemSize": 72,
-          "gap": 24,
-          "rowGap": 18,
-          "direction": "diagonal-up-left",
-          "itemRotationMode": "upright",
-          "itemRotationOffsetDeg": 0,
-          "speedPxPerSec": 170,
-          "opacity": 0.92
-        }
-      }
-    },
-    {
-      "presetId": "scene-vfx-emotion-caring",
-      "entry": {
-        "id": "scene-vfx-emotion-caring",
-        "label": "Emotion Caring",
-        "kind": "background_layers",
-        "enabled": true,
-        "durationMs": null,
-        "dismissOnInput": false,
-        "coverUiOverlays": false,
-        "solid": { "enabled": true, "color": "#fde6dc" },
-        "pattern": {
-          "enabled": true,
-          "pattern": "heart",
-          "color": "#ffffff",
-          "size": 24,
-          "spacing": 18,
-          "opacity": 0.36
-        },
-        "marquee": {
-          "enabled": true,
-          "itemIds": ["emoji-hugging-face", "svg-gentle-hands"],
           "itemSize": 72,
           "gap": 24,
           "rowGap": 18,
@@ -671,39 +563,6 @@
       }
     },
     {
-      "presetId": "scene-vfx-emotion-desire",
-      "entry": {
-        "id": "scene-vfx-emotion-desire",
-        "label": "Emotion Desire",
-        "kind": "background_layers",
-        "enabled": true,
-        "durationMs": null,
-        "dismissOnInput": false,
-        "coverUiOverlays": false,
-        "solid": { "enabled": true, "color": "#ffd6ed" },
-        "pattern": {
-          "enabled": true,
-          "pattern": "heart",
-          "color": "#ffffff",
-          "size": 24,
-          "spacing": 18,
-          "opacity": 0.36
-        },
-        "marquee": {
-          "enabled": true,
-          "itemIds": ["svg-target-heart", "emoji-sparkling-heart"],
-          "itemSize": 72,
-          "gap": 24,
-          "rowGap": 18,
-          "direction": "diagonal-up-left",
-          "itemRotationMode": "upright",
-          "itemRotationOffsetDeg": 0,
-          "speedPxPerSec": 170,
-          "opacity": 0.92
-        }
-      }
-    },
-    {
       "presetId": "scene-vfx-emotion-curiosity",
       "entry": {
         "id": "scene-vfx-emotion-curiosity",
@@ -836,39 +695,6 @@
       }
     },
     {
-      "presetId": "scene-vfx-emotion-confusion",
-      "entry": {
-        "id": "scene-vfx-emotion-confusion",
-        "label": "Emotion Confusion",
-        "kind": "background_layers",
-        "enabled": true,
-        "durationMs": null,
-        "dismissOnInput": false,
-        "coverUiOverlays": false,
-        "solid": { "enabled": true, "color": "#eee1ff" },
-        "pattern": {
-          "enabled": true,
-          "pattern": "polkadot",
-          "color": "#ffffff",
-          "size": 20,
-          "spacing": 18,
-          "opacity": 0.32
-        },
-        "marquee": {
-          "enabled": true,
-          "itemIds": ["svg-dizzy-question", "emoji-dizzy"],
-          "itemSize": 72,
-          "gap": 24,
-          "rowGap": 18,
-          "direction": "diagonal-up-left",
-          "itemRotationMode": "upright",
-          "itemRotationOffsetDeg": 0,
-          "speedPxPerSec": 170,
-          "opacity": 0.92
-        }
-      }
-    },
-    {
       "presetId": "scene-vfx-emotion-anger",
       "entry": {
         "id": "scene-vfx-emotion-anger",
@@ -891,39 +717,6 @@
           "enabled": true,
           "itemIds": ["emoji-anger-symbol", "emoji-collision"],
           "itemSize": 80,
-          "gap": 24,
-          "rowGap": 18,
-          "direction": "diagonal-up-left",
-          "itemRotationMode": "upright",
-          "itemRotationOffsetDeg": 0,
-          "speedPxPerSec": 170,
-          "opacity": 0.92
-        }
-      }
-    },
-    {
-      "presetId": "scene-vfx-emotion-annoyance",
-      "entry": {
-        "id": "scene-vfx-emotion-annoyance",
-        "label": "Emotion Annoyance",
-        "kind": "background_layers",
-        "enabled": true,
-        "durationMs": null,
-        "dismissOnInput": false,
-        "coverUiOverlays": false,
-        "solid": { "enabled": true, "color": "#ffd0b3" },
-        "pattern": {
-          "enabled": true,
-          "pattern": "polkadot",
-          "color": "#ffffff",
-          "size": 20,
-          "spacing": 18,
-          "opacity": 0.3
-        },
-        "marquee": {
-          "enabled": true,
-          "itemIds": ["svg-irritation-mark", "emoji-anger-symbol"],
-          "itemSize": 72,
           "gap": 24,
           "rowGap": 18,
           "direction": "diagonal-up-left",
@@ -1022,39 +815,6 @@
         "marquee": {
           "enabled": true,
           "itemIds": ["emoji-flushed-face"],
-          "itemSize": 72,
-          "gap": 24,
-          "rowGap": 18,
-          "direction": "diagonal-up-left",
-          "itemRotationMode": "upright",
-          "itemRotationOffsetDeg": 0,
-          "speedPxPerSec": 170,
-          "opacity": 0.92
-        }
-      }
-    },
-    {
-      "presetId": "scene-vfx-emotion-remorse",
-      "entry": {
-        "id": "scene-vfx-emotion-remorse",
-        "label": "Emotion Remorse",
-        "kind": "background_layers",
-        "enabled": true,
-        "durationMs": null,
-        "dismissOnInput": false,
-        "coverUiOverlays": false,
-        "solid": { "enabled": true, "color": "#d6deeb" },
-        "pattern": {
-          "enabled": false,
-          "pattern": "none",
-          "color": "#ffffff",
-          "size": 24,
-          "spacing": 18,
-          "opacity": 0.32
-        },
-        "marquee": {
-          "enabled": true,
-          "itemIds": ["svg-droop-tear", "emoji-pleading-face"],
           "itemSize": 72,
           "gap": 24,
           "rowGap": 18,

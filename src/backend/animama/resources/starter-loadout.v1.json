@@ -64,10 +64,6 @@
       "version": 1
     },
     {
-      "content_id": "builtin:gesture:plead",
-      "version": 1
-    },
-    {
       "content_id": "builtin:gesture:shrug",
       "version": 1
     },
@@ -97,10 +93,6 @@
     },
     {
       "content_id": "builtin:gesture:posture_sad",
-      "version": 1
-    },
-    {
-      "content_id": "builtin:gesture:posture_sad_custom",
       "version": 1
     },
     {

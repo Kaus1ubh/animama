@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <defs><linearGradient id="surface" x2="1" y2="1"><stop stop-color="#7960b0"/><stop offset="1" stop-color="#372842"/></linearGradient></defs>
-  <rect x="80" y="80" width="864" height="864" rx="196" fill="url(#surface)"/>
-  <!-- The existing UI LogoMark: large top-left/bottom-right, small opposite corners. -->
-  <path d="M464 264H716Q760 264 760 308V560Q760 760 560 760H308Q264 760 264 716V464Q264 264 464 264Z" fill="#f8f5ff"/>
-</svg>

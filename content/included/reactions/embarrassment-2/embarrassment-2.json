@@ -39,12 +39,5 @@
       "pose": "peak"
     }
   ],
-  "events": [
-    {
-      "id": "avatar-blush-left",
-      "time": 0.12,
-      "kind": "avatar_vfx",
-      "effectId": "blush left"
-    }
-  ]
+  "events": []
 }

@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "review_date": "2026-09-15",
+  "sources": [
+    "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
+    "https://hub.vroid.com/en/characters/2843975675147313744/models/5644550979324015604",
+    "https://vroid.com/en/studio/guidelines",
+    "https://vrm.dev/licenses/1.0/",
+    "https://vroid.pixiv.help/hc/en-us/articles/4405813333657-Can-I-use-the-models-created-with-VRoid-Studio-Stable-Ver-for-commercial-purposes"
+  ],
+  "files": [
+    {
+      "path": "content/included/avatars/AvatarSample_A_1_New.vrm",
+      "sha256": "37a01dc3368959ac33e459f6ebb147af721a0fa02f6459ee26fd694e95bbcfcc",
+      "portrait_path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-a-1-new-v1.webp",
+      "portrait_sha256": "3d23ef507089944c51695c33654625559b068a688a316d280c670ffcb61231ac",
+      "embedded_vrm_meta": {
+        "name": "AvatarSample_A_1",
+        "authors": [
+          "pixiv VRoid Project"
+        ],
+        "thumbnailImage": 24,
+        "licenseUrl": "https://vrm.dev/licenses/1.0/",
+        "avatarPermission": "everyone",
+        "allowExcessivelyViolentUsage": false,
+        "allowExcessivelySexualUsage": false,
+        "commercialUsage": "personalNonProfit",
+        "allowPoliticalOrReligiousUsage": false,
+        "allowAntisocialOrHateUsage": false,
+        "creditNotation": "required",
+        "allowRedistribution": true,
+        "modification": "prohibited",
+        "otherLicenseUrl": "https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z",
+        "thirdPartyLicenses": "pixiv VRoidPreset A-Z conditions apply. Not CC0. Do not redistribute the unmodified sample model or its data for a fee or use its data in a character-creation service. See otherLicenseUrl for the full conditions."
+      },
+      "license": "LicenseRef-pixiv-VRoidPreset",
+      "copyright": [
+        "pixiv VRoid Project"
+      ],
+      "notice_paths": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "status": "owner-confirmed-metadata-corrected",
+      "condition": "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+    },
+    {
+      "path": "content/included/avatars/AvatarSample_R1.vrm",
+      "sha256": "d11aa96e80debb1ae8c23b3fd0b036ef4553b5df62d4c56149fddce1c0fb449a",
+      "portrait_path": "content/included/appearances/avatar-portraits/app-avatar-model-avatarsample-r1-v1.webp",
+      "portrait_sha256": "9e23019eb3977aa8f6feb3ff5d895258418fa9a004f51fb00917b60de0084213",
+      "embedded_vrm_meta": {
+        "name": "AvatarSample_R1",
+        "authors": [
+          "Raymond Van"
+        ],
+        "thumbnailImage": 22,
+        "licenseUrl": "https://vrm.dev/licenses/1.0/",
+        "avatarPermission": "everyone",
+        "allowExcessivelyViolentUsage": false,
+        "allowExcessivelySexualUsage": false,
+        "commercialUsage": "personalNonProfit",
+        "allowPoliticalOrReligiousUsage": false,
+        "allowAntisocialOrHateUsage": false,
+        "creditNotation": "required",
+        "allowRedistribution": true,
+        "modification": "allowModification",
+        "copyrightInformation": "Original character authored by Raymond Van using VRoid Studio. VRoid Studio components retain applicable pixiv terms.",
+        "references": [
+          "https://vroid.com/en/studio/guidelines"
+        ]
+      },
+      "license": "LicenseRef-RaymondVan-VRM-Public-License-1.0",
+      "copyright": [
+        "Raymond Van; underlying VRoid Studio components subject to applicable pixiv terms"
+      ],
+      "notice_paths": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "status": "owner-confirmed-metadata-corrected",
+      "condition": "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+    }
+  ],
+  "feature_review": {
+    "kind": "source inspection, not runtime acceptance",
+    "result": "Existing VRMDocument and VRMEditorSession inspect and alter runtime preview state; no binary model write-back/export path found. ContentPackageService exports registered model bytes unchanged and only rewrites descriptors/metadata references. No generated model mesh/texture export found.",
+    "paths": [
+      "src/frontend/web/src/lib/avatar/VRMDocument.ts",
+      "src/frontend/web/src/lib/avatar/VRMEditorSession.ts",
+      "src/backend/animama/app/services/content_package_service.py",
+      "docs/frontend/runtime/vrm-inspector-editor.md"
+    ],
+    "condition": "Re-review pixiv character-creation restrictions before adding model mesh/texture output."
+  },
+  "conflict_analysis": {
+    "primary_hub_model": "AvatarSample_A Hub page allows redistribution/alterations and says Format VRM 0.0. Checked-in Annie uses VRMC_vrm 1.0 metadata. No exact-byte identity to that Hub download established.",
+    "license_relationship": "VRM Public License 1.0 incorporates file settings in section 1(8)/2(a)(1). Separate grants may exist under section 5(3)/6(2); general preset guidance is not evidence that these exact export settings are merely stale.",
+    "owner_evidence": "Existing owner identification/creation attestations preserved. Both embedded authors arrays contain only pixiv VRoid Project, and neither meta object has an additionalLicenseUrl. This is an unresolved export-history discrepancy, not a rejection of the owner statement.",
+    "next_step": "Use corrected current model hashes and preserve model-specific license conditions. Rebuild final release evidence after subsequent refinement; previous source candidate remains historical.",
+    "historical_status": "Earlier export-metadata conflict resolved for preparation by explicit owner identification/authorization and primary preset terms on 2026-09-15."
+  },
+  "owner_confirmation": {
+    "date": "2026-09-15",
+    "artwork": "Replacement artwork approved by Raymond.",
+    "models": "Raymond reaffirmed Annie as freely distributable VRoid preset and Caitlyn as his own authored model, and explicitly authorized metadata updates.",
+    "scope": "Correct use/redistribution flags and Caitlyn author credit; retain other license settings, pixiv conditions and exact geometry/textures. Not a CC0/AGPL relicense of pixiv assets or approval to publish."
+  }
+}

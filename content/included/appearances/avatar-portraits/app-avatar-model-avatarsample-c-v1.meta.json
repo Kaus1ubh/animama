@@ -1,9 +1,0 @@
-{
-  "content_id": "builtin:avatar-portrait:AvatarSample_C",
-  "name": "Avatar Sample C Portrait",
-  "avatar_model": "AvatarSample_C",
-  "width": 256,
-  "height": 256,
-  "renderer_version": 1,
-  "capture_preset_version": 2
-}

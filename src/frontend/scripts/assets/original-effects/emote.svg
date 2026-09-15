@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Copyright 2026 Raymond Van. Original geometric artwork; no source pixels reused. -->
+  <defs><linearGradient id="warm" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffe48f"/><stop offset="1" stop-color="#ff973f"/></linearGradient></defs>
+  <path d="M192 38 Q256 14 320 38 L294 334 Q256 348 218 334 Z" fill="url(#warm)" stroke="#762d2d" stroke-width="18" stroke-linejoin="round"/>
+  <circle cx="256" cy="430" r="50" fill="url(#warm)" stroke="#762d2d" stroke-width="18"/>
+</svg>

@@ -99,6 +99,7 @@ def test_normalize_avatar_vfx_ids_dedupes_and_enforces_region_rules() -> None:
             "star",
             "eye_o",
             "eyebag_1",
+            "mouth_w",
             "angry",
             "emote_!",
             "texture_black_1",
@@ -119,7 +120,8 @@ def test_normalize_avatar_vfx_ids_dedupes_and_enforces_region_rules() -> None:
     assert "texture_sick_1" in result.threshold_miss_ids
     assert [(item.effect_id, item.reason) for item in result.dropped] == [
         ("eye_o", "region_conflict"),
-        ("eyebag_1", "manual_only"),
+        ("eyebag_1", "unknown"),
+        ("mouth_w", "manual_only"),
         ("angry", "unknown"),
         ("emote_!", "unknown"),
         ("star", "duplicate"),

@@ -93,7 +93,7 @@ export function useSceneVFXDrafts({
   const [sceneBackgroundResetBase, setSceneBackgroundResetBase] =
     useState<SceneBackgroundLayersVFXEntry | null>(null);
   const [sceneBackgroundDraftPresetId, setSceneBackgroundDraftPresetId] =
-    useState<SceneVFXDraftPresetId>("chaos-chibi");
+    useState<SceneVFXDraftPresetId>("kawaii-sparkles");
   const [sceneFocusLinesDraft, setSceneFocusLinesDraft] =
     useState<SceneFocusLinesVFXEntry | null>(null);
   const [sceneFocusLinesResetBase, setSceneFocusLinesResetBase] =
@@ -218,7 +218,7 @@ export function useSceneVFXDrafts({
 
       const seededBackgroundEntry = activeBackgroundSceneVfx
         ? toSceneVFXRestorableEntry(activeBackgroundSceneVfx)
-        : getSceneVFXDraftFromPresetId("chaos-chibi");
+        : getSceneVFXDraftFromPresetId("kawaii-sparkles");
       const seededFocusLinesEntry = activeFocusLinesSceneVfx
         ? toSceneFocusLinesRestorableEntry(activeFocusLinesSceneVfx)
         : getSceneFocusLinesDraftFromPresetId("dark");

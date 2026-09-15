@@ -40,19 +40,6 @@
   ],
   "events": [
     {
-      "id": "scene-emotion-background",
-      "time": 0,
-      "kind": "scene_vfx",
-      "sceneKind": "background_layers",
-      "presetId": "scene-vfx-emotion-desire"
-    },
-    {
-      "id": "avatar-blush-2-r",
-      "time": 0.1,
-      "kind": "avatar_vfx",
-      "effectId": "blush 2 r"
-    },
-    {
       "id": "particle-hearts",
       "time": 0.1,
       "kind": "particle_vfx",
