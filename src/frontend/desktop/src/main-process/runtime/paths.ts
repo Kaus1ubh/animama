@@ -117,6 +117,7 @@ function migrateLegacyIdentity(application: App, paths: RuntimePaths): void {
   }
 }
 
+/** Keep the original serialized port key so existing browser origins never move during the HTTP cutover. */
 export type RuntimeState = { version: 1; gatewayPort: number };
 export function readRuntimeState(file: string): RuntimeState | null {
   privateDirectory(path.dirname(file));

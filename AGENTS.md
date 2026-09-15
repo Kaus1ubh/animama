@@ -3,7 +3,7 @@
 This is the repository-level entrypoint for AI coding agents. Read this first, then read the nearest scoped guide before editing inside a subsystem:
 
 - Backend/FastAPI: `src/backend/AGENTS.md`
-- Frontend, frontend server, and Electron shell: `src/frontend/AGENTS.md`
+- Frontend and Electron shell: `src/frontend/AGENTS.md`
 
 The nested guides are authoritative for their areas. Keep this file focused on
 repo-wide workflow, ownership boundaries, and local development conventions.
@@ -22,11 +22,11 @@ chat history persisted in `chats` and `chat_messages`.
 - `src/backend`: FastAPI backend, direct chat runtime, domain/services,
   SQLAlchemy ORM, Alembic integration, workers, backend docs, and Python package
   source.
-- `src/frontend`: Vite React web app, Hono local frontend server,
+- `src/frontend`: Vite React web app,
   Electron desktop shell, frontend docs, generated API client, and public
   runtime assets.
 - `docker-compose.yml`: local service graph for Postgres, pgAdmin, backend,
-  frontend server, web app, and optional `voice`, `memory`, `obs`, and `dev-tools` profiles.
+  web development override, and optional `voice`, `memory`, `obs`, and `dev-tools` profiles.
 - `reset.sh`: preferred local stack reset/start script. You have my approval to run this script as needed to restart the local docker containers if needed. Generally, the local dev environment will already be accessible.
 - `tests`: backend and integration tests. Frontend manual testing is currently
   important for audio, avatar animation, voice, and desktop behavior.
@@ -83,20 +83,20 @@ solutions that fit the surrounding patterns.
 
 ## Accountless Transition
 
-The local composition uses a generated installation owner, trusted Hono gateway,
+The local composition uses a generated installation owner, FastAPI request boundary,
 credential-free React startup, and loopback-only desktop/self-host services.
 Its durable contracts are documented in
 [backend operations](src/backend/docs/operations/development.md) and
-[frontend gateway architecture](src/frontend/docs/architecture/auth-server.md).
-Hono is the only host-published application service and proxies private FastAPI
-and Vite traffic after validating browser metadata and adding its internal
-service assertion. React starts from `main.local.tsx`, reads backend-owned
+[local HTTP architecture](src/frontend/docs/architecture/auth-server.md).
+FastAPI serves the production React build and authorizes API/byte traffic.
+Development publishes Vite with a closed same-origin proxy to private FastAPI.
+Only the selected application service publishes the loopback application port. React starts from `main.local.tsx`, reads backend-owned
 installation readiness (requesting bootstrap only for reported repair), and
 then supplies the principal through a neutral runtime-owner context. Do not
 restore local accounts, account seeding, browser bearer tokens, direct FastAPI
 browser configuration, or security-changing
-local/hosted mode flags. Native Hono and FastAPI launchers bind only to
-loopback. Default Compose publishes only Hono at `127.0.0.1`. The opt-in
+local/hosted mode flags. The native FastAPI launcher binds only to loopback. Both Compose selections
+publish the application at `127.0.0.1`. The opt-in
 `dev-tools` profile adds only loopback pgAdmin and Dozzle; all other services
 stay private. Remote self-host access requires an operator-owned TLS
 and authentication boundary, and every admitted request is still the same
@@ -113,11 +113,12 @@ For the main checkout, preserve the default local application URL:
 Default application URL:
 
 ```text
-http://localhost:3000  Hono gateway
+http://localhost:3000  Application (Vite in development; FastAPI in built mode)
 ```
 
-Vite, FastAPI, and PostgreSQL are private Compose services. Do not try to reach
-their former host ports.
+PostgreSQL stays private. In development FastAPI is private; in built mode
+there is no frontend Node service. `ANIMAMA_WEB_BUILD_MODE=production ./reset.sh`
+selects the built application; the default `development` selection retains HMR.
 
 For browser administration on a trusted development machine:
 
@@ -131,7 +132,7 @@ This enables pgAdmin at `http://localhost:5050` and Dozzle at
 B+4/B+20. Reset reports the resolved URLs. Disable with
 `COMPOSE_PROFILES= ./reset.sh`, or preserve other profiles while removing only
 `dev-tools`. Neither operation needs `--purge`. Do not forward these privileged
-tools publicly, add them to Hono, or package them with Electron/Animama Cloud.
+tools publicly, add them to the application, or package them with Electron/Animama Cloud.
 
 For git worktrees or parallel branch testing, use a named stack and base port:
 
@@ -139,6 +140,9 @@ For git worktrees or parallel branch testing, use a named stack and base port:
 ./reset.sh --name abc --base-port 8200
 source .animama-stack.env
 ```
+
+The stack record includes the selected `COMPOSE_FILE` graph; source it before
+project-scoped follow-up, backup and restore commands.
 
 That creates an isolated Compose project such as `animama-abc`, writes derived
 URLs and ports to `.animama-stack.env`, and sets `ANIMAMA_DESKTOP_WEB_URL` for
@@ -155,7 +159,7 @@ example:
 
 ```bash
 docker compose -p animama-abc ps
-docker compose -p animama-abc logs -f animama-server web-server web
+docker compose -p animama-abc logs -f animama-server web
 ```
 
 If the `animama-local-stacks` skill is installed, use it for local stack
@@ -175,7 +179,7 @@ startup, debugging, and reporting.
   for this repository does not isolate edits in an attached sibling repository.
 - Backend API, persistence, runtime, workers, and backend docs belong under
   `src/backend`.
-- Browser UI, frontend gateway, generated clients, Electron, and frontend
+- Browser UI, generated clients, Electron, and frontend
   docs belong under `src/frontend`.
 - Do not hand-edit generated API clients under
   `src/frontend/packages/runtime-contracts/src/generated` or generated TanStack
@@ -225,7 +229,8 @@ Root/local-stack checks:
 
 ```bash
 bash -n reset.sh
-docker compose config --quiet
+docker compose -f docker-compose.yml config --quiet
+docker compose -f docker-compose.yml -f docker-compose.development.yml config --quiet
 ```
 
 For user-facing web, avatar, audio, voice, and desktop changes, manual testing

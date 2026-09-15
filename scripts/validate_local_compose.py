@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Enforce the local gateway and opt-in loopback administration boundary."""
+"""Enforce the selected local application and opt-in loopback administration boundary."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 TOOL_TARGETS = {"pgadmin": 80, "dozzle": 8080}
-PUBLISHED_TARGETS = {"web-server": 3000, **TOOL_TARGETS}
+PUBLISHED_TARGETS = {"animama-server": 8000, "web": 5173, **TOOL_TARGETS}
 
 
 class ComposeBoundaryError(ValueError):
@@ -83,10 +83,18 @@ def validate_local_compose_document(document: Mapping[str, Any]) -> None:
     if not isinstance(services, Mapping):
         raise ComposeBoundaryError("rendered Compose document has no services")
 
-    required_services = {"web-server", "animama-server", "web", "postgres"}
+    required_services = {"animama-server", "postgres"}
     missing = required_services - set(services)
     if missing:
         raise ComposeBoundaryError(f"local Compose is missing required services: {', '.join(sorted(missing))}")
+
+    if "web-server" in services:
+        raise ComposeBoundaryError("the retired Hono service must not be present")
+    development = "web" in services
+    application_service = "web" if development else "animama-server"
+    permitted_publications = {application_service, *TOOL_TARGETS}
+    if development and "web-deps-init" not in services:
+        raise ComposeBoundaryError("development Compose requires its isolated dependency initializer")
 
     published_ports: set[int] = set()
     for name, raw_service in services.items():
@@ -95,17 +103,22 @@ def validate_local_compose_document(document: Mapping[str, Any]) -> None:
         if raw_service.get("network_mode") == "host":
             raise ComposeBoundaryError(f"service {name} must not use host networking")
         ports = raw_service.get("ports") or []
-        if name not in PUBLISHED_TARGETS and ports:
+        if name not in permitted_publications and ports:
             raise ComposeBoundaryError(f"service {name} must remain private and has a published port")
         if name in TOOL_TARGETS and raw_service.get("profiles") != ["dev-tools"]:
             raise ComposeBoundaryError(f"{name} must belong only to the dev-tools profile")
-        if name in PUBLISHED_TARGETS:
+        if name in permitted_publications:
             published_port = _validate_publication(name, raw_service)
             if published_port in published_ports:
                 raise ComposeBoundaryError(f"duplicate loopback host port {published_port}")
             published_ports.add(published_port)
 
     obsolete_environment = {
+        "ANIMAMA_INTERNAL_TOKEN",
+        "ANIMAMA_INTERNAL_TOKEN_FILE",
+        "ANIMAMA_INTERNAL_TOKEN_HOST_PATH",
+        "ANIMAMA_PRIVATE_API_ORIGIN",
+        "ANIMAMA_PRIVATE_VITE_ORIGIN",
         "ANIMAMA_DEPLOYMENT_TRUST_MODE",
         "ANIMAMA_INFRASTRUCTURE_BIND_HOST",
         "ANIMAMA_JWKS_URL",
@@ -121,21 +134,22 @@ def validate_local_compose_document(document: Mapping[str, Any]) -> None:
         if obsolete:
             raise ComposeBoundaryError(f"service {name} contains obsolete local-auth settings: {', '.join(obsolete)}")
 
-    gateway_environment = _environment(services["web-server"])
-    public_origin = gateway_environment.get("ANIMAMA_PUBLIC_ORIGIN", "")
+    api_environment = _environment(services["animama-server"])
+    public_origin = api_environment.get("ANIMAMA_PUBLIC_ORIGIN", "")
     _validate_public_origin(public_origin)
-    expected_internal_origins = {
-        "ANIMAMA_PRIVATE_API_ORIGIN": "http://animama-server:8000",
-        "ANIMAMA_PRIVATE_VITE_ORIGIN": "http://web:5173",
-    }
-    for variable, expected in expected_internal_origins.items():
-        if gateway_environment.get(variable) != expected:
-            raise ComposeBoundaryError(f"{variable} must remain the fixed private Compose origin {expected}")
+    expected_root = "" if development else "/opt/animama/web"
+    if api_environment.get("ANIMAMA_WEB_ROOT", "") != expected_root:
+        raise ComposeBoundaryError("ANIMAMA_WEB_ROOT must match the selected development or production graph")
 
-    web_environment = _environment(services["web"])
-    for variable in ("VITE_WEB_BASE_URL", "VITE_FRONTEND_SERVER_BASE_URL"):
-        if web_environment.get(variable) != public_origin:
-            raise ComposeBoundaryError(f"{variable} must use the canonical Hono public origin")
+    if development:
+        web_environment = _environment(services["web"])
+        for variable in ("ANIMAMA_PUBLIC_ORIGIN", "VITE_WEB_BASE_URL", "VITE_FRONTEND_SERVER_BASE_URL"):
+            if web_environment.get(variable) != public_origin:
+                raise ComposeBoundaryError(f"{variable} must use the canonical public application origin")
+        if web_environment.get("ANIMAMA_API_PROXY_TARGET") != "http://animama-server:8000":
+            raise ComposeBoundaryError("ANIMAMA_API_PROXY_TARGET must remain the fixed private Compose API origin")
+        if web_environment.get("ANIMAMA_WEB_BUILD_MODE") != "development":
+            raise ComposeBoundaryError("Vite belongs only to the development graph")
 
 
 def check_available_ports(document: Mapping[str, Any]) -> None:
@@ -165,7 +179,7 @@ def check_available_ports(document: Mapping[str, Any]) -> None:
         and publisher.get("URL") in {"127.0.0.1", "0.0.0.0"}
     }
     for name, service in document["services"].items():
-        if name not in PUBLISHED_TARGETS:
+        if not service.get("ports"):
             continue
         port = _validate_publication(name, service)
         if port in owned_ports:

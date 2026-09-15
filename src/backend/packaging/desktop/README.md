@@ -21,12 +21,11 @@ animama-runtime audit-resources
 ```
 
 No command accepts a password, provider secret, or content path as an argument.
-`serve` rejects non-loopback publication and retains the accountless FastAPI
-gateway assertion. The CLI explicitly passes the supervisor's per-launch
-`ANIMAMA_INTERNAL_GATEWAY_TOKEN` into `create_local_app`; the ordinary self-host
-entrypoint continues to use its private token file. Both use the same strict
-token loader and principal resolver. It does not create a second authentication path. Operational
-configuration uses the existing backend environment contract. `content audit`
+`serve` rejects non-loopback publication and requires the exact saved
+`ANIMAMA_PUBLIC_ORIGIN`, `ANIMAMA_WEB_ROOT`, paired renderer/control credentials
+and owned-process start token. FastAPI serves the built UI and product routes
+through the same admission boundary as self-host. The gateway assertion and
+token file are retired. `content audit`
 uses `ANIMAMA_DESKTOP_INCLUDED_ROOT`; it reads the typed starter closure without
 a database. `worker user-files` exits 69 with `feature_unavailable` when no pack
 is available. After main verifies the installed inventory and OS publisher, it
@@ -34,14 +33,18 @@ supplies a fixed helper root/path/digest through the child environment. The CLI
 rechecks containment, file type and SHA-256, then uses `os.execve` with
 `PYINSTALLER_RESET_ENVIRONMENT=1`. It accepts no arbitrary caller command.
 
-The Phase 2 supervisor supplies a private expected PGDATA, build ID, gateway
-token, desktop control token, immutable Included source array, and writable
+The supervisor supplies a private expected PGDATA, build ID, renderer capability,
+desktop control token, immutable Included source array, and writable
 Local/data roots. `database provision` can create only the fixed local
 `animama` database after the connection's actual PGDATA matches. `inspect` and
 `bootstrap` return bounded JSON version/principal reports and fail closed on a
 missing installation principal. `serve` exposes token-protected
-`/_desktop/health` only to main; Hono never proxies it. These private controls
-are excluded from OpenAPI. See backend operations docs for exact settings.
+`/_desktop/health` and `POST /_desktop/runtime:quiesce` only through private
+control admission. Readiness includes the exact PID/start token and local HTTP
+schema so main verifies its own child before granting renderer access. These
+controls are excluded from OpenAPI and absent in self-host composition.
+`audit-resources` reports `local_http_schema_version: 1`, matching the
+`animama-desktop-runtime/2` resource manifest. See backend operations for inputs.
 
 `animama-document-worker.spec` independently freezes the parser worker.
 `document_worker_resources.py` prepares pinned Docling layout/table weights,

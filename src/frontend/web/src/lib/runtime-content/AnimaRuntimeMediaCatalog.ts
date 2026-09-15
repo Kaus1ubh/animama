@@ -107,7 +107,7 @@ type PrivateFetchPool = {
  * Effect and audio projection for one immutable Anima runtime response.
  *
  * Static registries are reachable only through exact Built-in content identities in
- * the mounted response. Private resources are fetched through Hono and
+ * the mounted response. Private resources are fetched through the application origin and
  * owned Blob URLs are revoked with the catalog.
  */
 export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {

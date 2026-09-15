@@ -145,7 +145,6 @@ paths = [
   "scripts/audit-typed-content.sh",
   "scripts/backup-local.sh",
   "scripts/generate_synthetic_docs.py",
-  "scripts/local-gateway-token.sh",
   "scripts/local-stack-state-common.sh",
   "scripts/normalize_included_action_layout.py",
   "scripts/populate_archive_embeddings.py",
@@ -1159,7 +1158,6 @@ paths = [
   "src/backend/animama/hooks.py",
   "src/backend/animama/local/__init__.py",
   "src/backend/animama/local/database.py",
-  "src/backend/animama/local/gateway_principal.py",
   "src/backend/animama/local/installation_model.py",
   "src/backend/animama/local/installation_port.py",
   "src/backend/animama/local/installation_principal.py",
@@ -2456,51 +2454,10 @@ paths = [
   "src/frontend/web/tsconfig.app.json",
   "src/frontend/web/tsconfig.json",
   "src/frontend/web/tsconfig.node.json",
-  "src/frontend/web/vite-plugins/app-asset-cache.ts",
   "src/frontend/web/vite-plugins/included-content-compat.ts",
   "src/frontend/web/vite-plugins/local-parakeet-models.ts",
   "src/frontend/web/vite.config.ts",
   "src/frontend/web/vitest.config.ts",
-]
-
-[[groups]]
-id = "local-gateway"
-owner = "public"
-rationale = "Reviewed public files from the immutable source export."
-paths = [
-  "src/frontend/server/.gitignore",
-  "src/frontend/server/package.json",
-  "src/frontend/server/scripts/smoke-accountless-gateway.ts",
-  "src/frontend/server/scripts/verify-accountless-journey.ts",
-  "src/frontend/server/src/app.ts",
-  "src/frontend/server/src/compose-index.ts",
-  "src/frontend/server/src/gateway/app-asset-cache.ts",
-  "src/frontend/server/src/gateway/headers.ts",
-  "src/frontend/server/src/gateway/http-proxy.ts",
-  "src/frontend/server/src/gateway/lifecycle.ts",
-  "src/frontend/server/src/gateway/model-pack.ts",
-  "src/frontend/server/src/gateway/static-spa.ts",
-  "src/frontend/server/src/gateway/upstream-url.ts",
-  "src/frontend/server/src/gateway/websocket-proxy.ts",
-  "src/frontend/server/src/index.ts",
-  "src/frontend/server/src/local-bind.ts",
-  "src/frontend/server/src/local-config.ts",
-  "src/frontend/server/src/local-principal/postgres-provider.ts",
-  "src/frontend/server/src/local-principal/provider.ts",
-  "src/frontend/server/src/logger.ts",
-  "src/frontend/server/src/security/internal-token.ts",
-  "src/frontend/server/src/security/renderer-capability.ts",
-  "src/frontend/server/src/security/request-policy.ts",
-  "src/frontend/server/src/start-local-gateway.ts",
-  "src/frontend/server/src/telemetry.ts",
-  "src/frontend/server/src/utils.ts",
-  "src/frontend/server/tests/accountless-gateway.integration.test.ts",
-  "src/frontend/server/tests/app.test.ts",
-  "src/frontend/server/tests/gateway-lifecycle.test.ts",
-  "src/frontend/server/tests/local-bind.test.ts",
-  "src/frontend/server/tests/model-pack.test.ts",
-  "src/frontend/server/tests/security.test.ts",
-  "src/frontend/server/tsconfig.json",
 ]
 
 [[groups]]
@@ -2820,7 +2777,6 @@ paths = [
   "tests/test_elevenlabs_realtime_router.py",
   "tests/test_elevenlabs_service.py",
   "tests/test_emotions.py",
-  "tests/test_gateway_principal_auth.py",
   "tests/test_generate_synthetic_docs.py",
   "tests/test_included_content_catalog.py",
   "tests/test_included_content_integrity.py",
@@ -3028,4 +2984,26 @@ paths = [
   "tests/test_local_http_lifecycle.py",
   "tests/test_local_http_telemetry.py",
   "tests/test_local_http_transport.py",
+]
+
+[[groups]]
+id = "local-http-runtime-cutover"
+owner = "public"
+rationale = "Local FastAPI serving, development proxy, desktop recovery and cutover verification; independent of private services."
+paths = [
+  "docker-compose.development.yml",
+  "src/backend/animama/local/http/server.py",
+  "src/backend/animama/server/compose_entrypoint.py",
+  "src/backend/animama/server/local_http.py",
+  "src/frontend/desktop/src/main-process/runtime/product-windows.ts",
+  "src/frontend/desktop/tests/runtime-product-windows.test.ts",
+  "src/frontend/scripts/check-compose-ready.mjs",
+  "src/frontend/scripts/smoke-accountless-http.ts",
+  "src/frontend/scripts/verify-accountless-journey.ts",
+  "src/frontend/web/src/ui/settings/DesktopCredentialsPanel.test.tsx",
+  "src/frontend/web/src/ui/settings/desktop-credential-state.ts",
+  "src/frontend/web/tests/local-api-proxy.test.ts",
+  "src/frontend/web/vite-plugins/local-api-proxy.ts",
+  "tests/local_http_client.py",
+  "tests/test_local_http_wiring.py",
 ]

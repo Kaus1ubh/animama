@@ -80,7 +80,7 @@ animama_state_resolve_live_roots() {
 
 animama_state_configure() {
   local requested_name="$1"
-  local script_dir
+  local script_dir local_default data_default stack_root
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   ANIMAMA_STATE_REPO_ROOT="$(cd "${script_dir}/.." && pwd)"
 
@@ -130,6 +130,24 @@ animama_state_configure() {
 }
 
 animama_state_compose() {
+  # A sourced stack record is authoritative. Otherwise use the same explicit
+  # build selector as reset.sh so backup/restore includes development services.
+  if [ -z "${COMPOSE_FILE:-}" ]; then
+    local build_mode="${ANIMAMA_WEB_BUILD_MODE:-}"
+    if [ -z "${ANIMAMA_WEB_BUILD_MODE+x}" ]; then
+      build_mode="$(docker compose -f "${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml" config --environment | python3 -c '
+import sys
+values = dict(line.rstrip("\n").partition("=")[::2] for line in sys.stdin)
+print(values.get("ANIMAMA_WEB_BUILD_MODE") or "development")
+')" || return
+    fi
+    case "$build_mode" in
+      production) COMPOSE_FILE="${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml" ;;
+      development) COMPOSE_FILE="${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml:${ANIMAMA_STATE_REPO_ROOT}/docker-compose.development.yml" ;;
+      *) animama_state_die "ANIMAMA_WEB_BUILD_MODE must be development or production" ;;
+    esac
+    export COMPOSE_FILE
+  fi
   docker compose -p "$ANIMAMA_STATE_PROJECT" "$@"
 }
 

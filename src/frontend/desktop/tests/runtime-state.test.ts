@@ -349,7 +349,7 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
           };
         });
       const manifest: RuntimeManifest = {
-        schema: "animama-desktop-runtime/1",
+        schema: "animama-desktop-runtime/2",
         app_version: "0.1.0",
         build_id: createHash("sha256")
           .update(JSON.stringify(files))
@@ -359,7 +359,7 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
         minimum_os: "15.0",
         postgresql: { major: 16, version: "16.15", pgvector: "0.8.6" },
         alembic_head: "0011_included_mounts",
-        gateway_schema_version: 1,
+        local_http_schema_version: 1,
         core_content_inventory_id: id,
         pack_catalog_id: id,
         files,
@@ -379,6 +379,24 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
         "runtime_manifest_invalid",
       );
     });
+
+    it.each([
+      { schema: "animama-desktop-runtime/1" },
+      { local_http_schema_version: 0 },
+      { gateway_schema_version: 1 },
+    ])(
+      "rejects old or mixed runtime composition before native launch: %j",
+      async (change) => {
+        const { root, manifest } = await manifestFixture();
+        writeFileSync(
+          path.join(root, "manifest.json"),
+          JSON.stringify({ ...manifest, ...change }),
+        );
+        await expect(verifyRuntime(root, "0.1.0")).rejects.toThrow(
+          "runtime_manifest_invalid",
+        );
+      },
+    );
 
     it("rejects composition identifiers that disagree with verified inventories", async () => {
       const { root, manifest } = await manifestFixture();

@@ -45,7 +45,7 @@ file requires a classification decision. Each path has exactly one owner.
 | Backend server, local adapters/ORM/workers, frozen runtime and packaging | `public` | Local composition and public provider integrations. Cloud receives reusable interfaces, not a copied local app factory. |
 | Local Alembic graph and seeds, Compose/reset/backup tooling | `public` | Accountless installation persistence and local/self-host operations. |
 | React product features, local routes and generated SDK/router | `public` | Reusable Anima/chat surface in `product-ui`; SDK in `runtime-contracts`; local routes and generated router remain in `web`. |
-| Hono gateway and Electron | `public` | Explicit local trust and desktop runtime. No central Better Auth implementation. |
+| Local HTTP boundary and Electron | `public` | Explicit local trust and desktop runtime. No central Better Auth implementation. |
 | Local observability, `tests/loadtest`, developer configuration and release tooling | `public` | Existing local product development/distribution inputs; secrets are supplied externally. Imported material retains separate provenance review. |
 | Durable architecture, public contracts and operational documentation | `public` | Includes the logical deployment topology and Discover client contracts; public readers do not need private execution plans. |
 | All full ExecPlans under `**/plans/**` and generic `PLANS.md` | `cloud` | Includes local, desktop, client, identity, hosted, service and split plans. Document location does not change where their implementation belongs. |
@@ -101,7 +101,7 @@ Shared Python domain/application modules receive owner IDs, ports, policies and
 units of work. The transitive import checker follows their helpers and package
 initializers, rejecting local/server composition and private service imports.
 `animama.local` owns installation persistence, the installation principal,
-gateway assertion verification and database construction. The local app factory
+browser request admission and database construction. The local app factory
 injects its database session factory and lifecycle providers. Product schemas
 live in `animama.app.contracts`, and neutral logging imports do not configure
 the local application. Packaged animation/VFX catalogs are verified against
@@ -121,7 +121,8 @@ injected transport. Thumbnail URLs come from runtime content and use that
 transport; consumers do not need the local web asset tree. The package builder
 rejects imports outside package source and emitted declarations using the web
 application's private alias. Compose builds packages before starting Vite;
-only the loopback Hono gateway publishes an application port.
+only the selected application service publishes a loopback port: Vite in
+development, FastAPI with baked React assets in built mode.
 
 The [boundary tools](../../scripts/repository-boundary/README.md#shared-import-and-artifact-checks)
 build and validate a Python wheel and all three npm tarballs. An isolated
@@ -287,8 +288,7 @@ fallback is assumed.
 
 Keep the complete old Git history and separately verified LFS payloads private.
 A Git bundle does not contain LFS or ignored local runtime data. Preserve
-configuration, local content/data/runtime directories, Compose volumes and
-gateway-token pairing when moving a checkout. Never transplant the old `.git`
+configuration, local content/data/runtime directories and Compose volumes when moving a checkout. Never transplant the old `.git`
 directory, purge runtime data, or pair an existing database with an empty new
 content directory. Repair linked worktree references and keep active processes
 associated with the correct checkout. Initial candidates remain immutable;

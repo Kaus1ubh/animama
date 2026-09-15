@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select, update
 
 from animama.domain.request_principal import RequestPrincipal
@@ -10,6 +9,7 @@ from animama.orm.content_catalog import ORMContentPreview, ORMContentPreviewFile
 from animama.server.deps import get_current_principal
 from animama.server.routers import content
 from tests.anima_creation_service_support import anima_creation_fixture
+from tests.local_http_client import local_client
 
 
 def _catalog_root(item) -> dict:  # noqa: ANN001
@@ -20,7 +20,9 @@ def _catalog_root(item) -> dict:  # noqa: ANN001
 
 
 async def test_preview_batch_deduplicates_overlapping_catalog_and_builtin_closures(
-    async_session, tmp_path, monkeypatch  # noqa: ANN001
+    async_session,
+    tmp_path,
+    monkeypatch,  # noqa: ANN001
 ) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         await fixture.add_action_support(async_session)
@@ -32,7 +34,7 @@ async def test_preview_batch_deduplicates_overlapping_catalog_and_builtin_closur
             return RequestPrincipal(id=current_user["id"])
 
         app.dependency_overrides[get_current_principal] = user
-        client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+        client = local_client(app)
         gesture = fixture.items["gesture"]
         sound = fixture.items["sound"]
         idle = fixture.items["idle"]
@@ -70,9 +72,7 @@ async def test_preview_batch_deduplicates_overlapping_catalog_and_builtin_closur
                 sound.id,
                 idle.id,
             }
-            assert len({file["file_ref"] for file in body["lease"]["files"]}) == len(
-                body["lease"]["files"]
-            )
+            assert len({file["file_ref"] for file in body["lease"]["files"]}) == len(body["lease"]["files"])
             assert await async_session.scalar(select(func.count()).select_from(ORMContentPreview)) == 1
             assert await async_session.scalar(select(func.count()).select_from(ORMContentPreviewFile)) == len(
                 body["lease"]["files"]
@@ -98,11 +98,13 @@ async def test_preview_batch_deduplicates_overlapping_catalog_and_builtin_closur
 
 
 async def test_preview_batch_issues_no_lease_when_every_root_fails(
-    async_session, tmp_path, monkeypatch  # noqa: ANN001
+    async_session,
+    tmp_path,
+    monkeypatch,  # noqa: ANN001
 ) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)
-        client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+        client = local_client(app)
         try:
             before = await async_session.scalar(select(func.count()).select_from(ORMContentPreview))
             response = await client.post(

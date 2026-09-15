@@ -7,7 +7,6 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 from sqlalchemy import func, select, update
 
@@ -31,6 +30,7 @@ from animama.domain.settings import AnimaSettings
 from animama.orm import ORMAnima, ORMAnimaCreationReceipt, ORMAnimaSettings, ORMAnimaStarterReceipt, ORMMemoryEntry
 from animama.server.routers.anima import list_animas
 from tests.anima_creation_service_support import anima_creation_fixture
+from tests.local_http_client import local_client
 
 REQUEST = EnsureAnimaStartersRequest(schema_version=1, repairs=[])
 
@@ -301,9 +301,7 @@ async def test_explicit_legacy_repairs_are_owned_and_cannot_override_success(asy
         with pytest.raises(AnimaCreationError) as error:
             await service.ensure(user_id=fixture.owner, request=request)
         assert error.value.detail["issues"][0]["code"] == "starter_repair_not_allowed"
-        async with AsyncClient(
-            transport=ASGITransport(app=fixture.app(async_session, monkeypatch)), base_url="http://test"
-        ) as client:
+        async with local_client(fixture.app(async_session, monkeypatch)) as client:
             response = await client.post("/v1/animas/starters:ensure", json=REQUEST.model_dump())
             assert response.status_code == 200, response.text
             assert response.json()["complete"] is True
@@ -347,7 +345,7 @@ async def test_retired_bulk_api_is_absent_and_cannot_write_legacy_receipts(async
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)
         assert "/v1/animas/bulk" not in app.openapi()["paths"]
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             response = await client.post("/v1/animas/bulk", json=[{"anima": {"avatar_id": "old"}}])
             assert response.status_code in {404, 405}
         assert (

@@ -76,7 +76,8 @@ def validate_local_bindings(settings: Settings) -> None:
 
     if not is_loopback_host(settings.animama_local_bind_host):
         raise LocalRuntimeConfigurationError(
-            "ANIMAMA_LOCAL_BIND_HOST must stay on loopback; use the private Compose service behind Hono instead"
+            "ANIMAMA_LOCAL_BIND_HOST must stay on loopback; "
+            "use an operator-owned TLS and authentication boundary for remote access"
         )
 
 

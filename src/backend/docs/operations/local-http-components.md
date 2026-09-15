@@ -1,10 +1,10 @@
-# Local HTTP replacement components
+# Local HTTP components
 
-The components in `animama.local.http` are available for isolated acceptance
-tests. The shipped local factory, Electron supervisor, frozen launcher and
-Compose services still use Hono and its private service assertion. No runtime
-selection flag enables these components in the product. Their coordinated
-cutover requires separate verification.
+The components in `animama.local.http` provide the desktop and self-host HTTP
+boundary. `create_local_app` installs them once around the existing product
+routers. FastAPI serves built React files in desktop and built Compose;
+development Vite proxies a closed set of application routes to private FastAPI.
+The same components can be composed around isolated acceptance fixtures.
 
 ## Composition and ownership
 
@@ -29,7 +29,8 @@ Existing shared router dependencies and owner filters remain unchanged.
 | `assets.py` | Audited build files and a separately verified active Parakeet mount; no private catalog lookup. |
 | `telemetry.py` | Optional fixed-destination OTLP forwarding with bounded input, output and deadlines. |
 | `protocol.py` | A narrow Uvicorn h11 hook adding the incomplete-header deadline. |
-| `composition.py` | Isolated wiring, hidden infrastructure routes, preserved application lifespan and telemetry cleanup. |
+| `composition.py` | Wiring, hidden infrastructure routes, preserved application lifespan and telemetry cleanup. |
+| `server.py` | Shared native, frozen and container Uvicorn launch configuration. |
 
 For an acceptance fixture, construct `FastAPI()`, register its test/product
 routers, then install `LocalHTTPConfig(public_origin="http://127.0.0.1:PORT")`
@@ -47,10 +48,23 @@ uvicorn.Config(
 )
 ```
 
-Bind acceptance servers to their own loopback socket. These are test assembly
-instructions, not a replacement production start command. Vite proxying,
-loopback publication, desktop readiness/cookie custody and native recovery are
-still responsibilities of the later launcher/Compose cutover.
+Acceptance servers bind their own ephemeral loopback sockets. Product launchers
+use `local.http.server.serve` with this same transport configuration. The native
+entrypoint binds loopback (default port 3000); the Compose entrypoint binds
+container port 8000. The frozen `serve --port` command uses the supervisor's
+saved loopback application port. Public network exposure belongs to the
+selected Compose graph or an operator-owned TLS/authentication boundary.
+
+`server/local_http.py` translates trusted settings into these immutable inputs.
+`ANIMAMA_PUBLIC_ORIGIN` is the exact browser origin, including a non-default
+port. `ANIMAMA_WEB_ROOT` supplies the absolute React build root; unset or blank
+means Vite owns frontend assets. Desktop requires both
+`ANIMAMA_DESKTOP_RENDERER_CAPABILITY` and `ANIMAMA_DESKTOP_CONTROL_TOKEN`.
+The frozen launcher also requires the web root and owned process start token,
+and checks that the public origin matches its actual loopback listener.
+The optional `ANIMAMA_PARAKEET_MODEL_MOUNT_JSON` is a supervisor-verified
+`{root,version,files}` inventory capped at 4 MiB, with strict keys and file
+records. It cannot choose a URL, executable or installation principal.
 
 ## Request admission
 
@@ -122,9 +136,10 @@ requires a fresh runtime with the unchanged configuration.
 
 HTTP work remains counted until its handler, stream and cleanup finish, even
 when a peer disconnects. Socket closure does not promise rollback of a durable
-`LocalContentMutations` commit. Before a future pack transition, Electron must
-destroy product windows, request this drain, and refuse pointer changes on
-`runtime_busy`; that supervisor integration is not present yet.
+`LocalContentMutations` commit. Before a pack transition, Electron destroys
+product windows, shows independent recovery, requests this drain, and refuses
+pointer changes on `runtime_busy`. It resumes by restarting the owned runtime
+and checking its private readiness before recreating product windows.
 
 Admission failures retain the bounded legacy `gateway_request_rejected` code
 (400/401/403/421). Readiness/drain failures use `local_runtime_unavailable` or
@@ -147,9 +162,9 @@ extensionless route. Hidden path segments, including `.vite`, are denied.
 Only fingerprinted JS/CSS files explicitly named by the hidden Vite manifest
 receive immutable application caching. HTML uses a byte-derived ETag;
 unversioned assets require revalidation. MIME, HEAD and conditional responses
-are preserved. Ordinary static files retain Hono's full-200 response to Range.
+are preserved. Ordinary static files retain the full-200 response to Range.
 
-Parakeet files are served only beneath
+Desktop Parakeet files are served only beneath
 `/onnx/models/parakeet-tdt-0.6b-v2/` and from the exact active inventory. An
 optional `v` parameter must occur once and match that active version. Model
 delivery preserves digest ETags, HEAD, single byte ranges, If-Range and 416;
@@ -157,7 +172,13 @@ versioned models retain their private immutable cache policy. Authorization
 runs before any static/model conditional 304. Registered Local/Included bytes
 remain in the existing owner-protected product handlers.
 
-`TelemetryForwarder` is disabled by default, as on desktop. Valid disabled
+Ordinary Compose uses its existing read-only model mount beneath
+`/__client-parakeet-models` in the build root. These unversioned files use
+ordinary static revalidation; the desktop versioned mount contract is separate.
+
+`TelemetryForwarder` is disabled by default, and always disabled on desktop.
+The self-host settings adapter preserves the existing telemetry opt-out
+environment variables and fixed OTLP collector destinations. Valid disabled
 signals return 204 without reading a body or creating a collector client.
 Enabled forwarding accepts only POST traces/metrics/logs, fixed composition
 destinations, JSON/protobuf and identity/gzip metadata. It strips credentials,
@@ -183,5 +204,5 @@ to bind them. It uses no database or provider credentials. Other component
 tests use temporary files and controlled collectors. The schema regression
 test compares fresh offline schemas without bootstrapping the real app.
 These checks do not establish packaged-desktop, Vite/Compose, native upgrade or
-release acceptance. The existing shipped-gateway tests remain required until
-their behavior is covered and the product is switched as one coordinated change.
+release acceptance. Those require their own built artifacts, selected stack
+and owned-runtime evidence in addition to these component and wiring tests.

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import func, select
 
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.orm.anima_loadout import ORMAnimaRuntimeSnapshot
 from animama.orm.content_catalog import ORMContentPreview
 from tests.anima_creation_service_support import anima_creation_fixture
+from tests.local_http_client import local_client
 
 
 def _root(item, *, kind: str | None = None, revision: str | None = None) -> dict:  # noqa: ANN001
@@ -20,7 +20,9 @@ def _root(item, *, kind: str | None = None, revision: str | None = None) -> dict
 
 
 async def test_batch_evidence_reads_catalog_once_and_writes_nothing(
-    async_session, tmp_path, monkeypatch  # noqa: ANN001
+    async_session,
+    tmp_path,
+    monkeypatch,  # noqa: ANN001
 ) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         await fixture.add_action_support(async_session)
@@ -36,7 +38,7 @@ async def test_batch_evidence_reads_catalog_once_and_writes_nothing(
         app = fixture.app(async_session, monkeypatch)
         before_previews = await async_session.scalar(select(func.count()).select_from(ORMContentPreview))
         before_runtimes = await async_session.scalar(select(func.count()).select_from(ORMAnimaRuntimeSnapshot))
-        client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+        client = local_client(app)
         try:
             gesture = fixture.items["gesture"]
             response = await client.post(
@@ -54,19 +56,20 @@ async def test_batch_evidence_reads_catalog_once_and_writes_nothing(
             assert reads == 1
             assert await async_session.scalar(select(func.count()).select_from(ORMContentPreview)) == before_previews
             assert (
-                await async_session.scalar(select(func.count()).select_from(ORMAnimaRuntimeSnapshot))
-                == before_runtimes
+                await async_session.scalar(select(func.count()).select_from(ORMAnimaRuntimeSnapshot)) == before_runtimes
             )
         finally:
             await client.aclose()
 
 
 async def test_batch_evidence_reports_stale_kind_and_hidden_roots_without_substitution(
-    async_session, tmp_path, monkeypatch  # noqa: ANN001
+    async_session,
+    tmp_path,
+    monkeypatch,  # noqa: ANN001
 ) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)
-        client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+        client = local_client(app)
         item = fixture.items["gesture"]
         try:
             stale_response = await client.post(
@@ -116,11 +119,13 @@ async def test_batch_evidence_reports_stale_kind_and_hidden_roots_without_substi
 
 
 async def test_batch_evidence_rejects_delivery_and_unknown_fields(
-    async_session, tmp_path, monkeypatch  # noqa: ANN001
+    async_session,
+    tmp_path,
+    monkeypatch,  # noqa: ANN001
 ) -> None:
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)
-        client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+        client = local_client(app)
         try:
             root = _root(fixture.items["local-avatar"])
             root["source"]["url"] = "file:///tmp/avatar.vrm"

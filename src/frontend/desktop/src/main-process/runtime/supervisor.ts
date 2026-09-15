@@ -2,10 +2,6 @@ import { mkdirSync } from "node:fs";
 import { lstat, readdir, statfs } from "node:fs/promises";
 import path from "node:path";
 import { randomBytes, randomUUID } from "node:crypto";
-import {
-  createFrontendGateway,
-  type FrontendGateway,
-} from "animama-frontend-server/gateway";
 import type {
   CredentialProvider,
   CredentialStatus,
@@ -38,7 +34,7 @@ import {
   readRuntimeState,
   type RuntimePaths,
 } from "./paths.js";
-import { unusedLoopbackPort } from "./ports.js";
+import { assertLoopbackPortAvailable, unusedLoopbackPort } from "./ports.js";
 import { PrivatePostgres } from "./postgres.js";
 import { MigrationBackup } from "./migrations.js";
 import { readBackendReadiness, readDesktopControlJson } from "./readiness.js";
@@ -62,7 +58,6 @@ export type SupervisorOptions = {
   appVersion: string;
   paths: RuntimePaths;
   encryption: Encryption;
-  bootstrapHtml(): string;
   onStatus(status: RuntimeStatus): void;
   isPackaged?: boolean;
   packCatalogPath?: string;
@@ -73,7 +68,8 @@ export type SupervisorOptions = {
 /** Own the entire local process graph; never infer authority from a port or PID. */
 export class RuntimeSupervisor {
   private current: RuntimeStatus = { state: "starting", stage: "validating" };
-  private gateway?: FrontendGateway;
+  private applicationOrigin?: URL;
+  private applicationPort?: number;
   private owned?: OwnedProcesses;
   private postgres?: PrivatePostgres;
   private backend?: OwnedProcess;
@@ -82,8 +78,14 @@ export class RuntimeSupervisor {
   private packs?: FeaturePackManager;
   private activePacks: ActivePacks = {};
   private backendOrigin?: URL;
+  private renderersQuiesced = false;
   private documentInstance = randomUUID();
   private vault?: CredentialVault;
+  // Main owns these five bounded status entries; product windows can be replaced.
+  private credentialFailures = new Map<
+    CredentialProvider,
+    { error: string; saved: boolean }
+  >();
   private manifest?: RuntimeManifest;
   private migrationBackup?: MigrationBackup;
   private readonly launchId = randomUUID();
@@ -93,21 +95,16 @@ export class RuntimeSupervisor {
   private updatePending = false;
   private expectedBackendExit = false;
   private expectedPostgresExit = false;
-  private readonly gatewayToken = randomBytes(32).toString("hex");
   private readonly controlToken = randomBytes(32).toString("hex");
   readonly rendererCapability = randomBytes(32).toString("hex");
   constructor(private options: SupervisorOptions) {
-    runtimeRedactor.add(
-      this.gatewayToken,
-      this.controlToken,
-      this.rendererCapability,
-    );
+    runtimeRedactor.add(this.controlToken, this.rendererCapability);
   }
   status(): RuntimeStatus {
     return { ...this.current };
   }
   get origin(): string | null {
-    return this.gateway?.origin.origin ?? null;
+    return this.applicationOrigin?.origin ?? null;
   }
   private setStatus(state: RuntimeStatus): void {
     this.current = state;
@@ -184,8 +181,6 @@ export class RuntimeSupervisor {
             ),
           }
         : {}),
-      ANIMAMA_INTERNAL_GATEWAY_TOKEN: this.gatewayToken,
-      ANIMAMA_DESKTOP_CONTROL_TOKEN: this.controlToken,
       ANIMAMA_DESKTOP_BUILD_ID: this.manifest.build_id,
       ANIMAMA_LOCAL_BIND_HOST: "127.0.0.1",
       ANIMAMA_LOG_TO_FILE: "0",
@@ -193,6 +188,35 @@ export class RuntimeSupervisor {
       ANIMAMA_DISABLE_WEBUI_TELEMETRY: "1",
       OTEL_SDK_DISABLED: "true",
       PYTHONUNBUFFERED: "1",
+    };
+  }
+  /** HTTP capabilities belong only to the owned HTTP child, never workers or database commands. */
+  private backendEnvironment(): NodeJS.ProcessEnv {
+    if (!this.applicationOrigin)
+      throw new RuntimeError("runtime_not_initialized");
+    const parakeet = this.activePacks["parakeet-stt"];
+    return {
+      ...this.environment(),
+      ANIMAMA_PUBLIC_ORIGIN: this.applicationOrigin.origin,
+      ANIMAMA_WEB_ROOT: path.join(this.options.runtimeRoot, "web"),
+      ANIMAMA_DESKTOP_RENDERER_CAPABILITY: this.rendererCapability,
+      ANIMAMA_DESKTOP_CONTROL_TOKEN: this.controlToken,
+      ...(parakeet
+        ? {
+            ANIMAMA_PARAKEET_MODEL_MOUNT_JSON: JSON.stringify({
+              root: parakeet.root,
+              version: versionDirectory(parakeet.manifest),
+              files: parakeet.manifest.files.map(
+                ({ path, size_bytes, sha256, media_type }) => ({
+                  path,
+                  size_bytes,
+                  sha256,
+                  media_type,
+                }),
+              ),
+            }),
+          }
+        : {}),
     };
   }
   private async databaseCommand(operation: string): Promise<DatabaseState> {
@@ -272,26 +296,28 @@ export class RuntimeSupervisor {
           ...Object.values(this.vault.childEnvironment()),
         );
         this.owned ??= new OwnedProcesses(this.options.paths.processes);
-        this.stage("gateway");
-        if (!this.gateway) {
+        this.stage("application");
+        {
           const saved = readRuntimeState(this.options.paths.state);
+          const port =
+            this.applicationPort ??
+            saved?.gatewayPort ??
+            (await unusedLoopbackPort());
           try {
-            this.gateway = await createFrontendGateway({
-              port: saved?.gatewayPort ?? 0,
-              rendererCapability: { value: this.rendererCapability },
-              bootstrapHtml: this.options.bootstrapHtml,
-            });
+            await assertLoopbackPortAvailable(port);
           } catch (error) {
             if ((error as NodeJS.ErrnoException).code === "EADDRINUSE")
               throw new RuntimeError("gateway_port_in_use");
             throw error;
           }
+          this.applicationOrigin = new URL(`http://127.0.0.1:${port}`);
+          this.applicationPort = port;
           if (!saved)
             atomicWrite(
               this.options.paths.state,
               JSON.stringify({
                 version: 1,
-                gatewayPort: Number(this.gateway.origin.port),
+                gatewayPort: port,
               }),
             );
         }
@@ -312,7 +338,6 @@ export class RuntimeSupervisor {
             !this.shutdownRequested &&
             this.postgres?.process === postgresChild
           ) {
-            this.gateway?.setBootstrapState();
             this.setStatus({ state: "error", code: "postgres_exited" });
             void this.serialize(() => this.stopServices()).catch(
               () => undefined,
@@ -351,11 +376,7 @@ export class RuntimeSupervisor {
         backup.complete(database.alembic_head);
         this.stage("backend");
         const cleanupEnvironment = this.environment();
-        for (const key of [
-          ...Object.keys(this.vault.childEnvironment()),
-          "ANIMAMA_INTERNAL_GATEWAY_TOKEN",
-          "ANIMAMA_DESKTOP_CONTROL_TOKEN",
-        ])
+        for (const key of [...Object.keys(this.vault.childEnvironment())])
           delete cleanupEnvironment[key];
         this.cleanupWorker = this.owned.launch(
           "avatar-cleanup",
@@ -371,7 +392,6 @@ export class RuntimeSupervisor {
             !this.shutdownRequested &&
             this.cleanupWorker === cleanup
           ) {
-            this.gateway?.setBootstrapState();
             this.setStatus({ state: "error", code: "cleanup_worker_exited" });
             void this.serialize(() => this.stopServices()).catch(
               () => undefined,
@@ -400,106 +420,165 @@ export class RuntimeSupervisor {
     });
   }
   private async startBackend(principalId: string): Promise<void> {
-    const gateway = this.gateway!;
+    const origin = this.applicationOrigin!;
+    const port = this.applicationPort!;
     const manifest = this.manifest!;
     const owned = this.owned!;
+    try {
+      await assertLoopbackPortAvailable(port);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EADDRINUSE")
+        throw new RuntimeError("gateway_port_in_use");
+      throw error;
+    }
     this.expectedBackendExit = false;
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const port = await unusedLoopbackPort();
-      const child = owned.launch(
-        "fastapi",
-        this.executable(),
-        ["serve", "--host", "127.0.0.1", "--port", String(port)],
-        this.environment(),
-        this.options.paths.base,
-      );
-      this.backend = child;
-      const deadline = Date.now() + 90_000;
-      let ready = false;
-      while (
-        !this.shutdownRequested &&
-        owned.children.has(child) &&
-        Date.now() < deadline
-      ) {
-        try {
-          const response = await fetch(
-            `http://127.0.0.1:${port}/_desktop/health`,
-            {
-              headers: { "X-Animama-Desktop-Control": this.controlToken },
-              signal: AbortSignal.timeout(1500),
-            },
-          );
-          if (response.ok) {
-            const health = await readBackendReadiness(response);
-            if (
-              health.schema_version !== 1 ||
-              health.runtime_version !== this.options.appVersion ||
-              health.build_id !== manifest.build_id ||
-              health.alembic_head !== manifest.alembic_head ||
-              health.installation_principal_id !== principalId
-            )
-              throw new RuntimeError("backend_readiness_mismatch");
-            ready = true;
-            break;
-          }
-        } catch (error) {
-          if (error instanceof RuntimeError) throw error;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      }
-      if (ready) {
-        if (
-          !owned.children.has(child) ||
-          !this.postgres?.process ||
-          !owned.children.has(this.postgres.process)
-        )
-          throw new RuntimeError("backend_start_failed");
-        this.backendOrigin = new URL(`http://127.0.0.1:${port}`);
-        const parakeet = this.activePacks["parakeet-stt"];
-        await gateway.promote({
-          publicOrigin: gateway.origin,
-          fastApiOrigin: new URL(`http://127.0.0.1:${port}`),
-          staticRoot: path.join(this.options.runtimeRoot, "web"),
-          principalProvider: {
-            async getInstallationPrincipalId() {
-              return principalId;
-            },
-          },
-          internalTokenSource: { kind: "value", value: this.gatewayToken },
-          rendererCapability: { value: this.rendererCapability },
-          telemetryEnabled: false,
-          ...(parakeet
-            ? {
-                parakeetMount: {
-                  root: parakeet.root,
-                  version: versionDirectory(parakeet.manifest),
-                  files: parakeet.manifest.files,
-                },
-              }
-            : {}),
+    const child = owned.launch(
+      "fastapi",
+      this.executable(),
+      ["serve", "--host", "127.0.0.1", "--port", String(port)],
+      this.backendEnvironment(),
+      this.options.paths.base,
+    );
+    this.backend = child;
+    const deadline = Date.now() + 90_000;
+    let ready = false;
+    while (
+      !this.shutdownRequested &&
+      owned.children.has(child) &&
+      Date.now() < deadline
+    ) {
+      try {
+        const response = await fetch(new URL("/_desktop/health", origin), {
+          headers: { "X-Animama-Desktop-Control": this.controlToken },
+          redirect: "error",
+          signal: AbortSignal.timeout(1500),
         });
-        if (this.shutdownRequested) throw new RuntimeError("runtime_stopping");
-        this.setStatus({ state: "ready", origin: gateway.origin.origin });
-        void child.exit.then(() => {
+        if (response.ok) {
+          const health = await readBackendReadiness(response);
           if (
-            !this.expectedBackendExit &&
-            !this.shutdownRequested &&
-            this.backend === child
-          ) {
-            gateway.setBootstrapState();
-            this.setStatus({ state: "error", code: "backend_exited" });
-          }
-        });
-        return;
+            health.schema_version !== 1 ||
+            health.local_http_schema_version !==
+              manifest.local_http_schema_version ||
+            health.runtime_version !== this.options.appVersion ||
+            health.build_id !== manifest.build_id ||
+            health.alembic_head !== manifest.alembic_head ||
+            health.installation_principal_id !== principalId ||
+            health.process_id !== child.child.pid ||
+            health.process_start_token !== child.token
+          )
+            throw new RuntimeError("backend_readiness_mismatch");
+          ready = true;
+          break;
+        }
+        await response.body?.cancel();
+      } catch (error) {
+        if (error instanceof RuntimeError) throw error;
       }
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    if (!ready) {
       const collision = /address already in use/iu.test(child.output);
       await owned.terminate(child);
-      if (!collision) throw new RuntimeError("backend_start_failed");
+      throw new RuntimeError(
+        collision ? "gateway_port_in_use" : "backend_start_failed",
+      );
     }
-    throw new RuntimeError("internal_port_unavailable");
+    if (
+      !owned.children.has(child) ||
+      !this.postgres?.process ||
+      !owned.children.has(this.postgres.process) ||
+      !this.cleanupWorker ||
+      !owned.children.has(this.cleanupWorker) ||
+      (this.activePacks["document-processing"] &&
+        (!this.documentWorker || !owned.children.has(this.documentWorker)))
+    )
+      throw new RuntimeError("backend_start_failed");
+    this.backendOrigin = new URL(origin);
+    if (this.shutdownRequested) throw new RuntimeError("runtime_stopping");
+    // A successful restart now consumes every value already saved in the vault.
+    // An unapplied busy change must still be reported to the replacement window.
+    for (const [provider, failure] of this.credentialFailures)
+      if (failure.saved) this.credentialFailures.delete(provider);
+    this.renderersQuiesced = false;
+    this.setStatus({ state: "ready", origin: origin.origin });
+    void child.exit.then(() => {
+      if (
+        !this.expectedBackendExit &&
+        !this.shutdownRequested &&
+        this.backend === child
+      ) {
+        this.setStatus({ state: "error", code: "backend_exited" });
+        void this.serialize(() => this.stopServices()).catch(() => undefined);
+      }
+    });
+  }
+  /** One renderer teardown owns each transition until a new ready runtime is exposed. */
+  private async quiesceRenderers(): Promise<void> {
+    if (this.renderersQuiesced) return;
+    await this.options.quiesceRenderers?.();
+    this.renderersQuiesced = true;
+  }
+  /** Close new product admission before a pointer, provider or native-app transition. */
+  private async quiesceBackend(): Promise<void> {
+    if (
+      !this.backendOrigin ||
+      !this.backend ||
+      !this.owned?.children.has(this.backend)
+    )
+      throw new RuntimeError("runtime_not_ready");
+    let response: Response;
+    try {
+      response = await fetch(
+        new URL("/_desktop/runtime:quiesce", this.backendOrigin),
+        {
+          method: "POST",
+          headers: { "X-Animama-Desktop-Control": this.controlToken },
+          redirect: "error",
+          signal: AbortSignal.timeout(16_500),
+        },
+      );
+    } catch {
+      throw new RuntimeError("runtime_quiesce_failed");
+    }
+    const result = (await readDesktopControlJson(response)) as {
+      schema_version?: unknown;
+      state?: unknown;
+      detail?: { code?: unknown };
+    };
+    if (response.status === 409 && result.detail?.code === "runtime_busy")
+      throw new RuntimeError("runtime_busy");
+    if (
+      !response.ok ||
+      result.schema_version !== 1 ||
+      result.state !== "quiesced"
+    )
+      throw new RuntimeError("runtime_quiesce_failed");
+  }
+  /** Reopen admission only by restarting the exact old configuration, never a resume endpoint. */
+  private async restartConsumers(): Promise<void> {
+    this.expectedBackendExit = true;
+    await this.quiesceRenderers();
+    await this.stopDocumentWorker();
+    if (this.backend) await this.owned!.terminate(this.backend);
+    this.backend = undefined;
+    this.backendOrigin = undefined;
+    const database = await this.databaseCommand("inspect");
+    if (!database.installation_principal_id)
+      throw new RuntimeError("installation_principal_missing");
+    await this.startDocumentWorker();
+    await this.startBackend(database.installation_principal_id);
   }
   credentials(): CredentialStatus[] {
-    return this.vault?.list() ?? [];
+    return (this.vault?.list() ?? []).map((status) => {
+      const failure = this.credentialFailures.get(status.provider);
+      return failure
+        ? {
+            ...status,
+            error: failure.error,
+            restartRequired: this.current.state !== "ready",
+          }
+        : status;
+    });
   }
   featurePacks(): FeaturePackManager {
     if (!this.packs) throw new RuntimeError("runtime_not_ready");
@@ -568,20 +647,14 @@ export class RuntimeSupervisor {
       this.updatePending = true;
       this.stage("backend");
       try {
-        await this.gateway!.drain(15_000);
-        await this.options.quiesceRenderers?.();
+        await this.quiesceBackend();
+        await this.quiesceRenderers();
         await this.stopDocumentWorker();
         await this.checkUpdatePacks(candidate);
       } catch (error) {
         this.updatePending = false;
         try {
-          this.expectedBackendExit = true;
-          if (this.backend) await this.owned!.terminate(this.backend);
-          const database = await this.databaseCommand("inspect");
-          if (!database.installation_principal_id)
-            throw new RuntimeError("database_version_mismatch");
-          await this.startDocumentWorker();
-          await this.startBackend(database.installation_principal_id);
+          await this.restartConsumers();
         } catch (recoveryError) {
           await this.stopServices().catch(() => undefined);
           this.setStatus({
@@ -595,8 +668,6 @@ export class RuntimeSupervisor {
       this.setStatus({ state: "stopping" });
       try {
         await this.stopServices();
-        await this.gateway?.close();
-        this.gateway = undefined;
         this.setStatus({ state: "updating" });
       } catch {
         this.setStatus({ state: "error", code: "owned_services_stop_failed" });
@@ -626,8 +697,6 @@ export class RuntimeSupervisor {
       (file) => file.path === DOCUMENT_EXECUTABLE,
     )!;
     const env = this.environment();
-    delete env.ANIMAMA_INTERNAL_GATEWAY_TOKEN;
-    delete env.ANIMAMA_DESKTOP_CONTROL_TOKEN;
     env.ANIMAMA_DOCUMENT_WORKER_EXECUTABLE = executable;
     env.ANIMAMA_DOCUMENT_WORKER_ROOT = pack.root;
     env.ANIMAMA_DOCUMENT_WORKER_EXECUTABLE_SHA256 = expected.sha256;
@@ -638,10 +707,18 @@ export class RuntimeSupervisor {
       env,
       this.options.paths.base,
     );
+    const child = this.documentWorker;
+    void child.exit.then(() => {
+      if (!this.shutdownRequested && this.documentWorker === child) {
+        this.setStatus({ state: "error", code: "document_worker_exited" });
+        void this.serialize(() => this.stopServices()).catch(() => undefined);
+      }
+    });
   }
   private async stopDocumentWorker(): Promise<void> {
-    if (this.documentWorker) await this.owned!.terminate(this.documentWorker);
+    const child = this.documentWorker;
     this.documentWorker = undefined;
+    if (child) await this.owned!.terminate(child);
   }
   private async requirePackRemovable(id: FeaturePackId): Promise<void> {
     if (!this.backendOrigin) throw new RuntimeError("runtime_not_ready");
@@ -653,6 +730,7 @@ export class RuntimeSupervisor {
       {
         method: "POST",
         headers: { "X-Animama-Desktop-Control": this.controlToken },
+        redirect: "error",
         signal: AbortSignal.timeout(5000),
       },
     );
@@ -702,15 +780,19 @@ export class RuntimeSupervisor {
         throw new RuntimeError("runtime_not_ready");
       await this.requirePackRemovable(change.id);
       this.stage("backend");
+      let commitAttempted = false;
       try {
-        await this.gateway!.drain(15_000);
-        await this.options.quiesceRenderers?.();
+        await this.quiesceBackend();
+        await this.quiesceRenderers();
         await this.stopDocumentWorker();
         // Recheck after stopping the worker: a job could have been claimed
         // between the first preflight and the graceful stop.
         await this.requirePackRemovable(change.id);
         this.expectedBackendExit = true;
         if (this.backend) await this.owned!.terminate(this.backend);
+        this.backend = undefined;
+        this.backendOrigin = undefined;
+        commitAttempted = true;
         await change.commit();
         this.activePacks = change.next;
         const database = await this.databaseCommand("inspect");
@@ -719,19 +801,22 @@ export class RuntimeSupervisor {
         await this.startDocumentWorker();
         await this.startBackend(database.installation_principal_id);
       } catch (error) {
-        this.expectedBackendExit = true;
-        await this.gateway!.drain();
-        await this.stopDocumentWorker();
-        if (this.backend) await this.owned!.terminate(this.backend);
-        await change.rollback();
-        this.activePacks = change.previous;
         try {
+          this.expectedBackendExit = true;
+          await this.quiesceRenderers();
+          await this.stopDocumentWorker();
+          if (this.backend) await this.owned!.terminate(this.backend);
+          this.backend = undefined;
+          this.backendOrigin = undefined;
+          if (commitAttempted) await change.rollback();
+          this.activePacks = change.previous;
           const database = await this.databaseCommand("inspect");
           if (!database.installation_principal_id)
             throw new RuntimeError("installation_principal_missing");
           await this.startDocumentWorker();
           await this.startBackend(database.installation_principal_id);
         } catch (recoveryError) {
+          await this.stopServices().catch(() => undefined);
           this.setStatus({
             state: "error",
             code: runtimeErrorCode(recoveryError),
@@ -752,28 +837,35 @@ export class RuntimeSupervisor {
     return this.serialize(async () => {
       if (!this.vault || this.current.state !== "ready")
         throw new RuntimeError("runtime_not_ready");
-      if (plaintext === undefined) this.vault.delete(key);
-      else this.vault.set(key, plaintext);
+      this.credentialFailures.delete(key);
       this.stage("backend");
+      let quiesced = false;
+      let saved = false;
       try {
-        this.expectedBackendExit = true;
-        await this.gateway!.drain(15_000);
-        await this.stopDocumentWorker();
-        if (this.backend) await this.owned!.terminate(this.backend);
-        const database = await this.databaseCommand("inspect");
-        if (!database.installation_principal_id)
-          throw new RuntimeError("installation_principal_missing");
-        await this.startDocumentWorker();
-        await this.startBackend(database.installation_principal_id);
-        return this.vault.list().find((item) => item.provider === key)!;
+        await this.quiesceBackend();
+        quiesced = true;
+        if (plaintext === undefined) this.vault.delete(key);
+        else this.vault.set(key, plaintext);
+        saved = true;
+        await this.restartConsumers();
+        return this.credentials().find((item) => item.provider === key)!;
       } catch (error) {
-        this.gateway?.setBootstrapState();
-        this.setStatus({ state: "error", code: runtimeErrorCode(error) });
-        return {
-          ...this.vault.list().find((item) => item.provider === key)!,
-          restartRequired: true,
+        // Record before recovery emits ready: the old IPC caller no longer exists.
+        this.credentialFailures.set(key, {
           error: runtimeErrorCode(error),
-        };
+          saved,
+        });
+        try {
+          if (!quiesced) await this.restartConsumers();
+          else throw error;
+        } catch (recoveryError) {
+          await this.stopServices().catch(() => undefined);
+          this.setStatus({
+            state: "error",
+            code: runtimeErrorCode(recoveryError),
+          });
+        }
+        return this.credentials().find((item) => item.provider === key)!;
       }
     });
   }
@@ -788,7 +880,7 @@ export class RuntimeSupervisor {
         failed = true;
       }
     };
-    await stop(() => this.gateway?.drain());
+    if (this.backend) await stop(() => this.quiesceRenderers());
     await stop(() =>
       this.backend ? this.owned?.terminate(this.backend) : undefined,
     );
@@ -816,10 +908,12 @@ export class RuntimeSupervisor {
       this.serialize(async () => {
         this.setStatus({ state: "stopping" });
         try {
+          // Quit retains a bounded graceful path even if quiescence reports
+          // busy or a child has already crashed. It never signals a port owner.
+          if (this.backendOrigin)
+            await this.quiesceBackend().catch(() => undefined);
           await this.stopServices();
         } finally {
-          await this.gateway?.close();
-          this.gateway = undefined;
           this.setStatus({ state: "stopped" });
         }
       }),

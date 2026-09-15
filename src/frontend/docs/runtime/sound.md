@@ -45,7 +45,7 @@ not resumed merely because it was playing on a different route.
 
 Every live SFX or BGM descriptor comes from the mounted typed runtime snapshot.
 Gesture/Reaction closures supply `sfx` entries; enabled Music Track bindings
-supply `bgm` entries. Included and Local audio bytes are verified through Hono
+supply `bgm` entries. Included and Local audio bytes are verified through the application origin
 by the mounted preparation session, then decoded from prepared Blob URLs.
 A root and its sound dependencies are admitted together into one stable
 catalog; pending audio is never fetched through an alternate path. An unknown,

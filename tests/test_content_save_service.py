@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
 from animama.adapters.content_store import FilesystemContentStore
@@ -21,6 +20,7 @@ from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.routers.content import router
 from animama.server.routers.typed_content import router as typed_content_router
+from tests.local_http_client import local_client
 from tests.typed_loadout_support import cleanup_loadout_fixture, create_loadout_fixture
 
 
@@ -196,7 +196,7 @@ async def test_direct_save_http_route_streams_into_the_readable_local_library(as
 
     app.dependency_overrides[get_current_principal] = override_user
     app.dependency_overrides[get_async_session] = override_session
-    client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    client = local_client(app)
     try:
         created = await client.put(
             "/v1/gestures/Friendly%20Wave",

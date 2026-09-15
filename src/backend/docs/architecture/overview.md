@@ -35,8 +35,8 @@ old graph runtime, graph node runners, backend agent API, and public
   adapters are split into request, stream-event, final/usage, and client
   lifecycle modules.
 - `orm/`: shared SQLAlchemy 2.0 async models, without installation registration.
-- `local/`: installation principal, repository, and model; gateway token
-  validation; local database engine/session ownership. Alembic and local app
+- `local/`: installation principal, repository, and model; local HTTP admission,
+  lifecycle and assets; local database engine/session ownership. Alembic and local app
   bootstrap register and compose these explicitly.
 - `resources/`: packaged animation/VFX catalogs usable without checkout paths.
 - `logging.py`: logger adapters with no configuration side effects. The local
@@ -127,8 +127,8 @@ Startup performs process-level setup:
 
 - validates the supported native launcher's loopback-only bind setting
 - requires the migration-generated installation principal
-- loads the private Hono/FastAPI token and installs the gateway principal
-  resolver before readiness
+- establishes HTTP readiness for the bootstrap-owned principal after content
+  runtime startup; failed startup cannot admit product requests
 - reconciles local content and idempotently ensures the private profile,
   settings, `profile.md`, and configured Starter Animas
 - reconfigures logging
@@ -155,7 +155,8 @@ policy values or ports from their composition. Important local settings include:
 - readable `ANIMAMA_CONTENT_ROOT` and private `ANIMAMA_DATA_ROOT` settings
 - `ANIMAMA_LOCAL_BIND_HOST` for the supported native loopback launcher;
   Compose uses a separate private-network entrypoint
-- private `ANIMAMA_INTERNAL_TOKEN_FILE` used only by Hono and FastAPI
+- `ANIMAMA_PUBLIC_ORIGIN` and optional built `ANIMAMA_WEB_ROOT`
+- paired desktop renderer-capability and private-control credentials
 - user-file, content, Avatar, and voice size limits
 - avatar upload limits and cleanup intervals
 - local/test flags such as `ANIMAMA_LLM_SKIP`
@@ -172,12 +173,13 @@ Existing `user_id` and `owner_user_id` names remain in shared product code.
 
 Protected routes depend on `server/deps.py::get_current_principal`, which
 delegates to the `RequestPrincipalResolver` installed by the application
-composition. The local factory starts fail-closed, then installs
-`local.gateway_principal.LocalGatewayPrincipalResolver` after startup loads the private token and
-migration-owned principal. HTTP and WebSocket product traffic requires both
-matching Hono headers; missing or wrong tokens fail generically, and a principal
-mismatch is forbidden. Unit and API tests use FastAPI dependency overrides; no
-production auth bypass exists.
+composition. The local HTTP boundary checks configured Host/Origin, Fetch
+Metadata and mutation markers; desktop requests also need the current launch
+capability cookie. Successful admission records an object identity in server
+request state. `AdmittedLocalPrincipalResolver` resolves only that state after
+completed bootstrap establishes the migration-owned principal. Old gateway and
+caller-supplied owner headers confer no authority. Unit tests use explicit
+fixture bootstrap and dependency overrides; no production auth bypass exists.
 
 This local factory, bootstrap orchestrator, runtime APIs, environment contract,
 and migration graph are not a hosted mode. Better Auth may return only in a

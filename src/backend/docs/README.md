@@ -70,9 +70,9 @@ browser UI, client-side STT, avatar rendering, and most realtime audio UX.
   server-side STT, and retired LiveKit integration points.
 - [Development and operations](operations/development.md): local commands,
   migrations, tests, workers, and deployment guidance.
-- [Local HTTP replacement components](operations/local-http-components.md):
-  isolated FastAPI admission, assets, telemetry and drain verification before
-  the coordinated Hono cutover; the shipped composition is unchanged.
+- [Local HTTP components](operations/local-http-components.md): FastAPI
+  admission, static assets, telemetry, bounded transport and private drain
+  behavior used by the desktop and self-host compositions.
 - [Embedded desktop backend](operations/desktop-runtime.md): owned native
   services, frozen CLI, private environment, mounts, vault/token distinctions,
   migration snapshots and the separate Compose boundary.
@@ -91,7 +91,7 @@ builds. Implementation ownership remains with the repositories described in the
 boundary document.
 
 - [Development and operations](operations/development.md): local startup,
-  generated installation owner, loopback gateway, administration tools, migration
+  generated installation owner, loopback application origin, administration tools, migration
   procedures and recovery.
 - [Data model](architecture/data-model.md) and
   [HTTP API](architecture/http-api.md): current schema and request contracts.
@@ -116,8 +116,9 @@ boundary document.
 - `server/deps.py`: request-principal resolution, DB sessions, and embedders.
 - `server/request_principal.py`: composition-injected HTTP/WebSocket principal
   resolver protocol and neutral dependency accessor.
-- `local/gateway_principal.py`: local fail-closed resolver and trusted gateway
-  token/principal validator.
+- `local/http/`: local admission, the bootstrap-owned principal resolver,
+  transport deadlines, built assets, telemetry and private quiescence.
+- `server/local_http.py`: trusted environment/settings to HTTP configuration.
 - `local/installation_principal.py`, `local/installation_repository.py`, and
   `local/installation_model.py`: installation-only identity persistence.
 - `local/database.py`: local database configuration and app-owned sessions.
@@ -176,8 +177,9 @@ model clients are app-scoped and closed only at app shutdown.
 
 The local application is accountless. `create_local_app` installs a
 `RequestPrincipalResolver`, and protected routes depend on
-`get_current_principal`. Startup replaces the initial fail-closed resolver only
-after loading the installation principal and the mode-0600 Hono/FastAPI token.
-Tests inject explicit principals through FastAPI dependency overrides. The
+`get_current_principal`. Admission stays closed until startup completes
+bootstrap for the migration-owned principal. The resolver accepts only
+server-owned admission state, never a browser identity assertion. Tests use
+explicit fixture bootstrap and principal dependency overrides. The
 generated installation principal remains the owner value in existing `user_id`
 and `owner_user_id` columns.

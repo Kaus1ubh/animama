@@ -728,7 +728,7 @@
       "id": "skill-animama-local-stacks",
       "license": "UNKNOWN",
       "path_sha256": {
-        ".agents/skills/animama-local-stacks/SKILL.md": "3650f7b1ba9eca2747e36e7b513385d7daaeddf8c01c2fcb05e53607c009e4a6"
+        ".agents/skills/animama-local-stacks/SKILL.md": "1d304de3d06a45090b561cb188a1c0c6368a0997036eea9c35dd3878ef106e16"
       },
       "paths": [
         ".agents/skills/animama-local-stacks/SKILL.md"
@@ -982,11 +982,11 @@
       "evidence_ids": [
         "skill-animama-local-stacks"
       ],
-      "git_blob_oid": "acaaf1d08e20487e0320c97eed31f22c767a63ad",
+      "git_blob_oid": "88495690ea2431b398cab54a824f487e63dcc7f2",
       "notes": "Skill content, examples and generated compilations require their own provenance review.",
       "path": ".agents/skills/animama-local-stacks/SKILL.md",
       "publication_status": "review-pending",
-      "sha256": "3650f7b1ba9eca2747e36e7b513385d7daaeddf8c01c2fcb05e53607c009e4a6"
+      "sha256": "1d304de3d06a45090b561cb188a1c0c6368a0997036eea9c35dd3878ef106e16"
     },
     {
       "evidence_ids": [
@@ -9981,5 +9981,21 @@
   "schema_version": 1,
   "snapshot_id": "49d86463b47d27a9511b98bf13db7b6b3ee9e709091e97142c9ac491ba515fa9",
   "source_commit": "54743e49400f5de7fe4c83a8f67d8a4539e00787",
-  "source_manifest_sha256": "0e88d01729054e5e8fe49db3edac004ac7df4263c49dc82b5e6c4d82301bbe9f"
+  "source_manifest_sha256": "0e88d01729054e5e8fe49db3edac004ac7df4263c49dc82b5e6c4d82301bbe9f",
+  "local_amendments": [
+    {
+      "date": "2026-09-15",
+      "path": ".agents/skills/animama-local-stacks/SKILL.md",
+      "base_commit": "a91010bfe8d8b369e8256fe3a0b807e04842ab3c",
+      "previous_binding": {
+        "git_blob_oid": "acaaf1d08e20487e0320c97eed31f22c767a63ad",
+        "sha256": "3650f7b1ba9eca2747e36e7b513385d7daaeddf8c01c2fcb05e53607c009e4a6"
+      },
+      "current_binding": {
+        "git_blob_oid": "88495690ea2431b398cab54a824f487e63dcc7f2",
+        "sha256": "1d304de3d06a45090b561cb188a1c0c6368a0997036eea9c35dd3878ef106e16"
+      },
+      "reason": "Update project-local stack instructions for FastAPI production serving and Vite development proxy. Preserve imported provenance uncertainty, notices and review-pending status; no source-publication permission is granted."
+    }
+  ]
 }

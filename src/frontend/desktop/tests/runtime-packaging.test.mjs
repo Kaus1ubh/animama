@@ -25,6 +25,7 @@ import {
   sha256,
 } from "../scripts/runtime/common.mjs";
 import { assertBundledImports } from "../scripts/runtime/js-audit.mjs";
+import { javascriptLicenses } from "../scripts/runtime/licenses.mjs";
 import { checkSizes, validateSizeReport } from "../scripts/runtime/size.mjs";
 import {
   isPublicReleaseRepository,
@@ -77,6 +78,37 @@ function fixture() {
 }
 
 describe("desktop runtime packaging", () => {
+  it("inventories a clean desktop and web workspace without a retired server directory", () => {
+    const root = fixture();
+    for (const name of ["desktop", "web", "node_modules/shared-fixture"]) {
+      const folder = path.join(root, name);
+      mkdirSync(folder, { recursive: true });
+      writeFileSync(
+        path.join(folder, "package.json"),
+        JSON.stringify({
+          name: path.basename(name),
+          version: "1.0.0",
+          license: "MIT",
+          ...(name === "desktop" || name === "web"
+            ? { dependencies: { "shared-fixture": "1.0.0" } }
+            : {}),
+        }),
+      );
+      writeFileSync(path.join(folder, "LICENSE"), "Fixture notice");
+    }
+    expect(existsSync(path.join(root, "server"))).toBe(false);
+    const inventory = javascriptLicenses(root);
+    expect(inventory.records.map((record) => record.id)).toEqual([
+      "npm:desktop@1.0.0",
+      "npm:shared-fixture@1.0.0",
+      "npm:web@1.0.0",
+    ]);
+    expect(inventory.absentOptional).toEqual([]);
+    expect(
+      inventory.records.every((record) => record.notices.length === 1),
+    ).toBe(true);
+  });
+
   it("renders the exact active/deferred redistribution review state", () => {
     const root = fixture();
     const review = renderRedistributionReview({
@@ -1091,6 +1123,14 @@ Load command 4
         outputs: {},
       }),
     ).toThrow("Better Auth");
+    for (const name of [
+      "node_modules/hono/dist/index.js",
+      "node_modules/@hono/node-server/dist/index.js",
+      "../server/src/app.ts",
+    ])
+      expect(() =>
+        assertBundledImports({ inputs: { [name]: {} }, outputs: {} }),
+      ).toThrow("Hono");
   });
 });
 

@@ -6,7 +6,6 @@ from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
@@ -18,6 +17,7 @@ from animama.local.installation_principal import InstallationPrincipalInvalidErr
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_installation_bootstrap import LocalInstallationBootstrapService
 from animama.server.routers import runtime_context
+from tests.local_http_client import local_client
 
 
 class FakeOwnerBootstrap:
@@ -155,7 +155,7 @@ async def test_runtime_context_is_bounded_and_rejects_a_mismatched_principal(asy
     principal_id = str(uuid4())
     app = await _runtime_app(async_session_factory, principal_id)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         response = await client.get("/v1/runtime-context")
         assert response.status_code == 200
         assert response.json() == {
@@ -181,7 +181,7 @@ async def test_runtime_context_requires_a_name_even_after_an_earlier_skip(async_
         installation.first_run_completed_at = datetime.now(timezone.utc)
         await session.commit()
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         for name in [None, " \t ", "Ada"]:
             async with async_session_factory() as session:
                 profiles = SQLAlchemyUserProfileRepository(session)
@@ -201,7 +201,7 @@ async def test_runtime_context_requires_a_name_even_after_an_earlier_skip(async_
 async def test_onboarding_api_rejects_missing_blank_or_overlong_names(async_session_factory, payload) -> None:
     principal_id = str(uuid4())
     app = await _runtime_app(async_session_factory, principal_id)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         response = await client.post("/v1/runtime/onboarding:complete", json=payload)
         assert response.status_code == 422
         context = (await client.get("/v1/runtime-context")).json()

@@ -96,7 +96,7 @@ Request body:
 
 What the backend does:
 
-1. Resolves the gateway-authenticated installation principal.
+1. Resolves the admitted installation principal.
 2. Validates the original filename:
    - trims path-like input down to the display basename
    - rejects empty, control-character, and over-255-character names
@@ -138,7 +138,7 @@ Response:
 
 What the frontend does next:
 
-- Uppy resolves the API-relative URL against the current Hono origin and uses
+- Uppy resolves the API-relative URL against the current application origin and uses
   `method` plus the returned content headers to upload the original bytes. It
   does not attach Authorization.
 - FastAPI bounds the declared and received size, spools to disk, and atomically
@@ -161,7 +161,7 @@ Request body:
 
 What the backend does:
 
-1. Resolves the gateway-authenticated installation principal.
+1. Resolves the admitted installation principal.
 2. Loads the installation owner's file row by `file_id`.
 3. Rejects missing rows with `404`.
 4. Rejects rows that are not `pending_upload` with `409`.
@@ -171,10 +171,10 @@ What the backend does:
 7. Stats the promoted local file through the private storage adapter.
 8. Rejects missing file metadata with `409`.
 9. Validates the stored file size:
-    - size metadata must exist
-    - size must be positive
-    - size must be at or below `ANIMAMA_USER_FILE_MAX_UPLOAD_BYTES`
-    - size must match the originally declared `size_bytes`
+   - size metadata must exist
+   - size must be positive
+   - size must be at or below `ANIMAMA_USER_FILE_MAX_UPLOAD_BYTES`
+   - size must match the originally declared `size_bytes`
 10. Sets the file status to `uploaded`, records `stored_size_bytes`, clears
     `last_error`, and commits.
 
@@ -212,7 +212,7 @@ Request body:
 
 What the backend endpoint does:
 
-1. Resolves the gateway-authenticated installation principal.
+1. Resolves the admitted installation principal.
 2. Rejects disabled processing with `409` and
    `detail.code: file_processing_unavailable`, before file lookup or queue writes.
 3. Loads the installation owner's file row.
@@ -225,12 +225,14 @@ What the backend endpoint does:
 9. If the file is already `ready` or `ready_keyword_only` and has chunks,
    returns the current ready state without creating a duplicate job.
 10. Otherwise creates a `user_file_processing_job` row:
-   - status `queued`
-   - job type `process_file`
-   - current user ID and file ID
-   - configured max attempts
-   - immediate `run_after`
-   - metadata recording whether the request was forced
+
+- status `queued`
+- job type `process_file`
+- current user ID and file ID
+- configured max attempts
+- immediate `run_after`
+- metadata recording whether the request was forced
+
 11. Marks the file `processing`.
 12. Commits and returns `202 Accepted`.
 

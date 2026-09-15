@@ -1,19 +1,25 @@
 src/letta/
 
-# Root Dockerfile builds backend images. Keep large frontend/legacy trees out of
-# that context, except the small catalogs the backend reads for prompt metadata.
+# The production image builds React once; only its static output crosses into
+# Python. Keep desktop/native assets and installed dependencies out of context.
 src/legacy/
 src/frontend/**
 !src/frontend/
+!src/frontend/package.json
+!src/frontend/pnpm-lock.yaml
+!src/frontend/pnpm-workspace.yaml
+!src/frontend/prettier.config.mjs
+!src/frontend/scripts/
+!src/frontend/scripts/**
+!src/frontend/shared/
+!src/frontend/shared/**
+!src/frontend/packages/
+!src/frontend/packages/**
 !src/frontend/web/
-!src/frontend/web/src/
-!src/frontend/web/src/assets/
-!src/frontend/web/src/assets/effects/
-!src/frontend/web/src/assets/effects/vfx/
-!src/frontend/web/src/assets/effects/vfx/catalog.json
-!src/frontend/web/src/assets/vrm/
-!src/frontend/web/src/assets/vrm/animations/
-!src/frontend/web/src/assets/vrm/animations/manifest.json
+!src/frontend/web/**
+**/node_modules/**
+**/dist/**
+**/*.tsbuildinfo
 cloud/
 parakeet-tdt-0.6b-v2/
 
@@ -90,6 +96,9 @@ deprecated/
 .serena/cache
 .animama-logs/
 .animama/
+.animama-stacks/
+data/
+content/local/
 
 # CDK output (prevents recursive asset staging when building DockerImageAssets)
 cloud/cdk.out*/

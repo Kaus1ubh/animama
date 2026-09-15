@@ -27,7 +27,7 @@ async def iter_owner_events(
 
 
 def stream_owner_events_sse(principal: RequestPrincipal) -> StreamingResponse:
-    """Create the gateway-authenticated installation-owner SSE stream."""
+    """Create the admitted installation-owner SSE stream."""
     headers = {
         "Cache-Control": "no-cache",
         "Connection": "keep-alive",

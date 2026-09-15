@@ -478,7 +478,7 @@ after user approval.
 
 ## API Contract
 
-All routes require a gateway-resolved `RequestPrincipal`. The backend filters by
+All routes require a admitted installation `RequestPrincipal`. The backend filters by
 that principal's value in `user_id`; clients do not provide owner IDs.
 
 ### List Episode Items

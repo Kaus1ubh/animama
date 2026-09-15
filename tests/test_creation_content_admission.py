@@ -8,7 +8,6 @@ from io import BytesIO
 from uuid import uuid4
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 from PIL import Image
 from sqlalchemy import select
 
@@ -20,6 +19,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMAnimaContentBinding, ORMContentCatalogItem
 from animama.server.deps import get_current_principal
 from tests.anima_creation_service_support import anima_creation_fixture, glb, image_bytes, vrm
+from tests.local_http_client import local_client
 
 
 async def upload_avatar(client, name, payload, **fields):
@@ -35,7 +35,7 @@ async def test_owned_avatar_byte_reuse_is_not_cross_owner_or_included(async_sess
         app = fixture.app(async_session, monkeypatch)
         other = await fixture.add_owner(async_session)
         payload = vrm("confirmed-upload")
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             first = await upload_avatar(client, "First", payload, metadata_json='{"name":"Original name"}')
             assert first.status_code == 200, first.text
             original = first.json()
@@ -70,7 +70,7 @@ async def test_confirmed_upload_survives_failed_create_and_in_use_replace_is_blo
 ):
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             saved = await upload_avatar(client, "Confirmed", vrm("confirmed"))
             assert saved.status_code == 200, saved.text
             avatar = saved.json()
@@ -111,7 +111,7 @@ async def test_confirmed_upload_survives_failed_create_and_in_use_replace_is_blo
 async def test_typed_avatar_save_uses_strong_vrm_validation(async_session, tmp_path, monkeypatch, version):
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             valid = await upload_avatar(client, "Valid", vrm("validated", version))
             assert valid.status_code == 200, valid.text
             invalid = await upload_avatar(
@@ -138,7 +138,7 @@ async def test_static_appearance_is_canonical_and_exact_framing_is_bound(
         with Image.new("RGB", (32, 24), "purple") as image:
             stream = BytesIO()
             image.save(stream, format=format)
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             response = await client.put(
                 "/v1/appearance-content/Profile",
                 data={"operation_id": "save-profile"},
@@ -192,7 +192,7 @@ async def test_appearance_rejects_unsupported_or_misleading_image_inputs(async_s
                 stream = BytesIO()
                 image.save(stream, format="PNG")
                 payload = stream.getvalue()
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             response = await client.put(
                 "/v1/appearance-content/Invalid",
                 data={"operation_id": "save-invalid"},
@@ -212,7 +212,7 @@ async def test_avatar_portrait_capture_is_an_ordinary_owned_appearance(async_ses
             "expected_avatar_revision": avatar.revision_sha256,
         }
         capture = image_bytes(portrait=True, format="WEBP")
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             stale = await client.put(
                 f"/v1/avatar-content/{avatar.id}/portrait",
                 data={**data, "expected_avatar_revision": "f" * 64},
@@ -247,7 +247,7 @@ async def test_descriptor_appearance_uses_the_same_canonicalizer(async_session, 
             "name": "Descriptor picture",
             "files": [{"path": "picture.png", "role": "image"}],
         }
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             saved = await client.put(
                 "/v1/appearance-content/DescriptorPicture",
                 data={

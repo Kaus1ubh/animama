@@ -111,6 +111,13 @@ try {
     ),
   );
   logged("web-check", "pnpm", ["web:check"], { cwd: frontendRoot });
+  if (
+    resourceAudit.local_http_schema_version !==
+    sources.local_http_schema_version
+  )
+    throw new Error(
+      "Frozen local HTTP schema differs from the runtime source manifest",
+    );
   logged(
     "web-build",
     "pnpm",
@@ -175,7 +182,7 @@ try {
     path.join(target.runtime, "content/included-core/inventory.json"),
   );
   const manifest = {
-    schema: "animama-desktop-runtime/1",
+    schema: "animama-desktop-runtime/2",
     app_version: app.version,
     build_id: inventoryId(inventory),
     platform: target.platform,
@@ -187,7 +194,7 @@ try {
       pgvector: native.pgvector.version,
     },
     alembic_head: resourceAudit.alembic_head,
-    gateway_schema_version: sources.gateway_schema_version,
+    local_http_schema_version: sources.local_http_schema_version,
     core_content_inventory_id: core.id,
     pack_catalog_id: catalogId,
     files: inventory,

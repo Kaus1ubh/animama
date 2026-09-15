@@ -63,8 +63,8 @@ All routes resolve the owner from `RequestPrincipal`; clients never submit a
 - `POST /v1/runtime/onboarding:complete` completes first run atomically.
 
 The former profile ensure, username availability/rename, and public creator
-lookup routes are removed. The trusted Hono gateway is the only local route
-to the private API.
+lookup routes are removed. The local HTTP boundary admits requests for the
+bootstrap-established installation owner before these handlers run.
 
 ## Ownership And Testing
 

@@ -17,17 +17,20 @@ def export_openapi(output_path: Path) -> None:
 
     Importing the FastAPI application registers its startup hooks but does not
     execute them. This keeps client generation independent from a running local
-    stack and from the private Hono-to-FastAPI credential.
+    stack, installation bootstrap and private desktop credentials.
     """
 
     output_path = output_path.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(
-        app.openapi(),
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8") + b"\n"
+    payload = (
+        json.dumps(
+            app.openapi(),
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        + b"\n"
+    )
 
     file_descriptor, temporary_name = tempfile.mkstemp(
         dir=output_path.parent,

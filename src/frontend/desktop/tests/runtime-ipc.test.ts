@@ -143,6 +143,46 @@ describe("privileged runtime IPC", () => {
     });
   });
 
+  it("reports a busy credential deletion even when the old configured runtime recovered", async () => {
+    operations.changeCredential = vi.fn(async () => ({
+      provider: "openai",
+      configured: true,
+      updatedAt: "2026-09-01T00:00:00Z",
+      restartRequired: false,
+      error: "runtime_busy",
+    }));
+    await expect(
+      invoke("credentials:delete", main.event, "openai"),
+    ).rejects.toThrow("runtime_busy");
+    expect(operations.changeCredential).toHaveBeenCalledWith("openai");
+  });
+
+  it("returns retained credential failure status to the replacement registered main window", async () => {
+    const retained = {
+      provider: "openai" as const,
+      configured: true,
+      updatedAt: "2026-09-01T00:00:00Z",
+      restartRequired: false,
+      error: "runtime_busy",
+    };
+    operations.credentials = () => [retained];
+    const destroy = main.contents.once.mock.calls.find(
+      ([name]) => name === "destroyed",
+    )![1];
+    destroy();
+    await expect(invoke("credentials:list", main.event)).rejects.toThrow(
+      "ipc_caller_rejected",
+    );
+    const replacement = caller(3, main.frame.url);
+    callers.register(replacement.window, "main", "http://127.0.0.1:41234");
+    await expect(
+      invoke("credentials:list", replacement.event),
+    ).resolves.toEqual([retained]);
+    await expect(invoke("credentials:list", recovery.event)).rejects.toThrow(
+      "ipc_caller_rejected",
+    );
+  });
+
   it("accepts no updater paths or URLs, and excludes recovery/child frames from all update commands", async () => {
     operations.checkUpdate = vi.fn(async () => ({ state: "up_to_date" }));
     operations.openBackups = vi.fn(async () => undefined);
@@ -238,14 +278,14 @@ describe("privileged runtime IPC", () => {
   });
 });
 
-describe("runtime bootstrap page", () => {
+describe("independent runtime recovery page", () => {
   it.each([
-    ["http://127.0.0.1:41234", "main", true],
+    ["http://127.0.0.1:41234", "main", false],
     ["http://127.0.0.1:41235", "main", false],
     ["http://127.0.0.1:41234", "recovery", false],
     ["data:text/html,recovery", "recovery", false],
   ])(
-    "reloads a ready gateway only for its registered main origin: %s (%s)",
+    "never navigates or reloads itself on readiness: %s (%s)",
     async (url, windowRole, shouldReload) => {
       const elements = new Map<string, Record<string, unknown>>();
       const element = (selector: string) => {

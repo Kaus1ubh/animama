@@ -43,7 +43,7 @@ jobs:
           uv run --no-sync python scripts/repository-boundary/check-python-imports.py
           uv run --no-sync python -m unittest discover -s scripts/repository-boundary -p 'test_*.py'
           git lfs fsck
-      - name: Check and test browser, gateway and desktop source
+      - name: Check and test browser and desktop source
         working-directory: src/frontend
         run: |
           pnpm check
@@ -51,9 +51,10 @@ jobs:
           pnpm packages:test
           pnpm web:lint
           pnpm web:test
-          pnpm server:test
           pnpm desktop:test
           pnpm build
+      - name: Check the local HTTP boundary
+        run: uv run --no-sync pytest -q tests/test_local_http_*.py tests/test_local_app_composition.py tests/test_request_principal.py
       - name: Build unpublished distribution artifacts
         run: |
           uv run --no-sync python scripts/package-sets/build.py build \
@@ -72,7 +73,10 @@ jobs:
       - name: Check Compose structure
         run: |
           bash -n reset.sh
-          docker compose config --quiet
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.development.yml config --quiet
+          docker compose -f docker-compose.yml --profile '*' config --format json | uv run --no-sync python scripts/validate_local_compose.py
+          docker compose -f docker-compose.yml -f docker-compose.development.yml --profile '*' config --format json | uv run --no-sync python scripts/validate_local_compose.py
       - name: Reclaim completed test environments before the baseline rebuild
         # The next build creates another isolated dependency tree. Retain package
         # bytes and test evidence, but release dependencies from completed tests.

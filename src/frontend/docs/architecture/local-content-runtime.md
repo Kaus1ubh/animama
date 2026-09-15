@@ -1,10 +1,10 @@
 # Local Content Runtime
 
-> **Accountless local contract (2026-09-01):** Hono proxies every private byte
-> and runtime request through one same-origin loopback gateway. React has no
-> session or bearer callback, and private services have no host ports.
+> **Accountless local contract:** FastAPI admits private-byte and runtime
+> requests at the application origin. Development Vite proxies the same routes
+> without granting identity. React has no session or bearer callback.
 
-Web and Electron use the same gateway-authenticated local HTTP services. A normal
+Web and Electron use the same admitted local HTTP services. A normal
 browser cannot enumerate a Docker host directory, and the sandboxed Electron
 renderer receives no arbitrary filesystem IPC. FastAPI scans `content/`, owns
 safe writes and dependency validation, and streams registered bytes. The
@@ -62,7 +62,7 @@ Items still referenced by an Avatar or Anima loadout must be unequipped first.
 ## Protected preview preparation
 
 `PreviewByteSession` consumes a short-lived `PyContentPreview`. It checks the
-declared budget, downloads exact protected files through same-origin Hono,
+declared budget, downloads exact protected files through the application origin,
 verifies size and SHA-256, creates in-memory Blob URLs, and revokes them on
 disposal. Preview sessions never satisfy a mounted runtime and never write a
 persistent browser library.
@@ -162,8 +162,8 @@ disposable and are not backed up.
 
 The manifest GET negotiates gzip with an identity fallback. Its
 JSON is compressed; the complete descriptor, diagnostics, limits and
-lease fields are retained. Hono forwards encoded bytes unchanged and the
-browser decodes them normally. Responses use `private, no-cache`,
+lease fields are retained. FastAPI delivers the encoded bytes and the browser decodes them normally.
+The development proxy preserves that representation. Responses use `private, no-cache`,
 `Vary: Accept-Encoding`, the encoded Content-Length and an ETag for the actual
 wire representation. Every GET still authorizes and issues current lease
 information, even with If-None-Match. `effective_revision` is not a validator
@@ -250,7 +250,7 @@ editable Local catalog items atomically. A late failure exposes no partial
 item. The browser never treats selected files, File System Access handles, or
 browser storage as canonical content.
 
-Packaged Electron supervises private PostgreSQL/FastAPI and embeds Hono, serving
+Packaged Electron supervises PostgreSQL and FastAPI. FastAPI serves
 the production React build at one saved loopback origin. There is no Vite server
 in the installed app. Immutable core/optional Included mounts and writable Local
 data use the same Content Catalog and protected byte APIs; React never enumerates

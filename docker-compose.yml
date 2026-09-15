@@ -117,7 +117,9 @@ services:
       ANIMAMA_OTEL_WS_METRICS: "1"
       ANIMAMA_OTEL_PROCESS_METRICS: "1"
       ANIMAMA_OTEL_SYSTEM_METRICS: "1"
-      ANIMAMA_INTERNAL_TOKEN_FILE: /var/lib/animama/data/internal/gateway/token
+      ANIMAMA_PUBLIC_ORIGIN: ${ANIMAMA_PUBLIC_ORIGIN:-http://localhost:3000}
+      ANIMAMA_WEB_ROOT: /opt/animama/web
+      ANIMAMA_DISABLE_WEBUI_TELEMETRY: ${ANIMAMA_DISABLE_WEBUI_TELEMETRY:-true}
       ANIMAMA_STT_MODE: ${ANIMAMA_STT_MODE:-parakeet}
       ANIMAMA_STT_URL: ${ANIMAMA_STT_URL:-http://parakeet:8000}
       ANIMAMA_STT_AUTH_TOKEN: ${ANIMAMA_STT_AUTH_TOKEN:-}
@@ -140,8 +142,8 @@ services:
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY}
       CARTESIA_API_KEY: ${CARTESIA_API_KEY}
     volumes:
-      - .:/app
       - ./.animama-logs:/var/log/animama
+      - ./parakeet-tdt-0.6b-v2:/opt/animama/web/__client-parakeet-models:ro
       - type: bind
         # Readable app-shipped typed content; never write catalog machinery here.
         source: ${ANIMAMA_INCLUDED_CONTENT_HOST_PATH:-./content/included}
@@ -158,6 +160,13 @@ services:
       - animama-network
     expose:
       - "8000"
+    ports:
+      - "127.0.0.1:${WEB_SERVER_PORT:-3000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, urllib.request, urllib.parse; request = urllib.request.Request('http://127.0.0.1:8000/health', headers={'Host': urllib.parse.urlsplit(os.environ['ANIMAMA_PUBLIC_ORIGIN']).netloc}); urllib.request.urlopen(request, timeout=2).close()"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
     depends_on:
       postgres:
         condition: service_healthy
@@ -542,181 +551,6 @@ services:
   #   env_file:
   #     - .env
 
-  web-server:
-    image: node:22-bookworm
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}web-server"
-    working_dir: /app
-    restart: unless-stopped
-    command: >
-      sh -c "corepack enable &&
-      pnpm install --filter animama-frontend-server... &&
-      pnpm --filter animama-frontend-server dev:compose"
-    ports:
-      - "127.0.0.1:${WEB_SERVER_PORT:-3000}:3000"
-    environment:
-      - CI=true
-      - NODE_ENV=development
-      - PORT=3000
-      - CHOKIDAR_USEPOLLING=true
-      - NPM_CONFIG_STORE_DIR=/pnpm/store
-      - WEB_DATABASE_URL=postgresql://${POSTGRES_USER:-animama}:${POSTGRES_PASSWORD:-a}@postgres:5432/${POSTGRES_DB:-animama}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-animama}:${POSTGRES_PASSWORD:-a}@postgres:5432/${POSTGRES_DB:-animama}
-      - ANIMAMA_DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-animama}:${POSTGRES_PASSWORD:-a}@postgres:5432/${POSTGRES_DB:-animama}
-      - PGHOST=postgres
-      - PGPORT=5432
-      - PGUSER=${POSTGRES_USER:-animama}
-      - PGPASSWORD=${POSTGRES_PASSWORD:-a}
-      - PGDATABASE=${POSTGRES_DB:-animama}
-      - ANIMAMA_PUBLIC_ORIGIN=${ANIMAMA_PUBLIC_ORIGIN:-http://localhost:3000}
-      - ANIMAMA_PRIVATE_API_ORIGIN=http://animama-server:8000
-      - ANIMAMA_PRIVATE_VITE_ORIGIN=http://web:5173
-      - ANIMAMA_INTERNAL_TOKEN_FILE=/run/animama/gateway-token
-      - FRONTEND_SERVER_DISABLE_WEBUI_TRACES=1
-      - OTEL_SERVICE_NAME=animama-frontend-server
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
-      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-      - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=local,service.namespace=animama
-    networks:
-      - animama-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-      animama-server:
-        condition: service_started
-      web:
-        condition: service_started
-    volumes:
-      - ./src/frontend:/app
-      - type: bind
-        source: ${ANIMAMA_INCLUDED_CONTENT_HOST_PATH:-./content/included}
-        target: /content/included
-        read_only: true
-      - type: bind
-        source: ${ANIMAMA_INTERNAL_TOKEN_HOST_PATH:-./data/internal/gateway/token}
-        target: /run/animama/gateway-token
-        read_only: true
-      - type: volume
-        source: frontend_server_root_node_modules
-        target: /app/node_modules
-        volume:
-          nocopy: true
-      - type: volume
-        source: frontend_server_node_modules
-        target: /app/server/node_modules
-        volume:
-          nocopy: true
-      - type: volume
-        source: frontend_server_web_node_modules
-        target: /app/web/node_modules
-        volume:
-          nocopy: true
-      - type: volume
-        source: frontend_server_desktop_node_modules
-        target: /app/desktop/node_modules
-        volume:
-          nocopy: true
-      - pnpm_store:/pnpm/store
-
-  # Prepare persistent frontend dependency volumes for the host-mapped user
-  # that runs Vite. Docker creates named-volume roots as root by default.
-  web-deps-init:
-    image: node:22-bookworm
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}web-deps-init"
-    user: "0:0"
-    command: >
-      sh -c "chown ${HOST_UID:-1000}:${HOST_GID:-1000}
-      /app/node_modules /app/web/node_modules /pnpm/store"
-    volumes:
-      - frontend_web_root_node_modules:/app/node_modules
-      - frontend_web_node_modules:/app/web/node_modules
-      - frontend_web_pnpm_store:/pnpm/store
-    networks:
-      - animama-network
-
-  web:
-    image: node:22-bookworm
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}web"
-    working_dir: /app
-    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
-    restart: unless-stopped
-    tmpfs:
-      - /app/server/node_modules:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775,exec
-      - /app/desktop/node_modules:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775,exec
-      - /app/web/dist:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775
-      # Package dependencies and compiled outputs are platform-local, like web.
-      - /app/packages/runtime-contracts/node_modules:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775,exec
-      - /app/packages/discover-client/node_modules:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775,exec
-      - /app/packages/product-ui/node_modules:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775,exec
-      - /app/packages/runtime-contracts/dist:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775
-      - /app/packages/discover-client/dist:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775
-      - /app/packages/product-ui/dist:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775
-      - /tmp/animama-web-home:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775
-      - /tmp/animama-web-cache:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775
-      - /tmp/animama-web-state:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775
-      - /tmp/corepack:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775,exec
-      - /tmp/corepack-bin:uid=${HOST_UID:-1000},gid=${HOST_GID:-1000},mode=0775,exec
-    # Keep dependency installs and pnpm's package store on persistent volumes.
-    # This avoids charging roughly two gigabytes of dependency files to the
-    # container's memory while preserving host-independent Linux packages.
-    command: >
-      sh -c "export PATH=/tmp/corepack-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin &&
-      corepack enable --install-directory /tmp/corepack-bin &&
-      pnpm install --filter animama-frontend-workspace --filter animama-web... --prod=false &&
-      exec sh scripts/start-compose-web.sh"
-    # Select production in root .env for a bundled local preview. This changes
-    # only compilation/serving; Vite stays private behind Hono in both cases.
-    environment:
-      - CI=true
-      - NODE_ENV=development
-      - ANIMAMA_WEB_BUILD_MODE=${ANIMAMA_WEB_BUILD_MODE:-development}
-      - CHOKIDAR_USEPOLLING=true
-      - COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-      - COREPACK_HOME=/tmp/corepack
-      - HOME=/tmp/animama-web-home
-      - XDG_CACHE_HOME=/tmp/animama-web-cache
-      - XDG_STATE_HOME=/tmp/animama-web-state
-      - NPM_CONFIG_STORE_DIR=/pnpm/store
-      - VITE_APP_ENV=development
-      - VITE_APP_VERSION=local
-      - VITE_WEB_BASE_URL=${ANIMAMA_PUBLIC_ORIGIN:-http://localhost:3000}
-      - VITE_FRONTEND_SERVER_BASE_URL=${ANIMAMA_PUBLIC_ORIGIN:-http://localhost:3000}
-      - VITE_ENABLE_DEBUG_PANEL=${VITE_ENABLE_DEBUG_PANEL:-false}
-      - VITE_DISABLE_WEBUI_TRACES=true
-      - VITE_DISABLE_WEBUI_TELEMETRY=true
-      - VITE_CLIENT_PARAKEET_MODEL_DIR=/app/parakeet-tdt-0.6b-v2
-    networks:
-      - animama-network
-    expose:
-      - "5173"
-    depends_on:
-      web-deps-init:
-        condition: service_completed_successfully
-      animama-server:
-        condition: service_started
-    volumes:
-      - ./src/frontend:/app
-      # The package builder carries the existing project notice into tarballs.
-      - ./LICENSE:/LICENSE:ro
-      # Vite's compatibility middleware reads legacy public URLs from the one
-      # canonical Included tree while frontend consumers migrate to file refs.
-      - type: bind
-        source: ${ANIMAMA_INCLUDED_CONTENT_HOST_PATH:-./content/included}
-        target: /content/included
-        read_only: true
-      - type: volume
-        source: frontend_web_root_node_modules
-        target: /app/node_modules
-        volume:
-          nocopy: true
-      - type: volume
-        source: frontend_web_node_modules
-        target: /app/web/node_modules
-        volume:
-          nocopy: true
-      - frontend_web_pnpm_store:/pnpm/store
-      - ./parakeet-tdt-0.6b-v2:/app/parakeet-tdt-0.6b-v2:ro
-
   parakeet:
     profiles:
       - voice
@@ -831,14 +665,6 @@ networks:
     driver: bridge
 
 volumes:
-  pnpm_store:
-  frontend_server_root_node_modules:
-  frontend_server_node_modules:
-  frontend_server_web_node_modules:
-  frontend_server_desktop_node_modules:
-  frontend_web_root_node_modules:
-  frontend_web_node_modules:
-  frontend_web_pnpm_store:
   postgres-data:
   pgadmin-data:
   docling-cache:

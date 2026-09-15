@@ -5,7 +5,7 @@ let installed = false;
 /**
  * Install the one browser-wide local gateway interceptor.
  * It adds only the CSRF marker to same-origin state-changing `/v1` requests;
- * identity and internal gateway assertions remain server-only.
+ * identity resolution remains server-owned after request admission.
  */
 export function installLocalGatewayFetchInterceptor(): void {
   if (installed || typeof window === "undefined") return;

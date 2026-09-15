@@ -30,22 +30,26 @@ def _environment_names(service: dict) -> set[str]:
     return {str(item).split("=", 1)[0] for item in environment}
 
 
-def test_only_hono_publishes_a_default_application_port() -> None:
+def test_only_fastapi_publishes_a_default_application_port() -> None:
     services = _compose()["services"]
 
-    assert services["web-server"]["ports"] == ["127.0.0.1:${WEB_SERVER_PORT:-3000}:3000"]
+    assert services["animama-server"]["ports"] == ["127.0.0.1:${WEB_SERVER_PORT:-3000}:8000"]
     for private_service, service in services.items():
-        if private_service not in {"web-server", "pgadmin", "dozzle"}:
+        if private_service not in {"animama-server", "pgadmin", "dozzle"}:
             assert not service.get("ports"), private_service
 
 
 @lru_cache
-def _rendered_compose(profiles: tuple[str, ...] = ("*",)) -> dict:
+def _rendered_compose(profiles: tuple[str, ...] = ("*",), development: bool = False) -> dict:
     environment = os.environ.copy()
     environment["COMPOSE_PROFILES"] = ",".join(profiles)
+    environment.pop("COMPOSE_FILE", None)
+    files = ["-f", "docker-compose.yml"]
+    if development:
+        files += ["-f", "docker-compose.development.yml"]
     # The boundary test needs the rendered graph, never its environment values.
     result = subprocess.run(
-        ["docker", "compose", "config", "--format", "json"],
+        ["docker", "compose", *files, "config", "--format", "json"],
         cwd=REPO_ROOT,
         env=environment,
         check=True,
@@ -59,18 +63,54 @@ def test_rendered_compose_enforces_the_local_publication_boundary() -> None:
     validate_local_compose_document(_rendered_compose())
 
 
-def test_rendered_boundary_rejects_a_private_service_port() -> None:
-    document = deepcopy(_rendered_compose())
+@pytest.mark.parametrize("profiles", [(), ("dev-tools",), ("obs",), ("*",)])
+def test_development_override_publishes_only_vite_and_keeps_fastapi_private(profiles: tuple[str, ...]) -> None:
+    document = _rendered_compose(profiles, development=True)
+    validate_local_compose_document(document)
+    services = document["services"]
+    assert not services["animama-server"].get("ports")
+    assert services["animama-server"]["build"]["target"] == "animama-server-development"
+    assert services["animama-server"]["environment"]["ANIMAMA_WEB_ROOT"] == ""
+    expected = {"web"}
+    if "dev-tools" in profiles or "*" in profiles:
+        expected |= {"pgadmin", "dozzle"}
+    assert {name for name, service in services.items() if service.get("ports")} == expected
+
+
+def test_production_graph_serves_built_assets_without_source_mount_or_node_services() -> None:
+    services = _rendered_compose(())["services"]
+    assert "web" not in services and "web-deps-init" not in services
+    api = services["animama-server"]
+    assert api["build"]["target"] == "animama-server"
+    assert api["environment"]["ANIMAMA_WEB_ROOT"] == "/opt/animama/web"
+    assert not any(volume["target"] == "/app" for volume in api["volumes"])
+
+
+def test_development_cannot_republish_api_or_choose_another_proxy_target() -> None:
+    document = deepcopy(_rendered_compose(development=True))
     document["services"]["animama-server"]["ports"] = [
         {"host_ip": "127.0.0.1", "target": 8000, "published": "8000", "protocol": "tcp"}
     ]
-    with pytest.raises(ComposeBoundaryError, match="animama-server must remain private"):
+    with pytest.raises(ComposeBoundaryError, match="must remain private"):
+        validate_local_compose_document(document)
+    del document["services"]["animama-server"]["ports"]
+    document["services"]["web"]["environment"]["ANIMAMA_API_PROXY_TARGET"] = "http://hostile.invalid"
+    with pytest.raises(ComposeBoundaryError, match="fixed private Compose API origin"):
         validate_local_compose_document(document)
 
 
-def test_rendered_boundary_rejects_a_broad_gateway_mapping() -> None:
+def test_rendered_boundary_rejects_a_private_service_port() -> None:
     document = deepcopy(_rendered_compose())
-    document["services"]["web-server"]["ports"][0]["host_ip"] = "0.0.0.0"
+    document["services"]["postgres"]["ports"] = [
+        {"host_ip": "127.0.0.1", "target": 5432, "published": "8000", "protocol": "tcp"}
+    ]
+    with pytest.raises(ComposeBoundaryError, match="postgres must remain private"):
+        validate_local_compose_document(document)
+
+
+def test_rendered_boundary_rejects_a_broad_application_mapping() -> None:
+    document = deepcopy(_rendered_compose())
+    document["services"]["animama-server"]["ports"][0]["host_ip"] = "0.0.0.0"
     with pytest.raises(ComposeBoundaryError, match="pinned to 127.0.0.1"):
         validate_local_compose_document(document)
 
@@ -80,7 +120,7 @@ def test_tools_are_explicit_loopback_publications(profiles: tuple[str, ...]) -> 
     document = _rendered_compose(profiles)
     validate_local_compose_document(document)
     services = document["services"]
-    expected = {"web-server"}
+    expected = {"animama-server"}
     if "dev-tools" in profiles or "*" in profiles:
         expected |= {"pgadmin", "dozzle"}
     assert {name for name, service in services.items() if service.get("ports")} == expected
@@ -88,7 +128,7 @@ def test_tools_are_explicit_loopback_publications(profiles: tuple[str, ...]) -> 
     assert ("dozzle" in services) == ("dozzle" in expected)
 
 
-@pytest.mark.parametrize("service", ["web-server", "pgadmin", "dozzle"])
+@pytest.mark.parametrize("service", ["animama-server", "pgadmin", "dozzle"])
 @pytest.mark.parametrize("host", [None, "", "0.0.0.0", "192.168.1.10", "::", "::1"])
 def test_every_publication_requires_literal_ipv4_loopback(service: str, host: str | None) -> None:
     document = deepcopy(_rendered_compose())
@@ -97,7 +137,7 @@ def test_every_publication_requires_literal_ipv4_loopback(service: str, host: st
         validate_local_compose_document(document)
 
 
-@pytest.mark.parametrize("service", ["web-server", "pgadmin", "dozzle"])
+@pytest.mark.parametrize("service", ["animama-server", "pgadmin", "dozzle"])
 @pytest.mark.parametrize(
     "field,value",
     [
@@ -125,7 +165,7 @@ def test_tools_cannot_escape_their_profile(service: str, profiles: object) -> No
         validate_local_compose_document(document)
 
 
-@pytest.mark.parametrize("service", ["web-server", "pgadmin", "dozzle"])
+@pytest.mark.parametrize("service", ["animama-server", "pgadmin", "dozzle"])
 @pytest.mark.parametrize("count", [0, 2])
 def test_merged_extra_or_missing_mappings_fail(service: str, count: int) -> None:
     document = deepcopy(_rendered_compose())
@@ -141,7 +181,7 @@ def test_duplicate_host_ports_fail() -> None:
         validate_local_compose_document(document)
 
 
-@pytest.mark.parametrize("service", ["postgres", "web", "animama-server", "grafana"])
+@pytest.mark.parametrize("service", ["postgres", "parakeet", "otel-collector", "grafana"])
 def test_other_infrastructure_cannot_be_published(service: str) -> None:
     document = deepcopy(_rendered_compose())
     document["services"][service]["ports"] = deepcopy(document["services"]["dozzle"]["ports"])
@@ -149,7 +189,7 @@ def test_other_infrastructure_cannot_be_published(service: str) -> None:
         validate_local_compose_document(document)
 
 
-@pytest.mark.parametrize("service", ["web-server", "pgadmin", "dozzle", "postgres"])
+@pytest.mark.parametrize("service", ["animama-server", "pgadmin", "dozzle", "postgres"])
 def test_host_networking_is_rejected(service: str) -> None:
     document = deepcopy(_rendered_compose())
     document["services"][service]["network_mode"] = "host"
@@ -164,7 +204,7 @@ def test_port_preflight_distinguishes_own_and_foreign_listeners(
 ) -> None:
     document = deepcopy(_rendered_compose(()))
     project = document["name"]
-    port = int(document["services"]["web-server"]["ports"][0]["published"])
+    port = int(document["services"]["animama-server"]["ports"][0]["published"])
     containers = [
         {
             "Project": project if owns_port else "another-stack",
@@ -201,15 +241,15 @@ def test_port_preflight_checks_free_ports_and_fails_closed_without_docker(monkey
 
 
 def _run_reset(
-    tmp_path: Path, args: list[str], variables: dict[str, str] | None = None
+    tmp_path: Path, args: list[str], variables: dict[str, str] | None = None, *, build_mode: str | None = "production"
 ) -> tuple[subprocess.CompletedProcess[str], list[dict], Path]:
-    """Run real reset/preflight/token code against stubbed Compose, never Docker or repository data."""
+    """Run real reset/preflight against stubbed Compose, never Docker or repository data."""
 
     workspace = tmp_path / "animama"
     scripts = workspace / "scripts"
     scripts.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(REPO_ROOT / "reset.sh", workspace / "reset.sh")
-    for name in ("local-gateway-token.sh", "validate_local_compose.py"):
+    for name in ("validate_local_compose.py",):
         shutil.copyfile(REPO_ROOT / "scripts" / name, scripts / name)
     commands = tmp_path / "commands.jsonl"
     commands.write_text("")
@@ -222,12 +262,13 @@ args = sys.argv[1:]
 with open(os.environ["ANIMAMA_TEST_COMMANDS"], "a") as output:
     output.write(json.dumps({
         "args": args, "profiles": os.environ.get("COMPOSE_PROFILES", ""),
-        "build_mode": os.environ.get("ANIMAMA_WEB_BUILD_MODE")
+        "build_mode": os.environ.get("ANIMAMA_WEB_BUILD_MODE"), "compose_file": os.environ.get("COMPOSE_FILE")
     }) + "\n")
 if "config" in args and os.environ.get("ANIMAMA_TEST_CONFIG_FAIL"):
     sys.exit(9)
 if "--environment" in args:
     print("COMPOSE_PROFILES=" + os.environ.get("ANIMAMA_TEST_DOTENV_PROFILES", ""))
+    print("ANIMAMA_WEB_BUILD_MODE=" + os.environ.get("ANIMAMA_TEST_DOTENV_BUILD_MODE", "development"))
     sys.exit(0)
 project = args[args.index("-p") + 1] if "-p" in args else "animama"
 all_profiles = "--profile" in args and args[args.index("--profile") + 1] == "*"
@@ -236,14 +277,20 @@ port = os.environ.get("WEB_SERVER_PORT", "3000")
 origin = os.environ.get("ANIMAMA_PUBLIC_ORIGIN", "http://localhost:" + port)
 def mapping(target, published):
     return [{"host_ip": "127.0.0.1", "target": target, "published": published, "protocol": "tcp"}]
+development = os.environ.get("ANIMAMA_WEB_BUILD_MODE", "development") == "development"
 services = {
-    "web-server": {"ports": mapping(3000, port), "environment": {
-        "ANIMAMA_PUBLIC_ORIGIN": origin, "ANIMAMA_PRIVATE_API_ORIGIN": "http://animama-server:8000",
-        "ANIMAMA_PRIVATE_VITE_ORIGIN": "http://web:5173"
-    }},
-    "web": {"environment": {"VITE_WEB_BASE_URL": origin, "VITE_FRONTEND_SERVER_BASE_URL": origin}},
-    "postgres": {}, "animama-server": {}
+    "animama-server": {"environment": {
+        "ANIMAMA_PUBLIC_ORIGIN": origin, "ANIMAMA_WEB_ROOT": "" if development else "/opt/animama/web"
+    }}, "postgres": {}
 }
+if development:
+    services["web"] = {"ports": mapping(5173, port), "environment": {
+        "ANIMAMA_PUBLIC_ORIGIN": origin, "VITE_WEB_BASE_URL": origin, "VITE_FRONTEND_SERVER_BASE_URL": origin,
+        "ANIMAMA_API_PROXY_TARGET": "http://animama-server:8000", "ANIMAMA_WEB_BUILD_MODE": "development"
+    }}
+    services["web-deps-init"] = {}
+else:
+    services["animama-server"]["ports"] = mapping(8000, port)
 if all_profiles or "dev-tools" in selected:
     for name, target, variable, default in [
         ("pgadmin", 80, "PGADMIN_PORT", "5050"), ("dozzle", 8080, "DOZZLE_PORT", "9999")
@@ -270,8 +317,9 @@ elif "ps" in args:
     environment.update(
         PATH=f"{tmp_path}{os.pathsep}{environment['PATH']}",
         ANIMAMA_TEST_COMMANDS=str(commands),
-        ANIMAMA_WEB_BUILD_MODE="production",
     )
+    if build_mode is not None:
+        environment["ANIMAMA_WEB_BUILD_MODE"] = build_mode
     environment.update(variables or {})
     result = subprocess.run(["bash", "reset.sh", *args], cwd=workspace, env=environment, capture_output=True, text=True)
     return result, [json.loads(line) for line in commands.read_text().splitlines()], workspace
@@ -285,6 +333,9 @@ def test_reset_enable_restart_disable_preserves_data_and_preflights_first(tmp_pa
     env_file = workspace / ".animama-stack.env"
     assert "export PGADMIN_PORT=5050" in env_file.read_text()
     token = workspace / "data/internal/gateway/token"
+    assert not token.exists()
+    token.parent.mkdir(parents=True)
+    token.write_bytes(b"retired-token-must-not-rotate")
     original_token = token.read_bytes()
     marker = workspace / "data/keep.txt"
     marker.write_text("owned data")
@@ -302,6 +353,42 @@ def test_reset_enable_restart_disable_preserves_data_and_preflights_first(tmp_pa
         assert ("PGADMIN_PORT" in env_file.read_text()) == enabled
         assert ("DOZZLE_URL" in env_file.read_text()) == enabled
         assert ("http://localhost:9999" in result.stdout) == enabled
+
+
+@pytest.mark.parametrize("document_type", ["text/html", "application/json"])
+def test_built_readiness_requests_html_navigation_and_checks_document_type(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, document_type: str
+) -> None:
+    result, commands, _ = _run_reset(tmp_path, [])
+    assert result.returncode == 0, result.stderr
+    probe = next(command["args"] for command in commands if "exec" in command["args"] and "-c" in command["args"])
+    code = probe[probe.index("-c") + 1]
+    monkeypatch.setenv("ANIMAMA_PUBLIC_ORIGIN", "http://localhost:8400")
+    observed = []
+
+    def urlopen(request, *, timeout):
+        # The actual production responder requires a navigation Accept header;
+        # an API-shaped 200 must not make the document readiness check pass.
+        expected_type = "application/json" if request.full_url.endswith("/health") else "text/html"
+        assert request.get_header("Host") == "localhost:8400"
+        assert request.get_header("Accept") == expected_type
+        assert timeout == 2
+        observed.append(request.full_url)
+        response = MagicMock()
+        response.status = 200
+        response.headers.get_content_type.return_value = (
+            "application/json" if request.full_url.endswith("/health") else document_type
+        )
+        response.__enter__.return_value = response
+        return response
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    if document_type == "text/html":
+        exec(code, {})
+    else:
+        with pytest.raises(SystemExit):
+            exec(code, {})
+    assert observed == ["http://127.0.0.1:8000/health", "http://127.0.0.1:8000/"]
 
 
 @pytest.mark.parametrize("base", [8200, 8300])
@@ -337,6 +424,28 @@ def test_reset_preserves_dotenv_profiles_and_custom_ports(tmp_path: Path) -> Non
     assert all(command["profiles"] == "dev-tools,obs" for command in commands if "--environment" not in command["args"])
 
 
+@pytest.mark.parametrize("mode", ["development", "production"])
+def test_reset_selects_and_persists_the_exact_graph_from_dotenv(tmp_path: Path, mode: str) -> None:
+    result, commands, workspace = _run_reset(tmp_path, [], {"ANIMAMA_TEST_DOTENV_BUILD_MODE": mode}, build_mode=None)
+    assert result.returncode == 0, result.stderr
+    expected = str(workspace / "docker-compose.yml")
+    if mode == "development":
+        expected += ":" + str(workspace / "docker-compose.development.yml")
+    assert all(command["compose_file"] == expected for command in commands if "--environment" not in command["args"])
+    generated = (workspace / ".animama-stack.env").read_text()
+    assert f"export ANIMAMA_WEB_BUILD_MODE={mode}" in generated
+    assert f"export COMPOSE_FILE={expected}" in generated
+    assert "INTERNAL_TOKEN" not in generated
+    assert not (workspace / "data/internal/gateway/token").exists()
+
+
+def test_invalid_build_mode_fails_before_any_stack_change(tmp_path: Path) -> None:
+    result, commands, workspace = _run_reset(tmp_path, [], build_mode="invalid")
+    assert result.returncode == 2
+    assert not any(set(command["args"]) & {"up", "down", "run", "exec"} for command in commands)
+    assert not (workspace / ".animama-stack.env").exists()
+
+
 @pytest.mark.parametrize(
     "variables,args",
     [
@@ -356,44 +465,24 @@ def test_reset_invalid_configuration_never_stops_stack(
     assert not (workspace / "data").exists()
 
 
-def test_gateway_and_fastapi_share_only_the_private_token_file() -> None:
-    services = _compose()["services"]
-    gateway = services["web-server"]
-    backend = services["animama-server"]
-
-    gateway_mounts = gateway.get("volumes") or []
-    assert any(
-        isinstance(mount, dict)
-        and mount.get("source") == "${ANIMAMA_INTERNAL_TOKEN_HOST_PATH:-./data/internal/gateway/token}"
-        and mount.get("target") == "/run/animama/gateway-token"
-        and mount.get("read_only") is True
-        for mount in gateway_mounts
-    )
-    assert "ANIMAMA_INTERNAL_TOKEN_FILE" in _environment_names(gateway)
-    assert "ANIMAMA_INTERNAL_TOKEN_FILE" in _environment_names(backend)
-
-    obsolete = {
-        "ANIMAMA_DEPLOYMENT_TRUST_MODE",
-        "ANIMAMA_INFRASTRUCTURE_BIND_HOST",
-        "ANIMAMA_JWKS_URL",
-        "ANIMAMA_PUBLISHED_BIND_HOST",
-        "BETTER_AUTH_SECRET",
-        "BETTER_AUTH_URL",
-        "SEED_TOKEN",
-        "SERVICE_API_KEY",
-    }
-    assert not (_environment_names(gateway) & obsolete)
-    assert not (_environment_names(backend) & obsolete)
+def test_retired_gateway_credentials_and_services_are_absent_from_both_graphs() -> None:
+    for development in (False, True):
+        document = _rendered_compose(development=development)
+        assert "web-server" not in document["services"]
+        for service in document["services"].values():
+            assert not any(
+                "INTERNAL_TOKEN" in name or "PRIVATE_VITE_ORIGIN" in name for name in _environment_names(service)
+            )
+            assert "gateway-token" not in json.dumps(service.get("volumes", []))
 
 
-def test_reset_writes_only_the_public_origin_not_the_gateway_secret() -> None:
+def test_reset_persists_the_selected_graph_without_gateway_credentials() -> None:
     reset_script = (REPO_ROOT / "reset.sh").read_text(encoding="utf-8")
-
     assert "write_env_var ANIMAMA_PUBLIC_ORIGIN" in reset_script
-    assert "write_env_var ANIMAMA_INTERNAL_TOKEN_HOST_PATH" in reset_script
-    assert "write_env_var ANIMAMA_INTERNAL_TOKEN\n" not in reset_script
-    assert "seed-codex-browser-user" not in reset_script
-    assert "--skip-codex-user" not in reset_script
+    assert "write_env_var COMPOSE_FILE" in reset_script
+    assert "write_env_var ANIMAMA_WEB_BUILD_MODE" in reset_script
+    assert "INTERNAL_TOKEN" not in reset_script
+    assert "local-gateway-token" not in reset_script
     assert "validate_local_compose.py" in reset_script
 
 
@@ -432,36 +521,18 @@ def _run_web_launcher(
     return result, commands.read_text().splitlines() if commands.exists() else []
 
 
-@pytest.mark.parametrize("mode", [None, "development", "production"])
-def test_web_launcher_selects_the_build_and_private_server(tmp_path: Path, mode: str | None) -> None:
+@pytest.mark.parametrize("mode", [None, "development"])
+def test_web_launcher_runs_only_the_development_server(tmp_path: Path, mode: str | None) -> None:
     result, commands = _run_web_launcher(tmp_path, mode=mode)
-
     assert result.returncode == 0, result.stderr
-    expected_mode = mode or "development"
-    prefix = f"{expected_mode}|{expected_mode}|--filter animama-web "
-    if mode == "production":
-        assert commands == [
-            prefix + "build",
-            prefix + "exec vite preview --host 0.0.0.0 --port 5173 --strictPort",
-        ]
-    else:
-        assert commands == [prefix + "dev --host 0.0.0.0 --port 5173 --strictPort"]
-        # The workspace dev command must prepare the shared package artifacts
-        # and route tree before opening Vite's private listener.
-        scripts = json.loads((REPO_ROOT / "src/frontend/web/package.json").read_text())["scripts"]
-        assert scripts["dev"].startswith("pnpm --dir .. packages:build && pnpm routes:generate && vite")
+    assert commands == ["development|development|--filter animama-web dev --host 0.0.0.0 --port 5173 --strictPort"]
+    scripts = json.loads((REPO_ROOT / "src/frontend/web/package.json").read_text())["scripts"]
+    assert scripts["dev"].startswith("pnpm --dir .. packages:build && pnpm routes:generate && vite")
 
 
-def test_web_launcher_does_not_serve_stale_output_after_build_failure(tmp_path: Path) -> None:
-    result, commands = _run_web_launcher(tmp_path, mode="production", fail_build=True)
-
-    assert result.returncode == 9
-    assert commands == ["production|production|--filter animama-web build"]
-
-
-def test_web_launcher_rejects_invalid_build_modes(tmp_path: Path) -> None:
-    result, commands = _run_web_launcher(tmp_path, mode="invalid")
-
+@pytest.mark.parametrize("mode", ["production", "invalid"])
+def test_web_launcher_never_serves_a_production_preview_or_invalid_mode(tmp_path: Path, mode: str) -> None:
+    result, commands = _run_web_launcher(tmp_path, mode=mode)
     assert result.returncode == 2
-    assert "must be development or production" in result.stderr
+    assert "requires ANIMAMA_WEB_BUILD_MODE=development" in result.stderr
     assert commands == []

@@ -1,202 +1,131 @@
-# Local Hono Gateway
+# Local HTTP boundary
 
-`src/frontend/server` is the trusted Node/Hono boundary for the self-contained
-desktop and self-hosted local composition. Local Better Auth, signup, sessions,
-passwords, JWT/JWKS, API-key administration, and auth-triggered onboarding were
-removed in accountless Phase 1. Phase 2 makes Hono the only browser-facing
-application origin, and Phase 3 makes the React composition credential-free.
+FastAPI serves the built React application, APIs and permitted bytes from one
+application origin. There is no frontend Node server in a desktop or built
+self-host installation. Electron still uses Node for its main process.
 
-## Current Local Boundary
+Compose development publishes Vite with hot reload. Its closed proxy forwards
+application API, health, telemetry and log-WebSocket traffic to private FastAPI
+without changing Host, Origin or Fetch Metadata into trusted identity. Vite
+serves development assets and HMR; FastAPI authorizes application requests.
 
-At readiness, `createFrontendApp` (also exported as
-`createAccountlessGatewayApp`) loads two server-side values once:
+## Composition and ports
 
-- the migration-generated installation principal through an injected
-  `InstallationPrincipalProvider`;
-- a 32-byte internal token through an injected value or a mode-0600 file.
+- Packaged desktop: Electron supervises PostgreSQL, FastAPI and enabled workers.
+  FastAPI owns the saved loopback port and serves the audited React build.
+- Built self-host: `docker-compose.yml` bakes React into the application image;
+  FastAPI alone publishes `127.0.0.1:${WEB_SERVER_PORT:-3000}`.
+- Development: `docker-compose.development.yml` removes FastAPI's host mapping
+  and publishes Vite at that same application port.
+- External-stack Electron development opens `ANIMAMA_DESKTOP_WEB_URL`.
 
-The Docker composition reads the principal from PostgreSQL after migrations and
-mounts the same private token file into Hono and FastAPI. Neither value comes
-from the renderer. The principal is a non-secret ownership identifier; the
-token never enters HTML, JavaScript, responses, URLs, telemetry, or logs.
+`reset.sh` selects the graph using `ANIMAMA_WEB_BUILD_MODE=development` (default)
+or `production`. This is a build/serving selection. Source the generated
+`.animama-stack.env` before follow-up Compose commands; it records `COMPOSE_FILE`,
+project identity, ports and isolated storage. PostgreSQL and workers stay private.
+Optional `dev-tools` publishes only loopback pgAdmin and Dozzle separately.
 
-Hono serves or proxies:
+## Request policy and ownership
 
-- `GET /health`, a bounded gateway-health response;
-- `/v1` HTTP, uploads, SSE, ranges, and protected bytes to private FastAPI;
-- the one known FastAPI WebSocket at `/v1/logs`;
-- Vite traffic and HMR upgrades in development, or built SPA files with
-  navigation-only fallback;
-- `POST /api/telemetry/:signal` through the bounded telemetry proxy.
+The local ASGI boundary checks exact configured Host and Origin, Fetch Metadata,
+and `X-Animama-CSRF: 1` for application mutations. The only product WebSocket is
+`/v1/logs`; it requires the configured Origin. The boundary writes successful
+admission into server-owned request state. The installation principal resolver
+uses that state only after completed bootstrap. Client headers cannot choose
+an owner, and no gateway assertion token remains.
 
-In Compose development, private Vite admits the exact service hostname `web`
-used by Hono. This preserves Vite's host protection while allowing the one
-trusted internal proxy path; it is not a public-host wildcard.
+Supervised desktop also requires the launch capability cookie on product
+requests. Private desktop operations require a separate control credential;
+a renderer cookie does not authorize controls. Self-host composition does not
+mount desktop controls. HTTP `/docs`, `/redoc` and `/openapi.json` remain disabled;
+`pnpm openapi-ts` uses the deterministic offline exporter.
 
-The local composition has no deployment-mode switch. `src/index.ts` is the
-supported native entrypoint and rejects a non-loopback
-`ANIMAMA_LOCAL_BIND_HOST`. `src/compose-index.ts` has a hard-coded bridge-network
-listener; rendered Compose validation proves that its sole host mapping is
-`127.0.0.1:<gateway-port>`. Only the separate, opt-in `dev-tools` profile may
-publish pgAdmin and Dozzle on literal loopback; other services stay private.
+Request bodies have a 128 MiB transport ceiling, including streamed requests
+without Content-Length, before multipart parsing. Route/package limits may be
+stricter. Partial multipart files are closed on limit/disconnect. SSE remains
+incremental and WebSocket disconnects clean up their handlers. An ordinary HTTP
+client disconnect does not cancel a durable mutation already owned by FastAPI.
+The native, Compose and frozen launchers use the reviewed H11 protocol with a
+15-second header deadline, five-second keepalive and 15-second shutdown grace.
 
-FastAPI `/health`, `/docs`, `/redoc`, `/openapi.json`, identity-provider routes,
-and private `/_desktop` controls are not exposed through the gateway.
+React uses `window.location.origin` for the generated client and protected byte
+loaders. Its fetch interceptor adds only the mutation CSRF marker. It has no
+local session, bearer store, owner header or separate API origin.
 
-## Request Policy
+## Static and model delivery
 
-Before application traffic is forwarded, Hono checks the exact configured Host
-and Origin, Fetch Metadata, and a CSRF marker on state-changing `/v1` methods.
-WebSocket upgrades require the exact Origin. It copies only allowlisted headers,
-drops browser Authorization and client-supplied internal identity headers, then
-sets `X-Animama-Principal-Id` and `X-Animama-Internal-Token` from cached trusted
-state. Upstream failures and policy rejections return bounded errors without
-private values or upstream addresses.
+The local asset adapter serves only explicit build/model roots, checking
+containment, regular files and file identity through opened descriptors. Only
+navigation requests may fall back to the SPA. Missing API, script, model or
+private-file routes never return HTML. Hidden build inventories are not public.
 
-Embedded desktop additionally requires its renderer capability on every
-request, including gateway health and bootstrap. Originless mutations are
-rejected; originless safe requests require `none` or `same-origin` Fetch
-Metadata. Request bodies are streamed with a 128 MiB default ceiling, and
-client aborts cancel upstream HTTP/SSE. WebSocket close/drain tears down both
-peers. The base Docker health probe remains available for internal orchestration.
+Vite emits `.vite/manifest.json`. Only successful inventory-listed fingerprinted
+JS/CSS gets one-year immutable caching. HTML uses a content hash and revalidates;
+unlisted mutable resources do not gain immutable caching by resembling a hash.
+Missing or malformed inventories degrade safely. MIME types, HEAD and conditional
+responses are preserved. Registered content retains its existing authorization,
+integrity and range handling.
 
-The local React entrypoint installs one fetch interceptor that adds only
-`X-Animama-CSRF: 1` to same-origin, state-changing `/v1` requests. It has no
-session, bearer-token store, identity header, or direct FastAPI origin. Private
-byte loaders use the same Hono origin and preserve their Range and integrity
-checks.
+The optional Parakeet mount accepts the exact active version and validated file
+inventory. The fixed `/onnx/models/parakeet-tdt-0.6b-v2/` route serves only those
+regular files, including single byte ranges and If-Range. Exact `?v=<version>`
+requests may be immutable; stale versions and undeclared files return 404.
+Static application assets retain full-response behavior for Range requests.
 
-## Production Asset And Manifest Delivery
+Runtime manifests retain scoped gzip, representation ETags and fresh lease
+issuance on each authorized read. The development proxy preserves encoded bytes;
+there is no second production proxy. See [Local content runtime](local-content-runtime.md).
 
-`gateway/app-asset-cache.ts` is the shared server-only policy. Vite's trusted
-`.vite/manifest.json` enumerates build-emitted fingerprinted JS/CSS; looking
-like a hashed filename is not sufficient. Packaged `gateway/static-spa.ts`
-reads that inventory from its staged SPA root. Compose keeps `web/dist` in the
-private Vite service, whose `app-asset-cache` preview plugin reads its own build
-inventory and applies the same policy before Hono forwards the response.
-Neither the inventory nor an additional public Vite origin is exposed.
+## Readiness, recovery and desktop controls
 
-Successful GET/HEAD and conditional 304 responses for those files use
-`public, max-age=31536000, immutable`. HTML, maps, mutable configuration and
-unlisted files revalidate. Errors/redirects are never immutable; missing chunks
-return a non-cacheable 404 without a SPA fallback, including encoded attempts
-to reach the inventory. Static serving preserves MIME types and body-free
-HEAD/304. Fingerprinted code uses weak file validators and Last-Modified;
-HTML uses a content hash because desktop staging normalizes timestamps across
-builds. Unversioned static resources keep an always-current 200 response rather
-than trusting normalized timestamps. Vite preview retains its own conditional
-handling. If-None-Match takes precedence over timestamp checks.
-Missing or malformed build inventories degrade safely to revalidation.
-Hono's origin/capability checks run before every delivered response. A new
-coherent build replaces HTML and fingerprints; keep its inventory with it.
+FastAPI prepares the installation at startup. React reads `/v1/runtime-context`
+and requests bootstrap only for `repair_required`. Concurrent reads/repair share
+one in-flight operation; Retry reads current state. A ready context supplies the
+non-secret owner through `RuntimeOwnerContext`. First-run setup, saved chats,
+Local content and the last visited Anima remain installation-owned.
 
-FastAPI compresses only successful runtime-manifest JSON, negotiating gzip or
-identity. Hono forwards the encoded stream and its Content-Encoding, Vary,
-Content-Length and representation ETag without decoding or recompressing it.
-Fresh authorization and lease issuance still run for every manifest GET;
-matching a content revision does not permit 304 reuse of an old lease. Private
-file bytes, range streams, uploads, SSE and WebSockets are unchanged. See
-[Local content runtime](local-content-runtime.md).
+Electron verifies private readiness against its exact spawned process/start
+token, build identity, local HTTP schema and installation principal before
+installing a host-only HttpOnly SameSite=Strict capability cookie or navigating
+any product window. An occupied saved port opens independent recovery rather
+than silently changing the origin. The persisted `{version: 1, gatewayPort}`
+representation remains compatible; the field now identifies FastAPI's app port.
 
-## Runtime Readiness
+For restart and pack transitions Electron retains a validated application route,
+destroys product windows and their workers, and shows its independent recovery
+window. Token-authenticated `POST /_desktop/runtime:quiesce` closes new product
+admission and waits up to 15 seconds for active work. It is idempotent and leaves
+controls available. `runtime_busy` prevents the transition; failed transitions
+restart the prior configuration. Resuming admission requires a backend restart.
+The runtime manifest is `animama-desktop-runtime/2` with
+`local_http_schema_version: 1`; this changes packaged resources, not user data.
 
-FastAPI prepares the installation at process startup. `LocalRuntimeProvider`
-first reads `GET /v1/runtime-context`; a ready response mounts the app without
-repeating the content scan or default creation. Only `repair_required` triggers
-`POST /v1/runtime/bootstrap:ensure`, whose context response is used directly.
-Concurrent initialization shares one in-flight operation, including development
-Strict Mode's repeated effect setup. Completed and rejected operations are not
-cached, so Retry reads current backend state and can repair again when needed.
-Network or authorization failures do not trigger repair mutations.
+## Telemetry and remote access
 
-The provider exposes the non-secret principal to
-local composition through `useLocalPrincipalId()` and to shared code only as a
-cache and draft partition through `RuntimeOwnerContext`; it never receives
-either gateway credential. A fresh installation requires a private display name
-in setup. A completed installation opens the last visited owned Anima's chat,
-falling back to the first owned Anima (Annie for fresh installs). Runtime failure
-presents a bounded Retry surface rather than an account or sign-in flow.
+The bounded `/api/telemetry/{signal}` forwarder accepts only configured OTLP
+destinations. It limits request/response bytes and receive/upstream time and
+never forwards credentials. Desktop disables forwarding with 204. Browser metric
+calls do not imply an enabled exporter; startup currently registers none.
 
-## Electron Capability
+Remote self-hosting requires an operator-owned TLS and authentication boundary
+in front of the loopback application. Configure its exact public origin. Every
+admitted request remains the same installation owner; forwarded identity headers
+do not create Animama accounts. Hosted identity is a separate, deferred service.
+Discover and local-hosted account connection are discontinued.
 
-The gateway accepts an optional renderer-capability policy. Electron creates a
-fresh 32-byte value on every launch and installs it as a host-only, HttpOnly,
-SameSite=Strict cookie in Animama's dedicated persistent partition before the
-first window loads. Docker/browser self-host mode leaves this extra check
-disabled. The embedded desktop gateway receives the matching value in memory
-through this existing option.
+## Implementation and validation
 
-`createFrontendGateway` binds one stable loopback listener in bootstrap mode,
-then promotes it using the already verified principal, internal token, static
-SPA root, and private FastAPI origin. Promotion never replaces the listener.
-Draining stops new product requests, bounds in-flight streams, and closes
-upgraded sockets before provider restarts or shutdown. While restarting, normal
-SPA document navigation (including the current deep chat route) receives the
-bootstrap page; it reloads on readiness without losing its route. Bootstrap and
-static delivery share the navigation classifier, so API, model, and private-byte
-paths are never disguised as HTML. Browser authority checks still run first.
-Disabled desktop
-telemetry returns 204; no remote collector is configured by the supervisor.
+Backend composition lives in `src/backend/animama/server/local_http.py` and
+`src/backend/animama/local/http/`. Vite proxy configuration lives in
+`src/frontend/web/vite.config.ts`; Electron supervision lives under
+`src/frontend/desktop/src/main-process/runtime/`.
 
-When an approved Parakeet pack is active, the ready configuration also supplies
-its verified file inventory and root to `src/gateway/model-pack.ts`. The fixed
-`/onnx/models/parakeet-tdt-0.6b-v2/` route passes the same browser/capability
-checks, serves only inventoried regular files, and supports bounded byte ranges
-and ETags. Only exact `?v=<asset version>` requests receive immutable caching;
-stale versions and undeclared files return 404. No arbitrary filesystem mount or
-separate media origin is exposed. Pack transitions drain this listener before
-replacing its ready configuration.
-
-## Hosted Identity Boundary
-
-Better Auth may return only in a separately composed Animama Cloud service. Its
-hosted user ID, migrations, profiles, cookies, and environment variables do not
-enter this local Hono package. Connecting a hosted account for Discover cannot
-replace the local installation principal.
-
-## Remote Self-Host Boundary
-
-Animama does not provide local multi-account or network authentication. A
-remotely reachable operator must keep Hono and every private service on the
-container network and place an authenticated TLS reverse proxy, VPN, or tunnel
-in front of loopback Hono. The gateway still validates its exact configured
-public Host and Origin, but it cannot assess the outer identity policy. Every
-request admitted by that operator boundary acts as the same installation owner;
-external identity headers are stripped rather than mapped into Animama.
-
-The local gateway factory, installation-principal provider, runtime-context
-routes, renderer-capability policy, migrations, and environment contract are
-local-only composition code. Shared React features receive only a neutral
-runtime owner ID. A hosted BFF must supply its own session resolver and app
-factory instead of selecting different trust behavior through an environment
-flag in this package.
-
-## Source Map And Validation
-
-- `src/app.ts`: local gateway composition and route order.
-- `src/local-config.ts`: Docker/self-host environment composition.
-- `src/security/`: token, browser-request, and renderer-capability policy.
-- `src/gateway/`: HTTP, WebSocket, header, and built-SPA transport adapters.
-- `src/gateway/lifecycle.ts`: embedded bootstrap/promotion/drain/close lifecycle.
-- `src/gateway/model-pack.ts`: verified optional model delivery.
-- `src/local-principal/`: injected and PostgreSQL principal providers.
-- `src/telemetry.ts`: bounded OTLP proxy.
-- `src/index.ts` and `src/local-bind.ts`: loopback-only native entrypoint.
-- `src/compose-index.ts`: fixed private Compose listener.
-- `src/start-local-gateway.ts`: shared listener/upgrade wiring after the bind
-  has been selected by one of those entrypoints.
-- `../web/src/main.local.tsx`: explicit local React composition root.
-- `../web/src/app/local-runtime/`: installation readiness and first-run state.
-- `../web/src/app/runtime/`: neutral owner-provider interface for shared UI.
-
-Run:
+From the repository root, run focused boundary and app-composition tests:
 
 ```bash
-cd src/frontend
-pnpm server:check
-pnpm server:test
-pnpm server:smoke:accountless -- --origin "$ANIMAMA_PUBLIC_ORIGIN"
+uv run pytest -q tests/test_local_http_*.py tests/test_local_app_composition.py
 ```
 
-The smoke command accepts only the public origin and never reads or prints the
-internal token or principal.
+Also run frontend checks, web and desktop tests, both Compose configuration
+checks and the supported browser/native journeys in the scoped guides. Transport
+unit evidence does not replace first-run, upgrade or recovery acceptance.

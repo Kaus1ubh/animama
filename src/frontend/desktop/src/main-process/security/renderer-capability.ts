@@ -13,10 +13,10 @@ export function createRendererCapability(): string {
 /** Install the host-only HttpOnly cookie before any renderer navigation. */
 export async function installRendererCapability(
   targetSession: Session,
-  gatewayOrigin: string,
+  applicationOrigin: string,
   capability: string,
 ): Promise<void> {
-  const origin = new URL(gatewayOrigin);
+  const origin = new URL(applicationOrigin);
   await targetSession.cookies.set({
     url: `${origin.origin}/`,
     name: RENDERER_CAPABILITY_COOKIE,
@@ -26,4 +26,15 @@ export async function installRendererCapability(
     sameSite: "strict",
     path: "/",
   });
+}
+
+/** Revoke only this launch's transient cookie, leaving owner data and the partition intact. */
+export async function removeRendererCapability(
+  targetSession: Session,
+  applicationOrigin: string,
+): Promise<void> {
+  await targetSession.cookies.remove(
+    `${new URL(applicationOrigin).origin}/`,
+    RENDERER_CAPABILITY_COOKIE,
+  );
 }

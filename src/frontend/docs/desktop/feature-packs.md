@@ -36,8 +36,9 @@ pack** means there is no approved input for this app version; changing an accoun
 or pasting a download URL will not fix it. Never use a development size estimate
 as the size of a released download.
 
-Save unfinished edits and finish active work first. Activation/removal briefly
-reloads the main app and closes companion windows while services switch packs.
+Save unfinished edits and finish active work first. Activation/removal closes
+the product windows while services switch packs, then reopens the main app at
+its previous route. Independent recovery remains available throughout.
 Your database, owner and saved local origin are preserved. The app verifies
 size, hashes and every extracted file before activating anything. Document
 workers also require the pinned publisher signature on every launch.
@@ -66,7 +67,7 @@ files and retry Remove.
 
 ## Offline use and app upgrades
 
-Installed Parakeet models are delivered through the private local gateway and
+Installed Parakeet models are delivered through the installation-owned FastAPI listener and
 can work offline. Document-worker models/tokenizers are packaged rather than
 downloaded on demand. Processing stages that use a configured remote provider
 still need that provider. Remote chat/voice services need their own connectivity.

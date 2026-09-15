@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import pytest
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers.anima_loadouts import router
+from tests.local_http_client import local_client
 from tests.typed_loadout_support import (
     add_typed_item,
     catalog_source,
@@ -40,7 +40,7 @@ async def test_typed_gesture_plan_commit_and_loadout_http_contract(async_session
 
     app.dependency_overrides[get_current_principal] = user
     app.dependency_overrides[get_async_session] = session
-    client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    client = local_client(app)
     intent = {
         "operation": "add",
         "source": catalog_source(gesture),
@@ -73,9 +73,7 @@ async def test_typed_gesture_plan_commit_and_loadout_http_contract(async_session
 
         loadout = await client.get(f"/v1/animas/{fixture.anima_id}/loadout")
         custom = [row for row in loadout.json()["gestures"] if row["origin"] == "custom"]
-        assert [(row["name"], row["semantic_key"]) for row in custom] == [
-            ("API Wave", "api-wave")
-        ]
+        assert [(row["name"], row["semantic_key"]) for row in custom] == [("API Wave", "api-wave")]
     finally:
         await client.aclose()
         await cleanup_loadout_fixture(async_session, fixture)

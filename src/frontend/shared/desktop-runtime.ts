@@ -17,7 +17,7 @@ export type CredentialStatus = {
 export type RuntimeStage =
   | "validating"
   | "vault"
-  | "gateway"
+  | "application"
   | "database"
   | "migrations"
   | "backend";

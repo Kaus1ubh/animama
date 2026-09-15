@@ -8,15 +8,13 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=local-stack-state-common.sh
 source "${script_dir}/local-stack-state-common.sh"
-# shellcheck source=local-gateway-token.sh
-source "${script_dir}/local-gateway-token.sh"
 
 usage() {
   cat <<'EOF'
 Usage: ./scripts/restore-local.sh BACKUP.tar.gz --confirm [--name NAME] [--stack-env-file PATH] [--rollback-dir DIR]
 
 Restores PostgreSQL, content/local, and private data into one stopped/quiesced
-stack, rotates the replaceable gateway token, runs migrations, and performs an
+stack, runs migrations, and performs an
 authoritative content rescan. The current state is retained in a timestamped
 rollback bundle before replacement.
 EOF
@@ -153,11 +151,6 @@ find "$ANIMAMA_STATE_DATA_ROOT" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
 tar -xzf "${payload}/content-local.tar.gz" -C "$ANIMAMA_STATE_LOCAL_ROOT"
 tar -xzf "${payload}/data.tar.gz" -C "$ANIMAMA_STATE_DATA_ROOT"
 
-# The token authenticates Hono to FastAPI but does not own data. Backups omit
-# it deliberately, so every restore creates a new token while both consumers
-# remain stopped.
-animama_gateway_token_rotate "${ANIMAMA_STATE_DATA_ROOT}/internal/gateway/token"
-
 animama_state_compose exec -T postgres sh -c \
   'pg_restore --clean --if-exists --exit-on-error --no-owner --no-privileges -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
   < "${payload}/postgres.dump"
@@ -172,4 +165,3 @@ resumed=true
 printf 'Restore complete for stack %s.\n' "$ANIMAMA_STATE_PROJECT"
 printf 'Pre-restore rollback retained at: %s\n' "$rollback_dir"
 printf 'Environment secrets and Included content must match this application installation.\n'
-printf 'The internal gateway credential was rotated without changing local ownership.\n'

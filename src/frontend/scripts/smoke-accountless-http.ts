@@ -3,9 +3,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 function parseOrigin(args: string[]): URL {
   const normalizedArgs = args[0] === "--" ? args.slice(1) : args;
   if (normalizedArgs.length !== 2 || normalizedArgs[0] !== "--origin") {
-    throw new Error(
-      "usage: smoke-accountless-gateway --origin <http(s) origin>",
-    );
+    throw new Error("usage: smoke-accountless-http --origin <http(s) origin>");
   }
   const origin = new URL(normalizedArgs[1]!);
   if (
@@ -54,11 +52,8 @@ async function main(): Promise<void> {
     "health",
   );
   const healthBody = (await health.json()) as Record<string, unknown>;
-  if (
-    healthBody.ok !== true ||
-    healthBody.service !== "animama-local-gateway"
-  ) {
-    throw new Error("health response was not the bounded gateway contract");
+  if (healthBody.status !== "ok") {
+    throw new Error("health response was not the bounded local HTTP contract");
   }
 
   const context = await checkedFetch(
@@ -88,7 +83,7 @@ async function main(): Promise<void> {
       },
     },
     200,
-    "spoof stripping",
+    "spoofed authority ignored",
   );
   await spoofed.body?.cancel();
 
@@ -119,11 +114,11 @@ async function main(): Promise<void> {
   );
   await bootstrap.body?.cancel();
 
-  console.log("gateway smoke: OK");
+  console.log("local HTTP smoke: OK");
 }
 
 void main().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : "unknown failure";
-  console.error(`gateway smoke: FAILED (${message})`);
+  console.error(`local HTTP smoke: FAILED (${message})`);
   process.exitCode = 1;
 });

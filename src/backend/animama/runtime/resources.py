@@ -47,7 +47,7 @@ def alembic_config():  # noqa: ANN201
 
 
 def audit_resources() -> dict[str, Any]:
-    """Validate resource structure without a database, gateway, or provider key."""
+    """Validate resource structure without a database, HTTP listener, or provider key."""
 
     from alembic.script import ScriptDirectory
     from animama.app.services.starter_loadout_policy import starter_loadout_policy
@@ -83,6 +83,7 @@ def audit_resources() -> dict[str, Any]:
         raise ValueError("Frozen FastAPI application is missing its chat route")
     return {
         "schema": "animama-resource-audit/1",
+        "local_http_schema_version": 1,
         "frozen": bool(getattr(sys, "frozen", False)),
         "alembic_head": head,
         "migration_count": len(revisions),

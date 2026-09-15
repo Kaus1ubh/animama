@@ -24,7 +24,7 @@ import {
 } from "./common.mjs";
 
 /** Conservative dependency closure; optional modules absent on this target are recorded. */
-function javascriptLicenses() {
+export function javascriptLicenses(workspaceRoot = frontendRoot) {
   const records = new Map();
   const absentOptional = new Set();
   const visit = (folder) => {
@@ -86,8 +86,7 @@ function javascriptLicenses() {
       visit(dependency);
     }
   };
-  for (const name of ["desktop", "server", "web"])
-    visit(path.join(frontendRoot, name));
+  for (const name of ["desktop", "web"]) visit(path.join(workspaceRoot, name));
   return {
     records: [...records.values()].sort((a, b) => a.id.localeCompare(b.id)),
     absentOptional: [...absentOptional].sort(),

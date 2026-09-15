@@ -2,7 +2,7 @@
 
 Phase 1 provides build and audit tools; Phase 2 wires their output into
 Electron's embedded service supervisor. Packaged builds no longer fall back to
-an external web URL. `desktop:dev` still uses the local Hono stack unless the
+an external web URL. `desktop:dev` still uses the local application stack unless the
 explicit development runtime-root override is set. See [Overview](overview.md)
 for lifecycle, credentials, and recovery.
 
@@ -36,17 +36,21 @@ the Phase 5 gate. No command treats a shell-only package as a release.
 After a successful stage and audit, `pnpm desktop:mac` copies the runtime into
 `Animama.app/Contents/Resources/runtime`, outside ASAR. Its prebuild gate requires
 the exact audited manifest/build ID and current main/preload closure, with no
-stage-failure marker. Restage and reaudit after backend, gateway, preload, or
+stage-failure marker. Restage and reaudit after backend, supervisor, preload, or
 web or migration changes. The consolidated frozen schema head is
 `baseline_20260908`; an earlier component proof is not a substitute for a fresh
 complete runtime stage. Old profiles and backups stamped with removed revisions
 require their matching old app/checkout or an explicitly disposable fresh profile.
 The stage probe uses disposable data; it does not reset an existing installation.
+New artifacts use `animama-desktop-runtime/2` and `local_http_schema_version: 1`.
+Stage and audit require the frozen backend to advertise the same local HTTP
+schema. The JS audit rejects bundled Hono or retired frontend-server source.
+Saved port/vault formats and the accountless database schema remain unchanged.
 The development packager disables ad-hoc signing as well as certificate signing,
 and rechecks every copied runtime file after electron-builder finishes. See
 [Platform builds](platforms.md) for the unsigned output and report. Production
 signing uses its separate nested-sign, inventory, and outer-seal sequence.
-The static gateway must serve ONNX `.mjs` modules as JavaScript with `nosniff`;
+The FastAPI static responder must serve ONNX `.mjs` modules as JavaScript with `nosniff`;
 having the file in the inventory is insufficient if Chromium rejects its MIME
 type. Provider marks use local initials rather than fetching logos from a CDN.
 
@@ -69,7 +73,7 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    `pnpm web:build` still writes the compatibility copies.
    This is a production build: application debug imports stay excluded even
    with `VITE_ENABLE_DEBUG_PANEL=true`. Retain `.vite/manifest.json` alongside
-   the coherent SPA output; packaged Hono uses it to identify fingerprinted
+   the coherent SPA output; packaged FastAPI uses it to identify fingerprinted
    JS/CSS eligible for immutable caching and does not serve the inventory.
    HTML validators hash the actual contents, so normalized file dates and an
    unchanged HTML length cannot keep a previous build's script fingerprints.
@@ -151,7 +155,7 @@ files are not approval, and a changed Parakeet input returns to review-required.
 
 Browser production-preview checks and an `embedded-desktop` Vite build prove
 web policy only. They do not replace a fresh stage/audit, renderer capability
-tests, or signed/native acceptance. Restage the entire matching web/gateway
+tests, or signed/native acceptance. Restage the entire matching web/backend
 output after a cache-policy or frontend change; do not copy individual chunks
 into a previously audited runtime.
 
@@ -232,10 +236,14 @@ sockets are disabled so a long application-data path does not exceed macOS's
 socket-path limit. Database files, ownership checks, and SCRAM authentication
 remain unchanged.
 
-During a pack transition, the stable gateway serves the startup document for
-the current SPA route as well as `/`. It receives readiness through the existing
-preload bridge and reloads that same route when services return. API/model/content
-requests remain unavailable while draining; they are not replaced by HTML.
+During a pack transition, Electron remembers the validated main-app route,
+destroys every product window to dispose browser workers, and shows its
+independent recovery page. The session blocks product requests while unavailable,
+revokes the transient renderer cookie and closes remaining connections. Private
+quiescence precedes pointer changes; a busy result restarts the unchanged prior
+configuration. After exact owned readiness, Electron installs the capability
+and recreates the main app at its remembered route. API/model/content failures
+remain bounded errors.
 
 On 2026-09-02 a disposable native profile passed actual Parakeet archive
 installation, speech recognition, offline restart, removal, and reinstallation.

@@ -4,6 +4,7 @@ from dataclasses import replace
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import delete
 
 from animama.adapters.repositories.sqlalchemy.anima_presentation_repo import (
     SQLAlchemyAnimaPresentationRepository,
@@ -30,76 +31,86 @@ async def test_builtin_avatar_presentation_resolves_on_the_clean_typed_schema(
     avatar_id = f"avatar-{suffix}"
     anima_id = f"anima-{suffix}"
     portrait_item_id = f"portrait-{suffix}"
-    async_session.add(
-        ORMAvatar(
-            id=avatar_id,
-            name=f"Avatar {suffix}",
-            file_path="/shared/avatars/AvatarSample_R1.vrm",
-            identity="A typed-schema test Avatar.",
-            private=False,
+    try:
+        async_session.add(
+            ORMAvatar(
+                id=avatar_id,
+                name=f"Avatar {suffix}",
+                file_path="/shared/avatars/AvatarSample_R1.vrm",
+                identity="A typed-schema test Avatar.",
+                private=False,
+            )
         )
-    )
-    await async_session.flush()
-    async_session.add(
-        ORMAnima(
-            id=anima_id,
-            display_name=f"Live {suffix}",
-            user_id=user_id,
-            avatar_id=avatar_id,
+        await async_session.flush()
+        async_session.add(
+            ORMAnima(
+                id=anima_id,
+                display_name=f"Live {suffix}",
+                user_id=user_id,
+                avatar_id=avatar_id,
+            )
         )
-    )
-    await async_session.flush()
-    async_session.add(
-        ORMAnimaLoadout(
-            anima_id=anima_id,
-            owner_user_id=user_id,
-            revision=1,
-            starter_catalog_version=1,
-            starter_exclusions=[],
+        await async_session.flush()
+        async_session.add(
+            ORMAnimaLoadout(
+                anima_id=anima_id,
+                owner_user_id=user_id,
+                revision=1,
+                starter_catalog_version=1,
+                starter_exclusions=[],
+            )
         )
-    )
-    async_session.add(
-        ORMContentCatalogItem(
-            id=portrait_item_id,
-            source="included",
-            scope="included",
-            kind="appearance",
-            relative_locator=f"appearances/avatar-portraits/{suffix}.webp",
-            logical_key="builtin:avatar-portrait:AvatarSample_R1",
-            display_name="Avatar Sample R1 Portrait",
-            status="valid",
-            revision_sha256="a" * 64,
-            content_metadata={"avatar_model": "AvatarSample_R1", "width": 256, "height": 256},
+        async_session.add(
+            ORMContentCatalogItem(
+                id=portrait_item_id,
+                source="included",
+                scope="included",
+                kind="appearance",
+                relative_locator=f"appearances/avatar-portraits/{suffix}.webp",
+                logical_key="builtin:avatar-portrait:AvatarSample_R1",
+                display_name="Avatar Sample R1 Portrait",
+                status="valid",
+                revision_sha256="a" * 64,
+                content_metadata={"avatar_model": "AvatarSample_R1", "width": 256, "height": 256},
+            )
         )
-    )
-    # The file model intentionally has no ORM relationship; make the catalog
-    # parent durable in this flush before inserting its foreign-key member.
-    await async_session.flush()
-    async_session.add(
-        ORMContentCatalogFile(
-            file_ref=f"portrait-file-{suffix}",
-            item_id=portrait_item_id,
-            relative_path=f"appearances/avatar-portraits/{suffix}.webp",
-            role="image",
-            media_type="image/webp",
-            size_bytes=8192,
-            sha256="b" * 64,
-            ordinal=1,
+        # The file model intentionally has no ORM relationship; make the catalog
+        # parent durable in this flush before inserting its foreign-key member.
+        await async_session.flush()
+        async_session.add(
+            ORMContentCatalogFile(
+                file_ref=f"portrait-file-{suffix}",
+                item_id=portrait_item_id,
+                relative_path=f"appearances/avatar-portraits/{suffix}.webp",
+                role="image",
+                media_type="image/webp",
+                size_bytes=8192,
+                sha256="b" * 64,
+                ordinal=1,
+            )
         )
-    )
-    await async_session.commit()
+        await async_session.commit()
 
-    records = await SQLAlchemyAnimaPresentationRepository(async_session).list_owned_presentation_records(
-        user_id=user_id, anima_ids=(anima_id,)
-    )
+        records = await SQLAlchemyAnimaPresentationRepository(async_session).list_owned_presentation_records(
+            user_id=user_id, anima_ids=(anima_id,)
+        )
 
-    assert records[anima_id].display_name == f"Live {suffix}"
-    assert records[anima_id].profile_image is None
-    assert records[anima_id].primary_model is not None
-    assert records[anima_id].primary_model.source_type == "builtin"
-    assert records[anima_id].primary_model.builtin_id == "app:avatar_model:AvatarSample_R1"
-    assert records[anima_id].avatar_portrait is not None
-    assert records[anima_id].avatar_portrait.catalog_item_id == portrait_item_id
+        assert records[anima_id].display_name == f"Live {suffix}"
+        assert records[anima_id].profile_image is None
+        assert records[anima_id].primary_model is not None
+        assert records[anima_id].primary_model.source_type == "builtin"
+        assert records[anima_id].primary_model.builtin_id == "app:avatar_model:AvatarSample_R1"
+        assert records[anima_id].avatar_portrait is not None
+        assert records[anima_id].avatar_portrait.catalog_item_id == portrait_item_id
+    finally:
+        # Included content is visible across this session-scoped test database.
+        # A later real scan preserves logical identity, so this synthetic global
+        # portrait must not survive the test that owns it, even on assertion failure.
+        await async_session.rollback()
+        await async_session.execute(delete(ORMAnima).where(ORMAnima.id == anima_id))
+        await async_session.execute(delete(ORMAvatar).where(ORMAvatar.id == avatar_id))
+        await async_session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.id == portrait_item_id))
+        await async_session.commit()
 
 
 @pytest.mark.asyncio

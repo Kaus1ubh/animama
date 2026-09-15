@@ -6,7 +6,6 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
-from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 from sqlalchemy import func, select, update
 
@@ -31,6 +30,7 @@ from animama.orm import (
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.server.deps import get_current_principal
 from tests.anima_creation_service_support import anima_creation_fixture, vrm
+from tests.local_http_client import local_client
 
 
 async def test_direct_creation_is_exact_atomic_and_has_no_runtime_or_provider(async_session, tmp_path, monkeypatch):
@@ -279,7 +279,7 @@ async def test_concurrent_same_key_creates_exactly_once(async_session, async_ses
 async def test_http_schema_ownership_options_preview_and_replay(async_session, tmp_path, monkeypatch):
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             options = await client.get("/v1/animas/creation-options")
             assert options.status_code == 200, options.text
             assert options.json()["limits"]["display_name_max_characters"] == 40
@@ -313,9 +313,10 @@ async def test_http_schema_ownership_options_preview_and_replay(async_session, t
             assert original.status_code == 201, original.text
             assert replay.status_code == 200 and replay.json()["anima_id"] == original.json()["anima_id"]
             assert (await client.post("/v1/animas", json={"anima": {"avatar_id": "old"}})).status_code == 422
-            assert app.openapi()["components"]["schemas"]["CreateAnimaRequest"]["properties"]["display_name"][
-                "maxLength"
-            ] == 40
+            assert (
+                app.openapi()["components"]["schemas"]["CreateAnimaRequest"]["properties"]["display_name"]["maxLength"]
+                == 40
+            )
 
             async def unauthorized():
                 raise HTTPException(401, "not logged in")
@@ -376,7 +377,7 @@ async def test_idempotency_and_hidden_sources_are_owner_scoped(async_session, tm
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         app = fixture.app(async_session, monkeypatch)
         other = await fixture.add_owner(async_session)
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             spec = fixture.request(avatar="included-avatar").model_dump()
             first = await client.post("/v1/animas", json=spec)
             assert first.status_code == 201, first.text
@@ -429,7 +430,7 @@ async def test_exact_dependency_closure_and_action_attribution(async_session, tm
         elif change == "bytes":
             (fixture.paths.local_root / "sfx/chime.wav").write_bytes(b"changed on host")
         app = fixture.app(async_session, monkeypatch)
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             if change is None:
                 preview = await client.post(f"/v1/gestures/{fixture.items['gesture'].id}:preview")
                 assert preview.status_code == 200, preview.text

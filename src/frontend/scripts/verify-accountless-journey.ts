@@ -206,13 +206,12 @@ async function runJourney(options: JourneyOptions): Promise<void> {
     "/health",
     {},
     [200],
-    "Gateway health",
+    "Local HTTP health",
   );
-  if (
-    health.body.ok !== true ||
-    health.body.service !== "animama-local-gateway"
-  ) {
-    throw new Error("Gateway health did not return the bounded local contract");
+  if (health.body.status !== "ok") {
+    throw new Error(
+      "Local HTTP health did not return the bounded local contract",
+    );
   }
 
   const initial = await jsonRequest(

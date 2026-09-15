@@ -1,9 +1,9 @@
 # Self-Hosted Content Storage And Trust
 
-> **Accountless local contract (2026-09-01):** the migration-generated
-> installation principal owns local data, all browser traffic passes through
-> loopback Hono, and React starts without credentials. Coordinated backups
-> preserve that principal while excluding the replaceable gateway token.
+> **Accountless local contract (2026-09-14):** the migration-generated
+> installation principal owns local data. FastAPI admits browser traffic at
+> the configured application origin; desktop adds a per-launch capability.
+> React starts without user credentials. Coordinated backups preserve the principal.
 
 This is the architecture contract for Animama's readable Included/Local
 library, private data, neutral Content Catalog, previews, packages, and mounted
@@ -11,12 +11,13 @@ runtime delivery.
 
 ## Deployment boundary
 
-The Docker local shape is PostgreSQL, private FastAPI, optional workers, private
-Vite, and one loopback-published Hono gateway. Unpackaged Electron may open that
-gateway. The embedded macOS runtime instead supervises its own PostgreSQL,
-FastAPI, cleanup worker, and stable Hono listener, serving packaged web files.
-Complete packaged acceptance is still gated on starter inputs. Browser and
-Electron renderers receive no arbitrary host filesystem access.
+The built Docker composition publishes FastAPI on loopback to serve React and
+the API. Development publishes Vite, which proxies a closed application route
+set to private FastAPI; PostgreSQL and optional workers stay private. Unpackaged
+Electron may open that application origin. The embedded macOS runtime supervises
+its own PostgreSQL, FastAPI and cleanup worker, with FastAPI serving packaged
+web files on the saved origin. Signed release acceptance remains separate.
+Browser and Electron renderers receive no arbitrary host filesystem access.
 
 FastAPI is the shared local application core. It scans and validates readable
 content, persists logical identity and access scope, performs safe writes,
@@ -26,12 +27,13 @@ object store.
 
 ## Trust boundary
 
-The local composition is single-owner and loopback-only. Hono validates browser
-metadata and authenticates to FastAPI with a private token plus the installation
-principal. There is no built-in network or multi-account mode. A future remote
-self-host must put TLS and authentication in an operator-owned VPN, tunnel, or
-reverse proxy before Hono; every admitted request still acts as the one
-installation owner.
+The local composition is single-owner and loopback-only. FastAPI validates
+Host, Origin, browser metadata and mutation CSRF markers. Desktop additionally
+requires its renderer capability; private controls use a distinct token. The
+principal comes from completed bootstrap, never an identity header. There is
+no built-in network or multi-account mode. Remote self-hosting requires TLS and
+authentication in an operator-owned VPN, tunnel or reverse proxy before the
+application; every admitted request still acts as the one installation owner.
 
 ## Readable filesystem contract
 
@@ -253,7 +255,7 @@ Typed families are `gestures`, `reactions`, `pose-clips`,
 `voice-content`. `/v1/content` is deliberately infrastructure-only; it no
 longer accepts a generic semantic Save or Preview contract.
 
-Registered-byte routes resolve the Hono-authenticated principal first, verify visibility/membership,
+Registered-byte routes resolve the admitted installation principal first, verify visibility/membership,
 resolve the safe relative locator inside its configured root, reject links and
 non-regular files, and recheck exact size and SHA-256 before streaming. They
 accept no path. Digest ETags are evaluated after authorization and integrity
@@ -369,8 +371,8 @@ Normal `reset.sh` preserves PostgreSQL, `content/local`, and `data`; `--purge`
 is explicit and stack-scoped. `scripts/backup-local.sh` quiesces application
 writes and backs up those three authorities as one unit.
 `scripts/restore-local.sh ... --confirm` retains a pre-restore rollback bundle,
-restores the three authorities, runs Alembic, rotates the gateway token while
-application services are stopped, requires the existing principal, and performs
+restores the three authorities, runs Alembic while application services are
+stopped, requires the existing principal, and performs
 an authoritative content rescan. Included is restored from the matching
 application version. Browser memory, HTTP caches, model caches, environment
-secrets, and the gateway token are not part of the backup.
+secrets are not part of the backup.

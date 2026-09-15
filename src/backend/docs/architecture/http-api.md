@@ -2,10 +2,11 @@
 
 Most backend routes are mounted under `/v1`. Product routes resolve a minimal
 `RequestPrincipal` through the application factory's injected resolver. Local
-FastAPI is private: Hono removes browser-provided identity and Authorization
-headers, then supplies the cached installation principal and private gateway
-token. FastAPI validates both before returning a principal. Tests use FastAPI
-dependency overrides instead of test authentication headers.
+FastAPI validates the installation's configured Host/Origin, browser metadata
+and mutation marker; desktop requests also require a renderer capability cookie.
+The local composition resolves the bootstrap-owned principal from server-owned
+admission state. Browser identity and Authorization headers select no owner.
+Tests use explicit fixture bootstrap and dependency overrides.
 
 ## Router Map
 
@@ -15,7 +16,7 @@ dependency overrides instead of test authentication headers.
 - `server/routers/runtime_capabilities.py`: owner-protected optional feature
   availability and document-worker liveness.
 - `server/routers/desktop_control.py`: private pack-removal preflight, never
-  included in public OpenAPI or forwarded by Hono.
+  included in public OpenAPI or mounted in self-host composition.
 - `server/routers/anima.py`: anima CRUD, chat-profile updates, direct chat
   SSE, and voice catalog uploads.
 - `server/routers/model_provider.py`: active provider/model catalog for
@@ -45,19 +46,26 @@ dependency overrides instead of test authentication headers.
 
 ## Health
 
-- `GET /health`: basic service health from `server/app.py`.
+- `GET /health`: basic service health after local bootstrap and HTTP admission.
 - `GET /_desktop/health`: private supervisor readiness, excluded from OpenAPI
-  and never forwarded by Hono. A constant-time match against the per-launch
+  and mounted only in desktop composition. A constant-time match against the per-launch
   `X-Animama-Desktop-Control` token is required; absent/invalid credentials
   return 404 and incomplete startup or failed Included reconciliation returns 503. The bounded result contains
-  schema version, runtime version, build ID, Alembic head, and principal ID,
-  never the control or gateway token. It is not a browser health endpoint.
+  schema version, runtime version, build ID, Alembic head, principal ID,
+  `local_http_schema_version: 1`, `process_id` and `process_start_token`.
+  The latter two identify the supervisor's exact live child. The result never
+  contains the control credential or renderer capability.
+- `POST /_desktop/runtime:quiesce`: the same private control boundary closes new
+  product admission and waits up to 15 seconds for existing work. It returns
+  `200 {"schema_version":1,"state":"quiesced"}` or
+  `409 {"detail":{"code":"runtime_busy"}}`. Timeout keeps admission closed
+  without cancelling work; restart the unchanged owned backend to resume.
 
 The former `/v1/health` and `/v1/health/whoami` account surfaces are removed.
 
 ## Optional Runtime Capabilities
 
-`GET /v1/runtime-capabilities` uses the ordinary gateway-authenticated
+`GET /v1/runtime-capabilities` uses the ordinary admitted installation
 `RequestPrincipal`. It returns:
 
 ```json
@@ -268,7 +276,7 @@ issues fresh lease information: If-None-Match never skips issuance with 304,
 since `effective_revision` does not include the changing lease fields. An
 unsupported encoding falls back to identity unless identity is explicitly
 forbidden too; no acceptable representation returns the bounded 406
-`runtime_encoding_not_acceptable` error. Hono preserves this metadata and
+`runtime_encoding_not_acceptable` error. Local HTTP serving preserves this metadata and
 compressed stream without recompression. Private files retain their exact
 size/digest bytes, and SSE, WebSockets, uploads and range streams are unaffected.
 
@@ -535,7 +543,7 @@ The events router exposes:
 
 - `GET /v1/events:sse`
 
-Local clients reach the stream through the same-origin Hono gateway assertion.
+Local clients reach the stream through the same-origin local HTTP boundary.
 The stream is an installation-level notification channel reserved for future
 owner notifications. It currently emits heartbeat comments only and has no
 Redis dependency.
@@ -828,7 +836,7 @@ and backend debug search. It exposes:
 - `POST /v1/files/uploads`: validate filename, allowlisted extension, and
   declared size; create a pending `user_file` row; return a private
   API-relative PUT target.
-- `PUT /v1/files/{file_id}/content`: resolve the gateway-asserted owner, bound the streamed
+- `PUT /v1/files/{file_id}/content`: resolve the bootstrap-established owner, bound the streamed
   body, spool beneath `data/staging/uploads`, and atomically promote the exact
   bytes to `data/user-files/<user-id>/<file-id>/original`.
 - `POST /v1/files/{file_id}:finalize`: verify the current user's pending row,

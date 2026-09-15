@@ -7,7 +7,6 @@ from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI, HTTPException
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
 from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import (
@@ -25,6 +24,7 @@ from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import desktop_control, runtime_capabilities, user_files
+from tests.local_http_client import local_client
 
 
 def _app(session, tmp_path, *, enabled=False):
@@ -79,7 +79,7 @@ async def test_capabilities_separate_pack_presence_and_worker_liveness(
         )
     await async_session.commit()
     app = _app(async_session, tmp_path, enabled=enabled)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         response = await client.get("/v1/runtime-capabilities")
         assert response.status_code == 200
         body = response.json()
@@ -99,7 +99,7 @@ async def test_capabilities_separate_pack_presence_and_worker_liveness(
 
 async def test_api_guard_returns_409_before_looking_up_or_queueing_a_file(async_session, tmp_path):
     app = _app(async_session, tmp_path)
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         result = await client.post("/v1/files/does-not-matter:process", json={"force": True})
         assert result.status_code == 409
         assert result.json()["detail"]["code"] == "file_processing_unavailable"
@@ -117,7 +117,7 @@ async def test_service_guard_precedes_repository_calls():
 async def test_private_control_is_not_a_browser_api_and_contains_no_paths(async_session, tmp_path):
     app = _app(async_session, tmp_path)
     assert not any(key.startswith("/_desktop") for key in app.openapi()["paths"])
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         url = "/_desktop/feature-packs/parakeet-stt:removal-check"
         for headers in ({}, {"X-Animama-Desktop-Control": "wrong"}, {"X-Animama-Internal-Token": "c" * 64}):
             assert (await client.post(url, headers=headers)).status_code == 404
@@ -180,7 +180,7 @@ async def test_removal_control_blocks_live_jobs_and_preserves_the_queue(async_se
     await async_session.commit()
     try:
         app = _app(async_session, tmp_path, enabled=True)
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             url = "/_desktop/feature-packs/document-processing:removal-check"
             headers = {"X-Animama-Desktop-Control": "c" * 64}
             blocked = (await client.post(url, headers=headers)).json()

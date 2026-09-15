@@ -1,4 +1,4 @@
-"""Private supervisor preflights. Hono never proxies this prefix."""
+"""Private supervisor preflights mounted only by the desktop composition."""
 
 import hashlib
 import secrets

@@ -8,14 +8,12 @@
     "routes:generate": "node scripts/generate-routes.mjs",
     "dev": "pnpm --dir .. packages:build && pnpm routes:generate && vite",
     "build": "pnpm --dir .. packages:build && pnpm routes:generate && tsc -b && vite build",
-    "start": "vite preview",
     "check": "pnpm --dir .. packages:build && tsc -b",
     "lint": "eslint .",
     "test": "pnpm --dir .. packages:build && vitest run",
     "test:watch": "pnpm --dir .. packages:build && vitest",
     "prettier": "prettier --ignore-path ../.prettierignore --write '*.{js,mjs,ts,json,css,md}' 'scripts/**/*.{js,mjs,ts}' 'src/**/*.{ts,tsx,js,jsx,css,md,json}' '../prettier.config.mjs' 'public/**/*.{md,json}'",
-    "prettier:check": "prettier --ignore-path ../.prettierignore --check '*.{js,mjs,ts,json,css,md}' 'scripts/**/*.{js,mjs,ts}' 'src/**/*.{ts,tsx,js,jsx,css,md,json}' '../prettier.config.mjs' 'public/**/*.{md,json}'",
-    "preview": "vite preview"
+    "prettier:check": "prettier --ignore-path ../.prettierignore --check '*.{js,mjs,ts,json,css,md}' 'scripts/**/*.{js,mjs,ts}' 'src/**/*.{ts,tsx,js,jsx,css,md,json}' '../prettier.config.mjs' 'public/**/*.{md,json}'"
   },
   "packageManager": "pnpm@10.33.0",
   "dependencies": {

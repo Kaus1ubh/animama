@@ -11,7 +11,7 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient, Response
+from httpx import AsyncClient, Response
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +26,7 @@ from animama.server.local_runtime import LocalRuntimePaths
 from animama.server.routers import typed_content
 from tests.anima_creation_service_support import image_bytes, vrm
 from tests.content_package_helpers import package_services
+from tests.local_http_client import local_client
 
 
 @dataclass
@@ -92,7 +93,7 @@ async def portrait_workflow(async_session: AsyncSession, tmp_path: Path) -> Asyn
     app.dependency_overrides[get_current_principal] = principal
     app.dependency_overrides[get_async_session] = session
     try:
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        async with local_client(app) as client:
             yield PortraitWorkflow(owner, paths, content, saves, client, image_bytes(portrait=True, format="WEBP"))
     finally:
         await async_session.rollback()

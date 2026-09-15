@@ -11,6 +11,10 @@ import { queryKeys } from "@/query/keys";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
+import {
+  applyCredentialChange,
+  credentialFailureMessage,
+} from "./desktop-credential-state";
 
 const names: Record<CredentialProvider, string> = {
   openai: "OpenAI",
@@ -19,6 +23,22 @@ const names: Record<CredentialProvider, string> = {
   gemini: "Gemini",
   elevenlabs: "ElevenLabs",
 };
+
+/** Main retains failures across window recreation, including for an unselected provider. */
+export function DesktopCredentialFailures({
+  statuses,
+}: {
+  statuses: CredentialStatus[];
+}) {
+  return statuses.map((status) => {
+    const message = credentialFailureMessage(status);
+    return message ? (
+      <p className="text-sm" role="status" key={status.provider}>
+        {names[status.provider]}: {message}
+      </p>
+    ) : null;
+  });
+}
 
 /** Optional desktop settings use status-only IPC, never the database or browser storage. */
 export function DesktopCredentialsPanel({
@@ -74,13 +94,22 @@ export function DesktopCredentialsPanel({
     setBusy(true);
     onBusyChange?.(true);
     setMessage(null);
+    setStatuses((entries) =>
+      entries.map((entry) => {
+        if (entry.provider !== provider) return entry;
+        const status = { ...entry, restartRequired: false };
+        delete status.error;
+        return status;
+      }),
+    );
     try {
-      if (remove) await bridge.delete(provider);
-      else {
-        const status = await bridge.set(provider, submitted);
-        if (status.restartRequired) throw new Error("restart_required");
-      }
-      setStatuses(await bridge.list());
+      setStatuses(
+        await applyCredentialChange(
+          bridge,
+          provider,
+          remove ? undefined : submitted,
+        ),
+      );
       await queryClient.invalidateQueries({
         queryKey: queryKeys.modelProviders.all(ownerId ?? "__anon__"),
       });
@@ -90,13 +119,16 @@ export function DesktopCredentialsPanel({
           : "Key saved. Local services are ready.",
       );
     } catch {
-      setMessage(
-        "The change could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
-      );
-      void bridge
-        .list()
-        .then(setStatuses)
-        .catch(() => undefined);
+      const failureMessage =
+        "The change could not finish. Check runtime recovery, then retry. Saved keys are never shown here.";
+      try {
+        const entries = await bridge.list();
+        setStatuses(entries);
+        if (!entries.find((entry) => entry.provider === provider)?.error)
+          setMessage(failureMessage);
+      } catch {
+        setMessage(failureMessage);
+      }
     } finally {
       setBusy(false);
       onBusyChange?.(false);
@@ -195,6 +227,7 @@ export function DesktopCredentialsPanel({
         Saving or removing a key restarts local services. Finish your current
         chat response first.
       </p>
+      <DesktopCredentialFailures statuses={statuses} />
       {message ? (
         <p className="text-sm" role="status">
           {message}

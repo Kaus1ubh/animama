@@ -5,7 +5,6 @@ from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
@@ -15,6 +14,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.local.installation_model import ORMInstallationSettings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import user_profiles
+from tests.local_http_client import local_client
 
 
 def _app(session, owner_id: str) -> FastAPI:
@@ -54,7 +54,7 @@ async def test_profile_can_start_unnamed_but_updates_require_a_private_name(asyn
     owner_id = await _seed_owner(async_session)
     app = _app(async_session, owner_id)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         response = await client.get("/v1/users/me/profile")
         assert response.status_code == 200
         assert response.json() == {"display_name": None}
@@ -71,7 +71,7 @@ async def test_profile_patch_cannot_clear_the_required_name(async_session, paylo
     owner_id = await _seed_owner(async_session)
     app = _app(async_session, owner_id)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         assert (await client.patch("/v1/users/me/profile", json={"display_name": "Ada"})).status_code == 200
         rejected = await client.patch("/v1/users/me/profile", json=payload)
         assert rejected.status_code == 422
@@ -82,7 +82,7 @@ async def test_profile_patch_requires_completed_first_run(async_session) -> None
     owner_id = await _seed_owner(async_session, first_run_complete=False)
     app = _app(async_session, owner_id)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         response = await client.patch("/v1/users/me/profile", json={"display_name": "Ada"})
     assert response.status_code == 409
     assert response.json()["detail"]["code"] == "first_run_incomplete"
@@ -92,7 +92,7 @@ async def test_local_profile_has_no_account_or_public_creator_fields(async_sessi
     owner_id = await _seed_owner(async_session)
     app = _app(async_session, owner_id)
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         rejected = await client.patch(
             "/v1/users/me/profile",
             json={"display_name": "Ada", "username": "ada", "bio": "public"},

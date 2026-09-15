@@ -60,7 +60,7 @@ def parser() -> argparse.ArgumentParser:
     command = argparse.ArgumentParser(prog="animama-runtime", description=__doc__)
     command.add_argument("--version", action="version", version="animama-runtime 0.1.0")
     commands = command.add_subparsers(dest="command", required=True)
-    serve = commands.add_parser("serve", help="Serve the private loopback FastAPI application")
+    serve = commands.add_parser("serve", help="Serve the installation's loopback application")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, required=True)
     database = commands.add_parser("database").add_subparsers(dest="operation", required=True)
@@ -109,20 +109,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         if not is_loopback_host(args.host) or not 1 <= args.port <= 65535:
             parser().error("serve requires a loopback host and a port from 1 to 65535")
         os.environ["ANIMAMA_LOCAL_BIND_HOST"] = args.host
-        import uvicorn
+        from urllib.parse import urlsplit
 
+        from animama.local.http.server import serve
         from animama.server.app import create_local_app
+        from animama.server.config import Settings
+        from animama.server.local_http import local_http_config
 
-        # The supervisor rotates this credential per launch. Reuse the local
-        # composition's strict token loader without writing it to disk or argv.
-        uvicorn.run(
-            create_local_app(internal_gateway_token=os.environ.get("ANIMAMA_INTERNAL_GATEWAY_TOKEN")),
+        runtime_settings = Settings()
+        http = local_http_config(runtime_settings)
+        origin = urlsplit(http.public_origin)
+        if (
+            http.desktop is None
+            or runtime_settings.animama_web_root is None
+            or origin.scheme != "http"
+            or origin.hostname != args.host
+            or (origin.port or 80) != args.port
+            or not os.environ.get("ANIMAMA_PROCESS_START_TOKEN")
+        ):
+            parser().error("serve requires the owned desktop origin, built assets and paired launch credentials")
+        serve(
+            create_local_app(runtime_settings=runtime_settings),
             host=args.host,
             port=args.port,
             reload=False,
-            log_level="info",
-            access_log=False,
-            timeout_graceful_shutdown=15,
         )
     elif args.command == "database":
         from animama.server.db_bootstrap import bootstrap_database, inspect_database, provision_desktop_database

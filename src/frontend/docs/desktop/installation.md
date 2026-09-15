@@ -10,11 +10,11 @@ an available public download. Developers should use [Platform builds](platforms.
 
 ## Supported target
 
-| Platform                                     | Current position                                                                                                           |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Platform                                     | Current position                                                                                                          |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | Apple silicon Mac, macOS 15 or later         | Owner-approved minimum as of September 3. Fresh build, macOS 15 testing, clean-machine and signed acceptance remain open. |
-| Windows 11 x64                               | Deferred; no supported self-contained installer yet.                                                                       |
-| Intel Mac, universal Mac, Windows ARM, Linux | No self-contained release in this plan.                                                                                    |
+| Windows 11 x64                               | Deferred; no supported self-contained installer yet.                                                                      |
+| Intel Mac, universal Mac, Windows ARM, Linux | No self-contained release in this plan.                                                                                   |
 
 The installed app contains its own local services and database. It does not
 require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
@@ -54,6 +54,12 @@ Keys are encrypted using macOS secure storage and are never read back into the
 browser. Saving or removing a key briefly restarts its local service consumers;
 the database, saved origin and installation owner stay unchanged. Finish active
 work before changing credentials. Never put a key in a URL or send it to support.
+
+If local work prevents a change, the previous key stays unchanged. Reopen
+Settings after recovery to see the provider's failure and retry the change.
+The Settings dialog may close while services restart. If the key was saved but
+services could not restart, runtime Retry uses that saved value; do not remove
+the vault or re-enter the key merely to repair the restart.
 
 PocketTTS and microphone permission do not require Parakeet. Offline dictation
 and Voice Mode require the **Offline speech recognition** pack. Open the app

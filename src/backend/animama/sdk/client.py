@@ -6,7 +6,7 @@ import httpx
 
 
 class AnimaClient:
-    """Minimal async HTTP client for calls admitted by a local gateway."""
+    """Minimal async HTTP client for calls admitted by the local HTTP boundary."""
 
     def __init__(
         self,

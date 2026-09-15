@@ -23,6 +23,7 @@ os.environ.setdefault("OPENAI_API_KEY", "test-key")
 os.environ.setdefault("ANIMAMA_LOG_TO_FILE", "0")
 # Disable console logging during tests to keep CLI output clean
 os.environ.setdefault("ANIMAMA_LOG_TO_CONSOLE", "0")
+os.environ.setdefault("ANIMAMA_DISABLE_WEBUI_TELEMETRY", "1")
 # os.environ.setdefault("OPENAI_AGENTS_DISABLE_TRACING", "1")
 import sqlalchemy
 
@@ -79,17 +80,29 @@ class RequestPrincipalOverride:
 
 @pytest.fixture(autouse=True)
 def request_principal_override() -> Iterator[RequestPrincipalOverride]:
-    """Install a real FastAPI dependency override instead of an auth bypass."""
+    """Supply explicit unit-test bootstrap and the route's principal override.
+
+    Separately created factory/boundary test applications remain unready. The
+    shared route-test application admits ordinary validated browser metadata;
+    no transport credential or caller-supplied owner bypass is introduced.
+    """
 
     from animama.server.app import app
     from animama.server.deps import get_current_principal
+    from animama.server.local_installation_bootstrap import LocalBootstrapState
 
     override = RequestPrincipalOverride()
+    lifecycle = app.state.local_http_lifecycle
+    if not lifecycle.ready:
+        lifecycle.mark_ready(override.id)
+    previous_state = getattr(app.state, "local_bootstrap_state", None)
+    app.state.local_bootstrap_state = LocalBootstrapState(principal_id=override.id, failed_steps=())
     previous = app.dependency_overrides.get(get_current_principal)
     app.dependency_overrides[get_current_principal] = override.dependency
     try:
         yield override
     finally:
+        app.state.local_bootstrap_state = previous_state
         if previous is None:
             app.dependency_overrides.pop(get_current_principal, None)
         else:

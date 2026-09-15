@@ -2,9 +2,8 @@
 
 Animama Desktop is the primary local application. It opens without credentials;
 one migration-generated installation principal owns local Animas, chats,
-memories, settings, content, and files. An Animama account is a separate hosted
-identity for future Discover publishing and Animama Cloud. Connecting that
-identity never changes the local owner.
+memories, settings, content, and files. Local use has no hosted account
+connection. Hosted identity and deployment are separate future work.
 
 Use the [runtime architecture](docs/desktop/overview.md),
 [staging and audit guide](docs/desktop/runtime-staging.md), and
@@ -21,7 +20,7 @@ Use [Releases](docs/desktop/releases.md) for the detailed signing/publisher refe
 
 ## Two Development Paths
 
-Unpackaged `pnpm desktop:dev` loads the existing local Hono origin from
+Unpackaged `pnpm desktop:dev` loads the existing local application origin from
 `ANIMAMA_DESKTOP_WEB_URL`, defaulting to `http://localhost:3000`. It does not
 start services. Use the main stack when it is already available; a new Compose
 stack is not needed for every desktop check. Source a named stack's
@@ -37,38 +36,38 @@ sandbox-disable switch. See [Platform builds](docs/desktop/platforms.md).
 
 ```text
 Electron main: identity/path -> single-instance lock -> recovery page
-  -> manifest/pack verification -> encrypted vault -> stable Hono bootstrap listener
+  -> manifest/pack verification -> encrypted vault -> saved application-port preflight
   -> owned PostgreSQL -> backup/migrations/bootstrap -> optional verified worker
-  -> private FastAPI/source-reconciliation readiness
-  -> promote Hono -> install HttpOnly renderer capability -> React
+  -> FastAPI on the saved port -> private exact-child/source-reconciliation readiness
+  -> install HttpOnly renderer capability -> React
 ```
 
-Hono lives in Electron main and serves the packaged SPA, HTTP/SSE, WebSockets,
-and protected bytes at one saved loopback origin. FastAPI and PostgreSQL have
-separate private loopback ports. Readiness requires the expected build, schema,
-and installation principal; an occupied port is never sufficient evidence.
-Quitting drains requests and stops only retained child handles.
+FastAPI serves the packaged SPA, HTTP/SSE, WebSockets and protected bytes at
+one saved loopback origin. PostgreSQL has a separate private loopback port.
+Readiness verifies the exact owned process ID/start token, runtime/build, local
+HTTP schema, Alembic head and installation principal before any renderer cookie
+or navigation. Quitting quiesces requests and stops only retained child handles.
 
 The backend reuses the same accountless bootstrap and owner-scoped services as
 Compose. Electron does not invent another local identity, authenticate against
 an online service, or bundle Better Auth. React may read the non-secret
-principal for caches and drafts, never the internal gateway/control credentials.
+principal for caches and drafts, never the renderer/control credentials.
 
 ## Ownership Of Code
 
-| Area                                               | Responsibility                                                                                 |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `desktop/src/main-process/runtime/`                | Paths, manifests, vault, processes, PGDATA, migrations, readiness, recovery, guarded IPC       |
-| `desktop/src/main-process/feature-packs/`          | Catalog-bound download, strict extraction, inventory/signature verification, atomic activation |
-| `desktop/src/main-process/updates/`                | Stable public feed policy, consent, disk/pack preflight, native updater adapter                |
-| `desktop/scripts/runtime/release-macos.mjs`        | Audited candidate packaging; publication is a separate gated command                           |
-| `server/src/gateway/lifecycle.ts`                  | One bootstrap/promotable/draining Hono listener                                                |
-| `server/src/security/`                             | Shared exact Host/Origin, metadata, CSRF, renderer-capability policy                           |
-| `shared/desktop-runtime.ts`                        | Serializable API version 2 runtime and credential contracts                                    |
-| `web/src/ui/settings/DesktopCredentialsPanel.tsx`  | Optional setup/settings key entry and status, no readback                                      |
-| `web/src/ui/settings/DesktopFeaturePacksPanel.tsx` | Bounded main-window pack controls and affected-content labels                                  |
-| `src/backend/animama/runtime/`                     | Frozen CLI and packaged resources                                                              |
-| `src/backend/animama/server/local_runtime.py`      | Immutable Included source configuration and writable local roots                               |
+| Area                                                  | Responsibility                                                                                 |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `desktop/src/main-process/runtime/`                   | Paths, manifests, vault, processes, PGDATA, migrations, readiness, recovery, guarded IPC       |
+| `desktop/src/main-process/feature-packs/`             | Catalog-bound download, strict extraction, inventory/signature verification, atomic activation |
+| `desktop/src/main-process/updates/`                   | Stable public feed policy, consent, disk/pack preflight, native updater adapter                |
+| `desktop/scripts/runtime/release-macos.mjs`           | Audited candidate packaging; publication is a separate gated command                           |
+| `desktop/src/main-process/runtime/product-windows.ts` | Product-document destruction, remembered routes and request gating                             |
+| `src/backend/animama/local/http/`                     | Exact Host/Origin, metadata, CSRF, capability, static/model delivery and quiescence            |
+| `shared/desktop-runtime.ts`                           | Serializable API version 2 runtime and credential contracts                                    |
+| `web/src/ui/settings/DesktopCredentialsPanel.tsx`     | Optional setup/settings key entry and status, no readback                                      |
+| `web/src/ui/settings/DesktopFeaturePacksPanel.tsx`    | Bounded main-window pack controls and affected-content labels                                  |
+| `src/backend/animama/runtime/`                        | Frozen CLI and packaged resources                                                              |
+| `src/backend/animama/server/local_runtime.py`         | Immutable Included source configuration and writable local roots                               |
 
 Shared React features still use the neutral runtime-owner context. Electron
 imports stay out of browser modules; neither renderer IPC nor API responses
@@ -78,17 +77,24 @@ expose arbitrary filesystem paths, process commands, or stored keys.
 
 Every desktop window keeps context isolation, sandboxing, web security, and
 Node integration disabled. A host-only, HttpOnly, SameSite=Strict capability
-cookie is installed in `persist:animama` before loading React. Embedded Hono
-requires the matching capability and exact request authority, removes
-client-supplied identity headers, then injects the accountless service assertion.
-The separate private desktop readiness route is never proxied.
+cookie is installed in `persist:animama` after owned readiness and before
+loading React. FastAPI validates the matching capability and exact request
+authority, rejects client identity assertions, and resolves the installation
+owner internally. Desktop controls require their separate credential and
+remain inaccessible to ordinary renderer requests.
 
 Runtime IPC validates registered live top-level callers. Recovery has only
 status/Retry/Open Logs/Open Backups/Quit access; provider controls require the main window
 at the application origin. The vault uses Electron safeStorage after Electron readiness
-and fails closed without encryption. Saving/removing a key drains and restarts
+and fails closed without encryption. Saving/removing a key first quiesces work,
+then updates the vault and restarts
 FastAPI and the installed document worker, leaving PostgreSQL and the owner
-intact. Pack methods accept only catalog IDs. Pack changes additionally check
+intact. A busy drain preserves the prior key and retains a bounded provider
+failure through `credentials.list` when the replacement window opens Settings.
+The Settings modal itself does not survive product-window recreation. If the
+key was saved before a restart failure, Retry uses the saved value; successful
+readiness clears that restart failure. No error record contains the key or
+changes the vault format. Pack methods accept only catalog IDs. Pack changes additionally check
 references/leases, dispose renderer contexts, atomically switch versions, and
 roll back on restart failure. Update IPC accepts zero-argument status, check,
 download, and restart operations only from the main window. A downloaded update
@@ -120,7 +126,6 @@ From `src/frontend`:
 ```sh
 pnpm desktop:dev
 pnpm check
-pnpm server:test
 pnpm web:test
 pnpm desktop:test
 pnpm desktop:build

@@ -25,8 +25,9 @@ pnpm desktop:dev_inspect
 
 Without a runtime-root override, unpackaged Electron loads
 `ANIMAMA_DESKTOP_WEB_URL` or `http://localhost:3000`. The normal local stack must
-already be running. Only Hono is host-published; Vite, FastAPI, and PostgreSQL
-stay private on the Compose network.
+already be running. Development publishes Vite with a same-origin API proxy;
+built self-host publishes FastAPI with compiled React assets. PostgreSQL stays
+private on the Compose network.
 
 For an existing named worktree stack, source its environment before
 `desktop:dev`:
@@ -88,7 +89,8 @@ Do not copy private assets into a stage to bypass a missing dependency.
 The unsigned development bundle is written to
 `desktop/release/mac/Animama.app`. Its `Contents/Resources/runtime` directory
 contains the frozen backend, native PostgreSQL/pgvector, immutable core content,
-and production web files outside ASAR. Hono is bundled into Electron main.
+and production web files outside ASAR. FastAPI serves the web files; Electron
+main owns native supervision and independent recovery.
 The development packager explicitly disables both certificate and ad-hoc
 signing, then verifies the copied runtime against the audited file inventory.
 `CSC_IDENTITY_AUTO_DISCOVERY=false` alone is insufficient: electron-builder's
@@ -123,7 +125,7 @@ development-only and rejected in packaged mode.
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
 | macOS 15+, arm64                   | Unsigned core journey verified on macOS 26.6.2; user verification, minimum-OS and signed acceptance remain |
 | Windows 11, x64                    | Native packaging and recovery deferred to Phase 5 after verified macOS                                     |
-| Linux                              | External-stack development only; packaging deferred beyond the current supported release                                           |
+| Linux                              | External-stack development only; packaging deferred beyond the current supported release                   |
 | Intel/universal macOS, Windows ARM | Not supported by this plan                                                                                 |
 
 Legacy Windows/Linux builder targets and command names remain in configuration,
@@ -159,7 +161,7 @@ Verify the actual packaged app with development servers stopped:
    and launch into the last visited owned Anima.
 5. Confirm all owned children exit on Quit and no credential appears in logs or
    renderer storage.
-6. Occupy the saved gateway port and confirm recovery rather than an origin
+6. Occupy the saved application port and confirm recovery rather than an origin
    change. Test Retry after releasing the port.
 7. Confirm bad runtime files, unavailable encryption, missing vault, and an
    unsupported database major preserve data and show recovery.

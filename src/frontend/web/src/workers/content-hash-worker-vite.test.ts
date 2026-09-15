@@ -10,7 +10,9 @@ describe("Asset hashing worker dev startup", () => {
     expect(devOptimizedDependencies).toContain("@noble/hashes/sha2.js");
   });
 
-  it("admits only the private Compose hostname used by the Hono proxy", () => {
-    expect(localViteAllowedHosts).toEqual(["web"]);
+  it("keeps host protection enabled for the configured application hostname", () => {
+    const publicOrigin =
+      process.env.ANIMAMA_PUBLIC_ORIGIN ?? "http://localhost:3000";
+    expect(localViteAllowedHosts).toEqual([new URL(publicOrigin).hostname]);
   });
 });

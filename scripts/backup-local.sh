@@ -14,7 +14,7 @@ Usage: ./scripts/backup-local.sh [--name NAME] [--stack-env-file PATH] [--output
 
 Creates a quiesced Animama self-host backup containing PostgreSQL,
 content/local, and private data. Included content, browser caches, model
-caches, environment secrets, and the replaceable gateway token are excluded.
+caches, environment secrets, and legacy gateway credentials are excluded.
 EOF
 }
 
@@ -128,4 +128,4 @@ animama_state_resume_services
 resumed=true
 printf 'Backup complete: %s\n' "$archive"
 printf 'Backed up PostgreSQL, %s, and %s.\n' "$ANIMAMA_STATE_LOCAL_ROOT" "$ANIMAMA_STATE_DATA_ROOT"
-printf 'Included content, browser/model caches, and the replaceable gateway token were not backed up.\n'
+printf 'Included content, browser/model caches, and legacy gateway credentials were not backed up.\n'

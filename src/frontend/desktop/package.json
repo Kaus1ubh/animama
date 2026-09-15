@@ -40,7 +40,6 @@
   },
   "packageManager": "pnpm@10.33.0",
   "dependencies": {
-    "animama-frontend-server": "workspace:*",
     "electron-updater": "6.8.9",
     "tar-stream": "3.2.1"
   },

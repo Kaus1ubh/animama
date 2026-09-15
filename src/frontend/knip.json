@@ -101,7 +101,13 @@
       "project": ["src/**/*.ts", "tests/**/*.mjs"],
       "ignoreIssues": {
         "src/generated/**": [
-          "files", "exports", "types", "nsExports", "nsTypes", "enumMembers", "duplicates"
+          "files",
+          "exports",
+          "types",
+          "nsExports",
+          "nsTypes",
+          "enumMembers",
+          "duplicates"
         ]
       }
     },
@@ -112,15 +118,6 @@
     "packages/product-ui": {
       "entry": ["src/{index,query,chat,components,emotion,anima-profile}.ts"],
       "project": ["src/**/*.{ts,tsx}", "build-styles.mjs"]
-    },
-    "server": {
-      "entry": [
-        "src/index.ts",
-        "src/compose-index.ts",
-        "src/gateway/lifecycle.ts"
-      ],
-      "project": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"],
-      "vitest": { "entry": ["{src,tests}/**/*.{test,spec}.ts"] }
     },
     "desktop": {
       "entry": [

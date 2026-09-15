@@ -8,18 +8,14 @@ from fastapi import FastAPI, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.local.database import LocalDatabase
-from animama.local.gateway_principal import (
-    FailClosedLocalPrincipalResolver,
-    LocalGatewayPrincipalResolver,
-    load_internal_gateway_token,
-)
+from animama.local.http.composition import install_local_http
 from animama.logging_config import configure_logging
-from animama.server.config import Settings, settings
+from animama.server.config import Settings
 from animama.server.content_startup import start_content_runtime, stop_content_runtime
 from animama.server.deps import get_async_session_factory
+from animama.server.local_http import local_assets, local_http_config, local_telemetry
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.request_principal import RequestPrincipalResolver
 from animama.server.routers import router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
 from animama.server.telemetry import setup_telemetry
@@ -28,26 +24,22 @@ from animama.server.telemetry import setup_telemetry
 def create_local_app(
     *,
     runtime_settings: Settings | None = None,
-    principal_resolver: RequestPrincipalResolver | None = None,
-    internal_gateway_token: str | None = None,
     session_factory: async_sessionmaker[AsyncSession] | None = None,
 ) -> FastAPI:
     """Create only the local accountless composition.
 
-    Product traffic stays fail-closed until startup loads the migration-owned
-    principal and the Hono-to-FastAPI credential.
+    Product traffic stays fail-closed until startup completes bootstrap for the
+    migration-owned principal. Browser metadata never supplies that identity.
     """
 
-    local_settings = runtime_settings or settings
+    local_settings = runtime_settings or Settings()
+    http_config = local_http_config(local_settings)
     application = FastAPI(title="Animama Local Server", version="0.1.0")
     application.state.runtime_settings = local_settings
     database = LocalDatabase(local_settings) if session_factory is None else None
     application.state.session_factory = session_factory
     if database is not None:
         application.state.session_factory_provider = database.session_factory
-    application.state.request_principal_resolver = (
-        principal_resolver if principal_resolver is not None else FailClosedLocalPrincipalResolver()
-    )
     setup_telemetry(application, service_name="animama-server", service_version=application.version)
 
     @application.get("/health")
@@ -55,26 +47,29 @@ def create_local_app(
         return {"status": "ok"}
 
     application.include_router(router)
-    application.include_router(desktop_control_router)
+    if http_config.desktop is not None:
+        application.include_router(desktop_control_router)
 
-    @application.get("/_desktop/health", include_in_schema=False)
-    async def desktop_health(request: Request) -> dict[str, object]:
-        """Private supervisor readiness; Hono never forwards this control prefix."""
+        @application.get("/_desktop/health", include_in_schema=False)
+        async def desktop_health(request: Request) -> dict[str, object]:
+            """Identify this exact owned child without exposing browser credentials."""
+            require_desktop_control(request)
+            state = getattr(application.state, "local_bootstrap_state", None)
+            if state is None or not state.content_ready or not lifecycle.ready:
+                raise HTTPException(status_code=503, detail="runtime_starting")
+            from alembic.script import ScriptDirectory
+            from animama.runtime.resources import alembic_config
 
-        require_desktop_control(request)
-        state = getattr(application.state, "local_bootstrap_state", None)
-        if state is None or not state.content_ready:
-            raise HTTPException(status_code=503, detail="runtime_starting")
-        from alembic.script import ScriptDirectory
-        from animama.runtime.resources import alembic_config
-
-        return {
-            "schema_version": 1,
-            "runtime_version": application.version,
-            "build_id": os.getenv("ANIMAMA_DESKTOP_BUILD_ID", "development"),
-            "alembic_head": ScriptDirectory.from_config(alembic_config()).get_current_head(),
-            "installation_principal_id": state.principal_id,
-        }
+            return {
+                "schema_version": 1,
+                "runtime_version": application.version,
+                "build_id": os.getenv("ANIMAMA_DESKTOP_BUILD_ID", "development"),
+                "alembic_head": ScriptDirectory.from_config(alembic_config()).get_current_head(),
+                "installation_principal_id": state.principal_id,
+                "local_http_schema_version": 1,
+                "process_id": os.getpid(),
+                "process_start_token": os.getenv("ANIMAMA_PROCESS_START_TOKEN", ""),
+            }
 
     @application.on_event("startup")
     async def initialize_accountless_runtime() -> None:  # pragma: no cover - startup IO
@@ -90,20 +85,15 @@ def create_local_app(
         application.state.local_installation_bootstrap_service = bootstrap
         state = await bootstrap.ensure()
         application.state.local_bootstrap_state = state
-        if principal_resolver is None:
-            token = load_internal_gateway_token(
-                value=internal_gateway_token,
-                path=local_settings.animama_internal_token_file,
-            )
-            application.state.request_principal_resolver = LocalGatewayPrincipalResolver(
-                principal_id=state.principal_id,
-                internal_token=token,
-            )
         await start_content_runtime(
             application,
             owner_id=state.principal_id,
             perform_initial_scan=False,
         )
+        # A bounded repair state may still use the existing bootstrap API. The
+        # owner is established by completed service bootstrap, never that API's
+        # request body; desktop readiness separately requires content readiness.
+        lifecycle.mark_ready(state.principal_id)
 
     @application.on_event("shutdown")
     async def stop_accountless_runtime() -> None:  # pragma: no cover - startup IO
@@ -146,6 +136,12 @@ def create_local_app(
             except Exception:
                 pass
 
+    lifecycle = install_local_http(
+        application,
+        http_config,
+        assets=local_assets(local_settings),
+        telemetry=local_telemetry(http_config),
+    )
     return application
 
 

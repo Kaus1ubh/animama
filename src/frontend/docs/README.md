@@ -1,7 +1,7 @@
 # Frontend Docs
 
 These docs describe the current `src/frontend` workspace: the Vite web app in
-`web/`, the Hono local frontend server in `server/`, and the Electron
+`web/` and the Electron
 desktop runtime in `desktop/`. For desktop use, start with
 [Installation and availability](desktop/installation.md); no signed public
 release is available yet.
@@ -16,8 +16,8 @@ Start here:
 - `architecture/overview.md`: source map, route/provider flow, data flow, and
   commands.
 - `architecture/routing.md`: TanStack Router route ownership and conventions.
-- `architecture/auth-server.md`: trusted local gateway, request policy,
-  transport proxy, renderer capability, and accountless runtime-readiness seam.
+- `architecture/auth-server.md`: FastAPI local HTTP serving, request policy,
+  development proxy, renderer capability, and accountless runtime-readiness seam.
 - `architecture/data-layer.md`: generated client and TanStack Query patterns.
 - `architecture/content-and-workers.md`: runtime content, workers, and LFS notes.
 - `architecture/local-content-runtime.md`: authenticated local HTTP byte
@@ -66,7 +66,7 @@ Full execution plans and their approval history are privately retained, includin
 plans for local features. Contributors need no private planning checkout. Use
 these implementation and operational references:
 
-- [Trusted local gateway](architecture/auth-server.md) and
+- [Local HTTP boundary](architecture/auth-server.md) and
   [backend operations](../../backend/docs/operations/development.md): accountless
   startup, the installation owner, loopback access and optional local admin tools.
 - [Local content runtime](architecture/local-content-runtime.md),

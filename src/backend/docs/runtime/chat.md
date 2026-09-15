@@ -252,8 +252,9 @@ and profile defaults must name an active direct model provider.
 ## Step-By-Step Flow
 
 1. The client opens `POST /v1/animas/{anima_id}/chat:sse`.
-2. FastAPI resolves the Hono-asserted `RequestPrincipal`; direct browser calls
-   and missing or mismatched gateway assertions fail.
+2. The local HTTP boundary validates authority, browser metadata and, on
+   desktop, the renderer capability. FastAPI resolves `RequestPrincipal` from
+   server-owned admission state established by completed installation bootstrap.
 3. The route creates a short-lived setup database session through
    `get_async_session_factory(request.app)`; each app owns or injects its factory.
 4. `turn_setup.py` loads `ORMAnima` and checks ownership against the resolved

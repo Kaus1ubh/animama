@@ -174,7 +174,7 @@ export function includedContentCompatibilityPlugin({
 }: {
   includedRoot: string;
   aliases: readonly IncludedContentAlias[];
-  /** Desktop gets typed bytes through Hono/FastAPI, not duplicated web aliases. */
+  /** Desktop gets typed bytes through FastAPI, not duplicated web aliases. */
   copyBuildAliases?: boolean;
 }): Plugin {
   return {

@@ -1,3 +1,17 @@
+FROM node:22-bookworm-slim AS web-builder
+
+WORKDIR /app
+RUN corepack enable
+COPY src/frontend ./
+COPY LICENSE /LICENSE
+COPY content/included /content/included
+RUN pnpm install --frozen-lockfile --filter animama-frontend-workspace --filter animama-web... --prod=false
+ENV NODE_ENV=production \
+    VITE_APP_ENV=production \
+    VITE_DISABLE_WEBUI_TELEMETRY=true \
+    VITE_CLIENT_PARAKEET_MODEL_BASE_URL=/__client-parakeet-models
+RUN pnpm --filter animama-web build
+
 FROM python:3.12-slim AS base
 
 WORKDIR /app
@@ -26,14 +40,18 @@ COPY src/frontend/web/src/assets/effects/vfx/catalog.json \
 
 EXPOSE 8000
 
-FROM base AS animama-server
+FROM base AS animama-server-development
 
 RUN uv sync --frozen --no-dev --extra server
 
-# Container-network-only entrypoint. docker-compose.yml never publishes this
-# listener; browser traffic enters through the Hono gateway.
-CMD ["uvicorn", "animama.server.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--log-level", "info"]
-# CMD ["fastapi", "run", "src/backend/animama/server/app.py"]
+# The container composition supplies the exact browser origin. Development
+# keeps this service private; the production graph publishes only this API.
+CMD ["python", "-m", "animama.server.compose_entrypoint"]
+
+FROM animama-server-development AS animama-server
+
+COPY --from=web-builder /app/web/dist /opt/animama/web
+ENV ANIMAMA_WEB_ROOT=/opt/animama/web
 
 FROM base AS animama-file-worker
 

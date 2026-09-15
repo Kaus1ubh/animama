@@ -102,7 +102,7 @@ export function resolveRuntimeContentDeliveryReference(
   return apiBaseUrl ? resolvePrivateRuntimeContentUrl(url, apiBaseUrl) : url;
 }
 
-/** Fetch one protected byte through Hono with redirects disabled. */
+/** Fetch one protected byte through the application origin with redirects disabled. */
 export function fetchProtectedContentResponse(
   contentUrl: string,
   options: {
@@ -120,7 +120,7 @@ export function fetchProtectedContentResponse(
       ? resolvePrivateRuntimeContentUrl(contentUrl, apiBaseUrl)
       : contentUrl;
   const headers = new Headers(options.headers);
-  // Local identity is asserted by Hono; browser-provided credentials are never forwarded.
+  // Local identity is resolved by FastAPI after admission; browser-provided credentials are never forwarded.
   headers.delete("authorization");
   return fetcher(resolved, {
     cache: "no-cache",
@@ -156,7 +156,7 @@ export async function runtimeContentDownloadUrl(
   return URL.createObjectURL(await response.blob());
 }
 
-/** Fetch one private runtime file through the same-origin Hono gateway. */
+/** Fetch one private runtime file through the same-origin application boundary. */
 export async function fetchPrivateRuntimeContentResponse(
   entry: RuntimeCatalogEntry,
   logicalUrl: string,
@@ -182,7 +182,7 @@ export async function fetchPrivateRuntimeContentResponse(
   });
 }
 
-/** Fetch a private image through the same-origin Hono gateway. */
+/** Fetch a private image through the same-origin application boundary. */
 export async function fetchPrivateRuntimeContentBlob(
   entry: RuntimeCatalogEntry,
   url: string,

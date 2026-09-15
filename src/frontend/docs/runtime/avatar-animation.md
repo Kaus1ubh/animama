@@ -45,7 +45,7 @@ The avatar runtime is split into four layers:
    slot, and runtime ID form the stable canvas load key; short-lived download targets are
    never identities. `AnimaRouteProviders` freezes the first resolved response
    for the route mount, so a background refetch cannot replace a model during
-   an active chat. Included and Local model files are verified through Hono
+   an active chat. Included and Local model files are verified through the application origin
    before the loader receives prepared Blob URLs. The same frozen response
    constructs one `AnimaRuntimeCatalog`, which appends verified optional roots
    without replacing the model or catalog. Owner, route, or explicit revision

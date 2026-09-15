@@ -2,7 +2,8 @@
 
 Electron owns the embedded local runtime, native windows, encrypted provider
 settings and guarded preload bridge. Packaged macOS starts its own PostgreSQL
-and FastAPI, embeds Hono, and serves the production React build. It does not
+and FastAPI; FastAPI serves the production React build at the saved loopback
+origin. It does not
 require Docker or development servers on the user's computer.
 
 **No signed public release exists yet.** Apple enrollment is complete; signed/native
@@ -25,15 +26,15 @@ Linux packaging, Intel/universal Mac and Windows ARM are outside this plan.
 
 ## External-stack development
 
-From `src/frontend`, with the existing local Hono stack running:
+From `src/frontend`, with the existing local application stack running:
 
 ```sh
 pnpm desktop:dev
 ```
 
 Only this unpackaged path uses `ANIMAMA_DESKTOP_WEB_URL`, defaulting to
-`http://localhost:3000`. Vite, FastAPI and PostgreSQL stay private Compose
-services. For an existing named stack, source `../../.animama-stack.env` before
+`http://localhost:3000`. Development exposes Vite with a same-origin FastAPI
+proxy; built self-host exposes FastAPI. PostgreSQL stays private. For an existing named stack, source `../../.animama-stack.env` before
 launching. No new Compose stack is needed for routine desktop work.
 
 `desktop:dev_inspect` exposes the development main-process inspector on

@@ -3,7 +3,7 @@
 This is the macOS desktop composition of the same accountless backend used by
 the local Compose stack. Electron supervises private PostgreSQL 16, the frozen
 FastAPI application, upload cleanup and an optional independently frozen document
-worker. Hono runs inside Electron main and serves the production React files;
+worker. FastAPI serves the production React files on the saved loopback origin;
 there is no Vite server or external Python/Node installation in the installed app.
 Signed release acceptance remains pending. Windows native packaging is deferred.
 
@@ -20,18 +20,20 @@ Existing `user_id`/`owner_user_id` columns retain that owner value. Backend
 bootstrap idempotently ensures settings, profile and starters without overwriting
 edits or deleted starter receipts. No local password or hosted identity is involved.
 
-Hono alone accepts renderer application traffic: HTTP, SSE, WebSockets and
-private bytes. It checks the exact authority, browser metadata and per-launch
-HttpOnly renderer capability, strips client identity headers and asserts the
-installation principal to FastAPI with a private service token. FastAPI and
-PostgreSQL bind to separate loopback ports; direct browser requests are not a
-supported path. Private `/_desktop` readiness/removal routes are never proxied.
+FastAPI accepts renderer HTTP, SSE, WebSocket and registered-byte traffic. Its
+local boundary checks exact authority, browser metadata and the per-launch
+HttpOnly renderer capability. Server-owned admission state resolves the
+bootstrap-established installation owner; caller identity headers confer no
+authority. PostgreSQL remains private. `/_desktop` readiness, drain and removal
+routes require a separate control credential and reject renderer cookies alone.
 
 The supervisor compares readiness against the exact app build, Alembic head,
-principal and Included reconciliation. It retains child handles and stops only
+principal, HTTP schema, exact PID/start token and Included reconciliation. It retains child handles and stops only
 its own processes. An occupied port or PID record does not establish ownership.
 Provider changes and pack activation can restart consumers while preserving
-PostgreSQL, the owner and saved Hono origin.
+PostgreSQL, the owner and saved application origin. Restarts destroy product
+windows, show independent recovery, quiesce active work, and recreate the
+renderer only after the restarted child passes readiness.
 
 ## Roots, secrets and private bytes
 
@@ -41,7 +43,7 @@ All paths below are relative to `~/Library/Application Support/Animama`:
 | ------------------------ | ---------------------------------------------------------------------------------------------- |
 | `postgres/16/data`       | Private PostgreSQL cluster; database commands verify `SHOW data_directory`.                    |
 | `secrets/vault.bin`      | OS-encrypted database password and configured provider keys; requires matching secure storage. |
-| `runtime/state.json`     | Stable gateway port, not an authentication credential.                                         |
+| `runtime/state.json`     | Stable application port, serialized as legacy `{version:1,gatewayPort}`; no migration.          |
 | `runtime/processes.json` | Owned-process evidence, never authority to kill a discovered process.                          |
 | `runtime/logs`           | Redacted main and child diagnostics; review before sharing.                                    |
 | `content/local`          | Writable typed library.                                                                        |
@@ -56,9 +58,9 @@ must be disjoint absolute paths without symlink ancestors. Only Local is watched
 the backend never creates or write-probes an Included root. React receives
 registered byte descriptors, not arbitrary host paths or object-store URLs.
 
-The gateway/control tokens and renderer capability are generated in main memory
-for each app launch; they are not persisted in the vault or restored from a Compose
-token file. The principal persists in PostgreSQL. Loss of per-launch tokens is
+The control token and renderer capability are generated in main memory for
+each app launch; they are not persisted in the vault. The retired gateway token
+is no longer read or generated. The principal persists in PostgreSQL. Loss of per-launch credentials is
 handled by a normal relaunch; a missing/unreadable vault alongside PGDATA fails
 closed because its database password cannot be silently regenerated.
 
@@ -69,7 +71,10 @@ These are private composition inputs, not end-user configuration switches:
 | Input                                                                                                             | Contract                                                                                                 |
 | ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `ANIMAMA_DATABASE_URL`, `ANIMAMA_DESKTOP_PGDATA`                                                                  | Supervisor-owned loopback connection and expected cluster path. Never pass the password in argv or logs. |
-| `ANIMAMA_INTERNAL_GATEWAY_TOKEN`                                                                                  | In-memory Hono/FastAPI assertion secret; the installed CLI supplies it to the local app factory.         |
+| `ANIMAMA_PUBLIC_ORIGIN`, `ANIMAMA_WEB_ROOT` | Exact saved loopback origin and packaged React build root. |
+| `ANIMAMA_DESKTOP_RENDERER_CAPABILITY` | Per-launch renderer admission cookie; never a private-control credential. |
+| `ANIMAMA_PROCESS_START_TOKEN` | Fresh owned-child UUID returned with its PID in private readiness. |
+| `ANIMAMA_PARAKEET_MODEL_MOUNT_JSON` | Optional verified `{root,version,files}` inventory; bounded to 4 MiB and never browser-supplied. |
 | `ANIMAMA_DESKTOP_CONTROL_TOKEN`, `ANIMAMA_DESKTOP_BUILD_ID`                                                       | Separate private readiness credential and expected build.                                                |
 | `ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON`                                                                           | Ordered bounded `{id, version, root, pack_id}` sources, core first.                                      |
 | `ANIMAMA_LOCAL_CONTENT_ROOT`, `ANIMAMA_DATA_ROOT`                                                                 | Writable Local and private-data roots.                                                                   |
@@ -87,7 +92,7 @@ The packaged `animama-runtime` command parser is in `animama/runtime/cli.py`:
 | `database provision`                   | Create only the fixed desktop database after owned `initdb`.                                                           |
 | `database inspect`                     | Read versions, schema and principal from the verified owned cluster.                                                   |
 | `database bootstrap`                   | Hold the bootstrap lock across packaged migrations (which own extensions) and idempotent seeds.                         |
-| `serve --host 127.0.0.1 --port <port>` | Start private FastAPI under the supervisor's environment; non-loopback is rejected.                                    |
+| `serve --host 127.0.0.1 --port <port>` | Start the application at its saved origin; non-loopback or mismatched owned inputs are rejected.                        |
 | `content rescan`                       | Reconcile registered roots for the required installation owner.                                                        |
 | `content audit`                        | Resolve the actual starter closure at `ANIMAMA_DESKTOP_INCLUDED_ROOT`.                                                 |
 | `worker avatar-cleanup`                | Owned upload cleanup process.                                                                                          |
@@ -148,15 +153,15 @@ current state and use the [recovery guide](../../../frontend/docs/desktop/troubl
 Without desktop source overrides, Compose retains `ANIMAMA_CONTENT_ROOT`
 (`included`/`local`) and the separate `ANIMAMA_DATA_ROOT`; host bind mounts use
 `ANIMAMA_INCLUDED_CONTENT_HOST_PATH`, `ANIMAMA_LOCAL_CONTENT_HOST_PATH` and
-`ANIMAMA_DATA_HOST_PATH`. Its persistent mode-0600 `ANIMAMA_INTERNAL_TOKEN_FILE`
-is different from the desktop's in-memory token. The existing Compose backup,
+`ANIMAMA_DATA_HOST_PATH`. Compose does not generate or read a gateway token.
+The existing Compose backup,
 restore and reset scripts apply to their selected Compose project, not desktop
 PGDATA or the encrypted vault. See [Development](development.md#self-hosted-local-roots).
 
-Default self-host publication is loopback Hono only; other services stay private.
-Intentional remote access requires an operator-owned TLS and authentication
-boundary such as an authenticated tunnel or reverse proxy. Every admitted request
-is still the same installation owner. Do not bind the native app to the LAN,
-publish FastAPI directly, add local multi-user accounts or treat the desktop
-runtime as the future hosted Cloud composition. Operators must configure the
-gateway's trusted boundary deliberately, not bypass Host/Origin protections.
+Built self-host publishes only FastAPI on loopback; development publishes Vite
+and keeps FastAPI private. Intentional remote access requires an operator-owned
+TLS and authentication boundary such as an authenticated tunnel or reverse
+proxy. Every admitted request is still the same installation owner. Do not bind
+the native app to the LAN, expose the app directly to the Internet, add local
+multi-user accounts or treat desktop as the future hosted Cloud composition.
+Configure the exact public Host and Origin without bypassing those checks.

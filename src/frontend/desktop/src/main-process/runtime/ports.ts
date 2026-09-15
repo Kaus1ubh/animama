@@ -1,11 +1,11 @@
 import { createServer } from "node:net";
 
-/** The actual child bind is authoritative; callers retry collisions up to eight times. */
-export async function unusedLoopbackPort(): Promise<number> {
+/** Preflight never confers listener ownership; the child's bind/readiness remains authoritative. */
+async function probeLoopbackPort(port: number): Promise<number> {
   const server = createServer();
   return new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
+    server.listen(port, "127.0.0.1", () => {
       const address = server.address();
       if (!address || typeof address === "string") {
         server.close();
@@ -15,4 +15,14 @@ export async function unusedLoopbackPort(): Promise<number> {
       server.close((error) => (error ? reject(error) : resolve(address.port)));
     });
   });
+}
+
+/** First installation and private PostgreSQL may choose an unused ephemeral port. */
+export function unusedLoopbackPort(): Promise<number> {
+  return probeLoopbackPort(0);
+}
+
+/** A saved application origin must fail closed on collision, never silently move. */
+export async function assertLoopbackPortAvailable(port: number): Promise<void> {
+  await probeLoopbackPort(port);
 }

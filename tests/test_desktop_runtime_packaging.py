@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import runpy
 import tarfile
 from pathlib import Path
@@ -19,6 +20,7 @@ def test_runtime_resource_audit_has_schema_starters_and_prompt_resources() -> No
     assert evidence["gesture_count"] == 46
     assert evidence["starter_policy"] == "builtin:starter-loadout"
     assert evidence["effect_count"] > 0
+    assert evidence["local_http_schema_version"] == 1
 
 
 def test_sql_runtime_resource_contains_product_seeds_directly() -> None:
@@ -175,15 +177,17 @@ async def test_desktop_readiness_is_private_bounded_and_absent_from_openapi(
 
     token = "a" * 64
     monkeypatch.setenv("ANIMAMA_DESKTOP_BUILD_ID", "b" * 64)
+    monkeypatch.setenv("ANIMAMA_PROCESS_START_TOKEN", "11111111-1111-4111-8111-111111111111")
     app = create_local_app(
         runtime_settings=Settings(
             animama_content_root=tmp_path / "content",
             animama_data_root=tmp_path / "data",
             animama_desktop_control_token=token,
+            animama_desktop_renderer_capability="r" * 64,
         )
     )
     assert "/_desktop/health" not in app.openapi()["paths"]
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://localhost:3000") as client:
         for headers in ({}, {"X-Animama-Desktop-Control": "wrong"}, {"X-Animama-Internal-Token": token}):
             response = await client.get("/_desktop/health", headers=headers)
             assert response.status_code == 404
@@ -192,6 +196,7 @@ async def test_desktop_readiness_is_private_bounded_and_absent_from_openapi(
         app.state.local_bootstrap_state = SimpleNamespace(principal_id="desktop-owner", content_ready=False)
         assert (await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})).status_code == 503
         app.state.local_bootstrap_state.content_ready = True
+        app.state.local_http_lifecycle.mark_ready("desktop-owner")
         ready = await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})
         assert ready.status_code == 200
         assert ready.json() == {
@@ -200,6 +205,9 @@ async def test_desktop_readiness_is_private_bounded_and_absent_from_openapi(
             "build_id": "b" * 64,
             "alembic_head": ScriptDirectory.from_config(resources.alembic_config()).get_current_head(),
             "installation_principal_id": "desktop-owner",
+            "local_http_schema_version": 1,
+            "process_id": os.getpid(),
+            "process_start_token": "11111111-1111-4111-8111-111111111111",
         }
 
 

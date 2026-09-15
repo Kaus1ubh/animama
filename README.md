@@ -19,7 +19,7 @@ Start with [the agent/contributor guide](AGENTS.md), the
 required to build or maintain the local application.
 
 The portable-product CI workflow checks shared import boundaries, tooling,
-frontend/gateway/desktop regression suites, and wheel/npm consumers installed
+local HTTP/browser/desktop regression suites, and wheel/npm consumers installed
 outside the checkout. It uses no application credentials or hosted service,
 and neither signs nor publishes artifacts. PostgreSQL-backed backend acceptance,
 local setup/chat/persistence, physical audio/avatar behavior and native release

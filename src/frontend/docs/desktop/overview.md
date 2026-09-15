@@ -27,6 +27,13 @@ Phase 6 documentation can be reviewed now; component tests are not release evide
 
 The desktop package lives in `src/frontend/desktop`.
 
+New builds use `animama-desktop-runtime/2` with `local_http_schema_version: 1`.
+The reader rejects old or mixed runtime artifacts before native execution.
+The saved `{version: 1, gatewayPort}` record, vault format, database schema,
+installation owner and `persist:animama` partition are unchanged. Earlier native
+results on this page describe the prior runtime; the FastAPI cutover requires
+a fresh matched stage, audit, package and isolated native acceptance.
+
 Packaged builds always select embedded mode. At startup, `desktop/src/main.ts`:
 
 1. Sets the Animama name and user-data directory, moving an existing legacy
@@ -35,19 +42,21 @@ Packaged builds always select embedded mode. At startup, `desktop/src/main.ts`:
 2. Opens an Electron-owned startup/recovery page and validates the staged
    manifest, required resource hashes, platform, and versions. Reconciles saved
    pack pointers against the exact embedded catalog and verified file inventories.
-3. Unlocks the encrypted vault, binds the saved loopback Hono port (or chooses
-   and persists one on first launch), and keeps that listener in bootstrap mode.
+3. Unlocks the encrypted vault and preflights the saved loopback application
+   port, choosing and persisting one on first launch. Recovery remains in its
+   independent Electron window while no application listener is available.
 4. Initializes or starts owned PostgreSQL 16 with pgvector, verifies the exact
    PGDATA, backs up an existing schema before upgrading, and runs the frozen
    bootstrap CLI. Migrations own installation-principal generation.
 5. Starts upload cleanup, the document worker if its pack passes inventory and
-   OS-signature verification, and private FastAPI. Private readiness must match
-   the build, schema, and owner after Included-source reconciliation succeeds.
-6. Promotes the same Hono listener to serve the packaged SPA and proxy `/v1`,
-   then installs the fresh HttpOnly renderer capability before loading React.
+   OS-signature verification, and FastAPI on the saved application port. Private
+   readiness must match the exact child PID/start token, runtime/build, local HTTP
+   schema, Alembic head and owner after Included-source reconciliation succeeds.
+6. Installs the fresh HttpOnly renderer capability and loads the packaged React
+   app and same-origin product APIs directly from the verified FastAPI listener.
 
 The browser-facing origin is a persisted `http://127.0.0.1:<port>`. PostgreSQL
-and FastAPI use separate private loopback ports. An occupied saved gateway port
+uses a separate private loopback port. An occupied saved application port
 shows recovery; it does not silently switch origins or create another owner.
 Quitting drains requests and stops retained child handles. The app never kills
 a process merely because it occupies a port or appears in an old PID record.
@@ -58,7 +67,7 @@ An explicit unpackaged `ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` selects embedded
 testing against a complete staged runtime. Packaged builds reject web-URL,
 development runtime/data, and sandbox overrides. See [Platform builds](platforms.md).
 
-The separate Compose self-host default publishes its gateway on loopback and stores
+The separate Compose workflow publishes one application origin on loopback and stores
 typed content in the backend-managed, host-inspectable `content/` library.
 Electron consumes catalog and byte APIs exactly like browser web; it does not
 enumerate `content/`, receive absolute host paths, or gain arbitrary filesystem
@@ -67,10 +76,11 @@ through the shared FastAPI catalog. Newly scanned files become selectable but
 are never automatically equipped.
 
 ```text
-http://localhost:3000  Hono gateway
+http://localhost:3000  Local application
 ```
 
-FastAPI, Vite, and PostgreSQL remain private Compose services.
+Development publishes Vite with a same-origin proxy to private FastAPI. Built
+self-host publishes FastAPI serving the compiled React app. PostgreSQL stays private.
 That fixed development URL is not the embedded app's saved random loopback port.
 The optional `dev-tools` Compose profile enables localhost pgAdmin and Dozzle
 for developers; see [local administration tools](../../../backend/docs/operations/development.md#local-administration-tools).
@@ -81,7 +91,7 @@ required private display-name setup; after completion it opens Annie's chat.
 Later launches use the last visited owned Anima, or the first remaining Anima.
 There is no desktop-local signup, sign-in, session, bearer token, or logout.
 Electron's HttpOnly renderer capability authenticates the renderer process to
-Hono and is separate from the stable, non-secret installation owner ID.
+the local FastAPI boundary and is separate from the stable, non-secret installation owner ID.
 
 Once React opens an Anima, it shares the browser's progressive runtime: verify
 the model, draw canonical relaxed-rest, then prepare optional animations/effects
@@ -119,8 +129,8 @@ desktop/src/main-process/runtime/vault.ts
 desktop/src/main-process/runtime/ipc.ts
 desktop/src/main-process/feature-packs/
 desktop/src/main-process/updates/
-server/src/gateway/lifecycle.ts
-server/src/gateway/model-pack.ts
+desktop/src/main-process/runtime/product-windows.ts
+src/backend/animama/local/http/assets.py
 desktop/src/main-process/fullscreen/fullscreen-ipc.ts
 desktop/src/main-process/pip/pip-window-manager.ts
 desktop/src/main-process/shortcuts/shortcuts-ipc.ts
@@ -159,7 +169,8 @@ TypeScript compilation. Keep new bridge APIs narrow, serializable, and explicit.
 Do not expose Node or arbitrary Electron APIs directly to the renderer.
 
 Shared serializable runtime contracts live in `shared/desktop-runtime.ts`.
-Credential results contain only provider/configured/update/restart status;
+Credential results contain only provider/configured/update/restart status and
+bounded failure codes;
 there is no read-key API. Main accepts these operations only from a registered,
 live main window's top-level frame at the exact application origin. The
 recovery window has access only to runtime actions. PiP, quick chat, unknown
@@ -173,29 +184,37 @@ window and accept zero arguments; recovery can open only the fixed backup folder
 
 Embedded setup and Settings show optional OpenAI, DeepSeek, Hugging Face,
 Gemini, and ElevenLabs key controls. Keys are never read back or saved to
-browser storage. Saving or removing one encrypts the vault through Electron
-`safeStorage`, drains active requests, restarts FastAPI and the installed document
-worker with the new environment,
-and reports readiness. PostgreSQL, the stable origin, and local ownership do
+browser storage. Saving or removing one first drains local work, then encrypts
+the vault through Electron `safeStorage` and restarts FastAPI and the installed
+document worker with the new environment. PostgreSQL, the stable origin, and local ownership do
 not change. Unavailable secure storage fails closed; it never falls back to
 plaintext storage. Browser and external-stack development do not show these
 desktop credential controls.
 
+A busy or failed drain leaves the previous credential unchanged. Main retains
+one bounded failure status per provider across product-window recreation, so
+reopening Settings explains why the change did not finish. Settings itself is
+not kept open across recreation. A new accepted attempt clears that provider's
+previous failure. If the vault was already updated before a service restart
+failed, the saved value remains; Retry starts services with that value and
+clears the restart failure after verified readiness. These failure records stay
+in main-process memory only and contain no credential values.
+
 On macOS the user-data root is `~/Library/Application Support/Animama`:
 
-| Relative path            | Purpose                                                     |
-| ------------------------ | ----------------------------------------------------------- |
-| `runtime/state.json`     | Saved gateway port                                          |
-| `runtime/processes.json` | Child ownership evidence, not permission to kill stale PIDs |
-| `runtime/logs/main.log`  | Redacted supervisor and child logs                          |
-| `secrets/vault.bin`      | Encrypted database password and optional provider keys      |
-| `postgres/16/data`       | Private PostgreSQL cluster                                  |
-| `content/local`          | Writable typed Local library                                |
-| `data`                   | Private uploads and runtime staging                         |
-| `backups/pre-migration`  | Verified custom-format upgrade dumps and migration journal  |
-| `packs/<id>/versions`    | Immutable optional pack versions and retained prior bytes   |
-| `packs/active.json`      | Atomic active pointers, reverified before use               |
-| `downloads`              | Bounded partial archives and strong-ETag resume metadata    |
+| Relative path            | Purpose                                                                       |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `runtime/state.json`     | Saved application port (`gatewayPort` remains the version-1 serialized field) |
+| `runtime/processes.json` | Child ownership evidence, not permission to kill stale PIDs                   |
+| `runtime/logs/main.log`  | Redacted supervisor and child logs                                            |
+| `secrets/vault.bin`      | Encrypted database password and optional provider keys                        |
+| `postgres/16/data`       | Private PostgreSQL cluster                                                    |
+| `content/local`          | Writable typed Local library                                                  |
+| `data`                   | Private uploads and runtime staging                                           |
+| `backups/pre-migration`  | Verified custom-format upgrade dumps and migration journal                    |
+| `packs/<id>/versions`    | Immutable optional pack versions and retained prior bytes                     |
+| `packs/active.json`      | Atomic active pointers, reverified before use                                 |
+| `downloads`              | Bounded partial archives and strong-ETag resume metadata                      |
 
 Packaged `resources/runtime/content/included-core` is immutable and separate
 from that writable tree. The backend records `source-id@version` provenance
@@ -233,10 +252,13 @@ authority. Failed installation retains the prior version; verified ETag/range
 metadata permits download resume. See [Runtime staging](runtime-staging.md) for
 producer, approval, and executable-signature gates.
 
-Activation/removal keeps Hono at the same origin. It checks private backend
-removal blockers, drains requests, reloads the main renderer, closes companion
-windows, stops the worker, repeats the check, and restarts FastAPI around the
-pointer switch. Reloading disposes Parakeet workers even if React cleanup fails.
+Activation/removal preserves the saved origin. It checks private backend
+removal blockers, remembers a validated main-app route, destroys all product
+windows/workers and shows independent recovery. Private quiescence stops new
+admission and waits up to 15 seconds for admitted work. The supervisor stops the
+worker, repeats removal checks, stops FastAPI, then switches the pointer and
+restarts. A busy quiesce preserves the old pointer/configuration and restarts
+that configuration; no resume endpoint reopens admission.
 Save unfinished edits first. Anima references, unexpired preview/runtime leases,
 active import/reconciliation work, and running document jobs prevent removal;
 affected labels appear in Settings. Expanded entries are never auto-equipped.
@@ -249,7 +271,7 @@ versions and unlisted files return 404. No pack root or executable path enters R
 
 ## Startup Recovery
 
-The independent recovery page works even when the gateway cannot bind. It
+The independent recovery page works even when the application listener cannot bind. It
 shows a safe error code with Retry, Open Logs, Open Backups, and Quit. Retry does
 not reset data; Open Backups appears only for a relevant snapshot. See
 [Troubleshooting](troubleshooting.md) before changing files. A damaged runtime

@@ -8,7 +8,7 @@ Generated files live in `src/frontend/packages/runtime-contracts/src/generated`.
 Do not hand-edit this directory. Consumers import `@animama/runtime-contracts/sdk`
 for methods and `@animama/runtime-contracts/api-types` for types. `pnpm openapi-ts` asks the backend's deterministic offline exporter
 to write a temporary schema, generates from that file, and always removes it.
-Do not fetch private FastAPI OpenAPI through Hono. The former server-side
+Public HTTP OpenAPI routes are disabled. The former server-side
 starter SDK was deleted with auth-triggered onboarding.
 
 The generated client exposes infrastructure-only Content Catalog operations,
@@ -76,7 +76,7 @@ replay. Runtime failure never retries creation or creates a Chat row.
 
 Browser runtime code receives registered FastAPI file URLs and never a host
 storage locator. `VerifiedByteLoader` fetches each admitted member through the
-same-origin Hono route, checks its declared size and digest, and hands the bytes
+same-origin application route, checks its declared size and digest, and hands the bytes
 to `RuntimeMountPreparer` or `PreviewByteSession`. Images, VRMs, VRMAs, JSON,
 and audio become mount-owned Blob URLs or decoded resources. Runtime playback
 does not perform another API capability exchange or typed-content fetch.
@@ -93,9 +93,9 @@ Anima loadout or the live runtime catalog.
 ## API Configuration
 
 `src/frontend/web/src/lib/api/configureAnimaApiClient.ts` configures the
-generated client once during provider startup. It uses the current Hono origin
+generated client once during provider startup. It uses the current application origin
 and trace context only. A browser-wide interceptor adds `X-Animama-CSRF: 1` to
-same-origin mutating `/v1` fetches and never adds identity or gateway secrets.
+same-origin mutating `/v1` fetches and never adds identity or desktop secrets.
 
 Frontend env access should go through `src/frontend/web/src/platform/env.ts`.
 
@@ -127,7 +127,7 @@ imported by the package. Runtime image URLs resolve against this transport and
 keep owner-scoped Blob leases; they never assume the consuming page's origin.
 
 The local `RuntimeOwnerProvider` adapts the ready installation principal to this
-provider, supplies the same-origin gateway transport and trace headers, and keeps
+provider, supplies the same-origin application transport and trace headers, and keeps
 browser-wide CSRF handling in the local composition. Local hooks outside the
 extracted surface continue to use the neutral generated default client configured
 by `configureAnimaApiClient.ts`. New shared hooks must take the provider's client.
@@ -179,7 +179,7 @@ rendering escaped text fragments as React nodes.
 `useAnimas` returns `PyAnimaListItem` rows. Management navigation and chat
 search render the required bounded `presentation` projection and load private
 thumbnails with `useAnimaPresentationImage`. That hook fetches protected local
-bytes through same-origin Hono, owns the Blob URL, and revokes it on change or
+bytes through the application origin, owns the Blob URL, and revokes it on change or
 unmount. Built-in portraits load from same-origin
 Included compatibility URLs. These surfaces never fetch a full runtime
 snapshot or load a VRM merely to show a thumbnail.
@@ -211,7 +211,7 @@ thin TanStack wrappers:
 - `useDebugUserFileSearch`: run keyword, semantic, or hybrid chunk search.
 
 `useUserFileUpload` combines these mutations with Uppy. The browser PUTs the
-original bytes through same-origin Hono to private FastAPI, which bounds and atomically
+original bytes through the application origin to FastAPI, which bounds and atomically
 promotes them beneath `data/user-files`; server state is refreshed by
 invalidating `queryKeys.userFiles`. Chat uploads send known backend `file_id`
 values through `useChatSse` as `attached_file_ids`; the backend validates them

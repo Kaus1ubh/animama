@@ -7,7 +7,6 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
 from animama.adapters.content_store import FilesystemContentStore
@@ -35,6 +34,7 @@ from animama.server.routers.anima_loadouts import router as anima_loadout_router
 from animama.server.routers.content import router
 from animama.server.routers.typed_content import router as typed_content_router
 from animama.server.schemas.content import PyContentPreview
+from tests.local_http_client import local_client
 
 
 def _glb(label: str) -> bytes:
@@ -121,9 +121,7 @@ def test_preview_projects_descriptor_relative_logical_resources() -> None:
 
     response = PyContentPreview.from_domain(preview, item)
 
-    assert response.metadata["logical_resource_files"] == {
-        "textures/spark.png": {"role": "texture", "ordinal": 3}
-    }
+    assert response.metadata["logical_resource_files"] == {"textures/spark.png": {"role": "texture", "ordinal": 3}}
 
 
 async def test_preview_freezes_exact_owner_scoped_file_facts(async_session, tmp_path: Path) -> None:  # noqa: ANN001
@@ -160,7 +158,7 @@ async def test_preview_freezes_exact_owner_scoped_file_facts(async_session, tmp_
 
     app.dependency_overrides[get_current_principal] = override_user
     app.dependency_overrides[get_async_session] = override_session
-    client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    client = local_client(app)
     try:
         response = await client.post(f"/v1/gestures/{item.id}:preview")
         assert response.status_code == 200
@@ -252,7 +250,7 @@ async def test_equip_selects_a_logical_catalog_item_for_the_next_loadout_revisio
 
     app.dependency_overrides[get_current_principal] = override_user
     app.dependency_overrides[get_async_session] = override_session
-    client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    client = local_client(app)
     try:
         before = await client.get(f"/v1/animas/{anima_id}/loadout")
         assert before.status_code == 200

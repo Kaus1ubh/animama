@@ -10,11 +10,17 @@ import {
   type IncludedContentAlias,
 } from "./vite-plugins/included-content-compat";
 import { localParakeetModelPlugin } from "./vite-plugins/local-parakeet-models";
-import { appAssetCachePlugin } from "./vite-plugins/app-asset-cache";
+import {
+  localAPIProxy,
+  localDevelopmentOrigins,
+  localDevelopmentRouteFence,
+} from "./vite-plugins/local-api-proxy";
 
 const webRoot = fileURLToPath(new URL(".", import.meta.url));
 const webSrc = fileURLToPath(new URL("./src", import.meta.url));
-const publicPackagesRoot = fileURLToPath(new URL("../packages", import.meta.url));
+const publicPackagesRoot = fileURLToPath(
+  new URL("../packages", import.meta.url),
+);
 const includedContentRoot = fileURLToPath(
   new URL("../../../content/included", import.meta.url),
 );
@@ -125,9 +131,10 @@ export const devOptimizedDependencies = [
   "parakeet.js",
 ] as const;
 
-// Hono reaches the private Compose Vite service by its stable service name.
-// Keep the allowlist exact instead of disabling Vite's host protection.
-export const localViteAllowedHosts = ["web"] as const;
+// Vite is a development-only application origin; keep its host policy enabled.
+export const localViteAllowedHosts = [
+  new URL(localDevelopmentOrigins().publicOrigin).hostname,
+];
 
 export default defineConfig(({ mode, command, isPreview }) => {
   const embeddedDesktop = mode === "embedded-desktop";
@@ -145,7 +152,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
 
   return {
     plugins: [
-      appAssetCachePlugin(),
+      localDevelopmentRouteFence(),
       includedContentCompatibilityPlugin({
         includedRoot: includedContentRoot,
         aliases: includedContentAliases,
@@ -247,6 +254,9 @@ export default defineConfig(({ mode, command, isPreview }) => {
     },
     server: {
       allowedHosts: [...localViteAllowedHosts],
+      port: 3000,
+      strictPort: true,
+      proxy: localAPIProxy(localDevelopmentOrigins().apiTarget),
       fs: {
         allow: [webRoot, publicPackagesRoot],
       },

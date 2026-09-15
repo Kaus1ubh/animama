@@ -33,17 +33,16 @@ backend log before deciding on a repair.
 | `pack_in_use`, `pack_cleanup_pending`, `pack_download_failed`                                       | Follow [Feature packs](feature-packs.md#remove-safely). Do not erase directories or change download hashes.                                                                   |
 | `pack_signature_invalid`, `pack_file_invalid`, `pack_catalog_incompatible`                          | Stop using those pack files. Use only the app's compatible install/repair controls; if blocked, preserve evidence and contact support. Never run an unsigned document worker. |
 
-## Gateway and renderer access
+## Application listener and renderer access
 
 The app's saved `127.0.0.1` URL is private to its approved Electron renderers;
 it is not a browser login page or a LAN server. A request without the renderer
-capability, with a hostile origin, or sent directly to FastAPI is rejected by
-design. Do not share capability cookies, internal headers or private ports.
+capability or with a hostile origin is rejected by FastAPI. Do not share capability cookies, internal headers or private ports.
 
 If the normal main window cannot load after a restart, quit and reopen the
-complete app through Finder. Main generates fresh renderer, gateway and control
+complete app through Finder. Main generates separate fresh renderer and control
 credentials each launch. These are not the durable installation principal and
-are not copied from a Compose token file. Repeated capability/readiness failures
+are never copied from another installation. Repeated capability/readiness failures
 need logs and a matching build, not disabled origin checks or deleted ownership.
 
 ### A page fails after a build or update

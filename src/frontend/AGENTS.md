@@ -23,19 +23,18 @@ Prefer boring, local changes that fit existing patterns.
 - Package manager: `pnpm`
 - Web app: `web/` using Vite, React, TanStack Router, TanStack Query, Zustand,
   Tailwind CSS, React Three Fiber, and `@pixiv/three-vrm`
-- Frontend server: `server/` using Hono as the trusted local application
-  gateway, Postgres only for startup principal discovery, and a telemetry proxy.
-  Its native entrypoint rejects non-loopback bindings; its separate Compose
-  entrypoint is reachable only through the bridge network and one pinned
-  `127.0.0.1` host mapping.
+- Application serving: FastAPI serves the production React build and owns
+  local request admission, installation ownership, static/model delivery and
+  telemetry. Compose development publishes Vite with HMR and a closed
+  same-origin proxy to private FastAPI. There is no frontend server workspace.
 - Optional Compose `dev-tools` exposes only pgAdmin (`localhost:5050`) and
   Dozzle (`localhost:9999`) on literal loopback for local operators. These are
-  separate from the app origin: no React configuration, gateway routes, or
+  separate from the app origin: no React configuration, application routes, or
   desktop packaging may depend on them. Use `./reset.sh --profile dev-tools`
   from the repository root; disabling preserves data and requires no purge.
 - Desktop: `desktop/` using Electron, the embedded macOS runtime supervisor,
   and electron-builder. Unpackaged `desktop:dev` still supports the external
-  local Hono stack; packaged mode requires audited runtime resources.
+  local stack; packaged mode requires audited runtime resources.
 - Public packages: `packages/runtime-contracts`, `packages/product-ui`, and
   `packages/discover-client`; authored package imports stay within their own
   `src` tree or use declared package dependencies.
@@ -67,10 +66,10 @@ Start with:
    - `web/src/lib/speech/pocket/index.js`
 3. Preserve browser/server boundaries:
    - browser code stays in `web`
-   - server-only gateway policy, Postgres, cookies, and telemetry proxy logic stays in
-     `server`
+   - request admission, Postgres and telemetry forwarding stay in
+     `src/backend/animama/local/http` and the local backend composition
    - browser-exposed env values must be `VITE_*`
-4. Keep the accountless runtime-owner, gateway request policy, and telemetry
+4. Keep the accountless runtime-owner, local HTTP request policy, and telemetry
    wiring intact unless the task explicitly targets those systems.
 5. Prefer existing query hooks, mutations, stores, and helpers over introducing
    parallel data paths.
@@ -91,8 +90,8 @@ Start with:
   avatar, speech, voice, sound, settings, telemetry, and utilities.
 - `web/src/workers/**`: Vite-bundled browser workers.
 - `web/public/**`: Vite-served runtime assets.
-- `server/src/**`: trusted Hono local gateway, transport proxies, request
-  policy, principal provider, static/Vite delivery, and telemetry proxy.
+- `web/vite.config.ts`: development serving and closed application proxy.
+  Preserve original Host/Origin/Fetch Metadata; Vite does not grant ownership.
 - `desktop/src/**`: Electron main/preload code, secure window creation,
   guarded navigation, runtime supervision, encrypted credentials, fullscreen,
   PiP, quick chat, and shortcut IPC.
@@ -169,13 +168,13 @@ or migration behavior.
 
 ### Local Principal And API Client
 
-- Hono is the single public origin for private FastAPI, Vite/HMR, static SPA,
-  and telemetry traffic. Browser API and byte requests remain same-origin and
-  never carry an Animama bearer token.
+- FastAPI owns the production application origin. Development Vite proxies
+  application traffic without rewriting browser metadata into trusted identity.
+  API and byte requests stay same-origin without an Animama bearer token.
 - `LocalRuntimeProvider` reads bounded runtime context first and requests
   backend-owned bootstrap only for a reported repair. It shares in-flight
   initialization, owns first-run state, and supplies the generated principal
-  through `RuntimeOwnerContext` only after Hono authenticates the request.
+  through `RuntimeOwnerContext` only after FastAPI admits the request.
   Feature code must not accept or invent owner IDs.
 - The OpenAPI client is generated offline into
   `packages/runtime-contracts/src/generated` with `pnpm openapi-ts`; do not expose
@@ -232,8 +231,10 @@ or migration behavior.
 
 - Keep Electron code isolated in `desktop`; do not import desktop modules into
   browser code.
-- Packaged mode supervises private PostgreSQL/FastAPI and a stable Hono
-  listener, serving the production Vite build. Never restore a packaged
+- Packaged mode supervises PostgreSQL and FastAPI at the saved loopback origin,
+  serving the production React build after private readiness verification.
+  Independent Electron recovery remains available while FastAPI is unavailable.
+  Never restore a packaged
   external-web fallback or put user data in application resources.
 - Runtime staging writes to the ignored `desktop/.desktop-runtime/` directory.
   Use `pnpm desktop:runtime:stage -- --platform darwin --arch arm64` and the
@@ -300,10 +301,10 @@ Run from `src/frontend`:
 - Local web dev/build/check/test commands build their package dependencies first.
   After changing package source during an active dev session, rerun the package
   build so Vite receives fresh artifacts.
-- Type-check web and server: `pnpm check`
+- Type-check web, packages and desktop: `pnpm check`
 - Lint web: `pnpm web:lint`
 - Test web: `pnpm web:test`
-- Build web and server: `pnpm build`
+- Build web and packages: `pnpm build`
 - Check formatting: `pnpm prettier:check`
 - Verify TTS assets: `pnpm verify:tts-assets`
 - Check desktop only: `pnpm desktop:check`
@@ -324,15 +325,14 @@ run.
 
 ## Accountless Browser Checkpoint
 
-The supported local browser journey starts at the sole Hono origin. A fresh
+The supported local browser journey starts at the sole application origin. A fresh
 installation opens `/setup`; a completed installation opens `/a` without an
 account or session. Do not create a local account, restore the deleted seed
-script, add browser Authorization callbacks, publish FastAPI directly, or add a
-configuration switch that turns the local gateway into a hosted identity
-service.
-Validate runtime/provider behavior with the web tests and validate the gateway
-with `pnpm server:check`, `pnpm server:test`, and the bounded
-`pnpm server:smoke:accountless -- --origin <origin>` command.
+script, add browser Authorization callbacks, expose private services, or add a
+configuration switch that turns the local runtime into a hosted identity service.
+Validate runtime/provider behavior with web tests and the boundary with
+`uv run pytest -q tests/test_local_http_*.py` from the repository root.
+Exercise both named Compose selections for rendered browser acceptance.
 
 ## High-Risk Areas
 
@@ -352,8 +352,6 @@ Prefer minimal, surgical diffs in:
 - `web/src/app/runtime/**`
 - `web/src/lib/api/**`
 - `web/src/lib/telemetry/**`
-- `server/src/security/**`
-- `server/src/telemetry.ts`
 - `desktop/src/main.ts`
 - `desktop/src/preload.cts`
 - `desktop/src/main-process/**`

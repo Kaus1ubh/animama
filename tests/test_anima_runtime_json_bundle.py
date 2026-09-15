@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 
 from animama.app.services.anima_runtime_service import RuntimeFileAuthorization, RuntimeSnapshotError, _runtime_response
 from animama.domain.content_catalog import ContentSource
@@ -22,6 +21,7 @@ from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.routers import anima_runtime
+from tests.local_http_client import local_client
 
 
 def _catalog(count: int = 3, size: int = 20) -> dict:
@@ -148,7 +148,7 @@ URL = "/v1/animas/anima/runtime/revisions/revision/json-bundle"
 async def test_bundle_wire_integrity_revalidation_and_no_lease_renewal(bundle_http: SimpleNamespace) -> None:
     state = bundle_http
     expires = state.expires
-    async with AsyncClient(transport=ASGITransport(app=state.app), base_url="http://test") as client:
+    async with local_client(state.app) as client:
         identity = await client.get(URL, headers={"Accept-Encoding": "identity"})
         async with client.stream("GET", URL, headers={"Accept-Encoding": "gzip"}) as compressed:
             wire = b"".join([chunk async for chunk in compressed.aiter_raw()])
@@ -171,7 +171,7 @@ async def test_bundle_wire_integrity_revalidation_and_no_lease_renewal(bundle_ht
 @pytest.mark.parametrize("failure", ["changed", "deleted", "catalog", "invalid_utf8"])
 async def test_bad_member_keeps_good_members_and_disables_caching(bundle_http: SimpleNamespace, failure: str) -> None:
     state = bundle_http
-    async with AsyncClient(transport=ASGITransport(app=state.app), base_url="http://test") as client:
+    async with local_client(state.app) as client:
         first = await client.get(URL)
         if failure == "deleted":
             state.paths[1].unlink()
@@ -200,7 +200,7 @@ async def test_bad_member_keeps_good_members_and_disables_caching(bundle_http: S
 @pytest.mark.parametrize("failure", ["owner", "expired", "revision"])
 async def test_bundle_conditional_request_cannot_bypass_authority(bundle_http: SimpleNamespace, failure: str) -> None:
     state = bundle_http
-    async with AsyncClient(transport=ASGITransport(app=state.app), base_url="http://test") as client:
+    async with local_client(state.app) as client:
         first = await client.get(URL)
         url = URL
         if failure == "owner":

@@ -93,7 +93,7 @@ small-integer primary key is constrained to `1`.
 `installation_principal_id` is non-null and unique; the baseline generates
 its canonical UUIDv4 once in the same transaction that creates the row.
 `first_run_completed_at` is nullable and write-once. Ordinary restarts and
-gateway-token rotation preserve this row and therefore preserve ownership. A
+application restarts preserve this row and therefore preserve ownership. A
 full database purge creates a new principal. A missing singleton or malformed
 principal is a fatal local configuration error.
 

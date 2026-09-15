@@ -1,8 +1,4 @@
-"""Explicit wiring for isolated replacement-boundary acceptance compositions.
-
-The shipped local factory, frozen launcher and Hono gateway do not import this
-module. Their coordinated cutover happens only after component verification.
-"""
+"""Explicit local HTTP wiring shared by the real factory and isolated tests."""
 
 from __future__ import annotations
 

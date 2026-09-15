@@ -8,9 +8,8 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from animama.local.http.assets import LocalAssets
 from animama.local.http.composition import install_local_http
-from animama.local.http.config import DesktopAccess, LocalHTTPConfig
+from animama.local.http.config import LocalHTTPConfig
 from animama.local.http.lifecycle import LocalHTTPLifecycle
 from animama.local.http.telemetry import TelemetryConfig, TelemetryDestinations, TelemetryForwarder
 
@@ -102,16 +101,16 @@ async def test_installing_replacement_preserves_full_offline_product_openapi_wit
     assert "/health" in before["paths"]
     assert "/v1/chats" in before["paths"]
     assert "/v1/animas/{anima_id}/chat:sse" in before["paths"]
-    forwarder = TelemetryForwarder(TelemetryConfig())
-    lifecycle = install_local_http(
-        application,
-        LocalHTTPConfig(
-            public_origin="http://localhost:3000",
-            desktop=DesktopAccess(renderer_capability="a" * 32, control_token="b" * 32),
-        ),
-        telemetry=forwarder,
-        assets=LocalAssets(tmp_path / "web"),
+    application = create_local_app(
+        runtime_settings=Settings(
+            animama_content_root=tmp_path / "content",
+            animama_data_root=tmp_path / "data",
+            animama_web_root=tmp_path / "web",
+            animama_desktop_renderer_capability="a" * 32,
+            animama_desktop_control_token="b" * 32,
+        )
     )
+    lifecycle = application.state.local_http_lifecycle
     # Discard FastAPI's cache so equality checks the actual mounted route graph.
     application.openapi_schema = None
     after = application.openapi()
@@ -126,4 +125,3 @@ async def test_installing_replacement_preserves_full_offline_product_openapi_wit
     assert {"/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"}.isdisjoint(
         {getattr(route, "path", None) for route in application.router.routes}
     )
-    await forwarder.aclose()

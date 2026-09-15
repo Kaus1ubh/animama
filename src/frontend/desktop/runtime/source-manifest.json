@@ -4,7 +4,7 @@
   "pyinstaller": "6.22.2",
   "electron": "39.8.9",
   "esbuild": "0.27.7",
-  "gateway_schema_version": 1,
+  "local_http_schema_version": 1,
   "targets": {
     "darwin-arm64": { "minimum_os": "15.0", "status": "phase-1-feasibility" }
   },

@@ -1,16 +1,14 @@
 # Frontend Architecture Overview
 
 This document is the entry point for the current `src/frontend` workspace.
-The frontend is split into a browser app in `web/` and a small Node/Hono
-server in `server/`.
+The frontend contains the browser app in `web/`, reusable packages and the
+Electron shell in `desktop/`. FastAPI serves the production React build.
 
 ## Runtime Shape
 
 Core packages:
 
 - `web/`: Vite + React + TanStack Router browser frontend.
-- `server/`: trusted Hono local gateway for private FastAPI, Vite/HMR or the
-  built SPA, browser telemetry, and bounded health.
 - `desktop/`: Electron windows, the embedded macOS service supervisor, encrypted
   credential vault, and guarded preload bridge. `desktop:dev` may still use the
   external local stack; packaged builds require an audited embedded runtime.
@@ -19,10 +17,10 @@ Core packages:
   current packaged-validation gate.
 
 The local React composition is accountless. FastAPI prepares the installation
-at process startup; React reads its bounded runtime context through Hono and
+at process startup; React reads its bounded runtime context at the application origin and
 requests bootstrap only if the backend reports a repair is needed. It then
 supplies the generated principal to shared features through a neutral owner
-context. The generated client and protected-byte loaders use the Hono origin
+context. The generated client and protected-byte loaders use the application origin
 without browser bearer tokens.
 
 ## Web Source Map
@@ -133,7 +131,7 @@ remounts chat/avatar runtime state.
   generated source lives under `src/frontend/packages/runtime-contracts/src/generated`.
 - API base URLs and browser flags come from `src/frontend/web/src/platform/env.ts`.
 - `configureAnimaApiClient.ts` uses `window.location.origin`; the global local
-  gateway interceptor adds only the CSRF marker to mutating `/v1` requests.
+  local request interceptor adds only the CSRF marker to mutating `/v1` requests.
 - TanStack Query state uses `src/frontend/web/src/query/keys.ts` and the hooks
   under `query/hooks` and `query/mutations`.
 - Runtime-local state that is not server state lives in Zustand stores under
@@ -156,7 +154,7 @@ User-file upload flow:
 
 1. Chat composer and Library's Chat Uploads management panel create a scoped
    Uppy instance through `useUserFileUpload`.
-2. Uppy calls generated API mutations to initialize a gateway-authenticated local
+2. Uppy calls generated API mutations to initialize a admitted local
    upload, PUTs bytes through FastAPI, finalizes the atomically promoted file,
    and usually enqueues processing.
 3. `useUserFiles` lists current-user files and polls while uploads or processing
@@ -180,14 +178,12 @@ load when opened, and inspector state does not remount the avatar. Health,
 bounded errors, recovery, browser DevTools, and the operator `dev-tools` profile
 are unaffected.
 
-Vite emits `.vite/manifest.json` as a server-side build inventory. The shared
-gateway cache policy gives only inventoried, successful fingerprinted JS/CSS
-one-year immutable caching. Private Compose Vite preview uses the same policy
-as packaged Hono static serving; browser modules do not import it. HTML is
-revalidated and a missing chunk is a 404, not an HTML fallback. A failed route
-offers an explicit **Reload page** action, with an unsaved-changes warning and
-no automatic reload. The app handles Vite preload errors before the router's
-built-in refresh attempt. See [Local Hono Gateway](auth-server.md).
+Vite emits `.vite/manifest.json` as a server-side build inventory. FastAPI
+uses it to grant one-year immutable caching only to successful fingerprinted
+JS/CSS. HTML revalidates and missing chunks remain 404. A failed route offers
+an explicit **Reload page** action, with an unsaved-changes warning and no
+automatic reload. The app handles Vite preload errors before the router's
+built-in refresh attempt. See [Local HTTP boundary](auth-server.md).
 
 An ordinary new tab may show cached HAR rows while transferring no app JS/CSS.
 DevTools **Disable cache** and hard reload are different experiments. Private
@@ -197,25 +193,20 @@ were a download. Measured settings-dialog deferral did not materially reduce
 pre-frame JavaScript or improve startup, so settings, route splitting, the
 React-vendor boundary, and voice/worker imports keep their existing composition.
 
-## Server Source Map
+## HTTP Serving
 
-`src/frontend/server/src` contains the Hono service:
-
-- `app.ts`: accountless gateway composition and routes.
-- `gateway/`: streaming HTTP, WebSocket, safe-header, and built-SPA adapters.
-- `security/`: request policy, private token, and renderer-capability checks.
-- `local-principal/`: injected and PostgreSQL installation-principal providers.
-- `telemetry.ts`: OTLP signal proxy for browser telemetry.
-- `index.ts`: Node server entrypoint and WebSocket upgrade wiring.
-
-The browser should not import server modules. Server-only config stays in
-environment variables consumed by the Hono process.
+FastAPI's local boundary lives in `src/backend/animama/local/http`, composed by
+`src/backend/animama/server/local_http.py`. It owns admission, installation
+principal resolution, static/model responses, telemetry and desktop quiescence.
+Vite owns development serving and a closed proxy to the private backend;
+production has no frontend Node service. Browser modules import neither backend
+configuration nor Electron internals.
 
 The browser retains UI/SSE metric calls and API trace propagation through
 `@opentelemetry/api`, but its startup does not register telemetry providers or
 export OTLP signals. The disconnected browser exporter, log/span helpers, Web
 Vitals initializer, and unused legacy WebSocket counters have been removed.
-The gateway proxy and optional Compose collector remain; the collector also
+The FastAPI forwarder and optional Compose collector remain; the collector also
 serves backend telemetry and file logs. Embedded desktop disables the proxy
 with a 204 response. Future hosted observability requires its own explicit
 provider, collector, and privacy-safe payload configuration.
@@ -225,9 +216,7 @@ provider, collector, and privacy-safe payload configuration.
 Run from `src/frontend`:
 
 - `pnpm web:dev`
-- `pnpm server:dev`
 - `pnpm web:check`
-- `pnpm server:check`
 - `pnpm check`
 - `pnpm web:lint`
 - `pnpm web:test`
@@ -237,7 +226,7 @@ Run from `src/frontend`:
 
 `pnpm openapi-ts` exports the local FastAPI schema offline to a temporary file,
 generates the client, and removes the temporary schema. Client generation never
-requires a running stack or exposes private FastAPI documentation through Hono.
+requires a running stack or exposes FastAPI documentation over HTTP.
 
 ### Local Docker Dependency Cache
 

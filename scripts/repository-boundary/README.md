@@ -145,7 +145,7 @@ check as a completed candidate scan or a license grant.
 `check-python-imports.py` statically follows every domain/application module,
 including relative imports, package initializers and transitive helpers. A
 dependency on local installation state, server construction, migrations,
-gateway verification or private service modules fails. Local compositions may
+local HTTP admission or private service modules fails. Local compositions may
 depend on shared APIs; the reverse direction is forbidden.
 
 `check-packed-artifacts.py` requires one built Python wheel and the three packed
@@ -266,8 +266,15 @@ ordinary classification audit works without access to the original monorepo
 commit. It still verifies the complete current index, blob identities, evidence
 hashes, materialized SHA-256 values and LFS pointers/objects. Only the lookup of
 the original commit is replaced by the explicit paired snapshot metadata.
-`build-provenance.py --check` validates this projection; regeneration must happen
-through reviewed source inputs and a new export.
+`build-provenance.py --check` validates this projection. Bulk regeneration of
+the split projection must use reviewed source inputs and a new export. Ordinary
+local maintenance may update an explicitly reviewed file's current blob/SHA-256
+and corresponding evidence hashes while preserving its origin, license,
+publication status and notices. Record the prior and current bindings, reviewed
+base revision and reason in `local_amendments`; the original paired snapshot
+metadata remains historical. This is a current-file audit amendment, not a new
+split export or permission grant. Verify it against the intended index. Never
+refresh hashes to conceal an unexplained asset or provenance change.
 
 ## Separately generated artifact layer
 

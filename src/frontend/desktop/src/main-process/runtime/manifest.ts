@@ -6,7 +6,7 @@ import { release } from "node:os";
 import { RuntimeError } from "./errors.js";
 
 export type RuntimeManifest = {
-  schema: "animama-desktop-runtime/1";
+  schema: "animama-desktop-runtime/2";
   app_version: string;
   build_id: string;
   platform: string;
@@ -14,7 +14,7 @@ export type RuntimeManifest = {
   minimum_os: string;
   postgresql: { major: number; version: string; pgvector: string };
   alembic_head: string;
-  gateway_schema_version: number;
+  local_http_schema_version: number;
   core_content_inventory_id: string;
   pack_catalog_id: string;
   files: {
@@ -75,7 +75,7 @@ export async function verifyRuntime(
       await readFile(manifestFile, "utf8"),
     ) as RuntimeManifest;
     if (
-      manifest.schema !== "animama-desktop-runtime/1" ||
+      manifest.schema !== "animama-desktop-runtime/2" ||
       manifest.app_version !== appVersion ||
       manifest.platform !== process.platform ||
       manifest.architecture !== process.arch ||
@@ -85,7 +85,8 @@ export async function verifyRuntime(
       manifest.minimum_os !== "15.0" ||
       !/^[a-f0-9]{64}$/u.test(manifest.core_content_inventory_id) ||
       !/^[a-f0-9]{64}$/u.test(manifest.pack_catalog_id) ||
-      manifest.gateway_schema_version !== 1 ||
+      manifest.local_http_schema_version !== 1 ||
+      Object.hasOwn(manifest, "gateway_schema_version") ||
       !Array.isArray(manifest.files) ||
       manifest.files.length < 1 ||
       manifest.files.length > 50_000 ||

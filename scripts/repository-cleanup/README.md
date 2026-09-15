@@ -136,7 +136,7 @@ evidence run. Never use `--fix` as part of this analysis command.
 `src/frontend/knip.json` defines the root tooling workspace plus web, server,
 and desktop. Entry patterns are based on package commands, CI, runtime source,
 and documented developer tools. Routes, workers/worklets, Vite aliases,
-native/Compose Hono entrypoints, Electron main/preload and custom packaging
+native/Compose FastAPI entrypoints, Electron main/preload and custom packaging
 hooks are included. The Playwright plugin is disabled because its configuration
 requires an intentional test environment; its config, setup, specs and helper
 tests are rooted statically instead. This does not execute or validate the

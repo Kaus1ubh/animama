@@ -5,7 +5,6 @@ import struct
 from pathlib import Path
 
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete
 
 from animama.adapters.content_store import FilesystemContentStore
@@ -17,6 +16,7 @@ from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.routers.content import router
+from tests.local_http_client import local_client
 
 
 def _glb() -> bytes:
@@ -64,7 +64,7 @@ async def test_registered_delivery_authorizes_then_verifies_etag_and_bytes(async
 
     app.dependency_overrides[get_current_principal] = override_user
     app.dependency_overrides[get_async_session] = override_session
-    client = AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+    client = local_client(app)
     try:
         response = await client.get(f"/v1/content/files/{file_ref}")
         assert response.status_code == 200

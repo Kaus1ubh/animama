@@ -12,7 +12,7 @@ usage() {
     "Options:" \
     "  --name NAME            Compose stack name. NAME becomes animama-NAME unless it already starts with animama-." \
     "                         Example: $0 --name abc --base-port 8200" \
-    "  --base-port PORT       Assign Hono to PORT; dev-tools use PORT+4 (pgAdmin) and PORT+20 (Dozzle)." \
+    "  --base-port PORT       Assign the application to PORT; dev-tools use PORT+4 (pgAdmin) and PORT+20 (Dozzle)." \
     "  --host HOST            Public hostname used in browser-facing URLs." \
     "                         Defaults to localhost, or animama-NAME.localhost for named stacks." \
     "  --profile PROFILE      Enable a Docker Compose profile. May be repeated or comma-separated." \
@@ -192,18 +192,28 @@ done
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 script_name="$(basename "$script_dir")"
 STACK_ENV_FILE="${STACK_ENV_FILE_ARG:-${script_dir}/.animama-stack.env}"
-# shellcheck source=scripts/local-gateway-token.sh
-source "${script_dir}/scripts/local-gateway-token.sh"
 
-# Read only this non-secret setting through Compose's dotenv parser. An explicit
-# empty environment value disables profiles from .env; CLI profiles add to it.
-if [ -z "${COMPOSE_PROFILES+x}" ]; then
-  COMPOSE_PROFILES="$(docker compose config --environment | python3 -c '
+# Read only these non-secret selectors through Compose's dotenv parser. The
+# explicitly selected base file prevents a stale sourced graph from deciding
+# which parser/build configuration reset uses.
+if [ -z "${COMPOSE_PROFILES+x}" ] || [ -z "${ANIMAMA_WEB_BUILD_MODE+x}" ]; then
+  local_selectors="$(docker compose -f "${script_dir}/docker-compose.yml" config --environment | python3 -c '
 import sys
-lines = sys.stdin.read().splitlines()
-print(next((line.partition("=")[2] for line in lines if line.startswith("COMPOSE_PROFILES=")), ""))
+values = dict(line.rstrip("\n").partition("=")[::2] for line in sys.stdin)
+print(values.get("COMPOSE_PROFILES", ""))
+print(values.get("ANIMAMA_WEB_BUILD_MODE", "development"))
 ')"
+  dotenv_profiles="${local_selectors%%$'\n'*}"
+  dotenv_build_mode="${local_selectors#*$'\n'}"
 fi
+COMPOSE_PROFILES="${COMPOSE_PROFILES-${dotenv_profiles:-}}"
+ANIMAMA_WEB_BUILD_MODE="${ANIMAMA_WEB_BUILD_MODE-${dotenv_build_mode:-development}}"
+case "$ANIMAMA_WEB_BUILD_MODE" in
+  production) COMPOSE_FILE="${script_dir}/docker-compose.yml" ;;
+  development) COMPOSE_FILE="${script_dir}/docker-compose.yml:${script_dir}/docker-compose.development.yml" ;;
+  *) die "ANIMAMA_WEB_BUILD_MODE must be development or production" ;;
+esac
+export COMPOSE_FILE ANIMAMA_WEB_BUILD_MODE
 export COMPOSE_PROFILES
 
 if [ -n "${COMPOSE_PROFILES:-}" ]; then
@@ -297,10 +307,8 @@ ANIMAMA_DATA_HOST_PATH="${ANIMAMA_DATA_HOST_PATH:-$DERIVED_DATA_HOST_PATH}"
 ANIMAMA_DOCLING_CACHE_HOST_PATH="${ANIMAMA_DOCLING_CACHE_HOST_PATH:-$DERIVED_DOCLING_CACHE_HOST_PATH}"
 ANIMAMA_CONTENT_ROOT="${ANIMAMA_CONTENT_ROOT:-$DERIVED_HOST_CONTENT_ROOT}"
 ANIMAMA_DATA_ROOT="${ANIMAMA_DATA_ROOT:-$ANIMAMA_DATA_HOST_PATH}"
-ANIMAMA_INTERNAL_TOKEN_HOST_PATH="${ANIMAMA_DATA_HOST_PATH}/internal/gateway/token"
 export ANIMAMA_INCLUDED_CONTENT_HOST_PATH ANIMAMA_LOCAL_CONTENT_HOST_PATH ANIMAMA_DATA_HOST_PATH
 export ANIMAMA_DOCLING_CACHE_HOST_PATH ANIMAMA_CONTENT_ROOT ANIMAMA_DATA_ROOT
-export ANIMAMA_INTERNAL_TOKEN_HOST_PATH
 
 if [ "$BASE_PORT_REQUESTED" = true ]; then
   if [[ ! "$BASE_PORT" =~ ^[0-9]+$ ]] || [ "$BASE_PORT" -lt 1 ] || [ "$BASE_PORT" -gt 65535 ]; then
@@ -362,6 +370,8 @@ write_stack_env_file() {
     fi
     # Persist empty as well, so sourcing this file cannot reactivate stale profiles.
     write_env_var COMPOSE_PROFILES
+    write_env_var COMPOSE_FILE
+    write_env_var ANIMAMA_WEB_BUILD_MODE
     write_env_var ANIMAMA_CONTAINER_NAME_PREFIX
     write_env_var APP_HOST
     write_env_var APP_SCHEME
@@ -379,7 +389,6 @@ write_stack_env_file() {
     write_env_var ANIMAMA_INCLUDED_CONTENT_HOST_PATH
     write_env_var ANIMAMA_LOCAL_CONTENT_HOST_PATH
     write_env_var ANIMAMA_DATA_HOST_PATH
-    write_env_var ANIMAMA_INTERNAL_TOKEN_HOST_PATH
     write_env_var ANIMAMA_DOCLING_CACHE_HOST_PATH
   } > "$STACK_ENV_FILE"
 }
@@ -421,7 +430,6 @@ prepare_host_roots() {
     "$ANIMAMA_DATA_HOST_PATH/internal/runtime" \
     "$ANIMAMA_DATA_HOST_PATH/internal/derivatives" \
     "$ANIMAMA_DATA_HOST_PATH/internal/reconciliation" \
-    "$ANIMAMA_DATA_HOST_PATH/internal/gateway" \
     "$ANIMAMA_DOCLING_CACHE_HOST_PATH" \
     "${script_dir}/.animama-logs"
 }
@@ -491,10 +499,6 @@ else
   echo "💾 Preserving PostgreSQL, Local content, and private data (use --purge to delete this stack only)."
 fi
 
-# Hono and FastAPI read the same owner-only token file. It is never exported to
-# the shell environment or written into the stack env file.
-animama_gateway_token_prepare "$ANIMAMA_INTERNAL_TOKEN_HOST_PATH"
-
 # Step 3: Optionally build requested images, then start containers
 if [ "$BUILD_REQUESTED" = true ]; then
   if [ "${#BUILD_SERVICES[@]}" -gt 0 ]; then
@@ -530,26 +534,34 @@ echo "🔨 Bootstrapping database schema and catalogs..."
 # fail-closed until this migration creates the installation principal.
 compose run --rm --no-deps --build animama-server python -m animama.server.db_bootstrap --quiet
 
-echo "🚀 Starting private services and the public Hono gateway..."
+echo "🚀 Starting private services and the ${ANIMAMA_WEB_BUILD_MODE} application..."
 compose up -d
 
-# FastAPI startup resolves the migration-owned principal and performs the
-# idempotent installation bootstrap. Hono waits for the same singleton before
-# opening its public listener.
-echo "⏳ Waiting for the accountless gateway, private API, and web build..."
+# FastAPI owns accountless admission after bootstrap. In development, check it
+# through Vite's public proxy as well as the served React document.
+echo "⏳ Waiting for the application and installation bootstrap..."
 ready_attempt=1
 while [ "$ready_attempt" -le 90 ]; do
-  if compose exec -T web-server node -e '
-    const urls = ["http://localhost:3000/health", "http://animama-server:8000/health", "http://web:5173/"];
-    Promise.all(urls.map((url) => fetch(url, { signal: AbortSignal.timeout(2000) }))).then((responses) => {
-      if (responses.every((response) => response.ok)) process.exit(0);
-      process.exit(1);
-    }).catch(() => process.exit(1));
-  ' >/dev/null 2>&1; then
+  if [ "$ANIMAMA_WEB_BUILD_MODE" = development ]; then
+    ready_command=(web node scripts/check-compose-ready.mjs)
+  else
+    ready_command=(animama-server python -c '
+import os, urllib.parse, urllib.request
+host = urllib.parse.urlsplit(os.environ["ANIMAMA_PUBLIC_ORIGIN"]).netloc
+for path, content_type in (("/health", "application/json"), ("/", "text/html")):
+    request = urllib.request.Request(
+        "http://127.0.0.1:8000" + path, headers={"Host": host, "Accept": content_type}
+    )
+    with urllib.request.urlopen(request, timeout=2) as response:
+        if response.status != 200 or response.headers.get_content_type() != content_type:
+            raise SystemExit(1)
+')
+  fi
+  if compose exec -T "${ready_command[@]}" >/dev/null 2>&1; then
     break
   fi
   if [ "$ready_attempt" -eq 90 ]; then
-    echo "❌ Gateway, private API, or web build did not become ready after 90 checks. Inspect the stack logs." >&2
+    echo "❌ Application or installation bootstrap did not become ready after 90 checks. Inspect the stack logs." >&2
     compose ps >&2
     exit 1
   fi

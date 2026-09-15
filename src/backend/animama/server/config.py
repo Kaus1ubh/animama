@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 def _env_text(name: str) -> str | None:
@@ -41,7 +41,21 @@ class Settings(BaseModel):
     animama_data_root: Path = _resolved_path(os.getenv("ANIMAMA_DATA_ROOT", "data"))
     animama_included_content_sources_json: str | None = _env_text("ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON")
     animama_local_content_root: Path | None = _env_path("ANIMAMA_LOCAL_CONTENT_ROOT")
-    animama_desktop_control_token: str | None = _env_text("ANIMAMA_DESKTOP_CONTROL_TOKEN")
+    # Serving policy belongs to the installation composition. These inputs
+    # never come from a browser request or an installation-owner assertion.
+    animama_public_origin: str = Field(
+        default_factory=lambda: os.getenv("ANIMAMA_PUBLIC_ORIGIN", "http://localhost:3000")
+    )
+    animama_web_root: Path | None = Field(default_factory=lambda: _env_path("ANIMAMA_WEB_ROOT"))
+    animama_desktop_renderer_capability: str | None = Field(
+        default_factory=lambda: _env_text("ANIMAMA_DESKTOP_RENDERER_CAPABILITY"), repr=False
+    )
+    animama_desktop_control_token: str | None = Field(
+        default_factory=lambda: _env_text("ANIMAMA_DESKTOP_CONTROL_TOKEN"), repr=False
+    )
+    animama_parakeet_model_mount_json: str | None = Field(
+        default_factory=lambda: _env_text("ANIMAMA_PARAKEET_MODEL_MOUNT_JSON"), repr=False
+    )
     # Compose retains its existing processing deployment; desktop explicitly
     # disables it until main verifies the matching executable feature pack.
     animama_user_file_processing_enabled: bool = _env_bool("ANIMAMA_USER_FILE_PROCESSING_ENABLED", True)
@@ -50,11 +64,9 @@ class Settings(BaseModel):
     animama_docling_artifacts_path: Path | None = _env_path("ANIMAMA_DOCLING_ARTIFACTS_PATH")
     animama_parakeet_stt_enabled: bool = _env_bool("ANIMAMA_PARAKEET_STT_ENABLED", True)
     animama_parakeet_asset_version: str | None = _env_text("ANIMAMA_PARAKEET_ASSET_VERSION")
-    # Used only by the supported native entrypoint. The Compose entrypoint has
-    # a separate, hard-coded container-network binding and is never published
-    # directly to the host.
+    # Native/frozen entrypoints validate loopback. The dedicated Compose
+    # entrypoint has a fixed container-network bind, published only on loopback.
     animama_local_bind_host: str = os.getenv("ANIMAMA_LOCAL_BIND_HOST", "127.0.0.1")
-    animama_internal_token_file: Path | None = _env_path("ANIMAMA_INTERNAL_TOKEN_FILE")
     animama_database_url: str = os.getenv(
         "ANIMAMA_DATABASE_URL", "postgresql+asyncpg://animama:a@localhost:5432/animama"
     )

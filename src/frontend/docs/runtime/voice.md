@@ -65,19 +65,19 @@ the user to main-window Settings. Browser Web Speech fallback remains available
 only where the ordinary web platform supports it.
 
 Installed model requests stay on the protected local origin at
-`/onnx/models/parakeet-tdt-0.6b-v2/` with `?v=<asset-version>`. The gateway checks
+`/onnx/models/parakeet-tdt-0.6b-v2/` with `?v=<asset-version>`. FastAPI checks
 inventory and containment, supports single byte ranges, and rejects stale
 versions. Main disposes every renderer context before removing/replacing bytes,
-which terminates existing ONNX workers. Pack transitions keep the same Hono
+which terminates existing ONNX workers. Pack transitions keep the same application
 origin but reload the app and close companion windows. Native pack installation
 and inference still require real reviewed artifacts and user verification.
 
 ### TTS provider matrix
 
-| Provider     | Source                       | Primary path           | Notes                                                                                          |
-| ------------ | ---------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------- |
-| `browser`    | `speechSynthesis`            | fallback/simple speech | queue of utterances                                                                            |
-| `pocket_tts` | local worker/worklet runtime | primary voice UX       | detailed below; preferred for avatar sync                                                      |
+| Provider     | Source                       | Primary path           | Notes                                                                                                                                |
+| ------------ | ---------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `browser`    | `speechSynthesis`            | fallback/simple speech | queue of utterances                                                                                                                  |
+| `pocket_tts` | local worker/worklet runtime | primary voice UX       | detailed below; preferred for avatar sync                                                                                            |
 | `elevenlabs` | ElevenLabs WS or HTTP stream | streamed speech output | realtime Flash/Multilingual models stream from text chunks; v3 plays backend-pushed finalized audio grouped by sentence or paragraph |
 
 ## Core Concepts and IDs

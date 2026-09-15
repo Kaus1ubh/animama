@@ -518,7 +518,7 @@ Forbidden`. Internal episodic-memory services pass a system-managed write flag
 when regenerating those files from `memory_episode_items`.
 
 The old `/v1/memory/files` routes are not mounted. All entry routes are scoped
-by the gateway-resolved request principal. When `anima_id` is non-null, the API
+by the admitted installation request principal. When `anima_id` is non-null, the API
 validates that the anima belongs to that owner. Unit tests replace the FastAPI
 principal dependency explicitly; there is no test-header authentication path.
 
@@ -583,7 +583,7 @@ and its snapshots share a positive, monotonically increasing `version` number.
 Audit-only provenance is stored separately as `change_metadata`; it does not
 change the entry's own metadata snapshot.
 
-Gateway-authenticated local clients can read history by stable entry ID:
+Admitted local clients can read history by stable entry ID:
 
 - `GET /v1/memory/entries/{entry_id}/versions?before_version=&limit=50` lists
   content-free summaries newest first. `before_version` provides cursor

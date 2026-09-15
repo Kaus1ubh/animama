@@ -21,8 +21,8 @@ specific docs linked from there.
 - `adapters/` contains SQLAlchemy repositories, mappers, and direct model-client
   adapters.
 - `orm/` contains SQLAlchemy async models.
-- `local/` owns installation identity/model/repository, trusted gateway
-  verification, and local database creation. Its dependencies may point into
+- `local/` owns installation identity/model/repository, HTTP admission and
+  lifecycle, and local database creation. Its dependencies may point into
   shared code; shared code must never import it.
 - `resources/` contains packaged shared catalogs; `logging.py` supplies an
   unconfigured logger. Local logging setup stays in `logging_config.py`.
@@ -97,17 +97,21 @@ do not reintroduce them for normal chat.
 
 The local application has no user credentials. Backend routes receive the
 minimal `RequestPrincipal` through `get_current_principal`, which delegates to
-the resolver installed by `create_local_app`. At startup the local composition
-loads the installation principal and private token, then installs the
-`LocalGatewayPrincipalResolver`. It accepts only Hono's matching token and
-principal assertion. Tests must use FastAPI dependency overrides and must not
-add request-header bypasses.
+the resolver installed by `create_local_app`. The local HTTP boundary validates
+Host, Origin, Fetch Metadata and mutation CSRF markers before admitting a
+request. Desktop additionally requires a per-launch renderer capability cookie.
+Completed bootstrap supplies the installation principal; request headers never
+select it. Private controls require their separate desktop token. Tests use
+explicit fixture bootstrap, ordinary browser metadata and FastAPI dependency
+overrides, with separate hostile-input boundary tests.
 
-Compose keeps FastAPI and PostgreSQL private. Only the opt-in `dev-tools`
+Built Compose publishes only FastAPI on loopback; development publishes Vite,
+which proxies a closed set of application routes to private FastAPI. PostgreSQL
+stays private. Only the opt-in `dev-tools`
 profile adds localhost pgAdmin/Dozzle access for operators; it does not change
 product authentication. See `docs/operations/development.md` for commands,
 port overrides, and safe enable/disable behavior. Never publish PostgreSQL or
-route these privileged tools through Hono as a shortcut.
+route these privileged tools through the application as a shortcut.
 
 Always filter owner-scoped rows by `RequestPrincipal.id`. Existing `user_id` and
 `owner_user_id` names remain ownership columns. Do not trust client-provided
@@ -191,7 +195,7 @@ Do not make core dispatch depend on external queues or background workers.
 Avatar/voice content uses staged uploads and the canonical Included/Local
 filesystem catalog; private originals stay beneath `ANIMAMA_DATA_ROOT`.
 Validate owner, status, containment, size and format before finalizing. Serve
-registered bytes through the trusted gateway. Do not reintroduce R2/S3 presigned
+registered bytes through the admitted FastAPI boundary. Do not reintroduce R2/S3 presigned
 URLs or renderer-chosen paths for local content. Desktop's immutable mounts,
 private environment and recovery rules are in `docs/operations/desktop-runtime.md`.
 

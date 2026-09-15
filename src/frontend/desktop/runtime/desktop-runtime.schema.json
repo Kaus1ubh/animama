@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://animama.invalid/schemas/desktop-runtime/1",
+  "$id": "https://animama.invalid/schemas/desktop-runtime/2",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -12,13 +12,13 @@
     "minimum_os",
     "postgresql",
     "alembic_head",
-    "gateway_schema_version",
+    "local_http_schema_version",
     "core_content_inventory_id",
     "pack_catalog_id",
     "files"
   ],
   "properties": {
-    "schema": { "const": "animama-desktop-runtime/1" },
+    "schema": { "const": "animama-desktop-runtime/2" },
     "app_version": {
       "type": "string",
       "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
@@ -41,7 +41,7 @@
       }
     },
     "alembic_head": { "type": "string", "minLength": 1 },
-    "gateway_schema_version": { "const": 1 },
+    "local_http_schema_version": { "const": 1 },
     "core_content_inventory_id": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"

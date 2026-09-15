@@ -12,18 +12,15 @@ from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from animama.app.services import content_catalog_service, owner_bootstrap_service
-from animama.local.gateway_principal import (
-    FailClosedLocalPrincipalResolver,
-    LocalGatewayPrincipalResolver,
-    RequestPrincipal,
-)
+from animama.domain.request_principal import RequestPrincipal
+from animama.local.http.lifecycle import AdmittedLocalPrincipalResolver
 from animama.runtime import cli
 from animama.server.app import create_local_app
 from animama.server.config import Settings
 from animama.server.deps import get_current_principal
 
 
-def test_local_app_stays_fail_closed_before_startup_installs_gateway_resolver(tmp_path: Path) -> None:
+def test_local_app_stays_fail_closed_before_completed_bootstrap(tmp_path: Path) -> None:
     app = create_local_app(
         runtime_settings=Settings(
             animama_content_root=tmp_path / "content",
@@ -31,16 +28,16 @@ def test_local_app_stays_fail_closed_before_startup_installs_gateway_resolver(tm
         )
     )
 
-    assert isinstance(app.state.request_principal_resolver, FailClosedLocalPrincipalResolver)
-    client = TestClient(app, raise_server_exceptions=False)
+    assert isinstance(app.state.request_principal_resolver, AdmittedLocalPrincipalResolver)
+    client = TestClient(app, base_url="http://localhost:3000", raise_server_exceptions=False)
     try:
-        # Avoid lifespan: startup requires the migrated principal and token file.
-        assert client.get("/health").json() == {"status": "ok"}
+        # Avoid lifespan: startup must require the migration-owned principal.
+        assert client.get("/health").status_code == 503
         response = client.get("/v1/users/me/profile")
     finally:
         client.close()
     assert response.status_code == 503
-    assert response.json()["detail"]["code"] == "local_gateway_unavailable"
+    assert response.json() == {"error": "local_runtime_unavailable"}
 
 
 def test_shared_owner_services_do_not_import_local_installation_state() -> None:
@@ -72,7 +69,7 @@ def test_every_local_product_http_route_requires_the_principal_dependency(tmp_pa
 
 
 @pytest.mark.parametrize("desktop_cli", [False, True])
-def test_startup_installs_the_gateway_resolver_from_bootstrap_state(
+def test_startup_admits_only_the_bootstrap_owner_without_gateway_assertions(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, desktop_cli: bool
 ) -> None:
     app_module = import_module("animama.server.app")
@@ -80,7 +77,7 @@ def test_startup_installs_the_gateway_resolver_from_bootstrap_state(
 
     class Bootstrap:
         async def ensure(self):  # noqa: ANN202
-            return SimpleNamespace(principal_id=principal_id, failed_steps=())
+            return SimpleNamespace(principal_id=principal_id, failed_steps=(), content_ready=True)
 
     async def no_op(*args, **kwargs) -> None:  # noqa: ANN002, ANN003
         return None
@@ -97,29 +94,41 @@ def test_startup_installs_the_gateway_resolver_from_bootstrap_state(
     runtime_settings = Settings(
         animama_content_root=tmp_path / "content",
         animama_data_root=tmp_path / "data",
-        animama_internal_token_file=None,
+        animama_public_origin="http://127.0.0.1:12345" if desktop_cli else "http://localhost:3000",
     )
     token = "e" * 64
     if desktop_cli:
         import uvicorn
 
         applications = []
-        monkeypatch.setattr(app_module, "settings", runtime_settings)
-        monkeypatch.setenv("ANIMAMA_INTERNAL_GATEWAY_TOKEN", token)
+        web_root = tmp_path / "web"
+        web_root.mkdir()
+        (web_root / "index.html").write_text("<html>fixture</html>")
+        monkeypatch.setenv("ANIMAMA_PUBLIC_ORIGIN", "http://127.0.0.1:12345")
+        monkeypatch.setenv("ANIMAMA_WEB_ROOT", str(web_root))
+        monkeypatch.setenv("ANIMAMA_DESKTOP_RENDERER_CAPABILITY", token)
+        monkeypatch.setenv("ANIMAMA_DESKTOP_CONTROL_TOKEN", "c" * 64)
+        monkeypatch.setenv("ANIMAMA_PROCESS_START_TOKEN", "11111111-1111-4111-8111-111111111111")
         monkeypatch.setattr(uvicorn, "run", lambda app, **kwargs: applications.append(app))
         assert cli.main(["serve", "--port", "12345"]) == 0
         application = applications[0]
     else:
-        application = create_local_app(runtime_settings=runtime_settings, internal_gateway_token=token)
+        application = create_local_app(runtime_settings=runtime_settings)
 
     @application.get("/_test/principal")
     async def principal_probe(principal: Annotated[RequestPrincipal, Depends(get_current_principal)]) -> str:
         return principal.id
 
-    with TestClient(application) as client:
-        assert isinstance(application.state.request_principal_resolver, LocalGatewayPrincipalResolver)
-        assert client.get("/_test/principal").status_code == 401
-        headers = {"X-Animama-Principal-Id": principal_id, "X-Animama-Internal-Token": token}
+    # Real product routes precede the static catch-all. Keep the test probe in
+    # that same position when the desktop fixture includes built assets.
+    application.router.routes.insert(0, application.router.routes.pop())
+    origin = runtime_settings.animama_public_origin
+    browser = {"origin": origin, "sec-fetch-site": "same-origin"}
+    if desktop_cli:
+        browser["cookie"] = f"animama_renderer_capability={token}"
+    with TestClient(application, base_url=origin, headers=browser) as client:
+        assert isinstance(application.state.request_principal_resolver, AdmittedLocalPrincipalResolver)
+        assert client.get("/_test/principal").json() == principal_id
+        headers = {"X-Animama-Principal-Id": "forged", "X-Animama-Internal-Token": "forged"}
         assert client.get("/_test/principal", headers=headers).json() == principal_id
-        headers["X-Animama-Internal-Token"] = "f" * 64
-        assert client.get("/_test/principal", headers=headers).status_code == 401
+        assert client.get("/_test/principal", headers={"origin": "https://foreign.invalid"}).status_code == 403

@@ -12,7 +12,7 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI, HTTPException
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 
 from animama.domain.content_catalog import ContentSource, VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
@@ -20,6 +20,7 @@ from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.routers import anima_runtime
+from tests.local_http_client import local_client
 
 
 @pytest.fixture
@@ -68,7 +69,7 @@ async def _wire(client: AsyncClient, encoding: str, *, etag: str | None = None):
 
 
 async def test_runtime_manifest_compresses_real_wire_bytes_without_changing_json(runtime_http: SimpleNamespace) -> None:
-    async with AsyncClient(transport=ASGITransport(app=runtime_http.app), base_url="http://test") as client:
+    async with local_client(runtime_http.app) as client:
         identity, raw = await _wire(client, "identity")
         compressed, wire = await _wire(client, "gzip")
         assert identity.status_code == compressed.status_code == 200
@@ -103,7 +104,7 @@ async def test_runtime_manifest_compresses_real_wire_bytes_without_changing_json
 async def test_runtime_manifest_encoding_negotiation(
     runtime_http: SimpleNamespace, accepted: str, expected: str
 ) -> None:
-    async with AsyncClient(transport=ASGITransport(app=runtime_http.app), base_url="http://test") as client:
+    async with local_client(runtime_http.app) as client:
         response, body = await _wire(client, accepted)
         assert response.status_code == 200
         assert response.headers.get("content-encoding", "identity") == expected
@@ -111,7 +112,7 @@ async def test_runtime_manifest_encoding_negotiation(
 
 
 async def test_manifest_conditional_request_still_issues_fresh_owner_lease(runtime_http: SimpleNamespace) -> None:
-    async with AsyncClient(transport=ASGITransport(app=runtime_http.app), base_url="http://test") as client:
+    async with local_client(runtime_http.app) as client:
         first, first_wire = await _wire(client, "gzip")
         runtime_http.expires += timedelta(minutes=1)
         second, second_wire = await _wire(client, "gzip", etag=first.headers["etag"])
@@ -133,7 +134,7 @@ async def test_manifest_conditional_request_still_issues_fresh_owner_lease(runti
 
 
 async def test_no_acceptable_manifest_encoding_has_a_bounded_error(runtime_http: SimpleNamespace) -> None:
-    async with AsyncClient(transport=ASGITransport(app=runtime_http.app), base_url="http://test") as client:
+    async with local_client(runtime_http.app) as client:
         response, body = await _wire(client, "gzip;q=0, identity;q=0")
         assert response.status_code == 406
         assert json.loads(body)["detail"]["code"] == "runtime_encoding_not_acceptable"
@@ -163,7 +164,7 @@ async def test_runtime_private_file_does_not_use_manifest_compression(
         "open_verified_file",
         lambda _self, **_kwargs: VerifiedContentFile(BytesIO(body), len(body), digest, "application/octet-stream"),
     )
-    async with AsyncClient(transport=ASGITransport(app=runtime_http.app), base_url="http://test") as client:
+    async with local_client(runtime_http.app) as client:
         response = await client.get(
             "/v1/animas/anima/runtime/revisions/revision/files/member", headers={"Accept-Encoding": "gzip"}
         )

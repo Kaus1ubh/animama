@@ -28,6 +28,7 @@ const fixture = vi.hoisted(() => {
     args: string[];
     child: { pid: number };
     output: string;
+    token: string;
     exit: Promise<void>;
     finish(): void;
   };
@@ -47,27 +48,14 @@ const fixture = vi.hoisted(() => {
     alembic_head: state.alembic_head,
     installation_principal_id: state.installation_principal_id,
   };
-  const promote = vi.fn(async () => undefined);
-  const drain = vi.fn(async () => undefined);
-  const close = vi.fn(async () => undefined);
-  const bootstrap = vi.fn();
-  const bind = vi.fn(async (config: { port: number }) => ({
-    origin: new URL(`http://127.0.0.1:${config.port || 41234}`),
-    promote,
-    drain,
-    close,
-    setBootstrapState: bootstrap,
-  }));
   return {
     launches,
     owners,
     state,
     health,
-    promote,
-    drain,
-    close,
-    bootstrap,
-    bind,
+    ready: vi.fn(),
+    quiesce: vi.fn(),
+    available: vi.fn(),
     verify: vi.fn(),
     postgresStarts: vi.fn(),
     postgresStops: vi.fn(),
@@ -75,14 +63,12 @@ const fixture = vi.hoisted(() => {
   };
 });
 
-vi.mock("animama-frontend-server/gateway", () => ({
-  createFrontendGateway: fixture.bind,
-}));
 vi.mock("../src/main-process/runtime/manifest.js", () => ({
   verifyRuntime: fixture.verify,
 }));
 vi.mock("../src/main-process/runtime/ports.js", () => ({
-  unusedLoopbackPort: async () => 41235,
+  unusedLoopbackPort: async () => 41234,
+  assertLoopbackPortAvailable: fixture.available,
 }));
 vi.mock("../src/main-process/runtime/processes.js", () => ({
   runCommand: fixture.command,
@@ -107,6 +93,7 @@ vi.mock("../src/main-process/runtime/processes.js", () => ({
         args,
         child: { pid: 1000 + fixture.launches.length },
         output: "",
+        token: `fixture-process-token-${fixture.launches.length}`,
         exit,
         finish: () => {
           this.children.delete(child);
@@ -157,7 +144,7 @@ vi.mock("../src/main-process/runtime/postgres.js", () => ({
 const roots: string[] = [];
 let runtime: RuntimeSupervisor | undefined;
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   fixture.launches.splice(0);
   fixture.owners.splice(0);
   fixture.verify.mockResolvedValue({
@@ -165,12 +152,25 @@ beforeEach(() => {
     build_id: fixture.health.build_id,
     alembic_head: fixture.state.alembic_head,
     postgresql: { pgvector: "0.8.6" },
+    local_http_schema_version: 1,
   });
   fixture.command.mockResolvedValue(JSON.stringify(fixture.state));
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => Response.json(fixture.health)),
+  fixture.available.mockResolvedValue(undefined);
+  fixture.ready.mockImplementation(async () => {
+    const child = fixture.launches
+      .filter((item) => item.name === "fastapi")
+      .at(-1)!;
+    return Response.json({
+      ...fixture.health,
+      local_http_schema_version: 1,
+      process_id: child.child.pid,
+      process_start_token: child.token,
+    });
+  });
+  fixture.quiesce.mockImplementation(async () =>
+    Response.json({ schema_version: 1, state: "quiesced" }),
   );
+  vi.stubGlobal("fetch", vi.fn(defaultFetch));
 });
 afterEach(async () => {
   await runtime?.stop();
@@ -195,7 +195,6 @@ function create(
       encryptString: (value: string) => Buffer.from(value),
       decryptString: (value: Buffer) => value.toString(),
     },
-    bootstrapHtml: () => "starting",
     onStatus: vi.fn(),
     quiesceRenderers: vi.fn(async () => undefined),
   };
@@ -282,6 +281,12 @@ function seedSpeechPack(
   return root;
 }
 
+async function defaultFetch(input: unknown): Promise<Response> {
+  return String(input).includes("runtime:quiesce")
+    ? fixture.quiesce()
+    : fixture.ready();
+}
+
 function allowRemoval() {
   vi.mocked(fetch).mockImplementation(async (input) => {
     if (String(input).includes(":removal-check"))
@@ -291,7 +296,7 @@ function allowRemoval() {
         removable: true,
         blockers: [],
       });
-    return Response.json(fixture.health);
+    return defaultFetch(input);
   });
 }
 
@@ -310,7 +315,7 @@ describe("runtime supervision", () => {
     const current = create();
     seedSpeechPack(current.options, "expanded-included-content");
     await current.runtime.start();
-    fixture.drain.mockClear();
+    fixture.quiesce.mockClear();
     vi.mocked(fetch).mockResolvedValueOnce(
       Response.json({
         schema_version: 1,
@@ -323,7 +328,7 @@ describe("runtime supervision", () => {
       "update_pack_references_blocked",
     );
     expect(current.runtime.status().state).toBe("ready");
-    expect(fixture.drain).not.toHaveBeenCalled();
+    expect(fixture.quiesce).not.toHaveBeenCalled();
     expect(fixture.owners.some((children) => children.size > 0)).toBe(true);
   });
 
@@ -379,8 +384,8 @@ describe("runtime supervision", () => {
         new Error("fixture drain failure"),
       );
       if (failRecovery)
-        fixture.promote.mockRejectedValueOnce(
-          new Error("fixture backend recovery failure"),
+        fixture.ready.mockResolvedValueOnce(
+          Response.json({ ...fixture.health, build_id: "wrong" }),
         );
       await expect(current.runtime.stopForUpdate(update)).rejects.toThrow(
         "fixture drain failure",
@@ -410,7 +415,7 @@ describe("runtime supervision", () => {
     const current = create();
     const root = seedSpeechPack(current.options);
     await current.runtime.start();
-    const drainsBefore = fixture.drain.mock.calls.length;
+    const drainsBefore = fixture.quiesce.mock.calls.length;
     vi.mocked(fetch).mockResolvedValueOnce(
       Response.json({
         schema_version: 1,
@@ -426,7 +431,7 @@ describe("runtime supervision", () => {
     ).rejects.toThrow("pack_in_use");
     expect(current.runtime.status().state).toBe("ready");
     expect(current.options.quiesceRenderers).not.toHaveBeenCalled();
-    expect(fixture.drain.mock.calls.length).toBe(drainsBefore);
+    expect(fixture.quiesce.mock.calls.length).toBe(drainsBefore);
     expect(existsSync(root)).toBe(true);
     expect(current.runtime.featurePacks().list()[0].blockers?.[0].label).toBe(
       "Active preview",
@@ -434,7 +439,7 @@ describe("runtime supervision", () => {
   });
 
   it.each([false, true])(
-    "quiesces the renderer and keeps a stable gateway through removal (rollback=%s)",
+    "quiesces the renderer and keeps the saved origin through removal (rollback=%s)",
     async (fail) => {
       const current = create();
       const root = seedSpeechPack(current.options);
@@ -446,14 +451,16 @@ describe("runtime supervision", () => {
       );
       allowRemoval();
       if (fail)
-        fixture.promote.mockRejectedValueOnce(
-          new Error("fixture restart failed"),
+        fixture.ready.mockResolvedValueOnce(
+          Response.json({ ...fixture.health, build_id: "wrong" }),
         );
       const removal = current.runtime.featurePacks().remove("parakeet-stt");
       if (fail) await expect(removal).rejects.toThrow();
       else await removal;
       expect(current.options.quiesceRenderers).toHaveBeenCalledOnce();
-      expect(fixture.bind).toHaveBeenCalledOnce();
+      expect(
+        fixture.available.mock.calls.every(([port]) => port === 41234),
+      ).toBe(true);
       expect(fixture.postgresStarts).toHaveBeenCalledOnce();
       expect(current.runtime.status()).toEqual({
         state: "ready",
@@ -487,7 +494,7 @@ describe("runtime supervision", () => {
     const firstPassword = firstBackend.env.PGPASSWORD;
     expect(firstBackend.args).not.toContain(firstPassword);
     expect(JSON.stringify(first.runtime.status())).not.toContain(
-      firstBackend.env.ANIMAMA_INTERNAL_GATEWAY_TOKEN,
+      firstBackend.env.ANIMAMA_DESKTOP_CONTROL_TOKEN,
     );
     await first.runtime.stop();
     expect(fixture.owners.every((children) => children.size === 0)).toBe(true);
@@ -497,16 +504,46 @@ describe("runtime supervision", () => {
       .filter((child) => child.name === "fastapi")
       .at(-1)!;
     expect(backend.env.PGPASSWORD).toBe(firstPassword);
-    expect(backend.env.ANIMAMA_INTERNAL_GATEWAY_TOKEN).not.toBe(
-      firstBackend.env.ANIMAMA_INTERNAL_GATEWAY_TOKEN,
+    expect(backend.env.ANIMAMA_DESKTOP_CONTROL_TOKEN).not.toBe(
+      firstBackend.env.ANIMAMA_DESKTOP_CONTROL_TOKEN,
     );
     expect(second.runtime.rendererCapability).not.toBe(
       first.runtime.rendererCapability,
     );
-    expect(fixture.bind.mock.calls.at(-1)?.[0].port).toBe(41234);
+    expect(fixture.available.mock.calls.at(-1)?.[0]).toBe(41234);
     expect(
       JSON.parse(readFileSync(second.options.paths.state, "utf8")).gatewayPort,
     ).toBe(41234);
+  });
+
+  it("preserves saved port 80 through failed startup, retry and consumer restart", async () => {
+    const current = create();
+    const saved = JSON.stringify({ version: 1, gatewayPort: 80 });
+    atomicWrite(current.options.paths.state, saved);
+    fixture.ready.mockResolvedValueOnce(Response.json({ invalid: true }));
+    await current.runtime.start();
+    expect(current.runtime.status().state).toBe("error");
+    await current.runtime.start();
+    expect(current.runtime.status()).toEqual({
+      state: "ready",
+      origin: "http://127.0.0.1",
+    });
+    await current.runtime.changeCredential("openai", "fixture-key");
+    expect(current.runtime.status().state).toBe("ready");
+    expect(fixture.available.mock.calls.every(([port]) => port === 80)).toBe(
+      true,
+    );
+    for (const child of fixture.launches.filter(
+      (item) => item.name === "fastapi",
+    ))
+      expect(child.args).toEqual([
+        "serve",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "80",
+      ]);
+    expect(readFileSync(current.options.paths.state, "utf8")).toBe(saved);
   });
 
   it("shows stable-port collision recovery without starting a database or changing the saved origin", async () => {
@@ -515,7 +552,7 @@ describe("runtime supervision", () => {
       current.options.paths.state,
       JSON.stringify({ version: 1, gatewayPort: 45678 }),
     );
-    fixture.bind.mockRejectedValueOnce(
+    fixture.available.mockRejectedValueOnce(
       Object.assign(new Error("occupied"), { code: "EADDRINUSE" }),
     );
     await current.runtime.start();
@@ -557,7 +594,115 @@ describe("runtime supervision", () => {
       fixture.launches.filter((child) => child.name === "fastapi").at(-1)?.env
         .OPENAI_API_KEY,
     ).toBeUndefined();
-    expect(fixture.drain).toHaveBeenCalledWith(15000);
+    expect(fixture.quiesce).toHaveBeenCalled();
+  });
+
+  it.each(["set", "delete"])(
+    "retains a busy credential %s result before replacement-window readiness and until a new attempt",
+    async (action) => {
+      const current = create();
+      await current.runtime.start();
+      await current.runtime.changeCredential("openai", "fixture-old-key");
+      const vault = readFileSync(current.options.paths.vault);
+      const readyStatuses: ReturnType<RuntimeSupervisor["credentials"]>[] = [];
+      current.options.onStatus.mockImplementation((status) => {
+        if (status.state === "ready")
+          readyStatuses.push(current.runtime.credentials());
+      });
+      fixture.quiesce.mockResolvedValueOnce(
+        Response.json({ detail: { code: "runtime_busy" } }, { status: 409 }),
+      );
+      const result = await current.runtime.changeCredential(
+        "openai",
+        action === "set" ? "fixture-replacement-key" : undefined,
+      );
+      const expected = {
+        provider: "openai",
+        configured: true,
+        error: "runtime_busy",
+        restartRequired: false,
+      };
+      expect(result).toMatchObject(expected);
+      expect(
+        readyStatuses.at(-1)?.find((entry) => entry.provider === "openai"),
+      ).toMatchObject(expected);
+      expect(readFileSync(current.options.paths.vault)).toEqual(vault);
+      expect(JSON.stringify(current.runtime.credentials())).not.toContain(
+        "fixture-old-key",
+      );
+      expect(JSON.stringify(current.runtime.credentials())).not.toContain(
+        "fixture-replacement-key",
+      );
+      result.error = "caller-mutated-status";
+      expect(
+        current.runtime
+          .credentials()
+          .find((entry) => entry.provider === "openai"),
+      ).toMatchObject(expected);
+
+      await current.runtime.changeCredential("gemini", "fixture-other-key");
+      expect(
+        current.runtime
+          .credentials()
+          .find((entry) => entry.provider === "openai"),
+      ).toMatchObject(expected);
+      fixture.quiesce.mockImplementationOnce(async () => {
+        expect(
+          current.runtime
+            .credentials()
+            .find((entry) => entry.provider === "openai")?.error,
+        ).toBeUndefined();
+        return Response.json({ schema_version: 1, state: "quiesced" });
+      });
+      await current.runtime.changeCredential("openai");
+      expect(
+        current.runtime
+          .credentials()
+          .find((entry) => entry.provider === "openai"),
+      ).toMatchObject({
+        configured: false,
+        restartRequired: false,
+      });
+      expect(
+        current.runtime
+          .credentials()
+          .find((entry) => entry.provider === "openai")?.error,
+      ).toBeUndefined();
+    },
+  );
+
+  it("retains a saved credential after restart failure and clears its failure when Retry consumes it", async () => {
+    const current = create();
+    await current.runtime.start();
+    fixture.ready.mockResolvedValueOnce(Response.json({}));
+    const result = await current.runtime.changeCredential(
+      "openai",
+      "fixture-saved-key",
+    );
+    expect(result).toMatchObject({
+      configured: true,
+      restartRequired: true,
+      error: "backend_readiness_mismatch",
+    });
+    expect(
+      current.runtime
+        .credentials()
+        .find((entry) => entry.provider === "openai"),
+    ).toEqual(result);
+    await current.runtime.start();
+    expect(current.runtime.status().state).toBe("ready");
+    const restored = current.runtime
+      .credentials()
+      .find((entry) => entry.provider === "openai");
+    expect(restored).toMatchObject({
+      configured: true,
+      restartRequired: false,
+    });
+    expect(restored?.error).toBeUndefined();
+    expect(
+      fixture.launches.filter((child) => child.name === "fastapi").at(-1)?.env
+        .OPENAI_API_KEY,
+    ).toBe("fixture-saved-key");
   });
 
   it("rejects mismatched backend identity and stops every owned child", async () => {
@@ -573,7 +718,11 @@ describe("runtime supervision", () => {
       state: "error",
       code: "backend_readiness_mismatch",
     });
-    expect(fixture.promote).not.toHaveBeenCalled();
+    expect(
+      current.options.onStatus.mock.calls.some(
+        ([status]) => status.state === "ready",
+      ),
+    ).toBe(false);
     expect(fixture.owners.every((children) => children.size === 0)).toBe(true);
   });
 
@@ -593,4 +742,155 @@ describe("runtime supervision", () => {
       existsSync(path.join(current.options.paths.pgData, "PG_VERSION")),
     ).toBe(true);
   });
+
+  it("supplies built assets and exact model inventory only to the owned HTTP child", async () => {
+    const current = create();
+    seedSpeechPack(current.options);
+    await current.runtime.start();
+    const backend = fixture.launches.find((child) => child.name === "fastapi")!;
+    expect(backend.args.slice(-2)).toEqual(["--port", "41234"]);
+    expect(backend.env.ANIMAMA_PUBLIC_ORIGIN).toBe("http://127.0.0.1:41234");
+    expect(backend.env.ANIMAMA_WEB_ROOT).toBe(
+      path.join(current.options.runtimeRoot, "web"),
+    );
+    expect(backend.env.ANIMAMA_DESKTOP_RENDERER_CAPABILITY).toBe(
+      current.runtime.rendererCapability,
+    );
+    expect(backend.env.ANIMAMA_DESKTOP_CONTROL_TOKEN).not.toBe(
+      current.runtime.rendererCapability,
+    );
+    expect(backend.env.ANIMAMA_INTERNAL_GATEWAY_TOKEN).toBeUndefined();
+    const mount = JSON.parse(backend.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON!);
+    expect(mount.files).toEqual([
+      {
+        path: "config.json",
+        size_bytes: 2,
+        sha256: createHash("sha256").update("{}").digest("hex"),
+        media_type: "application/json",
+      },
+    ]);
+    for (const worker of fixture.launches.filter(
+      (child) => child.name !== "fastapi",
+    )) {
+      expect(worker.env.ANIMAMA_DESKTOP_CONTROL_TOKEN).toBeUndefined();
+      expect(worker.env.ANIMAMA_DESKTOP_RENDERER_CAPABILITY).toBeUndefined();
+      expect(worker.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON).toBeUndefined();
+    }
+  });
+
+  it("cannot expose ready after cleanup exits during the readiness request", async () => {
+    fixture.ready.mockImplementationOnce(async () => {
+      const backend = fixture.launches.find(
+        (child) => child.name === "fastapi",
+      )!;
+      fixture.launches
+        .find((child) => child.name === "avatar-cleanup")!
+        .finish();
+      return Response.json({
+        ...fixture.health,
+        local_http_schema_version: 1,
+        process_id: backend.child.pid,
+        process_start_token: backend.token,
+      });
+    });
+    const current = create();
+    await current.runtime.start();
+    expect(current.runtime.status().state).toBe("error");
+    expect(
+      current.options.onStatus.mock.calls.some(
+        ([status]) => status.state === "ready",
+      ),
+    ).toBe(false);
+    expect(fixture.owners.every((children) => children.size === 0)).toBe(true);
+  });
+
+  it.each([
+    { process_id: 1 },
+    { process_start_token: "foreign-process" },
+    { local_http_schema_version: 0 },
+    { build_id: "old-build" },
+  ])(
+    "never promotes a foreign or incompatible readiness response: %j",
+    async (change) => {
+      fixture.ready.mockImplementationOnce(async () => {
+        const child = fixture.launches
+          .filter((item) => item.name === "fastapi")
+          .at(-1)!;
+        return Response.json({
+          ...fixture.health,
+          local_http_schema_version: 1,
+          process_id: child.child.pid,
+          process_start_token: child.token,
+          ...change,
+        });
+      });
+      const current = create();
+      await current.runtime.start();
+      expect(current.runtime.status()).toEqual({
+        state: "error",
+        code: "backend_readiness_mismatch",
+      });
+      expect(
+        current.options.onStatus.mock.calls.some(
+          ([status]) => status.state === "ready",
+        ),
+      ).toBe(false);
+      expect(fixture.owners.every((children) => children.size === 0)).toBe(
+        true,
+      );
+    },
+  );
+
+  it.each(["pack", "update", "credential"])(
+    "a busy quiesce preserves the old %s configuration and restarts it",
+    async (action) => {
+      const current = create();
+      const packRoot = seedSpeechPack(current.options);
+      await current.runtime.start();
+      const pointer = readFileSync(
+        path.join(current.options.paths.packs, "active.json"),
+        "utf8",
+      );
+      const vault = readFileSync(current.options.paths.vault);
+      allowRemoval();
+      fixture.quiesce.mockResolvedValueOnce(
+        Response.json({ detail: { code: "runtime_busy" } }, { status: 409 }),
+      );
+      if (action === "pack")
+        await expect(
+          current.runtime.featurePacks().remove("parakeet-stt"),
+        ).rejects.toThrow("runtime_busy");
+      else if (action === "update")
+        await expect(current.runtime.stopForUpdate(update)).rejects.toThrow(
+          "runtime_busy",
+        );
+      else
+        expect(
+          await current.runtime.changeCredential("openai", "new-key"),
+        ).toMatchObject({ configured: false, error: "runtime_busy" });
+      expect(current.runtime.status()).toEqual({
+        state: "ready",
+        origin: "http://127.0.0.1:41234",
+      });
+      expect(
+        readFileSync(
+          path.join(current.options.paths.packs, "active.json"),
+          "utf8",
+        ),
+      ).toBe(pointer);
+      expect(readFileSync(current.options.paths.vault)).toEqual(vault);
+      expect(existsSync(packRoot)).toBe(true);
+      expect(fixture.postgresStarts).toHaveBeenCalledOnce();
+      const backend = fixture.launches
+        .filter((child) => child.name === "fastapi")
+        .at(-1)!;
+      expect(backend.env.ANIMAMA_PARAKEET_STT_ENABLED).toBe("1");
+      expect(backend.env.OPENAI_API_KEY).toBeUndefined();
+      expect(
+        vi
+          .mocked(fetch)
+          .mock.calls.some(([input]) => String(input).includes(":resume")),
+      ).toBe(false);
+    },
+  );
 });

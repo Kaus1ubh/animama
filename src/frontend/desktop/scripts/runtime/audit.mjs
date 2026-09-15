@@ -143,7 +143,11 @@ try {
       capture: true,
     }),
   );
-  if (!resources.frozen || resources.alembic_head !== manifest.alembic_head)
+  if (
+    !resources.frozen ||
+    resources.alembic_head !== manifest.alembic_head ||
+    resources.local_http_schema_version !== manifest.local_http_schema_version
+  )
     throw new Error("Frozen resource/head audit mismatch");
   const coreRoot = path.join(target.runtime, "content/included-core");
   const content = JSON.parse(

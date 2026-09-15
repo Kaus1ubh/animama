@@ -8,7 +8,6 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentService
 from animama.domain.content_catalog import (
@@ -24,6 +23,7 @@ from animama.domain.content_catalog import (
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import content, typed_content
+from tests.local_http_client import local_client
 
 
 def _entry(kind: ContentKind, *, item_id: str) -> CatalogContentEntry:
@@ -122,7 +122,7 @@ async def test_save_replay_returns_original_typed_snapshot_after_catalog_change(
         form.update(entry_name="Original", expected_avatar_revision="a" * 64)
     upload_field = "file" if portrait else "files"
 
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         first = await client.put(route, data=form, files={upload_field: ("source.webp", b"original bytes")})
         assert first.status_code == 200, first.text
         original_response = first.json()

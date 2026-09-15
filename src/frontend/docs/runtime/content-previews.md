@@ -167,11 +167,11 @@ identity.
 1. A typed one-root preview or bundled preparation returns a `preview_id`,
    union revision, expiry, and opaque logical file references. A bundle stores
    one capability row and deduplicates file membership across successful roots.
-2. The browser requests the matching same-origin preview file URL through Hono
+2. The browser requests the matching same-origin preview file URL through the application origin
    without an Authorization header.
 3. The backend rechecks owner, snapshot expiry, and exact membership, then
    returns an authenticated API-relative GET or HEAD byte URL.
-4. The browser fetches that local URL through Hono, owns the resulting
+4. The browser fetches that local URL through the application origin, owns the resulting
    Blob/object URL for the preview lifetime, and retains only the stable
    logical reference and content revision.
 

@@ -38,13 +38,12 @@ def test_active_local_code_has_no_credential_era_auth_or_security_mode_switch() 
 
     files = [
         *_source_files(REPO_ROOT / "src/backend/animama", (".py",)),
-        *_source_files(REPO_ROOT / "src/frontend/server/src", (".ts", ".tsx")),
         *_source_files(REPO_ROOT / "src/frontend/web/src", (".ts", ".tsx")),
         *_source_files(REPO_ROOT / "src/frontend/packages", (".ts", ".tsx")),
         *_source_files(REPO_ROOT / "tests/loadtest", (".py",)),
         REPO_ROOT / "docker-compose.yml",
         REPO_ROOT / "reset.sh",
-        REPO_ROOT / "src/frontend/server/package.json",
+        REPO_ROOT / "docker-compose.development.yml",
         REPO_ROOT / "src/frontend/web/package.json",
     ]
     patterns = {
@@ -59,13 +58,12 @@ def test_active_local_code_has_no_credential_era_auth_or_security_mode_switch() 
     assert _matches(files, patterns) == []
 
 
-def test_browser_and_load_tools_have_no_direct_fastapi_or_bearer_path() -> None:
-    """Browser-shaped callers must use same-origin Hono without bearer state."""
+def test_browser_and_load_tools_have_no_separate_api_origin_or_bearer_path() -> None:
+    """Browser-shaped callers must use the application origin without bearer state."""
 
     browser_files = [
         *_source_files(REPO_ROOT / "src/frontend/web/src", (".ts", ".tsx")),
         *_source_files(REPO_ROOT / "src/frontend/packages", (".ts", ".tsx")),
-        *_source_files(REPO_ROOT / "src/frontend/server/src", (".ts", ".tsx")),
         *_source_files(REPO_ROOT / "tests/loadtest", (".py",)),
     ]
     patterns = {

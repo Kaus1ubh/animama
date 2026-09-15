@@ -1,12 +1,11 @@
 # Development And Operations
 
-> **Accountless local contract (2026-09-01):** `reset.sh` runs the local
-> desktop/self-host composition with Hono as its only published application
-> service. Opt-in `dev-tools` adds loopback pgAdmin/Dozzle for local operators.
-> FastAPI, Vite, PostgreSQL, and other infrastructure remain on the private
-> Compose network. No account is seeded or required. One migration-generated
-> installation principal owns local data, while the replaceable gateway token
-> authenticates Hono to FastAPI.
+> **Accountless local contract (2026-09-14):** `reset.sh` publishes one loopback
+> application service: FastAPI serving React in built mode, or Vite forwarding
+> application routes to private FastAPI in development. PostgreSQL and other
+> infrastructure remain private. Opt-in `dev-tools` adds loopback pgAdmin/Dozzle.
+> One migration-generated principal owns local data; no account is required.
+> FastAPI validates browser metadata and derives ownership from completed bootstrap.
 
 This page collects backend-local commands and operational guidance. Run commands
 from the repository root unless a command says otherwise.
@@ -62,10 +61,16 @@ uv run python -m animama.server.native_entrypoint
 ```
 
 This supported native launcher validates `ANIMAMA_LOCAL_BIND_HOST` and refuses
-non-loopback values before starting Uvicorn. It is for backend debugging,
-requires a configured internal gateway token, and is never a browser API. The
-Dockerfile's separate container entrypoint listens on the Compose bridge only;
-`docker-compose.yml` does not publish that port.
+non-loopback values before starting Uvicorn. It uses application port 3000 by
+default; `ANIMAMA_LOCAL_API_PORT` changes the port. Set `ANIMAMA_PUBLIC_ORIGIN`
+to the exact browser origin, and `ANIMAMA_WEB_ROOT` to an absolute built React
+root when serving the UI here. An unset/blank web root leaves frontend serving
+to development Vite. No gateway credential is required.
+
+`python -m animama.server.compose_entrypoint` binds container port 8000. Built
+Compose publishes that application port on loopback; development keeps it
+private and publishes Vite. All supported launchers use the reviewed bounded
+HTTP/WebSocket transport described in [Local HTTP components](local-http-components.md).
 
 ## Database
 
@@ -135,8 +140,9 @@ rescan remain later reset steps. See the
 The macOS desktop supervisor uses the same accountless backend and migrations,
 packaged as `animama-runtime`. It starts its own private native PostgreSQL and
 FastAPI processes without Compose. This does not change the main development
-stack at `http://localhost:3000`. The unsigned native core journey has passed;
-signed release, minimum-OS, clean-machine and user acceptance remain open.
+stack at `http://localhost:3000`. Native acceptance uses the exact staged core
+and owned child; signed release, minimum-OS, clean-machine and user acceptance
+are separate gates.
 The canonical operator reference is [Embedded desktop operations](desktop-runtime.md),
 with [user recovery guidance](../../../frontend/docs/desktop/troubleshooting.md).
 
@@ -152,7 +158,11 @@ The supervisor supplies these additional private settings:
 | Setting                                 | Contract                                                                                     |
 | --------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `ANIMAMA_DESKTOP_PGDATA`                | Expected owned data directory; database commands compare `SHOW data_directory` before writes |
-| `ANIMAMA_DESKTOP_CONTROL_TOKEN`         | Per-launch secret for private desktop readiness, separate from the gateway assertion         |
+| `ANIMAMA_DESKTOP_CONTROL_TOKEN`         | Per-launch secret for private desktop readiness, separate from the renderer capability         |
+| `ANIMAMA_DESKTOP_RENDERER_CAPABILITY`  | Distinct per-launch renderer admission cookie, installed only by main                          |
+| `ANIMAMA_PUBLIC_ORIGIN`, `ANIMAMA_WEB_ROOT` | Saved loopback application origin and verified packaged React root                       |
+| `ANIMAMA_PROCESS_START_TOKEN`         | Fresh child UUID returned with its PID in private readiness                                   |
+| `ANIMAMA_PARAKEET_MODEL_MOUNT_JSON`    | Optional bounded verified desktop model inventory                                             |
 | `ANIMAMA_DESKTOP_BUILD_ID`              | Expected staged build ID, returned in private readiness                                      |
 | `ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON` | Bounded ordered array of immutable `{id, version, root, pack_id}` sources; core first        |
 | `ANIMAMA_LOCAL_CONTENT_ROOT`            | Explicit writable Local root; valid only with Included source configuration                  |
@@ -179,9 +189,13 @@ Desktop provisioning can create only the fixed `animama` database at a verified
 loopback cluster. Backend readiness is not accepted until its build, schema,
 and principal agree with the supervisor and Included reconciliation succeeded.
 Private `/_desktop/feature-packs/{id}:removal-check` covers references, leases,
-content operations, and running document jobs. Hono never proxies `/_desktop`.
-Pack changes keep Hono at its saved origin while FastAPI restarts around the
-atomic pointer switch. Failed transitions roll back. See the
+content operations, and running document jobs. Every private control requires
+the separate token. Pack changes destroy product windows and show independent
+recovery before `POST /_desktop/runtime:quiesce` closes admission and drains
+active work. A bounded `runtime_busy` response blocks pointer changes. FastAPI
+restarts on the same saved origin; the supervisor verifies the exact child PID,
+start token, build, schema and principal before recreating product windows.
+Failed transitions restore the prior configuration. See the
 [capability API](../architecture/http-api.md#optional-runtime-capabilities).
 
 The document pack is executable release code: a macOS Developer ID identity,
@@ -201,7 +215,7 @@ snapshots after two distinct successful app launches. Retry and provider
 restarts do not advance that count. Never delete the database,
 vault, or principal to work around a startup error. Retry preserves all three.
 See the [desktop guide](../../../frontend/docs/desktop/overview.md) for
-gateway-port and stale-child recovery, paths, logs, and provider-key changes.
+saved-port and stale-child recovery, paths, logs, and provider-key changes.
 
 ## Self-Hosted Local Roots
 
@@ -261,33 +275,30 @@ Set this non-secret option in the repository-root `.env`:
 ANIMAMA_WEB_BUILD_MODE=production
 ```
 
-The private `web` service installs its build toolchain, builds the optimized
-React app with `NODE_ENV=production`, and serves `dist` using Vite preview.
-This is a local performance/testing option, not a public production server or
-an authentication mode. Hono remains the only published application service
-at `http://localhost:3000`; FastAPI, Vite, and PostgreSQL stay private.
+The built Docker target compiles optimized React assets and copies them to
+`/opt/animama/web`. FastAPI serves those files and the API from the same
+loopback application origin; no Node or Vite server runs in this graph.
+The existing browser Parakeet directory is a separate read-only static mount.
+This selects build delivery, without adding accounts or network authentication.
 
-For the main stack, apply the setting without resetting any data:
+Apply the selection with an ordinary reset, which preserves state:
 
 ```bash
-HOST_UID="$(id -u)" HOST_GID="$(id -g)" docker compose -p animama up -d --no-deps --force-recreate web
-docker compose -p animama logs -f web
+./reset.sh
 ```
 
-The user/group values match `reset.sh` so existing dependency volumes remain
-writable; do not run package installation as root to work around a mismatch.
+For a named stack, retain its explicit `--name` and `--base-port`. Reset selects
+the matching Compose files and waits for the actual published application.
+Source `.animama-stack.env` before later project-scoped Compose commands so
+those commands use the same graph. A cold image build takes longer than HMR.
+Built assets do not apply source edits live; rebuild the selected backend image
+with `./reset.sh --build animama-server` after changing them.
 
-Both normal `./reset.sh` and an explicitly requested `./reset.sh --purge`
-retain the selection because they do not delete root `.env`. Startup now waits
-for the web listener as well as Hono and FastAPI. The web listener starts only
-after a successful build; a cold install/build takes longer than starting HMR.
-The build is recreated when the web container starts, and production preview
-does not apply source edits live.
-
-To return to development/HMR, set `ANIMAMA_WEB_BUILD_MODE=development` and
-recreate `web` with the same command (or run a normal reset). No purge is needed
-to change browser build modes. Named stacks use their own Compose project name.
-The tracked default and `.env.example` remain development.
+To return to development/HMR, set `ANIMAMA_WEB_BUILD_MODE=development` and run
+an ordinary reset. This selects the development override: Vite owns the public
+listener and proxies a closed route set to private FastAPI, preserving original
+browser request metadata. Neither switch needs a purge. The tracked `.env.example`
+default remains development; root `.env` survives either reset mode.
 
 Application inspectors now default off. Opt in with
 `VITE_ENABLE_DEBUG_PANEL=true` only when running the development build; normal
@@ -320,7 +331,7 @@ application services while PostgreSQL stays available, creates a custom-format
 database dump plus Local/data archives and SHA-256 inventory, then restarts only
 the services it stopped. The default output is the ignored `backups/`
 directory. Included content, browser/HTTP caches, model caches, environment
-secrets, and the replaceable gateway token are intentionally excluded. The
+secrets are intentionally excluded. The
 PostgreSQL dump includes `installation_settings`, so restoring it preserves the
 installation principal and every existing owner ID.
 
@@ -341,8 +352,8 @@ Restore is explicit and destructive to the selected live state:
 Restore verifies archive paths and checksums, quiesces application services,
 retains the current database/Local/data in
 `backups/restore-rollbacks/<stack>-<timestamp>`, replaces the selected state,
-runs `alembic upgrade head`, creates a fresh gateway token while Hono and
-FastAPI are stopped, requires the restored installation principal, performs an
+runs `alembic upgrade head` while application services are stopped, requires
+the restored installation principal, performs an
 authoritative Content rescan, and restarts the prior services. If migration,
 principal validation, or rescan fails after replacement begins, application
 services remain stopped and the rollback bundle is reported. Use an application
@@ -353,27 +364,14 @@ contain `.env` or API keys.
 Browser memory and ordinary HTTP caches are disposable. Clearing them only
 causes the next preview/remount to fetch from FastAPI again.
 
-### Factory reset and gateway-token recovery
+### Factory reset and ownership recovery
 
 Users never need to re-clone the repository to reset an installation. A normal
 `./reset.sh` preserves state. `./reset.sh --purge` prints and removes only the
-selected stack's PostgreSQL volumes, Local files, and private data, then starts
-a fresh installation and principal. The internal gateway token is a mode-0600
-file under the private data root; `reset.sh` creates it once and reuses it.
-Token rotation never changes ownership. To recover a lost or suspect token,
-stop the application services, remove only the token file, and run the normal
-reset command:
-
-```bash
-docker compose stop web-server animama-server
-rm data/internal/gateway/token
-./reset.sh
-```
-
-For a named stack, source `.animama-stack.env` first and use the project-scoped
-Compose command. `reset.sh` stops the full selected project before atomically
-creating a mode-0600 replacement and restarting both consumers. Never print,
-copy into React, or place the token value in `.animama-stack.env`.
+selected stack's PostgreSQL volumes, Local files and private data, then starts
+a fresh installation and principal. Gateway-token creation and rotation are
+retired; no replacement token is needed for self-host startup. Legacy token
+files confer no authority and are never read by the application.
 
 If `installation_settings` is missing or its principal is malformed while
 owner-scoped rows still exist, do not generate a replacement. FastAPI and the
@@ -422,20 +420,20 @@ coordinated backup or restore rollback.
 
 The local composition has exactly one migration-generated installation
 principal and no local account system or built-in network authentication.
-Native Hono and FastAPI launchers reject non-loopback bindings. Default Compose
-publishes only Hono at `127.0.0.1`. The explicit `dev-tools` profile adds only
-pgAdmin and Dozzle on literal loopback; all other services use private-network
-connectivity. The rendered Compose preflight rejects wider bindings, unexpected
+The native FastAPI launcher rejects non-loopback bindings. Built Compose
+publishes FastAPI at `127.0.0.1`; development publishes Vite and keeps FastAPI
+private. The explicit `dev-tools` profile adds only pgAdmin and Dozzle on literal
+loopback; PostgreSQL and other infrastructure use private-network connectivity. The rendered Compose preflight rejects wider bindings, unexpected
 ports/services, and occupied ports outside this project before stopping the stack.
 
-A future remotely reachable self-host must put TLS and authentication in an
-operator-owned VPN, tunnel, or reverse proxy before loopback Hono. Hono still
-validates the exact configured public Host and Origin, but Animama cannot verify
-the outer authentication policy. Every request admitted by that boundary acts
-as the same installation owner. External identity headers are discarded and
-are never mapped to additional local principals.
+Remotely reachable self-hosting requires TLS and authentication in an
+operator-owned VPN, tunnel or reverse proxy before the loopback application.
+FastAPI validates the exact configured public Host and Origin, but Animama
+cannot verify the outer authentication policy. Every admitted request acts as
+the same installation owner. External identity headers never establish a
+principal or create additional local users.
 
-The accountless local UI and its Compose/reset and gateway boundary are
+The accountless local UI and its Compose/reset and HTTP boundary are
 runnable. There is no account
 claim/adoption command, API-key provisioning script, or data-preserving
 migration from development accounts. A full purge creates a new principal;
@@ -567,7 +565,7 @@ it. Rerunning the same format and preset atomically replaces its prior artifact.
 
 ## Offline OpenAPI Export
 
-FastAPI documentation is deliberately private and Hono does not publish
+The local HTTP boundary deliberately hides FastAPI documentation at
 `/openapi.json`. Export the local composition deterministically without a
 running stack:
 
@@ -622,11 +620,11 @@ or SSE formatting.
 
 ## Load Testing
 
-The checked-in Locust scenarios use the public accountless Hono origin. Each
+The checked-in Locust scenarios use the public accountless application origin. Each
 simulated user asks the installation bootstrap to converge, resolves a current
 catalog-backed Anima specification, and then exercises creation or the current
 `chat:sse` path. The browser-facing origin defaults to
-`http://localhost:3000`; override it only with another loopback gateway:
+`http://localhost:3000`; override it only with another loopback application origin:
 
 ```bash
 ANIMAMA_LLM_SKIP=1 ./reset.sh
@@ -636,7 +634,7 @@ LOADTEST_ANIMAMA_ORIGIN=http://localhost:3000 \
 
 `ANIMAMA_LLM_SKIP=1` gives the running backend deterministic local model
 clients, so chat load checks do not call a provider. The workload never creates
-credentials, sends bearer or test-user headers, or targets private FastAPI.
+credentials, sends bearer or test-user headers, or targets a private container endpoint.
 Use a named stack's generated `ANIMAMA_PUBLIC_ORIGIN` for isolated runs.
 
 ## Lint, Format, And Types
@@ -714,7 +712,8 @@ default.
 The `dev-tools` profile is the only infrastructure publication exception:
 pgAdmin and Dozzle can be reached through localhost browser ports as described
 below. Other observability services stay private even with `obs` enabled. Do
-not add host ports for FastAPI, Vite, PostgreSQL, or other infrastructure.
+not add extra host ports for the private API, PostgreSQL or other infrastructure.
+Only the selected application listener is published.
 
 ### Local administration tools
 
@@ -730,15 +729,15 @@ On the main checkout, enable the two development tools without deleting data:
 | Dozzle | `http://localhost:9999` | Local Docker socket for container logs |
 
 Both host bindings are fixed to `127.0.0.1`; there is no bind-address override.
-Hono remains at `http://localhost:3000`, and neither tool goes through Hono or
-receives the application gateway token. Open pgAdmin's configured server to
+The application remains at `http://localhost:3000`; neither tool is routed
+through the product application or receives its desktop credentials. Open pgAdmin's configured server to
 inspect the existing database, and select an Animama container in Dozzle to
 view logs. Any pgAdmin/database credentials are infrastructure settings, not
 Animama accounts. Saved pgAdmin preferences remain in `pgadmin-data`.
 
 Set `PGADMIN_PORT`/`DOZZLE_PORT` in root `.env` or the environment to choose other
 ports. The script reports and writes the effective tool URLs/ports to
-`.animama-stack.env` only while enabled. With `--base-port B`, Hono uses B,
+`.animama-stack.env` only while enabled. With `--base-port B`, the application uses B,
 pgAdmin B+4, and Dozzle B+20, taking precedence over inherited port overrides.
 For example, `./reset.sh --name feature-a --base-port 8200 --profile dev-tools`
 uses ports 8200, 8204, and 8220. Use the reported localhost admin URLs even when
@@ -760,9 +759,9 @@ If other profiles should remain, remove only `dev-tools`, for example
 an inherited or `.env` profile. Also remove the persisted selection if future
 fresh-shell starts should stay disabled. Reset stops this project's old tools
 even when their profile is no longer active, closes their host listeners, and
-preserves volumes, the principal, token, chats, and files. Re-enabling restores
+preserves volumes, the principal, chats and files. Re-enabling restores
 pgAdmin's saved state. Neither direction requires `--purge`, nor changes the
-Vite production/development selection. Inspect only the intended project:
+production/development build selection. Inspect only the intended project:
 
 ```bash
 docker compose -p animama --profile dev-tools ps
@@ -860,19 +859,21 @@ The main checkout keeps the default local application URL:
 ./reset.sh
 ```
 
-This starts the default Compose project with stable container names such as
-`animama-server`, `web-server`, `web`, and `postgres`, plus one application URL:
+This starts the default Compose project with `animama-server`, `postgres` and
+the selected optional services. Development also starts `web` for Vite. Both
+build modes retain one application URL:
 
 ```text
-http://localhost:3000  Hono gateway
+http://localhost:3000  local application
 ```
 
-FastAPI, Vite, and PostgreSQL remain reachable only on the Compose network.
+Only the selected application service is published on loopback. PostgreSQL
+stays private, as does FastAPI when Vite owns the development listener.
 
 ### Parallel Worktree Dev Environments
 
 Use this flow when testing multiple branches side by side. Each worktree gets a
-separate Compose project, one loopback gateway port, network, and data volumes.
+separate Compose project, one loopback application port, network, and data volumes.
 
 1. Create the branch and worktree from the main checkout:
 
@@ -887,7 +888,7 @@ git worktree add ../anima-worktrees/abc feat/abc
    endpoint:
 
 ```text
-base + 0  loopback Hono gateway
+base + 0  loopback application
 ```
 
 3. Start or reset the stack from the worktree root:
@@ -901,17 +902,17 @@ The stack name becomes the Compose project `animama-abc`, so containers,
 networks, and named volumes are isolated from the main checkout and other
 worktrees. `reset.sh` also sets `ANIMAMA_CONTAINER_NAME_PREFIX=animama-abc-`
 for named stacks so container names do not collide with the main checkout. The
-base port assigns only the public gateway; internal services retain fixed
+base port assigns only the public application port; internal services retain fixed
 Compose names and container ports:
 
 ```text
-http://animama-abc.localhost:8200  Hono gateway
+http://animama-abc.localhost:8200  local application
 ```
 
 `reset.sh` writes `.animama-stack.env` in the checkout/worktree root with the
-derived Compose project, container-name prefix, gateway port/public origin,
-private roots/token-file path, and `ANIMAMA_DESKTOP_WEB_URL`. It
-never contains the gateway token value or a host database URL. Source it before
+derived Compose project, selected Compose files, container-name prefix,
+application port/public origin, private roots and `ANIMAMA_DESKTOP_WEB_URL`.
+It contains no credentials or host database URL. Source it before
 follow-up commands that need the generated stack settings:
 
 ```bash
@@ -938,7 +939,7 @@ Useful examples:
 
 ```bash
 ./reset.sh --name avatar --base-port 8200
-./reset.sh --name gateway --base-port 8300 --build animama-server
+./reset.sh --name runtime --base-port 8300 --build animama-server
 COMPOSE_PROFILES=memory ./reset.sh --name memory --base-port 8400
 ```
 
@@ -947,13 +948,13 @@ Use project-scoped Docker commands after startup. Do not use bare
 
 ```bash
 docker compose -p animama-abc ps
-docker compose -p animama-abc logs -f animama-server web-server web
+docker compose -p animama-abc logs -f animama-server
 docker compose -p animama-abc down
 ```
 
 For desktop shell testing against a worktree, source the generated env file
 before launching Electron so `ANIMAMA_DESKTOP_WEB_URL` points at the worktree's
-Hono gateway:
+application origin:
 
 ```bash
 cd src/frontend
@@ -1008,14 +1009,17 @@ target the intended Compose project with `-p`.
 
 Core:
 
-- `ANIMAMA_PUBLIC_ORIGIN` (Hono only)
+- `ANIMAMA_PUBLIC_ORIGIN` (exact public browser origin for HTTP admission)
+- `ANIMAMA_WEB_ROOT` (absolute built React root; unset/blank for Vite development)
+- `ANIMAMA_DESKTOP_RENDERER_CAPABILITY`, `ANIMAMA_DESKTOP_CONTROL_TOKEN`
+  (paired private desktop inputs; absent in normal self-host)
+- `ANIMAMA_PARAKEET_MODEL_MOUNT_JSON` (optional verified desktop model inventory)
 - `ANIMAMA_DATABASE_URL`
 - `ANIMAMA_DATABASE_POOL_SIZE`
 - `ANIMAMA_DATABASE_MAX_OVERFLOW`
 - `ANIMAMA_DATABASE_POOL_TIMEOUT_SECONDS`
 - `ANIMAMA_DATABASE_POOL_RECYCLE_SECONDS`
 - `ANIMAMA_DATABASE_POOL_PRE_PING`
-- `ANIMAMA_INTERNAL_TOKEN_FILE` (private Hono/FastAPI file)
 - `ANIMAMA_LOCAL_BIND_HOST` and `ANIMAMA_LOCAL_API_PORT` (supported native
   FastAPI launcher only; Compose ignores them)
 - `ANIMAMA_LLM_SKIP`

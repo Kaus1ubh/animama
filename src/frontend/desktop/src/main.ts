@@ -38,6 +38,12 @@ import {
   createRuntimePage,
 } from "./main-process/runtime/recovery.js";
 import { RuntimeSupervisor } from "./main-process/runtime/supervisor.js";
+import {
+  closeProductSession,
+  destroyProductWindows,
+  installProductRequestGate,
+  ProductSessionCleanup,
+} from "./main-process/runtime/product-windows.js";
 import type { RuntimeStatus } from "../../shared/desktop-runtime.js";
 import { readBoundedJson } from "./main-process/feature-packs/catalog.js";
 import { DesktopUpdateController } from "./main-process/updates/controller.js";
@@ -94,6 +100,15 @@ else {
   let recoveryWindow: BrowserWindow | undefined;
   let mainTask: Promise<void> | undefined;
   let recoveryTask: Promise<void> | undefined;
+  let windowGeneration = 0;
+  let applicationRoute = "/";
+  const sessionCleanup = new ProductSessionCleanup(async () => {
+    if (desktopConfig)
+      await closeProductSession(
+        session.fromPartition(desktopConfig.sessionPartition),
+        desktopConfig.allowedWebOrigin,
+      );
+  });
   let allowQuit = false;
   let quitting = false;
   let updates: DesktopUpdateController | undefined;
@@ -154,7 +169,7 @@ else {
     return updateInitialization;
   }
 
-  /** A single recovery window survives even failures before gateway binding. */
+  /** A single independent recovery window survives even when no HTTP listener exists. */
   async function showRecovery(): Promise<void> {
     if (quitting) return;
     if (recoveryWindow && !recoveryWindow.isDestroyed()) {
@@ -175,54 +190,128 @@ else {
     await recoveryTask;
   }
 
+  /** Invalidate pending loads before destroying every product document and worker. */
+  function quiesceProductWindows(): Promise<void> {
+    windowGeneration++;
+    applicationRoute =
+      destroyProductWindows(
+        BrowserWindow.getAllWindows(),
+        mainWindow,
+        recoveryWindow,
+        desktopConfig?.allowedWebOrigin,
+      ) ?? applicationRoute;
+    return sessionCleanup.close();
+  }
+
   /** Install the HttpOnly capability before the first main/PiP/quick-chat load. */
   async function showApplication(origin?: string): Promise<void> {
-    if (quitting) return;
+    if (
+      quitting ||
+      (embedded &&
+        (currentStatus.state !== "ready" || currentStatus.origin !== origin))
+    )
+      return;
+    if (mainTask) {
+      await mainTask;
+      if (!mainWindow || mainWindow.isDestroyed())
+        await showApplication(origin);
+      return;
+    }
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show();
       mainWindow.focus();
       recoveryWindow?.hide();
       return;
     }
-    mainTask ??= (async () => {
+    const generation = windowGeneration;
+    const current = () =>
+      !quitting &&
+      generation === windowGeneration &&
+      (!embedded ||
+        (currentStatus.state === "ready" && currentStatus.origin === origin));
+    mainTask = (async () => {
+      await sessionCleanup.close();
+      if (!current()) return;
       if (!desktopConfig) {
         desktopConfig = resolveDesktopConfig(origin);
         const desktopSession = session.fromPartition(
           desktopConfig.sessionPartition,
         );
-        await installRendererCapability(
-          desktopSession,
-          desktopConfig.allowedWebOrigin,
-          supervisor?.rendererCapability ?? createRendererCapability(),
-        );
+        if (embedded)
+          installProductRequestGate(
+            desktopSession,
+            desktopConfig.allowedWebOrigin,
+            () =>
+              !quitting &&
+              !sessionCleanup.blocked &&
+              currentStatus.state === "ready" &&
+              supervisor?.status().state === "ready",
+          );
         installSessionGuards(desktopConfig.allowedWebOrigin, desktopSession);
         installFullscreenIpc();
         installPipIpc({ config: desktopConfig, preloadPath });
         installQuickChatIpc({ config: desktopConfig, preloadPath });
         installShortcutsIpc();
       }
+      const desktopSession = session.fromPartition(
+        desktopConfig.sessionPartition,
+      );
+      sessionCleanup.markActive();
+      await installRendererCapability(
+        desktopSession,
+        desktopConfig.allowedWebOrigin,
+        supervisor?.rendererCapability ?? createRendererCapability(),
+      );
+      if (!current()) {
+        // A status change may have raced the asynchronous cookie write.
+        sessionCleanup.markActive();
+        await quiesceProductWindows();
+        return;
+      }
       await createWindow({
-        config: desktopConfig,
+        config: {
+          ...desktopConfig,
+          webUrl: embedded
+            ? new URL(applicationRoute, desktopConfig.allowedWebOrigin)
+            : desktopConfig.webUrl,
+        },
         preloadPath,
         failOnLoadError: embedded,
         onCreated: (window) => {
           mainWindow = window;
           callers.register(window, "main", desktopConfig!.allowedWebOrigin);
+          window.webContents.on("render-process-gone", () => {
+            if (mainWindow === window && currentStatus.state === "ready")
+              updateStatus({ state: "error", code: "renderer_load_failed" });
+          });
           window.on("closed", () => {
-            mainWindow = undefined;
+            if (mainWindow === window) mainWindow = undefined;
           });
         },
       });
       if (currentStatus.state === "ready" || currentStatus.state === "external")
         recoveryWindow?.hide();
-    })().finally(() => {
-      mainTask = undefined;
-    });
+    })()
+      .catch((error) => {
+        if (current()) throw error;
+      })
+      .finally(() => {
+        mainTask = undefined;
+      });
     await mainTask;
   }
 
   function updateStatus(status: RuntimeStatus): void {
     currentStatus = status;
+    if (embedded && status.state !== "ready") {
+      void quiesceProductWindows().catch(() =>
+        writeLog("error", "renderer_cleanup_failed"),
+      );
+      if (status.state !== "stopped")
+        void showRecovery().catch(() =>
+          writeLog("error", "recovery_window_failed"),
+        );
+    }
     callers.broadcast(status);
     writeLog(
       "info",
@@ -234,7 +323,6 @@ else {
         updateStatus({ state: "error", code: runtimeErrorCode(error) }),
       );
     } else if (status.state === "error") {
-      mainWindow?.hide();
       void showRecovery().catch(() =>
         writeLog("error", "recovery_window_failed"),
       );
@@ -348,25 +436,11 @@ else {
         appVersion: app.getVersion(),
         paths,
         encryption: safeStorage,
-        bootstrapHtml: () => recoveryHtml,
         onStatus: updateStatus,
         isPackaged: app.isPackaged,
         packCatalogPath: process.env.ANIMAMA_DESKTOP_DEV_PACK_CATALOG_PATH,
         onPackProgress: (status) => callers.broadcastPack(status),
-        quiesceRenderers: async () => {
-          // Unload all product documents before switching models or deleting
-          // a version. This disposes their Web Workers even if React crashed.
-          for (const window of BrowserWindow.getAllWindows()) {
-            if (window !== mainWindow && window !== recoveryWindow)
-              window.destroy();
-          }
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            const url = mainWindow.webContents.getURL();
-            if (!supervisor?.origin || !url.startsWith(`${supervisor.origin}/`))
-              throw new RuntimeError("ipc_caller_rejected");
-            await mainWindow.loadURL(url);
-          }
-        },
+        quiesceRenderers: quiesceProductWindows,
       });
       await supervisor.start();
     })

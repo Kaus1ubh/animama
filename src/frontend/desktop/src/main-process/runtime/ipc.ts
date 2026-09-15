@@ -157,7 +157,7 @@ export function installRuntimeIpc(
     const status = await operations.changeCredential(
       validateProvider(provider),
     );
-    if (status.restartRequired)
+    if (status.error || status.restartRequired)
       throw new RuntimeError(status.error ?? "runtime_restart_required");
   });
   handle(

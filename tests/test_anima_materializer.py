@@ -9,7 +9,6 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI, HTTPException
-from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker
@@ -54,6 +53,7 @@ from animama.server.routers.avatar import delete_avatar
 from animama.server.routers.memory_entries import router as memory_router
 from animama.server.schemas.anima import PyAnimaUpdate, PyAnimaUpdateRequest
 from tests.anima_creation_support import creation_fixture
+from tests.local_http_client import local_client
 
 
 def memory_service(uow: SQLAlchemyAnimaAggregateUnitOfWork) -> MemoryEntryService:
@@ -291,9 +291,7 @@ async def test_live_authority_survives_source_edit_chat_context_and_explicit_ide
 
 
 @pytest.mark.asyncio
-async def test_legacy_long_name_survives_unrelated_identity_edit_until_explicit_rename(
-    async_session, creation
-) -> None:
+async def test_legacy_long_name_survives_unrelated_identity_edit_until_explicit_rename(async_session, creation) -> None:
     fixture = creation
     uow = SQLAlchemyAnimaAggregateUnitOfWork(async_session)
     anima = await fixture.materializer.materialize(user_id=fixture.user_id, spec=fixture.spec, uow=uow)
@@ -451,9 +449,7 @@ async def test_required_identity_cannot_bypass_guards_or_be_removed(async_sessio
             content_set=True,
         )
     with pytest.raises(HTTPException) as retained:
-        await delete_avatar(
-            anima.avatar.id, user=RequestPrincipal(id=fixture.user_id), session=async_session
-        )
+        await delete_avatar(anima.avatar.id, user=RequestPrincipal(id=fixture.user_id), session=async_session)
     assert retained.value.status_code == 409
     await uow.rollback()
     assert (await uow.animas.get(anima.id)).aggregate_revision == 1
@@ -734,7 +730,7 @@ async def test_identity_http_edits_and_revert_share_the_owned_aggregate_guard(as
 
     app.dependency_overrides[get_current_principal] = user
     app.dependency_overrides[get_async_session] = session
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+    async with local_client(app) as client:
         path = f"/v1/memory/entries/{identity.id}"
         initial = await client.get(path)
         assert initial.status_code == 200 and initial.json()["aggregate_revision"] == 1

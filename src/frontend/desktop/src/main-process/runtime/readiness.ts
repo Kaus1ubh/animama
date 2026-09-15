@@ -6,6 +6,9 @@ export type BackendReadiness = {
   build_id: string;
   alembic_head: string;
   installation_principal_id: string;
+  local_http_schema_version: number;
+  process_id: number;
+  process_start_token: string;
 };
 
 /** A private port can collide before bind; never buffer an unbounded probe response. */

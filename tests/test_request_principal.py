@@ -8,14 +8,14 @@ from httpx import ASGITransport, AsyncClient
 from starlette.websockets import WebSocketDisconnect
 
 from animama.domain.request_principal import RequestPrincipal
-from animama.local.gateway_principal import FailClosedLocalPrincipalResolver
+from animama.local.http.lifecycle import AdmittedLocalPrincipalResolver, LocalHTTPLifecycle
 from animama.server.deps import get_current_principal
 from animama.server.routers import logs
 
 
 async def test_fail_closed_http_dependency_returns_stable_error() -> None:
     app = FastAPI()
-    app.state.request_principal_resolver = FailClosedLocalPrincipalResolver()
+    app.state.request_principal_resolver = AdmittedLocalPrincipalResolver(LocalHTTPLifecycle())
 
     @app.get("/product")
     async def product(
@@ -27,12 +27,12 @@ async def test_fail_closed_http_dependency_returns_stable_error() -> None:
         response = await client.get("/product", headers={"X-Animama-Principal-Id": "spoofed"})
 
     assert response.status_code == 503
-    assert response.json() == {"detail": {"code": "local_gateway_unavailable"}}
+    assert response.json() == {"detail": {"code": "local_runtime_unavailable"}}
 
 
 def test_fail_closed_websocket_closes_before_accept() -> None:
     app = FastAPI()
-    app.state.request_principal_resolver = FailClosedLocalPrincipalResolver()
+    app.state.request_principal_resolver = AdmittedLocalPrincipalResolver(LocalHTTPLifecycle())
     app.include_router(logs.router)
 
     with TestClient(app) as client:

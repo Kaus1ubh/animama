@@ -1,17 +1,11 @@
-import { mkdtemp, mkdir, realpath, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { build, preview } from "vite";
+import { build } from "vite";
 
 import viteConfig from "../vite.config";
-import { appAssetCachePlugin } from "../vite-plugins/app-asset-cache";
-import {
-  appAssetCacheControl,
-  IMMUTABLE_APP_ASSET_CACHE,
-} from "../../server/src/gateway/app-asset-cache";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -96,116 +90,7 @@ describe("production delivery contract", () => {
     },
   );
 
-  it("uses the shared policy in real private Vite preview and returns 404 for missing chunks", async () => {
-    const root = await mkdtemp(join(tmpdir(), "animama-preview-cache-"));
-    const dist = join(root, "dist");
-    let server: Awaited<ReturnType<typeof preview>> | undefined;
-    try {
-      await mkdir(join(dist, "assets"), { recursive: true });
-      await mkdir(join(dist, ".vite"));
-      await writeFile(join(dist, "index.html"), "<html>app</html>");
-      await writeFile(
-        join(dist, "assets/app-abcdefgh.js"),
-        "export const app = true;",
-      );
-      await writeFile(
-        join(dist, "assets/app-abcdefgh.css"),
-        "body { color: red; }",
-      );
-      await writeFile(
-        join(dist, "assets/unlisted-abcdefgh.js"),
-        "export const mutable = true;",
-      );
-      await writeFile(
-        join(dist, ".vite/manifest.json"),
-        JSON.stringify({
-          main: {
-            file: "assets/app-abcdefgh.js",
-            css: ["assets/app-abcdefgh.css"],
-          },
-        }),
-      );
-      server = await preview({
-        configFile: false,
-        root,
-        logLevel: "silent",
-        plugins: [appAssetCachePlugin()],
-        preview: { host: "127.0.0.1", port: 0 },
-      });
-      const origin = `http://127.0.0.1:${(server.httpServer.address() as AddressInfo).port}`;
-      for (const path of [
-        "/assets/app-abcdefgh.js",
-        "/assets/app-abcdefgh.css",
-      ]) {
-        const first = await fetch(origin + path);
-        expect(first.headers.get("cache-control")).toBe(
-          IMMUTABLE_APP_ASSET_CACHE,
-        );
-        const body = await first.text();
-        const conditional = await fetch(origin + path, {
-          headers: { "If-None-Match": first.headers.get("etag")! },
-        });
-        expect(conditional.status).toBe(304);
-        expect(conditional.headers.get("cache-control")).toBe(
-          IMMUTABLE_APP_ASSET_CACHE,
-        );
-        expect(
-          (await fetch(origin + path, { method: "HEAD" })).headers.get(
-            "content-length",
-          ),
-        ).toBe(String(Buffer.byteLength(body)));
-        expect(
-          await (
-            await fetch(origin + path, {
-              headers: { "Cache-Control": "no-cache" },
-            })
-          ).text(),
-        ).toBe(body);
-      }
-      for (const path of ["/", "/a/anima", "/assets/unlisted-abcdefgh.js"])
-        expect((await fetch(origin + path)).headers.get("cache-control")).toBe(
-          "no-cache",
-        );
-      for (const path of [
-        "/assets/missing-abcdefgh.js",
-        "/.vite/manifest.json",
-        "/%2evite/manifest.json",
-        "/assets%2f..%2f.vite%2fmanifest.json",
-      ]) {
-        const response = await fetch(origin + path, {
-          headers: { Accept: "*/*" },
-        });
-        expect(response.status).toBe(404);
-        expect(response.headers.get("cache-control")).toBe("no-store");
-      }
-    } finally {
-      if (server) {
-        server.httpServer.closeAllConnections();
-        await new Promise<void>((resolve) =>
-          server!.httpServer.close(() => resolve()),
-        );
-      }
-      await rm(root, { recursive: true, force: true });
-    }
-  });
-
-  it.each([
-    ["/assets/app-abcdefgh.js", 404, "text/javascript"],
-    ["/assets/app-abcdefgh.js", 302, "text/javascript"],
-    ["/assets/app-abcdefgh.js", 200, "text/html"],
-    ["/assets/unlisted-abcdefgh.js", 200, "text/javascript"],
-    ["/v1/owner-abcdefgh.js", 200, "text/javascript"],
-    ["/assets/app-abcdefgh.js.map", 200, "application/json"],
-  ])(
-    "does not classify unsafe response %s / %s as immutable",
-    (pathname, status, contentType) => {
-      expect(
-        appAssetCacheControl(
-          new Set(["/assets/app-abcdefgh.js", "/v1/owner-abcdefgh.js"]),
-          { pathname, method: "GET" },
-          { status, contentType },
-        ),
-      ).not.toContain("immutable");
-    },
-  );
+  // Runtime cache, conditional GET/HEAD, immutable inventory and missing-chunk
+  // behavior now live in tests/test_local_http_assets.py and the real Uvicorn
+  // transport suite, which exercise the production FastAPI asset responder.
 });

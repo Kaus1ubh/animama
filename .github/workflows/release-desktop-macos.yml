@@ -128,7 +128,6 @@ jobs:
       - run: pnpm check
       - run: pnpm web:lint
       - run: pnpm web:test
-      - run: pnpm server:test
       - run: pnpm desktop:test
       - run: pnpm build
       - run: pnpm desktop:runtime:stage -- --platform darwin --arch arm64

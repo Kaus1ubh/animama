@@ -135,7 +135,7 @@ upload pipeline.
 
 5. The browser uploads bytes through FastAPI.
 
-   Uppy resolves the URL against the same Hono origin without a bearer token.
+   Uppy resolves the URL against the same application origin without a bearer token.
    FastAPI enforces declared/configured bounds, streams through a disk-backed
    spool under `data/staging/uploads`, and atomically promotes the file to
    `data/user-files/<user>/<file>/original`.
@@ -554,7 +554,7 @@ installation principal in `user_id` and uses backend-generated object keys. `ORM
 stores durable processing work and lease metadata. `ORMUserFileChunk` stores
 searchable extracted chunks and denormalizes `user_id` for ownership filters.
 
-Current APIs always filter file, job, and chunk access by the gateway-resolved
+Current APIs always filter file, job, and chunk access by the admitted installation
 request principal. One installation cannot list, finalize, process, search, or
 delete another owner's files. Original locators are not accepted from clients and are
 not returned by the public APIs.

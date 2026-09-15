@@ -13,6 +13,14 @@ export function assertBundledImports(metafile) {
     }
   }
   for (const name of Object.keys(metafile.inputs)) {
+    if (
+      /(?:^|\/)(?:hono|@hono|animama-frontend-server)(?:[@/]|$)|(?:^|\/)server\/src\//.test(
+        name,
+      )
+    )
+      throw new Error(
+        "Hono and the retired frontend server cannot enter the desktop bundle",
+      );
     if (/(?:better-auth|@better-auth)(?:\/|$)/.test(name))
       throw new Error("Better Auth cannot enter the local desktop bundle");
   }
