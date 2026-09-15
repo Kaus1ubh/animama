@@ -13,8 +13,8 @@ export const Route = createFileRoute("/a/animas/")({
 });
 
 /**
- * Keeps the retired roster URL compatible while making one details URL the
- * canonical Anima hub. Selection is derived only from the owned list.
+ * Resolves the roster URL to a canonical Anima details URL, or creation when
+ * the owned list is empty. Selection is derived only from the owned list.
  */
 function AnimaResolverRoute() {
   const navigate = useNavigate({ from: "/a/animas/" });

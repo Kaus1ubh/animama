@@ -12,7 +12,7 @@ type ReviewTransitionRequests = {
   previews: number;
 };
 
-/** Guard Phase 7's constant-round-trip transition independently of page timing. */
+/** Count review-transition requests independently of page timing. */
 function observeReviewTransition(page: Page) {
   const counts: ReviewTransitionRequests = {
     evidence: 0,

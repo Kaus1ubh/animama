@@ -38,7 +38,7 @@ from .user_file_chunk import ORMUserFileChunk
 from .user_file_processing_job import ORMUserFileProcessingJob
 from .user_profile import ORMUserProfile
 
-# Back-compat non-prefixed exports (tests and legacy code may import these)
+# Compatibility non-prefixed exports for existing consumers and tests
 Archive = ORMArchive
 ArchivePassage = ORMArchivePassage
 Avatar = ORMAvatar

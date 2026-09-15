@@ -2,10 +2,10 @@
 
 ## Package and local composition ownership
 
-The session implementation described below now lives at
+The shared session implementation lives at
 `src/frontend/packages/product-ui/src/chat/useProductChatSession.ts`, and SSE
 classification lives at `packages/product-ui/src/query/mutations/useChatSse.ts`.
-The former local SSE path re-exports the package implementation. The local
+The local SSE path re-exports the package implementation. The local
 `web/src/ui/main/chat/useChatSession.ts` is the playback/settings adapter: it
 connects `useTtsPlayback`, avatar and lip-sync stores, mounted-content readiness,
 and ElevenLabs speech policy to the shared session. Run lifecycle order and
@@ -311,8 +311,7 @@ chat:
 - the backend validates the selected anima chat profile or request
   `model_provider_id` against catalog support for `main_structured_response`
 
-The schema is no longer derived from a stored agent schema during normal chat.
-It is built request-locally by the backend direct model-client executor.
+The backend direct model-client executor builds the schema for each request.
 
 The request body sent to `/v1/animas/{anima_id}/chat:sse` looks like a
 normal chat request with request-scoped options:

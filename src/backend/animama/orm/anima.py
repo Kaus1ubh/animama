@@ -24,7 +24,7 @@ class ORMAnima(SqlalchemyBase, TimestampMixin, AuditMixin, OrganizationMixin):
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
-    # Low-level legacy/bootstrap inserts get a stable ID snapshot, never an
+    # Low-level bootstrap inserts get a stable ID snapshot, never an
     # Avatar-derived read fallback. Product creation supplies a validated name.
     display_name: Mapped[str] = mapped_column(
         String(120), nullable=False, default=lambda context: context.get_current_parameters()["id"][:120]

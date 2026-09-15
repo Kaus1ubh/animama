@@ -6,11 +6,11 @@ and FastAPI; FastAPI serves the production React build at the saved loopback
 origin. It does not
 require Docker or development servers on the user's computer.
 
-**No signed public release exists yet.** Apple enrollment is complete; signed/native
-acceptance is pending. The owner has declined public visibility: local signed
-candidates may be built while the release repository stays private, but private
-GitHub pack/update downloads are unsupported. Windows native packaging is deferred to Phase 5;
-Linux packaging, Intel/universal Mac and Windows ARM are outside this plan.
+**No signed public release is available.** Fresh-source staging, complete starter
+inputs and signed/native acceptance remain pending. Local signed candidates can
+be built with a private release repository; private GitHub pack/update downloads
+are unsupported. Windows and Linux self-contained packaging are deferred.
+Intel/universal Mac and Windows ARM are unsupported.
 
 ## Documentation
 
@@ -40,7 +40,7 @@ launching. No new Compose stack is needed for routine desktop work.
 `desktop:dev_inspect` exposes the development main-process inspector on
 `127.0.0.1:9229`. Packaged builds reject external web URLs, development runtime/data
 paths and sandbox-disable overrides. Never add a packaged fallback to Vite or
-use a legacy AppImage/NSIS wrapper as self-contained runtime evidence.
+use an external-web AppImage/NSIS wrapper as self-contained runtime evidence.
 
 ## Embedded macOS development
 
@@ -66,7 +66,7 @@ pnpm desktop:mac:launch
 Quit Animama before rebuilding. All build steps must succeed before launch;
 launch alone fails if the bundle is missing. The individual stage/audit commands
 remain available. `desktop:mac` only packages a staged/audited runtime, and
-`desktop:mac:package:run` packages it and launches. The old `desktop:mac:run`
+`desktop:mac:package:run` packages it and launches. `desktop:mac:run`
 remains a deprecated compatibility alias for package-and-launch, not a full build.
 `desktop:dev` keeps its separate external-stack behavior.
 
@@ -96,7 +96,7 @@ Data and logs live under `~/Library/Application Support/Animama`, not inside
 `Animama.app`; the main log is `runtime/logs/main.log`. The old `Anima` tree is
 moved only into an absent destination, never merged with another profile.
 Use the recovery page and preserve the database/vault. No process-name killing,
-PGDATA deletion, direct FastAPI publication or sandbox bypass is a recovery step.
+PGDATA deletion, exposing services beyond loopback or a sandbox bypass is a recovery step.
 
 ## Checks and bridge
 

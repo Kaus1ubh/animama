@@ -1,10 +1,8 @@
 # Live Integration Test Helpers
 
 `tests/live` contains helper fixtures for integration-style tests that need a
-real FastAPI server and database. There is no active graph-dispatch live test
-module in this directory; the retired `dispatch:sse`, `AnimaRuntime`, graph
-runner, and backend agent surfaces should not be reintroduced for normal chat
-coverage.
+real FastAPI server and database, plus opt-in provider smoke tests. Normal chat
+coverage exercises the direct model-client runtime.
 
 ## Server Fixture
 
@@ -17,8 +15,13 @@ coverage.
 5. yields the base URL to the test
 6. shuts the server down after the test
 
-This shape keeps live tests isolated and lets the test process make HTTP calls
-and direct database assertions against the same database.
+The fixture shares the disposable database with the test process. It does not
+configure `ANIMAMA_PUBLIC_ORIGIN` for its chosen port or install the production
+`LocalH11Protocol` transport, so it is not acceptance evidence for local HTTP
+admission or streaming. Use `tests/test_local_http_transport.py` and its
+isolated composition for those checks. A product request through this helper
+requires compatible origin/bootstrap configuration; fixture availability alone
+does not establish a working product journey.
 
 Example:
 

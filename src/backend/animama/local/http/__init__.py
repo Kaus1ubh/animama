@@ -1,1 +1,1 @@
-"""Local HTTP replacement components; production cutover is a separate change."""
+"""Local HTTP admission, assets, transport limits and lifecycle components."""

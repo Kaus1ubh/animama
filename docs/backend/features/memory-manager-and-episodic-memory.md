@@ -228,8 +228,8 @@ blocked, but the episode service can regenerate its own projection.
 
 The frontend opens a URL-backed Memory Manager modal from `/a/memories`.
 Ordinary maintenance uses `POST /v1/memory/manager/runs`. The authoritative
-episode workflow uses `POST /v1/memory/manager/runs:process-episodes`; Phase 3
-will switch the frontend button from its current prefill behavior to this route.
+episode workflow uses `POST /v1/memory/manager/runs:process-episodes`, which
+selects and fences a backend-owned batch.
 
 Specialized creation locks the user's open runs and refuses to supersede one
 that is waiting for approval. It then locks up to 51 oldest pending episode rows
@@ -750,11 +750,12 @@ projection parses task state into safe counts and timestamps only and computes
 Undo eligibility from current locked-domain invariants rather than trusting a
 stored boolean.
 
-The current reset-era migration posture uses ORM metadata through the baseline
-schema. Fresh databases include the new columns and constraints. Existing local
-databases require `./reset.sh`; preserving existing data requires an explicit
-migration that adds the manager columns and retains existing run/message/
-approval rows.
+The frozen `baseline_20260908` SQL includes these columns and constraints.
+Forward schema changes require an Alembic revision that preserves existing
+runs, messages and approvals. Ordinary `./reset.sh` preserves data; it cannot
+upgrade a database stamped outside the supported revision graph. See
+[Database operations](../operations/development.md#database) before working
+with such a database or backup.
 
 ## Status And Recovery Rules
 

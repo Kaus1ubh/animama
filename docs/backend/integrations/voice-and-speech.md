@@ -128,33 +128,20 @@ provider prefix instead of failing the chat turn. For each Eleven v3 finalized
 request, the backend emits an info log named
 `ElevenLabs v3 provider text prepared` with the resolved prefix and a truncated
 preview of the exact provider text sent upstream. Sentence chunking applies the
-prefix to only the first upstream request for backward-compatible Phase 4 audio
-behavior; paragraph chunking applies the prefix to every paragraph batch.
+prefix to only the first upstream request; paragraph chunking applies the
+prefix to every paragraph batch.
 
 The frontend finalized runtime decodes and plays PCM audio from SSE events.
 Avatar lip-sync continues to use gruut phonemes from SSE plus provider
 audio-start and actual-duration callbacks. Anima preserves the additive
 `tts_text` fields on `user.response` as provider handoff data, but ElevenLabs
-alignment is no longer part of the v3 runtime.
+alignment is not consumed by the v3 runtime.
 
-## Retired Server-Side STT
+## Client-side speech recognition
 
-The former `server/routers/stt.py` WebSocket was retired. The current
-frontend/desktop stack uses client-side Parakeet STT, MicVAD, and smart-turn
-style turn detection.
-
-Do not build new speech UX on a backend STT WebSocket. New speech features
-should check frontend docs and code first to avoid duplicating client-side audio
-processing on the backend.
-
-## Retired LiveKit Voice Routes
-
-The former `server/routers/livekit_voice.py` routes were retired with the
-process-local engine. Current frontend flows do not depend on LiveKit as the
-primary voice path.
-
-If this integration is revived, document the deployment requirements,
-authentication model, and frontend flow before expanding the route surface.
+The frontend and desktop use client-side Parakeet STT, MicVAD, and smart-turn
+turn detection. Check frontend speech ownership before adding backend audio
+processing; the local API has no STT or LiveKit session routes.
 
 ## Voice Session State
 
@@ -179,5 +166,5 @@ When adding or changing voice behavior:
 1. confirm whether the frontend already performs the function client-side
 2. keep provider secrets server-side
 3. prefer short-lived credentials or proxied backend calls for browser access
-4. document whether the path is current or legacy
+4. document the supported transport and its compatibility constraints
 5. add tests around auth, provider error mapping, and binary/audio responses

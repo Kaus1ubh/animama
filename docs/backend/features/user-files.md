@@ -1,7 +1,7 @@
 # User Files
 
 User files are installation-owned uploaded documents. They are stored separately from
-anima archives and the planned memory filesystem. The current MVP supports
+anima archives and the memory filesystem. The upload API supports
 upload, processing, listing, deletion, and debug retrieval validation. Uploaded
 files can be attached to direct chat turns by backend file ID after upload
 initialization. Processed attached chunks are available to direct chat through

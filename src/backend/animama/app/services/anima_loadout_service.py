@@ -930,7 +930,7 @@ class AnimaLoadoutService:
                     else None
                 )
                 anima.avatar_id = avatar.id if avatar else None
-                # Keep a previously loaded ORM relationship consistent in the
+                # Keep an already loaded ORM relationship consistent in the
                 # same transaction; future reads must not return the old model.
                 self._session.expire(anima, ["avatar"])
         await self._session.flush()

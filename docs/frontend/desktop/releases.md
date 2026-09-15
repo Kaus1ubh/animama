@@ -1,29 +1,16 @@
 # macOS releases and updates
 
-Phase 4 adds signed-release tooling, guarded updates, migration snapshot retention,
-and an installed-artifact smoke harness. **No accepted release has been produced.**
-The unlicensed decorative SFX, downloaded voice samples, Tokyo backgrounds and
-thumbnails, and BGM examples/metadata are excluded. The remaining
-initial core/Parakeet reviews and native signing/notarization are complete; the
-signed candidate still requires fresh-profile and manual native acceptance. On
-2026-09-03 the owner confirmed
-enrollment and explicitly declined public repository visibility. Local candidate
-builds are allowed; public publication is not. Unit tests cannot approve
-redistribution, notarization, native audio, or an actual upgrade.
+The release tools build signed macOS 15+ Apple-silicon candidates and support
+guarded updates, upgrade snapshots and installed-artifact smoke tests.
+**No accepted public release is available.** Fresh matching artifacts, complete
+starter inputs, inventory review, minimum-OS/native acceptance and a real forward
+upgrade remain required. Unit tests do not approve redistribution or publication.
+Windows native packaging is deferred. Release commands use isolated native
+profiles; they do not reset or create Compose stacks.
 
-This guide covers macOS 15+ on Apple silicon. The owner has this MacBook on
-macOS 26.6 available; `sw_vers` reports 26.6.2 (25G83). That is not clean-machine
-or minimum-supported-OS evidence. The owner explicitly approved macOS 15 as
-the new minimum on September 3; macOS 15 acceptance remains required.
-Personal microphone, voice, window and shortcut acceptance remains unknown.
-Windows packaging is Phase 5.
-The main Compose stack at `http://localhost:8000` is unrelated to release testing;
-these commands neither reset it nor create another Compose stack.
-
-Initial release publication will be run manually by `raymond-van` from reviewed
-`main` inputs. Start with the [maintainer release process](release-process.md)
-for the ordered gates and future commands; this page is the tooling reference.
-The CI deployment workflow remains unconfigured for this initial path.
+Initial publication runs manually from reviewed `main` inputs. Start with the
+[maintainer release process](release-process.md) for ordered gates; this page is
+the tooling reference. CI publication remains unconfigured.
 
 ## What people see
 
@@ -66,51 +53,18 @@ visibility through the authenticated API before uploading. A local signed build
 does not approve public distribution; notarization still submits binaries to Apple.
 Neither path infers the repository from the source remote or embeds a token in the app.
 
-On 2026-09-02 the owner selected **`raymond-van/animama-releases`**, private
-initially, and authorized its creation. GitHub accepted the private creation
-request; the initial credential readback returned 404. The owner subsequently
-confirmed that the repository exists with one README commit. A later read-only
-API check returned HTTP 200 and private visibility for both source and
-distribution repositories, with administrative access through the normal Git
-credential helper. This resolves the earlier readback uncertainty, but it does
-not configure a scoped CI publishing token. The source repository has Actions
-enabled, read-only default workflow-token permissions, and no environments yet.
-The owner selected `raymond-van` as the sole release approver and `main` as the
-release branch. The workflow now rejects other branches, forks, dispatchers and
-rerun actors before credential-bearing jobs. This checked-in guard is not a
-GitHub environment protection rule or an approval to publish.
-The read-only account lookup reports the Free plan, which cannot provide the
-planned approval environments for this private source repository. Environment
-setup/scoped CI access is not required for the chosen initial manual process.
-The owner explicitly accepted manual publication on 2026-09-02; configure
-supported CI protections only if later choosing CI deployment. No application
-source or release assets were uploaded, and the manual choice does not approve
-public visibility, a credential, or a particular candidate.
-`feature-pack-releases.json` records the future release URL and the approved
-Parakeet inventory. `release-policy.json` records the owner's exact approval of
-the regenerated core inventory after the provenance update. The private
-preparation repository is not a working download/update feed.
-The owner explicitly declined public visibility on 2026-09-03. This is no longer
-a candidate-build prerequisite. Under the existing public-download architecture,
-preview/stable publication still requires a new explicit decision authorizing
-public access; it is not an action to take now. Signing and inventory review
-remain required for candidates, and no approval hash is filled automatically.
+The configured distribution repository is `raymond-van/animama-releases`.
+It supplies pinned future URLs, not an available private download feed.
+`feature-pack-releases.json` records pack policy and exact inventory receipts;
+`release-policy.json` records the core inventory receipt. A source or notice
+change requires fresh matching review rather than reuse of an older hash.
 
-No local `animama-releases` checkout was created or is required for publishing.
-The release workflow lives in the source repository and uploads installers,
-packs, notes, and update metadata through the GitHub Releases API. Those files
-are release assets, not binary files committed to the distribution repository.
-Release publication can create version tags without adding source commits.
-The initial README commit came from repository initialization; future README
-edits can use GitHub or an optional local clone. Ordinary source commits do not
-publish a release: the checked-in workflow is manually dispatched, with
-publication disabled by default and separate approval gates.
-
-Public open-source projects can keep source and releases in one public
-repository. This separate distribution repository is useful because Animama's
-source is private; release visibility follows repository access. Public downloads
-will require an explicitly authorized visibility change to this repository, or
-a separately designed public distribution host, not making the source public.
+The manual publisher uses the GitHub Releases API without a local distribution
+checkout. Release assets are uploaded separately from source commits. Neither
+source commits nor candidate builds publish a release. The checked-in workflow
+is manually dispatched, with publishing disabled by default and separate gates.
+Changing the eventual source/history or distribution arrangement requires an
+explicit publication decision; these commands do not select one.
 
 | Input                                           | Required operator decision                                                                                                                                                                           |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -119,14 +73,11 @@ a separately designed public distribution host, not making the source public.
 | `desktop/runtime/macos-acceptance.example.json` | Template only; a reviewer must supply the actual DMG hash, date, identity, prior signed version, and completed checks                                                                                |
 | `desktop/runtime/size-baseline.json`            | Update only from a successfully released artifact, never a partial stage or estimate                                                                                                                 |
 
-The ignored starter SFX and downloaded example media are intentionally excluded, as described in
-[Runtime staging](runtime-staging.md#current-content-gate). Do not restore them
-as release inputs. Review every remaining third-party
-dependency/model/asset and its required notices; `NOASSERTION` and a generated
-inventory are not permission to distribute. The core review receipt binds the
-SHA-256 of staged `runtime/licenses/inventory.json`. That inventory includes
-dependency locks and exact source-asset hashes. Changed inputs require review
-again. A build never fills approval fields automatically.
+Review the [current content gate](runtime-staging.md#current-content-gate),
+third-party inputs and required notices. `NOASSERTION` and a generated inventory
+are not permission to distribute. Core review binds the staged license-inventory
+SHA-256, including dependency locks, source-asset hashes and notice hashes.
+Changed inputs require review again; builds never fill approval fields.
 
 The checked-in parent entitlement candidate enables JIT and microphone input;
 the inherited candidate enables JIT only. Neither enables unsigned executable
@@ -137,35 +88,20 @@ record why and repeat signing, size, and acceptance checks for the new artifact.
 
 ## Build and preserve the reviewed helper
 
-Verified Apple metadata (2026-09-03): Team ID `9XHPMZ723L` and signing identity
-`Developer ID Application: RAYMOND VAN (9XHPMZ723L)`. The owner reports that
-`notarytool history` succeeds with profile `animama-notary`. Those public values,
-a matching document-worker signature requirement, and the intended private
-repository coordinates are now configured in the release inputs.
-The profile name goes in `ANIMAMA_MACOS_NOTARY_PROFILE`; passwords
-and signing private keys remain in the maintainer's Keychain, never in this repository.
-The exact Parakeet inventory and regenerated core inventory are approved;
-configuration alone is not proof of a successful signed build.
-Electron Builder receives the certificate name `RAYMOND VAN (9XHPMZ723L)`
-because version 26 rejects the certificate-kind prefix in its selector. Direct
-nested and DMG `codesign` calls continue to use the full configured identity.
-The earlier required-timestamp/HTTP-404 retry blocker was resolved by interactive
-command approval; the targeted signature succeeded. A subsequent bundle-layout
-failure is corrected with a native launcher and explicitly signed Resources
-payload; see [Runtime staging](runtime-staging.md#separate-document-worker).
-The corrected full producer passed Developer ID signing, Apple notarization,
-stapling, Gatekeeper and its frozen local-PDF probe. It exported
-`worker-review.json` with the exact unapproved inventory and size measurements;
-this does not approve or publish the worker.
-Native verification also caught a missing `=` prefix on literal `codesign -R`
-arguments. All worker/core/smoke/updater checks now pass literal source; the
-pinned publisher/identifier requirements are unchanged.
-The independent deployment-target
-audit also found current core/worker libraries require macOS 14 despite the
-earlier macOS 13 target. The owner approved macOS 15 instead. Build settings,
-runtime admission and updater metadata now use that target; a fresh guarded
-build is required. Do not suppress timestamping or patch dependency headers to
-claim compatibility.
+The release input configures Team ID `9XHPMZ723L` and identity
+`Developer ID Application: RAYMOND VAN (9XHPMZ723L)`, plus a pinned
+document-worker designated requirement. Set the local notarization Keychain
+profile name in `ANIMAMA_MACOS_NOTARY_PROFILE`; passwords and signing private
+keys remain outside the repository. Configuration does not prove a successful
+signed build or authorize reuse of changed inventory bytes.
+
+Electron Builder receives the certificate name `RAYMOND VAN (9XHPMZ723L)`;
+direct `codesign` calls use the full identity. The worker uses a native launcher
+and explicitly signed Resources payload; see
+[Runtime staging](runtime-staging.md#separate-document-worker). Core and worker
+audits compare every shipped Mach-O deployment target with macOS 15. Rebuild
+incompatible inputs; do not suppress timestamping or patch headers to claim
+compatibility.
 
 Run native builds on Apple silicon with the pinned toolchain from the staging
 guide. Configure an existing notarization Keychain profile and set its name in
@@ -177,8 +113,8 @@ pnpm desktop:runtime:document-worker -- --platform darwin --arch arm64
 ```
 
 The document pack is deferred from the first release. For a future activation,
-the Phase 3 producer freezes the helper, signs and notarizes it, staples it,
-verifies its publisher, and runs the frozen conversion probe. Phase 4 additionally
+the producer freezes the helper, signs and notarizes it, staples it,
+verifies its publisher, and runs the frozen conversion probe. It also
 exports `desktop/release/worker-input/`: a strict archive, candidate manifest,
 and `worker-review.json` marked **unapproved**. Review the payload inventory and
 record its hash in the pack release inputs. Preserve that exact archive.
@@ -257,12 +193,11 @@ Both distribution archives must be at most 750 MiB; the installed core at most
 ## Installed-artifact smoke and manual acceptance
 
 Use a dedicated fresh macOS account or a fresh CI runner for the setup smoke.
-The owner has prepared the account display name **Animama Test**. Arrange a real
-login and confirm its clean profile; do not infer the short name or home path,
-impersonate its session, or change HOME. A privately transferred DMG is sufficient
+Log in normally and verify that the test account has no app/profile data; do not
+impersonate its session or change HOME. A privately transferred DMG is sufficient
 for the core smoke. No public GitHub visibility or signing credential is needed
 in the test account.
-The harness refuses an existing Animama/legacy profile or installed test app.
+The harness refuses an existing `Animama` or `Anima` profile or installed test app.
 It never resets data, changes HOME, or sets packaged developer overrides.
 Provide `ANIMAMA_SMOKE_OPENAI_KEY` explicitly for two short real starter chats;
 the harness does not load developer `.env` files. Those API calls incur provider
@@ -271,18 +206,18 @@ After checking restart persistence, the harness deletes this temporary OpenAI
 credential through the normal vault API and verifies absence after another
 restart. Failure paths attempt the same cleanup before shutdown; a failed
 cleanup fails the smoke and reports the required manual removal. It never
-changes the source key or any other account's vault. Owner authorization for
-the September 3 run covers two short calls and this temporary-copy cleanup only.
+changes the source key or any other account's vault. Real provider calls require
+explicit authorization for the scoped smoke and its temporary credential cleanup.
 
 ```sh
 pnpm desktop:smoke:mac -- --artifact desktop/release/publish/Animama-<version>-arm64.dmg --setup name
 ```
 
 The smoke rejects empty and all-whitespace names before completing named setup.
-There is no Skip variant; required-name evidence gates publication.
+Required-name evidence gates publication.
 The harness checks the signed DMG and contained app, installs into the absent
 `~/Applications/Animama.app`, launches with a system-only PATH, verifies child
-executables belong to app resources, and tests setup, provider status, gateway
+executables belong to app resources, and tests setup, provider status, local HTTP
 rejection, core capabilities, both starter chats, exact typed bytes, private
 upload, restart persistence, temporary-key removal, and owned shutdown. It leaves the profile and app
 intact for inspection. A missing provider or failed journey is a failure, not a
@@ -358,21 +293,18 @@ initial job already requires `refs/heads/main`, the source repository, and
 that guard. Branch code can change a workflow guard, so it does not replace
 GitHub's environment restrictions or an explicit publication approval.
 
-The owner selected a sole-maintainer process: `raymond-van` reviews the exact
+Under the sole-maintainer process, `raymond-van` reviews the exact
 artifacts and acceptance evidence. If protected environments are later enabled,
 set that account as the required reviewer and allow self-review so the same
-person can dispatch and approve. This supersedes the earlier two-person/no-self-
-approval requirement; approval must still be a separate action after inspection.
+person can dispatch and approve. Approval remains a separate action after artifact inspection.
 
-GitHub currently offers private-repository environments on Pro/Team/Enterprise,
-but required reviewers on private repositories require Enterprise. The current
-personal Free account cannot enforce this setup; upgrading only to Pro would
-not supply the required reviewer gate. See [GitHub environment availability](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
-Leave CI publication unused and secrets unset. The standalone commands below
-are the owner-approved initial mechanism without claiming GitHub environment
-approvals; credentials and public-distribution authorization remain separate.
-Do not make
-source public, change billing, or create an unprotected environment as a workaround.
+Before adopting CI publication, verify that the repository's GitHub plan can
+provide the required protected environments and reviewer gates using
+[GitHub environment documentation](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
+Keep CI publication unused and secrets unset until those controls are configured.
+The standalone commands are the manual mechanism; credentials and authorization
+for public distribution remain separate. Do not change visibility or billing,
+or create unprotected environments, to bypass an approval gate.
 
 | Environment                 | Secrets and purpose                                                                                                                                                                       |
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -386,9 +318,9 @@ printing them, stores the notary profile, and restores/deletes its Keychain in a
 always-run cleanup step. Signing credentials are not available to test/build
 steps through environment variables and are never artifact inputs.
 
-The initial release does not dispatch `prepare-worker` or import a document
-helper because document processing is deferred. After committing reviewed
-Parakeet/core inputs, dispatch `release`. The workflow checks/tests,
+If CI publication is configured, the initial release does not dispatch
+`prepare-worker` or import a document helper because document processing is
+deferred. After committing reviewed Parakeet/core inputs, dispatch `release`. The workflow checks/tests,
 stages/audits, signs the candidate, and runs the required-name fresh-profile smoke. With
 `publish=false` it stops there. With `publish=true`, a protected preview job first
 requires explicit approval for public testing. It uploads immutable candidate
@@ -404,7 +336,7 @@ filename or rebuild it after its inventory approval.
 
 The standalone publisher requires all candidate/smoke directories above, the
 scoped token and an explicit command for the requested stage. Preview requires
-both passing setup smokes and explicit public-distribution approval; it does not
+the passing required-name setup smoke and explicit public-distribution approval; it does not
 manufacture native acceptance:
 
 ```sh
@@ -427,9 +359,8 @@ An already stable release is never replaced. If promotion's result is uncertain,
 inspect the remote state before retrying. Use a new version for corrections.
 
 The canonical generated evidence is the fixed set in `desktop/release/publish`,
-with `SHA256SUMS.txt` and `signing-report.json`. Both setup-mode reports remain
-distinct. See the [evidence map](release-process.md#evidence-and-actual-artifact-names)
-instead of inventing the earlier plan's `checksums.sha256` or `.txt` signing report.
+with `SHA256SUMS.txt` and `signing-report.json`. See the [evidence map](release-process.md#evidence-and-actual-artifact-names)
+for the required-name smoke and network report paths.
 
 ## Recovery and retention
 
@@ -439,17 +370,12 @@ it beneath `backups/pre-migration/<from>-to-<to>/`. Retry reuses the original
 snapshot. A failed or interrupted migration marks it permanently retained.
 After two distinct successful app launches on the new head, older known-successful
 snapshots may be pruned; the newest snapshot, all failed/interrupted snapshots,
-and unknown/legacy entries remain. Provider restarts and Retry clicks are not
+and unrecognized entries remain. Provider restarts and Retry clicks are not
 additional launches.
 
-The 2026-09-02 native development check exercised the actual `PrivatePostgres`
-and `MigrationBackup` services against disposable data. It verified reuse of the
-original dump after a deliberately failed SQL transaction, restore of the
-principal and pre-failure rows into a different database, interrupted-snapshot
-preservation, and pruning only after two distinct launch IDs. It used synthetic
-transition labels and launch IDs; this is not a signed-app forward upgrade or
-an end-to-end migration-recovery UI test. The normal stage audit now also
-requires a real restored database rather than only `pg_restore --list`.
+The stage audit restores a real dump into a separate temporary database and
+checks the principal, schema and owner-scoped rows. Component backup/retention
+checks do not replace signed forward-upgrade or recovery-UI acceptance.
 
 Recovery displays the relative snapshot location and fixed **Open Backups**,
 **Open Logs**, **Retry**, and **Quit** actions. Dumps do not include local files,

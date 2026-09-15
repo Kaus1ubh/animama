@@ -32,7 +32,7 @@ and `X-Animama-CSRF: 1` for application mutations. The only product WebSocket is
 `/v1/logs`; it requires the configured Origin. The boundary writes successful
 admission into server-owned request state. The installation principal resolver
 uses that state only after completed bootstrap. Client headers cannot choose
-an owner, and no gateway assertion token remains.
+an owner. Admission is local to the FastAPI process.
 
 Supervised desktop also requires the launch capability cookie on product
 requests. Private desktop operations require a separate control credential;
@@ -89,7 +89,7 @@ token, build identity, local HTTP schema and installation principal before
 installing a host-only HttpOnly SameSite=Strict capability cookie or navigating
 any product window. An occupied saved port opens independent recovery rather
 than silently changing the origin. The persisted `{version: 1, gatewayPort}`
-representation remains compatible; the field now identifies FastAPI's app port.
+representation stores FastAPI's application port under the `gatewayPort` key.
 
 For restart and pack transitions Electron retains a validated application route,
 destroys product windows and their workers, and shows its independent recovery

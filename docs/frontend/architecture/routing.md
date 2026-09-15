@@ -5,8 +5,7 @@ The web app uses TanStack Router with file routes in
 
 Typed creators use stable product routes such as `/a/particle-effects/new`,
 `/a/avatar-effects/new`, `/a/scene-effects/new`, `/a/sound-effects/new`,
-`/a/gestures/new`, and `/a/reactions/new`. Old generic creator and package
-routes are not mounted.
+`/a/gestures/new`, and `/a/reactions/new`.
 
 ## Route Tree
 

@@ -4,7 +4,7 @@
 
 Gesture, Reaction, Particle Effect, Avatar Effect, Scene Effect, Sound Effect,
 Idle Style, Music Track, Avatar, Appearance, voice, and pose clip content share
-one readable Content Catalog. The legacy `anima` kind is reserved/rejecting;
+one readable Content Catalog. The `anima` kind is reserved/rejecting;
 live Animas are private aggregates. Included and Local are filesystem sources,
 not parallel domain models. Concrete validators and runtime players remain
 type-specific; ordinary creator Save updates an editable catalog item instead
@@ -54,10 +54,9 @@ workers.
 ## Migrations
 
 Alembic revision `baseline_20260908` creates the complete current accountless
-local schema from frozen `alembic/versions/0001_baseline.sql`. It replaces the
-13 unreleased revisions in one intentional development reset boundary. The SQL
-creates the final tables, constraints, indexes, runtime-worker heartbeats and
-content mutation receipts directly, without creating retired transition tables.
+local schema from frozen `alembic/versions/0001_baseline.sql`. The SQL creates
+the tables, constraints, indexes, runtime-worker heartbeats and content mutation
+receipts directly.
 It must not import live ORM metadata or be regenerated as models change; future
 schema changes use forward revisions.
 
@@ -72,8 +71,7 @@ retain their separate responsibilities and idempotence.
 Databases stamped with any removed revision cannot upgrade through this graph.
 Retain the matching old checkout to read or restore those databases/backups, or
 explicitly recreate a disposable development database. Do not stamp an old
-schema as the new baseline. This change does not reset any existing installation
-automatically, and ordinary restarts do not clear data. A full database reset
+schema as the baseline. Ordinary startup and restarts do not clear data. A full database reset
 loses database-owned content and creates a new owner; retained Local files and
 private upload bytes need separate recovery consideration. See
 [Database operations](../operations/development.md#database).
@@ -198,7 +196,7 @@ uniqueness are enforced by the service while Music duplicate/autoplay rules
 also have partial unique indexes. Effects, Sounds, and Pose Clips reached
 through an action are compiler-managed dependencies rather than peer loadout
 rows. `ORMAnimaLoadoutMutationReceipt` makes lost-response retries idempotent;
-`ORMAnimaLoadoutDiagnostic` preserves visible warnings for rejected legacy or
+`ORMAnimaLoadoutDiagnostic` preserves visible warnings for rejected persisted or
 externally invalid equipment without deleting its catalog item.
 
 Runtime compilation persists one `anima_runtime_snapshots` row for each exact
@@ -256,9 +254,8 @@ aggregate and loadout revision once. Runtime state, chats, and ordinary settings
 do not advance definition history. The materializer writes all children through
 one caller-owned session and leaves commit/rollback to the caller.
 
-New Animas receive identity through the materializer. The retired migration's
-one-time legacy identity adoption is available only in the old checkout; the
-current baseline does not migrate or backfill old Anima rows.
+New Animas receive identity through the materializer. The baseline does not
+backfill identity in databases outside its supported revision graph.
 
 The baseline includes owner-scoped
 `anima_creation_receipts` and stable `anima_starter_receipts`.
@@ -305,12 +302,7 @@ are not implemented in this table.
 
 ### Memory
 
-The anima-owned `ORMMemory` and `ORMBlock` tables, domain objects, repository,
-service, and public API were retired on 2026-06-19. Fresh metadata for this
-rework does not register the block-memory ORM models, and animas no longer
-carry a `memory_id` foreign key.
-
-The current schema stores scoped markdown memory as a hybrid tree plus cached
+The schema stores scoped markdown memory as a hybrid tree plus cached
 path index:
 
 - `ORMMemoryEntry` maps to `memory_entries`, the current live or soft-deleted
@@ -367,11 +359,11 @@ model-context chain. Serialized agent state is separate: it stores an exact
 paused Apply Patch interruption and is cleared after the SDK resumes without
 another interruption.
 
-These manager columns follow the current reset-era schema posture. Fresh
-metadata/bootstrap databases include them automatically; an existing database
-must be reset or receive explicit columns for run kind, task state, the
-Responses cursor, approval decision feedback, old/new approval descriptions,
-applied Version, and Undo audit fields before running this backend version.
+The frozen baseline includes run kind, task state, the Responses cursor,
+approval feedback, old/new descriptions, applied Version and Undo audit fields.
+Schema upgrades use forward Alembic revisions. Databases outside the supported
+revision graph require their matching checkout or an explicitly disposable
+reset; a routine restart does not add missing schema or discard data.
 
 Undo and Revert preserve the append-only model. An approved Memory Manager
 patch records the exact entry and Version it produced. Undo appends a new
@@ -428,10 +420,9 @@ generated episode-log snapshots are readable through the same interface.
 Source/provenance details for seeded files belong in memory-entry `metadata`
 instead of dedicated columns. Materialization seeds an anima-scoped `identity.md`
 entry with `kind = "anima_identity"` and
-`description = "Initial identity of {anima.display_name}"`. The temporary
-legacy creation adapter additionally stores
-`metadata.anima_id`, `metadata.source.type = "avatar_identity_seed"`,
-`metadata.source.avatar_id`, and `metadata.source.avatar_name`.
+`description = "Initial identity of {anima.display_name}"`. Starter adoption
+can inspect persisted `avatar_identity_seed` metadata and Version 1 history;
+ordinary creation does not invent that adoption evidence.
 
 Normal direct chat fetches cached path `identity.md` in the active anima scope
 at turn setup as required anima configuration and inserts only the identity
@@ -468,8 +459,7 @@ application startup does not create them from live ORM metadata.
 
 The product-facing backend boundary treats a user thread as a `Chat`: one
 resolved owner principal chatting with one anima/avatar. The public durable API uses
-`/v1/chats` and `chat_id`. `/v1/conversations` is not mounted, and
-`chat:sse` accepts `chat_id` rather than legacy conversation identifiers.
+`/v1/chats` and `chat_id`; `chat:sse` resolves the same owner-scoped Chat row.
 
 `ORMChat` stores chat metadata in `chats`:
 
@@ -478,7 +468,7 @@ resolved owner principal chatting with one anima/avatar. The public durable API 
 - `anima_id`
 - title
 - `api_standard`, nullable. This is the chat transcript compatibility key.
-  Current reset-era values are `chat_completions` and `responses`.
+  Supported values are `chat_completions` and `responses`.
 - `last_model_client`, nullable. This records the model-client profile from the
   latest successful durable `chat:sse` turn, currently
   `openai_chat_completions` or `openai_responses`.
@@ -510,7 +500,7 @@ empty chat before a model provider is selected. `ChatManager` writes
 `api_standard` when `chat:sse` creates a missing chat row, initializes it on an
 empty pre-created row, allows later model switches only when the stored
 `api_standard` matches the selected provider's `api_standard`, and rejects
-non-empty null-standard chats as invalid reset-era state. Successful
+non-empty null-standard chats as invalid transcript state. Successful
 non-incognito turns update `last_model_client` and `last_model_id` together
 with usage totals and turn reservation. The frozen baseline includes these
 columns; it does not backfill legacy databases.
@@ -548,7 +538,7 @@ columns; it does not backfill legacy databases.
   item IDs, assistant `phase`/`phase_counts`, `message_phases`, annotations,
   native tool summaries, unknown output item types, and
   `stream_event_summary`.
-- legacy/debug paths may contain `message_data.raw_response`; normal
+- Stored/debug payloads may contain `message_data.raw_response`; normal
   chat-history responses remove raw-provider details before returning messages
   to clients
 - per-message usage counters
@@ -591,10 +581,8 @@ turn. It is selected by `ChatManager` and injected before recent exact messages;
 it is not exposed as a normal chat message.
 
 `chat_messages` does not require `session_id`, and normal avatar chat does not
-create `agent_sessions` rows. The ORM package import registers `chats`,
-`chat_messages`, and `chat_compactions` in fresh metadata and does not register
-the legacy `conversations`, `agent_sessions`, `agent_messages`, or `agent`
-tables.
+create companion-session rows. The ORM package import registers `chats`,
+`chat_messages`, and `chat_compactions` in fresh metadata.
 
 `ChatManager` is the normal direct-chat persistence service. It verifies or
 creates the owned chat for the current user/anima, fetches visible chat
@@ -626,8 +614,7 @@ emotional analysis, and presentation flags for animation or visual effects.
 ### Avatar And Uploads
 
 `ORMAvatar` stores Avatar metadata, catalog association, and the shared markdown
-`identity` template used as optional creation assistance or a one-time legacy
-seed. Avatar `name` remains globally unique but is not a live Anima's display
+`identity` template used as optional creation assistance. Avatar `name` remains globally unique but is not a live Anima's display
 name. Avatars can be
 public catalog avatars or private user avatars.
 
@@ -708,8 +695,7 @@ twenty-second freshness threshold; queue leases retain their separate timeout.
 
 Archive models store anima archive metadata and passages. Passage search can
 use embeddings when the database/provider stack is configured for it. Archive
-data is distinct from the retired block memory system and from the planned
-memory filesystem.
+data is distinct from the scoped Markdown memory filesystem.
 
 ## Repository And Mapper Pattern
 
@@ -723,7 +709,7 @@ New persistence behavior should usually follow this path:
 router schema -> app service -> repository port -> SQLAlchemy adapter -> ORM
 ```
 
-Use direct ORM access only when maintaining an existing legacy route path and the
+Use direct ORM access only when maintaining an existing route with direct ORM access and the
 change is intentionally local.
 
 ## Session And Transaction Scope
@@ -751,5 +737,5 @@ Several models store flexible metadata JSON. Use named constants and mappers
 where available instead of scattering string keys through route handlers.
 Content metadata may contain portable type-specific configuration and safe
 provenance; it must not contain absolute paths or delivery capabilities.
-Normal `chat:sse` does not read legacy `runtime_graph`, `chat_runtime`, or
+Normal `chat:sse` does not read persisted `runtime_graph`, `chat_runtime`, or
 `metadata.direct_chat` metadata.

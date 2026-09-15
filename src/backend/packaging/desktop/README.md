@@ -24,8 +24,7 @@ No command accepts a password, provider secret, or content path as an argument.
 `serve` rejects non-loopback publication and requires the exact saved
 `ANIMAMA_PUBLIC_ORIGIN`, `ANIMAMA_WEB_ROOT`, paired renderer/control credentials
 and owned-process start token. FastAPI serves the built UI and product routes
-through the same admission boundary as self-host. The gateway assertion and
-token file are retired. `content audit`
+through the same admission boundary as self-host. `content audit`
 uses `ANIMAMA_DESKTOP_INCLUDED_ROOT`; it reads the typed starter closure without
 a database. `worker user-files` exits 69 with `feature_unavailable` when no pack
 is available. After main verifies the installed inventory and OS publisher, it
@@ -81,10 +80,12 @@ plus the same starter specs, optional portrait keys, default idle, and loadout
 policy as private creation. The core is rescanned after copying. Missing
 dependencies, license records, identity collisions, and unsafe files fail the
 stage. A development checkout's ignored assets are not silently shipping inputs.
-The unlicensed comedy SFX are intentionally absent: tracked visual effects and
-the shy-finger-poke gesture no longer reference them. The complete tracked
-starter closure must resolve without any `sfx/` files, including on a clean
-checkout. No staging-time dependency trimming or private-asset bypass is used.
+The starter closure must resolve without `sfx/` files and without staging-time
+dependency trimming. Required Mixamo animations are ignored user-supplied inputs;
+a clean checkout does not yet contain a complete buildable starter closure.
+Acquisition/conversion and clean-build acceptance remain outstanding; see the
+[Mixamo acquisition guide](../../../../docs/frontend/runtime/mixamo-acquisition.md).
+Ignored local copies do not satisfy the tracked-input packaging gate.
 
 `probe_postgres.py` exercises only disposable native loopback data: pgvector,
 frozen schema bootstrap twice, principal stability, absence of local account

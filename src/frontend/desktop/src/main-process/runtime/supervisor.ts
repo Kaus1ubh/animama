@@ -496,7 +496,7 @@ export class RuntimeSupervisor {
       throw new RuntimeError("backend_start_failed");
     this.backendOrigin = new URL(origin);
     if (this.shutdownRequested) throw new RuntimeError("runtime_stopping");
-    // A successful restart now consumes every value already saved in the vault.
+    // A successful restart consumes every value saved in the vault.
     // An unapplied busy change must still be reported to the replacement window.
     for (const [provider, failure] of this.credentialFailures)
       if (failure.saved) this.credentialFailures.delete(provider);

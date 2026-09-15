@@ -63,9 +63,8 @@ Architecture and implementation references:
 
 The local product and these durable guides belong in `animama`; see
 [Repository boundaries](../architecture/repository-boundaries.md).
-Full execution plans and their approval history are privately retained, including
-plans for local features. Contributors need no private planning checkout. Use
-these implementation and operational references:
+Contributors need no private planning checkout. Use these implementation and
+operational references:
 
 - [Local HTTP boundary](architecture/auth-server.md) and
   [backend operations](../backend/operations/development.md): accountless
@@ -100,6 +99,3 @@ Desktop:
 - [Picture-in-picture](desktop/picture-in-picture.md)
 - [Quick chat](desktop/quick-chat.md)
 - [Keyboard shortcuts](desktop/keyboard-shortcuts.md)
-
-Active docs describe the current Vite/TanStack frontend. Superseded migration
-narratives and retired plans remain available in Git history.

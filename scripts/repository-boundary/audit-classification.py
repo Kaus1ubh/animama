@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check explicit source ownership and per-file provenance against the Git index.
 
-This is a read-only Phase 1 inventory audit, not an exporter or publication
+This is a read-only inventory audit, not an exporter or publication
 approval. Python 3.11+ and Git are required; Git LFS itself is not required.
 """
 

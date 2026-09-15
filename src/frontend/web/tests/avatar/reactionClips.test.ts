@@ -474,7 +474,7 @@ describe("reaction clip catalog", () => {
 
   it("keeps every reaction clip composable and catalog-referenced", () => {
     const eventCatalogs = {
-      // Angry and Exclamation are descriptor-backed Included items now. They
+      // Angry and Exclamation are descriptor-backed Included items. They
       // deliberately do not live in the code-shipped fallback registry.
       avatarVFXIds: [
         ...AVATAR_VFX_CATALOG.map((entry) => entry.id),

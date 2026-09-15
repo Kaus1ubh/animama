@@ -23,7 +23,7 @@ export function actionSequenceFromTimelineDraft(
   );
   if (!clip) {
     try {
-      // Typed Reactions may legitimately be effect-only. The legacy Pose
+      // Typed Reactions may legitimately be effect-only. The Pose
       // Creator export validator requires a pose/keyframe, so fall back to the
       // actual animaPoseClip schema after removing editor-only draft fields.
       clip = parseAnimaPoseClip({

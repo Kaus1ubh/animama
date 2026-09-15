@@ -27,9 +27,8 @@ selected style (or an intentionally empty
 lane), including authorized private VRMA memberships. The runtime first picks
 the pool for the current dominant canonical emotion and otherwise uses the
 style's non-empty Default pool. Selection inside that pool is uniform and the
-existing transient previous-clip avoidance remains in force. The existing
-Motion Planner, intermittent stint timing, Animation Manager, and single-canvas
-ownership do not change; only the mounted idle catalog input changes. As with
+existing transient previous-clip avoidance remains in force. The Motion Planner and Animation Manager apply intermittent stint timing to
+the mounted idle catalog within the same Canvas. As with
 the rest of the Loadout, a changed style appears on the next route/chat mount.
 
 ## 1) High-level architecture
@@ -291,7 +290,7 @@ Important behavior:
   optional `role`, optional `basePose`, optional `playback`, optional
   `fadeIn` / `fadeOut` playback envelopes, local pose aliases, pose keyframes,
   and transition settings. `role` is accepted only as legacy compatibility
-  metadata (`"motion"` or `"reaction"`); parsing no longer injects a default,
+  metadata (`"motion"` or `"reaction"`); parsing does not inject a default,
   and runtime routing does not inspect it. The effective loadout collection
   determines whether a generic clip runs as a gesture, pose, or reaction.
   Built-in JSON directories likewise determine legacy App catalog membership.
@@ -340,7 +339,7 @@ Live Anima routes instead build
 frozen `GET /v1/animas/{anima_id}/runtime` response. It projects only
 that Anima's effective idle, gesture, pose, and reaction entries. Removing a
 Starter binding therefore removes it from the next mount; another Anima's
-similarly named content release cannot be discovered through a global lookup.
+similarly named content item cannot be discovered through a global lookup.
 
 VRMAs resolve to verified prepared resources for the active mount. Their cache
 identity is `runtime_id + content_revision`, not a short-lived protected URL. Idle entries
@@ -356,7 +355,7 @@ prepared-byte boundary.
 The Animation Debug modal and the compact Anima debug panel list the mounted
 catalog rather than the process-global motion inventory. The compact panel can
 play both active VRMA entries and `animaPoseClip` gestures, while the larger
-modal can manually resolve mounted Gesture and Reaction releases by runtime ID.
+modal can manually resolve mounted Gesture and Reaction entries by runtime ID.
 Standalone authoring pages explicitly receive the built-in provider and never
 acquire private Anima resources implicitly.
 
@@ -389,7 +388,7 @@ from `src/frontend/web/src/lib/emotion` at intensities `1`, `2`, and `3`, using
 `<emotion>-<intensity>.json` ids. Reaction clips are not added to
 `pose_catalog.json`, do not run through `Avatar.playClip(...)`, and are skipped
 if channel analysis finds any humanoid transforms. This strict authoring rule
-applies to built-in and private Reaction releases. Playback projects Reaction
+applies to Included and Local Reaction entries. Playback projects Reaction
 sequences to expressions/events and defensively ignores humanoid samples.
 Selection is canonical-only: exact tracked emotion tones
 resolve to matching clips, while `neutral`, blank, unknown values, and group
@@ -490,7 +489,7 @@ Plan behavior:
   phase changes may still end the Gesture sooner.
 - Resolves `gestureRequested.animationHint` as a production manifest gesture id.
 - Consumes `emotionUpdated` events every time with a debug reason. Emotion
-  updates no longer create paired gesture requests.
+  updates do not create paired gesture requests.
 - Emits consumed planner event ids so the frame loop can remove exact events
   from the store.
 - Uses plan keys prefixed with `gesture:` vs `loop:` to avoid collisions between one-shot and loop plans for the same clip.
@@ -549,7 +548,7 @@ Important behavior:
   - transition blending between segments,
   - post-segment decay back to neutral.
 
-Note: chat request now wires viseme input queuing for Pocket TTS when TTS is enabled.
+Note: chat request wires viseme input queuing for Pocket TTS when TTS is enabled.
 
 ### `ProceduralAnimationController`
 
@@ -1124,7 +1123,7 @@ Important actions:
 - `consumePlannerEvents(eventIds)` removes planner events after the
   planner consumes or explicitly ignores them.
 
-Legal interaction-phase transitions are enforced in-store (`canTransitionPhase`), replacing implicit priority-only behavior:
+The store enforces these interaction-phase transitions through `canTransitionPhase`:
 
 - `idle -> user_typing | listening | thinking`
 - `user_typing -> idle | listening | submitting | thinking`
@@ -1136,8 +1135,8 @@ Legal interaction-phase transitions are enforced in-store (`canTransitionPhase`)
 - `responding_no_tts -> idle | listening`
 - `talking -> idle | listening`
 
-`activeEmotions` are now read from the backend-provided emotional state instead
-of being derived locally from valence/control/openness axes.
+`activeEmotions` come from the backend-provided emotional state; the frontend
+does not derive them from valence/control/openness axes.
 
 ## 5) Canvas runtime lifecycle
 
@@ -1322,7 +1321,7 @@ Animation effect on next frame:
 - If phase allows gesture playback and a matching gesture event is pending, the
   planner creates a one-shot gesture plan from that event.
 - If the hint resolves in the mounted motion catalog, the exact selected
-  runtime Gesture release is used. Its implementation may be VRMA or an
+  mounted Gesture entry is used. Its implementation may be VRMA or an
   `animaPoseClip` clip.
 - Any valid mounted-catalog gesture request reserves talking motion for the
   requested motion and bypasses `talkingHands` for that run. There is no

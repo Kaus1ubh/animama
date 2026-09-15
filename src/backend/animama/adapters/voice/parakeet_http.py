@@ -1,7 +1,8 @@
-"""Legacy server-side Parakeet STT adapter.
+"""Optional server-side Parakeet WebSocket adapter.
 
-The current frontend and desktop Parakeet path uses client-side ONNX inference.
-This adapter remains for older backend STT and LiveKit compatibility paths.
+The local voice-provider registry can construct this adapter when voice is
+enabled. Browser and desktop speech recognition use client-side ONNX inference;
+the local API does not expose an STT or LiveKit session route.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from animama.logging import get_logger
 
 
 class ParakeetSTTProvider(SpeechToTextProvider):
-    """Legacy streaming STT provider for the Parakeet FastAPI WS (/ws).
+    """Streaming STT provider for the Parakeet FastAPI WS (/ws).
 
     Args:
         base_url: Base URL of the Parakeet service (e.g., "http://localhost:8001")

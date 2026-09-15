@@ -1,6 +1,6 @@
 """Internal resolved creation inputs; these are not public HTTP commands.
 
-Phase 5 will validate the strict AnimaSpec and its complete source fence before
+AnimaCreationService validates the strict AnimaSpec and its complete source fence before
 passing admitted catalog snapshots to this materialization boundary.
 """
 

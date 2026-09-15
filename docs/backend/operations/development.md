@@ -1,6 +1,6 @@
 # Development And Operations
 
-> **Accountless local contract (2026-09-14):** `reset.sh` publishes one loopback
+> `reset.sh` publishes one loopback
 > application service: FastAPI serving React in built mode, or Vite forwarding
 > application routes to private FastAPI in development. PostgreSQL and other
 > infrastructure remain private. Opt-in `dev-tools` adds loopback pgAdmin/Dozzle.
@@ -103,17 +103,14 @@ schema and contains no hosted identity tables. Animama Cloud uses a separate
 migration history and app composition.
 
 Alembic revision `baseline_20260908` is the frozen current local schema in
-`alembic/versions/0001_baseline.sql`. It replaces the 13 unreleased revisions,
-including their transitional tables and data backfills. The baseline creates
-installation settings and generates one UUIDv4 owner; it never imports live ORM
-metadata. Keep it fixed after this consolidation and use reviewed forward
-revisions for subsequent model changes.
+`alembic/versions/0001_baseline.sql`. The baseline creates installation settings
+and generates one UUIDv4 owner; it never imports live ORM metadata. Keep the
+baseline fixed and use reviewed forward revisions for subsequent model changes.
 
-This is an intentional one-time pre-release reset boundary. A database or backup
-stamped with a removed revision needs its matching old checkout, or an explicit
-reset of disposable development data. `alembic upgrade head` cannot bridge this
+A database or backup stamped with an unsupported pre-baseline revision needs
+its matching checkout, or an explicit reset of disposable development data. `alembic upgrade head` cannot bridge this
 boundary, and `alembic stamp` must not be used to pretend an old schema matches.
-No database is reset merely by changing these files.
+Ordinary startup does not reset a database.
 
 Ordinary `./reset.sh` retains the database and owner; it does not resolve an
 unknown old revision. `./reset.sh --purge` is broader than a database reset:
@@ -215,8 +212,8 @@ before backing up its database, encrypted vault, `content/local`, and `data`
 together. The vault's OS encryption may require the original login keychain;
 copying a vault alone does not guarantee recovery on another machine. Verified
 custom-format dumps in `backups/pre-migration` protect upgrades but are not a
-full filesystem/vault backup. Phase 4 retains the newest snapshot, all failed or
-interrupted attempts and unknown entries; it may prune older known-successful
+full filesystem/vault backup. Snapshot retention keeps the newest snapshot,
+all failed or interrupted attempts and unknown entries; it may prune older known-successful
 snapshots after two distinct successful app launches. Retry and provider
 restarts do not advance that count. Never delete the database,
 vault, or principal to work around a startup error. Retry preserves all three.
@@ -306,7 +303,7 @@ listener and proxies a closed route set to private FastAPI, preserving original
 browser request metadata. Neither switch needs a purge. The tracked `.env.example`
 default remains development; root `.env` survives either reset mode.
 
-Application inspectors now default off. Opt in with
+Application inspectors default off. Opt in with
 `VITE_ENABLE_DEBUG_PANEL=true` only when running the development build; normal
 production and `embedded-desktop` builds exclude debug imports even with this
 input. This does not disable browser DevTools or the separate pgAdmin/Dozzle
@@ -375,9 +372,9 @@ causes the next preview/remount to fetch from FastAPI again.
 Users never need to re-clone the repository to reset an installation. A normal
 `./reset.sh` preserves state. `./reset.sh --purge` prints and removes only the
 selected stack's PostgreSQL volumes, Local files and private data, then starts
-a fresh installation and principal. Gateway-token creation and rotation are
-retired; no replacement token is needed for self-host startup. Legacy token
-files confer no authority and are never read by the application.
+a fresh installation and principal. Self-host startup requires no application
+token. Existing gateway-token files confer no authority and are never read by
+the application.
 
 If `installation_settings` is missing or its principal is malformed while
 owner-scoped rows still exist, do not generate a replacement. FastAPI and the
@@ -818,9 +815,10 @@ server extra and intentionally omits Docling/parser dependencies. The
 `animama-file-worker` target installs the full `docling` package and resolves
 PyTorch through uv's explicit CPU-only `pytorch-cpu` index, avoiding CUDA
 runtime packages in the worker image. Backend images copy the backend package,
-migrations/init SQL, and the small frontend animation/VFX catalogs that backend
-prompt code reads; frontend and legacy app trees are excluded from the root
-Docker build context. Dependency or image changes are not built automatically by
+migrations/init SQL, and shared animation/VFX catalogs. The server image also
+receives the React output from a frontend build stage. The Docker context admits
+those frontend build inputs while excluding desktop assets, installed dependencies
+and private local files. Dependency or image changes are not built automatically by
 plain `./reset.sh`; after restoring/configuring that service, rebuild it
 explicitly when needed:
 

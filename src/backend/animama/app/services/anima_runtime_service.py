@@ -428,7 +428,7 @@ class AnimaRuntimeService:
                 ContentKind.ANIMA,
             }:
                 # Support entries are admitted only through an Action closure;
-                # the 0007 migration records and removes legacy peer bindings.
+                # persisted peer bindings cannot bypass that closure validation.
                 continue
             config = dict(binding.config)
             add(

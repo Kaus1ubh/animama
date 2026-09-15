@@ -2,8 +2,9 @@
 
 Feature packs add optional local capabilities. The installation owner remains
 the same when a pack is installed, removed or reinstalled. No online Animama
-account is required. **No production pack release is available as of 2026-09-03**;
-the current catalog intentionally disables unapproved/unpublished downloads.
+account is required. **No production pack release is available.** The producer emits catalog entries
+only for active, approved exact inputs. Configured private GitHub URLs cannot
+serve anonymous installed-app downloads.
 
 ## What each pack adds
 

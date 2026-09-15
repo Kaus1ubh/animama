@@ -10,8 +10,8 @@ The backend exposes `GET /v1/users/me/profile` and
 first run. The generated installation principal owns the row but is not a
 secret or public identity.
 
-On first run, `/setup` asks “What should Animama call you?” and accepts an
-a required nonblank display name up to 80 characters. Continue stores the
+On first run, `/setup` asks “What should Animama call you?” and accepts a
+required nonblank display name up to 80 characters. Continue stores the
 normalized name; there is no Skip action. Provider keys and optional downloads
 remain optional. Completion is idempotent and controlled by backend runtime
 context rather than browser storage. The bootstrap placeholder may be null
@@ -32,5 +32,5 @@ creator page, avatar account image, account settings, sign-in, or logout.
 The installation bootstrap service owns initial profile and `profile.md`
 creation. Later profile changes update the bootstrap-managed preferred-name line
 in the same guarded backend transaction; a person's direct edit to that line
-wins. Hosted handles and creator metadata will live only in the future Animama
-Cloud composition and are never matched to this private display name.
+wins. This private display name is not a hosted identity or public creator
+handle.

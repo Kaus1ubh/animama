@@ -8,7 +8,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_openapi_has_no_legacy_asset_or_raw_binding_routes() -> None:
-    """The typed-only API must not remount a hidden legacy product surface."""
+    """Only typed product routes may expose catalog mutations or runtime bindings."""
 
     paths = set(app.openapi()["paths"])
     forbidden_fragments = (

@@ -6,37 +6,30 @@ preload IPC, permissions, and packaging. React still owns the product UI,
 runtime-owner context, data fetching, avatar runtime, and settings. No local
 account or hosted Animama account is needed to open the app.
 
-Phase 2 implements the embedded macOS runtime; Phase 3 adds optional pack
-installation, capability-aware UI, and the separate document-worker pipeline.
-Phase 4 adds guarded application updates, snapshot retention, and signed-release
-tooling. The unlicensed decorative SFX have been removed from shipped content.
-Downloaded voice samples, background examples and BGM are also excluded from
-desktop distribution; generated portraits and speech-engine assets remain.
-The unsigned core has passed native setup, chat/PocketTTS, private-byte,
-window, restart, and port-recovery checks; Phase 2 awaits user verification.
-Release acceptance still needs redistribution review, applying the verified Apple
-signing inputs, real signed artifacts, and their separate native tests. Local
-candidate builds do not require a public repository; public distribution is not
-currently authorized, and private GitHub pack/update downloads are unsupported.
-Start with [Installation](installation.md), [Feature packs](feature-packs.md)
-and [Troubleshooting](troubleshooting.md). Maintainers use the initial
-[manual release process](release-process.md) and [Runtime staging](runtime-staging.md).
-Phase 6 documentation can be reviewed now; component tests are not release evidence.
+The runtime includes optional packs, guarded application updates, upgrade
+snapshot retention and signing tools. Release acceptance remains pending for
+fresh matching artifacts, complete starter inputs, minimum-OS and native tests,
+and explicit publication approval. Private GitHub pack/update downloads are
+unsupported. Start with [Installation](installation.md),
+[Feature packs](feature-packs.md) and [Troubleshooting](troubleshooting.md).
+Maintainers use the [manual release process](release-process.md) and
+[Runtime staging](runtime-staging.md).
 
 ## Runtime Shape
 
 The desktop package lives in `src/frontend/desktop`.
 
-New builds use `animama-desktop-runtime/2` with `local_http_schema_version: 1`.
-The reader rejects old or mixed runtime artifacts before native execution.
-The saved `{version: 1, gatewayPort}` record, vault format, database schema,
-installation owner and `persist:animama` partition are unchanged. Earlier native
-results on this page describe the prior runtime; the FastAPI cutover requires
-a fresh matched stage, audit, package and isolated native acceptance.
+The packaged-resource format is `animama-desktop-runtime/2`, with
+`local_http_schema_version: 1`. The reader rejects unsupported or mixed runtime
+artifacts before native execution. `runtime/state.json` stores
+`{version: 1, gatewayPort}`: `gatewayPort` is the saved application port, including
+when FastAPI owns the listener. The vault, installation owner and
+`persist:animama` browser partition persist across launches. Acceptance requires
+a matching stage, audit, package and isolated native test of the exact source.
 
 Packaged builds always select embedded mode. At startup, `desktop/src/main.ts`:
 
-1. Sets the Animama name and user-data directory, moving an existing legacy
+1. Sets the Animama name and user-data directory, moving an existing
    `Anima` tree only into an absent destination, and acquires the single-instance
    lock before sessions, logs, vault access, or services.
 2. Opens an Electron-owned startup/recovery page and validates the staged
@@ -286,7 +279,7 @@ vault, Local content, and private data together. Premigration database dumps
 alone are not a complete backup. Verified dumps live under
 `backups/pre-migration/<from>-to-<to>/`. After two successful distinct app
 launches on a new schema, older known-successful dumps may be pruned. The newest
-dump, failed/interrupted upgrade snapshots, and unknown/legacy entries remain.
+dump, failed/interrupted upgrade snapshots, and unrecognized entries remain.
 Recovery shows the relative dump location; it never automatically restores or
 downgrades the database. See [Release recovery](releases.md#recovery-and-retention).
 Gateway/control tokens and the renderer capability are generated per launch and
@@ -439,15 +432,10 @@ Renderer DevTools are available with `Ctrl+Shift+I`. Use
 
 Platform-specific packaging details live in `platforms.md`.
 
-The Phase 2 package target is an unsigned macOS 15+ arm64 `.app`, requiring a
-complete freshly audited stage. The unlicensed SFX input gate is resolved by
-source exclusion; the unsigned native core journey passed on macOS 26.6.2.
-Windows packaging is gated on Phase 5; Linux packaging is outside this plan.
-External-stack `desktop:dev` remains available on those platforms. Phase 4
-provides core signing, notarization, updates, and a clean-machine smoke harness,
-but no signed release, minimum-OS proof, or signed native acceptance is claimed.
-Publication will initially be run manually by `raymond-van` from reviewed
-`main` inputs; no CI publishing credentials or public feed are configured.
-The optional executable worker already
-requires Developer ID signing, notarization, and pinned-publisher verification;
-there is no unsigned worker mode.
+The unsigned development package targets macOS 15+ arm64 and requires a fresh,
+complete audited stage. Windows and Linux self-contained packaging is deferred;
+external-stack `desktop:dev` is available on those platforms. Signed releases
+require separate signing, notarization, minimum-OS and native acceptance.
+Initial publication uses the manual process from reviewed `main` inputs. The
+optional executable worker requires Developer ID signing, notarization and
+pinned-publisher verification even with an unsigned core.

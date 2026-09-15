@@ -65,7 +65,7 @@ export class MigrationBackup {
         !["prepared", "complete"].includes(value.state)
       )
         throw new Error();
-      // Preserve the unreleased Phase 2 flat journals without moving any dump.
+      // Accept flat backup filenames and initialize missing retention fields without moving dumps.
       value.failed ??= value.state === "prepared";
       value.successfulLaunches ??= 0;
       value.lastLaunchId ??= null;

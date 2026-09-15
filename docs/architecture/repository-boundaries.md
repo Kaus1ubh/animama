@@ -64,9 +64,8 @@ physical audio, native release acceptance or publication rights.
 
 Full execution plans, split history, private backlog and owner approval records
 are retained privately. They are not local build or contributor prerequisites.
-Historical export tooling remains available for exact-revision verification;
-its ability to generate split receipts does not require retaining an old receipt
-at the root of the active checkout.
+The export tooling verifies exact committed inputs and generates split receipts
+in candidate directories. The active checkout does not require a root split receipt.
 
 ## Classification, provenance and licensing
 
@@ -90,10 +89,11 @@ content must retain its behavior through verified permission or an explicitly
 approved equivalent replacement.
 
 The working repository retains its proprietary [LICENSE](../../LICENSE). The
-planned public release uses a separately reviewed clean snapshot licensed
-AGPL-3.0-only for project-owned material, with third-party terms preserved and
-private development history excluded. Outside contributions are initially
-deferred. This is a publication plan, not a license grant for the current tree.
+planned public release uses AGPL-3.0-only for project-owned material, with
+third-party terms preserved. The choice to preserve Git history or publish a
+clean snapshot is deferred until final source review. The current repository
+and history remain private and intact. Outside contributions are initially
+deferred; the proposed license does not grant rights to the current tree.
 
 ## Verification
 

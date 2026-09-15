@@ -1,14 +1,14 @@
 # Pocket Voice Catalog Guide
 
 PocketTTS catalogs are private binary voice-embedding files used by PocketTTS
-playback. The browser-side catalog builder and backend upload primitives still
-exist, but the old custom anima create/profile-edit submit path was retired
-during memory filesystem Phase 3.
+playback. The browser-side catalog builder encodes named embeddings, and
+backend upload primitives validate catalog bytes. The four-step Create Anima
+journey has no voice-authoring step.
 
 Current runtime behavior:
 
-- bundled public anima catalogs still work
-- anima-specific catalog URLs can still be resolved from existing metadata
+- prepared Anima voice catalogs supply emotion/intensity-specific embeddings
+- the voice-selection adapter accepts an explicit Anima catalog URL
 - ElevenLabs realtime TTS does not read Pocket catalogs
 - PocketTTS does not read ElevenLabs voice ids
 
@@ -21,6 +21,6 @@ Current files:
 - `src/backend/animama/server/pocket_voice_catalog.py`
 - `src/backend/animama/server/avatar_uploads.py`
 
-Custom voice authoring should return with a memory-file-backed anima editor
-instead of the retired `POST /v1/animas/custom` and
-`PUT /v1/animas/{anima_id}/profile` routes.
+Catalog-building primitives do not establish a complete user-facing voice
+authoring workflow. Use the [voice runtime guide](../runtime/voice.md) for
+playback selection and fallback behavior.

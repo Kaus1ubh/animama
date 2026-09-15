@@ -916,7 +916,7 @@ export function useProductChatSession({
           nonTtsResponseStarted = true;
         };
         /**
-         * Structured speech now streams into TTS as each speech delta arrives.
+         * Structured speech streams into TTS as each speech delta arrives.
          * Complete non-delta fallback speech can still append once when no
          * structured TTS text has already been sent.
          */

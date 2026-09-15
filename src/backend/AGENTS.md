@@ -55,10 +55,9 @@ anima/avatar, one selected model provider, streamed SSE responses, avatar
 emotion/gesture updates, memory side effects, and durable chat history in
 `chats` and `chat_messages`.
 
-Do not model normal product chat as a full multi-agent graph workflow. The
-public `dispatch:sse` route, old conversations/sessions persistence model,
-process-local engine cache, `AnimaRuntime`, graph runners, durable backend
-agent rows, and `/v1/agents` API surface are retired.
+Keep normal product chat request-local. Use the direct model-client boundary
+and persist transcript state through ChatManager; workflow orchestration requires
+a separate API contract.
 
 ## Current Docs
 
@@ -88,10 +87,7 @@ formatting in `server/sse_events.py` and bridge helpers in
 route owns the single public `run.completed` frame after TTS, title generation,
 compaction, and other success-side effects. Provider stream observations stay
 behind the model-client boundary as sanitized `MC*` events and compact metadata;
-do not expose raw upstream OpenAI stream events directly over `chat:sse`. The
-old `dispatch:sse` graph route, graph runtime, runner registry, `/v1/agents`
-routes, and former process-local engine/sessionful WebSocket paths are retired;
-do not reintroduce them for normal chat.
+do not expose raw upstream OpenAI stream events directly over `chat:sse`.
 
 ## Auth And Ownership
 
@@ -125,7 +121,7 @@ repositories, and storage without importing local installation services.
 ## Persistence Rules
 
 Use services, ports, repositories, and mappers for new persistence behavior.
-Some legacy routes use ORM models directly; keep changes local there unless you
+Some routes use ORM models directly; keep changes local there unless you
 are intentionally refactoring the route.
 
 The local Alembic graph owns the entire accountless local schema. It contains no
@@ -200,8 +196,8 @@ URLs or renderer-chosen paths for local content. Desktop's immutable mounts,
 private environment and recovery rules are in `../../docs/backend/operations/desktop-runtime.md`.
 
 ElevenLabs routes are current for TTS/voice operations. Current frontend speech
-uses client-side STT/VAD/turn detection; the legacy backend STT and LiveKit
-voice route modules were retired.
+uses client-side STT/VAD/turn detection. The local API has no STT or LiveKit
+session routes.
 
 ## OpenAI Integrations
 

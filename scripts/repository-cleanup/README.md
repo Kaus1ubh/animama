@@ -39,30 +39,31 @@ baseline it supersedes. Preserve the private evidence in durable storage;
 ## Scope and classification
 
 The inventory comes from `git ls-files --stage -z`, not filesystem traversal.
-Tracked files matching ignore rules remain included. The initial baseline
-included the legacy `cloud/` tree, subsequently removed under approved R04-5;
-the inventory policy is unchanged. Untracked files and ignored local data are not part of LOC; Git status
-records visible untracked paths. During initial tool development this excludes
-the new measurement scripts themselves. Every run separately preserves the
-exact wrapper and rules, their hashes, HEAD, index entries, and working/index
+Tracked files matching ignore rules remain included. Untracked files and
+ignored local data are not part of LOC; Git status records visible untracked
+paths. Every run separately preserves the exact wrapper and rules, their hashes, HEAD, index entries, and working/index
 patches. Files are measured from their current working-tree bytes, not assumed
 to match HEAD. Per-file SHA-256 values identify the actual measured input.
 
 `measurement-rules.json` defines ordered first-match categories and exclusion
 rules. The six categories are authored source/tooling, tests/fixtures,
 generated code, vendored code, documentation/configuration, and runtime assets.
-Generated client/router files and the explicitly vendored PocketTTS internals
-are separated; local Pocket integration wrappers and customized public TTS
-workers remain authored. Catalog JSON, animation JSON and model files are
-assets. Executable tool configuration is separate from authored application
+The rules separate the generated router and explicitly vendored PocketTTS
+internals; local Pocket integration wrappers and customized public TTS workers
+are authored. The generated-client prefix still targets `web/src/client/`,
+while the SDK lives in `packages/runtime-contracts/src/generated/`. Consequently,
+the current rules count SDK TypeScript as authored source. Treat that as a
+measurement limitation; revising the rules requires a comparable new baseline.
+Catalog JSON, animation JSON and model files are assets. Executable tool configuration is separate from authored application
 code. These are measurement classifications, not provenance or licensing
 decisions.
 
 Do not exclude every directory named `build`: Electron's `desktop/build`
 contains packaging inputs. The configured exclusions target dependency/cache
-directories, specific generated output roots, and local data; the `content/local` guide remains included. The historical `data/README.md`
-exception stays in the rules for baseline comparability; the scaffold itself
-has been retired. Every tracked exclusion is recorded.
+directories, specific generated output roots, and local data. The
+`content/local/README.md` and `data/README.md` rules admit those exact paths if
+tracked; the latter path is absent from this checkout. Preserve rule identity
+when comparing measurement runs. Every tracked exclusion is recorded.
 
 scc runs against explicit file lists with external/project configuration and
 ignore discovery disabled. Pinned mappings handle root extensionless metadata
@@ -73,8 +74,8 @@ duplicate-file removal is enabled.
 
 Assets and binary files receive file/byte counts without LOC. scc's built-in
 lockfile exclusions are listed in the rules; those files likewise retain byte
-counts with an explicit reason. In the initial baseline, `pnpm-lock.yaml` is the
-only such file. LFS pointer text is detected and reported as incomplete coverage
+counts with an explicit reason. LFS pointer text is detected and reported as
+incomplete coverage
 with its declared payload size; it is never counted as hydrated model code.
 Missing/unreadable tracked files, unsupported symlink/submodule entries, scanner
 omissions, and source/HEAD/index changes during the scan fail the measurement
@@ -113,13 +114,11 @@ See [cleanup guidance](../../docs/architecture/repository-cleanup.md) for review
 and measurement principles. Historical measured results and triage records are
 retained privately; they are not current validation evidence.
 
-## Usage analysis (step 0.2)
+## Usage analysis
 
 Knip **6.34.0** is an exact frontend development dependency, and Vulture **2.16**
-is an exact Python development dependency. Existing dependency versions and
-frontend importer/snapshot resolutions were preserved when adding their locks.
-Neither tool is a runtime dependency. These commands report findings and do not
-remove code.
+is an exact Python development dependency. Neither tool is a runtime dependency.
+These commands report findings and do not remove code.
 
 From `src/frontend`, after installing the locked workspace dependencies:
 
@@ -128,16 +127,14 @@ pnpm exec knip --reporter json
 ```
 
 Capture stdout, stderr and exit status in a new private run directory. Exit 1
-can mean findings; inspect diagnostics before calling the scan valid. The
-initial valid scan has 969 findings and zero unresolved-import findings, but
-debug output still identifies computed directory and asset references that
-Knip cannot follow. Keep those coverage gaps with the report. `--debug` can
-provide the workspace project/entry lists and these diagnostics for a separate
+can mean findings; inspect diagnostics before calling the scan valid. Computed
+directory and asset references can fall outside Knip's coverage. Keep those
+coverage gaps with the report. `--debug` can provide the workspace project/entry lists and these diagnostics for a separate
 evidence run. Never use `--fix` as part of this analysis command.
 
-`src/frontend/knip.json` defines the root tooling workspace plus web, server,
-and desktop. Entry patterns are based on package commands, CI, runtime source,
-and documented developer tools. Routes, workers/worklets, Vite aliases,
+`src/frontend/knip.json` defines root tooling, web, desktop and the three
+public package workspaces. Entry patterns are based on package commands, CI,
+runtime source, and documented developer tools. Routes, workers/worklets, Vite aliases,
 native/Compose FastAPI entrypoints, Electron main/preload and custom packaging
 hooks are included. The Playwright plugin is disabled because its configuration
 requires an intentional test environment; its config, setup, specs and helper
@@ -159,8 +156,8 @@ uv run --locked python scripts/repository-cleanup/scan-python.py \
   --output-dir /absolute/private/new-scan-directory
 ```
 
-The initial audit used an isolated pinned tool environment to preserve the
-existing application virtual environment:
+To preserve the application virtual environment, run the pinned tool in an
+isolated environment:
 
 ```bash
 uv run --no-project --with vulture==2.16 python \
@@ -169,9 +166,9 @@ uv run --no-project --with vulture==2.16 python \
 ```
 
 The helper inventories tracked `.py` and Python-based `.spec` files, including
-ignored Cloud paths, migrations, tests and scripts. It records exact hashes,
-validates syntax, and checks HEAD/index/content stability. Untracked source is
-excluded; the new helper and whitelist are explicitly preserved as analysis
+migrations, tests, scripts and tracked paths matching ignore rules. It records
+exact hashes, validates syntax, and checks HEAD/index/content stability. Untracked source is
+excluded; the helper and whitelist are explicitly preserved as analysis
 configuration. It creates a new private directory and refuses to overwrite a
 run. It parses source without importing application code. Exit **3** means
 findings; exit **1** means input/stability errors. Read `summary.json` rather
@@ -184,11 +181,11 @@ Both passes retain Vulture's built-in library whitelists. The custom
 callbacks and Pydantic chat validators. Vulture uses names globally, so even a
 qualified attribute reference can suppress another same-named symbol. Review
 the raw-to-filtered difference and name collisions whenever changing this file.
-The initial seven suppressions have no same-named raw-finding collisions.
+Check every run for same-named raw-finding collisions.
 
 The private candidate ledger retains every raw finding, including suppressed
 callbacks, plus reviewed dynamic-use items. `candidate` means a source-reviewed
-lead with additional consumer checks and validation prescribed for step 0.3;
+lead requiring additional consumer checks and validation;
 `keep` records positive usage/compatibility evidence; `defer` records either an
 unreviewed finding or an explicit scope/coverage question. No status is a blanket
 permission to delete a file, public API, migration, test, or asset. Preserve

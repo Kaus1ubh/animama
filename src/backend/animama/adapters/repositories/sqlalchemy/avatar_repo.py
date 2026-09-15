@@ -68,7 +68,7 @@ class SQLAlchemyAvatarRepository(AvatarRepository):
             await self._s.refresh(existing)
             return avatar_orm_to_domain(existing)
         avatar_id = f"avatar-{uuid4().hex}"
-        # Avatar's legacy name is globally unique; live Anima names are not.
+        # Avatar names are globally unique; live Anima names are owner-defined.
         # Disambiguation here never changes the requested live display name.
         name = item.display_name
         if await self._s.scalar(select(ORMAvatar.id).where(ORMAvatar.name == name)) is not None:

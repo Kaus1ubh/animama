@@ -43,7 +43,7 @@ All paths below are relative to `~/Library/Application Support/Animama`:
 | ------------------------ | ---------------------------------------------------------------------------------------------- |
 | `postgres/16/data`       | Private PostgreSQL cluster; database commands verify `SHOW data_directory`.                    |
 | `secrets/vault.bin`      | OS-encrypted database password and configured provider keys; requires matching secure storage. |
-| `runtime/state.json`     | Stable application port, serialized as legacy `{version:1,gatewayPort}`; no migration.          |
+| `runtime/state.json`     | Stable application port, stored as `{version:1,gatewayPort}`; `gatewayPort` is the application port.          |
 | `runtime/processes.json` | Owned-process evidence, never authority to kill a discovered process.                          |
 | `runtime/logs`           | Redacted main and child diagnostics; review before sharing.                                    |
 | `content/local`          | Writable typed library.                                                                        |
@@ -59,8 +59,8 @@ the backend never creates or write-probes an Included root. React receives
 registered byte descriptors, not arbitrary host paths or object-store URLs.
 
 The control token and renderer capability are generated in main memory for
-each app launch; they are not persisted in the vault. The retired gateway token
-is no longer read or generated. The principal persists in PostgreSQL. Loss of per-launch credentials is
+each app launch; they are not persisted in the vault. The principal persists in
+PostgreSQL. Loss of per-launch credentials is
 handled by a normal relaunch; a missing/unreadable vault alongside PGDATA fails
 closed because its database password cannot be silently regenerated.
 
@@ -122,9 +122,9 @@ unsigned development core. No unsigned-helper or arbitrary-path fallback exists.
 
 ## Migration snapshots and recovery
 
-The single frozen `baseline_20260908` baseline replaces 13 unreleased
-revisions. This one-time development consolidation deliberately has no forward
-upgrade from those removed revision IDs. Preserve an old profile and its matching
+The frozen `baseline_20260908` revision accepts fresh databases and revisions
+in its own forward graph. Databases stamped with unsupported pre-baseline
+revision IDs have no forward upgrade through this graph. Preserve an old profile and its matching
 app/checkout if its data matters; use a separate disposable fresh profile for
 current native validation. Do not relabel an old database with `alembic stamp`,
 automatically purge it, or treat its snapshot as restore-compatible with the new

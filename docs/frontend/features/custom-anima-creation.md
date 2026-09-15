@@ -17,21 +17,16 @@ flat `bg-background` surface continues beneath the collapsed sidebar rail,
 behind the floating panel, and through the right viewport edge. At narrow widths
 the same canvas and name input stack above the panel.
 
-Creator-hub, sidebar, carousel, Library, preview-recovery, empty-roster, and
-authentication entry points remain. The optional `avatar` search parameter
+Creator-hub, sidebar, carousel, Library, preview-recovery and empty-roster
+entry points open the same creator. The optional `avatar` search parameter
 accepts only a bounded logical catalog item ID; URLs, paths, and unknown search
 fields do not become creation input. The creator resolves the current admitted
 Avatar and revision. An existing saved draft wins over a new URL hint; an
 unavailable handoff leaves a visible error and the source picker usable.
-Already-signed-in `/a/create?avatar=...` visits retain the creator hub; auth
-restoration normalizes the legacy handoff to `/a/animas/new`.
 
 Untouched Cancel exits to Creator hub (`/a/create`), not `/a/animas`, whose
-empty-roster resolver returns to this route. The rejected `ui/create` page,
-legacy mutation hook, voice-clone section, and temporary notice are removed.
-Shared local VRM preview primitives remain for the portrait-debug route.
-Onboarding now calls backend starter ensure; the template and bulk route are
-removed. The older `/v1/animas/custom` workflow remains retired.
+empty-roster resolver returns to this route. Shared local VRM preview primitives
+also serve the portrait-debug route. Onboarding calls backend starter ensure.
 
 ## Design and API contract
 
@@ -43,14 +38,9 @@ memory and aggregate revision guards. See the
 [HTTP contract](../../backend/architecture/http-api.md#strict-private-creation)
 and [data model](../../backend/architecture/data-model.md).
 
-The owner approved the four-step interaction design on 2026-08-28 and accepted
-the completed creator work on 2026-08-31. That acceptance retained the explicitly
-unperformed native/accessibility checks listed below; it does not claim every
-manual journey was repeated. The current canvas-and-panel design supersedes the
-older card-layout mockups. Its durable layout and interaction contract is recorded
-here, without depending on archived mockup files. The app uses the actual shell
-and semantic theme tokens; a provisional preview is not Saved to My Content,
-and privacy is scoped to the configured installation, which may be remote.
+The creator uses the application shell and semantic theme tokens. A provisional
+preview is not Saved to My Content, and privacy is scoped to the configured
+installation, which may be remote.
 
 ### Four-step interaction contract
 
@@ -121,7 +111,7 @@ binary GLB container and length, supported VRM 0.x/1.0 document, and absence of
 external resources. The server remains authoritative when the user confirms
 the typed Local Save. An uploaded VRM is only browser-local preview until that Save.
 Confirmed content survives cancel; unsaved browser files must be selected again
-after reload. Phase 5's static-image and portrait APIs still support other
+after reload. Static-image and portrait APIs support other
 Appearance management, but Create Anima performs no Appearance list, upload,
 crop, capture, or Save request. It always submits `profile: null` and
 `background: null`, which means application appearance defaults. There is no
@@ -219,15 +209,11 @@ and StrictMode-safe disposal. Opening retries never dispatch creation.
 Acceptance must cover source/upload, identity, exact Actions, stale dependencies,
 cancellation, owner isolation, unknown-result replay, first chat, preview disposal,
 accessibility, responsive behavior and Electron. Focused feature tests and the
-[Create Anima browser journeys](../testing/browser-journeys.md#create-anima-journeys)
+[Create Anima browser journeys](../testing/browser-journeys.md)
 provide regression coverage.
 
-The 2026-08-31 owner acceptance closed implementation review while retaining
-unperformed checks as residual coverage. Recorded browser evidence includes
-Actions-to-Review, request-count optimization, and saved-draft recovery at desktop
-and narrow widths. It is not evidence of complete Electron/native-picker,
-physical input, assistive-technology or all first-chat journeys. Those checks
-remain required when accepting a release that changes this surface. Record the
+Complete Electron/native-picker, physical input, assistive-technology and all
+first-chat journeys remain required for release acceptance. Record the
 exact build, scenarios, results and remaining limits in the release review;
 available test scripts do not establish that a journey was performed.
 

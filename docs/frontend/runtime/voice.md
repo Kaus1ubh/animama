@@ -114,7 +114,7 @@ Note:
 
 ### Runtime session state
 
-`useDictation()` now distinguishes session mode from live capture state.
+`useDictation()` distinguishes session mode from live capture state.
 
 Important exposed state:
 
@@ -125,8 +125,8 @@ Important exposed state:
 Why this matters:
 
 - a voice session can remain active while mic capture is paused
-- `dictation` and `voice` no longer share one generic UI state
-- avatar listening UI now follows active capture, not merely "some voice session exists"
+- `activeMode` distinguishes dictation from voice mode
+- avatar listening UI follows active capture, not merely "some voice session exists"
 
 ## STT Pipeline (Dictation + Voice Mode)
 
@@ -154,7 +154,7 @@ Rules:
   - browser STT remains the normal web default when available
 - `mode === "dictation"` resolves preferred provider via `resolvePreferredSttProvider(...)`:
   - may choose Parakeet
-  - surfaces Parakeet startup/transcription errors instead of silently switching to the legacy server STT path
+  - surfaces Parakeet startup/transcription errors instead of silently switching providers
 - desktop shell detection disables Web Speech availability; without an
   installed Parakeet capability, desktop dictation and Voice Mode stay disabled
 - `switchMode("voice")` is used by `ChatInterface` to hand off from active plain dictation into voice mode
@@ -256,7 +256,6 @@ Parakeet STT is local client-side STT:
 
 - the browser worker loads `parakeet.js` from local v2 int8 assets with
   `backend: "wasm"`
-- the retired backend `/v1/stt/ws` route is not used by the normal Parakeet path
 - MicVAD owns speech-window segmentation and stop/start decisions
 - accepted MicVAD windows are sent to the worker for final-window transcription
 - the model stays warm for the current app session; mic/VAD/audio resources are
@@ -624,7 +623,7 @@ interim path.
   - `unmuteVoiceMic()`
 - handles smart-turn auto-submit callback
 - clears input + dictation buffers on voice silence reset callback
-- drives avatar listening capture from `isMicCaptureActive`, so muted voice mode no longer counts as active listening
+- drives avatar listening capture from `isMicCaptureActive`, so muted voice mode does not count as active listening
 
 `src/frontend/web/src/ui/components/chat-input.tsx`:
 
@@ -848,9 +847,9 @@ Runtime behavior:
   `tts.audio` frame before each paragraph batch after the first
 - `tts_stream_chunks` remains meaningful for realtime models, so streamed SSE
   text can be chunked into realtime TTS requests before completion
-- account settings show the chunked TTS switch unchecked and disabled while
+- application settings show the chunked TTS switch unchecked and disabled while
   `eleven_v3` is selected without overwriting the saved preference
-- account settings show the v3-only `Audio grouping` control while `eleven_v3`
+- application settings show the v3-only `Audio grouping` control while `eleven_v3`
   is selected without overwriting that saved grouping when the user switches
   back to a realtime model
 - text chunks may queue while the realtime runtime waits for the SSE-provided
@@ -896,9 +895,8 @@ For structured speech streaming, `useChatSession.ts` accumulates the raw viseme
 inputs from every speech segment that is actually sent to TTS, preferring
 `tts_text` and `tts_phonemized_text` when the backend supplies gruut
 `text_with_ws`. Display events and `emotional_tone` are never sent to frontend
-TTS. The frontend no longer parses raw voice JSON or falls back to speaking
-malformed JSON; backend parsing owns that validation before semantic events
-reach the browser.
+TTS. Backend parsing validates structured voice JSON before semantic events
+reach the browser; malformed JSON is not spoken as fallback text.
 
 Transport details:
 
@@ -907,7 +905,6 @@ Transport details:
 - sentence and paragraph v3 grouping use the same frontend SSE event contract
 - paragraph pauses are ordinary silent PCM audio frames, not separate frontend
   timing metadata
-- Anima no longer exposes a backend intermediary websocket for chat TTS
 
 Single-run walkthrough:
 
@@ -1125,7 +1122,8 @@ Voice resolution:
    - legacy shared/custom voice fallback if no anima match exists
 5. Text is synthesized through the active provider runtime:
    - Pocket uses the local worker/runtime
-   - ElevenLabs uses direct or intermediary realtime websocket transport
+   - ElevenLabs realtime uses a direct provider websocket; finalized Eleven v3
+     audio arrives through `chat:sse`
 6. Shared playback events drive avatar speech/lipsync lifecycle.
 7. When playback and run are complete, audio-ended is emitted and avatar returns to idle.
 

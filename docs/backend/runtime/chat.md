@@ -3,8 +3,7 @@
 `POST /v1/animas/{anima_id}/chat:sse` is the supported direct chat endpoint
 for the normal avatar companion turn. It executes one direct model-client turn,
 derives emotion updates from that primary response's structured metadata, and
-does not execute arbitrary graph workflows. The old public `dispatch:sse` graph
-route is retired.
+does not execute arbitrary graph workflows.
 
 The implementation lives in:
 
@@ -202,7 +201,7 @@ second time. Native-mode `memory_read_files.content` is a transient synthetic
 document containing a strict three-line JSON-string-or-null description header
 followed by the stored Markdown body. The planner applies the diff to that exact
 representation, strips the header, and atomically commits the parsed body and
-description as one Version. Legacy/custom-tool reads continue to return raw
+description as one Version. Custom-tool reads continue to return raw
 Markdown content.
 
 The OpenAI SDK adapters normalize provider errors before they cross the
@@ -236,18 +235,11 @@ provider adapters. Conversation history is fetched and physically sent to
 `OpenAIResponsesHTTPAgent` only when no chat-row `openai_previous_response_id` is
 available or when a stale cursor forces the lazy manual-context retry.
 
-## Retired Agent/Graph Runtime
+## Model selection
 
-Normal `chat:sse` does not read `ORMAnima.metadata_["chat_runtime"]`, derive
-a graph fallback shape, load a primary backing `agent`, build a
-`BaseAgentProvider`, or instantiate `AgentRunner` for the primary turn. Those
-graph/agent runtime modules and routes were deleted in phase 10 part 1.
-
-New anima writes create the chat profile directly and do not create graph,
-agent, helper, or link state. Request-time normal chat does not derive a model
-from `agent`, `chat_runtime`, or graph metadata. A request without both an
-explicit `model_provider_id` and a profile row fails setup. Explicit overrides
-and profile defaults must name an active direct model provider.
+Anima creation writes its chat profile directly. Request-time model selection
+uses an explicit `model_provider_id` or that profile's default; missing both
+fails setup. Either selection must name an active direct model provider.
 
 ## Step-By-Step Flow
 
@@ -287,7 +279,7 @@ and profile defaults must name an active direct model provider.
     initializes it on an empty pre-created row, and rejects same-chat standard
     mismatches with `409
 chat_api_standard_mismatch`. A non-empty chat whose `api_standard` is still
-    null is treated as invalid reset-era state and must be replaced by a new
+    null is treated as invalid transcript state and must be replaced by a new
     chat. Foreign or mismatched chats return `404`.
 11. The executor opens direct-chat memory context through
     `DirectChatMemoryContextService`, then fetches visible chat context through
@@ -319,7 +311,7 @@ chat_api_standard_mismatch`. A non-empty chat whose `api_standard` is still
     paths such as `profile.md`, excludes generated episode logs
     (`kind = "episode_log"`), omits anima-scoped files, and does not include a
     tree. It lists user profile files but does not inject their content. The
-    prompt no longer reads anima profile fields or
+    prompt does not read anima profile fields or
     `metadata.direct_chat`. For OpenAI Responses turns with a compatible
     continuation cursor, current system/developer instructions, including the
     map, are serialized through `instructions` and conversation input is
@@ -348,7 +340,7 @@ chat_api_standard_mismatch`. A non-empty chat whose `api_standard` is still
     attached only when memory updates are enabled and the turn is non-incognito.
     A capable OpenAI Responses catalog row receives native `apply_patch` and
     omits `memory_apply_patch`/`memory_write_file`; all other supported providers
-    retain those legacy functions. The native capability is internal and cannot
+    retain those JSON-schema functions. The native capability is internal and cannot
     be requested through generic `native_tools`. Both transports reject
     generated episode logs plus the reserved `episodes/**` namespace.
     Tool paths are user-scope cached paths, and anima-scoped identity entries
@@ -563,8 +555,8 @@ untagged, and no paragraph-specific fields are added to public SSE events.
 full emotion state payload. They also include optional context metadata:
 `emotional_tone`, mapped `emotional_intensity` on the avatar `0..3` scale,
 `promoted_emotion`, and `demoted_emotion`. The required frontend source of
-truth remains the full `emotions` array. The frame does not include the retired
-`emotion_intensity` spelling, animation fields, or VFX fields.
+truth is the full `emotions` array. The intensity key is `emotional_intensity`;
+the frame does not include animation or VFX fields.
 
 `avatar.gesture.requested` frames include the event ID, run ID, direct chat
 node ID, validated runtime gesture ID, and `runtime_revision`. Unknown
@@ -644,8 +636,8 @@ Emotion persistence reuses `persist_sse_side_effect(...)`. Current-run
 `EMOTION_UPDATE` events are persisted with
 `persist_emotional_state_update(...)` before being streamed.
 
-No background memory extraction queue is scheduled by this route. Anima-owned
-manual memory block APIs are retired. Direct model-client turns can attach
+No background memory extraction queue is scheduled by this route. Direct
+model-client turns can attach
 request-local memory entry tools for provider families that support Anima's
 function-tool loop.
 
@@ -676,10 +668,8 @@ protection is not part of the current compaction path.
 Request-local cleanup runs in `finally` and is guarded so each task/session is
 settled at most once.
 
-## Relationship To Retired Graph Dispatch
+## Runtime scope
 
-Use `chat:sse` for the normal avatar companion chat turn. The former public
-`dispatch:sse` graph execution endpoint is retired and no longer appears in
-OpenAPI. Helper workflows, function nodes, trigger/feed/aggregate workflows,
-and other graph-shaped execution paths are outside normal chat unless a future
-graph-workflow API is approved.
+`chat:sse` runs one avatar companion turn. Helper, trigger, feed and aggregate
+workflows are outside this API. A separate workflow API requires its own
+contract and ownership review.

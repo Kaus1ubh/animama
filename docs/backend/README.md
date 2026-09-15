@@ -21,8 +21,7 @@ model client, emits the supported request-scoped SSE frames, derives avatar
 emotion/gesture events, and writes history to `chats` and `chat_messages`.
 Provider streams are consumed behind the model-client boundary; raw upstream
 events are logged and summarized internally instead of being forwarded as public
-SSE frames. The old public graph dispatch surface, backend agent API, graph
-runtime, and runner stack are retired.
+SSE frames.
 
 The frontend lives in `src/frontend`. The backend is intentionally separate: it
 exposes API routes and realtime event streams, while the frontend handles the
@@ -35,9 +34,9 @@ browser UI, client-side STT, avatar rendering, and most realtime audio UX.
 - [Local content storage and self-hosted trust](architecture/local-content-storage.md):
   approved Included/Local/private-data layout, creator and manual-file
   lifecycle, single-owner operator boundary, direct byte delivery, degraded-runtime policy, and
-  reset/backup boundary for the local-storage cutover.
+  reset and backup boundaries.
 - [HTTP and realtime API](architecture/http-api.md): routers, endpoint groups,
-  auth expectations, dispatch, SSE, and retired realtime surfaces.
+  admission, ownership, chat SSE, and reserved event streams.
 - [Data model](architecture/data-model.md): ORM entities, relationships,
   migrations, and database conventions.
 - [Direct chat SSE runtime](runtime/chat.md): supported `chat:sse` endpoint,
@@ -52,9 +51,8 @@ browser UI, client-side STT, avatar rendering, and most realtime audio UX.
   and verification.
 - [Model catalog](model-catalog.md): supported provider/model pairs exposed by
   `/v1/model-providers`.
-- [Memory](features/memory.md): retired anima block-memory surfaces, current
-  scoped markdown memory entry tree, anima identity prompt assembly, seeded
-  user profile entries, and the remaining filesystem integration phases.
+- [Memory](features/memory.md): scoped markdown memory entries, anima identity
+  prompt assembly, seeded user profile entries, and memory tool boundaries.
 - [User files](features/user-files.md): installation-owned uploads, parser worker,
   chunk storage, debug search, and current MVP limits.
 - [Local User Profile](features/user-profiles-and-usernames.md): required private
@@ -66,8 +64,8 @@ browser UI, client-side STT, avatar rendering, and most realtime audio UX.
 - [Custom animas and typed content](features/custom-animas-and-content.md):
   catalog-backed Anima loadouts, reviewed changes, and chat runtime revision
   fencing.
-- [Voice and speech](integrations/voice-and-speech.md): ElevenLabs, retired
-  server-side STT, and retired LiveKit integration points.
+- [Voice and speech](integrations/voice-and-speech.md): ElevenLabs TTS, voice
+  storage, and the client-side speech-processing boundary.
 - [Development and operations](operations/development.md): local commands,
   migrations, tests, workers, and deployment guidance.
 - [Local HTTP components](operations/local-http-components.md): FastAPI
@@ -76,10 +74,6 @@ browser UI, client-side STT, avatar rendering, and most realtime audio UX.
 - [Embedded desktop backend](operations/desktop-runtime.md): owned native
   services, frozen CLI, private environment, mounts, vault/token distinctions,
   migration snapshots and the separate Compose boundary.
-
-Retired public dispatch, graph, sessionful realtime, and agent-management
-implementation details remain available through git history; active docs do not
-preserve unmounted executable surfaces.
 
 ## Architecture, contracts and operations
 
@@ -166,7 +160,7 @@ boundary document.
 
 Keep domain and application code independent from FastAPI and SQLAlchemy where
 reasonable. New HTTP routes should usually call an app service through dependency
-injection instead of reaching straight into ORM models. Some legacy routes still
+injection instead of reaching straight into ORM models. Some routes
 use ORM sessions directly; do not copy that pattern unless the surrounding router
 already does it and a small local change is safer.
 

@@ -22,15 +22,15 @@ Runtime code lives under:
 - `src/frontend/web/src/lib/avatar/poses/animaPoseClip/`
 - `src/frontend/web/src/lib/avatar/Avatar.ts`
 
-The built-in App provider currently contains `hearts`, `stars`,
+The code-defined authoring catalog contains `hearts`, `stars`,
 `sparkles`, `question-marks`, `exclamation`, `zzz`, `rain-cloud`,
 `hearts-v1`, `exclamation-v1`, `question-v1`, `hearts-v2`, `star-v2`, and
-`flame-loop`, plus the Phase 5 polished catalog entries
+`flame-loop`, plus
 `magic-sparkle-burst`, `soft-heart-pop`, `surprise-shock-pop`,
 `confusion-orbit-marks`, `sleep-bubbles`, and `sad-rain-puff`.
 Live Anima routes can resolve only the subset mounted in that Anima's
-`AnimaRuntimeCatalog`; the full built-in provider is reserved for explicit
-editor/debug use.
+`AnimaRuntimeCatalog`. Code-defined entries supply authoring defaults and
+compatibility metadata; they do not authorize playable bytes.
 
 ## Bundled media
 
@@ -43,13 +43,19 @@ entries do not fetch them through public paths.
 Regenerate the curated textures and authored quarks JSON with:
 
 ```bash
-pnpm generate:particle-vfx-assets
+node scripts/generate-particle-vfx-assets.mjs \
+  --output-dir /path/to/new-staging-directory \
+  --kenney-root /path/to/kenney-particle-pack \
+  --brackeys-root /path/to/brackeys-pack
 ```
 
-The generator writes transparent PNG textures and quarks JSON into the
-Included authoring tree. Final typed entries reference textures with safe paths
-relative to their own manifest instead of embedding large base64 payloads or
-root-relative `/effects/...` URLs.
+Run from `src/frontend`. The source roots must contain the original pack
+layouts. The generator requires a new staging directory outside
+`content/included` and refuses an existing destination. It writes PNG textures,
+quarks JSON and a texture manifest for review; it does not install or update
+Included content. Review the generated paths and provenance before copying
+outputs into typed entries. Final typed entries use safe manifest-relative
+texture paths.
 
 Use PNG or WebP with transparent alpha for billboards, prefer square 256x256 or
 512x512 textures for static sprites, disable particle material depth writes,
@@ -98,8 +104,8 @@ zero after the expanded surface has moved, or the compact control inset while
 the rail overlays the scene. The document toolbar, Emitters/effect setup panel,
 System/Emission/Shape/Behavior/Appearance Inspector, model/Avatar controls,
 and Preview Timeline float above the scene. Appearance groups the existing
-Texture, Color, and Renderer fields; no authored `three.quarks` fields are
-removed by the presentation change.
+Texture, Color, and Renderer fields while preserving the authored
+`three.quarks` document.
 Import and JSON inspection use focused dialogs, and the Preview Timeline only
 pauses, resumes, or restarts this local creator preview—it does not author clip
 events or typed dependencies.
@@ -138,8 +144,8 @@ in front of the avatar and negative means behind.
 If `duration`, `anchor`, `transform`, or `followAnchor` are omitted, the runtime
 uses the catalog defaults and follows the anchor. Requested durations are capped
 by each catalog entry's performance budget. `envelope` and
-`parameterKeyframes` parse for forward compatibility, but Phase 2 does not map
-them onto quarks emitter internals.
+`parameterKeyframes` parse for forward compatibility but are not mapped onto
+quarks emitter internals.
 
 Clip-owned particle events are always duration-backed. Manual particle lifetime
 is available through explicit runtime/debug calls to
@@ -170,14 +176,11 @@ handles those sink callbacks by calling `particleVFXController.playEffect(...)`
 with the clip `appliedId`, then clears the same id when the event duration
 expires or the clip stops.
 
-The Phase 5 polished catalog expansion does not wire the new effects into chat
-reaction clips or the planner. That integration is deferred to Phase 6. Until
-then, the planner still selects `role: "reaction"` clips from
-`poses/json/clips/reactions/`, and particle playback uses whatever
-`particle_vfx` events those clips already own. There is no direct
-`AvatarPlanner` `particleVfx` lane, so clip-owned particles inherit the same
-same-run reaction lifecycle and the existing non-TTS presentation completion
-policy.
+The planner selects Reaction clips through the mounted motion catalog
+using the equipped emotion/intensity mapping. Particle playback comes from
+those clips' `particle_vfx` events. There is no direct `AvatarPlanner`
+`particleVfx` lane, so clip-owned particles inherit the same-run Reaction
+lifecycle and non-TTS presentation completion policy.
 
 For a Local Particle Effect, Save validation accepts only safe
 relative image references and derives bounded system, duration, looping, and

@@ -261,23 +261,21 @@ or migration behavior.
   ad-hoc signing, and rechecks the packaged inventory. Unlicensed decorative SFX
   are excluded from tracked runtime definitions; never restore their ignored
   bytes or metadata as build inputs. Component tests are not substitutes for
-  packaged acceptance. Windows native packaging is Phase 5, Linux outside the
-  plan. Phase 4 adds guarded updates and signed-release/CI/smoke tooling; actual
-  release acceptance remains blocked by source/review/Apple/repository inputs
-  and native tests. Read `../../docs/frontend/desktop/releases.md` before using those commands.
+  packaged acceptance. Windows and Linux self-contained packaging are deferred.
+  Signing, updates and installed-artifact smoke tools require exact source/input
+  review, matching artifacts and native acceptance. Read
+  `../../docs/frontend/desktop/releases.md` before using those commands.
   Never auto-fill approval receipts, embed a GitHub token, run smoke against an
-  existing user profile, or publish as part of an ordinary build.
-  Signed candidate builds do not query GitHub or require a public repository.
-  Preview/stable publication retains anonymous and authenticated visibility checks;
-  the owner currently declines public visibility. Private candidate installation
-  does not enable private pack/update downloads. Do not add runtime bypasses or
-  change repository visibility to finish tests. A fresh test account named
-  `Animama Test` is owner-reported; coordinate its real login and verify clean
-  profile state rather than assuming a home path or reusing the maintainer's data.
-  Initial publication is manual by `raymond-van` from reviewed `main` inputs;
-  GitHub environments/CI publication remain unconfigured. Follow
-  `../../docs/frontend/desktop/release-process.md` and provide the exact command only after its
-  signing, artifact, native-acceptance and explicit publication gates pass.
+  existing user profile or publish as part of an ordinary build. Signed candidate
+  builds do not query GitHub or require a public repository. Preview/stable
+  publication requires anonymous and authenticated visibility checks and explicit
+  approval. Private candidate installation does not enable private pack/update
+  downloads. Do not add bypasses or change visibility to finish tests.
+  Native smoke uses a separate macOS account with verified absent app/profile
+  data. Initial publication is manual by `raymond-van` from reviewed `main`
+  inputs; CI publication is unconfigured. Follow
+  `../../docs/frontend/desktop/release-process.md` and provide the exact command
+  only after signing, artifact, native-acceptance and publication gates pass.
   User guides are `../../docs/frontend/desktop/installation.md`,
   `../../docs/frontend/desktop/feature-packs.md` and
   `../../docs/frontend/desktop/troubleshooting.md`; the latter owns safe support/recovery guidance.

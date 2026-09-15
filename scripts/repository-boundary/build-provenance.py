@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Expand recorded attribution into a hash-bound Phase 1 review inventory.
+"""Expand recorded attribution into a hash-bound review inventory.
 
 This is an inventory builder, not a license scanner or redistribution approval.
 It reads tracked inputs only, preserves explicit exclusions, and represents

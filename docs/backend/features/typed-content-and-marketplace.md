@@ -4,9 +4,9 @@ Animama models runtime media as concrete product types: Avatars, Gestures,
 Reactions, Particle Effects, Avatar Effects, Scene Effects, Sound Effects, Idle
 Styles, Music Tracks, Appearance Images, voices, and Pose Clips. All types
 share one neutral Content Catalog while keeping strict versioned documents,
-handlers, APIs, and runtime projectors. The legacy `anima` catalog kind remains
+handlers, APIs, and runtime projectors. The `anima` catalog kind is
 reserved and rejecting; live Animas are private application aggregates, not
-catalog items. The active live-creation plan does not activate a Blueprint kind.
+catalog items. Blueprint is not an admitted catalog kind.
 
 ## Editable catalog model
 
@@ -120,10 +120,9 @@ clutter everyday Local folders.
 Discover publication and hosted acquisition are discontinued. Local playback
 and import/export do not consult a publication, entitlement or identity service.
 
-[Strict private live creation](custom-animas-and-content.md#strict-private-creation-phase-5)
+[Strict private live creation](custom-animas-and-content.md#strict-private-creation)
 is implemented, including source validation, atomic materialization and durable
 idempotency receipts. It does not generate a Blueprint, package or publication
 and offers no “Save as Blueprint” action. Existing generic typed-content package
 APIs do not make live Anima packaging supported. The retained format is
-`animama-content-package/2` in `.animama` files; this cleanup adds no package
-version or import/export feature.
+`animama-content-package/2` in `.animama` files.

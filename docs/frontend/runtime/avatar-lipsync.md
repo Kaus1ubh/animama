@@ -185,7 +185,7 @@ Files:
 - `src/frontend/web/src/lib/speech/pocket/core/PocketTTSCore.js`
 - `src/frontend/web/src/hooks/use-tts-playback.ts`
 
-The frontend now anchors `playback_started` to the worklet's **real playback begin** signal:
+The frontend anchors `playback_started` to the worklet's **real playback begin** signal:
 
 - `PCMPlayerWorklet` emits `firstPlayback` when the AudioWorklet begins playback after startup buffering
 - `PocketTTSCore` forwards this as `playback_started`
@@ -415,7 +415,7 @@ Meaning:
 
 ### End
 
-Two relevant end logs can differ:
+Three relevant end logs can differ:
 
 1. **Avatar viseme segment completed**
    - `Avatar LipSync / LipSync / Vowel keyframe playback completed`

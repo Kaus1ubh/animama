@@ -1,10 +1,9 @@
 # Desktop runtime staging
 
-Phase 1 provides build and audit tools; Phase 2 wires their output into
-Electron's embedded service supervisor. Packaged builds no longer fall back to
-an external web URL. `desktop:dev` still uses the local application stack unless the
-explicit development runtime-root override is set. See [Overview](overview.md)
-for lifecycle, credentials, and recovery.
+Staging produces the audited resources consumed by Electron's embedded service
+supervisor. Packaged builds require these resources. `desktop:dev` uses the local
+application stack unless the development runtime-root override is set. See
+[Overview](overview.md) for lifecycle, credentials and recovery.
 
 For user installation and recovery use [Installation](installation.md) and
 [Troubleshooting](troubleshooting.md). For initial manual publication after
@@ -25,27 +24,25 @@ pnpm desktop:test -- runtime-packaging
 ```
 
 The strict target parser rejects cross-builds and unsupported combinations before
-deleting outputs or downloading dependencies. Windows native staging is gated
-on Phase 5. `desktop:dist:mac` and `desktop:smoke:mac` now use the Phase 4
+deleting outputs or downloading dependencies. Windows native staging is unsupported. `desktop:dist:mac` and `desktop:smoke:mac` use the
 [signed-release gates](releases.md), including explicit Apple, inventory and
 intended repository configuration. The repository may remain private for local
 signed candidates; anonymous public access is checked only at publication.
-Private pack/update URLs do not become usable in the app. Windows release/smoke commands still fail at
-the Phase 5 gate. No command treats a shell-only package as a release.
+Private pack/update URLs do not become usable in the app. Windows release/smoke commands reject unsupported targets. No command treats a shell-only package as a release.
 
 After a successful stage and audit, `pnpm desktop:mac` copies the runtime into
 `Animama.app/Contents/Resources/runtime`, outside ASAR. Its prebuild gate requires
 the exact audited manifest/build ID and current main/preload closure, with no
 stage-failure marker. Restage and reaudit after backend, supervisor, preload, or
 web or migration changes. The consolidated frozen schema head is
-`baseline_20260908`; an earlier component proof is not a substitute for a fresh
-complete runtime stage. Old profiles and backups stamped with removed revisions
-require their matching old app/checkout or an explicitly disposable fresh profile.
+`baseline_20260908`. Profiles or backups whose revision is absent from the
+packaged migration graph require a matching app/checkout or a reviewed recovery
+procedure. Use an explicitly disposable fresh profile for incompatible test data.
 The stage probe uses disposable data; it does not reset an existing installation.
-New artifacts use `animama-desktop-runtime/2` and `local_http_schema_version: 1`.
+Artifacts use `animama-desktop-runtime/2` and `local_http_schema_version: 1`.
 Stage and audit require the frozen backend to advertise the same local HTTP
-schema. The JS audit rejects bundled Hono or retired frontend-server source.
-Saved port/vault formats and the accountless database schema remain unchanged.
+schema. The JS audit rejects Hono and frontend-server dependencies.
+The saved application-port key is `gatewayPort`; it does not imply a gateway process.
 The development packager disables ad-hoc signing as well as certificate signing,
 and rechecks every copied runtime file after electron-builder finishes. See
 [Platform builds](platforms.md) for the unsigned output and report. Production
@@ -66,9 +63,8 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 3. Freezes Python 3.12.13 and the locked server dependencies with PyInstaller
    6.22.2. The build environment is separate from the repository's `.venv`.
 4. Builds Vite in `embedded-desktop` mode, without duplicate Included aliases.
-   Rejects the retired legacy `korone-pfp.png`, `marine-pfp.png`, and
-   `gojo-pfp.png` files if reintroduced. Their source files have been removed;
-   the stage filter and independent audit remain as defense against stale builds.
+   The stage filter and independent audit reject unapproved portrait copies
+   listed in `desktop/scripts/runtime/desktop-web.mjs`.
    All current PocketTTS, VAD, smart-turn, and ONNX variants remain. Ordinary
    `pnpm web:build` still writes the compatibility copies.
    This is a production build: application debug imports stay excluded even
@@ -83,7 +79,7 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 6. Produces normalized file inventories, license notices, pack inputs, app-matched
    catalog entries for approved inputs, a non-secret `update-policy.json`, and exact
    byte reports. The compressed feasibility archive is **not** a signed DMG or
-   update ZIP. Their overhead is measured separately in Phase 4.
+   update ZIP. Their overhead is measured by the signed-release producer.
 
 ## Evidence and gates
 
@@ -96,19 +92,12 @@ A successful stage also rewrites the ignored local
 `desktop/release/review/redistribution-review.md` from those exact artifacts;
 it does not reuse narrative from an older build.
 
-The fresh 2026-09-03 macOS-15 core stage passed the file, frozen-resource, native
-database, starter-closure, and size audits. Its compressed feasibility payload
-is 417,458,667 bytes and its installed estimate is 1,007,160,249 bytes, below the initial
-ceilings without an exception. Read the report for exact bytes; these are not
-signed DMG/ZIP measurements. Apple signing/notarization inputs are now configured and
-the separate document-worker producer has now passed signing, notarization,
-stapling, Gatekeeper and its frozen local-PDF probe. `worker-review.json` records
-its signed measurements after successful export; the core size report's
-worker fields remain null until a reviewed worker enters its pack catalog.
-License inventory export is complete but still requires human review.
-See [redistribution review](redistribution-review.md) for the traced speech
-and Included-content sources, exact hash matches, included notices and remaining
-human review.
+Read the exact stage reports for measured bytes and audit results. Feasibility
+sizes are not signed DMG/ZIP sizes. `worker-review.json` records signed worker
+measurements after export; core worker fields remain null until a reviewed
+worker enters the catalog. A generated license inventory requires human review.
+See [redistribution review](redistribution-review.md) for source and notice
+mappings and the pending artifact review.
 
 ## Optional Pack Producer
 
@@ -131,7 +120,7 @@ review report, not an installable catalog entry. Do not fill in approval hashes
 without reviewing redistribution
 rights and required notices. No files are uploaded by this command.
 
-Phase 4 permits an explicit compatible `app_versions` list and original
+Pack inputs permit an explicit compatible `app_versions` list and original
 `release_tag` per pack. Keeping the exact approved manifest across those tested
 versions preserves its installed pointer through an application update. Omitted
 fields still target only the current app/version tag. Keep reused archive URLs
@@ -157,7 +146,7 @@ Browser production-preview checks and an `embedded-desktop` Vite build prove
 web policy only. They do not replace a fresh stage/audit, renderer capability
 tests, or signed/native acceptance. Restage the entire matching web/backend
 output after a cache-policy or frontend change; do not copy individual chunks
-into a previously audited runtime.
+into an audited runtime.
 
 ### Separate Document Worker
 
@@ -183,12 +172,12 @@ dependency containment, signs nested Mach-O files and the bundle, notarizes and
 staples it, verifies the pinned publisher and Gatekeeper assessment, then runs
 the frozen resource/PDF-conversion audit. The signed input lives under
 `desktop/.desktop-runtime/document-worker/darwin-arm64/signed-input`. Review
-that exact inventory before producing its pack. Phase 4 also exports an
+that exact inventory before producing its pack. The producer also exports an
 unapproved review archive/manifest to `desktop/release/worker-input/`. Reuse
 these exact signed bytes on release runners with
 `node desktop/scripts/runtime/worker-input.mjs import` after recording the
-approved inventory. Re-signing a rebuilt helper changes its digest; an earlier
-approval does not apply. See [Releases](releases.md#build-and-preserve-the-reviewed-helper).
+approved inventory. Re-signing a rebuilt helper changes its digest and
+invalidates approval for different bytes. See [Releases](releases.md#build-and-preserve-the-reviewed-helper).
 The pipeline and refusal gates
 have component coverage; an actual signed artifact, native conversion, and
 measured worker size remain required acceptance evidence.
@@ -213,12 +202,9 @@ stored only in extended attributes, and the archive still rejects links.
 Core and worker audits also inspect each shipped arm64 Mach-O deployment
 minimum before runtime probes or signing. They compare deployment versions,
 not SDK versions; an absent/foreign target or a requirement above the advertised
-minimum fails. Failed core audits remove the previous success receipt. On
-September 3 this exposed macOS 14 requirements in the current worker and core
-NumPy inputs. The owner then approved macOS 15 as the minimum. Build flags,
-app/helper metadata, runtime manifest admission and update feeds now use that
-target; stale staged manifests are rejected. Rebuild rather than relabel old
-artifacts, and retain the separate macOS 15 runtime-acceptance gate.
+minimum fails. Failed core audits invalidate their success receipt. Build flags,
+app/helper metadata, runtime admission and update feeds target macOS 15. Rebuild
+rather than relabel artifacts, and retain the macOS 15 runtime-acceptance gate.
 The private `document-worker/darwin-arm64/notarization-response.log` retains the
 Apple submission response, including on a timeout; inspect it before submitting
 again. It is build-cache evidence, not a publication or approval receipt.
@@ -233,8 +219,8 @@ unsigned executable pack.
 
 The native database listens only on authenticated loopback TCP. Unused Unix
 sockets are disabled so a long application-data path does not exceed macOS's
-socket-path limit. Database files, ownership checks, and SCRAM authentication
-remain unchanged.
+socket-path limit. Ownership checks protect the database files; connections
+require SCRAM authentication.
 
 During a pack transition, Electron remembers the validated main-app route,
 destroys every product window to dispose browser workers, and shows its
@@ -245,41 +231,15 @@ configuration. After exact owned readiness, Electron installs the capability
 and recreates the main app at its remembered route. API/model/content failures
 remain bounded errors.
 
-On 2026-09-02 a disposable native profile passed actual Parakeet archive
-installation, speech recognition, offline restart, removal, and reinstallation.
-A generated WAV replaced microphone capture; VAD, the model worker, UI, gateway,
-and private PostgreSQL/FastAPI services were real. Three dictation runs produced
-the expected sentence. During the offline restart, renderer Internet requests
-were blocked and the local download server was stopped; the installed model
-files still loaded through the local gateway. Removal disabled dictation and
-returned 404 for the former model URL. Reinstallation recovered the same chat
-route automatically and restored dictation. The owner stayed unchanged and all
-owned processes stopped on exit. No paid provider/chat request was made.
-
-The later Janna/R1 follow-up also exercised real Settings cancellation, a dropped
-HTTP connection, quitting during download, and catalog/ETag-bound range resume
-across app launches. All resumed into the verified Parakeet installation. A
-network failure now reports `pack_download_failed`, not a runtime-start error;
-cancellation still reports `pack_cancelled`. Expanded Included content installed
-as selectable entries without changing the existing loadout. Native removal
-rejected an Anima reference and, separately, a still-valid preview lease. Closing
-a preview does not revoke its issued lease immediately; allow it to expire
-before retrying removal. Once it expired, removal restored the original 173
-valid core entries, and a further restart retained both Animas, the owner, and
-Parakeet. That checkpoint's expanded pack included a BGM example that the owner
-subsequently excluded. Its archive/hash is historical and must not be reused for
-new distribution; rebuild from the current inventory. These are development
-fixture downloads, not a GitHub release or a redistribution approval.
-
-This is development evidence, not a production download, signed-app acceptance,
-or physical microphone/visual-quality approval. The ordinary desktop profile,
-saved provider key, existing unsigned app bundle, and main Compose stack were
-not changed. The generated evidence lives under the ignored
-`desktop/.desktop-runtime/phase3-native/` and `phase34-native/` directories; the
-[release process](release-process.md#release-gates-in-order) records the remaining
-gates; preserve the exact report paths with the candidate review. A fresh complete
-stage/audit and the final native recheck include the corrected code, so later
-packaging can consume the audited stage.
+Native pack acceptance requires real download, cancellation, connection loss,
+quit/resume, installation, offline dictation, restart, removal and reinstallation.
+Verify catalog/ETag-bound resume and bounded `pack_download_failed` and
+`pack_cancelled` results. Expanded-content tests must check Anima references and
+live preview leases; closing a preview does not immediately revoke its lease.
+Retain the owner and chat across transitions. Fixture downloads and generated
+speech do not establish production transport or physical microphone acceptance.
+Keep results with the exact signed candidate and its
+[release gates](release-process.md#release-gates-in-order).
 
 The audit detects changed, missing, extra, or non-portable files; checks the
 bundled Electron zstd API; executes the frozen resource/content audits; and
@@ -301,64 +261,33 @@ closed while provenance, required notices, or owner approvals are missing.
 
 ## Current content gate
 
-The owner corrected Caitlyn's replacement on 2026-09-02 to the model associated
-with **Janna**, `AvatarSample_R1.vrm`, then confirmed it has no external components
-and reports it rendered correctly. The version-3 starter and its matching
-generated portrait are in core. The earlier R2/Gwen authorship claim is
-withdrawn. Existing starter receipts and historical adoption identifiers are not rewritten.
-`content/included/licenses/inventory.json` now links Annie's official pixiv
-preset terms and records the owner's R1 provenance separately from release
-approval. Its first matching `distribution: excluded` rule removes the former
-Chibi 2 and mistaken R2 models and their portraits/metadata from both core and expanded inputs.
-An excluded required dependency fails typed closure resolution. Private source
-files and existing desktop data are not deleted. The owner confirmed Annie's
-exact model is an unmodified VRoid free preset with no external assets. The
-preset terms are not CC0; product-use restrictions and final notices still need
-release review, but the preset/modification question is resolved.
+The core starter models are Annie (`AvatarSample_A_1_New.vrm`) and Caitlyn
+(`AvatarSample_R1.vrm`), with renderer-captured portraits. Their provenance and
+distinct permission terms are recorded in `content/included/licenses/inventory.json`
+and [source notices](../../../licenses/third-party/art-NOTICES.md). Annie is a
+VRoid preset; Caitlyn is authored by Raymond Van using VRoid Studio. Existing
+starter receipts and adoption identifiers remain valid compatibility data; they
+do not authorize restoring excluded bytes or silently changing an Anima.
 
-The same owner decision excludes downloaded voice samples (`voices/*`), BGM
-(`music/*`, including metadata), and the four Tokyo background originals with
-their thumbnails from both partitions. Legacy frontend background/BGM fallback
-lists are empty, so they cannot point at absent example URLs. Generated avatar
-portraits, speech-engine models and built-in voices remain included, and
-user-imported Local Music, Appearance and voice content remain supported.
-The private source files are retained; this desktop filter does not make them
-safe to put in a future public source repository.
+The source checkout excludes Mixamo-derived `.vrma` files from tracking and
+Docker contexts. The [manual acquisition helper](../runtime/mixamo-acquisition.md)
+prepares a download checklist; conversion, installation and a fresh complete
+starter build remain pending. The tracked-only staging gate must fail on an
+unavailable required animation, even if an ignored local copy exists. Do not
+bypass it or claim starter acceptance from an older artifact.
 
-Preserving a starter receipt does not preserve a removed Included model in a
-new bundle. An existing development profile referencing Chibi 2 or R2 needs an explicit
-avatar replacement/repair before accepting the updated core; profiles using the
-now-excluded background, music or voice examples likewise need explicit repair.
-Do not silently
-overwrite its Anima or claim upgrade compatibility from fresh-profile tests.
-The earlier R2 screenshot's material artifacts are historical, not a blocker for
-the now-excluded replacement. R1 and its portrait render in a fresh native
-development profile; the owner's reported successful render is recorded, while
-full desktop/audio acceptance remains unknown. No binary model or
-texture was rewritten during either substitution or the speech tests.
+Content with `distribution: excluded` is omitted from core and expanded inputs.
+An excluded required dependency fails closure resolution. User-imported Local
+Music, Appearance, voice content and Sound Effects remain supported. Built-in
+background, BGM and SFX fallback palettes are empty. Speech-engine models and
+built-in voices are separate from imported example recordings.
 
-On 2026-09-02 the owner confirmed that the private comedy SFX have no
-distribution license and authorized their exclusion. The tracked Avatar Effects
-and shy-finger-poke gesture now retain their visuals/animation without those
-decorative audio cues; the corresponding creator definitions are consistent.
-The legacy built-in SFX palette is empty. Typed owner-provided Sound Effects are
-still supported.
+An existing profile referencing unavailable Included content needs explicit
+replacement/repair before accepting a new core. Preserve its Anima and stored
+receipts; a fresh-profile test does not establish upgrade compatibility.
 
-The original 18 required sounds and 18 metadata files (1,343,670 bytes) remain
-ignored under `content/included/sfx/comedy/1/`; they are neither copied nor
-deleted. Strict staging admits tracked inputs only, including for expanded
-content. Both starters must resolve with zero diagnostics without the private
-files. This changes the source content intentionally; the stage still fails on
-any missing required dependency. There is no development-only copy path or
-release bypass. Remaining dependency/asset inventories still require review
-before public distribution.
-
-Build outputs and caches are disposable. Fix a failed input and rerun the stage;
-it starts from an empty target. Database backups and installed user state do not
-live here and must never be copied into a build. The user requested Phase 2
-implementation while this gate remained open; that did not approve SFX
-redistribution or complete Phase 1. The later exclusion decision removes that
-input blocker. Full staging and the unsigned native core journey have since
-passed; signed-worker measurement, user verification, and release approval
-remain separate. See the [release process](release-process.md#release-gates-in-order)
-for current acceptance requirements and preserve fresh evidence with the candidate.
+Build output and caches are disposable. Correct a failed input and rerun staging,
+which starts from an empty target. Database backups and installed user state must
+never enter a build. Review the exact dependencies, notices and artifacts before
+public distribution; [release acceptance](release-process.md#release-gates-in-order)
+is separate from source preparation.

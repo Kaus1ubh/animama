@@ -106,7 +106,7 @@ export const creationRequestSchema = animaSpecSchema.extend({
   idempotency_key: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/),
 });
 
-/** Persisted Phase 6 requests can contain a grandfathered 41–120 character name. */
+/** Frozen saved requests accept up to 120 characters for exact retry; new commands cap names at 40. */
 const frozenCreationRequestSchema = z.strictObject({
   ...animaSpecFields,
   display_name: z.string().min(1).max(120),
@@ -141,7 +141,7 @@ export const createAnimaDraftSchema = z.strictObject({
 });
 export type CreateAnimaDraft = z.infer<typeof createAnimaDraftSchema>;
 
-/** Exact retired draft shape, read only by the explicit storage migrator. */
+/** Exact schema-v1 draft shape, read only by the explicit storage migrator. */
 export const legacyCreateAnimaDraftSchema = z.strictObject({
   schema_version: z.literal(1),
   draft_id: z.string().uuid(),

@@ -36,7 +36,7 @@ REQUEST = EnsureAnimaStartersRequest(schema_version=1, repairs=[])
 
 
 async def legacy_anima(session, fixture, spec, *, profile: bool = True):
-    """Reproduce pre-cutover persisted evidence without retaining a retired API.
+    """Construct stored starter-adoption evidence directly in the fixture.
 
     Real Version 1 identity history is essential to the adoption check. A later
     customized value must never become a new source of historical provenance.
@@ -165,7 +165,7 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
 
 
 async def test_fresh_signup_reuses_seeded_avatar_rows_without_lazy_io(async_session, tmp_path):
-    """A real installation has legacy Included Avatar rows before its first signup."""
+    """Starter ensure reuses Included Avatar rows seeded before owner bootstrap."""
 
     async with anima_creation_fixture(async_session, tmp_path, full_starter=True) as fixture:
         creation = fixture.service(async_session)

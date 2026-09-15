@@ -12,7 +12,7 @@ export const Route = createFileRoute("/a/avatar-portrait-debug")({
   component: AvatarPortraitDebugRoute,
 });
 
-/** Development-only visual harness for Phase 1 portrait acceptance. */
+/** Development-only visual harness for typed Avatar portrait capture. */
 function AvatarPortraitDebugRoute() {
   const [file, setFile] = useState<File | null>(null);
 

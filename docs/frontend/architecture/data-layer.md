@@ -8,8 +8,7 @@ Generated files live in `src/frontend/packages/runtime-contracts/src/generated`.
 Do not hand-edit this directory. Consumers import `@animama/runtime-contracts/sdk`
 for methods and `@animama/runtime-contracts/api-types` for types. `pnpm openapi-ts` asks the backend's deterministic offline exporter
 to write a temporary schema, generates from that file, and always removes it.
-Public HTTP OpenAPI routes are disabled. The former server-side
-starter SDK was deleted with auth-triggered onboarding.
+Public HTTP OpenAPI routes are disabled.
 
 The generated client exposes infrastructure-only Content Catalog operations,
 typed product List/Get/Save/Preview methods, package import/export,
@@ -19,15 +18,15 @@ effect, sound, idle, music, Avatar, Appearance, and voice hooks consume their
 generated discriminated contracts while retaining the one catalog item
 identity underneath.
 
-Phase 5 also generates `AnimaSpec`, strict direct creation/options/validation,
+The client also exposes `AnimaSpec`, strict direct creation/options/validation,
 backend starter ensure/repair, and Avatar portrait Save contracts. Direct
-`POST /v1/animas` no longer accepts the old Avatar-only payload. Creation retries
+`POST /v1/animas` requires the complete `AnimaSpec` payload. Creation retries
 must reuse the complete frozen spec and body idempotency key; replay resolves
 before revalidating current sources. Typed preview responses expose the complete
 creation-compatible `expected_source_revisions` map, including supports; it is
 revision evidence, not a preview or runtime pin.
 
-Phase 7 adds generated `resolveContentEvidence` and `prepareContentPreviews`
+The generated SDK includes `resolveContentEvidence` and `prepareContentPreviews`
 methods. The former is a metadata-only batch read; the latter creates one
 ephemeral protected-file lease for a successful root union. They remain
 separate so a revision refresh cannot acquire files or write preview state.
@@ -39,7 +38,7 @@ the backend directly. The creator freezes and durably saves its command before
 dispatch; mutations never automatically retry or run on mount. Unknown outcomes
 replay before any mutable-source read. Shared preview metadata uses its own
 query cancellation signal; prepared bytes are consumer-owned. Onboarding uses
-the generated starter-only SDK, and the bulk route is removed.
+the generated starter-only SDK.
 
 Actions-to-Review sends one evidence request containing all unique selected
 roots and fixed Idle, applies nothing from a partial response, compares prior
@@ -114,7 +113,7 @@ Frontend env access should go through `src/frontend/web/src/platform/env.ts`.
 `@animama/product-ui` owns the existing Anima selection, chat session, SSE
 classification, transcript, and composer primitives. It exports query hooks via
 `/query`, session and pure stream helpers via `/chat`, presentation via
-`/components`, and compiled `/styles.css`. The original local paths re-export
+`/components`, and compiled `/styles.css`. The local paths re-export
 these implementations, so the ordinary application uses the packed core.
 
 `ProductRuntimeProvider` takes an explicit `RuntimeOwner`, chat capability,
@@ -129,7 +128,7 @@ keep owner-scoped Blob leases; they never assume the consuming page's origin.
 The local `RuntimeOwnerProvider` adapts the ready installation principal to this
 provider, supplies the same-origin application transport and trace headers, and keeps
 browser-wide CSRF handling in the local composition. Local hooks outside the
-extracted surface continue to use the neutral generated default client configured
+shared product surface continue to use the neutral generated default client configured
 by `configureAnimaApiClient.ts`. New shared hooks must take the provider's client.
 
 ## Local Runtime And Profile
@@ -184,8 +183,7 @@ unmount. Built-in portraits load from same-origin
 Included compatibility URLs. These surfaces never fetch a full runtime
 snapshot or load a VRM merely to show a thumbnail.
 
-Content family hooks call the typed product routes and adapt only at legacy
-creator-view boundaries that have not yet been redesigned. They preserve
+Content family hooks call the typed product routes and adapt their results for creator views. They preserve
 source, search, sort, and family-specific presentation while retaining the
 catalog item ID used by Preview, Edit, and typed loadout commands. Included
 entries are read-only; Local entries are ordinary editable files. Runtime
@@ -276,7 +274,7 @@ their cursor. Version detail is adjacent-only: selecting Version N asks the
 backend for the immutable Version N snapshot, the N-1-to-N unified diff, and
 structured path/description changes. Version 1 uses an empty Version 0
 creation baseline. The query layer has no arbitrary two-version comparison or
-history mutation method in this phase.
+history mutation method.
 
 Memory-manager runs use generated `/v1/memory/episodes` and
 `/v1/memory/manager` methods. `useMemoryEpisodes` fetches pending episode

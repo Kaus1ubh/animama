@@ -1,6 +1,6 @@
 # Self-Hosted Content Storage And Trust
 
-> **Accountless local contract (2026-09-14):** the migration-generated
+> The migration-generated
 > installation principal owns local data. FastAPI admits browser traffic at
 > the configured application origin; desktop adds a per-launch capability.
 > React starts without user credentials. Coordinated backups preserve the principal.
@@ -95,9 +95,8 @@ file, case, and Unicode collisions, and watches only Local. Each catalog item
 and preview file retains its exact `source_mount_id`. Bytes are delivered only
 from that mounted source; the browser cannot supply a root. Removing an optional
 mount requires reference/lease checks and atomic catalog withdrawal, not missing
-core tombstones. Phase 3 implements optional pack download, verification and
-atomic activation; public pack/signature acceptance is still gated on approved
-release inputs. See [Desktop operations](../operations/desktop-runtime.md) for
+core tombstones. Electron downloads, verifies and atomically activates optional
+packs; public pack/signature acceptance requires approved release inputs. See [Desktop operations](../operations/desktop-runtime.md) for
 roots, private environment, lifecycle and recovery. Compose's coordinated
 backup/reset scripts do not apply to the separate desktop profile or vault.
 
@@ -140,7 +139,7 @@ The core tables are:
 - `anima_content_bindings`: typed logical Avatar, Gesture, Reaction, Idle
   Style, Music, Appearance, and voice selections resolved at remount;
 - `anima_loadout_mutation_receipts`: bounded idempotent commit results;
-- `anima_loadout_diagnostics`: warnings for rejected legacy or manually
+- `anima_loadout_diagnostics`: warnings for rejected persisted or manually
   invalid equipment.
 
 No table stores absolute paths. Included and Local are source enum values, not

@@ -56,7 +56,7 @@ export class CreationDraftConflict extends Error {
   }
 }
 
-/** Version routing is explicit: unknown/retired schemas are never imported or erased. */
+/** Route supported saved schemas explicitly; preserve unknown schemas for recovery. */
 export function migrateCreationRecord(raw: string): CreationRecord {
   if (raw.length > 2 * 1024 * 1024)
     throw new Error(

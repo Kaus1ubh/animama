@@ -21,7 +21,7 @@ Both checked-in lists are currently empty: no exception is granted. Add an
 approval only after the owner explicitly accepts the concrete measured scope;
 never populate it automatically to pass a build. Keep the complete review and
 candidate hashes with the release evidence. These durable records are the build
-inputs; no private planning checkout or historical source tree is required.
+inputs and do not require a private planning checkout.
 
 A size exception approves only the specified size limit. Licensing, signing,
 notarization, fresh-profile/native acceptance and publication remain separate

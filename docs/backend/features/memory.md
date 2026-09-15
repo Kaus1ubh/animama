@@ -1,20 +1,9 @@
 # Memory
 
-Anima's anima-owned block memory system was retired on 2026-06-19 as Phase 1
-of the user memory filesystem rework.
-
-The retired system included:
-
-- `ORMMemory` anima-owned containers
-- `ORMBlock` ordered labeled blocks and tiers
-- memory/block domain schemas and ORM exports
-- memory repository, service, mapper, and tier policy helpers
-- public `/v1/memories...` and `/v1/blocks...` APIs
-- anima API fields such as `memory_id`, `memory`, and `memory_blocks`
-- direct-chat context flags such as `include_memory` and `anima_memory_id`
-
-The routes are no longer mounted. Requests to the old memory and block paths
-return normal FastAPI `404` responses.
+Animama stores scoped Markdown memory as versioned SQL-backed files and
+directories. Direct chat reads Anima identity and can use constrained tools over
+user memory; the Memory Manager provides a separate maintenance and approval
+workflow.
 
 ## Current Direct Chat Boundary
 
@@ -43,7 +32,7 @@ owned anima scopes work and missing or foreign animas return `404`. A service
 constructed without an anima repository is valid only for user-scope memory
 operations (`anima_id = NULL`), such as direct-chat memory tools.
 
-Phase 4.5 simplified the runtime boundary to one `DirectChatPrompt`. The prompt
+The runtime boundary uses one `DirectChatPrompt`. The prompt
 is ordered for prompt-cache locality: one system message containing stable core
 companion instruction rendered with the active Anima's stable `display_name`, anima
 identity, stable memory guidance, and structured-output guidance; then
@@ -194,18 +183,17 @@ operations are rejected. The mounted routes are:
 - `POST /v1/memory/manager/approvals/{approval_id}:decide`
 - `POST /v1/memory/manager/approvals/{approval_id}:undo`
 
-The repository currently uses a reset-era baseline schema. Fresh databases and
-test containers receive the open-run index, run kind/task state, and approval
-feedback, applied/Undo Version, and old/new description columns from ORM
-metadata. Existing local databases require `./reset.sh`; a deployment that must
-preserve data needs explicit schema migration work before using this backend
-version.
+The frozen `baseline_20260908` SQL includes the open-run index, run kind/task
+state, approval feedback, applied/Undo Version, and old/new description columns.
+Database revisions outside the supported graph require their matching checkout
+or an explicitly disposable reset; ordinary `./reset.sh` preserves data and
+cannot bridge that schema boundary. See [Database operations](../operations/development.md#database).
 
 ## Direct Chat Memory Tools
 
-Phase 6 adds request-local JSON-schema function tools for direct `chat:sse`.
-After Phase 6.5, those tools resolve paths through the `memory_entries` cached
-path indexes but remain scoped to user memory only (`anima_id IS NULL`). Models
+Direct `chat:sse` uses request-local JSON-schema function tools. These resolve
+paths through the `memory_entries` cached path indexes and remain scoped to
+user memory only (`anima_id IS NULL`). Models
 refer to files by user-scope paths such as `profile.md` or
 `notes/preferences.md`. Tool path validation rejects absolute paths, `.`/`..`,
 explicit `[user]/...` roots, and `animas/...`; anima identity remains
@@ -236,10 +224,10 @@ one write transport selected from the persisted model capability:
 
 The official OpenAI Responses `gpt-5.4-nano`, `gpt-5.6-luna`, and
 `gpt-5.6-terra` rows currently advertise
-native Apply Patch. `gpt-5-nano` retains the legacy writers. The capability is
+native Apply Patch. `gpt-5-nano` retains the function-tool writers. The capability is
 an internal memory-write gate: clients cannot request `apply_patch` through the
 generic `native_tools` request option. Incognito and
-`disable_memory_updates=true` expose neither native nor legacy writers.
+`disable_memory_updates=true` expose neither native nor function-tool writers.
 
 When the model returns memory tool calls, `DirectChatTurnExecutor` validates
 that the requested tool is available for the turn, parses the JSON arguments,
@@ -282,7 +270,7 @@ request order, accepts at most 10 unique paths, and resolves each through
 
 The model receives stable `files` and `errors` arrays. Each successful item has
 `path`, `description`, and `content`; each failed item has `path`, `code`,
-`message`, and `retryable`. In legacy/custom-tool mode, `content` is the stored
+`message`, and `retryable`. In custom-tool mode, `content` is the stored
 Markdown body. In native-patch mode, the same field is a synthetic patch
 document whose first three lines are `---`, a JSON-string-or-null
 `description: ...`, and `---`, followed by the body. The 128 KiB call limit is
@@ -453,15 +441,14 @@ Visible chat history and chat search continue to exclude internal rows.
 
 Memory tool support is currently enabled for `OpenAIHTTPAgent`,
 `OpenAIResponsesHTTPAgent`, `LiteLLMAgent`, and `MockModelClient`. The Responses
-adapter maps read/search and legacy writer functions onto Responses `function`
+adapter maps read/search and writer functions onto Responses `function`
 and `function_call_output` items, and maps native-capable writes onto SDK
 `apply_patch_call` and `apply_patch_call_output` items. `GeminiAgent` setup fails
 when memory tools would be active for the requested turn.
 
 ## User Memory Entry Tree
 
-Phase 6.5 replaces the flat `memory_files` API and tables with a scoped
-`memory_entries` tree. The root is virtual; a row with `parent_id = NULL` is a
+The memory filesystem uses a scoped `memory_entries` tree. The root is virtual; a row with `parent_id = NULL` is a
 top-level entry in the selected scope. Rows with `anima_id IS NULL` are
 account-wide user memory, and rows with `anima_id IS NOT NULL` are scoped to one
 anima. Files and directories share identity, parent/name uniqueness, soft-delete
@@ -615,8 +602,7 @@ copied into the entry's user-facing metadata.
 `description = "Initial identity of {anima.display_name}"`. It uses the caller's
 SQL transaction with no physical-file projection or independent commit.
 Strict live creation supplies the authored Markdown, and backend starters
-supply their configured identity through the same materializer. The temporary
-Avatar-only direct/bulk adapter is removed. Later Avatar edits and chat turns
+supply their configured identity through the same materializer. Later Avatar edits and chat turns
 cannot synchronize or overwrite the existing live identity.
 
 Installation bootstrap seeds one user-scope `profile.md` entry with
@@ -641,8 +627,8 @@ processing jobs, and retrieval search. Chat turns may attach processed upload
 IDs, which lets the backend equip the read-only `search_uploaded_files` and
 `read_uploaded_file_chunks` AI tools for that request.
 
-Anima archives are also separate from the retired block memory system.
-Archive routes can still create/list/update/delete passages and search with
+Anima archives store passages separately from the memory filesystem.
+Archive routes create/list/update/delete passages and search with
 vector similarity:
 
 - `GET /v1/animas/{anima_id}/archive`
@@ -655,9 +641,9 @@ vector similarity:
 Creating a passage attempts to embed the text. Search embeds the query and uses
 pgvector cosine distance through `SQLAlchemyArchiveRepository.search_passages`.
 
-## Planned Integrations
+## Extension constraints
 
-Later phases will build on the CRUD filesystem. That future work should:
+Changes to the memory filesystem must:
 
 1. preserve incognito and memory-disabled behavior for durable writes
 2. continue hardening the frontend workflows for profile and anima identity

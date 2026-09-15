@@ -4,6 +4,8 @@ The working repository remains proprietary. These tools prepare a separate,
 unpublished copy with the proposed AGPL-3.0-only license for project-owned code.
 They preserve third-party terms and never publish, create a remote, initialize
 Git history, upload an LFS object, or change the working source license.
+Using this review tool does not select the final repository or Git-history
+publication approach; that decision belongs to final source review.
 
 Use Python 3.11 or newer from the repository root. First review the exact paths
 in `repository-boundary.toml`, hydrate required LFS files, and update
@@ -55,8 +57,9 @@ conversion/setup, a monitored private security-reporting route, independent
 builds, secret/license scans and native acceptance remain required. A fresh
 candidate currently lacks user-supplied animations; see
 [manual acquisition](../../docs/frontend/runtime/mixamo-acquisition.md).
-After further changes, discard this candidate for release purposes and prepare
-a new exact candidate. Publication and signed binary distribution require
+A source change invalidates an existing candidate for release purposes. Final
+review must bind verification to the exact selected source and, if retained
+publicly, its Git history and LFS objects. Publication and signed binary distribution require
 separate approval.
 
 Tool tests use disposable fixtures without starting Animama or acquiring assets:

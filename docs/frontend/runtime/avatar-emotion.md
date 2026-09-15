@@ -119,8 +119,7 @@ Relevant files:
 
 ### Primary-derived updates in normal chat
 
-Normal `chat:sse` no longer runs the emotional analyst. The primary chat
-structured response carries:
+Normal `chat:sse` derives emotion from the primary chat structured response:
 
 ```json
 {
@@ -316,7 +315,8 @@ Relevant files:
 
 ## 5) Avatar mapping
 
-The avatar runtime now thinks in `EmotionGroup`, then translates that group into the older animation/voice asset lanes.
+The avatar runtime uses `EmotionGroup`, then maps that group to animation and
+voice asset lanes.
 
 ### Animation manifest mapping
 
@@ -376,7 +376,7 @@ Reaction clips live under
 `src/frontend/web/src/lib/avatar/poses/json/clips/reactions/`. They can include
 inline expression keyframes plus timed avatar VFX, scene VFX, and SFX events,
 and the built-in catalog skips files that include humanoid transforms. Reaction
-releases are expression/effect actions and cannot declare humanoid motion;
+definitions are expression/effect actions and cannot declare humanoid motion;
 `ReactionClipPlayer` projects their samples to expressions before
 fade/interpolation. Every canonical clip
 declares a same-run `talking` playback lifetime: it fades in, holds its final
@@ -419,7 +419,7 @@ Relevant files:
 
 ## 6) UI behavior
 
-The primary emotion UI is now group-first.
+The primary emotion UI is group-first.
 
 Relevant file:
 

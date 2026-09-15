@@ -61,8 +61,6 @@ Tests use explicit fixture bootstrap and dependency overrides.
   `409 {"detail":{"code":"runtime_busy"}}`. Timeout keeps admission closed
   without cancelling work; restart the unchanged owned backend to resume.
 
-The former `/v1/health` and `/v1/health/whoami` account surfaces are removed.
-
 ## Optional Runtime Capabilities
 
 `GET /v1/runtime-capabilities` uses the ordinary admitted installation
@@ -187,8 +185,7 @@ requires both a stored name and a timestamp; an earlier skipped setup reopens
 without resetting ownership or data. `GET /v1/animas` returns owned rows in
 ascending creation-time/ID order so launch falls back to Annie on fresh installs.
 
-Profile ensure, username check/rename, creator lookup, biography, visibility,
-aliases, and cooldown APIs are removed from the local composition. See
+Local profiles provide private display-name personalization. See
 [Local User Profile](../features/user-profiles-and-usernames.md).
 
 ## Typed Content, Loadouts, And Runtime
@@ -334,7 +331,7 @@ model. It remains null when neither is available.
 
 The reference includes a normalized `presentation` object with Fill/Fit,
 focal point, and zoom. These fields are revisioned presentation semantics;
-legacy position strings are normalized for backward compatibility.
+saved position strings are normalized for backward compatibility.
 
 `RuntimeImageReference.source_type` is `catalog`; its API-relative
 `/v1/content/files/{file_ref}` URL is fetched with normal authentication. Both
@@ -344,19 +341,16 @@ integrity remains independently enforced. Detail and mutation responses retain
 `PyAnimaResponse` and do not compile the list projection.
 
 Anima rows are owner-scoped by the request principal in the retained `user_id`
-column. Direct creation now uses
-the strict command below and the caller-owned `AnimaAggregateMaterializer`.
-`/v1/animas/bulk` and its legacy request/materializer adapter are removed after
-the frontend-server starter cutover. There is no parallel Avatar-only creation
-path. Creation writes identity/history, definition audit, chat profile, settings,
+column. Direct creation uses the strict command below and the caller-owned
+`AnimaAggregateMaterializer`. Creation writes identity/history, definition audit, chat profile, settings,
 and loadout together. It does not synthesize personality JSON, runtime graph
 metadata, `chat_runtime`, or backing agent rows. Strict creation selects the
 active local `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` (default
 `OpenAIResponsesHTTPAgent:gpt-5.6-luna`) and persists ElevenLabs voice
-`gJx1vCzNCD1EQHT212Ls` without a provider request. Names no longer derive from
-mutable `avatar.name` on reads. No runtime mount or chat/greeting is created.
+`gJx1vCzNCD1EQHT212Ls` without a provider request. Reads use the Anima's stable
+display name independently of mutable `avatar.name`. No runtime mount or chat/greeting is created.
 
-`PATCH /v1/animas/{anima_id}` accepts `anima.display_name` or legacy
+`PATCH /v1/animas/{anima_id}` accepts `anima.display_name` or compatibility field
 `anima.avatar_id` only with a positive body `expected_aggregate_revision`.
 Missing/stale guards return `409`; missing/foreign Animas return `404`.
 Names trim only outer whitespace, preserve case/internal spacing, reject
@@ -372,11 +366,11 @@ Direct `anima.profile_picture_url` updates return `422
 use_typed_appearance_command`; use reviewed typed Appearance commands instead.
 Ordinary emotional state/metadata patches do not change definition revision.
 
-Typed loadout read/plan responses now carry `aggregate_revision`. Existing
+Typed loadout read/plan responses carry `aggregate_revision`. Existing
 `:plan`/`:commit` bodies keep `expected_revision` for the loadout; the reviewed
 digest also fences aggregate revision. A name/identity change between review
 and commit returns `409 loadout_plan_stale`. Commit responses include the
-resulting aggregate revision (nullable only for pre-Phase-4 receipt replays).
+resulting aggregate revision (nullable when replaying a stored receipt without that field).
 
 ### Strict private creation
 
@@ -532,11 +526,6 @@ required anima identity active. Provider rows that do not support OpenAI's
 `developer` message role, including DeepSeek, receive that request-local memory
 map inside the system instruction instead.
 
-The previous engine-backed `dispatch`, public `dispatch:sse`,
-`dispatch_old:sse`, `dispatch_simple:sse`, and anima-scoped runtime WebSocket
-chat surfaces are retired. Recover implementation details from git history
-instead of keeping unmounted executable copies or stale reference docs.
-
 ## Installation Events
 
 The events router exposes:
@@ -574,11 +563,7 @@ restore and send-gating behavior without a DeepSeek-specific frontend rule.
 
 ## Memory
 
-Anima-owned memory containers and ordered block APIs are retired. The backend
-no longer mounts `/v1/memories...` or `/v1/blocks...`, and anima payloads no
-longer expose `memory_id`, `memory`, or `memory_blocks`.
-
-The mounted replacement API is the scoped markdown memory entry tree:
+Memory APIs expose a scoped Markdown entry tree:
 
 - `GET /v1/memory/entries?anima_id=&parent_id=&recursive=false`
 - `GET /v1/memory/entries/by-path?anima_id=&path=...&type=file`
@@ -757,7 +742,7 @@ Chat creation verifies the referenced anima exists and is owned by the
 current user; missing or foreign animas return `404`. Chat reads, updates,
 deletes, and message reads are scoped to the current user's chats. Message
 responses expose `chat_id`, `run_id`, `model_provider`, `model`, and
-`internal`; they do not expose `session_id` or retired agent identifiers.
+`internal`; identifiers belong to Chats and request-local runs.
 Message reads hide internal rows by default, and
 `include_internal=true` includes those rows with `internal=true`. Chat responses
 include nullable `api_standard`, `last_model_client`, and `last_model_id`
@@ -767,7 +752,7 @@ provider-reported `total_tokens` minus output reasoning tokens. Chats created
 through `POST /v1/chats` can return null standard and last-model fields until
 the first model-backed `chat:sse` request initializes the standard and a
 successful durable turn records the last model snapshot. Non-empty
-null-standard chats are treated as invalid reset-era state by `chat:sse` and
+null-standard chats are treated as invalid transcript state by `chat:sse` and
 should be replaced by a new chat.
 
 Chat search runs PostgreSQL full-text search over visible current-user chat
@@ -781,11 +766,6 @@ index scoped to visible user/assistant content, joins through
 visible message in each chat supplies the snippet and score, while the response
 includes chat/anima metadata including the anima `profile_picture_url` for
 result rendering.
-
-## Conversations
-
-`/v1/conversations` is no longer mounted by the backend API. Chat creation,
-history, and streaming use `/v1/chats` and `chat_id`.
 
 ## Settings
 
@@ -875,14 +855,12 @@ flow, parser worker lifecycle, statuses, configuration, and debug UI behavior.
 
 The archive router manages anima archive metadata and passages. It supports
 embedding-based passage search where the database/provider setup supports it.
-Archive data is separate from the retired block memory system and from the
-planned memory filesystem.
+Archive data is separate from the scoped Markdown memory filesystem.
 
 ## ElevenLabs
 
 The ElevenLabs router exposes utility routes for voice clone, text-to-speech
-preview, sound effects, and audio isolation. Chat TTS no longer uses standalone
-ElevenLabs proxy routes. `POST /v1/animas/{anima_id}/chat:sse` owns chat TTS
+preview, sound effects, and audio isolation. `POST /v1/animas/{anima_id}/chat:sse` owns chat TTS
 bootstrap and audio delivery.
 
 Realtime chat TTS resolves the anima voice from
@@ -896,9 +874,8 @@ normalization off, then emits ordered `tts.audio` frames and one final
 synthesis without blocking the final chat completion frame. Anima does not
 request or forward ElevenLabs timestamp/alignment metadata.
 
-## Retired Speech Routes
+## Client-side speech
 
-The former backend `/v1/stt/ws`, `/v1/voice/session`, and
-`/v1/voice/hybrid-session` routes were retired with the process-local engine.
-Current frontend and desktop speech flows use client-side Parakeet STT, MicVAD,
-smart-turn, Pocket TTS, and ElevenLabs TTS.
+Frontend and desktop speech flows use client-side Parakeet STT, MicVAD,
+smart-turn, Pocket TTS, and ElevenLabs TTS. The local API does not mount STT
+or LiveKit session routes.

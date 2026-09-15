@@ -117,7 +117,7 @@ The window only becomes visible when both readiness conditions are true:
 
 This prevents visible flashes of:
 
-- the auth page
+- a loading or setup page
 - global app loading
 - the normal app shell
 - a blank or black scene frame before synced state arrives
@@ -246,10 +246,9 @@ It does not render:
 - transform controls
 - dictation or TTS controls
 
-Normal browser and main-window access to this route still requires auth. The
-trusted Electron PiP window role may mount the route while auth is still
-initializing in the second renderer, so PiP can avoid redirect loops and visible
-auth flashes.
+The route requires the Electron `pip` window role and PiP preload bridge.
+Browser and main-window navigation redirect to `/`. This role check selects the
+auxiliary UI; FastAPI still authorizes its API and content requests.
 
 ## Shared Scene Host
 
@@ -473,7 +472,7 @@ pnpm desktop:build
 Manual validation:
 
 - desktop PiP opens a frameless always-on-top window
-- no auth page, app shell, header, sidebar, or chat panel flashes visibly
+- no loading/setup page, app shell, header, sidebar, or chat panel flashes visibly
 - window remains hidden until PiP route readiness and initial visual state
 - transparent mode shows the desktop behind the avatar when a compositor is
   available

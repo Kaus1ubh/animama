@@ -90,8 +90,8 @@ OPENAI_GPT_56_LUNA_PRICING: dict[str, Any] = {
     "standard": {"input": "0.20", "cached_input": "0.02", "output": "1.20"},
     "batch": {"input": "0.10", "cached_input": "0.01", "output": "0.60"},
     "flex": {"input": "0.10", "cached_input": "0.01", "output": "0.60"},
-    # OpenAI now calls this Fast mode; the durable schema retains its former
-    # priority-tier name, and Responses usage reports the tier as priority.
+    # The durable pricing schema and Responses usage use the priority-tier key;
+    # keep that serialized key independent of the provider-facing label.
     "priority": {"input": "0.40", "cached_input": "0.04", "output": "2.40"},
     "long_context": {
         "token_threshold": 272_000,

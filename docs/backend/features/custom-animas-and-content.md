@@ -37,7 +37,7 @@ text chat available. `chat:sse` requires the issued revision. Save, filesystem
 edits, Rescan, and Equip therefore take effect on the next mount rather than
 mid-conversation.
 
-## Live Anima foundation (Phase 4)
+## Live Anima definition
 
 An Anima owns its stable `display_name`, positive `aggregate_revision`, and
 SQL-backed virtual `identity.md` (`kind=anima_identity`). The identity body and
@@ -58,16 +58,13 @@ no Music/typed Voice binding, archive, chat, greeting, or relationship memory.
 An explicit validated internal voice choice can replace that default.
 
 Direct creation and backend starter provisioning use this materializer through
-the strict creation service below. Phase 6 removes `/v1/animas/bulk`, its
-Avatar-only request/legacy materializer adapter, and the frontend onboarding
-template. `/a/animas/new` now uses the four-step live creator; no generic or
-bulk creation alternative remains.
+the strict creation service below. `/a/animas/new` uses the four-step live
+creator and submits the complete reviewed spec through `POST /v1/animas`.
 
 New creation materializes the selected identity into the Anima's own memory
 entry. Missing or blank identity requires explicit repair before chat can invoke
-a model. The current baseline creates this final schema directly; the retired
-migration's one-time legacy identity adoption remains available only through the
-old checkout and is not an upgrade path from a removed revision.
+a model. The frozen baseline creates this schema directly and provides no
+identity backfill for databases outside its supported revision graph.
 
 Explicit identity edits/reverts require both the memory version and aggregate
 revision. Name edits advance the aggregate only; Avatar/Appearance/loadout
@@ -79,7 +76,7 @@ cannot be deleted through the content API; confirmed My Content is not deleted
 when an Anima is removed. External file changes may break the next runtime
 mount, but cannot change the live name or identity.
 
-## Strict private creation (Phase 5)
+## Strict private creation
 
 The [four-step browser creator](../../frontend/features/custom-anima-creation.md)
 consumes the current [HTTP creation contract](../architecture/http-api.md#strict-private-creation).
@@ -103,7 +100,7 @@ content blocks creation instead of using runtime's optional-root omission.
 New creation and explicit live-Anima rename accept 1–40 Unicode code points.
 The wider 120-character persistence columns remain unchanged so a legacy long
 name stays readable and survives unrelated edits until its owner explicitly
-renames it. The Phase 8 browser does not configure Appearance: it submits
+renames it. The browser creator does not configure Appearance: it submits
 `profile: null` and `background: null`, while these strict typed fields remain
 available to other reviewed backend consumers.
 
@@ -127,7 +124,7 @@ receipt or partial aggregate. Successful receipts/deletion tombstones remain
 for the owner's lifetime. Runtime issue/preparation is a separate post-commit
 step, so a mount failure cannot create another Anima.
 
-Phase 7 makes Review evidence constant-round-trip without weakening those
+Review evidence uses a bounded number of requests without weakening those
 guards. `POST /v1/content/evidence:resolve` resolves every selected root plus
 the fixed default Idle against one visible catalog snapshot and returns the
 complete revision union without files or database writes. The browser rejects
@@ -196,8 +193,8 @@ null background creates no binding. `PUT /v1/avatar-content/{item_id}/portrait`
 accepts a confirmed 512-square WebP capture and the expected Avatar revision,
 producing a normal owner-scoped 256-square Appearance of at most 256 KiB.
 The typed portrait endpoint and Appearance management remain available outside
-the current Create Anima flow. Phase 8 removed creator capture, crop, upload,
-and background controls; it does not remove existing content or live bindings.
+the Create Anima flow. That flow does not offer capture, crop, upload or
+background controls; existing content and live bindings remain available.
 Confirmed Saves survive cancellation and failed creation, and neither Save nor
 creation calls a provider.
 

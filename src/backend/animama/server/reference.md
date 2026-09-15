@@ -41,9 +41,6 @@ the source of truth for schema details.
     `avatar.gesture.requested`, `chat.title.updated`, `error`, and
     `run.completed`.
 
-The old graph, agent membership, `/v1/agents`, `/v1/animas/custom`,
-`/v1/animas/bulk`, and anima profile-edit APIs are retired.
-
 ## Model Providers
 
 - `GET /v1/model-providers`
@@ -66,9 +63,8 @@ The old graph, agent membership, `/v1/agents`, `/v1/animas/custom`,
 
 ## Memory
 
-Anima-owned memory containers and ordered block APIs are retired. The backend
-does not mount `/v1/memories...` or `/v1/blocks...`; those paths return normal
-`404` responses.
+Memory APIs expose owner-scoped Markdown files and directories with optimistic
+version checks and append-only content history.
 
 - `GET /v1/memory/entries?anima_id=&parent_id=&recursive=false`
 - `GET /v1/memory/entries/by-path?anima_id=&path=...&type=file`
@@ -91,8 +87,6 @@ does not mount `/v1/memories...` or `/v1/blocks...`; those paths return normal
     user-scope markdown memory hits used by `search_memory_files`. Uploaded-file
     diagnostics use `POST /v1/files/debug/search`.
 
-The old `/v1/memory/files` routes are not mounted.
-
 ## Avatars And Typed Content
 
 - Logical Avatar registration, updates, deletion, and catalog selection live in
@@ -104,7 +98,7 @@ The old `/v1/memory/files` routes are not mounted.
 - `server/routers/anima_loadouts.py` owns family-specific loadout plan/commit
   commands; `server/routers/anima_runtime.py` resolves the exact runtime closure.
 - See the [HTTP API guide](../../../../docs/backend/architecture/http-api.md) for the current
-  route contract. Immutable Avatar-release APIs are retired.
+  route contract.
 - User-file upload, finalize, process, list, search, abort, and delete routes
   live in `server/routers/user_files.py`.
 
@@ -116,12 +110,8 @@ The old `/v1/memory/files` routes are not mounted.
 ## Events And Health
 
 - `GET /health`
-- `GET /v1/health`
-- `GET /v1/health/whoami`
 - `GET /v1/events:sse`
   - Authenticated account-level notification stream. Currently emits heartbeat
     comments only.
 
-Runs are request-scoped identifiers used by `chat:sse` events and logs. The
-backend no longer exposes legacy session, graph dispatch, or direct-agent run
-routes.
+Runs are request-scoped identifiers used by `chat:sse` events and logs.

@@ -106,7 +106,7 @@ class PyAvatarCatalogPage(BaseModel):
 
 
 class PyAvatarUploadInitRequest(BaseModel):
-    """Legacy Anima-create staging request retained until that UI is redesigned."""
+    """Staging request for an owner-scoped Pocket voice catalog (.bin) upload."""
 
     filename: str = Field(..., min_length=1)
     content_type: str | None = None

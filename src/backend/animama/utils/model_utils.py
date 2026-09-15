@@ -1,8 +1,8 @@
 """Provider-centric helpers for model/provider configuration.
 
-Deprecated (legacy): The old model adapter registry is replaced by provider
-adapters under ``animama.adapters.providers``. This module provides a small
-compatibility layer and new helpers focused on provider configs.
+This module normalizes mapping-based provider configs and recognizes persisted
+adapter-kind aliases. Deprecated model helpers delegate to the same mapping
+normalizer; they do not construct model clients.
 """
 
 from __future__ import annotations
@@ -10,11 +10,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-# ---- New provider-centric helpers ----
+# ---- Provider configuration helpers ----
 
 
 _PROVIDER_ENV: dict[str, tuple[str, ...]] = {
-    # New names
+    # Provider names
     "openai": ("OPENAI_API_KEY",),
     "gemini": ("GEMINI_API_KEY",),  # OpenAI-compatible Gemini endpoint
     "litellm": (),  # depends on upstream model; leave empty by default
@@ -29,7 +29,7 @@ _PROVIDER_ENV: dict[str, tuple[str, ...]] = {
 def required_environment_keys_for_kind(kind: str) -> tuple[str, ...]:
     """Return environment variables required by a provider or legacy kind.
 
-    Accepts new provider names (e.g., "openai", "gemini", "litellm") and legacy
+    Accepts provider names (e.g., "openai", "gemini", "litellm") and legacy
     adapter kind strings for back-compat.
     """
 
@@ -88,7 +88,7 @@ MODEL_KIND_LITELLM = "litellm"  # deprecated
 
 
 def serialize_agent_model(model: Any) -> dict[str, Any] | None:  # pragma: no cover - legacy shim
-    """Deprecated: Only supports mapping-based provider configs now.
+    """Deprecated: Supports only mapping-based provider configs.
 
     If ``model`` is already a provider config mapping, return a normalized copy;
     otherwise return ``None``.
@@ -106,7 +106,7 @@ def deserialize_agent_model(metadata: Mapping[str, Any]) -> Any | None:  # pragm
 
 
 __all__ = [
-    # New helpers
+    # Provider helpers
     "serialize_provider_config",
     "deserialize_provider_config",
     "required_environment_keys_for_kind",

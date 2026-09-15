@@ -1,17 +1,16 @@
 # Anima Memory
 
-The frontend anima block-memory editor was retired on 2026-06-19 as part of
-the backend memory filesystem rework. Current frontend memory workflows use the
+Frontend memory workflows use the
 scoped `/v1/memory/entries` API through generated client methods and TanStack
 Query hooks.
 
 ## Current User-Facing Surfaces
 
-`/a/memories` is the protected, account-wide memory workspace. Beside the
+`/a/memories` is the protected, installation-wide memory workspace. Beside the
 persistent application sidebar, it fills the remaining viewport with an inline
 explorer, Manual or Memory Manager work pane, and live Markdown preview. It has
 no page-level heading, tabs, outer frame, or content gutter; one shared pane
-surface and faint resizable dividers provide the visual structure. Account upload
+surface and faint resizable dividers provide the visual structure. Installation upload
 management and debug retrieval tools live in Library's Chat Uploads section.
 
 The workspace loads content-free entry headers recursively. Its left explorer
@@ -188,7 +187,7 @@ file remains visual context and does not change manager requests.
 
 Account settings includes a Memory section with a Memory Manager model
 selector. Its choices come from the existing model catalog and are limited to
-the OpenAI Responses provider. The choice is account-wide and applies to new
+the OpenAI Responses provider. The choice is installation-wide and applies to new
 request-local manager runtime instances; System default clears the override and
 uses `ANIMAMA_MEMORY_MANAGER_AGENT_MODEL` from the backend environment.
 

@@ -40,7 +40,7 @@ class AnimaAggregateMaterializer:
     """Write authority and children together; the caller commits or rolls back.
 
     Whole-spec source/closure validation and creation receipts belong to the
-    Phase 5 command service. This boundary never issues runtime or creates chat.
+    AnimaCreationService command boundary. This boundary never issues runtime or creates chat.
     """
 
     def __init__(self, *, default_model_provider_id: str, max_identity_bytes: int = ANIMA_IDENTITY_MAX_BYTES) -> None:

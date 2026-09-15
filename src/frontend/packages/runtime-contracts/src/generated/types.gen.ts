@@ -2531,7 +2531,7 @@ export type PyAvatarUpdate = {
 /**
  * PyAvatarUploadInitRequest
  *
- * Legacy Anima-create staging request retained until that UI is redesigned.
+ * Staging request for an owner-scoped Pocket voice catalog (.bin) upload.
  */
 export type PyAvatarUploadInitRequest = {
     /**
@@ -7242,7 +7242,7 @@ export type CreateAnimaV1AnimasPostErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Content
+     * Unprocessable Entity
      */
     422: AnimaCreationErrorResponse;
     /**
@@ -7295,7 +7295,7 @@ export type GetAnimaCreationOptionsV1AnimasCreationOptionsGetErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Content
+     * Unprocessable Entity
      */
     422: AnimaCreationErrorResponse;
     /**
@@ -7344,7 +7344,7 @@ export type EnsureAnimaStartersV1AnimasStartersEnsurePostErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Content
+     * Unprocessable Entity
      */
     422: AnimaCreationErrorResponse;
     /**
@@ -8571,7 +8571,7 @@ export type ValidateAnimaV1AnimasValidatePostErrors = {
      */
     410: AnimaCreationErrorResponse;
     /**
-     * Unprocessable Content
+     * Unprocessable Entity
      */
     422: AnimaCreationErrorResponse;
     /**

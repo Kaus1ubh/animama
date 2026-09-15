@@ -125,15 +125,15 @@ permissive `--include-untracked` audit mode. After the user stages the reviewed
 change, the normal commands above validate the real index directly.
 
 A passing audit proves classification and recorded-input consistency. It does
-not substitute for the Phase 1 ownership review, Phase 3 secret/license scans,
-or later publication approval.
+not substitute for ownership review, exact-source secret/license scans, or
+publication approval.
 
 
 ## Candidate scanner pins
 
 [scanner-pins.json](scanner-pins.json) records the official Gitleaks and
 ScanCode release versions, exact archive digests, supported runner choice,
-command shapes and the limited Phase 1 verification performed. Verify the
+command shapes and recorded tool-verification scope. Verify the
 selected download digest and executable version before use. Require a synthetic
 secret-detection canary and a known-license fixture before accepting empty
 candidate reports. Scanner output and any remediation evidence belong in private

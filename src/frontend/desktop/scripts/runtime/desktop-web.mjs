@@ -1,8 +1,8 @@
 import { lstatSync, rmSync } from "node:fs";
 import path from "node:path";
 
-// These legacy portraits have no redistribution approval and are unused by the
-// app. Keep private development sources, but never include their copied output.
+// These unapproved portrait names are forbidden in staged output. The filter
+// and independent audit also catch copies left in stale build directories.
 export const excludedDesktopWebAssets = Object.freeze([
   "korone-pfp.png",
   "marine-pfp.png",

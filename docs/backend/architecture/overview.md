@@ -3,9 +3,7 @@
 The backend is a FastAPI application plus application-layer direct chat
 building blocks. The FastAPI layer resolves an owner principal, loads persisted anima
 state, resolves anima chat profiles and model-provider catalog rows, invokes
-shared model clients, streams direct chat events, and persists side effects. The
-old graph runtime, graph node runners, backend agent API, and public
-`dispatch:sse` route are retired.
+shared model clients, streams direct chat events, and persists side effects.
 
 ## Package Layout
 
@@ -69,7 +67,7 @@ the installation principal before invoking it.
 
 Some routes still use ORM models directly. For new behavior, prefer the
 service, mapper, repository, and unit-of-work patterns unless the local router
-already has a small legacy path and changing it would create extra risk.
+already uses direct ORM access and a focused change can preserve that boundary.
 
 ## Layer Rules
 
@@ -133,8 +131,8 @@ Startup performs process-level setup:
   settings, `profile.md`, and configured Starter Animas
 - reconfigures logging
 - initializes the app-scoped direct model-client registry
-- starts the Included and Local Content Catalog watcher
-- optionally loads legacy default anima configuration
+- watches Local content; ordinary single-root installations also watch Included,
+  while immutable desktop Included mounts are scanned without a watcher
 - initializes optional voice provider state when `ANIMAMA_ENABLE_VOICE` is set
 
 The app owns a lazy `local.database.LocalDatabase`, or an explicitly injected
@@ -177,15 +175,14 @@ composition. The local HTTP boundary checks configured Host/Origin, Fetch
 Metadata and mutation markers; desktop requests also need the current launch
 capability cookie. Successful admission records an object identity in server
 request state. `AdmittedLocalPrincipalResolver` resolves only that state after
-completed bootstrap establishes the migration-owned principal. Old gateway and
-caller-supplied owner headers confer no authority. Unit tests use explicit
+completed bootstrap establishes the migration-owned principal. Caller-supplied
+owner headers confer no authority. Unit tests use explicit
 fixture bootstrap and dependency overrides; no production auth bypass exists.
 
 This local factory, bootstrap orchestrator, runtime APIs, environment contract,
-and migration graph are not a hosted mode. Better Auth may return only in a
-separately composed Animama Cloud service with its own database, BFF/app
-factory, and resolver. Reusable domain services and repository ports receive
-an explicit owner ID and do not read `installation_settings`.
+and migration graph serve a local installation. A hosted service requires its
+own database, app factory, and principal resolver. Reusable domain services and
+repository ports receive an explicit owner ID and do not read `installation_settings`.
 
 The shared consumer in `scripts/repository-boundary/consumers/backend.py`
 bootstraps both a local-shaped owner and an opaque hosted-shaped owner using
@@ -204,12 +201,8 @@ model provider, prepares a direct model-client turn through
 request-local resources when the stream completes or closes. The route owns the
 single public `run.completed` SSE frame after success-side effects such as TTS,
 title generation, and compaction. Shared model clients live on the app and close
-on shutdown. The old public `dispatch:sse` graph route is retired.
-
-The former process-local anima engine, `AnimaRuntime`, graph runner stack,
-public graph dispatch SSE route, and sessionful notification WebSocket paths
-have been retired. Normal chat is horizontally scalable from the API process's
-perspective.
+on shutdown. Each request carries its owner, Anima, Chat and run context; the
+API process does not retain a companion session between turns.
 
 ## Realtime Delivery
 

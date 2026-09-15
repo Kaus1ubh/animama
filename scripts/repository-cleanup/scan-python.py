@@ -107,8 +107,8 @@ def main() -> int:
             inputs.append({"path": str(relative), "sha256": sha256, "bytes": path.stat().st_size})
         except (OSError, ValueError, SyntaxError, UnicodeError) as error:
             errors.append({"path": str(relative), "error": str(error)})
-    # Cleanup tools are explicit configuration inputs, even before their first commit.
-    # The whitelist is excluded from the raw source pass even once it is tracked.
+    # Cleanup tools are explicit configuration inputs independently of Git tracking.
+    # The whitelist is excluded from the raw source pass.
     paths = [path for path in paths if path != WHITELIST]
     inputs = [item for item in inputs if item["path"] != str(WHITELIST.relative_to(ROOT))]
     config_inputs = [

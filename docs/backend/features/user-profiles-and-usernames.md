@@ -40,9 +40,9 @@ rolls the whole operation back. Replaying a response lost after commit returns
 the completed state without adding another memory version.
 
 Runtime context reports first run complete only when the timestamp and a
-nonblank stored name both exist. Earlier development installs that used Skip
-return to setup; adding a name retains their principal, content, and original
-completion timestamp. The nullable bootstrap column is not a supported way to
+nonblank stored name both exist. An installation with a completion timestamp
+but no name opens setup; adding a name retains its principal, content, and
+original completion timestamp. The nullable bootstrap column is not a supported way to
 clear an already chosen name.
 
 If the person edits `profile.md` directly, its content no longer matches the
@@ -62,8 +62,7 @@ All routes resolve the owner from `RequestPrincipal`; clients never submit a
 - `POST /v1/runtime/bootstrap:ensure` retries missing defaults.
 - `POST /v1/runtime/onboarding:complete` completes first run atomically.
 
-The former profile ensure, username availability/rename, and public creator
-lookup routes are removed. The local HTTP boundary admits requests for the
+The local HTTP boundary admits requests for the
 bootstrap-established installation owner before these handlers run.
 
 ## Ownership And Testing

@@ -72,8 +72,8 @@ class FilesystemPrivateFileStorage:
         area = relative.parts[0]
         root = self._areas.get(area)
         if root is None:
-            # Current creator rows retain their historical opaque key shape
-            # during the cutover. Pending uploads stay in staging; verified
+            # Persisted creator locators may use the opaque object-key shape.
+            # Pending uploads stay in staging; verified
             # compatibility blobs live in rebuildable internal state. Neither
             # location is portable content or exposed as a host path.
             is_pending_creator_upload = "staged" in relative.parts

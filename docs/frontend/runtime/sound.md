@@ -7,17 +7,17 @@ delivery detail. TTS orchestration and voice catalogs remain outside the typed
 Sound Effect and Music Track catalogs.
 
 `/a/sound-effects/new` and `/a/sound-effects/:soundEffectId/edit` create typed
-Sound Effect releases with one validated audio file and a bounded default
-volume. The `/a/create` hub links to Sound creation, and released Sounds appear
+Local Sound Effect items with one validated audio file and a bounded default
+volume. The `/a/create` hub links to Sound creation, and saved Sounds appear
 in the typed Library and preview through a short-lived content snapshot. Sounds
 are reusable components, not direct Anima loadout choices.
 `/a/music-tracks/new` creates typed Music Tracks with one long-form audio file,
-while the Anima Loadout owns enabled, autoplay, loop, and gain choices for exact
-releases.
+while the Anima Loadout owns enabled, autoplay, loop, and gain choices for selected
+Music Tracks.
 Gesture and Reaction Preview resolves direct Sound aliases and sounds associated
 with Avatar/Scene/Particle Effects as part of one exact closure.
 
-Gesture and Reaction creators select exact Sound releases from the typed
+Gesture and Reaction creators select exact Sound revisions from the typed
 catalog rather than borrowing the preview Anima's mounted SFX catalog. Preview
 resolves the Sound automatically and never equips it as a peer resource.
 

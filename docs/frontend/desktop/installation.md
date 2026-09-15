@@ -1,20 +1,18 @@
 # Install and use Animama Desktop
 
-**Release status (2026-09-03): no signed public release is available yet.** This
-guide describes the implemented desktop flow and the intended released installer.
-Apple enrollment is complete; signed artifact tests and release approval are still pending.
-The owner has declined public distribution. Local signed candidates may be built
-and transferred privately after their signing and input-review gates pass.
-The private `raymond-van/animama-releases` repository is preparation space, not
-an available public download. Developers should use [Platform builds](platforms.md).
+**No signed public release is available.** This guide describes the implemented
+desktop flow and the intended installer. Fresh-source staging, complete starter
+inputs, signed/native tests and publication approval remain pending. Local
+signed candidates can be transferred privately after signing and input review.
+Developers should use [Platform builds](platforms.md).
 
 ## Supported target
 
 | Platform                                     | Current position                                                                                                          |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Apple silicon Mac, macOS 15 or later         | Owner-approved minimum as of September 3. Fresh build, macOS 15 testing, clean-machine and signed acceptance remain open. |
+| Apple silicon Mac, macOS 15 or later         | Declared minimum; fresh build, macOS 15 testing, clean-machine and signed acceptance remain open. |
 | Windows 11 x64                               | Deferred; no supported self-contained installer yet.                                                                      |
-| Intel Mac, universal Mac, Windows ARM, Linux | No self-contained release in this plan.                                                                                   |
+| Intel Mac, universal Mac, Windows ARM, Linux | No supported self-contained release.                                                                                   |
 
 The installed app contains its own local services and database. It does not
 require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
@@ -36,7 +34,7 @@ Those tools belong to development/build instructions, not normal installation.
    setup. Leave the speech checkbox unchecked to avoid downloading Parakeet.
    Choose **Continue** to open Annie's chat; configure optional features in
    Settings later if preferred. Later launches open the last Anima you visited,
-   or the first available Anima if that selection no longer exists.
+   or the first available Anima if that Anima has been deleted.
 
 Fresh installations create Annie and Caitlyn. Caitlyn uses the owner-created
 Janna/R1 model; her companion name has not changed. A newer default does not
@@ -79,11 +77,9 @@ Local content, history and installed local speech assets remain on the computer.
 Downloading a pack or app update needs Internet access, as do configured remote
 AI/voice providers. Installed Parakeet can transcribe offline; that does not make
 remote chat work offline. Desktop does not need an Animama account for local use.
-Discover publishing and local-to-hosted account connection are discontinued.
 
-Downloaded example voice recordings, Tokyo backgrounds/thumbnails, BGM and
-unlicensed decorative SFX are excluded from distribution. Starter portraits,
-speech-engine assets and support for your own Local media remain. See
+Starter portraits and speech-engine assets are included; your own Local media
+can be imported. Complete starter animation acquisition remains a release gate. See
 [Content policy](../../../content/included/README.md).
 
 ## Updates, backup and removal
@@ -103,4 +99,4 @@ so copying the directory is not a guaranteed cross-machine migration.
 
 See [Backup and recovery](troubleshooting.md#backups-and-recovery) before
 restoring, downgrading or deleting anything. There is no supported one-click
-desktop full-reset or cross-device migration flow in this release plan.
+desktop full-reset or cross-device migration flow available.

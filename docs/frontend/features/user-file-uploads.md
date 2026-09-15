@@ -1,6 +1,6 @@
 # User File Uploads
 
-The web app exposes the backend user-file MVP through a shared Uppy upload flow
+The web app exposes the backend user-file lifecycle through a shared Uppy upload flow
 and Library's private Chat Uploads section. Uploaded files are installation-owned
 and can be attached to the next chat request by backend file ID once upload
 initialization succeeds.

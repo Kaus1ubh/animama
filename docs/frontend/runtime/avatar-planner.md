@@ -272,7 +272,7 @@ consumed with ignored reasons instead of lingering indefinitely.
   Reaction clips sample expression, avatar VFX, scene VFX, particle VFX, and
   SFX channels. They do not call `Avatar.playClip(...)`, do not suspend
   automatic VRMA playback, and do not claim the coordinated body pose lane.
-  Reaction releases cannot declare humanoid transforms, and the reaction player
+  Reaction definitions cannot declare humanoid transforms, and the reaction player
   defensively discards any such samples before expression fade/interpolation.
   The built-in canonical reaction catalog applies the same restriction.
 - `AnimaPoseClip.playback` lifetimes are evaluated by the planner for

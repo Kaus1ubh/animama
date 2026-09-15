@@ -1,6 +1,7 @@
 # VRM Inspector + Editor Session Guide
 
-This document explains the current VRM inspection and runtime-edit foundation in the Vite web frontend.
+The VRM inspector exposes asset structure and runtime material overrides for
+the rendered avatar in the Vite web frontend.
 
 It covers:
 
@@ -8,21 +9,15 @@ It covers:
 - how raw `.vrm` bytes and live Three.js runtime state are merged
 - how runtime texture VFX is applied to live eye/face material usages
 - how the debug modal is wired into the main canvas
-- what the first runtime edit does and does not do
+- which edits remain runtime-only
 
 For the broader avatar animation runtime, see `docs/frontend/runtime/avatar-animation.md`.
 
 ## 1) Why this layer exists
 
-The avatar runtime already had a strong rendering/animation path:
-
-- `AvatarCanvasActor.tsx` loaded the active avatar
-- `Avatar.ts` wrapped `three-vrm`
-- the scene rendered `avatar.scene` as a React Three Fiber `<primitive />`
-
-That was enough for rendering, animation, expressions, and lip-sync, but not enough for asset inspection or live editor-style tooling.
-
-The new VRM inspector/editor layer adds three concepts:
+`AvatarCanvasActor.tsx` loads the active avatar, `Avatar.ts` wraps `three-vrm`,
+and the scene renders `avatar.scene` as a React Three Fiber `<primitive />`.
+Inspection and runtime editing use three cooperating components:
 
 1. **`VRMDocument`**  
    A file/document view of the asset. It loads raw `.vrm` bytes, preserves raw glTF/VRM JSON, parses a `gltf-transform` document, and builds structural inspection data.
@@ -73,7 +68,7 @@ This split is intentional:
 The runtime flow is:
 
 1. `AvatarCanvasActor` loads the active anima avatar through `Avatar`.
-2. `Avatar` now retains:
+2. `Avatar` retains:
    - the loaded `GLTF` result as `sourceGltf`
    - the resolved file URL as `sourceUrl`
    - the stable avatar/debug key as `sourceKey`
@@ -297,7 +292,7 @@ The profile layer also defines the normalized eye/face atlas regions that an eff
 
 ### Catalog + application model
 
-The VFX catalog is code-defined in `vfx/catalog.ts`. Each entry now belongs to one of three kinds:
+The VFX catalog is code-defined in `vfx/catalog.ts`. Each entry belongs to one of three kinds:
 
 - `texture`
 - `face_anchored`
@@ -316,7 +311,7 @@ Each entry describes a shared base plus kind-specific fields:
 - `face_anchored`: face anchor, bilateral layout, pivot, and optional side/mirroring
 - `hover`: `eye_hover`, `mouth_hover`, or `box_hover`, plus the subtype-specific placement fields when needed and optional runtime skin backdrop for eye/mouth hover
 
-Application is runtime-only and per binding, but a binding can now host multiple simultaneous effects:
+Application is runtime-only and per binding, but a binding can host multiple simultaneous effects:
 
 1. clone the runtime material for that primitive usage
 2. resolve placement rects or hover placements for each applied effect
@@ -333,7 +328,7 @@ That means:
 
 - eye effects can fully replace the original iris texture look
 - face effects can preserve the original face texture and composite on top
-- multiple mesh-bound effects can now stack on the same binding
+- multiple mesh-bound effects can stack on the same binding
 - resetting the effect restores the original runtime material
 
 ### Eye and face atlas behavior
@@ -352,9 +347,7 @@ The draw surface always matches the original runtime texture dimensions, so the 
 
 ### Animation model
 
-Texture effects no longer animate by transforming the entire generated atlas texture.
-
-Instead, the controller:
+For texture animation, the controller:
 
 - resolves texture placements once
 - evaluates pulse/spin/drift from `animationConfig`
@@ -376,14 +369,14 @@ The VFX controller also throttles animation updates to 30 FPS. Animated texture 
 
 `VRMEditorSession` does not own VFX runtime state. Instead it subscribes to `avatar.vfxController` and exposes the controller snapshot through the main session snapshot.
 
-The debug modal now includes an `Effects` section with:
+The debug modal includes an `Effects` section with:
 
 - the bundled effect catalog
 - detected VFX target bindings
 - original runtime slot sizes
 - active effect counts and active effect lists per binding
 
-The VFX snapshot now exposes both binding-level summaries and per-applied-effect rows.
+The VFX snapshot exposes both binding-level summaries and per-applied-effect rows.
 
 In practice that means the modal can:
 
@@ -472,39 +465,28 @@ For breathing, idle sway, wind, updraft, and spring-bone helper controls, use `A
 
 ## 11) Current limitations
 
-This is intentionally a foundation, not a finished editor.
-
-Current limitations:
+The inspector supports runtime overrides with these limits:
 
 - wired only to the main rendered avatar
 - no document mutation APIs yet
 - no binary export/write-back path yet
 - no vertex or bone highlight overlays yet
-- no persistent VFX save/load path yet
-- no automatic emotion/state-driven VFX triggers yet
+- inspector-applied overrides are not persisted to the VRM or an Anima loadout
+- the inspector does not configure automatic emotion-driven effects; chat
+  Reaction clips own their effect events
 - target-role matching is still heuristic-first unless a model profile override exists
 - VFX application is currently limited to `map` and `shadeMultiplyTexture`
 - no diff/compare workflow between two VRMs
 
-The important thing that now exists is the boundary needed for those features:
+The ownership boundaries are:
 
 - `VRMDocument` for document-level inspection and future mutations
 - `VRMEditorSession` for live runtime bindings and overrides
 - `AvatarVFXController` for live texture/material VFX on the rendered avatar
 
-## 12) Good next steps
+## 12) Extension boundaries
 
-The current structure is ready for future work like:
-
-1. material replacement on a primitive usage
-2. texture slot replacement and richer slot targeting
-3. bone and skin visualization overlays
-4. vertex highlighting by material / texture / bone / skin
-5. commit/export paths from runtime/session state back into document bytes
-6. reuse of the same session model in anima preview/detail surfaces
-7. automatic VFX triggers driven by anima/emotion/runtime state
-
-When adding those features, keep the boundary stable:
+Keep ownership explicit when extending inspection or editing:
 
 - document changes belong in `VRMDocument`
 - live rendered-object inspection changes belong in `VRMEditorSession`

@@ -1095,7 +1095,7 @@ export const zPyAvatarUpdate = z.object({
 /**
  * PyAvatarUploadInitRequest
  *
- * Legacy Anima-create staging request retained until that UI is redesigned.
+ * Staging request for an owner-scoped Pocket voice catalog (.bin) upload.
  */
 export const zPyAvatarUploadInitRequest = z.object({
     content_type: z.optional(z.union([

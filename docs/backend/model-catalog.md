@@ -65,8 +65,8 @@ Normal avatar chat stores the selected default as a stable catalog row ID on
 }
 ```
 
-New anima creation accepts optional `model_provider_id`; when omitted, the
-profile is seeded from `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID`, which defaults to
+Strict Anima creation seeds the profile from `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID`,
+which defaults to
 `OpenAIResponsesHTTPAgent:gpt-5.6-luna`. The frontend model selector persists
 changes through `PATCH /v1/animas/{anima_id}/chat-profile`.
 

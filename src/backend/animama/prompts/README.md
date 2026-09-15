@@ -16,8 +16,3 @@ Normal companion chat uses the request-local direct chat runtime. Start with
 - [`avatar_animation_manifest.py`](avatar_animation_manifest.py) contains the
   bundled animation manifest reader and Gesture identifier normalization helpers.
   The direct turn's available Gestures come from its resolved runtime descriptors.
-
-The obsolete graph/helper `PromptManager` and prompt facade are removed.
-They are not part of normal `chat:sse` prompting. Historical graph and
-supervisor-delegation examples remain in Git history; the direct-chat ownership
-map above is unchanged.

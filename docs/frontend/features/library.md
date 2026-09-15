@@ -26,8 +26,7 @@ For example, Scene FX is `/a/library?section=fx&fx=scene`. Changing sections
 discards filters owned by the previous section. The route expands sparse URL
 state into complete internal defaults before rendering Library components.
 Discrete filters create history entries; text search replaces the current
-entry so typing does not flood history. Authentication redirects use the same
-compact contract.
+entry so typing does not flood history.
 
 ## Product inventory
 

@@ -228,7 +228,7 @@ One additional safety rule still exists in `MainShell`:
 
 Scene VFX is intentionally not rendered inside Three.js.
 
-There are now two DOM render bands:
+There are two DOM render bands:
 
 ### Underlay band
 
@@ -333,7 +333,7 @@ Responsibilities:
 - schedule effect expiry
 - attach and remove temporary dismiss listeners
 
-Dismiss behavior is now intentionally stricter than the original background-only controller:
+Dismiss behavior follows these rules:
 
 - keydown dismiss ignores modifier keys, repeated keys, and editable targets
 - only `Escape`, `Enter`, and `Space` are treated as dismiss keys
@@ -444,7 +444,7 @@ Current preset ids:
 - `shoujo-hearts`
 - `comic-pop`
 - `kawaii-sparkles`
-- `scene-vfx-emotion-<emotion>` for retained emotion backgrounds; annoyance, caring, confusion, desire and remorse no longer include scene backgrounds
+- `scene-vfx-emotion-<emotion>` for the emotion backgrounds listed in the catalog
 
 `none` clears the live background effect. The other presets are full `background_layers` snapshots.
 
@@ -551,7 +551,7 @@ This means:
 - compares the new target against the previous target with `areResolvedTargetsSimilar(...)`
 - only rebuilds geometry when the resolved target materially changes
 
-The avatar projection path was also optimized after the initial focus-lines implementation:
+Avatar projection reuses work within each sampling pass:
 
 - camera matrices are updated once per sampling pass
 - a reusable scratch `THREE.Vector3` is used for projection work instead of allocating one per sampled point
@@ -582,7 +582,7 @@ Scene VFX is exposed through a dedicated top-level `Scene VFX` section in the VR
 
 This is intentionally separate from the avatar `Effects` section because the two runtimes have different ownership and rendering surfaces.
 
-The modal now keeps independent draft state per scene-VFX kind:
+The modal keeps independent draft state per scene-VFX kind:
 
 - background draft state
 - focus-lines draft state

@@ -25,7 +25,7 @@ git lfs install
 git lfs pull
 ```
 
-Do not add public aliases for a migrated Avatar, Gesture, Reaction, effect,
+Do not add public aliases for an Avatar, Gesture, Reaction, effect,
 sound, music track, Appearance, or other catalog item. All playable Included
 and Local entries need registered file facts and protected catalog/preview/
 runtime delivery.

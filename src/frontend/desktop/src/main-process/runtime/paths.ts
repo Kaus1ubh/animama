@@ -40,7 +40,7 @@ export function migrateLegacyTree(
   if (lstatSync(source).isSymbolicLink())
     throw new RuntimeError("legacy_profile_invalid");
   if (existsSync(destination)) {
-    // A completed journal makes retries harmless, without discarding a new legacy tree.
+    // An existing destination is a conflict even if a journal exists; never merge profiles.
     throw new RuntimeError("legacy_profile_conflict");
   }
   mkdirSync(path.dirname(destination), { recursive: true });
@@ -117,7 +117,7 @@ function migrateLegacyIdentity(application: App, paths: RuntimePaths): void {
   }
 }
 
-/** Keep the original serialized port key so existing browser origins never move during the HTTP cutover. */
+/** gatewayPort stores the application port; preserving it keeps the saved browser origin stable. */
 export type RuntimeState = { version: 1; gatewayPort: number };
 export function readRuntimeState(file: string): RuntimeState | null {
   privateDirectory(path.dirname(file));

@@ -1,18 +1,12 @@
 # Desktop Platform Builds
 
-The embedded runtime targets macOS 15+ on Apple silicon, explicitly approved
-by the owner on September 3. This supersedes the earlier macOS 13 target after
-a native audit found newer deployment requirements in bundled dependencies.
-A fresh build and actual minimum-OS acceptance are still required. Phase 2
-implements the unsigned application lifecycle; Phase 3 adds optional pack
-controls. Phase 4 provides signed-release tooling and guarded updates. The
-unlicensed decorative SFX and downloaded media examples are excluded from desktop packages;
-remaining redistribution review and Apple/release inputs still gate a release.
-See [Runtime staging](runtime-staging.md),
-[Desktop overview](overview.md), and [Releases](releases.md) before building.
-For users, [Installation](installation.md) is the starting point; these are
-developer commands. Initial production publication follows the owner's
-[manual release process](release-process.md), not the dormant CI deployment path.
+The embedded runtime targets macOS 15+ on Apple silicon. It includes the local
+service lifecycle, optional pack controls, signing tools and guarded updates.
+A fresh build, complete starter inputs, minimum-OS testing and signed/native
+acceptance are required before release. See [Runtime staging](runtime-staging.md),
+[Desktop overview](overview.md) and [Releases](releases.md) before building.
+For installation use [Installation](installation.md); these are developer
+commands. Publication follows the [manual release process](release-process.md).
 
 ## External-Stack Development
 
@@ -83,7 +77,9 @@ pnpm desktop:mac
 A complete fresh stage and successful audit are mandatory. The build fails on
 missing or stale evidence, unresolved input files, unsupported targets, or a
 stage-failure marker. It does not silently produce an external-web wrapper.
-The tracked starter closure resolves without the ignored SFX or their metadata.
+The stage requires every required starter dependency to be tracked. Mixamo
+animation acquisition/conversion and a complete fresh starter build remain
+pending; ignored local copies cannot satisfy the distribution-input gate.
 Do not copy private assets into a stage to bypass a missing dependency.
 
 The unsigned development bundle is written to
@@ -101,7 +97,7 @@ installed size. This local bundle is not a notarized distribution artifact.
 `pnpm desktop:mac:run` is a deprecated compatibility alias for
 `desktop:mac:package:run`: it still packages and opens without staging/auditing.
 Use the explicit names above for new workflows. The existing
-`desktop:mac:dmg` alias and `desktop:dist:mac` now require the signed-release
+`desktop:mac:dmg` alias and `desktop:dist:mac` require the signed-release
 inputs and build a signed candidate; they do not publish it. Follow
 [Releases](releases.md) for the separate native smoke and publication gates.
 
@@ -123,19 +119,19 @@ development-only and rejected in packaged mode.
 
 | Target                             | Current status                                                                                             |
 | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| macOS 15+, arm64                   | Unsigned core journey verified on macOS 26.6.2; user verification, minimum-OS and signed acceptance remain |
-| Windows 11, x64                    | Native packaging and recovery deferred to Phase 5 after verified macOS                                     |
+| macOS 15+, arm64                   | Development packaging implemented; fresh-source native, minimum-OS and signed acceptance remain |
+| Windows 11, x64                    | Native packaging and recovery deferred                                     |
 | Linux                              | External-stack development only; packaging deferred beyond the current supported release                   |
-| Intel/universal macOS, Windows ARM | Not supported by this plan                                                                                 |
+| Intel/universal macOS, Windows ARM | Not supported                                                                                 |
 
-Legacy Windows/Linux builder targets and command names remain in configuration,
+Windows/Linux builder targets and command names remain in configuration,
 but the prebuild gate rejects them until their native runtime is implemented.
 Do not advertise their former shell artifacts as current self-contained builds.
 Core signing, notarization, update feeds, and clean-machine smoke are implemented
 as gated tooling; an actual accepted release remains outstanding. The deferred
 document worker requires signing, notarization and publisher verification before execution; see the
 [pack producer](runtime-staging.md#optional-pack-producer). Windows release/smoke
-commands still stop at the Phase 5 gate.
+commands reject unsupported targets.
 
 ## Validation
 
@@ -143,7 +139,6 @@ Run from `src/frontend`:
 
 ```sh
 pnpm check
-pnpm server:test
 pnpm web:test
 pnpm desktop:test
 pnpm desktop:build
@@ -166,22 +161,14 @@ Verify the actual packaged app with development servers stopped:
 7. Confirm bad runtime files, unavailable encryption, missing vault, and an
    unsupported database major preserve data and show recovery.
 
-The earlier 2026-09-02 unsigned completion pass verified the now-superseded
-Skip setup, two real starter
-chats, PocketTTS playback, microphone access, PiP, quick chat, fullscreen,
-private bytes, upload/restart persistence, gateway rejection, owned shutdown,
-and port-collision Retry. It kept the main Compose stack running and proved
-separate packaged executables with a system-only PATH; it was not a clean
-machine or minimum-macOS test. The
-[release gates](release-process.md#release-gates-in-order) retain the required-name
-fresh-profile, physical-input, minimum-OS and forward-upgrade checks. Preserve
-exact build receipts with each release review; this unsigned checkpoint cannot
-satisfy signed-candidate acceptance.
+Native acceptance must cover the required-name fresh-profile journey, physical
+input, minimum supported OS and forward upgrade. Keep exact build receipts with
+each review; component or unsigned tests do not satisfy signed acceptance.
 Test microphone permission by opening the `.app` normally (Finder or `open`):
 launching its executable directly through an automation harness can produce a
 different macOS privacy context. No application permission bypass is supported.
 
-Phase 3 verification additionally requires skipping optional speech, real
+Optional-pack verification requires skipping optional speech, real
 download/cancellation/install/restart/removal, and offline dictation. Review
 measured bytes for the one active pack, Parakeet. Expanded content and document
 processing are deferred from the first release; retain their lifecycle and
@@ -190,13 +177,12 @@ Those real artifact/native tests remain gated, not passed. A
 successful type check, mocked supervisor test, native database component probe,
 or unsigned core journey does not replace native optional-pack acceptance.
 
-Phase 4 additionally requires valid nested/outer signatures, notarization,
+Signed-release verification requires valid nested/outer signatures, notarization,
 stapling, measured DMG/ZIP size gates, the required-name installed-app smoke, manual
 native checks, and a real forward update from an older signed app with state
 preserved. Its smoke harness refuses existing profiles and never resets data.
-The owner has prepared the fresh account display name `Animama Test`; coordinate
-its real login and check for absent app/profile data before the exact signed DMG
-smoke. Keep the predecessor-upgrade profile separate from the newer candidate's
+Use a separate macOS test account and verify that app/profile data is absent
+before the exact signed DMG smoke. Keep the predecessor-upgrade profile separate from the newer candidate's
 profile. These are native OS accounts, not additional Compose stacks. Local
 candidates may be built with the repository private; installed pack/update
 transport acceptance remains gated. See [Releases](releases.md).

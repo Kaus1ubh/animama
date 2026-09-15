@@ -14,14 +14,11 @@ Routes:
 - `/a/animas/:animaId/identity`: edit the Anima's `identity.md` memory entry.
 - `/a/:animaId`: enter the live Avatar/chat surface.
 
-There is no generic Assets tab, Advanced/Legacy binding editor, or Asset Pack
-manager. Old development URLs are not compatibility routes.
-
 The [live creation journey](custom-anima-creation.md) uses stable live
 name/identity authority, atomic creation, and durable idempotency receipts.
-Signup/repair uses backend starter specifications and preserves existing
-customization and deletion. The four-section management Loadout is unchanged;
-creation adds no Blueprint or Publish action.
+Installation bootstrap/repair uses backend starter specifications and preserves existing
+customization and deletion. The management Loadout has four sections; creation produces a private live
+Anima.
 
 ## Identity
 

@@ -144,12 +144,12 @@ The avatar lip-sync bridge uses gruut phonemes from SSE and the actual played
 audio duration to build or recompute vowel viseme timing. For structured speech
 streaming, `useChatSession` accumulates the `tts_phonemized_text` from every
 speech segment that is sent to TTS, so the final run-level duration correction
-uses the same text basis as the spoken audio. Anima no longer uses ElevenLabs
-timing metadata for enhanced lip-sync.
+uses the same text basis as the spoken audio. Lip-sync timing comes from those
+phonemes and playback callbacks, not ElevenLabs alignment metadata.
 
 ## Settings
 
-When ElevenLabs is selected, account speech settings expose a model selector.
+When ElevenLabs is selected, application speech settings expose a model selector.
 `Flash v2.5` persists `eleven_flash_v2_5`; `Multilingual v2` persists
 `eleven_multilingual_v2`; `Eleven v3` persists `eleven_v3`.
 
@@ -159,7 +159,7 @@ text-token chunking. The saved `tts_stream_chunks` preference is not
 overwritten, so switching back to Flash or Multilingual restores the previous
 effective chunked behavior.
 
-When `Eleven v3` is selected, account speech settings also show an `Audio
+When `Eleven v3` is selected, application speech settings also show an `Audio
 grouping` control. `Sentence` persists
 `tts_elevenlabs_v3_finalized_chunking="sentence"` and starts audio as soon as
 each sentence batch is ready. `Paragraph` persists

@@ -3,8 +3,8 @@
 Mixamo-derived animation bytes are excluded from Git and Docker build contexts.
 Existing private working copies are retained. The exclusion covers 65 gesture
 VRMAs and six idle VRMAs; original project-authored definitions remain source.
-Git history and old LFS objects are unchanged. Public source must come from a
-reviewed clean snapshot, not a visibility change to this repository.
+Ignored files can still exist in Git history or LFS storage. Review every
+object intended for publication before exposing any repository or snapshot.
 
 ## Manual acquisition helper
 
@@ -24,7 +24,7 @@ are never overwritten. The helper does not receive credentials, scrape Adobe,
 download animations automatically, convert files or install content.
 
 The checklist names the 29 intended starter targets: 23 gestures and six idle
-motions. `plead` and `posture_sad_custom` were retired from the starter selection.
+motions.
 The full 71-path exclusion inventory is in `scripts/mixamo-assets.json`.
 Names are local search hints: the exact original Adobe animation IDs, character
 and export settings have not been recovered. Record them while downloading;

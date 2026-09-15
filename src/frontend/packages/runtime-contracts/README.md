@@ -11,7 +11,7 @@ Use `@animama/runtime-contracts` for runtime contracts,
 `@animama/runtime-contracts/validators` for generated response validation.
 Create one API client from each provider's injected `ProductApiTransport` and
 pass it explicitly to SDK operations. The `default-client` export preserves the
-existing local web adapter's singleton while other features are extracted; its
+local web adapter's singleton; its
 configuration remains in the local app and must not configure another provider.
 
 From `src/frontend`, run `pnpm openapi-ts` to regenerate `src/generated` from

@@ -1,7 +1,7 @@
 # Electron Desktop App Implementation Guide
 
 Animama Desktop is the primary local application. It opens without credentials;
-one migration-generated installation principal owns local Animas, chats,
+one generated installation principal owns local Animas, chats,
 memories, settings, content, and files. Local use has no hosted account
 connection. Hosted identity and deployment are separate future work.
 
@@ -10,9 +10,9 @@ Use the [runtime architecture](../../docs/frontend/desktop/overview.md),
 [maintainer release process](../../docs/frontend/desktop/release-process.md) as the durable
 implementation and acceptance references. Embedded macOS supervision, optional
 packs, guarded updates, backups, signing and installed-artifact smoke tooling are
-implemented. The signed/notarized core candidate was independently verified on
-2026-09-04, but no accepted public release exists. Fresh-profile/native acceptance,
-a real forward upgrade and explicit publication approval remain required.
+implemented. No accepted public release exists. A fresh matched artifact,
+complete starter acquisition, minimum-OS testing, native acceptance, a real
+forward upgrade and explicit publication approval remain required.
 Windows packaging is deferred. The [installation](../../docs/frontend/desktop/installation.md),
 [feature-pack](../../docs/frontend/desktop/feature-packs.md), and
 [recovery](../../docs/frontend/desktop/troubleshooting.md) guides describe current supported use.
@@ -75,7 +75,7 @@ expose arbitrary filesystem paths, process commands, or stored keys.
 
 ## Security And Recovery
 
-Every desktop window keeps context isolation, sandboxing, web security, and
+Desktop windows enable context isolation, sandboxing and web security, with
 Node integration disabled. A host-only, HttpOnly, SameSite=Strict capability
 cookie is installed in `persist:animama` after owned readiness and before
 loading React. FastAPI validates the matching capability and exact request
@@ -116,7 +116,7 @@ preserving the original snapshot. After two successful app launches, retention
 keeps the newest snapshot and all failed/interrupted attempts. Dumps do not
 contain files, the vault, or OS keychain and do not replace a complete backup.
 
-See [Desktop overview](../../docs/frontend/desktop/overview.md) for paths, legacy migration,
+See [Desktop overview](../../docs/frontend/desktop/overview.md) for paths, existing-profile adoption,
 stale-process recovery, provider settings, and logging.
 
 ## Commands And Verification
@@ -135,7 +135,7 @@ pnpm desktop:mac
 ```
 
 Only run the final package step after a successful complete stage/audit.
-Windows native packaging is Phase 5; Linux packaging is outside this plan.
+Windows and Linux self-contained packaging are deferred.
 Existing shell dev workflows are not proof of either native package.
 
 The user-verification gate requires the real macOS app to launch with no

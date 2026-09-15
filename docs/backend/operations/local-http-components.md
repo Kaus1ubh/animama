@@ -98,7 +98,7 @@ All `/_desktop` requests need the distinct `X-Animama-Desktop-Control` secret.
 They remain usable before product readiness and during quiescence, but a
 renderer capability alone never grants control access. Self-host composition
 denies this entire prefix and mounts no quiesce control. HTTP documentation,
-OpenAPI and retired auth paths are hidden; offline `application.openapi()` is
+OpenAPI and account-authentication paths are hidden; offline `application.openapi()` is
 preserved. New infrastructure routes are excluded from the public schema.
 
 ## Input bounds and drain behavior
@@ -141,7 +141,7 @@ product windows, shows independent recovery, requests this drain, and refuses
 pointer changes on `runtime_busy`. It resumes by restarting the owned runtime
 and checking its private readiness before recreating product windows.
 
-Admission failures retain the bounded legacy `gateway_request_rejected` code
+Admission failures use the compatibility code `gateway_request_rejected`
 (400/401/403/421). Readiness/drain failures use `local_runtime_unavailable` or
 `runtime_quiescing` (503); transport failures use `request_body_too_large` (413)
 or `request_body_timeout` (408). Errors contain no credential, principal or path

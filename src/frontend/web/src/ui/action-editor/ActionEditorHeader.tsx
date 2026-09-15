@@ -145,7 +145,7 @@ function HeaderTooltip({
   );
 }
 
-/** Responsive historical creator toolbar connected only to typed workflows. */
+/** Responsive creator toolbar connected to typed Gesture and Reaction workflows. */
 export function ActionEditorHeader({
   history,
   onModeChange,

@@ -251,9 +251,9 @@ without moving the input upward on every new bubble. Quick Chat intentionally
 hides the first-chat prompt suggestions even when the main renderer includes
 them in the mirrored snapshot.
 
-Normal browser access still requires auth. A trusted Electron Quick Chat window
-role can mount while auth is still initializing so the auxiliary window avoids
-loading flashes.
+The route requires the Electron `quick-chat` window role and Quick Chat preload
+bridge. Other windows and browsers redirect to `/`. The main renderer owns chat
+and voice work; the auxiliary renderer exchanges bounded snapshots and commands.
 
 ## Runtime Mirror
 
@@ -337,7 +337,7 @@ window behavior.
 - Pressing `Ctrl + Slash` again hides Quick Chat when it targets the same
   anima/chat.
 - Reopening Quick Chat for the same anima reuses the warm renderer and appears
-  without the first-load route/auth cost.
+  without repeating initial route loading.
 - Pressing `Ctrl + Slash` after navigating the main window to another
   anima/chat retargets Quick Chat.
 - The chat column scrolls older messages.

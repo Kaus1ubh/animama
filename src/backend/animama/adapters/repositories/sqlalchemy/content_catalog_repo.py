@@ -742,7 +742,7 @@ class SQLAlchemyContentCatalog(ContentCatalog):
 
         The source advisory lock is held by the caller. Refuse every live binding,
         external dependency, preview or runtime lease before cascading deletion.
-        Phase 3 exposes the same blockers before changing the mounted source list.
+        Desktop removal preflight exposes the same blockers before changing mounts.
         """
 
         ids = [row.id for row in rows]

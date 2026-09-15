@@ -7,11 +7,11 @@ owner header or bypass the boundary to reach a separate backend origin.
 
 ## Current Automation Status
 
-The checked-in Playwright projects under `e2e/` predate the accountless cutover
-and remain quarantined historical test code. Their setup project, stored-state
-fixture, and credential-era journey names do not describe a supported workflow
-and must not be used to test the current stack. The supported Phase 5 journey
-runs through the real application origin and covers installation bootstrap, first run,
+The checked-in Playwright projects under `e2e/` are quarantined: their setup
+project and stored-state fixture require account credentials and are incompatible
+with the local accountless application. Do not run them against the local stack.
+The supported `local:verify:accountless` journey runs through the application
+origin and covers installation bootstrap, first run,
 settings, starter and custom Animas, private uploads, typed preview bytes,
 profile edits, chat SSE, receipts, and restart persistence.
 
@@ -44,15 +44,15 @@ cd src/frontend
 pnpm local:verify:accountless -- \
   --origin "$ANIMAMA_PUBLIC_ORIGIN" \
   --setup name \
-  --display-name "Phase Five" \
-  --profile-name "Phase Five Updated"
+  --display-name "Browser Test" \
+  --profile-name "Browser Test Updated"
 ```
 
 After restarting the same named stack with its saved environment, use `--setup existing` and
 the same `--profile-name`. That mode requires the custom Anima, chat history,
 private file, completed first run, and personalization to have survived. Fresh
 named setup first verifies that missing, null, and blank names are rejected;
-the retired `--setup skip` mode is no longer accepted. No additional stack is
+`--setup` accepts only `name` or `existing`. No additional stack is
 needed to verify name validation. Root launch should open the last visited
 owned Anima, or Annie on a fresh installation.
 Output contains only bounded pass/fail booleans and counts, never principal or
@@ -111,7 +111,7 @@ never change ownership. Ordinary renderer requests cannot use desktop controls.
 ## Evidence Safety
 
 Screenshots, traces, videos, logs, and attachments must not contain API keys,
-cookies, desktop-control credentialss, private headers, storage locators, or
+cookies, desktop-control credentials, private headers, storage locators, or
 principal values. Prefer bounded booleans, counts, response status, and hashes
 when proving persistence or token rotation. Do not record private file bodies or
 semantic memory contents unless the fixture was created expressly for the run.

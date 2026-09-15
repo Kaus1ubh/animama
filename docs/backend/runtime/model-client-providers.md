@@ -1,10 +1,8 @@
 # Model Clients And Providers
 
 Normal `POST /v1/animas/{anima_id}/chat:sse` turns use shared direct model
-clients, not graph runners, durable backend `agent` rows, `BaseAgentProvider`,
-or `AgentRunner`. The old graph runner/provider stack was removed in the
-agentless refactor. Keep this page focused on the supported direct-client
-boundary.
+clients. The boundary accepts a prepared prompt, provider options and
+continuation state, then emits normalized deltas and sanitized observations.
 
 ## Direct Chat Boundary
 
@@ -265,13 +263,13 @@ response objects stay inside adapter modules; application services persist only
 domain data and JSON-safe metadata.
 
 When memory tools are attached, the prompt sets `parallel_tool_calls` to
-`false`. Read/search tools and legacy writers use strict JSON-schema functions.
+`false`. Read/search tools and function-tool writers use strict JSON-schema functions.
 For `OpenAIResponsesHTTPAgent`, the adapter additionally sends typed SDK
 `ApplyPatchToolParam(type="apply_patch")` when memory writes are allowed and the
 selected catalog row advertises `apply_patch`. That request keeps read/search
-functions and omits the two legacy writers. The official OpenAI Responses rows
+functions and omits the two function-tool writers. The official OpenAI Responses rows
 for `gpt-5.4-nano`, `gpt-5.6-luna`, and `gpt-5.6-terra` have that capability;
-`gpt-5-nano` and other providers retain legacy functions. `apply_patch` is
+`gpt-5-nano` and other providers retain JSON-schema functions. `apply_patch` is
 intentionally absent from the user-requestable generic `native_tools`
 allowlist. Public catalog rows keep the complete capability in
 `native_tool_support` and separately expose

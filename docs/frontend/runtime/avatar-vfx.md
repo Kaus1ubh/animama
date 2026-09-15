@@ -101,7 +101,7 @@ action creator then resolves its current exact catalog revision.
 
 ## 2) High-level model
 
-The runtime now models VFX as a discriminated catalog union:
+The runtime models VFX as a discriminated catalog union:
 
 1. `texture`
 2. `face_anchored`
@@ -144,7 +144,7 @@ The VFX flow is:
    - or creates head-attached hover planes
 7. Active effects are animated at the controller's VFX tick rate when their `animationConfig` enables pulse, spin, or drift.
 
-One important runtime change is that a binding can now hold multiple active effects at once.
+A binding can hold multiple active effects at once.
 
 In practice that means:
 
@@ -164,7 +164,7 @@ This is not a separate catalog VFX kind. It is a controller-generated texture pr
 - painted mouth detail under mouth decals
 - painted mouth detail under `mouth_hover`
 
-The flatten pass is driven by `AvatarFaceTextureAnchors`, which now resolves dedicated UV regions for:
+The flatten pass is driven by `AvatarFaceTextureAnchors`, which resolves dedicated UV regions for:
 
 - `flatten.sample.center`
 - `flatten.eyes.left`
@@ -267,7 +267,7 @@ In practice:
 
 ## 5) VFX type 2: Full-surface `texture` effects
 
-This is the older on-mesh texture path, now represented by `kind: "texture"` entries.
+The on-mesh texture path uses `kind: "texture"` entries.
 
 It is still the right choice for effects that should use the full texture dimensions of an existing surface.
 
@@ -284,7 +284,7 @@ Typical examples:
 
 ### How they work
 
-For texture-backed effects, the controller now works at the binding level rather than the single-effect level:
+For texture-backed effects, the controller composites all effects at the binding level:
 
 1. clone the runtime material for the chosen primitive usage once
 2. resolve one or more placement rects for the effect inside each compatible slot
@@ -294,7 +294,7 @@ For texture-backed effects, the controller now works at the binding level rather
 
 This is the main architectural change behind stacked VFX support.
 
-The material still only sees one final texture per slot, but that final texture can now represent a stack of active effects.
+The material still only sees one final texture per slot, but that final texture can represent a stack of active effects.
 
 The controller currently targets these slots:
 
@@ -450,15 +450,14 @@ That means:
 - texture effects animate through draw-time transforms on their resolved placement rects
 - hover planes animate through local transform changes on the plane group
 
-Texture animation is no longer based on transforming the entire texture atlas.
-
-Instead:
+Texture animation uses placement-local draw transforms:
 
 - eye and face placements are resolved once when the effect is applied
 - pulse/spin/drift are evaluated against those placements
 - the animated draw happens around each placement's own local center
 
-This avoids the old behavior where a localized iris effect appeared to orbit or drift because the whole atlas was being transformed.
+Placement-local transforms keep localized iris effects centered within their
+regions of the atlas.
 
 The controller also throttles VFX animation updates to 30 FPS.
 
@@ -565,14 +564,14 @@ The runtime still keeps several expensive operations one-time:
 - texture and hover placements are resolved once at effect application
 - material cloning happens once per active composite binding
 
-The per-frame or per-tick work is now split more carefully:
+Each VFX tick performs this work:
 
 - hover effects update local transforms
 - animated texture effects redraw the binding's composite texture
 - the resulting composite `CanvasTexture` is marked dirty and re-uploaded
 - face flattening only forces a composite rebuild when its state changes, not on every frame by itself
 
-To reduce that cost, the controller now caches the static parts of the texture stack:
+The controller caches the static parts of the texture stack:
 
 - original base texture content for `overlay`
 - face flatten fills for eye and mouth regions
@@ -581,7 +580,8 @@ To reduce that cost, the controller now caches the static parts of the texture s
 
 On an animation tick, the controller composites those cached static segments with the current animated layers instead of rebuilding the full static stack every render frame.
 
-This is a real optimization, but animated texture effects are still the most expensive VFX path because they require canvas redraw plus texture upload.
+Animated texture effects require canvas redraw and texture upload on animation
+ticks; account for that work when measuring VFX performance.
 
 There is no per-frame face landmark solve in the normal path.
 
@@ -590,7 +590,7 @@ There is no per-frame face landmark solve in the normal path.
 - target matching is still heuristic-first unless a per-model profile override exists
 - anchored decal quality still depends on the quality of the cached anchors
 - `face_skin` usually does not include usable eye geometry
-- some older assets are still authored like full-face overlays even when used as anchored decals
+- full-face overlay artwork may fit poorly when used as an anchored decal
 - `span` decals are easy to misuse if the art was not authored as one wide bilateral image
 - animated texture effects are still more expensive than hover effects because the final composite texture must be refreshed on animation ticks
 - texture slot targeting is still broad; the current runtime considers both `map` and `shadeMultiplyTexture` when they exist

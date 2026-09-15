@@ -97,7 +97,7 @@ Migration snapshots live under
 a verified custom-format database dump before changing an existing schema.
 Retry reuses the original snapshot. After two distinct successful app launches,
 older known-successful snapshots may be pruned; the newest, failed/interrupted,
-and unknown/legacy snapshots stay. Provider restarts and Retry are not new launches.
+and unrecognized snapshots stay. Provider restarts and Retry are not new launches.
 
 These dumps are **not full backups**: they omit Local files, uploads, the vault
 and macOS keychain. Quit Animama and wait for its services to stop before a

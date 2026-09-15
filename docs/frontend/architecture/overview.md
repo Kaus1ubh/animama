@@ -107,7 +107,7 @@ Primary routes:
   composing typed product catalogs and Chat Uploads.
 - `/a/animas`: `src/frontend/web/src/routes/a/animas/index.tsx`; compatibility
   resolver that replaces the URL with the first owned Anima's management route,
-  or sends an empty account to `/a/animas/new`.
+  or sends an installation with no Animas to `/a/animas/new`.
 - `/a/animas/:animaId`:
   `src/frontend/web/src/routes/a/animas/$animaId.tsx`; anima details and
   management. `/a/animas/:animaId/identity` opens the anima-scoped
@@ -189,9 +189,8 @@ An ordinary new tab may show cached HAR rows while transferring no app JS/CSS.
 DevTools **Disable cache** and hard reload are different experiments. Private
 content still revalidates ownership; the runtime manifest uses scoped gzip
 while issuing a fresh lease. Do not compare total row counts as if each row
-were a download. Measured settings-dialog deferral did not materially reduce
-pre-frame JavaScript or improve startup, so settings, route splitting, the
-React-vendor boundary, and voice/worker imports keep their existing composition.
+were a download. Evaluate startup changes using transferred bytes and first-frame timings
+with the same cache conditions, content and optional packs.
 
 ## HTTP Serving
 
@@ -204,8 +203,7 @@ configuration nor Electron internals.
 
 The browser retains UI/SSE metric calls and API trace propagation through
 `@opentelemetry/api`, but its startup does not register telemetry providers or
-export OTLP signals. The disconnected browser exporter, log/span helpers, Web
-Vitals initializer, and unused legacy WebSocket counters have been removed.
+export OTLP signals.
 The FastAPI forwarder and optional Compose collector remain; the collector also
 serves backend telemetry and file logs. Embedded desktop disables the proxy
 with a 204 response. Future hosted observability requires its own explicit
