@@ -257,7 +257,7 @@ data use the same Content Catalog and protected byte APIs; React never enumerate
 the host filesystem.
 
 Only unpackaged external-stack development loads `ANIMAMA_DESKTOP_WEB_URL` or
-`http://localhost:3000`. Packaged mode rejects that override and requires a
+`http://localhost:8000`. Packaged mode rejects that override and requires a
 per-launch HttpOnly renderer capability. See [Desktop overview](../desktop/overview.md),
 [Feature packs](../desktop/feature-packs.md) and
 [Desktop backend operations](../../backend/operations/desktop-runtime.md).

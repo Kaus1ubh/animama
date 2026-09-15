@@ -1,7 +1,7 @@
 import { request } from "node:http";
 
 const origin = new URL(
-  process.env.ANIMAMA_PUBLIC_ORIGIN ?? "http://localhost:3000",
+  process.env.ANIMAMA_PUBLIC_ORIGIN ?? "http://localhost:8000",
 );
 
 /** Probe Vite through its real Host boundary and the unchanged FastAPI proxy. */

@@ -728,7 +728,7 @@
       "id": "skill-animama-local-stacks",
       "license": "UNKNOWN",
       "path_sha256": {
-        ".agents/skills/animama-local-stacks/SKILL.md": "1d304de3d06a45090b561cb188a1c0c6368a0997036eea9c35dd3878ef106e16"
+        ".agents/skills/animama-local-stacks/SKILL.md": "91942fa1fa1d0118a86070338b4138850b0c8840d6359d950b123d7512390c4a"
       },
       "paths": [
         ".agents/skills/animama-local-stacks/SKILL.md"
@@ -982,11 +982,11 @@
       "evidence_ids": [
         "skill-animama-local-stacks"
       ],
-      "git_blob_oid": "88495690ea2431b398cab54a824f487e63dcc7f2",
+      "git_blob_oid": "cdd94e0434394a175908404d31318c075819a86a",
       "notes": "Skill content, examples and generated compilations require their own provenance review.",
       "path": ".agents/skills/animama-local-stacks/SKILL.md",
       "publication_status": "review-pending",
-      "sha256": "1d304de3d06a45090b561cb188a1c0c6368a0997036eea9c35dd3878ef106e16"
+      "sha256": "91942fa1fa1d0118a86070338b4138850b0c8840d6359d950b123d7512390c4a"
     },
     {
       "evidence_ids": [
@@ -10052,6 +10052,20 @@
         "sha256": "0e23d18b4e880ddbf20bf82d216f55c4114e33b8c093659f694c1be1d48d8e7f"
       },
       "reason": "Remove discontinued Discover promises and clarify retained local private data. Preserve origin, notices and publication status; no permission grant."
+    },
+    {
+      "date": "2026-09-15",
+      "path": ".agents/skills/animama-local-stacks/SKILL.md",
+      "base_commit": "c99a98057fbc8dece1827c194f365c6812e97517",
+      "previous_binding": {
+        "git_blob_oid": "88495690ea2431b398cab54a824f487e63dcc7f2",
+        "sha256": "1d304de3d06a45090b561cb188a1c0c6368a0997036eea9c35dd3878ef106e16"
+      },
+      "current_binding": {
+        "git_blob_oid": "cdd94e0434394a175908404d31318c075819a86a",
+        "sha256": "91942fa1fa1d0118a86070338b4138850b0c8840d6359d950b123d7512390c4a"
+      },
+      "reason": "Change the documented default application port from 3000 to 8000. Preserve origin, license, publication status and notices; no publication permission is granted."
     }
   ]
 }

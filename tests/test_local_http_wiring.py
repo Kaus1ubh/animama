@@ -72,6 +72,7 @@ async def test_built_factory_serves_assets_after_bootstrap_and_hides_private_rou
     (web / "app.js").write_text("window.fixture = true")
     application = create_local_app(
         runtime_settings=Settings(
+            animama_public_origin="http://localhost:8000",
             animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data", animama_web_root=web
         )
     )
@@ -79,7 +80,7 @@ async def test_built_factory_serves_assets_after_bootstrap_and_hides_private_rou
     assert not any(path.startswith("/_desktop") for path in paths)
     assert "/docs" not in paths and "/openapi.json" not in paths
     async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(application), base_url="http://localhost:3000"
+        transport=httpx.ASGITransport(application), base_url="http://localhost:8000"
     ) as client:
         assert (await client.get("/", headers={"accept": "text/html"})).status_code == 503
         application.state.local_http_lifecycle.mark_ready("fixture-owner")
@@ -109,7 +110,7 @@ def test_all_launchers_select_the_reviewed_transport(
     calls: list[tuple[Any, dict[str, Any]]] = []
     monkeypatch.setattr(uvicorn, "run", lambda app, **options: calls.append((app, options)))
     if entrypoint == "native":
-        monkeypatch.setenv("ANIMAMA_LOCAL_API_PORT", "3000")
+        monkeypatch.delenv("ANIMAMA_LOCAL_API_PORT", raising=False)
         monkeypatch.setattr(native_entrypoint, "Settings", lambda: Settings(animama_local_bind_host="127.0.0.1"))
         native_entrypoint.main()
     elif entrypoint == "compose":
@@ -124,7 +125,7 @@ def test_all_launchers_select_the_reviewed_transport(
     assert len(calls) == 1
     _, options = calls[0]
     assert options["host"] == ("0.0.0.0" if entrypoint == "compose" else "127.0.0.1")
-    assert options["port"] == (8000 if entrypoint == "compose" else 3000)
+    assert options["port"] == (3000 if entrypoint == "frozen" else 8000)
     assert options["http"] is LocalH11Protocol
     assert options["ws"] == "websockets"
     assert options["proxy_headers"] is False

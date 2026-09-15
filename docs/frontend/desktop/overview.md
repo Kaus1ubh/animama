@@ -62,7 +62,7 @@ Quitting drains requests and stops retained child handles. The app never kills
 a process merely because it occupies a port or appears in an old PID record.
 
 Unpackaged `pnpm desktop:dev` remains the external-stack workflow. It loads
-`ANIMAMA_DESKTOP_WEB_URL` or `http://localhost:3000` and does not start services.
+`ANIMAMA_DESKTOP_WEB_URL` or `http://localhost:8000` and does not start services.
 An explicit unpackaged `ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` selects embedded
 testing against a complete staged runtime. Packaged builds reject web-URL,
 development runtime/data, and sandbox overrides. See [Platform builds](platforms.md).
@@ -76,7 +76,7 @@ through the shared FastAPI catalog. Newly scanned files become selectable but
 are never automatically equipped.
 
 ```text
-http://localhost:3000  Local application
+http://localhost:8000  Local application
 ```
 
 Development publishes Vite with a same-origin proxy to private FastAPI. Built

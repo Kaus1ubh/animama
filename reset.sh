@@ -330,7 +330,7 @@ elif [ -z "${APP_HOST:-}" ]; then
 fi
 
 APP_SCHEME="${APP_SCHEME:-http}"
-WEB_SERVER_PORT="${WEB_SERVER_PORT:-3000}"
+WEB_SERVER_PORT="${WEB_SERVER_PORT:-8000}"
 export APP_HOST APP_SCHEME WEB_SERVER_PORT
 
 is_loopback_host() {

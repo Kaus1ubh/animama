@@ -113,7 +113,7 @@ For the main checkout, preserve the default local application URL:
 Default application URL:
 
 ```text
-http://localhost:3000  Application (Vite in development; FastAPI in built mode)
+http://localhost:8000  Application (Vite in development; FastAPI in built mode)
 ```
 
 PostgreSQL stays private. In development FastAPI is private; in built mode

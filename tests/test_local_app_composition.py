@@ -23,13 +23,14 @@ from animama.server.deps import get_current_principal
 def test_local_app_stays_fail_closed_before_completed_bootstrap(tmp_path: Path) -> None:
     app = create_local_app(
         runtime_settings=Settings(
+            animama_public_origin="http://localhost:8000",
             animama_content_root=tmp_path / "content",
             animama_data_root=tmp_path / "data",
         )
     )
 
     assert isinstance(app.state.request_principal_resolver, AdmittedLocalPrincipalResolver)
-    client = TestClient(app, base_url="http://localhost:3000", raise_server_exceptions=False)
+    client = TestClient(app, base_url="http://localhost:8000", raise_server_exceptions=False)
     try:
         # Avoid lifespan: startup must require the migration-owned principal.
         assert client.get("/health").status_code == 503
@@ -94,7 +95,7 @@ def test_startup_admits_only_the_bootstrap_owner_without_gateway_assertions(
     runtime_settings = Settings(
         animama_content_root=tmp_path / "content",
         animama_data_root=tmp_path / "data",
-        animama_public_origin="http://127.0.0.1:12345" if desktop_cli else "http://localhost:3000",
+        animama_public_origin="http://127.0.0.1:12345" if desktop_cli else "http://localhost:8000",
     )
     token = "e" * 64
     if desktop_cli:

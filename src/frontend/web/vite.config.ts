@@ -254,7 +254,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
     },
     server: {
       allowedHosts: [...localViteAllowedHosts],
-      port: 3000,
+      port: 8000,
       strictPort: true,
       proxy: localAPIProxy(localDevelopmentOrigins().apiTarget),
       fs: {

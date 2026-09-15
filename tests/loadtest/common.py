@@ -26,7 +26,7 @@ def truthy(value: str | None) -> bool:
 
 ANIMAMA_ORIGIN = _env(
     "LOADTEST_ANIMAMA_ORIGIN",
-    _env("ANIMAMA_PUBLIC_ORIGIN", "http://localhost:3000"),
+    _env("ANIMAMA_PUBLIC_ORIGIN", "http://localhost:8000"),
 ).rstrip("/")
 INCOGNITO = truthy(_env("LOADTEST_INCOGNITO", "1"))
 

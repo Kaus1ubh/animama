@@ -33,7 +33,7 @@ def _environment_names(service: dict) -> set[str]:
 def test_only_fastapi_publishes_a_default_application_port() -> None:
     services = _compose()["services"]
 
-    assert services["animama-server"]["ports"] == ["127.0.0.1:${WEB_SERVER_PORT:-3000}:8000"]
+    assert services["animama-server"]["ports"] == ["127.0.0.1:${WEB_SERVER_PORT:-8000}:8000"]
     for private_service, service in services.items():
         if private_service not in {"animama-server", "pgadmin", "dozzle"}:
             assert not service.get("ports"), private_service
@@ -273,7 +273,7 @@ if "--environment" in args:
 project = args[args.index("-p") + 1] if "-p" in args else "animama"
 all_profiles = "--profile" in args and args[args.index("--profile") + 1] == "*"
 selected = os.environ.get("COMPOSE_PROFILES", "").split(",")
-port = os.environ.get("WEB_SERVER_PORT", "3000")
+port = os.environ.get("WEB_SERVER_PORT", "8000")
 origin = os.environ.get("ANIMAMA_PUBLIC_ORIGIN", "http://localhost:" + port)
 def mapping(target, published):
     return [{"host_ip": "127.0.0.1", "target": target, "published": published, "protocol": "tcp"}]
@@ -449,7 +449,7 @@ def test_invalid_build_mode_fails_before_any_stack_change(tmp_path: Path) -> Non
 @pytest.mark.parametrize(
     "variables,args",
     [
-        ({"PGADMIN_PORT": "3000"}, []),
+        ({"PGADMIN_PORT": "8000"}, []),
         ({"DOZZLE_PORT": "65536"}, []),
         ({}, ["--base-port", "65530"]),
         ({"ANIMAMA_TEST_CONFIG_FAIL": "1"}, []),

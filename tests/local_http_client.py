@@ -13,7 +13,7 @@ from animama.local.http.config import canonical_origin
 
 def local_client(application: FastAPI) -> AsyncClient:
     settings = getattr(application.state, "runtime_settings", None)
-    origin = canonical_origin(getattr(settings, "animama_public_origin", "http://localhost:3000"))
+    origin = canonical_origin(getattr(settings, "animama_public_origin", "http://localhost:8000"))
     return AsyncClient(
         transport=ASGITransport(app=application),
         base_url=origin,

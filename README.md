@@ -18,7 +18,7 @@ Install Docker with Compose and Git LFS, and hydrate the checkout assets with
 ./reset.sh
 ```
 
-Open `http://localhost:3000`. Vite serves the development interface with hot reload
+Open `http://localhost:8000`. Vite serves the development interface with hot reload
 and proxies application requests to private FastAPI. For the built self-hosted
 application, where FastAPI serves React directly:
 

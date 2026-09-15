@@ -24,7 +24,7 @@ pnpm desktop:dev_inspect
 ```
 
 Without a runtime-root override, unpackaged Electron loads
-`ANIMAMA_DESKTOP_WEB_URL` or `http://localhost:3000`. The normal local stack must
+`ANIMAMA_DESKTOP_WEB_URL` or `http://localhost:8000`. The normal local stack must
 already be running. Development publishes Vite with a same-origin API proxy;
 built self-host publishes FastAPI with compiled React assets. PostgreSQL stays
 private on the Compose network.

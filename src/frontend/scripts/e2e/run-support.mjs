@@ -18,7 +18,7 @@ const execFileAsync = promisify(execFile);
 
 const E2E_TIME_ZONE = "America/Toronto";
 const DEFAULT_WEB_URL = "http://localhost:5173";
-const DEFAULT_AUTH_URL = "http://localhost:3000";
+const DEFAULT_AUTH_URL = "http://localhost:8000";
 const DEFAULT_API_URL = "http://localhost:8000";
 const DEFAULT_E2E_EMAIL = "codex@local.test";
 const DEFAULT_E2E_PASSWORD = "codex";

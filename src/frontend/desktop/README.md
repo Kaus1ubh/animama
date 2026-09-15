@@ -33,7 +33,7 @@ pnpm desktop:dev
 ```
 
 Only this unpackaged path uses `ANIMAMA_DESKTOP_WEB_URL`, defaulting to
-`http://localhost:3000`. Development exposes Vite with a same-origin FastAPI
+`http://localhost:8000`. Development exposes Vite with a same-origin FastAPI
 proxy; built self-host exposes FastAPI. PostgreSQL stays private. For an existing named stack, source `../../.animama-stack.env` before
 launching. No new Compose stack is needed for routine desktop work.
 

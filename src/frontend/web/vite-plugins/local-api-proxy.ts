@@ -8,10 +8,10 @@ export function localDevelopmentOrigins(
   environment: NodeJS.ProcessEnv = process.env,
 ) {
   const publicOrigin = new URL(
-    environment.ANIMAMA_PUBLIC_ORIGIN ?? "http://localhost:3000",
+    environment.ANIMAMA_PUBLIC_ORIGIN ?? "http://localhost:8000",
   );
   const apiTarget = new URL(
-    environment.ANIMAMA_API_PROXY_TARGET ?? "http://127.0.0.1:8000",
+    environment.ANIMAMA_API_PROXY_TARGET ?? "http://127.0.0.1:8001",
   );
   for (const origin of [publicOrigin, apiTarget]) {
     if (

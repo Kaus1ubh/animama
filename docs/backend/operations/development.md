@@ -60,8 +60,14 @@ Common local development command:
 uv run python -m animama.server.native_entrypoint
 ```
 
+When running Vite directly on port 8000, start the backend separately with
+`ANIMAMA_LOCAL_API_PORT=8001 uv run python -m animama.server.native_entrypoint`.
+Keep `ANIMAMA_PUBLIC_ORIGIN=http://localhost:8000`; Vite proxies to
+`http://127.0.0.1:8001` by default (`ANIMAMA_API_PROXY_TARGET` overrides it).
+Compose configures its private proxy target automatically.
+
 This supported native launcher validates `ANIMAMA_LOCAL_BIND_HOST` and refuses
-non-loopback values before starting Uvicorn. It uses application port 3000 by
+non-loopback values before starting Uvicorn. It uses application port 8000 by
 default; `ANIMAMA_LOCAL_API_PORT` changes the port. Set `ANIMAMA_PUBLIC_ORIGIN`
 to the exact browser origin, and `ANIMAMA_WEB_ROOT` to an absolute built React
 root when serving the UI here. An unset/blank web root leaves frontend serving
@@ -140,7 +146,7 @@ rescan remain later reset steps. See the
 The macOS desktop supervisor uses the same accountless backend and migrations,
 packaged as `animama-runtime`. It starts its own private native PostgreSQL and
 FastAPI processes without Compose. This does not change the main development
-stack at `http://localhost:3000`. Native acceptance uses the exact staged core
+stack at `http://localhost:8000`. Native acceptance uses the exact staged core
 and owned child; signed release, minimum-OS, clean-machine and user acceptance
 are separate gates.
 The canonical operator reference is [Embedded desktop operations](desktop-runtime.md),
@@ -624,11 +630,11 @@ The checked-in Locust scenarios use the public accountless application origin. E
 simulated user asks the installation bootstrap to converge, resolves a current
 catalog-backed Anima specification, and then exercises creation or the current
 `chat:sse` path. The browser-facing origin defaults to
-`http://localhost:3000`; override it only with another loopback application origin:
+`http://localhost:8000`; override it only with another loopback application origin:
 
 ```bash
 ANIMAMA_LLM_SKIP=1 ./reset.sh
-LOADTEST_ANIMAMA_ORIGIN=http://localhost:3000 \
+LOADTEST_ANIMAMA_ORIGIN=http://localhost:8000 \
   PYTHONPATH=. uv run python -m locust -f tests/loadtest/locustfile.py
 ```
 
@@ -733,7 +739,7 @@ On the main checkout, enable the two development tools without deleting data:
 | Dozzle | `http://localhost:9999` | Local Docker socket for container logs |
 
 Both host bindings are fixed to `127.0.0.1`; there is no bind-address override.
-The application remains at `http://localhost:3000`; neither tool is routed
+The application remains at `http://localhost:8000`; neither tool is routed
 through the product application or receives its desktop credentials. Open pgAdmin's configured server to
 inspect the existing database, and select an Animama container in Dozzle to
 view logs. Any pgAdmin/database credentials are infrastructure settings, not
@@ -868,7 +874,7 @@ the selected optional services. Development also starts `web` for Vite. Both
 build modes retain one application URL:
 
 ```text
-http://localhost:3000  local application
+http://localhost:8000  local application
 ```
 
 Only the selected application service is published on loopback. PostgreSQL

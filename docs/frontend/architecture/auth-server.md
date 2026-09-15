@@ -14,7 +14,7 @@ serves development assets and HMR; FastAPI authorizes application requests.
 - Packaged desktop: Electron supervises PostgreSQL, FastAPI and enabled workers.
   FastAPI owns the saved loopback port and serves the audited React build.
 - Built self-host: `docker-compose.yml` bakes React into the application image;
-  FastAPI alone publishes `127.0.0.1:${WEB_SERVER_PORT:-3000}`.
+  FastAPI alone publishes `127.0.0.1:${WEB_SERVER_PORT:-8000}`.
 - Development: `docker-compose.development.yml` removes FastAPI's host mapping
   and publishes Vite at that same application port.
 - External-stack Electron development opens `ANIMAMA_DESKTOP_WEB_URL`.

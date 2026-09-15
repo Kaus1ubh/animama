@@ -243,7 +243,7 @@ or migration behavior.
   ignored third-party assets into a release or substitute a wrapper package
   for a verified self-contained runtime.
 - Only unpackaged external-stack development loads `ANIMAMA_DESKTOP_WEB_URL`
-  or `http://localhost:3000`. Explicit `ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` and
+  or `http://localhost:8000`. Explicit `ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` and
   `ANIMAMA_DESKTOP_DEV_USER_DATA` support isolated supervised testing; packaged
   builds reject web-URL, development, and sandbox overrides.
 - The version-2 preload exposes runtime actions and status-only credentials.

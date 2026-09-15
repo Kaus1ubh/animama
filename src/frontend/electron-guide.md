@@ -21,7 +21,7 @@ Use [Releases](../../docs/frontend/desktop/releases.md) for the detailed signing
 ## Two Development Paths
 
 Unpackaged `pnpm desktop:dev` loads the existing local application origin from
-`ANIMAMA_DESKTOP_WEB_URL`, defaulting to `http://localhost:3000`. It does not
+`ANIMAMA_DESKTOP_WEB_URL`, defaulting to `http://localhost:8000`. It does not
 start services. Use the main stack when it is already available; a new Compose
 stack is not needed for every desktop check. Source a named stack's
 `../../.animama-stack.env` only when deliberately targeting that existing stack.

@@ -180,6 +180,7 @@ async def test_desktop_readiness_is_private_bounded_and_absent_from_openapi(
     monkeypatch.setenv("ANIMAMA_PROCESS_START_TOKEN", "11111111-1111-4111-8111-111111111111")
     app = create_local_app(
         runtime_settings=Settings(
+            animama_public_origin="http://localhost:8000",
             animama_content_root=tmp_path / "content",
             animama_data_root=tmp_path / "data",
             animama_desktop_control_token=token,
@@ -187,7 +188,7 @@ async def test_desktop_readiness_is_private_bounded_and_absent_from_openapi(
         )
     )
     assert "/_desktop/health" not in app.openapi()["paths"]
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://localhost:3000") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://localhost:8000") as client:
         for headers in ({}, {"X-Animama-Desktop-Control": "wrong"}, {"X-Animama-Internal-Token": token}):
             response = await client.get("/_desktop/health", headers=headers)
             assert response.status_code == 404

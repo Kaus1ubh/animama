@@ -18,7 +18,7 @@ For the primary repo checkout, keep the default local URLs and ports:
 Expected application URL:
 
 ```text
-http://localhost:3000  Application
+http://localhost:8000  Application
 ```
 
 Only the selected application service has a host port. Development publishes

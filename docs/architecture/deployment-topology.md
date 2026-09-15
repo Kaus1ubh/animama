@@ -29,7 +29,7 @@ flowchart TB
 ```
 
 Only the selected application service publishes a loopback port: FastAPI for
-built self-hosting, Vite for development. The default is `localhost:3000`.
+built self-hosting, Vite for development. The default is `localhost:8000`.
 Electron's embedded FastAPI uses the saved installation origin. PostgreSQL and
 workers are private; optional local administration tools use separate loopback
 ports. FastAPI authorizes API and byte requests in every local composition.

@@ -17,7 +17,7 @@ or minimum-supported-OS evidence. The owner explicitly approved macOS 15 as
 the new minimum on September 3; macOS 15 acceptance remains required.
 Personal microphone, voice, window and shortcut acceptance remains unknown.
 Windows packaging is Phase 5.
-The main Compose stack at `http://localhost:3000` is unrelated to release testing;
+The main Compose stack at `http://localhost:8000` is unrelated to release testing;
 these commands neither reset it nor create another Compose stack.
 
 Initial release publication will be run manually by `raymond-van` from reviewed

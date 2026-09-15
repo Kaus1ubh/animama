@@ -66,7 +66,7 @@ From the repository root, start or restart the main local stack:
 ./reset.sh
 ```
 
-Open `http://localhost:3000`. An installation whose first run is incomplete
+Open `http://localhost:8000`. An installation whose first run is incomplete
 shows `/setup`; a nonblank private display name is required and there is no Skip.
 After completion, `/a` resolves to the last visited owned Anima's chat, or Annie
 on a fresh installation. A normal restart must retain
@@ -123,7 +123,7 @@ manual review.
 
 ## Troubleshooting
 
-- Use the selected application origin, normally `localhost:3000`; Vite's
+- Use the selected application origin, normally `localhost:8000`; Vite's
   internal container port is not an additional public endpoint.
 - In development FastAPI stays private. In built mode FastAPI is the application
   listener and Vite is absent. PostgreSQL stays private in both selections.

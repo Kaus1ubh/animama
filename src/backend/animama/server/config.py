@@ -44,7 +44,7 @@ class Settings(BaseModel):
     # Serving policy belongs to the installation composition. These inputs
     # never come from a browser request or an installation-owner assertion.
     animama_public_origin: str = Field(
-        default_factory=lambda: os.getenv("ANIMAMA_PUBLIC_ORIGIN", "http://localhost:3000")
+        default_factory=lambda: os.getenv("ANIMAMA_PUBLIC_ORIGIN", "http://localhost:8000")
     )
     animama_web_root: Path | None = Field(default_factory=lambda: _env_path("ANIMAMA_WEB_ROOT"))
     animama_desktop_renderer_capability: str | None = Field(

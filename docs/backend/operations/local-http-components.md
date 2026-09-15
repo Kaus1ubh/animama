@@ -50,7 +50,7 @@ uvicorn.Config(
 
 Acceptance servers bind their own ephemeral loopback sockets. Product launchers
 use `local.http.server.serve` with this same transport configuration. The native
-entrypoint binds loopback (default port 3000); the Compose entrypoint binds
+entrypoint binds loopback (default port 8000); the Compose entrypoint binds
 container port 8000. The frozen `serve --port` command uses the supervisor's
 saved loopback application port. Public network exposure belongs to the
 selected Compose graph or an operator-owned TLS/authentication boundary.

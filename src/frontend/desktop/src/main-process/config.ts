@@ -1,6 +1,6 @@
 import { ANIMAMA_SESSION_PARTITION } from "./security/renderer-capability.js";
 
-const DEFAULT_WEB_URL = "http://localhost:3000";
+const DEFAULT_WEB_URL = "http://localhost:8000";
 const DEFAULT_LOAD_TIMEOUT_MS = 15_000;
 const ALLOWED_WEB_PROTOCOLS = new Set(["http:", "https:"]);
 

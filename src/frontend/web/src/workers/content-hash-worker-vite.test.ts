@@ -12,7 +12,7 @@ describe("Asset hashing worker dev startup", () => {
 
   it("keeps host protection enabled for the configured application hostname", () => {
     const publicOrigin =
-      process.env.ANIMAMA_PUBLIC_ORIGIN ?? "http://localhost:3000";
+      process.env.ANIMAMA_PUBLIC_ORIGIN ?? "http://localhost:8000";
     expect(localViteAllowedHosts).toEqual([new URL(publicOrigin).hostname]);
   });
 });

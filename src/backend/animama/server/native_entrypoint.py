@@ -14,7 +14,7 @@ def main() -> None:
 
     runtime_settings = Settings()
     validate_local_bindings(runtime_settings)
-    port = int(os.getenv("ANIMAMA_LOCAL_API_PORT", "3000"))
+    port = int(os.getenv("ANIMAMA_LOCAL_API_PORT", "8000"))
     if not 1 <= port <= 65535:
         raise ValueError("Native application port must be from 1 to 65535")
     serve(
