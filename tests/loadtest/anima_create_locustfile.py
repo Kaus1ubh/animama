@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from loadtest.common import (
+from locust import task
+
+from tests.loadtest.common import (
     AccountlessAnimaUser,
     anima_create_payload,
     format_failure,
     load_creation_template,
     request_headers,
 )
-from locust import task
 
 
 class AnimaCreateUser(AccountlessAnimaUser):

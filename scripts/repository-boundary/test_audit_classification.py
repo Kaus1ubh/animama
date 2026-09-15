@@ -181,7 +181,7 @@ class ClassificationTests(unittest.TestCase):
 
     def test_durable_architecture_contract_and_operation_docs_remain_public(self):
         docs = ["docs/architecture/boundaries.md", "docs/contracts/client.md",
-                "src/backend/docs/operations/development.md"]
+                "docs/backend/operations/development.md"]
         for path in docs:
             self.write(path, "# Durable reference\n")
         self.git("add", "--", *docs)

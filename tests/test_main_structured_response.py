@@ -124,9 +124,7 @@ def test_merge_chat_request_options_does_not_infer_tts_from_main_structured_resp
 
 
 def test_main_structured_prompt_includes_schema_dump_and_display_rules() -> None:
-    output_type = build_main_response_model(
-        agent_id="direct-chat", gesture_ids=TEST_RUNTIME_GESTURE_IDS
-    )
+    output_type = build_main_response_model(agent_id="direct-chat", gesture_ids=TEST_RUNTIME_GESTURE_IDS)
 
     prompt = build_main_structured_prompt(output_type)
     gesture_ids = TEST_RUNTIME_GESTURE_IDS
@@ -155,9 +153,7 @@ def test_main_structured_prompt_includes_schema_dump_and_display_rules() -> None
 
 
 def test_main_structured_model_schema_is_openai_strict_by_construction() -> None:
-    output_type = build_main_response_model(
-        agent_id="direct-chat", gesture_ids=TEST_RUNTIME_GESTURE_IDS
-    )
+    output_type = build_main_response_model(agent_id="direct-chat", gesture_ids=TEST_RUNTIME_GESTURE_IDS)
 
     schema = build_main_structured_response_json_schema(output_type)
     gesture_ids = TEST_RUNTIME_GESTURE_IDS

@@ -110,10 +110,10 @@ class TypedContentResolutionContext:
                 raise TypedContentAdmissionError("dependency_membership_invalid", current_id)
             if not entry.files or len(entry.files) > handler.definition.max_entry_files:
                 raise TypedContentAdmissionError("registered_files_invalid", current_id)
-            if any(
-                file.size_bytes <= 0 or file.size_bytes > handler.definition.max_file_bytes
-                for file in entry.files
-            ) or sum(file.size_bytes for file in entry.files) > handler.definition.max_entry_bytes:
+            if (
+                any(file.size_bytes <= 0 or file.size_bytes > handler.definition.max_file_bytes for file in entry.files)
+                or sum(file.size_bytes for file in entry.files) > handler.definition.max_entry_bytes
+            ):
                 raise TypedContentAdmissionError("registered_file_budget", current_id)
 
             visiting.add(current_id)

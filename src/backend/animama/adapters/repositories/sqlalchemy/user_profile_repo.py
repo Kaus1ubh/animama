@@ -55,4 +55,5 @@ class SQLAlchemyUserProfileRepository(UserProfileRepository):
         await self._session.refresh(orm)
         return user_profile_orm_to_domain(orm)
 
+
 __all__ = ["SQLAlchemyUserProfileRepository"]

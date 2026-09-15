@@ -16,7 +16,7 @@ from typing import Literal
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = ROOT / "artifacts" / "synthetic-user-files"
-DOC_ROOTS = (Path("src/backend/docs"), Path("src/frontend/docs"))
+DOC_ROOTS = (Path("docs/backend"), Path("docs/frontend"))
 
 OutputFormat = Literal["md", "pdf", "docx"]
 SizePreset = Literal["xxsmall", "xsmall", "small", "large", "full"]
@@ -29,33 +29,33 @@ SIZE_PRESETS: tuple[SizePreset, ...] = ("xxsmall", "xsmall", "small", "large", "
 # every non-plan doc. Xsmall and xxsmall remain close to one half and one
 # quarter of small as the selected documentation changes.
 XXSMALL_SOURCE_PATHS = (
-    "src/backend/docs/features/user-files.md",
-    "src/frontend/docs/README.md",
-    "src/frontend/docs/features/user-file-uploads.md",
+    "docs/backend/features/user-files.md",
+    "docs/frontend/README.md",
+    "docs/frontend/features/user-file-uploads.md",
 )
 XSMALL_SOURCE_PATHS = (
     *XXSMALL_SOURCE_PATHS,
-    "src/backend/docs/runtime/chat.md",
+    "docs/backend/runtime/chat.md",
 )
 SMALL_SOURCE_PATHS = (
-    "src/backend/docs/README.md",
-    "src/backend/docs/architecture/overview.md",
-    "src/backend/docs/runtime/chat.md",
-    "src/backend/docs/features/memory.md",
-    "src/backend/docs/features/user-files.md",
-    "src/frontend/docs/README.md",
-    "src/frontend/docs/architecture/overview.md",
-    "src/frontend/docs/architecture/data-layer.md",
-    "src/frontend/docs/runtime/chat.md",
-    "src/frontend/docs/features/user-file-uploads.md",
+    "docs/backend/README.md",
+    "docs/backend/architecture/overview.md",
+    "docs/backend/runtime/chat.md",
+    "docs/backend/features/memory.md",
+    "docs/backend/features/user-files.md",
+    "docs/frontend/README.md",
+    "docs/frontend/architecture/overview.md",
+    "docs/frontend/architecture/data-layer.md",
+    "docs/frontend/runtime/chat.md",
+    "docs/frontend/features/user-file-uploads.md",
 )
 LARGE_SOURCE_PATHS = (
     *SMALL_SOURCE_PATHS,
-    "src/backend/docs/features/memory-manager-and-episodic-memory.md",
-    "src/backend/docs/runtime/model-client-providers.md",
-    "src/frontend/docs/runtime/avatar-animation.md",
-    "src/frontend/docs/runtime/scene-vfx.md",
-    "src/frontend/docs/runtime/avatar-planner.md",
+    "docs/backend/features/memory-manager-and-episodic-memory.md",
+    "docs/backend/runtime/model-client-providers.md",
+    "docs/frontend/runtime/avatar-animation.md",
+    "docs/frontend/runtime/scene-vfx.md",
+    "docs/frontend/runtime/avatar-planner.md",
 )
 
 _HEADING_RE = re.compile(r"^(?P<marks>#{1,6})\s+(?P<title>.+?)\s*$")

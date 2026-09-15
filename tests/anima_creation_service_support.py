@@ -274,9 +274,7 @@ async def anima_creation_fixture(
     if mounted_included:
         # The same fixture bytes exercise the desktop source selector; no real
         # starter assets or distribution permissions are required by this test.
-        paths = replace(
-            paths, included_sources=(IncludedContentSource("core", "fixture-v1", paths.included_root),)
-        )
+        paths = replace(paths, included_sources=(IncludedContentSource("core", "fixture-v1", paths.included_root),))
     fixture = AnimaCreationFixture(owner, provider, paths, {})
     fixture.owners.add(owner)
     catalog = SQLAlchemyContentCatalog(session)

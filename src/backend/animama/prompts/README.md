@@ -1,7 +1,7 @@
 # Prompt Ownership
 
 Normal companion chat uses the request-local direct chat runtime. Start with
-[Direct chat SSE runtime](../../docs/runtime/chat.md) for the supported flow.
+[Direct chat SSE runtime](../../../../docs/backend/runtime/chat.md) for the supported flow.
 
 - [`app/chat/direct_executor.py`](../app/chat/direct_executor.py) prepares the
   turn, selects its structured response shape, and adds the Anima's available
@@ -17,7 +17,7 @@ Normal companion chat uses the request-local direct chat runtime. Start with
   bundled animation manifest reader and Gesture identifier normalization helpers.
   The direct turn's available Gestures come from its resolved runtime descriptors.
 
-The retained profile templates, `PromptManager`, and prompt facade in this
-package belong to the earlier graph/helper runtime. They are not the entrypoint
-for normal `chat:sse` prompt changes. Historical supervisor-delegation examples
-remain in Git history; they do not describe the supported chat architecture.
+The obsolete graph/helper `PromptManager` and prompt facade are removed.
+They are not part of normal `chat:sse` prompting. Historical graph and
+supervisor-delegation examples remain in Git history; the direct-chat ownership
+map above is unchanged.

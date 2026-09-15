@@ -76,9 +76,7 @@ async def add_typed_item(
         owner_user_id=fixture.user_id,
         kind=kind,
         relative_locator=f"{kind.replace('_', '-')}/{item_id}",
-        descriptor_relative_path=(
-            f"{kind.replace('_', '-')}/{item_id}/{item_id}{descriptor_suffix}"
-        ),
+        descriptor_relative_path=(f"{kind.replace('_', '-')}/{item_id}/{item_id}{descriptor_suffix}"),
         logical_key=logical_key,
         display_name=name,
         status="valid",
@@ -109,10 +107,6 @@ def catalog_source(item: ORMContentCatalogItem) -> dict[str, object]:
 
 async def cleanup_loadout_fixture(session, fixture: LoadoutFixture) -> None:  # noqa: ANN001
     await session.execute(delete(ORMAnima).where(ORMAnima.id == fixture.anima_id))
-    await session.execute(
-        delete(ORMContentCatalogItem).where(
-            ORMContentCatalogItem.owner_user_id == fixture.user_id
-        )
-    )
+    await session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.owner_user_id == fixture.user_id))
     await session.execute(delete(ORMAvatar).where(ORMAvatar.id == fixture.avatar_id))
     await session.commit()

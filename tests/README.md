@@ -25,7 +25,7 @@ are opt-in; see [Live integration helpers](live/README.md) for their environment
 requirements and isolation. Frontend and desktop tests run from `src/frontend`
 using the commands in the [frontend guide](../src/frontend/AGENTS.md).
 
-See [backend development](../src/backend/docs/operations/development.md) for
+See [backend development](../docs/backend/operations/development.md) for
 test configuration and current local-stack conventions. Report unavailable
 Docker fixtures and inherited failures explicitly rather than treating skipped
 or blocked checks as passes.

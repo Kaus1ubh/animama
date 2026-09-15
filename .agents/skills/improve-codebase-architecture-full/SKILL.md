@@ -22,8 +22,8 @@ the domain glossary and relevant ADRs they identify. Missing domain docs do not
 block the review. Use [the design vocabulary](references/design.md) when judging
 opportunities; companion skills are optional, not prerequisites.
 
-Read both subsystem documentation entrypoints: `src/frontend/docs/README.md` and
-`src/backend/docs/README.md`. Follow their links to the architecture, runtime,
+Read both subsystem documentation entrypoints: `docs/frontend/README.md` and
+`docs/backend/README.md`. Follow their links to the architecture, runtime,
 feature, and operational docs relevant to each review unit and cross-subsystem
 flow. Use these docs to establish intended responsibilities and contracts, then
 verify them against the current source and record discrepancies. Carry the relevant

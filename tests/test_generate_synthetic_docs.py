@@ -23,7 +23,7 @@ def _fixture_document() -> generator.SyntheticDocument:
         preset="small",
         sources=(
             generator.SourceDocument(
-                relative_path="src/backend/docs/features/search-fixture.md",
+                relative_path="docs/backend/features/search-fixture.md",
                 content=content,
                 source_bytes=len(content.encode("utf-8")),
             ),
@@ -50,8 +50,8 @@ def test_presets_are_nested_balanced_and_exclude_plans() -> None:
 
     assert set(xxsmall_paths) < set(xsmall_paths) < set(small_paths) < set(large_paths) < set(full_paths)
     assert all("plans" not in path.parts for path in full_paths)
-    assert any(path.as_posix().startswith("src/backend/docs/") for path in xxsmall_paths)
-    assert any(path.as_posix().startswith("src/frontend/docs/") for path in xxsmall_paths)
+    assert any(path.as_posix().startswith("docs/backend/") for path in xxsmall_paths)
+    assert any(path.as_posix().startswith("docs/frontend/") for path in xxsmall_paths)
 
     source_sizes = {preset: generator.load_synthetic_document(preset).source_bytes for preset in generator.SIZE_PRESETS}
     assert source_sizes["xxsmall"] == pytest.approx(source_sizes["small"] / 4, rel=0.12)
@@ -85,7 +85,7 @@ def test_renderers_preserve_manifest_source_paths_and_searchable_text(tmp_path: 
 
     extracted = _artifact_text(artifact)
     assert "Animama Synthetic Documentation Corpus" in extracted
-    assert "src/backend/docs/features/search-fixture.md" in extracted
+    assert "docs/backend/features/search-fixture.md" in extracted
     assert "Project Atlas" in extracted
     assert "Project Lantern" in extracted
     assert "↔" in extracted

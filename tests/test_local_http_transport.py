@@ -392,7 +392,10 @@ async def test_malformed_headers_close_without_retaining_the_deadline() -> None:
 async def test_disconnect_cancels_the_header_timer_and_releases_connection_state() -> None:
     async with _serve(protected=False, header_timeout=5) as live:
         _reader, writer = await live.open_connection()
-        await asyncio.sleep(0)
+        # Client connect completion does not guarantee the server accept callback ran.
+        with anyio.fail_after(1):
+            while not live.protocols:
+                await asyncio.sleep(0.005)
         protocol = live.protocols[0]
         assert protocol._headers_timer is not None
         await _close(writer)
@@ -406,7 +409,10 @@ async def test_shutdown_cancels_an_idle_connection_header_timer() -> None:
     async with _serve(protected=False, header_timeout=5) as live:
         reader, writer = await live.open_connection()
         try:
-            await asyncio.sleep(0)
+            # Observe actual server acceptance before initiating shutdown.
+            with anyio.fail_after(1):
+                while not live.protocols:
+                    await asyncio.sleep(0.005)
             protocol = live.protocols[0]
             live.server.should_exit = True
             assert await asyncio.wait_for(reader.read(), 2) == b""

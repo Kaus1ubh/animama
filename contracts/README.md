@@ -1,0 +1,24 @@
+# Public contract inputs
+
+This directory holds the small source inputs used to build and compare public
+package sets. It is required by local builds and stays in this repository.
+
+- [`versions.json`](versions.json) records each contract's semantic version,
+  source and generated artifact filename. Changes to wire compatibility require
+  the corresponding version review; moving documentation does not change versions.
+- [`runtime-owner/schema.json`](runtime-owner/schema.json) describes the neutral
+  owner projection (`id` and optional `displayName`). It supplies no credentials
+  or authorization; each application composition resolves its own trusted owner.
+- The `local-http` entry refers to the FastAPI OpenAPI schema generated offline
+  from the same source snapshot, rather than a checked-in schema in this folder.
+
+The [package-set tools](../scripts/package-sets/README.md) copy these inputs and
+produce contract artifacts alongside the Python and frontend packages. Their
+independent consumer and compatibility checks compare the resulting schemas and
+versions against the reviewed baseline.
+
+The frontend [`@animama/runtime-contracts`](../src/frontend/packages/runtime-contracts/README.md)
+package provides the shared TypeScript owner types and generated HTTP client.
+Its generated files are outputs of the documented offline generation workflow;
+do not edit them or these wire inputs solely to tidy the source tree. Existing
+Cloud consumers continue using their immutable reviewed artifacts and lock.

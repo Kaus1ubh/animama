@@ -18,9 +18,7 @@ def _vrma() -> bytes:
     ).encode()
     document += b" " * (-len(document) % 4)
     return (
-        struct.pack("<4sII", b"glTF", 2, 20 + len(document))
-        + struct.pack("<II", len(document), 0x4E4F534A)
-        + document
+        struct.pack("<4sII", b"glTF", 2, 20 + len(document)) + struct.pack("<II", len(document), 0x4E4F534A) + document
     )
 
 

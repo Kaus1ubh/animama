@@ -3,8 +3,7 @@
 This is the canonical self-hosted typed-content library.
 
 - `included/` is read-only content shipped with the application.
-- `local/` is the managed, inspectable library for creator saves, Discover
-  downloads, imports, and files deliberately added by the host operator.
+- `local/` is the managed, inspectable library for creator saves, imports, and files deliberately added by the host operator.
 
 Both roots use ordinary typed folders: `avatars`, `gestures`, `pose-clips`,
 `reactions`, `vfx`, `sfx`, `idle-styles`, `music`, `appearances`, `voices`, and
@@ -16,7 +15,9 @@ document. `pose-clips/` is reserved for clips intentionally reused by more than
 one product; one-owner clips belong inside their Action.
 
 Do not place private chat attachments here. They belong under the separate
-`data/` root. Back up PostgreSQL, `content/local`, and `data` together.
+private data root (`data/` by default for self-hosting). Back up PostgreSQL,
+`content/local` and durable private data together. See
+[storage and backup](../docs/backend/architecture/local-content-storage.md#private-data).
 
 Animama scans only registered types and formats. Valid files become selectable,
 not automatically equipped. Invalid files stay inert with diagnostics. Editing

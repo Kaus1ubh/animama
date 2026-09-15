@@ -34,12 +34,12 @@ async def test_idle_style_selection_and_pool_overrides_remain_typed(async_sessio
                     "file_ref": "sway.vrma",
                     "playback": {"loop_type": "pingpong"},
                 },
-                ],
-                "files": [
-                    {"path": "calm.vrma", "role": "animation"},
-                    {"path": "sway.vrma", "role": "animation"},
-                ],
-                "default_pool": ["calm"],
+            ],
+            "files": [
+                {"path": "calm.vrma", "role": "animation"},
+                {"path": "sway.vrma", "role": "animation"},
+            ],
+            "default_pool": ["calm"],
             "emotion_pools": {"joy": ["sway"]},
             "cross_fade_seconds": 0.4,
             "compatibility": {},

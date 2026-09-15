@@ -121,7 +121,7 @@ export function saveSizeReport(output, report) {
     "",
     `Target: ${report.target}; app: ${report.app_version}.`,
     "",
-    "These are exact staged payload/archive bytes, not a signed DMG or update ZIP. Signing and installer overhead are measured again in Phase 4.",
+    "These are exact staged payload/archive bytes, not a signed DMG or update ZIP. Signing and installer overhead require separate binary release measurements.",
     "",
     "| Component | Installed bytes | MiB |",
     "| --- | ---: | ---: |",

@@ -71,11 +71,15 @@ def project_typed_runtime_catalog(
 
     for entry in descriptor.entries:
         try:
-            documents[entry.item_id] = handler_for_kind(entry.kind).parse_document(
-                entry.metadata,
-                fallback_path=Path(entry.logical_key or entry.display_name),
-                descriptor_backed=False,
-            ).document
+            documents[entry.item_id] = (
+                handler_for_kind(entry.kind)
+                .parse_document(
+                    entry.metadata,
+                    fallback_path=Path(entry.logical_key or entry.display_name),
+                    descriptor_backed=False,
+                )
+                .document
+            )
         except ContentDocumentError as exc:
             projection_warnings.append(
                 {
@@ -133,9 +137,7 @@ def project_typed_runtime_catalog(
             return exact[0]
         suffix = reference.rsplit(":", 1)[-1]
         matches = [
-            entry
-            for entry in candidates
-            if entry.logical_key and entry.logical_key.rsplit(":", 1)[-1] == suffix
+            entry for entry in candidates if entry.logical_key and entry.logical_key.rsplit(":", 1)[-1] == suffix
         ]
         return matches[0] if len(matches) == 1 else None
 
@@ -260,12 +262,9 @@ def project_typed_runtime_catalog(
                 )
                 logical_resources[logical_name] = files_by_ref[member.file_ref]
             payload["logical_resource_files"] = {
-                name: {"role": file["role"], "ordinal": file["ordinal"]}
-                for name, file in logical_resources.items()
+                name: {"role": file["role"], "ordinal": file["ordinal"]} for name, file in logical_resources.items()
             }
-            payload["_logical_resource_refs"] = {
-                name: file["file_ref"] for name, file in logical_resources.items()
-            }
+            payload["_logical_resource_refs"] = {name: file["file_ref"] for name, file in logical_resources.items()}
             payload["logical_resource_urls"] = {}
             supports[support_entry.item_id] = payload
 
@@ -346,10 +345,7 @@ def project_typed_runtime_catalog(
         "scene_effects": by_type["scene_effect"],
         "sound_effects": by_type["sound_effect"],
         "warnings": [
-            *[
-                {"code": value.code, "message": value.message, "scope": "source"}
-                for value in descriptor.diagnostics
-            ],
+            *[{"code": value.code, "message": value.message, "scope": "source"} for value in descriptor.diagnostics],
             *projection_warnings,
         ],
     }

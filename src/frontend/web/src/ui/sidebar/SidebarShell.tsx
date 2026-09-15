@@ -13,7 +13,6 @@ import {
   LibraryBig,
   MessagesSquare,
   Search,
-  Store,
   UsersRound,
 } from "lucide-react";
 import { SidebarHeader } from "@/ui/sidebar/SidebarHeader";
@@ -95,13 +94,6 @@ export function SidebarShell({
           <LibraryBig className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
         ),
       },
-      {
-        label: "Discover",
-        href: "#" as const,
-        icon: (
-          <Store className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
-        ),
-      },
     ];
   }, [animaId, newChatAnimaId]);
   const searchLink = {
@@ -135,13 +127,10 @@ export function SidebarShell({
               <SidebarLink key={link.label} link={link} />
             ))}
             {!open ? <SidebarLink link={searchLink} /> : null}
-            {sidebarLinks.slice(1, 4).map((link) => (
+            {sidebarLinks.slice(1).map((link) => (
               <SidebarLink key={link.label} link={link} />
             ))}
             <SidebarCreateMenu />
-            {sidebarLinks.slice(4).map((link) => (
-              <SidebarLink key={link.label} link={link} />
-            ))}
           </div>
           <SidebarAnimas />
           <SidebarChats />

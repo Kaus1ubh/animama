@@ -11,13 +11,19 @@ if rg -n "$patterns" \
   src/backend/animama \
   src/frontend/web/src \
   src/frontend/scripts \
-  src/backend/docs \
-  src/frontend/docs \
+  docs/backend \
+  docs/frontend \
   docker-compose.yml \
   .env.example \
   --glob '!**/plans/**'; then
   echo "Typed-content audit failed: removed Asset-model vocabulary is still present." >&2
   exit 1
+else
+  status=$?
+  if [[ "$status" -ne 1 ]]; then
+    echo "Typed-content audit could not inspect all inputs (rg exit $status)." >&2
+    exit "$status"
+  fi
 fi
 
 echo "Typed-content audit passed."

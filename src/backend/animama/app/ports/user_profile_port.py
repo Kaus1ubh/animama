@@ -27,6 +27,7 @@ class UserProfileRepository(Protocol):
     async def update_profile(self, profile: UserProfile) -> UserProfile:
         raise NotImplementedError
 
+
 __all__ = [
     "UserProfileRepository",
     "UserProfileRepositoryConflictError",

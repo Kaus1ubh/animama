@@ -1,57 +1,53 @@
 SHELL := /bin/bash
+.DEFAULT_GOAL := help
 
-.PHONY: sync test test-q test-v test-cov coverage lint mypy check format format-check test-live test-full audit-typed-content
+.PHONY: help sync test test-q test-v test-cov test-live test-live-v test-full lint mypy format format-check check audit-typed-content check-test
 
-sync:
+help: ## Show backend tasks (frontend tasks use pnpm in src/frontend).
+	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+sync: ## Install backend development dependencies and supported local extras.
 	uv sync --extra server --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev
 
-test: 
-	uv run pytest 
+test: ## Run offline backend tests; database tests use disposable containers.
+	uv run pytest
 
-test-v:
-	uv run pytest -vv
-
-test-q:
+test-q: ## Run offline backend tests with concise output.
 	uv run pytest -q
 
-test-live:
+test-v: ## Run offline backend tests with verbose output.
+	uv run pytest -vv
+
+test-cov: ## Run offline tests with terminal, XML and HTML coverage reports.
+	uv run pytest --cov=src/backend/animama --cov-report=term-missing --cov-report=xml --cov-report=html
+
+test-live: ## Explicitly run live provider tests using credentials from .env.
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	ANIMAMA_RUN_LIVE_TESTS=1 uv run pytest tests/live
 
-test-live-v:
+test-live-v: ## Run live provider tests with verbose output.
 	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
 	ANIMAMA_RUN_LIVE_TESTS=1 uv run pytest tests/live -vv
 
-test-full:
-	uv run pytest
-	@if [ -f .env ]; then set -a; . ./.env; set +a; fi; \
-	ANIMAMA_RUN_LIVE_TESTS=1 uv run pytest tests/live
+test-full: test ## Run offline tests followed by explicit live provider tests.
+	$(MAKE) test-live
 
-test-cov:
-	uv run pytest --cov=src/backend/animama --cov-report=term-missing --cov-report=xml --cov-report=html
-
-coverage:
-	uv run coverage run -m pytest
-	uv run coverage xml -o coverage.xml
-	uv run coverage report -m --fail-under=95
-
-lint: 
+lint: ## Check Python lint rules.
 	uv run ruff check
 
-mypy: 
+mypy: ## Check backend and test types.
 	uv run mypy src/backend/animama tests --exclude web-ui --exclude deprecated --exclude templates
 
-format: 
+format: ## Format backend/tests and apply safe lint fixes.
 	uv run ruff format src/backend/animama tests
 	uv run ruff check --fix src/backend/animama tests
 
-format-check:
+format-check: ## Check backend and test formatting without editing.
 	uv run ruff format --check src/backend/animama tests
 
+check: format-check lint mypy ## Run formatting, lint and typing checks.
 
-check: format-check lint mypy
-
-audit-typed-content:
+audit-typed-content: ## Check typed-content ownership and API invariants.
 	bash scripts/audit-typed-content.sh
 
-check-test: audit-typed-content format-check lint mypy test
+check-test: audit-typed-content format-check lint mypy test ## Run the full offline backend verification chain.

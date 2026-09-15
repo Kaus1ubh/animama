@@ -70,9 +70,7 @@ async def test_music_loadout_enforces_one_autoplay_and_no_duplicate_track(async_
             user_id=fixture.user_id,
             anima_id=fixture.anima_id,
         )
-        assert [track.name for track in loadout.music_tracks if track.autoplay] == [
-            "Second Track"
-        ]
+        assert [track.name for track in loadout.music_tracks if track.autoplay] == ["Second Track"]
 
         with pytest.raises(AnimaLoadoutError, match="music_track_already_equipped"):
             await service.plan(

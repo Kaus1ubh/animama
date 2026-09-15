@@ -32,9 +32,11 @@ def encode_content_catalog_cursor(row: Any, *, sort: str) -> str:
         payload["updated_at"] = updated.isoformat()
     else:
         payload["name"] = str(row.name).casefold()
-    return base64.urlsafe_b64encode(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    ).decode().rstrip("=")
+    return (
+        base64.urlsafe_b64encode(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode())
+        .decode()
+        .rstrip("=")
+    )
 
 
 def decode_content_catalog_cursor(
@@ -83,11 +85,7 @@ def content_catalog_page(
     candidates = [row for row in rows if cursor is None or _is_after(row, cursor, sort=sort)]
     candidates.sort(key=lambda row: _key(row, sort=sort), reverse=sort == "updated")
     page = candidates[:limit]
-    next_cursor = (
-        encode_content_catalog_cursor(page[-1], sort=sort)
-        if len(candidates) > limit and page
-        else None
-    )
+    next_cursor = encode_content_catalog_cursor(page[-1], sort=sort) if len(candidates) > limit and page else None
     return page, next_cursor
 
 

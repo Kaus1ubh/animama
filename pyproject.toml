@@ -57,7 +57,7 @@ classifiers = [
 
 [project.urls]
 Repository = "https://github.com/raymond-van/animama"
-Documentation = "https://github.com/raymond-van/animama/tree/main/src/backend/docs"
+Documentation = "https://github.com/raymond-van/animama/tree/main/docs/backend"
 
 [project.optional-dependencies]
 server = ["gruut>=2.4.0"]
@@ -162,10 +162,21 @@ strict = true
 disallow_incomplete_defs = false
 disallow_untyped_defs = false
 disallow_untyped_calls = false
-mypy_path = ["src/backend", "tests"]
+mypy_path = ["src/backend", "."]
 explicit_package_bases = true
 exclude = ["^src/backend/animama/proposed_changes", "^src/backend/animama/examples"]
 plugins = ["pydantic.mypy"]
+
+# Optional worker/server extras are checked at their adapter boundary without
+# installing those heavyweight runtime packs into the core development environment.
+[[tool.mypy.overrides]]
+module = ["docling.*", "docling_core.*", "gruut"]
+ignore_missing_imports = true
+
+# The optional system-metrics probe uses psutil's untyped distribution.
+[[tool.mypy.overrides]]
+module = "psutil"
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "sounddevice.*"

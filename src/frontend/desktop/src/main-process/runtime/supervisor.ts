@@ -474,7 +474,8 @@ export class RuntimeSupervisor {
       } catch (error) {
         if (error instanceof RuntimeError) throw error;
       }
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      // Keep verified readiness responsive without changing the bounded startup deadline.
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
     if (!ready) {
       const collision = /address already in use/iu.test(child.output);

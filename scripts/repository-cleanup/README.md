@@ -60,8 +60,9 @@ decisions.
 
 Do not exclude every directory named `build`: Electron's `desktop/build`
 contains packaging inputs. The configured exclusions target dependency/cache
-directories, specific generated output roots, and local data; guide files under
-`content/local` and `data` remain included. Every tracked exclusion is recorded.
+directories, specific generated output roots, and local data; the `content/local` guide remains included. The historical `data/README.md`
+exception stays in the rules for baseline comparability; the scaffold itself
+has been retired. Every tracked exclusion is recorded.
 
 scc runs against explicit file lists with external/project configuration and
 ignore discovery disabled. Pinned mappings handle root extensionless metadata
@@ -108,8 +109,9 @@ spaces, PyInstaller language mapping, byte-only assets/lockfiles, repeatable
 totals, output overwrite/path protections, missing files, and unhydrated LFS
 pointers. Tests skip if scc is absent; skipped tests do not establish validation.
 
-See `docs/architecture/repository-cleanup.md` for the measured results,
-validation baseline, and step 0.2 triage.
+See [cleanup guidance](../../docs/architecture/repository-cleanup.md) for review
+and measurement principles. Historical measured results and triage records are
+retained privately; they are not current validation evidence.
 
 ## Usage analysis (step 0.2)
 

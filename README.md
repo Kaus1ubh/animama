@@ -1,37 +1,57 @@
 # Animama
 
-Animama is an AI Avatar Desktop Companion app with a FastAPI backend (`src/backend/animama/`, `src/backend/docs/`) and a Vite/Electron frontend (`src/frontend/`, `src/frontend/docs/`).
+Animama is an AI avatar desktop companion. Chat with a companion, customize its
+avatar and behavior, and keep conversations and content in your own local
+installation. The application is accountless and uses a FastAPI backend with a
+React interface and Electron desktop shell.
 
-The primary product is an accountless local desktop app. Its embedded macOS
-runtime is implemented, but no signed public release is available yet. Windows
-packaging is deferred; Compose remains a separate development/self-host path.
+The desktop target is macOS 15 or later on Apple silicon. No signed public
+release is available yet. Single-owner self-hosting is supported through Docker
+Compose; Windows and Linux packaging are not supported release targets.
 
-- [Desktop installation and availability](src/frontend/docs/desktop/installation.md)
-- [Desktop development/builds](src/frontend/docs/desktop/platforms.md)
-- [Manual release process](src/frontend/docs/desktop/release-process.md)
-- [Backend development and self-host operations](src/backend/docs/operations/development.md)
+## Run from source
 
-## Development and validation
+Install Docker with Compose and Git LFS, and hydrate the checkout assets with
+`git lfs pull`. Then start the development stack from the repository root:
 
-Start with [the agent/contributor guide](AGENTS.md), the
-[backend docs](src/backend/docs/README.md) and
-[frontend docs](src/frontend/docs/README.md). No private planning repository is
-required to build or maintain the local application.
+```bash
+./reset.sh
+```
 
-The portable-product CI workflow checks shared import boundaries, tooling,
-local HTTP/browser/desktop regression suites, and wheel/npm consumers installed
-outside the checkout. It uses no application credentials or hosted service,
-and neither signs nor publishes artifacts. PostgreSQL-backed backend acceptance,
-local setup/chat/persistence, physical audio/avatar behavior and native release
-journeys remain separate checks in the scoped guides. A passing portability
-workflow does not grant licensing or release approval.
+Open `http://localhost:3000`. Vite serves the development interface with hot reload
+and proxies application requests to private FastAPI. For the built self-hosted
+application, where FastAPI serves React directly:
+
+```bash
+ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
+```
+
+Both modes keep the application on loopback and PostgreSQL private. Remote
+self-host access requires an operator-owned authentication and TLS boundary.
+See [development and operations](docs/backend/operations/development.md) for
+provider configuration, optional services, isolated stacks, backup and recovery.
+Desktop development and packaging use the separate
+[desktop build guide](docs/frontend/desktop/platforms.md).
+
+## Documentation and checks
+
+- [Backend](docs/backend/README.md): APIs, persistence, content and operations.
+- [Frontend](docs/frontend/README.md): React, avatars, audio and desktop behavior.
+- [Architecture](docs/architecture/deployment-topology.md): desktop, self-host and development serving.
+- [Contributor and agent guide](AGENTS.md): ownership, workflow and validation.
+- [Security](SECURITY.md): reporting and supported-version expectations.
+
+Run `make help` for backend tasks and use the documented `pnpm` commands from
+`src/frontend` for frontend checks. Local builds and tests require no private
+Cloud checkout or hosted account. Discover is discontinued; existing typed
+`.animama` import/export remains local.
 
 ## Copyright and licensing
 
 Copyright (c) 2026 Raymond Van. All rights reserved.
 
-Animama's original source code, documentation, and project-authored assets are
-proprietary and are not offered under an open-source license. See [LICENSE](LICENSE)
-for the notice and its third-party and prior-license exceptions. Dependencies
-and separately licensed materials retain their own licenses. A possible future
-open-source release does not grant permission to reuse the current source.
+The working repository is proprietary. Its original source, documentation and
+project-authored assets are not currently offered under an open-source license.
+See [LICENSE](LICENSE) for third-party and prior-license exceptions. Source
+publication is being prepared separately; that preparation grants no additional
+rights to the current checkout.

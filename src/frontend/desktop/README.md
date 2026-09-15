@@ -14,15 +14,15 @@ Linux packaging, Intel/universal Mac and Windows ARM are outside this plan.
 
 ## Documentation
 
-- [Installation and availability](../docs/desktop/installation.md)
-- [Optional packs](../docs/desktop/feature-packs.md)
-- [Troubleshooting, logs and recovery](../docs/desktop/troubleshooting.md)
-- [Runtime architecture and preload](../docs/desktop/overview.md)
-- [Global voice shortcuts](../docs/desktop/keyboard-shortcuts.md)
-- [Platform development builds](../docs/desktop/platforms.md)
-- [Native staging and input review](../docs/desktop/runtime-staging.md)
-- [Manual release process](../docs/desktop/release-process.md)
-- [Signing and publisher reference](../docs/desktop/releases.md)
+- [Installation and availability](../../../docs/frontend/desktop/installation.md)
+- [Optional packs](../../../docs/frontend/desktop/feature-packs.md)
+- [Troubleshooting, logs and recovery](../../../docs/frontend/desktop/troubleshooting.md)
+- [Runtime architecture and preload](../../../docs/frontend/desktop/overview.md)
+- [Global voice shortcuts](../../../docs/frontend/desktop/keyboard-shortcuts.md)
+- [Platform development builds](../../../docs/frontend/desktop/platforms.md)
+- [Native staging and input review](../../../docs/frontend/desktop/runtime-staging.md)
+- [Manual release process](../../../docs/frontend/desktop/release-process.md)
+- [Signing and publisher reference](../../../docs/frontend/desktop/releases.md)
 
 ## External-stack development
 

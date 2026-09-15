@@ -5,18 +5,18 @@ one migration-generated installation principal owns local Animas, chats,
 memories, settings, content, and files. Local use has no hosted account
 connection. Hosted identity and deployment are separate future work.
 
-Use the [runtime architecture](docs/desktop/overview.md),
-[staging and audit guide](docs/desktop/runtime-staging.md), and
-[maintainer release process](docs/desktop/release-process.md) as the durable
+Use the [runtime architecture](../../docs/frontend/desktop/overview.md),
+[staging and audit guide](../../docs/frontend/desktop/runtime-staging.md), and
+[maintainer release process](../../docs/frontend/desktop/release-process.md) as the durable
 implementation and acceptance references. Embedded macOS supervision, optional
 packs, guarded updates, backups, signing and installed-artifact smoke tooling are
 implemented. The signed/notarized core candidate was independently verified on
 2026-09-04, but no accepted public release exists. Fresh-profile/native acceptance,
 a real forward upgrade and explicit publication approval remain required.
-Windows packaging is deferred. The [installation](docs/desktop/installation.md),
-[feature-pack](docs/desktop/feature-packs.md), and
-[recovery](docs/desktop/troubleshooting.md) guides describe current supported use.
-Use [Releases](docs/desktop/releases.md) for the detailed signing/publisher reference.
+Windows packaging is deferred. The [installation](../../docs/frontend/desktop/installation.md),
+[feature-pack](../../docs/frontend/desktop/feature-packs.md), and
+[recovery](../../docs/frontend/desktop/troubleshooting.md) guides describe current supported use.
+Use [Releases](../../docs/frontend/desktop/releases.md) for the detailed signing/publisher reference.
 
 ## Two Development Paths
 
@@ -30,7 +30,7 @@ Packaged builds always use embedded services. For unpackaged supervised tests,
 `ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` may point at a complete audited stage, with
 `ANIMAMA_DESKTOP_DEV_USER_DATA` selecting isolated durable test data.
 Packaged builds reject all these overrides, the external web URL, and the
-sandbox-disable switch. See [Platform builds](docs/desktop/platforms.md).
+sandbox-disable switch. See [Platform builds](../../docs/frontend/desktop/platforms.md).
 
 ## Embedded Startup
 
@@ -104,7 +104,7 @@ The document pack is independently frozen and signed executable code. Every
 install/launch verifies its inventory and the pinned OS publisher; no unsigned
 worker exception exists. Data-only Parakeet and expanded Included packs cannot
 execute binaries. The renderer never chooses a download URL, path, hash,
-version, destination, or command. See [Runtime staging](docs/desktop/runtime-staging.md)
+version, destination, or command. See [Runtime staging](../../docs/frontend/desktop/runtime-staging.md)
 for exact artifact production, approval gates, and development fixture catalogs.
 
 On macOS, durable data lives in `~/Library/Application Support/Animama`.
@@ -116,7 +116,7 @@ preserving the original snapshot. After two successful app launches, retention
 keeps the newest snapshot and all failed/interrupted attempts. Dumps do not
 contain files, the vault, or OS keychain and do not replace a complete backup.
 
-See [Desktop overview](docs/desktop/overview.md) for paths, legacy migration,
+See [Desktop overview](../../docs/frontend/desktop/overview.md) for paths, legacy migration,
 stale-process recovery, provider settings, and logging.
 
 ## Commands And Verification

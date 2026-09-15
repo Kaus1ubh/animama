@@ -44,11 +44,11 @@ those services deployed or require private code for local builds.
 Durable references:
 
 - [Repository boundaries](repository-boundaries.md): source and implementation ownership.
-- [Local HTTP boundary](../../src/frontend/docs/architecture/auth-server.md): serving, admission and recovery.
-- [Local backend architecture](../../src/backend/docs/architecture/overview.md) and
-  [local operations](../../src/backend/docs/operations/development.md).
-- [Desktop overview](../../src/frontend/docs/desktop/overview.md) and
-  [desktop operations](../../src/backend/docs/operations/desktop-runtime.md).
+- [Local HTTP boundary](../frontend/architecture/auth-server.md): serving, admission and recovery.
+- [Local backend architecture](../backend/architecture/overview.md) and
+  [local operations](../backend/operations/development.md).
+- [Desktop overview](../frontend/desktop/overview.md) and
+  [desktop operations](../backend/operations/desktop-runtime.md).
 
 Execution plans and hosted operator procedures remain private. They are not
 local build, runtime or contributor prerequisites.

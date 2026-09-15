@@ -323,7 +323,7 @@ export async function releaseMac(args = []) {
   });
   writeFileSync(
     path.join(directory, "RELEASE-NEXT-STEPS.txt"),
-    "Local signed candidate only; the release repository may remain private. Follow src/frontend/docs/desktop/release-process.md for fresh-account required-name smoke and native acceptance. Private GitHub pack/update URLs will not work in the app; never embed a token or bypass runtime checks. Public preview/stable publication requires separate explicit approval and anonymous repository access. Nothing was uploaded to GitHub by this build; notarization submits binaries to Apple.\n",
+    "Local signed candidate only; the release repository may remain private. Follow docs/frontend/desktop/release-process.md for fresh-account required-name smoke and native acceptance. Private GitHub pack/update URLs will not work in the app; never embed a token or bypass runtime checks. Public preview/stable publication requires separate explicit approval and anonymous repository access. Nothing was uploaded to GitHub by this build; notarization submits binaries to Apple.\n",
   );
   console.log(
     "Signed candidate built and size-checked. Publication remains gated on clean-machine smoke and explicit manual acceptance.",

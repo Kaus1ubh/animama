@@ -4,7 +4,9 @@ import json
 import logging
 import os
 
-from loadtest.common import (
+from locust import between, task
+
+from tests.loadtest.common import (
     AccountlessAnimaUser,
     anima_create_payload,
     chat_payload,
@@ -14,7 +16,6 @@ from loadtest.common import (
     stream_sse_until_completed,
     truthy,
 )
-from locust import between, task
 
 _log = logging.getLogger("locust.sse")
 

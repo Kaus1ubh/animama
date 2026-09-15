@@ -33,4 +33,6 @@ class ORMUserProfile(SqlalchemyBase):
         server_default=sa_text("CURRENT_TIMESTAMP"),
         onupdate=sa_text("CURRENT_TIMESTAMP"),
     )
+
+
 __all__ = ["ORMUserProfile"]

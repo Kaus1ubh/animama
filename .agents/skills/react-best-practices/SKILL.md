@@ -13,7 +13,7 @@ Adapted from Vercel Engineering for Animama's client-rendered React application.
 
 ## Repository Scope
 
-Use stable React APIs available in the installed version, Vite, TanStack Router, TanStack Query, and existing Zustand stores. React mounts with `createRoot`; there is no Next.js, SSR, React Server Components, Server Actions, or hydration path. Do not introduce those architectures, SWR, browser bearer tokens, or another cache/store to follow a generic example. Browser API calls go through the existing Hono gateway and generated-client wrappers.
+Use stable React APIs available in the installed version, Vite, TanStack Router, TanStack Query, and existing Zustand stores. React mounts with `createRoot`; there is no Next.js, SSR, React Server Components, Server Actions, or hydration path. Do not introduce those architectures, SWR, browser bearer tokens, or another cache/store to follow a generic example. Browser API calls go through the FastAPI local HTTP boundary and generated-client wrappers (Vite proxies the closed application routes during development).
 
 Follow the scoped frontend guide and current query/router conventions. Components are synchronous; asynchronous work belongs in event handlers, effects, loaders, or query functions. Treat example APIs as illustrative, and adapt them to existing application helpers. Profile before broad micro-optimizations or dependency changes.
 

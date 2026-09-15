@@ -109,10 +109,9 @@ def test_normalize_avatar_vfx_ids_dedupes_and_enforces_region_rules() -> None:
         emotional_state={},
     )
 
+    # Retired effects stay unknown; only the current packaged catalog is selectable.
     assert list(result.accepted_ids) == [
         "star",
-        "angry",
-        "emote_!",
         "texture_black_1",
         "texture_sick_1",
     ]
@@ -121,6 +120,8 @@ def test_normalize_avatar_vfx_ids_dedupes_and_enforces_region_rules() -> None:
     assert [(item.effect_id, item.reason) for item in result.dropped] == [
         ("eye_o", "region_conflict"),
         ("eyebag_1", "manual_only"),
+        ("angry", "unknown"),
+        ("emote_!", "unknown"),
         ("star", "duplicate"),
         ("unknown", "unknown"),
     ]

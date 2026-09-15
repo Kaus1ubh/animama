@@ -98,8 +98,8 @@ When running `audit-resources` directly, set `ANIMAMA_LOG_TO_FILE=0` and
 `ANIMAMA_LOG_TO_CONSOLE=0` to avoid audit-time files inside immutable resources.
 The orchestrated stage/audit already sets them.
 
-See [Desktop backend operations](../../docs/operations/desktop-runtime.md),
-[runtime staging](../../../frontend/docs/desktop/runtime-staging.md) and the
-[maintainer release process](../../../frontend/docs/desktop/release-process.md)
+See [Desktop backend operations](../../../../docs/backend/operations/desktop-runtime.md),
+[runtime staging](../../../../docs/frontend/desktop/runtime-staging.md) and the
+[maintainer release process](../../../../docs/frontend/desktop/release-process.md)
 for build commands, source/licensing review, size budgets, acceptance gates,
 and the distinction between a feasibility artifact and a release.

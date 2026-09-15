@@ -17,9 +17,4 @@ def test_runtime_budget_policy_is_shared_and_operation_independent() -> None:
         )
         == "runtime_entry_budget"
     )
-    assert (
-        runtime_budget_violation(
-            RuntimeBudgetUsage(entries=1, bytes=1, audio_seconds=0, config_bytes=2)
-        )
-        is None
-    )
+    assert runtime_budget_violation(RuntimeBudgetUsage(entries=1, bytes=1, audio_seconds=0, config_bytes=2)) is None

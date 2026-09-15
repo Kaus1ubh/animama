@@ -20,10 +20,10 @@ chat history persisted in `chats` and `chat_messages`.
 ## Repository Shape
 
 - `src/backend`: FastAPI backend, direct chat runtime, domain/services,
-  SQLAlchemy ORM, Alembic integration, workers, backend docs, and Python package
+  SQLAlchemy ORM, Alembic integration, workers, and Python package
   source.
 - `src/frontend`: Vite React web app,
-  Electron desktop shell, frontend docs, generated API client, and public
+  Electron desktop shell, generated API client, and public
   runtime assets.
 - `docker-compose.yml`: local service graph for Postgres, pgAdmin, backend,
   web development override, and optional `voice`, `memory`, `obs`, and `dev-tools` profiles.
@@ -76,8 +76,8 @@ solutions that fit the surrounding patterns.
    untracked files.
 2. Identify the touched subsystem and read its scoped `AGENTS.md`.
 3. Read the relevant docs entrypoints:
-  - Backend docs: `src/backend/docs/README.md`
-   - Frontend docs: `src/frontend/docs/README.md`
+  - Backend docs: `docs/backend/README.md`
+   - Frontend docs: `docs/frontend/README.md`
 4. Prefer existing patterns, helpers, commands, and architecture boundaries over
    introducing parallel paths.
 
@@ -86,8 +86,8 @@ solutions that fit the surrounding patterns.
 The local composition uses a generated installation owner, FastAPI request boundary,
 credential-free React startup, and loopback-only desktop/self-host services.
 Its durable contracts are documented in
-[backend operations](src/backend/docs/operations/development.md) and
-[local HTTP architecture](src/frontend/docs/architecture/auth-server.md).
+[backend operations](docs/backend/operations/development.md) and
+[local HTTP architecture](docs/frontend/architecture/auth-server.md).
 FastAPI serves the production React build and authorizes API/byte traffic.
 Development publishes Vite with a closed same-origin proxy to private FastAPI.
 Only the selected application service publishes the loopback application port. React starts from `main.local.tsx`, reads backend-owned
@@ -177,10 +177,10 @@ startup, debugging, and reporting.
   may not load automatically. Run commands with an explicit repository working
   directory and keep Git status, commits and pull requests separate. A worktree
   for this repository does not isolate edits in an attached sibling repository.
-- Backend API, persistence, runtime, workers, and backend docs belong under
-  `src/backend`.
-- Browser UI, generated clients, Electron, and frontend
-  docs belong under `src/frontend`.
+- Backend API, persistence, runtime and workers belong under `src/backend`;
+  backend documentation belongs under `docs/backend`.
+- Browser UI, generated clients and Electron belong under `src/frontend`;
+  frontend documentation belongs under `docs/frontend`.
 - Do not hand-edit generated API clients under
   `src/frontend/packages/runtime-contracts/src/generated` or generated TanStack
   Router output. Regenerate the SDK offline through `pnpm openapi-ts`.

@@ -88,9 +88,7 @@ class ORMAnimaLoadoutDiagnostic(SqlalchemyBase):
     """Durable warning for a rejected legacy or externally edited binding."""
 
     __tablename__ = "anima_loadout_diagnostics"
-    __table_args__ = (
-        Index("ix_anima_loadout_diagnostics_anima", "anima_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_anima_loadout_diagnostics_anima", "anima_id", "created_at"),)
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     anima_id: Mapped[str] = mapped_column(
@@ -143,6 +141,7 @@ class ORMAnimaRuntimeSnapshot(SqlalchemyBase):
     updated_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=sa_text("CURRENT_TIMESTAMP")
     )
+
 
 __all__ = [
     "ORMAnimaLoadout",

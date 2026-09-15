@@ -1,17 +1,19 @@
-# Security and issue boundaries
+# Security
 
-Ordinary bugs reproducible in the shared or local product belong in this
-repository. Describe the local version, reproduction and expected behavior.
-Do not include credentials, personal data, hosted internals, moderation evidence
-or abuse details in a public issue or source change.
+Animama has no signed public release or published security-support schedule yet.
+Security fixes are developed against the current maintained source; older
+snapshots are not promised backports.
 
-Report sensitive findings privately to the maintainer through an established
-private channel. Authorized maintainers can use the private Animama Cloud
-repository for hosted issues and coordinated fixes. If private advisory reporting
-is available on this repository, it is also appropriate for a local/shared
-vulnerability; this policy does not claim that GitHub feature is enabled.
+Do not post credentials, private conversations, personal files or vulnerability
+exploit details in public issues. Existing collaborators should report sensitive
+findings through their established private maintainer channel.
 
-A coordinated fix lands the public/shared dependency first, followed by the
-private consumer lock and compatibility change. Public builds and contributors
-never need private service code or private planning access. See
-[repository boundaries](docs/architecture/repository-boundaries.md).
+A concrete, monitored vulnerability-reporting route available to public users
+must be established before source publication. This policy does not claim that
+GitHub private vulnerability reporting is enabled or provide an unverified
+contact address.
+
+For ordinary bugs, include the version, reproduction steps and expected behavior,
+with private data removed. For self-hosting, keep the application on loopback or
+provide your own authentication and TLS boundary; see
+[local deployment](docs/architecture/deployment-topology.md).

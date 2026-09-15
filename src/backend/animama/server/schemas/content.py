@@ -142,9 +142,7 @@ class PyContentItem(BaseModel):
             name=item.display_name,
             description=description if isinstance(description, str) else None,
             semantic_key=(
-                item.metadata.get("semantic_key")
-                if isinstance(item.metadata.get("semantic_key"), str)
-                else None
+                item.metadata.get("semantic_key") if isinstance(item.metadata.get("semantic_key"), str) else None
             ),
             implementation_kind=implementation_kind if isinstance(implementation_kind, str) else None,
             origin=item.source.value,
@@ -246,8 +244,7 @@ class PyContentPreview(BaseModel):
                     size_bytes=file.size_bytes,
                     sha256=file.sha256,
                     url=(
-                        f"/v1/content/previews/{preview.id}/revisions/"
-                        f"{preview.revision_sha256}/files/{file.file_ref}"
+                        f"/v1/content/previews/{preview.id}/revisions/{preview.revision_sha256}/files/{file.file_ref}"
                     ),
                 )
                 for index, file in enumerate(preview.files, start=1)

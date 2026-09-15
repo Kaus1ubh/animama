@@ -148,9 +148,6 @@ importers:
 
   web:
     dependencies:
-      '@animama/discover-client':
-        specifier: workspace:*
-        version: link:../packages/discover-client
       '@animama/product-ui':
         specifier: workspace:*
         version: link:../packages/product-ui

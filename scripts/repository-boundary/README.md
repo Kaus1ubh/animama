@@ -202,7 +202,7 @@ Extend the existing ownership manifest, keeping its exact groups:
 ```toml
 [export]
 project_inventory = true
-allowed_paths = [".env.example", "data/README.md", "content/local/README.md"]
+allowed_paths = [".env.example", "content/local/README.md"]
 
 [[export.mappings]]
 source = "scripts/repository-boundary/templates/cloud/package.json"

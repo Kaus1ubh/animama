@@ -82,9 +82,7 @@ def test_included_actions_own_their_primary_playback_files() -> None:
         for action_root in sorted(path for path in (included / family).iterdir() if path.is_dir()):
             slug = action_root.name
             assert (action_root / f"{slug}.meta.json").is_file()
-            assert (action_root / f"{slug}.json").is_file() or (
-                action_root / f"{slug}.vrma"
-            ).is_file()
+            assert (action_root / f"{slug}.json").is_file() or (action_root / f"{slug}.vrma").is_file()
 
     starter = included / "idle-styles/starter"
     assert sorted(path.name for path in (starter / "animations").glob("*.vrma")) == [
@@ -125,8 +123,7 @@ def test_every_included_sound_dependency_resolves_to_a_shipped_sound() -> None:
             dependency
             for entry in entries
             for dependency in entry.dependencies
-            if dependency.startswith("builtin:sound-effect:")
-            and dependency not in sound_keys
+            if dependency.startswith("builtin:sound-effect:") and dependency not in sound_keys
         }
     )
 

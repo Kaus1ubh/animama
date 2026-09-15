@@ -76,7 +76,6 @@
     "zod": "^4.3.5",
     "zustand": "^5.0.10",
     "@animama/runtime-contracts": "workspace:*",
-    "@animama/discover-client": "workspace:*",
     "@animama/product-ui": "workspace:*"
   },
   "devDependencies": {

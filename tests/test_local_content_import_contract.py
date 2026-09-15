@@ -88,9 +88,7 @@ async def test_import_requires_an_explicit_collision_choice_and_installs_an_edit
         await async_session.commit()
 
 
-async def test_import_keep_both_preserves_action_control_and_payload_names(
-    async_session, tmp_path: Path
-) -> None:  # noqa: ANN001
+async def test_import_keep_both_preserves_action_control_and_payload_names(async_session, tmp_path: Path) -> None:  # noqa: ANN001
     paths, _catalog, _content, saves, packages = package_services(async_session, tmp_path)
     try:
         saved = await saves.save_descriptor(

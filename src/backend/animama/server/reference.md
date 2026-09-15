@@ -103,7 +103,7 @@ The old `/v1/memory/files` routes are not mounted.
   routes, including Avatar and Appearance content and Avatar portrait Save.
 - `server/routers/anima_loadouts.py` owns family-specific loadout plan/commit
   commands; `server/routers/anima_runtime.py` resolves the exact runtime closure.
-- See the [HTTP API guide](../../docs/architecture/http-api.md) for the current
+- See the [HTTP API guide](../../../../docs/backend/architecture/http-api.md) for the current
   route contract. Immutable Avatar-release APIs are retired.
 - User-file upload, finalize, process, list, search, abort, and delete routes
   live in `server/routers/user_files.py`.

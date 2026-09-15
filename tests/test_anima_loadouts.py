@@ -70,9 +70,7 @@ async def test_gesture_plan_commit_is_typed_revisioned_and_idempotent(async_sess
             anima_id=fixture.anima_id,
         )
         custom = [binding for binding in loadout.gestures if binding.origin == "custom"]
-        assert [(binding.name, binding.semantic_key) for binding in custom] == [
-            ("Test Wave", "test-wave")
-        ]
+        assert [(binding.name, binding.semantic_key) for binding in custom] == [("Test Wave", "test-wave")]
     finally:
         await cleanup_loadout_fixture(async_session, fixture)
 
@@ -121,11 +119,7 @@ async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session) -> No
             user_id=fixture.user_id,
             anima_id=fixture.anima_id,
         )
-        selected = next(
-            cell
-            for cell in loadout.reactions
-            if cell.emotion == "sadness" and cell.intensity == 1
-        )
+        selected = next(cell for cell in loadout.reactions if cell.emotion == "sadness" and cell.intensity == 1)
         assert selected.state == "custom"
         assert selected.name == "Strong Joy"
         assert selected.source is not None

@@ -97,7 +97,7 @@
       "license": "UNKNOWN",
       "path_sha256": {
         "LICENSE": "485c802cafe9db0b7d05d5f3e7b9ca74d2b48838b0642774a0a0c799deb72b44",
-        "content/README.md": "87bba44d75023893ec18ba34631e925174f3d321498d7560ebf71dc02ba4f6f9"
+        "content/README.md": "c38aaafad2782da8678cb346414255470d9a405a6972a6702964d1058d6936b3"
       },
       "paths": [
         "LICENSE",
@@ -780,7 +780,7 @@
       "id": "skill-improve-codebase-architecture-full",
       "license": "UNKNOWN",
       "path_sha256": {
-        ".agents/skills/improve-codebase-architecture-full/SKILL.md": "1b11fe2b9327d4f3d305a11f7223ea9f03f894eaed9db0eee8ded87d65060f49"
+        ".agents/skills/improve-codebase-architecture-full/SKILL.md": "6e2750dc6948404166e6aed9403ca81888b37a973eb5f8a9065ffa7a924a0a94"
       },
       "paths": [
         ".agents/skills/improve-codebase-architecture-full/SKILL.md"
@@ -813,7 +813,7 @@
       "license": "UNKNOWN",
       "path_sha256": {
         ".agents/skills/react-best-practices/README.md": "80259121f9ed59d388f6ca179f2f2248c9bc2e7e34d4f3519fc7f43dedb65839",
-        ".agents/skills/react-best-practices/SKILL.md": "e7d5273f860b03294db778a9257d830e38b410d95d4c8871c9650afd39f60112",
+        ".agents/skills/react-best-practices/SKILL.md": "6686208d90d5f7314a80f2aff441b4223db29b4d2c07c1a5473b5717797621c4",
         ".agents/skills/react-best-practices/metadata.json": "84a425788441735b4d0ba68ed5f402d53aeb837677792412a6cf60c4ffa9ee0d"
       },
       "paths": [
@@ -1172,11 +1172,11 @@
       "evidence_ids": [
         "skill-improve-codebase-architecture-full"
       ],
-      "git_blob_oid": "97b84ad0af388f354a28b60cb8dcf2d3d0822c32",
+      "git_blob_oid": "b1548021068deaa5b809c81e974b45adfffb6101",
       "notes": "Skill content, examples and generated compilations require their own provenance review.",
       "path": ".agents/skills/improve-codebase-architecture-full/SKILL.md",
       "publication_status": "review-pending",
-      "sha256": "1b11fe2b9327d4f3d305a11f7223ea9f03f894eaed9db0eee8ded87d65060f49"
+      "sha256": "6e2750dc6948404166e6aed9403ca81888b37a973eb5f8a9065ffa7a924a0a94"
     },
     {
       "evidence_ids": [
@@ -1282,11 +1282,11 @@
       "evidence_ids": [
         "skill-react-best-practices"
       ],
-      "git_blob_oid": "c330c868d5d3f22b07c50be922394aa7070f08c4",
+      "git_blob_oid": "87985ecd074b2436019171ad7eb1f1c8e3d26662",
       "notes": "Skill content, examples and generated compilations require their own provenance review.",
       "path": ".agents/skills/react-best-practices/SKILL.md",
       "publication_status": "review-pending",
-      "sha256": "e7d5273f860b03294db778a9257d830e38b410d95d4c8871c9650afd39f60112"
+      "sha256": "6686208d90d5f7314a80f2aff441b4223db29b4d2c07c1a5473b5717797621c4"
     },
     {
       "evidence_ids": [
@@ -1972,11 +1972,11 @@
       "evidence_ids": [
         "content-guide-source"
       ],
-      "git_blob_oid": "59de9781b0c24c577b0017312a197568a50c30ea",
+      "git_blob_oid": "376dc27c59a12501ee437731930e4b9a5ced1f17",
       "notes": "A tracked guide is not local user data; no ignored local payload was read.",
       "path": "content/README.md",
       "publication_status": "review-pending",
-      "sha256": "87bba44d75023893ec18ba34631e925174f3d321498d7560ebf71dc02ba4f6f9"
+      "sha256": "c38aaafad2782da8678cb346414255470d9a405a6972a6702964d1058d6936b3"
     },
     {
       "evidence_ids": [
@@ -9266,11 +9266,11 @@
       "evidence_ids": [
         "content-guide-source"
       ],
-      "git_blob_oid": "24650a77a335096d9c8c30bc2933d2d785b8b3d9",
+      "git_blob_oid": "cb597cae5d13bdd1e4cb0a07259834ccc9d40f85",
       "notes": "A tracked guide is not local user data; no ignored local payload was read.",
       "path": "content/local/README.md",
       "publication_status": "review-pending",
-      "sha256": "901b322f0839e5c74f6b40b2a04d511d4f7456f063db8c63695548e726d65e29"
+      "sha256": "0e23d18b4e880ddbf20bf82d216f55c4114e33b8c093659f694c1be1d48d8e7f"
     },
     {
       "evidence_ids": [
@@ -9996,6 +9996,62 @@
         "sha256": "1d304de3d06a45090b561cb188a1c0c6368a0997036eea9c35dd3878ef106e16"
       },
       "reason": "Update project-local stack instructions for FastAPI production serving and Vite development proxy. Preserve imported provenance uncertainty, notices and review-pending status; no source-publication permission is granted."
+    },
+    {
+      "date": "2026-09-15",
+      "path": ".agents/skills/improve-codebase-architecture-full/SKILL.md",
+      "base_commit": "900fe2f452c57fdac4c358ceac6cee82c77da39c",
+      "previous_binding": {
+        "git_blob_oid": "97b84ad0af388f354a28b60cb8dcf2d3d0822c32",
+        "sha256": "1b11fe2b9327d4f3d305a11f7223ea9f03f894eaed9db0eee8ded87d65060f49"
+      },
+      "current_binding": {
+        "git_blob_oid": "b1548021068deaa5b809c81e974b45adfffb6101",
+        "sha256": "6e2750dc6948404166e6aed9403ca81888b37a973eb5f8a9065ffa7a924a0a94"
+      },
+      "reason": "Relocate backend and frontend documentation references. Preserve origin, notices and publication status; no permission grant."
+    },
+    {
+      "date": "2026-09-15",
+      "path": ".agents/skills/react-best-practices/SKILL.md",
+      "base_commit": "900fe2f452c57fdac4c358ceac6cee82c77da39c",
+      "previous_binding": {
+        "git_blob_oid": "c330c868d5d3f22b07c50be922394aa7070f08c4",
+        "sha256": "e7d5273f860b03294db778a9257d830e38b410d95d4c8871c9650afd39f60112"
+      },
+      "current_binding": {
+        "git_blob_oid": "87985ecd074b2436019171ad7eb1f1c8e3d26662",
+        "sha256": "6686208d90d5f7314a80f2aff441b4223db29b4d2c07c1a5473b5717797621c4"
+      },
+      "reason": "Replace retired Hono gateway guidance with the current FastAPI and Vite boundary. Preserve origin, notices and publication status; no permission grant."
+    },
+    {
+      "date": "2026-09-15",
+      "path": "content/README.md",
+      "base_commit": "900fe2f452c57fdac4c358ceac6cee82c77da39c",
+      "previous_binding": {
+        "git_blob_oid": "59de9781b0c24c577b0017312a197568a50c30ea",
+        "sha256": "87bba44d75023893ec18ba34631e925174f3d321498d7560ebf71dc02ba4f6f9"
+      },
+      "current_binding": {
+        "git_blob_oid": "376dc27c59a12501ee437731930e4b9a5ced1f17",
+        "sha256": "c38aaafad2782da8678cb346414255470d9a405a6972a6702964d1058d6936b3"
+      },
+      "reason": "Remove discontinued Discover promises and clarify retained local private data. Preserve origin, notices and publication status; no permission grant."
+    },
+    {
+      "date": "2026-09-15",
+      "path": "content/local/README.md",
+      "base_commit": "900fe2f452c57fdac4c358ceac6cee82c77da39c",
+      "previous_binding": {
+        "git_blob_oid": "24650a77a335096d9c8c30bc2933d2d785b8b3d9",
+        "sha256": "901b322f0839e5c74f6b40b2a04d511d4f7456f063db8c63695548e726d65e29"
+      },
+      "current_binding": {
+        "git_blob_oid": "cb597cae5d13bdd1e4cb0a07259834ccc9d40f85",
+        "sha256": "0e23d18b4e880ddbf20bf82d216f55c4114e33b8c093659f694c1be1d48d8e7f"
+      },
+      "reason": "Remove discontinued Discover promises and clarify retained local private data. Preserve origin, notices and publication status; no permission grant."
     }
   ]
 }

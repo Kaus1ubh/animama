@@ -91,7 +91,7 @@ export async function measure(target, manifest) {
     target: target.target,
     app_version: manifest.app_version,
     measurement:
-      "staged-payload-zstd; signed installer overhead not available until Phase 4",
+      "staged-payload-zstd; signed installer overhead requires separate binary release measurements",
     installed_bytes: Object.values(payload.sizes).reduce((a, b) => a + b, 0),
     download_bytes: payload.download_bytes,
     archive_sha256: payload.sha256,

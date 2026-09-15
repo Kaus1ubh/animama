@@ -1,7 +1,7 @@
 # Backend Agent Guide
 
 This file is for AI assistants working in the FastAPI backend under
-`src/backend/animama`. Read `src/backend/docs/README.md` first, then follow the more
+`src/backend/animama`. Read `../../docs/backend/README.md` first, then follow the more
 specific docs linked from there.
 
 ## Backend Shape
@@ -62,16 +62,16 @@ agent rows, and `/v1/agents` API surface are retired.
 
 ## Current Docs
 
-- `docs/architecture/overview.md`
-- `docs/architecture/http-api.md`
-- `docs/architecture/data-model.md`
-- `docs/runtime/chat.md`
-- `docs/runtime/model-client-providers.md`
-- `docs/model-catalog.md`
-- `docs/features/memory.md`
-- `docs/features/custom-animas-and-content.md`
-- `docs/integrations/voice-and-speech.md`
-- `docs/operations/development.md`
+- `../../docs/backend/architecture/overview.md`
+- `../../docs/backend/architecture/http-api.md`
+- `../../docs/backend/architecture/data-model.md`
+- `../../docs/backend/runtime/chat.md`
+- `../../docs/backend/runtime/model-client-providers.md`
+- `../../docs/backend/model-catalog.md`
+- `../../docs/backend/features/memory.md`
+- `../../docs/backend/features/custom-animas-and-content.md`
+- `../../docs/backend/integrations/voice-and-speech.md`
+- `../../docs/backend/operations/development.md`
 
 When behavior changes, update these docs in the same change.
 
@@ -109,7 +109,7 @@ Built Compose publishes only FastAPI on loopback; development publishes Vite,
 which proxies a closed set of application routes to private FastAPI. PostgreSQL
 stays private. Only the opt-in `dev-tools`
 profile adds localhost pgAdmin/Dozzle access for operators; it does not change
-product authentication. See `docs/operations/development.md` for commands,
+product authentication. See `../../docs/backend/operations/development.md` for commands,
 port overrides, and safe enable/disable behavior. Never publish PostgreSQL or
 route these privileged tools through the application as a shortcut.
 
@@ -197,7 +197,7 @@ filesystem catalog; private originals stay beneath `ANIMAMA_DATA_ROOT`.
 Validate owner, status, containment, size and format before finalizing. Serve
 registered bytes through the admitted FastAPI boundary. Do not reintroduce R2/S3 presigned
 URLs or renderer-chosen paths for local content. Desktop's immutable mounts,
-private environment and recovery rules are in `docs/operations/desktop-runtime.md`.
+private environment and recovery rules are in `../../docs/backend/operations/desktop-runtime.md`.
 
 ElevenLabs routes are current for TTS/voice operations. Current frontend speech
 uses client-side STT/VAD/turn detection; the legacy backend STT and LiveKit
@@ -229,7 +229,7 @@ Shared animation/VFX catalog bytes are generated from the canonical frontend
 JSON files. After editing those inputs, run
 `uv run --no-sync python src/backend/packaging/shared_catalogs.py --write`.
 Wheel/editable builds reject drift; shared resource reads use package resources
-and work without a source checkout. See `docs/operations/development.md`.
+and work without a source checkout. See `../../docs/backend/operations/development.md`.
 
 Workers:
 
@@ -244,7 +244,7 @@ shared runtime, persistence, or API contracts and time allows.
 
 - Keep edits scoped to backend files unless the task requires frontend changes.
 - Add or update tests for behavioral changes.
-- Update `src/backend/docs/` when architecture, routes, runtime behavior, or
+- Update `../../docs/backend/` when architecture, routes, runtime behavior, or
   operational steps change.
 - Preserve auth, ownership, incognito, memory-disabled, and suppressed-response
   behavior.

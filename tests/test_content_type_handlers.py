@@ -156,9 +156,7 @@ def test_dependency_declaration_and_resolved_kind_must_agree() -> None:
         fallback_path=Path("gestures/sparkle-wave"),
         descriptor_backed=True,
     )
-    diagnostics = handler.validate_resolved_dependencies(
-        [(parsed.document.dependencies[0], ContentKind.SOUND_EFFECT)]
-    )
+    diagnostics = handler.validate_resolved_dependencies([(parsed.document.dependencies[0], ContentKind.SOUND_EFFECT)])
     assert [diagnostic.code for diagnostic in diagnostics] == ["dependency_kind_mismatch"]
 
 

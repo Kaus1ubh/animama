@@ -42,16 +42,16 @@ Prefer boring, local changes that fit existing patterns.
   offline and exported through `@animama/runtime-contracts/sdk`, `api-types`,
   and `validators`.
 - Runtime assets: `web/public`
-- Docs entrypoint: `docs/README.md`
+- Docs entrypoint: `../../docs/frontend/README.md`
 
 Start with:
 
-- `docs/architecture/overview.md`
-- `docs/architecture/routing.md`
-- `docs/runtime/chat.md`
-- `docs/runtime/avatar-animation.md`
-- `docs/runtime/voice.md`
-- `docs/desktop/platforms.md`
+- `../../docs/frontend/architecture/overview.md`
+- `../../docs/frontend/architecture/routing.md`
+- `../../docs/frontend/runtime/chat.md`
+- `../../docs/frontend/runtime/avatar-animation.md`
+- `../../docs/frontend/runtime/voice.md`
+- `../../docs/frontend/desktop/platforms.md`
 - `electron-guide.md`
 
 ## Non-Negotiable Rules
@@ -239,7 +239,7 @@ or migration behavior.
 - Runtime staging writes to the ignored `desktop/.desktop-runtime/` directory.
   Use `pnpm desktop:runtime:stage -- --platform darwin --arch arm64` and the
   matching `desktop:runtime:audit` command on Apple Silicon. Read
-  `docs/desktop/runtime-staging.md` for the source/licensing gate. Never force
+  `../../docs/frontend/desktop/runtime-staging.md` for the source/licensing gate. Never force
   ignored third-party assets into a release or substitute a wrapper package
   for a verified self-contained runtime.
 - Only unpackaged external-stack development loads `ANIMAMA_DESKTOP_WEB_URL`
@@ -258,7 +258,7 @@ or migration behavior.
   verification on install and every launch, even with an unsigned development
   core; never add an unsigned-worker bypass. See the staging guide for release
   input approvals, producer commands, and the outstanding native artifact gates.
-- Platform dev builds are documented in `docs/desktop/platforms.md`.
+- Platform dev builds are documented in `../../docs/frontend/desktop/platforms.md`.
 - `pnpm desktop:mac` requires a complete fresh stage and audit, explicitly skips
   ad-hoc signing, and rechecks the packaged inventory. Unlicensed decorative SFX
   are excluded from tracked runtime definitions; never restore their ignored
@@ -266,7 +266,7 @@ or migration behavior.
   packaged acceptance. Windows native packaging is Phase 5, Linux outside the
   plan. Phase 4 adds guarded updates and signed-release/CI/smoke tooling; actual
   release acceptance remains blocked by source/review/Apple/repository inputs
-  and native tests. Read `docs/desktop/releases.md` before using those commands.
+  and native tests. Read `../../docs/frontend/desktop/releases.md` before using those commands.
   Never auto-fill approval receipts, embed a GitHub token, run smoke against an
   existing user profile, or publish as part of an ordinary build.
   Signed candidate builds do not query GitHub or require a public repository.
@@ -278,10 +278,11 @@ or migration behavior.
   profile state rather than assuming a home path or reusing the maintainer's data.
   Initial publication is manual by `raymond-van` from reviewed `main` inputs;
   GitHub environments/CI publication remain unconfigured. Follow
-  `docs/desktop/release-process.md` and provide the exact command only after its
+  `../../docs/frontend/desktop/release-process.md` and provide the exact command only after its
   signing, artifact, native-acceptance and explicit publication gates pass.
-  User guides are `docs/desktop/installation.md`, `feature-packs.md` and
-  `troubleshooting.md`; the latter owns safe support/recovery guidance.
+  User guides are `../../docs/frontend/desktop/installation.md`,
+  `../../docs/frontend/desktop/feature-packs.md` and
+  `../../docs/frontend/desktop/troubleshooting.md`; the latter owns safe support/recovery guidance.
 - Keep preload APIs small, typed, and exposed through `window.animamaDesktop`.
   Do not expose Node APIs directly to the React renderer.
 - Global Press-to-talk uses the first-party N-API addon under
@@ -367,7 +368,7 @@ Prefer minimal, surgical diffs in:
 - Prefer existing dependencies. If adding a dependency is necessary, update the
   lockfile and explain why the new package is warranted.
 - Avoid broad renames or moves unless requested.
-- Update docs in `docs/` when architecture or runtime behavior changes
+- Update docs in `../../docs/frontend/` when architecture or runtime behavior changes
   materially.
 
 ## Change Summary Expectations
