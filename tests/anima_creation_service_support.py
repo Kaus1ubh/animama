@@ -388,6 +388,30 @@ def copy_tracked_included(destination: Path) -> Path:
     return destination
 
 
+def write_supplied_animation_fixture(root: Path) -> Path:
+    """Keep tracked descriptors and supply original structural animation fixtures.
+
+    Catalog tests exercise the reviewed descriptors without private motion bytes.
+    Production license exclusions remain intact; this is not a distributable pack
+    or evidence of real user-supplied animation playback.
+    """
+
+    copy_tracked_included(root)
+    for descriptor in sorted(root.rglob("*.json")):
+        document = json.loads(descriptor.read_text())
+        if not isinstance(document, dict):
+            continue
+        for item in document.get("files", []):
+            relative = item.get("path", "")
+            if not relative.endswith(".vrma"):
+                continue
+            target = descriptor.parent / relative
+            assert target.resolve().is_relative_to(root.resolve())
+            if not target.exists():
+                write_file(target, vrma())
+    return root
+
+
 def write_supplied_starter_fixture(root: Path) -> Path:
     """Generate contract-only assets; no Mixamo bytes or real playback claim.
 

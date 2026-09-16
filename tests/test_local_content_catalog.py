@@ -20,8 +20,7 @@ from animama.domain.content_catalog import (
     ScannedContentFile,
 )
 from animama.orm.content_catalog import ORMContentCatalogItem, ORMContentPreview
-
-ROOT = Path(__file__).parents[1]
+from tests.anima_creation_service_support import write_supplied_animation_fixture
 
 
 def _entry(locator: str, *, revision: str, file_digest: str, logical_key: str | None = None) -> ScannedContentEntry:
@@ -218,11 +217,11 @@ async def test_catalog_invalidates_dependents_of_invalid_entries(async_session) 
     await async_session.commit()
 
 
-async def test_included_projection_persists_with_resolved_dependencies(async_session) -> None:  # noqa: ANN001
+async def test_supplied_included_projection_persists_with_resolved_dependencies(async_session, tmp_path: Path) -> None:  # noqa: ANN001
     scanned = FilesystemContentStore(
-        included_root=ROOT / "content/included",
-        local_root=ROOT / "content/local",
-        operations_root=ROOT / "data/internal/operations",
+        included_root=write_supplied_animation_fixture(tmp_path / "included"),
+        local_root=tmp_path / "local",
+        operations_root=tmp_path / "operations",
     ).scan(ContentSource.INCLUDED)
     repository = SQLAlchemyContentCatalog(async_session)
 

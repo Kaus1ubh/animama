@@ -22,3 +22,11 @@ identities. It does not prove avatar rendering, real motion playback, or the
 user-supplied asset acquisition/conversion workflow. Separate tracked-checkout
 tests require rejection when the excluded idle animation bytes are absent;
 private maintainer assets cannot satisfy those tests.
+
+The broader catalog tests use `write_supplied_animation_fixture` to copy only
+tracked Included content and fill declared animation paths with original minimal
+VRMA structures. This preserves every reviewed descriptor and production license
+exclusion while testing handler validation, file ownership and database projection.
+Separate clean-source checks pin the 65 incomplete gesture descriptors and the
+six missing idle files. Neither fixture library is evidence of real playback or
+a license-approved distributable animation pack.

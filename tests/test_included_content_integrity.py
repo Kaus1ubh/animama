@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from tests.anima_creation_service_support import copy_tracked_included
+
 ROOT = Path(__file__).parents[1]
 
 
@@ -25,12 +27,13 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     assert by_glob["vfx/particle/quark/**"]["license_id"] == "LicenseRef-Animama-generated-and-CC0-particle-VFX"
 
 
-def test_typed_media_moved_but_browser_engine_assets_remained_public() -> None:
+def test_typed_media_moved_but_browser_engine_assets_remained_public(tmp_path: Path) -> None:
     public = ROOT / "src/frontend/web/public"
 
-    assert (ROOT / "content/included/avatars/AvatarSample_A_1_New.vrm").is_file()
-    assert (ROOT / "content/included/gestures/wave/wave.vrma").is_file()
-    assert (ROOT / "content/included/gestures/wave/wave.meta.json").is_file()
+    included = copy_tracked_included(tmp_path / "included")
+    assert (included / "avatars/AvatarSample_A_1_New.vrm").is_file()
+    assert not (included / "gestures/wave/wave.vrma").exists()
+    assert (included / "gestures/wave/wave.meta.json").is_file()
     assert not any((public / "vrm").glob("*.vrm"))
     assert not any((public / "vrm").glob("animations/*.vrma"))
     assert (public / "onnx").is_dir()

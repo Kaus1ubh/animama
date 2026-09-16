@@ -5,18 +5,18 @@ from pathlib import Path
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.content_kind_registry import handler_for_kind
 from animama.domain.content_catalog import ContentKind, ContentSource, ContentStatus
+from tests.anima_creation_service_support import copy_tracked_included, write_supplied_animation_fixture
 
-ROOT = Path(__file__).parents[1]
 RUNTIME_KINDS = set(ContentKind) - {ContentKind.ANIMA}
 
 
-def test_every_included_runtime_item_is_handler_validated_and_file_registered() -> None:
-    """Included playback content has no browser-only source outside the catalog."""
+def test_every_supplied_runtime_item_is_handler_validated_and_file_registered(tmp_path: Path) -> None:
+    """Tracked descriptors with original supplied motion close through the catalog."""
 
     entries = FilesystemContentStore(
-        included_root=ROOT / "content/included",
-        local_root=ROOT / "content/local",
-        operations_root=ROOT / "data/internal/operations",
+        included_root=write_supplied_animation_fixture(tmp_path / "included"),
+        local_root=tmp_path / "local",
+        operations_root=tmp_path / "operations",
     ).scan(ContentSource.INCLUDED)
 
     runtime_entries = [entry for entry in entries if entry.kind in RUNTIME_KINDS]
@@ -28,9 +28,8 @@ def test_every_included_runtime_item_is_handler_validated_and_file_registered() 
         ContentKind.MUSIC_TRACK,
     }
     assert {entry.kind for entry in runtime_entries} >= required_kinds
-    # Shipped Actions own their one-use Pose Clips. Private audio examples are
-    # omitted from public source; any locally present examples still pass every
-    # handler and file-registration assertion below.
+    # Actions own their one-use Pose Clips. Private audio examples stay omitted;
+    # the fixture supplies original motion structures without changing descriptors.
     assert all(entry.kind is not ContentKind.POSE_CLIP for entry in runtime_entries)
 
     for entry in runtime_entries:
@@ -48,11 +47,11 @@ def test_every_included_runtime_item_is_handler_validated_and_file_registered() 
         assert parsed.document.kind is entry.kind
 
 
-def test_reserved_anima_directory_has_no_admitted_portable_entry() -> None:
+def test_reserved_anima_directory_has_no_admitted_portable_entry(tmp_path: Path) -> None:
     entries = FilesystemContentStore(
-        included_root=ROOT / "content/included",
-        local_root=ROOT / "content/local",
-        operations_root=ROOT / "data/internal/operations",
+        included_root=copy_tracked_included(tmp_path / "included"),
+        local_root=tmp_path / "local",
+        operations_root=tmp_path / "operations",
     ).scan(ContentSource.INCLUDED)
 
     assert all(entry.kind is not ContentKind.ANIMA for entry in entries)

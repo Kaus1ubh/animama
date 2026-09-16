@@ -1,26 +1,35 @@
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.content_kind_registry import definition_for_kind, descriptor_filename
 from animama.domain.content_catalog import ContentKind, ContentSource, ContentStatus
+from tests.anima_creation_service_support import copy_tracked_included, write_supplied_animation_fixture
 
 ROOT = Path(__file__).parents[1]
 
 
-def _scan_included() -> list[Any]:
+@pytest.fixture(scope="module")
+def included(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return copy_tracked_included(tmp_path_factory.mktemp("tracked-included"))
+
+
+def _scan_included(included: Path) -> list[Any]:
     return FilesystemContentStore(
-        included_root=ROOT / "content/included",
-        local_root=ROOT / "content/local",
-        operations_root=ROOT / "data/internal/operations",
+        included_root=included,
+        local_root=included.parent / "local",
+        operations_root=included.parent / "operations",
     ).scan(ContentSource.INCLUDED)
 
 
-def test_readable_included_library_projects_every_supported_entry() -> None:
-    entries = _scan_included()
+def test_readable_included_library_projects_every_supported_entry(included: Path) -> None:
+    entries = _scan_included(included)
 
     # Check actual committed product inputs rather than a count inflated by
     # private examples that are intentionally absent from the public checkout.
@@ -32,7 +41,23 @@ def test_readable_included_library_projects_every_supported_entry() -> None:
     }
     assert expected_files
     assert expected_files <= {file.relative_path for entry in entries for file in entry.files}
-    assert all(entry.status is ContentStatus.VALID for entry in entries)
+    invalid = [entry for entry in entries if entry.status is ContentStatus.INVALID]
+    assert len(invalid) == 66  # 65 excluded gesture motions and the six-file idle style.
+    assert sum(len(entry.diagnostics) for entry in invalid) == 71
+    for entry in entries:
+        if entry.status is ContentStatus.VALID:
+            continue
+        # Public descriptors remain visible but fail closed until their excluded
+        # VRMA bytes are supplied. No other invalid product is accepted here.
+        assert entry.kind in {ContentKind.GESTURE, ContentKind.IDLE_STYLE}
+        assert entry.status is ContentStatus.INVALID
+        descriptor = included / str(entry.descriptor_relative_path)
+        document = json.loads(descriptor.read_text())
+        missing = {item["path"] for item in document["files"] if not (descriptor.parent / item["path"]).is_file()}
+        assert missing and all(name.endswith(".vrma") for name in missing)
+        assert {(issue.code, issue.relative_path) for issue in entry.diagnostics} == {
+            ("missing_descriptor_file", name) for name in missing
+        }
     logical_keys = [entry.logical_key for entry in entries if entry.logical_key]
     assert len(logical_keys) == len(set(logical_keys))
     assert {entry.kind for entry in entries} >= {
@@ -49,8 +74,8 @@ def test_readable_included_library_projects_every_supported_entry() -> None:
     assert ContentKind.ANIMA not in {entry.kind for entry in entries}
 
 
-def test_representative_included_entries_are_human_locatable() -> None:
-    by_locator = {entry.relative_locator: entry for entry in _scan_included()}
+def test_representative_included_entries_are_human_locatable(included: Path) -> None:
+    by_locator = {entry.relative_locator: entry for entry in _scan_included(included)}
 
     assert "avatars/AvatarSample_A_1_New.vrm" in by_locator
     assert "gestures/wave" in by_locator
@@ -72,10 +97,9 @@ def test_representative_included_entries_are_human_locatable() -> None:
             )
 
 
-def test_included_actions_own_their_primary_playback_files() -> None:
-    """Shipped Actions use one folder instead of separate Pose Clip products."""
+def test_included_actions_own_their_primary_playback_files(included: Path) -> None:
+    """Descriptors own playback within their folder, including user-supplied motion."""
 
-    included = ROOT / "content/included"
     assert not list((included / "gestures").glob("*.vrma"))
     assert not list((included / "pose-clips").glob("*.json"))
 
@@ -83,23 +107,41 @@ def test_included_actions_own_their_primary_playback_files() -> None:
         for action_root in sorted(path for path in (included / family).iterdir() if path.is_dir()):
             slug = action_root.name
             assert (action_root / f"{slug}.meta.json").is_file()
-            assert (action_root / f"{slug}.json").is_file() or (action_root / f"{slug}.vrma").is_file()
+            document = json.loads((action_root / f"{slug}.meta.json").read_text())
+            for item in document["files"]:
+                reference = Path(item["path"])
+                assert not reference.is_absolute() and ".." not in reference.parts
+                if reference.suffix == ".vrma":
+                    assert not (action_root / reference).exists()
+                else:
+                    assert (action_root / reference).is_file()
 
     starter = included / "idle-styles/starter"
-    assert sorted(path.name for path in (starter / "animations").glob("*.vrma")) == [
-        "angry.vrma",
-        "anxious_look_around.vrma",
-        "bored.vrma",
-        "happy.vrma",
-        "sad.vrma",
-        "sway.vrma",
-    ]
+    descriptor = json.loads((starter / "starter.json").read_text())
+    assert {item["path"] for item in descriptor["files"]} == {
+        "animations/angry.vrma",
+        "animations/anxious_look_around.vrma",
+        "animations/bored.vrma",
+        "animations/happy.vrma",
+        "animations/sad.vrma",
+        "animations/sway.vrma",
+    }
+    assert not list(starter.rglob("*.vrma"))
 
 
-def test_authoring_resources_are_not_registered_as_typed_products() -> None:
+def test_supplied_original_fixture_actions_have_valid_owned_playback(tmp_path: Path) -> None:
+    supplied = write_supplied_animation_fixture(tmp_path / "supplied")
+    entries = _scan_included(supplied)
+    assert entries and all(entry.status is ContentStatus.VALID for entry in entries)
+    for entry in entries:
+        for file in entry.files:
+            assert (supplied / file.relative_path).is_file()
+
+
+def test_authoring_resources_are_not_registered_as_typed_products(included: Path) -> None:
     """App-versioned creator palettes stay outside every scannable kind root."""
 
-    entries = _scan_included()
+    entries = _scan_included(included)
     locators = {entry.relative_locator for entry in entries}
 
     assert not any(locator.startswith("resources/") for locator in locators)
@@ -108,10 +150,10 @@ def test_authoring_resources_are_not_registered_as_typed_products() -> None:
     assert not (ROOT / "content/included/vfx/avatar/misc").exists()
 
 
-def test_every_included_sound_dependency_resolves_to_a_shipped_sound() -> None:
+def test_every_included_sound_dependency_resolves_to_a_shipped_sound(included: Path) -> None:
     """Effects and Actions cannot depend on an omitted private sound pack."""
 
-    entries = _scan_included()
+    entries = _scan_included(included)
     sound_keys = {
         entry.logical_key
         for entry in entries
