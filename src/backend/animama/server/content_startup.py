@@ -108,7 +108,9 @@ async def start_content_runtime(
         try:
             session_factory = get_async_session_factory(app)
             async with session_factory() as session:
-                await SQLAlchemyContentCatalog(session).mark_scan_required(
+                await ContentCatalogService(
+                    store=_store(paths), catalog=SQLAlchemyContentCatalog(session)
+                ).invalidate_watched_changes(
                     source=source,
                     relative_paths=relative_paths,
                 )

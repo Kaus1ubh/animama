@@ -511,7 +511,6 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
 
   return (
     <CreatorWorkspaceShell
-      statusOverlay={<ContentHealth />}
       canvas={
         <div
           className="relative size-full"
@@ -576,6 +575,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       }
       toolbar={
         <CreatorToolbar
+          contentHealth={<ContentHealth compact />}
           typeLabel="Avatar Effect"
           typeIcon={<SparklesIcon />}
           documentName={document.name}

@@ -1040,7 +1040,13 @@ class SQLAlchemyContentCatalog(ContentCatalog):
             sha256=file_row.sha256,
         )
 
-    async def mark_scan_required(self, *, source: ContentSource, relative_paths: tuple[str, ...]) -> None:
+    async def mark_scan_required(
+        self,
+        *,
+        source: ContentSource,
+        relative_paths: tuple[str, ...],
+        current_scan: list[ScannedContentEntry] | None = None,
+    ) -> None:
         """Invalidate changed entries and their dependents without blocking unrelated content."""
 
         paths = tuple(dict.fromkeys(path.strip("/") for path in relative_paths if path.strip("/")))
@@ -1081,6 +1087,36 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                     ):
                         affected_ids.add(row.id)
                         break
+
+        if current_scan is not None:
+            # A delayed notification can describe bytes already admitted by a
+            # creator transaction. Compare the scanner's complete semantic and
+            # file revision, never timestamps or a blanket ignore interval.
+            by_locator: dict[tuple[str | None, str], list[ScannedContentEntry]] = defaultdict(list)
+            logical_counts: dict[str, int] = defaultdict(int)
+            for entry in current_scan:
+                if entry.source is source:
+                    by_locator[(entry.source_mount_id, entry.relative_locator)].append(entry)
+                    if entry.logical_key:
+                        logical_counts[entry.logical_key] += 1
+            for row in source_rows:
+                candidates = by_locator[(row.source_mount_id, row.relative_locator)]
+                ambiguous = row.logical_key is not None and logical_counts[row.logical_key] > 1
+                if ambiguous:
+                    # A new duplicate can change dependency resolution even
+                    # when its path does not overlap the prior target's path.
+                    affected_ids.add(row.id)
+                elif len(candidates) == 1:
+                    entry = candidates[0]
+                    if (
+                        row.status == ContentStatus.VALID.value
+                        and entry.status is ContentStatus.VALID
+                        and row.kind == entry.kind.value
+                        and row.logical_key == entry.logical_key
+                        and row.revision_sha256 is not None
+                        and row.revision_sha256 == entry.revision_sha256
+                    ):
+                        affected_ids.discard(row.id)
 
         if affected_ids:
             dependency_result = await self._session.execute(

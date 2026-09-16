@@ -644,12 +644,12 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   return (
     <CreatorWorkspaceShell
       busy={contentSave.isBusy}
-      statusOverlay={<ContentHealth />}
       leftPanelWidth={340}
       rightPanelWidth={392}
       bottomChromeHeight={152}
       toolbar={
         <CreatorToolbar
+          contentHealth={<ContentHealth compact />}
           typeLabel="Effect"
           typeIcon={<SparklesIcon />}
           documentName={draft?.catalog.label ?? "New Particle Effect"}

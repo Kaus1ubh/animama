@@ -214,5 +214,39 @@ class ContentCatalogService:
     async def mark_scan_required(self, *, source: ContentSource, relative_paths: tuple[str, ...]) -> None:
         await self._catalog.mark_scan_required(source=source, relative_paths=relative_paths)
 
+    async def invalidate_watched_changes(self, *, source: ContentSource, relative_paths: tuple[str, ...]) -> None:
+        """Fence external edits without invalidating a just-admitted creator save.
+
+        Host notifications may arrive after Save has committed the same bytes.
+        Reuse the bounded scanner under the publication fence to identify those
+        redundant notifications. An unreadable/unknown scan still invalidates;
+        only the subsequent ordinary reconciliation can admit changed content.
+        """
+
+        async def invalidate() -> None:
+            await self._catalog.lock_source(source=source)
+            if source is not ContentSource.LOCAL:
+                # Included is never written by creator saves. Preserve its
+                # unconditional license/mount invalidation semantics.
+                await self._catalog.mark_scan_required(source=source, relative_paths=relative_paths)
+                return
+            try:
+                scanned = await asyncio.to_thread(self._store.scan, source)
+            except Exception:
+                # Failure is uncertainty, never permission to keep serving an
+                # affected revision. The scheduled rescan reports its failure.
+                scanned = None
+            await self._catalog.mark_scan_required(source=source, relative_paths=relative_paths, current_scan=scanned)
+
+        try:
+            await self.mutations.reconcile(invalidate)
+        except Exception:
+            # A blocked journal recovery is also unknown filesystem state. Its
+            # failed transaction has rolled back; fence affected registrations
+            # in a fresh owned transaction without claiming recovery succeeded.
+            async with self._catalog.mutation_transaction():
+                await self._catalog.lock_source(source=source)
+                await self._catalog.mark_scan_required(source=source, relative_paths=relative_paths)
+
 
 __all__ = ["ContentRescanResult", "ContentCatalogService"]

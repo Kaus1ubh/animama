@@ -43,6 +43,8 @@ type CreatorToolbarProps = {
   saveLabel: string;
   libraryLabel?: string;
   domainActions?: ReactNode;
+  /** Interactive catalog status participates in layout beside document actions. */
+  contentHealth?: ReactNode;
 };
 
 /** Common Effect-creator document actions and status presentation. */
@@ -66,10 +68,11 @@ export function CreatorToolbar({
   saveLabel,
   libraryLabel = "Library",
   domainActions,
+  contentHealth,
 }: CreatorToolbarProps) {
   return (
-    <header className="pointer-events-none absolute inset-x-0 top-0 z-50 flex items-start justify-between gap-3 p-3 lg:p-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:transition-[padding-left] lg:duration-150 lg:ease-in-out">
-      <div className="pointer-events-auto flex flex-wrap gap-2">
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-50 flex flex-wrap items-start justify-between gap-3 p-3 md:pl-[calc(var(--app-shell-sidebar-inset)+2rem)] lg:flex-nowrap lg:p-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:transition-[padding-left] lg:duration-150 lg:ease-in-out">
+      <div className="pointer-events-auto flex flex-wrap gap-2 lg:shrink-0">
         <CreatorToolbarButton active icon={typeIcon} label={typeLabel} />
         <CreatorToolbarButton
           icon={<ImagePlusIcon />}
@@ -91,7 +94,7 @@ export function CreatorToolbar({
         />
       </div>
 
-      <div className="bg-background/88 border-border/70 pointer-events-auto hidden h-12 min-w-[250px] items-center rounded-xl border px-4 py-2 text-center shadow-sm backdrop-blur-xl md:flex md:flex-col md:justify-center">
+      <div className="bg-background/88 border-border/70 pointer-events-auto hidden h-12 w-64 min-w-0 items-center rounded-xl border px-4 py-2 text-center shadow-sm backdrop-blur-xl md:flex md:flex-col md:justify-center">
         {documentControl ?? (
           <div className="w-full truncate text-sm font-semibold">
             {documentName}
@@ -100,7 +103,8 @@ export function CreatorToolbar({
         <CreatorToolbarStatus status={status} />
       </div>
 
-      <div className="pointer-events-auto flex flex-wrap justify-end gap-2">
+      <div className="pointer-events-auto ml-auto flex flex-wrap items-center justify-end gap-2 lg:shrink-0">
+        {contentHealth}
         {domainActions}
         <CreatorToolbarButton
           className="hidden sm:inline-flex"

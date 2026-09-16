@@ -82,6 +82,7 @@ describe("creator editor primitives", () => {
         typeLabel="Avatar Effect"
         typeIcon={<SparklesIcon />}
         documentName="Eye sparkle"
+        contentHealth={<button type="button">Rescan fixture</button>}
         status={{ label: "Unsaved", tone: "dirty" }}
         onNew={() => undefined}
         onImport={() => undefined}
@@ -99,6 +100,7 @@ describe("creator editor primitives", () => {
     expect(html).toContain("Unsaved");
     expect(html).toContain("Library");
     expect(html).toContain("Save");
+    expect(html).toContain("Rescan fixture");
   });
 
   it("makes a save failure explanation available from the status", () => {

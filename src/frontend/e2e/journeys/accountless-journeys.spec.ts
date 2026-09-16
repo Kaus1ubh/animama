@@ -1,3 +1,4 @@
+import type { Response } from "playwright/test";
 import { expect, test } from "../fixtures/animama";
 import { selectAnnieFromSidebar } from "../helpers/preview-surfaces";
 import { openCreatorStage } from "../helpers/creator-surfaces";
@@ -81,6 +82,15 @@ test("accountless Scene JSON import, preview, save and owned cleanup", async ({
   creatorContent,
   animamaEvidence,
 }) => {
+  const typedReads: Array<{ status: number }> = [];
+  const recordTypedRead = (response: Response) => {
+    if (
+      response.request().method() === "GET" &&
+      /^\/v1\/scene-effects\/[^/]+$/.test(new URL(response.url()).pathname)
+    ) {
+      typedReads.push({ status: response.status() });
+    }
+  };
   const name = `p8-scene-${Date.now()}`;
   const logicalKey = `local:scene-effect:${name}`;
   const before = await creatorContent.snapshotLocalCatalog();
@@ -155,9 +165,10 @@ test("accountless Scene JSON import, preview, save and owned cleanup", async ({
       logicalKey,
       recordOwned: (owned) => creatorContent.recordOwnedContent(plan, owned),
     });
+    // Keep every typed read from Save through reload visible: retries must not hide 404s.
+    page.on("response", recordTypedRead);
     const save = page.getByRole("button", { name: "Save", exact: true });
-    await save.focus();
-    await save.press("Enter");
+    await save.click();
     const owned = await guard.waitForOwned();
     await creatorContent.verifyOwnedContent(plan, owned);
     await expect(page).toHaveURL(
@@ -171,7 +182,9 @@ test("accountless Scene JSON import, preview, save and owned cleanup", async ({
         response.ok(),
     );
     await page.reload();
-    await hydratedFromBackend;
+    const hydrated = await (await hydratedFromBackend).json();
+    expect(hydrated.item_id).toBe(owned.itemId);
+    expect(hydrated.revision_sha256).toBe(owned.revisionSha256);
     await expect(
       page.getByRole("button", { name: "JSON", exact: true }),
     ).toBeVisible();
@@ -182,6 +195,9 @@ test("accountless Scene JSON import, preview, save and owned cleanup", async ({
     expect(saved.document.name).toBe(name);
     expect(saved.document.background.solid.color).toBe("#13579b");
     await page.keyboard.press("Escape");
+    expect(typedReads.length).toBeGreaterThan(0);
+    expect(typedReads.filter(({ status }) => status >= 400)).toEqual([]);
+    await animamaEvidence.attachJson("scene-save-typed-reads", typedReads);
     await creatorContent.assertAnimaLoadoutUnchanged(loadout, animamaEvidence);
     await page.goto("/a/library");
     await creatorContent.cleanupOwnedContent();
@@ -192,7 +208,111 @@ test("accountless Scene JSON import, preview, save and owned cleanup", async ({
       "after-owned-cleanup",
     );
   } finally {
+    page.off("response", recordTypedRead);
     await guard.assertPolicy(animamaEvidence);
     await guard.dispose();
   }
 });
+
+/** Real layout and hit testing are required; DOM-only rendering cannot detect occlusion. */
+for (const creator of ["scene", "avatar", "particle"] as const) {
+  test(`${creator} creator health and Save remain independently reachable`, async ({
+    page,
+    animamaEvidence,
+  }) => {
+    await selectAnnieFromSidebar(page);
+    await page.goto(`/a/${creator}-effects/new`);
+    if (creator === "avatar") {
+      // An original image makes Save actionable; choosing it only creates a local draft.
+      const image = await page.evaluate(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 2;
+        const context = canvas.getContext("2d")!;
+        context.fillStyle = "#13579b";
+        context.fillRect(0, 0, 2, 2);
+        return canvas.toDataURL("image/png").split(",")[1]!;
+      });
+      await page
+        .locator('input[type="file"][accept="image/png,image/jpeg,image/webp"]')
+        .setInputFiles({
+          name: "toolbar-layout.png",
+          mimeType: "image/png",
+          buffer: Buffer.from(image, "base64"),
+        });
+    }
+    const save = page.getByRole("button", { name: "Save", exact: true });
+    const health = page.getByRole("status").filter({
+      has: page.getByRole("button", { name: /View content health details/ }),
+    });
+    const details = health.getByRole("button", {
+      name: /View content health details/,
+    });
+    const rescan = health.getByRole("button", {
+      name: "Rescan content library",
+    });
+    await expect(save).toBeEnabled({ timeout: 30_000 });
+    if (creator === "avatar") {
+      // Choosing an image asynchronously restarts preview. Stop only after its draft is ready.
+      await expect(
+        page.getByText("toolbar-layout.png", { exact: true }),
+      ).toBeVisible();
+      await page
+        .getByRole("button", { name: "Stop preview", exact: true })
+        .click();
+      await expect(
+        page.getByRole("button", { name: "Play preview", exact: true }),
+      ).toBeVisible();
+    }
+    await expect(health).toBeVisible();
+    const measurements: unknown[] = [];
+    for (const width of [1440, 1280, 1024, 768, 390]) {
+      await page.setViewportSize({ width, height: 900 });
+      // Previous trial clicks hover controls. Resize must start with no stale tooltip.
+      await page.mouse.move(width - 1, 899);
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("tooltip")).toHaveCount(0);
+      await expect(save).toBeInViewport();
+      const saveRect = await save.boundingBox();
+      const healthRect = await health.boundingBox();
+      expect(saveRect).not.toBeNull();
+      expect(healthRect).not.toBeNull();
+      if (!saveRect || !healthRect)
+        throw new Error("Creator controls lost their layout.");
+      const intersect =
+        saveRect.x < healthRect.x + healthRect.width &&
+        saveRect.x + saveRect.width > healthRect.x &&
+        saveRect.y < healthRect.y + healthRect.height &&
+        saveRect.y + saveRect.height > healthRect.y;
+      expect(intersect).toBe(false);
+      // Hit testing and normal actionability must both hold for valid drafts.
+      await expect
+        .poll(() =>
+          save.evaluate((button) => {
+            const rect = button.getBoundingClientRect();
+            return button.contains(
+              document.elementFromPoint(
+                rect.x + rect.width / 2,
+                rect.y + rect.height / 2,
+              ),
+            );
+          }),
+        )
+        .toBe(true);
+      await save.click({ trial: true });
+      await details.click({ trial: true });
+      await rescan.click({ trial: true });
+      measurements.push({ width, saveRect, healthRect, intersect });
+      if (width === 768 || width === 390) {
+        await page.mouse.move(width - 1, 899);
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("tooltip")).toHaveCount(0);
+        await animamaEvidence.attachBuffer(
+          `${creator}-toolbar-${width}`,
+          await page.screenshot(),
+          "image/png",
+        );
+      }
+    }
+    await animamaEvidence.attachJson(`${creator}-toolbar-layout`, measurements);
+  });
+}

@@ -569,7 +569,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
 
   return (
     <CreatorWorkspaceShell
-      statusOverlay={<ContentHealth />}
       leftPanelWidth={330}
       rightPanelWidth={370}
       bottomChromeHeight={92}
@@ -631,6 +630,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       }
       toolbar={
         <CreatorToolbar
+          contentHealth={<ContentHealth compact />}
           typeLabel="Scene Effect"
           typeIcon={<SparklesIcon />}
           documentName={document.name}

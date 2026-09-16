@@ -10,7 +10,13 @@ owner header or bypass the boundary to reach a separate backend origin.
 The active Playwright projects use installation setup and same-origin requests,
 without accounts, stored login state, owner headers or browser bearer tokens.
 The selected `accountless-*.spec.ts` journeys cover Library, companion selection,
-chat Stop/recovery, and creator JSON import/preview. Older creator journeys remain
+chat Stop/recovery, and creator JSON import/preview. Scene Save uses an ordinary
+pointer click and rejects failed typed-content reads through the following reload;
+the reloaded item must retain the exact revision returned by Save. Layout checks
+cover the Scene, Avatar Effect and Particle creators at desktop, tablet and phone
+widths: catalog health and Save must have separate hit targets, and details/Rescan
+remain reachable. These are rendered-browser assertions, not CSS string checks.
+Older creator journeys remain
 unselected until individually reviewed; listing them is not passing evidence.
 The separate `local:verify:accountless` API journey covers bootstrap, settings,
 starter/custom Animas, private uploads, typed bytes, chat receipts and persistence.

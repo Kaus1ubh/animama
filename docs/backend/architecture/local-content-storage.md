@@ -117,8 +117,16 @@ An authoritative scan walks only registered roots without following symlinks,
 parses standalone files/sidecars/descriptors, rejects traversal, links, special
 files, case collisions, malformed input and exceeded bounds, hashes every
 admitted file, resolves declared dependencies, and reconciles the source into
-PostgreSQL. The watcher marks affected entries `scan_required` and schedules an
-authoritative scan after a quiet window. Startup, `reset.sh`, and
+PostgreSQL. Before invalidating Local entries, the watcher takes the same source
+transaction fence as Save and checks a fresh bounded source scan against the
+admitted catalog revisions. Delayed notifications for identical, valid entries
+do not undo a successful Save. Changed or missing bytes, invalid membership,
+duplicate logical identities and unknown scan/recovery state still fence affected
+entries and their dependents as `scan_required`. Included notifications retain
+unconditional invalidation, including license changes. An authoritative scan
+after the quiet window admits genuine changes. This correctness check adds one
+Local source scan per coalesced watcher batch; it does not skip external events
+or introduce a timed suppression window. Startup, `reset.sh`, and
 `POST /v1/content:rescan` use that same reconciliation path. Every scan recovers
 unfinished Local mutations under the source transaction lock before admitting
 files; bootstrap therefore never scans an interrupted publication first.

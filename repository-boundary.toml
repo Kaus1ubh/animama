@@ -2479,6 +2479,7 @@ paths = [
   "tests/test_content_schema_reset.py",
   "tests/test_content_store_mutations.py",
   "tests/test_content_type_handlers.py",
+  "tests/test_content_watcher_admission.py",
   "tests/test_creation_content_admission.py",
   "tests/test_db_bootstrap.py",
   "tests/test_desktop_runtime_packaging.py",

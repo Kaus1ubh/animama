@@ -13,7 +13,6 @@ type CreatorWorkspaceShellProps = {
   canvasControls?: ReactNode;
   previewBar?: ReactNode;
   overlays?: ReactNode;
-  statusOverlay?: ReactNode;
   leftPanelWidth?: number;
   rightPanelWidth?: number;
   bottomChromeHeight?: number;
@@ -33,7 +32,6 @@ export function CreatorWorkspaceShell({
   canvasControls,
   previewBar,
   overlays,
-  statusOverlay,
   leftPanelWidth = 330,
   rightPanelWidth = 360,
   bottomChromeHeight = 92,
@@ -59,11 +57,6 @@ export function CreatorWorkspaceShell({
       style={style}
     >
       {toolbar}
-      {statusOverlay ? (
-        <div className="absolute top-3 right-3 z-50 lg:right-5">
-          {statusOverlay}
-        </div>
-      ) : null}
 
       <div className="contents" aria-busy={busy} inert={busy || undefined}>
         <div className="absolute inset-0 z-0 h-[58vh] min-h-[430px] lg:h-full">

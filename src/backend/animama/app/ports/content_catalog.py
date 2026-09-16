@@ -172,8 +172,18 @@ class ContentCatalog(Protocol):
     ) -> ContentPreviewFile | None:
         raise NotImplementedError
 
-    async def mark_scan_required(self, *, source: ContentSource, relative_paths: tuple[str, ...]) -> None:
-        """Invalidate only entries affected by lexical paths from a trusted watcher root."""
+    async def mark_scan_required(
+        self,
+        *,
+        source: ContentSource,
+        relative_paths: tuple[str, ...],
+        current_scan: list[ScannedContentEntry] | None = None,
+    ) -> None:
+        """Invalidate affected entries; fenced scan evidence may prove a stale notification.
+
+        Omitting evidence always invalidates. Evidence must come from the current
+        source scanner while holding the source mutation fence, not a client.
+        """
 
         raise NotImplementedError
 

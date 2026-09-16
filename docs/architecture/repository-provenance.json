@@ -11,7 +11,7 @@
         "licenses/source-review.json"
       ],
       "path_sha256": {
-        "licenses/source-review.json": "5e00e4ce1cccbd17e796217df6d016c40b971b77d2e57892e44ca0e93ba57539"
+        "licenses/source-review.json": "bf5f02190a06ac2e7850546ac6cdfbccf8d335c248d263ecdff4fdfaddf3f2f6"
       }
     },
     {
@@ -8684,6 +8684,23 @@
           "path": "licenses/source-review.json",
           "previous_sha256": "1bb46c9de3d0513749707c0bdc045e9183cf343ddb96a17432f988e9e7fb86c1",
           "current_sha256": "5e00e4ce1cccbd17e796217df6d016c40b971b77d2e57892e44ca0e93ba57539"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "base_commit": "7d6891e1df4fec15a2dcd3422dc9d9da0213ef53",
+      "reason": "Owner-authorized P8 browser follow-up: add delayed content-watcher admission regression coverage for the creator-save recovery fix. Preserve historical snapshot bindings, third-party dispositions and publication gates.",
+      "previous_inventory_sha256": "f11e0ccf25ec5eff99e0e1492539bb4d6fcf36275b9fb3b41a50d8517ec8faba",
+      "added_paths": [
+        "tests/test_content_watcher_admission.py"
+      ],
+      "removed_paths": [],
+      "changed_bindings": [
+        {
+          "path": "licenses/source-review.json",
+          "previous_sha256": "5e00e4ce1cccbd17e796217df6d016c40b971b77d2e57892e44ca0e93ba57539",
+          "current_sha256": "bf5f02190a06ac2e7850546ac6cdfbccf8d335c248d263ecdff4fdfaddf3f2f6"
         }
       ]
     }
