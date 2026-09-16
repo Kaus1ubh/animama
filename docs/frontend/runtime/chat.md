@@ -18,6 +18,9 @@ a chat capability alone never substitutes for a runtime fence. Text-only hosts
 may use the stable `textOnlyChatEffects` and `textOnlySpeechPolicy` adapters.
 Playback hosts provide `ChatSessionEffects` and `ChatSpeechPolicy`. Routes are
 callbacks (`openDraftChatRoute`, `replaceChatRoute`), so the package owns no router.
+The SSE hook aborts its owned stream on Stop, unmount, or owner/transport
+remount. Buffered or late frames cannot update callbacks after cancellation,
+and a replaced stream cannot clear the new stream's controls.
 POST streams still permit one attempt; typed chat mutations explicitly disable
 query-client retry defaults. A remount conflict preserves the unsent input and
 requires the existing explicit recovery action.

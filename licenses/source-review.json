@@ -10629,6 +10629,27 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/packages/product-ui/tests/README.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original AI-assisted test code and documentation; Raymond Van attribution; third-party dependencies retain their separate terms",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/packages/product-ui/tests/chat-consumer.jsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original AI-assisted test code and documentation; Raymond Van attribution; third-party dependencies retain their separate terms",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/packages/product-ui/tests/chat-lifecycle.test.mjs",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original AI-assisted test code and documentation; Raymond Van attribution; third-party dependencies retain their separate terms",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/packages/product-ui/tsconfig.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -18984,6 +19005,27 @@
       "path": "src/frontend/web/tests/avatar/reactionClips.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/fixtures/vrma/README.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original AI-assisted test code, documentation and synthetic literal animation data; Raymond Van attribution; no imported animation bytes",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/fixtures/vrma/generate.mjs",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original AI-assisted test code, documentation and synthetic literal animation data; Raymond Van attribution; no imported animation bytes",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/fixtures/vrma/synthetic-hips.vrma",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original AI-assisted test code, documentation and synthetic literal animation data; Raymond Van attribution; no imported animation bytes",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },

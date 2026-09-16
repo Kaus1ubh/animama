@@ -21,19 +21,17 @@ class TestProgressEvent extends Event {
   }
 }
 
-const CANONICAL_APP_VRMA = fileURLToPath(
-  new URL(
-    "../../../../../../content/included/gestures/posture_sad_custom/posture_sad_custom.vrma",
-    import.meta.url,
-  ),
+const SYNTHETIC_VRMA = fileURLToPath(
+  new URL("../../../tests/fixtures/vrma/synthetic-hips.vrma", import.meta.url),
 );
 afterEach(() => {
+  Avatar.clearVrmaCache();
   vi.unstubAllGlobals();
 });
 
-describe("Avatar canonical VRMA compatibility", () => {
+describe("Avatar VRMA loader compatibility", () => {
   it("shares decoding within one mount but not across separate mount caches", async () => {
-    const content = await readFile(CANONICAL_APP_VRMA);
+    const content = await readFile(SYNTHETIC_VRMA);
     const fetcher = vi.fn(async () => new Response(content));
     vi.stubGlobal("fetch", fetcher);
     vi.stubGlobal("ProgressEvent", TestProgressEvent);
@@ -45,6 +43,11 @@ describe("Avatar canonical VRMA compatibility", () => {
       resourceUrls: {},
     };
     await Avatar.preloadVrma(resource);
+    const decoded = await resource.cache!.get(resource.cacheKey);
+    expect(decoded?.duration).toBe(1);
+    const hips = decoded?.humanoidTracks.translation.get("hips");
+    expect(Array.from(hips?.times ?? [])).toEqual([0, 1]);
+    expect(Array.from(hips?.values ?? [])).toEqual([0, 1, 0, 0, 1.25, 0]);
     await Avatar.preloadVrma(resource);
     expect(fetcher).toHaveBeenCalledTimes(1);
     await Avatar.preloadVrma({
@@ -64,7 +67,7 @@ describe("Avatar canonical VRMA compatibility", () => {
         cacheKey: "compatibility:app",
       } satisfies AvatarVrmaResource,
       expectedUrl: "https://assets.local/app-animation.vrma",
-      contentPath: CANONICAL_APP_VRMA,
+      contentPath: SYNTHETIC_VRMA,
     },
     {
       label: "authorized user Asset URL",
@@ -76,7 +79,7 @@ describe("Avatar canonical VRMA compatibility", () => {
           "https://api.local/registered-animation.vrma",
       } satisfies AvatarVrmaResource,
       expectedUrl: "https://api.local/registered-animation.vrma",
-      contentPath: CANONICAL_APP_VRMA,
+      contentPath: SYNTHETIC_VRMA,
     },
   ])(
     "loads the exact source through the real loader for $label",
@@ -108,4 +111,25 @@ describe("Avatar canonical VRMA compatibility", () => {
       expect(assetRequestCount).toBe(1);
     },
   );
+
+  it("rejects malformed bytes and permits retry after evicting the failed decode", async () => {
+    const content = await readFile(SYNTHETIC_VRMA);
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("not a glTF document"))
+      .mockResolvedValueOnce(new Response(content));
+    vi.stubGlobal("fetch", fetcher);
+    vi.stubGlobal("ProgressEvent", TestProgressEvent);
+    const resource: AvatarVrmaResource = {
+      runtimeId: "malformed-retry",
+      url: "https://assets.local/retry.vrma",
+      cacheKey: "malformed-retry",
+      cache: new Map(),
+    };
+    await expect(Avatar.preloadVrma(resource)).rejects.toThrow();
+    expect(resource.cache!.has(resource.cacheKey)).toBe(false);
+    await Avatar.preloadVrma(resource);
+    expect((await resource.cache!.get(resource.cacheKey))?.duration).toBe(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
 });

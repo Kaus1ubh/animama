@@ -40,7 +40,8 @@
   },
   "scripts": {
     "build": "node ../../scripts/build-typescript-package.mjs src/index.ts src/query.ts src/chat.ts src/components.ts src/emotion.ts src/anima-profile.ts src/theme.css && node build-styles.mjs",
-    "check": "tsc -p tsconfig.json --noEmit --emitDeclarationOnly false"
+    "check": "tsc -p tsconfig.json --noEmit --emitDeclarationOnly false",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@animama/runtime-contracts": "workspace:*",

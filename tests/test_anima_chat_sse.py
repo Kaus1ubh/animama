@@ -8,9 +8,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock, Mock
 
 import pytest
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
+from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 from sqlalchemy import select
 
@@ -46,6 +48,7 @@ from animama.orm import (
 from animama.orm.anima import ORMAnima
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
+from animama.server.deps import get_current_principal
 from animama.server.routers import router as api_router
 from animama.server.routers.anima import chat_anima_direct_sse, router
 from animama.server.routers.chat import (
@@ -949,6 +952,69 @@ def test_finalized_tts_silence_audio_is_400ms_pcm() -> None:
         chat_tts.FINALIZED_TTS_PARAGRAPH_LEADING_PAUSE_SEC * chat_tts.FINALIZED_TTS_PCM_SAMPLE_RATE * 2
     )
     assert set(audio_bytes) == {0}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ownership", ["missing", "foreign", "owned"])
+async def test_chat_sse_anima_ownership_precedes_runtime_and_provider_setup(monkeypatch, ownership: str) -> None:
+    """Exercise the HTTP route with independent row and principal ownership.
+
+    Missing and foreign Animas share the same public error. Rejection must
+    happen before runtime/profile/model lookups or transcript side effects;
+    the owned control proves the request otherwise reaches a working stream.
+    """
+
+    model_client = _RouteModelClient()
+    chats = _FakeChatManager()
+    session = _install_route_mocks(monkeypatch, model_client=model_client, chat_manager=chats)
+    anima_id = "missing-anima" if ownership == "missing" else "anima-1"
+    principal = RequestPrincipal(id="other-owner" if ownership == "foreign" else "user-1")
+    runtime_service = Mock(wraps=chat_turn_setup.AnimaRuntimeService)
+    provider_repository = Mock(wraps=chat_turn_setup.SQLAlchemyModelProviderRepository)
+    profile_repository = Mock(wraps=chat_turn_setup.SQLAlchemyAnimaChatProfileRepository)
+    memory_context = Mock(wraps=chat_turn_setup.DirectChatMemoryContextService)
+    persist_emotions = AsyncMock(return_value=True)
+    monkeypatch.setattr(chat_turn_setup, "AnimaRuntimeService", runtime_service)
+    monkeypatch.setattr(chat_turn_setup, "SQLAlchemyModelProviderRepository", provider_repository)
+    monkeypatch.setattr(chat_turn_setup, "SQLAlchemyAnimaChatProfileRepository", profile_repository)
+    monkeypatch.setattr(chat_turn_setup, "DirectChatMemoryContextService", memory_context)
+    monkeypatch.setattr("animama.server.sse_events.persist_emotional_state_update", persist_emotions)
+
+    app = FastAPI()
+    app.include_router(router)
+    app.state.model_client_registry = _CURRENT_TEST_REGISTRY
+    app.dependency_overrides[get_current_principal] = lambda: principal
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            f"/v1/animas/{anima_id}/chat:sse",
+            json=_chat_request(message="hello", run_id="run-ownership", chat_id="chat-1").model_dump(),
+        )
+
+    assert session.close_calls == 1
+    if ownership == "owned":
+        assert response.status_code == 200
+        assert "event: user.response" in response.text
+        assert "event: run.completed" in response.text
+        runtime_service.assert_called_once_with(session)
+        provider_repository.assert_called_once_with(session)
+        profile_repository.assert_called_once_with(session)
+        memory_context.assert_called_once()
+        assert len(model_client.seen_specs) == 1
+        assert chats.record_turn_calls == 1
+        assert chats.ensure_chat_calls[0]["user_id"] == principal.id
+    else:
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Anima not found"}
+        runtime_service.assert_not_called()
+        provider_repository.assert_not_called()
+        profile_repository.assert_not_called()
+        memory_context.assert_not_called()
+        persist_emotions.assert_not_awaited()
+        assert model_client.seen_specs == []
+        assert chats.ensure_chat_calls == []
+        assert chats.context_calls == []
+        assert chats.record_turn_calls == 0
+        assert session.execute_calls == session.flush_calls == session.commit_calls == 0
 
 
 @pytest.mark.asyncio

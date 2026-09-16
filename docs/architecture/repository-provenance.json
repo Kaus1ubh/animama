@@ -11,7 +11,7 @@
         "licenses/source-review.json"
       ],
       "path_sha256": {
-        "licenses/source-review.json": "5ae15f21f2f7ba3a6dd9fb448b749fe6e503560339bb6c646a2f8625986da56b"
+        "licenses/source-review.json": "1bb46c9de3d0513749707c0bdc045e9183cf343ddb96a17432f988e9e7fb86c1"
       }
     },
     {
@@ -1248,6 +1248,22 @@
       "path_sha256": {
         "licenses/third-party/art-vroid-review.json": "0fcf7fce89d442894b5ddba59d226b5faffebe5122d3e2c4e15e0ebf18642637",
         "licenses/third-party/art-NOTICES.md": "5d922f9bb27af1621b18e44daba9ffe6f8d5e7df66dacec86df5a8a749cf373f"
+      }
+    },
+    {
+      "id": "original-synthetic-vrma-loader-fixture",
+      "source": "Original Animama synthetic fixture generated from literal hips translations; no third-party animation data",
+      "revision": "2026-09-16 test preparation",
+      "license": "AGPL-3.0-only (candidate treatment; original working source remains proprietary)",
+      "unresolved_decision": "Prepared source evidence; owner exact-candidate acceptance and final release gates remain.",
+      "required_notices": [],
+      "paths": [
+        "src/frontend/web/tests/fixtures/vrma/README.md",
+        "src/frontend/web/tests/fixtures/vrma/generate.mjs"
+      ],
+      "path_sha256": {
+        "src/frontend/web/tests/fixtures/vrma/README.md": "099c83135d3bc82f4601d4e076193ec2659693835da52e378b7b683bf0f52c62",
+        "src/frontend/web/tests/fixtures/vrma/generate.mjs": "2e754f354c8cab82125b261334b7e11c56303bbce59eda52ced5e144074c9559"
       }
     }
   ],
@@ -7555,6 +7571,16 @@
       ],
       "publication_status": "review-pending",
       "notes": "Phase 5 preparation evidence; not a publication approval."
+    },
+    {
+      "path": "src/frontend/web/tests/fixtures/vrma/synthetic-hips.vrma",
+      "git_blob_oid": "d1c5744f07a90734cb8d1791f28003ca8b364ab3",
+      "sha256": "19652dfd7db28c5d114a46d709ceec0cc37d72719b08ca0263aaf797ef2ebe56",
+      "evidence_ids": [
+        "original-synthetic-vrma-loader-fixture"
+      ],
+      "publication_status": "review-pending",
+      "notes": "Original 828-byte synthetic test fixture; no Mixamo or other upstream bytes. Not a publication approval."
     }
   ],
   "mode": "exported-snapshot",
@@ -8612,6 +8638,27 @@
         "src/frontend/scripts/verify-web-public-assets.mjs"
       ],
       "changed_bindings": []
+    },
+    {
+      "date": "2026-09-16",
+      "base_commit": "5924285060df7266946b12bab4d4d522e5899ae9",
+      "reason": "Owner-selected P8-01 through P8-04: add original synthetic VRMA fixture and mounted chat test inputs; preserve snapshot history, third-party dispositions and final publication gates.",
+      "previous_inventory_sha256": "82fd8a0fdaf036d8005e4288a122f63f1f84b85b4833025c64b4174163496160",
+      "added_paths": [
+        "src/frontend/packages/product-ui/tests/README.md",
+        "src/frontend/packages/product-ui/tests/chat-consumer.jsx",
+        "src/frontend/packages/product-ui/tests/chat-lifecycle.test.mjs",
+        "src/frontend/web/tests/fixtures/vrma/README.md",
+        "src/frontend/web/tests/fixtures/vrma/generate.mjs",
+        "src/frontend/web/tests/fixtures/vrma/synthetic-hips.vrma"
+      ],
+      "changed_bindings": [
+        {
+          "path": "licenses/source-review.json",
+          "previous_sha256": "5ae15f21f2f7ba3a6dd9fb448b749fe6e503560339bb6c646a2f8625986da56b",
+          "current_sha256": "1bb46c9de3d0513749707c0bdc045e9183cf343ddb96a17432f988e9e7fb86c1"
+        }
+      ]
     }
   ]
 }

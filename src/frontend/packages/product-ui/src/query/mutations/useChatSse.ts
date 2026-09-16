@@ -1,6 +1,6 @@
 import { useProductApiClient } from "../../runtime/ProductRuntimeProvider";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { chatAnimaDirectSseV1AnimasAnimaIdChatSsePost } from "@animama/runtime-contracts/sdk";
 import type { Client } from "@animama/runtime-contracts/sdk";
@@ -262,9 +262,20 @@ export function useChatSse() {
   const [isStreaming, setIsStreaming] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
+  useEffect(
+    () => () => {
+      // A host/provider remount must release its owned stream without callbacks.
+      abortRef.current?.abort();
+      abortRef.current = null;
+    },
+    [],
+  );
+
   const stop = useCallback(() => {
     logger.info("useChatSse", "Stopping SSE stream");
     abortRef.current?.abort();
+    abortRef.current = null;
+    setIsStreaming(false);
   }, [logger]);
 
   const startChat = useCallback(
@@ -273,6 +284,8 @@ export function useChatSse() {
       const abortController = new AbortController();
       abortRef.current = abortController;
       setIsStreaming(true);
+      const isActive = () =>
+        abortRef.current === abortController && !abortController.signal.aborted;
 
       const expectedRunId = args.body.run_id ?? null;
       const expectedRuntimeRevision = args.body.runtime_revision;
@@ -296,6 +309,11 @@ export function useChatSse() {
         const configuredFetch = client.getConfig().fetch ?? globalThis.fetch;
         const guardedFetch: typeof fetch = async (input, init) => {
           const response = await configuredFetch(input, init);
+          if (!isActive()) {
+            // Custom transports can resolve after abort; release their late body.
+            await response.body?.cancel();
+            throw new DOMException("Chat stream cancelled", "AbortError");
+          }
           if (!response.ok) {
             throw new ChatSseHttpError(
               response.status,
@@ -326,6 +344,7 @@ export function useChatSse() {
           stream: AsyncGenerator<unknown>;
         };
 
+        if (!isActive()) return;
         args.onOpen?.();
         logger.info("useChatSse", "SSE stream opened", {
           animaId: args.animaId,
@@ -333,6 +352,8 @@ export function useChatSse() {
         });
 
         for await (const raw of stream) {
+          // A parser may already hold frames when Stop/replacement occurs.
+          if (!isActive()) break;
           const data = raw as unknown;
 
           if (isTtsSession(data)) {
@@ -400,6 +421,7 @@ export function useChatSse() {
           }
 
           if (isErrorEvent(data)) {
+            if (!matchesExpectedRunId(expectedRunId, data.run_id)) continue;
             sseStatus = "error";
             recordSseError(metricAttrs);
             logger.error("useChatSse", "SSE error event", data);
@@ -533,13 +555,17 @@ export function useChatSse() {
           sseStatus = "cancelled";
         }
 
+        const wasAborted = abortController.signal.aborted;
         const durationMs = performance.now() - sseStart;
         recordSseDuration(durationMs, { ...metricAttrs, status: sseStatus });
 
+        // A terminal frame (or callback failure) may precede transport EOF.
+        // Release that request too, after recording its actual completion status.
+        abortController.abort();
         if (abortRef.current === abortController) {
           abortRef.current = null;
+          setIsStreaming(false);
         }
-        setIsStreaming(false);
         logger.info("useChatSse", "SSE chat request finished", {
           animaId: args.animaId,
           runId: expectedRunId,
@@ -547,7 +573,7 @@ export function useChatSse() {
           durationMs,
           tokenCount,
           sawRunCompleted,
-          aborted: abortController.signal.aborted,
+          aborted: wasAborted,
         });
       }
     },

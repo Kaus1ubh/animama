@@ -33,7 +33,6 @@ export const includedContentAliases: readonly IncludedContentAlias[] = [
     source: "vfx/particle/particle-vfx",
   },
   { route: "/effects/vfx/face", source: "vfx/avatar/face" },
-  { route: "/effects/vfx/legacy", source: "vfx/avatar/legacy" },
   {
     route: "/effects/resources/scene-vfx/twemoji",
     source: "resources/scene-vfx/twemoji",

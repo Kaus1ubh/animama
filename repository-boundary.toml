@@ -2153,6 +2153,9 @@ paths = [
   "src/frontend/web/tests/avatar/particleVfxEditor.test.ts",
   "src/frontend/web/tests/avatar/poseCreatorParticleVfx.test.ts",
   "src/frontend/web/tests/avatar/reactionClips.test.ts",
+  "src/frontend/web/tests/fixtures/vrma/README.md",
+  "src/frontend/web/tests/fixtures/vrma/generate.mjs",
+  "src/frontend/web/tests/fixtures/vrma/synthetic-hips.vrma",
   "src/frontend/web/tests/includedContentCompat.test.ts",
   "src/frontend/web/tests/production-delivery.test.ts",
   "src/frontend/web/tests/speech/elevenlabsTtsRuntime.test.ts",
@@ -2611,6 +2614,9 @@ paths = [
   "src/frontend/packages/product-ui/src/runtime/diagnostics.ts",
   "src/frontend/packages/product-ui/src/styles.css",
   "src/frontend/packages/product-ui/src/theme.css",
+  "src/frontend/packages/product-ui/tests/README.md",
+  "src/frontend/packages/product-ui/tests/chat-consumer.jsx",
+  "src/frontend/packages/product-ui/tests/chat-lifecycle.test.mjs",
   "src/frontend/packages/product-ui/tsconfig.json",
 ]
 
