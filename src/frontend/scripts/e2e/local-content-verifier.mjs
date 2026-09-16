@@ -36,6 +36,19 @@ export async function validateLocalContentRoot(
   }
   const resolvedRoot = await realpath(lexicalRoot);
   const resolvedRepository = await realpath(repositoryRoot);
+  // The configured path can contain a symlink above its last component. Compare
+  // canonical identities so an alias cannot target the main installation.
+  let mainLocalRoot = path.join(resolvedRepository, "content", "local");
+  try {
+    mainLocalRoot = await realpath(mainLocalRoot);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  if (resolvedRoot === mainLocalRoot) {
+    throw new Error(
+      "Browser journeys refuse the main installation Local content root.",
+    );
+  }
   let resolvedHome = path.resolve(homeDirectory);
   try {
     resolvedHome = await realpath(homeDirectory);

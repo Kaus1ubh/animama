@@ -22,7 +22,6 @@ if (!webUrl) {
 const playwrightDirectory = requiredEnvironmentPath(
   "ANIMAMA_E2E_PLAYWRIGHT_DIR",
 );
-const authStatePath = requiredEnvironmentPath("ANIMAMA_E2E_AUTH_STATE");
 const headed = process.env.ANIMAMA_E2E_HEADED === "1";
 
 export default defineConfig({
@@ -65,13 +64,12 @@ export default defineConfig({
     navigationTimeout: 45_000,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    // Successful headed journeys are useful visual evidence. Authentication
-    // overrides this below so credentials are never captured in video.
+    // Capture only isolated fixture data; setup keeps trace/video disabled.
     video: headed ? "on" : "retain-on-failure",
   },
   projects: [
     {
-      name: "auth-setup",
+      name: "installation-setup",
       testMatch: /.*\.setup\.ts/,
       use: {
         trace: "off",
@@ -81,8 +79,8 @@ export default defineConfig({
     },
     {
       name: "chromium",
-      testMatch: /.*\.spec\.ts/,
-      dependencies: ["auth-setup"],
+      testMatch: /accountless-(?:library|journeys)\.spec\.ts/,
+      dependencies: ["installation-setup"],
       use: {
         browserName: "chromium",
         launchOptions: {
@@ -97,7 +95,6 @@ export default defineConfig({
                 "--enable-unsafe-swiftshader",
               ],
         },
-        storageState: authStatePath,
       },
     },
   ],

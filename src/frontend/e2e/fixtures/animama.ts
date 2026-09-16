@@ -191,9 +191,7 @@ export const test = base.extend<AnimamaFixtures>({
 
     const catalogClient = async () => {
       client ??= (await createLocalCatalogClient({
-        authUrl: requiredEnvironment("ANIMAMA_E2E_AUTH_URL"),
         apiUrl: requiredEnvironment("ANIMAMA_E2E_API_URL"),
-        storageStatePath: requiredEnvironment("ANIMAMA_E2E_AUTH_STATE"),
       })) as LocalCatalogClient;
       return client;
     };
@@ -482,6 +480,7 @@ export const test = base.extend<AnimamaFixtures>({
       );
       const pendingWrites = new Set<Promise<void>>();
       const writeErrors: Error[] = [];
+      const pageErrors: Error[] = [];
 
       const record = (filename: string, value: unknown) => {
         const pending = appendEvidenceJsonLine(
@@ -507,6 +506,7 @@ export const test = base.extend<AnimamaFixtures>({
         });
       };
       const onPageError = (error: Error) => {
+        pageErrors.push(error);
         record("page-errors.jsonl", {
           ...eventBase(testInfo),
           error,
@@ -542,6 +542,10 @@ export const test = base.extend<AnimamaFixtures>({
       page.off("response", onResponse);
 
       await Promise.allSettled([...pendingWrites]);
+      expect(
+        pageErrors.map((error) => error.message),
+        "Unexpected browser page errors",
+      ).toEqual([]);
       if (writeErrors.length > 0) {
         throw new Error(
           `Browser evidence capture failed ${writeErrors.length} time(s); inspect the private runner log.`,

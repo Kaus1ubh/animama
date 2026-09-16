@@ -17,11 +17,6 @@ import { execFile } from "node:child_process";
 const execFileAsync = promisify(execFile);
 
 const E2E_TIME_ZONE = "America/Toronto";
-const DEFAULT_WEB_URL = "http://localhost:5173";
-const DEFAULT_AUTH_URL = "http://localhost:8000";
-const DEFAULT_API_URL = "http://localhost:8000";
-const DEFAULT_E2E_EMAIL = "codex@local.test";
-const DEFAULT_E2E_PASSWORD = "codex";
 export const REDACTED_VALUE = "[REDACTED]";
 
 const PRIVATE_DIRECTORY_MODE = 0o700;
@@ -159,59 +154,73 @@ function normalizeBaseUrl(value, label) {
   return url.toString().replace(/\/$/, "");
 }
 
-/** Resolve the external stack target and enforce the loopback default-user rule. */
+/** Require explicit ownership of an isolated, accountless application target. */
 export function resolveE2eEnvironment(environment = process.env) {
-  const webUrl = normalizeBaseUrl(
-    environment.ANIMAMA_E2E_WEB_URL ??
-      environment.FRONTEND_PUBLIC_BASE_URL ??
-      DEFAULT_WEB_URL,
-    "Animama web URL",
-  );
-  const authUrl = normalizeBaseUrl(
-    environment.ANIMAMA_E2E_AUTH_URL ??
-      environment.WEB_PUBLIC_BASE_URL ??
-      DEFAULT_AUTH_URL,
-    "Animama auth URL",
-  );
-  const apiUrl = normalizeBaseUrl(
-    environment.ANIMAMA_E2E_API_URL ??
-      environment.ANIMAMA_PUBLIC_API_BASE_URL ??
-      DEFAULT_API_URL,
-    "Animama API URL",
-  );
-
-  const hasExplicitEmail = Boolean(environment.ANIMAMA_E2E_EMAIL?.trim());
-  const hasExplicitPassword = Boolean(environment.ANIMAMA_E2E_PASSWORD);
-  if (hasExplicitEmail !== hasExplicitPassword) {
+  const configured =
+    environment.ANIMAMA_E2E_WEB_URL ?? environment.ANIMAMA_PUBLIC_ORIGIN;
+  if (!configured)
+    throw new Error("Set ANIMAMA_PUBLIC_ORIGIN from an isolated stack record.");
+  const webUrl = normalizeBaseUrl(configured, "Animama application origin");
+  if (
+    environment.ANIMAMA_E2E_WEB_URL &&
+    environment.ANIMAMA_PUBLIC_ORIGIN &&
+    normalizeBaseUrl(
+      environment.ANIMAMA_PUBLIC_ORIGIN,
+      "Stack application origin",
+    ) !== webUrl
+  ) {
     throw new Error(
-      "Set both ANIMAMA_E2E_EMAIL and ANIMAMA_E2E_PASSWORD, or set neither.",
+      "ANIMAMA_E2E_WEB_URL must match the selected stack application origin.",
     );
   }
-
-  const usesDefaultCredentials = !hasExplicitEmail;
-  const targetUrls = [webUrl, authUrl, apiUrl];
-  if (usesDefaultCredentials && !targetUrls.every(isLoopbackUrl)) {
+  const url = new URL(webUrl);
+  if (
+    !isLoopbackUrl(webUrl) ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  ) {
     throw new Error(
-      "Built-in Codex E2E credentials are restricted to loopback targets. Set explicit ANIMAMA_E2E_EMAIL and ANIMAMA_E2E_PASSWORD for another environment.",
+      "Browser journeys require one bare loopback application origin.",
     );
   }
-
-  return {
-    webUrl,
-    authUrl,
-    apiUrl,
-    composeProject:
-      environment.ANIMAMA_E2E_COMPOSE_PROJECT ??
-      environment.COMPOSE_PROJECT_NAME ??
-      "animama",
-    email: usesDefaultCredentials
-      ? DEFAULT_E2E_EMAIL
-      : environment.ANIMAMA_E2E_EMAIL.trim(),
-    password: usesDefaultCredentials
-      ? DEFAULT_E2E_PASSWORD
-      : environment.ANIMAMA_E2E_PASSWORD,
-    usesDefaultCredentials,
-  };
+  const composeProject =
+    environment.ANIMAMA_E2E_COMPOSE_PROJECT ?? environment.COMPOSE_PROJECT_NAME;
+  if (
+    environment.ANIMAMA_E2E_COMPOSE_PROJECT &&
+    environment.COMPOSE_PROJECT_NAME &&
+    environment.ANIMAMA_E2E_COMPOSE_PROJECT !== environment.COMPOSE_PROJECT_NAME
+  ) {
+    throw new Error(
+      "ANIMAMA_E2E_COMPOSE_PROJECT must match the selected stack project.",
+    );
+  }
+  if (
+    !/^animama-[a-z0-9][a-z0-9-]*$/.test(composeProject ?? "") ||
+    environment.ANIMAMA_E2E_ALLOW_MUTATIONS !== "1"
+  ) {
+    throw new Error(
+      "Use a named isolated stack and explicitly set ANIMAMA_E2E_ALLOW_MUTATIONS=1.",
+    );
+  }
+  for (const name of [
+    "ANIMAMA_E2E_AUTH_URL",
+    "ANIMAMA_E2E_AUTH_STATE",
+    "ANIMAMA_E2E_EMAIL",
+    "ANIMAMA_E2E_PASSWORD",
+  ]) {
+    if (environment[name])
+      throw new Error(
+        "Retired account authentication settings are not supported.",
+      );
+  }
+  if (
+    environment.ANIMAMA_E2E_API_URL &&
+    normalizeBaseUrl(environment.ANIMAMA_E2E_API_URL, "API origin") !== webUrl
+  ) {
+    throw new Error("API requests must use the same application origin.");
+  }
+  return { webUrl, apiUrl: webUrl, composeProject };
 }
 
 /** Resolve the host-mounted Local content root without inspecting its files. */
@@ -234,7 +243,15 @@ export function resolveE2eLocalContentRoot(
       "ANIMAMA_E2E_LOCAL_CONTENT_ROOT must match ANIMAMA_LOCAL_CONTENT_HOST_PATH.",
     );
   }
-  return resolveConfiguredRoot(explicit ?? stackMount ?? "content/local");
+  if (!explicit && !stackMount)
+    throw new Error("An isolated Local content root is required.");
+  const resolved = resolveConfiguredRoot(explicit ?? stackMount);
+  if (resolved === path.resolve(repositoryRoot, "content/local")) {
+    throw new Error(
+      "Browser journeys refuse the main installation Local content root.",
+    );
+  }
+  return resolved;
 }
 
 function redactString(value) {

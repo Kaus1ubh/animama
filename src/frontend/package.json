@@ -46,6 +46,7 @@
     "lint": "pnpm --filter animama-web lint",
     "prettier": "pnpm --filter animama-web prettier && pnpm --filter animama-desktop prettier",
     "prettier:check": "pnpm --filter animama-web prettier:check && pnpm --filter animama-desktop prettier:check",
+    "desktop:test:native-input": "node desktop/scripts/native/test-global-input-hook.mjs",
     "desktop:test": "node desktop/scripts/run-tests.mjs",
     "desktop:runtime:stage": "pnpm --filter animama-desktop runtime:stage",
     "desktop:runtime:audit": "pnpm --filter animama-desktop runtime:audit",

@@ -7,13 +7,56 @@ owner header or bypass the boundary to reach a separate backend origin.
 
 ## Current Automation Status
 
-The checked-in Playwright projects under `e2e/` are quarantined: their setup
-project and stored-state fixture require account credentials and are incompatible
-with the local accountless application. Do not run them against the local stack.
-The supported `local:verify:accountless` journey runs through the application
-origin and covers installation bootstrap, first run,
-settings, starter and custom Animas, private uploads, typed preview bytes,
-profile edits, chat SSE, receipts, and restart persistence.
+The active Playwright projects use installation setup and same-origin requests,
+without accounts, stored login state, owner headers or browser bearer tokens.
+The selected `accountless-*.spec.ts` journeys cover Library, companion selection,
+chat Stop/recovery, and creator JSON import/preview. Older creator journeys remain
+unselected until individually reviewed; listing them is not passing evidence.
+The separate `local:verify:accountless` API journey covers bootstrap, settings,
+starter/custom Animas, private uploads, typed bytes, chat receipts and persistence.
+
+Run browser checks only against a disposable named stack with deterministic model
+clients and its own Local content. From the repository root:
+
+```bash
+ANIMAMA_LLM_SKIP=1 ./reset.sh --name browser-a --base-port 8600
+source .animama-stack.env
+export ANIMAMA_E2E_ALLOW_MUTATIONS=1
+cd src/frontend
+pnpm e2e:test
+```
+
+The runner requires an explicit loopback application origin, a named
+`animama-*` project and a non-default Local root from the selected stack record.
+`ANIMAMA_E2E_WEB_URL`, `ANIMAMA_E2E_COMPOSE_PROJECT` and
+`ANIMAMA_E2E_LOCAL_CONTENT_ROOT` can explicitly describe an equivalent disposable
+fixture. They are assertions of ownership, not automatic isolation: never point
+them at a personal installation. Setup, companion selection and chats persist in
+that fixture; dispose its owned database/storage after the run. Do not reuse
+account credentials or old auth-state settings; the runner rejects them.
+
+```bash
+pnpm e2e:list       # Offline discovery; no application or browser required.
+pnpm e2e:check      # Type-check all browser test sources, including inactive ones.
+node --test scripts/e2e/*.test.mjs
+```
+
+Unexpected browser `pageerror` events fail active tests and remain in the evidence.
+The runner records per-project locking, source identity, traces, request failures,
+and an exact content ownership ledger under ignored `.animama-e2e/runs/`.
+Created catalog items are deleted only with their recorded ID, revision, logical
+key and verified files. Failed cleanup remains a failed result; recovery cleanup
+must target the same recorded origin/project and owned Local root. Use
+`pnpm e2e:cleanup -- RUN_ID` to inspect unresolved items, then
+`pnpm e2e:cleanup -- RUN_ID --confirm RUN_ID` with the exact generated ID to
+perform recovery. The same isolated-stack environment and consent are required.
+
+Browser coverage uses the existing creator JSON import UI. Portable `.animama /2`
+package import/export is covered separately by migration-backed backend tests;
+this suite does not claim a package-import browser screen exists. Chat cancellation
+uses a controlled pending browser request, followed by actual deterministic backend
+chat. Real provider cancellation is tested separately over Uvicorn. Neither is
+live provider, audio, physical keyboard or packaged desktop acceptance.
 
 The currently supported automated frontend checks are:
 

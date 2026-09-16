@@ -14,16 +14,14 @@ function response(status, body = null) {
   };
 }
 
-test("uses UI storageState for the token exchange and exact catalog operations", async () => {
+test("uses same-origin CSRF metadata for exact accountless catalog operations", async () => {
   const calls = [];
   const contexts = [];
   const requestFactory = async (options) => {
     contexts.push(options);
-    const auth = contexts.length === 1;
     return {
       get: async (url) => {
         calls.push(["GET", url]);
-        if (auth) return response(200, { token: "secret-jwt" });
         if (url === "/v1/content/catalog") return response(200, { items: [] });
         if (url === "/v1/animas/annie-id/loadout") {
           return response(200, { anima_id: "annie-id", revision: 3 });
@@ -39,15 +37,16 @@ test("uses UI storageState for the token exchange and exact catalog operations",
     };
   };
   const client = await createLocalCatalogClient({
-    authUrl: "http://localhost:3000",
-    apiUrl: "http://127.0.0.1:8000",
-    storageStatePath: "/tmp/storage-state.json",
+    apiUrl: "http://localhost:8620",
     requestFactory,
   });
 
-  assert.equal(contexts[0].storageState, "/tmp/storage-state.json");
+  assert.equal(contexts.length, 1);
+  assert.equal(contexts[0].storageState, undefined);
   assert.equal(contexts[0].extraHTTPHeaders.authorization, undefined);
-  assert.equal(contexts[1].extraHTTPHeaders.authorization, "Bearer secret-jwt");
+  assert.equal(contexts[0].extraHTTPHeaders.Origin, "http://localhost:8620");
+  assert.equal(contexts[0].extraHTTPHeaders["X-Animama-CSRF"], "1");
+  assert.equal(contexts[0].extraHTTPHeaders["Sec-Fetch-Site"], "same-origin");
   assert.deepEqual(await client.listCatalog(), { items: [] });
   assert.deepEqual(await client.getItem("item-1"), { item_id: "item-1" });
   assert.equal(await client.getItem("missing", { allowMissing: true }), null);
@@ -59,7 +58,6 @@ test("uses UI storageState for the token exchange and exact catalog operations",
     status: 204,
   });
   assert.deepEqual(calls, [
-    ["GET", "/api/auth/token"],
     ["GET", "/v1/content/catalog"],
     ["GET", "/v1/content/items/item-1"],
     ["GET", "/v1/content/items/missing"],
@@ -73,14 +71,12 @@ test("refuses non-loopback targets before opening a request context", async () =
   let called = false;
   await assert.rejects(
     createLocalCatalogClient({
-      authUrl: "https://auth.example.com",
-      apiUrl: "http://localhost:8000",
-      storageStatePath: "/tmp/storage-state.json",
+      apiUrl: "https://example.com",
       requestFactory: async () => {
         called = true;
       },
     }),
-    /non-loopback/,
+    /bare loopback/,
   );
   assert.equal(called, false);
 });
@@ -121,20 +117,17 @@ test("catalog snapshots are deterministic and Local-only", () => {
   assert.match(snapshot.sha256, /^[0-9a-f]{64}$/);
 });
 
-test("auth failures never echo token response bodies or auth URLs", async () => {
-  await assert.rejects(
-    createLocalCatalogClient({
-      authUrl: "http://localhost:3000/private-token-url",
-      apiUrl: "http://localhost:8000",
-      storageStatePath: "/tmp/storage-state.json",
-      requestFactory: async () => ({
-        get: async () => response(401, { token: "must-not-leak" }),
-        dispose: async () => undefined,
-      }),
+test("catalog failures report status without exposing response bodies", async () => {
+  const client = await createLocalCatalogClient({
+    apiUrl: "http://localhost:8620",
+    requestFactory: async () => ({
+      get: async () => response(403, { secret: "must-not-leak" }),
+      dispose: async () => undefined,
     }),
-    (error) =>
-      error.message === "Local E2E token acquisition failed (HTTP 401)." &&
-      !error.message.includes("must-not-leak") &&
-      !error.message.includes("private-token-url"),
+  });
+  await assert.rejects(
+    client.listCatalog(),
+    (error) => error.message === "Neutral catalog read returned HTTP 403.",
   );
+  await client.close();
 });

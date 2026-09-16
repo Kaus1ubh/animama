@@ -86,44 +86,113 @@ test("loopback URL checks accept local variants and reject remote targets", () =
   }
 });
 
-test("built-in credentials are refused when any configured target is remote", () => {
+test("accountless targets require explicit isolated ownership and one loopback origin", () => {
+  const safe = {
+    ANIMAMA_PUBLIC_ORIGIN: "http://localhost:8620",
+    COMPOSE_PROJECT_NAME: "animama-browser-fixture",
+    ANIMAMA_E2E_ALLOW_MUTATIONS: "1",
+  };
+  assert.deepEqual(resolveE2eEnvironment(safe), {
+    webUrl: safe.ANIMAMA_PUBLIC_ORIGIN,
+    apiUrl: safe.ANIMAMA_PUBLIC_ORIGIN,
+    composeProject: safe.COMPOSE_PROJECT_NAME,
+  });
+  assert.throws(() => resolveE2eEnvironment({}), /isolated stack/);
+  assert.throws(
+    () => resolveE2eEnvironment({ ...safe, ANIMAMA_E2E_ALLOW_MUTATIONS: "" }),
+    /explicitly/,
+  );
+  assert.throws(
+    () => resolveE2eEnvironment({ ...safe, COMPOSE_PROJECT_NAME: "animama" }),
+    /named isolated/,
+  );
+  for (const origin of [
+    "https://example.com",
+    "http://localhost:8620/path",
+    "http://localhost:8620/?query=1",
+  ]) {
+    assert.throws(
+      () => resolveE2eEnvironment({ ...safe, ANIMAMA_PUBLIC_ORIGIN: origin }),
+      /bare loopback/,
+    );
+  }
   assert.throws(
     () =>
       resolveE2eEnvironment({
-        FRONTEND_PUBLIC_BASE_URL: "https://app.example.test",
-        WEB_PUBLIC_BASE_URL: "http://localhost:3000",
-        ANIMAMA_PUBLIC_API_BASE_URL: "http://localhost:8000",
+        ...safe,
+        ANIMAMA_E2E_API_URL: "http://localhost:8621",
       }),
-    /restricted to loopback targets/,
+    /same application origin/,
   );
-
-  const explicit = resolveE2eEnvironment({
-    ANIMAMA_E2E_WEB_URL: "https://app.example.test",
-    ANIMAMA_E2E_AUTH_URL: "https://auth.example.test",
-    ANIMAMA_E2E_API_URL: "https://api.example.test",
-    ANIMAMA_E2E_EMAIL: "test-user@example.test",
-    ANIMAMA_E2E_PASSWORD: "explicit-test-password",
-  });
-  assert.equal(explicit.usesDefaultCredentials, false);
+  assert.throws(
+    () => resolveE2eEnvironment({ ...safe, ANIMAMA_E2E_EMAIL: "old-account" }),
+    /Retired/,
+  );
 });
 
-test("Local content root configuration is exact and unambiguous", () => {
-  assert.equal(
-    resolveE2eLocalContentRoot("/workspace/animama", {}),
-    "/workspace/animama/content/local",
-  );
-  assert.equal(
-    resolveE2eLocalContentRoot("/workspace/animama", {
-      ANIMAMA_E2E_LOCAL_CONTENT_ROOT: "content/local",
-      ANIMAMA_LOCAL_CONTENT_HOST_PATH: "/workspace/animama/content/local",
+test("E2E overrides cannot silently replace a sourced stack target", () => {
+  const stack = {
+    ANIMAMA_PUBLIC_ORIGIN: "http://localhost:8620",
+    COMPOSE_PROJECT_NAME: "animama-browser-fixture",
+    ANIMAMA_E2E_ALLOW_MUTATIONS: "1",
+  };
+  assert.throws(
+    () => resolveE2eEnvironment({
+      ...stack,
+      ANIMAMA_E2E_WEB_URL: "http://localhost:8000",
     }),
-    "/workspace/animama/content/local",
+    /must match the selected stack application origin/,
+  );
+  assert.throws(
+    () => resolveE2eEnvironment({
+      ...stack,
+      ANIMAMA_E2E_COMPOSE_PROJECT: "animama-other",
+    }),
+    /must match the selected stack project/,
+  );
+  const expected = resolveE2eEnvironment(stack);
+  assert.deepEqual(
+    resolveE2eEnvironment({
+      ...stack,
+      ANIMAMA_E2E_WEB_URL: "http://localhost:8620/",
+      ANIMAMA_E2E_COMPOSE_PROJECT: stack.COMPOSE_PROJECT_NAME,
+    }),
+    expected,
+  );
+  // An explicit disposable fixture need not have a Compose stack record.
+  assert.deepEqual(
+    resolveE2eEnvironment({
+      ANIMAMA_E2E_WEB_URL: stack.ANIMAMA_PUBLIC_ORIGIN,
+      ANIMAMA_E2E_COMPOSE_PROJECT: stack.COMPOSE_PROJECT_NAME,
+      ANIMAMA_E2E_ALLOW_MUTATIONS: "1",
+    }),
+    expected,
+  );
+});
+
+test("Local content root must be explicit and cannot target the main installation", () => {
+  assert.throws(
+    () => resolveE2eLocalContentRoot("/workspace/animama", {}),
+    /isolated Local/,
   );
   assert.throws(
     () =>
       resolveE2eLocalContentRoot("/workspace/animama", {
-        ANIMAMA_E2E_LOCAL_CONTENT_ROOT: "/workspace/animama/content/local",
-        ANIMAMA_LOCAL_CONTENT_HOST_PATH: "/workspace/other/content/local",
+        ANIMAMA_E2E_LOCAL_CONTENT_ROOT: "content/local",
+      }),
+    /main installation/,
+  );
+  assert.equal(
+    resolveE2eLocalContentRoot("/workspace/animama", {
+      ANIMAMA_E2E_LOCAL_CONTENT_ROOT: "/tmp/owned/local",
+    }),
+    "/tmp/owned/local",
+  );
+  assert.throws(
+    () =>
+      resolveE2eLocalContentRoot("/workspace/animama", {
+        ANIMAMA_E2E_LOCAL_CONTENT_ROOT: "/tmp/owned/local",
+        ANIMAMA_LOCAL_CONTENT_HOST_PATH: "/tmp/other/local",
       }),
     /must match/,
   );

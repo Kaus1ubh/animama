@@ -35,11 +35,6 @@ function exactAnimaId(value) {
   return value;
 }
 
-function extractToken(body) {
-  const candidates = [body?.token, body?.jwt, body?.data?.token];
-  return candidates.find((value) => typeof value === "string" && value.trim());
-}
-
 function canonicalJson(value) {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") {
@@ -81,55 +76,23 @@ export function localCatalogSnapshot(catalog) {
   };
 }
 
-/**
- * Exchange the UI-created session cookie for a short-lived JWT and expose only
- * neutral exact catalog operations. Credentials and auth bodies never leave
- * the private request contexts.
- */
+/** Same-origin accountless catalog operations; no owner headers or credentials. */
 export async function createLocalCatalogClient({
-  authUrl,
   apiUrl,
-  storageStatePath,
   requestFactory = (options) => playwrightRequest.newContext(options),
 }) {
-  if (!isLoopbackUrl(authUrl) || !isLoopbackUrl(apiUrl)) {
-    throw new Error("Local catalog utilities refuse non-loopback targets.");
+  if (!isLoopbackUrl(apiUrl) || new URL(apiUrl).origin !== apiUrl) {
+    throw new Error("Local catalog utilities require a bare loopback origin.");
   }
-  if (typeof storageStatePath !== "string" || !storageStatePath.trim()) {
-    throw new Error("Local catalog utilities require UI-created storageState.");
-  }
-
-  const authContext = await requestFactory({
-    baseURL: authUrl,
-    storageState: storageStatePath,
-    extraHTTPHeaders: { accept: "application/json" },
-  });
-  let token;
-  try {
-    const response = await authContext.get("/api/auth/token", {
-      failOnStatusCode: false,
-    });
-    if (!response.ok()) {
-      throw new Error(
-        `Local E2E token acquisition failed (HTTP ${response.status()}).`,
-      );
-    }
-    token = extractToken(await response.json());
-    if (!token) {
-      throw new Error("Local E2E token acquisition returned no token.");
-    }
-  } finally {
-    await authContext.dispose();
-  }
-
   const apiContext = await requestFactory({
     baseURL: apiUrl,
     extraHTTPHeaders: {
       accept: "application/json",
-      authorization: `Bearer ${token}`,
+      Origin: apiUrl,
+      "Sec-Fetch-Site": "same-origin",
+      "X-Animama-CSRF": "1",
     },
   });
-  token = undefined;
 
   return {
     async listCatalog() {

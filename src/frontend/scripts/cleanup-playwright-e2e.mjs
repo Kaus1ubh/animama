@@ -1,11 +1,8 @@
 #!/usr/bin/env node
 
-import { chmod, mkdtemp, readFile, rm } from "node:fs/promises";
-import os from "node:os";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
-import { chromium } from "playwright";
 
 import { cleanupOwnedContent } from "./e2e/content-cleanup.mjs";
 import {
@@ -32,28 +29,6 @@ const frontendRoot = path.resolve(
 );
 const repositoryRoot = path.resolve(frontendRoot, "../..");
 const generatedRoot = path.join(repositoryRoot, ".animama-e2e");
-const lockPath = path.join(generatedRoot, "locks", "main-stack.lock");
-
-async function authenticateViaUi(target, storageStatePath) {
-  const browser = await chromium.launch({ headless: true });
-  try {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    await page.goto(target.webUrl, { waitUntil: "domcontentloaded" });
-    await page.getByLabel("Email", { exact: true }).fill(target.email);
-    await page.getByLabel("Password", { exact: true }).fill(target.password);
-    await page.getByRole("button", { name: /^Sign In$/i }).click();
-    await page.waitForURL(
-      (url) => url.pathname === "/a" || url.pathname.startsWith("/a/"),
-      { timeout: 30_000 },
-    );
-    await context.storageState({ path: storageStatePath });
-    await chmod(storageStatePath, 0o600);
-  } finally {
-    await browser.close();
-  }
-}
-
 async function main() {
   process.umask(0o077);
   const { runId, confirmed } = parseCleanupArguments(process.argv.slice(2));
@@ -68,6 +43,12 @@ async function main() {
   if (manifest.runId !== runId) {
     throw new Error("Run manifest identity does not match the requested run.");
   }
+  const target = resolveE2eEnvironment();
+  const lockPath = path.join(
+    generatedRoot,
+    "locks",
+    `${target.composeProject}.lock`,
+  );
   const evidenceDirectory = path.join(runDirectory, "evidence");
   await ensurePrivateDirectory(evidenceDirectory);
   const acquired = await acquireMainStackLock({
@@ -75,7 +56,6 @@ async function main() {
     runId: `${runId}-cleanup`,
     evidenceDirectory,
   });
-  let authDirectory = null;
   try {
     await readFile(ledgerPath, "utf8");
     const events = await readContentLedger(ledgerPath);
@@ -84,15 +64,10 @@ async function main() {
       `${JSON.stringify({ runId, confirmed, owned: entries }, null, 2)}\n`,
     );
     if (!confirmed || entries.length === 0) return;
-    const target = resolveE2eEnvironment();
-    if (
-      !isLoopbackUrl(target.webUrl) ||
-      !isLoopbackUrl(target.authUrl) ||
-      !isLoopbackUrl(target.apiUrl)
-    ) {
+    if (!isLoopbackUrl(target.webUrl) || !isLoopbackUrl(target.apiUrl)) {
       throw new Error("Creator cleanup refuses non-loopback targets.");
     }
-    for (const key of ["webUrl", "authUrl", "apiUrl"]) {
+    for (const key of ["webUrl", "apiUrl", "composeProject"]) {
       if (manifest.target?.[key] !== target[key]) {
         throw new Error(
           "Current cleanup environment does not match the recorded run target.",
@@ -100,18 +75,11 @@ async function main() {
       }
     }
     const localRoot = resolveE2eLocalContentRoot(repositoryRoot);
+    if (manifest.target?.localContentRoot !== localRoot) {
+      throw new Error("Cleanup Local root differs from the recorded run root.");
+    }
     await validateLocalContentRoot(localRoot, { repositoryRoot });
-    authDirectory = await mkdtemp(
-      path.join(os.tmpdir(), `${runId}-cleanup-auth-`),
-    );
-    await chmod(authDirectory, 0o700);
-    const storageStatePath = path.join(authDirectory, "storage-state.json");
-    await authenticateViaUi(target, storageStatePath);
-    const client = await createLocalCatalogClient({
-      authUrl: target.authUrl,
-      apiUrl: target.apiUrl,
-      storageStatePath,
-    });
+    const client = await createLocalCatalogClient({ apiUrl: target.apiUrl });
     try {
       try {
         const summary = await cleanupOwnedContent({
@@ -151,9 +119,6 @@ async function main() {
       await client.close();
     }
   } finally {
-    if (authDirectory) {
-      await rm(authDirectory, { recursive: true, force: true });
-    }
     await releaseMainStackLock({ lockPath, owner: acquired.owner });
   }
 }

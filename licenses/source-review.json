@@ -8911,6 +8911,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/desktop/native/global-input-hook/tests/hook_mac_test.cc",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/desktop/package.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -9398,6 +9405,13 @@
     },
     {
       "path": "src/frontend/desktop/scripts/native/build-global-input-hook.mjs",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/desktop/scripts/native/test-global-input-hook.mjs",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -10125,7 +10139,14 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/e2e/journeys/authenticated-library.smoke.spec.ts",
+      "path": "src/frontend/e2e/journeys/accountless-journeys.spec.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/e2e/journeys/accountless-library.spec.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -10167,7 +10188,7 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/e2e/setup/auth.setup.ts",
+      "path": "src/frontend/e2e/setup/installation.setup.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -19254,6 +19275,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "tests/migration_database_helpers.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "tests/test_accountless_repository_boundaries.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -19283,6 +19311,13 @@
     },
     {
       "path": "tests/test_anima_chat_sse.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "tests/test_anima_chat_sse_transport.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -19479,6 +19514,13 @@
     },
     {
       "path": "tests/test_content_image.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "tests/test_content_migration_recovery.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

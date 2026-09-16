@@ -42,7 +42,6 @@ const frontendRoot = path.resolve(
 );
 const repositoryRoot = path.resolve(frontendRoot, "../..");
 const generatedRoot = path.join(repositoryRoot, ".animama-e2e");
-const lockPath = path.join(generatedRoot, "locks", "main-stack.lock");
 const playwrightConfigPath = path.join(frontendRoot, "playwright.config.ts");
 
 function relativeToRepository(absolutePath) {
@@ -93,11 +92,49 @@ async function main() {
   const playwrightArguments = process.argv
     .slice(2)
     .filter((value) => value !== "--");
+  // Listing is offline: no browser, health request, stack mutation or account setup.
+  if (playwrightArguments.includes("--list")) {
+    const directory = await mkdtemp(
+      path.join(os.tmpdir(), "animama-e2e-list-"),
+    );
+    try {
+      const packagePath = require.resolve("playwright/package.json");
+      const manifest = JSON.parse(await readFile(packagePath, "utf8"));
+      const child = spawn(
+        process.execPath,
+        [
+          resolvePackageBinary(packagePath, manifest, "playwright"),
+          "test",
+          "--config",
+          playwrightConfigPath,
+          ...playwrightArguments,
+        ],
+        {
+          cwd: frontendRoot,
+          stdio: "inherit",
+          env: {
+            ...process.env,
+            ANIMAMA_E2E_WEB_URL: "http://localhost:1",
+            ANIMAMA_E2E_PLAYWRIGHT_DIR: directory,
+          },
+        },
+      );
+      process.exitCode = (await waitForChild(child)).code ?? 1;
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+    return;
+  }
   const headed = playwrightArguments.includes("--headed");
   const runId = formatGeneratedId(process.env.ANIMAMA_E2E_RUN_TYPE ?? "run");
   const runDirectory = path.join(generatedRoot, "runs", runId);
   const artifacts = createArtifactPaths(runDirectory);
   const target = resolveE2eEnvironment();
+  const lockPath = path.join(
+    generatedRoot,
+    "locks",
+    `${target.composeProject}.lock`,
+  );
   const localContentRoot = resolveE2eLocalContentRoot(repositoryRoot);
   const git = await readGitMetadata(repositoryRoot);
   const playwrightPackagePath = require.resolve("playwright/package.json");
@@ -140,9 +177,9 @@ async function main() {
     journeyFilters: redactEvidence(extractJourneyFilters(playwrightArguments)),
     target: {
       webUrl: target.webUrl,
-      authUrl: target.authUrl,
       apiUrl: target.apiUrl,
       composeProject: target.composeProject,
+      localContentRoot,
     },
     git: {
       commit: git.commit,
@@ -162,7 +199,6 @@ async function main() {
     preflight: [],
     exitCode: null,
     cleanup: {
-      authStateRemoved: null,
       content: null,
       lockReleased: null,
     },
@@ -182,7 +218,6 @@ async function main() {
   };
   await writePrivateJson(artifacts.manifest, manifest);
 
-  let authTemporaryDirectory = null;
   let lockOwner = null;
   let child = null;
   let receivedSignal = null;
@@ -221,40 +256,26 @@ async function main() {
         `Recovered a proven-dead same-host lock into ${relativeToRepository(acquiredLock.recoveredStaleLockPath)}.`,
       );
     }
-    log(`Acquired the serial main-stack lock for ${runId}.`);
+    log(`Acquired the isolated-stack lock for ${runId}.`);
 
-    manifest.preflight = await Promise.all([
-      checkHttpHealth({ name: "Vite web app", url: target.webUrl }),
-      checkHttpHealth({
-        name: "Better Auth server",
-        url: `${target.authUrl}/health`,
+    manifest.preflight = [
+      await checkHttpHealth({
+        name: "Accountless application",
+        url: `${target.webUrl}/health`,
       }),
-      checkHttpHealth({
-        name: "FastAPI backend",
-        url: `${target.apiUrl}/health`,
-      }),
-    ]);
+    ];
     await validateLocalContentRoot(localContentRoot, { repositoryRoot });
     manifest.preflight.push({
       name: "Local content root",
       status: "ready",
     });
     log(
-      "External main-stack health checks passed; no Docker lifecycle command was run.",
+      "Isolated application health check passed; runner performs no service lifecycle operations.",
     );
 
     if (receivedSignal) {
       throw new Error(`Run interrupted by ${receivedSignal} during preflight.`);
     }
-
-    authTemporaryDirectory = await mkdtemp(
-      path.join(os.tmpdir(), `${runId}-auth-`),
-    );
-    await chmod(authTemporaryDirectory, 0o700);
-    const authStatePath = path.join(
-      authTemporaryDirectory,
-      "storage-state.json",
-    );
 
     await writePrivateJson(artifacts.manifest, manifest);
     const playwrightCliPath = resolvePackageBinary(
@@ -272,15 +293,8 @@ async function main() {
       ANIMAMA_E2E_CLEANUP_SUMMARY: artifacts.cleanupSummary,
       ANIMAMA_E2E_LOCAL_CONTENT_ROOT: localContentRoot,
       ANIMAMA_E2E_REPOSITORY_ROOT: repositoryRoot,
-      ANIMAMA_E2E_AUTH_STATE: authStatePath,
       ANIMAMA_E2E_WEB_URL: target.webUrl,
-      ANIMAMA_E2E_AUTH_URL: target.authUrl,
       ANIMAMA_E2E_API_URL: target.apiUrl,
-      ANIMAMA_E2E_EMAIL: target.email,
-      ANIMAMA_E2E_PASSWORD: target.password,
-      ANIMAMA_E2E_USES_DEFAULT_CREDENTIALS: target.usesDefaultCredentials
-        ? "1"
-        : "0",
       ANIMAMA_E2E_HEADED: headed ? "1" : "0",
     };
     // These runs deliberately use Playwright's colored status reporter.
@@ -339,18 +353,8 @@ async function main() {
         failures: [],
       };
       if (unresolved.length > 0) {
-        if (!authTemporaryDirectory) {
-          throw new Error(
-            "Owned creator content remains but authentication state is unavailable.",
-          );
-        }
         const catalogClient = await createLocalCatalogClient({
-          authUrl: target.authUrl,
           apiUrl: target.apiUrl,
-          storageStatePath: path.join(
-            authTemporaryDirectory,
-            "storage-state.json",
-          ),
         });
         try {
           fallback = await cleanupOwnedContent({
@@ -401,32 +405,18 @@ async function main() {
       exitCode = exitCode || 1;
     }
 
-    if (authTemporaryDirectory) {
-      try {
-        await rm(authTemporaryDirectory, { recursive: true, force: true });
-        manifest.cleanup.authStateRemoved = true;
-        log("Removed the temporary authentication directory.");
-      } catch (error) {
-        manifest.cleanup.authStateRemoved = false;
-        log(
-          `Temporary authentication cleanup failed: ${redactEvidence(error).message}`,
-        );
-        exitCode = exitCode || 1;
-      }
-    } else {
-      manifest.cleanup.authStateRemoved = true;
-    }
-
     if (lockOwner) {
       try {
         manifest.cleanup.lockReleased = await releaseMainStackLock({
           lockPath,
           owner: lockOwner,
         });
-        log("Released the serial main-stack lock.");
+        log("Released the isolated-stack lock.");
       } catch (error) {
         manifest.cleanup.lockReleased = false;
-        log(`Main-stack lock release failed: ${redactEvidence(error).message}`);
+        log(
+          `Isolated-stack lock release failed: ${redactEvidence(error).message}`,
+        );
         exitCode = exitCode || 1;
       }
     } else {

@@ -1,6 +1,6 @@
 import { expect, test } from "../fixtures/animama";
 
-test("authenticated Library smoke @smoke @read-only", async ({
+test("accountless Library smoke @smoke @read-only", async ({
   page,
   animamaEvidence,
 }) => {
@@ -10,7 +10,7 @@ test("authenticated Library smoke @smoke @read-only", async ({
     });
   });
 
-  await test.step("Assert the authenticated Library is visible", async () => {
+  await test.step("Assert the accountless Library is visible", async () => {
     expect(response?.ok()).toBe(true);
     await expect(page).toHaveURL(/\/a\/library(?:[/?#]|$)/);
     await expect(
@@ -19,10 +19,10 @@ test("authenticated Library smoke @smoke @read-only", async ({
     await expect(
       page.getByRole("heading", { name: "Sign in to your account" }),
     ).toHaveCount(0);
-    await animamaEvidence.attachJson("authenticated-library-checkpoint", {
+    await animamaEvidence.attachJson("accountless-library-checkpoint", {
       path: new URL(page.url()).pathname,
       heading: "Library",
-      authenticated: true,
+      accountless: true,
       mutationPerformed: false,
     });
   });

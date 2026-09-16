@@ -355,6 +355,89 @@ resources/app.asar.unpacked/dist/native/animama_input_hook.node
 If a keyboard shortcut fails to register, it may already be reserved by the OS
 or another app. Rebind it in Application settings and try again.
 
+## Compiled Native Checks
+
+Run from `src/frontend` on macOS 15+ on Apple silicon with Xcode Command Line
+Tools installed:
+
+```sh
+pnpm desktop:test -- tests/global-input-hook.test.ts
+pnpm desktop:test:native-input
+```
+
+The first command tests the JavaScript/N-API wrapper contract. The second compiles
+the actual macOS hook implementation into a temporary C++ test executable and
+executes its matcher and event callback. It checks all 16 configured modifier
+combinations against all 16 input combinations, with and without Caps Lock/Fn,
+plus wrong keys, repeat/release handling and disabled-tap recovery. Including the
+production source in the test translation unit makes its private matcher directly
+testable without exporting an extra native API or duplicating the algorithm.
+
+The executable creates unposted CoreGraphics events only. It never starts an
+event tap, requests permission or observes real input, and its temporary build
+directory is removed after success or failure. Unsupported hosts fail this explicit
+command rather than recording a skipped native check as passing. A compiler
+failure also fails the check. This proves compiled matching/callback behavior;
+it does not verify N-API loading, OS permission, event-tap delivery, actual keyboard
+layout behavior or the packaged application.
+
+## Native macOS Acceptance Journey
+
+This remains a manual acceptance check on the exact candidate. A passing compiled
+test or wrapper test does not complete it. Use macOS 15+ on Apple silicon, including
+the minimum supported OS before release, and follow the separate-account and
+isolated-data requirements in [Releases](releases.md). Do not reset privacy grants
+or use an existing personal profile to create a clean test state.
+
+Record the source revision, application/addon hashes, signing status, OS build,
+hardware, keyboard layout, optional speech-pack version, initial Input Monitoring
+grant and test-account isolation. Launch the `.app` normally through Finder or
+LaunchServices so permission belongs to that application. Voice Mode requires the
+approved Parakeet pack and microphone permission; if unavailable, record the
+affected steps as blocked instead of substituting mocked voice state.
+
+1. Begin in a separate test account without Input Monitoring permission for this
+   application. Open an Anima chat and enable desktop shortcuts. Decline the
+   normal OS permission request. Verify global hold capture is unavailable and
+   shortcut status reports permission/recovery. Verify a one-shot shortcut such
+   as Quick Chat still works. Record the actual prompt/status; do not inject
+   events or bypass the permission check.
+2. Grant Input Monitoring to the exact application in System Settings when ready
+   to continue, then quit and reopen normally if macOS requests it. Confirm the
+   permission status recovers and no duplicate shortcut registrations appear.
+3. With Voice Mode active and muted, physically hold `Ctrl + Backquote`. Confirm
+   one unmute transition, including a long hold/key repeat, then one mute on
+   release. Repeat with left and right Control. Release Control before Backquote
+   and confirm the final key release still clears the hold.
+4. Check missing and extra modifiers and a different physical key. None should
+   activate the hold. The default extra-modifier combinations are separate
+   one-shot actions: temporarily rebind those actions to non-conflicting keys in
+   the isolated profile before testing this case, and restore them afterward.
+   Repeat with Caps Lock and Fn when the keyboard/OS exposes them; record hardware
+   limitations explicitly.
+5. Keep the Anima chat selected but focus a harmless text editor. Verify the same
+   hold/release still works globally and the editor receives its normal key
+   events. Check that arbitrary typing neither activates the hold nor appears
+   as raw key data in application logs. Do not type personal content during this
+   check. Test another keyboard layout if supported and record the physical key.
+6. During a hold, stop Voice Mode or begin shortcut recording in settings. Verify
+   the microphone is not left unmuted by the old hold. Resume Voice Mode, restore
+   muted state and confirm a new hold/release works. Quit and reopen, then repeat
+   a normal hold to check listener cleanup/re-registration.
+7. Revoke only this test application's Input Monitoring grant through System
+   Settings, quit/reopen and verify unavailable capture is reported safely.
+   Grant again and repeat the recovery check. Record whether macOS required a
+   relaunch. Finish the existing checklist below, including the supported mouse
+   binding, initially unmuted state and Voice Mode off behavior.
+
+Keep a row for each step with **pass / fail / blocked / not run**, observed
+behavior and any screenshot/log reference. A failure needs a reproduction and
+remediation; a blocked step remains an acceptance obligation with an owner.
+Do not label the entire journey passed while a required step is missing. Record
+Raymond's review separately from the operator's execution and from signed release
+approval. Permission/revocation, physical events and packaged loading were not
+executed merely by adding or running the compiled test above.
+
 ## Manual Test Checklist
 
 - With Voice Mode off, Press to talk does nothing.

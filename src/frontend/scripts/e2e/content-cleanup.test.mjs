@@ -27,9 +27,10 @@ const owned = {
 async function setup({ withOwned = true } = {}) {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "animama-cleanup-"));
   const repositoryRoot = path.join(temporary, "repo");
-  const localRoot = path.join(repositoryRoot, "content", "local");
+  const localRoot = path.join(temporary, "isolated-stack", "local");
   const artifact = path.join(localRoot, ...owned.relativeLocator.split("/"));
   const ledgerPath = path.join(temporary, "content-ledger.jsonl");
+  await mkdir(repositoryRoot, { recursive: true });
   await mkdir(artifact, { recursive: true });
   await appendContentLedgerEvent(ledgerPath, { ...common, event: "planned" });
   if (withOwned) {

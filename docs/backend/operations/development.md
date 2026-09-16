@@ -1102,3 +1102,22 @@ environment usage.
 ## Updating Docs
 
 For backend behavior, update files in `docs/backend/` alongside code changes.
+
+## Migration-backed content recovery checks
+
+`uv run pytest -q tests/test_content_migration_recovery.py` creates a unique
+PostgreSQL database per case, applies the real Alembic graph and runs installation
+bootstrap. It checks literal `.animama /2` bytes/digests, exact import retries
+across fresh services, later edits/deletions, owner denial and journal recovery
+or fencing. It never substitutes `create_all` for migrations.
+
+Docker/testcontainers is the default. When Docker is unavailable, an explicit
+`ANIMAMA_TEST_POSTGRES_BIN=/path/to/postgres/bin` may provide installed PostgreSQL
+binaries with pgvector and pg_trgm. This creates and stops a new temporary UTF-8
+cluster on an ephemeral loopback port; it does not accept a user database URL.
+Startup collisions fail without stopping any other service.
+
+Restart in these tests means rebuilding database engines/sessions, bootstrap and
+filesystem services against the same isolated persisted state. It does not mean
+a PostgreSQL crash or full desktop restart. Included content is deliberately
+empty: starter repair is expected while content readiness is asserted separately.

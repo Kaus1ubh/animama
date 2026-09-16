@@ -25,8 +25,9 @@ function digest(body) {
 async function fixture() {
   const temporary = await mkdtemp(path.join(os.tmpdir(), "animama-files-"));
   const repositoryRoot = path.join(temporary, "repo");
-  const localRoot = path.join(repositoryRoot, "content", "local");
+  const localRoot = path.join(temporary, "isolated-stack", "local");
   const entryRoot = path.join(localRoot, "reactions", "react-0827123456");
+  await mkdir(repositoryRoot, { recursive: true });
   await mkdir(entryRoot, { recursive: true });
   const descriptor = Buffer.from('{"schema":"animaPoseClip/1.0"}\n');
   const metadata = Buffer.from('{"dependencies":[]}\n');
@@ -68,7 +69,7 @@ async function withFixture(run) {
   }
 }
 
-test("verifies the default repository content/local shape and exact files", async () => {
+test("verifies isolated Local content and exact files", async () => {
   await withFixture(async ({ repositoryRoot, localRoot, item }) => {
     assert.equal(
       await validateLocalContentRoot(localRoot, { repositoryRoot }),
@@ -85,6 +86,29 @@ test("verifies the default repository content/local shape and exact files", asyn
       "animaPoseClip/1.0",
     );
     assert.match(verified.manifestSha256, /^[0-9a-f]{64}$/);
+  });
+});
+
+test("rejects the main Local root through direct and ancestor-link aliases", async () => {
+  await withFixture(async ({ temporary, repositoryRoot }) => {
+    const mainLocal = path.join(repositoryRoot, "content", "local");
+    await mkdir(mainLocal, { recursive: true });
+    const repositoryAlias = path.join(temporary, "repo-alias");
+    await symlink(repositoryRoot, repositoryAlias, "dir");
+    for (const candidate of [
+      mainLocal,
+      path.join(repositoryAlias, "content", "local"),
+    ]) {
+      await assert.rejects(
+        validateLocalContentRoot(candidate, { repositoryRoot }),
+        /main installation Local content root/,
+      );
+    }
+    // A symlink in the selected repository path must not change its identity.
+    await assert.rejects(
+      validateLocalContentRoot(mainLocal, { repositoryRoot: repositoryAlias }),
+      /main installation Local content root/,
+    );
   });
 });
 

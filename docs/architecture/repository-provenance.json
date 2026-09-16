@@ -11,7 +11,7 @@
         "licenses/source-review.json"
       ],
       "path_sha256": {
-        "licenses/source-review.json": "1bb46c9de3d0513749707c0bdc045e9183cf343ddb96a17432f988e9e7fb86c1"
+        "licenses/source-review.json": "5e00e4ce1cccbd17e796217df6d016c40b971b77d2e57892e44ca0e93ba57539"
       }
     },
     {
@@ -8657,6 +8657,33 @@
           "path": "licenses/source-review.json",
           "previous_sha256": "5ae15f21f2f7ba3a6dd9fb448b749fe6e503560339bb6c646a2f8625986da56b",
           "current_sha256": "1bb46c9de3d0513749707c0bdc045e9183cf343ddb96a17432f988e9e7fb86c1"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "base_commit": "cafe748d64888cc3549f47b082343a89a2ab9955",
+      "reason": "Owner-selected P8-05 through P8-08: add product chat transport, migration/recovery and compiled native coverage; replace retired account-sign-in browser setup with accountless journeys. Preserve historical snapshot bindings, third-party dispositions and publication gates.",
+      "previous_inventory_sha256": "b48c2941b3e67ad8143a916e8006b2ff9ddf08a2ba9eeeeb0863289f8d074da8",
+      "added_paths": [
+        "src/frontend/desktop/native/global-input-hook/tests/hook_mac_test.cc",
+        "src/frontend/desktop/scripts/native/test-global-input-hook.mjs",
+        "src/frontend/e2e/journeys/accountless-journeys.spec.ts",
+        "src/frontend/e2e/journeys/accountless-library.spec.ts",
+        "src/frontend/e2e/setup/installation.setup.ts",
+        "tests/migration_database_helpers.py",
+        "tests/test_anima_chat_sse_transport.py",
+        "tests/test_content_migration_recovery.py"
+      ],
+      "removed_paths": [
+        "src/frontend/e2e/journeys/authenticated-library.smoke.spec.ts",
+        "src/frontend/e2e/setup/auth.setup.ts"
+      ],
+      "changed_bindings": [
+        {
+          "path": "licenses/source-review.json",
+          "previous_sha256": "1bb46c9de3d0513749707c0bdc045e9183cf343ddb96a17432f988e9e7fb86c1",
+          "current_sha256": "5e00e4ce1cccbd17e796217df6d016c40b971b77d2e57892e44ca0e93ba57539"
         }
       ]
     }

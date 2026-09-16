@@ -673,3 +673,18 @@ settled at most once.
 `chat:sse` runs one avatar companion turn. Helper, trigger, feed and aggregate
 workflows are outside this API. A separate workflow API requires its own
 contract and ownership review.
+
+## Transport verification
+
+Run `uv run pytest -q tests/test_anima_chat_sse_transport.py` from the repository
+root. It serves the real Anima router, local admission/principal resolution,
+direct executor, structured parser and SSE bridge through Uvicorn on an owned
+ephemeral loopback socket. A controlled provider double holds the final bytes
+until the client observes an incremental frame. Separate cases verify terminal
+errors, disconnect cleanup and a successful next request on the same registry.
+
+Repository/context inputs are fixture doubles and turns are incognito with
+memory/emotion updates and TTS disabled. These tests need socket permission but
+no database, provider credentials or user installation. They complement the
+existing HTTP-boundary probes and SQL-backed chat tests; they do not establish
+persistence or optional provider/audio integration acceptance.
