@@ -664,7 +664,8 @@ make check-test
 ```
 
 `make check-test` is the broad local verification target when a backend change
-touches behavior and time allows.
+touches behavior and time allows. Install `ripgrep` for the typed-content audit;
+CI installs this prerequisite explicitly on its Ubuntu runner.
 
 The `Portable product validation` workflow runs on every pull request, pushes to
 `main`, manual dispatch, and reuse by the desktop release workflow. Its
@@ -683,6 +684,12 @@ are `pnpm e2e:check`, `pnpm e2e:test:unit`,
 `node --test scripts/generate-openapi-client.test.mjs`, and
 `pnpm openapi-ts:check`. The harness checks do not start the full application or
 prove both serving modes. Chromium is installed before package browser tests.
+After building, CI also runs the same rendered Library/setup smoke through
+Vite development and FastAPI built serving with fresh owned PostgreSQL containers
+and original synthetic content. See the [bounded browser smoke](../../frontend/testing/browser-journeys.md)
+for the reproducible command and its limits. This proves accountless startup and
+Library behavior; real user-supplied animation acquisition and playback remain
+separate acceptance.
 Each of the three Python tooling families must collect at least one test and
 pass its full discovered suite; an empty family is a failure.
 

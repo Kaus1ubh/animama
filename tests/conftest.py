@@ -14,7 +14,7 @@ import sqlalchemy
 
 # Isolate before importing application modules: Settings captures some defaults
 # at import time, and Embedder/live helpers may call python-dotenv themselves.
-# Live tests consume explicitly exported credentials, never a developer .env.
+# Pytest never loads .env. Explicit live Make targets may export its credentials.
 _test_environment = pytest.MonkeyPatch()
 _test_roots = TemporaryDirectory(prefix="animama-pytest-")
 _live_tests_enabled = os.environ.get("ANIMAMA_RUN_LIVE_TESTS") == "1"

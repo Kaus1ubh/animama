@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 from time import perf_counter
+from types import ModuleType
 from typing import Literal
 
 from animama.logging_config import get_logger
 
 _log = get_logger("server.gruut_text")
 
+_gruut: ModuleType | None
 try:
-    import gruut as _gruut
+    import gruut as _gruut_module
+
+    _gruut = _gruut_module
 
     _GRUUT_IMPORT_ERROR: str | None = None
 except Exception as _gruut_import_exc:
