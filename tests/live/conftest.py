@@ -98,6 +98,6 @@ async def anima_server_base_url(
     server.should_exit = True
     try:
         await asyncio.wait_for(server_task, timeout=5.0)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         print("Server shutdown timed out, forcing exit")
     print("✓ Test server shut down")

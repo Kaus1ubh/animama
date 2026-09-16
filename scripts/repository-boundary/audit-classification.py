@@ -16,10 +16,9 @@ import re
 import stat
 import subprocess
 import sys
+import tomllib
 from collections import Counter
 from pathlib import Path, PurePosixPath
-
-import tomllib
 
 OWNERS = {"public", "cloud", "archive", "excluded-generated"}
 PUBLICATION_STATUSES = {"review-pending", "blocked", "approved"}

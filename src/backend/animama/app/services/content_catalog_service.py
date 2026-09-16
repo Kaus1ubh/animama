@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from animama.app.ports.content_catalog import ContentCatalog
@@ -179,7 +179,7 @@ class ContentCatalogService:
             anchor=anchor,
             entries=tuple(unique[item_id] for item_id in sorted(unique)),
             user_id=user_id,
-            expires_at=datetime.now(timezone.utc) + timedelta(seconds=max(1, ttl_seconds)),
+            expires_at=datetime.now(UTC) + timedelta(seconds=max(1, ttl_seconds)),
         )
 
     async def open_preview_file(
@@ -197,7 +197,7 @@ class ContentCatalogService:
             revision_sha256=revision_sha256,
             file_ref=file_ref,
             user_id=user_id,
-            now=datetime.now(timezone.utc),
+            now=datetime.now(UTC),
         )
         if registered is None:
             raise ContentNotFoundError("preview file was not found")

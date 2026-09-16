@@ -15,7 +15,7 @@ import socket
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
@@ -199,7 +199,7 @@ def _install_context(monkeypatch: pytest.MonkeyPatch, sessions: list[_Session]) 
         lambda _session: SimpleNamespace(
             get_snapshot=AsyncMock(
                 return_value=SimpleNamespace(
-                    expires_at=datetime.now(timezone.utc) + timedelta(minutes=5), catalog={"gestures": []}
+                    expires_at=datetime.now(UTC) + timedelta(minutes=5), catalog={"gestures": []}
                 )
             )
         ),
@@ -253,7 +253,7 @@ async def _serve(monkeypatch: pytest.MonkeyPatch, turns: list[_ProviderTurn]) ->
             server.should_exit = True
             try:
                 await asyncio.wait_for(asyncio.shield(task), 3)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 task.cancel()
                 await asyncio.gather(task, return_exceptions=True)
                 pytest.fail("Chat Uvicorn fixture did not shut down cleanly")

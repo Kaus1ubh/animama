@@ -19,7 +19,7 @@ import sys
 import time
 import tokenize
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import vulture
@@ -70,7 +70,7 @@ def scan(paths: list[Path], destination: Path) -> dict:
 
 
 def main() -> int:
-    started_at = datetime.now(timezone.utc).isoformat()
+    started_at = datetime.now(UTC).isoformat()
     started_clock = time.monotonic()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", required=True, type=Path)
@@ -142,7 +142,7 @@ def main() -> int:
     status = 1 if errors or not stable or raw["input_exit"] or filtered["input_exit"] else filtered["report_exit"]
     summary = {
         "started_at": started_at,
-        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": datetime.now(UTC).isoformat(),
         "duration_seconds": round(time.monotonic() - started_clock, 3),
         "head": head,
         "python": platform.python_version(),

@@ -86,7 +86,7 @@ class LocalHTTPLifecycle:
         self._quiescing = True
         try:
             await asyncio.wait_for(self._idle.wait(), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return False
         return True
 

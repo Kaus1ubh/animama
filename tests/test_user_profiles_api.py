@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -39,7 +39,7 @@ async def _seed_owner(async_session, *, first_run_complete: bool = True) -> str:
         ORMInstallationSettings(
             id=1,
             installation_principal_id=owner_id,
-            first_run_completed_at=datetime.now(timezone.utc) if first_run_complete else None,
+            first_run_completed_at=datetime.now(UTC) if first_run_complete else None,
         )
     )
     await async_session.commit()

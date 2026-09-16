@@ -29,7 +29,12 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import AnimaSettings
 from animama.orm import ORMAnima, ORMAnimaCreationReceipt, ORMAnimaSettings, ORMAnimaStarterReceipt, ORMMemoryEntry
 from animama.server.routers.anima import list_animas
-from tests.anima_creation_service_support import anima_creation_fixture
+from tests.anima_creation_service_support import (
+    EXPECTED_STARTER_GESTURE_IDS,
+    anima_creation_fixture,
+    copy_tracked_included,
+    write_supplied_starter_fixture,
+)
 from tests.local_http_client import local_client
 
 REQUEST = EnsureAnimaStartersRequest(schema_version=1, repairs=[])
@@ -371,11 +376,11 @@ async def test_retired_bulk_api_is_absent_and_cannot_write_legacy_receipts(async
         )
 
 
-async def test_real_shipped_included_content_can_materialize_both_starters(async_session, tmp_path):
-    """Read real shipped bytes, but create only disposable database companions."""
+async def test_supplied_fixture_content_can_materialize_both_starters(async_session, tmp_path):
+    """Exercise supplied-content contracts without claiming real avatar playback."""
 
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
-        fixture.paths = replace(fixture.paths, included_root=Path(__file__).parents[1] / "content/included")
+        fixture.paths = replace(fixture.paths, included_root=write_supplied_starter_fixture(tmp_path / "supplied"))
         scanned = await ContentCatalogService(
             catalog=SQLAlchemyContentCatalog(async_session),
             store=fixture.store(),
@@ -391,4 +396,32 @@ async def test_real_shipped_included_content_can_materialize_both_starters(async
             loadout = await AnimaLoadoutService(async_session).read_model(
                 user_id=fixture.owner, anima_id=value["anima_id"]
             )
-            assert len(loadout.gestures) == 46 and all(cell.source is not None for cell in loadout.reactions)
+            assert {gesture.source.logical_key for gesture in loadout.gestures if gesture.source} == set(
+                EXPECTED_STARTER_GESTURE_IDS
+            )
+            assert len(loadout.gestures) == 44
+            assert all(cell.source is not None for cell in loadout.reactions)
+
+
+def test_starter_gesture_policy_matches_reviewed_identities():
+    assert (
+        tuple(choice["content_id"] for choice in starter_loadout_policy()["gestures"]) == EXPECTED_STARTER_GESTURE_IDS
+    )
+
+
+async def test_tracked_checkout_cannot_materialize_starters(async_session, tmp_path):
+    async with anima_creation_fixture(async_session, tmp_path) as fixture:
+        fixture.paths = replace(fixture.paths, included_root=copy_tracked_included(tmp_path / "tracked"))
+        scanned = await ContentCatalogService(
+            catalog=SQLAlchemyContentCatalog(async_session), store=fixture.store()
+        ).rescan(user_id=fixture.owner)
+        fixture.extra_catalog_ids.update(item.id for item in scanned.items)
+        with pytest.raises(AnimaCreationError, match="^anima_creation_defaults_unavailable$") as error:
+            await AnimaStarterService(fixture.service(async_session)).ensure(user_id=fixture.owner, request=REQUEST)
+        assert error.value.status == 503
+        assert (
+            await async_session.scalar(
+                select(func.count()).select_from(ORMAnima).where(ORMAnima.user_id == fixture.owner)
+            )
+            == 0
+        )

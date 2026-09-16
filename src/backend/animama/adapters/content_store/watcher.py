@@ -6,13 +6,12 @@ import os
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from pathlib import Path
-from typing import TypeAlias
 
 from watchfiles import awatch
 
 from animama.domain.content_catalog import ContentSource
 
-_PathSignature: TypeAlias = tuple[int, int, int, int, int]
+type _PathSignature = tuple[int, int, int, int, int]
 _NOT_TRACKED = object()
 
 

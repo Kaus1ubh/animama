@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import Any, Literal
 from uuid import uuid4
@@ -196,7 +196,7 @@ async def upload_anima_voice_catalog_content(
         raise HTTPException(status_code=404, detail="Voice catalog upload not found")
     if upload.status != STATUS_PENDING:
         raise HTTPException(status_code=409, detail="Voice catalog upload is not pending")
-    if upload.expires_at <= datetime.now(timezone.utc):
+    if upload.expires_at <= datetime.now(UTC):
         raise HTTPException(status_code=410, detail="Voice catalog upload expired")
     try:
         body = await spool_bounded_request(

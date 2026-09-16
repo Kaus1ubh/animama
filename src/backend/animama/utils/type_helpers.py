@@ -25,7 +25,7 @@ def coerce_optional_int(value: Any) -> int | None:
         return None
     if isinstance(value, bool):
         return int(value)
-    if isinstance(value, (int, float)):  # noqa: UP038 - tuple form for Python 3.10 compatibility
+    if isinstance(value, int | float):
         return int(value)
     try:
         return int(value)

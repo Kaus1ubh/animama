@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 
@@ -28,7 +28,7 @@ def encode_content_catalog_cursor(row: Any, *, sort: str) -> str:
         "item_id": str(row.item_id),
     }
     if sort == "updated":
-        updated = row.updated_at or datetime.min.replace(tzinfo=timezone.utc)
+        updated = row.updated_at or datetime.min.replace(tzinfo=UTC)
         payload["updated_at"] = updated.isoformat()
     else:
         payload["name"] = str(row.name).casefold()
@@ -92,7 +92,7 @@ def content_catalog_page(
 def _key(row: Any, *, sort: str) -> tuple[Any, str]:
     if sort == "updated":
         return (
-            row.updated_at or datetime.min.replace(tzinfo=timezone.utc),
+            row.updated_at or datetime.min.replace(tzinfo=UTC),
             str(row.item_id),
         )
     return (str(row.name).casefold(), str(row.item_id))

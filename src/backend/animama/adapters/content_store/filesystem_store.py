@@ -12,7 +12,7 @@ import unicodedata
 import uuid
 from collections.abc import Mapping
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO, TypedDict
@@ -1043,7 +1043,7 @@ class FilesystemContentStore(ContentStore):
             "status": "staging",
             "targets": targets,
             "promoted": [],
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
         }
         self._receipt(receipt_id, receipt)
         try:
@@ -1176,7 +1176,7 @@ class FilesystemContentStore(ContentStore):
             receipt.update(
                 status="promoted",
                 active_index=None,
-                promoted_at=datetime.now(timezone.utc).isoformat(),
+                promoted_at=datetime.now(UTC).isoformat(),
             )
             self._receipt(receipt_id, receipt)
         except Exception as exc:
@@ -1186,7 +1186,7 @@ class FilesystemContentStore(ContentStore):
                 raise
             receipt.update(
                 status="failed",
-                failed_at=datetime.now(timezone.utc).isoformat(),
+                failed_at=datetime.now(UTC).isoformat(),
                 error=exc.__class__.__name__,
             )
             self._receipt(receipt_id, receipt)
@@ -1210,13 +1210,13 @@ class FilesystemContentStore(ContentStore):
         if commit:
             payload.update(
                 status="completed",
-                completed_at=datetime.now(timezone.utc).isoformat(),
+                completed_at=datetime.now(UTC).isoformat(),
             )
             self._receipt(receipt_id, payload)
         else:
             payload.update(
                 status="failed",
-                failed_at=datetime.now(timezone.utc).isoformat(),
+                failed_at=datetime.now(UTC).isoformat(),
                 error="catalog_reconciliation_failed",
             )
             self._receipt(receipt_id, payload)
@@ -1411,7 +1411,7 @@ class FilesystemContentStore(ContentStore):
             "relative_locator": relative_locator,
             "request_digest": request_digest,
             "status": "started",
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
         }
         try:
             self._receipt(operation_id, receipt)
@@ -1426,7 +1426,7 @@ class FilesystemContentStore(ContentStore):
                 sidecar_temporary = None
             self._replace_local(temporary, destination)
             temporary = None
-            receipt.update(status="completed", completed_at=datetime.now(timezone.utc).isoformat())
+            receipt.update(status="completed", completed_at=datetime.now(UTC).isoformat())
             self._receipt(operation_id, receipt)
             return operation_id
         except Exception as exc:
@@ -1436,7 +1436,7 @@ class FilesystemContentStore(ContentStore):
                 sidecar_temporary.unlink(missing_ok=True)
             receipt.update(
                 status="failed",
-                failed_at=datetime.now(timezone.utc).isoformat(),
+                failed_at=datetime.now(UTC).isoformat(),
                 error=exc.__class__.__name__,
             )
             self._receipt(operation_id, receipt)
@@ -1540,7 +1540,7 @@ class FilesystemContentStore(ContentStore):
             "kind": kind.value,
             "relative_locator": relative_locator,
             "status": "started",
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
         }
         staged: list[tuple[Path, Path]] = []
         existing_before, _ = self._walk_definition(entry_root)
@@ -1652,7 +1652,7 @@ class FilesystemContentStore(ContentStore):
             if owns_marker:
                 operation_marker.unlink()
             owns_marker = False
-            receipt.update(status="completed", completed_at=datetime.now(timezone.utc).isoformat())
+            receipt.update(status="completed", completed_at=datetime.now(UTC).isoformat())
             self._receipt(operation_id, receipt)
             return operation_id
         except Exception as exc:
@@ -1666,7 +1666,7 @@ class FilesystemContentStore(ContentStore):
             if receipt_written:
                 receipt.update(
                     status="failed",
-                    failed_at=datetime.now(timezone.utc).isoformat(),
+                    failed_at=datetime.now(UTC).isoformat(),
                     error=exc.__class__.__name__,
                     requires_reconciliation=owns_marker,
                 )

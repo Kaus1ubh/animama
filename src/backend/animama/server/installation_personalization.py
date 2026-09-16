@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -126,7 +126,7 @@ class InstallationPersonalizationService:
                     await self._profiles.update_profile(replace(profile, display_name=display_name))
 
                 if complete_first_run and completed_at is None:
-                    completed_at = datetime.now(timezone.utc)
+                    completed_at = datetime.now(UTC)
                     await self._installations.complete_first_run(completed_at=completed_at)
                 assert completed_at is not None
 

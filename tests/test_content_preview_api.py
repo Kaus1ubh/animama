@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import struct
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -116,7 +116,7 @@ def test_preview_projects_descriptor_relative_logical_resources() -> None:
             )
             for file in files
         ),
-        expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+        expires_at=datetime.now(UTC) + timedelta(minutes=5),
     )
 
     response = PyContentPreview.from_domain(preview, item)

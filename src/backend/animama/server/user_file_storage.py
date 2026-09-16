@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
 from typing import BinaryIO
 
@@ -192,7 +192,7 @@ def write_private_file_stream(
 
 def private_upload_expires_at(*, expires_in: int | None = None) -> datetime:
     ttl = max(1, int(expires_in or settings.private_upload_url_ttl_seconds))
-    return datetime.now(timezone.utc) + timedelta(seconds=ttl)
+    return datetime.now(UTC) + timedelta(seconds=ttl)
 
 
 __all__ = [

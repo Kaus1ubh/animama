@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Any, NoReturn
 
 from animama.domain.memory_entry import MemoryEntry
@@ -260,7 +260,7 @@ class MemoryEpisodeService:
         unique_ids = tuple(dict.fromkeys(item_id for item_id in item_ids if item_id))
         if not unique_ids:
             return []
-        effective_processed_at = processed_at or datetime.now(timezone.utc)
+        effective_processed_at = processed_at or datetime.now(UTC)
         self._require_aware_datetime(effective_processed_at, field_name="processed_at")
 
         try:

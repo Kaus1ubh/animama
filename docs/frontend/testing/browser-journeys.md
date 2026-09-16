@@ -5,6 +5,31 @@ origin. FastAPI owns production serving and admission; development Vite proxies
 application routes while preserving browser metadata. Tests never invent an
 owner header or bypass the boundary to reach a separate backend origin.
 
+## Reproducible accountless smoke
+
+After installing locked backend/frontend dependencies, Chromium (`pnpm e2e:install`)
+and building the web application (`pnpm build`), run from the repository root:
+
+```bash
+uv run --frozen --no-sync python src/frontend/scripts/e2e/run-accountless-smoke.py \
+  --evidence /tmp/animama-browser-smoke
+```
+
+The evidence directory must not already exist. This runner owns one disposable
+`pgvector/pgvector:pg16` container per serving mode, bound to a random loopback
+port. `--pg-bin /path/to/bin` instead uses installed PostgreSQL binaries with
+pgvector. It starts fresh FastAPI built and Vite development applications,
+runs the same installation setup and Library spec, and stops its owned processes
+and removes temporary databases/content even on failure. Logs, Playwright reports,
+and screenshot attachments remain in the evidence directory.
+
+The fixture generates original structural VRM/VRMA content through the shared
+backend test helper and runs production bootstrap without bypassing admission.
+This proves bounded first-run and Library rendering with same-origin, bearer-free
+API requests. It does not prove real starter animation, avatar rendering, audio,
+content acquisition, cache/workspace concurrency, or packaged desktop behavior.
+No maintainer `.env` or provider credentials are passed to the owned processes.
+
 ## Current Automation Status
 
 The active Playwright projects use installation setup and same-origin requests,

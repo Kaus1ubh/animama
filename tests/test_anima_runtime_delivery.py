@@ -5,7 +5,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -33,9 +33,7 @@ def runtime_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNames
     app.state.local_runtime_paths = initialize_local_runtime(
         Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     )
-    state = SimpleNamespace(
-        app=app, owner="owner", authorized=True, calls=[], expires=datetime(2026, 9, 2, tzinfo=timezone.utc)
-    )
+    state = SimpleNamespace(app=app, owner="owner", authorized=True, calls=[], expires=datetime(2026, 9, 2, tzinfo=UTC))
 
     async def principal() -> RequestPrincipal:
         if not state.authorized:

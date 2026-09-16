@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 from typing import TypeVar
 
@@ -111,7 +111,7 @@ def _episode_service(async_session) -> MemoryEpisodeService:  # noqa: ANN001
 
 
 def _occurred(hour: int = 12) -> datetime:
-    return datetime(2026, 7, 7, hour, tzinfo=timezone.utc)
+    return datetime(2026, 7, 7, hour, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)

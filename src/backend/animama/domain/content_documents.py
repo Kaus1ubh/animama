@@ -8,7 +8,7 @@ FastAPI, Pydantic, SQLAlchemy, or filesystem adapters.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Literal, TypeAlias
+from typing import Any, Literal
 
 from .content_catalog import ContentKind
 
@@ -187,7 +187,7 @@ class VoiceDocumentV1(ContentDocumentV1):
     voices: tuple[str, ...] = ()
 
 
-TypedContentDocument: TypeAlias = (
+type TypedContentDocument = (
     GestureDocumentV1
     | ReactionDocumentV1
     | PoseClipDocumentV1

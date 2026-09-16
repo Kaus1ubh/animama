@@ -2394,6 +2394,7 @@ paths = [
   "src/frontend/scripts/e2e/local-content-verifier.mjs",
   "src/frontend/scripts/e2e/local-content-verifier.test.mjs",
   "src/frontend/scripts/e2e/run-support.mjs",
+  "src/frontend/scripts/e2e/run-accountless-smoke.py",
   "src/frontend/scripts/e2e/run-support.test.mjs",
   "src/frontend/scripts/generate-background-thumbnails.mjs",
   "src/frontend/scripts/generate-openapi-client.mjs",

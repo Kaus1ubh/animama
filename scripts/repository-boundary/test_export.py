@@ -11,11 +11,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-
-import tomllib
 
 TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOOLS))

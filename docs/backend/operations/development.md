@@ -698,8 +698,13 @@ type stubs required by the existing mypy target. Install from `uv.lock` with
 `uv sync --frozen --extra server` before checking a clean checkout. Ruff lint
 checks its configured repository scope; formatting checks only
 `src/backend/animama` and `tests`, and mypy checks those same backend/test roots.
-The tools retain their Python 3.10 language target; a pass on the pinned Python
-3.12 CI runtime alone does not establish minimum-version runtime compatibility.
+Python 3.12 is the minimum supported backend interpreter, and Ruff and mypy use
+that same language target. CI, immutable package production and native staging
+use Python 3.12.13; Docker uses the Python 3.12 image line. Python 3.10 and 3.11
+are no longer supported. The backend package version is 0.2.0 to identify this
+support-contract change; HTTP/schema, npm and desktop versions are independent.
+Newer Python versions must satisfy dependency metadata, but only the pinned 3.12
+runtime is currently exercised by these CI jobs.
 
 ## Runtime Snapshot Diagnostics
 

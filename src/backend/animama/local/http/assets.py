@@ -123,7 +123,7 @@ def _open_regular(root: Path, name: str, *, model: ModelFile | None = None) -> B
     try:
         if root.resolve(strict=True) != root:
             raise ValueError("Asset root cannot traverse a symlink")
-    except RuntimeError as exc:  # Python 3.10 reports symlink loops this way.
+    except RuntimeError as exc:  # Path resolution can report symlink loops this way.
         raise ValueError("Asset root cannot traverse a symlink loop") from exc
     directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     descriptor: int | None = None

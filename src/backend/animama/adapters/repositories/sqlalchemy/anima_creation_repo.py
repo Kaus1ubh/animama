@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import or_, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -71,7 +71,7 @@ class SQLAlchemyAnimaCreationRepository:
         row.anima_id = receipt.anima_id
         row.diagnostics = receipt.diagnostics
         if receipt.state == "deleted":
-            row.deleted_at = datetime.now(timezone.utc)
+            row.deleted_at = datetime.now(UTC)
         await self._session.flush()
 
     async def mapped_starter(self, *, user_id: str, anima_id: str) -> str | None:
@@ -131,7 +131,7 @@ class SQLAlchemyAnimaCreationRepository:
     async def tombstone_anima(self, *, anima_id: str) -> None:
         """Run under the Anima deletion lock in that same transaction."""
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await self._session.execute(
             update(ORMAnimaCreationReceipt).where(ORMAnimaCreationReceipt.anima_id == anima_id).values(deleted_at=now)
         )

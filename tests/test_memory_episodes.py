@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 import pytest_asyncio
@@ -58,13 +58,13 @@ def _episode_service(async_session) -> MemoryEpisodeService:  # noqa: ANN001
 
 
 def _occurred(hour: int, minute: int = 0) -> datetime:
-    return datetime(2026, 1, 1, hour, minute, tzinfo=timezone.utc)
+    return datetime(2026, 1, 1, hour, minute, tzinfo=UTC)
 
 
 def test_episode_path_generation_and_orm_metadata() -> None:
     assert episode_path_for_date(date(2026, 1, 1)) == "episodes/2026/01/2026-01-01.md"
     with pytest.raises(ValueError):
-        episode_path_for_date(datetime(2026, 1, 1, tzinfo=timezone.utc))
+        episode_path_for_date(datetime(2026, 1, 1, tzinfo=UTC))
     assert "memory_episode_items" in Base.metadata.tables
     table = Base.metadata.tables["memory_episode_items"]
     assert {"id", "user_id", "local_date", "episode_path", "text", "status"}.issubset(table.c.keys())

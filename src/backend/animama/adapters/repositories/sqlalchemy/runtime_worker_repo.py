@@ -1,6 +1,6 @@
 """Bounded worker liveness and lease renewal for the optional document process."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, update
 from sqlalchemy.dialects.postgresql import insert
@@ -13,7 +13,7 @@ from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
 async def record_document_heartbeat(session: AsyncSession, *, instance_id: str, worker_id: str) -> None:
     """A live worker renews only its own running jobs; finished jobs stay finished."""
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     statement = insert(ORMRuntimeWorkerHeartbeat).values(
         kind="document-processing", instance_id=instance_id, heartbeat_at=now
     )

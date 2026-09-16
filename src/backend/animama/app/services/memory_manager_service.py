@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, NoReturn
 
 from animama.app.ports.memory_manager_runtime import (
@@ -194,7 +194,7 @@ class MemoryManagerService:
                 raise MemoryManagerConflictError("No pending episodes are available to process")
 
             selected = candidates[:_EPISODE_PROCESSING_BATCH_SIZE]
-            started_at = datetime.now(timezone.utc)
+            started_at = datetime.now(UTC)
             task = MemoryManagerEpisodeTaskState(
                 status=MEMORY_MANAGER_EPISODE_TASK_STATUS_PROCESSING,
                 items=tuple(
@@ -798,7 +798,7 @@ class MemoryManagerService:
             items=task.items,
             has_more=task.has_more,
             started_at=task.started_at,
-            processed_at=datetime.now(timezone.utc),
+            processed_at=datetime.now(UTC),
         )
         return await self._memory_manager.update_run(
             replace(

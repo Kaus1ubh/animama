@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import shutil
 import struct
+import subprocess
 import wave
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
@@ -322,3 +324,145 @@ async def anima_creation_fixture(
         await session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.id.in_(ids)))
         await session.execute(delete(ORMModelProvider).where(ORMModelProvider.id == provider))
         await session.commit()
+
+
+# Reviewed Phase 5 starter identities. Keep this independent of the loaded policy
+# so an accidental policy removal or replacement cannot rewrite the test oracle.
+EXPECTED_STARTER_GESTURE_IDS = (
+    "builtin:gesture:exclaim_frustrated",
+    "builtin:gesture:frustrated_explain",
+    "builtin:gesture:sarcastic_response",
+    "builtin:gesture:silly_slap",
+    "builtin:gesture:flattered",
+    "builtin:gesture:proud_of_self",
+    "builtin:gesture:excited_jump_1",
+    "builtin:gesture:explain",
+    "builtin:gesture:listening_head_nod",
+    "builtin:gesture:talk",
+    "builtin:gesture:being_cocky",
+    "builtin:gesture:blush",
+    "builtin:gesture:darn_it",
+    "builtin:gesture:head_shake",
+    "builtin:gesture:lookaround",
+    "builtin:gesture:shrug",
+    "builtin:gesture:wave",
+    "builtin:gesture:slight_bow",
+    "builtin:gesture:surprised",
+    "builtin:gesture:tired",
+    "builtin:gesture:whatever",
+    "builtin:gesture:crying",
+    "builtin:gesture:posture_sad",
+    "builtin:gesture:shy-finger-poke",
+    "builtin:gesture:shy-finger-poke-loop",
+    "builtin:gesture:thinking-head-scratch",
+    "builtin:gesture:thinking-hand-on-chin-hold",
+    "builtin:gesture:right-thumbs-up",
+    "builtin:gesture:right-thumbs-down",
+    "builtin:gesture:right-finger-point",
+    "builtin:gesture:left-peace-sign",
+    "builtin:gesture:left-ok-sign",
+    "builtin:gesture:hands-on-hips",
+    "builtin:gesture:arms-crossed",
+    "builtin:gesture:double-thumbs-down",
+    "builtin:gesture:double-thumbs-up",
+    "builtin:gesture:right-face-palm",
+    "builtin:gesture:finger-heart-pose",
+    "builtin:gesture:double-peace-pop",
+    "builtin:gesture:heart-hands-build",
+    "builtin:gesture:soldier-salute",
+    "builtin:gesture:cheeky-finger-guns",
+    "builtin:gesture:cat-monster-rawr",
+    "builtin:gesture:single-hand-on-heart",
+)
+
+
+def copy_tracked_included(destination: Path) -> Path:
+    """Copy only public tracked inputs, excluding a maintainer's private assets."""
+
+    repo = Path(__file__).resolve().parents[1]
+    tracked = subprocess.check_output(["git", "ls-files", "-z", "--", "content/included"], cwd=repo)
+    for name in filter(None, tracked.decode().split("\0")):
+        target = destination / Path(name).relative_to("content/included")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(repo / name, target)
+    return destination
+
+
+def write_supplied_starter_fixture(root: Path) -> Path:
+    """Generate contract-only assets; no Mixamo bytes or real playback claim.
+
+    These tiny original VRM/VRMA structures model a supplied, licensed content
+    library. They do not implement the deferred acquisition/conversion workflow.
+    """
+
+    write_json(
+        root / "licenses/inventory.json",
+        {
+            "rules": [
+                {
+                    "glob": "voices/*",
+                    "license_id": "fixture-only",
+                    "provenance": "Generated test audio",
+                    "distribution": "excluded",
+                },
+                {
+                    "glob": "**/*",
+                    "license_id": "fixture-only",
+                    "provenance": "Original generated Animama test structures",
+                },
+            ]
+        },
+    )
+    for name in ("AvatarSample_A_1_New", "AvatarSample_R1"):
+        write_file(root / f"avatars/{name}.vrm", vrm(name))
+        portrait = root / f"appearances/avatar-portraits/{name}"
+        write_file(portrait.with_suffix(".webp"), image_bytes(portrait=True, format="WEBP"))
+        write_json(
+            portrait.with_suffix(".meta.json"),
+            {
+                "content_id": f"builtin:avatar-portrait:{name}",
+                "name": f"{name} test portrait",
+                "avatar_model": name,
+                "width": 512,
+                "height": 512,
+                "renderer_version": 1,
+                "capture_preset_version": 2,
+            },
+        )
+    write_json(
+        root / "idle-styles/starter/starter.json",
+        {
+            "schema_version": 1,
+            "content_type": "idle_style",
+            "content_id": "builtin:idle-style:starter",
+            "name": "Supplied test idle",
+            "animations": [{"animation_id": "calm", "name": "Calm", "file_ref": "calm.vrma"}],
+            "files": [{"path": "calm.vrma", "role": "animation"}],
+            "default_pool": ["calm"],
+            "emotion_pools": {},
+            "compatibility": {"vrm_versions": ["0.x", "1.0"]},
+        },
+    )
+    write_file(root / "idle-styles/starter/calm.vrma", vrma())
+    policy = starter_loadout_policy()
+    for kind, choices in (("gesture", policy["gestures"]), ("reaction", policy["reactions"])):
+        for choice in choices:
+            name = choice["content_id"].rsplit(":", 1)[-1]
+            document = {
+                "schema_version": 1,
+                "content_type": kind,
+                "content_id": choice["content_id"],
+                "name": name,
+                "implementation": {"kind": "vrma", "file_role": "animation"},
+                "files": [{"path": "motion.vrma", "role": "animation"}],
+            }
+            document.update(
+                {"semantic_key": name}
+                if kind == "gesture"
+                else {
+                    "placement_hint": {"emotion": choice["emotion"], "intensity": choice["intensity"]},
+                }
+            )
+            write_json(root / f"{kind}s/{name}/{name}.meta.json", document)
+            write_file(root / f"{kind}s/{name}/motion.vrma", vrma())
+    return root

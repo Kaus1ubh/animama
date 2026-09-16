@@ -13,3 +13,12 @@ field is planning metadata, not a runtime or test-completion flag.
 Source bytes must never contain credentials, remote URLs that tests actually
 fetch, or user data. Invalid external references use reserved `.invalid` names
 and validators must reject them without network access.
+
+Starter contract tests use `write_supplied_starter_fixture` in
+`tests/anima_creation_service_support.py` to generate original minimal VRM/VRMA
+structures and portraits with explicit fixture provenance. This library exercises
+normal starter admission and persistence, including the reviewed 44 gesture
+identities. It does not prove avatar rendering, real motion playback, or the
+user-supplied asset acquisition/conversion workflow. Separate tracked-checkout
+tests require rejection when the excluded idle animation bytes are absent;
+private maintainer assets cannot satisfy those tests.

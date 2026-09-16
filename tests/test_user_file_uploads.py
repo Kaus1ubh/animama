@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
 
 import pytest
@@ -112,7 +112,7 @@ def _file(
         declared_content_type="text/plain",
         declared_size_bytes=declared_size_bytes,
         status=status,
-        upload_expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+        upload_expires_at=datetime.now(UTC) + timedelta(minutes=10),
         metadata={},
         created_at=created_at,
     )
@@ -129,7 +129,7 @@ def _patch_service(monkeypatch: pytest.MonkeyPatch, repo: _FakeUserFileRepositor
 
 @pytest.mark.asyncio
 async def test_init_user_file_upload_returns_authenticated_local_put_and_file_id(monkeypatch) -> None:
-    expires_at = datetime(2026, 6, 9, 12, 0, tzinfo=timezone.utc)
+    expires_at = datetime(2026, 6, 9, 12, 0, tzinfo=UTC)
     repo = _FakeUserFileRepository()
     uow = _FakeUnitOfWork()
     _patch_service(monkeypatch, repo, uow)
@@ -175,7 +175,7 @@ async def test_init_user_file_upload_rejects_unsupported_extension() -> None:
 @pytest.mark.parametrize("filename", ["paper.pdf", "brief.docx", "deck.pptx", "sheet.xlsx"])
 @pytest.mark.asyncio
 async def test_init_user_file_upload_accepts_phase_2_rich_extensions(monkeypatch, filename: str) -> None:
-    expires_at = datetime(2026, 6, 9, 12, 0, tzinfo=timezone.utc)
+    expires_at = datetime(2026, 6, 9, 12, 0, tzinfo=UTC)
     repo = _FakeUserFileRepository()
     uow = _FakeUnitOfWork()
     _patch_service(monkeypatch, repo, uow)

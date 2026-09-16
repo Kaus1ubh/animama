@@ -424,7 +424,7 @@ class ContentPackageService:
             target.close()
             raise ContentConflictError("package_member_digest_mismatch")
         target.seek(0)
-        # Python 3.10 stubs predate SpooledTemporaryFile implementing the IO ABC.
+        # The binary spool provides the stream contract expected by consumers.
         return cast(BinaryIO, target)
 
     async def import_package(

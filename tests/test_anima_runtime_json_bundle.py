@@ -5,7 +5,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -58,7 +58,7 @@ def test_selection_bounds_and_issuance_do_not_mutate_persisted_catalog() -> None
     assert select_runtime_json_members(_catalog(3, 256 * 1024 + 1)) == []
     catalog = _catalog()
     issued = _runtime_response(
-        catalog, anima_id="anima", effective_revision="revision", lease_expires_at=datetime.now(timezone.utc)
+        catalog, anima_id="anima", effective_revision="revision", lease_expires_at=datetime.now(UTC)
     )
     assert issued["json_bundle"]["file_refs"] == ["file-001", "file-002"]
     assert issued["json_bundle"]["total_bytes"] == 40
@@ -76,7 +76,7 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
     state = SimpleNamespace(
         app=app,
         owner="owner",
-        expires=datetime.now(timezone.utc) + timedelta(hours=1),
+        expires=datetime.now(UTC) + timedelta(hours=1),
         session=SimpleNamespace(commit=AsyncMock()),
         catalog_service=SimpleNamespace(mark_scan_required=AsyncMock()),
         opens=0,
@@ -208,7 +208,7 @@ async def test_bundle_conditional_request_cannot_bypass_authority(bundle_http: S
         if failure == "owner":
             state.owner = "another-owner"
         elif failure == "expired":
-            state.expires = datetime.now(timezone.utc) - timedelta(seconds=1)
+            state.expires = datetime.now(UTC) - timedelta(seconds=1)
         else:
             url = URL.replace("/revision/", "/unknown/")
         response = await client.get(url, headers={"If-None-Match": first.headers["etag"]})

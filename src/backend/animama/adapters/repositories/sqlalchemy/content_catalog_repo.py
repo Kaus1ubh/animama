@@ -10,7 +10,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -264,7 +264,7 @@ class SQLAlchemyContentCatalog(ContentCatalog):
 
         if (new_item_scope is ContentScope.OWNER) != (new_item_owner_user_id is not None):
             raise ValueError("owner scope and owner_user_id must be supplied together")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if active_included_mount_ids is not None and any(
             entry.source_mount_id not in active_included_mount_ids for entry in entries
         ):
@@ -937,9 +937,7 @@ class SQLAlchemyContentCatalog(ContentCatalog):
             revision_sha256 = hashlib.sha256(
                 json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()
             ).hexdigest()
-        await self._session.execute(
-            delete(ORMContentPreview).where(ORMContentPreview.expires_at <= datetime.now(timezone.utc))
-        )
+        await self._session.execute(delete(ORMContentPreview).where(ORMContentPreview.expires_at <= datetime.now(UTC)))
         # Always issue a fresh capability. A filesystem-only rename may retain
         # the same content revision while changing its exact safe relative path.
         # Reusing by revision would therefore return memberships that do not

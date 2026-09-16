@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import fnmatch
 import json
 import shutil
-import subprocess
 import wave
 from dataclasses import replace
 from pathlib import Path
@@ -12,58 +12,34 @@ import pytest
 from animama.app.services.typed_content_service import TypedContentAdmissionError
 from animama.domain.content_catalog import ContentKind, ContentSource, ContentStatus, ScannedContentEntry
 from animama.runtime.starter_content import _regular_path, catalog_from_scan, starter_inventory
+from tests.anima_creation_service_support import (
+    EXPECTED_STARTER_GESTURE_IDS,
+    copy_tracked_included,
+    write_supplied_starter_fixture,
+)
 
 
 @pytest.fixture(scope="module")
 def staged_core(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    repo = Path(__file__).resolve().parents[1]
-    source = repo / "content/included"
-    # Match the production stage, including on developers' checkouts with private SFX.
-    tracked = subprocess.check_output(["git", "ls-files", "-z", "--", "content/included"], cwd=repo)
-    allowed = {name.removeprefix("content/included/") for name in tracked.decode().split("\0") if name}
-    inventory = starter_inventory(source, allowed_paths=allowed)
-    # Check both partitions, including companion metadata and thumbnails. The
-    # policy excludes downloaded examples without removing starter portraits.
-    excluded_prefixes = ("sfx/", "voices/", "music/", "appearances/tokyo-", "appearances/thumbs/tokyo-")
-    assert not any(file["path"].startswith(excluded_prefixes) for file in inventory["files"])
-    assert not any("avatarchibi_2" in file["path"].lower() for file in inventory["files"])
-    assert not any("avatarchibi-2" in file["path"].lower() for file in inventory["files"])
-    assert not any("avatarsample_r2" in file["path"].lower() for file in inventory["files"])
-    assert not any("avatarsample-r2" in file["path"].lower() for file in inventory["files"])
-    excluded_examples = {
-        "avatars/AvatarChibi_2.vrm",
-        "appearances/avatar-portraits/app-avatar-model-avatarchibi-2-v1.webp",
-        "avatars/AvatarSample_R2.vrm",
-        "appearances/avatar-portraits/app-avatar-model-avatarsample-r2-v1.webp",
-        "voices/melina_original.mp3",
-        "voices/donald-trump.wav",
-        "music/bgm_sample_1.mp3",
-        "appearances/tokyo-day.png",
-        "appearances/thumbs/tokyo-day.jpg",
-    }
-    # A public checkout has already omitted these private inputs. When present
-    # in a maintainer checkout they must still be rejected from both partitions.
-    assert excluded_examples & allowed <= {
-        entry["locator"] for entry in inventory["excluded"] if entry["reason"] == "redistribution_excluded"
-    }
-    root = tmp_path_factory.mktemp("desktop-starter-core")
-    for file in inventory["files"]:
-        if file["partition"] != "core":
-            continue
-        destination = root / file["path"]
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source / file["path"], destination)
-    (root / "licenses").mkdir()
-    shutil.copyfile(source / "licenses/inventory.json", root / "licenses/inventory.json")
-    return root
+    return write_supplied_starter_fixture(tmp_path_factory.mktemp("supplied-starter-core"))
 
 
-def test_actual_core_resolves_both_starters_without_expanded_content(staged_core: Path) -> None:
+def test_tracked_checkout_rejects_missing_required_animation_bytes(tmp_path: Path) -> None:
+    root = copy_tracked_included(tmp_path / "included")
+    assert (root / "idle-styles/starter/starter.json").is_file()
+    assert not list((root / "idle-styles/starter").glob("*.vrma"))
+    with pytest.raises(TypedContentAdmissionError, match="source_invalid") as error:
+        starter_inventory(root)
+    assert error.value.item_id == "idle-styles/starter"
+
+
+def test_supplied_fixture_core_resolves_both_starters_without_expanded_content(staged_core: Path) -> None:
     inventory = starter_inventory(staged_core)
     assert [starter["name"] for starter in inventory["starters"]] == ["Annie", "Caitlyn"]
     assert all(not starter["diagnostics"] for starter in inventory["starters"])
     assert "avatars/AvatarSample_R1.vrm" in inventory["starters"][1]["roots"]
     assert "builtin:avatar-portrait:AvatarSample_R1" in inventory["starters"][1]["roots"]
+    assert set(EXPECTED_STARTER_GESTURE_IDS) <= set(inventory["starters"][1]["roots"])
     assert all(file["partition"] == "core" for file in inventory["files"])
     assert all(
         not entry["dependencies"] or set(entry["dependencies"]) <= {e["locator"] for e in inventory["entries"]}
@@ -146,3 +122,23 @@ def test_special_and_escaping_files_never_enter_a_content_inventory(tmp_path: Pa
     for candidate in ("../file", "/file", "link", "x\\file"):
         with pytest.raises(ValueError):
             _regular_path(tmp_path, candidate)
+
+
+def test_production_license_policy_keeps_private_examples_excluded() -> None:
+    """Pin exclusion policy even when the private bytes are absent from Git."""
+    inventory = Path(__file__).resolve().parents[1] / "content/included/licenses/inventory.json"
+    rules = json.loads(inventory.read_text())["rules"]
+    excluded_paths = (
+        "avatars/AvatarChibi_2.vrm",
+        "appearances/avatar-portraits/app-avatar-model-avatarchibi-2-v1.webp",
+        "avatars/AvatarSample_R2.vrm",
+        "appearances/avatar-portraits/app-avatar-model-avatarsample-r2-v1.webp",
+        "voices/melina_original.mp3",
+        "voices/donald-trump.wav",
+        "music/bgm_sample_1.mp3",
+        "appearances/tokyo-day.png",
+        "appearances/thumbs/tokyo-day.jpg",
+    )
+    for path in excluded_paths:
+        record = next(rule for rule in rules if fnmatch.fnmatchcase(path, rule["glob"]))
+        assert record.get("distribution") == "excluded", path

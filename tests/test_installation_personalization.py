@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -145,7 +145,7 @@ async def test_previously_skipped_setup_can_gain_a_name_without_resetting_owner_
     await _seed_personalization(async_session, owner_id)
     installation = await async_session.get(ORMInstallationSettings, 1)
     assert installation is not None
-    original_timestamp = datetime(2026, 9, 1, tzinfo=timezone.utc)
+    original_timestamp = datetime(2026, 9, 1, tzinfo=UTC)
     installation.first_run_completed_at = original_timestamp
     await async_session.commit()
 

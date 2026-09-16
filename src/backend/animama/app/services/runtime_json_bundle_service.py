@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from animama.app.ports.content_store import ContentStore
@@ -29,7 +29,7 @@ class RuntimeJsonBundleService:
         snapshot = await self.runtime.get_snapshot(user_id=user_id, anima_id=anima_id, revision=revision)
         if snapshot is None:
             raise RuntimeSnapshotError("runtime_file_not_found")
-        if snapshot.expires_at <= datetime.now(timezone.utc):
+        if snapshot.expires_at <= datetime.now(UTC):
             raise RuntimeSnapshotError("runtime_remount_required")
         members = select_runtime_json_members(snapshot.catalog)
         if not members:

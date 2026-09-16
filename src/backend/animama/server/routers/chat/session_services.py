@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Mapping
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, TypeVar
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -85,7 +85,7 @@ class SessionBackedMemoryEpisodeRecorder:
             local_zone, local_timezone = _timezone_from_preferences(
                 dict(getattr(user_settings, "preferences", {}) or {})
             )
-            occurred_at = datetime.now(timezone.utc)
+            occurred_at = datetime.now(UTC)
             local_date = occurred_at.astimezone(local_zone).date()
             uow = SQLAlchemyUnitOfWork(session)
             service = MemoryEpisodeService(

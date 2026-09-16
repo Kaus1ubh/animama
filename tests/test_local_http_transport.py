@@ -262,7 +262,7 @@ async def _serve(
             server.should_exit = True
             try:
                 await asyncio.wait_for(asyncio.shield(task), timeout=3)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 server.force_exit = True
                 task.cancel()
                 await asyncio.gather(task, return_exceptions=True)

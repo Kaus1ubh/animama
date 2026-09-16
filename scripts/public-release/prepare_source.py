@@ -15,9 +15,8 @@ import shutil
 import stat
 import subprocess
 import tempfile
-from pathlib import Path, PurePosixPath
-
 import tomllib
+from pathlib import Path, PurePosixPath
 
 SCHEMA = "animama-source-preparation/1"
 GENERATED = {"SOURCE_CANDIDATE.json", "CONTRIBUTING.md"}

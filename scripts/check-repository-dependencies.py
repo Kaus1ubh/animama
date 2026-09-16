@@ -6,9 +6,8 @@ import ast
 import json
 import re
 import subprocess
-from pathlib import Path
-
 import tomllib
+from pathlib import Path
 
 PRIVATE = ("animama_cloud", "animama_hosted", "animama_discover", "@animama-cloud/", "animama-cloud/")
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import replace
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -274,7 +274,7 @@ async def test_included_mount_versions_keep_identity_and_unmounted_packs_withdra
     pack_item = next(item for item in items if item.relative_locator == pack.relative_locator)
     assert core_item.files[0].source_mount_id == "core@v1"
     preview = await repository.create_preview(
-        item=pack_item, user_id="mount-owner", expires_at=datetime.now(timezone.utc) + timedelta(minutes=5)
+        item=pack_item, user_id="mount-owner", expires_at=datetime.now(UTC) + timedelta(minutes=5)
     )
     assert preview.files[0].source_mount_id == "expanded@v1"
     with pytest.raises(ContentConflictError, match="included_source_in_use"):

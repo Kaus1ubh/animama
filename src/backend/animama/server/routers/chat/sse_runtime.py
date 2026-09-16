@@ -103,7 +103,7 @@ async def drain_events_while_task_runs(
                 continue
         try:
             event = await asyncio.wait_for(bridge.get(), timeout=0.05)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             continue
         async for frame in _handle_direct_event(
             event,

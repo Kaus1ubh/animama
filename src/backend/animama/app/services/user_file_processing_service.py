@@ -9,7 +9,7 @@ import math
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import StringIO
 from typing import Any
 from uuid import uuid4
@@ -113,7 +113,7 @@ def new_user_file_processing_job_id() -> str:
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def estimate_tokens(text: str) -> int:

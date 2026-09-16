@@ -1,6 +1,6 @@
 """Optional desktop work is admitted by the API, independently of renderer state."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -74,7 +74,7 @@ async def test_capabilities_separate_pack_presence_and_worker_liveness(
             ORMRuntimeWorkerHeartbeat(
                 kind="document-processing",
                 instance_id=instance,
-                heartbeat_at=datetime.now(timezone.utc) - timedelta(seconds=age),
+                heartbeat_at=datetime.now(UTC) - timedelta(seconds=age),
             )
         )
     await async_session.commit()
@@ -151,7 +151,7 @@ async def test_old_worker_cannot_clear_replacement_heartbeat(async_session):
 
 async def test_removal_control_blocks_live_jobs_and_preserves_the_queue(async_session, tmp_path):
     file_id = str(uuid4())
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     async_session.add(
         ORMUserFile(
             id=file_id,

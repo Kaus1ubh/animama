@@ -27,7 +27,6 @@ jobs:
     env:
       UV_NO_SYNC: "1"
       ANIMAMA_RUN_LIVE_TESTS: "0"
-      PYTEST_ADDOPTS: --junitxml=${{ runner.temp }}/backend-pytest.xml
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
@@ -39,6 +38,8 @@ jobs:
           version: "0.11.28"
       - run: uv sync --frozen --python 3.12.13 --extra server
       - name: Run the complete offline backend verification contract
+        env:
+          PYTEST_ADDOPTS: --junitxml=${{ runner.temp }}/backend-pytest.xml
         # Docker-backed fixtures must fail when Docker or required content is
         # missing. This never substitutes a reduced suite or paid provider run.
         run: |
@@ -120,6 +121,10 @@ jobs:
           pnpm web:test 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
           pnpm desktop:test 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
           pnpm build 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
+      - name: Run the same accountless browser smoke in both serving modes
+        run: |
+          uv run --no-sync python src/frontend/scripts/e2e/run-accountless-smoke.py \
+            --evidence "$RUNNER_TEMP/accountless-smoke"
       - name: Build unpublished distribution artifacts
         run: |
           uv run --no-sync python scripts/package-sets/build.py build \
@@ -214,6 +219,7 @@ jobs:
             ${{ runner.temp }}/portable-tooling.log
             ${{ runner.temp }}/frontend-harness.log
             ${{ runner.temp }}/frontend-source.log
+            ${{ runner.temp }}/accountless-smoke/
             ${{ runner.temp }}/public-consumer/summary.json
             ${{ runner.temp }}/public-consumer/logs/
             ${{ runner.temp }}/public-consumer/frontend/*.png

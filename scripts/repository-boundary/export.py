@@ -8,9 +8,9 @@ import json
 import shutil
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
-import tomllib
 from export_core import (
     ACTIVE,
     PROVENANCE_FILE,

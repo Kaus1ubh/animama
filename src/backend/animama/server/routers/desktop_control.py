@@ -3,7 +3,7 @@
 import hashlib
 import secrets
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -42,7 +42,7 @@ async def feature_pack_removal_check(
     paths = getattr(request.app.state, "local_runtime_paths", None)
     if paths is None:
         raise HTTPException(status_code=503, detail="runtime_starting")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sources = [source for source in paths.included_sources if source.pack_id == pack_id]
     blockers = []
     if pack_id == "expanded-included-content":

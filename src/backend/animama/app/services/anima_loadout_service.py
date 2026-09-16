@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, cast
 from uuid import uuid4
 
@@ -796,7 +796,7 @@ class AnimaLoadoutService:
                 request_digest=request_digest,
                 result={"action": plan.action, "aggregate_revision": definition.aggregate_revision},
                 resulting_revision=root.revision,
-                expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+                expires_at=datetime.now(UTC) + timedelta(days=7),
             )
         )
         await self._session.commit()

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -178,7 +178,7 @@ async def test_runtime_context_requires_a_name_even_after_an_earlier_skip(async_
     app = await _runtime_app(async_session_factory, principal_id)
     async with async_session_factory() as session:
         installation = await session.get(ORMInstallationSettings, 1)
-        installation.first_run_completed_at = datetime.now(timezone.utc)
+        installation.first_run_completed_at = datetime.now(UTC)
         await session.commit()
 
     async with local_client(app) as client:

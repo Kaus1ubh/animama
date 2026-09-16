@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func, select, update
@@ -89,7 +89,7 @@ async def test_preview_batch_deduplicates_overlapping_catalog_and_builtin_closur
             await async_session.execute(
                 update(ORMContentPreview)
                 .where(ORMContentPreview.id == body["lease"]["preview_id"])
-                .values(expires_at=datetime.now(timezone.utc) - timedelta(seconds=1))
+                .values(expires_at=datetime.now(UTC) - timedelta(seconds=1))
             )
             await async_session.commit()
             expired = await client.get(body["lease"]["files"][0]["url"])

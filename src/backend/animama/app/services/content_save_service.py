@@ -440,7 +440,7 @@ class ContentSaveService:
 
 
 def _sha256_stream(stream: BinaryIO) -> str:
-    """Hash from the current position without requiring Python 3.11 file_digest."""
+    """Hash from the current position using bounded reads."""
     digest = hashlib.sha256()
     for chunk in iter(lambda: stream.read(256 * 1024), b""):
         digest.update(chunk)

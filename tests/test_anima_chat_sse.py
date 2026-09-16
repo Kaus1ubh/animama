@@ -5,7 +5,7 @@ import base64
 import hashlib
 import json
 from collections.abc import AsyncGenerator, Mapping
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, TypedDict, cast
@@ -438,7 +438,7 @@ def _install_route_mocks(
 
         async def get_snapshot(self, **_kwargs):  # noqa: ANN003
             return SimpleNamespace(
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                expires_at=datetime.now(UTC) + timedelta(minutes=5),
                 catalog=runtime_catalog
                 or {
                     "gestures": [
@@ -547,7 +547,7 @@ def _install_db_route_mocks(
 
         async def get_snapshot(self, **_kwargs):  # noqa: ANN003
             return SimpleNamespace(
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=5),
+                expires_at=datetime.now(UTC) + timedelta(minutes=5),
                 catalog={
                     "gestures": [
                         {
@@ -677,7 +677,7 @@ async def _seed_uploaded_file_chunk(
             declared_size_bytes=max(1, total_size),
             stored_size_bytes=max(1, total_size),
             status=status,
-            upload_expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
+            upload_expires_at=datetime.now(UTC) + timedelta(minutes=10),
             metadata_=metadata or {},
         )
     )

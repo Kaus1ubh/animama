@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException
@@ -120,7 +120,7 @@ async def prepare_direct_chat_turn(
         anima_id=anima_id,
         revision=req.runtime_revision,
     )
-    if snapshot is None or snapshot.expires_at <= datetime.now(timezone.utc):
+    if snapshot is None or snapshot.expires_at <= datetime.now(UTC):
         raise HTTPException(status_code=409, detail={"code": "runtime_remount_required"})
     catalog = snapshot.catalog
     resolved_runtime_gesture_ids = tuple(

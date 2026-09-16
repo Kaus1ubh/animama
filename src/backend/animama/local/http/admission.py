@@ -194,7 +194,7 @@ class LocalHTTPAdmission:
                     if complete
                     else await asyncio.wait_for(receive(), timeout=max(0, deadline - asyncio.get_running_loop().time()))
                 )
-            except asyncio.TimeoutError as error:
+            except TimeoutError as error:
                 failure = _BodyFailure(408, "request_body_timeout")
                 raise failure from error
             if message["type"] == "http.request":

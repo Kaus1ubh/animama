@@ -6,7 +6,7 @@ import hashlib
 import json
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
 from typing import Any
 from uuid import uuid4
@@ -145,7 +145,7 @@ class AnimaRuntimeService:
         if self.store is None:
             raise RuntimeSnapshotError("runtime_content_store_unavailable")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         loadout = (
             await self.session.execute(
                 select(ORMAnimaLoadout)
@@ -559,7 +559,7 @@ class AnimaRuntimeService:
     async def renew(self, *, user_id: str, anima_id: str, revision: str) -> datetime:
         """Atomically extend one still-live lease without touching its pins/body."""
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expires_at = now + LEASE
         result = await self.session.execute(
             update(ORMAnimaRuntimeSnapshot)
@@ -643,7 +643,7 @@ class AnimaRuntimeService:
         ).all()
         if not rows:
             raise RuntimeSnapshotError("runtime_file_not_found")
-        if rows[0][0] <= datetime.now(timezone.utc):
+        if rows[0][0] <= datetime.now(UTC):
             raise RuntimeSnapshotError("runtime_remount_required")
         results: dict[str, RuntimeFileAuthorization | RuntimeSnapshotError] = {
             ref: RuntimeSnapshotError("runtime_file_not_found") for ref in file_refs
@@ -695,7 +695,7 @@ class AnimaRuntimeService:
 
         if batch_size < 1 or batch_size > SNAPSHOT_CLEANUP_BATCH_SIZE:
             raise ValueError("runtime cleanup batch size is out of bounds")
-        cutoff = now or datetime.now(timezone.utc)
+        cutoff = now or datetime.now(UTC)
         snapshot_ids = list(
             (
                 await self.session.execute(

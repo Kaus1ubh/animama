@@ -174,13 +174,13 @@ class TelemetryForwarder:
                 raise _TelemetryFailure("unsupported_media_type", 415)
             try:
                 body = await asyncio.wait_for(self._read_body(request), self.config.body_timeout_seconds)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 return _error("request_timeout", 408)
             try:
                 return await asyncio.wait_for(
                     self._forward(signal, body, headers), self.config.upstream_timeout_seconds
                 )
-            except (asyncio.TimeoutError, httpx.TimeoutException):
+            except (TimeoutError, httpx.TimeoutException):
                 return _error("upstream_timeout", 504)
         except _TelemetryFailure as failure:
             return _error(failure.code, failure.status)

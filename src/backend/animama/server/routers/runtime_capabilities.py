@@ -1,6 +1,6 @@
 """Owner-visible capability metadata, never executable paths or credentials."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request
@@ -56,7 +56,7 @@ async def get_runtime_capabilities(
             state = "starting"
         else:
             last_heartbeat_at = heartbeat.heartbeat_at
-            state = "ready" if heartbeat.heartbeat_at >= datetime.now(timezone.utc) - timedelta(seconds=20) else "stale"
+            state = "ready" if heartbeat.heartbeat_at >= datetime.now(UTC) - timedelta(seconds=20) else "stale"
     desktop = bool(runtime_settings.animama_desktop_control_token)
     return RuntimeCapabilities(
         runtime_kind="desktop" if desktop else "self_hosted_web",

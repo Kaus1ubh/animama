@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import struct
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -164,7 +164,7 @@ async def _add_snapshot(
         catalog_digest=_digest(revision),
         admitted_item_revisions=dict(sorted(pins.items())),
         catalog={"catalog_version": 4, "gestures": []},
-        expires_at=expires_at or datetime.now(timezone.utc) + timedelta(hours=1),
+        expires_at=expires_at or datetime.now(UTC) + timedelta(hours=1),
     )
     session.add(snapshot)
     return snapshot
@@ -429,7 +429,7 @@ async def test_runtime_renew_preserves_pins_and_body_and_cleanup_is_bounded(asyn
             anima_id=anima.id,
             pins={},
             effective_revision=f"tr4-expired-{index}-{uuid4().hex}",
-            expires_at=datetime.now(timezone.utc) - timedelta(minutes=index + 1),
+            expires_at=datetime.now(UTC) - timedelta(minutes=index + 1),
         )
         expired_ids.append(expired.id)
     await async_session.commit()

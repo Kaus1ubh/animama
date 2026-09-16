@@ -18,7 +18,7 @@ import stat
 import subprocess
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 
 RULES_PATH = Path(__file__).with_name("measurement-rules.json")
@@ -137,7 +137,7 @@ def measure(root: Path, output: Path, label: str, binary: Path, rules_path: Path
     (destination / "rules.json").write_bytes(rules_bytes)
     (destination / "measure.py").write_bytes(Path(__file__).read_bytes())
     metadata = {
-        "started_at": datetime.now(timezone.utc).isoformat(),
+        "started_at": datetime.now(UTC).isoformat(),
         "project_root": str(root),
         "label": label,
         "git_commit": command(["git", "rev-parse", "HEAD"], root).decode().strip(),
@@ -259,7 +259,7 @@ def measure(root: Path, output: Path, label: str, binary: Path, rules_path: Path
         "by_subsystem_category": aggregate(records, lambda r: r["subsystem"] + "/" + r["category"]),
     }
     metadata.update(
-        finished_at=datetime.now(timezone.utc).isoformat(),
+        finished_at=datetime.now(UTC).isoformat(),
         status_after=command(["git", "status", "--porcelain=v1", "-z"], root).decode().split("\0"),
     )
     metadata["checkout_stable"] = (

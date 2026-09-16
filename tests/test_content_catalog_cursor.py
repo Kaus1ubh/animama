@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from animama.app.services.content_catalog_cursor import (
     content_catalog_page,
@@ -33,7 +33,7 @@ def test_name_cursor_pages_merged_candidates_without_offset_drift() -> None:
 
 
 def test_updated_cursor_is_descending_and_stable() -> None:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rows = [
         Row("old", "Old", now - timedelta(days=1)),
         Row("new", "New", now),
