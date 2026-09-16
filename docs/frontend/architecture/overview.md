@@ -204,10 +204,11 @@ configuration nor Electron internals.
 The browser retains UI/SSE metric calls and API trace propagation through
 `@opentelemetry/api`, but its startup does not register telemetry providers or
 export OTLP signals.
-The FastAPI forwarder and optional Compose collector remain; the collector also
-serves backend telemetry and file logs. Embedded desktop disables the proxy
-with a 204 response. Future hosted observability requires its own explicit
-provider, collector, and privacy-safe payload configuration.
+The bounded FastAPI forwarder remains, disabled by default in Compose and
+always disabled in embedded desktop with a 204 response. Compose no longer
+bundles a collector or the retired `obs` stack. Local logging remains available.
+Future hosted observability requires its own explicit provider, collector, and
+privacy-safe payload configuration.
 
 ## Commands
 

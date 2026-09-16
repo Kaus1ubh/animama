@@ -91,5 +91,5 @@ container names for named stacks; project-scoped commands remain authoritative.
 
 When starting or debugging a stack, report the stack name, branch/worktree, base
 port, build mode and one application URL. Identify the published application
-service and confirm PostgreSQL and supporting services remain private. Note whether optional profiles such as `voice`, `memory`, or `obs` were
+service and confirm PostgreSQL and supporting services remain private. Note whether optional profiles such as `voice` or `memory` were
 enabled. Never print provider or desktop-control credentials.

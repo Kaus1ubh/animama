@@ -51,8 +51,6 @@ paths = [
   "scripts/backup-local.sh",
   "scripts/generate_synthetic_docs.py",
   "scripts/local-stack-state-common.sh",
-  "scripts/normalize_included_action_layout.py",
-  "scripts/populate_archive_embeddings.py",
   "scripts/repository-boundary/README.md",
   "scripts/repository-boundary/audit-classification.py",
   "scripts/repository-boundary/build-provenance.py",
@@ -637,27 +635,6 @@ paths = [
 ]
 
 [[groups]]
-id = "local-observability"
-owner = "public"
-rationale = "Reviewed public files from the immutable source export."
-paths = [
-  "observability/grafana/dashboards/animama-app.json",
-  "observability/grafana/dashboards/animama-fastapi-v2.json",
-  "observability/grafana/dashboards/animama-fastapi.json",
-  "observability/grafana/dashboards/animama-http.json",
-  "observability/grafana/dashboards/animama-postgres.json",
-  "observability/grafana/dashboards/animama-system.json",
-  "observability/grafana/dashboards/animama-webui.json",
-  "observability/grafana/dashboards/node-exporter.json",
-  "observability/grafana/provisioning/dashboards/dashboards.yml",
-  "observability/grafana/provisioning/datasources/datasources.yml",
-  "observability/loki.yaml",
-  "observability/otel-collector-config.yaml",
-  "observability/prometheus.yml",
-  "observability/tempo.yaml",
-]
-
-[[groups]]
 id = "shared-backend-domain-app"
 owner = "public"
 rationale = "Reviewed public files from the immutable source export."
@@ -937,12 +914,6 @@ paths = [
   "src/backend/animama/prompts/constants.py",
   "src/backend/animama/prompts/profiles.py",
   "src/backend/animama/prompts/structured_output.py",
-  "src/backend/animama/prompts/template_profiles.py",
-  "src/backend/animama/prompts/templates/character/korone.json",
-  "src/backend/animama/prompts/templates/character/marine.json",
-  "src/backend/animama/prompts/templates/character_system.jinja",
-  "src/backend/animama/prompts/templates/streamer/luna.json",
-  "src/backend/animama/prompts/templates/streamer_system.jinja",
   "src/backend/animama/resources/__init__.py",
   "src/backend/animama/resources/animation-manifest.json",
   "src/backend/animama/resources/catalogs.py",
@@ -2427,7 +2398,6 @@ paths = [
   "src/frontend/scripts/show-playwright-report.mjs",
   "src/frontend/scripts/start-compose-web.sh",
   "src/frontend/scripts/verify-tts-assets.mjs",
-  "src/frontend/scripts/verify-web-public-assets.mjs",
   "src/frontend/shared/desktop-runtime.ts",
   "src/frontend/tsconfig.e2e.json",
 ]
@@ -2762,9 +2732,6 @@ paths = [
   "licenses/third-party/code-and-models.md",
   "licenses/third-party/lstn-misc-grafana-dashboards-LICENSE.txt",
   "licenses/third-party/rfmoz-grafana-dashboards-LICENSE.txt",
-  "observability/grafana/dashboards/animama-fastapi-v2.json.license",
-  "observability/grafana/dashboards/animama-postgres.json.license",
-  "observability/grafana/dashboards/node-exporter.json.license",
   "scripts/public-release/README.md",
   "scripts/public-release/prepare_source.py",
   "scripts/public-release/templates/AGPL-3.0-only.txt",
@@ -2788,10 +2755,4 @@ paths = [
   "src/frontend/desktop/runtime/notices/sentencepiece-wrapper-apache-2.0.txt",
   "src/frontend/desktop/runtime/notices/transformers-js-apache-2.0.txt",
   "src/frontend/desktop/runtime/notices/whisper-extractor-attribution.txt",
-  "src/frontend/scripts/assets/original-effects/emote.svg",
-  "src/frontend/scripts/assets/original-effects/texture_black_1.svg",
-  "src/frontend/scripts/assets/original-effects/texture_sick_1.svg",
-  "src/frontend/scripts/assets/original-effects/texture_sick_2.svg",
-  "src/frontend/scripts/assets/original-effects/texture_sick_3.svg",
-  "src/frontend/scripts/render-original-effects.mjs",
 ]

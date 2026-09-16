@@ -45,24 +45,12 @@ Transformers math source. Both full license texts and a change notice are in the
 runtime notice directory. The local file preserves its source pointers and
 identifies Raymond Van's fixed-window/integration changes.
 
-## Retained imported dashboards
+## Retired imported dashboards
 
-The JSON templates are locally modified derivatives. Their original IDs and
-UIDs identify the linked upstreams; the reviewed revisions below are source and
-license comparisons, not claims to have recovered the historic import commits.
-Raymond Van's local modifications include Animama-specific provisioning and
-query/dashboard configuration. Preserve these change notices with the files.
-
-| Local dashboard | Reviewed upstream | Full license |
-| --- | --- | --- |
-| `observability/grafana/dashboards/animama-fastapi-v2.json` (16110) | blueswen/fastapi-observability `2764dba3e8b9f2ad692eb5377db988414201940d` | [MIT, copyright 2022 Blueswen](blueswen-fastapi-observability-LICENSE.txt) |
-| `observability/grafana/dashboards/animama-postgres.json` (9628) | lstn/misc-grafana-dashboards `e18068331e9a54f82766844cad2c7fa098e4a1e0` | [Apache-2.0](lstn-misc-grafana-dashboards-LICENSE.txt) |
-| `observability/grafana/dashboards/node-exporter.json` (1860) | rfmoz/grafana-dashboards `99a25cc154c21c4fcbae1aa24352bf1b6764d847` | [Apache-2.0](rfmoz-grafana-dashboards-LICENSE.txt) |
-
-The two templates without recovered redistribution grants were removed. Other
-project-specific observability source remains covered by the owner's authorship
-review; a Grafana product license is never used as a grant for independent
-uploaded dashboard templates.
+The optional local observability stack and its dashboard sources are no longer
+part of this repository. Their upstream MIT and Apache-2.0 license texts remain
+as historical credits; they do not describe active application dependencies.
+The application does not require a separate monitoring checkout to build or run.
 
 ## Remaining acceptance
 

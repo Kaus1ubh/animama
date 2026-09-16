@@ -706,21 +706,22 @@ Workers need the same database configuration as the API.
 
 ## Docker Compose
 
-`docker-compose.yml` includes PostgreSQL, pgAdmin, the anima server, the
-user-file parser worker, frontend services, voice/profile services, and optional
-observability services. The optional `obs` profile retains its local
-`observability/` configuration so self-host installations can use it without a
-Cloud checkout. Core startup does not require that profile. Local logging and
-shared instrumentation remain available independently. No object-storage service
-is required. Check active
-profiles and environment variables before assuming every service starts by
-default.
+`docker-compose.yml` supplies the built application and private PostgreSQL, with
+optional voice/profile services and local administration tools. The development
+override adds Vite/HMR and keeps FastAPI private. Core startup requires no
+collector, metrics database or object-storage service. Local logging and shared
+instrumentation remain available independently.
+
+The former `obs` profile is retired. Remove it from `--profile`,
+`COMPOSE_PROFILES` and `.env` before running `reset.sh`; reset rejects a stale
+selection before changing the stack. Existing observability volumes are left
+intact and are no longer included in `reset.sh --purge`. No observability
+service is started by either Compose selection.
 
 The `dev-tools` profile is the only infrastructure publication exception:
 pgAdmin and Dozzle can be reached through localhost browser ports as described
-below. Other observability services stay private even with `obs` enabled. Do
-not add extra host ports for the private API, PostgreSQL or other infrastructure.
-Only the selected application listener is published.
+below. PostgreSQL and supporting services remain private. Only the selected
+application listener is published.
 
 ### Local administration tools
 
@@ -754,7 +755,7 @@ than killing an unidentified listener.
 
 You can retain `COMPOSE_PROFILES=dev-tools` in `.env`, or source the generated
 stack environment before the next restart. Additional `--profile` selections
-are combined with the current profiles. `obs` alone does not start either tool.
+are combined with the current profiles. Other profiles do not start either tool.
 To disable all optional profiles explicitly on the main stack:
 
 ```bash
@@ -762,7 +763,7 @@ COMPOSE_PROFILES= ./reset.sh
 ```
 
 If other profiles should remain, remove only `dev-tools`, for example
-`COMPOSE_PROFILES=obs ./reset.sh`. Omitting the CLI flag alone does not disable
+`COMPOSE_PROFILES=voice ./reset.sh`. Omitting the CLI flag alone does not disable
 an inherited or `.env` profile. Also remove the persisted selection if future
 fresh-shell starts should stay disabled. Reset stops this project's old tools
 even when their profile is no longer active, closes their host listeners, and

@@ -3011,7 +3011,7 @@
       "basis": "Retained third-party artwork and verified source mapping",
       "source": "brackeys",
       "revision": "Exact archived source hashes in mapping",
-      "copyright": "Thomas Ich\u00e9; repackaged by Brackeys",
+      "copyright": "Thomas Iché; repackaged by Brackeys",
       "evidence": [
         "licenses/third-party/art-particles.json"
       ],
@@ -3029,7 +3029,7 @@
       "basis": "Retained third-party artwork and verified source mapping",
       "source": "brackeys",
       "revision": "Exact archived source hashes in mapping",
-      "copyright": "Thomas Ich\u00e9; repackaged by Brackeys",
+      "copyright": "Thomas Iché; repackaged by Brackeys",
       "evidence": [
         "licenses/third-party/art-particles.json"
       ],
@@ -3279,7 +3279,7 @@
       "basis": "Retained third-party artwork and verified source mapping",
       "source": "brackeys",
       "revision": "Exact archived source hashes in mapping",
-      "copyright": "Thomas Ich\u00e9; repackaged by Brackeys",
+      "copyright": "Thomas Iché; repackaged by Brackeys",
       "evidence": [
         "licenses/third-party/art-particles.json"
       ],
@@ -5536,185 +5536,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "observability/grafana/dashboards/animama-app.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-fastapi-v2.json",
-      "candidate_license": "MIT",
-      "basis": "Retained third-party code/model review: dashboard-fastapi",
-      "source": "https://github.com/blueswen/fastapi-observability",
-      "revision": "2764dba3e8b9f2ad692eb5377db988414201940d",
-      "copyright": "Copyright 2022 Blueswen; Raymond Van local modifications",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "licenses/third-party/blueswen-fastapi-observability-LICENSE.txt",
-        "observability/grafana/dashboards/animama-fastapi-v2.json.license"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-fastapi-v2.json.license",
-      "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
-      "basis": "License or notice document; do not relabel its underlying third-party terms",
-      "copyright": "Respective upstream holders identified in the preserved document",
-      "source": "Document text and adjacent source mappings",
-      "revision": "Reviewed source document bytes",
-      "evidence": [
-        "observability/grafana/dashboards/animama-fastapi-v2.json.license"
-      ],
-      "notices": [
-        "observability/grafana/dashboards/animama-fastapi-v2.json.license"
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-fastapi.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-http.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-postgres.json",
-      "candidate_license": "Apache-2.0",
-      "basis": "Retained third-party code/model review: dashboard-postgres",
-      "source": "https://github.com/lstn/misc-grafana-dashboards",
-      "revision": "e18068331e9a54f82766844cad2c7fa098e4a1e0",
-      "copyright": "lstn upstream project; Raymond Van local modifications (no invented copyright year)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "licenses/third-party/lstn-misc-grafana-dashboards-LICENSE.txt",
-        "observability/grafana/dashboards/animama-postgres.json.license"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-postgres.json.license",
-      "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
-      "basis": "License or notice document; do not relabel its underlying third-party terms",
-      "copyright": "Respective upstream holders identified in the preserved document",
-      "source": "Document text and adjacent source mappings",
-      "revision": "Reviewed source document bytes",
-      "evidence": [
-        "observability/grafana/dashboards/animama-postgres.json.license"
-      ],
-      "notices": [
-        "observability/grafana/dashboards/animama-postgres.json.license"
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-system.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-webui.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/dashboards/node-exporter.json",
-      "candidate_license": "Apache-2.0",
-      "basis": "Retained third-party code/model review: dashboard-node",
-      "source": "https://github.com/rfmoz/grafana-dashboards",
-      "revision": "99a25cc154c21c4fcbae1aa24352bf1b6764d847",
-      "copyright": "rfmoz upstream project; Raymond Van local modifications (no invented copyright year)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "licenses/third-party/rfmoz-grafana-dashboards-LICENSE.txt",
-        "observability/grafana/dashboards/node-exporter.json.license"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/dashboards/node-exporter.json.license",
-      "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
-      "basis": "License or notice document; do not relabel its underlying third-party terms",
-      "copyright": "Respective upstream holders identified in the preserved document",
-      "source": "Document text and adjacent source mappings",
-      "revision": "Reviewed source document bytes",
-      "evidence": [
-        "observability/grafana/dashboards/node-exporter.json.license"
-      ],
-      "notices": [
-        "observability/grafana/dashboards/node-exporter.json.license"
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/provisioning/dashboards/dashboards.yml",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/grafana/provisioning/datasources/datasources.yml",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/loki.yaml",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/otel-collector-config.yaml",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/prometheus.yml",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "observability/tempo.yaml",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "package.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -5939,13 +5760,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "scripts/normalize_included_action_layout.py",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "scripts/package-sets/README.md",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -5975,13 +5789,6 @@
     },
     {
       "path": "scripts/package-sets/test_package_sets.py",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "scripts/populate_archive_embeddings.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -8181,48 +7988,6 @@
     },
     {
       "path": "src/backend/animama/prompts/structured_output.py",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/backend/animama/prompts/template_profiles.py",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/backend/animama/prompts/templates/character/korone.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/backend/animama/prompts/templates/character/marine.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/backend/animama/prompts/templates/character_system.jinja",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/backend/animama/prompts/templates/streamer/luna.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/backend/animama/prompts/templates/streamer_system.jinja",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -11081,41 +10846,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/scripts/assets/original-effects/emote.svg",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/scripts/assets/original-effects/texture_black_1.svg",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/scripts/assets/original-effects/texture_sick_1.svg",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/scripts/assets/original-effects/texture_sick_2.svg",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/scripts/assets/original-effects/texture_sick_3.svg",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "src/frontend/scripts/build-typescript-package.mjs",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -11256,13 +10986,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/scripts/render-original-effects.mjs",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "src/frontend/scripts/run-playwright-e2e.mjs",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -11299,13 +11022,6 @@
     },
     {
       "path": "src/frontend/scripts/verify-tts-assets.mjs",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/scripts/verify-web-public-assets.mjs",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

@@ -4,7 +4,6 @@
     ".": {
       "entry": [
         "playwright.config.ts",
-        "scripts/verify-web-public-assets.mjs",
         "scripts/**/*.test.mjs",
         "e2e/**/*.spec.ts",
         "e2e/**/*.test.ts",

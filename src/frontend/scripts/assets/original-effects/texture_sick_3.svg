@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Copyright 2026 Raymond Van. Original geometric artwork; no source pixels reused. -->
-  <defs><linearGradient id="stress" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#222735" stop-opacity="0.82"/><stop offset="0.6" stop-color="#222735" stop-opacity="0.5"/><stop offset="1" stop-color="#222735" stop-opacity="0"/></linearGradient></defs>
-  <rect x="111" y="33" width="234" height="477" fill="url(#stress)"/>
-  <rect x="384" y="6" width="319" height="504" fill="url(#stress)"/>
-  <rect x="749" y="56" width="171" height="454" fill="url(#stress)"/>
-</svg>

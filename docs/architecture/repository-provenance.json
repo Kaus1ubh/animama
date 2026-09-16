@@ -11,7 +11,7 @@
         "licenses/source-review.json"
       ],
       "path_sha256": {
-        "licenses/source-review.json": "804c00d9880c5a9ca79a9d5f6979393ecc25d79d2b0b63719d4c54a42a657727"
+        "licenses/source-review.json": "5ae15f21f2f7ba3a6dd9fb448b749fe6e503560339bb6c646a2f8625986da56b"
       }
     },
     {
@@ -672,105 +672,6 @@
       }
     },
     {
-      "id": "source-review-9b4357a4fd37",
-      "source": "https://github.com/blueswen/fastapi-observability",
-      "revision": "2764dba3e8b9f2ad692eb5377db988414201940d",
-      "license": "MIT (candidate treatment; original working source remains proprietary)",
-      "unresolved_decision": "Prepared source evidence; owner candidate acceptance and final release gates remain.",
-      "required_notices": [
-        "licenses/third-party/blueswen-fastapi-observability-LICENSE.txt",
-        "observability/grafana/dashboards/animama-fastapi-v2.json.license"
-      ],
-      "paths": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "path_sha256": {
-        "licenses/third-party/code-and-models.json": "6c3e84a921f287901a1abef2ce8cd1159aec3dfec383669088d8879624e5278f"
-      }
-    },
-    {
-      "id": "source-review-ea2d3a60ab6a",
-      "source": "Document text and adjacent source mappings",
-      "revision": "Reviewed source document bytes",
-      "license": "Preserved upstream license/notice text; local attribution additions follow repository license (candidate treatment; original working source remains proprietary)",
-      "unresolved_decision": "Prepared source evidence; owner candidate acceptance and final release gates remain.",
-      "required_notices": [
-        "observability/grafana/dashboards/animama-fastapi-v2.json.license"
-      ],
-      "paths": [
-        "observability/grafana/dashboards/animama-fastapi-v2.json.license"
-      ],
-      "path_sha256": {
-        "observability/grafana/dashboards/animama-fastapi-v2.json.license": "3d17b5aedd9fdd9c3973e49e3b49387400ff61980a78771ee29c9c2f686dfe39"
-      }
-    },
-    {
-      "id": "source-review-4560db24d093",
-      "source": "https://github.com/lstn/misc-grafana-dashboards",
-      "revision": "e18068331e9a54f82766844cad2c7fa098e4a1e0",
-      "license": "Apache-2.0 (candidate treatment; original working source remains proprietary)",
-      "unresolved_decision": "Prepared source evidence; owner candidate acceptance and final release gates remain.",
-      "required_notices": [
-        "licenses/third-party/lstn-misc-grafana-dashboards-LICENSE.txt",
-        "observability/grafana/dashboards/animama-postgres.json.license"
-      ],
-      "paths": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "path_sha256": {
-        "licenses/third-party/code-and-models.json": "6c3e84a921f287901a1abef2ce8cd1159aec3dfec383669088d8879624e5278f"
-      }
-    },
-    {
-      "id": "source-review-2c92a2de25c4",
-      "source": "Document text and adjacent source mappings",
-      "revision": "Reviewed source document bytes",
-      "license": "Preserved upstream license/notice text; local attribution additions follow repository license (candidate treatment; original working source remains proprietary)",
-      "unresolved_decision": "Prepared source evidence; owner candidate acceptance and final release gates remain.",
-      "required_notices": [
-        "observability/grafana/dashboards/animama-postgres.json.license"
-      ],
-      "paths": [
-        "observability/grafana/dashboards/animama-postgres.json.license"
-      ],
-      "path_sha256": {
-        "observability/grafana/dashboards/animama-postgres.json.license": "c1afaf2a58204a19498585b99dd0f71bd12ccf930c50abe96ec1436c0a00bba8"
-      }
-    },
-    {
-      "id": "source-review-6253b0c5bc70",
-      "source": "https://github.com/rfmoz/grafana-dashboards",
-      "revision": "99a25cc154c21c4fcbae1aa24352bf1b6764d847",
-      "license": "Apache-2.0 (candidate treatment; original working source remains proprietary)",
-      "unresolved_decision": "Prepared source evidence; owner candidate acceptance and final release gates remain.",
-      "required_notices": [
-        "licenses/third-party/rfmoz-grafana-dashboards-LICENSE.txt",
-        "observability/grafana/dashboards/node-exporter.json.license"
-      ],
-      "paths": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "path_sha256": {
-        "licenses/third-party/code-and-models.json": "6c3e84a921f287901a1abef2ce8cd1159aec3dfec383669088d8879624e5278f"
-      }
-    },
-    {
-      "id": "source-review-728545015fba",
-      "source": "Document text and adjacent source mappings",
-      "revision": "Reviewed source document bytes",
-      "license": "Preserved upstream license/notice text; local attribution additions follow repository license (candidate treatment; original working source remains proprietary)",
-      "unresolved_decision": "Prepared source evidence; owner candidate acceptance and final release gates remain.",
-      "required_notices": [
-        "observability/grafana/dashboards/node-exporter.json.license"
-      ],
-      "paths": [
-        "observability/grafana/dashboards/node-exporter.json.license"
-      ],
-      "path_sha256": {
-        "observability/grafana/dashboards/node-exporter.json.license": "c1afaf2a58204a19498585b99dd0f71bd12ccf930c50abe96ec1436c0a00bba8"
-      }
-    },
-    {
       "id": "source-review-96af726c1b07",
       "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
       "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
@@ -784,7 +685,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "6c3e84a921f287901a1abef2ce8cd1159aec3dfec383669088d8879624e5278f"
+        "licenses/third-party/code-and-models.json": "462ba9e78436b9309364d3ff762d990205ee45be5abdbbb49c2aaa2984ae6a5c"
       }
     },
     {
@@ -1202,7 +1103,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "6c3e84a921f287901a1abef2ce8cd1159aec3dfec383669088d8879624e5278f"
+        "licenses/third-party/code-and-models.json": "462ba9e78436b9309364d3ff762d990205ee45be5abdbbb49c2aaa2984ae6a5c"
       }
     },
     {
@@ -1219,7 +1120,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "6c3e84a921f287901a1abef2ce8cd1159aec3dfec383669088d8879624e5278f"
+        "licenses/third-party/code-and-models.json": "462ba9e78436b9309364d3ff762d990205ee45be5abdbbb49c2aaa2984ae6a5c"
       }
     },
     {
@@ -1235,7 +1136,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "6c3e84a921f287901a1abef2ce8cd1159aec3dfec383669088d8879624e5278f"
+        "licenses/third-party/code-and-models.json": "462ba9e78436b9309364d3ff762d990205ee45be5abdbbb49c2aaa2984ae6a5c"
       }
     },
     {
@@ -1251,7 +1152,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "6c3e84a921f287901a1abef2ce8cd1159aec3dfec383669088d8879624e5278f"
+        "licenses/third-party/code-and-models.json": "462ba9e78436b9309364d3ff762d990205ee45be5abdbbb49c2aaa2984ae6a5c"
       }
     },
     {
@@ -1268,7 +1169,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "6c3e84a921f287901a1abef2ce8cd1159aec3dfec383669088d8879624e5278f"
+        "licenses/third-party/code-and-models.json": "462ba9e78436b9309364d3ff762d990205ee45be5abdbbb49c2aaa2984ae6a5c"
       }
     },
     {
@@ -1292,7 +1193,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "6c3e84a921f287901a1abef2ce8cd1159aec3dfec383669088d8879624e5278f"
+        "licenses/third-party/code-and-models.json": "462ba9e78436b9309364d3ff762d990205ee45be5abdbbb49c2aaa2984ae6a5c"
       }
     },
     {
@@ -1310,7 +1211,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "6c3e84a921f287901a1abef2ce8cd1159aec3dfec383669088d8879624e5278f"
+        "licenses/third-party/code-and-models.json": "462ba9e78436b9309364d3ff762d990205ee45be5abdbbb49c2aaa2984ae6a5c"
       }
     },
     {
@@ -1353,8 +1254,8 @@
   "files": [
     {
       "path": ".agents/skills/animama-local-stacks/SKILL.md",
-      "git_blob_oid": "cdd94e0434394a175908404d31318c075819a86a",
-      "sha256": "91942fa1fa1d0118a86070338b4138850b0c8840d6359d950b123d7512390c4a",
+      "git_blob_oid": "d006ef2eb8e3bbd8a929a95a301c5a1aaa20f9b4",
+      "sha256": "b096ecb0aa721e619808d75ed7982249c7a65dfc9ac0485120fec0db1d398617",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -1413,8 +1314,8 @@
     },
     {
       "path": "content/included/README.md",
-      "git_blob_oid": "6c35a99cb354f4c518b7d91b602dfb1b1526f630",
-      "sha256": "9c8549e368399e5d8a236fe0fa85f5799fd57f42e16dfc25c5b5b869573ab740",
+      "git_blob_oid": "d2ea15fd42cee8d8635789c8967c63b6242ba63b",
+      "sha256": "16b1ed500f4399f8f866090a80263741fa974b2827f6857dc8beee246070a342",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -6898,176 +6799,6 @@
       "notes": "Phase 5 preparation evidence; not a publication approval."
     },
     {
-      "path": "observability/grafana/dashboards/animama-app.json",
-      "git_blob_oid": "ec6cc28253720f5fde0fb8cb34eaa0d3f4239fc8",
-      "sha256": "a1c56a662a306d036b72d1fee6906473393218c676f40924a1ea9e68fe52e988",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-fastapi-v2.json",
-      "git_blob_oid": "f10524bfbfc4be15b55c118e9df90c4175a56290",
-      "sha256": "d96d08fe658a870997c4c5d746c20f35d38058b18ddadeea49ac764cd65e1764",
-      "evidence_ids": [
-        "source-review-9b4357a4fd37"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-fastapi-v2.json.license",
-      "git_blob_oid": "ee0ceca43373cbb48fb501f6833cf3e37eb084b4",
-      "sha256": "3d17b5aedd9fdd9c3973e49e3b49387400ff61980a78771ee29c9c2f686dfe39",
-      "evidence_ids": [
-        "source-review-ea2d3a60ab6a"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-fastapi.json",
-      "git_blob_oid": "cb36fa4c51077e338740663bbe91c58af0bfa9b7",
-      "sha256": "1fb937cb9df7828a87c0a978e5c2484a654d848c473f32ebf61fc3fd95ab0454",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-http.json",
-      "git_blob_oid": "e42a82432669c10f7eb51911509a2508775393ec",
-      "sha256": "f61f258114093deb1f264186918347969f351d843b6b822836d9021b6ead494c",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-postgres.json",
-      "git_blob_oid": "0abd1e07cafd67aeac6ab49e4d5236f5eaee840a",
-      "sha256": "ed5ce4855c380b2f57d57013edb0ec46ad8403876ce86f1b62939281883a47da",
-      "evidence_ids": [
-        "source-review-4560db24d093"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-postgres.json.license",
-      "git_blob_oid": "b8e81fd9146e7a04f4e39fc4d8a00167a31db0d4",
-      "sha256": "c1afaf2a58204a19498585b99dd0f71bd12ccf930c50abe96ec1436c0a00bba8",
-      "evidence_ids": [
-        "source-review-2c92a2de25c4"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-system.json",
-      "git_blob_oid": "df90f000d676722c7cd39da8ca525f604f758835",
-      "sha256": "96fdb1766276e2891b93e59fe6d89b5404a6feea17d433b5d8683f7da90c63bd",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/dashboards/animama-webui.json",
-      "git_blob_oid": "7537ed3dbb04ee9a6448610e10017592673613fb",
-      "sha256": "dcd3e3bc80765de4232a3f0739bafdfd09e14aaedb2c538a46ac4e2d46169ab7",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/dashboards/node-exporter.json",
-      "git_blob_oid": "fdc3a003e05ca3d49844655bcd4dd6cf911bbb17",
-      "sha256": "a4d827eb1819044bba2d6d257347175f6811910f2583fadeaf7e123c4df2125e",
-      "evidence_ids": [
-        "source-review-6253b0c5bc70"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/dashboards/node-exporter.json.license",
-      "git_blob_oid": "b8e81fd9146e7a04f4e39fc4d8a00167a31db0d4",
-      "sha256": "c1afaf2a58204a19498585b99dd0f71bd12ccf930c50abe96ec1436c0a00bba8",
-      "evidence_ids": [
-        "source-review-728545015fba"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/provisioning/dashboards/dashboards.yml",
-      "git_blob_oid": "c62f0b752a91316a30ea2311c6888a01bb0e9099",
-      "sha256": "129184c5a11ff089da3f5cc887d689703a229bc83cfd08390061fbbd7484f287",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/grafana/provisioning/datasources/datasources.yml",
-      "git_blob_oid": "1a08b36b925cd457068ad718ba40cfe99d1015be",
-      "sha256": "cc9f1d2955097c5a32030a8f3c8d7170c6d32ef3ef9c30af0237c72ee053fdbb",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/loki.yaml",
-      "git_blob_oid": "8495684e64803123a221fca2ffde8aa785e1e7bc",
-      "sha256": "8338428f106aba33c0e2a958d1a40f7e3ab49a56eaa707f13c3e5edb1dce41c6",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/otel-collector-config.yaml",
-      "git_blob_oid": "de969a8276085c68eefec9d5dbb66ee9ab8764fb",
-      "sha256": "d6ce3aeac3b279598502264ef276dcf836e9931edebab243fa260be8a2d7e02b",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/prometheus.yml",
-      "git_blob_oid": "db91df47b6a4304e9f317ceb0e61b30a8eee73bc",
-      "sha256": "b34ec5e671d0f59079c2c21246d67eb155f1b2ccce5f45ddee7a4adf8ecf5fb4",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "observability/tempo.yaml",
-      "git_blob_oid": "d8fa9610cde6c351f0989562388b7c3534ce7621",
-      "sha256": "e96908110d64c37b7235a0cabe8e38ef68681503c5f671aa91792588b1a4309d",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
       "path": "parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
       "git_blob_oid": "8802417240c15b95f51ff12b6e3d7a3411973284",
       "sha256": "f0253d0ae984626d09669aa7e3c102a8667b997d854db25c70850f571fa014b9",
@@ -7407,56 +7138,6 @@
       "sha256": "b0e2dadc970ef65906dfa0d2af5ed6722395343fda4fc7eaedbe6e458926f413",
       "evidence_ids": [
         "source-review-9e74d91f688e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "src/frontend/scripts/assets/original-effects/emote.svg",
-      "git_blob_oid": "08f086704ed19568bb4f16d46c5dd205b543f82e",
-      "sha256": "8e6622fced4ef0431fdbe6191a624564afee6f5918432df02216cedc50fe4224",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "src/frontend/scripts/assets/original-effects/texture_black_1.svg",
-      "git_blob_oid": "ed5d41db35d9536a7e22cd88f94834c2ba11ff44",
-      "sha256": "528551156a12521fd48840d8988df4e53114e7cdc3e0e12b87ecaffbd5816d78",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "src/frontend/scripts/assets/original-effects/texture_sick_1.svg",
-      "git_blob_oid": "aa16cf8995feb6efb02d01cf602e28aee74e83ae",
-      "sha256": "c2f7124db158b13af229d033a3c40979cc6c5e703d9026cfcbb3823431cc1167",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "src/frontend/scripts/assets/original-effects/texture_sick_2.svg",
-      "git_blob_oid": "f03d1194def9589727b83963e508c6566a87b959",
-      "sha256": "0f8aa2da99a46f2ba27a57aa61bc2b0a662eedde07e049f27f161c798d017d4a",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "src/frontend/scripts/assets/original-effects/texture_sick_3.svg",
-      "git_blob_oid": "fe2939ce8ef015d66c150d64ffed2f60c2cecf9f",
-      "sha256": "2cf956604a1b74346fe53a8017b42efb00e18a12f1ea50c6c9b146b3897d67e2",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
       ],
       "publication_status": "review-pending",
       "notes": "Phase 5 preparation evidence; not a publication approval."
@@ -8816,6 +8497,121 @@
           }
         }
       ]
+    },
+    {
+      "date": "2026-09-15",
+      "base_commit": "55f771417bc0d0a569584a6f827b93aa1c8b30e6",
+      "reason": "Phase 7.5 owner-directed legacy prompt and SVG authoring-input removal; retain generated artwork, source terms, original export pins and all release gates.",
+      "previous_inventory_sha256": "484f48e21ff05f8d5c7b4359e533b6946ce268f27913ddb3c052087f749e52a0",
+      "removed_paths": [
+        "src/backend/animama/prompts/templates/character/korone.json",
+        "src/backend/animama/prompts/templates/character/marine.json",
+        "src/backend/animama/prompts/templates/streamer/luna.json",
+        "src/frontend/scripts/assets/original-effects/emote.svg",
+        "src/frontend/scripts/assets/original-effects/texture_black_1.svg",
+        "src/frontend/scripts/assets/original-effects/texture_sick_1.svg",
+        "src/frontend/scripts/assets/original-effects/texture_sick_2.svg",
+        "src/frontend/scripts/assets/original-effects/texture_sick_3.svg",
+        "src/frontend/scripts/render-original-effects.mjs"
+      ],
+      "changed_bindings": [
+        {
+          "path": "content/included/README.md",
+          "previous_binding": {
+            "git_blob_oid": "6c35a99cb354f4c518b7d91b602dfb1b1526f630",
+            "sha256": "9c8549e368399e5d8a236fe0fa85f5799fd57f42e16dfc25c5b5b869573ab740"
+          },
+          "current_binding": {
+            "git_blob_oid": "d2ea15fd42cee8d8635789c8967c63b6242ba63b",
+            "sha256": "16b1ed500f4399f8f866090a80263741fa974b2827f6857dc8beee246070a342"
+          }
+        }
+      ]
+    },
+    {
+      "date": "2026-09-15",
+      "base_commit": "55f771417bc0d0a569584a6f827b93aa1c8b30e6",
+      "reason": "Owner-approved inactive private observability archival and legacy template renderer removal; retain thumbnail generator, data, export history and publication gates.",
+      "previous_inventory_sha256": "ceaca96987baeeddb8930edeb0b1fe5419b45f33032b3a466d8ffe4afffd478a",
+      "removed_paths": [
+        "observability/grafana/dashboards/animama-app.json",
+        "observability/grafana/dashboards/animama-fastapi-v2.json",
+        "observability/grafana/dashboards/animama-fastapi-v2.json.license",
+        "observability/grafana/dashboards/animama-fastapi.json",
+        "observability/grafana/dashboards/animama-http.json",
+        "observability/grafana/dashboards/animama-postgres.json",
+        "observability/grafana/dashboards/animama-postgres.json.license",
+        "observability/grafana/dashboards/animama-system.json",
+        "observability/grafana/dashboards/animama-webui.json",
+        "observability/grafana/dashboards/node-exporter.json",
+        "observability/grafana/dashboards/node-exporter.json.license",
+        "observability/grafana/provisioning/dashboards/dashboards.yml",
+        "observability/grafana/provisioning/datasources/datasources.yml",
+        "observability/loki.yaml",
+        "observability/otel-collector-config.yaml",
+        "observability/prometheus.yml",
+        "observability/tempo.yaml",
+        "src/backend/animama/prompts/template_profiles.py",
+        "src/backend/animama/prompts/templates/character/korone.json",
+        "src/backend/animama/prompts/templates/character/marine.json",
+        "src/backend/animama/prompts/templates/character_system.jinja",
+        "src/backend/animama/prompts/templates/streamer/luna.json",
+        "src/backend/animama/prompts/templates/streamer_system.jinja",
+        "src/frontend/scripts/assets/original-effects/emote.svg",
+        "src/frontend/scripts/assets/original-effects/texture_black_1.svg",
+        "src/frontend/scripts/assets/original-effects/texture_sick_1.svg",
+        "src/frontend/scripts/assets/original-effects/texture_sick_2.svg",
+        "src/frontend/scripts/assets/original-effects/texture_sick_3.svg",
+        "src/frontend/scripts/render-original-effects.mjs"
+      ],
+      "changed_bindings": [
+        {
+          "path": ".agents/skills/animama-local-stacks/SKILL.md",
+          "previous_sha256": "91942fa1fa1d0118a86070338b4138850b0c8840d6359d950b123d7512390c4a",
+          "current_sha256": "b096ecb0aa721e619808d75ed7982249c7a65dfc9ac0485120fec0db1d398617"
+        }
+      ]
+    },
+    {
+      "date": "2026-09-16",
+      "base_commit": "55f771417bc0d0a569584a6f827b93aa1c8b30e6",
+      "reason": "Owner approved removal of the three obsolete scripts on 2026-09-16. Reconcile their caller and inventory cleanup; preserve thumbnail generator, private data, export history and publication gates.",
+      "previous_inventory_sha256": "5d14ad63fad929b96c89de3438e29597d75146206cea1f75e85fd68bcb698745",
+      "removed_paths": [
+        "observability/grafana/dashboards/animama-app.json",
+        "observability/grafana/dashboards/animama-fastapi-v2.json",
+        "observability/grafana/dashboards/animama-fastapi-v2.json.license",
+        "observability/grafana/dashboards/animama-fastapi.json",
+        "observability/grafana/dashboards/animama-http.json",
+        "observability/grafana/dashboards/animama-postgres.json",
+        "observability/grafana/dashboards/animama-postgres.json.license",
+        "observability/grafana/dashboards/animama-system.json",
+        "observability/grafana/dashboards/animama-webui.json",
+        "observability/grafana/dashboards/node-exporter.json",
+        "observability/grafana/dashboards/node-exporter.json.license",
+        "observability/grafana/provisioning/dashboards/dashboards.yml",
+        "observability/grafana/provisioning/datasources/datasources.yml",
+        "observability/loki.yaml",
+        "observability/otel-collector-config.yaml",
+        "observability/prometheus.yml",
+        "observability/tempo.yaml",
+        "scripts/normalize_included_action_layout.py",
+        "scripts/populate_archive_embeddings.py",
+        "src/backend/animama/prompts/template_profiles.py",
+        "src/backend/animama/prompts/templates/character/korone.json",
+        "src/backend/animama/prompts/templates/character/marine.json",
+        "src/backend/animama/prompts/templates/character_system.jinja",
+        "src/backend/animama/prompts/templates/streamer/luna.json",
+        "src/backend/animama/prompts/templates/streamer_system.jinja",
+        "src/frontend/scripts/assets/original-effects/emote.svg",
+        "src/frontend/scripts/assets/original-effects/texture_black_1.svg",
+        "src/frontend/scripts/assets/original-effects/texture_sick_1.svg",
+        "src/frontend/scripts/assets/original-effects/texture_sick_2.svg",
+        "src/frontend/scripts/assets/original-effects/texture_sick_3.svg",
+        "src/frontend/scripts/render-original-effects.mjs",
+        "src/frontend/scripts/verify-web-public-assets.mjs"
+      ],
+      "changed_bindings": []
     }
   ]
 }

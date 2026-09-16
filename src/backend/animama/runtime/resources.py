@@ -53,7 +53,6 @@ def audit_resources() -> dict[str, Any]:
     from animama.app.services.starter_loadout_policy import starter_loadout_policy
     from animama.domain.vfx import load_avatar_vfx_catalog
     from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory
-    from animama.prompts.template_profiles import render_template_profile
     from animama.server.app import app
 
     for name in RESOURCE_INPUTS:
@@ -76,9 +75,6 @@ def audit_resources() -> dict[str, Any]:
     effects = load_avatar_vfx_catalog()
     if not policy["gestures"] or not policy["reactions"] or not gestures or not effects:
         raise ValueError("Packaged starter or animation/effect resources are empty")
-    for profile in ("luna", "marine", "korone"):
-        if not render_template_profile(profile):
-            raise ValueError(f"Packaged prompt profile is missing: {profile}")
     if "/v1/animas/{anima_id}/chat:sse" not in {getattr(route, "path", "") for route in app.routes}:
         raise ValueError("Frozen FastAPI application is missing its chat route")
     return {

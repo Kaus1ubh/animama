@@ -13,7 +13,7 @@ from alembic.script import ScriptDirectory
 from animama.runtime import cli, resources
 
 
-def test_runtime_resource_audit_has_schema_starters_and_prompt_resources() -> None:
+def test_runtime_resource_audit_has_schema_and_starter_resources() -> None:
     evidence = resources.audit_resources()
     assert evidence["migration_count"] == 1
     assert evidence["sql_count"] == 2

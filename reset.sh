@@ -79,6 +79,9 @@ append_profile_list() {
     if [[ ! "$trimmed" =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*$ ]]; then
       die "Invalid Compose profile: $trimmed"
     fi
+    if [ "$trimmed" = "obs" ]; then
+      die "The obs profile has been retired. Remove obs from --profile, COMPOSE_PROFILES and .env; existing observability volumes are preserved."
+    fi
     REQUESTED_PROFILES+=("$trimmed")
   done
 }
@@ -476,7 +479,7 @@ compose --profile "*" down --remove-orphans
 # so every filesystem target is derived from the selected validated stack.
 if [ "$PURGE_REQUESTED" = true ]; then
   volume_project="${PROJECT_NAME:-$(sanitize_name "$script_name")}"
-  DATA_VOLUMES=(postgres-data pgadmin-data grafana-data loki-data tempo-data minio-data)
+  DATA_VOLUMES=(postgres-data pgadmin-data)
   VOLUME_NAMES=()
   for volume in "${DATA_VOLUMES[@]}"; do
     VOLUME_NAMES+=("${volume_project}_${volume}")
@@ -630,8 +633,3 @@ if [ "$DEV_TOOLS_ENABLED" = true ]; then
   echo "pgAdmin (local development only): ${PGADMIN_URL}"
   echo "Dozzle (local development only): ${DOZZLE_URL}"
 fi
-
-# Step 8: Populate sample archive embeddings
-# echo "📚 Populating sample archive embeddings..."
-# uv run python scripts/populate_archive_embeddings.py sample-archive
-# echo "✅ Archive hydration complete!"

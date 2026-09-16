@@ -42,20 +42,6 @@ services:
       postgres:
         condition: service_healthy
 
-  postgres-exporter:
-    profiles:
-      - obs
-    image: prometheuscommunity/postgres-exporter:latest
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}postgres-exporter"
-    restart: unless-stopped
-    environment:
-      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-animama}:${POSTGRES_PASSWORD:-a}@postgres:5432/${POSTGRES_DB:-animama}?sslmode=disable
-    networks:
-      - animama-network
-    depends_on:
-      postgres:
-        condition: service_healthy
-
   animama-server:
     build:
       context: .
@@ -100,23 +86,8 @@ services:
       ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS: ${ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS:-true}
       ANIMAMA_MODEL_CLIENT_LOG_PREVIEW_CHARS: ${ANIMAMA_MODEL_CLIENT_LOG_PREVIEW_CHARS:-240}
       ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS: ${ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS:-10000}
-      OTEL_SERVICE_NAME: animama-server
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
-      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
-      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
-      OTEL_EXPORTER_OTLP_INSECURE: "true"
-      OTEL_TRACES_EXPORTER: otlp
-      OTEL_METRICS_EXPORTER: otlp
-      OTEL_LOGS_EXPORTER: none
-      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local
-      ANIMAMA_OTEL_LOG_CORRELATION: "1"
+      # Local logging remains available; no bundled collector is required.
       OTEL_SDK_DISABLED: "true"
-      ANIMAMA_OTEL_HTTP_METRICS_EXCLUDE: /health,/docs,/openapi.json
-      ANIMAMA_OTEL_HTTP_METRICS: "1"
-      ANIMAMA_OTEL_WS_METRICS: "1"
-      ANIMAMA_OTEL_PROCESS_METRICS: "1"
-      ANIMAMA_OTEL_SYSTEM_METRICS: "1"
       ANIMAMA_PUBLIC_ORIGIN: ${ANIMAMA_PUBLIC_ORIGIN:-http://localhost:8000}
       ANIMAMA_WEB_ROOT: /opt/animama/web
       ANIMAMA_DISABLE_WEBUI_TELEMETRY: ${ANIMAMA_DISABLE_WEBUI_TELEMETRY:-true}
@@ -170,8 +141,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      # otel-collector:
-        # condition: service_started
         # parakeet:
         #   condition: service_started
         # kokoro:
@@ -260,237 +229,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - animama-network
-
-  # Observability stack (OTel Collector + Prometheus + Grafana)
-  otel-collector:
-    profiles:
-      - obs
-    image: otel/opentelemetry-collector-contrib:latest
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}otel-collector"
-    restart: unless-stopped
-    command: [ "--config=/etc/otelcol/config.yaml" ]
-    expose:
-      - "4317" # OTLP gRPC
-      - "4318" # OTLP HTTP
-      - "8889" # Prometheus exporter
-      - "13133" # Health check
-    volumes:
-      - ./observability/otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
-      - ./.animama-logs:/var/log/animama:ro
-    networks:
-      - animama-network
-    depends_on:
-      # tempo:
-        # condition: service_started
-      loki-health:
-        condition: service_healthy
-
-  cadvisor:
-    profiles:
-      - obs
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}cadvisor"
-    restart: unless-stopped
-    command: ["--docker=unix:///var/run/docker.sock", "--whitelisted_container_labels=com.docker.compose.service", "--store_container_labels=false"]
-    privileged: true
-    pid: host
-    volumes:
-      - /:/rootfs:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /sys:/sys:ro
-      - /sys/fs/cgroup:/sys/fs/cgroup:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-      - /run/containerd/containerd.sock:/var/run/containerd/containerd.sock:ro
-    networks:
-      - animama-network
-
-  node-exporter:
-    profiles:
-      - obs
-    image: prom/node-exporter:latest
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}node-exporter"
-    restart: unless-stopped
-    command:
-      - "--path.rootfs=/host"
-      - "--path.procfs=/host/proc"
-      - "--path.sysfs=/host/sys"
-      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
-    volumes:
-      - /:/host:ro,rslave
-    networks:
-      - animama-network
-
-  prometheus:
-    profiles:
-      - obs
-    image: prom/prometheus:latest
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}prometheus"
-    restart: unless-stopped
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--enable-feature=exemplar-storage"
-      - "--web.enable-remote-write-receiver"
-    expose:
-      - "9090"
-    volumes:
-      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    networks:
-      - animama-network
-    depends_on:
-      otel-collector:
-        condition: service_started
-
-  grafana:
-    profiles:
-      - obs
-    image: grafana/grafana:latest
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}grafana"
-    restart: unless-stopped
-    environment:
-      # GF_AUTH_ANONYMOUS_ENABLED: "true"
-      # GF_AUTH_DISABLE_LOGIN_FORM: "true"
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-    expose:
-      - "3000"
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
-    networks:
-      - animama-network
-    depends_on:
-      prometheus:
-        condition: service_started
-      loki:
-        condition: service_started
-
-  minio:
-    profiles:
-      - obs
-    image: minio/minio:latest
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}minio"
-    restart: unless-stopped
-    environment:
-      - MINIO_ROOT_USER=tempo
-      - MINIO_ROOT_PASSWORD=supersecret
-    expose:
-      - "9000"
-      - "9011"
-    entrypoint:
-      - sh
-      - -euc
-      - mkdir -p /data/tempo && minio server /data --console-address ':9011'
-    volumes:
-      - minio-data:/data
-    networks:
-      - animama-network
-
-  redpanda:
-    profiles:
-      - obs
-    image: redpandadata/redpanda:latest
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}redpanda"
-    restart: unless-stopped
-    expose:
-      - "9092" # Kafka API
-    command: >
-      redpanda start --overprovisioned
-      --mode=dev-container
-      --kafka-addr=PLAINTEXT://0.0.0.0:9092
-      --advertise-kafka-addr=PLAINTEXT://redpanda:9092
-    networks:
-      - animama-network
-
-  tempo-init:
-    profiles:
-      - obs
-    image: alpine:3.20
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}tempo-init"
-    restart: "no"
-    command: ["/bin/sh", "-c", "chown -R 10001:10001 /var/tempo"]
-    volumes:
-      - tempo-data:/var/tempo
-    networks:
-      - animama-network
-
-  tempo:
-    profiles:
-      - obs
-    image: grafana/tempo:latest
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}tempo"
-    restart: unless-stopped
-    command: ["-target=all", "-config.file=/etc/tempo/tempo.yaml" ]
-    expose:
-      - "3200" # Tempo query API
-      - "4317" # OTLP gRPC
-      - "4318" # OTLP HTTP
-      - "7946" # Memberlist
-    volumes:
-      - ./observability/tempo.yaml:/etc/tempo/tempo.yaml:ro
-      - tempo-data:/var/tempo
-    networks:
-      - animama-network
-    depends_on:
-      tempo-init:
-        condition: service_completed_successfully
-      minio:
-        condition: service_started
-      redpanda:
-        condition: service_started
-
-# alternatively, to initialize loki permissions
-# docker run --rm -v animama_loki-data:/var/loki alpine sh -c "chown -R 10001:10001 /var/loki" docker compose up -d loki`
-  loki-init:
-    profiles:
-      - obs
-    image: alpine:3.20
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}loki-init"
-    restart: "no"
-    command: ["/bin/sh", "-c", "chown -R 10001:10001 /var/loki"]
-    volumes:
-      - loki-data:/var/loki
-    networks:
-      - animama-network
-
-  loki:
-    profiles:
-      - obs
-    image: grafana/loki:latest
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}loki"
-    restart: unless-stopped
-    command: [ "-config.file=/etc/loki/loki.yaml" ]
-    expose:
-      - "3100"
-    volumes:
-      - ./observability/loki.yaml:/etc/loki/loki.yaml:ro
-      - loki-data:/var/loki
-    networks:
-      - animama-network
-    depends_on:
-      loki-init:
-        condition: service_completed_successfully
-
-  loki-health:
-    profiles:
-      - obs
-    image: alpine:3.20
-    container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}loki-health"
-    restart: unless-stopped
-    command: ["sleep", "infinity"]
-    networks:
-      - animama-network
-    depends_on:
-      loki:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://loki:3100/ready"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 5s
 
   # llama-build:
   #   image: llama-cpp:latest
@@ -668,10 +406,6 @@ volumes:
   postgres-data:
   pgadmin-data:
   docling-cache:
-  grafana-data:
-  minio-data:
-  tempo-data:
-  loki-data:
   ccache_data:
     driver: local
   build_artifacts:

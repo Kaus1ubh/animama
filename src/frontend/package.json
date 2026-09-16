@@ -60,8 +60,7 @@
     "packages:test": "pnpm -r --filter './packages/*' --if-present run test",
     "packages:pack": "node scripts/pack-public-packages.mjs",
     "local:smoke:accountless": "node --experimental-strip-types scripts/smoke-accountless-http.ts",
-    "local:verify:accountless": "node --experimental-strip-types scripts/verify-accountless-journey.ts",
-    "generate:original-effects": "node scripts/render-original-effects.mjs"
+    "local:verify:accountless": "node --experimental-strip-types scripts/verify-accountless-journey.ts"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.90.3",

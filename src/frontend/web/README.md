@@ -44,11 +44,11 @@ git lfs pull --include="src/frontend/web/public/**"
 ```
 
 If these files are still pointers, avatar animations, VFX, speech models,
-sounds, and images will fail at runtime. To check them explicitly, run
-`node ../scripts/verify-web-public-assets.mjs` from `src/frontend/web` or
-`node scripts/verify-web-public-assets.mjs` from `src/frontend`. `pnpm dev`,
-`pnpm build`, and the Docker Compose web commands do not run this check
-automatically.
+sounds, and images will fail at runtime. Hydrate the required LFS inputs before
+building. The repository classification/provenance audit checks tracked asset
+payloads; desktop staging separately verifies its exact runtime inventory. See
+[repository boundary checks](../../../scripts/repository-boundary/README.md) and
+[runtime staging](../../../docs/frontend/desktop/runtime-staging.md).
 
 ### Parakeet ONNX assets and build cost
 
@@ -71,8 +71,6 @@ This should not materially slow normal Vite dev transforms: the model files are
 not imported into the app bundle and are fetched only when Parakeet dictation is
 used. The main costs are:
 
-- `node ../scripts/verify-web-public-assets.mjs`, when run manually, walks
-  `public` to catch missing Git LFS files.
 - `pnpm build` copies `public` into `dist`, including large ONNX files.
 - Container builds need a writable `dist` that is not owned by root or
   `nobody`.

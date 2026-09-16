@@ -63,7 +63,7 @@ def test_rendered_compose_enforces_the_local_publication_boundary() -> None:
     validate_local_compose_document(_rendered_compose())
 
 
-@pytest.mark.parametrize("profiles", [(), ("dev-tools",), ("obs",), ("*",)])
+@pytest.mark.parametrize("profiles", [(), ("dev-tools",), ("voice",), ("*",)])
 def test_development_override_publishes_only_vite_and_keeps_fastapi_private(profiles: tuple[str, ...]) -> None:
     document = _rendered_compose(profiles, development=True)
     validate_local_compose_document(document)
@@ -115,7 +115,7 @@ def test_rendered_boundary_rejects_a_broad_application_mapping() -> None:
         validate_local_compose_document(document)
 
 
-@pytest.mark.parametrize("profiles", [(), ("dev-tools",), ("obs",), ("obs", "dev-tools"), ("*",)])
+@pytest.mark.parametrize("profiles", [(), ("dev-tools",), ("voice",), ("voice", "dev-tools"), ("*",)])
 def test_tools_are_explicit_loopback_publications(profiles: tuple[str, ...]) -> None:
     document = _rendered_compose(profiles)
     validate_local_compose_document(document)
@@ -181,7 +181,7 @@ def test_duplicate_host_ports_fail() -> None:
         validate_local_compose_document(document)
 
 
-@pytest.mark.parametrize("service", ["postgres", "parakeet", "otel-collector", "grafana"])
+@pytest.mark.parametrize("service", ["postgres", "parakeet"])
 def test_other_infrastructure_cannot_be_published(service: str) -> None:
     document = deepcopy(_rendered_compose())
     document["services"][service]["ports"] = deepcopy(document["services"]["dozzle"]["ports"])
@@ -415,13 +415,15 @@ def test_reset_preserves_dotenv_profiles_and_custom_ports(tmp_path: Path) -> Non
     result, commands, workspace = _run_reset(
         tmp_path,
         ["--profile", "dev-tools"],
-        {"ANIMAMA_TEST_DOTENV_PROFILES": "obs", "PGADMIN_PORT": "15050", "DOZZLE_PORT": "19999"},
+        {"ANIMAMA_TEST_DOTENV_PROFILES": "voice", "PGADMIN_PORT": "15050", "DOZZLE_PORT": "19999"},
     )
     assert result.returncode == 0, result.stderr
     assert "http://localhost:15050" in result.stdout
     assert "http://localhost:19999" in result.stdout
-    assert "export COMPOSE_PROFILES=dev-tools\\,obs" in (workspace / ".animama-stack.env").read_text()
-    assert all(command["profiles"] == "dev-tools,obs" for command in commands if "--environment" not in command["args"])
+    assert "export COMPOSE_PROFILES=dev-tools\\,voice" in (workspace / ".animama-stack.env").read_text()
+    assert all(
+        command["profiles"] == "dev-tools,voice" for command in commands if "--environment" not in command["args"]
+    )
 
 
 @pytest.mark.parametrize("mode", ["development", "production"])
@@ -536,3 +538,29 @@ def test_web_launcher_never_serves_a_production_preview_or_invalid_mode(tmp_path
     assert result.returncode == 2
     assert "requires ANIMAMA_WEB_BUILD_MODE=development" in result.stderr
     assert commands == []
+
+
+@pytest.mark.parametrize("selection", ["cli", "environment", "dotenv"])
+def test_retired_obs_profile_fails_before_stack_changes(tmp_path: Path, selection: str) -> None:
+    args = ["--profile", "obs"] if selection == "cli" else []
+    variables = {"COMPOSE_PROFILES": "dev-tools,obs"} if selection == "environment" else {}
+    if selection == "dotenv":
+        variables["ANIMAMA_TEST_DOTENV_PROFILES"] = "obs"
+    result, commands, workspace = _run_reset(tmp_path, args, variables)
+    assert result.returncode == 2
+    assert "obs profile has been retired" in result.stderr
+    assert all("--environment" in command["args"] for command in commands)
+    assert not (workspace / ".animama-stack.env").exists()
+
+
+def test_retired_observability_has_no_active_compose_wiring() -> None:
+    document = _compose()
+    assert not any("obs" in service.get("profiles", []) for service in document["services"].values())
+    assert not {"grafana-data", "minio-data", "tempo-data", "loki-data"}.intersection(document["volumes"])
+
+
+def test_explicit_purge_leaves_retired_observability_volumes_untouched(tmp_path: Path) -> None:
+    result, commands, _ = _run_reset(tmp_path, ["--name", "retired-obs", "--purge"])
+    assert result.returncode == 0, result.stderr
+    removals = [command["args"] for command in commands if command["args"][:2] == ["volume", "rm"]]
+    assert removals == [["volume", "rm", "animama-retired-obs_postgres-data", "animama-retired-obs_pgadmin-data"]]

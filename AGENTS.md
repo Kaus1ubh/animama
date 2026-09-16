@@ -26,7 +26,7 @@ chat history persisted in `chats` and `chat_messages`.
   Electron desktop shell, generated API client, and public
   runtime assets.
 - `docker-compose.yml`: local service graph for Postgres, pgAdmin, backend,
-  web development override, and optional `voice`, `memory`, `obs`, and `dev-tools` profiles.
+  web development override, and optional `voice`, `memory`, and `dev-tools` profiles.
 - `reset.sh`: preferred local stack reset/start script. You have my approval to run this script as needed to restart the local docker containers if needed. Generally, the local dev environment will already be accessible.
 - `tests`: backend and integration tests. Frontend manual testing is currently
   important for audio, avatar animation, voice, and desktop behavior.
