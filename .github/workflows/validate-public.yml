@@ -37,14 +37,20 @@ jobs:
         with:
           version: "0.11.28"
       - run: uv sync --frozen --python 3.12.13 --extra server
+      - name: Install backend verification prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ripgrep
       - name: Run the complete offline backend verification contract
         env:
           PYTEST_ADDOPTS: --junitxml=${{ runner.temp }}/backend-pytest.xml
         # Docker-backed fixtures must fail when Docker or required content is
         # missing. This never substitutes a reduced suite or paid provider run.
         run: |
-          command -v rg
-          make check-test 2>&1 | tee "$RUNNER_TEMP/backend-checks.log"
+          {
+            command -v rg
+            make check-test
+          } 2>&1 | tee "$RUNNER_TEMP/backend-checks.log"
       - name: Retain backend success or failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

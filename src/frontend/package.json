@@ -13,7 +13,7 @@
     "generate:particle-vfx-assets": "node scripts/generate-particle-vfx-assets.mjs",
     "typed-content:audit": "bash ../../scripts/audit-typed-content.sh",
     "e2e:list": "node scripts/run-playwright-e2e.mjs --list",
-    "e2e:check": "tsc -p tsconfig.e2e.json",
+    "e2e:check": "pnpm --filter @animama/runtime-contracts build && tsc -p tsconfig.e2e.json",
     "e2e:test:unit": "node --experimental-strip-types --test e2e/helpers/*.test.ts",
     "e2e:test": "node scripts/run-playwright-e2e.mjs",
     "e2e:test:headed": "node scripts/run-playwright-e2e.mjs --headed",
