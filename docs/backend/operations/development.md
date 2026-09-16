@@ -77,6 +77,11 @@ to development Vite. No gateway credential is required.
 Compose publishes that application port on loopback; development keeps it
 private and publishes Vite. All supported launchers use the reviewed bounded
 HTTP/WebSocket transport described in [Local HTTP components](local-http-components.md).
+The development Compose override sets `ANIMAMA_BACKEND_RELOAD=1`, so Uvicorn
+restarts the backend when mounted Python files change. Existing polling support
+detects edits across Docker bind mounts. Built production Compose leaves reload
+disabled. Recreate the development backend once to apply this setting; subsequent
+Python edits require no container restart.
 
 ## Database
 

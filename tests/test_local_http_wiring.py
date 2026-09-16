@@ -101,7 +101,7 @@ async def test_desktop_telemetry_ignores_inherited_collector_configuration(monke
     await forwarder.aclose()
 
 
-@pytest.mark.parametrize("entrypoint", ["native", "compose", "frozen"])
+@pytest.mark.parametrize("entrypoint", ["native", "compose", "compose-development", "frozen"])
 def test_all_launchers_select_the_reviewed_transport(
     entrypoint: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -113,7 +113,11 @@ def test_all_launchers_select_the_reviewed_transport(
         monkeypatch.delenv("ANIMAMA_LOCAL_API_PORT", raising=False)
         monkeypatch.setattr(native_entrypoint, "Settings", lambda: Settings(animama_local_bind_host="127.0.0.1"))
         native_entrypoint.main()
-    elif entrypoint == "compose":
+    elif entrypoint in {"compose", "compose-development"}:
+        if entrypoint == "compose-development":
+            monkeypatch.setenv("ANIMAMA_BACKEND_RELOAD", "1")
+        else:
+            monkeypatch.delenv("ANIMAMA_BACKEND_RELOAD", raising=False)
         compose_entrypoint.main()
     else:
         monkeypatch.setenv("ANIMAMA_PUBLIC_ORIGIN", "http://127.0.0.1:3000")
@@ -124,7 +128,8 @@ def test_all_launchers_select_the_reviewed_transport(
         assert cli.main(["serve", "--port", "3000"]) == 0
     assert len(calls) == 1
     _, options = calls[0]
-    assert options["host"] == ("0.0.0.0" if entrypoint == "compose" else "127.0.0.1")
+    assert options["host"] == ("0.0.0.0" if entrypoint.startswith("compose") else "127.0.0.1")
+    assert options["reload"] is (entrypoint in {"native", "compose-development"})
     assert options["port"] == (3000 if entrypoint == "frozen" else 8000)
     assert options["http"] is LocalH11Protocol
     assert options["ws"] == "websockets"

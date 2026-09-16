@@ -71,6 +71,7 @@ def test_development_override_publishes_only_vite_and_keeps_fastapi_private(prof
     assert not services["animama-server"].get("ports")
     assert services["animama-server"]["build"]["target"] == "animama-server-development"
     assert services["animama-server"]["environment"]["ANIMAMA_WEB_ROOT"] == ""
+    assert services["animama-server"]["environment"]["ANIMAMA_BACKEND_RELOAD"] == "1"
     expected = {"web"}
     if "dev-tools" in profiles or "*" in profiles:
         expected |= {"pgadmin", "dozzle"}
@@ -83,6 +84,7 @@ def test_production_graph_serves_built_assets_without_source_mount_or_node_servi
     api = services["animama-server"]
     assert api["build"]["target"] == "animama-server"
     assert api["environment"]["ANIMAMA_WEB_ROOT"] == "/opt/animama/web"
+    assert "ANIMAMA_BACKEND_RELOAD" not in api["environment"]
     assert not any(volume["target"] == "/app" for volume in api["volumes"])
 
 

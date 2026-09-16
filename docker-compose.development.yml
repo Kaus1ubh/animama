@@ -7,6 +7,7 @@ services:
     ports: !reset []
     environment:
       ANIMAMA_WEB_ROOT: ""
+      ANIMAMA_BACKEND_RELOAD: "1"
     volumes:
       - .:/app
 
