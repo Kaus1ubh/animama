@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import fields
-from typing import Any
+from typing import Any, cast
 
-from animama.app.model_clients import MCEventBase, ModelClientDelta, model_client_event_delta
+from animama.app.model_clients import MCEvent, ModelClientDelta, model_client_event_delta
 from animama.domain.usage import Usage
 
 OPENAI_HTTP_PROVIDER_TYPE = "OpenAIHTTPAgent"
@@ -13,7 +14,7 @@ DEFAULT_BASE_URL = "https://api.openai.com/v1"
 
 def chat_stream_event_delta(
     *,
-    event_cls: type[MCEventBase],
+    event_cls: type[MCEvent],
     provider_type: str,
     model: str,
     provider_event_type: str,
@@ -45,8 +46,11 @@ def chat_stream_event_delta(
         "details": details or {},
     }
     init_fields = {event_field.name for event_field in fields(event_cls) if event_field.init}
+    # Dataclass field filtering supplies exactly the selected event constructor
+    # fields; the callable cast is confined to this reflective construction.
+    constructor = cast(Callable[..., MCEvent], event_cls)
     return model_client_event_delta(
-        event_cls(**{key: value for key, value in event_kwargs.items() if key in init_fields})
+        constructor(**{key: value for key, value in event_kwargs.items() if key in init_fields})
     )
 
 

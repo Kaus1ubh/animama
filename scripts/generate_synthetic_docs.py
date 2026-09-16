@@ -12,7 +12,7 @@ import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeVar, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = ROOT / "artifacts" / "synthetic-user-files"
@@ -20,6 +20,8 @@ DOC_ROOTS = (Path("docs/backend"), Path("docs/frontend"))
 
 OutputFormat = Literal["md", "pdf", "docx"]
 SizePreset = Literal["xxsmall", "xsmall", "small", "large", "full"]
+
+Choice = TypeVar("Choice", bound=str)
 
 OUTPUT_FORMATS: tuple[OutputFormat, ...] = ("md", "pdf", "docx")
 SIZE_PRESETS: tuple[SizePreset, ...] = ("xxsmall", "xsmall", "small", "large", "full")
@@ -217,7 +219,7 @@ def render_docx(document: SyntheticDocument, destination: Path) -> None:
                 output.add_paragraph(clean_line, style="Animama Code")
             else:
                 output.add_paragraph(clean_line)
-    output.save(destination)
+    output.save(str(destination))
 
 
 def render_pdf(document: SyntheticDocument, destination: Path) -> None:
@@ -225,6 +227,7 @@ def render_pdf(document: SyntheticDocument, destination: Path) -> None:
 
     try:
         import reportlab
+        from reportlab.lib.colors import HexColor
         from reportlab.lib.pagesizes import LETTER
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import inch
@@ -261,9 +264,7 @@ def render_pdf(document: SyntheticDocument, destination: Path) -> None:
             selected_font_name = font_name
             break
     if selected_font is None or selected_font_name is None:
-        raise SyntheticDocsError(
-            "No installed PDF font covers every character in the selected documentation corpus"
-        )
+        raise SyntheticDocsError("No installed PDF font covers every character in the selected documentation corpus")
     if selected_font_name not in pdfmetrics.getRegisteredFontNames():
         pdfmetrics.registerFont(selected_font)
 
@@ -284,7 +285,7 @@ def render_pdf(document: SyntheticDocument, destination: Path) -> None:
         leading=9.5,
         leftIndent=10,
         rightIndent=4,
-        backColor="#f3f4f6",
+        backColor=HexColor("#f3f4f6"),
     )
     title_style = ParagraphStyle(
         "AnimamaTitle",
@@ -396,11 +397,11 @@ def output_path(*, output_dir: Path, preset: SizePreset, output_format: OutputFo
 
 def prompt_for_choice(
     label: str,
-    choices: Sequence[str],
+    choices: Sequence[Choice],
     *,
     input_func: Callable[[str], str] = input,
     output: Callable[[str], None] = print,
-) -> str:
+) -> Choice:
     """Prompt until the user selects a numbered or named choice."""
 
     output(f"Choose {label}:")
@@ -412,7 +413,7 @@ def prompt_for_choice(
         except EOFError as exc:
             raise SyntheticDocsError(f"No {label} was provided") from exc
         if answer in choices:
-            return answer
+            return choices[choices.index(answer)]
         if answer.isdigit() and 1 <= int(answer) <= len(choices):
             return choices[int(answer) - 1]
         output(f"Invalid {label}. Choose 1-{len(choices)} or one of: {', '.join(choices)}.")
@@ -442,8 +443,17 @@ def main(
     """Run the interactive or flag-driven artifact generator."""
 
     args = _parser().parse_args(argv)
-    output_format = args.output_format or prompt_for_choice("file type", OUTPUT_FORMATS, input_func=input_func)
-    preset = args.preset or prompt_for_choice("documentation size", SIZE_PRESETS, input_func=input_func)
+    # argparse choices and the generic prompt both constrain these literal values.
+    output_format = (
+        cast(OutputFormat, args.output_format)
+        if args.output_format
+        else prompt_for_choice("file type", OUTPUT_FORMATS, input_func=input_func)
+    )
+    preset = (
+        cast(SizePreset, args.preset)
+        if args.preset
+        else prompt_for_choice("documentation size", SIZE_PRESETS, input_func=input_func)
+    )
     document = load_synthetic_document(preset, root)
     destination = output_path(
         output_dir=args.output_dir.expanduser().resolve(),

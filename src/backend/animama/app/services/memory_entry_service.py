@@ -575,7 +575,7 @@ class MemoryEntryService:
         user_id: str,
         anima_id: str | None = None,
         path: str,
-        content: str,
+        content: str | None,
         kind: str | None = None,
         description: str | None = None,
         metadata: dict[str, Any] | None = None,
@@ -1338,6 +1338,7 @@ class MemoryEntryService:
 
     async def _with_aggregate_revision(self, entry: MemoryEntry) -> MemoryEntry:
         if is_anima_identity(entry) and self._animas is not None:
+            assert entry.anima_id is not None
             anima = await self._animas.get(entry.anima_id)
             if anima is not None:
                 entry.aggregate_revision = anima.aggregate_revision

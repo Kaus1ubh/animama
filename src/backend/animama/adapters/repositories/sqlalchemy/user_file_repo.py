@@ -50,6 +50,8 @@ class SQLAlchemyUserFileRepository(UserFileRepository):
         obj.stored_size_bytes = user_file.stored_size_bytes
         obj.sha256 = user_file.sha256
         obj.status = user_file.status
+        if user_file.upload_expires_at is None:
+            raise ValueError("User file upload expiry is required")
         obj.upload_expires_at = user_file.upload_expires_at
         obj.processed_at = user_file.processed_at
         obj.last_error = user_file.last_error

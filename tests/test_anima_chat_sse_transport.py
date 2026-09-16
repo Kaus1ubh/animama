@@ -23,6 +23,7 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 import uvicorn
+from anyio import fail_after
 from fastapi import FastAPI
 
 from animama.app.chat.memory_context import DirectChatMemoryContext
@@ -121,7 +122,7 @@ class _LiveChat:
         return {"message": "Hello", "run_id": run_id, "chat_id": "chat-fixture", "runtime_revision": "tr1-fixture"}
 
     async def assert_idle(self) -> None:
-        async with asyncio.timeout(2):
+        with fail_after(2):
             while self.lifecycle.active_requests:
                 await asyncio.sleep(0.005)
         assert self.sessions and all(session.close_calls == 1 for session in self.sessions)
@@ -237,7 +238,7 @@ async def _serve(monkeypatch: pytest.MonkeyPatch, turns: list[_ProviderTurn]) ->
         )
         task = asyncio.create_task(server.serve(sockets=[listener]))
         try:
-            async with asyncio.timeout(3):
+            with fail_after(3):
                 while not server.started:
                     if task.done():
                         await task
@@ -274,7 +275,9 @@ async def _frames(response: httpx.Response) -> AsyncIterator[tuple[str, dict[str
     assert not data, "The route left a truncated SSE frame"
 
 
-async def _first_text(frames: AsyncIterator, turn: _ProviderTurn, live: _LiveChat) -> tuple[str, dict]:
+async def _first_text(
+    frames: AsyncIterator[tuple[str, dict[str, Any]]], turn: _ProviderTurn, live: _LiveChat
+) -> tuple[str, dict[str, Any]]:
     first = await asyncio.wait_for(anext(frames), 2)
     assert first[0] == "user.response"
     assert first[1]["text"] == "First sentence."
@@ -302,7 +305,7 @@ async def test_product_chat_streams_before_provider_completion_and_has_one_termi
                 frames = _frames(response)
                 first = await _first_text(frames, turn, live)
                 turn.release.set()
-                async with asyncio.timeout(3):
+                with fail_after(3):
                     observed = [first, *[frame async for frame in frames]]
             await live.assert_idle()
         names = [name for name, _ in observed]

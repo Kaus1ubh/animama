@@ -4,6 +4,11 @@ import logging
 import os
 import time
 from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from opentelemetry.sdk.metrics.export import MetricExporter
+    from opentelemetry.sdk.trace.export import SpanExporter
 
 from fastapi import FastAPI, Request
 
@@ -109,7 +114,7 @@ def _ws_metrics_excluded(path: str) -> bool:
     return path in excludes
 
 
-def _route_for_scope(scope: dict, fallback: str) -> str:
+def _route_for_scope(scope: dict[str, Any], fallback: str) -> str:
     route = scope.get("route")
     route_path = getattr(route, "path", None)
     return route_path or fallback
@@ -149,7 +154,7 @@ def _setup_http_metrics(app: FastAPI) -> None:
         return
 
     @app.middleware("http")
-    async def _otel_http_metrics(request: Request, call_next):  # type: ignore[no-untyped-def]
+    async def _otel_http_metrics(request: Request, call_next):
         raw_path = request.url.path
         if _http_metrics_excluded(raw_path):
             return await call_next(request)
@@ -171,7 +176,7 @@ def _setup_http_metrics(app: FastAPI) -> None:
         finally:
             duration_ms = (time.perf_counter() - start) * 1000.0
             route = _route_for_request(request, raw_path)
-            attrs = {
+            attrs: dict[str, str | int] = {
                 "http.method": request.method,
                 "http.route": route,
                 "http.status_code": status_code,
@@ -192,7 +197,7 @@ class WebSocketMetricsMiddleware:
     def __init__(self, app):
         self.app = app
 
-    async def __call__(self, scope, receive, send):  # type: ignore[no-untyped-def]
+    async def __call__(self, scope, receive, send):
         if scope.get("type") != "websocket":
             return await self.app(scope, receive, send)
 
@@ -209,13 +214,13 @@ class WebSocketMetricsMiddleware:
         close_code = None
         exc_raised = False
 
-        async def wrapped_receive():  # type: ignore[no-untyped-def]
+        async def wrapped_receive():
             message = await receive()
             if message.get("type") == "websocket.receive" and _ws_message_counter is not None:
                 _ws_message_counter.add(1, {"ws.route": route, "ws.direction": "in"})
             return message
 
-        async def wrapped_send(message):  # type: ignore[no-untyped-def]
+        async def wrapped_send(message):
             nonlocal close_code
             msg_type = message.get("type")
             if msg_type == "websocket.send" and _ws_message_counter is not None:
@@ -231,7 +236,7 @@ class WebSocketMetricsMiddleware:
             raise
         finally:
             duration_ms = (time.perf_counter() - start) * 1000.0
-            attrs = {"ws.route": route}
+            attrs: dict[str, str | int] = {"ws.route": route}
             if close_code is not None:
                 attrs["ws.close_code"] = close_code
             if _ws_connection_counter is not None:
@@ -368,25 +373,25 @@ def _instrument_process_metrics() -> None:
         proc.cpu_percent(interval=None)
         meter = metrics.get_meter("anima.process")
 
-        def cpu_callback(_):  # type: ignore[no-untyped-def]
+        def cpu_callback(_):
             try:
                 return [Observation(proc.cpu_percent(interval=None))]
             except Exception:
                 return []
 
-        def rss_callback(_):  # type: ignore[no-untyped-def]
+        def rss_callback(_):
             try:
                 return [Observation(proc.memory_info().rss)]
             except Exception:
                 return []
 
-        def vms_callback(_):  # type: ignore[no-untyped-def]
+        def vms_callback(_):
             try:
                 return [Observation(proc.memory_info().vms)]
             except Exception:
                 return []
 
-        def threads_callback(_):  # type: ignore[no-untyped-def]
+        def threads_callback(_):
             try:
                 return [Observation(proc.num_threads())]
             except Exception:
@@ -500,6 +505,7 @@ def setup_telemetry(app: FastAPI, *, service_name: str, service_version: str | N
             metrics_endpoint = _normalize_otlp_endpoint(metrics_endpoint, protocol, signal="metrics")
 
             if _exporter_enabled("OTEL_TRACES_EXPORTER", default=True):
+                span_exporter: SpanExporter
                 if protocol.startswith("http"):
                     from opentelemetry.exporter.otlp.proto.http.trace_exporter import (
                         OTLPSpanExporter as HttpOTLPSpanExporter,
@@ -515,6 +521,7 @@ def setup_telemetry(app: FastAPI, *, service_name: str, service_version: str | N
                 trace.set_tracer_provider(tracer_provider)
 
             if _exporter_enabled("OTEL_METRICS_EXPORTER", default=True):
+                metric_exporter: MetricExporter
                 if protocol.startswith("http"):
                     from opentelemetry.exporter.otlp.proto.http.metric_exporter import (
                         OTLPMetricExporter as HttpOTLPMetricExporter,

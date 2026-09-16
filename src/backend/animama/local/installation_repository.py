@@ -21,10 +21,10 @@ class SQLAlchemyInstallationSettingsRepository(InstallationSettingsRepository):
         result = await self._session.execute(
             select(ORMInstallationSettings.installation_principal_id).where(ORMInstallationSettings.id == 1)
         )
-        row = result.one_or_none()
+        row = result.scalars().one_or_none()
         if row is None:
             raise RuntimeError("installation_settings singleton row is missing; run Alembic migrations")
-        return row[0]
+        return row
 
     async def get_first_run_completed_at(self) -> datetime | None:
         row = await self._session.get(ORMInstallationSettings, 1)
@@ -47,9 +47,10 @@ class SQLAlchemyInstallationSettingsRepository(InstallationSettingsRepository):
             update(ORMInstallationSettings)
             .where(ORMInstallationSettings.id == 1, ORMInstallationSettings.first_run_completed_at.is_(None))
             .values(first_run_completed_at=completed_at)
+            .returning(ORMInstallationSettings.id)
         )
         await self._session.flush()
-        return bool(result.rowcount)
+        return result.scalar_one_or_none() is not None
 
 
 __all__ = ["SQLAlchemyInstallationSettingsRepository"]

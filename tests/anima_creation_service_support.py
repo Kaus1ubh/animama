@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field, replace
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI
@@ -32,13 +33,13 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMAvatar, ORMModelProvider
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
-from animama.server.config import Settings
+from animama.server.config import Settings, settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
 from animama.server.routers import anima, anima_creation, anima_loadouts, typed_content
 
 
-def glb(document: dict) -> bytes:
+def glb(document: dict[str, Any]) -> bytes:
     encoded = json.dumps(document, separators=(",", ":")).encode()
     encoded += b" " * (-len(encoded) % 4)
     return struct.pack("<4sII", b"glTF", 2, 20 + len(encoded)) + struct.pack("<II", len(encoded), 0x4E4F534A) + encoded
@@ -81,7 +82,7 @@ def write_file(path: Path, payload: bytes) -> None:
     path.write_bytes(payload)
 
 
-def write_json(path: Path, value: dict) -> None:
+def write_json(path: Path, value: dict[str, Any]) -> None:
     write_file(path, json.dumps(value).encode())
 
 
@@ -150,7 +151,9 @@ class AnimaCreationFixture:
         self, *, key: str = "creation-key", avatar: str = "local-avatar", actions: bool = False
     ) -> CreateAnimaRequest:
         roots = [self.items[avatar], self.items["idle"]]
-        reactions = {emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS}
+        reactions: dict[str, dict[str, dict[str, str] | None]] = {
+            emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS
+        }
         gestures = []
         if actions:
             roots.extend([self.items["gesture"], self.items["reaction"]])
@@ -176,7 +179,7 @@ class AnimaCreationFixture:
         )
 
     def app(self, session, monkeypatch) -> FastAPI:
-        monkeypatch.setattr(anima_creation.settings, "anima_default_model_provider_id", self.provider)
+        monkeypatch.setattr(settings, "anima_default_model_provider_id", self.provider)
         app = FastAPI()
         app.state.local_runtime_paths = self.paths
         app.include_router(anima_creation.router)
@@ -225,7 +228,7 @@ async def anima_creation_fixture(
     )
     write_file(paths.included_root / "idle-styles/starter/calm.vrma", vrma())
     for kind, name in (("gesture", "wave"), ("reaction", "joy-2")):
-        document = {
+        document: dict[str, Any] = {
             "schema_version": 1,
             "content_type": kind,
             "content_id": f"local:{kind}:{name}",
@@ -233,9 +236,10 @@ async def anima_creation_fixture(
             "implementation": {"kind": "vrma", "file_role": "animation"},
             "files": [{"path": "motion.vrma", "role": "animation"}],
         }
-        document.update(
-            {"semantic_key": name} if kind == "gesture" else {"placement_hint": {"emotion": "joy", "intensity": 2}}
-        )
+        if kind == "gesture":
+            document["semantic_key"] = name
+        else:
+            document["placement_hint"] = {"emotion": "joy", "intensity": 2}
         write_json(paths.local_root / f"{kind}s/{name}/{name}.meta.json", document)
         write_file(paths.local_root / f"{kind}s/{name}/motion.vrma", vrma())
     if full_starter:

@@ -73,7 +73,9 @@ async def test_built_factory_serves_assets_after_bootstrap_and_hides_private_rou
     application = create_local_app(
         runtime_settings=Settings(
             animama_public_origin="http://localhost:8000",
-            animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data", animama_web_root=web
+            animama_content_root=tmp_path / "content",
+            animama_data_root=tmp_path / "data",
+            animama_web_root=web,
         )
     )
     paths = {getattr(route, "path", "") for route in application.routes}

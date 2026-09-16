@@ -80,7 +80,7 @@ def _spec(
         model_provider=_provider(),
         prompt=DirectChatPrompt(
             messages=({"role": "user", "content": user_message},),
-            response_format={"type": "json_schema"},
+            response_format={"type": "json_schema", "json_schema": {"name": "fixture", "schema": {"type": "object"}}},
             metadata={
                 "anima_id": anima_id,
                 "user_id": user_id,
@@ -255,7 +255,7 @@ async def test_fake_stream_emits_deterministic_text_final_and_done_deltas() -> N
 
 def test_direct_chat_prompt_assembler_emits_system_history_then_current_message() -> None:
     assembler = DirectChatPromptAssembler()
-    history = [
+    history: list[ChatMessage | dict[str, object]] = [
         ChatMessage(
             id=1,
             chat_id="chat-1",
@@ -301,7 +301,9 @@ def test_direct_chat_prompt_assembler_emits_system_history_then_current_message(
         ("developer", "# List of memory files\n\nfiles: []"),
         ("user", "current"),
     ]
-    assert "# Anima Identity\n\nIdentity" in prompt.messages[0]["content"]
+    system_message = prompt.messages[0]["content"]
+    assert isinstance(system_message, str)
+    assert "# Anima Identity\n\nIdentity" in system_message
     assert dict(prompt.metadata) == {"chat_id": "chat-1"}
 
 
@@ -367,12 +369,14 @@ def test_direct_chat_prompt_assembler_lists_attached_upload_overviews_in_request
         supports_developer_role=False,
     )
     assert [message["role"] for message in folded_prompt.messages] == ["system", "user"]
-    assert "Do not default to reading `profile.md`" in folded_prompt.messages[0]["content"]
-    assert folded_prompt.messages[0]["content"].endswith('        title: "Milestones"')
-    assert 'filename: "first-notes.md"' in folded_prompt.messages[0]["content"]
-    assert "chunk_count: 12" in folded_prompt.messages[0]["content"]
-    assert 'description: "Project notes and milestones."' in folded_prompt.messages[0]["content"]
-    assert 'title: "Milestones"' in folded_prompt.messages[0]["content"]
+    folded_content = folded_prompt.messages[0]["content"]
+    assert isinstance(folded_content, str)
+    assert "Do not default to reading `profile.md`" in folded_content
+    assert folded_content.endswith('        title: "Milestones"')
+    assert 'filename: "first-notes.md"' in folded_content
+    assert "chunk_count: 12" in folded_content
+    assert 'description: "Project notes and milestones."' in folded_content
+    assert 'title: "Milestones"' in folded_content
 
 
 def test_direct_chat_prompt_assembler_bounds_attachment_context_deterministically() -> None:

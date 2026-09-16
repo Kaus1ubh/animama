@@ -4,7 +4,7 @@ import asyncio
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from typing import Any
 
@@ -299,8 +299,8 @@ def _retry_after_seconds(exc: APIStatusError) -> float | None:
     except (TypeError, ValueError):
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=UTC)
-    return max(0.0, (parsed - datetime.now(UTC)).total_seconds())
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return max(0.0, (parsed - datetime.now(timezone.utc)).total_seconds())
 
 
 def _merge_provider_error_fields(metadata: dict[str, Any], payload: Any) -> None:

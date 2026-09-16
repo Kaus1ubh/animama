@@ -127,6 +127,7 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
             avatar_ids.append(anima.avatar_id)
             assert anima.display_name == spec.display_name
             avatar = await service.uow.avatars.get(anima.avatar_id)
+            assert avatar is not None
             assert avatar.file_path.endswith(spec.avatar_locator)
             identity = await async_session.scalar(select(ORMMemoryEntry).where(ORMMemoryEntry.anima_id == anima_id))
             assert identity.content == spec.identity_markdown
@@ -136,14 +137,18 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
             assert len(loadout.gestures) == len(starter_loadout_policy()["gestures"])
             assert all(cell.source is not None for cell in loadout.reactions)
         # Launch uses the API's creation order, not names or recent updates.
-        listed = json.loads((await list_animas(session=async_session, user=RequestPrincipal(id=fixture.owner))).body)
+        listed = json.loads(
+            bytes((await list_animas(session=async_session, user=RequestPrincipal(id=fixture.owner))).body)
+        )
         assert [anima["id"] for anima in listed] == ids
         assert listed[0]["display_name"] == "Annie"
         await async_session.execute(
             update(ORMAnima).where(ORMAnima.id == ids[0]).values(display_name="My customized Annie")
         )
         await async_session.commit()
-        listed = json.loads((await list_animas(session=async_session, user=RequestPrincipal(id=fixture.owner))).body)
+        listed = json.loads(
+            bytes((await list_animas(session=async_session, user=RequestPrincipal(id=fixture.owner))).body)
+        )
         assert [anima["id"] for anima in listed] == ids
         await SQLAlchemyAnimaRepository(async_session).delete(ids[1])
         await async_session.commit()
@@ -300,7 +305,9 @@ async def test_explicit_legacy_repairs_are_owned_and_cannot_override_success(asy
         ]
         with pytest.raises(AnimaCreationError) as error:
             await service.ensure(user_id=fixture.owner, request=request)
-        assert error.value.detail["issues"][0]["code"] == "starter_repair_not_allowed"
+        issues = error.value.detail["issues"]
+        assert isinstance(issues, list)
+        assert issues[0]["code"] == "starter_repair_not_allowed"
         async with local_client(fixture.app(async_session, monkeypatch)) as client:
             response = await client.post("/v1/animas/starters:ensure", json=REQUEST.model_dump())
             assert response.status_code == 200, response.text

@@ -14,6 +14,8 @@ from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_gltf import validate_vrm_stream
 from animama.app.services.content_image import (
+    CanonicalAvatarPortrait,
+    CanonicalImage,
     canonicalize_avatar_portrait,
     canonicalize_image_stream,
     validate_appearance_image_stream,
@@ -216,7 +218,7 @@ class ContentSaveService:
                 # Validate and hash before reserving a destination or writing files.
                 await asyncio.to_thread(validate_vrm_stream, content=payload_stream, size_bytes=payload_size_bytes)
                 payload_stream.seek(0)
-                model_sha256 = (await asyncio.to_thread(hashlib.file_digest, payload_stream, "sha256")).hexdigest()
+                model_sha256 = await asyncio.to_thread(_sha256_stream, payload_stream)
                 payload_stream.seek(0)
             if kind is ContentKind.APPEARANCE:
                 await asyncio.to_thread(
@@ -226,6 +228,7 @@ class ContentSaveService:
                     size_bytes=payload_size_bytes,
                     declared_content_type=declared_content_type,
                 )
+                canonical: CanonicalAvatarPortrait | CanonicalImage
                 canonical = (
                     await asyncio.to_thread(canonicalize_avatar_portrait, content=payload_stream)
                     if portrait_source is not None
@@ -434,6 +437,14 @@ class ContentSaveService:
             result_type=SavedContent,
             action=apply,
         )
+
+
+def _sha256_stream(stream: BinaryIO) -> str:
+    """Hash from the current position without requiring Python 3.11 file_digest."""
+    digest = hashlib.sha256()
+    for chunk in iter(lambda: stream.read(256 * 1024), b""):
+        digest.update(chunk)
+    return digest.hexdigest()
 
 
 __all__ = ["ContentSaveService", "readable_entry_name"]

@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import suppress
-from typing import Any
+from typing import Any, cast
+
+from openai.types.chat import ChatCompletionToolUnionParam
 
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
@@ -25,6 +27,7 @@ from animama.app.model_clients import (
     model_client_preview_log_context,
     model_client_request_log_context,
 )
+from animama.app.model_clients.prompt import ChatCompletionResponseFormat
 from animama.app.ports import ModelProviderRepository
 from animama.app.primary_emotion_update import build_primary_emotion_update_event
 from animama.app.services import AnimaChatProfileService, ChatManager
@@ -66,7 +69,7 @@ from .direct_turn.types import (
     DirectChatTurnStreamError,
     ModelClientNotFoundError,
     PreparedDirectChatTurn,
-    RuntimeGestureDescriptor,
+    RuntimeGestureDescriptor as RuntimeGestureDescriptor,
 )
 from .memory_context import DirectChatMemoryContext, DirectChatMemoryContextError, DirectChatMemoryContextService
 from .memory_tools import MEMORY_TOOL_SEARCH_UPLOADED_FILES
@@ -317,17 +320,17 @@ class DirectChatTurnExecutor:
             chat_id=request.chat_id,
             run_id=request.run_id,
             requested_model_provider_id=request.model_provider_id,
-            incognito=request.request_options.incognito,
-            memory_influence_disabled=request.request_options.disable_memory_influence,
-            memory_updates_disabled=request.request_options.disable_memory_updates,
-            native_tools=list(request.request_options.native_tools),
-            reasoning_effort=request.request_options.reasoning_effort,
+            incognito=request.options.incognito,
+            memory_influence_disabled=request.options.disable_memory_influence,
+            memory_updates_disabled=request.options.disable_memory_updates,
+            native_tools=list(request.options.native_tools),
+            reasoning_effort=request.options.reasoning_effort,
         )
         # Memory tools are request-scoped. Incognito and memory-disable flags are
         # applied before provider validation so unsupported tool combinations are
         # rejected before opening any upstream stream.
         memory_tool_config = build_memory_tool_config(
-            request.request_options,
+            request.options,
             enabled=self._memory_tool_service is not None,
         )
         model_provider = await self._resolve_model_provider(request)
@@ -336,7 +339,7 @@ class DirectChatTurnExecutor:
             raise DirectChatTurnSetupError(f"chat_api_standard_unsupported: {model_provider.id}")
         validate_model_provider_for_direct_turn(
             model_provider,
-            request_options=request.request_options,
+            request_options=request.options,
             memory_tools_active=memory_tool_config.active,
         )
         if self._registry.get(model_provider.provider_type) is None:
@@ -358,7 +361,7 @@ class DirectChatTurnExecutor:
                 user_id=request.user_id,
                 anima_id=request.anima_id,
                 chat_metadata=getattr(chat, "metadata", {}),
-                request_options=request.request_options,
+                request_options=request.options,
             )
         except DirectChatMemoryContextError as exc:
             raise DirectChatTurnSetupError(str(exc)) from exc
@@ -378,6 +381,7 @@ class DirectChatTurnExecutor:
             memory_tool_config=memory_tool_config,
         )
         if memory_tool_config.active:
+            assert self._memory_tool_service is not None
             memory_tool_specs = tuple(
                 self._memory_tool_service.tool_specs(
                     allow_reads=memory_tool_config.allow_reads,
@@ -415,9 +419,9 @@ class DirectChatTurnExecutor:
         )
         response_format = build_main_structured_response_format(
             output_type,
-            name=turn_response_schema_name(request.request_options),
+            name=turn_response_schema_name(request.options),
         )
-        response_event_format = turn_response_format(request.request_options)
+        response_event_format = turn_response_format(request.options)
         model_request = ModelClientRequest(
             model_provider=model_provider,
             prompt=self._build_prompt(
@@ -435,7 +439,7 @@ class DirectChatTurnExecutor:
                 native_memory_patch_enabled=native_memory_patch,
             ),
             provider_options=build_model_client_provider_options(
-                request.request_options,
+                request.options,
                 model_provider=model_provider,
                 memory_tool_config=memory_tool_config,
             ),
@@ -636,7 +640,7 @@ class DirectChatTurnExecutor:
         ).gesture
         if gesture:
             yield avatar_gesture_event(prepared.request, gesture)
-        if not prepared.request.request_options.disable_emotion_updates:
+        if not prepared.request.options.disable_emotion_updates:
             yield build_primary_emotion_update_event(
                 anima_id=prepared.request.anima_id,
                 chat_id=prepared.request.chat_id,
@@ -648,7 +652,7 @@ class DirectChatTurnExecutor:
                 emotional_intensity=parsed.emotional_intensity,
             )
 
-        if not prepared.request.request_options.incognito:
+        if not prepared.request.options.incognito:
             api_standard_profile = chat_api_standard_for_provider(prepared.model_request.model_provider)
             if api_standard_profile is None:
                 raise DirectChatTurnSetupError(
@@ -777,8 +781,9 @@ class DirectChatTurnExecutor:
             ),
             supports_developer_role=model_provider.capabilities.supports_developer_role,
             visible_history=visible_history,
-            response_format=response_format,
-            tools=memory_tool_specs,
+            # These dictionaries are produced by the local schema/tool builders.
+            response_format=cast(ChatCompletionResponseFormat, response_format),
+            tools=cast(tuple[ChatCompletionToolUnionParam, ...], memory_tool_specs),
             tool_choice="auto" if memory_tools_active else None,
             parallel_tool_calls=False if memory_tools_active else None,
             prompt_cache_key=scoped_prompt_cache_key(
@@ -787,7 +792,7 @@ class DirectChatTurnExecutor:
                 provider_type=model_provider.provider_type,
                 model=model_provider.model,
             ),
-            reasoning_effort=turn_reasoning_effort(request.request_options),
+            reasoning_effort=turn_reasoning_effort(request.options),
             metadata={
                 "anima_id": request.anima_id,
                 "chat_id": request.chat_id,
@@ -850,7 +855,7 @@ class DirectChatTurnExecutor:
         remember = parsed.remember.strip() if isinstance(parsed.remember, str) else ""
         if not remember:
             return
-        if prepared.request.request_options.disable_memory_updates:
+        if prepared.request.options.disable_memory_updates:
             _log.info(
                 "Direct chat episodic memory skipped",
                 anima_id=prepared.request.anima_id,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -70,7 +71,7 @@ async def _store_provider(async_session, provider: ModelProvider) -> ModelProvid
     return stored[0]
 
 
-async def _store_anima(async_session, *, anima_id: str, metadata: dict | None = None) -> None:
+async def _store_anima(async_session, *, anima_id: str, metadata: dict[str, Any] | None = None) -> None:
     async_session.add(
         ORMAnima(
             id=anima_id,
@@ -290,7 +291,7 @@ async def test_update_anima_chat_profile_validates_ownership_and_active_provider
         session=async_session,
         user=RequestPrincipal(id="user-1"),
     )
-    payload = json.loads(response.body)
+    payload = json.loads(bytes(response.body))
 
     assert payload["id"] == anima_id
     assert payload["chat_profile"]["default_model_provider_id"] == active_provider.id

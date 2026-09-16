@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import TypeVar
 from uuid import uuid4
 
 import pytest
@@ -18,6 +19,14 @@ from animama.orm.anima import ORMAnima
 from animama.orm.anima_loadout import ORMAnimaLoadout
 from animama.orm.avatar import ORMAvatar
 from animama.orm.content_catalog import ORMContentCatalogFile, ORMContentCatalogItem
+
+_T = TypeVar("_T")
+
+
+def _required(value: _T | None) -> _T:
+    """Assert the fixture lookup succeeded before inspecting its typed value."""
+    assert value is not None
+    return value
 
 
 @pytest.mark.asyncio
@@ -98,10 +107,10 @@ async def test_builtin_avatar_presentation_resolves_on_the_clean_typed_schema(
         assert records[anima_id].display_name == f"Live {suffix}"
         assert records[anima_id].profile_image is None
         assert records[anima_id].primary_model is not None
-        assert records[anima_id].primary_model.source_type == "builtin"
-        assert records[anima_id].primary_model.builtin_id == "app:avatar_model:AvatarSample_R1"
+        assert _required(records[anima_id].primary_model).source_type == "builtin"
+        assert _required(records[anima_id].primary_model).builtin_id == "app:avatar_model:AvatarSample_R1"
         assert records[anima_id].avatar_portrait is not None
-        assert records[anima_id].avatar_portrait.catalog_item_id == portrait_item_id
+        assert _required(records[anima_id].avatar_portrait).catalog_item_id == portrait_item_id
     finally:
         # Included content is visible across this session-scoped test database.
         # A later real scan preserves logical identity, so this synthetic global

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -33,7 +33,7 @@ from animama.server.schemas.anima_loadout import (
 router = APIRouter(prefix="/v1/animas", tags=["anima-loadout"])
 
 
-def _raise_loadout(exc: AnimaLoadoutError) -> None:
+def _raise_loadout(exc: AnimaLoadoutError) -> NoReturn:
     status_code = 404 if exc.code == "anima_not_found" else 409
     detail: dict[str, object] = {"code": exc.code}
     if exc.current_revision is not None:

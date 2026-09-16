@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Any
+from enum import Enum
+from typing import Any, cast
 
 from ...domain.settings import AnimaSettings, UserSettings
 from ...logging import get_logger
 from ..ports import AnimaSettingsRepository, UnitOfWork, UserSettingsRepository
 
-_UNSET = object()
+
+class _Unset(Enum):
+    VALUE = "unset"
+
+
+_UNSET = _Unset.VALUE
 
 
 def default_anima_preferences() -> dict[str, Any]:
@@ -42,22 +48,27 @@ class SettingsService:
         self,
         *,
         user_id: str,
-        theme: str | None | object = _UNSET,
-        locale: str | None | object = _UNSET,
-        last_active_anima_id: str | None | object = _UNSET,
-        preferences: dict[str, Any] | None | object = _UNSET,
+        theme: str | None | _Unset = _UNSET,
+        locale: str | None | _Unset = _UNSET,
+        last_active_anima_id: str | None | _Unset = _UNSET,
+        preferences: dict[str, Any] | None | _Unset = _UNSET,
     ) -> UserSettings:
         current = await self._user_settings.get(user_id)
         if current is None:
             current = UserSettings(user_id=user_id)
+        # Keep explicit null patches distinct from omitted fields. The repository
+        # normalizes preferences and preserves database rejection/default behavior
+        # for null theme/locale; only its returned record is fully materialized.
         updated = UserSettings(
             user_id=user_id,
-            theme=current.theme if theme is _UNSET else theme,
-            locale=current.locale if locale is _UNSET else locale,
+            theme=current.theme if theme is _UNSET else cast(str, theme),
+            locale=current.locale if locale is _UNSET else cast(str, locale),
             last_active_anima_id=(
                 current.last_active_anima_id if last_active_anima_id is _UNSET else last_active_anima_id
             ),
-            preferences=(dict(current.preferences or {}) if preferences is _UNSET else preferences),
+            preferences=(
+                dict(current.preferences or {}) if preferences is _UNSET else cast(dict[str, Any], preferences)
+            ),
             created_at=current.created_at,
             updated_at=current.updated_at,
         )
@@ -81,10 +92,10 @@ class SettingsService:
         *,
         user_id: str,
         anima_id: str,
-        theme: dict[str, Any] | None | object = _UNSET,
-        background: str | None | object = _UNSET,
-        favorited: bool | None | object = _UNSET,
-        preferences: dict[str, Any] | None | object = _UNSET,
+        theme: dict[str, Any] | None | _Unset = _UNSET,
+        background: str | None | _Unset = _UNSET,
+        favorited: bool | None | _Unset = _UNSET,
+        preferences: dict[str, Any] | None | _Unset = _UNSET,
     ) -> AnimaSettings:
         current = await self._anima_settings.get(user_id=user_id, anima_id=anima_id)
         if current is None:
@@ -93,13 +104,16 @@ class SettingsService:
                 anima_id=anima_id,
                 preferences=default_anima_preferences(),
             )
+        # The repository normalizes nullable favorited/preferences on write.
         updated = AnimaSettings(
             user_id=user_id,
             anima_id=anima_id,
             theme=current.theme if theme is _UNSET else theme,
             background=current.background if background is _UNSET else background,
-            favorited=current.favorited if favorited is _UNSET else favorited,
-            preferences=(dict(current.preferences or {}) if preferences is _UNSET else preferences),
+            favorited=current.favorited if favorited is _UNSET else cast(bool, favorited),
+            preferences=(
+                dict(current.preferences or {}) if preferences is _UNSET else cast(dict[str, Any], preferences)
+            ),
             created_at=current.created_at,
             updated_at=current.updated_at,
         )

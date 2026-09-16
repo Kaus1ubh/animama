@@ -110,7 +110,7 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
             raise ValueError(f"Missing license record: {relative_path}")
         if record.get("distribution") not in (None, "excluded"):
             raise ValueError(f"Invalid distribution policy: {relative_path}")
-        return record
+        return dict(record)
 
     store = FilesystemContentStore(included_root=root, local_root=root / ".unused", operations_root=root / ".unused")
     scanned = store.scan(ContentSource.INCLUDED)
@@ -168,12 +168,16 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
         )
 
     expanded: set[str] = set()
-    for item_id, entry in sorted(visible.items()):
-        if entry.status is not ContentStatus.VALID:
-            if not entry.diagnostics:
-                raise ValueError(f"Invalid content has no diagnostic: {entry.relative_locator}")
+    for item_id, catalog_entry in sorted(visible.items()):
+        if catalog_entry.status is not ContentStatus.VALID:
+            if not catalog_entry.diagnostics:
+                raise ValueError(f"Invalid content has no diagnostic: {catalog_entry.relative_locator}")
             excluded.append(
-                {"locator": item_id, "reason": "content_invalid", "diagnostics": [asdict(d) for d in entry.diagnostics]}
+                {
+                    "locator": item_id,
+                    "reason": "content_invalid",
+                    "diagnostics": [asdict(d) for d in catalog_entry.diagnostics],
+                }
             )
             continue
         try:
@@ -190,8 +194,11 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
         item = visible[item_id]
         for file in item.files:
             path = _regular_path(root, file.relative_path)
+            hasher = hashlib.sha256()
             with path.open("rb") as handle:
-                digest = hashlib.file_digest(handle, "sha256").hexdigest()
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    hasher.update(chunk)
+            digest = hasher.hexdigest()
             if path.stat().st_size != file.size_bytes or digest != file.sha256:
                 raise ValueError(f"Content changed during inventory: {file.relative_path}")
             license_record = file_license(file.relative_path)

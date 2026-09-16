@@ -65,6 +65,12 @@ class DirectChatTurnRequest:
     def __post_init__(self) -> None:
         object.__setattr__(self, "request_options", DirectChatOptions.from_value(self.request_options))
 
+    @property
+    def options(self) -> DirectChatOptions:
+        """Return options normalized by construction, while accepting mapping inputs."""
+        assert isinstance(self.request_options, DirectChatOptions)
+        return self.request_options
+
 
 @dataclass(frozen=True, slots=True)
 class PreparedDirectChatTurn:

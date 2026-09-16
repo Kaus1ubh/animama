@@ -106,6 +106,9 @@ dev = [
     "python-docx>=1.2.0,<2",
     "reportlab>=4.4.0,<5",
     "vulture==2.16",
+    "types-pyyaml>=6.0.12.20260906",
+    "types-jsonschema>=4.26.0.20260518",
+    "types-reportlab>=4.4,<5",
 ]
 examples = [
     "pynput",
@@ -193,16 +196,6 @@ exclude_also = [
     "@abc.abstractmethod",
     "raise NotImplementedError",
     "logger.debug",
-]
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "session"
-filterwarnings = [
-    "ignore:coroutine 'test_async_input_filter_fails.<locals>.invalid_input_filter' was never awaited:RuntimeWarning",
-]
-markers = [
-    "allow_call_model_methods: mark test as allowing calls to real model implementations",
 ]
 
 [tool.inline-snapshot]

@@ -277,7 +277,7 @@ async def test_version_routes_return_content_free_pages_and_adjacent_details(
 def test_version_metadata_and_routes_have_no_memory_entry_revision_compatibility() -> None:
     current_table = Base.metadata.tables["memory_entries"]
     version_table = Base.metadata.tables["memory_entry_versions"]
-    route_paths = {route.path for route in app.routes if hasattr(route, "path")}
+    route_paths = {getattr(route, "path", None) for route in app.routes if hasattr(route, "path")}
 
     assert "revision" not in current_table.c
     assert "version" in current_table.c
@@ -285,7 +285,7 @@ def test_version_metadata_and_routes_have_no_memory_entry_revision_compatibility
     assert "version" in version_table.c
     assert "change_metadata" in version_table.c
     assert "deleted_at" in version_table.c
-    assert not any("revision" in (constraint.name or "") for constraint in version_table.constraints)
+    assert not any("revision" in str(constraint.name or "") for constraint in version_table.constraints)
     assert not any("revision" in (index.name or "") for index in version_table.indexes)
     assert "/v1/memory/entries/{entry_id}/versions" in route_paths
     assert "/v1/memory/entries/{entry_id}/versions/{version}" in route_paths
@@ -1171,7 +1171,7 @@ async def test_recursive_delete_hides_larger_subtree_and_writes_descendant_delet
 
 
 def test_openapi_includes_memory_entry_routes_and_not_retired_file_or_block_routes() -> None:
-    paths = {route.path for route in api_router.routes}
+    paths = {getattr(route, "path", None) for route in api_router.routes}
     assert "/v1/memory/entries" in paths
     assert "/v1/memory/entries/by-path" in paths
     assert "/v1/memory/entries/{entry_id}" in paths

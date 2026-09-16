@@ -8,7 +8,18 @@ Generated files live in `src/frontend/packages/runtime-contracts/src/generated`.
 Do not hand-edit this directory. Consumers import `@animama/runtime-contracts/sdk`
 for methods and `@animama/runtime-contracts/api-types` for types. `pnpm openapi-ts` asks the backend's deterministic offline exporter
 to write a temporary schema, generates from that file, and always removes it.
-Public HTTP OpenAPI routes are disabled.
+Public HTTP OpenAPI routes are disabled. Install dependencies from the frozen
+Python and pnpm lockfiles first; generation uses `uv run --frozen --no-sync`
+and does not install or update dependencies.
+
+Run `pnpm openapi-ts:check` to check SDK freshness without editing generated
+files. It exports the schema and generates a candidate entirely in a temporary
+directory, compares the tracked SDK inventory and canonical Prettier-formatted
+bytes, then removes the temporary output even on failure. Formatting is applied
+in memory to both sides so generator-style whitespace alone is not drift.
+Missing, extra, or stale files fail with bounded path diagnostics; no schema or
+source bodies are printed by the comparison. Fix drift with `pnpm openapi-ts`,
+review the generated changes, and rebuild the package artifacts.
 
 The generated client exposes infrastructure-only Content Catalog operations,
 typed product List/Get/Save/Preview methods, package import/export,

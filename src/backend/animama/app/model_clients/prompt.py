@@ -13,9 +13,9 @@ from openai.types.chat import (
     ChatCompletionToolUnionParam,
     completion_create_params,
 )
+from openai.types.shared.reasoning_effort import ReasoningEffort as ChatCompletionReasoningEffort
 
 ChatCompletionResponseFormat = completion_create_params.ResponseFormat
-ChatCompletionReasoningEffort = completion_create_params.ReasoningEffort
 
 
 def _freeze_value(value: Any) -> Any:
@@ -51,7 +51,7 @@ def _copy_jsonish(value: Any) -> Any:
 class DirectChatPrompt:
     """OpenAI Chat Completions-compatible prompt for one model-client turn."""
 
-    messages: tuple[ChatCompletionMessageParam, ...]
+    messages: tuple[Mapping[str, object], ...]
     response_format: ChatCompletionResponseFormat | None = None
     tools: tuple[ChatCompletionToolUnionParam, ...] = ()
     tool_choice: ChatCompletionToolChoiceOptionParam | None = None
@@ -65,7 +65,7 @@ class DirectChatPrompt:
         object.__setattr__(
             self,
             "messages",
-            tuple(cast(ChatCompletionMessageParam, _copy_jsonish(message)) for message in self.messages),
+            tuple(cast(Mapping[str, object], _copy_jsonish(message)) for message in self.messages),
         )
         object.__setattr__(
             self,
@@ -100,7 +100,7 @@ def direct_model_prompt(
         reasoning_effort=cast(ChatCompletionReasoningEffort | None, reasoning_effort.strip())
         if isinstance(reasoning_effort, str) and reasoning_effort.strip()
         else None,
-        metadata=metadata,
+        metadata=metadata or {},
     )
 
 

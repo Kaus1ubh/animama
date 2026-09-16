@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from datetime import date, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import RowMapping, SQLColumnExpression, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -99,7 +99,7 @@ class SQLAlchemyMemoryEpisodeRepository(MemoryEpisodeRepository):
         )
 
     @staticmethod
-    def _row_to_domain(row: Mapping[str, Any]) -> MemoryEpisodeItem:
+    def _row_to_domain(row: RowMapping) -> MemoryEpisodeItem:
         return MemoryEpisodeItem(
             id=row["id"],
             user_id=row["user_id"],
@@ -122,7 +122,7 @@ class SQLAlchemyMemoryEpisodeRepository(MemoryEpisodeRepository):
         )
 
     @staticmethod
-    def _item_columns() -> tuple[object, ...]:
+    def _item_columns() -> tuple[SQLColumnExpression[Any], ...]:
         return (
             ORMMemoryEpisodeItem.id,
             ORMMemoryEpisodeItem.user_id,

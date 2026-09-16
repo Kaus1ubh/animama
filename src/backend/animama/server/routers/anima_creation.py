@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Coroutine
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -39,7 +39,7 @@ _log = get_logger("server.routers.anima_creation")
 class AnimaCreationRoute(APIRoute):
     """Keep schema/auth/semantic failures in one safe, bounded error envelope."""
 
-    def get_route_handler(self) -> Callable:
+    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
         original = super().get_route_handler()
 
         async def handler(request: Request) -> Response:

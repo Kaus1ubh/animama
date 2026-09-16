@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from animama.app.services.user_file_overview import (
@@ -20,8 +22,8 @@ def _document(
     text: str,
     *,
     parser_name: str = "stdlib-text",
-    metadata: dict | None = None,
-    tables: list[dict] | None = None,
+    metadata: dict[str, Any] | None = None,
+    tables: list[dict[str, Any]] | None = None,
     source_outline: tuple[UserFileOutlineItem, ...] = (),
     source_outline_truncated: bool = False,
 ) -> ParsedUserFileDocument:

@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import Any
+from typing import Any, cast
 
 from animama.app.anima_creation_contract import AnimaSpec, ItemRevisionRef
 from animama.app.ports.content_catalog import ContentCatalog
@@ -116,7 +116,12 @@ class AnimaCreationSources:
         for choice in policy["gestures"]:
             item = include(choice["content_id"], ContentKind.GESTURE, "/recommended/gestures")
             if item is not None:
-                gestures.append({"semantic_key": admitted[item.id].document.semantic_key, "source": item_ref(item)})
+                gestures.append(
+                    {
+                        "semantic_key": cast(GestureDocumentV1, admitted[item.id].document).semantic_key,
+                        "source": item_ref(item),
+                    }
+                )
         reactions: dict[str, dict[str, Any]] = {
             emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS
         }
@@ -309,7 +314,7 @@ class AnimaCreationSources:
                 )
             self._revision(typed.item, expected[item_id].revision_sha256, path, action)
         for index, choice in enumerate(spec.gestures):
-            if typed_items[choice.source.item_id].document.semantic_key != choice.semantic_key:
+            if cast(GestureDocumentV1, typed_items[choice.source.item_id].document).semantic_key != choice.semantic_key:
                 raise AnimaCreationError(
                     issues=[
                         AnimaCreationIssue(
@@ -340,7 +345,7 @@ class AnimaCreationSources:
                         "A selected source cannot be admitted; repair or remove it explicitly.",
                         issue.slot_key,
                         issue.item_id,
-                        origins.get(issue.item_id, ("", None))[1],
+                        origins.get(issue.item_id, ("", None))[1] if issue.item_id is not None else None,
                     )
                     for issue in descriptor.diagnostics
                 ],

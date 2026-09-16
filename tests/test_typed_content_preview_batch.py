@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from sqlalchemy import func, select, update
 
@@ -12,7 +13,7 @@ from tests.anima_creation_service_support import anima_creation_fixture
 from tests.local_http_client import local_client
 
 
-def _catalog_root(item) -> dict:  # noqa: ANN001
+def _catalog_root(item) -> dict[str, Any]:  # noqa: ANN001
     return {
         "kind": item.kind.value,
         "source": {"type": "catalog", "catalog_item_id": item.id},

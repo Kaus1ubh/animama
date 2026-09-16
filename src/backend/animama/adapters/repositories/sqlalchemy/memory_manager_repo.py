@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import RowMapping, SQLColumnExpression, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -148,7 +147,7 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
         )
 
     @staticmethod
-    def _message_row_to_domain(row: Mapping[str, Any]) -> MemoryManagerMessage:
+    def _message_row_to_domain(row: RowMapping) -> MemoryManagerMessage:
         return MemoryManagerMessage(
             id=row["id"],
             run_id=row["run_id"],
@@ -160,7 +159,7 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
         )
 
     @staticmethod
-    def _approval_row_to_domain(row: Mapping[str, Any]) -> MemoryManagerApproval:
+    def _approval_row_to_domain(row: RowMapping) -> MemoryManagerApproval:
         return MemoryManagerApproval(
             id=row["id"],
             run_id=row["run_id"],
@@ -187,7 +186,7 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
         )
 
     @staticmethod
-    def _message_columns() -> tuple[object, ...]:
+    def _message_columns() -> tuple[SQLColumnExpression[Any], ...]:
         return (
             ORMMemoryManagerMessage.id,
             ORMMemoryManagerMessage.run_id,
@@ -199,7 +198,7 @@ class SQLAlchemyMemoryManagerRepository(MemoryManagerRepository):
         )
 
     @staticmethod
-    def _approval_columns() -> tuple[object, ...]:
+    def _approval_columns() -> tuple[SQLColumnExpression[Any], ...]:
         return (
             ORMMemoryManagerApproval.id,
             ORMMemoryManagerApproval.run_id,

@@ -79,7 +79,7 @@ def _source(value: TypedCatalogItem) -> CatalogLoadoutSource:
 
 
 def _implementation_kind(document: GestureDocumentV1) -> Literal["anima_clip", "vrma"]:
-    return cast(Literal["anima_clip", "vrma"], document.implementation.kind)
+    return document.implementation.kind
 
 
 class AnimaLoadoutService:
@@ -261,19 +261,19 @@ class AnimaLoadoutService:
         for emotion in sorted(TRACKED_EMOTIONS):
             for intensity in (1, 2, 3):
                 slot = f"reaction:{emotion}-{intensity}"
-                row = rows_by_slot.get(slot)
-                if row is not None:
-                    value = selected(row, ContentKind.REACTION)
+                reaction_row = rows_by_slot.get(slot)
+                if reaction_row is not None:
+                    value = selected(reaction_row, ContentKind.REACTION)
                     if value is not None and isinstance(value.document, ReactionDocumentV1):
                         reactions.append(
                             ReactionCell(
                                 emotion=emotion,
                                 intensity=intensity,
                                 state="custom",
-                                binding_id=row.id,
+                                binding_id=reaction_row.id,
                                 name=value.document.name,
                                 source=_source(value),
-                                config_overrides=dict(row.config),
+                                config_overrides=dict(reaction_row.config),
                             )
                         )
                         continue
@@ -282,7 +282,7 @@ class AnimaLoadoutService:
                     continue
                 raw = starter_reactions.get((emotion, intensity))
                 value = by_logical.get(str(raw.get("content_id"))) if raw else None
-                if value is not None and isinstance(value.document, ReactionDocumentV1):
+                if raw is not None and value is not None and isinstance(value.document, ReactionDocumentV1):
                     reactions.append(
                         ReactionCell(
                             emotion=emotion,
@@ -517,11 +517,11 @@ class AnimaLoadoutService:
             current = next((row for row in rows if row.slot_key == slot), None)
             if operation in {"set", "update", "reconfigure"}:
                 target = await self._target(user_id=user_id, source=intent.get("source"), expected_kind=expected_kind)
-                document = cast(IdleStyleDocumentV1, target.document)
+                idle_document = cast(IdleStyleDocumentV1, target.document)
                 overrides = intent.get("pool_overrides", {})
                 if not isinstance(overrides, dict):
                     raise AnimaLoadoutError("idle_pool_overrides_invalid")
-                animation_ids = {animation.animation_id for animation in document.animations}
+                animation_ids = {animation.animation_id for animation in idle_document.animations}
                 for key, values in overrides.items():
                     if key != "default" and key not in TRACKED_EMOTIONS:
                         raise AnimaLoadoutError("idle_pool_overrides_invalid")
@@ -622,10 +622,11 @@ class AnimaLoadoutService:
         final_gesture_count = sum(row.kind == ContentKind.GESTURE.value for row in rows)
         if family == "gesture":
             final_gesture_count += int(action == "add") - int(action == "remove")
+        aggregate_revision = await self._aggregate_revision(user_id=user_id, anima_id=root.anima_id)
         identity = {
             "anima_id": root.anima_id,
             "revision": root.revision,
-            "aggregate_revision": await self._aggregate_revision(user_id=user_id, anima_id=root.anima_id),
+            "aggregate_revision": aggregate_revision,
             "family": family,
             "intent": intent,
             "action": action,
@@ -638,7 +639,7 @@ class AnimaLoadoutService:
             target_name=target.document.name if target else None,
             included_resource_counts=counts,
             final_gesture_count=max(0, final_gesture_count),
-            aggregate_revision=identity["aggregate_revision"],
+            aggregate_revision=aggregate_revision,
         )
         return plan, target, slot, current
 
@@ -887,7 +888,7 @@ class AnimaLoadoutService:
                         for row in await self._bindings(root.anima_id):
                             if row.kind == ContentKind.MUSIC_TRACK.value and row is not current:
                                 row.config = {**dict(row.config), "autoplay": False}
-                    config = {
+                    config: dict[str, bool | float] = {
                         "enabled": bool(intent.get("enabled", True)),
                         "autoplay": autoplay,
                     }

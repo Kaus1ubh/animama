@@ -9,7 +9,7 @@ from typing import Any
 import httpx
 import pytest
 from openai import APIStatusError
-from openai.types.chat import ChatCompletionChunk
+from openai.types.chat import ChatCompletionChunk, ChatCompletionFunctionToolParam, ChatCompletionToolUnionParam
 from openai.types.responses import (
     ResponseCompletedEvent,
     ResponseErrorEvent,
@@ -62,6 +62,7 @@ from animama.app.model_clients import (
     MCUsageEvent,
     ModelClientContinuation,
     ModelClientProviderError,
+    ModelClientProviderOptions,
     ModelClientRequest,
     StaticModelClientRegistry,
 )
@@ -204,7 +205,7 @@ def _spec(
     continuation: ModelClientContinuation | None = None,
     request_options: dict[str, Any] | None = None,
     messages: tuple[dict[str, Any], ...] | None = None,
-    tools: tuple[dict[str, Any], ...] = (),
+    tools: tuple[ChatCompletionToolUnionParam, ...] = (),
     metadata: dict[str, Any] | None = None,
     structured_output_transport: str | None = STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
 ) -> ModelClientRequest:
@@ -236,9 +237,9 @@ def _spec(
             parallel_tool_calls=False if tools else None,
             reasoning_effort=options.get("reasoning_effort"),
             prompt_cache_key=sha256(f"user-1\x1fanima-1\x1f{provider_type}\x1f{model}".encode()).hexdigest(),
-            metadata=metadata,
+            metadata=metadata or {},
         ),
-        provider_options=provider_options,
+        provider_options=ModelClientProviderOptions.from_value(provider_options),
         continuation=continuation,
     )
 
@@ -489,7 +490,7 @@ def _messages_with_instructions() -> tuple[dict[str, str], ...]:
     )
 
 
-def _memory_read_tool() -> dict[str, Any]:
+def _memory_read_tool() -> ChatCompletionFunctionToolParam:
     return {
         "type": "function",
         "function": {
@@ -703,7 +704,7 @@ async def test_openai_chat_completions_client_streams_sdk_chunks_and_usage() -> 
 
 @pytest.mark.asyncio
 async def test_openai_chat_completions_client_shapes_deepseek_request_payload() -> None:
-    tool = {
+    tool: ChatCompletionFunctionToolParam = {
         "type": "function",
         "function": {
             "name": "memory_read_files",
@@ -1024,7 +1025,7 @@ async def test_openai_chat_completions_client_keeps_reading_after_finish_reason_
 
 @pytest.mark.asyncio
 async def test_openai_chat_completions_client_aggregates_streamed_tool_calls_and_disables_parallel() -> None:
-    tool = {
+    tool: ChatCompletionFunctionToolParam = {
         "type": "function",
         "function": {
             "name": "memory_read_files",
@@ -2419,7 +2420,7 @@ async def test_litellm_model_client_uses_persisted_json_object_transport() -> No
 
 @pytest.mark.asyncio
 async def test_litellm_model_client_aggregates_streamed_tool_calls_and_disables_parallel() -> None:
-    tool = {
+    tool: ChatCompletionFunctionToolParam = {
         "type": "function",
         "function": {
             "name": "memory_read_files",

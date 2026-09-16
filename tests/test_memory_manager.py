@@ -4,10 +4,12 @@ import asyncio
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
+from typing import TypeVar
 
 import httpx
 import pytest
 import pytest_asyncio
+from agents import FunctionTool
 from fastapi import HTTPException
 from openai import BadRequestError
 from sqlalchemy import delete, select
@@ -58,6 +60,7 @@ from animama.orm import (
     ORMMemoryManagerRun,
     ORMUserSettings,
 )
+from animama.server.config import settings
 from animama.server.routers import memory_entries as memory_entries_router, memory_manager as memory_manager_router
 from animama.server.schemas.memory_entry import PyMemoryEntryCreateRequest, PyMemoryEntryRevertRequest
 from animama.server.schemas.memory_manager import (
@@ -68,13 +71,21 @@ from animama.server.schemas.memory_manager import (
     PyMemoryManagerRunCreateRequest,
 )
 
+_T = TypeVar("_T")
+
+
+def _required(value: _T | None) -> _T:
+    """Assert the fixture lookup succeeded before inspecting its typed value."""
+    assert value is not None
+    return value
+
 
 def _user(user_id: str) -> RequestPrincipal:
     return RequestPrincipal(id=user_id)
 
 
 def test_memory_manager_model_resolution_uses_override_or_server_default() -> None:
-    default_model = memory_manager_router.settings.anima_memory_manager_agent_model
+    default_model = settings.anima_memory_manager_agent_model
 
     assert (
         memory_manager_router._resolve_memory_manager_model({"memory": {"manager_model": "  gpt-5-mini  "}})
@@ -249,7 +260,10 @@ async def test_episode_listing_is_owner_scoped_and_supports_binary_statuses(
     assert processed.items[0].status == MEMORY_EPISODE_STATUS_PROCESSED
     assert processed.items[0].processed_by_run_id == "mmr-test"
 
-    assert all(route.path != "/v1/memory/episodes:mark-skipped" for route in memory_manager_router.router.routes)
+    assert all(
+        getattr(route, "path", None) != "/v1/memory/episodes:mark-skipped"
+        for route in memory_manager_router.router.routes
+    )
 
 
 @pytest.mark.asyncio
@@ -339,7 +353,7 @@ async def test_episode_processing_fixed_batch_is_safe_ordered_and_capped_at_fift
     )
     assert old_run is not None
     assert old_run.status == "completed"
-    assert old_run.metadata["completion_reason"] == "superseded_by_new_run"
+    assert _required(old_run.metadata)["completion_reason"] == "superseded_by_new_run"
 
     await memory_manager_router.decide_memory_manager_approval(
         response.approvals[0].id,
@@ -898,7 +912,9 @@ async def test_memory_manager_backend_auto_approve_propagates_source_and_stops_a
     ]
     assert [approval.applied_version for approval in snapshot.approvals[:8]] == [1] * 8
     assert all(approval.target_entry_id for approval in snapshot.approvals[:8])
-    source_message_ids = {approval.operation_metadata.get("source_message_id") for approval in snapshot.approvals}
+    source_message_ids = {
+        _required(approval.operation_metadata).get("source_message_id") for approval in snapshot.approvals
+    }
     assert source_message_ids == {snapshot.messages[0].id}
     for index in range(1, 9):
         entry = await memory_entries.get_entry_by_path(
@@ -2166,15 +2182,18 @@ async def test_openai_agents_runtime_uses_shared_navigation_and_read_tool_contra
         "apply_patch",
     ]
     read_tool = agent.tools[1]
+    assert isinstance(read_tool, FunctionTool)
     assert read_tool.params_json_schema["properties"]["paths"]["anyOf"] == [
         {"type": "string"},
         {"items": {"type": "string"}, "type": "array"},
     ]
     search_tool = agent.tools[2]
+    assert isinstance(search_tool, FunctionTool)
     assert search_tool.params_json_schema["properties"]["include_episodic_memory"] == {
         "title": "Include Episodic Memory",
         "type": "boolean",
     }
+    assert isinstance(agent.instructions, str)
     assert agent.instructions.endswith(
         "# List of memory files\n\nfiles:\n  - path: profile.md\n    description: RequestPrincipal profile"
     )
@@ -2638,7 +2657,7 @@ async def test_memory_manager_expired_cursor_fails_with_recovery_code(
     )
 
     assert snapshot.run.status == "failed"
-    assert snapshot.run.metadata["runtime_error_code"] == ("memory_manager_previous_response_unresolvable")
+    assert _required(snapshot.run.metadata)["runtime_error_code"] == ("memory_manager_previous_response_unresolvable")
     assert "Start a new Memory Manager run" in (snapshot.run.error or "")
     assert snapshot.run.openai_previous_response_id == "resp-expired"
 

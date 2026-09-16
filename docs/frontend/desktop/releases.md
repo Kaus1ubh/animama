@@ -286,6 +286,19 @@ are pinned by full commit SHA, and Node, pnpm, Python, and uv versions are fixed
 The required-name smoke job uses a fresh runner profile, not a local Compose
 stack. It checks blank-name rejection and successful named setup in one run.
 
+After the maintainer/main guard, `source-validation` reuses
+`.github/workflows/validate-public.yml` from the same commit. Its independent
+backend/static and portable product jobs must both succeed before either the
+release build or `prepare-worker` can reach signing credentials. Checkout uses
+the dispatch's immutable `github.sha` throughout; this gate does not consult a
+previous branch run or assume a moving `main` is validated. Release secrets are
+not passed to reusable source validation. Backend or asset failures block signing
+instead of substituting the older reduced release check set.
+
+This local workflow dependency does not configure branch protection, create
+GitHub environments, or authorize a dispatch. Keep the following environment and
+publication approvals separate from source validation.
+
 Before enabling credential-bearing CI jobs, configure supported protected
 environments and restrict their deployment branches to `main` (not tags). The
 initial job already requires `refs/heads/main`, the source repository, and

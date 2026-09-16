@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.domain.avatar import Avatar
 from animama.domain.request_principal import RequestPrincipal
@@ -41,7 +42,7 @@ async def test_validate_avatar_access_allows_public_avatar(monkeypatch) -> None:
 
     await avatar_access_module.validate_avatar_access(
         "avt_sample_r1",
-        session=object(),
+        session=AsyncSession(),
         user=RequestPrincipal(id="user-1"),
     )
 
@@ -57,7 +58,7 @@ async def test_validate_avatar_access_rejects_unknown_avatar(monkeypatch) -> Non
     with pytest.raises(HTTPException) as exc_info:
         await avatar_access_module.validate_avatar_access(
             "missing-avatar",
-            session=object(),
+            session=AsyncSession(),
             user=RequestPrincipal(id="user-1"),
         )
 
@@ -84,7 +85,7 @@ async def test_validate_avatar_access_rejects_other_users_private_avatar(monkeyp
     with pytest.raises(HTTPException) as exc_info:
         await avatar_access_module.validate_avatar_access(
             "avt_private",
-            session=object(),
+            session=AsyncSession(),
             user=RequestPrincipal(id="user-1"),
         )
 
@@ -105,7 +106,7 @@ async def test_validate_avatar_access_allows_clearing_avatar(monkeypatch) -> Non
 
     await avatar_access_module.validate_avatar_access(
         None,
-        session=object(),
+        session=AsyncSession(),
         user=RequestPrincipal(id="user-1"),
     )
 

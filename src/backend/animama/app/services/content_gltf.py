@@ -9,7 +9,7 @@ import math
 import re
 import struct
 from dataclasses import dataclass
-from typing import Any, BinaryIO
+from typing import Any, BinaryIO, TypedDict
 
 from .content_file_validation import ContentFileInvalidError
 
@@ -465,10 +465,17 @@ def _merge_embedded_resources(
     return document, bytes(merged)
 
 
+class _VrmaFacts(TypedDict):
+    node_count: int
+    track_count: int
+    keyframe_count: int
+    duration_seconds: float
+
+
 def _validate_vrma_document(
     document: dict[str, Any],
     binary: bytes,
-) -> dict[str, int | float]:
+) -> _VrmaFacts:
     _require_finite_json(document)
     structure = _validate_gltf_structure(
         document,
@@ -610,7 +617,7 @@ def _validate_vrm_humanoid(document: dict[str, Any], node_count: int) -> str:
         if not isinstance(bones, list):
             raise ContentFileInvalidError(field="file", reason="vrm_invalid_humanoid")
         mapping = {
-            bone.get("bone"): bone.get("node")
+            bone["bone"]: bone.get("node")
             for bone in bones
             if isinstance(bone, dict) and isinstance(bone.get("bone"), str)
         }
@@ -727,7 +734,7 @@ def _validate_accessors(
         component_type = _nonnegative_int(accessor.get("componentType"))
         component = _COMPONENT_FORMAT.get(component_type)
         type_name = accessor.get("type")
-        components = _TYPE_COMPONENTS.get(type_name)
+        components = _TYPE_COMPONENTS.get(type_name) if isinstance(type_name, str) else None
         count = _positive_int(accessor.get("count"))
         if component is None or components is None:
             raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
@@ -900,7 +907,7 @@ def _require_finite_json(value: Any) -> None:
             raise ContentFileInvalidError(field="file", reason="vrma_non_finite_number")
 
 
-def _nonnegative_int(value: Any) -> int:
+def _nonnegative_int(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ContentFileInvalidError(field="file", reason="vrma_invalid_structure")
     return value

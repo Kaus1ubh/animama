@@ -298,7 +298,7 @@ def test_failure_between_sidecar_and_primary_promotion_restores_both(
             raise OSError("primary promotion failed")
         real_replace(source, destination)
 
-    monkeypatch.setattr(mutations.os, "replace", fail_primary)
+    monkeypatch.setattr(os, "replace", fail_primary)
     with pytest.raises(OSError, match="primary promotion failed"):
         store.save_standalone(
             kind=ContentKind.GESTURE,
@@ -306,7 +306,7 @@ def test_failure_between_sidecar_and_primary_promotion_restores_both(
             payload=vrma("after"),
             metadata_sidecar=b'{"schema_version": 1, "name": "After"}',
         )
-    monkeypatch.setattr(mutations.os, "replace", real_replace)
+    monkeypatch.setattr(os, "replace", real_replace)
     store.finalize_mutation(journal_id=journal_id, commit=False)
     assert sidecar.read_bytes() == old_metadata
     assert primary.read_bytes() == vrma("before")
@@ -325,13 +325,13 @@ def test_mid_package_failure_restores_previous_entries_and_removes_new_files(
             raise OSError("promotion failed")
         real_replace(source, destination)
 
-    monkeypatch.setattr(mutations.os, "replace", fail_last)
+    monkeypatch.setattr(os, "replace", fail_last)
     with pytest.raises(OSError, match="promotion failed"):
         store.install_package_atomic(
             entries=(package("first", "after"), package("new", "after"), package("last", "after")),
             operation_id="import",
         )
-    monkeypatch.setattr(mutations.os, "replace", real_replace)
+    monkeypatch.setattr(os, "replace", real_replace)
     store.finalize_mutation(journal_id=journal_id, commit=False)
     assert (tmp_path / "local/gestures/first.vrma").read_bytes() == vrma("before")
     assert not (tmp_path / "local/gestures/new.vrma").exists()
@@ -419,10 +419,10 @@ def test_interrupted_rollback_can_resume_after_restoring_one_file(
         if Path(destination) == tmp_path / "local/gestures/second.vrma":
             raise SystemExit("process died while restoring")
 
-    monkeypatch.setattr(mutations.os, "replace", crash_after_restore)
+    monkeypatch.setattr(os, "replace", crash_after_restore)
     with pytest.raises(SystemExit):
         store.finalize_mutation(journal_id=journal_id, commit=False)
-    monkeypatch.setattr(mutations.os, "replace", real_replace)
+    monkeypatch.setattr(os, "replace", real_replace)
     store_at(tmp_path).recover_mutations(committed_journal_ids=set())
     for name in ("first", "second"):
         assert (tmp_path / f"local/gestures/{name}.vrma").read_bytes() == vrma("before")

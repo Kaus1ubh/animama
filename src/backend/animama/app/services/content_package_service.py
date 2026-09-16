@@ -11,7 +11,7 @@ import stat
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from tempfile import SpooledTemporaryFile
-from typing import BinaryIO, Literal
+from typing import BinaryIO, Literal, TypedDict, cast
 from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile, ZipInfo
 
 from animama.app.services.content_catalog_service import ContentCatalogService
@@ -32,7 +32,26 @@ from animama.domain.content_catalog import (
     PreparedPackageEntry,
     PreparedPackageFile,
 )
-from animama.domain.content_documents import ContentDocumentError
+from animama.domain.content_documents import ContentDocumentError, TypedContentDocument
+
+
+class _PackagePlan(TypedDict, total=False):
+    """Validated import fields; skipped entries omit destination and byte fields."""
+
+    skip: bool
+    package_id: str
+    package_logical_key: str
+    logical_key: str
+    kind: ContentKind
+    document: None
+    existing: CatalogContentEntry | None
+    manifest_dependencies: list[tuple[str, ContentKind]]
+    license: dict[str, object]
+    display_name: str
+    locator: str
+    files: list[dict[str, object]]
+    portable_revision: str
+
 
 PACKAGE_SCHEMA = "animama-content-package/2"
 MAX_PACKAGE_FILES = 2_048
@@ -405,7 +424,8 @@ class ContentPackageService:
             target.close()
             raise ContentConflictError("package_member_digest_mismatch")
         target.seek(0)
-        return target
+        # Python 3.10 stubs predate SpooledTemporaryFile implementing the IO ABC.
+        return cast(BinaryIO, target)
 
     async def import_package(
         self,
@@ -467,7 +487,7 @@ class ContentPackageService:
             ):
                 raise ContentConflictError("package_manifest_invalid")
 
-            plans: list[dict[str, object]] = []
+            plans: list[_PackagePlan] = []
             package_ids: set[str] = set()
             declared_archive_paths = {"package.json"}
             rewrites: dict[str, str] = {}
@@ -716,8 +736,8 @@ class ContentPackageService:
                     target_id = package_by_logical.get(reference)
                     if target_id is None:
                         raise ContentConflictError("package_dependency_unavailable")
-                    target_plan = plan_by_package_id[target_id]
-                    if target_plan.get("kind") is not _kind:
+                    manifest_target_plan = plan_by_package_id[target_id]
+                    if manifest_target_plan.get("kind") is not _kind:
                         raise ContentConflictError("package_dependency_kind_mismatch")
                     source_kind = plan.get("kind")
                     if (
@@ -745,7 +765,7 @@ class ContentPackageService:
                 raise ContentConflictError("package_closure_incomplete")
 
             prepared_entries: list[PreparedPackageEntry] = []
-            documents: dict[str, object] = {}
+            documents: dict[str, TypedContentDocument] = {}
             for raw, plan in zip(raw_entries, plans, strict=True):
                 if plan.get("skip") is True:
                     continue
@@ -818,7 +838,7 @@ class ContentPackageService:
                             )
                         except ContentDocumentError as exc:
                             raise ContentConflictError(exc.code) from exc
-                        payload_handle = SpooledTemporaryFile(max_size=8 * 1024 * 1024, mode="w+b")
+                        payload_handle = cast(BinaryIO, SpooledTemporaryFile(max_size=8 * 1024 * 1024, mode="w+b"))
                         payload_handle.write(rewritten)
                         payload_handle.seek(0)
                         payload_size = len(rewritten)
@@ -861,11 +881,11 @@ class ContentPackageService:
                 if plan.get("skip") is not True:
                     continue
                 existing = plan.get("existing")
-                kind = plan.get("kind")
-                if not isinstance(existing, CatalogContentEntry) or not isinstance(kind, ContentKind):
+                skipped_kind = plan.get("kind")
+                if not isinstance(existing, CatalogContentEntry) or not isinstance(skipped_kind, ContentKind):
                     raise ContentConflictError("package_dependency_unavailable")
                 documents[str(plan["package_id"])] = (
-                    handler_for_kind(kind)
+                    handler_for_kind(skipped_kind)
                     .parse_document(
                         existing.metadata,
                         fallback_path=Path(existing.display_name),
@@ -876,11 +896,11 @@ class ContentPackageService:
 
             for package_id, document in documents.items():
                 plan = plan_by_package_id[package_id]
-                manifest_dependencies = plan.get("manifest_dependencies")
-                assert isinstance(manifest_dependencies, list)
+                planned_dependencies = plan.get("manifest_dependencies")
+                assert isinstance(planned_dependencies, list)
                 expected_dependencies = {
                     (rewrites.get(reference, reference), dependency_kind)
-                    for reference, dependency_kind in manifest_dependencies
+                    for reference, dependency_kind in planned_dependencies
                 }
                 actual_dependencies = {
                     (dependency.ref, dependency.kind) for dependency in getattr(document, "dependencies", ())
@@ -898,9 +918,9 @@ class ContentPackageService:
             }
             edges: dict[str, list[str]] = {}
             for package_id, document in documents.items():
-                dependencies = getattr(document, "dependencies", ())
+                document_dependencies = document.dependencies
                 edges[package_id] = []
-                for dependency in dependencies:
+                for dependency in document_dependencies:
                     target_plan = plan_by_logical.get(dependency.ref)
                     target_item = visible_by_logical.get(dependency.ref)
                     if target_plan is None and target_item is None:
@@ -963,14 +983,14 @@ class ContentPackageService:
             for plan in plans:
                 if plan.get("skip") is True:
                     continue
-                item = await self._catalog.get_by_locator(
+                imported_item = await self._catalog.get_by_locator(
                     source=ContentSource.LOCAL,
                     relative_locator=str(plan["locator"]),
                 )
-                if item is None or item.status is not ContentStatus.VALID:
+                if imported_item is None or imported_item.status is not ContentStatus.VALID:
                     raise ContentConflictError("package_install_reconcile_failed")
                 if plan.get("existing") is None:
-                    item = await self._catalog.assign_creator_owner(item_id=item.id, user_id=user_id)
+                    imported_item = await self._catalog.assign_creator_owner(item_id=imported_item.id, user_id=user_id)
                 provenance = {
                     **(dict(plan["license"]) if isinstance(plan.get("license"), dict) else {}),
                     "import": {
@@ -982,7 +1002,7 @@ class ContentPackageService:
                 }
                 installed_items.append(
                     await self._catalog.record_import_provenance(
-                        item_id=item.id,
+                        item_id=imported_item.id,
                         user_id=user_id,
                         provenance=provenance,
                     )

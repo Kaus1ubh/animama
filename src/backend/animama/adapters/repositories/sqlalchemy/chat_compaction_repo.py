@@ -61,10 +61,11 @@ class SQLAlchemyChatCompactionRepository(ChatCompactionRepository):
                 ORMChatCompaction.status == STATUS_ACTIVE,
             )
             .values(status=STATUS_SUPERSEDED, superseded_at=superseded_at)
+            .returning(ORMChatCompaction.id)
             .execution_options(synchronize_session="fetch")
         )
         await self._s.flush()
-        return int(result.rowcount or 0)
+        return len(result.scalars().all())
 
     async def activate_new(self, compaction: ChatCompaction) -> ChatCompaction:
         compaction.status = STATUS_ACTIVE

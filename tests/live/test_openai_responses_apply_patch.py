@@ -4,6 +4,7 @@ import json
 import os
 
 import pytest
+from openai.types.shared_params.response_format_json_schema import ResponseFormatJSONSchema
 
 from animama.adapters.model_clients.openai_responses import OpenAIResponsesModelClient
 from animama.app.model_clients import (
@@ -52,7 +53,7 @@ async def test_gpt_5_4_nano_native_apply_patch_with_structured_final() -> None:
             native_tool_support=["apply_patch"],
         ),
     )
-    response_format = {
+    response_format: ResponseFormatJSONSchema = {
         "type": "json_schema",
         "json_schema": {
             "name": "native_apply_patch_smoke",

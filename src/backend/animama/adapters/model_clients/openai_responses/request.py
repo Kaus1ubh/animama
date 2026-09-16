@@ -2,19 +2,22 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from openai.types.responses import (
     ApplyPatchToolParam,
     FunctionToolParam,
     ResponseFunctionToolCallParam,
     ResponseInputItemParam,
-)
-from openai.types.responses.response_create_params import (
-    ResponseCreateParamsStreaming,
+    ResponseTextConfigParam,
     ToolParam,
 )
+from openai.types.responses.response_create_params import (
+    ContextManagement,
+    ResponseCreateParamsStreaming,
+)
 from openai.types.responses.response_input_param import ApplyPatchCall, ApplyPatchCallOutput
+from openai.types.shared.reasoning_effort import ReasoningEffort
 
 from animama.app.model_clients import (
     MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
@@ -74,7 +77,7 @@ def create_response_kwargs(
         payload["text"] = text_format
     reasoning_effort = spec.prompt.reasoning_effort
     if isinstance(reasoning_effort, str) and reasoning_effort.strip():
-        payload["reasoning"] = {"effort": reasoning_effort.strip()}
+        payload["reasoning"] = {"effort": cast(ReasoningEffort, reasoning_effort.strip())}
     context_management = responses_context_management(compaction_threshold_tokens)
     if context_management:
         payload["context_management"] = context_management
@@ -95,7 +98,7 @@ def create_response_kwargs(
     return kwargs
 
 
-def responses_context_management(compaction_threshold_tokens: int | None) -> list[dict[str, Any]]:
+def responses_context_management(compaction_threshold_tokens: int | None) -> list[ContextManagement]:
     """Build server-side compaction config for Responses auto-compaction."""
 
     if not isinstance(compaction_threshold_tokens, int) or compaction_threshold_tokens <= 0:
@@ -258,13 +261,13 @@ def _model_client_tool_call_input_item(message: Mapping[str, Any]) -> ResponseIn
     operation = _operation_from_arguments(arguments)
     if operation is None:
         return None
-    item: ApplyPatchCall = {
+    patch_item: ApplyPatchCall = {
         "type": "apply_patch_call",
         "call_id": call_id,
         "operation": cast(Any, operation),
         "status": "completed",
     }
-    return cast(ResponseInputItemParam, item)
+    return cast(ResponseInputItemParam, patch_item)
 
 
 def _model_client_tool_result_input_item(message: Mapping[str, Any]) -> ResponseInputItemParam | None:
@@ -282,7 +285,7 @@ def _model_client_tool_result_input_item(message: Mapping[str, Any]) -> Response
         )
     if tool_type != "apply_patch":
         return None
-    status = "completed" if message.get("status") == "completed" else "failed"
+    status: Literal["completed", "failed"] = "completed" if message.get("status") == "completed" else "failed"
     item: ApplyPatchCallOutput = {
         "type": "apply_patch_call_output",
         "call_id": call_id,
@@ -356,7 +359,7 @@ def _function_call_output_from_tool_message(message: Mapping[str, Any]) -> Respo
     )
 
 
-def responses_text_format(response_format: Mapping[str, Any] | None) -> dict[str, Any] | None:
+def responses_text_format(response_format: Mapping[str, Any] | None) -> ResponseTextConfigParam | None:
     """Translate Chat Completions-style response_format to Responses text format."""
 
     if not isinstance(response_format, Mapping):

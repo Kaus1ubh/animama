@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Any, Protocol
 
 from ...domain.archive import Archive, ArchivePassage
 
@@ -18,7 +18,7 @@ class ArchiveRepository(Protocol):
         *,
         name: str,
         description: str | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
         organization_id: str | None = None,
     ) -> Archive:
         raise NotImplementedError
@@ -38,7 +38,7 @@ class ArchiveRepository(Protocol):
         archive_id: str,
         text: str,
         embedding: list[float] | None = None,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
         tags: list[str] | None = None,
         source_id: str | None = None,
         file_id: str | None = None,

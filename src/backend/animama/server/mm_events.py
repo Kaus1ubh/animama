@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 
 from fastapi.responses import StreamingResponse
 
@@ -18,7 +18,7 @@ async def iter_owner_events(
     user_id: str,
     *,
     heartbeat_interval: float = OWNER_EVENT_HEARTBEAT_SECONDS,
-) -> AsyncIterator[str]:
+) -> AsyncGenerator[str, None]:
     """Yield heartbeat-only owner SSE frames for a reserved notification stream."""
     _ = user_id
     while True:

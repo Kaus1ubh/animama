@@ -9,6 +9,7 @@ import sys
 from copy import deepcopy
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -19,11 +20,13 @@ from scripts.validate_local_compose import ComposeBoundaryError, check_available
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
-def _compose() -> dict:
-    return yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+def _compose() -> dict[str, Any]:
+    document = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    assert isinstance(document, dict)
+    return document
 
 
-def _environment_names(service: dict) -> set[str]:
+def _environment_names(service: dict[str, Any]) -> set[str]:
     environment = service.get("environment") or {}
     if isinstance(environment, dict):
         return set(environment)
@@ -40,7 +43,7 @@ def test_only_fastapi_publishes_a_default_application_port() -> None:
 
 
 @lru_cache
-def _rendered_compose(profiles: tuple[str, ...] = ("*",), development: bool = False) -> dict:
+def _rendered_compose(profiles: tuple[str, ...] = ("*",), development: bool = False) -> dict[str, Any]:
     environment = os.environ.copy()
     environment["COMPOSE_PROFILES"] = ",".join(profiles)
     environment.pop("COMPOSE_FILE", None)
@@ -56,7 +59,9 @@ def _rendered_compose(profiles: tuple[str, ...] = ("*",), development: bool = Fa
         capture_output=True,
         text=True,
     )
-    return json.loads(result.stdout)
+    document = json.loads(result.stdout)
+    assert isinstance(document, dict)
+    return document
 
 
 def test_rendered_compose_enforces_the_local_publication_boundary() -> None:
@@ -244,7 +249,7 @@ def test_port_preflight_checks_free_ports_and_fails_closed_without_docker(monkey
 
 def _run_reset(
     tmp_path: Path, args: list[str], variables: dict[str, str] | None = None, *, build_mode: str | None = "production"
-) -> tuple[subprocess.CompletedProcess[str], list[dict], Path]:
+) -> tuple[subprocess.CompletedProcess[str], list[dict[str, Any]], Path]:
     """Run real reset/preflight against stubbed Compose, never Docker or repository data."""
 
     workspace = tmp_path / "animama"

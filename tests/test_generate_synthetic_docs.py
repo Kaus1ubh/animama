@@ -35,7 +35,7 @@ def _artifact_text(path: Path) -> str:
     if path.suffix == ".md":
         return path.read_text(encoding="utf-8")
     if path.suffix == ".docx":
-        return "\n".join(paragraph.text for paragraph in Document(path).paragraphs)
+        return "\n".join(paragraph.text for paragraph in Document(str(path)).paragraphs)
     if path.suffix == ".pdf":
         return "\n".join(page.extract_text() or "" for page in PdfReader(path).pages)
     raise AssertionError(f"Unexpected fixture extension: {path.suffix}")

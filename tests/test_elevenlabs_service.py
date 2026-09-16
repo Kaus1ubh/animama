@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from elevenlabs.core import ApiError
@@ -30,7 +31,7 @@ from animama.server.schemas.elevenlabs import (
 
 class _FakeVoicesIvcClient:
     def __init__(self) -> None:
-        self.calls: list[dict] = []
+        self.calls: list[dict[str, Any]] = []
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
@@ -75,7 +76,7 @@ class _FakeVoicesClient:
 
 class _FakeTextToSpeechClient:
     def __init__(self) -> None:
-        self.calls: list[dict] = []
+        self.calls: list[dict[str, Any]] = []
         self.outcomes: list[object] = []
 
     def convert(self, voice_id: str, **kwargs):
@@ -90,7 +91,7 @@ class _FakeTextToSpeechClient:
 
 class _FakeTextToSoundEffectsClient:
     def __init__(self) -> None:
-        self.calls: list[dict] = []
+        self.calls: list[dict[str, Any]] = []
 
     def convert(self, **kwargs):
         self.calls.append(kwargs)
@@ -99,7 +100,7 @@ class _FakeTextToSoundEffectsClient:
 
 class _FakeAudioIsolationClient:
     def __init__(self) -> None:
-        self.calls: list[dict] = []
+        self.calls: list[dict[str, Any]] = []
 
     def convert(self, **kwargs):
         self.calls.append(kwargs)
@@ -113,7 +114,7 @@ class _FakeElevenLabsClient:
         self.text_to_sound_effects = _FakeTextToSoundEffectsClient()
         self.audio_isolation = _FakeAudioIsolationClient()
         self.tokens = SimpleNamespace(single_use=SimpleNamespace(create=self._create_single_use_token))
-        self.single_use_token_calls: list[dict] = []
+        self.single_use_token_calls: list[dict[str, Any]] = []
         self.single_use_token_outcomes: list[object] = []
 
     def _create_single_use_token(self, **kwargs):
@@ -273,7 +274,9 @@ async def test_synthesize_text_exposes_retryable_concurrency_error(
         )
 
     assert exc_info.value.status_code == 429
-    assert exc_info.value.detail == {
+    detail = exc_info.value.detail
+    assert isinstance(detail, dict)
+    assert detail == {
         "provider": "elevenlabs",
         "code": "concurrent_limit_exceeded",
         "message": "Too many concurrent requests are in progress",
@@ -394,6 +397,7 @@ async def test_mint_tts_websocket_single_use_token_surfaces_api_error(
 @pytest.mark.asyncio
 async def test_ensure_elevenlabs_voice_accessible_rejects_inaccessible_voice(
     fake_client: _FakeElevenLabsClient,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake_client.voices.get_calls.clear()
 
@@ -403,7 +407,7 @@ async def test_ensure_elevenlabs_voice_accessible_rejects_inaccessible_voice(
             body={"detail": "A voice with this voice_id does not exist."},
         )
 
-    fake_client.voices.get = _raise_not_found
+    monkeypatch.setattr(fake_client.voices, "get", _raise_not_found)
 
     with pytest.raises(HTTPException) as exc_info:
         await ensure_elevenlabs_voice_accessible(voice_id="voice-missing")
@@ -429,6 +433,7 @@ async def test_ensure_elevenlabs_voice_accessible_uses_positive_cache(
 @pytest.mark.asyncio
 async def test_ensure_elevenlabs_voice_accessible_uses_short_negative_cache(
     fake_client: _FakeElevenLabsClient,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[str] = []
 
@@ -439,7 +444,7 @@ async def test_ensure_elevenlabs_voice_accessible_uses_short_negative_cache(
             body={"detail": "A voice with this voice_id does not exist."},
         )
 
-    fake_client.voices.get = _raise_not_found
+    monkeypatch.setattr(fake_client.voices, "get", _raise_not_found)
 
     for _ in range(2):
         with pytest.raises(HTTPException) as exc_info:

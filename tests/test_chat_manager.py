@@ -497,11 +497,11 @@ async def test_chat_openai_previous_response_id_round_trips_and_update_preserves
 
 
 @pytest.mark.asyncio
-async def test_chat_manager_record_turn_advances_openai_previous_response_id(async_session):
+async def test_chat_manager_record_turn_advances_openai_previous_response_id(async_session, monkeypatch):
     async_session.add(ORMAnima(id="anima-chat-cursor-turn", user_id="user-1"))
     await async_session.commit()
     chat_repo = SQLAlchemyChatRepository(async_session)
-    reserved_cursor: dict[str, str | None] = {}
+    reserved_cursor: dict[str, str | bool | None] = {}
     original_reserve = chat_repo.reserve_message_turns_and_add_usage
 
     async def recording_reserve_message_turns_and_add_usage(chat_id: str, **kwargs):
@@ -509,7 +509,7 @@ async def test_chat_manager_record_turn_advances_openai_previous_response_id(asy
         reserved_cursor["clear"] = kwargs.get("clear_openai_previous_response_id")
         return await original_reserve(chat_id, **kwargs)
 
-    chat_repo.reserve_message_turns_and_add_usage = recording_reserve_message_turns_and_add_usage
+    monkeypatch.setattr(chat_repo, "reserve_message_turns_and_add_usage", recording_reserve_message_turns_and_add_usage)
     manager = ChatManager(
         chats=chat_repo,
         messages=SQLAlchemyChatMessageRepository(async_session),
@@ -615,7 +615,7 @@ async def test_chat_manager_record_turn_clears_cursor_from_invalid_or_non_respon
 
 
 @pytest.mark.asyncio
-async def test_chat_manager_record_turn_clears_cursor_for_chat_completions_turn_with_usage(async_session):
+async def test_chat_manager_record_turn_clears_cursor_for_chat_completions_turn_with_usage(async_session, monkeypatch):
     async_session.add(ORMAnima(id="anima-chat-cursor-chat-completions", user_id="user-1"))
     await async_session.commit()
     await SQLAlchemyChatRepository(async_session).create(
@@ -636,7 +636,7 @@ async def test_chat_manager_record_turn_clears_cursor_for_chat_completions_turn_
         reserved_cursor["clear"] = kwargs.get("clear_openai_previous_response_id")
         return await original_reserve(chat_id, **kwargs)
 
-    chat_repo.reserve_message_turns_and_add_usage = recording_reserve_message_turns_and_add_usage
+    monkeypatch.setattr(chat_repo, "reserve_message_turns_and_add_usage", recording_reserve_message_turns_and_add_usage)
     manager = ChatManager(
         chats=chat_repo,
         messages=SQLAlchemyChatMessageRepository(async_session),

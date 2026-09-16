@@ -7,7 +7,7 @@ import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, TypedDict
 from uuid import uuid4
 
 import pytest
@@ -24,6 +24,13 @@ from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.orm.content_mutation import ORMContentMutationReceipt
 from animama.server.local_runtime import LocalRuntimePaths
 from tests.content_package_helpers import package_services, vrma
+
+
+class _ImportCommand(TypedDict):
+    user_id: str
+    archive_path: Path
+    operation_id: str
+    collision: Literal["cancel", "keep_both", "replace"]
 
 
 @dataclass
@@ -146,7 +153,7 @@ async def test_import_replays_its_original_result_without_installing_again(
     exported = await workflow.packages.export_item(
         user_id=workflow.owner, root_item_id=saved.item.id, operation_id="export-replay"
     )
-    command = {
+    command: _ImportCommand = {
         "user_id": workflow.owner,
         "archive_path": exported.path,
         "operation_id": "import-replay",
@@ -232,7 +239,7 @@ async def test_multi_entry_import_rolls_back_prior_provenance_and_all_files_afte
         return item
 
     monkeypatch.setattr(workflow.catalog, "record_import_provenance", fail_second_provenance)
-    command = {
+    command: _ImportCommand = {
         "user_id": workflow.owner,
         "archive_path": package_path,
         "operation_id": "two-entry-import",

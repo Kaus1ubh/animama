@@ -3,8 +3,8 @@
 
 import argparse
 import json
-from pathlib import Path
 import webbrowser
+from pathlib import Path
 
 
 def main() -> None:

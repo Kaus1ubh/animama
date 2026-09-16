@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from typing import Any
 from zipfile import ZipFile
 
 import pytest
@@ -44,7 +45,7 @@ async def _bootstrap(database: LocalDatabase, settings: Settings):  # noqa: ANN2
     return state
 
 
-def _command(owner: str) -> dict:
+def _command(owner: str) -> dict[str, Any]:
     return {
         "user_id": owner,
         "kind": ContentKind.GESTURE,

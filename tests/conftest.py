@@ -5,27 +5,59 @@ import sys
 from collections.abc import AsyncIterator, Iterator
 from importlib import util
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 import pytest
 import pytest_asyncio
-
-# Load .env file for test environment variables
-try:
-    from dotenv import load_dotenv
-
-    load_dotenv()
-except Exception:
-    pass
-# ensure traces exporter doesn't warn when API key absent
-os.environ.setdefault("OPENAI_API_KEY", "test-key")
-# Disable file logging during tests to avoid permissions on CI/containers
-os.environ.setdefault("ANIMAMA_LOG_TO_FILE", "0")
-# Disable console logging during tests to keep CLI output clean
-os.environ.setdefault("ANIMAMA_LOG_TO_CONSOLE", "0")
-os.environ.setdefault("ANIMAMA_DISABLE_WEBUI_TELEMETRY", "1")
-# os.environ.setdefault("OPENAI_AGENTS_DISABLE_TRACING", "1")
 import sqlalchemy
+
+# Isolate before importing application modules: Settings captures some defaults
+# at import time, and Embedder/live helpers may call python-dotenv themselves.
+# Live tests consume explicitly exported credentials, never a developer .env.
+_test_environment = pytest.MonkeyPatch()
+_test_roots = TemporaryDirectory(prefix="animama-pytest-")
+_live_tests_enabled = os.environ.get("ANIMAMA_RUN_LIVE_TESTS") == "1"
+for _name in tuple(os.environ):
+    if _name.startswith("ANIMAMA_") and not (
+        _name.startswith("ANIMAMA_TEST_")
+        or _name in {"ANIMAMA_RUN_LIVE_TESTS", "ANIMAMA_RUN_ASSET_SCALE_BENCHMARK"}
+        or (_live_tests_enabled and _name == "ANIMAMA_LIVE_OPENAI_API_KEY")
+    ):
+        _test_environment.delenv(_name)
+
+_PROVIDER_ENVIRONMENT = (
+    "OPENAI_API_KEY",
+    "OPENAI_BASE_URL",
+    "OPENAI_ORG_ID",
+    "OPENAI_PROJECT_ID",
+    "DEEPSEEK_API_KEY",
+    "HF_TOKEN",
+    "HUGGINGFACE_API_KEY",
+    "GEMINI_API_KEY",
+    "ELEVENLABS_API_KEY",
+)
+for _name in _PROVIDER_ENVIRONMENT:
+    if not (_live_tests_enabled and _name == "OPENAI_API_KEY"):
+        _test_environment.delenv(_name, raising=False)
+if not _live_tests_enabled:
+    _test_environment.setenv("OPENAI_API_KEY", "test-key")
+
+_test_environment.setenv("PYTHON_DOTENV_DISABLED", "1")
+_test_environment.setenv("ANIMAMA_CONTENT_ROOT", str(Path(__file__).resolve().parents[1] / "content"))
+_test_environment.setenv("ANIMAMA_DATA_ROOT", str(Path(_test_roots.name) / "data"))
+_test_environment.setenv("ANIMAMA_LOG_TO_FILE", "0")
+_test_environment.setenv("ANIMAMA_LOG_TO_CONSOLE", "0")
+_test_environment.setenv("ANIMAMA_DISABLE_WEBUI_TELEMETRY", "1")
+_test_environment.setenv("OTEL_SDK_DISABLED", "1")
+
+
+def pytest_unconfigure() -> None:
+    """Restore the caller environment when pytest.main is used in-process."""
+
+    _test_environment.undo()
+    _test_roots.cleanup()
+
 
 _session_spec = util.spec_from_file_location(
     "sqlalchemy.ext.asyncio.session",
@@ -156,52 +188,41 @@ async def db_ready(db_url: str) -> AsyncIterator[str]:
     Uses the ORM Base metadata to create every registered table—no manual list.
     Yields the database URL for convenience.
     """
-    # Point default engine to test DB for code paths that call get_engine() without args
-    os.environ["ANIMAMA_DATABASE_URL"] = db_url
-
     from sqlalchemy.ext.asyncio import create_async_engine
     from sqlalchemy.pool import NullPool
 
-    # Ensure all ORM models are imported so Base.metadata has every table
-    import animama.local.installation_model  # noqa: F401 (local schema registration)
-    import animama.orm as _orm  # noqa: F401  (shared schema registration)
-
-    # Create schema using a dedicated engine in the session loop
-    test_engine = create_async_engine(db_url, poolclass=NullPool, pool_pre_ping=True)
-    async with test_engine.begin() as conn:
-        # Try enabling pgvector if available (best-effort)
-        try:
-            await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
-        except Exception:
-            pass
-
-        def _create_all(sync_conn):
-            # Create all tables known to the ORM Base
-            from animama.orm.base import Base as _Base
-
-            _Base.metadata.create_all(bind=sync_conn)
-
-        await conn.run_sync(_create_all)
-
-    # Patch get_engine globally to provide disposable engines per call
     import animama.hooks as hookmod
     import animama.local.database as engmod
+    import animama.local.installation_model  # noqa: F401 (local schema registration)
+    import animama.orm as _orm  # noqa: F401 (shared schema registration)
 
     created_engines: list[Any] = []
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("ANIMAMA_DATABASE_URL", db_url)
+        test_engine = create_async_engine(db_url, poolclass=NullPool, pool_pre_ping=True)
+        try:
+            async with test_engine.begin() as conn:
+                await conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
 
-    def _get_engine_patched(url: str | None = None):
-        engine = create_async_engine(url or db_url, poolclass=NullPool, pool_pre_ping=True)
-        created_engines.append(engine)
-        return engine
+                def _create_all(sync_conn):
+                    from animama.orm.base import Base as _Base
 
-    engmod.get_engine = _get_engine_patched  # type: ignore
-    hookmod.get_engine = _get_engine_patched  # type: ignore
+                    _Base.metadata.create_all(bind=sync_conn)
 
-    yield db_url
+                await conn.run_sync(_create_all)
 
-    for engine in created_engines:
-        await engine.dispose()
-    await test_engine.dispose()
+            def _get_engine_patched(url: str | None = None):
+                engine = create_async_engine(url or db_url, poolclass=NullPool, pool_pre_ping=True)
+                created_engines.append(engine)
+                return engine
+
+            patch.setattr(engmod, "get_engine", _get_engine_patched)
+            patch.setattr(hookmod, "get_engine", _get_engine_patched)
+            yield db_url
+        finally:
+            for engine in created_engines:
+                await engine.dispose()
+            await test_engine.dispose()
 
 
 @pytest_asyncio.fixture

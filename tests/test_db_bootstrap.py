@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import psycopg
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
@@ -154,7 +155,7 @@ def test_desktop_database_connection_rejects_a_different_pgdata_before_mutation(
     connection = MagicMock()
     cursor = connection.cursor.return_value.__enter__.return_value
     cursor.fetchone.return_value = (str(tmp_path / "unrelated"),)
-    monkeypatch.setattr(db_bootstrap.psycopg, "connect", lambda **_kwargs: connection)
+    monkeypatch.setattr(psycopg, "connect", lambda **_kwargs: connection)
     with pytest.raises(RuntimeError, match="desktop_database_ownership_mismatch"):
         db_bootstrap.provision_desktop_database()
     connection.close.assert_called_once()

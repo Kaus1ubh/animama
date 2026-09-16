@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import func, select
 
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
@@ -9,7 +11,7 @@ from tests.anima_creation_service_support import anima_creation_fixture
 from tests.local_http_client import local_client
 
 
-def _root(item, *, kind: str | None = None, revision: str | None = None) -> dict:  # noqa: ANN001
+def _root(item, *, kind: str | None = None, revision: str | None = None) -> dict[str, Any]:  # noqa: ANN001
     return {
         "kind": kind or item.kind.value,
         "source": {

@@ -1,4 +1,4 @@
-"""Shared accountless Locust helpers that exercise the public Hono gateway."""
+"""Shared accountless Locust helpers that exercise the local application origin."""
 
 from __future__ import annotations
 
@@ -110,7 +110,7 @@ def _source_roots(options: dict[str, Any], avatar: dict[str, Any]) -> list[dict[
 
 
 def load_creation_template(client) -> dict[str, Any]:  # noqa: ANN001
-    """Resolve one current catalog-backed creation template through Hono."""
+    """Resolve one current catalog-backed creation template through the application origin."""
 
     with client.get(
         "/v1/animas/creation-options",

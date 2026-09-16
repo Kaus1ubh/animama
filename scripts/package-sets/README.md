@@ -37,6 +37,15 @@ Python/npm environments, runs real shared services with fake ports, mounts the
 Anima/chat UI in Chromium, and emits `validation.json` bound to this manifest.
 The receipt is test evidence, not a signature or an automatic publication grant.
 
+Source builds use the committed frozen locks. Independent consumers intentionally
+resolve fresh dependencies from package metadata; even `--offline` uses cached
+available versions rather than the source locks. Consumer `summary.json` labels
+this `fresh-resolution` and hashes the retained pnpm lock, full npm dependency
+graph and Python name/version inventory under `logs/`. These files survive CI's
+environment cleanup and are uploaded with test evidence, including on later test
+failure. Python names/versions identify the tested installation; they do not
+prove reproducible transitive wheel bytes or constitute a frozen consumer gate.
+
 PR/main CI retains these unpublished outputs and focused evidence in GitHub
 Actions for 14 days. No bucket, Cloud checkout, R2 credential or desktop release
 is needed. A separate private maintainer workflow may select an exact successful

@@ -318,7 +318,7 @@ class PyReactionCell(BaseModel):
     def from_domain(cls, value: ReactionCell) -> PyReactionCell:
         return cls(
             emotion=value.emotion,
-            intensity=value.intensity,  # type: ignore[arg-type]
+            intensity=value.intensity,
             state=value.state,
             binding_id=value.binding_id,
             logical_item_id=value.source.logical_key if value.source else None,

@@ -6,7 +6,7 @@ import hashlib
 import warnings
 from dataclasses import dataclass
 from io import BytesIO
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
 from PIL import Image, ImageOps, ImageStat, UnidentifiedImageError
 
@@ -357,7 +357,8 @@ def _open_bounded_image(
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
-            image = Image.open(_BorrowedImageStream(content))
+            # Pillow reads the seek/read/tell interface; it never owns this stream.
+            image = Image.open(cast(BinaryIO, _BorrowedImageStream(content)))
             source_format = image.format or ""
             width, height = image.size
             frame_count = int(getattr(image, "n_frames", 1))

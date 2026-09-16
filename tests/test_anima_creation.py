@@ -364,9 +364,9 @@ async def test_canonical_hash_and_strict_schema(async_session, tmp_path):
             invalid = deepcopy(original)
             invalid["appearance"]["profile"]["presentation"]["focal_x"] = value
             cases.append(invalid)
-        for key, value in (("url", "https://untrusted.test/file"), ("metadata", {"arbitrary": True})):
+        for key, unexpected_value in (("url", "https://untrusted.test/file"), ("metadata", {"arbitrary": True})):
             invalid = deepcopy(original)
-            invalid["avatar"][key] = value
+            invalid["avatar"][key] = unexpected_value
             cases.append(invalid)
         for payload in cases:
             with pytest.raises(ValidationError):
@@ -470,4 +470,7 @@ async def test_validation_respects_smaller_installation_identity_limit(async_ses
         spec = AnimaSpec.model_validate(fixture.request().spec().model_dump())
         with pytest.raises(AnimaCreationError) as error:
             await fixture.service(async_session, max_identity_bytes=3).validate(user_id=fixture.owner, spec=spec)
-        assert error.value.status == 422 and error.value.detail["issues"][0]["path"] == "/identity_markdown"
+        assert error.value.status == 422
+        issues = error.value.detail["issues"]
+        assert isinstance(issues, list)
+        assert issues[0]["path"] == "/identity_markdown"

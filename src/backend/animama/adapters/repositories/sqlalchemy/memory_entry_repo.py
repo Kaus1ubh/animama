@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import func, insert, or_, select, update
+from sqlalchemy import RowMapping, SQLColumnExpression, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from animama.app.ports.memory_entry_port import MemoryEntryRepository, MemoryEntryRepositoryConflictError
 from animama.domain.memory_entry import (
@@ -37,8 +37,10 @@ _MEMORY_ENTRY_VERSION_CONSTRAINT = "uq_memory_entry_versions_entry_version"
 _MEMORY_ENTRY_CONFLICT_CONSTRAINTS = _MEMORY_ENTRY_NAMESPACE_CONSTRAINTS | {_MEMORY_ENTRY_VERSION_CONSTRAINT}
 
 
-def _scope_filter(model: type[ORMMemoryEntry], *, user_id: str, anima_id: str | None) -> tuple[object, ...]:
-    filters: list[object] = [model.user_id == user_id]
+def _scope_filter(
+    model: type[ORMMemoryEntry], *, user_id: str, anima_id: str | None
+) -> tuple[ColumnElement[bool], ...]:
+    filters: list[ColumnElement[bool]] = [model.user_id == user_id]
     if anima_id is None:
         filters.append(model.anima_id.is_(None))
     else:
@@ -187,7 +189,7 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
         )
 
     @staticmethod
-    def _entry_columns() -> tuple[object, ...]:
+    def _entry_columns() -> tuple[SQLColumnExpression[Any], ...]:
         return (
             ORMMemoryEntry.id,
             ORMMemoryEntry.user_id,
@@ -211,7 +213,7 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
         )
 
     @staticmethod
-    def _header_columns() -> tuple[object, ...]:
+    def _header_columns() -> tuple[SQLColumnExpression[Any], ...]:
         return (
             ORMMemoryEntry.id,
             ORMMemoryEntry.user_id,
@@ -234,7 +236,7 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
         )
 
     @staticmethod
-    def _row_to_domain(row: Mapping[str, Any]) -> MemoryEntry:
+    def _row_to_domain(row: RowMapping) -> MemoryEntry:
         return MemoryEntry(
             id=row["id"],
             user_id=row["user_id"],
@@ -258,7 +260,7 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
         )
 
     @staticmethod
-    def _row_to_header(row: Mapping[str, Any]) -> MemoryEntryHeader:
+    def _row_to_header(row: RowMapping) -> MemoryEntryHeader:
         return MemoryEntryHeader(
             id=row["id"],
             user_id=row["user_id"],

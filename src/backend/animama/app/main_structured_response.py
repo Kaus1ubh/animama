@@ -643,7 +643,7 @@ def build_main_response_model(
     runtime_gesture_ids = _runtime_gesture_ids(gesture_ids)
     dynamic_model = cast(
         type[PyMainAgentResponse],
-        create_model(  # type: ignore[call-overload]
+        create_model(
             f"PyMainAgentResponse_{agent_id.replace('-', '_')}",
             __base__=PyMainAgentResponse,
             gesture=(

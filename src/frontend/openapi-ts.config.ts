@@ -11,7 +11,9 @@ export default defineConfig([
   {
     input: localSchemaPath,
     output: {
-      path: "packages/runtime-contracts/src/generated",
+      path:
+        process.env.ANIMAMA_LOCAL_OPENAPI_OUTPUT ??
+        "packages/runtime-contracts/src/generated",
       clean: true,
     },
     // Generated transport has no origin/auth defaults; each composition supplies them.

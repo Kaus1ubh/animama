@@ -3,10 +3,10 @@
 import hashlib
 from datetime import datetime, timedelta
 
-from sqlalchemy import exists, select, text
+from sqlalchemy import Select, exists, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.domain.feature_packs import PackRemovalBlocker
+from animama.domain.feature_packs import BlockerKind, PackRemovalBlocker
 from animama.orm.anima import ORMAnima
 from animama.orm.anima_loadout import ORMAnimaRuntimeSnapshot
 from animama.orm.avatar import ORMAvatar
@@ -31,7 +31,7 @@ async def included_source_blockers(
     """Check the same references for a user preflight and actual catalog withdrawal."""
 
     ids = select(ORMContentCatalogItem.id).where(ORMContentCatalogItem.source_mount_id.in_(mount_ids))
-    checks = (
+    checks: tuple[tuple[BlockerKind, Select[tuple[str, str]] | Select[tuple[str]]], ...] = (
         (
             "anima_loadout",
             select(ORMAnima.id, ORMAnima.display_name)

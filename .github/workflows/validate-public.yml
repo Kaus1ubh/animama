@@ -5,21 +5,62 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: portable-product-${{ github.workflow }}-${{ github.ref }}
+  # A release caller uses its run identity so another dispatch cannot cancel
+  # validation underneath a credential-bearing release. PR pushes supersede PRs.
+  group: portable-product-${{ github.workflow }}-${{ github.workflow == 'Portable product validation' && github.ref || github.run_id }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash # GitHub invokes bash with -e and -o pipefail, including tee pipelines.
+
 jobs:
+  backend-static-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      UV_NO_SYNC: "1"
+      ANIMAMA_RUN_LIVE_TESTS: "0"
+      PYTEST_ADDOPTS: --junitxml=${{ runner.temp }}/backend-pytest.xml
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.sha }}
+          lfs: true
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
+        with:
+          version: "0.11.28"
+      - run: uv sync --frozen --python 3.12.13 --extra server
+      - name: Run the complete offline backend verification contract
+        # Docker-backed fixtures must fail when Docker or required content is
+        # missing. This never substitutes a reduced suite or paid provider run.
+        run: |
+          command -v rg
+          make check-test 2>&1 | tee "$RUNNER_TEMP/backend-checks.log"
+      - name: Retain backend success or failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/backend-checks.log
+            ${{ runner.temp }}/backend-pytest.xml
+          retention-days: 14
+
   portable-product:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 0
           lfs: true
           persist-credentials: false
@@ -36,35 +77,54 @@ jobs:
         working-directory: src/frontend
       - name: Check shared import and boundary tooling regressions
         run: |
-          uv run --no-sync python scripts/repository-boundary/audit-classification.py --check
-          uv run --no-sync python scripts/repository-boundary/build-provenance.py --check
-          uv run --no-sync python scripts/check-repository-dependencies.py
-          uv run --no-sync python -m unittest discover -s scripts/package-sets -p 'test_*.py'
-          uv run --no-sync python scripts/repository-boundary/check-python-imports.py
-          uv run --no-sync python -m unittest discover -s scripts/repository-boundary -p 'test_*.py'
-          git lfs fsck
+          uv run --no-sync python scripts/repository-boundary/audit-classification.py --check 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
+          uv run --no-sync python scripts/repository-boundary/build-provenance.py --check 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
+          uv run --no-sync python scripts/check-repository-dependencies.py 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
+          uv run --no-sync python scripts/repository-boundary/check-python-imports.py 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
+          git lfs fsck 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
+      - name: Run nonempty release and boundary tooling suites
+        run: |
+          uv run --no-sync python - <<'PYTHON' 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
+          import sys
+          import unittest
+
+          for directory in ("scripts/package-sets", "scripts/public-release", "scripts/repository-boundary"):
+              suite = unittest.TestLoader().discover(directory, pattern="test_*.py")
+              count = suite.countTestCases()
+              print(f"{directory}: collected {count} tests", flush=True)
+              if count == 0:
+                  raise SystemExit(f"Required tooling suite collected no tests: {directory}")
+              if not unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful():
+                  raise SystemExit(1)
+          PYTHON
+      - name: Install the isolated browser test runtime
+        # Package tests and isolated consumers both launch Chromium. Install it
+        # before the first browser-dependent check on a fresh runner.
+        run: pnpm exec playwright install chromium
+        working-directory: src/frontend
+      - name: Check frontend harnesses and generated SDK freshness
+        working-directory: src/frontend
+        run: |
+          pnpm e2e:check 2>&1 | tee -a "$RUNNER_TEMP/frontend-harness.log"
+          pnpm e2e:test:unit 2>&1 | tee -a "$RUNNER_TEMP/frontend-harness.log"
+          node --test scripts/e2e/*.test.mjs 2>&1 | tee -a "$RUNNER_TEMP/frontend-harness.log"
+          node --test scripts/generate-openapi-client.test.mjs 2>&1 | tee -a "$RUNNER_TEMP/frontend-harness.log"
+          pnpm openapi-ts:check 2>&1 | tee -a "$RUNNER_TEMP/frontend-harness.log"
       - name: Check and test browser and desktop source
         working-directory: src/frontend
         run: |
-          pnpm check
-          pnpm packages:check
-          pnpm packages:test
-          pnpm web:lint
-          pnpm web:test
-          pnpm desktop:test
-          pnpm build
-      - name: Check the local HTTP boundary
-        run: uv run --no-sync pytest -q tests/test_local_http_*.py tests/test_local_app_composition.py tests/test_request_principal.py
+          pnpm check 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
+          pnpm packages:check 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
+          pnpm packages:test 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
+          pnpm web:lint 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
+          pnpm web:test 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
+          pnpm desktop:test 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
+          pnpm build 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
       - name: Build unpublished distribution artifacts
         run: |
           uv run --no-sync python scripts/package-sets/build.py build \
             --source "$GITHUB_WORKSPACE" --commit "$GITHUB_SHA" \
             --output "$RUNNER_TEMP/public-artifacts"
-      - name: Install the isolated browser test runtime
-        # Hosted Ubuntu supplies the runtime libraries. The real browser checks
-        # below verify launch without reinstalling fonts through the apt mirror.
-        run: pnpm exec playwright install chromium
-        working-directory: src/frontend
       - name: Verify consumers without a source checkout
         run: |
           uv run --no-sync python scripts/package-sets/build.py validate \
@@ -151,6 +211,9 @@ jobs:
         with:
           name: portable-evidence-${{ github.sha }}-${{ github.run_attempt }}
           path: |
+            ${{ runner.temp }}/portable-tooling.log
+            ${{ runner.temp }}/frontend-harness.log
+            ${{ runner.temp }}/frontend-source.log
             ${{ runner.temp }}/public-consumer/summary.json
             ${{ runner.temp }}/public-consumer/logs/
             ${{ runner.temp }}/public-consumer/frontend/*.png

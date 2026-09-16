@@ -6,6 +6,7 @@ import math
 import struct
 from copy import deepcopy
 from io import BytesIO
+from typing import Any
 
 import pytest
 
@@ -16,7 +17,7 @@ from animama.app.services.content_gltf import (
 )
 
 
-def _fixture_document(*, buffer_uri: str | None) -> tuple[dict, bytes]:
+def _fixture_document(*, buffer_uri: str | None) -> tuple[dict[str, Any], bytes]:
     binary = struct.pack("<8f", 0, 1, 0, 0, 0, 1, 0, 0)
     buffer: dict[str, object] = {"byteLength": len(binary)}
     if buffer_uri is not None:
@@ -55,11 +56,11 @@ def _fixture_document(*, buffer_uri: str | None) -> tuple[dict, bytes]:
     return document, binary
 
 
-def _json_source(document: dict) -> bytes:
+def _json_source(document: dict[str, Any]) -> bytes:
     return json.dumps(document, separators=(",", ":")).encode()
 
 
-def _glb_source(document: dict, binary: bytes) -> bytes:
+def _glb_source(document: dict[str, Any], binary: bytes) -> bytes:
     raw_json = json.dumps(document, separators=(",", ":")).encode()
     json_chunk = raw_json + b" " * (-len(raw_json) % 4)
     binary_chunk = binary + b"\x00" * (-len(binary) % 4)
@@ -73,14 +74,14 @@ def _glb_source(document: dict, binary: bytes) -> bytes:
     )
 
 
-def _json_only_glb(document: dict) -> bytes:
+def _json_only_glb(document: dict[str, Any]) -> bytes:
     raw_json = json.dumps(document, separators=(",", ":")).encode()
     json_chunk = raw_json + b" " * (-len(raw_json) % 4)
     total = 12 + 8 + len(json_chunk)
     return struct.pack("<4sII", b"glTF", 2, total) + struct.pack("<II", len(json_chunk), 0x4E4F534A) + json_chunk
 
 
-def _vrm_document(spec: str) -> dict:
+def _vrm_document(spec: str) -> dict[str, Any]:
     bone_names = [
         "hips",
         "spine",

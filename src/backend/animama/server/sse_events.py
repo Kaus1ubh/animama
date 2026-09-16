@@ -22,7 +22,7 @@ from animama.server.schemas.elevenlabs import PyElevenLabsRealtimeTtsSessionResp
 
 _log = get_logger("server.sse_events")
 
-GruutSseTextBuilder = Callable[..., dict[str, object] | None]
+GruutSseTextBuilder = Callable[..., Mapping[str, object] | None]
 TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS = "gruut_text_with_ws"
 
 

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Mapping, Sequence
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
+from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToolUnionParam
 
 from animama.adapters.model_clients.openai_errors import OPENAI_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE
 from animama.app.chat import (
@@ -84,6 +85,29 @@ def _structured_response(
         ensure_ascii=True,
         separators=(",", ":"),
     )
+
+
+def _function_tool(tool: ChatCompletionToolUnionParam) -> ChatCompletionFunctionToolParam:
+    """Require the function-tool variant asserted by these fixtures."""
+    assert tool["type"] == "function"
+    return tool
+
+
+def _json_object(value: object) -> dict[str, Any]:
+    """Check the JSON object shape before asserting its nested wire payload."""
+    assert isinstance(value, dict)
+    return value
+
+
+def _list(value: object) -> list[object]:
+    assert isinstance(value, list)
+    return value
+
+
+def _text(value: object) -> str:
+    """Require text rather than accepting a different provider payload shape."""
+    assert isinstance(value, str)
+    return value
 
 
 class _FakeProfileService:
@@ -247,7 +271,7 @@ class _FakeMemoryContextService:
     async def build_context(self, **kwargs):  # noqa: ANN003
         self.calls.append(dict(kwargs))
         memory_map = None
-        if not kwargs.get("request_options").disable_memory_influence:
+        if not kwargs["request_options"].disable_memory_influence:
             memory_map = "\n".join(
                 [
                     "# List of memory files",
@@ -338,7 +362,7 @@ class _NativePatchThenStaleCursorModelClient:
 
 
 class _ScriptedModelClient:
-    def __init__(self, finals: list[ModelClientFinal | Exception]) -> None:
+    def __init__(self, finals: Sequence[ModelClientFinal | Exception]) -> None:
         self.finals = list(finals)
         self.seen_specs: list[ModelClientRequest] = []
 
@@ -438,7 +462,7 @@ def _profile() -> AnimaChatProfile:
 
 
 def _request(**overrides: Any) -> DirectChatTurnRequest:
-    values = {
+    values: dict[str, Any] = {
         "anima_id": "anima-1",
         "user_id": "user-1",
         "chat_id": "chat-1",
@@ -503,6 +527,7 @@ def _executor(
     memory_episode_recorder: Any | None = None,
 ) -> tuple[DirectChatTurnExecutor, _FakeChatManager]:
     resolved_provider = _provider() if provider is _DEFAULT else provider
+    resolved_profile: AnimaChatProfile | None
     if profile is _DEFAULT and isinstance(resolved_provider, ModelProvider):
         resolved_profile = AnimaChatProfile(
             anima_id="anima-1",
@@ -510,7 +535,9 @@ def _executor(
             metadata={"source": "explicit"},
         )
     else:
-        resolved_profile = _profile() if profile is _DEFAULT else profile
+        assert profile is _DEFAULT or profile is None or isinstance(profile, AnimaChatProfile)
+        resolved_profile = _profile() if profile is _DEFAULT else cast(AnimaChatProfile | None, profile)
+        assert resolved_profile is None or isinstance(resolved_profile, AnimaChatProfile)
     chats = chat_manager or _FakeChatManager()
     if isinstance(resolved_provider, dict):
         registry_clients = {provider.provider_type: client for provider in resolved_provider.values()}
@@ -652,8 +679,8 @@ async def test_direct_turn_emits_sse_compatible_events_and_persists_model_snapsh
         ("developer", _fake_memory_map()),
         ("user", "Hi"),
     ]
-    assert "Expected json schema:" not in spec.prompt.messages[0]["content"]
-    assert MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip() in spec.prompt.messages[0]["content"]
+    assert "Expected json schema:" not in _text(spec.prompt.messages[0]["content"])
+    assert MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip() in _text(spec.prompt.messages[0]["content"])
     assert spec.prompt.response_format is not None
     assert spec.prompt.response_format["type"] == "json_schema"
     assert len(chats.record_turn_calls) == 1
@@ -706,8 +733,12 @@ async def test_direct_turn_uses_exact_runtime_gesture_ids_and_revision() -> None
     assert gesture_events[0].payload.runtime_revision == "tr1-custom"
     prompt = model_client.seen_specs[0].prompt
     assert prompt.response_format is not None
-    assert prompt.response_format["json_schema"]["schema"]["properties"]["gesture"]["enum"] == [None, "victory-dance"]
-    system_text = prompt.messages[0]["content"]
+    assert prompt.response_format["type"] == "json_schema"
+    schema = prompt.response_format["json_schema"]["schema"]
+    assert isinstance(schema, dict)
+    assert _json_object(_json_object(schema["properties"])["gesture"])["enum"] == [None, "victory-dance"]
+    system_text = _text(prompt.messages[0]["content"])
+    assert isinstance(system_text, str)
     assert "Available Anima gestures" not in system_text
     assert "Victory Dance" not in system_text
 
@@ -1142,12 +1173,12 @@ async def test_direct_turn_places_memory_map_in_system_when_provider_lacks_devel
     messages = model_client.seen_specs[0].prompt.messages
     output_type = build_main_structured_response_model(agent_id="direct_chat_model_client")
     assert [message["role"] for message in messages] == ["system", "user"]
-    assert messages[0]["content"].endswith(_fake_memory_map())
-    assert "# Response Guidance" in messages[0]["content"]
-    assert MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip() in messages[0]["content"]
-    assert build_main_structured_prompt(output_type) in messages[0]["content"]
-    assert "Expected json schema:" in messages[0]["content"]
-    assert messages[1]["content"] == "Hi"
+    assert _text(messages[0]["content"]).endswith(_fake_memory_map())
+    assert "# Response Guidance" in _text(messages[0]["content"])
+    assert MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip() in _text(messages[0]["content"])
+    assert build_main_structured_prompt(output_type) in _text(messages[0]["content"])
+    assert "Expected json schema:" in _text(messages[0]["content"])
+    assert _text(messages[1]["content"]) == "Hi"
 
 
 @pytest.mark.asyncio
@@ -1861,7 +1892,7 @@ async def test_direct_turn_executes_memory_tool_loop_and_persists_internal_messa
     assert len(model_client.seen_specs) == 2
     first_prompt = model_client.seen_specs[0].prompt
     assert first_prompt.parallel_tool_calls is False
-    assert [tool["function"]["name"] for tool in first_prompt.tools] == [
+    assert [_function_tool(tool)["function"]["name"] for tool in first_prompt.tools] == [
         "memory_list_files",
         "memory_read_files",
         "search_memory_files",
@@ -1870,7 +1901,7 @@ async def test_direct_turn_executes_memory_tool_loop_and_persists_internal_messa
     ]
     second_messages = model_client.seen_specs[1].prompt.messages
     assert second_messages[-2]["role"] == "assistant"
-    assert second_messages[-2]["tool_calls"][0]["id"] == "call-1"
+    assert _json_object(_list(second_messages[-2]["tool_calls"])[0])["id"] == "call-1"
     assert second_messages[-1]["role"] == "tool"
     assert second_messages[-1]["tool_call_id"] == "call-1"
     assert memory_tools.calls[0]["tool_name"] == "memory_read_files"
@@ -1934,7 +1965,7 @@ async def test_direct_turn_executes_attached_file_chunk_reader_in_tool_loop() ->
     )
 
     assert len(model_client.seen_specs) == 2
-    assert [tool["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
+    assert [_function_tool(tool)["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
         "memory_list_files",
         "memory_read_files",
         "search_memory_files",
@@ -2059,7 +2090,7 @@ async def test_direct_turn_responses_executes_native_patch_and_persists_neutral_
     assert model_client.seen_specs[0].provider_options.memory_apply_patch_enabled is True
     assert model_client.seen_specs[1].provider_options.memory_apply_patch_enabled is True
     assert all(
-        "synthetic patch document" in str(spec.prompt.messages[0]["content"]) for spec in model_client.seen_specs
+        "synthetic patch document" in str(_text(spec.prompt.messages[0]["content"])) for spec in model_client.seen_specs
     )
     second_messages = model_client.seen_specs[1].prompt.messages
     assert second_messages[-2] == {
@@ -2213,7 +2244,7 @@ async def test_direct_turn_rejects_reused_native_patch_call_id_with_different_op
     assert len(memory_tools.native_patch_calls) == 1
     rejected = model_client.seen_specs[2].prompt.messages[-1]
     assert rejected["status"] == "failed"
-    assert json.loads(rejected["output"])["code"] == "tool_call_id_reused"
+    assert json.loads(_text(rejected["output"]))["code"] == "tool_call_id_reused"
 
 
 @pytest.mark.asyncio
@@ -2262,7 +2293,7 @@ async def test_direct_turn_stale_cursor_replays_native_patch_exchange_without_re
     assert model_client.seen_specs[1].continuation.cursor == "resp_patch"
     replay = model_client.seen_specs[2]
     assert replay.continuation is None
-    assert "synthetic patch document" in str(replay.prompt.messages[0]["content"])
+    assert "synthetic patch document" in str(_text(replay.prompt.messages[0]["content"]))
     assert replay.prompt.messages[-2]["type"] == "model_client_tool_call"
     assert replay.prompt.messages[-2]["call_id"] == "call-patch-1"
     assert replay.prompt.messages[-1]["type"] == "model_client_tool_result"
@@ -2310,7 +2341,7 @@ async def test_direct_turn_tool_loop_max_round_forces_final_without_more_tools()
     assert forced_prompt.tools == ()
     assert forced_prompt.tool_choice is None
     assert forced_prompt.messages[-1]["role"] == "developer"
-    assert "Do not request more tools" in forced_prompt.messages[-1]["content"]
+    assert "Do not request more tools" in _text(forced_prompt.messages[-1]["content"])
     assert chats.record_turn_calls
 
 
@@ -2357,7 +2388,7 @@ async def test_direct_turn_native_patch_round_limit_records_failed_output_and_di
     assert limit_result["type"] == "model_client_tool_result"
     assert limit_result["call_id"] == "call-patch-4"
     assert limit_result["status"] == "failed"
-    assert json.loads(limit_result["output"])["code"] == "memory_tool_round_limit"
+    assert json.loads(_text(limit_result["output"]))["code"] == "memory_tool_round_limit"
 
 
 @pytest.mark.asyncio
@@ -2435,10 +2466,10 @@ async def test_direct_turn_memory_tool_option_gating() -> None:
         )
     )
 
-    first_tools = [tool["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools]
-    second_tools = [tool["function"]["name"] for tool in model_client.seen_specs[1].prompt.tools]
-    third_tools = [tool["function"]["name"] for tool in model_client.seen_specs[2].prompt.tools]
-    fourth_tools = [tool["function"]["name"] for tool in model_client.seen_specs[3].prompt.tools]
+    first_tools = [_function_tool(tool)["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools]
+    second_tools = [_function_tool(tool)["function"]["name"] for tool in model_client.seen_specs[1].prompt.tools]
+    third_tools = [_function_tool(tool)["function"]["name"] for tool in model_client.seen_specs[2].prompt.tools]
+    fourth_tools = [_function_tool(tool)["function"]["name"] for tool in model_client.seen_specs[3].prompt.tools]
     assert first_tools == ["memory_apply_patch", "memory_write_file"]
     assert second_tools == ["memory_list_files", "memory_read_files", "search_memory_files"]
     assert third_tools == ["memory_list_files", "memory_read_files", "search_memory_files"]
@@ -2452,7 +2483,8 @@ async def test_direct_turn_memory_tool_option_gating() -> None:
         "memory_write_file",
     ]
     fourth_prompt = model_client.seen_specs[3].prompt
-    fourth_system_content = fourth_prompt.messages[0]["content"]
+    fourth_system_content = _text(fourth_prompt.messages[0]["content"])
+    assert isinstance(fourth_system_content, str)
     assert isinstance(fourth_system_content, str)
     assert "Attached files are user-provided source documents for the current turn" in fourth_system_content
     assert "Do not default to reading `profile.md`" in fourth_system_content
@@ -2460,19 +2492,24 @@ async def test_direct_turn_memory_tool_option_gating() -> None:
     assert "Use `search_uploaded_files` for relevance lookup" in fourth_system_content
     assert "Use `read_uploaded_file_chunks` for whole-document synthesis" in fourth_system_content
     upload_search_tool = next(
-        tool for tool in fourth_prompt.tools if tool["function"]["name"] == "search_uploaded_files"
+        tool for tool in fourth_prompt.tools if _function_tool(tool)["function"]["name"] == "search_uploaded_files"
     )
-    upload_search_description = upload_search_tool["function"]["description"]
+    upload_search_description = _function_tool(upload_search_tool)["function"]["description"]
     assert "accessible through uploaded-file tools" in upload_search_description
     assert "relevance lookup, exact phrases, or locating a chunk" in upload_search_description
     assert "Do not substitute durable personal memory" in upload_search_description
     upload_read_tool = next(
-        tool for tool in fourth_prompt.tools if tool["function"]["name"] == "read_uploaded_file_chunks"
+        tool for tool in fourth_prompt.tools if _function_tool(tool)["function"]["name"] == "read_uploaded_file_chunks"
     )
-    assert "whole-document synthesis" in upload_read_tool["function"]["description"]
-    assert "unknown filename never reads other attachments" in upload_read_tool["function"]["description"]
-    assert "# List of attached user-uploaded files" not in model_client.seen_specs[0].prompt.messages[-2]["content"]
-    fourth_request_context = model_client.seen_specs[3].prompt.messages[-2]["content"]
+    assert "whole-document synthesis" in _function_tool(upload_read_tool)["function"]["description"]
+    assert (
+        "unknown filename never reads other attachments" in _function_tool(upload_read_tool)["function"]["description"]
+    )
+    assert "# List of attached user-uploaded files" not in _text(
+        model_client.seen_specs[0].prompt.messages[-2]["content"]
+    )
+    fourth_request_context = _text(model_client.seen_specs[3].prompt.messages[-2]["content"])
+    assert isinstance(fourth_request_context, str)
     assert 'filename: "project-notes.md"' in fourth_request_context
     assert "chunk_count: 3" in fourth_request_context
     assert 'description: "Project planning notes."' in fourth_request_context
@@ -2494,7 +2531,7 @@ async def test_direct_turn_responses_provider_supports_memory_tools_when_active(
 
     await _collect(executor.stream_turn(_request()))
 
-    assert [tool["function"]["name"] for tool in model_client.seen_specs[-1].prompt.tools] == [
+    assert [_function_tool(tool)["function"]["name"] for tool in model_client.seen_specs[-1].prompt.tools] == [
         "memory_list_files",
         "memory_read_files",
         "search_memory_files",
@@ -2548,9 +2585,9 @@ async def test_direct_turn_capability_gates_native_apply_patch_and_legacy_writer
         await _collect(executor.stream_turn(_request(chat_id=f"chat-{index}", run_id=f"run-{index}")))
 
         spec = client.seen_specs[0]
-        names = [tool["function"]["name"] for tool in spec.prompt.tools]
+        names = [_function_tool(tool)["function"]["name"] for tool in spec.prompt.tools]
         assert spec.provider_options.memory_apply_patch_enabled is expected_native
-        system_instruction = str(spec.prompt.messages[0]["content"])
+        system_instruction = str(_text(spec.prompt.messages[0]["content"]))
         if expected_native:
             assert names == ["memory_list_files", "memory_read_files", "search_memory_files"]
             assert "synthetic patch document" in system_instruction
@@ -2580,7 +2617,7 @@ async def test_direct_turn_native_apply_patch_respects_memory_write_gating(
 
     spec = client.seen_specs[0]
     assert spec.provider_options.memory_apply_patch_enabled is False
-    assert [tool["function"]["name"] for tool in spec.prompt.tools] == [
+    assert [_function_tool(tool)["function"]["name"] for tool in spec.prompt.tools] == [
         "memory_list_files",
         "memory_read_files",
         "search_memory_files",

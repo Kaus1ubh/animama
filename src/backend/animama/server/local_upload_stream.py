@@ -6,7 +6,7 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from tempfile import SpooledTemporaryFile
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
 from fastapi import Request
 
@@ -54,7 +54,7 @@ async def spool_bounded_request(
     stream = SpooledTemporaryFile(
         max_size=1024 * 1024,
         mode="w+b",
-        dir=staging_directory,
+        dir=str(staging_directory) if staging_directory is not None else None,
     )
     digest = hashlib.sha256()
     received = 0
@@ -68,7 +68,9 @@ async def spool_bounded_request(
         if received != expected_size_bytes:
             raise LocalUploadError("upload_size_mismatch")
         stream.seek(0)
-        return LocalUploadBody(stream=stream, size_bytes=received, sha256=digest.hexdigest())
+        # The standard-library binary spool implements BinaryIO, though its
+        # generic typeshed class does not inherit that nominal typing alias.
+        return LocalUploadBody(stream=cast(BinaryIO, stream), size_bytes=received, sha256=digest.hexdigest())
     except Exception:
         stream.close()
         raise

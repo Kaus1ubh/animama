@@ -33,7 +33,7 @@ def require_desktop_control(request: Request) -> None:
 @router.post("/feature-packs/{pack_id}:removal-check", dependencies=[Depends(require_desktop_control)])
 async def feature_pack_removal_check(
     pack_id: str, request: Request, session: Annotated[AsyncSession, Depends(get_async_session)]
-) -> dict:
+) -> dict[str, object]:
     """Bounded preflight; the later drained restart repeats catalog custody checks."""
 
     if pack_id not in FEATURE_PACK_IDS:

@@ -50,7 +50,11 @@ def create_stt_provider() -> SpeechToTextProvider:
             _log.error("Failed to init Parakeet STT, falling back to stub", exc=exc)
 
     _log.info("Initializing stub voice STT provider", sample_rate=sample_rate, channels=channels)
-    stt = EchoSpeechToTextProvider(sample_rate=sample_rate, channels=channels) if EchoSpeechToTextProvider else None
+    stt = (
+        EchoSpeechToTextProvider(sample_rate=sample_rate, channels=channels)
+        if EchoSpeechToTextProvider is not None
+        else None
+    )
     if stt is None:
         raise RuntimeError("Failed to initialize STT provider")
     return stt
@@ -89,7 +93,7 @@ async def ensure_voice_providers() -> tuple[SpeechToTextProvider, TextToSpeechPr
             _log.info("Initializing stub voice STT provider", sample_rate=sample_rate, channels=channels)
             _stt = (
                 EchoSpeechToTextProvider(sample_rate=sample_rate, channels=channels)
-                if EchoSpeechToTextProvider
+                if EchoSpeechToTextProvider is not None
                 else None
             )
 
@@ -108,7 +112,7 @@ async def ensure_voice_providers() -> tuple[SpeechToTextProvider, TextToSpeechPr
         if _tts is None:
             _tts = (
                 EchoTextToSpeechProvider(sample_rate=sample_rate, channels=channels)
-                if EchoTextToSpeechProvider
+                if EchoTextToSpeechProvider is not None
                 else None
             )
 

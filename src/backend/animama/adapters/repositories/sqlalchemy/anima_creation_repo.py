@@ -75,12 +75,14 @@ class SQLAlchemyAnimaCreationRepository:
         await self._session.flush()
 
     async def mapped_starter(self, *, user_id: str, anima_id: str) -> str | None:
-        return await self._session.scalar(
-            select(ORMAnimaStarterReceipt.starter_id).where(
-                ORMAnimaStarterReceipt.owner_user_id == user_id,
-                ORMAnimaStarterReceipt.anima_id == anima_id,
+        return (
+            await self._session.scalars(
+                select(ORMAnimaStarterReceipt.starter_id).where(
+                    ORMAnimaStarterReceipt.owner_user_id == user_id,
+                    ORMAnimaStarterReceipt.anima_id == anima_id,
+                )
             )
-        )
+        ).first()
 
     async def legacy_candidates(self, *, user_id: str, avatar_id: str, profile_url: str) -> tuple[list[str], bool]:
         """Prove the original seed from Version 1, preserving all later owner edits."""

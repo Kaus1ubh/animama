@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from sqlalchemy import delete
 
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
-from animama.app.services.owner_bootstrap_service import OwnerBootstrapResult
+from animama.app.services.owner_bootstrap_service import OwnerBootstrapResult, OwnerBootstrapService
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfile
 from animama.local.installation_model import ORMInstallationSettings
@@ -20,7 +20,7 @@ from animama.server.routers import runtime_context
 from tests.local_http_client import local_client
 
 
-class FakeOwnerBootstrap:
+class FakeOwnerBootstrap(OwnerBootstrapService):
     def __init__(self, calls: list[str], result: OwnerBootstrapResult | None = None) -> None:
         self._calls = calls
         self._result = result or OwnerBootstrapResult()
@@ -31,7 +31,7 @@ class FakeOwnerBootstrap:
         return self._result
 
 
-class RecoveringOwnerBootstrap:
+class RecoveringOwnerBootstrap(OwnerBootstrapService):
     def __init__(self) -> None:
         self.calls = 0
 

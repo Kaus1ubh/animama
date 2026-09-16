@@ -9,9 +9,11 @@ import subprocess
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import cast
 
 import pytest
 from fastapi import Request
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -55,7 +57,7 @@ async def test_app_session_factories_are_injected_and_isolated():
     from animama.server.app import create_local_app
     from animama.server.deps import get_async_session, get_async_session_factory
 
-    first_session, second_session = object(), object()
+    first_session, second_session = AsyncSession(), AsyncSession()
 
     @asynccontextmanager
     async def first_factory():
@@ -65,10 +67,13 @@ async def test_app_session_factories_are_injected_and_isolated():
     async def second_factory():
         yield second_session
 
-    first = create_local_app(session_factory=first_factory)
-    second = create_local_app(session_factory=second_factory)
-    assert get_async_session_factory(first) is first_factory
-    assert get_async_session_factory(second) is second_factory
+    # These context-manager doubles exercise only the factory call boundary.
+    first_injected = cast(async_sessionmaker[AsyncSession], first_factory)
+    second_injected = cast(async_sessionmaker[AsyncSession], second_factory)
+    first = create_local_app(session_factory=first_injected)
+    second = create_local_app(session_factory=second_injected)
+    assert get_async_session_factory(first) is first_injected
+    assert get_async_session_factory(second) is second_injected
     for app, expected in ((first, first_session), (second, second_session)):
         request = Request({"type": "http", "app": app, "headers": []})
         sessions = [session async for session in get_async_session(request)]

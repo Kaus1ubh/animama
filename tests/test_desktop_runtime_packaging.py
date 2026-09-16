@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import runpy
+import sys
 import tarfile
 from pathlib import Path
 
@@ -33,7 +34,7 @@ def test_sql_runtime_resource_contains_product_seeds_directly() -> None:
 
 
 def test_frozen_resource_does_not_fall_back_to_the_checkout(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(resources.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
     with pytest.raises(FileNotFoundError, match="Required packaged resource"):
         resources.runtime_resource("sql")
 
@@ -68,12 +69,12 @@ def test_document_delegate_rechecks_the_fixed_path_digest_and_isolates_pyinstall
     executable = root / "Animama Document Worker.app/Contents/MacOS/animama-document-worker"
     executable.parent.mkdir(parents=True)
     executable.write_bytes(b"test fixture, never executed")
-    monkeypatch.setattr(cli.sys, "platform", "darwin")
+    monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.setenv("ANIMAMA_DOCUMENT_WORKER_ROOT", str(root))
     monkeypatch.setenv("ANIMAMA_DOCUMENT_WORKER_EXECUTABLE", str(executable))
     monkeypatch.setenv("ANIMAMA_DOCUMENT_WORKER_EXECUTABLE_SHA256", hashlib.sha256(executable.read_bytes()).hexdigest())
     calls = []
-    monkeypatch.setattr(cli.os, "execve", lambda *args: calls.append(args))
+    monkeypatch.setattr(os, "execve", lambda *args: calls.append(args))
     assert cli.main(["worker", "user-files"]) == 0
     assert calls[0][0] == executable
     assert calls[0][1] == [str(executable)]
@@ -108,7 +109,9 @@ def test_pack_writer_emits_deterministic_ustar_and_rechecks_input_custody(tmp_pa
         assert entries[0].isfile() and entries[0].name == "fixture.json"
         assert entries[0].pax_headers == {}
         assert entries[0].mode == 0o644
-        assert archive.extractfile(entries[0]).read() == b"{}"
+        extracted = archive.extractfile(entries[0])
+        assert extracted is not None
+        assert extracted.read() == b"{}"
     file.write_bytes(b"[]")
     with pytest.raises(ValueError, match="digest mismatch"):
         writer(source, inventory, second)
@@ -123,8 +126,8 @@ def test_document_worker_resources_are_frozen_and_offline_only(tmp_path, monkeyp
 
     with pytest.raises(RuntimeError, match="requires_frozen_resources"):
         document_worker.configure_resources()
-    monkeypatch.setattr(document_worker.sys, "frozen", True, raising=False)
-    monkeypatch.setattr(document_worker.sys, "_MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path), raising=False)
     with pytest.raises(RuntimeError, match="resources_missing"):
         document_worker.configure_resources()
     for name in ("docling", "tiktoken"):
@@ -141,9 +144,9 @@ def test_document_worker_resources_are_frozen_and_offline_only(tmp_path, monkeyp
     ):
         monkeypatch.setenv(name, "fixture")
     assert document_worker.configure_resources() == tmp_path / "document-resources"
-    assert document_worker.os.environ["HF_HUB_OFFLINE"] == "1"
-    assert document_worker.os.environ["TRANSFORMERS_OFFLINE"] == "1"
-    assert document_worker.os.environ["ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR"] == "0"
+    assert os.environ["HF_HUB_OFFLINE"] == "1"
+    assert os.environ["TRANSFORMERS_OFFLINE"] == "1"
+    assert os.environ["ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR"] == "0"
 
 
 def test_bootstrap_preserves_sql_comments_and_literal_semicolons() -> None:

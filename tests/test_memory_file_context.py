@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import replace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -20,6 +20,8 @@ from animama.app.chat.memory_context import (
     render_memory_filesystem_map,
 )
 from animama.app.chat.openai_prompt import DirectChatPromptAssembler
+from animama.app.ports.anima_port import AnimaRepository
+from animama.app.ports.memory_entry_port import MemoryEntryRepository
 from animama.app.services.chat_manager import ChatManager
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.domain.anima import Anima
@@ -285,8 +287,11 @@ def _service(
     animas = _Animas(identity=avatar_identity, name=avatar_name)
     return (
         DirectChatMemoryContextService(
-            memory_entries=MemoryEntryService(memory_entries=repo, uow=_Uow(), animas=animas),
-            animas=animas,
+            # These fixture repositories implement only the reads exercised here.
+            memory_entries=MemoryEntryService(
+                memory_entries=cast(MemoryEntryRepository, repo), uow=_Uow(), animas=cast(AnimaRepository, animas)
+            ),
+            animas=cast(AnimaRepository, animas),
         ),
         repo,
     )
@@ -346,11 +351,13 @@ async def test_memory_instruction_sections_assemble_into_single_system_message()
 
     system_messages = [message for message in prompt.messages if message["role"] == "system"]
     assert len(system_messages) == 1
-    assert "# Core Instructions" in system_messages[0]["content"]
-    assert "You are Avatar, an Anima hosted by Animama AI." in system_messages[0]["content"]
-    assert "# Anima Identity\n\nIdentity" in system_messages[0]["content"]
-    assert "# Memory Guidance" in system_messages[0]["content"]
-    assert "# Response Guidance" in system_messages[0]["content"]
+    system_content = system_messages[0]["content"]
+    assert isinstance(system_content, str)
+    assert "# Core Instructions" in system_content
+    assert "You are Avatar, an Anima hosted by Animama AI." in system_content
+    assert "# Anima Identity\n\nIdentity" in system_content
+    assert "# Memory Guidance" in system_content
+    assert "# Response Guidance" in system_content
 
 
 @pytest.mark.asyncio

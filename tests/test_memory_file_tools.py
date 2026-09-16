@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import pytest_asyncio
@@ -25,6 +25,7 @@ from animama.app.chat.memory_tools import (
     MemoryToolExecutionContext,
     memory_tool_specs,
 )
+from animama.app.ports.anima_port import AnimaRepository
 from animama.app.services.memory_entry_service import (
     MemoryEntryConflictError,
     MemoryEntryNotFoundError,
@@ -103,7 +104,8 @@ def _memory_service(async_session, *, animas: _AllowAnimaRepository | None = Non
     return MemoryEntryService(
         memory_entries=SQLAlchemyMemoryEntryRepository(async_session),
         uow=SQLAlchemyUnitOfWork(async_session),
-        animas=animas,
+        # This fixture implements only the Anima reads exercised by this service.
+        animas=cast(AnimaRepository | None, animas),
     )
 
 
@@ -206,7 +208,9 @@ async def _insert_uploaded_file_chunk(
 
 
 def _loads(output: str) -> dict[str, Any]:
-    return json.loads(output)
+    payload = json.loads(output)
+    assert isinstance(payload, dict)
+    return payload
 
 
 class _ConflictOnWriteMemoryService:
@@ -1700,6 +1704,7 @@ async def test_native_apply_patch_rejects_stale_planned_version_without_mutation
     class _StalePlanner:
         async def plan_v4a_operation(self, **kwargs):  # noqa: ANN003
             candidate = await delegate.plan_v4a_operation(**kwargs)
+            assert candidate.target_entry_id is not None
             await memory_entries.patch_entry(
                 user_id="user-1",
                 entry_id=candidate.target_entry_id,
@@ -1711,7 +1716,7 @@ async def test_native_apply_patch_rejects_stale_planned_version_without_mutation
 
     tools = DirectChatMemoryToolService(
         memory_entries=memory_entries,
-        patch_planner=_StalePlanner(),  # type: ignore[arg-type]
+        patch_planner=_StalePlanner(),
     )
 
     result = _loads(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +42,7 @@ async def creation_fixture(session: AsyncSession) -> CreationFixture:
         )
     )
 
-    async def item(kind: str, extra: dict, logical_key: str | None = None) -> CatalogContentEntry:
+    async def item(kind: str, extra: dict[str, Any], logical_key: str | None = None) -> CatalogContentEntry:
         item_id = f"{kind}-{uuid4().hex}"
         key = logical_key or f"local:{kind}:{item_id}"
         included = key.startswith("builtin:")

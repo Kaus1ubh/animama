@@ -509,11 +509,7 @@ class PyTypedContentPreview(BaseModel):
             expires_at=preview.expires_at,
             item=typed_content_response(value.item),
             supports=[typed_content_response(item) for item in value.supports],
-            expected_source_revisions={
-                item.item.id: SourceRevision(kind=item.item.kind.value, revision_sha256=item.item.revision_sha256)
-                for item in typed_items
-                if item.item.kind.value not in {"voice", "music_track", "anima"}
-            },
+            expected_source_revisions=_source_revisions(typed_items),
             files=[
                 PyTypedPreviewFile(
                     file_ref=file.file_ref,
@@ -587,9 +583,8 @@ class PyTypedBatchDiagnostic(BaseModel):
 
 def _source_revisions(values: tuple[TypedCatalogItem, ...]) -> dict[str, SourceRevision]:
     return {
-        value.item.id: SourceRevision(
-            kind=value.item.kind.value,
-            revision_sha256=value.item.revision_sha256,
+        value.item.id: SourceRevision.model_validate(
+            {"kind": value.item.kind.value, "revision_sha256": value.item.revision_sha256}
         )
         for value in values
         if value.item.kind.value not in {"voice", "music_track", "anima"}
@@ -609,9 +604,8 @@ class PyContentEvidenceRoot(BaseModel):
         return cls(
             root_key=value.key,
             kind=value.item.item.kind.value,
-            source=ItemRevisionRef(
-                item_id=value.item.item.id,
-                revision_sha256=value.item.item.revision_sha256,
+            source=ItemRevisionRef.model_validate(
+                {"item_id": value.item.item.id, "revision_sha256": value.item.item.revision_sha256}
             ),
             expected_source_revisions=_source_revisions(value.closure),
         )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.content_kind_registry import definition_for_kind, descriptor_filename
@@ -10,7 +11,7 @@ from animama.domain.content_catalog import ContentKind, ContentSource, ContentSt
 ROOT = Path(__file__).parents[1]
 
 
-def _scan_included() -> list:
+def _scan_included() -> list[Any]:
     return FilesystemContentStore(
         included_root=ROOT / "content/included",
         local_root=ROOT / "content/local",

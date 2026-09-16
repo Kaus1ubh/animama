@@ -5,6 +5,7 @@ import os
 import struct
 from io import BytesIO
 from pathlib import Path
+from typing import TypedDict
 
 import pytest
 
@@ -19,6 +20,14 @@ from animama.domain.content_catalog import (
 from animama.domain.content_sources import IncludedContentSource
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
+
+
+class _ReadArguments(TypedDict):
+    source: ContentSource
+    relative_path: str
+    expected_size_bytes: int
+    expected_sha256: str
+    media_type: str
 
 
 def _glb(label: str | None = None) -> bytes:
@@ -69,7 +78,7 @@ def test_included_mount_custody_and_local_writes_are_separate(tmp_path: Path) ->
     assert {item.source_mount_id for item in items} == {"core@v1", "expanded@v2"}
     for item in items:
         file = item.files[0]
-        arguments = {
+        arguments: _ReadArguments = {
             "source": ContentSource.INCLUDED,
             "relative_path": file.relative_path,
             "expected_size_bytes": file.size_bytes,

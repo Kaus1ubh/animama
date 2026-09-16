@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from importlib.resources import files
-from typing import Any
+from typing import Any, cast
 
 
 def starter_loadout_policy(version: int = 1) -> dict[str, Any]:
@@ -13,8 +13,9 @@ def starter_loadout_policy(version: int = 1) -> dict[str, Any]:
 
     if type(version) is not int or version != 1:
         raise ValueError("Unsupported starter loadout version")
-    return json.loads(
-        files("animama.resources").joinpath(f"starter-loadout.v{version}.json").read_text(encoding="utf-8")
+    return cast(
+        dict[str, Any],
+        json.loads(files("animama.resources").joinpath(f"starter-loadout.v{version}.json").read_text(encoding="utf-8")),
     )
 
 

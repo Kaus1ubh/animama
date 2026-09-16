@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, cast
 
 from fastapi import HTTPException, Request, WebSocket, WebSocketException, status
 
@@ -26,4 +26,5 @@ def principal_resolver(scope: Request | WebSocket) -> RequestPrincipalResolver:
         if isinstance(scope, WebSocket):
             raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="request_principal_unavailable")
         raise HTTPException(status_code=503, detail={"code": "request_principal_unavailable"})
-    return resolver
+    # Starlette state is dynamic; the composition installs this resolver protocol.
+    return cast(RequestPrincipalResolver, resolver)

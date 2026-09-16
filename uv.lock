@@ -322,6 +322,9 @@ dev = [
     { name = "rich" },
     { name = "ruff" },
     { name = "testcontainers" },
+    { name = "types-jsonschema" },
+    { name = "types-pyyaml" },
+    { name = "types-reportlab" },
     { name = "vulture" },
 ]
 examples = [
@@ -395,6 +398,9 @@ dev = [
     { name = "rich", specifier = ">=13.0.0" },
     { name = "ruff", specifier = "==0.9.2" },
     { name = "testcontainers", specifier = ">=4.7.2" },
+    { name = "types-jsonschema", specifier = ">=4.26.0.20260518" },
+    { name = "types-pyyaml", specifier = ">=6.0.12.20260906" },
+    { name = "types-reportlab", specifier = ">=4.4,<5" },
     { name = "vulture", specifier = "==2.16" },
 ]
 examples = [
@@ -6798,12 +6804,42 @@ wheels = [
 ]
 
 [[package]]
+name = "types-jsonschema"
+version = "4.26.0.20260518"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "referencing" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/dd/46/73b6a5d61a61015c4248030a8cb07e5bdddb4041430fae9e585a68692578/types_jsonschema-4.26.0.20260518.tar.gz", hash = "sha256:e1dd53dc97a64f5eccdd6fa9839666e09bb500a8ebba2db6fdaf1789faea81a6", size = 16638, upload-time = "2026-05-18T06:06:44.106Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/d5/134f8a147dcecda10db7f60cfc6af0578a25a5c53c87b3907a64385e0184/types_jsonschema-4.26.0.20260518-py3-none-any.whl", hash = "sha256:30b30a518c7fe335df85c919fcbcc631b69c03d4a4b5b632fa916bea03065307", size = 16072, upload-time = "2026-05-18T06:06:43.264Z" },
+]
+
+[[package]]
 name = "types-pynput"
 version = "1.8.1.20250809"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/38/ae/9d630d3e164f7d7fc24dbb97a2d80cbd089c0c592cc93f698fe347428865/types_pynput-1.8.1.20250809.tar.gz", hash = "sha256:c315e4c3bae4c23a94a12b677f1e0bb5611c4a7b114ce09cc870d9b8335e95eb", size = 11683, upload-time = "2025-08-09T03:15:35.701Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d8/dd/f00d30ee7aa0d117e5d0595d728f775c16bb2f8f7525b2c800ef549fe38e/types_pynput-1.8.1.20250809-py3-none-any.whl", hash = "sha256:ca0103244c726353e0da97bc21fa081cefc5dfea206995f6369a87854eff07a1", size = 12211, upload-time = "2025-08-09T03:15:34.979Z" },
+]
+
+[[package]]
+name = "types-pyyaml"
+version = "6.0.12.20260906"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/6e/abec85b9013db5b934b0280a6dd104904d84f7bcbaab2e2f3def87ac7463/types_pyyaml-6.0.12.20260906.tar.gz", hash = "sha256:f59c1cc05010b833d2d72287bbaa72610106b28d42d89a907313117faba85212", size = 18649, upload-time = "2026-09-06T06:35:35.362Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/c0/fc0644b7ddcfb969e95845837143cb5173ddd6e06ee4ba5fc493cd9329b7/types_pyyaml-6.0.12.20260906-py3-none-any.whl", hash = "sha256:bca893ff0d51df5c9053137d5d0e6ccd36e939a196356f1d5c16372422f5137b", size = 21282, upload-time = "2026-09-06T06:35:34.372Z" },
+]
+
+[[package]]
+name = "types-reportlab"
+version = "4.5.1.20260827"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fb/b5/df8162a5abff2756113f9f25a85e822a1476f5e3a9272740ac34939c4177/types_reportlab-4.5.1.20260827.tar.gz", hash = "sha256:8d3ef6f50d1d75569749f87818b2a51e2672794317ec87c6855fa1c2f0763230", size = 73010, upload-time = "2026-08-27T12:06:35.677Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9e/fd/735c883964347d5c0461c9be744a59fad1a389b0647a33bf552ed975c5c1/types_reportlab-4.5.1.20260827-py3-none-any.whl", hash = "sha256:90d267e635b968906329827bb21aa1c7398da60f0ffdba6552aaab615ab70b3e", size = 113219, upload-time = "2026-08-27T12:06:34.726Z" },
 ]
 
 [[package]]

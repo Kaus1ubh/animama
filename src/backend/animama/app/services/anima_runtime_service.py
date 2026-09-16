@@ -306,7 +306,7 @@ class AnimaRuntimeService:
                 )
                 .with_for_update(
                     read=True,
-                    of=(ORMContentCatalogItem, ORMContentCatalogFile),
+                    of=[ORMContentCatalogItem.id, ORMContentCatalogFile.file_ref],
                 )
             )
         ).all()

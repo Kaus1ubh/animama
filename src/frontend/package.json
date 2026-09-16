@@ -7,6 +7,7 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "openapi-ts": "node scripts/generate-openapi-client.mjs",
+    "openapi-ts:check": "node scripts/generate-openapi-client.mjs --check",
     "generate:background-thumbnails": "node scripts/generate-background-thumbnails.mjs",
     "verify:tts-assets": "node scripts/verify-tts-assets.mjs",
     "generate:particle-vfx-assets": "node scripts/generate-particle-vfx-assets.mjs",

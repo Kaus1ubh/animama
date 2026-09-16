@@ -153,7 +153,7 @@ def _to_episode_item(item: MemoryEpisodeItem) -> PyMemoryEpisodeItem:
         episode_path=item.episode_path,
         kind=item.kind,
         text=item.text,
-        status=item.status,  # type: ignore[arg-type]
+        status=item.status,
         processed_at=item.processed_at,
         processed_by_run_id=item.processed_by_run_id,
         metadata=dict(item.metadata or {}),
@@ -164,7 +164,7 @@ def _to_episode_item(item: MemoryEpisodeItem) -> PyMemoryEpisodeItem:
 
 def _to_patch_preview(preview: MemoryPatchPreview) -> PyMemoryPatchPreview:
     return PyMemoryPatchPreview(
-        operation=preview.operation,  # type: ignore[arg-type]
+        operation=preview.operation,
         path=preview.path,
         old_content=preview.old_content,
         new_content=preview.new_content,
@@ -182,7 +182,7 @@ def _to_manager_run(run: MemoryManagerRun) -> PyMemoryManagerRun:
         task = MemoryManagerEpisodeTaskState.from_dict(run.task_state)
         task_summary = PyMemoryManagerTaskSummary(
             kind=task.kind,
-            status=task.status,  # type: ignore[arg-type]
+            status=task.status,
             batch_size=task.batch_size,
             has_more=task.has_more,
             started_at=task.started_at,
@@ -190,8 +190,8 @@ def _to_manager_run(run: MemoryManagerRun) -> PyMemoryManagerRun:
         )
     return PyMemoryManagerRun(
         id=run.id,
-        status=run.status,  # type: ignore[arg-type]
-        kind=run.kind,  # type: ignore[arg-type]
+        status=run.status,
+        kind=run.kind,
         task=task_summary,
         model_provider=run.model_provider,
         model_name=run.model_name,
@@ -209,7 +209,7 @@ def _to_manager_message(message: MemoryManagerMessage) -> PyMemoryManagerMessage
     return PyMemoryManagerMessage(
         id=message.id,
         run_id=message.run_id,
-        role=message.role,  # type: ignore[arg-type]
+        role=message.role,
         content=message.content,
         metadata=dict(message.metadata or {}),
         created_at=message.created_at,
@@ -220,7 +220,7 @@ def _to_manager_approval(approval: MemoryManagerApproval) -> PyMemoryManagerAppr
     return PyMemoryManagerApproval(
         id=approval.id,
         run_id=approval.run_id,
-        status=approval.status,  # type: ignore[arg-type]
+        status=approval.status,
         target_entry_id=approval.target_entry_id,
         operation_metadata=dict(approval.operation_metadata or {}),
         created_at=approval.created_at,

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol
 
 from animama.domain.user_file import UserFile
 from animama.domain.user_file_processing import (
@@ -78,8 +78,8 @@ class UserFileProcessingRepository(Protocol):
         sha256: str,
         chunks: list[UserFileChunkDraft],
         file_status: str,
-        processing_metadata: dict,
-        file_metadata_updates: dict | None = None,
+        processing_metadata: dict[str, Any],
+        file_metadata_updates: dict[str, Any] | None = None,
         processed_at: datetime,
     ) -> UserFileProcessingJob:
         raise NotImplementedError

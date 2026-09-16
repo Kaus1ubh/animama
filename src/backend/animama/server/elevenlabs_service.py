@@ -413,7 +413,7 @@ def _compute_retry_delay_seconds(exc: ApiError, *, attempt_index: int) -> float:
     )
     if retry_after_seconds is not None:
         delay = max(delay, float(retry_after_seconds))
-    return min(delay * (1.0 + (random.random() * 0.25)), settings.elevenlabs_retry_max_delay_seconds)
+    return float(min(delay * (1.0 + (random.random() * 0.25)), settings.elevenlabs_retry_max_delay_seconds))
 
 
 async def _call_elevenlabs(

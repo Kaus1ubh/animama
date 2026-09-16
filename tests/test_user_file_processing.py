@@ -3,23 +3,26 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from fastapi import HTTPException
 from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.parsers import docling_user_file_parser as docling_parser_module
 from animama.adapters.parsers.docling_user_file_parser import DoclingUserFileParser, DoclingUserFileParserError
 from animama.adapters.repositories.sqlalchemy.runtime_worker_repo import record_document_heartbeat
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
+from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
 from animama.app.services import user_file_processing_service as processing_service_module
 from animama.app.services.user_file_processing_service import (
     UserFileProcessingService,
     chunk_parsed_user_file_document,
     parse_lightweight_user_file,
 )
+from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_file import (
     STATUS_FAILED,
     STATUS_PROCESSING,
@@ -165,8 +168,8 @@ class _CapturingProcessingRepo:
         sha256: str,
         chunks: list[UserFileChunkDraft],
         file_status: str,
-        processing_metadata: dict,
-        file_metadata_updates: dict | None = None,
+        processing_metadata: dict[str, Any],
+        file_metadata_updates: dict[str, Any] | None = None,
         processed_at: datetime,
     ) -> UserFileProcessingJob:
         self.chunks = chunks
@@ -392,8 +395,8 @@ async def test_process_endpoint_returns_accepted_response(monkeypatch) -> None:
 
     response = await user_files_router.process_user_file(
         "file-1",
-        session=object(),
-        user=SimpleNamespace(id="user-1"),
+        session=AsyncSession(),
+        user=RequestPrincipal(id="user-1"),
         req=PyUserFileProcessRequest(force=True),
     )
 
@@ -413,8 +416,8 @@ async def test_process_endpoint_enforces_current_user_not_found(monkeypatch) -> 
     with pytest.raises(HTTPException) as exc_info:
         await user_files_router.process_user_file(
             "missing",
-            session=object(),
-            user=SimpleNamespace(id="user-1"),
+            session=AsyncSession(),
+            user=RequestPrincipal(id="user-1"),
             req=PyUserFileProcessRequest(),
         )
 
@@ -428,8 +431,8 @@ async def test_debug_search_endpoint_returns_results_without_embedder_for_keywor
 
     response = await user_files_router.search_user_file_chunks(
         PyUserFileSearchRequest(query="alpha", mode="keyword", limit=5),
-        session=object(),
-        user=SimpleNamespace(id="user-1"),
+        session=AsyncSession(),
+        user=RequestPrincipal(id="user-1"),
     )
 
     assert response.query == "alpha"
@@ -808,7 +811,7 @@ async def test_complete_claimed_job_uses_parser_chunks_and_embedding_text() -> N
     )
     repo = _CapturingProcessingRepo()
     embedder = _RecordingEmbedder()
-    service = UserFileProcessingService(processing=repo, uow=_NoopUow())
+    service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
 
     completed = await service.complete_claimed_job(
         claimed=_claimed_processing_job(file_id="file-parser-chunks"),
@@ -843,7 +846,7 @@ async def test_complete_claimed_job_reuses_verified_content_before_parsing() -> 
         metadata={"content_reused": True, "chunk_count": 2},
     )
     repo = _CapturingProcessingRepo(reuse_result=reused_job)
-    service = UserFileProcessingService(processing=repo, uow=_NoopUow())
+    service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
     payload = b"%PDF-1.7\nidentical bytes"
 
     completed = await service.complete_claimed_job(
@@ -876,7 +879,7 @@ async def test_complete_claimed_job_force_bypasses_content_reuse() -> None:
         ],
     )
     repo = _CapturingProcessingRepo()
-    service = UserFileProcessingService(processing=repo, uow=_NoopUow())
+    service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
 
     await service.complete_claimed_job(
         claimed=_claimed_processing_job(file_id="file-forced", force=True),
@@ -908,7 +911,7 @@ async def test_complete_claimed_job_keeps_overview_when_embedding_fails() -> Non
         source_outline=(UserFileOutlineItem(level=1, title="Overview title"),),
     )
     repo = _CapturingProcessingRepo()
-    service = UserFileProcessingService(processing=repo, uow=_NoopUow())
+    service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
 
     await service.complete_claimed_job(
         claimed=_claimed_processing_job(file_id="file-embedding-failure"),
@@ -942,7 +945,7 @@ async def test_complete_claimed_job_uses_safe_overview_fallback_on_builder_failu
         ],
     )
     repo = _CapturingProcessingRepo()
-    service = UserFileProcessingService(processing=repo, uow=_NoopUow())
+    service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
 
     def _fail_overview(**_kwargs):
         raise RuntimeError("overview exploded")
@@ -1213,7 +1216,7 @@ async def test_docling_parser_rejects_bad_headers() -> None:
 
 @pytest.mark.asyncio
 async def test_hybrid_search_dedupes_with_rrf() -> None:
-    service = UserFileProcessingService(processing=_HybridRepo(), uow=_NoopUow())
+    service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, _HybridRepo()), uow=_NoopUow())
 
     response = await service.search(
         user_id="user-1",

@@ -3,9 +3,11 @@ from __future__ import annotations
 import hashlib
 from dataclasses import replace
 from datetime import datetime
+from typing import cast
 
 import pytest
 
+from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.memory_entry_port import MemoryEntryRepositoryConflictError
 from animama.app.services.memory_entry_service import (
     MEMORY_ENTRY_DEFAULT_MAX_BYTES,
@@ -423,7 +425,8 @@ def _service(
         MemoryEntryService(
             memory_entries=repo,
             uow=uow,
-            animas=animas,
+            # This fixture implements only the Anima reads exercised by this service.
+            animas=cast(AnimaRepository | None, animas),
             max_file_bytes=max_file_bytes,
             commit_on_write=commit_on_write,
         ),

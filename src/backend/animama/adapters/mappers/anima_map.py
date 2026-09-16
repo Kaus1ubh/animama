@@ -88,7 +88,7 @@ def anima_orm_to_domain(orm: ORMAnima) -> Anima:
     tags = meta.get("tags")
 
     avatar: Avatar | None = None
-    if getattr(orm, "avatar", None) is not None:
+    if orm.avatar is not None:
         from .avatar_map import avatar_orm_to_domain
 
         avatar = avatar_orm_to_domain(orm.avatar)

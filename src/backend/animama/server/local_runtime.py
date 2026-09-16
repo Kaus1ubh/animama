@@ -129,7 +129,7 @@ def _included_sources(settings: Settings, *, local_root: Path, data_root: Path) 
         entries = json.loads(raw)
         if not isinstance(entries, list) or not 1 <= len(entries) <= 8:
             raise ValueError("Expected a bounded Included source list")
-        sources = []
+        sources: list[IncludedContentSource] = []
         names: set[str] = set()
         for entry in entries:
             if not isinstance(entry, dict) or set(entry) - {"id", "version", "root", "pack_id"}:

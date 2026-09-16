@@ -358,8 +358,8 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                 unmatched_scanned_files[(_mount_source(entry.source_mount_id), entry.kind.value, file_identity)].append(
                     index
                 )
-        for key, scanned_indexes in unmatched_scanned_files.items():
-            file_candidates = unmatched_existing_files.get(key, [])
+        for file_key, scanned_indexes in unmatched_scanned_files.items():
+            file_candidates = unmatched_existing_files.get(file_key, [])
             if len(scanned_indexes) == 1 and len(file_candidates) == 1:
                 matched[scanned_indexes[0]] = file_candidates[0]
                 claimed_ids.add(file_candidates[0].id)

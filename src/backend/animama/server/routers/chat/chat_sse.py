@@ -138,6 +138,7 @@ async def stream_direct_chat_sse(
     async def _event_stream() -> AsyncIterator[str]:
         """Bridge app-domain turn events, TTS/title side work, and final SSE frames."""
 
+        frame: str | None
         state = SseTextState(
             emotional_state=turn.emotional_state,
             tts_speech_payload_enabled=_tts_speech_payload_enabled(turn.chat_options),

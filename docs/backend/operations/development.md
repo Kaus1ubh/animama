@@ -590,6 +590,14 @@ or failure; normal client generation should use that wrapper.
 Backend tests live in `tests/`. The test suite uses pytest and testcontainers
 for PostgreSQL/pgvector.
 
+Ordinary pytest does not load `.env`. Offline fixtures use a dummy provider key
+and a temporary private data root; Included-content checks still read the
+checkout's `content` library. Live provider tests require explicit exported
+`ANIMAMA_RUN_LIVE_TESTS=1` and `ANIMAMA_LIVE_OPENAI_API_KEY` or `OPENAI_API_KEY`;
+`make test-live` explicitly loads `.env` for that opt-in command. Database fixtures
+own their async loop scope. A missing Docker daemon is a fixture failure, not a
+reason to skip the offline database suite.
+
 ```bash
 make test
 make test-q
@@ -657,6 +665,41 @@ make check-test
 
 `make check-test` is the broad local verification target when a backend change
 touches behavior and time allows.
+
+The `Portable product validation` workflow runs on every pull request, pushes to
+`main`, manual dispatch, and reuse by the desktop release workflow. Its
+`backend-static-tests` job installs frozen Python dependencies, then runs the
+same `make check-test` contract: typed-content audit, formatting, Ruff, mypy,
+and the complete offline pytest suite. `UV_NO_SYNC=1` prevents those commands
+from resolving dependencies again. Required starter content must be available;
+a missing fixture remains a failing check, never an automatic skip.
+
+The independent `portable-product` job checks repository ownership/provenance,
+shared imports, package-set and public-release tooling, frontend and desktop
+source, generated SDK freshness, both Compose graphs, and unpublished package
+consumers/compatibility. Its additional frontend checks, run from `src/frontend`,
+are `pnpm e2e:check`, `pnpm e2e:test:unit`,
+`node --test scripts/e2e/*.test.mjs`,
+`node --test scripts/generate-openapi-client.test.mjs`, and
+`pnpm openapi-ts:check`. The harness checks do not start the full application or
+prove both serving modes. Chromium is installed before package browser tests.
+Each of the three Python tooling families must collect at least one test and
+pass its full discovered suite; an empty family is a failure.
+
+Both jobs retain available failure logs for 14 days; backend pytest also emits
+JUnit XML. Explicit Bash pipe failure handling keeps logged failures nonzero.
+Package artifacts prove the portable job's checks, not success of an independent
+backend job. Complete source validation requires both jobs to succeed. These are
+checked-in workflow contracts; remote required-check/branch enforcement is a
+separate repository configuration and is not established by editing this file.
+
+The development dependency group includes the PyYAML, jsonschema and ReportLab
+type stubs required by the existing mypy target. Install from `uv.lock` with
+`uv sync --frozen --extra server` before checking a clean checkout. Ruff lint
+checks its configured repository scope; formatting checks only
+`src/backend/animama` and `tests`, and mypy checks those same backend/test roots.
+The tools retain their Python 3.10 language target; a pass on the pinned Python
+3.12 CI runtime alone does not establish minimum-version runtime compatibility.
 
 ## Runtime Snapshot Diagnostics
 

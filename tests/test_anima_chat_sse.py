@@ -4,15 +4,17 @@ import asyncio
 import base64
 import hashlib
 import json
+from collections.abc import AsyncGenerator, Mapping
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, TypedDict, cast
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from httpx import ASGITransport, AsyncClient
+from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToolUnionParam
 from pydantic import ValidationError
 from sqlalchemy import select
 
@@ -61,6 +63,24 @@ from animama.server.routers.chat import (
 from animama.server.schemas.chat import PyAnimaChatRequest
 from animama.server.schemas.elevenlabs import PyElevenLabsRealtimeTtsSessionResponse
 from animama.server.sse_events import SsePreparedTtsSpeechSegment
+
+
+def _function_tool(tool: ChatCompletionToolUnionParam) -> ChatCompletionFunctionToolParam:
+    """Require the function-tool variant asserted by these fixtures."""
+    assert tool["type"] == "function"
+    return tool
+
+
+def _json_object(value: object) -> dict[str, Any]:
+    """Check the JSON object shape before asserting its nested wire payload."""
+    assert isinstance(value, dict)
+    return value
+
+
+def _text(value: object) -> str:
+    """Require text rather than accepting a different provider payload shape."""
+    assert isinstance(value, str)
+    return value
 
 
 class _FakeSession:
@@ -320,8 +340,10 @@ def _model_provider(
 _CURRENT_TEST_REGISTRY: StaticModelClientRegistry | None = None
 
 
-def _test_request() -> SimpleNamespace:
-    return SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(model_client_registry=_CURRENT_TEST_REGISTRY)))
+def _test_request() -> Request:
+    app = FastAPI()
+    app.state.model_client_registry = _CURRENT_TEST_REGISTRY
+    return Request({"type": "http", "app": app})
 
 
 def _chat_request(**values: Any) -> PyAnimaChatRequest:
@@ -335,7 +357,7 @@ def _install_route_mocks(
     monkeypatch,
     *,
     session: _FakeSession | None = None,
-    chat_options: dict[str, object] | None = None,
+    chat_options: Mapping[str, object] | None = None,
     emotional_state: dict[str, int] | None = None,
     chat_manager: _FakeChatManager | None = None,
     model_client: _RouteModelClient | None = None,
@@ -433,9 +455,14 @@ def _install_route_mocks(
     return session
 
 
+def _stream_body(response) -> AsyncGenerator[str | bytes, None]:
+    """The chat route yields an async generator of SSE text/bytes, never memoryviews."""
+    return cast(AsyncGenerator[str | bytes, None], response.body_iterator)
+
+
 async def _collect_chunks(response) -> list[str]:
     chunks: list[str] = []
-    async for chunk in response.body_iterator:
+    async for chunk in _stream_body(response):
         chunks.append(chunk.decode() if isinstance(chunk, bytes) else chunk)
     return chunks
 
@@ -446,7 +473,9 @@ def _event_data(chunks: list[str], event_name: str) -> dict[str, Any]:
             continue
         for line in chunk.splitlines():
             if line.startswith("data: "):
-                return json.loads(line.removeprefix("data: "))
+                data = json.loads(line.removeprefix("data: "))
+                assert isinstance(data, dict)
+                return data
     raise AssertionError(f"event {event_name!r} not found")
 
 
@@ -489,7 +518,7 @@ def _install_db_route_mocks(
     monkeypatch,
     session_factory,
     *,
-    chat_options: dict[str, object] | None = None,
+    chat_options: Mapping[str, object] | None = None,
     model_client: _RouteModelClient | None = None,
     default_model_provider_id: str = "OpenAIHTTPAgent:gpt-5-nano",
     patch_profile_service: bool = True,
@@ -551,6 +580,22 @@ def _install_db_route_mocks(
         "chat_title_generation_settings",
         lambda: ChatTitleGenerationSettings(enabled=False),
     )
+
+
+class _ProviderSeedOptions(TypedDict, total=False):
+    provider_type: str
+    model: str
+    provider_label: str
+    provider_base_url: str | None
+    api_family: str | None
+    metadata: dict[str, Any] | None
+    active: bool
+    supports_streaming: bool
+    structured_kinds: list[str] | None
+    supports_reasoning: bool | None
+    supported_reasoning_efforts: list[str] | None
+    supports_tools: bool
+    native_tool_support: list[str] | None
 
 
 async def _seed_chat_model_provider(
@@ -821,6 +866,7 @@ def test_chat_sse_route_is_mounted_and_dispatch_sse_is_retired() -> None:
     endpoints = {getattr(route, "path", None): getattr(route, "endpoint", None) for route in api_router.routes}
     assert "/v1/animas/{anima_id}/chat:sse" in paths
     assert "/v1/animas/{anima_id}/chat:sse" in api_paths
+    assert endpoints["/v1/animas/{anima_id}/chat:sse"] is not None
     assert endpoints["/v1/animas/{anima_id}/chat:sse"].__name__ == "chat_anima_direct_sse"
     assert "/v1/animas/{anima_id}/dispatch:sse" not in paths
     assert "/v1/animas/{anima_id}/dispatch:sse" not in api_paths
@@ -859,7 +905,7 @@ def test_anima_chat_request_rejects_blank_message() -> None:
 
 def test_anima_chat_request_requires_runtime_revision() -> None:
     with pytest.raises(ValidationError):
-        PyAnimaChatRequest(message="hello")
+        PyAnimaChatRequest.model_validate({"message": "hello"})
 
 
 def test_anima_chat_request_accepts_model_provider_id() -> None:
@@ -969,10 +1015,10 @@ async def test_chat_sse_anima_ownership_precedes_runtime_and_provider_setup(monk
     session = _install_route_mocks(monkeypatch, model_client=model_client, chat_manager=chats)
     anima_id = "missing-anima" if ownership == "missing" else "anima-1"
     principal = RequestPrincipal(id="other-owner" if ownership == "foreign" else "user-1")
-    runtime_service = Mock(wraps=chat_turn_setup.AnimaRuntimeService)
-    provider_repository = Mock(wraps=chat_turn_setup.SQLAlchemyModelProviderRepository)
-    profile_repository = Mock(wraps=chat_turn_setup.SQLAlchemyAnimaChatProfileRepository)
-    memory_context = Mock(wraps=chat_turn_setup.DirectChatMemoryContextService)
+    runtime_service = Mock(wraps=vars(chat_turn_setup)["AnimaRuntimeService"])
+    provider_repository = Mock(wraps=vars(chat_turn_setup)["SQLAlchemyModelProviderRepository"])
+    profile_repository = Mock(wraps=vars(chat_turn_setup)["SQLAlchemyAnimaChatProfileRepository"])
+    memory_context = Mock(wraps=vars(chat_turn_setup)["DirectChatMemoryContextService"])
     persist_emotions = AsyncMock(return_value=True)
     monkeypatch.setattr(chat_turn_setup, "AnimaRuntimeService", runtime_service)
     monkeypatch.setattr(chat_turn_setup, "SQLAlchemyModelProviderRepository", provider_repository)
@@ -1170,7 +1216,7 @@ async def test_chat_sse_streams_user_response_while_tts_session_pending(monkeypa
     )
 
     chunks: list[str] = []
-    body_iterator = response.body_iterator
+    body_iterator = _stream_body(response)
     while True:
         raw_chunk = await asyncio.wait_for(anext(body_iterator), timeout=1.0)
         chunk = raw_chunk.decode() if isinstance(raw_chunk, bytes) else raw_chunk
@@ -2124,7 +2170,7 @@ async def test_chat_sse_early_stream_close_cancels_finalized_tts_work(monkeypatc
         request=_test_request(),
         user=RequestPrincipal(id="user-1"),
     )
-    body_iterator = response.body_iterator
+    body_iterator = _stream_body(response)
     while True:
         raw_chunk = await asyncio.wait_for(anext(body_iterator), timeout=1.0)
         chunk = raw_chunk.decode() if isinstance(raw_chunk, bytes) else raw_chunk
@@ -2197,7 +2243,7 @@ async def test_chat_sse_elevenlabs_v3_audio_streams_before_run_completed(monkeyp
     )
 
     chunks: list[str] = []
-    body_iterator = response.body_iterator
+    body_iterator = _stream_body(response)
     while True:
         raw_chunk = await asyncio.wait_for(anext(body_iterator), timeout=1.0)
         chunk = raw_chunk.decode() if isinstance(raw_chunk, bytes) else raw_chunk
@@ -2407,7 +2453,7 @@ async def test_chat_sse_revision_conflict_happens_before_model_invocation(monkey
         )
 
     assert raised.value.status_code == 409
-    assert raised.value.detail == {"code": "runtime_remount_required"}
+    assert _json_object(raised.value.detail) == {"code": "runtime_remount_required"}
     assert model_client.seen_specs == []
 
 
@@ -2448,7 +2494,9 @@ async def test_chat_sse_custom_runtime_gesture_carries_matching_revision(monkeyp
     assert event["runtime_revision"] == "tr1-custom"
     schema = model_client.seen_specs[0].prompt.response_format
     assert schema is not None
-    assert schema["json_schema"]["schema"]["properties"]["gesture"]["enum"] == [
+    assert schema["type"] == "json_schema"
+    gesture_schema = _json_object(schema["json_schema"]["schema"])
+    assert _json_object(_json_object(gesture_schema["properties"])["gesture"])["enum"] == [
         None,
         "victory-dance",
     ]
@@ -2636,10 +2684,10 @@ async def test_chat_sse_deepseek_provider_is_rejected_for_responses_chat_before_
         )
 
     assert exc_info.value.status_code == 409
-    assert exc_info.value.detail["code"] == "chat_api_standard_mismatch"
-    assert exc_info.value.detail["chat_api_standard"] == "responses"
-    assert exc_info.value.detail["requested_api_standard"] == "chat_completions"
-    assert exc_info.value.detail["requested_model_provider_id"] == model_provider_id
+    assert _json_object(exc_info.value.detail)["code"] == "chat_api_standard_mismatch"
+    assert _json_object(exc_info.value.detail)["chat_api_standard"] == "responses"
+    assert _json_object(exc_info.value.detail)["requested_api_standard"] == "chat_completions"
+    assert _json_object(exc_info.value.detail)["requested_model_provider_id"] == model_provider_id
     assert model_client.seen_specs == []
 
 
@@ -2748,10 +2796,10 @@ async def test_chat_sse_huggingface_provider_is_rejected_for_responses_chat_befo
         )
 
     assert exc_info.value.status_code == 409
-    assert exc_info.value.detail["code"] == "chat_api_standard_mismatch"
-    assert exc_info.value.detail["chat_api_standard"] == "responses"
-    assert exc_info.value.detail["requested_api_standard"] == "chat_completions"
-    assert exc_info.value.detail["requested_model_provider_id"] == model_provider_id
+    assert _json_object(exc_info.value.detail)["code"] == "chat_api_standard_mismatch"
+    assert _json_object(exc_info.value.detail)["chat_api_standard"] == "responses"
+    assert _json_object(exc_info.value.detail)["requested_api_standard"] == "chat_completions"
+    assert _json_object(exc_info.value.detail)["requested_model_provider_id"] == model_provider_id
     assert model_client.seen_specs == []
 
 
@@ -2839,7 +2887,7 @@ async def test_chat_sse_model_provider_override_rejects_missing_inactive_or_unsu
     async_session,
     async_session_factory,
     model_provider_id: str,
-    seed_kwargs: dict[str, object] | None,
+    seed_kwargs: _ProviderSeedOptions | None,
     expected_detail: str,
 ) -> None:
     anima_id = f"anima-db-{model_provider_id}".replace(":", "-")
@@ -3002,7 +3050,7 @@ async def test_chat_sse_model_provider_override_rejects_unsupported_requested_tu
     async_session,
     async_session_factory,
     model_provider_id: str,
-    seed_kwargs: dict[str, object],
+    seed_kwargs: _ProviderSeedOptions,
     chat_options: dict[str, object],
     dispatch_options: dict[str, object],
     expected_detail: str,
@@ -3050,7 +3098,7 @@ async def test_chat_sse_responses_memory_tools_active_and_gated_by_options(monke
     chunks = await _collect_chunks(response)
 
     assert any("event: run.completed" in chunk for chunk in chunks)
-    assert [tool["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
+    assert [_function_tool(tool)["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
         "memory_list_files",
         "memory_read_files",
         "search_memory_files",
@@ -3076,7 +3124,7 @@ async def test_chat_sse_responses_memory_tools_active_and_gated_by_options(monke
     chunks = await _collect_chunks(response)
 
     assert any("event: run.completed" in chunk for chunk in chunks)
-    assert [tool["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
+    assert [_function_tool(tool)["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
         "memory_list_files",
         "memory_read_files",
         "search_memory_files",
@@ -3185,7 +3233,7 @@ async def test_chat_sse_equips_uploaded_file_search_for_attached_searchable_uplo
     chunks = await _collect_chunks(response)
 
     assert any("event: run.completed" in chunk for chunk in chunks)
-    assert [tool["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
+    assert [_function_tool(tool)["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
         "memory_list_files",
         "memory_read_files",
         "search_memory_files",
@@ -3194,7 +3242,7 @@ async def test_chat_sse_equips_uploaded_file_search_for_attached_searchable_uplo
         "memory_apply_patch",
         "memory_write_file",
     ]
-    request_context = model_client.seen_specs[0].prompt.messages[-2]["content"]
+    request_context = _text(model_client.seen_specs[0].prompt.messages[-2]["content"])
     assert 'filename: "atlas-dossier.md"' in request_context
     assert "chunk_count: 2" in request_context
     assert 'description: "An Atlas project dossier."' in request_context
@@ -3445,7 +3493,7 @@ async def test_chat_sse_capable_responses_model_commits_native_patch_and_persist
     assert any("event: run.completed" in chunk for chunk in chunks)
     assert not any("event: error" in chunk for chunk in chunks)
     assert model_client.seen_specs[0].provider_options.memory_apply_patch_enabled is True
-    assert [tool["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
+    assert [_function_tool(tool)["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools] == [
         "memory_list_files",
         "memory_read_files",
         "search_memory_files",
@@ -3644,7 +3692,7 @@ async def test_chat_sse_title_generation_does_not_block_primary_response(
         user=RequestPrincipal(id="user-1"),
     )
     chunks: list[str] = []
-    iterator = response.body_iterator.__aiter__()
+    iterator = _stream_body(response).__aiter__()
 
     async def _read_until_primary_response() -> str:
         while True:
@@ -3995,7 +4043,7 @@ async def test_chat_sse_finishes_compaction_before_run_completed(
         request=_test_request(),
         user=RequestPrincipal(id="user-1"),
     )
-    iterator = response.body_iterator.__aiter__()
+    iterator = _stream_body(response).__aiter__()
     chunks: list[str] = []
 
     while True:
@@ -4005,7 +4053,7 @@ async def test_chat_sse_finishes_compaction_before_run_completed(
         if "event: user.response" in text:
             break
 
-    next_chunk_task = asyncio.create_task(iterator.__anext__())
+    next_chunk_task = asyncio.ensure_future(iterator.__anext__())
     await asyncio.wait_for(compaction_started.wait(), timeout=1.0)
     await asyncio.sleep(0.05)
     assert not next_chunk_task.done()
@@ -4282,11 +4330,11 @@ async def test_chat_sse_cleans_up_when_stream_closes_early(monkeypatch) -> None:
         user=RequestPrincipal(id="user-1"),
     )
 
-    first_chunk = await anext(response.body_iterator)
+    first_chunk = await anext(_stream_body(response))
     first_chunk_text = first_chunk.decode() if isinstance(first_chunk, bytes) else first_chunk
     assert "event: user.response" in first_chunk_text
 
-    await response.body_iterator.aclose()
+    await _stream_body(response).aclose()
 
     assert session.close_calls == 1
     assert model_client.close_calls == 0

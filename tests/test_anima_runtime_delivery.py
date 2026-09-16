@@ -5,7 +5,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,6 +14,8 @@ import pytest
 from fastapi import FastAPI, HTTPException
 from httpx import AsyncClient
 
+from animama.adapters.content_store import FilesystemContentStore
+from animama.app.services.anima_runtime_service import AnimaRuntimeService, RuntimeSnapshotError
 from animama.domain.content_catalog import ContentSource, VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.config import Settings
@@ -31,7 +33,9 @@ def runtime_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNames
     app.state.local_runtime_paths = initialize_local_runtime(
         Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     )
-    state = SimpleNamespace(app=app, owner="owner", authorized=True, calls=[], expires=datetime(2026, 9, 2, tzinfo=UTC))
+    state = SimpleNamespace(
+        app=app, owner="owner", authorized=True, calls=[], expires=datetime(2026, 9, 2, tzinfo=timezone.utc)
+    )
 
     async def principal() -> RequestPrincipal:
         if not state.authorized:
@@ -44,7 +48,7 @@ def runtime_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNames
     async def issue(_self, *, user_id: str, anima_id: str):  # noqa: ANN001, ANN202
         state.calls.append((user_id, anima_id))
         if user_id != "owner":
-            raise anima_runtime.RuntimeSnapshotError("anima_not_found")
+            raise RuntimeSnapshotError("anima_not_found")
         return {
             "loadout_revision": 1,
             "effective_revision": "same-content-revision",
@@ -55,7 +59,7 @@ def runtime_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNames
 
     app.dependency_overrides[get_current_principal] = principal
     app.dependency_overrides[get_async_session] = session
-    monkeypatch.setattr(anima_runtime.AnimaRuntimeService, "issue", issue)
+    monkeypatch.setattr(AnimaRuntimeService, "issue", issue)
     return state
 
 
@@ -158,9 +162,9 @@ async def test_runtime_private_file_does_not_use_manifest_compression(
             media_type="application/octet-stream",
         )
 
-    monkeypatch.setattr(anima_runtime.AnimaRuntimeService, "authorize_file", authorize)
+    monkeypatch.setattr(AnimaRuntimeService, "authorize_file", authorize)
     monkeypatch.setattr(
-        anima_runtime.FilesystemContentStore,
+        FilesystemContentStore,
         "open_verified_file",
         lambda _self, **_kwargs: VerifiedContentFile(BytesIO(body), len(body), digest, "application/octet-stream"),
     )

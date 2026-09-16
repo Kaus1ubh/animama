@@ -61,7 +61,7 @@ async def _sync_model_catalog(session) -> None:
 
 
 def test_chat_routes_are_mounted_and_conversation_routes_are_absent() -> None:
-    paths = {route.path for route in api_router.routes}
+    paths = {getattr(route, "path", None) for route in api_router.routes}
 
     assert "/v1/chats" in paths
     assert "/v1/chats/search" in paths
@@ -117,7 +117,7 @@ def test_fresh_metadata_uses_chat_tables_without_legacy_session_tables() -> None
         in chat_check_sql
     )
     assert "api_standard IS NULL OR api_standard IN ('chat_completions', 'responses')" in chat_check_sql
-    index_columns = {index.name: [column.name for column in index.columns] for index in chat_messages.indexes}
+    index_columns = {str(index.name): [column.name for column in index.columns] for index in chat_messages.indexes}
     assert index_columns["idx_chat_messages_model_provider"] == ["model_provider", "model"]
     assert index_columns["idx_chat_messages_chat_model_provider"] == ["chat_id", "model_provider", "model"]
 

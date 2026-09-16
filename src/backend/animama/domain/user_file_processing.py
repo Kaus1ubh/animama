@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 JOB_TYPE_PROCESS_FILE = "process_file"
 
@@ -17,9 +17,9 @@ ACTIVE_PROCESSING_JOB_STATUSES = {
     JOB_STATUS_RUNNING,
 }
 
-SEARCH_MODE_KEYWORD = "keyword"
-SEARCH_MODE_SEMANTIC = "semantic"
-SEARCH_MODE_HYBRID = "hybrid"
+SEARCH_MODE_KEYWORD: Final = "keyword"
+SEARCH_MODE_SEMANTIC: Final = "semantic"
+SEARCH_MODE_HYBRID: Final = "hybrid"
 SearchMode = Literal["keyword", "semantic", "hybrid"]
 UserFileOverviewMethod = Literal["structured", "extractive", "table", "json", "xml", "fallback_excerpt"]
 

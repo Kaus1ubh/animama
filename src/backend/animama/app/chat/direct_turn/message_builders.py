@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, cast
 
 from animama.app.model_clients import (
     MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
@@ -296,7 +296,10 @@ def openai_metadata_from_final(
         DEFAULT_STREAM_EVENT_SUMMARY_METADATA_KEY,
         "unknown_output_item_types",
     }
-    metadata = json_safe_copy({key: raw_provider_metadata[key] for key in keys if key in raw_provider_metadata})
+    metadata = cast(
+        dict[str, Any],
+        json_safe_copy({key: raw_provider_metadata[key] for key in keys if key in raw_provider_metadata}),
+    )
     metadata["provider"] = OPENAI_RESPONSES_PROVIDER
     metadata["api"] = "responses"
     metadata.setdefault("model", model_provider.model)

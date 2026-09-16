@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import replace
+from typing import TypeVar
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 
@@ -55,6 +56,14 @@ from animama.server.schemas.anima import PyAnimaUpdate, PyAnimaUpdateRequest
 from tests.anima_creation_support import creation_fixture
 from tests.local_http_client import local_client
 
+_T = TypeVar("_T")
+
+
+def _required(value: _T | None) -> _T:
+    """Assert the fixture lookup succeeded before inspecting its typed value."""
+    assert value is not None
+    return value
+
 
 def memory_service(uow: SQLAlchemyAnimaAggregateUnitOfWork) -> MemoryEntryService:
     return MemoryEntryService(memory_entries=uow.memory_entries, animas=uow.animas, uow=uow)
@@ -82,8 +91,8 @@ async def creation(async_session):
         source_ids = [
             fixture.spec.avatar.id,
             fixture.spec.idle_style.id,
-            fixture.spec.profile.source.id,
-            fixture.spec.background.source.id,
+            _required(fixture.spec.profile).source.id,
+            _required(fixture.spec.background).source.id,
         ]
         await async_session.execute(
             delete(ORMContentCatalogItem).where(
@@ -161,13 +170,13 @@ async def test_materializer_owns_no_commit_provider_or_runtime_and_seeds_exact_d
     )
     assert settings.theme is None and settings.background is None and settings.favorited is False
     assert settings.preferences["memory"] == {"disable_influence": False, "disable_updates": False}
-    assert (await uow.chat_profiles.get(anima.id)).default_model_provider_id == fixture.provider_id
+    assert (_required(await uow.chat_profiles.get(anima.id))).default_model_provider_id == fixture.provider_id
     loadout = await uow.loadouts.read_model(user_id=fixture.user_id, anima_id=anima.id)
     assert loadout.revision == loadout.aggregate_revision == 1
     assert loadout.gestures == () and len(loadout.reactions) == 72
     assert all(cell.state == "empty" for cell in loadout.reactions)
     assert loadout.music_tracks == () and loadout.voice_source is None
-    assert loadout.idle_style.source.catalog_item_id == spec.idle_style.id
+    assert _required(loadout.idle_style.source).catalog_item_id == spec.idle_style.id
     assert {entry.use for entry in loadout.appearances} == {"profile", "background"}
     assert (
         await async_session.scalar(select(func.count()).select_from(ORMChat).where(ORMChat.anima_id == anima.id)) == 0
@@ -239,7 +248,7 @@ async def test_live_authority_survives_source_edit_chat_context_and_explicit_ide
     )
     assert context.anima_name == anima.display_name
     assert context.anima_identity == identity.content
-    assert (await uow.animas.get(anima.id)).aggregate_revision == 1
+    assert (_required(await uow.animas.get(anima.id))).aggregate_revision == 1
     presentations = await AnimaPresentationService(
         presentations=SQLAlchemyAnimaPresentationRepository(async_session)
     ).list_owned_presentations(
@@ -247,8 +256,8 @@ async def test_live_authority_survives_source_edit_chat_context_and_explicit_ide
         anima_ids=(anima.id,),
     )
     assert presentations[anima.id].display_name == "My  Companion"
-    assert presentations[anima.id].profile_thumbnail.presentation.fit == "contain"
-    assert presentations[anima.id].profile_thumbnail.presentation.focal_x == 0.2
+    assert _required(presentations[anima.id].profile_thumbnail).presentation.fit == "contain"
+    assert _required(presentations[anima.id].profile_thumbnail).presentation.focal_x == 0.2
 
     updated = await memory.patch_entry(
         user_id=fixture.user_id,
@@ -312,8 +321,8 @@ async def test_legacy_long_name_survives_unrelated_identity_edit_until_explicit_
         content_set=True,
     )
     current = await uow.animas.get(anima.id)
-    assert updated.aggregate_revision == current.aggregate_revision == 2
-    assert current.display_name == legacy_name
+    assert _required(updated).aggregate_revision == _required(current).aggregate_revision == 2
+    assert _required(current).display_name == legacy_name
 
     with pytest.raises(AnimaDefinitionError, match="display_name_invalid"):
         await uow.animas.record_definition_revision(
@@ -355,7 +364,7 @@ async def test_name_guard_invalidates_reviewed_loadout_without_rewriting_identit
         session=async_session,
         user=user,
     )
-    assert json.loads(response.body)["aggregate_revision"] == 2
+    assert json.loads(bytes(response.body))["aggregate_revision"] == 2
     with pytest.raises(HTTPException) as stale:
         await patch_anima(
             anima.id,
@@ -452,12 +461,15 @@ async def test_required_identity_cannot_bypass_guards_or_be_removed(async_sessio
         await delete_avatar(anima.avatar.id, user=RequestPrincipal(id=fixture.user_id), session=async_session)
     assert retained.value.status_code == 409
     await uow.rollback()
-    assert (await uow.animas.get(anima.id)).aggregate_revision == 1
+    assert (_required(await uow.animas.get(anima.id))).aggregate_revision == 1
     # The ORM cannot bypass retention by nulling the back-reference either.
     with pytest.raises(IntegrityError):
         await uow.avatars.delete(anima.avatar.id)
     await uow.rollback()
-    assert (await uow.animas.get(anima.id)).avatar.id == anima.avatar.id
+    assert (
+        _required((_required(await uow.animas.get(_required(anima).id))).avatar).id
+        == _required(_required(anima).avatar).id
+    )
 
 
 @pytest.mark.asyncio
@@ -514,7 +526,7 @@ async def test_missing_identity_has_no_runtime_avatar_fallback(async_session) ->
         expected_aggregate_revision=1,
     )
     assert repaired.aggregate_revision == 2 and repaired.version == 1
-    assert (await uow.animas.get(anima_id)).identity_status == "ready"
+    assert (_required(await uow.animas.get(anima_id))).identity_status == "ready"
     assert (await context.build_context(user_id=owner, anima_id=anima_id)).anima_identity == repaired.content
 
 
@@ -553,7 +565,7 @@ async def test_legacy_directory_obstruction_can_be_explicitly_moved_before_ident
         expected_aggregate_revision=1,
     )
     assert repaired.version == 1 and repaired.aggregate_revision == 2
-    assert (await uow.animas.get(anima_id)).identity_status == "ready"
+    assert (_required(await uow.animas.get(anima_id))).identity_status == "ready"
 
 
 @pytest.mark.asyncio
@@ -605,8 +617,11 @@ async def test_avatar_changes_and_stale_chat_writes_preserve_live_definition(asy
     )
     assert result.revision == result.aggregate_revision == 2
     current = await uow.animas.get(anima.id)
-    assert current.avatar.catalog_item_id == replacement_id and current.avatar.id != anima.avatar.id
-    assert current.display_name == anima.display_name
+    assert (
+        _required(_required(current).avatar).catalog_item_id == replacement_id
+        and _required(_required(current).avatar).id != _required(_required(anima).avatar).id
+    )
+    assert _required(current).display_name == _required(anima).display_name
 
     user = RequestPrincipal(id=fixture.user_id)
     response = await patch_anima(
@@ -618,7 +633,7 @@ async def test_avatar_changes_and_stale_chat_writes_preserve_live_definition(asy
         session=async_session,
         user=user,
     )
-    assert json.loads(response.body)["aggregate_revision"] == 3
+    assert json.loads(bytes(response.body))["aggregate_revision"] == 3
     assert (await uow.loadouts.read_model(user_id=fixture.user_id, anima_id=anima.id)).revision == 3
 
     # A chat may finish with a pre-edit domain object. Only its runtime state
@@ -626,10 +641,10 @@ async def test_avatar_changes_and_stale_chat_writes_preserve_live_definition(asy
     anima.emotional_state["joy"] = 4
     await uow.animas.update(anima)
     preferences = await uow.settings.get(user_id=fixture.user_id, anima_id=anima.id)
-    preferences.favorited = True
-    await uow.settings.upsert(preferences)
+    _required(preferences).favorited = True
+    await uow.settings.upsert(_required(preferences))
     profile = await uow.chat_profiles.get(anima.id)
-    await uow.chat_profiles.upsert(profile)
+    await uow.chat_profiles.upsert(_required(profile))
     memory = memory_service(uow)
     ordinary = await memory.put_file_by_path(
         user_id=fixture.user_id,
@@ -638,8 +653,8 @@ async def test_avatar_changes_and_stale_chat_writes_preserve_live_definition(asy
     )
     assert ordinary.aggregate_revision is None
     current = await uow.animas.get(anima.id)
-    assert current.avatar is None and current.display_name == "My renamed Anima"
-    assert current.aggregate_revision == 3 and current.emotional_state["joy"] == 4
+    assert _required(current).avatar is None and _required(current).display_name == "My renamed Anima"
+    assert _required(current).aggregate_revision == 3 and _required(_required(current).emotional_state)["joy"] == 4
     identity = await memory.get_entry_by_path(user_id=fixture.user_id, anima_id=anima.id, path="identity.md")
     assert identity.version == 1 and identity.aggregate_revision == 3
     assert identity.content == "# My identity\n\nKeep two spaces.  \n"
@@ -826,7 +841,9 @@ async def test_reference_retention_precedes_filesystem_delete_and_missing_conten
     )
     await uow.commit()
     current = await uow.animas.get(anima.id)
-    assert current.display_name == anima.display_name and current.aggregate_revision == 2
+    assert (
+        _required(current).display_name == _required(anima).display_name and _required(current).aggregate_revision == 2
+    )
     memory = memory_service(uow)
     identity = await memory.get_entry_by_path(user_id=fixture.user_id, anima_id=anima.id, path="identity.md")
     assert identity.version == 1

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any
+# These injection casts adapt intentionally partial test doubles to the production ports.
+from typing import Any, cast
 
 import pytest
 
@@ -9,7 +10,7 @@ from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.services.chat_compaction_service import ChatCompactionService, ChatCompactionSettings
-from animama.app.services.direct_model_prompt_runner import DirectModelPromptResult
+from animama.app.services.direct_model_prompt_runner import DirectModelPromptResult, DirectModelPromptRunner
 from animama.domain import ModelProvider
 from animama.domain.chat import Chat, ChatMessage, MessageRole
 from animama.domain.chat_compaction import ChatCompaction
@@ -98,13 +99,13 @@ def _service(
         messages=SQLAlchemyChatMessageRepository(async_session),
         compactions=SQLAlchemyChatCompactionRepository(async_session),
         uow=SQLAlchemyUnitOfWork(async_session),
-        model_runner=model_runner,
+        model_runner=cast(DirectModelPromptRunner, model_runner),
         settings=settings,
     )
 
 
 def _trigger_settings(**overrides: Any) -> ChatCompactionSettings:
-    values = {
+    values: dict[str, Any] = {
         "threshold_tokens": 1,
         "recent_message_min_count": 2,
     }

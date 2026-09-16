@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from tempfile import SpooledTemporaryFile
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
 from animama.server.local_runtime import LocalRuntimePaths
 
@@ -189,7 +189,9 @@ class FilesystemPrivateFileStorage:
                     actual_size_bytes=actual,
                 )
             spool.seek(0)
-            yield VerifiedPrivateFile(spool, actual, digest.hexdigest())
+            # Binary-mode spools implement the BinaryIO interface; typeshed models
+            # the spool separately from IO despite that runtime contract.
+            yield VerifiedPrivateFile(cast(BinaryIO, spool), actual, digest.hexdigest())
         except OSError as exc:
             raise PrivateFileReadError("Private file changed or became unreadable") from exc
         finally:

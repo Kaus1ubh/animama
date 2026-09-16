@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
 
 from animama.app.anima_creation_contract import AnimaSpec, EnsureAnimaStartersRequest, StarterRepair
@@ -22,7 +22,7 @@ from .typed_content_service import TypedContentAdmissionError, TypedContentServi
 class StarterAnimaSpec:
     """Application configuration, not a template endpoint or portable descriptor."""
 
-    id: str
+    id: Literal["starter:annie", "starter:caitlyn"]
     version: int
     display_name: str
     identity_markdown: str

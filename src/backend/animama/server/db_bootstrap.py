@@ -63,7 +63,10 @@ def _connect_with_retries(*, timeout_s: int = 120, database_override: str | None
             try:
                 with conn.cursor() as cur:
                     cur.execute("SHOW data_directory")
-                    actual_pgdata = Path(cur.fetchone()[0]).resolve()
+                    row = cur.fetchone()
+                    if row is None:
+                        raise RuntimeError("PostgreSQL did not return data_directory")
+                    actual_pgdata = Path(row[0]).resolve()
                 if actual_pgdata != Path(expected_pgdata).resolve():
                     raise RuntimeError("desktop_database_ownership_mismatch")
             except Exception:
@@ -91,10 +94,16 @@ def _database_state(cur: psycopg.Cursor) -> dict[str, object]:
     """Bounded version and owner evidence, with no connection or secret data."""
 
     cur.execute("SHOW server_version")
-    version = cur.fetchone()[0]
+    version_row = cur.fetchone()
+    if version_row is None:
+        raise RuntimeError("PostgreSQL did not return server_version")
+    version = version_row[0]
     cur.execute("SELECT to_regclass('public.alembic_version')")
     head = None
-    if cur.fetchone()[0] is not None:
+    table_row = cur.fetchone()
+    if table_row is None:
+        raise RuntimeError("PostgreSQL did not return table metadata")
+    if table_row[0] is not None:
         cur.execute("SELECT version_num FROM alembic_version")
         row = cur.fetchone()
         head = row[0] if row else None
@@ -103,7 +112,10 @@ def _database_state(cur: psycopg.Cursor) -> dict[str, object]:
     vector = row[0] if row else None
     cur.execute("SELECT to_regclass('public.installation_settings')")
     principal = None
-    if cur.fetchone()[0] is not None:
+    table_row = cur.fetchone()
+    if table_row is None:
+        raise RuntimeError("PostgreSQL did not return table metadata")
+    if table_row[0] is not None:
         cur.execute("SELECT installation_principal_id FROM installation_settings")
         rows = cur.fetchall()
         if len(rows) != 1 or not rows[0][0]:

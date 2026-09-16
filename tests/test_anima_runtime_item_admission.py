@@ -53,6 +53,11 @@ def _vrma(label: str = "runtime") -> bytes:
     )
 
 
+def _item_revision(item: ORMContentCatalogItem) -> str:
+    assert item.revision_sha256 is not None
+    return item.revision_sha256
+
+
 def _descriptor(
     item: ORMContentCatalogItem,
     files: list[ORMContentCatalogFile],
@@ -74,7 +79,7 @@ def _descriptor(
         item_id=item.id,
         kind=ContentKind(item.kind),
         display_name=item.display_name,
-        revision_sha256=item.revision_sha256,
+        revision_sha256=_item_revision(item),
         logical_key=item.logical_key,
         member_refs=tuple(file.file_ref for file in files),
     )
@@ -84,7 +89,7 @@ def _descriptor(
         entries=(entry,),
         members=members,
         diagnostics=(),
-        admitted_item_revisions={item.id: item.revision_sha256},
+        admitted_item_revisions={item.id: _item_revision(item)},
         total_bytes=sum(file.size_bytes for file in files),
         revision=f"rcd2-{_digest(item.id)}",
     )
@@ -175,7 +180,7 @@ async def test_runtime_file_authorization_uses_one_read_only_item_pin_projection
         async_session,
         owner_user_id=owner,
         anima_id=anima.id,
-        pins={item.id: item.revision_sha256},
+        pins={item.id: _item_revision(item)},
     )
     await async_session.commit()
 
@@ -217,7 +222,10 @@ async def test_runtime_file_authorization_uses_one_read_only_item_pin_projection
     assert authorized.sha256 == files[1].sha256
     assert len(statements) == 2  # One query per call, independent of member count.
     assert all(statement.lstrip().upper().startswith("SELECT") for statement in statements)
-    assert all(batch[file.file_ref].sha256 == file.sha256 for file in files)
+    for file in files:
+        authorization = batch[file.file_ref]
+        assert not isinstance(authorization, RuntimeSnapshotError)
+        assert authorization.sha256 == file.sha256
     assert isinstance(batch[unpinned_files[0].file_ref], RuntimeSnapshotError)
     assert isinstance(batch["missing"], RuntimeSnapshotError)
 
@@ -396,7 +404,7 @@ async def test_runtime_renew_preserves_pins_and_body_and_cleanup_is_bounded(asyn
         async_session,
         owner_user_id=owner,
         anima_id=anima.id,
-        pins={item.id: item.revision_sha256},
+        pins={item.id: _item_revision(item)},
     )
     original_pins = dict(snapshot.admitted_item_revisions)
     original_body = dict(snapshot.catalog)
@@ -451,7 +459,7 @@ async def test_scale_fixture_persists_one_snapshot_for_200_items_and_600_files(a
         item, files = await _add_item(async_session, owner_user_id=None, file_count=3)
         items.append(item)
         all_files.extend(files)
-    pins = {item.id: item.revision_sha256 for item in items}
+    pins = {item.id: _item_revision(item) for item in items}
     snapshot = await _add_snapshot(
         async_session,
         owner_user_id=owner,

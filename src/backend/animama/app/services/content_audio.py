@@ -13,7 +13,7 @@ MAX_AUDIO_DURATION_SECONDS = 60 * 60
 MIN_AUDIO_SAMPLE_RATE = 8_000
 MAX_AUDIO_SAMPLE_RATE = 96_000
 MAX_AUDIO_CHANNELS = 2
-_MPEG_BITRATES = {
+_MPEG_BITRATES: dict[int, dict[int, tuple[int, ...]]] = {
     1: {
         1: (32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320),
         2: (32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256),
@@ -291,7 +291,7 @@ def _validate_ogg(payload: bytes) -> _AudioFacts:
 
 
 def _valid_ogg_crc(page: bytes) -> bool:
-    expected = struct.unpack_from("<I", page, 22)[0]
+    expected: int = struct.unpack_from("<I", page, 22)[0]
     mutable = bytearray(page)
     mutable[22:26] = b"\x00\x00\x00\x00"
     crc = 0

@@ -32,6 +32,7 @@ from animama.app.services.anima_presentation_service import AnimaPresentationSer
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import definition_for_kind
 from animama.app.services.content_save_service import readable_entry_name
+from animama.domain.anima import Anima
 from animama.domain.anima_definition import AnimaDefinitionError
 from animama.domain.anima_loadout import AnimaLoadoutError
 from animama.domain.content_catalog import (
@@ -86,7 +87,7 @@ router = APIRouter()
 _log = get_logger("server.routers.anima")
 
 
-def _build_anima_payload(dom_anima: object) -> dict:
+def _build_anima_payload(dom_anima: Anima) -> dict[str, Any]:
     schema = anima_domain_to_schema(dom_anima)
     return {**schema.model_dump(mode="json")}
 
@@ -369,7 +370,7 @@ async def list_animas(
     presentations = await AnimaPresentationService(
         presentations=SQLAlchemyAnimaPresentationRepository(session)
     ).list_owned_presentations(user_id=user.id, anima_ids=anima_ids)
-    out: list[dict] = []
+    out: list[dict[str, Any]] = []
     from animama.adapters.mappers.anima_map import anima_orm_to_domain as _p2d
 
     for orm in rows:
@@ -498,6 +499,7 @@ async def patch_anima(
         assert dom is not None
         changed = False
         if "avatar_id" in fields:
+            assert anima_patch is not None
             changed = await AnimaLoadoutService(session).set_legacy_avatar_in_uow(
                 user_id=user.id,
                 anima_id=anima_id,
@@ -507,6 +509,7 @@ async def patch_anima(
         changed = changed or (display_name is not None and display_name != dom.display_name)
         await repo.update(anima_update_request_to_domain(req, dom))
         if changed:
+            assert req.expected_aggregate_revision is not None
             await repo.record_definition_revision(
                 user_id=user.id,
                 anima_id=anima_id,

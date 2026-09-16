@@ -306,6 +306,7 @@ def test_openai_gpt_5_6_responses_rows_have_exact_catalog_pricing(
     assert row["service_tiers_supported"] == ["standard", "batch", "flex", "priority"]
     assert row["long_context_token_threshold"] == 272_000
     assert row["regional_processing_uplift_factor"] == Decimal("1.10")
+    assert isinstance(row["pricing_notes"], list)
     assert len(row["pricing_notes"]) == 4
 
     for tier, rates in short_rates.items():
@@ -446,6 +447,7 @@ def test_deepseek_v4_rows_use_openai_chat_completions_provider() -> None:
         assert row["structured_output_transport"] == STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
         assert row["supports_reasoning"] is True
         assert row["supported_reasoning_efforts"] == ["none", "high", "max"]
+        assert isinstance(row["metadata"], dict)
         assert row["metadata"]["openai_compatible_provider"] == "deepseek"
         assert "thinking" not in row["metadata"]
         assert "reasoning_effort_map" not in row["metadata"]
@@ -486,6 +488,7 @@ def test_huggingface_rows_use_openai_chat_completions_provider() -> None:
         assert row["supports_reasoning"] is None
         assert row["supported_reasoning_efforts"] is None
         assert row["native_tool_support"] is None
+        assert isinstance(row["metadata"], dict)
         assert row["metadata"]["openai_compatible_provider"] == "huggingface"
         assert structured_output_transport("OpenAIHTTPAgent", model) == STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
 

@@ -8,6 +8,7 @@ import shutil
 from collections.abc import AsyncIterator
 from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -35,13 +36,13 @@ async def database(migrated_database: str) -> AsyncIterator[LocalDatabase]:  # n
 
 
 @pytest.fixture
-async def services(database: LocalDatabase, tmp_path: Path) -> AsyncIterator[tuple]:
+async def services(database: LocalDatabase, tmp_path: Path) -> AsyncIterator[tuple[Any, ...]]:
     """Use only temporary Local files and an application-owned session."""
     async with database.session_factory()() as session:
         yield package_services(session, tmp_path)
 
 
-def _scene_document(color: str = "#123456") -> dict:
+def _scene_document(color: str = "#123456") -> dict[str, Any]:
     return {
         "schema_version": 1,
         "content_type": "scene_effect",

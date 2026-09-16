@@ -24,10 +24,23 @@ class AnimaLoadoutComposer(Protocol):
 class AnimaAggregateUnitOfWork(UnitOfWork, Protocol):
     """Every collaborator participates in the caller's one database transaction."""
 
-    animas: AnimaRepository
-    avatars: AvatarRepository
-    memory_entries: MemoryEntryRepository
-    model_providers: ModelProviderRepository
-    chat_profiles: AnimaChatProfileRepository
-    settings: AnimaSettingsRepository
-    loadouts: AnimaLoadoutComposer
+    @property
+    def animas(self) -> AnimaRepository: ...
+
+    @property
+    def avatars(self) -> AvatarRepository: ...
+
+    @property
+    def memory_entries(self) -> MemoryEntryRepository: ...
+
+    @property
+    def model_providers(self) -> ModelProviderRepository: ...
+
+    @property
+    def chat_profiles(self) -> AnimaChatProfileRepository: ...
+
+    @property
+    def settings(self) -> AnimaSettingsRepository: ...
+
+    @property
+    def loadouts(self) -> AnimaLoadoutComposer: ...

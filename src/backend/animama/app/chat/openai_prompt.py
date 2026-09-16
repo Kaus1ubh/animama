@@ -112,7 +112,7 @@ class DirectChatPromptAssembler:
             reasoning_effort=cast(Any, reasoning_effort.strip())
             if isinstance(reasoning_effort, str) and reasoning_effort.strip()
             else None,
-            metadata=_metadata_with_openai_responses_history(metadata, assistant_phases_by_message_index),
+            metadata=_metadata_with_openai_responses_history(metadata, assistant_phases_by_message_index) or {},
         )
 
 
@@ -257,7 +257,7 @@ def _prepare_prompt_attachments(
             continue
         filename_truncated = len(filename) > _MAX_ATTACHMENT_FILENAME_CHARS
         filename = _clip_prompt_scalar(filename, _MAX_ATTACHMENT_FILENAME_CHARS)
-        chunk_count = attachment.chunk_count
+        chunk_count: int | None = attachment.chunk_count
         if isinstance(chunk_count, bool) or not isinstance(chunk_count, int) or chunk_count <= 0:
             chunk_count = None
 

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import fields
-from typing import Any
+from typing import Any, cast
 
 from openai.types.responses import (
     Response,
@@ -45,7 +46,7 @@ from animama.app.model_clients import (
     MCAssistantMessageDoneEvent,
     MCAssistantMessageStartedEvent,
     MCAssistantPhaseEvent,
-    MCEventBase,
+    MCEvent,
     MCFunctionToolCallDeltaEvent,
     MCFunctionToolCallDoneEvent,
     MCResponseProgressEvent,
@@ -410,7 +411,7 @@ def event_metadata(event: Any) -> dict[str, Any]:
 
 def responses_stream_event_delta(
     *,
-    event_cls: type[MCEventBase],
+    event_cls: type[MCEvent],
     provider_type: str,
     model: str,
     provider_event_type: str,
@@ -478,8 +479,11 @@ def responses_stream_event_delta(
         "details": details or {},
     }
     init_fields = {event_field.name for event_field in fields(event_cls) if event_field.init}
+    # Dataclass field filtering supplies exactly the selected event constructor
+    # fields; the callable cast is confined to this reflective construction.
+    constructor = cast(Callable[..., MCEvent], event_cls)
     return model_client_event_delta(
-        event_cls(**{key: value for key, value in event_kwargs.items() if key in init_fields})
+        constructor(**{key: value for key, value in event_kwargs.items() if key in init_fields})
     )
 
 
@@ -501,7 +505,7 @@ def _response_output_item_event(
     provider_type: str,
     model: str,
     provider_event_type: str,
-    event_cls: type[MCEventBase],
+    event_cls: type[MCEvent],
     output_index: int,
     details: dict[str, Any],
 ) -> tuple[ModelClientDelta, ...]:
@@ -852,7 +856,7 @@ def _native_tool_event_delta(
 def _native_tool_stream_event(
     event: Any,
     *,
-    event_cls: type[MCEventBase],
+    event_cls: type[MCEvent],
     provider_type: str,
     model: str,
     tool_type: str,

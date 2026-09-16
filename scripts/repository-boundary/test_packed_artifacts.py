@@ -62,6 +62,23 @@ class PackedArtifactTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unsafe package member"):
             packed.inspect_tarball(self.path)
 
+    def test_resolution_receipt_binds_retained_graph_and_inventory_bytes(self):
+        work = Path(self.temp.name)
+        graph = work / "pnpm-lock.yaml"
+        graph.write_text("lockfileVersion: '9.0'\n")
+        inventory = work / "backend-dependencies.json"
+        inventory.write_text('[{"name":"example","version":"1.2.3"}]\n')
+        receipt = packed.dependency_receipt([graph, inventory], work)
+        self.assertEqual(receipt["mode"], "fresh-resolution")
+        self.assertFalse(receipt["source_lockfiles_used"])
+        self.assertEqual(receipt["evidence"][0]["path"], "pnpm-lock.yaml")
+        original = receipt["evidence"][1]["sha256"]
+        inventory.write_text('[{"name":"example","version":"1.2.4"}]\n')
+        self.assertNotEqual(packed.dependency_receipt([inventory], work)["evidence"][0]["sha256"], original)
+        inventory.unlink()
+        with self.assertRaises(FileNotFoundError):
+            packed.dependency_receipt([inventory], work)
+
 
 if __name__ == "__main__":
     unittest.main()

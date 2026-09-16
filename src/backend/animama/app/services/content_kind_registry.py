@@ -496,6 +496,7 @@ def _files(raw: Mapping[str, Any]) -> tuple[ContentFileDeclarationV1, ...]:
         raise ContentDocumentError("invalid_file_declarations", "files must be an array")
     result: list[ContentFileDeclarationV1] = []
     seen: set[str] = set()
+    path: object
     for item in value:
         if isinstance(item, str):
             path = item
@@ -606,7 +607,7 @@ def _action_implementation(raw: Mapping[str, Any], *, default_kind: str) -> Acti
             )
         elif source_type is not None:
             raise ContentDocumentError("invalid_technical_source", "technical_source.type is unsupported")
-    return ActionImplementationV1(raw_kind, file_role, dependency_ref)  # type: ignore[arg-type]
+    return ActionImplementationV1(raw_kind, file_role, dependency_ref)
 
 
 def _base_values(
@@ -1447,7 +1448,7 @@ def _idle_animations(raw: Mapping[str, Any]) -> tuple[IdleAnimationDocumentV1, .
     return tuple(result)
 
 
-def _optional_positive_int(value: Any, *, field_name: str) -> int | None:
+def _optional_positive_int(value: object, *, field_name: str) -> int | None:
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:

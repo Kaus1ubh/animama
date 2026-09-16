@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.settings_repo import (
@@ -77,7 +79,7 @@ def _normalize_tts_options(value: object) -> DirectChatTtsOptions | None:
     return DirectChatTtsOptions.from_mapping(normalized)
 
 
-def _get_pref_section(prefs: dict | None, key: str) -> dict:
+def _get_pref_section(prefs: dict[str, Any] | None, key: str) -> dict[str, Any]:
     if isinstance(prefs, dict):
         section = prefs.get(key)
         if isinstance(section, dict):
@@ -87,9 +89,9 @@ def _get_pref_section(prefs: dict | None, key: str) -> dict:
 
 def merge_chat_request_options(
     *,
-    request_opts: dict | None,
-    user_prefs: dict | None,
-    anima_prefs: dict | None,
+    request_opts: dict[str, Any] | None,
+    user_prefs: dict[str, Any] | None,
+    anima_prefs: dict[str, Any] | None,
 ) -> DirectChatOptions:
     req = dict(request_opts or {})
     user_memory = _get_pref_section(user_prefs, "memory")
@@ -131,7 +133,7 @@ async def resolve_chat_request_options(
     session: AsyncSession,
     user: RequestPrincipal,
     anima_id: str,
-    request_opts: dict | None,
+    request_opts: dict[str, Any] | None,
 ) -> DirectChatOptions:
     settings_service = SettingsService(
         user_settings=SQLAlchemyUserSettingsRepository(session),

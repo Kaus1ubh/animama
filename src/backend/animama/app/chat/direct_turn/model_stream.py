@@ -25,7 +25,7 @@ from animama.domain.chat import ChatMessage
 from animama.domain.usage import Usage
 from animama.logging import get_logger
 
-from ..memory_tools import MemoryToolExecutionContext
+from ..memory_tools import DirectChatMemoryToolService, MemoryToolExecutionContext
 from .constants import (
     MAX_MEMORY_TOOL_ROUNDS,
     MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION,
@@ -73,7 +73,7 @@ class DirectTurnModelStreamCollector:
         self,
         *,
         stream: Callable[[ModelClientRequest], AsyncIterator[ModelClientDelta]],
-        memory_tool_service: Any | None,
+        memory_tool_service: DirectChatMemoryToolService | None,
         load_chat_context: Callable[[str], Awaitable[Any]],
         build_prompt: Callable[..., DirectChatPrompt],
     ) -> None:
@@ -465,6 +465,8 @@ class DirectTurnModelStreamCollector:
     ) -> str:
         """Run one model-requested direct memory tool and return provider text output."""
 
+        # Tools are exposed only when the request has a service.
+        assert self._memory_tool_service is not None
         if tool_call.name not in available_tools:
             return _tool_error_json(
                 "unsupported_tool",

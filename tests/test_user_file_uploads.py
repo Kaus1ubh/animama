@@ -5,6 +5,7 @@ from io import BytesIO
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.app.services.user_file_service import UserFileService
 from animama.domain.request_principal import RequestPrincipal
@@ -17,6 +18,7 @@ from animama.domain.user_file import (
     UserFile,
 )
 from animama.domain.user_file_processing import UserFileProcessingInfo
+from animama.server.config import settings
 from animama.server.local_upload_stream import LocalUploadBody
 from animama.server.routers import user_files as user_files_router
 from animama.server.schemas.user_file import PyUserFileUploadInitRequest
@@ -141,7 +143,7 @@ async def test_init_user_file_upload_returns_authenticated_local_put_and_file_id
             content_type="text/plain",
             size_bytes=12,
         ),
-        session=object(),
+        session=AsyncSession(),
         user=_user(),
     )
 
@@ -162,7 +164,7 @@ async def test_init_user_file_upload_rejects_unsupported_extension() -> None:
     with pytest.raises(HTTPException) as exc_info:
         await user_files_router.init_user_file_upload(
             PyUserFileUploadInitRequest(filename="run.sh", content_type="text/x-shellscript", size_bytes=12),
-            session=object(),
+            session=AsyncSession(),
             user=_user(),
         )
 
@@ -183,7 +185,7 @@ async def test_init_user_file_upload_accepts_phase_2_rich_extensions(monkeypatch
 
     response = await user_files_router.init_user_file_upload(
         PyUserFileUploadInitRequest(filename=filename, content_type=None, size_bytes=12),
-        session=object(),
+        session=AsyncSession(),
         user=_user(),
     )
 
@@ -197,7 +199,7 @@ async def test_init_user_file_upload_rejects_blocked_extensions(filename: str) -
     with pytest.raises(HTTPException) as exc_info:
         await user_files_router.init_user_file_upload(
             PyUserFileUploadInitRequest(filename=filename, content_type=None, size_bytes=12),
-            session=object(),
+            session=AsyncSession(),
             user=_user(),
         )
 
@@ -212,9 +214,9 @@ async def test_init_user_file_upload_rejects_too_large_file() -> None:
             PyUserFileUploadInitRequest(
                 filename="notes.txt",
                 content_type="text/plain",
-                size_bytes=user_files_router.settings.anima_user_file_max_upload_bytes + 1,
+                size_bytes=settings.anima_user_file_max_upload_bytes + 1,
             ),
-            session=object(),
+            session=AsyncSession(),
             user=_user(),
         )
 
@@ -232,7 +234,7 @@ async def test_init_user_file_upload_returns_503_when_local_target_cannot_be_bui
     with pytest.raises(HTTPException) as exc_info:
         await user_files_router.init_user_file_upload(
             PyUserFileUploadInitRequest(filename="notes.txt", content_type="text/plain", size_bytes=12),
-            session=object(),
+            session=AsyncSession(),
             user=_user(),
         )
 
@@ -266,7 +268,7 @@ async def test_upload_user_file_content_promotes_exact_bytes_to_private_storage(
     response = await user_files_router.upload_user_file_content(
         "file-1",
         request=object(),  # type: ignore[arg-type]
-        session=object(),
+        session=AsyncSession(),
         user=_user(),
     )
 
@@ -288,7 +290,7 @@ async def test_finalize_user_file_upload_returns_error_when_object_missing(monke
     monkeypatch.setattr(user_files_router, "is_user_file_storage_locator", lambda storage_locator, user_id: True)
 
     with pytest.raises(HTTPException) as exc_info:
-        await user_files_router.finalize_user_file_upload("file-1", session=object(), user=_user())
+        await user_files_router.finalize_user_file_upload("file-1", session=AsyncSession(), user=_user())
 
     assert exc_info.value.status_code == 409
     assert exc_info.value.detail == "Uploaded object not found"
@@ -305,7 +307,7 @@ async def test_finalize_user_file_upload_rejects_size_mismatch(monkeypatch) -> N
     monkeypatch.setattr(user_files_router, "is_user_file_storage_locator", lambda storage_locator, user_id: True)
 
     with pytest.raises(HTTPException) as exc_info:
-        await user_files_router.finalize_user_file_upload("file-1", session=object(), user=_user())
+        await user_files_router.finalize_user_file_upload("file-1", session=AsyncSession(), user=_user())
 
     assert exc_info.value.status_code == 409
     assert repo.files["file-1"].status == "failed"
@@ -325,7 +327,7 @@ async def test_finalize_user_file_upload_updates_status_and_metadata(monkeypatch
     )
     monkeypatch.setattr(user_files_router, "is_user_file_storage_locator", lambda storage_locator, user_id: True)
 
-    response = await user_files_router.finalize_user_file_upload("file-1", session=object(), user=_user())
+    response = await user_files_router.finalize_user_file_upload("file-1", session=AsyncSession(), user=_user())
 
     assert response.file_id == "file-1"
     assert response.status == STATUS_UPLOADED
@@ -348,15 +350,15 @@ async def test_list_and_get_user_files_only_return_current_users_files(monkeypat
     uow = _FakeUnitOfWork()
     _patch_service(monkeypatch, repo, uow)
 
-    listed = await user_files_router.list_user_files(session=object(), user=_user("user-1"))
+    listed = await user_files_router.list_user_files(session=AsyncSession(), user=_user("user-1"))
 
     assert [item.file_id for item in listed.files] == ["file-new", "file-old"]
 
-    found = await user_files_router.get_user_file("file-new", session=object(), user=_user("user-1"))
+    found = await user_files_router.get_user_file("file-new", session=AsyncSession(), user=_user("user-1"))
     assert found.file_id == "file-new"
 
     with pytest.raises(HTTPException) as exc_info:
-        await user_files_router.get_user_file("file-other", session=object(), user=_user("user-1"))
+        await user_files_router.get_user_file("file-other", session=AsyncSession(), user=_user("user-1"))
 
     assert exc_info.value.status_code == 404
 
@@ -368,7 +370,7 @@ async def test_delete_user_file_marks_deleted_when_object_delete_succeeds(monkey
     _patch_service(monkeypatch, repo, uow)
     monkeypatch.setattr(user_files_router, "delete_private_file", lambda storage_locator: True)
 
-    response = await user_files_router.delete_user_file("file-1", session=object(), user=_user())
+    response = await user_files_router.delete_user_file("file-1", session=AsyncSession(), user=_user())
 
     assert response.status_code == 204
     assert repo.files["file-1"].status == STATUS_DELETED
@@ -383,7 +385,7 @@ async def test_delete_user_file_marks_delete_pending_when_object_delete_fails(mo
     _patch_service(monkeypatch, repo, uow)
     monkeypatch.setattr(user_files_router, "delete_private_file", lambda storage_locator: False)
 
-    response = await user_files_router.delete_user_file("file-1", session=object(), user=_user())
+    response = await user_files_router.delete_user_file("file-1", session=AsyncSession(), user=_user())
 
     assert response.status_code == 204
     assert repo.files["file-1"].status == STATUS_DELETE_PENDING
@@ -398,7 +400,7 @@ async def test_abort_user_file_upload_marks_aborted_when_object_delete_succeeds(
     _patch_service(monkeypatch, repo, uow)
     monkeypatch.setattr(user_files_router, "delete_private_file", lambda storage_locator: True)
 
-    response = await user_files_router.abort_user_file_upload("file-1", session=object(), user=_user())
+    response = await user_files_router.abort_user_file_upload("file-1", session=AsyncSession(), user=_user())
 
     assert response.status_code == 204
     assert repo.files["file-1"].status == STATUS_ABORTED
@@ -418,7 +420,7 @@ async def test_abort_user_file_upload_conflicts_when_already_uploaded(monkeypatc
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        await user_files_router.abort_user_file_upload("file-1", session=object(), user=_user())
+        await user_files_router.abort_user_file_upload("file-1", session=AsyncSession(), user=_user())
 
     assert exc_info.value.status_code == 409
     assert repo.files["file-1"].status == STATUS_UPLOADED

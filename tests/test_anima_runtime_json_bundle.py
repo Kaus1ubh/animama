@@ -8,11 +8,13 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
 
+from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.anima_runtime_service import RuntimeFileAuthorization, RuntimeSnapshotError, _runtime_response
 from animama.domain.content_catalog import ContentSource
 from animama.domain.request_principal import RequestPrincipal
@@ -24,7 +26,7 @@ from animama.server.routers import anima_runtime
 from tests.local_http_client import local_client
 
 
-def _catalog(count: int = 3, size: int = 20) -> dict:
+def _catalog(count: int = 3, size: int = 20) -> dict[str, Any]:
     members = [
         {"file_ref": f"file-{index:03}", "role": "sequence", "media_type": "application/json", "size_bytes": size}
         for index in range(count)
@@ -129,7 +131,7 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
     async def session():  # noqa: ANN202
         yield state.session
 
-    original_open = anima_runtime.FilesystemContentStore.open_verified_file
+    original_open = FilesystemContentStore.open_verified_file
 
     def opened(self, **kwargs):  # noqa: ANN001, ANN003, ANN202
         state.opens += 1
@@ -138,7 +140,7 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
     app.dependency_overrides[get_current_principal] = principal
     app.dependency_overrides[get_async_session] = session
     monkeypatch.setattr(anima_runtime, "AnimaRuntimeService", Runtime)
-    monkeypatch.setattr(anima_runtime.FilesystemContentStore, "open_verified_file", opened)
+    monkeypatch.setattr(FilesystemContentStore, "open_verified_file", opened)
     return state
 
 

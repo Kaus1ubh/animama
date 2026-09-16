@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -24,7 +24,7 @@ class AnimaClient:
 
     async def get_anima(self, anima_id: str) -> dict[str, Any]:
         response = await self._request("GET", f"/v1/animas/{anima_id}")
-        return response.json()
+        return cast(dict[str, Any], response.json())
 
     async def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         response = await self._client.request(method, url, **kwargs)

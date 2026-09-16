@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
+from typing import cast
 
 from fastapi import FastAPI, Request, WebSocket
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -12,7 +13,7 @@ from animama.server.request_principal import principal_resolver
 _embedder: Embedder | None = None
 
 
-def get_embedder() -> Embedder:  # type: ignore[name-defined]
+def get_embedder() -> Embedder:
     """Return a singleton Embedder configured from environment."""
 
     global _embedder
@@ -34,11 +35,12 @@ def get_async_session_factory(app: FastAPI) -> async_sessionmaker[AsyncSession]:
     """Resolve database resources explicitly owned by this application."""
     factory = getattr(app.state, "session_factory", None)
     if factory is not None:
-        return factory
+        return cast(async_sessionmaker[AsyncSession], factory)
     provider = getattr(app.state, "session_factory_provider", None)
     if provider is None:
         raise RuntimeError("Application session factory is not configured")
-    return provider()
+    # App factories own both forms of this dynamically stored dependency.
+    return cast(Callable[[], async_sessionmaker[AsyncSession]], provider)()
 
 
 async def get_current_principal(request: Request) -> RequestPrincipal:

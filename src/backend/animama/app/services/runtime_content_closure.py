@@ -290,7 +290,7 @@ class RuntimeContentClosureCompiler:
             )
             for item in sorted(admitted_entries.values(), key=lambda value: value.id)
         )
-        members = tuple(
+        ordered_members = tuple(
             sorted(
                 admitted_members.values(),
                 key=lambda value: (value.item_id, value.relative_path, value.file_ref),
@@ -325,7 +325,7 @@ class RuntimeContentClosureCompiler:
                     "sha256": member.sha256,
                     "role": member.role,
                 }
-                for member in members
+                for member in ordered_members
             ],
             "diagnostics": [
                 {"root_id": item.root_id, "code": item.code, "item_id": item.item_id} for item in diagnostics
@@ -335,10 +335,10 @@ class RuntimeContentClosureCompiler:
             loadout_revision=loadout_revision,
             roots=tuple(admitted_roots),
             entries=entries,
-            members=members,
+            members=ordered_members,
             diagnostics=tuple(diagnostics),
             admitted_item_revisions=admitted_item_revisions,
-            total_bytes=sum(member.size_bytes for member in members),
+            total_bytes=sum(member.size_bytes for member in ordered_members),
             revision=f"rcd2-{_digest(identity)}",
         )
 

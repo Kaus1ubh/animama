@@ -67,7 +67,7 @@ def _to_header(entry: MemoryEntry | MemoryEntryHeader) -> PyMemoryEntryHeader:
         parent_id=entry.parent_id,
         anima_id=entry.anima_id,
         scope="anima" if entry.anima_id is not None else "user",
-        type=entry.type,  # type: ignore[arg-type]
+        type=entry.type,
         name=entry.name,
         path=entry.path,
         kind=entry.kind,
@@ -103,13 +103,13 @@ def _to_version_summary(version: MemoryEntryVersion) -> PyMemoryEntryVersionSumm
         parent_id=version.parent_id,
         anima_id=version.anima_id,
         scope="anima" if version.anima_id is not None else "user",
-        type=version.type,  # type: ignore[arg-type]
+        type=version.type,
         name=version.name,
         path=version.path,
         kind=version.kind,
         description=version.description,
         version=version.version,
-        operation=version.operation,  # type: ignore[arg-type]
+        operation=version.operation,
         size_bytes=version.size_bytes,
         content_sha256=version.content_sha256,
         change_metadata=dict(version.change_metadata or {}),

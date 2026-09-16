@@ -112,6 +112,15 @@ def assert_no_checkout_links(directory: Path) -> None:
                 raise ValueError(f"Consumer resolves back into checkout: {path}")
 
 
+def dependency_receipt(paths: list[Path], work: Path) -> dict:
+    """Bind fresh-resolution evidence without claiming a frozen consumer build."""
+    return {
+        "mode": "fresh-resolution",
+        "source_lockfiles_used": False,
+        "evidence": [{"path": str(path.relative_to(work)), "sha256": digest(path)} for path in paths],
+    }
+
+
 def main() -> int:
     """Run both ecosystems in a retained directory outside the source repository."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -169,6 +178,12 @@ def main() -> int:
     if args.pnpm_store:
         install += ["--store-dir", str(args.pnpm_store.resolve())]
     run(install, cwd=frontend, logs=logs, name="frontend-install", env=env)
+    # Preserve the resolved graph before any check can fail or CI reclaims the
+    # environment. This consumer deliberately tests fresh dependency resolution.
+    frontend_lock = logs / "frontend-pnpm-lock.yaml"
+    shutil.copy2(frontend / "pnpm-lock.yaml", frontend_lock)
+    run(["pnpm", "list", "--depth", "Infinity", "--json"],
+        cwd=frontend, logs=logs, name="frontend-dependencies", env=env)
     assert_no_checkout_links(frontend)
     run(["pnpm", "exec", "tsc", "--noEmit"], cwd=frontend, logs=logs, name="frontend-types", env=env)
     run(["pnpm", "exec", "vite", "build"], cwd=frontend, logs=logs, name="frontend-build", env=env)
@@ -185,10 +200,21 @@ def main() -> int:
     if args.offline:
         install.append("--offline")
     run(install, cwd=backend, logs=logs, name="backend-install", env=env)
+    # Name/version inventory contains no inherited registry credentials or
+    # developer paths. It describes installed distributions, not wheel hashes.
+    run([str(python), "-I", "-c",
+         "import importlib.metadata as m, json; "
+         "print(json.dumps(sorted([{'name': d.metadata['Name'], 'version': d.version} "
+         "for d in m.distributions()], key=lambda d: d['name'].lower()), indent=2))"],
+        cwd=backend, logs=logs, name="backend-dependencies", env=env)
     assert_no_checkout_links(backend)
     run([str(python), "-I", "consumer.py", "--forbid-source", str(ROOT)],
         cwd=backend, logs=logs, name="backend-consumer", env=env)
+    dependencies = dependency_receipt(
+        [frontend_lock, logs / "frontend-dependencies.log", logs / "backend-dependencies.log"], work,
+    )
     summary = {"artifacts": reports, "wheel": wheel_report, "consumer_directory": str(work),
+               "dependency_resolution": dependencies,
                "source_checkout_available_to_consumers": False, "result": "passed"}
     (work / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2))

@@ -27,7 +27,7 @@ def runtime_resource(name: str) -> Path:
 
     if name not in RESOURCE_INPUTS:
         raise ValueError(f"Unknown runtime resource: {name}")
-    packaged = files("animama.resources").joinpath("runtime", name)
+    packaged = files("animama.resources").joinpath("runtime").joinpath(name)
     if packaged.is_file() or packaged.is_dir():
         # onedir is an unpacked filesystem package, not a transient zip resource.
         return Path(str(packaged))

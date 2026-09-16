@@ -169,7 +169,7 @@ class SQLAlchemyChatRepository(ChatRepository):
         # `next_turn` is the per-chat allocator for chat_messages.turn. This
         # UPDATE reserves a contiguous range on the chat row, so concurrent
         # requests for the same chat cannot receive overlapping turn values.
-        values = {"next_turn": ORMChat.next_turn + count}
+        values: dict[str, object] = {"next_turn": ORMChat.next_turn + count}
         if clear_openai_previous_response_id:
             values["openai_previous_response_id"] = None
         elif openai_previous_response_id is not None:

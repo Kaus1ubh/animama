@@ -50,7 +50,7 @@ class PyAnimaChatRequest(BaseModel):
         normalized: list[str] = []
         for item in value:
             if not isinstance(item, str):
-                normalized.append(item)  # type: ignore[arg-type]
+                normalized.append(item)
                 continue
             trimmed = item.strip()
             if not trimmed:

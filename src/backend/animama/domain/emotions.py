@@ -180,6 +180,7 @@ def ordered_emotion_values(state: Any) -> list[EmotionValue]:
 
 def emotion_values_payload(values: Sequence[EmotionValue] | Sequence[Mapping[str, Any]]) -> list[dict[str, int | str]]:
     payload: list[dict[str, int | str]] = []
+    emotion: str | None
     for item in values:
         if isinstance(item, EmotionValue):
             emotion = item.emotion
@@ -197,6 +198,7 @@ def emotion_values_payload(values: Sequence[EmotionValue] | Sequence[Mapping[str
 
 def emotional_state_from_values(values: Sequence[EmotionValue] | Sequence[Mapping[str, Any]] | None) -> dict[str, int]:
     state = default_emotional_state()
+    value: object
     if not values:
         return state
     for item in values:

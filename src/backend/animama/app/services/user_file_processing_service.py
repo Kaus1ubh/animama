@@ -777,7 +777,7 @@ def _reciprocal_rank_fusion(
 
 
 def _retry_delay_seconds(attempts: int) -> int:
-    return min(300, 2 ** max(0, attempts - 1))
+    return min(300, 1 << max(0, attempts - 1))
 
 
 __all__ = [

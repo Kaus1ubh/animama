@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from openai.types.responses import (
     Response,
@@ -137,7 +137,7 @@ def extract_response_parts(response: Response) -> ExtractedResponseParts:
         if item_type not in KNOWN_OUTPUT_ITEM_TYPES:
             append_once(unknown_output_item_types, item_type)
         if isinstance(item, ResponseApplyPatchToolCall) or item_type == "apply_patch_call":
-            tool_call = apply_patch_tool_call_from_response_item(item)
+            tool_call = apply_patch_tool_call_from_response_item(cast(ResponseApplyPatchToolCall, item))
             if tool_call is not None:
                 tool_calls.append(tool_call)
             summary = native_tool_summary_from_response_item(item, output_index=output_index)
@@ -154,7 +154,7 @@ def extract_response_parts(response: Response) -> ExtractedResponseParts:
         if isinstance(item, ResponseFunctionToolCall) or item_type == "function_call":
             # Function calls are returned to the direct-turn tool loop, not
             # rendered as assistant text.
-            tool_call = tool_call_from_response_item(item)
+            tool_call = tool_call_from_response_item(cast(ResponseFunctionToolCall, item))
             if tool_call is not None:
                 tool_calls.append(tool_call)
             continue

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from animama.app.main_structured_response import MAIN_STRUCTURED_RESPONSE_KIND
 from animama.app.model_clients import (
@@ -50,7 +50,7 @@ def normalized_string_set(value: object) -> set[str]:
     if isinstance(value, str):
         return {value.strip()} if value.strip() else set()
     try:
-        return {str(item).strip() for item in value if str(item).strip()}  # type: ignore[union-attr]
+        return {str(item).strip() for item in cast(Iterable[object], value) if str(item).strip()}
     except TypeError:
         return set()
 

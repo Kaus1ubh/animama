@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from typing import Annotated
 
 import pytest
-from fastapi import Depends
+from fastapi import Depends, FastAPI
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
@@ -101,7 +101,7 @@ def test_startup_admits_only_the_bootstrap_owner_without_gateway_assertions(
     if desktop_cli:
         import uvicorn
 
-        applications = []
+        applications: list[FastAPI] = []
         web_root = tmp_path / "web"
         web_root.mkdir()
         (web_root / "index.html").write_text("<html>fixture</html>")

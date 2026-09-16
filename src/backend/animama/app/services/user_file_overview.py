@@ -338,13 +338,14 @@ def _json_structure(text: str) -> tuple[tuple[UserFileOutlineItem, ...], str]:
         key_text = ", ".join(keys[:8]) or "no keys"
         return outline, f"JSON object with {len(keys)} top-level keys: {key_text}."
     if isinstance(parsed, list):
-        outline: list[UserFileOutlineItem] = [UserFileOutlineItem(level=1, title=f"Array ({len(parsed)} items)")]
+        array_outline: list[UserFileOutlineItem] = [UserFileOutlineItem(level=1, title=f"Array ({len(parsed)} items)")]
         first = parsed[0] if parsed else None
         if isinstance(first, dict):
-            outline.extend(UserFileOutlineItem(level=2, title=str(key)) for key in first)
-            return tuple(outline), f"JSON array with {len(parsed)} items whose first object has {len(first)} keys."
+            array_outline.extend(UserFileOutlineItem(level=2, title=str(key)) for key in first)
+            description = f"JSON array with {len(parsed)} items whose first object has {len(first)} keys."
+            return tuple(array_outline), description
         item_type = type(first).__name__ if first is not None else "empty"
-        return tuple(outline), f"JSON array with {len(parsed)} items; first item type is {item_type}."
+        return tuple(array_outline), f"JSON array with {len(parsed)} items; first item type is {item_type}."
     return (), f"JSON scalar value of type {type(parsed).__name__}."
 
 
@@ -391,8 +392,10 @@ def _table_structure(
     docling = document.metadata.get("docling")
     table_count = docling.get("tables_count") if isinstance(docling, Mapping) else None
     if isinstance(table_count, int) and not isinstance(table_count, bool) and table_count > 0:
-        outline = tuple(UserFileOutlineItem(level=1, title=f"Table {index}") for index in range(1, table_count + 1))
-        return outline, f"Structured document containing {table_count} table(s)."
+        fallback_outline = tuple(
+            UserFileOutlineItem(level=1, title=f"Table {index}") for index in range(1, table_count + 1)
+        )
+        return fallback_outline, f"Structured document containing {table_count} table(s)."
     return (), ""
 
 

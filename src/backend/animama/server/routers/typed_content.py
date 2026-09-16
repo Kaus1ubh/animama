@@ -111,7 +111,7 @@ async def prepare_content_previews(
     """Prepare at most one owner-scoped lease for a successful root union."""
 
     try:
-        locators = []
+        locators: list[CatalogTypedRoot | BuiltinTypedRoot] = []
         for root in body.roots:
             if isinstance(root.source, PyCatalogPreviewSource):
                 locators.append(

@@ -77,7 +77,7 @@ async def test_onboarding_is_atomic_idempotent_and_preserves_later_user_memory_e
 
     replay = await service.complete_onboarding(principal_id=owner_id, display_name="Ignored retry")
     assert replay == completed
-    assert (await _profile_memory(async_session, owner_id)).version == 2  # type: ignore[union-attr]
+    assert (await _profile_memory(async_session, owner_id)).version == 2
 
     entry = await _profile_memory(async_session, owner_id)
     assert entry is not None

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -127,3 +128,168 @@ def test_default_policy_retains_transport_ceiling_and_strict_same_site_admission
     assert config.body_timeout_seconds == 120
     assert config.allow_same_site_fetches is False
     assert config.desktop is None
+
+
+def test_pytest_environment_isolation_contract(tmp_path: Path) -> None:
+    """Exercise the real pytest harness in fresh processes with poisoned inputs."""
+    import os
+    import subprocess
+    import sys
+
+    import dotenv
+
+    from animama.server.config import Settings
+
+    probe = os.environ.get("ANIMAMA_TEST_ENVIRONMENT_PROBE")
+    if probe is not None:
+        assert os.environ["PYTHON_DOTENV_DISABLED"] == "1"
+        assert os.environ["OTEL_SDK_DISABLED"] == "1"
+        assert os.environ["ANIMAMA_RUN_ASSET_SCALE_BENCHMARK"] == "1"
+        assert not dotenv.load_dotenv(os.environ["ANIMAMA_TEST_DOTENV_PATH"], override=True)
+        assert "ANIMAMA_TEST_DOTENV_CANARY" not in os.environ
+        assert Settings().animama_data_root != Path(os.environ["ANIMAMA_TEST_POISON_DATA_ROOT"])
+        assert Settings().animama_content_root == Path(__file__).resolve().parents[1] / "content"
+        if probe == "offline":
+            assert os.environ["OPENAI_API_KEY"] == "test-key"
+            assert Settings().openai_api_key == "test-key"
+            assert "ELEVENLABS_API_KEY" not in os.environ
+            assert "ANIMAMA_LIVE_OPENAI_API_KEY" not in os.environ
+        else:
+            assert probe == "live"
+            assert os.environ["ANIMAMA_LIVE_OPENAI_API_KEY"] == "explicit-live-test-canary"
+        return
+
+    dotenv_path = tmp_path / ".env"
+    dotenv_path.write_text("ANIMAMA_TEST_DOTENV_CANARY=must-not-be-loaded\nOPENAI_API_KEY=dotenv-canary\n")
+    for mode in ("offline", "live"):
+        environment = dict(os.environ)
+        environment.pop("PYTEST_ADDOPTS", None)
+        environment.pop("PYTEST_PLUGINS", None)
+        environment.update(
+            ANIMAMA_TEST_ENVIRONMENT_PROBE=mode,
+            ANIMAMA_RUN_ASSET_SCALE_BENCHMARK="1",
+            ANIMAMA_TEST_DOTENV_PATH=str(dotenv_path),
+            ANIMAMA_TEST_POISON_DATA_ROOT=str(tmp_path / "maintainer-data"),
+            ANIMAMA_DATA_ROOT=str(tmp_path / "maintainer-data"),
+            ANIMAMA_CONTENT_ROOT=str(tmp_path / "maintainer-content"),
+            OPENAI_API_KEY="inherited-provider-canary",
+            ELEVENLABS_API_KEY="inherited-voice-canary",
+            ANIMAMA_LIVE_OPENAI_API_KEY="explicit-live-test-canary",
+            ANIMAMA_RUN_LIVE_TESTS="1" if mode == "live" else "0",
+            PYTHON_DOTENV_DISABLED="0",
+            OTEL_SDK_DISABLED="false",
+        )
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                "-q",
+                f"{__file__}::test_pytest_environment_isolation_contract",
+                "-p",
+                "no:cacheprovider",
+            ],
+            cwd=Path(__file__).resolve().parents[1],
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "1 passed" in result.stdout
+
+
+def test_pytest_fixture_restores_environment_and_engines() -> None:
+    """Close real fixture generators with fake engines, including setup failure."""
+    import subprocess
+    import sys
+    import textwrap
+
+    script = textwrap.dedent(
+        """
+        import asyncio
+        import inspect
+        import os
+        import runpy
+        from contextlib import asynccontextmanager
+
+        os.environ['OPENAI_API_KEY'] = 'restore-provider-canary'
+        os.environ['ANIMAMA_DATABASE_URL'] = 'restore-database-canary'
+        os.environ['ANIMAMA_RUN_LIVE_TESTS'] = '0'
+        before = dict(os.environ)
+        namespace = runpy.run_path('tests/conftest.py')
+        import sqlalchemy.ext.asyncio as sqlalchemy_asyncio
+        import animama.hooks as hooks
+        import animama.local.database as database
+
+        original_factory = sqlalchemy_asyncio.create_async_engine
+        original_database_engine = database.get_engine
+        original_hook_engine = hooks.get_engine
+        engines = []
+
+        class Engine:
+            disposed = False
+            fail = False
+
+            @asynccontextmanager
+            async def begin(self):
+                yield self
+
+            async def exec_driver_sql(self, sql):
+                if self.fail:
+                    raise RuntimeError('controlled setup failure')
+
+            async def run_sync(self, callback):
+                pass
+
+            async def dispose(self):
+                self.disposed = True
+
+        def create_engine(*args, **kwargs):
+            engine = Engine()
+            engines.append(engine)
+            return engine
+
+        async def verify():
+            for fail in (False, True):
+                saved_url = os.environ.get('ANIMAMA_DATABASE_URL')
+                generator = inspect.unwrap(namespace['db_ready'])('test-database-url')
+                Engine.fail = fail
+                try:
+                    if fail:
+                        try:
+                            await anext(generator)
+                        except RuntimeError as error:
+                            assert str(error) == 'controlled setup failure'
+                        else:
+                            raise AssertionError('setup failure was swallowed')
+                    else:
+                        assert await anext(generator) == 'test-database-url'
+                        assert database.get_engine is not original_database_engine
+                        database.get_engine()
+                finally:
+                    await generator.aclose()
+                assert database.get_engine is original_database_engine
+                assert hooks.get_engine is original_hook_engine
+                assert os.environ.get('ANIMAMA_DATABASE_URL') == saved_url
+                assert all(engine.disposed for engine in engines)
+
+        sqlalchemy_asyncio.create_async_engine = create_engine
+        try:
+            asyncio.run(verify())
+        finally:
+            sqlalchemy_asyncio.create_async_engine = original_factory
+            namespace['pytest_unconfigure']()
+        assert dict(os.environ) == before
+        print('fixture restoration verified')
+        """
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "fixture restoration verified" in result.stdout

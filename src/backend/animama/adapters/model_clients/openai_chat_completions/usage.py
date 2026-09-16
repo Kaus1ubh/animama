@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from openai.types.chat.chat_completion_chunk import CompletionUsage
+from openai.types.completion_usage import CompletionUsage
 
 from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
 

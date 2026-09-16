@@ -144,7 +144,7 @@ class UserMemoryReadToolService:
         self,
         *,
         user_id: str,
-        paths: str | list[str],
+        paths: object,
         native_patch_mode: bool = False,
     ) -> dict[str, Any]:
         """Read one or more files with ordered partial success and byte limits."""

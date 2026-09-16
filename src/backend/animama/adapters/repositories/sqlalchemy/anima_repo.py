@@ -95,7 +95,9 @@ class SQLAlchemyAnimaRepository(AnimaRepository):
         await self.lock_definition(user_id=user_id, anima_id=anima_id, expected_revision=expected_revision)
         row = await self._s.get(ORMAnima, anima_id)
         assert row is not None
-        if initial and (expected_revision != 1 or await self._s.get(ORMAnimaDefinitionRevision, (anima_id, 1))):
+        if initial and (
+            expected_revision != 1 or (await self._s.get(ORMAnimaDefinitionRevision, (anima_id, 1))) is not None
+        ):
             raise AnimaDefinitionError("anima_definition_already_initialized")
         if display_name is not None:
             row.display_name = normalize_display_name(display_name)

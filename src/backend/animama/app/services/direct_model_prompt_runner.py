@@ -13,6 +13,7 @@ from animama.app.model_clients import (
     ModelClientDelta,
     ModelClientError,
     ModelClientFinal,
+    ModelClientProviderOptions,
     ModelClientRegistry,
     ModelClientRequest,
 )
@@ -75,7 +76,7 @@ class DirectModelPromptRunner:
         model_request = ModelClientRequest(
             model_provider=provider,
             prompt=_prompt_context(request, run_id=run_id),
-            provider_options={},
+            provider_options=ModelClientProviderOptions(),
         )
         final = await _collect_final(client.stream(model_request))
         if final is None:
