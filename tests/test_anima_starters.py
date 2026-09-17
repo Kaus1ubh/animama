@@ -399,7 +399,8 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
             assert {gesture.source.logical_key for gesture in loadout.gestures if gesture.source} == set(
                 EXPECTED_STARTER_GESTURE_IDS
             )
-            assert len(loadout.gestures) == 44
+            assert len(loadout.gestures) == 21
+            assert loadout.idle_style.state == "empty"
             assert all(cell.source is not None for cell in loadout.reactions)
 
 
@@ -409,19 +410,21 @@ def test_starter_gesture_policy_matches_reviewed_identities():
     )
 
 
-async def test_tracked_checkout_cannot_materialize_starters(async_session, tmp_path):
+async def test_tracked_checkout_materializes_both_starters_without_optional_local_assets(async_session, tmp_path):
     async with anima_creation_fixture(async_session, tmp_path) as fixture:
         fixture.paths = replace(fixture.paths, included_root=copy_tracked_included(tmp_path / "tracked"))
         scanned = await ContentCatalogService(
             catalog=SQLAlchemyContentCatalog(async_session), store=fixture.store()
         ).rescan(user_id=fixture.owner)
         fixture.extra_catalog_ids.update(item.id for item in scanned.items)
-        with pytest.raises(AnimaCreationError, match="^anima_creation_defaults_unavailable$") as error:
-            await AnimaStarterService(fixture.service(async_session)).ensure(user_id=fixture.owner, request=REQUEST)
-        assert error.value.status == 503
-        assert (
-            await async_session.scalar(
-                select(func.count()).select_from(ORMAnima).where(ORMAnima.user_id == fixture.owner)
-            )
-            == 0
+        result = await AnimaStarterService(fixture.service(async_session)).ensure(
+            user_id=fixture.owner, request=REQUEST
         )
+        assert result["complete"]
+        for starter in result["starters"]:
+            loadout = await AnimaLoadoutService(async_session).read_model(
+                user_id=fixture.owner, anima_id=starter["anima_id"]
+            )
+            assert len(loadout.gestures) == 21
+            assert all(cell.source is not None for cell in loadout.reactions)
+            assert loadout.idle_style.state == "empty"

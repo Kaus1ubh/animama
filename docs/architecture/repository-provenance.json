@@ -1407,16 +1407,6 @@
       "lfs_size": 11616084
     },
     {
-      "path": "content/included/gestures/acknowledging/acknowledging.meta.json",
-      "git_blob_oid": "880928906921ed7b35f89c3a99686b90e62b726d",
-      "sha256": "d6323111fee52c6ac972ec27ca552795bd25bff7d27ccaf42810cddf0c39133f",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
       "path": "content/included/gestures/arms-crossed/arms-crossed.json",
       "git_blob_oid": "95b9aa0f035eb63cfd0de7e3d0f94e0af8fb0444",
       "sha256": "863707b1bf0140e9f1f1ebaed3ff14514276218990456f68c00d7d8412ecbf3f",
@@ -1430,36 +1420,6 @@
       "path": "content/included/gestures/arms-crossed/arms-crossed.meta.json",
       "git_blob_oid": "46f8920730ef1152f09be07c51f5f028597b47d6",
       "sha256": "4595e230a9d00e6f4b97f84c042cdf0cd6ba111b303f79ebc142c97ed4f507b0",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/being_cocky/being_cocky.meta.json",
-      "git_blob_oid": "4d0a4f66b0e650374668073e86698e9d5231f9d8",
-      "sha256": "1d8cb7130c69e6c66c35288ceaa12368f0c4ab3d94643c0db562c70ba6b39f98",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/being_electrocuted/being_electrocuted.meta.json",
-      "git_blob_oid": "8eda576c5ce14881338929e6e05934e776bbfa01",
-      "sha256": "6db3c511afbf87a250534a2b3b615ec55ad8e01e1e090c89a76d12dff2b3b09b",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/blush/blush.meta.json",
-      "git_blob_oid": "80fc9595e95366a8bcdc6894fa1cb8b0ab5109ac",
-      "sha256": "b22123a89a95ad451893ebf3b7a6fc2156e09c4e824c8a216d747efa5867dbf3",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -1500,56 +1460,6 @@
       "path": "content/included/gestures/cheeky-finger-guns/cheeky-finger-guns.meta.json",
       "git_blob_oid": "995919a19e03b2bfdd5fe9ba9d753448076def66",
       "sha256": "8a5fd56adf5f5f90e13dc50e7689bd704fc942a7865a941484f09df262bcf0ce",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/cheering/cheering.meta.json",
-      "git_blob_oid": "3a1de97464d247adb121f8b7ffe1910cf3261553",
-      "sha256": "43a49f820e2fc44fa691faf227f55dc8984ecb82bcc215a3e872adcfc2c672a2",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/clapping_v1/clapping_v1.meta.json",
-      "git_blob_oid": "0285a18c23004e12e3db282d1c7b9ead939599ac",
-      "sha256": "d3f248dab829b033932be2531e2eb10cc8c8299748306547b9a7af4779e35c17",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/crying/crying.meta.json",
-      "git_blob_oid": "9a53a451e43ff243fb9a333b3eaededeb5b32d06",
-      "sha256": "ad210ce98ffcc75f725e28284180679bfcb857a44223312e50b3ae8d6aa6bee3",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/crying_copy/crying_copy.meta.json",
-      "git_blob_oid": "b457fa420653afc8e4689fd6efbfbe79d8b3758f",
-      "sha256": "01ceaaa68931154fd9b79ea7de282974a78f8498b7e4f0a93b452aee2ac1011c",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/darn_it/darn_it.meta.json",
-      "git_blob_oid": "97aa69a0f6209ded30a5adcf500e93f18be1082a",
-      "sha256": "ae37c2a52ee2b9779fcedb6a4bb8d963132d675e1c535dafd2064e711dbe53f7",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -1617,56 +1527,6 @@
       "notes": "Phase 5 preparation evidence; not a publication approval."
     },
     {
-      "path": "content/included/gestures/excited/excited.meta.json",
-      "git_blob_oid": "7f4ffec28fa931bfedc1a5f6fdac9796ea730a52",
-      "sha256": "9c9f9682407ffc080b7549077c2bb898ca6cf0b0c648643f28a2cb136388a841",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/excited_jump_1/excited_jump_1.meta.json",
-      "git_blob_oid": "384623f7ae6985b75999431de34efde1ba5d6aa2",
-      "sha256": "5b93967541681ad6f75f69e571b4ae24c49439854d255ace0adba771cc9f6e2c",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/excited_jump_2/excited_jump_2.meta.json",
-      "git_blob_oid": "935589260dc7dd182afafb2ab43dc8599628109a",
-      "sha256": "224beeca8e104959a8e37360d474e12315ebd3eaf0b49e14c45e548d983ee2e4",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/exclaim_frustrated/exclaim_frustrated.meta.json",
-      "git_blob_oid": "8490c66fce6c55603476a9a80fd1e28a33f5d925",
-      "sha256": "25301ec47e09f0b53c68e3cebf1aa8e45b0ace844effbc796817018b6db7f33b",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/explain/explain.meta.json",
-      "git_blob_oid": "dfc695e6399dbd501356da743ea64dabef2c2b0e",
-      "sha256": "b27cac90522b55f07e66efd77b044761a74375689af2a9f29c788bbe003ed379",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
       "path": "content/included/gestures/finger-heart-pose/finger-heart-pose.json",
       "git_blob_oid": "dd8b4a2ac9d143030e7d91b3f77e34f9ea6d0cf3",
       "sha256": "a7fbb2dcdf728fcc6a2b4df8f4d92b6eaba7654fb0ce61bea31e6081102c0d0e",
@@ -1680,36 +1540,6 @@
       "path": "content/included/gestures/finger-heart-pose/finger-heart-pose.meta.json",
       "git_blob_oid": "3201991e4ff0cb88cff1e81aa99058e32271b93e",
       "sha256": "37236e6f0faaf5feffb89c0043e003b480319fd2cee13a92c8863f5b4703529e",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/flattered/flattered.meta.json",
-      "git_blob_oid": "221de426d4668ef4622c9374a6616d1db1d76d14",
-      "sha256": "d7871c3d27dd4174d51d36ed039f1cf7fd1b22a45038ca7a4081ac50a7b8112b",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/frustrated_explain/frustrated_explain.meta.json",
-      "git_blob_oid": "e97e11936cccea4236fb1cddcbc82d013d9c441c",
-      "sha256": "db6030a34441eebe00503a837e7111ce1885662b1b8a1910e038cabee62b57e2",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/goodbye/goodbye.meta.json",
-      "git_blob_oid": "d303d3d2bb325b81f9401428a3079b3bc1186289",
-      "sha256": "4126a891dfe02b2c38de5c38e98fb8ef79a97ab6b2f25ef653d3f72c6ca26210",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -1737,36 +1567,6 @@
       "notes": "Phase 5 preparation evidence; not a publication approval."
     },
     {
-      "path": "content/included/gestures/happy_walk/happy_walk.meta.json",
-      "git_blob_oid": "ec42ed65c40e7be5138224a84e5cfb8eb7b603b0",
-      "sha256": "397e3fc273ef5dc021fda1570cada4d8505afdf1cb44dc6b60a66e47adc6d9d1",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/happy_walk_backward/happy_walk_backward.meta.json",
-      "git_blob_oid": "7eb001c23cb97973a485b51194cdf5f34c7d6f4d",
-      "sha256": "dc0b32ce684740373f9b9d172a57ad0a47026c48303a30ba266419e7181c1096",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/head_shake/head_shake.meta.json",
-      "git_blob_oid": "056414a67f3a472b186af221ec3487ac869bc27c",
-      "sha256": "5c2981e919d5494c27eaa8de773c5ee9995172aec4a20aee2fe581160a0d216f",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
       "path": "content/included/gestures/heart-hands-build/heart-hands-build.json",
       "git_blob_oid": "e8d33b2f46ed501312c52855db647847fb9af8a4",
       "sha256": "5546660023cd4a118868d6beed52b139f57db24bb847f6ba38d6cf6b3eb5a240",
@@ -1780,96 +1580,6 @@
       "path": "content/included/gestures/heart-hands-build/heart-hands-build.meta.json",
       "git_blob_oid": "a6b3faa90c2e37839fd69f4ffe65407e27b5f6d0",
       "sha256": "796286d82f6a962a547049171c8035adcdfdcbf526ac8603fe00cded0bec4fa9",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/idle_fem/idle_fem.meta.json",
-      "git_blob_oid": "4384d957541d724c107eecd4fd6a786ed5114172",
-      "sha256": "92cc73a80e11247afb6fa485d6dab6bd5e06b4e22fb647741fc0ebc84dd422bd",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/idle_idle1/idle_idle1.meta.json",
-      "git_blob_oid": "f608684b0ca0d529a846cefdb5dd69c2327f3732",
-      "sha256": "72d11c5ad79b61c99ad84df1db3c5e8ad5ff0474c59c8d4632ed97e5cc8cd633",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/idle_idle2/idle_idle2.meta.json",
-      "git_blob_oid": "2c03e98e1dd2810b95b0d5632137c5014f8409da",
-      "sha256": "78d6275dbb89d5300e6074fa27de2ab4398f8c2a9859335ebfc1470ffae76631",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/idle_idle3/idle_idle3.meta.json",
-      "git_blob_oid": "c1dd5fb1d32761fc91e462603b76245ea17d95b1",
-      "sha256": "c48a83f85b9c2a793da4cdcb518aa92ea3fb9f36ed371dac32622b8a58aaf3b6",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/idle_idle4/idle_idle4.meta.json",
-      "git_blob_oid": "b8776d8c4738501d1fe9fd347d969fd738bdece8",
-      "sha256": "34251d8327fd84c30701f30a99b84a2630f7ce45316ace349f0952d8e526e84b",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/idle_look_around/idle_look_around.meta.json",
-      "git_blob_oid": "170be4a759b5def95d0ce228e9896c8ed8641fca",
-      "sha256": "1652f3f76b09c9830c0a9bfbd008c6bda065b59a801072e315ec46cf0e8e340b",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/idle_loop/idle_loop.meta.json",
-      "git_blob_oid": "a47a17bb1becf4da882e7571aaff0d9b7846c0c2",
-      "sha256": "ce4487ddbdb73dd1735dce5333d12d91db9a7c49dca8bacdda6456f1356b39de",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/idle_loop_copy/idle_loop_copy.meta.json",
-      "git_blob_oid": "3cc4556df5e2818710e5a013e5d93b3b9b2191ad",
-      "sha256": "2a0b685d15203dc6e20207bc686cb936a4d4bdf64a855c8a1c952f63906560be",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/idle_sexy_dance/idle_sexy_dance.meta.json",
-      "git_blob_oid": "426d62753a8bac5993fe1ad9898533175643eb54",
-      "sha256": "de31ed2cdc1c8c5a716b500ddd8cd4d473922537adcc7e70adfb97e6b46fc66e",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -1917,36 +1627,6 @@
       "notes": "Phase 5 preparation evidence; not a publication approval."
     },
     {
-      "path": "content/included/gestures/listening_head_nod/listening_head_nod.meta.json",
-      "git_blob_oid": "1164df9f94d6006d2a3ae1389d659b7722ff6a50",
-      "sha256": "42a6849e441e5d5be85eab1da3d7223bc0f0ba14c3d3980b746f8c6e54dea40e",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/lookaround/lookaround.meta.json",
-      "git_blob_oid": "2f20eff8c6e81afb248731220b512a27e935031b",
-      "sha256": "d332d0de1bcf9702f3e50c703f199571c1ae16f6914429881ad86acec588fa79",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/lookaround2/lookaround2.meta.json",
-      "git_blob_oid": "f12c52537e5557098a024fc0f4ea2d07c54d7f70",
-      "sha256": "041d04a1745774d8ca87fb647757b4acebf15a36e896562f5aa0d1b0ed2272b4",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
       "path": "content/included/gestures/meme-dab/meme-dab.json",
       "git_blob_oid": "5a34736953272af66a83285b455033a031eda850",
       "sha256": "f4c434aca4ff38f8a62fc504b5715760853e8d0773889b2fd4c1a9ef2f9f13f7",
@@ -1960,156 +1640,6 @@
       "path": "content/included/gestures/meme-dab/meme-dab.meta.json",
       "git_blob_oid": "64d5b06bd3e93493534a510ffe9d24c3ca290be2",
       "sha256": "6e8006e37141f52030b76bc0caa52693223a26501efffe8ca564953f619f3aa9",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/plead/plead.meta.json",
-      "git_blob_oid": "d0aea9755624bf2eff278bbfa2241ec1d1d4e86b",
-      "sha256": "6cc7dba020c79af45ad323aa665f9e27e8d2a26a1c397c56163e442b175859e0",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/posture_a/posture_a.meta.json",
-      "git_blob_oid": "a2c2eff0aca3757f7c4766ed32720c0c09232c45",
-      "sha256": "16072a187ce6f493e37b7b035a19b2e2894c14f7fa77067e24291a65a6b1eaeb",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/posture_cat_walk/posture_cat_walk.meta.json",
-      "git_blob_oid": "d7d33f41dea92fd2f9f21cf1b4270d1aa7f8c85a",
-      "sha256": "8260b58d868d56b4bbb22995a113d3b03f4f281b47f1841ac0adf9e2d9c079ce",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/posture_da/posture_da.meta.json",
-      "git_blob_oid": "21bd3c22ad8f81f998e402d512e4daed8dd30c64",
-      "sha256": "d664f9fa0d5228f7c93684a878e815fcbfa278828677d38e5d5e3ec42ebe7d03",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/posture_jump/posture_jump.meta.json",
-      "git_blob_oid": "18b4ffae97b3879af6277eb87ece58ef730a1745",
-      "sha256": "0408337a7bb0c3ef24ea70483b12818a9eb61de44de57c79a6cd08b84d7ca910",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/posture_jumphigh/posture_jumphigh.meta.json",
-      "git_blob_oid": "a0262d4655eed39ee7b4c3f8827f70e061bdc1c9",
-      "sha256": "85f89bcf98df12ba99fd9d5db63668508cbec08aec5314d28fd83f1f640587cc",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/posture_sad/posture_sad.meta.json",
-      "git_blob_oid": "fd249cdd0b1f31f1f8974b1b7ef80bd377c7370e",
-      "sha256": "4d0a271fe4acef0a59e9ea013e311f0993c2041da4dec02d85e667135119ffc5",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/posture_sad_copy/posture_sad_copy.meta.json",
-      "git_blob_oid": "5130743c0a6a8412081be0e0cd51913d79da9671",
-      "sha256": "745e937175d9271e54496739e7384e444f7fb0b8b011e5a8afc625e8113e448e",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/posture_sad_custom/posture_sad_custom.meta.json",
-      "git_blob_oid": "8fdb5a3c7c743941c06c5160c70d8d257d535cc7",
-      "sha256": "d42e0b611180fa977d72d1e1bca370d364ec391338ad8c3ffbdad7db985ffa35",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/posture_step_forward/posture_step_forward.meta.json",
-      "git_blob_oid": "d87da772f7220a7717760c9fe806a9e08870d731",
-      "sha256": "ba43e18c12c24cab263a42a5a3cda0bca9d24f7be3e8a91e7309c977ddb6bad2",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/posture_t/posture_t.meta.json",
-      "git_blob_oid": "862f3ec3cf37db99849d6e42105d62093f5e6d6b",
-      "sha256": "71f37f0588b3d3cd275a0af1674bfefa857c6ab8a8c50989ec716247a20abfc4",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/posure_sad_upper/posure_sad_upper.meta.json",
-      "git_blob_oid": "3bd7786404acfd8c1aec6d4895ee5bdbed08b2fd",
-      "sha256": "b23218ee38d8256be6e373d8d13ae419ef9807cc0b8ee93fab7635b2682afdf3",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/proud_of_self/proud_of_self.meta.json",
-      "git_blob_oid": "4fdbc16e9e41a6d2459e862b79591af7d5b05c1a",
-      "sha256": "fa96e3748d5ff17a7287a886c65a1bbddcb5e2f69a0a594ee15e5b1db6013d64",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/quick_talk_gesture/quick_talk_gesture.meta.json",
-      "git_blob_oid": "d04313718f89e224f23582ccc0f924cb46ff3e19",
-      "sha256": "c7738fbb2052b4fefa05c1586f3604247ebbaa12009d49de47b7d44440d8d05d",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/relax/relax.meta.json",
-      "git_blob_oid": "67c8c3cf5442f2075968a8764d1f5b67fd0d55e4",
-      "sha256": "2d930ee409659ed88397bb940d24f93b75e3a126f9e7969bd6e2b79866b2ef98",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -2197,46 +1727,6 @@
       "notes": "Phase 5 preparation evidence; not a publication approval."
     },
     {
-      "path": "content/included/gestures/rumba_dancing/rumba_dancing.meta.json",
-      "git_blob_oid": "c74bec77d4c19808d832a19a2919a43ef66fafc8",
-      "sha256": "6e9177c350ebd3bfcad3aed7f6f977b7dc20f98afb757c955c05211e0b35e741",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/sarcastic_response/sarcastic_response.meta.json",
-      "git_blob_oid": "e90e4ea55f00f5485b75d1aa9472816eb70eacf8",
-      "sha256": "cb270cc775bb6a059456f511ca8acb682ed40e1111b39af89cdd64ec2c90f9d7",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/sexy_step_forward/sexy_step_forward.meta.json",
-      "git_blob_oid": "303fd7a38f75105d691da0f33b0dc86b15998645",
-      "sha256": "898f7dd89e0d9f04f66ec7d418ee5b0f87db2ead6f81403c804fe31faa611bb6",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/shrug/shrug.meta.json",
-      "git_blob_oid": "022d41af65852bcd4c652c04b01e9b4d2e4fec44",
-      "sha256": "54e2640e74a9098b7698d0986d9a3d98918fb98b3420970f6a31685ce0d935c0",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
       "path": "content/included/gestures/shy-finger-poke-loop/shy-finger-poke-loop.json",
       "git_blob_oid": "15aced02eca6def44c678ff8c8e41f9e0fc88d37",
       "sha256": "2a0f4e29f6a4c24af189711ca4b9e72f709dda11c0054c10663b30cec32c3667",
@@ -2277,16 +1767,6 @@
       "notes": "Phase 5 preparation evidence; not a publication approval."
     },
     {
-      "path": "content/included/gestures/silly_slap/silly_slap.meta.json",
-      "git_blob_oid": "2e4ef168d1869502307db767731b993e59d1d133",
-      "sha256": "cb42c7a1438e1525b5a887eff0230eb359399a3e5ac6a701d144bdcab1a96933",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
       "path": "content/included/gestures/single-hand-on-heart/single-hand-on-heart.json",
       "git_blob_oid": "9aac0f98fd4d1086a6ad3f66f53ba8ec7fd89772",
       "sha256": "865a1afa5d31ecb2eb1129fdf243fd5675a2354bf14465862c5ea2da5fc1513b",
@@ -2307,26 +1787,6 @@
       "notes": "Phase 5 preparation evidence; not a publication approval."
     },
     {
-      "path": "content/included/gestures/sleepy/sleepy.meta.json",
-      "git_blob_oid": "abfdbf80f32cbf5bcb395f9d936f8dc473b4f1d3",
-      "sha256": "5cb30881f0d18235adc7599e8867ddf0fcb6bbdda898ab93a711c1c582d0a7d8",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/slight_bow/slight_bow.meta.json",
-      "git_blob_oid": "0fb2dc8433194cf7b3639d707668326a72e96273",
-      "sha256": "94a0ba90930c1b9262569b7f0721e4dd6866e8db753049a9b22b01998e0911d5",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
       "path": "content/included/gestures/soldier-salute/soldier-salute.json",
       "git_blob_oid": "8d1566257fb037bee7f96dc25b1b8b84fe75dd57",
       "sha256": "2c97c9882cb8b23960e278f88d6f99866de4dfd10197b1cdab0d455140bc3d68",
@@ -2340,36 +1800,6 @@
       "path": "content/included/gestures/soldier-salute/soldier-salute.meta.json",
       "git_blob_oid": "cbe086053e82cb2f8aee5ce090fd3014de2ef211",
       "sha256": "a7044ab660f50d85e773db7bdfd86e70827740e8452f65de2211fca93bbe31ca",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/surprised/surprised.meta.json",
-      "git_blob_oid": "d2cffef575552664a401d6fb94249ca2548696d9",
-      "sha256": "e479cadc06bac18086e34e4af75f9db4c5adc23b791eef81cc219588e775318a",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/talk/talk.meta.json",
-      "git_blob_oid": "46cfca06c82ee9bb241bb17811d6633c9ef969a1",
-      "sha256": "5f5ad06c6d4ec19c4dd09e09e5c8297f12399fbb2be24a8aebf625065d27b514",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/telling_secret/telling_secret.meta.json",
-      "git_blob_oid": "64920a51e1fec5550991a2c3c61a0fa6f28fcad5",
-      "sha256": "52b8a288a3701675fda2d11b4dd47c321fd34f68dfb0e44f919b684bac13e0a5",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -2410,96 +1840,6 @@
       "path": "content/included/gestures/thinking-head-scratch/thinking-head-scratch.meta.json",
       "git_blob_oid": "44d1255fad8b2744d067f0bac9bdfacb41334d12",
       "sha256": "a40704301550440555876c52d512c6dfb039c363905c300bb64832e435fb8f2d",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/thinking/thinking.meta.json",
-      "git_blob_oid": "e68ded6f407b148fe3825c9d867e219a48e61a0b",
-      "sha256": "4bf1e5a82cdbe59f8c5e73df7cc7b8396e798e4079504582564a8f2cbf4f421f",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/tired/tired.meta.json",
-      "git_blob_oid": "b6b8d72635a44422ec9d2a42b0ba79972fccf22c",
-      "sha256": "f10b4a3fd36348dc6e26acf6f04828aad28b1ee8127e5e465c24622ae0a92c4c",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/transition_getting_up/transition_getting_up.meta.json",
-      "git_blob_oid": "0247a32e431b24f58708ba9dfa30cb99a9768bc1",
-      "sha256": "be930828c96e2d7a5c2cfcd0f17629594c87febaf5231ca84b656ff6bead8893",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/transition_lying_to_stand/transition_lying_to_stand.meta.json",
-      "git_blob_oid": "51df3bf5886d4208e1914fbf43504d1a0a53db28",
-      "sha256": "e25a1031c0cf3acf72c1a164f7040ce3c91001579c1d1435ab08380b07ec2b04",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/wave/wave.meta.json",
-      "git_blob_oid": "d42911d06d1243ed09737a2314b4e83c1a895193",
-      "sha256": "3de4047860bad61e5077ab578d834bb6384f67c6dfbb42b0c946ce4e3e48e094",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/whatever/whatever.meta.json",
-      "git_blob_oid": "9dde0349375042906ff3075cc67a48d708a23b78",
-      "sha256": "5731ee54bbe5d7b460656ea68b6f95c9ee20b29ccb6765d9acb3865e82c64fd7",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/where_am_i/where_am_i.meta.json",
-      "git_blob_oid": "3b01867d2ea09593aeb61905ab887d27388b84c2",
-      "sha256": "79806f74b5a7bb46139ba883440cc75db731354512f807c08c929a708d4de824",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/gestures/youre_right/youre_right.meta.json",
-      "git_blob_oid": "c20211e587f88c96c82cd66f4793248c687029f6",
-      "sha256": "eed3a940f4ddc3da0a329c753491a4dc72970619fe0ea066833ab36b5b92fcc2",
-      "evidence_ids": [
-        "source-review-45773f95f46e"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval."
-    },
-    {
-      "path": "content/included/idle-styles/starter/starter.json",
-      "git_blob_oid": "0a4ba35c643b3a1627c683d49ae85287adebe11a",
-      "sha256": "d2bc44c79e9cb7433d58db0d23d46c9c82b0e8c7107e6e08226cc480773b2971",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -9292,6 +8632,83 @@
         }
       ],
       "reason": "Reviewed Phase 3 storage relocation/addition source mappings only; preserve origins, terms, unresolved obligations and publication status."
+    },
+    {
+      "date": "2026-09-17",
+      "base_commit": "a554150a14b196cc661c7be4f68fdf1275a0466b",
+      "reason": "Owner-authorized optional Local animations: remove unavailable Mixamo-only Included descriptors while preserving authored templates in scripts/mixamo-assets.json. Starter creation and staging now use shipped authored content with empty Idle. Preserve snapshot history, notices, rights dispositions and publication gates; no private animation bytes added.",
+      "previous_inventory_sha256": "7e4f4275049cef667ef174a18a34d1b4d1955503421e0bfc7bd774549eb4a8c0",
+      "removed_paths": [
+        "content/included/gestures/acknowledging/acknowledging.meta.json",
+        "content/included/gestures/being_cocky/being_cocky.meta.json",
+        "content/included/gestures/being_electrocuted/being_electrocuted.meta.json",
+        "content/included/gestures/blush/blush.meta.json",
+        "content/included/gestures/cheering/cheering.meta.json",
+        "content/included/gestures/clapping_v1/clapping_v1.meta.json",
+        "content/included/gestures/crying/crying.meta.json",
+        "content/included/gestures/crying_copy/crying_copy.meta.json",
+        "content/included/gestures/darn_it/darn_it.meta.json",
+        "content/included/gestures/excited/excited.meta.json",
+        "content/included/gestures/excited_jump_1/excited_jump_1.meta.json",
+        "content/included/gestures/excited_jump_2/excited_jump_2.meta.json",
+        "content/included/gestures/exclaim_frustrated/exclaim_frustrated.meta.json",
+        "content/included/gestures/explain/explain.meta.json",
+        "content/included/gestures/flattered/flattered.meta.json",
+        "content/included/gestures/frustrated_explain/frustrated_explain.meta.json",
+        "content/included/gestures/goodbye/goodbye.meta.json",
+        "content/included/gestures/happy_walk/happy_walk.meta.json",
+        "content/included/gestures/happy_walk_backward/happy_walk_backward.meta.json",
+        "content/included/gestures/head_shake/head_shake.meta.json",
+        "content/included/gestures/idle_fem/idle_fem.meta.json",
+        "content/included/gestures/idle_idle1/idle_idle1.meta.json",
+        "content/included/gestures/idle_idle2/idle_idle2.meta.json",
+        "content/included/gestures/idle_idle3/idle_idle3.meta.json",
+        "content/included/gestures/idle_idle4/idle_idle4.meta.json",
+        "content/included/gestures/idle_look_around/idle_look_around.meta.json",
+        "content/included/gestures/idle_loop/idle_loop.meta.json",
+        "content/included/gestures/idle_loop_copy/idle_loop_copy.meta.json",
+        "content/included/gestures/idle_sexy_dance/idle_sexy_dance.meta.json",
+        "content/included/gestures/listening_head_nod/listening_head_nod.meta.json",
+        "content/included/gestures/lookaround/lookaround.meta.json",
+        "content/included/gestures/lookaround2/lookaround2.meta.json",
+        "content/included/gestures/plead/plead.meta.json",
+        "content/included/gestures/posture_a/posture_a.meta.json",
+        "content/included/gestures/posture_cat_walk/posture_cat_walk.meta.json",
+        "content/included/gestures/posture_da/posture_da.meta.json",
+        "content/included/gestures/posture_jump/posture_jump.meta.json",
+        "content/included/gestures/posture_jumphigh/posture_jumphigh.meta.json",
+        "content/included/gestures/posture_sad/posture_sad.meta.json",
+        "content/included/gestures/posture_sad_copy/posture_sad_copy.meta.json",
+        "content/included/gestures/posture_sad_custom/posture_sad_custom.meta.json",
+        "content/included/gestures/posture_step_forward/posture_step_forward.meta.json",
+        "content/included/gestures/posture_t/posture_t.meta.json",
+        "content/included/gestures/posure_sad_upper/posure_sad_upper.meta.json",
+        "content/included/gestures/proud_of_self/proud_of_self.meta.json",
+        "content/included/gestures/quick_talk_gesture/quick_talk_gesture.meta.json",
+        "content/included/gestures/relax/relax.meta.json",
+        "content/included/gestures/rumba_dancing/rumba_dancing.meta.json",
+        "content/included/gestures/sarcastic_response/sarcastic_response.meta.json",
+        "content/included/gestures/sexy_step_forward/sexy_step_forward.meta.json",
+        "content/included/gestures/shrug/shrug.meta.json",
+        "content/included/gestures/silly_slap/silly_slap.meta.json",
+        "content/included/gestures/sleepy/sleepy.meta.json",
+        "content/included/gestures/slight_bow/slight_bow.meta.json",
+        "content/included/gestures/surprised/surprised.meta.json",
+        "content/included/gestures/talk/talk.meta.json",
+        "content/included/gestures/telling_secret/telling_secret.meta.json",
+        "content/included/gestures/thinking/thinking.meta.json",
+        "content/included/gestures/tired/tired.meta.json",
+        "content/included/gestures/transition_getting_up/transition_getting_up.meta.json",
+        "content/included/gestures/transition_lying_to_stand/transition_lying_to_stand.meta.json",
+        "content/included/gestures/wave/wave.meta.json",
+        "content/included/gestures/whatever/whatever.meta.json",
+        "content/included/gestures/where_am_i/where_am_i.meta.json",
+        "content/included/gestures/youre_right/youre_right.meta.json",
+        "content/included/idle-styles/starter/starter.json"
+      ],
+      "added_paths": [
+        "tests/test_mixamo_local_install.py"
+      ]
     }
   ]
 }

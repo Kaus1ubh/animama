@@ -440,7 +440,7 @@ export function mergeSourceMaps(maps: SourceMap[]): SourceMap {
 export function buildAnimaSpec(
   draft: CreateAnimaDraft,
 ): z.infer<typeof animaSpecSchema> {
-  if (!draft.avatar || !draft.starter_pack || !draft.default_idle)
+  if (!draft.avatar || !draft.starter_pack)
     throw new Error(
       "Choose an Avatar and resolve the Starter Pack before reviewing.",
     );
@@ -502,11 +502,8 @@ export function draftIssues(
         `Enter nonblank Markdown within ${identityLimit.toLocaleString()} UTF-8 bytes.`,
       );
   }
-  if (through > 1 && (!draft.starter_pack || !draft.default_idle))
-    add(
-      "/starter_pack",
-      "The installation's Starter Pack or default Idle needs attention.",
-    );
+  if (through > 1 && !draft.starter_pack)
+    add("/starter_pack", "The installation's Starter Pack needs attention.");
   return issues;
 }
 

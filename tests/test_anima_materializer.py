@@ -33,7 +33,7 @@ from animama.domain.anima_definition import (
     normalize_identity,
 )
 from animama.domain.anima_loadout import AnimaLoadoutError
-from animama.domain.content_catalog import ContentConflictError
+from animama.domain.content_catalog import ContentConflictError, ContentKind
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import (
     ORMAnima,
@@ -90,7 +90,7 @@ async def creation(async_session):
         await async_session.execute(delete(ORMAvatar).where(ORMAvatar.user_id == fixture.user_id))
         source_ids = [
             fixture.spec.avatar.id,
-            fixture.spec.idle_style.id,
+            _required(fixture.spec.idle_style).id,
             _required(fixture.spec.profile).source.id,
             _required(fixture.spec.background).source.id,
         ]
@@ -679,7 +679,7 @@ async def test_invalid_resolved_inputs_leave_no_aggregate(async_session, creatio
     if invalid == "matrix":
         spec = replace(spec, reactions=spec.reactions[:-1])
     elif invalid == "idle":
-        spec = replace(spec, idle_style=replace(spec.idle_style, logical_key="local:idle-style:not-the-default"))
+        spec = replace(spec, idle_style=replace(_required(spec.idle_style), kind=ContentKind.AVATAR))
     elif invalid == "stale_avatar":
         spec = replace(spec, avatar=replace(spec.avatar, revision_sha256="f" * 64))
     elif invalid == "stale_profile":

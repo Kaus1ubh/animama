@@ -11,12 +11,10 @@ Compose; Windows and Linux packaging are not supported release targets.
 
 ## Run from source
 
-Mixamo animation bytes are now excluded from source. The
-[manual acquisition helper](docs/frontend/runtime/mixamo-acquisition.md) prepares
-a download checklist; conversion and installation are deferred. A fresh clone
-cannot yet reproduce the complete starter experience or native package. The
-commands below describe the existing development flow, not verified fresh-clone
-release instructions.
+Starter companions use the shipped authored gestures and reactions and need no
+Mixamo animations. The [optional Local installer](docs/frontend/runtime/mixamo-acquisition.md)
+can add your converted Mixamo motions to your ignored library. Download and
+conversion remain manual. Native release acceptance remains a separate gate.
 
 Install Docker with Compose, Git LFS and Python 3.11 or newer. Hydrate the
 remaining checkout assets with `git lfs pull`, then acquire the pinned Parakeet
