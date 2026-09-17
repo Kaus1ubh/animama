@@ -13,7 +13,7 @@
     "generate:particle-vfx-assets": "node scripts/generate-particle-vfx-assets.mjs",
     "typed-content:audit": "bash ../../scripts/audit-typed-content.sh",
     "e2e:list": "node scripts/run-playwright-e2e.mjs --list",
-    "e2e:check": "pnpm --filter @animama/runtime-contracts build && tsc -p tsconfig.e2e.json",
+    "e2e:check": "pnpm --filter @animama/runtime-contracts build && pnpm e2e:check:source",
     "e2e:test:unit": "node --experimental-strip-types --test e2e/helpers/*.test.ts",
     "e2e:test": "node scripts/run-playwright-e2e.mjs",
     "e2e:test:headed": "node scripts/run-playwright-e2e.mjs --headed",
@@ -62,7 +62,9 @@
     "packages:test": "pnpm -r --filter './packages/*' --if-present run test",
     "packages:pack": "node scripts/pack-public-packages.mjs",
     "local:smoke:accountless": "node --experimental-strip-types scripts/smoke-accountless-http.ts",
-    "local:verify:accountless": "node --experimental-strip-types scripts/verify-accountless-journey.ts"
+    "local:verify:accountless": "node --experimental-strip-types scripts/verify-accountless-journey.ts",
+    "ci:source": "node scripts/ci-source.mjs",
+    "e2e:check:source": "tsc -p tsconfig.e2e.json"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.90.3",

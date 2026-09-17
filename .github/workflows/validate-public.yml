@@ -2,10 +2,21 @@ name: Portable product validation
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled, unlabeled, edited]
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      cold-cache:
+        description: Run full validation without restoring or saving dependency download caches
+        type: boolean
+        default: false
   workflow_call:
+    inputs:
+      full-validation:
+        description: Reusable callers always require full validation; false is rejected
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -21,7 +32,40 @@ defaults:
     shell: bash # GitHub invokes bash with -e and -o pipefail, including tee pipelines.
 
 jobs:
+  validation-plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      plan: ${{ steps.select.outputs.plan }}
+      backend: ${{ steps.select.outputs.backend }}
+      portable: ${{ steps.select.outputs.portable }}
+      retention: ${{ steps.select.outputs.retention }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          lfs: false
+          persist-credentials: false
+      - name: Test conservative selection and failure aggregation
+        run: python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
+      - name: Select checks from the complete PR diff
+        id: select
+        env:
+          CI_READ_TOKEN: ${{ github.token }}
+          CI_INPUTS: ${{ toJSON(inputs) }}
+        run: python3 scripts/ci/validation.py plan --output "$RUNNER_TEMP/selection.json"
+      - name: Retain compact selection receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: selection-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/selection.json
+          retention-days: 14
+
   backend-static-tests:
+    needs: validation-plan
+    if: needs.validation-plan.outputs.backend != 'none'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
@@ -31,25 +75,45 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ github.sha }}
-          lfs: true
+          lfs: ${{ needs.validation-plan.outputs.backend != 'docs' }}
           persist-credentials: false
       - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
+        id: uv
         with:
           version: "0.11.28"
+          python-version: "3.12.13"
+          enable-cache: ${{ !inputs.cold-cache }}
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+            scripts/package-sets/build-constraints.txt
+          cache-suffix: p95-uv0.11.28-python3.12.13-${{ runner.os }}-${{ runner.arch }}
       - run: uv sync --frozen --python 3.12.13 --extra server
       - name: Install backend verification prerequisites
         run: |
           sudo apt-get update
           sudo apt-get install --yes ripgrep
-      - name: Run the complete offline backend verification contract
+      - name: Run the selected offline backend verification contract
         env:
           PYTEST_ADDOPTS: --junitxml=${{ runner.temp }}/backend-pytest.xml
+          BACKEND_PROFILE: ${{ needs.validation-plan.outputs.backend }}
         # Docker-backed fixtures must fail when Docker or required content is
         # missing. This never substitutes a reduced suite or paid provider run.
         run: |
           {
             command -v rg
-            make check-test
+            case "$BACKEND_PROFILE" in
+              full) make check-test ;;
+              guards)
+                make audit-typed-content
+                uv run --no-sync pytest -q tests/test_accountless_repository_boundaries.py
+                ;;
+              docs)
+                make audit-typed-content
+                uv run --no-sync pytest -q tests/test_generate_synthetic_docs.py tests/test_accountless_repository_boundaries.py
+                ;;
+              *) echo "Unknown backend validation profile" >&2; exit 1 ;;
+            esac
           } 2>&1 | tee "$RUNNER_TEMP/backend-checks.log"
       - name: Retain backend success or failure evidence
         if: always()
@@ -59,16 +123,31 @@ jobs:
           path: |
             ${{ runner.temp }}/backend-checks.log
             ${{ runner.temp }}/backend-pytest.xml
+          retention-days: ${{ job.status != 'success' && 14 || needs.validation-plan.outputs.retention }}
+      - name: Record backend results and download cache state
+        if: always()
+        env:
+          CI_STEPS: ${{ toJSON(steps) }}
+          CI_JOB: backend-static-tests
+        run: python3 scripts/ci/job_receipt.py --output "$RUNNER_TEMP/backend-receipt.json"
+      - name: Retain compact backend receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-receipt-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/backend-receipt.json
           retention-days: 14
 
   portable-product:
+    needs: validation-plan
+    if: needs.validation-plan.outputs.portable == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 0
+          fetch-depth: 2
           lfs: true
           persist-credentials: false
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
@@ -76,9 +155,28 @@ jobs:
           node-version: "24.15.0"
           package-manager-cache: false
       - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
+        id: uv
         with:
           version: "0.11.28"
+          python-version: "3.12.13"
+          enable-cache: ${{ !inputs.cold-cache }}
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
+            scripts/package-sets/build-constraints.txt
+          cache-suffix: p95-uv0.11.28-python3.12.13-${{ runner.os }}-${{ runner.arch }}
       - run: npm install --global pnpm@10.33.0
+      - name: Locate the pnpm download store
+        id: pnpm-store
+        working-directory: src/frontend
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Reuse pnpm downloads with a clean frozen install
+        if: ${{ !inputs.cold-cache }}
+        id: pnpm-cache
+        uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ runner.arch }}-node24.15.0-pnpm10.33.0-${{ hashFiles('src/frontend/pnpm-lock.yaml', 'src/frontend/pnpm-workspace.yaml') }}
       - run: uv sync --frozen --python 3.12.13 --extra server
       - run: pnpm install --frozen-lockfile
         working-directory: src/frontend
@@ -95,7 +193,7 @@ jobs:
           import sys
           import unittest
 
-          for directory in ("scripts/package-sets", "scripts/public-release", "scripts/repository-boundary"):
+          for directory in ("scripts/package-sets", "scripts/public-release", "scripts/repository-boundary", "scripts/ci"):
               suite = unittest.TestLoader().discover(directory, pattern="test_*.py")
               count = suite.countTestCases()
               print(f"{directory}: collected {count} tests", flush=True)
@@ -109,24 +207,10 @@ jobs:
         # before the first browser-dependent check on a fresh runner.
         run: pnpm exec playwright install chromium
         working-directory: src/frontend
-      - name: Check frontend harnesses and generated SDK freshness
+      - name: Check all frontend source with one shared package build
         working-directory: src/frontend
         run: |
-          pnpm e2e:check 2>&1 | tee -a "$RUNNER_TEMP/frontend-harness.log"
-          pnpm e2e:test:unit 2>&1 | tee -a "$RUNNER_TEMP/frontend-harness.log"
-          node --test scripts/e2e/*.test.mjs 2>&1 | tee -a "$RUNNER_TEMP/frontend-harness.log"
-          node --test scripts/generate-openapi-client.test.mjs 2>&1 | tee -a "$RUNNER_TEMP/frontend-harness.log"
-          pnpm openapi-ts:check 2>&1 | tee -a "$RUNNER_TEMP/frontend-harness.log"
-      - name: Check and test browser and desktop source
-        working-directory: src/frontend
-        run: |
-          pnpm check 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
-          pnpm packages:check 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
-          pnpm packages:test 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
-          pnpm web:lint 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
-          pnpm web:test 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
-          pnpm desktop:test 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
-          pnpm build 2>&1 | tee -a "$RUNNER_TEMP/frontend-source.log"
+          pnpm ci:source --receipt "$RUNNER_TEMP/frontend-source.json" 2>&1 | tee "$RUNNER_TEMP/frontend-source.log"
       - name: Run the same accountless browser smoke in both serving modes
         run: |
           uv run --no-sync python src/frontend/scripts/e2e/run-accountless-smoke.py \
@@ -215,7 +299,7 @@ jobs:
           name: ${{ steps.package-set.outputs.name }}
           path: ${{ runner.temp }}/public-artifacts/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: ${{ needs.validation-plan.outputs.retention }}
       - name: Retain focused test evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -223,10 +307,48 @@ jobs:
           name: portable-evidence-${{ github.sha }}-${{ github.run_attempt }}
           path: |
             ${{ runner.temp }}/portable-tooling.log
-            ${{ runner.temp }}/frontend-harness.log
             ${{ runner.temp }}/frontend-source.log
             ${{ runner.temp }}/accountless-smoke/
             ${{ runner.temp }}/public-consumer/summary.json
             ${{ runner.temp }}/public-consumer/logs/
             ${{ runner.temp }}/public-consumer/frontend/*.png
+          retention-days: ${{ job.status != 'success' && 14 || needs.validation-plan.outputs.retention }}
+      - name: Record portable results and download cache state
+        if: always()
+        env:
+          CI_STEPS: ${{ toJSON(steps) }}
+          CI_JOB: portable-product
+        run: python3 scripts/ci/job_receipt.py --output "$RUNNER_TEMP/portable-receipt.json"
+      - name: Retain compact portable receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: portable-receipt-${{ github.sha }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/portable-receipt.json
+            ${{ runner.temp }}/frontend-source.json
+          retention-days: 14
+
+  validation:
+    needs: [validation-plan, backend-static-tests, portable-product]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          ref: ${{ github.sha }}
+          lfs: false
+          persist-credentials: false
+      - name: Require every selected job to succeed
+        env:
+          CI_PLAN: ${{ needs.validation-plan.outputs.plan }}
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: python3 scripts/ci/validation.py gate --output "$RUNNER_TEMP/validation.json"
+      - name: Retain aggregate acceptance receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: validation-${{ github.sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/validation.json
           retention-days: 14

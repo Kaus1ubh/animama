@@ -667,13 +667,61 @@ make check-test
 touches behavior and time allows. Install `ripgrep` for the typed-content audit;
 CI installs this prerequisite explicitly on its Ubuntu runner.
 
-The `Portable product validation` workflow runs on every pull request, pushes to
-`main`, manual dispatch, and reuse by the desktop release workflow. Its
-`backend-static-tests` job installs frozen Python dependencies, then runs the
-same `make check-test` contract: typed-content audit, formatting, Ruff, mypy,
-and the complete offline pytest suite. `UV_NO_SYNC=1` prevents those commands
-from resolving dependencies again. Required starter content must be available;
-a missing fixture remains a failing check, never an automatic skip.
+The `Portable product validation` workflow plans each run in `validation-plan`,
+then retains independent, parallel `backend-static-tests` and `portable-product`
+jobs when both are selected. The final `validation` job always evaluates the
+plan and job results. Use this stable aggregate as the future required-check
+name; selecting a smaller profile does not make an unexpected skipped or failed
+required job successful. Remote branch enforcement still requires owner setup.
+
+For pull requests, the plan uses the complete changed-path set and defaults to
+full verification whenever classification is uncertain:
+
+| Change profile | Backend verification | Portable verification |
+| --- | --- | --- |
+| Modified existing, eligible documentation only | Typed-content audit and synthetic-document/accountless repository tests | Not required |
+| Ordinary backend test-only changes | Complete `make check-test` | Not required |
+| Narrow web or Electron implementation changes | Typed-content audit and accountless repository tests | Complete portable job |
+| Other or mixed changes | Complete `make check-test` | Complete portable job |
+
+Documentation eligibility excludes repository instructions, package metadata,
+provenance-linked notices, build inputs, and additions/deletions. Implementation
+profiles exclude shared/generated contracts, content, runtime schemas, build
+configuration, dependency manifests, and unknown paths. The checked-in selector
+owns the exact allowlists; a directory name alone is insufficient justification
+to omit verification.
+
+Draft pull requests defer expensive validation with a non-success aggregate.
+The persistent `ci:full` label overrides both draft deferral and narrow selection.
+Pull-request edits and label changes trigger replanning, as do source updates
+and transitions to ready for review. Pushes to `main`, manual dispatch, and
+workflow reuse always run full verification. Removing an override must not
+leave a previous successful result standing in for the newly selected plan.
+
+The docs profile installs the same frozen Python environment, including the
+development group, but needs no LFS hydration, Docker, Node, or browser setup:
+
+```bash
+uv sync --frozen --python 3.12.13 --extra server
+bash scripts/audit-typed-content.sh
+ANIMAMA_RUN_LIVE_TESTS=0 uv run --no-sync pytest -q \
+  tests/test_generate_synthetic_docs.py \
+  tests/test_accountless_repository_boundaries.py
+```
+
+The narrow implementation profile uses the same installation and audit, with
+only `tests/test_accountless_repository_boundaries.py` in its backend pytest
+command. Full backend verification runs `make check-test`: typed-content audit,
+formatting, Ruff, mypy, and the complete offline pytest suite. `UV_NO_SYNC=1`
+prevents those commands from resolving dependencies again. Missing required
+fixtures remain failures, never automatic skips. Standalone local commands
+retain their existing dependency preparation. CI uses
+`pnpm ci:source --receipt /absolute/path/outside/repository/source.json` from
+`src/frontend`: it builds shared packages once, then runs the harness, SDK,
+frontend, package and desktop checks against those same outputs. Each command's
+duration and result is retained; failed preparation stops dependent checks.
+The tracked-source artifact producer still performs its own clean installation
+and build, and isolated consumers retain their separately resolved graphs.
 
 The independent `portable-product` job checks repository ownership/provenance,
 shared imports, package-set and public-release tooling, frontend and desktop
@@ -690,15 +738,59 @@ and original synthetic content. See the [bounded browser smoke](../../frontend/t
 for the reproducible command and its limits. This proves accountless startup and
 Library behavior; real user-supplied animation acquisition and playback remain
 separate acceptance.
-Each of the three Python tooling families must collect at least one test and
+Each of the four Python tooling families (package sets, public release,
+repository boundary, CI policy) must collect at least one test and
 pass its full discovered suite; an empty family is a failure.
+Run `make check-ci` for selection, Git-discovery and aggregate regression tests.
 
-Both jobs retain available failure logs for 14 days; backend pytest also emits
-JUnit XML. Explicit Bash pipe failure handling keeps logged failures nonzero.
-Package artifacts prove the portable job's checks, not success of an independent
-backend job. Complete source validation requires both jobs to succeed. These are
-checked-in workflow contracts; remote required-check/branch enforcement is a
-separate repository configuration and is not established by editing this file.
+The aggregate checks the selected jobs, rather than treating package artifacts
+as proof of the independent backend result. Explicit Bash pipe failure handling
+keeps logged failures nonzero. The workflow retains plan and verification evidence
+so a narrow or deferred run can be distinguished from complete source validation.
+
+Compact selection and aggregate receipts remain available for 14 days. Failures
+retain detailed evidence for 14 days; ordinary successful detailed logs and
+package archives expire after 3 days. Explicit `ci:full`, manual, and reusable
+full runs retain evidence for 14 days.
+
+Dependency caches are keyed to Linux x64, lockfile hashes, and pinned toolchains:
+uv 0.11.28/Python 3.12.13 and pnpm 10.33.0/Node 24.15.0. Setup-uv manages its
+native cache; the pnpm store uses a separate Actions cache. Restored caches never
+replace frozen installation or validation. The manual cold-cache input disables
+cache restoration/saving without reducing checks.
+
+Before enabling remote budget enforcement, the owner should review the account's
+2,000-minute allowance, existing usage and billing period, other repositories,
+and spending/notification controls. Keep a 200-minute reserve; compare both
+20- and 30-day periods at 10 and 15 pull requests per day. Count each job's billable
+minutes rounded up separately, including planning and aggregation: elapsed wall
+time alone understates parallel-job cost. A deferred draft intentionally has a
+non-success aggregate and is not a passing validation receipt. No workflow edit
+changes the owner's billing budget or grants spending authority.
+
+To set an account-wide spending limit manually, open GitHub **Settings →
+Billing → Budgets and alerts → New budget**, select a product-level **Actions**
+budget and account-wide scope, enter the owner-approved amount, and enable
+**Stop usage when budget limit is reached** and budget threshold alerts.
+Also enable **Receive alerts when my included usage reaches 90% and 100%**.
+Alerts alone do not stop spending. Review existing overlapping budgets first;
+these are owner actions, not changes made by the workflow.
+See [GitHub's budget instructions](https://docs.github.com/en/billing/how-tos/set-up-budgets),
+[runner pricing](https://docs.github.com/en/billing/reference/actions-runner-pricing),
+and [included usage](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
+
+Full `main` validation remains in place until an enforced integration workflow
+can prove applicable successful checks for the exact integrated tree, baseline,
+recipe, locks and toolchains. A PR-head result alone is insufficient. Shared
+host caches and trusted compatibility-baseline reuse are separate workspace
+work: reuse must verify exact inputs, origin and hashes and rebuild on misses
+or corruption. Neither shortcut is implemented here.
+
+Capture measured cold/warm and selected-profile durations against the previous
+full-run baseline before accepting a savings claim. Hand off the
+aggregate check name, current evidence links, measured monthly projection and
+remaining reserve before the owner configures branch enforcement or changes a
+budget. Estimates are provisional until actual run measurements support them.
 
 The development dependency group includes the PyYAML, jsonschema and ReportLab
 type stubs required by the existing mypy target. Install from `uv.lock` with

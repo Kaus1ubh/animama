@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-.PHONY: help sync test test-q test-v test-cov test-live test-live-v test-full lint mypy format format-check check audit-typed-content check-test
+.PHONY: help sync test test-q test-v test-cov test-live test-live-v test-full lint mypy format format-check check audit-typed-content check-test check-ci
 
 help: ## Show backend tasks (frontend tasks use pnpm in src/frontend).
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -51,3 +51,6 @@ audit-typed-content: ## Check typed-content ownership and API invariants.
 	bash scripts/audit-typed-content.sh
 
 check-test: audit-typed-content format-check lint mypy test ## Run the full offline backend verification chain.
+
+check-ci: ## Test conservative CI selection, Git discovery and failure aggregation.
+	uv run --no-sync python -m unittest discover -s scripts/ci -p 'test_*.py' -v
