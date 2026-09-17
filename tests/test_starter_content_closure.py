@@ -24,13 +24,13 @@ def staged_core(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return write_supplied_starter_fixture(tmp_path_factory.mktemp("supplied-starter-core"))
 
 
-def test_tracked_checkout_rejects_missing_required_animation_bytes(tmp_path: Path) -> None:
+def test_tracked_checkout_packages_both_starters_without_private_animations(tmp_path: Path) -> None:
     root = copy_tracked_included(tmp_path / "included")
-    assert (root / "idle-styles/starter/starter.json").is_file()
-    assert not list((root / "idle-styles/starter").glob("*.vrma"))
-    with pytest.raises(TypedContentAdmissionError, match="source_invalid") as error:
-        starter_inventory(root)
-    assert error.value.item_id == "idle-styles/starter"
+    inventory = starter_inventory(root)
+    assert [starter["name"] for starter in inventory["starters"]] == ["Annie", "Caitlyn"]
+    assert not list(root.rglob("*.vrma"))
+    assert all(not starter["diagnostics"] for starter in inventory["starters"])
+    assert not any("idle-style:starter" in root for starter in inventory["starters"] for root in starter["roots"])
 
 
 def test_supplied_fixture_core_resolves_both_starters_without_expanded_content(staged_core: Path) -> None:
@@ -53,7 +53,7 @@ def test_missing_required_dependency_fails_instead_of_trimming_a_starter(staged_
     allowed = {
         p.relative_to(staged_core).as_posix()
         for p in staged_core.rglob("*")
-        if p.is_file() and not p.relative_to(staged_core).as_posix().startswith("idle-styles/starter/")
+        if p.is_file() and not p.relative_to(staged_core).as_posix().startswith("gestures/shy-finger-poke/")
     }
     with pytest.raises(TypedContentAdmissionError, match="source_unavailable"):
         starter_inventory(staged_core, allowed_paths=allowed)

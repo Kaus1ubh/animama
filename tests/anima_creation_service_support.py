@@ -152,7 +152,7 @@ class AnimaCreationFixture:
     def request(
         self, *, key: str = "creation-key", avatar: str = "local-avatar", actions: bool = False
     ) -> CreateAnimaRequest:
-        roots = [self.items[avatar], self.items["idle"]]
+        roots = [self.items[avatar]]
         reactions: dict[str, dict[str, dict[str, str] | None]] = {
             emotion: {str(level): None for level in (1, 2, 3)} for emotion in TRACKED_EMOTIONS
         }
@@ -326,32 +326,10 @@ async def anima_creation_fixture(
         await session.commit()
 
 
-# Reviewed Phase 5 starter identities. Keep this independent of the loaded policy
-# so an accidental policy removal or replacement cannot rewrite the test oracle.
+# Shipped starter identities; optional Local Mixamo motions are not defaults.
+# Keep this independent of the loaded policy so accidental policy changes cannot
+# rewrite the test oracle.
 EXPECTED_STARTER_GESTURE_IDS = (
-    "builtin:gesture:exclaim_frustrated",
-    "builtin:gesture:frustrated_explain",
-    "builtin:gesture:sarcastic_response",
-    "builtin:gesture:silly_slap",
-    "builtin:gesture:flattered",
-    "builtin:gesture:proud_of_self",
-    "builtin:gesture:excited_jump_1",
-    "builtin:gesture:explain",
-    "builtin:gesture:listening_head_nod",
-    "builtin:gesture:talk",
-    "builtin:gesture:being_cocky",
-    "builtin:gesture:blush",
-    "builtin:gesture:darn_it",
-    "builtin:gesture:head_shake",
-    "builtin:gesture:lookaround",
-    "builtin:gesture:shrug",
-    "builtin:gesture:wave",
-    "builtin:gesture:slight_bow",
-    "builtin:gesture:surprised",
-    "builtin:gesture:tired",
-    "builtin:gesture:whatever",
-    "builtin:gesture:crying",
-    "builtin:gesture:posture_sad",
     "builtin:gesture:shy-finger-poke",
     "builtin:gesture:shy-finger-poke-loop",
     "builtin:gesture:thinking-head-scratch",
@@ -453,21 +431,6 @@ def write_supplied_starter_fixture(root: Path) -> Path:
                 "capture_preset_version": 2,
             },
         )
-    write_json(
-        root / "idle-styles/starter/starter.json",
-        {
-            "schema_version": 1,
-            "content_type": "idle_style",
-            "content_id": "builtin:idle-style:starter",
-            "name": "Supplied test idle",
-            "animations": [{"animation_id": "calm", "name": "Calm", "file_ref": "calm.vrma"}],
-            "files": [{"path": "calm.vrma", "role": "animation"}],
-            "default_pool": ["calm"],
-            "emotion_pools": {},
-            "compatibility": {"vrm_versions": ["0.x", "1.0"]},
-        },
-    )
-    write_file(root / "idle-styles/starter/calm.vrma", vrma())
     policy = starter_loadout_policy()
     for kind, choices in (("gesture", policy["gestures"]), ("reaction", policy["reactions"])):
         for choice in choices:

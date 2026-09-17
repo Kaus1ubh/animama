@@ -380,15 +380,16 @@ consumes them, and frontend-server onboarding uses the generated starter command
 rather than bulk or mutable request templates.
 
 Authenticated `GET /v1/animas/creation-options` returns versioned
-Recommended Starter Pack selections/counts, hidden default Idle refs/closure,
+Recommended Starter Pack selections/counts, nullable default Idle evidence,
 limits, and diagnostics. Read-only `POST /v1/animas:validate` accepts
 `AnimaSpec` and returns the normalized spec/warnings. The replaced
 `POST /v1/animas` accepts that strict spec plus a body idempotency key; the
 owner is never a browser field. The complete `expected_source_revisions` map
-includes selected roots, default Idle, and all typed supports with kind/revision.
+includes selected roots and all typed supports with kind/revision. New companions
+start with Idle empty; `default_idle.source` is null and its revision map is empty.
 Before the Review step, the browser obtains that map with one
 `POST /v1/content/evidence:resolve` call containing the selected Avatar,
-Actions, and fixed Idle roots, then independently submits the whole spec to
+and Actions, then independently submits the whole spec to
 `POST /v1/animas:validate`. The strict API retains typed profile/background
 Appearance fields, but the current browser sends both as explicit nulls and
 makes no Appearance read or Save request. This transition creates no preview

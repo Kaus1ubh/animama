@@ -16,7 +16,6 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from animama.adapters.content_store import FilesystemContentStore
-from animama.app.services.anima_creation_sources import DEFAULT_IDLE_KEY
 from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS
 from animama.app.services.starter_loadout_policy import starter_loadout_policy, starter_pack_identity
 from animama.app.services.typed_content_service import TypedContentAdmissionError, TypedContentResolutionContext
@@ -132,7 +131,6 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
     logical = {item.logical_key: item.id for item in visible.values() if item.logical_key}
     policy = starter_loadout_policy()
     recommended = [
-        DEFAULT_IDLE_KEY,
         *(choice["content_id"] for lane in ("gestures", "reactions") for choice in policy[lane]),
     ]
 

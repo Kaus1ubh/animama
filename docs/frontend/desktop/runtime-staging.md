@@ -270,11 +270,12 @@ starter receipts and adoption identifiers remain valid compatibility data; they
 do not authorize restoring excluded bytes or silently changing an Anima.
 
 The source checkout excludes Mixamo-derived `.vrma` files from tracking and
-Docker contexts. The [manual acquisition helper](../runtime/mixamo-acquisition.md)
-prepares a download checklist; conversion, installation and a fresh complete
-starter build remain pending. The tracked-only staging gate must fail on an
-unavailable required animation, even if an ignored local copy exists. Do not
-bypass it or claim starter acceptance from an older artifact.
+Docker contexts. The [optional Local installer](../runtime/mixamo-acquisition.md)
+adds manually converted motions to the Local library, outside staged content.
+The starter closure contains 21 authored gestures, 72 reactions and no required
+Idle Style. The tracked-only staging gate still fails on an unavailable selected
+dependency, even if an ignored local copy exists. Full native stage and packaged
+acceptance remain separate checks; do not infer them from a passing content test.
 
 Content with `distribution: excluded` is omitted from core and expanded inputs.
 An excluded required dependency fails closure resolution. User-imported Local

@@ -46,8 +46,6 @@ from .runtime_content_closure import RuntimeContentClosureCompiler
 from .starter_loadout_policy import starter_loadout_policy, starter_pack_identity
 from .typed_content_service import TypedCatalogItem, TypedContentAdmissionError, TypedContentService
 
-DEFAULT_IDLE_KEY = "builtin:idle-style:starter"
-
 
 @dataclass(frozen=True, slots=True)
 class CreationSources:
@@ -110,8 +108,6 @@ class AnimaCreationSources:
             admitted.update((typed.item.id, typed) for typed in closure)
             return item
 
-        idle = include(DEFAULT_IDLE_KEY, ContentKind.IDLE_STYLE, "/default_idle")
-        idle_ids = set(admitted)
         gestures = []
         for choice in policy["gestures"]:
             item = include(choice["content_id"], ContentKind.GESTURE, "/recommended/gestures")
@@ -158,8 +154,8 @@ class AnimaCreationSources:
                 ),
             },
             "default_idle": {
-                "source": item_ref(idle) if idle else None,
-                "expected_source_revisions": {item_id: revisions[item_id] for item_id in sorted(idle_ids)},
+                "source": None,
+                "expected_source_revisions": {},
             },
             "expected_source_revisions": revisions,
             "diagnostics": bounded_issues(diagnostics),
@@ -180,17 +176,6 @@ class AnimaCreationSources:
                 ],
             )
         visible = {item.id: item for item in await self.catalog.list_visible(user_id=user_id)}
-        idle = self._included(visible, key=DEFAULT_IDLE_KEY, kind=ContentKind.IDLE_STYLE)
-        if idle is None:
-            raise AnimaCreationError(
-                issues=[
-                    AnimaCreationIssue(
-                        "starter_idle_unavailable",
-                        "The required Starter Idle Style is unavailable.",
-                        "/expected_source_revisions",
-                    )
-                ]
-            )
         roots: list[tuple[str, ContentKind, ItemRevisionRef]] = [("/avatar", ContentKind.AVATAR, spec.avatar)]
         for slot in ("profile", "background"):
             choice = getattr(spec.appearance, slot)
@@ -205,24 +190,6 @@ class AnimaCreationSources:
             for emotion, cells in spec.reactions.items()
             for level, source in cells.items()
             if source is not None
-        )
-        expected_idle = spec.expected_source_revisions.get(idle.id)
-        if expected_idle is None:
-            raise AnimaCreationError(
-                issues=[
-                    AnimaCreationIssue(
-                        "starter_idle_revision_required",
-                        "The required default Idle source revision is missing.",
-                        "/expected_source_revisions",
-                    )
-                ],
-            )
-        roots.append(
-            (
-                "/expected_source_revisions",
-                ContentKind.IDLE_STYLE,
-                ItemRevisionRef(item_id=idle.id, revision_sha256=expected_idle.revision_sha256),
-            )
         )
         typed_items: dict[str, TypedCatalogItem] = {}
         origins: dict[str, tuple[str, str | None]] = {}
@@ -405,7 +372,7 @@ class AnimaCreationSources:
                 display_name=spec.display_name,
                 identity=spec.identity_markdown,
                 avatar=typed_items[spec.avatar.item_id].item,
-                idle_style=idle,
+                idle_style=None,
                 gestures=tuple(typed_items[choice.source.item_id].item for choice in spec.gestures),
                 reactions=tuple(
                     ResolvedReactionSelection(emotion, int(level), typed_items[source.item_id].item if source else None)
