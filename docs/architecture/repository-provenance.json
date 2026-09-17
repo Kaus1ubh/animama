@@ -1270,8 +1270,8 @@
   "files": [
     {
       "path": ".agents/skills/animama-local-stacks/SKILL.md",
-      "git_blob_oid": "68caf390174a9e8464d1e15a6c790e34b2448b0d",
-      "sha256": "ebd9b0682618071e22b6d1a35dad6533e92102ba0bfa688362591047cac877c6",
+      "git_blob_oid": "4a3e5579df1784976836e25ca9640f907176a3f9",
+      "sha256": "bd0b3a0cbd53ba0578385f3e7b43db5d419c83c3ac462b1ce12c2063a5bf4de1",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -8709,6 +8709,32 @@
       "added_paths": [
         "tests/test_mixamo_local_install.py"
       ]
+    },
+    {
+      "date": "2026-09-17",
+      "path": ".agents/skills/animama-local-stacks/SKILL.md",
+      "base_commit": "b2152d75016a71d97ee41dd0850f5d1682bfb09a",
+      "previous_binding": {
+        "path": ".agents/skills/animama-local-stacks/SKILL.md",
+        "git_blob_oid": "68caf390174a9e8464d1e15a6c790e34b2448b0d",
+        "sha256": "ebd9b0682618071e22b6d1a35dad6533e92102ba0bfa688362591047cac877c6",
+        "evidence_ids": [
+          "source-review-45773f95f46e"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval."
+      },
+      "current_binding": {
+        "path": ".agents/skills/animama-local-stacks/SKILL.md",
+        "git_blob_oid": "4a3e5579df1784976836e25ca9640f907176a3f9",
+        "sha256": "bd0b3a0cbd53ba0578385f3e7b43db5d419c83c3ac462b1ce12c2063a5bf4de1",
+        "evidence_ids": [
+          "source-review-45773f95f46e"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval."
+      },
+      "reason": "Document explicit external credential selection, repeatable workspace preparation, owner-validated readiness and scoped cleanup in the existing local-stack skill; origin, terms and publication status are unchanged."
     }
   ]
 }

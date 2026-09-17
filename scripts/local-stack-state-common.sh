@@ -5,6 +5,56 @@
 
 ANIMAMA_STATE_RUNNING_SERVICES=()
 
+# Compose owns dotenv parsing and credential interpolation. Import only the
+# non-secret host selectors that these shell commands actually consume.
+animama_state_load_selectors() {
+  local root="$1" rows assignment
+  if [ -n "${COMPOSE_ENV_FILES:-}" ]; then
+    COMPOSE_ENV_FILES="$(python3 -c '
+import os
+print(",".join(os.path.abspath(p) for p in os.environ["COMPOSE_ENV_FILES"].split(",")))
+')" || return
+    export COMPOSE_ENV_FILES
+  fi
+  rows="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ ANIMAMA_BROWSER_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "$root/docker-compose.yml" config --environment | ANIMAMA_SELECTOR_ROOT="$root" python3 -c '
+import os, re, sys
+from pathlib import Path
+values = dict(line.rstrip("\n").partition("=")[::2] for line in sys.stdin)
+selectors = (
+    "COMPOSE_PROFILES", "ANIMAMA_WEB_BUILD_MODE", "ANIMAMA_MODEL_ROOT",
+    "COMPOSE_PROJECT_NAME", "APP_HOST", "APP_SCHEME", "WEB_SERVER_PORT",
+    "PGADMIN_PORT", "DOZZLE_PORT", "ANIMAMA_INCLUDED_CONTENT_HOST_PATH",
+    "ANIMAMA_LOCAL_CONTENT_HOST_PATH", "ANIMAMA_DATA_HOST_PATH",
+    "ANIMAMA_DOCLING_CACHE_HOST_PATH", "ANIMAMA_CONTENT_ROOT", "ANIMAMA_DATA_ROOT",
+    "HOST_UID", "HOST_GID",
+)
+# Compose always emits an inferred project name. Import it only when the caller
+# explicitly declared it; otherwise reset keeps its existing --base-port naming.
+files = os.environ.get("COMPOSE_ENV_FILES", "")
+if not files and os.environ.get("COMPOSE_DISABLE_ENV_FILE", "").lower() not in {"1", "true"}:
+    files = str(Path(os.environ["ANIMAMA_SELECTOR_ROOT"]) / ".env")
+project_declared = any(
+    re.search(r"(?m)^\s*(?:export\s+)?COMPOSE_PROJECT_NAME\s*=", Path(p).read_text())
+    for p in files.split(",") if Path(p).is_file()
+)
+for name in selectors:
+    if name in os.environ or name not in values:
+        continue
+    if name == "COMPOSE_PROJECT_NAME" and not project_declared:
+        continue
+    value = values[name]
+    # Empty optional dotenv selectors retain their historical default behavior.
+    if not value and name != "COMPOSE_PROFILES":
+        continue
+    if any(ord(c) < 32 or ord(c) == 127 for c in value):
+        raise SystemExit("Invalid control character in non-secret selector " + name)
+    print(name + "=" + value)
+')" || return
+  while IFS= read -r assignment; do
+    [ -z "$assignment" ] || export "$assignment"
+  done <<< "$rows"
+}
+
 animama_state_die() {
   printf 'Error: %s\n' "$1" >&2
   exit 2
@@ -83,13 +133,32 @@ animama_state_configure() {
   local script_dir local_default data_default stack_root
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   ANIMAMA_STATE_REPO_ROOT="$(cd "${script_dir}/.." && pwd)"
+  if [ -n "${ANIMAMA_STACK_REPO_ROOT:-}" ] && [ "$ANIMAMA_STACK_REPO_ROOT" != "$ANIMAMA_STATE_REPO_ROOT" ]; then
+    animama_state_die "sourced stack belongs to another checkout; use a clean terminal and its own stack record"
+  fi
+  # A sourced record already pins derived roots. Without one, honor explicitly
+  # selected env files before deriving project-specific storage.
+  if [ -z "${ANIMAMA_STACK_REPO_ROOT:-}" ]; then
+    animama_state_load_selectors "$ANIMAMA_STATE_REPO_ROOT" || return
+  fi
+
+  if [ -n "$requested_name" ] && [ -n "${COMPOSE_PROJECT_NAME:-}" ] &&
+    { [ -n "${ANIMAMA_STACK_REPO_ROOT:-}" ] || [ -n "${ANIMAMA_LOCAL_CONTENT_HOST_PATH:-}" ] || [ -n "${ANIMAMA_DATA_HOST_PATH:-}" ]; }; then
+    local requested_project recorded_project
+    requested_project="$(animama_state_normalize_name "$requested_name")" || animama_state_die "invalid stack name"
+    recorded_project="$COMPOSE_PROJECT_NAME"
+    [ "$requested_project" = "$recorded_project" ] ||
+      animama_state_die "sourced stack belongs to another project; use a clean terminal and its own stack record"
+  fi
 
   if [ -n "$requested_name" ]; then
     ANIMAMA_STATE_PROJECT="$(animama_state_normalize_name "$requested_name")" ||
       animama_state_die "invalid stack name: $requested_name"
   elif [ -n "${COMPOSE_PROJECT_NAME:-}" ]; then
-    ANIMAMA_STATE_PROJECT="$(animama_state_normalize_name "$COMPOSE_PROJECT_NAME")" ||
-      animama_state_die "invalid COMPOSE_PROJECT_NAME: $COMPOSE_PROJECT_NAME"
+    # Explicit Compose identities are already names, not --name shorthand.
+    [[ "$COMPOSE_PROJECT_NAME" =~ ^[a-z0-9][a-z0-9_-]*$ ]] ||
+      animama_state_die "invalid COMPOSE_PROJECT_NAME"
+    ANIMAMA_STATE_PROJECT="$COMPOSE_PROJECT_NAME"
   else
     ANIMAMA_STATE_PROJECT="animama"
   fi
@@ -177,6 +246,7 @@ animama_state_require_stack() {
 
 animama_state_pause_services() {
   ANIMAMA_STATE_RUNNING_SERVICES=()
+
   while IFS= read -r service; do
     [ -n "$service" ] || continue
     [ "$service" = "postgres" ] && continue
@@ -193,6 +263,7 @@ animama_state_resume_services() {
     printf 'Restarting application services: %s\n' "${ANIMAMA_STATE_RUNNING_SERVICES[*]}"
     animama_state_compose start "${ANIMAMA_STATE_RUNNING_SERVICES[@]}"
     ANIMAMA_STATE_RUNNING_SERVICES=()
+
   fi
 }
 
