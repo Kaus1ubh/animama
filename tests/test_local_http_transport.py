@@ -320,8 +320,12 @@ async def test_trickled_header_bytes_do_not_extend_the_deadline() -> None:
                     with contextlib.suppress(ConnectionError):
                         await writer.drain()
                     await asyncio.sleep(0.03)
-            assert await closed == b""
+            # Closing while the peer is still writing may produce a TCP reset
+            # instead of EOF. Neither outcome admits a request or sends bytes.
+            with contextlib.suppress(ConnectionResetError):
+                assert await closed == b""
             assert live.probe.requests == []
+            assert live.protocols[0]._headers_timer is None
         finally:
             closed.cancel()
             await asyncio.gather(closed, return_exceptions=True)
