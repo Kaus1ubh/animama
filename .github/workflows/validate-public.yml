@@ -5,6 +5,8 @@ on:
     types: [opened, synchronize, reopened, ready_for_review, converted_to_draft, labeled, unlabeled, edited]
   push:
     branches: [main]
+  schedule:
+    - cron: '17 9 * * 1'
   workflow_dispatch:
     inputs:
       cold-cache:
@@ -20,335 +22,360 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  pull-requests: read
 
 concurrency:
-  # A release caller uses its run identity so another dispatch cannot cancel
-  # validation underneath a credential-bearing release. PR pushes supersede PRs.
+  # Release callers use their run identity; PR updates supersede earlier PR work.
   group: portable-product-${{ github.workflow }}-${{ github.workflow == 'Portable product validation' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 defaults:
   run:
-    shell: bash # GitHub invokes bash with -e and -o pipefail, including tee pipelines.
+    shell: bash
 
 jobs:
-  validation-plan:
+  validation:
+    name: Validation
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    outputs:
-      plan: ${{ steps.select.outputs.plan }}
-      backend: ${{ steps.select.outputs.backend }}
-      portable: ${{ steps.select.outputs.portable }}
-      retention: ${{ steps.select.outputs.retention }}
+    timeout-minutes: 90
+    env:
+      UV_NO_SYNC: '1'
+      ANIMAMA_RUN_LIVE_TESTS: '0'
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      # Setup: one candidate checkout; exact baseline checkout happens only for packaging.
+      - name: Check out exact candidate without asset hydration
+        id: checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
           lfs: false
           persist-credentials: false
-      - name: Test conservative selection and failure aggregation
-        run: python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
-      - name: Select checks from the complete PR diff
+      - name: Test validation policy and evidence helpers
+        id: ci-policy-tests
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" ci-policy-tests -- python3 -m unittest discover -s scripts/ci -p 'test_*.py' -v
+      - name: Select the source-bound validation profile
         id: select
         env:
           CI_READ_TOKEN: ${{ github.token }}
           CI_INPUTS: ${{ toJSON(inputs) }}
         run: python3 scripts/ci/validation.py plan --output "$RUNNER_TEMP/selection.json"
-      - name: Retain compact selection receipt
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: selection-${{ github.sha }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/selection.json
-          retention-days: 14
-
-  backend-static-tests:
-    needs: validation-plan
-    if: needs.validation-plan.outputs.backend != 'none'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    env:
-      UV_NO_SYNC: "1"
-      ANIMAMA_RUN_LIVE_TESTS: "0"
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          ref: ${{ github.sha }}
-          lfs: ${{ needs.validation-plan.outputs.backend != 'docs' }}
-          persist-credentials: false
-      - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
+      - name: Hydrate assets required by full validation
+        id: hydrate
+        if: steps.select.outputs.mode == 'full'
+        env:
+          CI_READ_TOKEN: ${{ github.token }}
+        run: python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" hydrate -- python3 scripts/ci/validation.py hydrate
+      - name: Set up locked Python toolchain and download cache
         id: uv
+        if: contains(fromJSON('["full","docs","backend","web"]'), steps.select.outputs.mode)
+        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
         with:
-          version: "0.11.28"
-          python-version: "3.12.13"
+          version: '0.11.28'
+          python-version: '3.12.13'
           enable-cache: ${{ !inputs.cold-cache }}
           cache-dependency-glob: |
             uv.lock
             pyproject.toml
             scripts/package-sets/build-constraints.txt
-          cache-suffix: p95-uv0.11.28-python3.12.13-${{ runner.os }}-${{ runner.arch }}
-      - run: uv sync --frozen --python 3.12.13 --extra server
-      - name: Install backend verification prerequisites
+          cache-suffix: p96-uv0.11.28-python3.12.13-${{ runner.os }}-${{ runner.arch }}
+      - name: Install frozen backend dependencies
+        id: uv-sync
+        if: contains(fromJSON('["full","docs","backend","web"]'), steps.select.outputs.mode)
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes ripgrep
-      - name: Run the selected offline backend verification contract
-        env:
-          PYTEST_ADDOPTS: --junitxml=${{ runner.temp }}/backend-pytest.xml
-          BACKEND_PROFILE: ${{ needs.validation-plan.outputs.backend }}
-        # Docker-backed fixtures must fail when Docker or required content is
-        # missing. This never substitutes a reduced suite or paid provider run.
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" uv-sync -- uv sync --frozen --python 3.12.13 --extra server
+      - name: Ensure the typed-content audit prerequisite exists
+        id: rg-setup
+        if: contains(fromJSON('["full","docs","backend","web"]'), steps.select.outputs.mode)
         run: |
-          {
-            command -v rg
-            case "$BACKEND_PROFILE" in
-              full) make check-test ;;
-              guards)
-                make audit-typed-content
-                uv run --no-sync pytest -q tests/test_accountless_repository_boundaries.py
-                ;;
-              docs)
-                make audit-typed-content
-                uv run --no-sync pytest -q tests/test_generate_synthetic_docs.py tests/test_accountless_repository_boundaries.py
-                ;;
-              *) echo "Unknown backend validation profile" >&2; exit 1 ;;
-            esac
-          } 2>&1 | tee "$RUNNER_TEMP/backend-checks.log"
-      - name: Retain backend success or failure evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" rg-setup -- bash -e -o pipefail -c 'if ! command -v rg; then sudo apt-get update; sudo apt-get install --yes ripgrep; fi'
+      - name: Set up Node for frontend validation
+        id: node
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
-          name: backend-evidence-${{ github.sha }}-${{ github.run_attempt }}
-          path: |
-            ${{ runner.temp }}/backend-checks.log
-            ${{ runner.temp }}/backend-pytest.xml
-          retention-days: ${{ job.status != 'success' && 14 || needs.validation-plan.outputs.retention }}
-      - name: Record backend results and download cache state
-        if: always()
-        env:
-          CI_STEPS: ${{ toJSON(steps) }}
-          CI_JOB: backend-static-tests
-        run: python3 scripts/ci/job_receipt.py --output "$RUNNER_TEMP/backend-receipt.json"
-      - name: Retain compact backend receipt
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: backend-receipt-${{ github.sha }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/backend-receipt.json
-          retention-days: 14
-
-  portable-product:
-    needs: validation-plan
-    if: needs.validation-plan.outputs.portable == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 2
-          lfs: true
-          persist-credentials: false
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: "24.15.0"
+          node-version: '24.15.0'
           package-manager-cache: false
-      - uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
-        id: uv
-        with:
-          version: "0.11.28"
-          python-version: "3.12.13"
-          enable-cache: ${{ !inputs.cold-cache }}
-          cache-dependency-glob: |
-            uv.lock
-            pyproject.toml
-            scripts/package-sets/build-constraints.txt
-          cache-suffix: p95-uv0.11.28-python3.12.13-${{ runner.os }}-${{ runner.arch }}
-      - run: npm install --global pnpm@10.33.0
+      - name: Install the pinned package manager
+        id: pnpm-setup
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" pnpm-setup -- npm install --global pnpm@10.33.0
       - name: Locate the pnpm download store
         id: pnpm-store
-        working-directory: src/frontend
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-      - name: Reuse pnpm downloads with a clean frozen install
-        if: ${{ !inputs.cold-cache }}
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" pnpm-store --cwd src/frontend -- bash -e -o pipefail -c '
+          store_path=$(pnpm store path --silent)
+          test -n "$store_path"
+          echo "path=$store_path" >> "$GITHUB_OUTPUT"
+          '
+      - name: Restore pnpm downloads without installed environments
         id: pnpm-cache
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode) && !inputs.cold-cache
         uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
         with:
           path: ${{ steps.pnpm-store.outputs.path }}
           key: pnpm-${{ runner.os }}-${{ runner.arch }}-node24.15.0-pnpm10.33.0-${{ hashFiles('src/frontend/pnpm-lock.yaml', 'src/frontend/pnpm-workspace.yaml') }}
-      - run: uv sync --frozen --python 3.12.13 --extra server
-      - run: pnpm install --frozen-lockfile
-        working-directory: src/frontend
-      - name: Check shared import and boundary tooling regressions
+      - name: Install frozen frontend dependencies
+        id: pnpm-install
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
         run: |
-          uv run --no-sync python scripts/repository-boundary/audit-classification.py --check 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
-          uv run --no-sync python scripts/repository-boundary/build-provenance.py --check 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
-          uv run --no-sync python scripts/check-repository-dependencies.py 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
-          uv run --no-sync python scripts/repository-boundary/check-python-imports.py 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
-          git lfs fsck 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
-      - name: Run nonempty release and boundary tooling suites
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" pnpm-install --cwd src/frontend -- pnpm install --frozen-lockfile
+      - name: Prepare shared frontend package outputs once
+        id: frontend-prepare
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
         run: |
-          uv run --no-sync python - <<'PYTHON' 2>&1 | tee -a "$RUNNER_TEMP/portable-tooling.log"
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" frontend-prepare --cwd src/frontend -- pnpm packages:build
+      # Lint and repository invariants.
+      - name: Audit typed-content boundaries
+        id: audit
+        if: contains(fromJSON('["full","docs","backend","web"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" audit -- bash scripts/audit-typed-content.sh
+      - name: Check backend formatting
+        id: backend-format
+        if: contains(fromJSON('["full","backend"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" backend-format -- uv run --no-sync ruff format --check src/backend/animama tests
+      - name: Lint Python source and tooling
+        id: backend-lint
+        if: contains(fromJSON('["full","backend"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" backend-lint -- uv run --no-sync ruff check
+      - name: Lint web source
+        id: frontend-lint
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" frontend-lint --cwd src/frontend -- pnpm web:lint
+      - name: Repository Classification
+        id: repository-classification
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" repository-classification -- uv run --no-sync python scripts/repository-boundary/audit-classification.py --check
+      - name: Repository Provenance
+        id: repository-provenance
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" repository-provenance -- uv run --no-sync python scripts/repository-boundary/build-provenance.py --check
+      - name: Repository Imports
+        id: repository-imports
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" repository-imports -- uv run --no-sync python scripts/repository-boundary/check-python-imports.py
+      - name: Check repository dependency boundaries
+        id: repository-dependencies
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" repository-dependencies -- uv run --no-sync python scripts/check-repository-dependencies.py
+      - name: Verify materialized LFS inputs
+        id: lfs-integrity
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" lfs-integrity -- git lfs fsck
+      # Types and generated SDK freshness.
+      - name: Check backend and test types
+        id: backend-types
+        if: contains(fromJSON('["full","backend"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" backend-types -- uv run --no-sync mypy src/backend/animama tests --exclude web-ui --exclude deprecated --exclude templates
+      - name: Check web types
+        id: frontend-types
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" frontend-types --cwd src/frontend -- pnpm --filter animama-web check:source
+      - name: Check desktop types
+        id: desktop-types
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" desktop-types --cwd src/frontend -- pnpm desktop:check
+      - name: Check shared package types
+        id: packages-types
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" packages-types --cwd src/frontend -- pnpm packages:check
+      - name: Check browser harness types
+        id: harness-types
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" harness-types --cwd src/frontend -- pnpm e2e:check:source
+      - name: Check generated SDK freshness
+        id: sdk-freshness
+        if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" sdk-freshness --cwd src/frontend -- pnpm openapi-ts:check
+      # Tests: lightweight profiles have explicit, bounded test selections.
+      - name: Run documentation and source boundary guards
+        id: docs-tests
+        if: steps.select.outputs.mode == 'docs'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" docs-tests -- uv run --no-sync pytest -q tests/test_generate_synthetic_docs.py tests/test_accountless_repository_boundaries.py
+      - name: Run accountless source boundary guards
+        id: accountless-guards
+        if: contains(fromJSON('["backend","web"]'), steps.select.outputs.mode)
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" accountless-guards -- uv run --no-sync pytest -q tests/test_accountless_repository_boundaries.py
+      - name: Run the complete offline backend suite
+        id: backend-tests
+        if: steps.select.outputs.mode == 'full'
+        env:
+          PYTEST_ADDOPTS: --junitxml=${{ runner.temp }}/backend-pytest.xml
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" backend-tests -- uv run --no-sync pytest
+      - name: Run every nonempty CI and release tooling suite
+        id: tooling-tests
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" tooling-tests -- uv run --no-sync python - <<'PYTHON'
           import sys
           import unittest
-
-          for directory in ("scripts/package-sets", "scripts/public-release", "scripts/repository-boundary", "scripts/ci"):
-              suite = unittest.TestLoader().discover(directory, pattern="test_*.py")
+          for directory in ('scripts/package-sets', 'scripts/public-release', 'scripts/repository-boundary'):
+              suite = unittest.TestLoader().discover(directory, pattern='test_*.py')
               count = suite.countTestCases()
-              print(f"{directory}: collected {count} tests", flush=True)
+              print(f'{directory}: collected {count} tests', flush=True)
               if count == 0:
-                  raise SystemExit(f"Required tooling suite collected no tests: {directory}")
+                  raise SystemExit(f'Required suite collected no tests: {directory}')
               if not unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful():
                   raise SystemExit(1)
           PYTHON
-      - name: Install the isolated browser test runtime
-        # Package tests and isolated consumers both launch Chromium. Install it
-        # before the first browser-dependent check on a fresh runner.
-        run: pnpm exec playwright install chromium
-        working-directory: src/frontend
-      - name: Check all frontend source with one shared package build
-        working-directory: src/frontend
+      - name: Install Chromium for full browser-dependent tests
+        id: browser-install
+        if: steps.select.outputs.mode == 'full'
         run: |
-          pnpm ci:source --receipt "$RUNNER_TEMP/frontend-source.json" 2>&1 | tee "$RUNNER_TEMP/frontend-source.log"
-      - name: Run the same accountless browser smoke in both serving modes
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" browser-install --cwd src/frontend -- pnpm exec playwright install chromium
+      - name: Run browser harness unit tests
+        id: harness-unit
+        if: steps.select.outputs.mode == 'full'
         run: |
-          uv run --no-sync python src/frontend/scripts/e2e/run-accountless-smoke.py \
-            --evidence "$RUNNER_TEMP/accountless-smoke"
-      - name: Build unpublished distribution artifacts
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" harness-unit --cwd src/frontend -- pnpm e2e:test:unit
+      - name: Run source runner and E2E script tests
+        id: harness-scripts
+        if: steps.select.outputs.mode == 'full'
         run: |
-          uv run --no-sync python scripts/package-sets/build.py build \
-            --source "$GITHUB_WORKSPACE" --commit "$GITHUB_SHA" \
-            --output "$RUNNER_TEMP/public-artifacts"
-      - name: Verify consumers without a source checkout
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" harness-scripts --cwd src/frontend -- bash -e -o pipefail -c 'node --test scripts/ci-source.test.mjs scripts/e2e/*.test.mjs'
+      - name: Run generated SDK tooling tests
+        id: sdk-tests
+        if: steps.select.outputs.mode == 'full'
         run: |
-          uv run --no-sync python scripts/package-sets/build.py validate \
-            "$RUNNER_TEMP/public-artifacts" \
-            --work-dir "$RUNNER_TEMP/public-consumer"
-      - name: Check Compose structure
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" sdk-tests --cwd src/frontend -- node --test scripts/generate-openapi-client.test.mjs
+      - name: Run shared package tests
+        id: packages-tests
+        if: steps.select.outputs.mode == 'full'
         run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" packages-tests --cwd src/frontend -- pnpm packages:test
+      - name: Run web tests
+        id: web-tests
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" web-tests --cwd src/frontend -- pnpm --filter animama-web test:source
+      - name: Run desktop tests
+        id: desktop-tests
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" desktop-tests --cwd src/frontend -- pnpm desktop:test
+      # Build and rendered browser acceptance.
+      - name: Build the production web app
+        id: web-build
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" web-build --cwd src/frontend -- pnpm --filter animama-web build:source
+      - name: Verify loaded accountless Library in both serving modes
+        id: browser-smoke
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" browser-smoke -- uv run --no-sync python src/frontend/scripts/e2e/run-accountless-smoke.py --evidence "$RUNNER_TEMP/accountless-smoke"
+      # Independent frozen producer and installed consumers remain separate.
+      - name: Build packages from an independent tracked-source snapshot
+        id: package-build
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" package-build -- uv run --no-sync python scripts/package-sets/build.py build --source "$GITHUB_WORKSPACE" --commit "$GITHUB_SHA" --output "$RUNNER_TEMP/public-artifacts"
+      - name: Validate isolated installed package consumers
+        id: package-consumers
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" package-consumers -- uv run --no-sync python scripts/package-sets/build.py validate "$RUNNER_TEMP/public-artifacts" --work-dir "$RUNNER_TEMP/public-consumer"
+      - name: Validate Compose topology
+        id: compose-check
+        if: steps.select.outputs.mode == 'full'
+        run: |
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" compose-check -- bash -e -o pipefail -c '
           bash -n reset.sh
           docker compose -f docker-compose.yml config --quiet
           docker compose -f docker-compose.yml -f docker-compose.development.yml config --quiet
-          docker compose -f docker-compose.yml --profile '*' config --format json | uv run --no-sync python scripts/validate_local_compose.py
-          docker compose -f docker-compose.yml -f docker-compose.development.yml --profile '*' config --format json | uv run --no-sync python scripts/validate_local_compose.py
-      - name: Reclaim completed test environments before the baseline rebuild
-        # The next build creates another isolated dependency tree. Retain package
-        # bytes and test evidence, but release dependencies from completed tests.
+          docker compose -f docker-compose.yml --profile "*" config --format json | uv run --no-sync python scripts/validate_local_compose.py
+          docker compose -f docker-compose.yml -f docker-compose.development.yml --profile "*" config --format json | uv run --no-sync python scripts/validate_local_compose.py
+          '
+      - name: Reclaim completed dependency trees before rebuilding the baseline
+        id: workspace-reclaim
+        if: steps.select.outputs.mode == 'full'
         run: |
-          rm -rf -- "$GITHUB_WORKSPACE/src/frontend/node_modules" \
-            "$RUNNER_TEMP/public-consumer/frontend/node_modules" \
-            "$RUNNER_TEMP/public-consumer/backend/.venv"
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" workspace-reclaim -- bash -e -o pipefail -c '
+          rm -rf -- "$GITHUB_WORKSPACE/src/frontend/node_modules" "$RUNNER_TEMP/public-consumer/frontend/node_modules" "$RUNNER_TEMP/public-consumer/backend/.venv"
           df -h "$RUNNER_TEMP"
-      - name: Resolve exact compatibility baseline
-        id: compatibility
-        run: |
-          python - <<'PYTHON'
-          import json, os, re, subprocess
-          from pathlib import Path
-          event = json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text())
-          if os.environ['GITHUB_EVENT_NAME'] == 'pull_request':
-              base = event['pull_request']['base']['sha']
-          elif os.environ['GITHUB_EVENT_NAME'] == 'push':
-              base = event['before']
-          else:
-              result = subprocess.run(['git', 'rev-parse', 'HEAD^'], capture_output=True, text=True)
-              base = result.stdout.strip() if result.returncode == 0 else '0' * 40
-          if not re.fullmatch('[0-9a-f]{40}', base):
-              raise SystemExit('Invalid compatibility baseline')
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
-              out.write('commit=' + ('' if base == '0' * 40 else base) + '\n')
-          PYTHON
-      - name: Check out exact baseline for provider compatibility
-        if: steps.compatibility.outputs.commit != ''
+          '
+      - name: Check out the exact compatibility baseline
+        id: baseline-checkout
+        if: steps.select.outputs.mode == 'full'
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          ref: ${{ steps.compatibility.outputs.commit }}
+          ref: ${{ steps.select.outputs.baseline }}
           path: .compatibility-base
+          fetch-depth: 1
           lfs: true
           persist-credentials: false
-      - name: Check provider compatibility against exact baseline
-        if: steps.compatibility.outputs.commit != ''
+      - name: Compare the candidate against its independently built exact baseline
+        id: package-compat
+        if: steps.select.outputs.mode == 'full'
         env:
-          BASE_COMMIT: ${{ steps.compatibility.outputs.commit }}
+          BASE_COMMIT: ${{ steps.select.outputs.baseline }}
         run: |
-          if [ -f .compatibility-base/contracts/versions.json ]; then
-            uv run --no-sync python scripts/package-sets/build.py build \
-              --source "$GITHUB_WORKSPACE/.compatibility-base" --commit "$BASE_COMMIT" \
-              --output "$RUNNER_TEMP/base-artifacts"
-            uv run --no-sync python scripts/package-sets/build.py compare \
-              "$RUNNER_TEMP/base-artifacts" "$RUNNER_TEMP/public-artifacts"
-          else
-            echo "Baseline predates the initial versioned package-set contract policy."
-          fi
-      - name: Read package-set identity
-        id: package-set
-        env:
-          SET_DIRECTORY: ${{ runner.temp }}/public-artifacts
-        run: |
-          python - <<'PYTHON'
-          import hashlib, os
-          from pathlib import Path
-          digest = hashlib.sha256((Path(os.environ['SET_DIRECTORY']) / 'manifest.json').read_bytes()).hexdigest()
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
-              out.write('name=animama-set-' + os.environ['GITHUB_SHA'] + '-' + digest + '\n')
-          PYTHON
-      - name: Retain temporary validated PR or commit outputs
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" package-compat -- bash -e -o pipefail -c '
+          uv run --no-sync python scripts/package-sets/build.py build --source "$GITHUB_WORKSPACE/.compatibility-base" --commit "$BASE_COMMIT" --output "$RUNNER_TEMP/base-artifacts"
+          uv run --no-sync python scripts/package-sets/build.py compare "$RUNNER_TEMP/base-artifacts" "$RUNNER_TEMP/public-artifacts"
+          '
+      - name: Retain unpublished validated package outputs
+        id: package-artifacts
+        if: steps.select.outputs.mode == 'full'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: ${{ steps.package-set.outputs.name }}
+          name: animama-set-${{ github.sha }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/public-artifacts/
           if-no-files-found: error
-          retention-days: ${{ needs.validation-plan.outputs.retention }}
-      - name: Retain focused test evidence
+          retention-days: ${{ steps.select.outputs.retention }}
+      - name: Evaluate every required step and check receipt
+        id: gate
+        if: always()
+        env:
+          CI_STEPS: ${{ toJSON(steps) }}
+          CI_PLAN_PATH: ${{ runner.temp }}/selection.json
+          CI_RESULTS_DIR: ${{ runner.temp }}/checks
+        run: python3 scripts/ci/validation.py gate --output "$RUNNER_TEMP/validation.json"
+      - name: Retain success and failure diagnostics
+        id: diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: portable-evidence-${{ github.sha }}-${{ github.run_attempt }}
+          name: validation-evidence-${{ github.sha }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/portable-tooling.log
-            ${{ runner.temp }}/frontend-source.log
+            ${{ runner.temp }}/checks/**/*.log
+            ${{ runner.temp }}/backend-pytest.xml
             ${{ runner.temp }}/accountless-smoke/
             ${{ runner.temp }}/public-consumer/summary.json
             ${{ runner.temp }}/public-consumer/logs/
             ${{ runner.temp }}/public-consumer/frontend/*.png
-          retention-days: ${{ job.status != 'success' && 14 || needs.validation-plan.outputs.retention }}
-      - name: Record portable results and download cache state
-        if: always()
-        env:
-          CI_STEPS: ${{ toJSON(steps) }}
-          CI_JOB: portable-product
-        run: python3 scripts/ci/job_receipt.py --output "$RUNNER_TEMP/portable-receipt.json"
-      - name: Retain compact portable receipts
+          retention-days: ${{ job.status != 'success' && 14 || steps.select.outputs.retention || 14 }}
+      - name: Retain compact source-bound acceptance receipts
+        id: receipts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: portable-receipt-${{ github.sha }}-${{ github.run_attempt }}
+          name: validation-receipt-${{ github.sha }}-${{ github.run_attempt }}
           path: |
-            ${{ runner.temp }}/portable-receipt.json
-            ${{ runner.temp }}/frontend-source.json
-          retention-days: 14
-
-  validation:
-    needs: [validation-plan, backend-static-tests, portable-product]
-    if: always()
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          ref: ${{ github.sha }}
-          lfs: false
-          persist-credentials: false
-      - name: Require every selected job to succeed
-        env:
-          CI_PLAN: ${{ needs.validation-plan.outputs.plan }}
-          CI_NEEDS: ${{ toJSON(needs) }}
-        run: python3 scripts/ci/validation.py gate --output "$RUNNER_TEMP/validation.json"
-      - name: Retain aggregate acceptance receipt
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: validation-${{ github.sha }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/validation.json
+            ${{ runner.temp }}/selection.json
+            ${{ runner.temp }}/validation.json
+            ${{ runner.temp }}/checks/**/*.json
+          if-no-files-found: error
           retention-days: 14

@@ -1,6 +1,6 @@
 ## Summary
 
-<!-- What problem does this solve, and how does behavior change? -->
+<!-- Describe the problem and resulting behavior. -->
 
 ## Related issue (optional)
 
@@ -8,26 +8,25 @@
 
 ## Local validation
 
-<!-- Record the tested commit or working-tree state, exact commands and results.
-Choose checks relevant to this change; list anything not run and why.
-Use read-only verification (for example, make format-check), not a formatter
-that rewrites files. Fix local failures before pushing a CI candidate. -->
+<!-- Record exact source state, baseline, commands, results and environment.
+For local-first reduction, link the generated receipt and digest. Only the owner
+can review it; an agent-prepared receipt is not owner approval. -->
 
 ## CI validation
 
-<!-- Link relevant runs/checks and record passed, pending, failed or not run.
-Keep clean-runner, Linux/Docker, consumer and browser evidence separate from
-local results. A deferred draft is not passing validation. -->
+<!-- Link the run and state its actual Validation profile and result. Distinguish
+checks executed in CI from owner-reviewed local assertions replacing hosted work.
+A deferred draft is not passing validation. -->
 
 ## UI evidence
 
-<!-- For UI/runtime changes, attach screenshots or actual browser results,
-including the tested serving mode. Otherwise write "Not applicable". -->
+<!-- When relevant, link rendered evidence and serving mode; distinguish synthetic
+fixtures from real avatar/audio acceptance. Otherwise write "Not applicable". -->
 
 ## Risks and limitations
 
-<!-- Note compatibility changes, unperformed checks, environment limitations,
-unresolved failures and follow-up work. Write "None identified" if appropriate. -->
+<!-- Disclose unresolved failures, compatibility risks and unperformed checks.
+Write "None identified" only if true. -->
 
 ## Checklist
 

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
+import hashlib
+import io
 import json
 import os
 import subprocess
@@ -11,6 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import validation
+from validation_policy import UNTIMED, choose_plan
 
 
 class GitSelectionTests(unittest.TestCase):
@@ -46,6 +50,27 @@ class GitSelectionTests(unittest.TestCase):
             "number": 12,
             "pull_request": {"head": {"sha": head}, "base": {"sha": self.base}, "draft": False, "labels": []},
         }
+
+    def run_plan(self, event_name, event):
+        event_path = Path(self.directory.name) / "event.json"
+        event_path.write_text(json.dumps(event))
+        receipt = Path(self.directory.name) / "selection.json"
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "GITHUB_EVENT_NAME": event_name,
+                    "GITHUB_EVENT_PATH": str(event_path),
+                    "GITHUB_WORKFLOW": validation.WORKFLOW,
+                    "GITHUB_SHA": self.git("rev-parse", "HEAD"),
+                    "GITHUB_OUTPUT": str(Path(self.directory.name) / "outputs"),
+                    "CI_INPUTS": "{}",
+                },
+            ),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            validation.plan(self.root, receipt)
+        return json.loads(receipt.read_text())
 
     def test_complete_diff_includes_earlier_commits(self):
         self.write("docs/backend/a.md", "earlier\n")
@@ -93,7 +118,7 @@ class GitSelectionTests(unittest.TestCase):
         data = json.loads(receipt.read_text())
         self.assertEqual(data["plan"]["mode"], "docs")
         self.assertEqual(data["source_tree"], self.git("rev-parse", "HEAD^{tree}"))
-        self.assertIn("backend=docs\n", output_path.read_text())
+        self.assertIn("mode=docs\n", output_path.read_text())
 
     def test_incomplete_history_cannot_select_docs(self):
         event = self.event("f" * 40)
@@ -110,6 +135,70 @@ class GitSelectionTests(unittest.TestCase):
         self.assertIn("docs/backend/a.md", excluded)
         self.assertIn("docs/frontend/b.md", excluded)
 
+    def test_main_push_uses_complete_before_to_head_diff_for_docs(self):
+        self.write("docs/backend/a.md", "earlier main change\n")
+        self.commit("earlier")
+        self.write("docs/frontend/b.md", "latest main change\n")
+        head = self.commit("latest")
+        with patch("github_evidence.review_for_event") as review:
+            receipt = self.run_plan("push", {"ref": "refs/heads/main", "before": self.base, "after": head})
+        review.assert_not_called()
+        self.assertEqual(receipt["plan"]["mode"], "docs")
+        self.assertEqual(receipt["base"], self.base)
+        self.assertEqual(receipt["merge_base"], self.base)
+        self.assertEqual({row["path"] for row in receipt["changes"]}, {"docs/backend/a.md", "docs/frontend/b.md"})
+
+    def test_narrow_code_uses_only_positive_review_for_exact_source(self):
+        self.write("tests/test_example.py", "assert True\n")
+        self.base = self.commit("existing test")
+        self.write("tests/test_example.py", "assert 1 == 1\n")
+        head = self.commit("test update")
+        for event_name, event in (
+            ("pull_request", self.event(head)),
+            ("push", {"ref": "refs/heads/main", "before": self.base, "after": head}),
+        ):
+            for reviewed in (True, False, 1, None):
+                with patch(
+                    "github_evidence.review_for_event", return_value={"accepted": reviewed, "reason": "fixture"}
+                ) as review:
+                    receipt = self.run_plan(event_name, event)
+                self.assertEqual(receipt["plan"]["mode"], "backend" if reviewed is True else "full")
+                review.assert_called_once()
+                self.assertEqual(review.call_args.kwargs["source_commit"], head)
+                self.assertEqual(review.call_args.kwargs["source_tree"], self.git("rev-parse", "HEAD^{tree}"))
+                self.assertEqual(review.call_args.kwargs["baseline"], self.base)
+                self.assertEqual(set(review.call_args.kwargs["required_checks"]), {"backend-full"})
+
+    def test_high_risk_path_and_explicit_full_do_not_consult_local_review(self):
+        self.write("uv.lock", "version = 1\n")
+        self.base = self.commit("lockfile exists")
+        self.write("uv.lock", "version = 2\n")
+        head = self.commit("lockfile change")
+        with patch("github_evidence.review_for_event") as review:
+            receipt = self.run_plan("pull_request", self.event(head))
+        review.assert_not_called()
+        self.assertEqual(receipt["plan"]["mode"], "full")
+
+    def test_missing_or_malformed_main_baseline_cannot_reduce(self):
+        self.write("docs/backend/a.md", "updated\n")
+        head = self.commit("docs")
+        with (
+            patch("validation.fetch", side_effect=ValueError("fixture missing base")),
+            patch("github_evidence.review_for_event") as review,
+        ):
+            receipt = self.run_plan("push", {"ref": "refs/heads/main", "before": "f" * 40, "after": head})
+        self.assertEqual(receipt["plan"]["mode"], "full")
+        self.assertIsNotNone(receipt["diff_error"])
+        review.assert_not_called()
+        for baseline in (None, "not-a-sha", "0" * 40):
+            with (
+                patch("validation.fetch", side_effect=ValueError("fixture missing base")),
+                self.assertRaises(ValueError),
+            ):
+                self.run_plan("push", {"ref": "refs/heads/main", "before": baseline, "after": head})
+            receipt = json.loads((Path(self.directory.name) / "selection.json").read_text())
+            self.assertEqual(receipt["plan"]["mode"], "full")
+
 
 class InputBoundaryTests(unittest.TestCase):
     def test_renames_deletions_and_unusual_filenames(self):
@@ -121,10 +210,105 @@ class InputBoundaryTests(unittest.TestCase):
                 validation.parse_changes(malformed)
 
     def test_gate_writes_failure_for_absent_plan(self):
-        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {"CI_PLAN": "", "CI_NEEDS": "{}"}):
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch.dict(
+                os.environ, {"CI_PLAN_PATH": "/nonexistent-selection", "CI_STEPS": "{}", "CI_RESULTS_DIR": directory}
+            ),
+        ):
             output = Path(directory) / "gate.json"
             self.assertEqual(validation.gate(output), 1)
             self.assertFalse(json.loads(output.read_text())["success"])
+
+
+class GateReceiptTests(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.checks = self.root / "checks"
+        self.checks.mkdir()
+        self.plan = choose_plan("workflow_dispatch", {}, None)
+        self.selection = self.root / "selection.json"
+        self.selection.write_text(json.dumps({"plan": self.plan, "source_commit": "a" * 40, "source_tree": "b" * 40}))
+        self.steps = {name: {"outcome": "success", "conclusion": "success"} for name in self.plan["required"]}
+        for name in set(self.plan["required"]) - UNTIMED:
+            self.write_check(name)
+
+    def write_check(self, name, **changes):
+        log = f"Synthetic unit-test command record for {name}\n".encode()
+        (self.checks / f"{name}.log").write_bytes(log)
+        record = {
+            "id": name,
+            "status": "passed",
+            "exit_code": 0,
+            "duration_seconds": 1.25,
+            "command": ["fixture-check", name],
+            "log_sha256": hashlib.sha256(log).hexdigest(),
+        } | changes
+        (self.checks / f"{name}.json").write_text(json.dumps(record))
+
+    def gate(self):
+        output = self.root / "gate.json"
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "CI_PLAN_PATH": str(self.selection),
+                    "CI_STEPS": json.dumps(self.steps),
+                    "CI_RESULTS_DIR": str(self.checks),
+                    "GITHUB_STEP_SUMMARY": str(self.root / "summary.md"),
+                },
+            ),
+            contextlib.redirect_stdout(io.StringIO()),
+        ):
+            code = validation.gate(output)
+        return code, json.loads(output.read_text())
+
+    def test_full_gate_requires_successful_hashed_command_receipts(self):
+        code, receipt = self.gate()
+        self.assertEqual(code, 0)
+        self.assertTrue(receipt["success"])
+        self.assertEqual({item["id"] for item in receipt["checks"]}, set(self.plan["required"]) - UNTIMED)
+        self.assertIn("package-compat", (self.root / "summary.md").read_text())
+
+    def test_early_policy_failure_and_late_compatibility_failure_are_rejected(self):
+        for name in ("ci-policy-tests", "package-compat"):
+            for conclusion in ("failure", "success"):
+                self.steps[name] = {"outcome": "failure", "conclusion": conclusion}
+                self.write_check(name, status="failed", exit_code=1)
+                code, receipt = self.gate()
+                self.assertEqual(code, 1)
+                self.assertFalse(receipt["success"])
+                self.steps[name] = {"outcome": "success", "conclusion": "success"}
+                self.write_check(name)
+
+    def test_missing_command_receipt_and_unexpected_required_skip_cannot_pass(self):
+        path = self.checks / "package-compat.json"
+        path.unlink()
+        self.assertEqual(self.gate()[0], 1)
+        self.write_check("package-compat")
+        self.steps["package-compat"] = {"outcome": "skipped", "conclusion": "skipped"}
+        self.assertEqual(self.gate()[0], 1)
+        del self.steps["package-compat"]
+        self.assertEqual(self.gate()[0], 1)
+
+    def test_changed_missing_and_malformed_diagnostics_fail_closed(self):
+        path = self.checks / "package-compat.log"
+        path.write_text("changed after receipt\n")
+        self.assertEqual(self.gate()[0], 1)
+        path.unlink()
+        self.assertEqual(self.gate()[0], 1)
+        for changes in (
+            {"duration_seconds": 10**400},
+            {"duration_seconds": -1},
+            {"duration_seconds": True},
+            {"command": []},
+            {"exit_code": True},
+            {"status": "skipped"},
+        ):
+            self.write_check("package-compat", **changes)
+            self.assertEqual(self.gate()[0], 1)
 
 
 if __name__ == "__main__":

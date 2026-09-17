@@ -287,9 +287,11 @@ The required-name smoke job uses a fresh runner profile, not a local Compose
 stack. It checks blank-name rejection and successful named setup in one run.
 
 After the maintainer/main guard, `source-validation` reuses
-`.github/workflows/validate-public.yml` from the same commit. Its independent
-backend/static and portable product jobs must both succeed before either the
-release build or `prepare-worker` can reach signing credentials. Checkout uses
+`.github/workflows/validate-public.yml` from the same commit. Its single
+`Validation` job always executes the full backend/static and portable product
+contract for release callers before either the release build or `prepare-worker`
+can reach signing credentials. Local receipts and routine-change reductions are
+not substitutes for this release gate. Checkout uses
 the dispatch's immutable `github.sha` throughout; this gate does not consult a
 previous branch run or assume a moving `main` is validated. Release secrets are
 not passed to reusable source validation. Backend or asset failures block signing

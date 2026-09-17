@@ -45,10 +45,12 @@ jobs:
 
   source-validation:
     # Local reuse loads this workflow at the caller's exact commit. No release
-    # secrets are inherited; both ordinary validation jobs must pass first.
+    # secrets are inherited; the single Validation job must pass first.
     needs: release-policy
     permissions:
       contents: read
+      actions: read
+      pull-requests: read
     uses: ./.github/workflows/validate-public.yml
 
   prepare-worker:

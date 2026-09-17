@@ -5,13 +5,15 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
+import math
 import os
 import re
 import subprocess
 from pathlib import Path
 
-from validation_policy import choose_plan, evaluate
+from validation_policy import LOCAL_CHECKS, UNTIMED, choose_plan, classify, evaluate
 
 SHA = re.compile(r"[0-9a-f]{40}")
 WORKFLOW = "Portable product validation"
@@ -126,100 +128,204 @@ def write_json(path: Path, value: object) -> None:
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n")
 
 
+def hydrate(root: Path) -> None:
+    """Reuse the candidate checkout; authenticate LFS only for this subprocess."""
+    env = os.environ.copy()
+    token = env.pop("CI_READ_TOKEN", "")
+    if token:
+        authorization = base64.b64encode(f"x-access-token:{token}".encode()).decode()
+        env.update(
+            GIT_CONFIG_COUNT="1",
+            GIT_CONFIG_KEY_0="http.https://github.com/.extraheader",
+            GIT_CONFIG_VALUE_0=f"AUTHORIZATION: basic {authorization}",
+        )
+    git(root, "lfs", "fetch", "origin", "HEAD", env=env)
+    git(root, "lfs", "checkout", env=env)
+    git(root, "lfs", "fsck", env=env)
+
+
 def plan(root: Path, output: Path) -> None:
+    from datetime import UTC, datetime
+
+    from github_evidence import periodic_unchanged, review_for_event
+
     event_name = os.environ["GITHUB_EVENT_NAME"]
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
     inputs = json.loads(os.environ.get("CI_INPUTS", "{}"))
-    # A reusable workflow inherits its caller's event. Its declared marker is
-    # mandatory/full; callers cannot lower it to request a reduced release gate.
+    if not isinstance(event, dict) or not isinstance(inputs, dict):
+        raise ValueError("Malformed event or workflow inputs")
     if "full-validation" in inputs and inputs["full-validation"] is not True:
         raise ValueError("Reusable validation must request the complete contract")
     reusable = "full-validation" in inputs or os.environ.get("GITHUB_WORKFLOW") != WORKFLOW
+    source = exact_sha(git(root, "rev-parse", "HEAD").decode().strip())
+    tree = git(root, "rev-parse", "HEAD^{tree}").decode().strip()
+    if source != exact_sha(os.environ["GITHUB_SHA"]):
+        raise ValueError("Checked-out source differs from the workflow source")
     changes, merge_base, error = None, None, None
-    if event_name == "pull_request":
-        try:
+    baseline = None
+    try:
+        if event_name == "pull_request":
+            baseline = exact_sha(event["pull_request"]["base"]["sha"])
             changes, merge_base = discover(root, event)
-        except (ValueError, KeyError, TypeError, UnicodeError) as exc:
-            error = str(exc)
+        elif event_name == "push":
+            baseline = exact_sha(event["before"])
+            try:
+                git(root, "cat-file", "-e", baseline + "^{commit}")
+            except ValueError:
+                fetch(root, [baseline], 1)
+            changes = parse_changes(git(root, "diff", "--name-status", "-z", "--find-renames", baseline, source, "--"))
+            merge_base = baseline
+        else:
+            baseline = exact_sha(git(root, "rev-parse", "HEAD^").decode().strip())
+    except (ValueError, KeyError, TypeError, UnicodeError) as exc:
+        error = str(exc)
     try:
         excluded = provenance_paths(root) | special_inputs(root, merge_base, changes)
     except (ValueError, KeyError, TypeError, OSError):
         excluded, error = set(), "Cannot establish provenance exclusions"
+    # First classify without evidence. High-risk/full requests never consult a receipt.
     selected = choose_plan(event_name, event, changes, error, reusable, excluded)
-    source = exact_sha(git(root, "rev-parse", "HEAD").decode().strip())
-    if source != exact_sha(os.environ["GITHUB_SHA"]):
-        raise ValueError("Checked-out source differs from the workflow source")
-    pr = event.get("pull_request")
-    pr = pr if isinstance(pr, dict) else {}
-    head_record = pr.get("head")
-    base_record = pr.get("base")
-    labels = pr.get("labels")
-    labels = labels if isinstance(labels, list) else []
+    area = classify(changes, excluded)
+    reviewed = {"accepted": False, "reason": "Not applicable to this selection"}
+    pr = event.get("pull_request", {})
+    labels = pr.get("labels", []) if isinstance(pr, dict) else []
+    explicit = (
+        reusable
+        or event_name == "workflow_dispatch"
+        or any(
+            isinstance(label, dict) and label.get("name") == "ci:full"
+            for label in (labels if isinstance(labels, list) else [])
+        )
+    )
+    if not explicit and selected["mode"] != "deferred" and not error and area in LOCAL_CHECKS:
+        reviewed = review_for_event(
+            event_name,
+            event,
+            source_commit=source,
+            source_tree=tree,
+            baseline=baseline,
+            required_checks=LOCAL_CHECKS[area],
+            now=datetime.now(UTC),
+        )
+        selected = choose_plan(
+            event_name, event, changes, error, reusable, excluded, local_reviewed=reviewed.get("accepted") is True
+        )
+    if event_name == "schedule" and not reusable:
+        selected = choose_plan(
+            event_name, event, changes, reusable=False, periodic_unchanged=periodic_unchanged(source)
+        )
     receipt = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source_commit": source,
-        "source_tree": git(root, "rev-parse", "HEAD^{tree}").decode().strip(),
+        "source_tree": tree,
         "event": event_name,
         "action": event.get("action"),
         "reusable": reusable,
         "pull_request": event.get("number"),
-        "head": head_record.get("sha") if isinstance(head_record, dict) else None,
-        "base": base_record.get("sha") if isinstance(base_record, dict) else event.get("before"),
+        "head": pr.get("head", {}).get("sha") if isinstance(pr, dict) and isinstance(pr.get("head"), dict) else None,
+        "base": baseline,
         "merge_base": merge_base,
         "changes": changes,
         "diff_error": error,
         "plan": selected,
+        "local_evidence": reviewed,
         "run_id": os.environ.get("GITHUB_RUN_ID"),
         "run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
         "cold_cache": inputs.get("cold-cache", False),
     }
     write_json(output, receipt)
     with open(os.environ["GITHUB_OUTPUT"], "a") as target:
-        target.write("plan=" + json.dumps(selected, separators=(",", ":")) + "\n")
-        target.write("backend=" + selected["backend"] + "\n")
-        target.write("portable=" + str(selected["portable"]).lower() + "\n")
-        target.write("tree=" + receipt["source_tree"] + "\n")
-        explicit = (
-            reusable
-            or event_name == "workflow_dispatch"
-            or any(isinstance(label, dict) and label.get("name") == "ci:full" for label in labels)
-        )
-        target.write(f"retention={14 if explicit else 3}\n")
+        target.write("mode=" + selected["mode"] + "\n")
+        target.write("baseline=" + (baseline or "") + "\n")
+        target.write(f"retention={14 if explicit or event_name == 'schedule' else 3}\n")
+    if selected["mode"] == "full" and (baseline is None or baseline == "0" * 40):
+        raise ValueError("Full validation requires an exact compatibility baseline")
     print(json.dumps(receipt, indent=2))
 
 
+def check_receipts(directory: Path, selected: object) -> tuple[list[dict], str | None]:
+    """A successful command must also leave its duration and matching diagnostic log."""
+    checks = []
+    try:
+        for path in sorted(directory.glob("*.json")):
+            check = json.loads(path.read_text())
+            if not isinstance(check, dict) or check.get("id") != path.stem:
+                raise ValueError("Malformed check identity")
+            duration = check.get("duration_seconds")
+            if type(duration) not in (int, float) or not math.isfinite(duration) or duration < 0:
+                raise ValueError("Malformed check duration")
+            if (
+                not isinstance(check.get("command"), list)
+                or not check["command"]
+                or any(not isinstance(arg, str) for arg in check["command"])
+            ):
+                raise ValueError("Malformed check command")
+            if check.get("log_sha256") != hashlib.sha256(path.with_suffix(".log").read_bytes()).hexdigest():
+                raise ValueError("Missing or changed check log")
+            if check.get("status") not in ("passed", "failed") or type(check.get("exit_code")) is not int:
+                raise ValueError("Malformed command result")
+            checks.append(check)
+        if any(row["status"] != "passed" or row["exit_code"] != 0 for row in checks):
+            return checks, "One or more command receipts report failure"
+        if isinstance(selected, dict) and isinstance(selected.get("required"), list):
+            required = set(selected["required"]) - UNTIMED
+            passed = {
+                row["id"]
+                for row in checks
+                if row.get("status") == "passed" and type(row.get("exit_code")) is int and row["exit_code"] == 0
+            }
+            if required - passed:
+                return checks, "Missing or unsuccessful command receipts: " + ", ".join(sorted(required - passed))
+    except (OSError, ValueError, TypeError, KeyError, OverflowError):
+        return checks, "Malformed command receipt or missing diagnostic log"
+    return checks, None
+
+
 def gate(output: Path) -> int:
-    """Always write an acceptance receipt, even for invalid or absent router output."""
+    """Evaluate actual step outcomes and preserve a receipt even after early failure."""
     try:
-        needs = json.loads(os.environ.get("CI_NEEDS", "{}"))
-    except ValueError:
-        needs = None
+        selection = json.loads(Path(os.environ["CI_PLAN_PATH"]).read_text())
+        selected = selection["plan"]
+    except (OSError, KeyError, ValueError, TypeError):
+        selection, selected = None, None
     try:
-        selected = json.loads(os.environ.get("CI_PLAN", ""))
+        steps = json.loads(os.environ.get("CI_STEPS", "{}"))
     except ValueError:
-        selected = None
-    result = evaluate(selected, needs)
-    receipt = {
-        "schema_version": 1,
-        "source_commit": os.environ.get("GITHUB_SHA"),
-        "event": os.environ.get("GITHUB_EVENT_NAME"),
-        "plan": selected,
-        "needs": needs,
-        **result,
-    }
+        steps = None
+    result = evaluate(selected, steps)
+    directory = Path(os.environ.get("CI_RESULTS_DIR", str(Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "checks")))
+    checks, receipt_error = check_receipts(directory, selected)
+    if receipt_error:
+        result = {"success": False, "reason": receipt_error}
+    receipt = {"schema_version": 2, "selection": selection, "steps": steps, "checks": checks, **result}
     write_json(output, receipt)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a") as target:
-            target.write("## Validation acceptance\n\n" + result["reason"] + "\n")
+            target.write("## Validation\n\n" + result["reason"] + "\n\n")
+            if (
+                isinstance(selected, dict)
+                and isinstance(selected.get("mode"), str)
+                and isinstance(selected.get("reason"), str)
+            ):
+                target.write("Profile: **" + selected["mode"] + "**. " + selected["reason"] + "\n\n")
+                target.write("Local assertions are owner-reviewed, not independently executed by this runner.\n\n")
+            target.write("| Check | Result | Seconds |\n| --- | --- | ---: |\n")
+            for check in checks:
+                target.write(f"| {check['id']} | {check['status']} | {check['duration_seconds']} |\n")
     print(json.dumps(receipt, indent=2))
     return 0 if result["success"] else 1
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("operation", choices=("plan", "gate"))
-    parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("operation", choices=("plan", "gate", "hydrate"))
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
+    if args.operation == "hydrate":
+        hydrate(Path.cwd())
+        return 0
+    if args.output is None:
+        parser.error("--output is required for plan and gate")
     if args.operation == "gate":
         return gate(args.output)
     plan(Path.cwd(), args.output)

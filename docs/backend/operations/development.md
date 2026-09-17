@@ -669,8 +669,11 @@ For each candidate, record the tested commit or working-tree state, exact comman
 results and material environment limitations. Mark checks not run explicitly,
 with the reason. A local browser test is actual UI evidence only if it ran the
 application and rendered the relevant journey; harness unit tests are separate.
-Local success does not replace required clean-runner CI, Linux/Docker tests,
-isolated package consumers or actual browser acceptance in each serving mode.
+Local and hosted results have different trust boundaries. The policy below permits
+fresh owner-reviewed local receipts to replace selected expensive hosted checks
+only for narrow routine changes. Record that substitution explicitly; do not
+report the omitted checks as independently run by GitHub Actions. High-risk changes
+and full requests keep complete hosted validation.
 
 Use the default [pull request template](../../../.github/pull_request_template.md)
 to describe the problem/result and keep local, CI and UI evidence separate. Its
@@ -693,114 +696,139 @@ make check-test
 touches behavior and time allows. Install `ripgrep` for the typed-content audit;
 CI installs this prerequisite explicitly on its Ubuntu runner.
 
-The `Portable product validation` workflow plans each run in `validation-plan`,
-then retains independent, parallel `backend-static-tests` and `portable-product`
-jobs when both are selected. The final `validation` job always evaluates the
-plan and job results. Use this stable aggregate as the future required-check
-name; selecting a smaller profile does not make an unexpected skipped or failed
-required job successful. Remote branch enforcement still requires owner setup.
+### Local-first hosted validation
 
-For pull requests, the plan uses the complete changed-path set and defaults to
-full verification whenever classification is uncertain:
+`Portable product validation` has one hosted job named **Validation** (job ID
+`validation`). Its visible steps run setup, lint, types, tests, build and
+browser/package checks in sequence. The final gate always evaluates the selected
+profile, actual step results and source-bound command receipts. Missing, skipped,
+failed or cancelled required checks cannot pass. Use `Validation` when configuring
+future required checks; changing the workflow does not configure branch protection.
 
-| Change profile | Backend verification | Portable verification |
+This is the proposed local-first policy. Weekly scheduling and default-branch
+behavior do not activate before the workflow reaches the default branch. A passing
+implementation run is not owner acceptance of the coverage or budget tradeoff.
+
+| Change or request | Independently executed hosted scope | Local evidence needed for reduction |
 | --- | --- | --- |
-| Modified existing, eligible documentation only | Typed-content audit and synthetic-document/accountless repository tests | Not required |
-| Ordinary backend test-only changes | Complete `make check-test` | Not required |
-| Narrow web or Electron implementation changes | Typed-content audit and accountless repository tests | Complete portable job |
-| Other or mixed changes | Complete `make check-test` | Complete portable job |
+| Modified eligible documentation only | Frozen Python install, typed-content audit, synthetic-document and accountless repository tests | None |
+| Allowlisted existing backend tests or pure formatter | Frozen Python install, typed-content audit, format/Ruff/mypy and accountless repository guards | Full backend checks in a fresh reviewed receipt |
+| Allowlisted web UI implementation | Frozen Python/frontend installs, package preparation, web lint, web/desktop/package/harness types, SDK freshness and accountless guards | Complete frontend source checks and both rendered browser modes in a fresh reviewed receipt |
+| High-risk, mixed, added/deleted/renamed, unknown or uncertain inputs | Full hosted validation | Local evidence cannot narrow these changes |
+| Persistent `ci:full`, manual dispatch or release reuse | Full hosted validation of exact source | No substitution |
+| Draft without `ci:full` | Selection and a non-accepting final gate | Draft deferral is not acceptance |
 
-Documentation eligibility excludes repository instructions, package metadata,
-provenance-linked notices, build inputs, and additions/deletions. Implementation
-profiles exclude shared/generated contracts, content, runtime schemas, build
-configuration, dependency manifests, and unknown paths. The checked-in selector
-owns the exact allowlists; a directory name alone is insufficient justification
-to omit verification.
+The selector owns the exact allowlists. Backend production eligibility initially
+contains only `src/backend/animama/app/services/memory_entry_diff.py`; ordinary
+root-level `tests/test_*.py` files exclude shared guards and fixture/helper code.
+Web eligibility is confined to existing `.ts`, `.tsx` and `.css` files in
+`web/src/ui` and `web/src/components`, with additional exclusions for generated,
+vendor, catalog, runtime, auth, owner/bootstrap, voice/speech, avatar/canvas, chat
+and content paths. Directory location alone is not permission to reduce checks.
+Repository instructions, provenance evidence, executable/symlink/LFS inputs,
+configuration, dependency/build inputs and shared contracts remain full scope.
 
-Draft pull requests defer expensive validation with a non-success aggregate.
-The persistent `ci:full` label overrides both draft deferral and narrow selection.
-Pull-request edits and label changes trigger replanning, as do source updates
-and transitions to ready for review. Pushes to `main`, manual dispatch, and
-workflow reuse always run full verification. Removing an override must not
-leave a previous successful result standing in for the newly selected plan.
+### Produce and review a local receipt
 
-The docs profile installs the same frozen Python environment, including the
-development group, but needs no LFS hydration, Docker, Node, or browser setup:
+Use the committed candidate and exact comparison baseline, expressed as full
+40-character SHAs. The output must be a new or empty absolute directory outside
+the checkout. Docker must be available, along with locally cached, hash-verified
+LFS objects required by the selected source.
 
 ```bash
-uv sync --frozen --python 3.12.13 --extra server
-bash scripts/audit-typed-content.sh
-ANIMAMA_RUN_LIVE_TESTS=0 uv run --no-sync pytest -q \
-  tests/test_generate_synthetic_docs.py \
-  tests/test_accountless_repository_boundaries.py
+python3 scripts/ci/local_validate.py \
+  --commit FULL_SHA \
+  --baseline FULL_SHA \
+  --profile backend \
+  --output /absolute/empty/external/directory
 ```
 
-The narrow implementation profile uses the same installation and audit, with
-only `tests/test_accountless_repository_boundaries.py` in its backend pytest
-command. Full backend verification runs `make check-test`: typed-content audit,
-formatting, Ruff, mypy, and the complete offline pytest suite. `UV_NO_SYNC=1`
-prevents those commands from resolving dependencies again. Missing required
-fixtures remain failures, never automatic skips. Standalone local commands
-retain their existing dependency preparation. CI uses
-`pnpm ci:source --receipt /absolute/path/outside/repository/source.json` from
-`src/frontend`: it builds shared packages once, then runs the harness, SDK,
-frontend, package and desktop checks against those same outputs. Each command's
-duration and result is retained; failed preparation stops dependent checks.
-The tracked-source artifact producer still performs its own clean installation
-and build, and isolated consumers retain their separately resolved graphs.
+Use `--profile web` for the allowed UI changes, or `--profile full` for the full
+local contract. The runner creates a tracked-only source copy and fresh Linux
+environment with Python 3.12.13, uv 0.11.28, Node 24.15.0 and pnpm 10.33.0.
+It uses frozen installations; existing `.venv`, `node_modules`, ignored content,
+package outputs and application credentials are not copied into the source.
+Provider calls remain disabled. Retain invocation, command logs and results.
 
-The independent `portable-product` job checks repository ownership/provenance,
-shared imports, package-set and public-release tooling, frontend and desktop
-source, generated SDK freshness, both Compose graphs, and unpublished package
-consumers/compatibility. Its additional frontend checks, run from `src/frontend`,
-are `pnpm e2e:check`, `pnpm e2e:test:unit`,
-`node --test scripts/e2e/*.test.mjs`,
-`node --test scripts/generate-openapi-client.test.mjs`, and
-`pnpm openapi-ts:check`. The harness checks do not start the full application or
-prove both serving modes. Chromium is installed before package browser tests.
-After building, CI also runs the same rendered Library/setup smoke through
-Vite development and FastAPI built serving with fresh owned PostgreSQL containers
-and original synthetic content. See the [bounded browser smoke](../../frontend/testing/browser-journeys.md)
-for the reproducible command and its limits. This proves accountless startup and
-Library behavior; real user-supplied animation acquisition and playback remain
-separate acceptance.
-Each of the four Python tooling families (package sets, public release,
-repository boundary, CI policy) must collect at least one test and
-pass its full discovered suite; an empty family is a failure.
-Run `make check-ci` for selection, Git-discovery and aggregate regression tests.
+A successful run writes `receipt-comment.md` and `receipt-sha256.txt` beside the
+receipt. The receipt binds commit/tree, baseline, environment, commands, outcomes,
+durations and log hashes. With explicit authorization to post, submit the generated
+receipt comment to the PR. The repository owner must inspect the evidence and
+separately post the exact review line:
 
-The aggregate checks the selected jobs, rather than treating package artifacts
-as proof of the independent backend result. Explicit Bash pipe failure handling
-keeps logged failures nonzero. The workflow retains plan and verification evidence
-so a narrow or deferred run can be distinguished from complete source validation.
+```text
+animama-local-review-v1 RECEIPT_SHA256
+```
 
-Compact selection and aggregate receipts remain available for 14 days. Failures
-retain detailed evidence for 14 days; ordinary successful detailed logs and
-package archives expire after 3 days. Explicit `ci:full`, manual, and reusable
-full runs retain evidence for 14 days.
+Preparing a receipt or its proposed review text does not constitute owner review.
+An agent must not publish that line while pretending the owner reviewed the logs.
+Both evidence and review must be fresh within seven days and match the exact
+source and baseline; stale, missing, mismatched, failed or unverifiable evidence
+falls back to full hosted validation. This is an owner-reviewed assertion whose
+identity is checked through GitHub, not independent execution attested by Actions.
+Replanning occurs on the workflow's existing source/ready/edit/label events;
+a comment alone does not imply a new run has been scheduled. The persistent
+`ci:full` label can request full validation without any local substitution.
 
-To review a run, open its Actions summary and download the `selection-*`,
-`validation-*`, and applicable `*-receipt-*` artifacts. The selection records
-the source commit/tree, event, PR base and merge-base, complete changed paths,
-and selection reason. Pair it with the aggregate result and job receipts from
-the same run and attempt; a source receipt alone is not acceptance. Use the run's
-job timestamps to round each executed job separately, including routing and
-aggregation. Cache-enabled runs count as warm evidence only when the job
-receipts confirm hits. Compare full runs with the same source and compatibility
-baseline, and include failed or cancelled attempts in the total.
+### Main, periodic and release behavior
 
-Dependency caches are keyed to Linux x64, lockfile hashes, and pinned toolchains:
-uv 0.11.28/Python 3.12.13 and pnpm 10.33.0/Node 24.15.0. Setup-uv manages its
-native cache; the pnpm store uses a separate Actions cache. Restored caches never
-replace frozen installation or validation. The manual cold-cache input disables
-cache restoration/saving without reducing checks.
+A routine code push to `main` may use reduced validation only when the policy
+finds the exact merged PR and reviewed receipt bound to the integrated commit,
+tree and push's before-baseline. A successful PR-head result alone is insufficient.
+Direct pushes, unsupported merge identities, stale evidence and unavailable API
+records retain full validation. Release callers always validate their exact
+checkout in full and do not rely on previous branch runs or local assertions.
+
+The proposed weekly backstop runs Monday at **09:17 UTC**. Changed main receives
+full validation; unchanged main may omit repetition only after a successful
+scheduled run for the same head. A problem outside a reduced check's coverage may
+remain undetected for up to seven days plus queue delay. This is an explicit
+coverage tradeoff for owner review, not permission to merge known failures.
+The schedule is not active or accepted merely because this branch contains it.
+
+### Full checks and retained evidence
+
+Full backend verification retains the `make check-test` contract: typed-content
+audit, formatting, Ruff, mypy and complete offline pytest, shown as separate
+hosted steps. `UV_NO_SYNC=1` prevents re-resolution after the frozen install.
+Missing fixtures remain failures, not automatic skips. Full frontend validation
+prepares shared packages once and invokes the individual source/harness/type/test/
+build commands; standalone developer commands still prepare their dependencies.
+`pnpm ci:source` remains a local convenience, not an opaque hosted CI step.
+
+Full validation also checks classification/provenance/imports/LFS, nonempty
+package-set/public-release/repository-boundary/CI tooling suites, Compose graphs,
+and both rendered Library/setup modes using fresh PostgreSQL containers and
+original synthetic content. The independent tracked-source producer keeps its
+own frozen installation and package build. Isolated installed consumers retain
+their distinct fresh-resolution contract and recorded dependency graph. The exact
+compatibility baseline is checked out separately and built for comparison.
+Real supplied-animation acquisition/playback, audio fidelity and native signing
+remain separate acceptance. See the [bounded browser smoke](../../frontend/testing/browser-journeys.md).
+
+Every substantive shell check has an ID, log, duration and result receipt, and
+its failure stops dependent steps. The always-running gate distinguishes checks
+independently executed in this job from accepted owner-reviewed local assertions.
+Download `validation-receipt-*` for selection, aggregate and compact check records;
+`validation-evidence-*` contains detailed logs/browser/consumer evidence. Pair
+artifacts from the same run and attempt; a source hash alone is not acceptance.
+Compact receipts and failures retain 14 days. Ordinary successful logs/package
+archives retain 3 days; explicit full requests retain 14 days.
+
+Native uv and pnpm download caches use toolchain/platform/lockfile keys. They do
+not restore installed environments or replace clean frozen installation. Manual
+`cold-cache` disables restoration and saving without reducing validation. Compare
+equivalent cache states, source and baselines before claiming savings. The single
+job's rounded duration is the run estimate; include failed/cancelled runs, label
+and ready updates, main pushes and weekly/manual work in monthly forecasts.
+Run `make check-ci` for policy, evidence, Git-discovery and gate regression tests.
 
 Before enabling remote budget enforcement, the owner should review the account's
 2,000-minute allowance, existing usage and billing period, other repositories,
 and spending/notification controls. Keep a 200-minute reserve; compare both
-20- and 30-day periods at 10 and 15 pull requests per day. Count each job's billable
-minutes rounded up separately, including planning and aggregation: elapsed wall
-time alone understates parallel-job cost. A deferred draft intentionally has a
+20- and 30-day periods at 10 and 15 pull requests per day. Count each executed job's billable
+minutes rounded up; the current workflow consolidates planning and acceptance
+into its single `Validation` job. A deferred draft intentionally has a
 non-success aggregate and is not a passing validation receipt. No workflow edit
 changes the owner's billing budget or grants spending authority.
 
@@ -815,18 +843,14 @@ See [GitHub's budget instructions](https://docs.github.com/en/billing/how-tos/se
 [runner pricing](https://docs.github.com/en/billing/reference/actions-runner-pricing),
 and [included usage](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
 
-Full `main` validation remains in place until an enforced integration workflow
-can prove applicable successful checks for the exact integrated tree, baseline,
-recipe, locks and toolchains. A PR-head result alone is insufficient. Shared
-host caches and trusted compatibility-baseline reuse are separate workspace
-work: reuse must verify exact inputs, origin and hashes and rebuild on misses
-or corruption. Neither shortcut is implemented here.
+Shared host caches and trusted compatibility-baseline reuse remain separately
+owned workspace work. Reuse must verify exact inputs, origin and hashes and
+rebuild on misses or corruption; this workflow does not introduce that shortcut.
 
-Capture measured cold/warm and selected-profile durations against the previous
-full-run baseline before accepting a savings claim. Hand off the
-aggregate check name, current evidence links, measured monthly projection and
-remaining reserve before the owner configures branch enforcement or changes a
-budget. Estimates are provisional until actual run measurements support them.
+Measure the new full and reduced paths, including fresh local validation cost and
+weekly work, before accepting a savings claim. Owner acceptance of the proposed
+coverage/detection-delay and budget limits remains separate from implementing
+or testing the workflow. No account budget or branch policy changes occur here.
 
 The development dependency group includes the PyYAML, jsonschema and ReportLab
 type stubs required by the existing mypy target. Install from `uv.lock` with

@@ -268,10 +268,19 @@ practical. After changes, rerun affected checks; do not repeat unchanged passing
 checks without a reason. Use read-only checks such as `make format-check` to
 verify formatting, rather than commands that rewrite files.
 
-Local success does not replace the final clean CI run, Linux/Docker coverage,
-isolated package consumers or actual browser acceptance. Record their results
-separately and disclose pending/failed/unperformed checks. Follow the
-[local-before-push workflow](docs/backend/operations/development.md#local-validation-before-pushing).
+Run expensive checks locally before pushing. For explicitly allowlisted routine
+changes, a fresh exact-source Linux receipt reviewed by the repository owner can
+replace selected hosted work under the local-first validation policy. This is an
+owner-reviewed local assertion, not independent CI evidence. Agents may prepare
+receipts but must never impersonate the owner's review. Documentation-only changes
+need no receipt; high-risk or uncertain changes, persistent `ci:full`, manual runs
+and release callers retain full hosted validation.
+
+Record local evidence and the actual hosted `Validation` scope separately, with
+pending/failed/unperformed checks. Source, baseline, environment and freshness
+requirements are in the [local-before-push workflow](docs/backend/operations/development.md#local-validation-before-pushing).
+A deferred draft is not acceptance, and reduced validation does not establish
+real avatar/audio fidelity, native release acceptance or publication approval.
 
 Backend commands from the repo root:
 
