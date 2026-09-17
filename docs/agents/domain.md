@@ -46,14 +46,18 @@ their existing documents or task records. Do not create an ADR for every change.
 An ADR states its status, recording date, supporting evidence and a short
 context–decision–reason explanation. Add alternatives and consequences when useful.
 Mark a proposed choice as proposed.
-Acceptance requires evidence of a human decision or explicit human confirmation;
-existing code and an agent's inference alone do not establish acceptance.
+An AI agent may mark an ADR accepted without separate human confirmation.
+Records generally capture product and architecture decisions developed through
+human–AI collaboration. State the decision basis and who accepted the record;
+accepting an ADR does not grant authority to make an otherwise unauthorized
+product or architecture change.
 
 For a retrospective record, distinguish the date it is written from the original
 decision date. Preserve an unknown original date or rationale as unknown rather
 than inventing either. Separate observed implementation from documented intent
-and identify the evidence for each. Human confirmation today can accept a choice
-today without proving why or when the original implementation was chosen.
+and identify the evidence for each. Acceptance today, by a human or agent, does
+not prove why or when the original implementation was chosen. Existing code establishes observed behavior, not
+historical rationale or human approval.
 
 When a decision changes, create a successor and mark the earlier record as
 superseded, linking both directions once the records exist. Preserve the original
