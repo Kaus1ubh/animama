@@ -17,6 +17,8 @@ from animama.app.services.memory_patch_document import (
         ("  ", "description: null"),
         ('People: Alice and "Bob"', 'description: "People: Alice and \\"Bob\\""'),
         ("First line\nSecond line", 'description: "First line\\nSecond line"'),
+        ("First column\tSecond column", 'description: "First column\\tSecond column"'),
+        (r"Notes in C:\memories", r'description: "Notes in C:\\memories"'),
         ("Résumé and 日本語", 'description: "Résumé and 日本語"'),
     ],
 )
