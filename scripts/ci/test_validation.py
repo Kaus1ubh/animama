@@ -140,7 +140,10 @@ class GitSelectionTests(unittest.TestCase):
         self.commit("earlier")
         self.write("docs/frontend/b.md", "latest main change\n")
         head = self.commit("latest")
-        with patch("github_evidence.review_for_event") as review:
+        with (
+            patch("github_evidence.review_for_event") as review,
+            patch("github_evidence.main_docs_override", return_value={"allow_focused": True, "full_requested": False}),
+        ):
             receipt = self.run_plan("push", {"ref": "refs/heads/main", "before": self.base, "after": head})
         review.assert_not_called()
         self.assertEqual(receipt["plan"]["mode"], "docs")
@@ -240,6 +243,49 @@ class GitSelectionTests(unittest.TestCase):
         excluded = validation.special_inputs(self.root, base, changes, source_head=head)
         self.assertNotIn(web, excluded)
         self.assertIn(backend, excluded)
+
+    def test_main_docs_full_override_uses_real_api_policy_and_preserves_baseline(self):
+        self.write("docs/backend/a.md", "updated documentation\n")
+        head = self.commit("docs update")
+        repository = "owner/project"
+        prefix = f"/repos/{repository}"
+        detail = {
+            "number": 7,
+            "merged": True,
+            "merged_at": "2026-09-17T12:00:00Z",
+            "base": {"ref": "main"},
+            "merge_commit_sha": head,
+            "labels": [],
+        }
+        for associated, labels, expected in (
+            ([], [], "docs"),
+            ([{"number": 7}], [], "docs"),
+            ([{"number": 7}], [{"name": "ci:full"}], "full"),
+            ([{"number": 7}, {"number": 8}], [], "full"),
+            ([{"number": 7}], None, "full"),
+            (ValueError("API unavailable"), [], "full"),
+        ):
+
+            def api(path, associated=associated, labels=labels):
+                if isinstance(associated, Exception):
+                    raise associated
+                if path == f"{prefix}/commits/{head}/pulls?per_page=100&page=1":
+                    return associated
+                if path == f"{prefix}/pulls/7":
+                    return detail | {"labels": labels}
+                raise AssertionError(path)
+
+            with (
+                patch.dict(os.environ, {"GITHUB_REPOSITORY": repository}),
+                patch("github_evidence._get_json", side_effect=api),
+                patch("github_evidence.review_for_event") as review,
+            ):
+                receipt = self.run_plan("push", {"ref": "refs/heads/main", "before": self.base, "after": head})
+            review.assert_not_called()
+            self.assertEqual(receipt["plan"]["mode"], expected)
+            self.assertEqual(receipt["base"], self.base)
+            self.assertIsNone(receipt["diff_error"])
+            self.assertIsNotNone(receipt["main_docs_override"])
 
 
 class InputBoundaryTests(unittest.TestCase):

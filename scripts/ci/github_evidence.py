@@ -128,6 +128,67 @@ def _merged_pull(source_commit: str, repository: str, get_json: GetJSON) -> Mapp
     return candidates[0]
 
 
+def main_docs_override(
+    event: object, *, source_commit: str, baseline: str, get_json: GetJSON | None = None
+) -> dict[str, object]:
+    """Preserve merged-PR full overrides without requiring a local docs receipt."""
+    fetch = get_json or _get_json
+    fallback = {
+        "allow_focused": False,
+        "full_requested": False,
+        "reason": "Main documentation PR metadata unavailable or ambiguous; full validation required",
+    }
+    try:
+        repository, _ = _repository()
+        if (
+            not _sha(source_commit)
+            or not _sha(baseline)
+            or not isinstance(event, Mapping)
+            or event.get("ref") != "refs/heads/main"
+            or event.get("after") != source_commit
+            or event.get("before") != baseline
+        ):
+            return fallback
+        event_repository = event.get("repository")
+        if event_repository is not None and (
+            not isinstance(event_repository, Mapping) or event_repository.get("full_name") != repository
+        ):
+            return fallback
+        associated = _list_pages(f"/repos/{repository}/commits/{source_commit}/pulls", fetch)
+        if not associated:
+            return {
+                "allow_focused": True,
+                "full_requested": False,
+                "reason": "Direct documentation push has no associated PR full override",
+            }
+        if len(associated) != 1 or not _number(associated[0].get("number")):
+            return fallback
+        number = associated[0]["number"]
+        pr = fetch(f"/repos/{repository}/pulls/{number}")
+        if (
+            not isinstance(pr, Mapping)
+            or pr.get("number") != number
+            or pr.get("merged") is not True
+            or not isinstance(pr.get("merged_at"), str)
+            or not pr["merged_at"]
+            or not isinstance(pr.get("base"), Mapping)
+            or pr["base"].get("ref") != "main"
+            or pr.get("merge_commit_sha") != source_commit
+        ):
+            return fallback
+        requested = _full_requested(pr)
+        return {
+            "allow_focused": not requested,
+            "full_requested": requested,
+            "pull_request": number,
+            "reason": "Merged documentation PR retains persistent ci:full override"
+            if requested
+            else "Merged documentation PR has no full override; focused documentation checks apply",
+        }
+    except Exception:
+        return fallback
+
+
 def review_for_event(
     event_name: str,
     event: object,
