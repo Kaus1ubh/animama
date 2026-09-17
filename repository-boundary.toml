@@ -27,7 +27,7 @@ paths = [
   ".dockerignore",
   ".env.example",
   ".gitattributes",
-  ".github/PULL_REQUEST_TEMPLATE/pull_request_template.md",
+  ".github/pull_request_template.md",
   ".github/workflows/release-desktop-macos.yml",
   ".github/workflows/validate-public.yml",
   ".gitignore",

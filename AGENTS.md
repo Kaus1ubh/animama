@@ -71,6 +71,11 @@ This naming policy grants no additional push, merge or remote-configuration
 authority. See [worktree cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks)
 for the data-preserving handoff workflow.
 
+Use the default [pull request template](.github/pull_request_template.md).
+Describe the problem and resulting behavior, then separate local verification
+from actual CI and browser evidence. Include the tested commit or working-tree
+state, exact commands/results, material environment limits and unperformed checks.
+
 ## Code Quality
 
 Keep code changes clean, organized, and easy to maintain. Follow established
@@ -233,6 +238,17 @@ tools, not contributor or build prerequisites.
 
 Choose the smallest meaningful verification for the change and state what was
 not run.
+
+Run applicable local static checks, tests and builds before pushing a candidate
+that triggers CI. Fix local failures first and batch intermediate work where
+practical. After changes, rerun affected checks; do not repeat unchanged passing
+checks without a reason. Use read-only checks such as `make format-check` to
+verify formatting, rather than commands that rewrite files.
+
+Local success does not replace the final clean CI run, Linux/Docker coverage,
+isolated package consumers or actual browser acceptance. Record their results
+separately and disclose pending/failed/unperformed checks. Follow the
+[local-before-push workflow](docs/backend/operations/development.md#local-validation-before-pushing).
 
 Backend commands from the repo root:
 

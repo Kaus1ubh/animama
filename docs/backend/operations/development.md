@@ -655,6 +655,32 @@ Use a named stack's generated `ANIMAMA_PUBLIC_ORIGIN` for isolated runs.
 
 ## Lint, Format, And Types
 
+### Local validation before pushing
+
+During development, run the smallest meaningful local static checks, tests and
+builds for the changed behavior. Fix failures locally before pushing a candidate
+that triggers CI, and batch intermediate edits rather than using Actions as the
+first debugging loop. Rerun checks affected by subsequent edits; repeat an
+unchanged successful check only when a new failure, changed environment or other
+specific concern warrants it. Verification commands should be read-only:
+`make format-check` checks formatting; `make format` changes files.
+
+For each candidate, record the tested commit or working-tree state, exact commands,
+results and material environment limitations. Mark checks not run explicitly,
+with the reason. A local browser test is actual UI evidence only if it ran the
+application and rendered the relevant journey; harness unit tests are separate.
+Local success does not replace required clean-runner CI, Linux/Docker tests,
+isolated package consumers or actual browser acceptance in each serving mode.
+
+Use the default [pull request template](../../../.github/pull_request_template.md)
+to describe the problem/result and keep local, CI and UI evidence separate. Its
+checklist confirms that applicable work is recorded; it does not assert every
+suite passed. Optional issue references can be removed. The single template
+lives at `.github/pull_request_template.md`, the default GitHub location; the
+new default becomes available after this change reaches the default branch.
+
+### Backend check commands
+
 ```bash
 make lint
 make mypy
