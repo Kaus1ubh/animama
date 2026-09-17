@@ -1270,8 +1270,8 @@
   "files": [
     {
       "path": ".agents/skills/animama-local-stacks/SKILL.md",
-      "git_blob_oid": "d006ef2eb8e3bbd8a929a95a301c5a1aaa20f9b4",
-      "sha256": "b096ecb0aa721e619808d75ed7982249c7a65dfc9ac0485120fec0db1d398617",
+      "git_blob_oid": "88574a6fbdcf1fe32742a5a6a6c285928cc950cd",
+      "sha256": "51c5379e882fb4c96f4cb2e9f7d8898536f580f58f190e29009770248a48ef80",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -8703,6 +8703,20 @@
           "current_sha256": "bf5f02190a06ac2e7850546ac6cdfbccf8d335c248d263ecdff4fdfaddf3f2f6"
         }
       ]
+    },
+    {
+      "date": "2026-09-17",
+      "path": ".agents/skills/animama-local-stacks/SKILL.md",
+      "base_commit": "73de173e53545bc742501a43fe10e37dc5cb8ee1",
+      "previous_binding": {
+        "git_blob_oid": "d006ef2eb8e3bbd8a929a95a301c5a1aaa20f9b4",
+        "sha256": "b096ecb0aa721e619808d75ed7982249c7a65dfc9ac0485120fec0db1d398617"
+      },
+      "current_binding": {
+        "git_blob_oid": "88574a6fbdcf1fe32742a5a6a6c285928cc950cd",
+        "sha256": "51c5379e882fb4c96f4cb2e9f7d8898536f580f58f190e29009770248a48ef80"
+      },
+      "reason": "Owner-requested Phase 1 judgment-based workspace rules and simple documented cleanup; correct stale port labels to application base and optional pgAdmin/Dozzle offsets. Preserve origin, licensing, publication status and notices."
     }
   ]
 }

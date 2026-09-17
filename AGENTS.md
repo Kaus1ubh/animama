@@ -133,6 +133,29 @@ stay private. Remote self-host access requires an operator-owned TLS
 and authentication boundary, and every admitted request is still the same
 installation owner.
 
+## Workspace selection
+
+Use agent judgment based on disruption, conflicting edits and concurrency, not
+line count or a formal small/large score. The existing checkout and development
+stack are suitable when the work will not interfere with another active task.
+Creating test chats or content does not by itself require a separate stack.
+Development data is disposable; use the existing `reset.sh --purge` flow when a
+reset is needed, after checking the selected project and coordinating with any
+task using its data. Do not purge merely as a setup ritual.
+
+Consider a separate worktree and named stack for concurrent edits,
+dependency/configuration experiments, migrations or other disruptive work;
+use them when they help avoid interference. A worktree does not automatically
+need a running stack. Reuse the existing task workspace for follow-ups after inspecting its current branch,
+changes and active processes. Never silently switch an occupied checkout,
+stash another task's work or stop its services. Record the chosen checkout,
+branch and any stack URL in the task handoff when they matter.
+
+Use ordinary Git commands and `reset.sh`. No policy engine, mandatory workspace
+helper or workspace registration service is required. Keep cleanup documented
+and scoped to the task; consider a helper or skill only after repeated work
+demonstrates a concrete need. Existing branch/PR review rules still apply.
+
 ## Local Stacks
 
 For the main checkout, preserve the default local application URL:

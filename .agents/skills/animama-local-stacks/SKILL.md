@@ -5,7 +5,11 @@ description: Use when starting, resetting, debugging, or reporting local Docker 
 
 # Animama Local Stacks
 
-Use this workflow for local Animama Docker Compose stacks.
+Use this workflow for local Animama Docker Compose stacks. Follow the workspace
+judgment rules in the root AGENTS.md: the existing development stack may be used
+for test chats/content when this will not disrupt active work. Separate worktrees
+and named stacks are useful for concurrency or disruptive changes, not mandatory
+for every mutable test. No workspace helper or formal task score is required.
 
 ## Main Checkout
 
@@ -29,7 +33,7 @@ the default is `development`.
 
 ## Worktrees
 
-For a git worktree, use a named stack and base port:
+When a worktree needs its own running stack, use a name and base port:
 
 ```bash
 ./reset.sh --name abc --base-port 8200
@@ -42,16 +46,12 @@ Base port mapping:
 
 ```text
 application        base
-private API label  base + 1
-private Vite label base + 2
-private PG label   base + 3
-pgAdmin            base + 4
-Parakeet           base + 5
+pgAdmin            base + 4 (optional dev-tools)
+Dozzle             base + 20 (optional dev-tools)
 ```
 
-Only the application mapping is published for the core application; the private
-labels remain in `.animama-stack.env` for compatibility and port-isolation
-checks. Named stack URLs use `animama-<name>.localhost` by default to keep local
+Only the application mapping is published for the core application; PostgreSQL
+and supporting services stay private. Named stack URLs use `animama-<name>.localhost` by default to keep local
 browser state separate between branches. If that hostname does not resolve
 locally, pass `--host localhost` or ask the user to add a hosts entry.
 
@@ -86,6 +86,15 @@ docker compose -p animama-abc exec animama-server alembic current
 
 Use service names, not generated container names. `reset.sh` prefixes configured
 container names for named stacks; project-scoped commands remain authoritative.
+
+## Cleanup
+
+Follow the existing cleanup workflow in `docs/backend/operations/development.md`.
+Stop only a task-owned stack; finishing one task does not justify stopping a
+shared development stack. Development data is disposable and `reset.sh --purge`
+may reset the verified intended stack when needed, after checking active work.
+Do not purge by default. Inspect ignored data before removing a worktree and
+never globally prune Docker, Git or caches. No new cleanup helper is required.
 
 ## Reporting
 

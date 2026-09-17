@@ -1166,10 +1166,17 @@ development runtime/data override only for unpackaged supervised tests; see
 
 ### Cleaning Up Worktree Stacks
 
-Retain a task's branch, worktree and test data through review and follow-ups.
-When handing off a finished task, stop its owned stack unless it is still needed
-for review. Before cleanup, inspect the actual Git worktrees, branch/merge state,
-dirty and untracked files, generated stack record, running Compose project, and
+Use the [workspace selection rules](../../../AGENTS.md#workspace-selection):
+ordinary test chats/content may use the existing development stack when that
+does not disrupt another active task. Development data is disposable; when a
+reset is needed, use `reset.sh --purge` for the verified intended stack after
+coordinating with its active users. This is not a requirement to purge on setup
+or handoff. Retain test data when it is useful for review or ongoing work.
+
+When handing off a finished task, stop a separate stack owned solely by that
+task unless it is still needed for review. Do not stop a shared development
+stack merely because one task finished. Before cleanup, inspect Git worktrees,
+branch/merge state, dirty and untracked files, generated stack record, running Compose project, and
 data roots. Include ignored files: `.animama-stacks/` may contain the only copy
 of Local content/private data, and `.env` may contain task credentials. Do not
 capture secret values in the cleanup report.
@@ -1189,14 +1196,15 @@ storage configuration before acting; a guessed project name is insufficient.
 
 After merge, show the exact proposed cleanup resources and any uncommitted,
 untracked, ignored or unmerged work. Delete volumes or data roots only with
-explicit approval for those exact resources. Before removing the worktree,
-preserve any retained data outside that directory and record its new location,
+the applicable authorization and a concrete need; the development-data purge
+policy above already permits needed resets through `reset.sh`. Before removing
+the worktree, preserve any retained data outside that directory and record its new location,
 or leave the stopped worktree intact. Never remove shared model/cache versions
 still used by another workspace. There is no automatic seven-day deletion;
 seven days of inactivity is a prompt to review ownership and retention.
 
-Once retention and removal are approved, remove only the selected worktree
-from the main checkout without forcing Git's checks:
+Once ownership, retained data and authorization are clear, remove only the
+selected worktree from the main checkout without forcing Git's checks:
 
 ```bash
 cd /path/to/animama
@@ -1213,8 +1221,9 @@ git branch -d feat/abc
 If Git refuses deletion (including after a squash merge), inspect the actual
 merge and remaining commits; do not automatically retry with `-D`. No global
 Docker, volume, model-cache or Git pruning belongs in task cleanup. A cleanup
-helper or agent skill must follow this same workflow and expose a reviewable
-resource list before deletion.
+helper or agent skill is not required. Revisit one only when a demonstrated need
+justifies it; it must follow the same simple workflow and identify its resources
+before deletion.
 
 For new branches and PR titles, use the categorized naming policy in
 [the agent guide](../../../AGENTS.md#branches-and-pull-requests).
