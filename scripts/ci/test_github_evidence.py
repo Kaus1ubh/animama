@@ -8,7 +8,14 @@ import unittest
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
-from github_evidence import MAX_RESPONSE_BYTES, _get_json, _NoRedirect, periodic_unchanged, review_for_event
+from github_evidence import (
+    MAX_RESPONSE_BYTES,
+    _get_json,
+    _NoRedirect,
+    main_docs_override,
+    periodic_unchanged,
+    review_for_event,
+)
 from local_receipt import canonical_receipt_digest, receipt_comment_body
 
 REPO = "raymond-van/animama"
@@ -240,6 +247,25 @@ class EvidenceTests(unittest.TestCase):
             RuntimeError("permission denied"),
         ):
             self.assertFalse(periodic_unchanged(MERGE, get_json=FakeAPI({path: response})))
+
+    def test_main_docs_override_rejects_uncertain_association_and_detail(self):
+        associated_path = f"{PREFIX}/commits/{MERGE}/pulls?per_page=100&page=1"
+        for associated, detail in (
+            ([{}], pull()),
+            ([pull(), pull()], pull()),
+            ([pull()], pull() | {"merged": False}),
+            ([pull()], pull() | {"merge_commit_sha": HEAD}),
+            ([pull()], pull() | {"base": {"ref": "other"}}),
+            ([pull()], pull() | {"labels": [{"name": []}]}),
+        ):
+            api = FakeAPI({associated_path: associated, f"{PREFIX}/pulls/7": detail})
+            result = main_docs_override(push_event(), source_commit=MERGE, baseline=BASE, get_json=api)
+            self.assertFalse(result["allow_focused"])
+        # An event/source mismatch must not consult the API at all.
+        api = FakeAPI()
+        result = main_docs_override(push_event(), source_commit=HEAD, baseline=BASE, get_json=api)
+        self.assertFalse(result["allow_focused"])
+        self.assertEqual(api.paths, [])
 
 
 class TransportTests(unittest.TestCase):

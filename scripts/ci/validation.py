@@ -224,7 +224,7 @@ def hydrate(root: Path) -> None:
 def plan(root: Path, output: Path) -> None:
     from datetime import UTC, datetime
 
-    from github_evidence import periodic_unchanged, review_for_event
+    from github_evidence import main_docs_override, periodic_unchanged, review_for_event
 
     event_name = os.environ["GITHUB_EVENT_NAME"]
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
@@ -275,6 +275,16 @@ def plan(root: Path, output: Path) -> None:
             for label in (labels if isinstance(labels, list) else [])
         )
     )
+    docs_override = None
+    if event_name == "push" and selected["mode"] == "docs" and not reusable:
+        docs_override = main_docs_override(event, source_commit=source, baseline=baseline)
+        if docs_override.get("allow_focused") is not True:
+            # Keep the known baseline: uncertain PR metadata expands coverage,
+            # rather than failing source selection before full checks can run.
+            selected = choose_plan(event_name, event, changes, "Main documentation override", reusable, excluded)
+            selected["reason"] = docs_override["reason"]
+        if docs_override.get("full_requested") is True:
+            explicit = True
     if not explicit and selected["mode"] != "deferred" and not error and area in LOCAL_CHECKS:
         reviewed = review_for_event(
             event_name,
@@ -307,6 +317,7 @@ def plan(root: Path, output: Path) -> None:
         "diff_error": error,
         "plan": selected,
         "local_evidence": reviewed,
+        "main_docs_override": docs_override,
         "run_id": os.environ.get("GITHUB_RUN_ID"),
         "run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
         "cold_cache": inputs.get("cold-cache", False),
