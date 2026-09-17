@@ -1,12 +1,19 @@
-# User-supplied Mixamo animations
+# Optional Local Mixamo animations
 
-Mixamo-derived animation bytes are excluded from Git and Docker build contexts.
-Existing private working copies are retained. The exclusion covers 65 gesture
-VRMAs and six idle VRMAs; original project-authored definitions remain source.
-Ignored files can still exist in Git history or LFS storage. Review every
-object intended for publication before exposing any repository or snapshot.
+Animama starts and creates its two starter companions without Mixamo assets.
+The shipped starter pack has 21 project-authored gestures and 72 reactions;
+new companions have an empty Idle selection. Required selected content still
+passes the normal strict revision, dependency and file checks, including the
+tracked-only native staging gate.
 
-## Manual acquisition helper
+Mixamo motions are optional, editable Local content. They are never automatically
+equipped or included in source, Docker build contexts or desktop packages.
+The historical 71-path inventory and original control-document templates live in
+`scripts/mixamo-assets.json`; the old broken Included descriptors are removed.
+Existing companions referencing those old Included IDs need explicit replacement
+or a development database reset. No starter policy migration is provided.
+
+## Download and convert
 
 From the repository root, run:
 
@@ -14,35 +21,59 @@ From the repository root, run:
 python3 scripts/acquire-mixamo.py --prepare --open
 ```
 
-This opens Adobe's own website and writes a private checklist at
+This opens Adobe's website and writes a private checklist at
 `data/mixamo-acquisition/checklist.json`. Sign in yourself, select a character,
-search the Animations tab, preview each motion, adjust settings, then download
-FBX files using Adobe's Download button. Keep those files in
-`data/mixamo-acquisition/`. See [Adobe's manual workflow](https://helpx.adobe.com/creative-cloud/help/animate-characters-mixamo.html).
-Running without flags only prints instructions and the list. Existing answers
-are never overwritten. The helper does not receive credentials, scrape Adobe,
-download animations automatically, convert files or install content.
+search the Animations tab, preview each motion, then download FBX files using
+Adobe's Download button. Keep the originals and conversion work in
+`data/mixamo-acquisition/`. Existing checklist answers are preserved.
+Running without flags prints instructions and target paths.
 
-The checklist names the 29 intended starter targets: 23 gestures and six idle
-motions.
-The full 71-path exclusion inventory is in `scripts/mixamo-assets.json`.
-Names are local search hints: the exact original Adobe animation IDs, character
-and export settings have not been recovered. Record them while downloading;
-matching a name alone does not prove matching motion or redistribution rights.
+The helper covers the 29 former starter clips: 23 gestures and six idle motions.
+Labels are search hints; the exact original Adobe animation IDs, character and
+export settings have not been recovered. Record them while downloading.
+Download and FBX-to-VRMA conversion remain manual; the helper does neither.
+Renaming FBX to `.vrma` does not convert it. Verify retargeting/playback after
+conversion; a matching label or structurally valid VRMA does not prove the motion
+is correct.
 
-## Deferred work and current limitation
+## Install converted files
 
-This is a preparation helper, not a complete source setup path. FBX-to-`.vrma`
-conversion, retargeting, reviewed installation receipts and behavior verification
-remain deferred. Renaming an FBX file to `.vrma` does not convert it.
+Arrange converted files under a source directory using the manifest's
+`target_path` with the `content/included/` prefix removed, for example:
 
-A fresh clone lacks required starter animation bytes. Existing starter resolution
-and native staging intentionally reject missing or untracked distribution inputs;
-do not disable these checks to package private copies. Fresh-clone desktop and
-built-image acceptance remain blocked until the user-supplied workflow or approved
-replacements are completed. A bind-mounted maintainer checkout may still see its
-private copies, so a successful local launch would not establish public readiness.
+```text
+data/mixamo-acquisition/converted/
+  gestures/wave/wave.vrma
+  gestures/blush/blush.vrma
+  ...
+  idle-styles/starter/animations/angry.vrma
+  idle-styles/starter/animations/sway.vrma
+  ...
+```
 
-No animation test, download or conversion has been performed for this helper.
-Review the then-current Adobe terms before use; this script grants no rights to
-Adobe assets and does not authorize redistributing them with source or binaries.
+Once all 29 target clips are present, install them:
+
+```bash
+python3 scripts/acquire-mixamo.py --install-from data/mixamo-acquisition/converted
+```
+
+The default destination is this checkout's ignored `content/local/` library.
+Use `--local-root /absolute/path/to/local` for a different installation.
+The result is 23 Gesture items in `gestures/mixamo-<name>/` and one six-clip
+Idle Style in `idle-styles/mixamo-starter/`. Local identities preserve the
+original motion settings without depending on Included content. The script
+prints an installation receipt with hashes.
+
+The installer checks GLB/VRMA structure, rejects symlink destinations and inputs,
+and stages complete item folders before placing them in their typed roots.
+Identical retries are safe; differing existing items stop installation, preserving
+owner edits. Temporary staging is removed when installation finishes.
+
+Rescan My Content if the filesystem watcher has not refreshed it, then select
+these items through the normal Gesture/Idle loadout controls. Installation does
+not change the database, current loadouts or starter defaults. Local files remain
+ignored; do not force-add them to Git or copy them into a release stage.
+
+This helper grants no rights to Adobe assets. Applicable use and redistribution
+terms remain the operator's responsibility; optional local installation is not
+source or binary distribution approval.

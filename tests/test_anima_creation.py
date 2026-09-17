@@ -205,7 +205,6 @@ async def test_failure_rolls_back_aggregate_receipt_and_releases_key(async_sessi
         ("scan_required", "anima_creation_sources_stale", 409),
         ("file", "anima_creation_sources_stale", 409),
         ("map_missing", "anima_creation_invalid", 422),
-        ("idle_missing", "anima_creation_invalid", 422),
         ("map_extra", "anima_creation_invalid", 422),
         ("map_kind", "anima_creation_invalid", 422),
         ("semantic", "anima_creation_invalid", 422),
@@ -235,8 +234,6 @@ async def test_sources_fail_closed_without_partial_creation(async_session, tmp_p
             (fixture.paths.local_root / "avatars/local-avatar.vrm").write_bytes(b"changed externally")
         elif change == "map_missing":
             del payload["expected_source_revisions"][fixture.items["gesture"].id]
-        elif change == "idle_missing":
-            del payload["expected_source_revisions"][fixture.items["idle"].id]
         elif change == "map_extra":
             payload["expected_source_revisions"][str(uuid4())] = {"kind": "avatar", "revision_sha256": "a" * 64}
         elif change == "map_kind":
@@ -284,7 +281,7 @@ async def test_http_schema_ownership_options_preview_and_replay(async_session, t
             assert options.status_code == 200, options.text
             assert options.json()["limits"]["display_name_max_characters"] == 40
             assert options.json()["counts"]["recommended_reaction_cells"] == 72
-            assert options.json()["default_idle"]["source"]["item_id"] == fixture.items["idle"].id
+            assert options.json()["default_idle"] == {"source": None, "expected_source_revisions": {}}
             preview = await client.post(f"/v1/avatar-content/{fixture.items['local-avatar'].id}:preview")
             assert preview.status_code == 200, preview.text
             assert set(preview.json()["expected_source_revisions"]) == {fixture.items["local-avatar"].id}

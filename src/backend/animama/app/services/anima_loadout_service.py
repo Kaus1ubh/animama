@@ -32,7 +32,7 @@ from animama.domain.anima_loadout import (
     MusicTrackBinding,
     ReactionCell,
 )
-from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentSource, ContentStatus
+from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentStatus
 from animama.domain.content_documents import (
     AppearanceDocumentV1,
     AvatarDocumentV1,
@@ -947,12 +947,8 @@ class AnimaLoadoutService:
         selected_cells = [(cell.emotion, cell.intensity) for cell in spec.reactions]
         if len(selected_cells) != len(cells) or set(selected_cells) != cells:
             raise AnimaLoadoutError("reaction_matrix_incomplete")
-        if (
-            spec.idle_style.kind is not ContentKind.IDLE_STYLE
-            or spec.idle_style.source is not ContentSource.INCLUDED
-            or spec.idle_style.logical_key != "builtin:idle-style:starter"
-        ):
-            raise AnimaLoadoutError("starter_idle_style_required")
+        if spec.idle_style is not None and spec.idle_style.kind is not ContentKind.IDLE_STYLE:
+            raise AnimaLoadoutError("idle_style_kind_invalid")
         root = ORMAnimaLoadout(
             anima_id=anima_id,
             owner_user_id=user_id,
@@ -993,7 +989,13 @@ class AnimaLoadoutService:
             )
 
         await apply("avatar", {"operation": "set"}, spec.avatar)
-        await apply("idle_style", {"operation": "set"}, spec.idle_style)
+        # Creation can leave idle empty; explicitly selected styles still pass
+        # the same typed, ownership and revision checks as later loadout edits.
+        await apply(
+            "idle_style",
+            {"operation": "set" if spec.idle_style is not None else "leave_empty"},
+            spec.idle_style,
+        )
         for source in spec.gestures:
             await apply("gesture", {"operation": "add"}, source)
         for cell in spec.reactions:

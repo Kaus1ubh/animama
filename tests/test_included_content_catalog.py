@@ -41,23 +41,7 @@ def test_readable_included_library_projects_every_supported_entry(included: Path
     }
     assert expected_files
     assert expected_files <= {file.relative_path for entry in entries for file in entry.files}
-    invalid = [entry for entry in entries if entry.status is ContentStatus.INVALID]
-    assert len(invalid) == 66  # 65 excluded gesture motions and the six-file idle style.
-    assert sum(len(entry.diagnostics) for entry in invalid) == 71
-    for entry in entries:
-        if entry.status is ContentStatus.VALID:
-            continue
-        # Public descriptors remain visible but fail closed until their excluded
-        # VRMA bytes are supplied. No other invalid product is accepted here.
-        assert entry.kind in {ContentKind.GESTURE, ContentKind.IDLE_STYLE}
-        assert entry.status is ContentStatus.INVALID
-        descriptor = included / str(entry.descriptor_relative_path)
-        document = json.loads(descriptor.read_text())
-        missing = {item["path"] for item in document["files"] if not (descriptor.parent / item["path"]).is_file()}
-        assert missing and all(name.endswith(".vrma") for name in missing)
-        assert {(issue.code, issue.relative_path) for issue in entry.diagnostics} == {
-            ("missing_descriptor_file", name) for name in missing
-        }
+    assert all(entry.status is ContentStatus.VALID for entry in entries)
     logical_keys = [entry.logical_key for entry in entries if entry.logical_key]
     assert len(logical_keys) == len(set(logical_keys))
     assert {entry.kind for entry in entries} >= {
@@ -67,7 +51,6 @@ def test_readable_included_library_projects_every_supported_entry(included: Path
         ContentKind.PARTICLE_EFFECT,
         ContentKind.AVATAR_EFFECT,
         ContentKind.SCENE_EFFECT,
-        ContentKind.IDLE_STYLE,
         ContentKind.APPEARANCE,
     }
     assert ContentKind.POSE_CLIP not in {entry.kind for entry in entries}
@@ -78,10 +61,10 @@ def test_representative_included_entries_are_human_locatable(included: Path) -> 
     by_locator = {entry.relative_locator: entry for entry in _scan_included(included)}
 
     assert "avatars/AvatarSample_A_1_New.vrm" in by_locator
-    assert "gestures/wave" in by_locator
+    assert "gestures/shy-finger-poke" in by_locator
     assert "reactions/admiration-2" in by_locator
     assert "vfx/particle/quark/hearts" in by_locator
-    assert by_locator["gestures/wave"].logical_key == "builtin:gesture:wave"
+    assert by_locator["gestures/shy-finger-poke"].logical_key == "builtin:gesture:shy-finger-poke"
     assert by_locator["reactions/admiration-2"].dependencies
 
     for entry in by_locator.values():
@@ -116,17 +99,7 @@ def test_included_actions_own_their_primary_playback_files(included: Path) -> No
                 else:
                     assert (action_root / reference).is_file()
 
-    starter = included / "idle-styles/starter"
-    descriptor = json.loads((starter / "starter.json").read_text())
-    assert {item["path"] for item in descriptor["files"]} == {
-        "animations/angry.vrma",
-        "animations/anxious_look_around.vrma",
-        "animations/bored.vrma",
-        "animations/happy.vrma",
-        "animations/sad.vrma",
-        "animations/sway.vrma",
-    }
-    assert not list(starter.rglob("*.vrma"))
+    assert not list(included.rglob("*.vrma"))
 
 
 def test_supplied_original_fixture_actions_have_valid_owned_playback(tmp_path: Path) -> None:

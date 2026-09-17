@@ -32,7 +32,7 @@ class ResolvedAnimaSpec:
     display_name: str
     identity: str
     avatar: CatalogContentEntry
-    idle_style: CatalogContentEntry
+    idle_style: CatalogContentEntry | None
     reactions: tuple[ResolvedReactionSelection, ...]
     gestures: tuple[CatalogContentEntry, ...] = ()
     profile: ResolvedAppearanceSelection | None = None
