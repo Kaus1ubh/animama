@@ -213,6 +213,9 @@ def hydrate(root: Path) -> None:
             GIT_CONFIG_KEY_0="http.https://github.com/.extraheader",
             GIT_CONFIG_VALUE_0=f"AUTHORIZATION: basic {authorization}",
         )
+    # The routing checkout deliberately disabled LFS. Do not rely on a runner's
+    # global filter setup when comparing hydrated bytes against tracked pointers.
+    git(root, "lfs", "install", "--local", env=env)
     git(root, "lfs", "fetch", "origin", "HEAD", env=env)
     git(root, "lfs", "checkout", env=env)
     git(root, "lfs", "fsck", env=env)

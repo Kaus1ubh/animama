@@ -25,6 +25,10 @@ ENV UV_PYTHON_INSTALL_DIR=/opt/uv-python
 RUN uv python install 3.12.13 \
     && ln -s "$(uv python find 3.12.13)" /usr/local/bin/python \
     && ln -s "$(uv python find 3.12.13)" /usr/local/bin/python3
+# The document regression tests require a Unicode font, not only browser fonts.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 # initdb rejects root. Match the output directory owner without mounting their HOME.
 ARG LOCAL_UID=1000
 RUN useradd --non-unique --uid "$LOCAL_UID" --gid 0 --no-create-home validator

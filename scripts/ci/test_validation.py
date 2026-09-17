@@ -243,6 +243,14 @@ class GitSelectionTests(unittest.TestCase):
 
 
 class InputBoundaryTests(unittest.TestCase):
+    def test_full_hydration_installs_local_filters_before_materialization(self):
+        with patch.object(validation, "git", return_value=b"") as run:
+            validation.hydrate(Path("/fixture"))
+        self.assertEqual(
+            [call.args[1:] for call in run.call_args_list],
+            [("lfs", "install", "--local"), ("lfs", "fetch", "origin", "HEAD"), ("lfs", "checkout"), ("lfs", "fsck")],
+        )
+
     def test_renames_deletions_and_unusual_filenames(self):
         rows = validation.parse_changes(b"R100\0old name\0new\nname\0D\0removed\0")
         self.assertEqual(rows[0], {"status": "R100", "old_path": "old name", "path": "new\nname"})
