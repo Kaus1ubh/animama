@@ -36,7 +36,8 @@ def test_typed_media_moved_but_browser_engine_assets_remained_public(tmp_path: P
     assert (included / "gestures/wave/wave.meta.json").is_file()
     assert not any((public / "vrm").glob("*.vrm"))
     assert not any((public / "vrm").glob("animations/*.vrma"))
-    assert (public / "onnx").is_dir()
+    # Large ONNX inputs are external/dependency-backed; keep the reviewed manifest.
+    assert (ROOT / "models/browser-runtime/manifest.json").is_file()
     assert (public / "basis").is_dir()
 
 

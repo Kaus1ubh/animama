@@ -155,3 +155,6 @@ content/included/**/.DS_Store
 
 # Legacy model copies may be retained locally until the verified store is adopted.
 /parakeet-tdt-0.6b-v2/
+
+# Immutable browser engine payloads now come from verified stores/dependencies.
+/src/frontend/web/public/onnx/

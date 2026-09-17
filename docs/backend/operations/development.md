@@ -287,7 +287,8 @@ The built Docker target compiles optimized React assets and copies them to
 `/opt/animama/web`. FastAPI serves those files and the API from the same
 loopback application origin; no Node or Vite server runs in this graph.
 The browser Parakeet directory is a separate read-only static mount resolved
-from the verified shared model store. Run `python3 scripts/models/parakeet.py acquire`
+from the verified shared model store. Run `python3 scripts/models/parakeet.py acquire` and
+`python3 scripts/models/browser_speech.py acquire`
 before first startup; set `ANIMAMA_MODEL_ROOT` to an absolute persistent root when
 needed. `reset.sh` records that root and the exact immutable version directory.
 See [model acquisition, offline reuse and recovery](model-assets.md).
@@ -1334,3 +1335,34 @@ Restart in these tests means rebuilding database engines/sessions, bootstrap and
 filesystem services against the same isolated persisted state. It does not mean
 a PostgreSQL crash or full desktop restart. Included content is deliberately
 empty: starter repair is expected while content readiness is asserted separately.
+
+
+## Dependency download caches
+
+Keep each worktree's `.venv`, `node_modules` and generated outputs independent.
+Use uv and pnpm's own caches (`uv cache dir`, `pnpm --dir src/frontend store path`)
+with frozen installs. Do not symlink complete installations across worktrees or
+platforms. Warm offline installs require all locked artifacts already cached;
+initial setup and missing platform binaries need network access.
+
+The frontend disables pnpm's side-effects cache because its cached Electron macOS
+framework layout expands symlinks into duplicate regular files. Installation scripts
+still run. Download reuse remains enabled; an existing expanded installation may
+need a fresh frozen install before benefiting from the layout change. This is
+separate from app signing or native acceptance.
+
+Docker copies lock/config inputs before sources and uses architecture/toolchain
+qualified BuildKit download caches. Source-only edits reuse dependency layers;
+lock changes rerun frozen installs with reusable downloads. Cache contents are
+optional inputs to installation, never a substitute for a valid lock or asset hash.
+Development containers deliberately retain per-project pnpm volumes: writable
+Linux installs and volume ownership/purge lifecycle stay project scoped. This
+remaining download duplication is explicit; host and image builds share their
+normal package-manager/BuildKit caches. No global external volume or permission
+coordinator is required.
+
+Inspect consumers before package-manager cache cleanup. `uv cache clean PACKAGE`
+or a manager-supported forced reinstall can recover disposable broken cache
+entries; do not edit store internals or prune caches under active installs. A
+cache status command alone is not integrity evidence: use a fresh frozen install
+and, for reviewed browser assets, the explicit full manifest verification.

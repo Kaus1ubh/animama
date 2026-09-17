@@ -11,7 +11,7 @@
         "licenses/source-review.json"
       ],
       "path_sha256": {
-        "licenses/source-review.json": "e9a81a7e17bdbedfc9825395b5157e59a9f307fa97baddda387022997661168c"
+        "licenses/source-review.json": "b45bcd6c377daf06ecf73bca9653a99ba353e8cd9b6cfc125c60abbe24573ccd"
       }
     },
     {
@@ -685,7 +685,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a"
+        "licenses/third-party/code-and-models.json": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
       }
     },
     {
@@ -1103,7 +1103,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a"
+        "licenses/third-party/code-and-models.json": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
       }
     },
     {
@@ -1120,7 +1120,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a"
+        "licenses/third-party/code-and-models.json": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
       }
     },
     {
@@ -1136,7 +1136,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a"
+        "licenses/third-party/code-and-models.json": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
       }
     },
     {
@@ -1152,7 +1152,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a"
+        "licenses/third-party/code-and-models.json": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
       }
     },
     {
@@ -1169,7 +1169,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a"
+        "licenses/third-party/code-and-models.json": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
       }
     },
     {
@@ -1193,7 +1193,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a"
+        "licenses/third-party/code-and-models.json": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
       }
     },
     {
@@ -1211,7 +1211,7 @@
         "licenses/third-party/code-and-models.json"
       ],
       "path_sha256": {
-        "licenses/third-party/code-and-models.json": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a"
+        "licenses/third-party/code-and-models.json": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
       }
     },
     {
@@ -1270,8 +1270,8 @@
   "files": [
     {
       "path": ".agents/skills/animama-local-stacks/SKILL.md",
-      "git_blob_oid": "d2741a6ccc449516b9afbbff4b2f90f9ff6b57d3",
-      "sha256": "e6413d8e35fd1dc78aef83da3980ee6d6e5c4715bfd8c5b561eaaeef749b0bc6",
+      "git_blob_oid": "68caf390174a9e8464d1e15a6c790e34b2448b0d",
+      "sha256": "ebd9b0682618071e22b6d1a35dad6533e92102ba0bfa688362591047cac877c6",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -6815,6 +6815,26 @@
       "notes": "Phase 5 preparation evidence; not a publication approval."
     },
     {
+      "path": "models/browser-runtime/manifest.json",
+      "git_blob_oid": "72eaa673487ac1dad73fdd0cabae6546eeb18d56",
+      "sha256": "c91ee57473ca5e407b2f2e4d85877d18eaf46e57dffb730c61721633056b3796",
+      "evidence_ids": [
+        "source-review-45773f95f46e"
+      ],
+      "publication_status": "review-pending",
+      "notes": "Original manifest records separately licensed exact external model/dependency inputs; no change to their licensing or publication decision."
+    },
+    {
+      "path": "models/browser-speech/manifest.json",
+      "git_blob_oid": "2c0475d8df4174b24b9dcec6d8e7789633f12d19",
+      "sha256": "6fd572218921ca6f220435c279c9c2c3165eb8a893f21db4c6b40bbddd46373e",
+      "evidence_ids": [
+        "source-review-45773f95f46e"
+      ],
+      "publication_status": "review-pending",
+      "notes": "Original manifest records separately licensed exact external model/dependency inputs; no change to their licensing or publication decision."
+    },
+    {
       "path": "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
       "git_blob_oid": "4a279dafa21482c9420917567af383488fcdf912",
       "sha256": "f0253d0ae984626d09669aa7e3c102a8667b997d854db25c70850f571fa014b9",
@@ -7151,234 +7171,6 @@
       "notes": "Phase 5 preparation evidence; not a publication approval.",
       "lfs_oid": "6cf17dc889352c42e9acf8897107978d127005fe3386c36a0e3845e27967630a",
       "lfs_size": 527333
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_flow_int8.onnx",
-      "git_blob_oid": "19df0de46aea9d79266f8f110d4be67d08e38cf1",
-      "sha256": "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529",
-      "evidence_ids": [
-        "source-review-3559bc1117d7"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529",
-      "lfs_size": 9962530
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_main_int8.onnx",
-      "git_blob_oid": "9fe93be30bce3395d2d9f4cd263354399dc73f2d",
-      "sha256": "fd5cdd7f7ab05f638af0011b9561fe95f3d86bae7be7504e921ae3d2874b5da5",
-      "evidence_ids": [
-        "source-review-3559bc1117d7"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "fd5cdd7f7ab05f638af0011b9561fe95f3d86bae7be7504e921ae3d2874b5da5",
-      "lfs_size": 76341627
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/mimi_decoder_int8.onnx",
-      "git_blob_oid": "9652b11898899115d86ed3acc1ff385973c7a51a",
-      "sha256": "501e16f51cf3fb91bd2928ee2a10c96d3461544eff329aafca10489e990b450c",
-      "evidence_ids": [
-        "source-review-3559bc1117d7"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "501e16f51cf3fb91bd2928ee2a10c96d3461544eff329aafca10489e990b450c",
-      "lfs_size": 22684077
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/mimi_encoder.onnx",
-      "git_blob_oid": "b6f6c19b7e7e8e6a2c4744f34ba9a474b7619f90",
-      "sha256": "360f050cd0b1e1c9e92e25584391a2214cb7574ba16c67ac5f471f9dce8588e4",
-      "evidence_ids": [
-        "source-review-3559bc1117d7"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "360f050cd0b1e1c9e92e25584391a2214cb7574ba16c67ac5f471f9dce8588e4",
-      "lfs_size": 73165554
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/text_conditioner.onnx",
-      "git_blob_oid": "d0f3a1ae11081a39ad32ea7d80ba789119c4c1ae",
-      "sha256": "80ea69f46d8153a9bd42373723cedae4c88ccbde0e052c2a96e9e8f19445adf1",
-      "evidence_ids": [
-        "source-review-3559bc1117d7"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "80ea69f46d8153a9bd42373723cedae4c88ccbde0e052c2a96e9e8f19445adf1",
-      "lfs_size": 16388363
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/tokenizer.model",
-      "git_blob_oid": "1820a7cbb15efc6a33dd365113c07e3df9d28d80",
-      "sha256": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6",
-      "evidence_ids": [
-        "source-review-3559bc1117d7"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6",
-      "lfs_size": 59339
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/voices.bin",
-      "git_blob_oid": "326eaf71edc973d953e95c778e8c968047b535fb",
-      "sha256": "a499039e88043ff86cb39705f487cc761406d55f1e73ad19a3c055b16e86b062",
-      "evidence_ids": [
-        "source-review-3559bc1117d7"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "a499039e88043ff86cb39705f487cc761406d55f1e73ad19a3c055b16e86b062",
-      "lfs_size": 1564796
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx",
-      "git_blob_oid": "fb8232b387c2062359083ab8d3d43bb9aaa6b0d9",
-      "sha256": "2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f",
-      "evidence_ids": [
-        "source-review-77c595e2be7b"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f",
-      "lfs_size": 8679182
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/vad/silero_vad_v5.onnx",
-      "git_blob_oid": "196d69db5866c46988e121b79fb191044e07edf6",
-      "sha256": "2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f",
-      "evidence_ids": [
-        "source-review-d651669674c5"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f",
-      "lfs_size": 2327524
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/vad/vad.worklet.bundle.min.js",
-      "git_blob_oid": "6ad4cbdb0576ea5d9a7837663b55ebdcea953161",
-      "sha256": "8a48fdc7429948a2fde3d29a84bb1a64c1f67b4ba578ccaa7548b7f989f06a74",
-      "evidence_ids": [
-        "source-review-d651669674c5"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "8a48fdc7429948a2fde3d29a84bb1a64c1f67b4ba578ccaa7548b7f989f06a74",
-      "lfs_size": 2480
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.mjs",
-      "git_blob_oid": "5804a9d61ac1a87af797d4644dba3e27b4a023d6",
-      "sha256": "e8845db719fb6a5c3acedf1e7e7d23df5baa04a500a0611346824dc3fa92c966",
-      "evidence_ids": [
-        "source-review-5f4cec272728"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "e8845db719fb6a5c3acedf1e7e7d23df5baa04a500a0611346824dc3fa92c966",
-      "lfs_size": 48533
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.wasm",
-      "git_blob_oid": "70c6a1a7c1462eaf223c7a4d59b6ec1794865f4d",
-      "sha256": "2e396595ccfa7e03d77465cc81222a1e4b83497a98c20778d11dbec06b6cf511",
-      "evidence_ids": [
-        "source-review-5f4cec272728"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "2e396595ccfa7e03d77465cc81222a1e4b83497a98c20778d11dbec06b6cf511",
-      "lfs_size": 27099554
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.mjs",
-      "git_blob_oid": "f9875c2b4d4e4baf9909f0af4786a19ab2bcad05",
-      "sha256": "eb4e7f7fdeae313dc7f91746fda51aef5ccbae5e892714a3c15df62936968622",
-      "evidence_ids": [
-        "source-review-5f4cec272728"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "eb4e7f7fdeae313dc7f91746fda51aef5ccbae5e892714a3c15df62936968622",
-      "lfs_size": 46594
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.wasm",
-      "git_blob_oid": "c338e380c625775b4ebac44325d8480bb5da2300",
-      "sha256": "3384613cc4b1f8f500b7dc547f903857ad7cda336e7d20126bfbf686b68ae434",
-      "evidence_ids": [
-        "source-review-5f4cec272728"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "3384613cc4b1f8f500b7dc547f903857ad7cda336e7d20126bfbf686b68ae434",
-      "lfs_size": 24925138
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.mjs",
-      "git_blob_oid": "8df843f398d80a0e6ecdd38696099ddf0ade8cba",
-      "sha256": "9ca21e22b87188d02234303474a846bcbd3ec6f39a4db71933745a9af99d42b8",
-      "evidence_ids": [
-        "source-review-5f4cec272728"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "9ca21e22b87188d02234303474a846bcbd3ec6f39a4db71933745a9af99d42b8",
-      "lfs_size": 45481
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.wasm",
-      "git_blob_oid": "7f0b744b5d49ba39f6dea62bf2f26abb6c03a758",
-      "sha256": "7cb7e7a2a34efc164d4c27f8c446795c88adcc34a24db74aa2f887ae1e53db9d",
-      "evidence_ids": [
-        "source-review-5f4cec272728"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "7cb7e7a2a34efc164d4c27f8c446795c88adcc34a24db74aa2f887ae1e53db9d",
-      "lfs_size": 16800717
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.mjs",
-      "git_blob_oid": "d10a350dbaaa2c1922609831cc31357bc2900943",
-      "sha256": "b538a29137066dbed1f0f449fb081dfd35ccde3d5b155adc34532cefa3b23ee2",
-      "evidence_ids": [
-        "source-review-5f4cec272728"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "b538a29137066dbed1f0f449fb081dfd35ccde3d5b155adc34532cefa3b23ee2",
-      "lfs_size": 24274
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.wasm",
-      "git_blob_oid": "f5a6f4f91c53fe56e28ce3691fb5aee7c2c5f31b",
-      "sha256": "175fabe412fc7fd1376e3178861a47ebfdc30cedb3b2c3f6bb72c37d96c26f73",
-      "evidence_ids": [
-        "source-review-5f4cec272728"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "175fabe412fc7fd1376e3178861a47ebfdc30cedb3b2c3f6bb72c37d96c26f73",
-      "lfs_size": 12303130
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort.min.mjs",
-      "git_blob_oid": "e1c830a5807a949b21db3f02d67b59297da31558",
-      "sha256": "7ef416dd6ad711a2ee8f2c87d6076e37aea588b674ad3df28e8b19a79c8f4413",
-      "evidence_ids": [
-        "source-review-5f4cec272728"
-      ],
-      "publication_status": "review-pending",
-      "notes": "Phase 5 preparation evidence; not a publication approval.",
-      "lfs_oid": "7ef416dd6ad711a2ee8f2c87d6076e37aea588b674ad3df28e8b19a79c8f4413",
-      "lfs_size": 357956
     },
     {
       "path": "src/frontend/web/public/tts/audio/pcm-processor.worklet.js",
@@ -8962,6 +8754,544 @@
         }
       ],
       "reason": "Reviewed addition/relocation of model-store source-license mappings; preserve evidence origin, terms, unresolved conditions and publication status."
+    },
+    {
+      "date": "2026-09-17",
+      "path": ".agents/skills/animama-local-stacks/SKILL.md",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": ".agents/skills/animama-local-stacks/SKILL.md",
+        "git_blob_oid": "d2741a6ccc449516b9afbbff4b2f90f9ff6b57d3",
+        "sha256": "e6413d8e35fd1dc78aef83da3980ee6d6e5c4715bfd8c5b561eaaeef749b0bc6",
+        "evidence_ids": [
+          "source-review-45773f95f46e"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval."
+      },
+      "current_binding": {
+        "path": ".agents/skills/animama-local-stacks/SKILL.md",
+        "git_blob_oid": "68caf390174a9e8464d1e15a6c790e34b2448b0d",
+        "sha256": "ebd9b0682618071e22b6d1a35dad6533e92102ba0bfa688362591047cac877c6",
+        "evidence_ids": [
+          "source-review-45773f95f46e"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval."
+      },
+      "reason": "Add explicit verified browser model prerequisite to existing local-stack guidance; origin, terms and publication state unchanged."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_flow_int8.onnx",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_flow_int8.onnx",
+        "git_blob_oid": "19df0de46aea9d79266f8f110d4be67d08e38cf1",
+        "sha256": "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529",
+        "evidence_ids": [
+          "source-review-3559bc1117d7"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529",
+        "lfs_size": 9962530
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_main_int8.onnx",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_main_int8.onnx",
+        "git_blob_oid": "9fe93be30bce3395d2d9f4cd263354399dc73f2d",
+        "sha256": "fd5cdd7f7ab05f638af0011b9561fe95f3d86bae7be7504e921ae3d2874b5da5",
+        "evidence_ids": [
+          "source-review-3559bc1117d7"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "fd5cdd7f7ab05f638af0011b9561fe95f3d86bae7be7504e921ae3d2874b5da5",
+        "lfs_size": 76341627
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/models/pocket-tts/mimi_decoder_int8.onnx",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/models/pocket-tts/mimi_decoder_int8.onnx",
+        "git_blob_oid": "9652b11898899115d86ed3acc1ff385973c7a51a",
+        "sha256": "501e16f51cf3fb91bd2928ee2a10c96d3461544eff329aafca10489e990b450c",
+        "evidence_ids": [
+          "source-review-3559bc1117d7"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "501e16f51cf3fb91bd2928ee2a10c96d3461544eff329aafca10489e990b450c",
+        "lfs_size": 22684077
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/models/pocket-tts/mimi_encoder.onnx",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/models/pocket-tts/mimi_encoder.onnx",
+        "git_blob_oid": "b6f6c19b7e7e8e6a2c4744f34ba9a474b7619f90",
+        "sha256": "360f050cd0b1e1c9e92e25584391a2214cb7574ba16c67ac5f471f9dce8588e4",
+        "evidence_ids": [
+          "source-review-3559bc1117d7"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "360f050cd0b1e1c9e92e25584391a2214cb7574ba16c67ac5f471f9dce8588e4",
+        "lfs_size": 73165554
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/models/pocket-tts/text_conditioner.onnx",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/models/pocket-tts/text_conditioner.onnx",
+        "git_blob_oid": "d0f3a1ae11081a39ad32ea7d80ba789119c4c1ae",
+        "sha256": "80ea69f46d8153a9bd42373723cedae4c88ccbde0e052c2a96e9e8f19445adf1",
+        "evidence_ids": [
+          "source-review-3559bc1117d7"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "80ea69f46d8153a9bd42373723cedae4c88ccbde0e052c2a96e9e8f19445adf1",
+        "lfs_size": 16388363
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/models/pocket-tts/tokenizer.model",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/models/pocket-tts/tokenizer.model",
+        "git_blob_oid": "1820a7cbb15efc6a33dd365113c07e3df9d28d80",
+        "sha256": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6",
+        "evidence_ids": [
+          "source-review-3559bc1117d7"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6",
+        "lfs_size": 59339
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/models/pocket-tts/voices.bin",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/models/pocket-tts/voices.bin",
+        "git_blob_oid": "326eaf71edc973d953e95c778e8c968047b535fb",
+        "sha256": "a499039e88043ff86cb39705f487cc761406d55f1e73ad19a3c055b16e86b062",
+        "evidence_ids": [
+          "source-review-3559bc1117d7"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "a499039e88043ff86cb39705f487cc761406d55f1e73ad19a3c055b16e86b062",
+        "lfs_size": 1564796
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx",
+        "git_blob_oid": "fb8232b387c2062359083ab8d3d43bb9aaa6b0d9",
+        "sha256": "2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f",
+        "evidence_ids": [
+          "source-review-77c595e2be7b"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f",
+        "lfs_size": 8679182
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/models/vad/silero_vad_v5.onnx",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/models/vad/silero_vad_v5.onnx",
+        "git_blob_oid": "196d69db5866c46988e121b79fb191044e07edf6",
+        "sha256": "2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f",
+        "evidence_ids": [
+          "source-review-d651669674c5"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f",
+        "lfs_size": 2327524
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/models/vad/vad.worklet.bundle.min.js",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/models/vad/vad.worklet.bundle.min.js",
+        "git_blob_oid": "6ad4cbdb0576ea5d9a7837663b55ebdcea953161",
+        "sha256": "8a48fdc7429948a2fde3d29a84bb1a64c1f67b4ba578ccaa7548b7f989f06a74",
+        "evidence_ids": [
+          "source-review-d651669674c5"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "8a48fdc7429948a2fde3d29a84bb1a64c1f67b4ba578ccaa7548b7f989f06a74",
+        "lfs_size": 2480
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.mjs",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.mjs",
+        "git_blob_oid": "5804a9d61ac1a87af797d4644dba3e27b4a023d6",
+        "sha256": "e8845db719fb6a5c3acedf1e7e7d23df5baa04a500a0611346824dc3fa92c966",
+        "evidence_ids": [
+          "source-review-5f4cec272728"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "e8845db719fb6a5c3acedf1e7e7d23df5baa04a500a0611346824dc3fa92c966",
+        "lfs_size": 48533
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.wasm",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.wasm",
+        "git_blob_oid": "70c6a1a7c1462eaf223c7a4d59b6ec1794865f4d",
+        "sha256": "2e396595ccfa7e03d77465cc81222a1e4b83497a98c20778d11dbec06b6cf511",
+        "evidence_ids": [
+          "source-review-5f4cec272728"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "2e396595ccfa7e03d77465cc81222a1e4b83497a98c20778d11dbec06b6cf511",
+        "lfs_size": 27099554
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.mjs",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.mjs",
+        "git_blob_oid": "f9875c2b4d4e4baf9909f0af4786a19ab2bcad05",
+        "sha256": "eb4e7f7fdeae313dc7f91746fda51aef5ccbae5e892714a3c15df62936968622",
+        "evidence_ids": [
+          "source-review-5f4cec272728"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "eb4e7f7fdeae313dc7f91746fda51aef5ccbae5e892714a3c15df62936968622",
+        "lfs_size": 46594
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.wasm",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.wasm",
+        "git_blob_oid": "c338e380c625775b4ebac44325d8480bb5da2300",
+        "sha256": "3384613cc4b1f8f500b7dc547f903857ad7cda336e7d20126bfbf686b68ae434",
+        "evidence_ids": [
+          "source-review-5f4cec272728"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "3384613cc4b1f8f500b7dc547f903857ad7cda336e7d20126bfbf686b68ae434",
+        "lfs_size": 24925138
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.mjs",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.mjs",
+        "git_blob_oid": "8df843f398d80a0e6ecdd38696099ddf0ade8cba",
+        "sha256": "9ca21e22b87188d02234303474a846bcbd3ec6f39a4db71933745a9af99d42b8",
+        "evidence_ids": [
+          "source-review-5f4cec272728"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "9ca21e22b87188d02234303474a846bcbd3ec6f39a4db71933745a9af99d42b8",
+        "lfs_size": 45481
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.wasm",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.wasm",
+        "git_blob_oid": "7f0b744b5d49ba39f6dea62bf2f26abb6c03a758",
+        "sha256": "7cb7e7a2a34efc164d4c27f8c446795c88adcc34a24db74aa2f887ae1e53db9d",
+        "evidence_ids": [
+          "source-review-5f4cec272728"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "7cb7e7a2a34efc164d4c27f8c446795c88adcc34a24db74aa2f887ae1e53db9d",
+        "lfs_size": 16800717
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.mjs",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.mjs",
+        "git_blob_oid": "d10a350dbaaa2c1922609831cc31357bc2900943",
+        "sha256": "b538a29137066dbed1f0f449fb081dfd35ccde3d5b155adc34532cefa3b23ee2",
+        "evidence_ids": [
+          "source-review-5f4cec272728"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "b538a29137066dbed1f0f449fb081dfd35ccde3d5b155adc34532cefa3b23ee2",
+        "lfs_size": 24274
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.wasm",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.wasm",
+        "git_blob_oid": "f5a6f4f91c53fe56e28ce3691fb5aee7c2c5f31b",
+        "sha256": "175fabe412fc7fd1376e3178861a47ebfdc30cedb3b2c3f6bb72c37d96c26f73",
+        "evidence_ids": [
+          "source-review-5f4cec272728"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "175fabe412fc7fd1376e3178861a47ebfdc30cedb3b2c3f6bb72c37d96c26f73",
+        "lfs_size": 12303130
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort.min.mjs",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": {
+        "path": "src/frontend/web/public/onnx/ort/1.24.2/ort.min.mjs",
+        "git_blob_oid": "e1c830a5807a949b21db3f02d67b59297da31558",
+        "sha256": "7ef416dd6ad711a2ee8f2c87d6076e37aea588b674ad3df28e8b19a79c8f4413",
+        "evidence_ids": [
+          "source-review-5f4cec272728"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Phase 5 preparation evidence; not a publication approval.",
+        "lfs_oid": "7ef416dd6ad711a2ee8f2c87d6076e37aea588b674ad3df28e8b19a79c8f4413",
+        "lfs_size": 357956
+      },
+      "current_binding": null,
+      "reason": "Reviewed Phase 3 external model/dependency storage migration after replacement checks; exact hashes, variants and existing license/publication disposition retained in model manifests and external inventory. Original local files/history/LFS objects retained."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "models/browser-speech/manifest.json",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": null,
+      "current_binding": {
+        "path": "models/browser-speech/manifest.json",
+        "git_blob_oid": "2c0475d8df4174b24b9dcec6d8e7789633f12d19",
+        "sha256": "6fd572218921ca6f220435c279c9c2c3165eb8a893f21db4c6b40bbddd46373e",
+        "evidence_ids": [
+          "source-review-45773f95f46e"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Original manifest records separately licensed exact external model/dependency inputs; no change to their licensing or publication decision."
+      },
+      "reason": "Reviewed authored acquisition/runtime manifest preserves all former source payload hashes and variants."
+    },
+    {
+      "date": "2026-09-17",
+      "path": "models/browser-runtime/manifest.json",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "previous_binding": null,
+      "current_binding": {
+        "path": "models/browser-runtime/manifest.json",
+        "git_blob_oid": "72eaa673487ac1dad73fdd0cabae6546eeb18d56",
+        "sha256": "c91ee57473ca5e407b2f2e4d85877d18eaf46e57dffb730c61721633056b3796",
+        "evidence_ids": [
+          "source-review-45773f95f46e"
+        ],
+        "publication_status": "review-pending",
+        "notes": "Original manifest records separately licensed exact external model/dependency inputs; no change to their licensing or publication decision."
+      },
+      "reason": "Reviewed authored acquisition/runtime manifest preserves all former source payload hashes and variants."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence_id": "source-review-45773f95f46e",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "evidence_bindings": [
+        {
+          "path": "licenses/source-review.json",
+          "previous_sha256": "e9a81a7e17bdbedfc9825395b5157e59a9f307fa97baddda387022997661168c",
+          "current_sha256": "b45bcd6c377daf06ecf73bca9653a99ba353e8cd9b6cfc125c60abbe24573ccd"
+        }
+      ],
+      "reason": "Reviewed Phase 3 storage relocation/addition source mappings only; preserve origins, terms, unresolved obligations and publication status."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence_id": "source-review-96af726c1b07",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "evidence_bindings": [
+        {
+          "path": "licenses/third-party/code-and-models.json",
+          "previous_sha256": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a",
+          "current_sha256": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
+        }
+      ],
+      "reason": "Reviewed Phase 3 storage relocation/addition source mappings only; preserve origins, terms, unresolved obligations and publication status."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence_id": "source-review-2ba86e961a2d",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "evidence_bindings": [
+        {
+          "path": "licenses/third-party/code-and-models.json",
+          "previous_sha256": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a",
+          "current_sha256": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
+        }
+      ],
+      "reason": "Reviewed Phase 3 storage relocation/addition source mappings only; preserve origins, terms, unresolved obligations and publication status."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence_id": "source-review-3559bc1117d7",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "evidence_bindings": [
+        {
+          "path": "licenses/third-party/code-and-models.json",
+          "previous_sha256": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a",
+          "current_sha256": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
+        }
+      ],
+      "reason": "Reviewed Phase 3 storage relocation/addition source mappings only; preserve origins, terms, unresolved obligations and publication status."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence_id": "source-review-77c595e2be7b",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "evidence_bindings": [
+        {
+          "path": "licenses/third-party/code-and-models.json",
+          "previous_sha256": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a",
+          "current_sha256": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
+        }
+      ],
+      "reason": "Reviewed Phase 3 storage relocation/addition source mappings only; preserve origins, terms, unresolved obligations and publication status."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence_id": "source-review-d651669674c5",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "evidence_bindings": [
+        {
+          "path": "licenses/third-party/code-and-models.json",
+          "previous_sha256": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a",
+          "current_sha256": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
+        }
+      ],
+      "reason": "Reviewed Phase 3 storage relocation/addition source mappings only; preserve origins, terms, unresolved obligations and publication status."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence_id": "source-review-5f4cec272728",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "evidence_bindings": [
+        {
+          "path": "licenses/third-party/code-and-models.json",
+          "previous_sha256": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a",
+          "current_sha256": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
+        }
+      ],
+      "reason": "Reviewed Phase 3 storage relocation/addition source mappings only; preserve origins, terms, unresolved obligations and publication status."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence_id": "source-review-a18ce2c21295",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "evidence_bindings": [
+        {
+          "path": "licenses/third-party/code-and-models.json",
+          "previous_sha256": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a",
+          "current_sha256": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
+        }
+      ],
+      "reason": "Reviewed Phase 3 storage relocation/addition source mappings only; preserve origins, terms, unresolved obligations and publication status."
+    },
+    {
+      "date": "2026-09-17",
+      "evidence_id": "source-review-7d906e0da111",
+      "base_commit": "0dc00094e9c0eafbbcd4ec98302d271e434178a4",
+      "evidence_bindings": [
+        {
+          "path": "licenses/third-party/code-and-models.json",
+          "previous_sha256": "b08add9d27ccc9e60d1e1d1d773bc62d7b937df614e9197c18eea19f48f82a4a",
+          "current_sha256": "0bd9893343f49e7907d9a3daea7a84186485712a9646aef9db2a0b2bce6a096a"
+        }
+      ],
+      "reason": "Reviewed Phase 3 storage relocation/addition source mappings only; preserve origins, terms, unresolved obligations and publication status."
     }
   ]
 }

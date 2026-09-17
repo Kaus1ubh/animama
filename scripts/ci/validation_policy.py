@@ -29,6 +29,7 @@ SHARED_TESTS = {
     "test_desktop_runtime_packaging.py",
     "test_included_content_integrity.py",
     "test_model_store.py",
+    "test_browser_model_store.py",
     "test_generate_synthetic_docs.py",
 }
 JOBS = {"validation-plan", "backend-static-tests", "portable-product", "model-store-windows"}

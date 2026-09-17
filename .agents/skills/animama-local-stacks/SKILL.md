@@ -13,7 +13,8 @@ for every mutable test. No workspace helper or formal task score is required.
 
 ## Model Prerequisite
 
-Before first startup, run `python3 scripts/models/parakeet.py acquire` explicitly,
+Before first startup, run `python3 scripts/models/parakeet.py acquire` and
+`python3 scripts/models/browser_speech.py acquire` explicitly,
 or import a verified existing copy. `ANIMAMA_MODEL_ROOT` selects an absolute shared
 store root. Reset verifies it offline before changing containers and records the
 resolved version; ordinary startup never downloads models. Follow

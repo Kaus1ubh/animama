@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "model_id": "browser-speech",
+  "files": [
+    {
+      "path": "flow_lm_flow_int8.onnx",
+      "target": "models/pocket-tts/flow_lm_flow_int8.onnx",
+      "size": 9962530,
+      "sha256": "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529",
+      "license": "CC-BY-NC-4.0",
+      "source": {
+        "repository": "spaces/codexxx/pocket-tts-web",
+        "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950",
+        "path": "onnx/flow_lm_flow_int8.onnx"
+      }
+    },
+    {
+      "path": "flow_lm_main_int8.onnx",
+      "target": "models/pocket-tts/flow_lm_main_int8.onnx",
+      "size": 76341627,
+      "sha256": "fd5cdd7f7ab05f638af0011b9561fe95f3d86bae7be7504e921ae3d2874b5da5",
+      "license": "CC-BY-NC-4.0",
+      "source": {
+        "repository": "spaces/codexxx/pocket-tts-web",
+        "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950",
+        "path": "onnx/flow_lm_main_int8.onnx"
+      }
+    },
+    {
+      "path": "mimi_decoder_int8.onnx",
+      "target": "models/pocket-tts/mimi_decoder_int8.onnx",
+      "size": 22684077,
+      "sha256": "501e16f51cf3fb91bd2928ee2a10c96d3461544eff329aafca10489e990b450c",
+      "license": "CC-BY-NC-4.0",
+      "source": {
+        "repository": "spaces/codexxx/pocket-tts-web",
+        "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950",
+        "path": "onnx/mimi_decoder_int8.onnx"
+      }
+    },
+    {
+      "path": "mimi_encoder.onnx",
+      "target": "models/pocket-tts/mimi_encoder.onnx",
+      "size": 73165554,
+      "sha256": "360f050cd0b1e1c9e92e25584391a2214cb7574ba16c67ac5f471f9dce8588e4",
+      "license": "CC-BY-NC-4.0",
+      "source": {
+        "repository": "spaces/codexxx/pocket-tts-web",
+        "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950",
+        "path": "onnx/mimi_encoder.onnx"
+      }
+    },
+    {
+      "path": "text_conditioner.onnx",
+      "target": "models/pocket-tts/text_conditioner.onnx",
+      "size": 16388363,
+      "sha256": "80ea69f46d8153a9bd42373723cedae4c88ccbde0e052c2a96e9e8f19445adf1",
+      "license": "CC-BY-NC-4.0",
+      "source": {
+        "repository": "spaces/codexxx/pocket-tts-web",
+        "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950",
+        "path": "onnx/text_conditioner.onnx"
+      }
+    },
+    {
+      "path": "tokenizer.model",
+      "target": "models/pocket-tts/tokenizer.model",
+      "size": 59339,
+      "sha256": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6",
+      "license": "CC-BY-NC-4.0",
+      "source": {
+        "repository": "spaces/KevinAHM/pocket-tts-web",
+        "revision": "3cf6daa623e2b09992c972cab32568ee8679a154",
+        "path": "tokenizer.model"
+      }
+    },
+    {
+      "path": "voices.bin",
+      "target": "models/pocket-tts/voices.bin",
+      "size": 1564796,
+      "sha256": "a499039e88043ff86cb39705f487cc761406d55f1e73ad19a3c055b16e86b062",
+      "license": "CC-BY-NC-4.0",
+      "source": {
+        "repository": "spaces/KevinAHM/pocket-tts-web",
+        "revision": "3cf6daa623e2b09992c972cab32568ee8679a154",
+        "path": "voices.bin"
+      }
+    },
+    {
+      "path": "smart-turn-v3.2-cpu.onnx",
+      "target": "models/smart-turn/smart-turn-v3.2-cpu.onnx",
+      "size": 8679182,
+      "sha256": "2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f",
+      "license": "BSD-2-Clause",
+      "source": {
+        "repository": "pipecat-ai/smart-turn-v3",
+        "revision": "f766f81d3cfdf7737ac64aad813d91bbfd56bf93",
+        "path": "smart-turn-v3.2-cpu.onnx"
+      }
+    }
+  ],
+  "notices": [
+    {
+      "path": "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
+      "size": 1880,
+      "sha256": "b4856a9a31eaad1438c76c1914d448aedb0d7fec21a2053870b02165571be44a"
+    },
+    {
+      "path": "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt",
+      "size": 19910,
+      "sha256": "80da26ae6d430dc149fcfcf02ca2cd37f9a4d3704f186a754d18177568dd4529"
+    },
+    {
+      "path": "src/frontend/desktop/runtime/notices/smart-turn-bsd-2-clause.txt",
+      "size": 1901,
+      "sha256": "98bcafef07791d53ce55231f944ad4e088a88f948a11dae40faa0f96f137831c"
+    }
+  ]
+}

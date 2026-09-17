@@ -27,13 +27,13 @@ export function resolveLocalParakeetModelDir(): string {
   }).trim();
 }
 
-type LocalFileAsset = {
+export type LocalFileAsset = {
   filePath: string;
   size: number;
   contentType: string;
 };
 
-type MiddlewareServer = {
+export type MiddlewareServer = {
   middlewares: {
     use: (
       handler: (
@@ -124,24 +124,15 @@ function serveLocalFileFromRoute({
   };
 }
 
-function installLocalParakeetModelMiddleware(
+/** Serve a caller-owned allowlist with consistent byte-range behavior. */
+export function installLocalAssetMiddleware(
   server: MiddlewareServer,
-  {
-    modelDir,
-    routeBaseUrl,
-  }: {
-    modelDir: string;
-    routeBaseUrl: string;
-  },
+  resolveAsset: (requestUrl: string | undefined) => LocalFileAsset | null,
 ): void {
   server.middlewares.use((req, res, next) => {
     let asset: LocalFileAsset | null;
     try {
-      asset = serveLocalFileFromRoute({
-        requestUrl: req.url,
-        routeBaseUrl,
-        rootDir: modelDir,
-      });
+      asset = resolveAsset(req.url);
     } catch (error) {
       const statusCode = getStatusCode(error);
       const errorMessage =
@@ -224,16 +215,16 @@ export function localParakeetModelPlugin({
   return {
     name: "anima-local-parakeet-models",
     configureServer(server) {
-      installLocalParakeetModelMiddleware(server, {
-        modelDir: typeof modelDir === "function" ? modelDir() : modelDir,
-        routeBaseUrl,
-      });
+      const rootDir = typeof modelDir === "function" ? modelDir() : modelDir;
+      installLocalAssetMiddleware(server, (requestUrl) =>
+        serveLocalFileFromRoute({ requestUrl, routeBaseUrl, rootDir }),
+      );
     },
     configurePreviewServer(server) {
-      installLocalParakeetModelMiddleware(server, {
-        modelDir: typeof modelDir === "function" ? modelDir() : modelDir,
-        routeBaseUrl,
-      });
+      const rootDir = typeof modelDir === "function" ? modelDir() : modelDir;
+      installLocalAssetMiddleware(server, (requestUrl) =>
+        serveLocalFileFromRoute({ requestUrl, routeBaseUrl, rootDir }),
+      );
     },
   };
 }

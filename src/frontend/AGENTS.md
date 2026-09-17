@@ -41,7 +41,8 @@ Prefer boring, local changes that fit existing patterns.
 - Generated API client: `packages/runtime-contracts/src/generated`, regenerated
   offline and exported through `@animama/runtime-contracts/sdk`, `api-types`,
   and `validators`.
-- Runtime assets: `web/public`
+- Runtime assets: small tracked files in `web/public`; verified speech inputs
+  selected by `models/browser-runtime/manifest.json`.
 - Docs entrypoint: `../../docs/frontend/README.md`
 
 Start with:
@@ -221,7 +222,13 @@ or migration behavior.
 ### Assets And Workers
 
 - Public runtime assets belong in `web/public`.
-- Large model/audio/avatar assets are Git LFS-managed.
+- Hydrate tracked LFS audio/avatar inputs. Speech engine payloads use the verified
+  shared store and exact dependency files described in
+  `../../docs/backend/operations/model-assets.md`; do not restore ONNX payloads to
+  `web/public` or substitute different runtime versions.
+- Vite verifies the 19 browser engine files before serving/building and copies
+  them into built artifacts. Keep every variant, same-origin URL and notice;
+  installed artifacts must not depend on a developer cache.
 - Use root-relative public URLs for runtime fetches.
 - Run asset verification when changing public runtime assets.
 

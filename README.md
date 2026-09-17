@@ -25,6 +25,7 @@ root:
 
 ```bash
 python3 scripts/models/parakeet.py acquire
+python3 scripts/models/browser_speech.py acquire
 ./reset.sh
 ```
 

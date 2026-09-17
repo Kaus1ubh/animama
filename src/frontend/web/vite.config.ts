@@ -12,6 +12,7 @@ import {
   localParakeetModelPlugin,
   resolveLocalParakeetModelDir,
 } from "./vite-plugins/local-parakeet-models";
+import { browserRuntimeAssetsPlugin } from "./vite-plugins/browser-runtime-assets";
 import {
   localAPIProxy,
   localDevelopmentOrigins,
@@ -129,6 +130,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
   return {
     plugins: [
       localDevelopmentRouteFence(),
+      browserRuntimeAssetsPlugin(),
       includedContentCompatibilityPlugin({
         includedRoot: includedContentRoot,
         aliases: includedContentAliases,

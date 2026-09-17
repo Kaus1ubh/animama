@@ -130,11 +130,24 @@ Why this matters:
 
 ## Developer and self-host model inputs
 
-Parakeet weights are acquired from exact pinned upstream revisions into a verified
-shared store, outside Git worktrees. Use the [model setup guide](../../backend/operations/model-assets.md)
-before starting Vite or Compose. The same-origin model URLs, inference worker and
-installed desktop pack lifecycle are unchanged. Runtime startup never downloads
-from Hugging Face; browsers do not receive upstream acquisition URLs or credentials.
+Parakeet and the eight reviewed Pocket TTS/Smart Turn inputs are acquired from
+exact pinned revisions into a verified shared store outside Git worktrees.
+`models/browser-runtime/manifest.json` also binds nine ORT 1.24.2 files from the
+exact dependency alias and two VAD 0.0.30 files from its pinned package. Other
+bundled ORT imports keep their existing locked versions.
+
+Use the [model setup guide](../../backend/operations/model-assets.md) before
+starting Vite or Compose, or building the web application. It documents
+`ANIMAMA_MODEL_ROOT`, the native Windows `%LOCALAPPDATA%\Animama\models` default,
+and the Linux default used by WSL. Development verifies and serves engine inputs
+at the existing same-origin URLs; built self-host and desktop outputs contain
+independent verified copies of the 19 browser assets. Parakeet remains outside
+the web build and retains its installed desktop pack lifecycle.
+
+Startup and builds do not acquire models implicitly. Browsers do not receive
+upstream acquisition URLs or credentials. The existing Pocket input license
+conditions and notices remain in force; changing storage does not change usage
+rights or inference behavior.
 
 ## STT Pipeline (Dictation + Voice Mode)
 
@@ -1139,25 +1152,36 @@ Voice resolution:
 
 ### STT/VAD/smart-turn assets
 
-- VAD model:
-  - `src/frontend/web/public/onnx/models/vad/silero_vad_v5.onnx`
-- VAD worklet bundle (vad-web asset path):
-  - `src/frontend/web/public/onnx/models/vad/vad.worklet.bundle.min.js`
-- ORT wasm runtime:
-  - `src/frontend/web/public/onnx/ort/1.24.2/*`
-- smart-turn model:
-  - `src/frontend/web/public/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx`
+The runtime inventory is `models/browser-runtime/manifest.json`; the following
+are application URLs, not tracked model files under `web/public`:
+
+- VAD model: `/onnx/models/vad/silero_vad_v5.onnx`
+- VAD worklet: `/onnx/models/vad/vad.worklet.bundle.min.js`
+- Pocket's ORT modules and all sidecars: `/onnx/ort/1.24.2/*`
+- Smart Turn: `/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx`
+
+VAD and Smart Turn workers also retain their Vite-bundled ORT imports. Resolving
+the public ORT 1.24.2 inventory does not replace those dependency versions.
 
 ### Pocket TTS assets
 
-- core bundle assets:
-  - `src/frontend/web/public/tts/*`
-- Pocket ONNX model files:
-  - `src/frontend/web/public/onnx/models/pocket-tts/*`
-- shared predefined voice catalog:
-  - `src/frontend/web/public/onnx/models/pocket-tts/voices.bin`
-- optional anima voice catalogs:
-  - `src/frontend/web/public/onnx/models/pocket-tts/animas/{animaId}_voices.bin`
+- Small worker/worklet/vendor code stays in `src/frontend/web/public/tts/*`.
+- The seven reviewed model, tokenizer and shared voice files are served at
+  `/onnx/models/pocket-tts/*`, including `voices.bin`, from the verified sources.
+- Anima voice catalogs are separate user/catalog inputs; their persisted URLs
+  and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
+  are not members of the 19-file engine inventory.
+
+Legacy operator-supplied catalogs at
+`/onnx/models/pocket-tts/animas/<safe-id>_voices.bin` remain separate optional
+inputs under `web/public`, using letters, digits, `_` or `-` for the ID. Vite
+serves only existing regular files at those paths and preserves their build
+copies; missing catalogs return 404. They are not hash-approved engine assets
+or members of the 19-file manifest. Normal uploaded catalog URLs are unaffected.
+
+From `src/frontend`, run `pnpm verify:tts-assets` for source inputs or
+`pnpm verify:tts-assets -- --built-root web/dist` for a built application. Both
+verify the complete engine inventory and required small TTS runtime files.
 
 ## Known Constraints and Troubleshooting
 

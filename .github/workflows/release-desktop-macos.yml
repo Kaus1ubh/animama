@@ -122,7 +122,6 @@ jobs:
       - run: pnpm web:lint
       - run: pnpm web:test
       - run: pnpm desktop:test
-      - run: pnpm build
       - name: Acquire exact reviewed model inputs before pack production
         working-directory: .
         env:
@@ -130,7 +129,10 @@ jobs:
         run: |
           python3 scripts/models/parakeet.py acquire
           python3 scripts/models/parakeet.py verify
+          python3 scripts/models/browser_speech.py acquire
+          python3 scripts/models/browser_speech.py verify
           echo "ANIMAMA_MODEL_ROOT=$ANIMAMA_MODEL_ROOT" >> "$GITHUB_ENV"
+      - run: pnpm build
       - run: pnpm desktop:runtime:stage -- --platform darwin --arch arm64
       - run: pnpm desktop:runtime:audit -- --platform darwin --arch arm64
       - name: Import CI-only signing credentials

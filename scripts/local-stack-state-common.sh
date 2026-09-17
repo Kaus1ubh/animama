@@ -135,7 +135,7 @@ animama_state_compose() {
   if [ -z "${COMPOSE_FILE:-}" ]; then
     local build_mode="${ANIMAMA_WEB_BUILD_MODE:-}"
     if [ -z "${ANIMAMA_WEB_BUILD_MODE+x}" ]; then
-      build_mode="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml" config --environment | python3 -c '
+      build_mode="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ ANIMAMA_BROWSER_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml" config --environment | python3 -c '
 import sys
 values = dict(line.rstrip("\n").partition("=")[::2] for line in sys.stdin)
 print(values.get("ANIMAMA_WEB_BUILD_MODE") or "development")
@@ -153,7 +153,7 @@ print(values.get("ANIMAMA_WEB_BUILD_MODE") or "development")
   if [ -z "${ANIMAMA_PARAKEET_MODEL_DIR:-}" ]; then
     local model_root="${ANIMAMA_MODEL_ROOT:-}"
     if [ -z "${ANIMAMA_MODEL_ROOT+x}" ]; then
-      model_root="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml" config --environment | python3 -c '
+      model_root="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ ANIMAMA_BROWSER_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml" config --environment | python3 -c '
 import sys
 values = dict(line.rstrip("\n").partition("=")[::2] for line in sys.stdin)
 print(values.get("ANIMAMA_MODEL_ROOT", ""))

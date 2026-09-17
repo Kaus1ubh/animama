@@ -45,6 +45,8 @@ services:
   animama-server:
     build:
       context: .
+      additional_contexts:
+        browser_models: ${ANIMAMA_BROWSER_MODEL_DIR:-./models/browser-speech}
       target: animama-server
     container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}animama-server"
     restart: unless-stopped

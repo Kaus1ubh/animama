@@ -25,6 +25,7 @@ def test_state_commands_select_the_same_graph_as_reset(tmp_path: Path, mode: str
         "PATH": f"{tmp_path}:{os.environ['PATH']}",
         "ANIMAMA_WEB_BUILD_MODE": mode,
         "ANIMAMA_PARAKEET_MODEL_DIR": "/verified/models",
+        "ANIMAMA_BROWSER_MODEL_DIR": "/verified/browser-models",
     }
     env.pop("COMPOSE_FILE", None)
     result = subprocess.run(
@@ -57,6 +58,7 @@ def test_state_commands_preserve_the_recorded_graph(tmp_path: Path) -> None:
         "PATH": f"{tmp_path}:{os.environ['PATH']}",
         "COMPOSE_FILE": recorded,
         "ANIMAMA_PARAKEET_MODEL_DIR": "/verified/models",
+        "ANIMAMA_BROWSER_MODEL_DIR": "/verified/browser-models",
         "ANIMAMA_WEB_BUILD_MODE": "production",
     }
     result = subprocess.run(
@@ -98,7 +100,12 @@ def test_state_commands_match_reset_empty_selector_rules(tmp_path: Path, explici
         "fi\n"
     )
     docker.chmod(0o755)
-    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "ANIMAMA_PARAKEET_MODEL_DIR": "/verified/models"}
+    env = {
+        **os.environ,
+        "PATH": f"{tmp_path}:{os.environ['PATH']}",
+        "ANIMAMA_PARAKEET_MODEL_DIR": "/verified/models",
+        "ANIMAMA_BROWSER_MODEL_DIR": "/verified/browser-models",
+    }
     env.pop("COMPOSE_FILE", None)
     env.pop("ANIMAMA_WEB_BUILD_MODE", None)
     if explicit_empty:
@@ -135,6 +142,7 @@ def test_state_commands_resolve_missing_model_record_offline(tmp_path: Path, sel
         "root = sys.argv[sys.argv.index('--root') + 1] if '--root' in sys.argv else '/default-model-store'\n"
         "print(root + '/parakeet-tdt-0.6b-v2/verified-version')\n"
     )
+    (scripts / "models/browser_speech.py").write_text((scripts / "models/parakeet.py").read_text())
     docker = tmp_path / "docker"
     docker.write_text(
         "#!/usr/bin/env bash\n"

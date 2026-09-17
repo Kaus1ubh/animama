@@ -1081,25 +1081,6 @@ paths = [
   "src/frontend/web/public/basis/README.md",
   "src/frontend/web/public/basis/basis_transcoder.js",
   "src/frontend/web/public/basis/basis_transcoder.wasm",
-  "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_flow_int8.onnx",
-  "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_main_int8.onnx",
-  "src/frontend/web/public/onnx/models/pocket-tts/mimi_decoder_int8.onnx",
-  "src/frontend/web/public/onnx/models/pocket-tts/mimi_encoder.onnx",
-  "src/frontend/web/public/onnx/models/pocket-tts/text_conditioner.onnx",
-  "src/frontend/web/public/onnx/models/pocket-tts/tokenizer.model",
-  "src/frontend/web/public/onnx/models/pocket-tts/voices.bin",
-  "src/frontend/web/public/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx",
-  "src/frontend/web/public/onnx/models/vad/silero_vad_v5.onnx",
-  "src/frontend/web/public/onnx/models/vad/vad.worklet.bundle.min.js",
-  "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.mjs",
-  "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.wasm",
-  "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.mjs",
-  "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.wasm",
-  "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.mjs",
-  "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.wasm",
-  "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.mjs",
-  "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.wasm",
-  "src/frontend/web/public/onnx/ort/1.24.2/ort.min.mjs",
   "src/frontend/web/public/tts/audio/pcm-processor.worklet.js",
   "src/frontend/web/public/tts/vendor/sentencepiece.js",
   "src/frontend/web/public/tts/workers/inference-worker.js",
@@ -2778,4 +2759,19 @@ paths = [
   "src/frontend/desktop/tests/optional-inputs.test.mjs",
   "src/frontend/web/tests/localParakeetModels.test.ts",
   "tests/test_model_store.py",
+]
+
+[[groups]]
+id = "shared-browser-assets"
+owner = "public"
+rationale = "Phase 3 exact-input model/dependency manifests, verification integration and tests; no private inputs."
+paths = [
+  "models/browser-runtime/manifest.json",
+  "models/browser-speech/manifest.json",
+  "scripts/models/browser_speech.py",
+  "src/frontend/scripts/browser-runtime-assets.d.mts",
+  "src/frontend/scripts/browser-runtime-assets.mjs",
+  "src/frontend/web/tests/browserRuntimeAssets.test.ts",
+  "src/frontend/web/vite-plugins/browser-runtime-assets.ts",
+  "tests/test_browser_model_store.py",
 ]

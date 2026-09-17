@@ -203,7 +203,7 @@ STACK_ENV_FILE="${STACK_ENV_FILE_ARG:-${script_dir}/.animama-stack.env}"
 # explicitly selected base file prevents a stale sourced graph from deciding
 # which parser/build configuration reset uses.
 if [ -z "${COMPOSE_PROFILES+x}" ] || [ -z "${ANIMAMA_WEB_BUILD_MODE+x}" ] || [ -z "${ANIMAMA_MODEL_ROOT+x}" ]; then
-  local_selectors="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "${script_dir}/docker-compose.yml" config --environment | python3 -c '
+  local_selectors="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ ANIMAMA_BROWSER_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "${script_dir}/docker-compose.yml" config --environment | python3 -c '
 import sys
 values = dict(line.rstrip("\n").partition("=")[::2] for line in sys.stdin)
 print(values.get("COMPOSE_PROFILES", ""))
@@ -224,8 +224,11 @@ fi
 if ! ANIMAMA_PARAKEET_MODEL_DIR="$(python3 "${script_dir}/scripts/models/parakeet.py" path "${model_path_args[@]}")"; then
   exit 2
 fi
+if ! ANIMAMA_BROWSER_MODEL_DIR="$(python3 "${script_dir}/scripts/models/browser_speech.py" path "${model_path_args[@]}")"; then
+  exit 2
+fi
 ANIMAMA_MODEL_ROOT="$(dirname "$(dirname "$ANIMAMA_PARAKEET_MODEL_DIR")")"
-export ANIMAMA_MODEL_ROOT ANIMAMA_PARAKEET_MODEL_DIR
+export ANIMAMA_MODEL_ROOT ANIMAMA_PARAKEET_MODEL_DIR ANIMAMA_BROWSER_MODEL_DIR
 
 COMPOSE_PROFILES="${COMPOSE_PROFILES-${dotenv_profiles:-}}"
 ANIMAMA_WEB_BUILD_MODE="${ANIMAMA_WEB_BUILD_MODE-${dotenv_build_mode:-development}}"
@@ -395,6 +398,7 @@ write_stack_env_file() {
     write_env_var ANIMAMA_WEB_BUILD_MODE
     write_env_var ANIMAMA_MODEL_ROOT
     write_env_var ANIMAMA_PARAKEET_MODEL_DIR
+    write_env_var ANIMAMA_BROWSER_MODEL_DIR
     write_env_var ANIMAMA_CONTAINER_NAME_PREFIX
     write_env_var APP_HOST
     write_env_var APP_SCHEME

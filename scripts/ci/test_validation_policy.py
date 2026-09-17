@@ -49,6 +49,7 @@ class SelectionTests(unittest.TestCase):
             "tests/test_accountless_repository_boundaries.py": "full",
             "tests/test_desktop_runtime_packaging.py": "full",
             "tests/test_model_store.py": "full",
+            "tests/test_browser_model_store.py": "full",
             "tests/test_fixture_helper.py": "full",
             "unknown/file.md": "full",
         }

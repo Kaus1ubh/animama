@@ -188,6 +188,17 @@ class Evidence:
     def for_path(self, path: str) -> tuple[str, str, str]:
         if path.startswith("content/included/"):
             return self.included(path)
+        if path in {"models/browser-speech/manifest.json", "models/browser-runtime/manifest.json"}:
+            identifier = self.add(
+                "browser-asset-manifests",
+                source="Authored exact-input manifests; separately licensed external payloads are mapped individually.",
+                paths=["licenses/source-review.json", RUNTIME],
+                required_notices=["External model and runtime notices remain required in distributions."],
+                unresolved_decision=(
+                    "Review authored source and each referenced payload's publication terms separately."
+                ),
+            )
+            return identifier, "review-pending", "Storage migration does not grant new redistribution rights."
         if path.startswith("models/parakeet-tdt-0.6b-v2/"):
             identifier = self.add(
                 "parakeet-source",

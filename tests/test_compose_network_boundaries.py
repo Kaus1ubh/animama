@@ -47,6 +47,7 @@ def _rendered_compose(profiles: tuple[str, ...] = ("*",), development: bool = Fa
     environment = os.environ.copy()
     environment["COMPOSE_PROFILES"] = ",".join(profiles)
     environment["ANIMAMA_PARAKEET_MODEL_DIR"] = "/verified-test-models/parakeet/version"
+    environment["ANIMAMA_BROWSER_MODEL_DIR"] = "/verified-test-models/browser/version"
     environment.pop("COMPOSE_FILE", None)
     files = ["-f", "docker-compose.yml"]
     if development:
@@ -268,6 +269,13 @@ def _run_reset(
         "    sys.exit(2)\n"
         "root = sys.argv[sys.argv.index('--root') + 1] if '--root' in sys.argv else '/default-model-store'\n"
         "print(root + '/parakeet-tdt-0.6b-v2/verified-version')\n"
+    )
+    (model_scripts / "browser_speech.py").write_text(
+        (model_scripts / "parakeet.py")
+        .read_text()
+        .replace("parakeet-tdt-0.6b-v2", "browser-speech")
+        .replace("parakeet.py", "browser_speech.py")
+        .replace("ANIMAMA_TEST_MODEL_MISSING", "ANIMAMA_TEST_BROWSER_MODEL_MISSING")
     )
     commands = tmp_path / "commands.jsonl"
     commands.write_text("")
@@ -636,3 +644,50 @@ def test_missing_model_setup_prevents_all_reset_mutations_even_with_purge(tmp_pa
     assert not (workspace / ".animama-stack.env").exists()
     assert not (workspace / "data").exists()
     assert not (workspace / "content").exists()
+
+
+def test_missing_browser_models_prevents_reset_mutation(tmp_path: Path) -> None:
+    result, commands, workspace = _run_reset(tmp_path, ["--purge"], {"ANIMAMA_TEST_BROWSER_MODEL_MISSING": "1"})
+    assert result.returncode != 0
+    assert "browser_speech.py acquire" in result.stderr
+    assert all("config" in command["args"] for command in commands)
+    assert not (workspace / ".animama-stack.env").exists()
+    assert not (workspace / "data").exists()
+
+
+def test_browser_models_are_readonly_build_and_dev_inputs() -> None:
+    base = _rendered_compose(())["services"]["animama-server"]
+    assert base["build"]["additional_contexts"]["browser_models"] == "/verified-test-models/browser/version"
+    assert not any(v["target"] == "/opt/animama/browser-models" for v in base["volumes"])
+    web = _rendered_compose(development=True)["services"]["web"]
+    mount = next(v for v in web["volumes"] if v["target"] == "/opt/animama/browser-models")
+    assert mount["read_only"] is True
+    assert mount["bind"].get("create_host_path", False) is False
+
+
+def test_old_stack_record_can_render_management_without_browser_cache() -> None:
+    environment = {k: v for k, v in os.environ.items() if k not in {"COMPOSE_FILE", "ANIMAMA_BROWSER_MODEL_DIR"}}
+    environment["ANIMAMA_PARAKEET_MODEL_DIR"] = "/recorded/parakeet/version"
+    rendered = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "-f",
+            "docker-compose.yml",
+            "-f",
+            "docker-compose.development.yml",
+            "config",
+            "--format",
+            "json",
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    graph = json.loads(rendered.stdout)
+    mount = next(v for v in graph["services"]["web"]["volumes"] if v["target"] == "/opt/animama/browser-models")
+    assert mount["source"] == str(REPO_ROOT / "models/browser-speech")
+    assert mount["read_only"] is True
+    assert mount["bind"].get("create_host_path", False) is False

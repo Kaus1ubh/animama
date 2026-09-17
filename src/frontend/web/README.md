@@ -12,8 +12,9 @@ API client, workers, styles, and runtime assets.
 - TanStack Router file routes live under `src/routes`.
 - App startup and providers live under `src/app`.
 - Runtime code is colocated under `src/{ui,lib,hooks,stores,query,client,workers}`.
-- Runtime assets are served from `public`.
-- Auth and telemetry server concerns live in the sibling `../server` package.
+- Small runtime assets are served from `public`; verified speech inputs keep the
+  same URLs through the shared asset resolver.
+- Local request admission and telemetry server concerns belong to FastAPI.
 
 ## Commands
 
@@ -35,38 +36,61 @@ From the workspace root, `src/frontend`:
 
 ## Runtime Assets
 
-Vite serves assets directly from `src/frontend/web/public`. These files are Git
-LFS-managed. On a fresh device, install and pull LFS before running the web app:
+Small browser resources remain under `src/frontend/web/public`. Hydrate tracked
+LFS inputs before running or building the application:
 
 ```sh
 git lfs install
-git lfs pull --include="src/frontend/web/public/**"
+git lfs pull
 ```
 
-If these files are still pointers, avatar animations, VFX, speech models,
-sounds, and images will fail at runtime. Hydrate the required LFS inputs before
-building. The repository classification/provenance audit checks tracked asset
-payloads; desktop staging separately verifies its exact runtime inventory. See
-[repository boundary checks](../../../scripts/repository-boundary/README.md) and
-[runtime staging](../../../docs/frontend/desktop/runtime-staging.md).
+Speech engine payloads are acquired separately. From the repository root:
 
-### Parakeet ONNX assets and build cost
+```sh
+python3 scripts/models/parakeet.py acquire
+python3 scripts/models/browser_speech.py acquire
+```
 
-From the repository root, run `python3 scripts/models/parakeet.py acquire` once.
-Vite development/preview resolves the verified shared store offline and serves
-`/__client-parakeet-models`. Set `ANIMAMA_MODEL_ROOT` to select another absolute
-store root. Missing/corrupt inputs fail at server startup with setup guidance;
-Vite does not acquire models or silently select another model source.
+`models/browser-runtime/manifest.json` binds all 19 reviewed browser assets.
+Eight Pocket TTS/Smart Turn files live in a shared immutable model store; nine
+ORT 1.24.2 files come from the exact `onnxruntime-web-assets` dependency alias,
+and two VAD 0.0.30 files come from its pinned dependency. Existing bundled ORT
+imports retain their own locked versions. `pnpm install --frozen-lockfile` supplies
+these dependency assets; do not copy a different ORT release into their place.
 
-Build-only commands do not need weights. Parakeet stays outside `public`, `dist`
-and Git worktrees; built self-host Compose supplies the same-origin directory
-as a read-only mount. There is no browser-to-Hugging-Face download path. Other
-browser assets, including ONNX Runtime and PocketTTS, remain unchanged and still
-need their existing Git LFS hydration.
+Vite development verifies and serves these inputs at their existing `/onnx/`
+URLs. Production and embedded-desktop builds require the verified browser model
+set and copy all 19 files into their output. Preview verifies that self-contained
+output, so it does not need the browser model cache. The browser does not fetch
+executable inputs from upstream hosts. `pnpm verify:tts-assets` checks source
+inputs; `pnpm verify:tts-assets -- --built-root web/dist` checks built output
+when run from `src/frontend`.
 
-Compose supplies its verified mount through `VITE_CLIENT_PARAKEET_MODEL_DIR`;
-this is a container path, not the host's model-store setting. See
-[shared model setup](../../../docs/backend/operations/model-assets.md) for import,
-verification, offline restart and deliberate cleanup, and
-[runtime staging](../../../docs/frontend/desktop/runtime-staging.md) for desktop
-pack production. Installed desktop keeps its app-owned model pack lifecycle.
+Legacy operator-supplied catalogs at
+`/onnx/models/pocket-tts/animas/<safe-id>_voices.bin` remain separate optional
+inputs under `web/public`, using letters, digits, `_` or `-` for the ID. Vite
+serves only existing regular files at those paths and preserves their build
+copies; missing catalogs return 404. They are not hash-approved engine assets
+or members of the 19-file manifest. Normal uploaded catalog URLs are unaffected.
+
+### Parakeet and shared storage
+
+Parakeet stays outside `public`, `dist` and Git worktrees. Its Vite development
+and preview path resolves the shared store offline and serves
+`/__client-parakeet-models`; built self-host Compose mounts those bytes read-only.
+A web build requires the browser speech set above but does not require Parakeet
+weights. Installed desktop uses its separate app-owned Parakeet pack lifecycle.
+
+Use `ANIMAMA_MODEL_ROOT` to select an absolute host store root. Native Windows
+defaults to `%LOCALAPPDATA%\Animama\models`; WSL uses the Linux default. See
+[shared model setup](../../../docs/backend/operations/model-assets.md) for all
+platform defaults, Windows commands, import, verification and deliberate cleanup.
+Compose's derived `ANIMAMA_BROWSER_MODEL_DIR` and
+`VITE_CLIENT_PARAKEET_MODEL_DIR` describe container inputs, not another user
+storage setting. Startup and builds fail on missing/corrupt inputs and never
+acquire models implicitly.
+
+Built self-host images and desktop resources retain independent distribution
+copies, with the existing notices and license conditions. See
+[runtime staging](../../../docs/frontend/desktop/runtime-staging.md) and
+[repository boundary checks](../../../scripts/repository-boundary/README.md).

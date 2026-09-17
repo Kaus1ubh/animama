@@ -21,7 +21,7 @@ import sys
 import tempfile
 import time
 from http.client import HTTPException
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import BinaryIO
 from urllib import error, parse, request
 
@@ -44,6 +44,7 @@ DOWNLOAD_HOSTS = {
     "huggingface.co",
     "cdn-lfs.huggingface.co",
     "cdn-lfs-us-1.huggingface.co",
+    "cdn-lfs-us-1.hf.co",
     "cas-bridge.xethub.hf.co",
     "us.aws.cdn.hf.co",
 }
@@ -253,7 +254,7 @@ def verify_file(path: Path, entry: dict) -> None:
 
 
 def verify_directory(manifest: dict, directory: Path) -> Path:
-    """Verify the exact seven-file inventory, never requesting network metadata."""
+    """Verify the exact manifest inventory, never requesting network metadata."""
     checked_directory(directory)
     if {path.name for path in directory.iterdir()} != {entry["path"] for entry in manifest["files"]}:
         raise ModelStoreError(f"Incomplete or unexpected model inventory: {directory}")
@@ -265,8 +266,8 @@ def verify_directory(manifest: dict, directory: Path) -> Path:
 def verify(manifest: dict, root: Path) -> Path:
     """Resolve and fully verify one manifest version in an existing store."""
     checked_directory(root)
-    checked_directory(root / MODEL_ID)
-    return verify_directory(manifest, root / MODEL_ID / manifest["digest"])
+    checked_directory(root / manifest["model_id"])
+    return verify_directory(manifest, root / manifest["model_id"] / manifest["digest"])
 
 
 def validate_url(url: str) -> None:
@@ -394,11 +395,17 @@ def remove_staging(directory: Path) -> None:
 
 
 def acquire(
-    manifest: dict, root: Path, *, offline: bool = False, import_from: Path | None = None, transport=None
+    manifest: dict,
+    root: Path,
+    *,
+    offline: bool = False,
+    import_from: Path | None = None,
+    import_field: str = "path",
+    transport=None,
 ) -> Path:
     """Reuse or atomically assemble a version; never replace an existing version."""
     checked_directory(root, create=True)
-    parent = root / MODEL_ID
+    parent = root / manifest["model_id"]
     checked_directory(parent, create=True)
     target = parent / manifest["digest"]
     with acquisition_lock(parent / f".{manifest['digest']}.lock"):
@@ -424,7 +431,16 @@ def acquire(
         try:
             for entry in manifest["files"]:
                 if import_from is not None:
-                    stream = regular_file(import_from / entry["path"])
+                    relative = PurePosixPath(entry[import_field])
+                    if relative.is_absolute() or any(
+                        part in (".", "..") or "\\" in part or ":" in part for part in relative.parts
+                    ):
+                        raise ModelStoreError("Unsafe model import path")
+                    source_path = import_from
+                    for part in relative.parts[:-1]:
+                        source_path /= part
+                        checked_directory(source_path)
+                    stream = regular_file(source_path / relative.name)
                 elif "local" in entry["source"]:
                     stream = regular_file(manifest["directory"] / entry["path"])
                 else:
@@ -434,7 +450,7 @@ def acquire(
                 with stream:
                     copy_verified(stream, staging / entry["path"], entry)
             verify_directory(manifest, staging)
-            # Same-filesystem rename makes all seven files visible in one step.
+            # Same-filesystem rename makes the complete inventory visible in one step.
             staging.rename(target)
             return target
         finally:
