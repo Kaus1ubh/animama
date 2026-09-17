@@ -779,6 +779,16 @@ retain detailed evidence for 14 days; ordinary successful detailed logs and
 package archives expire after 3 days. Explicit `ci:full`, manual, and reusable
 full runs retain evidence for 14 days.
 
+To review a run, open its Actions summary and download the `selection-*`,
+`validation-*`, and applicable `*-receipt-*` artifacts. The selection records
+the source commit/tree, event, PR base and merge-base, complete changed paths,
+and selection reason. Pair it with the aggregate result and job receipts from
+the same run and attempt; a source receipt alone is not acceptance. Use the run's
+job timestamps to round each executed job separately, including routing and
+aggregation. Cache-enabled runs count as warm evidence only when the job
+receipts confirm hits. Compare full runs with the same source and compatibility
+baseline, and include failed or cancelled attempts in the total.
+
 Dependency caches are keyed to Linux x64, lockfile hashes, and pinned toolchains:
 uv 0.11.28/Python 3.12.13 and pnpm 10.33.0/Node 24.15.0. Setup-uv manages its
 native cache; the pnpm store uses a separate Actions cache. Restored caches never
