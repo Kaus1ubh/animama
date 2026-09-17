@@ -46,6 +46,7 @@ def test_only_fastapi_publishes_a_default_application_port() -> None:
 def _rendered_compose(profiles: tuple[str, ...] = ("*",), development: bool = False) -> dict[str, Any]:
     environment = os.environ.copy()
     environment["COMPOSE_PROFILES"] = ",".join(profiles)
+    environment["ANIMAMA_PARAKEET_MODEL_DIR"] = "/verified-test-models/parakeet/version"
     environment.pop("COMPOSE_FILE", None)
     files = ["-f", "docker-compose.yml"]
     if development:
@@ -258,6 +259,16 @@ def _run_reset(
     shutil.copyfile(REPO_ROOT / "reset.sh", workspace / "reset.sh")
     for name in ("validate_local_compose.py",):
         shutil.copyfile(REPO_ROOT / "scripts" / name, scripts / name)
+    model_scripts = scripts / "models"
+    model_scripts.mkdir(exist_ok=True)
+    (model_scripts / "parakeet.py").write_text(
+        "import os, sys\n"
+        "if os.environ.get('ANIMAMA_TEST_MODEL_MISSING'):\n"
+        "    print('Missing models; run python3 scripts/models/parakeet.py acquire', file=sys.stderr)\n"
+        "    sys.exit(2)\n"
+        "root = sys.argv[sys.argv.index('--root') + 1] if '--root' in sys.argv else '/default-model-store'\n"
+        "print(root + '/parakeet-tdt-0.6b-v2/verified-version')\n"
+    )
     commands = tmp_path / "commands.jsonl"
     commands.write_text("")
     docker = tmp_path / "docker"
@@ -276,6 +287,7 @@ if "config" in args and os.environ.get("ANIMAMA_TEST_CONFIG_FAIL"):
 if "--environment" in args:
     print("COMPOSE_PROFILES=" + os.environ.get("ANIMAMA_TEST_DOTENV_PROFILES", ""))
     print("ANIMAMA_WEB_BUILD_MODE=" + os.environ.get("ANIMAMA_TEST_DOTENV_BUILD_MODE", "development"))
+    print("ANIMAMA_MODEL_ROOT=" + os.environ.get("ANIMAMA_TEST_DOTENV_MODEL_ROOT", ""))
     sys.exit(0)
 project = args[args.index("-p") + 1] if "-p" in args else "animama"
 all_profiles = "--profile" in args and args[args.index("--profile") + 1] == "*"
@@ -571,3 +583,56 @@ def test_explicit_purge_leaves_retired_observability_volumes_untouched(tmp_path:
     assert result.returncode == 0, result.stderr
     removals = [command["args"] for command in commands if command["args"][:2] == ["volume", "rm"]]
     assert removals == [["volume", "rm", "animama-retired-obs_postgres-data", "animama-retired-obs_pgadmin-data"]]
+
+
+@pytest.mark.parametrize("development", [False, True])
+def test_models_use_the_same_verified_read_only_bind_without_host_creation(development: bool) -> None:
+    services = _rendered_compose(development=development)["services"]
+    targets = {"animama-server": "/opt/animama/web/__client-parakeet-models"}
+    if development:
+        targets["web"] = "/app/parakeet-tdt-0.6b-v2"
+    for service, target in targets.items():
+        mount = next(volume for volume in services[service]["volumes"] if volume["target"] == target)
+        assert mount["source"] == "/verified-test-models/parakeet/version"
+        assert mount["type"] == "bind"
+        assert mount["read_only"] is True
+        assert mount["bind"].get("create_host_path", False) is False
+
+
+@pytest.mark.parametrize("model_root", ["/default-model-store", "/shared/model store"])
+def test_reset_records_verified_version_and_ignores_stale_derived_path(tmp_path: Path, model_root: str) -> None:
+    variables = {"ANIMAMA_PARAKEET_MODEL_DIR": "/stale/version"}
+    if model_root != "/default-model-store":
+        variables["ANIMAMA_MODEL_ROOT"] = model_root
+    result, _, workspace = _run_reset(tmp_path, [], variables)
+    assert result.returncode == 0, result.stderr
+    record = workspace / ".animama-stack.env"
+    resolved = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source "$1"; printf "%s\n%s" "$ANIMAMA_MODEL_ROOT" "$ANIMAMA_PARAKEET_MODEL_DIR"',
+            "test",
+            str(record),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    assert resolved == [model_root, model_root + "/parakeet-tdt-0.6b-v2/verified-version"]
+
+
+def test_reset_reads_model_root_from_dotenv_selector(tmp_path: Path) -> None:
+    result, _, workspace = _run_reset(tmp_path, [], {"ANIMAMA_TEST_DOTENV_MODEL_ROOT": "/dotenv-model-store"})
+    assert result.returncode == 0, result.stderr
+    assert "export ANIMAMA_MODEL_ROOT=/dotenv-model-store" in (workspace / ".animama-stack.env").read_text()
+
+
+def test_missing_model_setup_prevents_all_reset_mutations_even_with_purge(tmp_path: Path) -> None:
+    result, commands, workspace = _run_reset(tmp_path, ["--purge"], {"ANIMAMA_TEST_MODEL_MISSING": "1"})
+    assert result.returncode != 0
+    assert "parakeet.py acquire" in result.stderr
+    assert all("config" in command["args"] for command in commands)
+    assert not (workspace / ".animama-stack.env").exists()
+    assert not (workspace / "data").exists()
+    assert not (workspace / "content").exists()

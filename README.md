@@ -18,10 +18,13 @@ cannot yet reproduce the complete starter experience or native package. The
 commands below describe the existing development flow, not verified fresh-clone
 release instructions.
 
-Install Docker with Compose and Git LFS, and hydrate the checkout assets with
-`git lfs pull`. Then start the development stack from the repository root:
+Install Docker with Compose, Git LFS and Python 3.11 or newer. Hydrate the
+remaining checkout assets with `git lfs pull`, then acquire the pinned Parakeet
+files once into the shared model store and start development from the repository
+root:
 
 ```bash
+python3 scripts/models/parakeet.py acquire
 ./reset.sh
 ```
 
@@ -32,6 +35,10 @@ application, where FastAPI serves React directly:
 ```bash
 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
 ```
+
+Model acquisition verifies exact sizes and hashes; subsequent startup is offline
+and does not download models. See [model setup and recovery](docs/backend/operations/model-assets.md)
+for importing an existing copy, custom persistent storage and sharing across worktrees.
 
 Both modes keep the application on loopback and PostgreSQL private. Remote
 self-host access requires an operator-owned authentication and TLS boundary.

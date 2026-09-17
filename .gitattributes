@@ -32,7 +32,6 @@ content/included/**/*.vrm filter=lfs diff=lfs merge=lfs -text
 content/included/**/*.vrma filter=lfs diff=lfs merge=lfs -text
 content/included/**/*.wav filter=lfs diff=lfs merge=lfs -text
 content/included/**/*.webp filter=lfs diff=lfs merge=lfs -text
-parakeet-tdt-0.6b-v2/** filter=lfs diff=lfs merge=lfs -text
 
 # Preserve these upstream legal texts byte-for-byte, including their original
 # CRLF, trailing spaces and final blank lines. Authored source keeps normal checks.
@@ -43,3 +42,8 @@ src/frontend/desktop/runtime/notices/basis-notice.txt -text -whitespace
 src/frontend/desktop/runtime/notices/sentencepiece-absl-license.txt -text -whitespace
 src/frontend/desktop/runtime/notices/sentencepiece-darts_clone-license.txt -text -whitespace
 src/frontend/desktop/runtime/notices/sentencepiece-emscripten-license.txt -text -whitespace
+
+# Keep the verified model manifest stable across platforms and preserve notices.
+models/parakeet-tdt-0.6b-v2/manifest.json text eol=lf
+models/parakeet-tdt-0.6b-v2/README.md -text -whitespace
+models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md -text -whitespace

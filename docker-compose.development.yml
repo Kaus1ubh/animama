@@ -111,7 +111,12 @@ services:
         volume:
           nocopy: true
       - frontend_web_pnpm_store:/pnpm/store
-      - ./parakeet-tdt-0.6b-v2:/app/parakeet-tdt-0.6b-v2:ro
+      - type: bind
+        source: ${ANIMAMA_PARAKEET_MODEL_DIR:?Run python3 scripts/models/parakeet.py acquire then ./reset.sh or source the generated stack record}
+        target: /app/parakeet-tdt-0.6b-v2
+        read_only: true
+        bind:
+          create_host_path: false
 
 volumes:
   frontend_web_root_node_modules:

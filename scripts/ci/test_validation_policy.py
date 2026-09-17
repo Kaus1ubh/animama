@@ -16,11 +16,12 @@ def modified(path):
     return {"status": "M", "old_path": None, "path": path}
 
 
-def results(backend="success", portable="success", router="success"):
+def results(backend="success", portable="success", router="success", windows="success"):
     return {
         "validation-plan": {"result": router},
         "backend-static-tests": {"result": backend},
         "portable-product": {"result": portable},
+        "model-store-windows": {"result": windows},
     }
 
 
@@ -47,6 +48,7 @@ class SelectionTests(unittest.TestCase):
             "tests/conftest.py": "full",
             "tests/test_accountless_repository_boundaries.py": "full",
             "tests/test_desktop_runtime_packaging.py": "full",
+            "tests/test_model_store.py": "full",
             "tests/test_fixture_helper.py": "full",
             "unknown/file.md": "full",
         }
@@ -127,11 +129,11 @@ class AggregateTests(unittest.TestCase):
         full = choose_plan("workflow_call", {}, None)
         self.assertTrue(evaluate(full, results())["success"])
         docs = choose_plan("pull_request", event(), [modified("docs/a.md")])
-        self.assertTrue(evaluate(docs, results(portable="skipped"))["success"])
+        self.assertTrue(evaluate(docs, results(portable="skipped", windows="skipped"))["success"])
         self.assertTrue(evaluate(docs, results())["success"])
         for result in ("failure", "cancelled", "timed_out", "unknown", None, []):
             self.assertFalse(evaluate(docs, results(portable=result))["success"])
-        for key in ("backend-static-tests", "portable-product", "validation-plan"):
+        for key in ("backend-static-tests", "portable-product", "validation-plan", "model-store-windows"):
             for value in ("skipped", "failure", "cancelled", "timed_out"):
                 jobs = results()
                 jobs[key]["result"] = value

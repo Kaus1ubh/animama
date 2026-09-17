@@ -21,6 +21,7 @@ import { assertBundledImports } from "./js-audit.mjs";
 import { validateSizeReport } from "./size.mjs";
 import { auditMacosMinimum } from "./macos-platform.mjs";
 import { assertDesktopWebAssets } from "./desktop-web.mjs";
+import { auditOptionalInputs } from "./optional-inputs.mjs";
 
 const target = parseTarget();
 const env = pythonEnvironment();
@@ -60,6 +61,7 @@ try {
     { env },
   );
   assertInventory(target.runtime, manifest.files);
+  auditOptionalInputs(target);
   assertDesktopWebAssets(path.join(target.runtime, "web"));
   if (inventoryId(manifest.files) !== manifest.build_id)
     throw new Error("Manifest inventory ID mismatch");

@@ -28,9 +28,10 @@ SHARED_TESTS = {
     "test_compose_network_boundaries.py",
     "test_desktop_runtime_packaging.py",
     "test_included_content_integrity.py",
+    "test_model_store.py",
     "test_generate_synthetic_docs.py",
 }
-JOBS = {"validation-plan", "backend-static-tests", "portable-product"}
+JOBS = {"validation-plan", "backend-static-tests", "portable-product", "model-store-windows"}
 
 
 def _plan(mode: str, reason: str) -> dict[str, object]:
@@ -142,6 +143,8 @@ def evaluate(plan: object, needs: object) -> dict[str, object]:
     if not isinstance(needs, dict) or set(needs) != JOBS:
         return fail("Missing or unexpected job results")
     required = {"validation-plan"}
+    if mode == "full":
+        required.add("model-store-windows")
     if plan["backend"] != "none":
         required.add("backend-static-tests")
     if plan["portable"]:

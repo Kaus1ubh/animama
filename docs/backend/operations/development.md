@@ -286,7 +286,11 @@ ANIMAMA_WEB_BUILD_MODE=production
 The built Docker target compiles optimized React assets and copies them to
 `/opt/animama/web`. FastAPI serves those files and the API from the same
 loopback application origin; no Node or Vite server runs in this graph.
-The existing browser Parakeet directory is a separate read-only static mount.
+The browser Parakeet directory is a separate read-only static mount resolved
+from the verified shared model store. Run `python3 scripts/models/parakeet.py acquire`
+before first startup; set `ANIMAMA_MODEL_ROOT` to an absolute persistent root when
+needed. `reset.sh` records that root and the exact immutable version directory.
+See [model acquisition, offline reuse and recovery](model-assets.md).
 This selects build delivery, without adding accounts or network authentication.
 
 Apply the selection with an ordinary reset, which preserves state:

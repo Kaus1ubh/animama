@@ -20,7 +20,12 @@ def test_state_commands_select_the_same_graph_as_reset(tmp_path: Path, mode: str
         'print(json.dumps({"files": os.environ["COMPOSE_FILE"], "args": sys.argv[1:]}))\n',
     )
     docker.chmod(0o755)
-    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "ANIMAMA_WEB_BUILD_MODE": mode}
+    env = {
+        **os.environ,
+        "PATH": f"{tmp_path}:{os.environ['PATH']}",
+        "ANIMAMA_WEB_BUILD_MODE": mode,
+        "ANIMAMA_PARAKEET_MODEL_DIR": "/verified/models",
+    }
     env.pop("COMPOSE_FILE", None)
     result = subprocess.run(
         [
@@ -51,6 +56,7 @@ def test_state_commands_preserve_the_recorded_graph(tmp_path: Path) -> None:
         **os.environ,
         "PATH": f"{tmp_path}:{os.environ['PATH']}",
         "COMPOSE_FILE": recorded,
+        "ANIMAMA_PARAKEET_MODEL_DIR": "/verified/models",
         "ANIMAMA_WEB_BUILD_MODE": "production",
     }
     result = subprocess.run(
@@ -92,7 +98,7 @@ def test_state_commands_match_reset_empty_selector_rules(tmp_path: Path, explici
         "fi\n"
     )
     docker.chmod(0o755)
-    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"}
+    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "ANIMAMA_PARAKEET_MODEL_DIR": "/verified/models"}
     env.pop("COMPOSE_FILE", None)
     env.pop("ANIMAMA_WEB_BUILD_MODE", None)
     if explicit_empty:
@@ -115,3 +121,44 @@ def test_state_commands_match_reset_empty_selector_rules(tmp_path: Path, explici
     else:
         assert result.returncode == 0
         assert result.stdout.endswith("/docker-compose.development.yml")
+
+
+@pytest.mark.parametrize("selector", ["default", "environment", "dotenv"])
+def test_state_commands_resolve_missing_model_record_offline(tmp_path: Path, selector: str) -> None:
+    scripts = tmp_path / "scripts"
+    (scripts / "models").mkdir(parents=True)
+    helper = scripts / "local-stack-state-common.sh"
+    helper.write_text((REPO_ROOT / "scripts/local-stack-state-common.sh").read_text())
+    (scripts / "models/parakeet.py").write_text(
+        "import sys\n"
+        "assert sys.argv[1] == 'path'\n"
+        "root = sys.argv[sys.argv.index('--root') + 1] if '--root' in sys.argv else '/default-model-store'\n"
+        "print(root + '/parakeet-tdt-0.6b-v2/verified-version')\n"
+    )
+    docker = tmp_path / "docker"
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        'if [[ "$*" == *"config --environment"* ]]; then\n'
+        '  printf "ANIMAMA_MODEL_ROOT=%s\\n" "$TEST_DOTENV_ROOT"\n'
+        "else\n"
+        '  printf "%s" "$ANIMAMA_PARAKEET_MODEL_DIR"\n'
+        "fi\n"
+    )
+    docker.chmod(0o755)
+    environment = {key: value for key, value in os.environ.items() if not key.startswith(("ANIMAMA_", "COMPOSE_"))}
+    environment.update(PATH=f"{tmp_path}:{os.environ['PATH']}", ANIMAMA_WEB_BUILD_MODE="production")
+    root = "/default-model-store"
+    if selector == "environment":
+        root = "/environment models"
+        environment["ANIMAMA_MODEL_ROOT"] = root
+    if selector == "dotenv":
+        root = "/dotenv models"
+        environment["TEST_DOTENV_ROOT"] = root
+    result = subprocess.run(
+        ["bash", "-c", 'source "$1"; animama_state_configure p2; animama_state_compose ps', "bash", str(helper)],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout == root + "/parakeet-tdt-0.6b-v2/verified-version"

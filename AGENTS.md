@@ -158,6 +158,12 @@ demonstrates a concrete need. Existing branch/PR review rules still apply.
 
 ## Local Stacks
 
+Before first startup, acquire the pinned shared Parakeet inputs with
+`python3 scripts/models/parakeet.py acquire` (or import an existing verified copy).
+`reset.sh` verifies the selected `ANIMAMA_MODEL_ROOT` offline and records its
+resolved immutable directory; it never downloads models or silently creates an
+empty mount. See [model setup](docs/backend/operations/model-assets.md).
+
 For the main checkout, preserve the default local application URL:
 
 ```bash
@@ -295,6 +301,7 @@ Root/local-stack checks:
 
 ```bash
 bash -n reset.sh
+export ANIMAMA_PARAKEET_MODEL_DIR="$(python3 scripts/models/parakeet.py path)"
 docker compose -f docker-compose.yml config --quiet
 docker compose -f docker-compose.yml -f docker-compose.development.yml config --quiet
 ```

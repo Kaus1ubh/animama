@@ -11,6 +11,14 @@ for test chats/content when this will not disrupt active work. Separate worktree
 and named stacks are useful for concurrency or disruptive changes, not mandatory
 for every mutable test. No workspace helper or formal task score is required.
 
+## Model Prerequisite
+
+Before first startup, run `python3 scripts/models/parakeet.py acquire` explicitly,
+or import a verified existing copy. `ANIMAMA_MODEL_ROOT` selects an absolute shared
+store root. Reset verifies it offline before changing containers and records the
+resolved version; ordinary startup never downloads models. Follow
+`docs/backend/operations/model-assets.md` for persistent self-host storage/recovery.
+
 ## Main Checkout
 
 For the primary repo checkout, keep the default local URLs and ports:

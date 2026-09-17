@@ -5045,6 +5045,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "docs/backend/operations/model-assets.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "docs/backend/runtime/adding-ai-models.md",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -5536,143 +5543,55 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "package.json",
+      "path": "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
+      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
+      "basis": "Retained third-party code/model review: parakeet-source",
+      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
+      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
+      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
+      "evidence": [
+        "licenses/third-party/code-and-models.json"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
+        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
+      ],
+      "conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "models/parakeet-tdt-0.6b-v2/README.md",
+      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
+      "basis": "Retained third-party code/model review: parakeet-source",
+      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
+      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
+      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
+      "evidence": [
+        "licenses/third-party/code-and-models.json"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
+        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
+      ],
+      "conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "models/parakeet-tdt-0.6b-v2/manifest.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "parakeet-tdt-0.6b-v2/README.md",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "parakeet-tdt-0.6b-v2/config.json",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "parakeet-tdt-0.6b-v2/decoder_joint-model.int8.onnx",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "parakeet-tdt-0.6b-v2/encoder-model.int8.onnx",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "parakeet-tdt-0.6b-v2/nemo128.onnx",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "parakeet-tdt-0.6b-v2/vocab.txt",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
+      "path": "package.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -5739,6 +5658,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "scripts/ci/test_validation_policy.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/ci/validation_policy.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "scripts/generate_synthetic_docs.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -5756,6 +5689,20 @@
       "path": "scripts/mixamo-assets.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/models/README.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/models/parakeet.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -10002,6 +9949,13 @@
       "path": "src/frontend/desktop/tests/global-input-hook.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/desktop/tests/optional-inputs.test.mjs",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -19065,6 +19019,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/tests/localParakeetModels.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/tests/production-delivery.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -19929,6 +19890,13 @@
       "path": "tests/test_model_provider_catalog.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "tests/test_model_store.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },

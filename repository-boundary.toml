@@ -626,20 +626,6 @@ paths = [
 ]
 
 [[groups]]
-id = "speech-model-inputs"
-owner = "public"
-rationale = "Reviewed public files from the immutable source export."
-paths = [
-  "parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
-  "parakeet-tdt-0.6b-v2/README.md",
-  "parakeet-tdt-0.6b-v2/config.json",
-  "parakeet-tdt-0.6b-v2/decoder_joint-model.int8.onnx",
-  "parakeet-tdt-0.6b-v2/encoder-model.int8.onnx",
-  "parakeet-tdt-0.6b-v2/nemo128.onnx",
-  "parakeet-tdt-0.6b-v2/vocab.txt",
-]
-
-[[groups]]
 id = "shared-backend-domain-app"
 owner = "public"
 rationale = "Reviewed public files from the immutable source export."
@@ -2776,4 +2762,20 @@ paths = [
   "src/frontend/desktop/runtime/notices/sentencepiece-wrapper-apache-2.0.txt",
   "src/frontend/desktop/runtime/notices/transformers-js-apache-2.0.txt",
   "src/frontend/desktop/runtime/notices/whisper-extractor-attribution.txt",
+]
+
+[[groups]]
+id = "shared-parakeet-model-store"
+owner = "public"
+rationale = "Phase 2 model setup, preserved notices, tests and public operational guidance; no private inputs."
+paths = [
+  "docs/backend/operations/model-assets.md",
+  "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
+  "models/parakeet-tdt-0.6b-v2/README.md",
+  "models/parakeet-tdt-0.6b-v2/manifest.json",
+  "scripts/models/README.md",
+  "scripts/models/parakeet.py",
+  "src/frontend/desktop/tests/optional-inputs.test.mjs",
+  "src/frontend/web/tests/localParakeetModels.test.ts",
+  "tests/test_model_store.py",
 ]

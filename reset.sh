@@ -24,7 +24,10 @@ usage() {
     "                         Exact targets are printed before deletion. Normal runs preserve state." \
     "  --build [service ...]  Build all services, or only the listed services, before starting." \
     "                         Example: $0 --build animama-server" \
-    "  -h, --help             Show this help."
+    "  -h, --help             Show this help." \
+    "" \
+    "Models: python3 scripts/models/parakeet.py acquire (explicit one-time setup)." \
+    "        ANIMAMA_MODEL_ROOT selects an absolute shared store root; startup verifies offline."
 }
 
 die() {
@@ -199,16 +202,31 @@ STACK_ENV_FILE="${STACK_ENV_FILE_ARG:-${script_dir}/.animama-stack.env}"
 # Read only these non-secret selectors through Compose's dotenv parser. The
 # explicitly selected base file prevents a stale sourced graph from deciding
 # which parser/build configuration reset uses.
-if [ -z "${COMPOSE_PROFILES+x}" ] || [ -z "${ANIMAMA_WEB_BUILD_MODE+x}" ]; then
-  local_selectors="$(docker compose -f "${script_dir}/docker-compose.yml" config --environment | python3 -c '
+if [ -z "${COMPOSE_PROFILES+x}" ] || [ -z "${ANIMAMA_WEB_BUILD_MODE+x}" ] || [ -z "${ANIMAMA_MODEL_ROOT+x}" ]; then
+  local_selectors="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "${script_dir}/docker-compose.yml" config --environment | python3 -c '
 import sys
 values = dict(line.rstrip("\n").partition("=")[::2] for line in sys.stdin)
 print(values.get("COMPOSE_PROFILES", ""))
 print(values.get("ANIMAMA_WEB_BUILD_MODE", "development"))
+print(values.get("ANIMAMA_MODEL_ROOT", ""))
 ')"
   dotenv_profiles="${local_selectors%%$'\n'*}"
-  dotenv_build_mode="${local_selectors#*$'\n'}"
+  dotenv_build_mode="$(printf '%s\n' "$local_selectors" | sed -n '2p')"
+  dotenv_model_root="$(printf '%s\n' "$local_selectors" | sed -n '3p')"
 fi
+# Resolve and fully verify without network access before writing state, stopping
+# services, or allowing Compose to create mounts. Ignore any stale derived path.
+ANIMAMA_MODEL_ROOT="${ANIMAMA_MODEL_ROOT-${dotenv_model_root:-}}"
+model_path_args=()
+if [ -n "$ANIMAMA_MODEL_ROOT" ]; then
+  model_path_args=(--root "$ANIMAMA_MODEL_ROOT")
+fi
+if ! ANIMAMA_PARAKEET_MODEL_DIR="$(python3 "${script_dir}/scripts/models/parakeet.py" path "${model_path_args[@]}")"; then
+  exit 2
+fi
+ANIMAMA_MODEL_ROOT="$(dirname "$(dirname "$ANIMAMA_PARAKEET_MODEL_DIR")")"
+export ANIMAMA_MODEL_ROOT ANIMAMA_PARAKEET_MODEL_DIR
+
 COMPOSE_PROFILES="${COMPOSE_PROFILES-${dotenv_profiles:-}}"
 ANIMAMA_WEB_BUILD_MODE="${ANIMAMA_WEB_BUILD_MODE-${dotenv_build_mode:-development}}"
 case "$ANIMAMA_WEB_BUILD_MODE" in
@@ -375,6 +393,8 @@ write_stack_env_file() {
     write_env_var COMPOSE_PROFILES
     write_env_var COMPOSE_FILE
     write_env_var ANIMAMA_WEB_BUILD_MODE
+    write_env_var ANIMAMA_MODEL_ROOT
+    write_env_var ANIMAMA_PARAKEET_MODEL_DIR
     write_env_var ANIMAMA_CONTAINER_NAME_PREFIX
     write_env_var APP_HOST
     write_env_var APP_SCHEME

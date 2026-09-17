@@ -152,3 +152,6 @@ content/included/**/.DS_Store
 /.agents/skills/web-design-guidelines/
 /.agents/skills/improve-codebase-architecture-full/
 /.agents/skills/openai-knowledge/
+
+# Legacy model copies may be retained locally until the verified store is adopted.
+/parakeet-tdt-0.6b-v2/

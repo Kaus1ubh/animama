@@ -128,6 +128,14 @@ Why this matters:
 - `activeMode` distinguishes dictation from voice mode
 - avatar listening UI follows active capture, not merely "some voice session exists"
 
+## Developer and self-host model inputs
+
+Parakeet weights are acquired from exact pinned upstream revisions into a verified
+shared store, outside Git worktrees. Use the [model setup guide](../../backend/operations/model-assets.md)
+before starting Vite or Compose. The same-origin model URLs, inference worker and
+installed desktop pack lifecycle are unchanged. Runtime startup never downloads
+from Hugging Face; browsers do not receive upstream acquisition URLs or credentials.
+
 ## STT Pipeline (Dictation + Voice Mode)
 
 Primary orchestration:

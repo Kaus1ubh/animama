@@ -135,7 +135,7 @@ animama_state_compose() {
   if [ -z "${COMPOSE_FILE:-}" ]; then
     local build_mode="${ANIMAMA_WEB_BUILD_MODE:-}"
     if [ -z "${ANIMAMA_WEB_BUILD_MODE+x}" ]; then
-      build_mode="$(docker compose -f "${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml" config --environment | python3 -c '
+      build_mode="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml" config --environment | python3 -c '
 import sys
 values = dict(line.rstrip("\n").partition("=")[::2] for line in sys.stdin)
 print(values.get("ANIMAMA_WEB_BUILD_MODE") or "development")
@@ -147,6 +147,24 @@ print(values.get("ANIMAMA_WEB_BUILD_MODE") or "development")
       *) animama_state_die "ANIMAMA_WEB_BUILD_MODE must be development or production" ;;
     esac
     export COMPOSE_FILE
+  fi
+  # Prefer the exact verified version recorded by reset.sh. A caller without a
+  # record must resolve its selected store offline before any Compose action.
+  if [ -z "${ANIMAMA_PARAKEET_MODEL_DIR:-}" ]; then
+    local model_root="${ANIMAMA_MODEL_ROOT:-}"
+    if [ -z "${ANIMAMA_MODEL_ROOT+x}" ]; then
+      model_root="$(ANIMAMA_PARAKEET_MODEL_DIR=/__animama_model_selector_only__ docker compose -f "${ANIMAMA_STATE_REPO_ROOT}/docker-compose.yml" config --environment | python3 -c '
+import sys
+values = dict(line.rstrip("\n").partition("=")[::2] for line in sys.stdin)
+print(values.get("ANIMAMA_MODEL_ROOT", ""))
+')" || return
+    fi
+    local model_path_args=()
+    if [ -n "$model_root" ]; then
+      model_path_args=(--root "$model_root")
+    fi
+    ANIMAMA_PARAKEET_MODEL_DIR="$(python3 "${ANIMAMA_STATE_REPO_ROOT}/scripts/models/parakeet.py" path "${model_path_args[@]}")" || return
+    export ANIMAMA_PARAKEET_MODEL_DIR
   fi
   docker compose -p "$ANIMAMA_STATE_PROJECT" "$@"
 }

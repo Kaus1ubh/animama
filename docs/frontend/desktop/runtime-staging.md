@@ -99,6 +99,22 @@ worker enters the catalog. A generated license inventory requires human review.
 See [redistribution review](redistribution-review.md) for source and notice
 mappings and the pending artifact review.
 
+## Verified Parakeet producer inputs
+
+Before producing the Parakeet pack, run `python3 scripts/models/parakeet.py acquire`
+from the repository root, or import a previous source copy using the
+[model-store workflow](../../backend/operations/model-assets.md). Set the absolute
+`ANIMAMA_MODEL_ROOT` only when selecting a different store. Staging consumes the
+tracked manifest and verifies each local file; it does not query Hugging Face or
+infer weights from Git's tracked-file list. The pack keeps its seven filenames,
+exact payload hashes and existing attribution. Model selection does not change
+release inventory approval, signed artifacts, hosting or native acceptance gates.
+
+This developer/producer cache is not an installed app model directory. Installed
+models remain under the app-owned `packs/` lifecycle in Application Support, with
+separate temporary `downloads/` and the existing verification/activation recovery.
+Clearing a developer cache must not affect an installed application's speech pack.
+
 ## Optional Pack Producer
 
 `desktop/scripts/runtime/feature-pack-build.ts` is shared by staging and:

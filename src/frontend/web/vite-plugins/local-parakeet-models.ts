@@ -1,7 +1,31 @@
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { createReadStream, statSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import path from "node:path";
 import type { Plugin } from "vite";
+
+/** Resolve verified shared inputs at server startup; builds need no model bytes. */
+export function resolveLocalParakeetModelDir(): string {
+  // Compose passes its already verified, read-only mount. Direct host Vite uses
+  // the same offline resolver as reset.sh, with ANIMAMA_MODEL_ROOT if selected.
+  const mounted = process.env.VITE_CLIENT_PARAKEET_MODEL_DIR?.trim();
+  if (mounted) {
+    if (!path.isAbsolute(mounted) || !statSync(mounted).isDirectory()) {
+      throw new Error(
+        "VITE_CLIENT_PARAKEET_MODEL_DIR must be an existing absolute directory",
+      );
+    }
+    return mounted;
+  }
+  const script = fileURLToPath(
+    new URL("../../../../scripts/models/parakeet.py", import.meta.url),
+  );
+  return execFileSync("python3", [script, "path"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "inherit"],
+  }).trim();
+}
 
 type LocalFileAsset = {
   filePath: string;
@@ -132,11 +156,61 @@ function installLocalParakeetModelMiddleware(
       return;
     }
 
-    res.statusCode = 200;
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      res.statusCode = 405;
+      res.setHeader("Allow", "GET, HEAD");
+      res.end();
+      return;
+    }
+
     res.setHeader("Cache-Control", "no-cache");
-    res.setHeader("Content-Length", asset.size);
+    res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Content-Type", asset.contentType);
-    createReadStream(asset.filePath).pipe(res);
+    let start = 0;
+    let end = asset.size - 1;
+    // One bounded byte range is enough for model loading. Ignore If-Range
+    // without a matching validator and send the complete representation.
+    const range =
+      req.method === "GET" && !req.headers["if-range"]
+        ? req.headers.range
+        : undefined;
+    if (range) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+      if (match && (match[1] || match[2])) {
+        if (match[1]) {
+          start = Number(match[1]);
+          end = match[2] ? Math.min(Number(match[2]), end) : end;
+        } else {
+          start = Math.max(0, asset.size - Number(match[2]));
+        }
+      }
+      if (
+        !match ||
+        (!match[1] && !match[2]) ||
+        !Number.isSafeInteger(start) ||
+        !Number.isSafeInteger(end) ||
+        start > end ||
+        start >= asset.size
+      ) {
+        res.statusCode = 416;
+        res.setHeader("Content-Range", `bytes */${asset.size}`);
+        res.end();
+        return;
+      }
+      res.statusCode = 206;
+      res.setHeader("Content-Range", `bytes ${start}-${end}/${asset.size}`);
+    } else {
+      res.statusCode = 200;
+    }
+    res.setHeader("Content-Length", Math.max(0, end - start + 1));
+    if (req.method === "HEAD" || asset.size === 0) {
+      res.end();
+      return;
+    }
+    const stream = createReadStream(asset.filePath, { start, end });
+    stream.on("error", () => res.destroy());
+    res.on("close", () => stream.destroy());
+    stream.pipe(res);
   });
 }
 
@@ -144,16 +218,22 @@ export function localParakeetModelPlugin({
   modelDir,
   routeBaseUrl,
 }: {
-  modelDir: string;
+  modelDir: string | (() => string);
   routeBaseUrl: string;
 }): Plugin {
   return {
     name: "anima-local-parakeet-models",
     configureServer(server) {
-      installLocalParakeetModelMiddleware(server, { modelDir, routeBaseUrl });
+      installLocalParakeetModelMiddleware(server, {
+        modelDir: typeof modelDir === "function" ? modelDir() : modelDir,
+        routeBaseUrl,
+      });
     },
     configurePreviewServer(server) {
-      installLocalParakeetModelMiddleware(server, { modelDir, routeBaseUrl });
+      installLocalParakeetModelMiddleware(server, {
+        modelDir: typeof modelDir === "function" ? modelDir() : modelDir,
+        routeBaseUrl,
+      });
     },
   };
 }

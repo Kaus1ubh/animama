@@ -96,7 +96,7 @@ def main() -> None:
         raise RuntimeError("Run pnpm build first")
     environment = {
         key: os.environ[key]
-        for key in ("PATH", "HOME", "TMPDIR", "LANG", "PLAYWRIGHT_BROWSERS_PATH")
+        for key in ("PATH", "HOME", "TMPDIR", "LANG", "PLAYWRIGHT_BROWSERS_PATH", "ANIMAMA_MODEL_ROOT")
         if key in os.environ
     }
     environment.update(

@@ -114,7 +114,12 @@ services:
       CARTESIA_API_KEY: ${CARTESIA_API_KEY}
     volumes:
       - ./.animama-logs:/var/log/animama
-      - ./parakeet-tdt-0.6b-v2:/opt/animama/web/__client-parakeet-models:ro
+      - type: bind
+        source: ${ANIMAMA_PARAKEET_MODEL_DIR:?Run python3 scripts/models/parakeet.py acquire then ./reset.sh or source the generated stack record}
+        target: /opt/animama/web/__client-parakeet-models
+        read_only: true
+        bind:
+          create_host_path: false
       - type: bind
         # Readable app-shipped typed content; never write catalog machinery here.
         source: ${ANIMAMA_INCLUDED_CONTENT_HOST_PATH:-./content/included}

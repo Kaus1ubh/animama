@@ -259,44 +259,47 @@
       "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
       "paths": [
         {
-          "path": "parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
+          "path": "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
           "sha256": "f0253d0ae984626d09669aa7e3c102a8667b997d854db25c70850f571fa014b9"
         },
         {
-          "path": "parakeet-tdt-0.6b-v2/README.md",
+          "path": "models/parakeet-tdt-0.6b-v2/README.md",
           "sha256": "788e7734fb5e3fcbbffc44e08413d5083fcc7cc5b270b79f1a210262ea9db90d"
-        },
-        {
-          "path": "parakeet-tdt-0.6b-v2/config.json",
-          "sha256": "562aedb0b804acbeb4e04215de190846c37e0bb239b696376df69d555785373a"
-        },
-        {
-          "path": "parakeet-tdt-0.6b-v2/decoder_joint-model.int8.onnx",
-          "sha256": "a449f49acd68979d418651dd2dcb737cc0f1bf0225e009e29ee326354edbf7d3"
-        },
-        {
-          "path": "parakeet-tdt-0.6b-v2/encoder-model.int8.onnx",
-          "sha256": "3e0581fda6ab843888b51e56d7ee78b6d5bc3237ec113af1f732d1d5286aa155"
-        },
-        {
-          "path": "parakeet-tdt-0.6b-v2/nemo128.onnx",
-          "sha256": "bff2bc1bef1d1185da8bb69419b51c68fc50e88c923654ced2dfe4e055e4e938"
-        },
-        {
-          "path": "parakeet-tdt-0.6b-v2/vocab.txt",
-          "sha256": "d5b4ca312b07f10cc89b6ff1f500201b5bd826dc3f9500c115caeb36c0b10831"
         }
       ],
       "notice_files": [
         "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
         "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
       ],
-      "modifications": "NVIDIA model converted to ONNX and INT8 quantized upstream; ysdede rebuilt preprocessor. Config/vocab match direct pinned files, not stale hashes in the producer manifest.",
+      "modifications": "NVIDIA model converted to ONNX and INT8 quantized upstream; ysdede rebuilt preprocessor. Config/vocab match direct pinned files, not stale hashes in the producer manifest. Phase 2 relocates acquisition/storage only; external payload sizes and full pinned sources are bound by the download manifest. Notices are byte-identical.",
       "status": "evidence-and-notices-prepared",
       "remaining_conditions": [
         "Preserve notices in every source and binary distribution; verify the exact final candidate."
       ],
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)"
+      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
+      "external_files": [
+        {
+          "path": "config.json",
+          "sha256": "562aedb0b804acbeb4e04215de190846c37e0bb239b696376df69d555785373a"
+        },
+        {
+          "path": "decoder_joint-model.int8.onnx",
+          "sha256": "a449f49acd68979d418651dd2dcb737cc0f1bf0225e009e29ee326354edbf7d3"
+        },
+        {
+          "path": "encoder-model.int8.onnx",
+          "sha256": "3e0581fda6ab843888b51e56d7ee78b6d5bc3237ec113af1f732d1d5286aa155"
+        },
+        {
+          "path": "nemo128.onnx",
+          "sha256": "bff2bc1bef1d1185da8bb69419b51c68fc50e88c923654ced2dfe4e055e4e938"
+        },
+        {
+          "path": "vocab.txt",
+          "sha256": "d5b4ca312b07f10cc89b6ff1f500201b5bd826dc3f9500c115caeb36c0b10831"
+        }
+      ],
+      "download_manifest": "models/parakeet-tdt-0.6b-v2/manifest.json"
     },
     {
       "id": "whisper-feature-extractor",
