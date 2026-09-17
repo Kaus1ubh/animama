@@ -45,6 +45,12 @@ build, runtime or contributor prerequisite. Update durable documentation with
 behavior changes. Do not add public stub plans or links that require a private
 planning checkout. See [Repository boundaries](docs/architecture/repository-boundaries.md).
 
+Use the [domain documentation guide](docs/agents/domain.md) to distinguish
+current terminology, implemented behavior and architectural decision history.
+Read the relevant glossary entries and ADRs when present; surface conflicts
+before changing an established meaning or decision. Intent discovery is an
+explicitly requested pilot, not a required interview for every task.
+
 ## Branches and pull requests
 
 Name new task branches `<type>/<short-kebab-case-task>`. Use the same type in

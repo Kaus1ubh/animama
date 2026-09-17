@@ -2651,8 +2651,9 @@ paths = [
 [[groups]]
 id = "public-durable-documentation"
 owner = "public"
-rationale = "Reviewed public files from the immutable source export."
+rationale = "Durable local architecture and contributor guidance, including explicitly reviewed additions to the exported snapshot."
 paths = [
+  "docs/agents/domain.md",
   "docs/architecture/deployment-topology.md",
   "docs/architecture/discover-contract-ownership.md",
   "docs/architecture/repository-boundaries.md",
