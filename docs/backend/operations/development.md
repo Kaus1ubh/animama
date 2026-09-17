@@ -1038,41 +1038,58 @@ development runtime/data override only for unpackaged supervised tests; see
 
 ### Cleaning Up Worktree Stacks
 
-When a worktree branch is no longer needed, tear down its Compose project before
-removing the git worktree. From the worktree root:
+Retain a task's branch, worktree and test data through review and follow-ups.
+When handing off a finished task, stop its owned stack unless it is still needed
+for review. Before cleanup, inspect the actual Git worktrees, branch/merge state,
+dirty and untracked files, generated stack record, running Compose project, and
+data roots. Include ignored files: `.animama-stacks/` may contain the only copy
+of Local content/private data, and `.env` may contain task credentials. Do not
+capture secret values in the cleanup report.
+
+After verifying the generated stack record belongs to this checkout and task,
+stop its services while preserving volumes and images:
 
 ```bash
 source .animama-stack.env
-docker compose -p "$COMPOSE_PROJECT_NAME" down -v --remove-orphans --rmi local
+docker compose -p "$COMPOSE_PROJECT_NAME" --profile "*" down --remove-orphans
 ```
 
-This removes that stack's containers, networks, named volumes, and locally built
-Compose images. It does not remove shared pulled base images such as Postgres or
-Node.
+This uses the recorded Compose files and removes only the selected project's
+containers and networks. Do not use `-v` or `--rmi` for routine handoff. If the
+record is missing, reconstruct and verify the exact project, Compose files and
+storage configuration before acting; a guessed project name is insufficient.
 
-If `.animama-stack.env` is not available, pass the project name directly:
+After merge, show the exact proposed cleanup resources and any uncommitted,
+untracked, ignored or unmerged work. Delete volumes or data roots only with
+explicit approval for those exact resources. Before removing the worktree,
+preserve any retained data outside that directory and record its new location,
+or leave the stopped worktree intact. Never remove shared model/cache versions
+still used by another workspace. There is no automatic seven-day deletion;
+seven days of inactivity is a prompt to review ownership and retention.
 
-```bash
-docker compose -p animama-abc down -v --remove-orphans --rmi local
-```
-
-Then remove the worktree from the main checkout:
+Once retention and removal are approved, remove only the selected worktree
+from the main checkout without forcing Git's checks:
 
 ```bash
 cd /path/to/animama
-git worktree remove ../anima-worktrees/abc
-git worktree prune
+git worktree remove /path/to/worktrees/abc
 ```
 
-If the branch is done, delete it after the worktree is removed:
+If the task branch is no longer needed or used by another worktree, delete it
+after confirming its changes were integrated:
 
 ```bash
 git branch -d feat/abc
 ```
 
-Use `git branch -D feat/abc` only when intentionally deleting an unmerged branch.
-Avoid bare `docker compose down -v` while parallel stacks are running; always
-target the intended Compose project with `-p`.
+If Git refuses deletion (including after a squash merge), inspect the actual
+merge and remaining commits; do not automatically retry with `-D`. No global
+Docker, volume, model-cache or Git pruning belongs in task cleanup. A cleanup
+helper or agent skill must follow this same workflow and expose a reviewable
+resource list before deletion.
+
+For new branches and PR titles, use the categorized naming policy in
+[the agent guide](../../../AGENTS.md#branches-and-pull-requests).
 
 ## Common Environment Variables
 

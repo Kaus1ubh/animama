@@ -45,6 +45,32 @@ build, runtime or contributor prerequisite. Update durable documentation with
 behavior changes. Do not add public stub plans or links that require a private
 planning checkout. See [Repository boundaries](docs/architecture/repository-boundaries.md).
 
+## Branches and pull requests
+
+Name new task branches `<type>/<short-kebab-case-task>`. Use the same type in
+the PR title, `<type>: <summary>`; an optional scope uses `<type>(<scope>): <summary>`.
+Choose the primary purpose of the change:
+
+| Type | Purpose |
+| --- | --- |
+| `feat` | New user-facing capability |
+| `fix` | Bug correction |
+| `refactor` | Code restructuring with preserved behavior |
+| `chore` | Routine maintenance or mechanical cleanup |
+| `docs` | Documentation-only changes |
+| `test` | Test coverage or test infrastructure |
+| `build` | Dependencies, packaging or build tooling |
+| `ci` | CI workflow changes |
+| `perf` | Performance improvements |
+
+For example, `fix/chat-reconnect` pairs with `fix: restore chat after reconnect`.
+Use `fix` for bugs; classify cleanup as `chore` or `refactor` according to intent.
+Do not add an agent-name prefix or rename an existing shared branch just to
+match this convention. Matching PR labels are optional, not a prerequisite.
+This naming policy grants no additional push, merge or remote-configuration
+authority. See [worktree cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks)
+for the data-preserving handoff workflow.
+
 ## Code Quality
 
 Keep code changes clean, organized, and easy to maintain. Follow established
