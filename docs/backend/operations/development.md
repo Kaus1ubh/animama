@@ -721,10 +721,13 @@ implementation run is not owner acceptance of the coverage or budget tradeoff.
 The selector owns the exact allowlists. Backend production eligibility initially
 contains only `src/backend/animama/app/services/memory_entry_diff.py`; ordinary
 root-level `tests/test_*.py` files exclude shared guards and fixture/helper code.
-Web eligibility is confined to existing `.ts`, `.tsx` and `.css` files in
-`web/src/ui` and `web/src/components`, with additional exclusions for generated,
-vendor, catalog, runtime, auth, owner/bootstrap, voice/speech, avatar/canvas, chat
-and content paths. Directory location alone is not permission to reduce checks.
+Web eligibility is confined to eight existing presentation controls under
+`web/src/ui/components`: `button`, `card`, `checkbox`, `input`, `label`, `textarea`,
+`radio-group` and `switch` (all `.tsx`). Other UI paths contain runtime, settings,
+persistence and avatar logic and remain full scope. Directory location alone is
+not permission to reduce checks. Changed imports or unsupported dependency syntax
+automatically select full validation. This does not prove functional purity;
+review higher-risk behavior changes inside an allowed file and use `ci:full`.
 Repository instructions, provenance evidence, executable/symlink/LFS inputs,
 configuration, dependency/build inputs and shared contracts remain full scope.
 
@@ -753,8 +756,9 @@ Provider calls remain disabled. Retain invocation, command logs and results.
 A successful run writes `receipt-comment.md` and `receipt-sha256.txt` beside the
 receipt. The receipt binds commit/tree, baseline, environment, commands, outcomes,
 durations and log hashes. With explicit authorization to post, submit the generated
-receipt comment to the PR. The repository owner must inspect the evidence and
-separately post the exact review line:
+receipt comment to the PR. The repository owner must review the complete change
+for policy eligibility as well as inspect the commands, results and limitations,
+then separately post the exact review line:
 
 ```text
 animama-local-review-v1 RECEIPT_SHA256

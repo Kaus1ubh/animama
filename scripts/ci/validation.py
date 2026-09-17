@@ -97,9 +97,83 @@ def provenance_paths(root: Path) -> set[str]:
     return paths
 
 
-def special_inputs(root: Path, merge_base: str | None, changes: list[dict] | None) -> set[str]:
-    """Executable, linked and LFS files are never a reduced prose/source profile."""
+def dependency_fingerprint(path: str, source: str) -> tuple[str, ...]:
+    """Recognize a deliberately small static dependency grammar, not code purity.
+
+    Unsupported syntax and dynamic dependency access force full validation.
+    JavaScript comments/string text can cause conservative false positives.
+    """
+    import ast
+
+    if path.endswith(".py"):
+        tree = ast.parse(source)
+        dependencies = []
+        dynamic = {"__import__", "import_module", "load_module", "exec_module", "eval", "exec", "getattr"}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import | ast.ImportFrom):
+                dependencies.append(ast.dump(node, include_attributes=False))
+            if isinstance(node, ast.Name) and node.id in dynamic | {"importlib", "runpy"}:
+                raise ValueError("Dynamic Python dependency access")
+            if isinstance(node, ast.Attribute) and node.attr in dynamic:
+                raise ValueError("Dynamic Python dependency access")
+        return tuple(sorted(dependencies))
+
+    # No general JS parser: only ordinary quoted ES imports/re-exports qualify.
+    # Reject dynamic import/require, escaped identifiers and import.meta before
+    # removing comments so obfuscation never makes a dependency appear static.
+    if re.search(r"\\(?:u|x)|\b(?:require|eval|Function)\b|\bimport\s*(?:\(|\.)", source):
+        raise ValueError("Dynamic or escaped JavaScript dependency syntax")
+    text = re.sub(r"/\*[\s\S]*?\*/|//[^\n]*", "", source)
+    module = r"(?P<quote>['\"])(?P<module>[^'\"\s\\]+)(?P=quote)"
+    identifier = r"[A-Za-z_$][\w$]*"
+    item = rf"(?:type\s+)?{identifier}(?:\s+as\s+{identifier})?"
+    named = rf"\{{\s*(?:{item}(?:\s*,\s*{item})*\s*,?)?\s*\}}"
+    namespace = rf"\*\s+as\s+{identifier}"
+    binding = rf"(?:{namespace}|{named}|{identifier}(?:\s*,\s*(?:{namespace}|{named}))?)"
+    statement = re.compile(
+        rf"(?m)^[ \t]*(?P<clause>import\s+(?:(?:type\s+)?{binding}\s+from\s+)?"
+        rf"|export\s+(?:type\s+)?(?:\*|{named})\s+from\s+)" + module + r"[ \t]*;[ \t]*$"
+    )
+    dependencies = []
+
+    def collect(match: re.Match[str]) -> str:
+        clause = " ".join(match["clause"].split())
+        dependencies.append(json.dumps([clause, match["module"]]))
+        return "\n" * match[0].count("\n")
+
+    remaining = statement.sub(collect, text)
+    if re.search(r"\bimport\b|\bfrom\s*['\"]|\bexport\s+\*", remaining):
+        raise ValueError("Unrecognized JavaScript dependency declaration")
+    return tuple(sorted(dependencies))
+
+
+def changed_dependencies(root: Path, merge_base: str | None, source_head: str, changes: list[dict] | None) -> set[str]:
+    """Compare complete branch endpoints, never just the last commit or merge tree."""
+    from validation_policy import classify
+
     excluded = set()
+    for change in changes or []:
+        path = change["path"]
+        area = classify([change])
+        if area != "web" and not (area == "backend" and path.startswith("src/backend/")):
+            continue
+        try:
+            if merge_base is None:
+                raise ValueError("Missing dependency baseline")
+            before = git(root, "show", f"{merge_base}:{path}").decode("utf-8")
+            after = git(root, "show", f"{source_head}:{path}").decode("utf-8")
+            if dependency_fingerprint(path, before) != dependency_fingerprint(path, after):
+                excluded.add(path)
+        except (ValueError, SyntaxError, UnicodeError):
+            excluded.add(path)
+    return excluded
+
+
+def special_inputs(
+    root: Path, merge_base: str | None, changes: list[dict] | None, *, source_head: str = "HEAD"
+) -> set[str]:
+    """Special files and changed/uncertain dependencies require full validation."""
+    excluded = changed_dependencies(root, merge_base, source_head, changes)
     for revision in filter(None, ("HEAD", merge_base)):
         for entry in git(root, "ls-tree", "-r", "-z", revision).split(b"\0"):
             if entry:
@@ -180,7 +254,8 @@ def plan(root: Path, output: Path) -> None:
     except (ValueError, KeyError, TypeError, UnicodeError) as exc:
         error = str(exc)
     try:
-        excluded = provenance_paths(root) | special_inputs(root, merge_base, changes)
+        dependency_head = exact_sha(event["pull_request"]["head"]["sha"]) if event_name == "pull_request" else source
+        excluded = provenance_paths(root) | special_inputs(root, merge_base, changes, source_head=dependency_head)
     except (ValueError, KeyError, TypeError, OSError):
         excluded, error = set(), "Cannot establish provenance exclusions"
     # First classify without evidence. High-risk/full requests never consult a receipt.

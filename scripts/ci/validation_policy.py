@@ -110,31 +110,19 @@ def _area(path: str, excluded: set[str]) -> str | None:
     # Pure formatting helpers are the initial bounded backend production allowlist.
     if path == "src/backend/animama/app/services/memory_entry_diff.py":
         return "backend"
-    if p.suffix in {".ts", ".tsx", ".css"}:
-        if any(
-            word in part.lower()
-            for part in p.parts
-            for word in (
-                "generated",
-                "vendor",
-                "catalog",
-                "routetree",
-                "runtime",
-                "auth",
-                "credential",
-                "bootstrap",
-                "owner",
-                "voice",
-                "speech",
-                "avatar",
-                "canvas",
-                "chat",
-                "content",
-            )
-        ):
-            return None
-        if path.startswith(("src/frontend/web/src/ui/", "src/frontend/web/src/components/")):
-            return "web"
+    # ui/ also contains persistence, runtime and settings code. Admit only
+    # reviewed presentation primitives; new paths and new dependencies stay full.
+    if p.parent == PurePosixPath("src/frontend/web/src/ui/components") and p.name in {
+        "button.tsx",
+        "card.tsx",
+        "checkbox.tsx",
+        "input.tsx",
+        "label.tsx",
+        "textarea.tsx",
+        "radio-group.tsx",
+        "switch.tsx",
+    }:
+        return "web"
 
     return None
 

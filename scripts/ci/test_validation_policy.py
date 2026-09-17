@@ -30,9 +30,9 @@ class ClassificationTests(unittest.TestCase):
             "docs/backend/operations/development.md": "docs",
             "tests/test_chat.py": "backend",
             "src/backend/animama/app/services/memory_entry_diff.py": "backend",
-            "src/frontend/web/src/components/Button.tsx": "web",
-            "src/frontend/web/src/ui/helpers.ts": "web",
-            "src/frontend/web/src/ui/button.css": "web",
+            "src/frontend/web/src/ui/components/button.tsx": "web",
+            "src/frontend/web/src/ui/components/card.tsx": "web",
+            "src/frontend/web/src/ui/components/input.tsx": "web",
         }.items():
             self.assertEqual(classify([modified(path)]), area, path)
 
@@ -61,6 +61,11 @@ class ClassificationTests(unittest.TestCase):
             "src/frontend/web/src/main.local.tsx",
             "src/frontend/web/src/routes/index.tsx",
             "src/frontend/web/src/ui/script.js",
+            "src/frontend/web/src/ui/create-anima/createAnimaDraftStorage.ts",
+            "src/frontend/web/src/ui/sidebar/ApplicationSettingsModal.tsx",
+            "src/frontend/web/src/ui/components/model-selector.tsx",
+            "src/frontend/web/src/ui/components/new-control.tsx",
+            "src/frontend/web/src/components/Button.tsx",
             "src/frontend/web/vite.config.ts",
             "src/frontend/web/public/image.png",
             "src/frontend/packages/runtime-contracts/src/index.ts",
@@ -112,14 +117,14 @@ class ClassificationTests(unittest.TestCase):
                 self.assertEqual(classify([{"status": status, "old_path": old, "path": new}]), "full")
         for paths in (
             ["docs/a.md", "tests/test_chat.py"],
-            ["tests/test_chat.py", "src/frontend/web/src/ui/button.ts"],
+            ["tests/test_chat.py", "src/frontend/web/src/ui/components/label.tsx"],
             ["docs/a.md", "uv.lock"],
         ):
             self.assertEqual(classify([modified(path) for path in paths]), "full")
         self.assertEqual(classify([modified("docs/a.md"), modified("docs/b.md")]), "docs")
 
     def test_caller_exclusions_and_malformed_classification_inputs(self):
-        for path in ("docs/notice.md", "src/frontend/web/src/ui/Button.tsx", "tests/test_chat.py"):
+        for path in ("docs/notice.md", "src/frontend/web/src/ui/components/button.tsx", "tests/test_chat.py"):
             self.assertEqual(classify([modified(path)], excluded_paths=[path]), "full")
         self.assertEqual(classify([modified("docs/a.md")], excluded_paths=["docs/other.md"]), "docs")
         for changes in (None, [], {}, (), [{}], [None], [modified("docs/a.md") | {"extra": True}]):
@@ -144,7 +149,7 @@ class ClassificationTests(unittest.TestCase):
 
 class SelectionTests(unittest.TestCase):
     def test_local_code_evidence_replaces_expensive_hosted_work_on_pr_and_main(self):
-        for path, mode in (("tests/test_chat.py", "backend"), ("src/frontend/web/src/ui/button.ts", "web")):
+        for path, mode in (("tests/test_chat.py", "backend"), ("src/frontend/web/src/ui/components/label.tsx", "web")):
             for name, value in (("pull_request", event()), ("push", main_event())):
                 for reviewed in (False, True, 1, "true", None):
                     plan = choose_plan(name, value, [modified(path)], local_reviewed=reviewed)
@@ -239,7 +244,12 @@ class AggregateTests(unittest.TestCase):
             choose_plan("workflow_dispatch", {}, None),
             choose_plan("pull_request", event(), [modified("docs/a.md")]),
             choose_plan("push", main_event(), [modified("tests/test_chat.py")], local_reviewed=True),
-            choose_plan("pull_request", event(), [modified("src/frontend/web/src/ui/Button.tsx")], local_reviewed=True),
+            choose_plan(
+                "pull_request",
+                event(),
+                [modified("src/frontend/web/src/ui/components/button.tsx")],
+                local_reviewed=True,
+            ),
             choose_plan("schedule", {}, None, periodic_unchanged=True),
         ]
 

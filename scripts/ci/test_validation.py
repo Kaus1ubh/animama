@@ -199,6 +199,48 @@ class GitSelectionTests(unittest.TestCase):
             receipt = json.loads((Path(self.directory.name) / "selection.json").read_text())
             self.assertEqual(receipt["plan"]["mode"], "full")
 
+    def test_changed_dependency_in_earlier_pr_commit_requires_full(self):
+        path = "src/frontend/web/src/ui/components/card.tsx"
+        self.write(path, 'import { cn } from "@/lib/utils";\nexport const Card = 1;\n')
+        self.base = self.commit("existing leaf")
+        self.write(path, 'import { cn } from "@/lib/persistence";\nexport const Card = 1;\n')
+        self.commit("change dependency")
+        self.write(path, 'import { cn } from "@/lib/persistence";\nexport const Card = 2;\n')
+        head = self.commit("later presentation change")
+        with patch("github_evidence.review_for_event") as review:
+            receipt = self.run_plan("pull_request", self.event(head))
+        self.assertEqual(receipt["plan"]["mode"], "full")
+        review.assert_not_called()
+
+    def test_dependency_comparison_uses_pr_head_not_checked_out_merge(self):
+        path = "src/frontend/web/src/ui/components/card.tsx"
+        original = 'import { cn } from "@/lib/utils";\nexport const Card = 1;\n'
+        changed = 'import { cn } from "@/lib/persistence";\nexport const Card = 2;\n'
+        self.write(path, original)
+        self.base = self.commit("existing leaf")
+        self.write(path, changed)
+        head = self.commit("PR dependency changed")
+        self.write(path, original)
+        self.commit("different integrated content")
+        with patch("github_evidence.review_for_event") as review:
+            receipt = self.run_plan("pull_request", self.event(head))
+        self.assertEqual(receipt["plan"]["mode"], "full")
+        review.assert_not_called()
+
+    def test_same_imports_allow_presentation_change_and_python_added_import_excludes(self):
+        web = "src/frontend/web/src/ui/components/card.tsx"
+        backend = "src/backend/animama/app/services/memory_entry_diff.py"
+        self.write(web, 'import { cn } from "@/lib/utils";\nexport const Card = 1;\n')
+        self.write(backend, "import difflib\nVALUE = 1\n")
+        self.base = self.commit("existing narrow sources")
+        self.write(web, 'import { cn } from "@/lib/utils";\nexport const Card = 2;\n')
+        self.write(backend, "import difflib\nimport os\nVALUE = 1\n")
+        head = self.commit("narrow sources edited")
+        changes, base = validation.discover(self.root, self.event(head))
+        excluded = validation.special_inputs(self.root, base, changes, source_head=head)
+        self.assertNotIn(web, excluded)
+        self.assertIn(backend, excluded)
+
 
 class InputBoundaryTests(unittest.TestCase):
     def test_renames_deletions_and_unusual_filenames(self):
@@ -219,6 +261,46 @@ class InputBoundaryTests(unittest.TestCase):
             output = Path(directory) / "gate.json"
             self.assertEqual(validation.gate(output), 1)
             self.assertFalse(json.loads(output.read_text())["success"])
+
+
+class DependencyFingerprintTests(unittest.TestCase):
+    def test_known_static_forms_and_bindings(self):
+        source = "\n".join(
+            [
+                'import * as React from "react";',
+                'import { type Props, cn } from "@/lib/utils";',
+                'export * from "@animama/product-ui/components";',
+            ]
+        )
+        first = validation.dependency_fingerprint("card.tsx", source)
+        self.assertEqual(first, validation.dependency_fingerprint("card.tsx", source + "\nexport const Card = 2;"))
+        self.assertNotEqual(first, validation.dependency_fingerprint("card.tsx", source.replace("cn", "other")))
+        self.assertEqual(len(first), 3)
+
+    def test_unsupported_or_dynamic_syntax_never_claims_static_dependencies(self):
+        for source in (
+            'const x = import("other");',
+            'const x = require("other");',
+            'const x = import.meta.resolve("other");',
+            "import thing from variable;",
+            'import { broken from "other"',
+            'import { broken from "other";',
+            'import multiple bare names from "other";',
+            'import x from "other" with { type: "json" };',
+            'import /*comment*/ ("other");',
+            'const x = "\\u0069mport";',
+            "export * from variable;",
+        ):
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                validation.dependency_fingerprint("card.tsx", source)
+        for source in (
+            "import (broken",
+            '__import__("os")',
+            'getattr(module, "import_module")("os")',
+            'importlib.import_module("os")',
+        ):
+            with self.subTest(source=source), self.assertRaises((ValueError, SyntaxError)):
+                validation.dependency_fingerprint("memory_entry_diff.py", source)
 
 
 class GateReceiptTests(unittest.TestCase):

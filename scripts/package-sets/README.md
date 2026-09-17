@@ -46,25 +46,32 @@ environment cleanup and are uploaded with test evidence, including on later test
 failure. Python names/versions identify the tested installation; they do not
 prove reproducible transitive wheel bytes or constitute a frozen consumer gate.
 
-PR/main CI retains these unpublished outputs and focused evidence in GitHub
-Actions for 14 days. No bucket, Cloud checkout, R2 credential or desktop release
-is needed. A separate private maintainer workflow may select an exact successful
+Full validation retains unpublished package outputs in GitHub Actions. Ordinary
+successful logs and package archives expire after 3 days; explicit full requests,
+including manual and reusable release validation, retain them for 14 days.
+Failure diagnostics and compact validation receipts retain 14 days. Reduced
+profiles do not produce package sets. No bucket, Cloud checkout, R2 credential
+or desktop release is needed. A separate private maintainer workflow may select an exact successful
 main-branch set for private durable storage after its own approval. Desktop
 binaries and feature packs continue to use `animama-releases`.
 
 To identify a CI output, record the successful run ID, artifact ID, full source
-commit and manifest SHA-256 from the artifact name. The Actions ZIP digest
-checks the downloaded transport archive; the manifest digest identifies the
-package set inside it. Retain both when recording a selection. The separate
-`portable-evidence-<commit>-<attempt>` artifact contains consumer logs and browser
-screenshots and is not an installable package set.
+commit and SHA-256 of the canonical `manifest.json` inside
+`animama-set-<commit>-<attempt>`. The Actions ZIP digest checks the downloaded
+transport archive; the manifest digest identifies the package set inside it.
+Retain both when recording a selection. The separate
+`validation-evidence-<commit>-<attempt>` artifact contains detailed check and
+consumer logs plus browser screenshots; it is not an installable package set.
+`validation-receipt-<commit>-<attempt>` retains compact selection, aggregate and
+check receipts for 14 days. Match the run and attempt across these artifacts;
+local assertions and independently executed hosted checks remain distinct.
 
 ## Compatibility policy
 
-The workflow compares package sets against the PR base, pre-push commit, or
-dispatched commit parent. A base that
-predates this policy is the initial adoption baseline. Contract versions must
-never decrease. Documentation-only JSON Schema/OpenAPI changes are compatible;
+Full validation compares package sets against the exact PR base, pre-push
+commit, or dispatched commit parent selected by the workflow. The baseline is
+built independently; an unavailable required baseline fails validation.
+Contract versions must never decrease. Documentation-only JSON Schema/OpenAPI changes are compatible;
 all structural changes conservatively require a new major contract version,
 including additions not yet covered by a more precise compatibility rule.
 Changing emitted TypeScript declarations requires a package version bump.
