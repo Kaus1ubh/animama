@@ -2,9 +2,11 @@
 
 <!-- Describe the problem and resulting behavior. -->
 
-## Related issue (optional)
+## Related work
 
-<!-- Link an issue, or remove this section. -->
+<!-- Link the issue and relevant acceptance criteria. For an issue-free incidental
+correction, state why the exception applies. Close only issues fully delivered by
+this PR; a partial child PR must not close its parent. No private-plan prerequisite. -->
 
 ## Local validation
 
@@ -27,6 +29,13 @@ fixtures from real avatar/audio acceptance. Otherwise write "Not applicable". --
 
 <!-- Disclose unresolved failures, compatibility risks and unperformed checks.
 Write "None identified" only if true. -->
+
+## Review and merge handoff
+
+<!-- Before requesting merge: record the exact head and relevant base, review
+findings/disposition, current checks and owner approval status. Default: ordinary
+merge commit. Approval is pending until explicitly given for the candidate;
+AI review or a passing check is not owner approval. Refresh after material edits. -->
 
 ## Checklist
 

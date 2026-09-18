@@ -40,6 +40,8 @@ paths = [
   "LICENSE",
   "Makefile",
   "README.md",
+  "SDLC.md",
+  "SPECS.md",
   "docker-compose.yml",
   "package.json",
   "pyproject.toml",
@@ -2588,6 +2590,8 @@ owner = "public"
 rationale = "Public-only immutable artifact production, contract policy and issue boundaries."
 paths = [
   ".github/ISSUE_TEMPLATE/local-bug.yml",
+  ".github/ISSUE_TEMPLATE/parent.yml",
+  ".github/ISSUE_TEMPLATE/task.yml",
   "SECURITY.md",
   "contracts/runtime-owner/schema.json",
   "contracts/README.md",

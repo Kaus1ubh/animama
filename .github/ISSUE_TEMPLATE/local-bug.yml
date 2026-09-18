@@ -3,7 +3,7 @@ description: A bug reproducible without hosted service internals
 body:
   - type: markdown
     attributes:
-      value: "Use a private maintainer channel for vulnerabilities, credentials, customer data or hosted internals. Read SECURITY.md before reporting sensitive details."
+      value: "Follow SDLC.md. Use a private maintainer channel for vulnerabilities, credentials, customer data or hosted internals. Read SECURITY.md before reporting sensitive details. A report is not a claim that the failure has been independently reproduced."
   - type: input
     id: version
     attributes:
@@ -13,6 +13,29 @@ body:
   - type: textarea
     id: reproduce
     attributes:
-      label: Local reproduction and expected behavior
+      label: Steps to reproduce
+      description: Include the smallest known local reproduction and whether it is intermittent.
     validations:
       required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Explain what should happen and what you observed. State uncertainty explicitly.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and evidence
+      description: OS, serving mode, relevant configuration and sanitized logs or screenshots. Do not attach databases, credentials or personal content.
+  - type: textarea
+    id: assignment
+    attributes:
+      label: Scope, approach and acceptance
+      description: Maintainer or agent follow-up after triage. Record the bounded fix, brief approach, regression checks and any owner verification. Reporters may leave this blank.
+  - type: textarea
+    id: links
+    attributes:
+      label: Related work and blockers
+      description: Existing issues, PRs, confirmed investigation results or unresolved questions. Search before creating a duplicate.

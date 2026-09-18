@@ -1,0 +1,50 @@
+name: Bounded task or sub-issue
+description: An implementation assignment, maintenance task or routine improvement.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Follow SDLC.md. Routine work needs this issue and a brief approach; substantial, uncertain or risky work needs an ExecPlan.
+        Keep the issue understandable without private plans. Readiness and authorization are separate from submitting this form.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome and context
+      description: What result should this task deliver, and why?
+    validations:
+      required: true
+  - type: input
+    id: parent
+    attributes:
+      label: Parent issue and requirements
+      description: Optional for standalone tasks. Link the parent and relevant requirement IDs; establish the native sub-issue relationship separately where available.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and exclusions
+      description: Define the bounded responsibility and what is out of scope.
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Brief implementation approach
+      description: Outline the likely changes and important risks. State unknowns; link accessible design context without requiring a private plan.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance and validation
+      description: Observable results, relevant checks and any owner or manual verification.
+      placeholder: "- [ ] Condition and evidence needed to consider this task complete."
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and open questions
+      description: Link blockers and name the decision, input or access needed. A dependency link is not an authorization grant.
+  - type: textarea
+    id: handoff
+    attributes:
+      label: Assignment and handoff
+      description: Record the responsible task or person, branch/base, workspace, PR, current result and safe resumption notes when available. Never include credential values.

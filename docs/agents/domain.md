@@ -30,10 +30,16 @@ Each artifact has a distinct job:
 - **ADR:** a significant architectural choice and its rationale, alternatives
   and consequences. It explains why; it is not a second implementation guide.
 - **Private ExecPlan:** execution steps, phases, approval history and validation
-  evidence. Full plans remain privately owned, including plans for local code.
-- **Future GitHub parent issue:** the agreed product specification and acceptance
-  scope once the tracker workflow is enabled. Its relationship with ExecPlans is
-  deferred; existing planning rules remain in force during the pilot.
+  evidence for substantial, uncertain or risky work. Full plans remain privately
+  owned, including plans for local code.
+- **Issue specification:** agreed intent, behavior, constraints and acceptance;
+  the parent issue owns it for substantial work once tracker rollout is enabled.
+  [SPECS.md](../../SPECS.md) defines authoring; [SDLC.md](../../SDLC.md) defines
+  delivery. Routine issues need a brief approach, not a separate ExecPlan.
+
+Keep one authoritative spec. Plans may summarize its accepted context and identify
+the source decision, but cannot independently change requirements. Reconcile
+material scope changes with the owner before dependent implementation.
 
 For ADR selection criteria, authoring, retrospective evidence and supersession,
 follow the [ADR authoring guide](../adr/README.md#when-and-how-to-record-a-decision).
