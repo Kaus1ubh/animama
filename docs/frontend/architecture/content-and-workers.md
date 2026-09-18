@@ -11,7 +11,6 @@ Catalog and prepares protected registered bytes for preview or a mounted Anima.
 resources that are part of the web application rather than portable content,
 including:
 
-- ONNX models and ONNX Runtime support files;
 - PocketTTS workers and audio worklets;
 - Basis/transcoder support;
 - fonts and UI images;
@@ -24,6 +23,29 @@ Large files may use Git LFS. On a fresh checkout:
 git lfs install
 git lfs pull
 ```
+
+Speech engine payloads use a separate verified input path. The tracked
+`models/browser-runtime/manifest.json` records all 19 same-origin `/onnx/` assets:
+eight Pocket TTS/Smart Turn files acquired into the shared model store, nine
+ORT 1.24.2 files resolved from the exact dependency alias, and two VAD 0.0.30
+files resolved from its pinned package. Vite verifies their sizes and SHA-256
+hashes before serving or building; it does not fetch model inputs implicitly.
+Worker-relative imports and all reviewed ORT variants remain available.
+
+Development serves those verified sources without a duplicate public payload
+tree. Production and embedded-desktop builds copy the exact inventory into
+`dist/onnx`; preview and the desktop audit verify the built inventory independently
+of the developer store. These required distribution copies remain local to the
+artifact and retain their notices. Parakeet is a separate runtime/pack input,
+kept outside the web build. See [shared model setup](../../backend/operations/model-assets.md)
+for acquisition, platform-specific storage, offline reuse and cleanup.
+
+Legacy operator-supplied catalogs at
+`/onnx/models/pocket-tts/animas/<safe-id>_voices.bin` remain separate optional
+inputs under `web/public`, using letters, digits, `_` or `-` for the ID. Vite
+serves only existing regular files at those paths and preserves their build
+copies; missing catalogs return 404. They are not hash-approved engine assets
+or members of the 19-file manifest. Normal uploaded catalog URLs are unaffected.
 
 Do not add public aliases for an Avatar, Gesture, Reaction, effect,
 sound, music track, Appearance, or other catalog item. All playable Included

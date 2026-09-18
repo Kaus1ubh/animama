@@ -19,7 +19,7 @@ The evidence directory must not already exist. This runner owns one disposable
 `pgvector/pgvector:pg16` container per serving mode, bound to a random loopback
 port. `--pg-bin /path/to/bin` instead uses installed PostgreSQL binaries with
 pgvector. It starts fresh FastAPI built and Vite development applications,
-runs the same installation setup and Library spec, and stops its owned processes
+runs the same installation setup and original Library smoke test, and stops its owned processes
 and removes temporary databases/content even on failure. Logs, Playwright reports,
 and screenshot attachments remain in the evidence directory.
 
@@ -29,6 +29,7 @@ This proves bounded first-run and Library rendering with same-origin, bearer-fre
 API requests. It does not prove real starter animation, avatar rendering, audio,
 content acquisition, cache/workspace concurrency, or packaged desktop behavior.
 No maintainer `.env` or provider credentials are passed to the owned processes.
+The runner filters out the real-avatar pose journey in the same spec.
 
 ## Current Automation Status
 
@@ -88,6 +89,32 @@ this suite does not claim a package-import browser screen exists. Chat cancellat
 uses a controlled pending browser request, followed by actual deterministic backend
 chat. Real provider cancellation is tested separately over Uvicorn. Neither is
 live provider, audio, physical keyboard or packaged desktop acceptance.
+
+For a separately approved live-provider rehearsal, record the actual Stop click,
+text increments before it, browser transport closure and backend cleanup as
+separate observations. A closed SSE connection or a restored composer does not
+prove that the upstream provider stopped generating or billing. Preserve failed
+and interrupted attempts in both the evidence and the request budget; verify saved
+messages before claiming a completed turn survived reload.
+
+The active Library pose journey previews the tracked `shy-finger-poke` gesture
+on a real sample avatar. It checks a visible canvas, advancing pose time, resolved
+skeleton bones, all three current clip events, the eye effect and sparkle scene,
+plus protected resource responses. Screenshot and observation attachments retain
+the rendering evidence; the known single unresolved sample-avatar bone is allowed.
+The brief light-streak event must fire, but its active visibility is outside this
+pose check. The test permits only reads and gesture-preview preparation requests;
+it does not select an Anima through saved settings, chat, upload or play audio.
+Optional Local Mixamo VRMA playback and imported animation acceptance remain
+separate. Run this focused check on an already initialized named stack with the
+tracked avatar inputs:
+
+```bash
+pnpm e2e:test -- --project chromium --no-deps --grep "accountless built-in pose playback"
+```
+
+This focused pose check is not part of the generated structural-avatar fixture's
+acceptance claim; it requires the real tracked avatar and built-in pose content.
 
 The currently supported automated frontend checks are:
 

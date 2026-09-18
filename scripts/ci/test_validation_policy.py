@@ -56,6 +56,8 @@ class ClassificationTests(unittest.TestCase):
             "tests/test_compose_network_boundaries.py",
             "tests/test_desktop_runtime_packaging.py",
             "tests/test_included_content_integrity.py",
+            "tests/test_model_store.py",
+            "tests/test_browser_model_store.py",
             "tests/test_generate_synthetic_docs.py",
             "src/frontend/desktop/src/main.cts",
             "src/frontend/web/src/main.local.tsx",
@@ -164,7 +166,15 @@ class SelectionTests(unittest.TestCase):
             plan = choose_plan(name, value, [modified("docs/guide.md")])
             self.assertEqual(plan["mode"], "docs")
             self.assertIn("docs-tests", plan["required"])
-            for omitted in ("hydrate", "browser-install", "node", "pnpm-install", "backend-tests", "browser-smoke"):
+            for omitted in (
+                "hydrate",
+                "browser-install",
+                "model-inputs",
+                "node",
+                "pnpm-install",
+                "backend-tests",
+                "browser-smoke",
+            ):
                 self.assertNotIn(omitted, plan["required"])
 
     def test_draft_ready_label_and_base_edit_transitions(self):

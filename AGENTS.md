@@ -165,6 +165,21 @@ demonstrates a concrete need. Existing branch/PR review rules still apply.
 
 ## Local Stacks
 
+Before first startup, acquire the pinned shared Parakeet inputs with
+`python3 scripts/models/parakeet.py acquire` and
+`python3 scripts/models/browser_speech.py acquire` (or import verified existing copies).
+`reset.sh` verifies the selected `ANIMAMA_MODEL_ROOT` offline and records its
+resolved immutable directory; it never downloads models or silently creates an
+empty mount. See [model setup](docs/backend/operations/model-assets.md).
+
+Follow the [workspace preparation workflow](docs/backend/operations/development.md#preparing-a-task-workspace)
+for ordinary Git worktrees, dependencies and credentials. Keep reusable secrets
+in an owner-only external file and worktree `.env` files nonsecret; select them
+with `COMPOSE_ENV_FILES` (secrets first, worktree configuration second). Never
+copy a main checkout's `.env` or log credential values/digests. Inherited shell
+values override file settings, so use a clean environment for configuration
+changes and the generated stack record for resuming the same stack.
+
 For the main checkout, preserve the default local application URL:
 
 ```bash
@@ -202,8 +217,10 @@ For git worktrees or parallel branch testing, use a named stack and base port:
 source .animama-stack.env
 ```
 
-The stack record includes the selected `COMPOSE_FILE` graph; source it before
-project-scoped follow-up, backup and restore commands.
+The stack record includes the selected `COMPOSE_FILE` graph and normalized
+`COMPOSE_ENV_FILES` paths; source the trusted record from the correct checkout
+before project-scoped follow-up, backup and restore commands. It records no
+credential values.
 
 That creates an isolated Compose project such as `animama-abc`, writes derived
 URLs and ports to `.animama-stack.env`, and sets `ANIMAMA_DESKTOP_WEB_URL` for
@@ -311,6 +328,8 @@ Root/local-stack checks:
 
 ```bash
 bash -n reset.sh
+export ANIMAMA_PARAKEET_MODEL_DIR="$(python3 scripts/models/parakeet.py path)"
+export ANIMAMA_BROWSER_MODEL_DIR="$(python3 scripts/models/browser_speech.py path)"
 docker compose -f docker-compose.yml config --quiet
 docker compose -f docker-compose.yml -f docker-compose.development.yml config --quiet
 ```

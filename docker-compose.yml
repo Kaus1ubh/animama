@@ -45,6 +45,8 @@ services:
   animama-server:
     build:
       context: .
+      additional_contexts:
+        browser_models: ${ANIMAMA_BROWSER_MODEL_DIR:-./models/browser-speech}
       target: animama-server
     container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}animama-server"
     restart: unless-stopped
@@ -73,6 +75,7 @@ services:
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
       HF_TOKEN: ${HF_TOKEN}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       ANIMAMA_DEFAULT_MODEL_PROVIDER_ID: ${ANIMAMA_DEFAULT_MODEL_PROVIDER_ID:-OpenAIResponsesHTTPAgent:gpt-5.6-luna}
       ANIMAMA_LLM_SKIP: ${ANIMAMA_LLM_SKIP:-}
       OPENAI_DEFAULT_MODEL: ${OPENAI_DEFAULT_MODEL:-gpt-5.6-luna}
@@ -83,6 +86,12 @@ services:
       ANIMAMA_LOG_TZ: America/New_York
       ANIMAMA_LOG_DIR: /var/log/animama
       ANIMAMA_MEMORY_MANAGER_AGENT_MODEL: ${ANIMAMA_MEMORY_MANAGER_AGENT_MODEL:-gpt-5.6-luna}
+      # Auxiliary title calls have their own backend-owned settings.
+      ANIMAMA_CHAT_TITLE_GENERATION_ENABLED: ${ANIMAMA_CHAT_TITLE_GENERATION_ENABLED:-true}
+      ANIMAMA_CHAT_TITLE_GENERATION_MODEL: ${ANIMAMA_CHAT_TITLE_GENERATION_MODEL:-gpt-5-nano}
+      ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER: ${ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER:-OpenAIHTTPAgent}
+      ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT: ${ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT:-low}
+      ANIMAMA_CHAT_COMPACTION_ENABLED: ${ANIMAMA_CHAT_COMPACTION_ENABLED:-true}
       ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS: ${ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS:-true}
       ANIMAMA_MODEL_CLIENT_LOG_PREVIEW_CHARS: ${ANIMAMA_MODEL_CLIENT_LOG_PREVIEW_CHARS:-240}
       ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS: ${ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS:-10000}
@@ -114,7 +123,12 @@ services:
       CARTESIA_API_KEY: ${CARTESIA_API_KEY}
     volumes:
       - ./.animama-logs:/var/log/animama
-      - ./parakeet-tdt-0.6b-v2:/opt/animama/web/__client-parakeet-models:ro
+      - type: bind
+        source: ${ANIMAMA_PARAKEET_MODEL_DIR:?Run python3 scripts/models/parakeet.py acquire then ./reset.sh or source the generated stack record}
+        target: /opt/animama/web/__client-parakeet-models
+        read_only: true
+        bind:
+          create_host_path: false
       - type: bind
         # Readable app-shipped typed content; never write catalog machinery here.
         source: ${ANIMAMA_INCLUDED_CONTENT_HOST_PATH:-./content/included}

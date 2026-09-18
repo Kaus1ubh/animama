@@ -1,34 +1,45 @@
+# syntax=docker/dockerfile:1
 FROM node:22-bookworm-slim AS web-builder
-
+ARG TARGETARCH
 WORKDIR /app
 RUN corepack enable
+# Install from lock/config inputs before source changes invalidate build layers.
+COPY src/frontend/package.json src/frontend/pnpm-lock.yaml src/frontend/pnpm-workspace.yaml ./
+COPY src/frontend/web/package.json ./web/package.json
+COPY src/frontend/packages/runtime-contracts/package.json ./packages/runtime-contracts/package.json
+COPY src/frontend/packages/product-ui/package.json ./packages/product-ui/package.json
+COPY src/frontend/packages/discover-client/package.json ./packages/discover-client/package.json
+RUN --mount=type=cache,id=animama-pnpm-linux-${TARGETARCH}-node22-pnpm10.33.0,target=/pnpm/store,sharing=locked \
+    pnpm install --frozen-lockfile --store-dir /pnpm/store --filter animama-frontend-workspace --filter animama-web... --prod=false
 COPY src/frontend ./
+COPY models /models
 COPY LICENSE /LICENSE
 COPY content/included /content/included
-RUN pnpm install --frozen-lockfile --filter animama-frontend-workspace --filter animama-web... --prod=false
 ENV NODE_ENV=production \
     VITE_APP_ENV=production \
     VITE_DISABLE_WEBUI_TELEMETRY=true \
-    VITE_CLIENT_PARAKEET_MODEL_BASE_URL=/__client-parakeet-models
-RUN pnpm --filter animama-web build
+    VITE_CLIENT_PARAKEET_MODEL_BASE_URL=/__client-parakeet-models \
+    ANIMAMA_BROWSER_MODEL_DIR=/opt/animama/browser-models
+# Explicit verified input, never a download during build. Only dist enters runtime.
+RUN --mount=from=browser_models,target=/opt/animama/browser-models \
+    pnpm --filter animama-web build
 
 FROM python:3.12-slim AS base
-
+ARG TARGETARCH
 WORKDIR /app
-
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_LINK_MODE=copy \
     PATH="/opt/venv/bin:/root/.local/bin:$PATH" \
     PYTHONPATH=/app/src:/app/src/agents/src \
     WATCHFILES_FORCE_POLLING=true
-
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends curl build-essential \
     && rm -rf /var/lib/apt/lists/*
-
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-# Only copy needed files into our backend base image
+RUN pip install --no-cache-dir uv==0.11.28
 COPY pyproject.toml uv.lock alembic.ini LICENSE ./
 RUN touch README.md
+
+FROM base AS source
 COPY alembic ./alembic
 COPY content/included ./content/included
 COPY src/backend/animama ./src/backend/animama
@@ -38,27 +49,26 @@ COPY src/frontend/web/src/assets/vrm/animations/manifest.json \
 COPY src/frontend/web/src/assets/effects/vfx/catalog.json \
     ./src/frontend/web/src/assets/effects/vfx/catalog.json
 
-EXPOSE 8000
-
 FROM base AS animama-server-development
-
-RUN uv sync --frozen --no-dev --extra server
-
-# The container composition supplies the exact browser origin. Development
-# keeps this service private; the production graph publishes only this API.
+RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
+    uv sync --frozen --no-dev --extra server --no-install-project
+COPY --from=source /app /app
+RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
+    uv sync --frozen --no-dev --extra server
+EXPOSE 8000
 CMD ["python", "-m", "animama.server.compose_entrypoint"]
 
 FROM animama-server-development AS animama-server
-
 COPY --from=web-builder /app/web/dist /opt/animama/web
 ENV ANIMAMA_WEB_ROOT=/opt/animama/web
 
 FROM base AS animama-file-worker
-
 RUN apt-get update -y \
     && apt-get install -y --no-install-recommends libglib2.0-0 libgl1 libgomp1 libxcb1 \
     && rm -rf /var/lib/apt/lists/*
-
-RUN uv sync --frozen --no-dev --extra file-worker
-
+RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
+    uv sync --frozen --no-dev --extra file-worker --no-install-project
+COPY --from=source /app /app
+RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
+    uv sync --frozen --no-dev --extra file-worker
 CMD ["python", "-m", "animama.workers.user_file_processing"]

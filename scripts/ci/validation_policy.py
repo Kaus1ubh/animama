@@ -29,6 +29,7 @@ FULL = (
     | {
         "hydrate",
         "browser-install",
+        "model-inputs",
         "repository-classification",
         "repository-provenance",
         "repository-imports",
@@ -79,6 +80,8 @@ SHARED_TESTS = {
     "test_compose_network_boundaries.py",
     "test_desktop_runtime_packaging.py",
     "test_included_content_integrity.py",
+    "test_model_store.py",
+    "test_browser_model_store.py",
     "test_generate_synthetic_docs.py",
 }
 

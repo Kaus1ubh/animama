@@ -99,7 +99,7 @@ class WorkflowContractTests(unittest.TestCase):
             selected = set()
             for block in blocks:
                 identifier = re.search(r"^        id: (\S+)$", block, re.M)[1]
-                if identifier in {"gate", "diagnostics", "receipts", "pnpm-cache"}:
+                if identifier in {"gate", "diagnostics", "receipts", "pnpm-cache", "speech-cache"}:
                     continue
                 condition = re.search(r"^        if: (.+)$", block, re.M)
                 if condition is None:

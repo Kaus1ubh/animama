@@ -96,7 +96,7 @@ def main() -> None:
         raise RuntimeError("Run pnpm build first")
     environment = {
         key: os.environ[key]
-        for key in ("PATH", "HOME", "TMPDIR", "LANG", "PLAYWRIGHT_BROWSERS_PATH")
+        for key in ("PATH", "HOME", "TMPDIR", "LANG", "PLAYWRIGHT_BROWSERS_PATH", "ANIMAMA_MODEL_ROOT")
         if key in os.environ
     }
     environment.update(
@@ -259,7 +259,19 @@ def main() -> None:
             )
             before = set((ROOT / ".animama-e2e/runs").glob(f"{run_type}-*"))
             try:
-                run(["node", "scripts/run-playwright-e2e.mjs", "accountless-library.spec.ts"], "browser.log", FRONTEND)
+                # Structural fixture avatars prove shell/setup only. Real pose
+                # playback in the same spec requires the tracked avatar inputs.
+                run(
+                    [
+                        "node",
+                        "scripts/run-playwright-e2e.mjs",
+                        "accountless-library.spec.ts",
+                        "--grep",
+                        "accountless Library smoke",
+                    ],
+                    "browser.log",
+                    FRONTEND,
+                )
             finally:
                 import shutil
 

@@ -46,6 +46,8 @@ def test_only_fastapi_publishes_a_default_application_port() -> None:
 def _rendered_compose(profiles: tuple[str, ...] = ("*",), development: bool = False) -> dict[str, Any]:
     environment = os.environ.copy()
     environment["COMPOSE_PROFILES"] = ",".join(profiles)
+    environment["ANIMAMA_PARAKEET_MODEL_DIR"] = "/verified-test-models/parakeet/version"
+    environment["ANIMAMA_BROWSER_MODEL_DIR"] = "/verified-test-models/browser/version"
     environment.pop("COMPOSE_FILE", None)
     files = ["-f", "docker-compose.yml"]
     if development:
@@ -256,8 +258,27 @@ def _run_reset(
     scripts = workspace / "scripts"
     scripts.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(REPO_ROOT / "reset.sh", workspace / "reset.sh")
-    for name in ("validate_local_compose.py",):
+    for name in ("validate_local_compose.py", "local-stack-state-common.sh"):
         shutil.copyfile(REPO_ROOT / "scripts" / name, scripts / name)
+    for name in ("docker-compose.yml", "docker-compose.development.yml"):
+        shutil.copyfile(REPO_ROOT / name, workspace / name)
+    model_scripts = scripts / "models"
+    model_scripts.mkdir(exist_ok=True)
+    (model_scripts / "parakeet.py").write_text(
+        "import os, sys\n"
+        "if os.environ.get('ANIMAMA_TEST_MODEL_MISSING'):\n"
+        "    print('Missing models; run python3 scripts/models/parakeet.py acquire', file=sys.stderr)\n"
+        "    sys.exit(2)\n"
+        "root = sys.argv[sys.argv.index('--root') + 1] if '--root' in sys.argv else '/default-model-store'\n"
+        "print(root + '/parakeet-tdt-0.6b-v2/verified-version')\n"
+    )
+    (model_scripts / "browser_speech.py").write_text(
+        (model_scripts / "parakeet.py")
+        .read_text()
+        .replace("parakeet-tdt-0.6b-v2", "browser-speech")
+        .replace("parakeet.py", "browser_speech.py")
+        .replace("ANIMAMA_TEST_MODEL_MISSING", "ANIMAMA_TEST_BROWSER_MODEL_MISSING")
+    )
     commands = tmp_path / "commands.jsonl"
     commands.write_text("")
     docker = tmp_path / "docker"
@@ -266,16 +287,30 @@ def _run_reset(
         + r"""
 import json, os, sys
 args = sys.argv[1:]
+# Only plain key=value fixture files; real Compose interpolation has separate coverage.
+values = {}
+for filename in os.environ.get("COMPOSE_ENV_FILES", "").split(","):
+    if filename:
+        with open(filename) as source:
+            values.update(line.rstrip("\n").split("=", 1) for line in source if "=" in line)
+values.update(os.environ)
 with open(os.environ["ANIMAMA_TEST_COMMANDS"], "a") as output:
     output.write(json.dumps({
         "args": args, "profiles": os.environ.get("COMPOSE_PROFILES", ""),
-        "build_mode": os.environ.get("ANIMAMA_WEB_BUILD_MODE"), "compose_file": os.environ.get("COMPOSE_FILE")
+        "build_mode": os.environ.get("ANIMAMA_WEB_BUILD_MODE"), "compose_file": os.environ.get("COMPOSE_FILE"),
+        "selected_files": os.environ.get("COMPOSE_ENV_FILES"),
+        "fixture_credentials_preserved": all(values.get(key) == expected for key, expected in (
+            ("POSTGRES_PASSWORD", "fixture-postgres-secret"), ("OPENAI_API_KEY", "fixture-provider-secret"))),
+        "host_credentials_absent": all(key not in os.environ for key in ("POSTGRES_PASSWORD", "OPENAI_API_KEY"))
     }) + "\n")
 if "config" in args and os.environ.get("ANIMAMA_TEST_CONFIG_FAIL"):
     sys.exit(9)
 if "--environment" in args:
     print("COMPOSE_PROFILES=" + os.environ.get("ANIMAMA_TEST_DOTENV_PROFILES", ""))
     print("ANIMAMA_WEB_BUILD_MODE=" + os.environ.get("ANIMAMA_TEST_DOTENV_BUILD_MODE", "development"))
+    print("ANIMAMA_MODEL_ROOT=" + os.environ.get("ANIMAMA_TEST_DOTENV_MODEL_ROOT", ""))
+    for key, value in values.items():
+        print(key + "=" + value)
     sys.exit(0)
 project = args[args.index("-p") + 1] if "-p" in args else "animama"
 all_profiles = "--profile" in args and args[args.index("--profile") + 1] == "*"
@@ -318,7 +353,7 @@ elif "ps" in args:
     environment = {
         key: value
         for key, value in os.environ.items()
-        if not key.startswith(("ANIMAMA_", "COMPOSE_", "PGADMIN_", "DOZZLE_"))
+        if not key.startswith(("ANIMAMA_", "COMPOSE_", "PGADMIN_", "DOZZLE_", "POSTGRES_", "OPENAI_"))
         and key not in {"APP_HOST", "APP_SCHEME", "WEB_SERVER_PORT"}
     }
     environment.update(
@@ -347,7 +382,7 @@ def test_reset_enable_restart_disable_preserves_data_and_preflights_first(tmp_pa
     marker = workspace / "data/keep.txt"
     marker.write_text("owned data")
     down = next(i for i, command in enumerate(commands) if "down" in command["args"])
-    assert sum("config" in command["args"] for command in commands[:down]) == 3
+    assert sum("config" in command["args"] for command in commands[:down]) == 4
     assert any("ps" in command["args"] for command in commands[:down])
     assert commands[down]["args"] == ["compose", "--profile", "*", "down", "--remove-orphans"]
     assert all(command["build_mode"] == "production" for command in commands)
@@ -368,7 +403,11 @@ def test_built_readiness_requests_html_navigation_and_checks_document_type(
 ) -> None:
     result, commands, _ = _run_reset(tmp_path, [])
     assert result.returncode == 0, result.stderr
-    probe = next(command["args"] for command in commands if "exec" in command["args"] and "-c" in command["args"])
+    probe = next(
+        command["args"]
+        for command in commands
+        if "exec" in command["args"] and "python" in command["args"] and "-c" in command["args"]
+    )
     code = probe[probe.index("-c") + 1]
     monkeypatch.setenv("ANIMAMA_PUBLIC_ORIGIN", "http://localhost:8400")
     observed = []
@@ -571,3 +610,244 @@ def test_explicit_purge_leaves_retired_observability_volumes_untouched(tmp_path:
     assert result.returncode == 0, result.stderr
     removals = [command["args"] for command in commands if command["args"][:2] == ["volume", "rm"]]
     assert removals == [["volume", "rm", "animama-retired-obs_postgres-data", "animama-retired-obs_pgadmin-data"]]
+
+
+@pytest.mark.parametrize("development", [False, True])
+def test_models_use_the_same_verified_read_only_bind_without_host_creation(development: bool) -> None:
+    services = _rendered_compose(development=development)["services"]
+    targets = {"animama-server": "/opt/animama/web/__client-parakeet-models"}
+    if development:
+        targets["web"] = "/app/parakeet-tdt-0.6b-v2"
+    for service, target in targets.items():
+        mount = next(volume for volume in services[service]["volumes"] if volume["target"] == target)
+        assert mount["source"] == "/verified-test-models/parakeet/version"
+        assert mount["type"] == "bind"
+        assert mount["read_only"] is True
+        assert mount["bind"].get("create_host_path", False) is False
+
+
+@pytest.mark.parametrize("model_root", ["/default-model-store", "/shared/model store"])
+def test_reset_records_verified_version_and_ignores_stale_derived_path(tmp_path: Path, model_root: str) -> None:
+    variables = {"ANIMAMA_PARAKEET_MODEL_DIR": "/stale/version"}
+    if model_root != "/default-model-store":
+        variables["ANIMAMA_MODEL_ROOT"] = model_root
+    result, _, workspace = _run_reset(tmp_path, [], variables)
+    assert result.returncode == 0, result.stderr
+    record = workspace / ".animama-stack.env"
+    resolved = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source "$1"; printf "%s\n%s" "$ANIMAMA_MODEL_ROOT" "$ANIMAMA_PARAKEET_MODEL_DIR"',
+            "test",
+            str(record),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    assert resolved == [model_root, model_root + "/parakeet-tdt-0.6b-v2/verified-version"]
+
+
+def test_reset_reads_model_root_from_dotenv_selector(tmp_path: Path) -> None:
+    result, _, workspace = _run_reset(tmp_path, [], {"ANIMAMA_TEST_DOTENV_MODEL_ROOT": "/dotenv-model-store"})
+    assert result.returncode == 0, result.stderr
+    assert "export ANIMAMA_MODEL_ROOT=/dotenv-model-store" in (workspace / ".animama-stack.env").read_text()
+
+
+def test_missing_model_setup_prevents_all_reset_mutations_even_with_purge(tmp_path: Path) -> None:
+    result, commands, workspace = _run_reset(tmp_path, ["--purge"], {"ANIMAMA_TEST_MODEL_MISSING": "1"})
+    assert result.returncode != 0
+    assert "parakeet.py acquire" in result.stderr
+    assert all("config" in command["args"] for command in commands)
+    assert not (workspace / ".animama-stack.env").exists()
+    assert not (workspace / "data").exists()
+    assert not (workspace / "content").exists()
+
+
+def test_missing_browser_models_prevents_reset_mutation(tmp_path: Path) -> None:
+    result, commands, workspace = _run_reset(tmp_path, ["--purge"], {"ANIMAMA_TEST_BROWSER_MODEL_MISSING": "1"})
+    assert result.returncode != 0
+    assert "browser_speech.py acquire" in result.stderr
+    assert all("config" in command["args"] for command in commands)
+    assert not (workspace / ".animama-stack.env").exists()
+    assert not (workspace / "data").exists()
+
+
+def test_browser_models_are_readonly_build_and_dev_inputs() -> None:
+    base = _rendered_compose(())["services"]["animama-server"]
+    assert base["build"]["additional_contexts"]["browser_models"] == "/verified-test-models/browser/version"
+    assert not any(v["target"] == "/opt/animama/browser-models" for v in base["volumes"])
+    web = _rendered_compose(development=True)["services"]["web"]
+    mount = next(v for v in web["volumes"] if v["target"] == "/opt/animama/browser-models")
+    assert mount["read_only"] is True
+    assert mount["bind"].get("create_host_path", False) is False
+
+
+def test_old_stack_record_can_render_management_without_browser_cache() -> None:
+    environment = {k: v for k, v in os.environ.items() if k not in {"COMPOSE_FILE", "ANIMAMA_BROWSER_MODEL_DIR"}}
+    environment["ANIMAMA_PARAKEET_MODEL_DIR"] = "/recorded/parakeet/version"
+    rendered = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "-f",
+            "docker-compose.yml",
+            "-f",
+            "docker-compose.development.yml",
+            "config",
+            "--format",
+            "json",
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    graph = json.loads(rendered.stdout)
+    mount = next(v for v in graph["services"]["web"]["volumes"] if v["target"] == "/opt/animama/browser-models")
+    assert mount["source"] == str(REPO_ROOT / "models/browser-speech")
+    assert mount["read_only"] is True
+    assert mount["bind"].get("create_host_path", False) is False
+
+
+@pytest.mark.parametrize("development", [False, True])
+@pytest.mark.parametrize("configured", [False, True])
+def test_compose_forwards_auxiliary_controls_and_openai_endpoint(
+    tmp_path: Path, development: bool, configured: bool
+) -> None:
+    """Selected dotenv controls must reach both modes without changing defaults."""
+
+    expected = {
+        "ANIMAMA_CHAT_TITLE_GENERATION_ENABLED": "false" if configured else "true",
+        "ANIMAMA_CHAT_COMPACTION_ENABLED": "false" if configured else "true",
+        "OPENAI_BASE_URL": "https://approved-relay.example.invalid/v1" if configured else "",
+    }
+    selection = tmp_path / "nonsecret.env"
+    selection.write_text("".join(f"{key}={value}\n" for key, value in expected.items()) if configured else "")
+    environment = {
+        "PATH": os.environ["PATH"],
+        "HOME": os.environ["HOME"],
+        "COMPOSE_ENV_FILES": str(selection),
+        "ANIMAMA_PARAKEET_MODEL_DIR": "/verified-test-models/parakeet/version",
+        "ANIMAMA_BROWSER_MODEL_DIR": "/verified-test-models/browser/version",
+    }
+    files = ["-f", "docker-compose.yml"]
+    if development:
+        files += ["-f", "docker-compose.development.yml"]
+    rendered = subprocess.run(
+        ["docker", "compose", *files, "config", "--format", "json"],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert rendered.returncode == 0, "Selected nonsecret configuration must render"
+    effective = json.loads(rendered.stdout)["services"]["animama-server"]["environment"]
+    assert {key: effective[key] for key in expected} == expected
+
+
+@pytest.mark.parametrize("project", ["animama-env-fixture", "custom-project"])
+def test_reset_selected_files_preserve_credentials_and_resume_in_a_clean_terminal(tmp_path: Path, project: str) -> None:
+    shared = tmp_path / "shared config" / "dev-secrets.env"
+    shared.parent.mkdir()
+    shared.write_text("POSTGRES_PASSWORD=fixture-postgres-secret\nOPENAI_API_KEY=fixture-provider-secret\n")
+    shared.chmod(0o600)
+    workspace = tmp_path / "animama"
+    workspace.mkdir()
+    included = tmp_path / "included content"
+    included.mkdir()
+    (workspace / ".env").write_text(
+        f"COMPOSE_PROJECT_NAME={project}\nWEB_SERVER_PORT=9180\n"
+        "APP_HOST=fixture.localhost\nANIMAMA_WEB_BUILD_MODE=production\n"
+        "POSTGRES_USER=fixture_owner\nPOSTGRES_DB=fixture_db\n"
+        f"ANIMAMA_INCLUDED_CONTENT_HOST_PATH={included}\n"
+        "ANIMAMA_CHAT_TITLE_GENERATION_MODEL=gpt-5.6-luna\n"
+        "ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER=OpenAIResponsesHTTPAgent\n"
+        "ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT=none\n"
+    )
+    selection = "../shared config/dev-secrets.env,.env"
+    result, commands, workspace = _run_reset(tmp_path, [], {"COMPOSE_ENV_FILES": selection}, build_mode=None)
+    assert result.returncode == 0, result.stderr
+    assert "http://fixture.localhost:9180" in result.stdout
+    assert all(command["fixture_credentials_preserved"] for command in commands)
+    assert all(command["host_credentials_absent"] for command in commands)
+    record = workspace / ".animama-stack.env"
+    record_text = record.read_text()
+    for value in ("fixture-postgres-secret", "fixture-provider-secret", "POSTGRES_PASSWORD", "OPENAI_API_KEY"):
+        assert value not in record_text + result.stdout + result.stderr
+    expected_files = f"{shared},{workspace / '.env'}"
+    assert all(command["selected_files"] == expected_files for command in commands)
+    # A new terminal has no credentials or stack variables, and can resume even
+    # from another cwd. This runs actual Compose config only, never the daemon.
+    clean = {"PATH": os.environ["PATH"], "HOME": os.environ["HOME"]}
+    resumed = subprocess.run(
+        ["bash", "-c", 'source "$1"; docker compose config --format json', "bash", str(record)],
+        cwd=tmp_path,
+        env=clean,
+        capture_output=True,
+        text=True,
+    )
+    assert resumed.returncode == 0, "Recorded selection must render in a new terminal"
+    graph = json.loads(resumed.stdout)
+    assert graph["name"] == project
+    postgres = graph["services"]["postgres"]["environment"]
+    assert postgres["POSTGRES_PASSWORD"] == "fixture-postgres-secret"
+    assert postgres["POSTGRES_USER"] == "fixture_owner"
+    assert postgres["POSTGRES_DB"] == "fixture_db"
+    server = graph["services"]["animama-server"]
+    assert server["environment"]["OPENAI_API_KEY"] == "fixture-provider-secret"
+    assert server["environment"]["ANIMAMA_PUBLIC_ORIGIN"] == "http://fixture.localhost:9180"
+    for suffix, expected in (
+        ("MODEL", "gpt-5.6-luna"),
+        ("PROVIDER", "OpenAIResponsesHTTPAgent"),
+        ("REASONING_EFFORT", "none"),
+    ):
+        assert server["environment"]["ANIMAMA_CHAT_TITLE_GENERATION_" + suffix] == expected
+    assert next(mount for mount in server["volumes"] if mount["target"] == "/var/lib/animama/content/included")[
+        "source"
+    ] == str(included)
+
+
+@pytest.mark.parametrize("mismatch", ["project", "checkout"])
+def test_reset_rejects_sourced_other_stack_before_any_mutation(tmp_path: Path, mismatch: str) -> None:
+    workspace = tmp_path / "animama"
+    variables = {
+        "ANIMAMA_STACK_REPO_ROOT": str(workspace if mismatch == "project" else tmp_path / "other"),
+        "COMPOSE_PROJECT_NAME": "animama-old",
+    }
+    result, commands, workspace = _run_reset(tmp_path, ["--name", "new"], variables)
+    assert result.returncode != 0
+    assert "sourced stack belongs to another" in result.stderr
+    assert not commands
+    assert not (workspace / ".animama-stack.env").exists()
+
+
+@pytest.mark.parametrize("project", [None, "custom-project"])
+def test_reset_record_replaces_a_previous_terminal_project(tmp_path: Path, project: str | None) -> None:
+    variables = {"COMPOSE_PROJECT_NAME": project} if project else {}
+    result, _, workspace = _run_reset(tmp_path, [], variables)
+    assert result.returncode == 0, result.stderr
+    record = workspace / ".animama-stack.env"
+    # Simulate sourcing this stack after working on another project. Both the
+    # Compose identity and filesystem roots must now belong to this record.
+    env = {"PATH": os.environ["PATH"], "COMPOSE_PROJECT_NAME": "animama-other-task"}
+    resumed = subprocess.run(
+        [
+            "bash",
+            "-e",
+            "-c",
+            'source "$1"; source "$2"; animama_state_configure ""; '
+            'printf "%s\\n" "$COMPOSE_PROJECT_NAME" "$ANIMAMA_STATE_PROJECT" "$ANIMAMA_STATE_LOCAL_ROOT"',
+            "bash",
+            str(record),
+            str(workspace / "scripts/local-stack-state-common.sh"),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert resumed.returncode == 0, resumed.stderr
+    local_root = workspace / ".animama-stacks" / project / "content/local" if project else workspace / "content/local"
+    assert resumed.stdout.splitlines() == [project or "animama", project or "animama", str(local_root)]

@@ -66,6 +66,8 @@ browser UI, client-side STT, avatar rendering, and most realtime audio UX.
   fencing.
 - [Voice and speech](integrations/voice-and-speech.md): ElevenLabs TTS, voice
   storage, and the client-side speech-processing boundary.
+- [Shared model setup](operations/model-assets.md): verified Parakeet acquisition,
+  worktree reuse, persistent self-host storage and explicit recovery.
 - [Development and operations](operations/development.md): local commands,
   migrations, tests, workers, and deployment guidance.
 - [Local HTTP components](operations/local-http-components.md): FastAPI

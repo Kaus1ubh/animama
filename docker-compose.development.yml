@@ -54,7 +54,7 @@ services:
     command: >
       sh -c "export PATH=/tmp/corepack-bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin &&
       corepack enable --install-directory /tmp/corepack-bin &&
-      pnpm install --filter animama-frontend-workspace --filter animama-web... --prod=false &&
+      pnpm install --frozen-lockfile --filter animama-frontend-workspace --filter animama-web... --prod=false &&
       exec sh scripts/start-compose-web.sh"
     # Development only: Vite owns the application origin and preserves browser
     # metadata when forwarding the closed API surface to private FastAPI.
@@ -79,6 +79,7 @@ services:
       - VITE_DISABLE_WEBUI_TRACES=true
       - VITE_DISABLE_WEBUI_TELEMETRY=true
       - VITE_CLIENT_PARAKEET_MODEL_DIR=/app/parakeet-tdt-0.6b-v2
+      - ANIMAMA_BROWSER_MODEL_DIR=/opt/animama/browser-models
     networks:
       - animama-network
     expose:
@@ -92,6 +93,13 @@ services:
         condition: service_started
     volumes:
       - ./src/frontend:/app
+      - ./models:/models:ro
+      - type: bind
+        source: ${ANIMAMA_BROWSER_MODEL_DIR:-./models/browser-speech}
+        target: /opt/animama/browser-models
+        read_only: true
+        bind:
+          create_host_path: false
       # The package builder carries the existing project notice into tarballs.
       - ./LICENSE:/LICENSE:ro
       # Vite's compatibility middleware reads legacy public URLs from the one
@@ -111,7 +119,12 @@ services:
         volume:
           nocopy: true
       - frontend_web_pnpm_store:/pnpm/store
-      - ./parakeet-tdt-0.6b-v2:/app/parakeet-tdt-0.6b-v2:ro
+      - type: bind
+        source: ${ANIMAMA_PARAKEET_MODEL_DIR:?Run python3 scripts/models/parakeet.py acquire then ./reset.sh or source the generated stack record}
+        target: /app/parakeet-tdt-0.6b-v2
+        read_only: true
+        bind:
+          create_host_path: false
 
 volumes:
   frontend_web_root_node_modules:

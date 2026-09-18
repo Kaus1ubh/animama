@@ -28,7 +28,9 @@ LFS_HEADER = b"version https://git-lfs.github.com/spec/v1\n"
 PROVENANCE_PREFIXES = (
     "content/",
     "src/frontend/web/public/",
-    "parakeet-tdt-0.6b-v2/",
+    "models/parakeet-tdt-0.6b-v2/",
+    "models/browser-speech/",
+    "models/browser-runtime/",
     ".agents/skills/",
     "observability/",
     "src/backend/animama/examples/",

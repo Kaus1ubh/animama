@@ -15,7 +15,15 @@ describes build inputs and development evidence, not an available release.
 Use an Apple Silicon Mac with Xcode command-line tools, `uv`, Node, and the
 repository's pnpm installation. Dependency downloads require network access.
 No Homebrew PostgreSQL, Docker reset, local account, or provider credential is
-required. Run from `src/frontend`:
+required. Before staging, acquire the pinned speech inputs from the repository
+root:
+
+```sh
+python3 scripts/models/parakeet.py acquire
+python3 scripts/models/browser_speech.py acquire
+```
+
+Then run from `src/frontend`:
 
 ```sh
 pnpm desktop:runtime:stage -- --platform darwin --arch arm64
@@ -65,8 +73,12 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 4. Builds Vite in `embedded-desktop` mode, without duplicate Included aliases.
    The stage filter and independent audit reject unapproved portrait copies
    listed in `desktop/scripts/runtime/desktop-web.mjs`.
-   All current PocketTTS, VAD, smart-turn, and ONNX variants remain. Ordinary
-   `pnpm web:build` still writes the compatibility copies.
+   The browser-runtime manifest verifies all 19 PocketTTS, VAD, Smart Turn and
+   ORT assets from the shared model store and exact dependency versions. Vite
+   copies every reviewed variant into the runtime; the independent audit checks
+   the built inventory and hashes without relying on a developer cache. These
+   distribution copies and their existing notices remain required. Ordinary
+   `pnpm web:build` also retains the Included compatibility copies.
    This is a production build: application debug imports stay excluded even
    with `VITE_ENABLE_DEBUG_PANEL=true`. Retain `.vite/manifest.json` alongside
    the coherent SPA output; packaged FastAPI uses it to identify fingerprinted
@@ -98,6 +110,43 @@ measurements after export; core worker fields remain null until a reviewed
 worker enters the catalog. A generated license inventory requires human review.
 See [redistribution review](redistribution-review.md) for source and notice
 mappings and the pending artifact review.
+
+## Verified browser engine inputs
+
+`models/browser-speech/manifest.json` pins the eight shared Pocket TTS/Smart Turn
+files. `models/browser-runtime/manifest.json` binds those plus nine ORT 1.24.2
+files from `onnxruntime-web-assets` and two VAD 0.0.30 files from its pinned
+package. Package installation supplies dependency files; staging only verifies
+and copies already acquired model inputs. It never silently downloads them or
+substitutes an installed ORT version. Other bundled ORT imports remain unchanged.
+
+The complete browser engine set occupies 292,826,849 bytes before distribution
+compression. It is included in `runtime/web/onnx` as independent regular files,
+so clearing a developer model cache cannot break an installed application's
+Pocket TTS, VAD or Smart Turn engine. Existing same-origin paths, module MIME
+requirements and license conditions remain unchanged. This source-storage
+workflow does not replace signing, redistribution or native acceptance gates.
+
+Use the [model-store workflow](../../backend/operations/model-assets.md) for
+`ANIMAMA_MODEL_ROOT`, Windows `%LOCALAPPDATA%\Animama\models` and WSL/Linux
+defaults. Windows model acquisition support does not enable Windows native
+runtime staging.
+
+## Verified Parakeet producer inputs
+
+Before producing the Parakeet pack, run `python3 scripts/models/parakeet.py acquire`
+from the repository root, or import a previous source copy using the
+[model-store workflow](../../backend/operations/model-assets.md). Set the absolute
+`ANIMAMA_MODEL_ROOT` only when selecting a different store. Staging consumes the
+tracked manifest and verifies each local file; it does not query Hugging Face or
+infer weights from Git's tracked-file list. The pack keeps its seven filenames,
+exact payload hashes and existing attribution. Model selection does not change
+release inventory approval, signed artifacts, hosting or native acceptance gates.
+
+This developer/producer cache is not an installed app model directory. Installed
+models remain under the app-owned `packs/` lifecycle in Application Support, with
+separate temporary `downloads/` and the existing verification/activation recovery.
+Clearing a developer cache must not affect an installed application's speech pack.
 
 ## Optional Pack Producer
 

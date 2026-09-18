@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -12,15 +13,31 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+def _clean_environment(tmp_path: Path) -> dict[str, str]:
+    env_file = tmp_path / "empty.env"
+    env_file.touch()
+    return {
+        **{key: value for key, value in os.environ.items() if not key.startswith(("ANIMAMA_", "COMPOSE_"))},
+        "COMPOSE_ENV_FILES": str(env_file),
+    }
+
+
 @pytest.mark.parametrize("mode", ["development", "production"])
 def test_state_commands_select_the_same_graph_as_reset(tmp_path: Path, mode: str) -> None:
     docker = tmp_path / "docker"
     docker.write_text(
         "#!/usr/bin/env python3\nimport json, os, sys\n"
-        'print(json.dumps({"files": os.environ["COMPOSE_FILE"], "args": sys.argv[1:]}))\n',
+        'if "--environment" not in sys.argv:\n'
+        '    print(json.dumps({"files": os.environ["COMPOSE_FILE"], "args": sys.argv[1:]}))\n',
     )
     docker.chmod(0o755)
-    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}", "ANIMAMA_WEB_BUILD_MODE": mode}
+    env = {
+        **_clean_environment(tmp_path),
+        "PATH": f"{tmp_path}:{os.environ['PATH']}",
+        "ANIMAMA_WEB_BUILD_MODE": mode,
+        "ANIMAMA_PARAKEET_MODEL_DIR": "/verified/models",
+        "ANIMAMA_BROWSER_MODEL_DIR": "/verified/browser-models",
+    }
     env.pop("COMPOSE_FILE", None)
     result = subprocess.run(
         [
@@ -48,9 +65,11 @@ def test_state_commands_preserve_the_recorded_graph(tmp_path: Path) -> None:
     docker.chmod(0o755)
     recorded = "/fixture/base.yml:/fixture/development.yml"
     env = {
-        **os.environ,
+        **_clean_environment(tmp_path),
         "PATH": f"{tmp_path}:{os.environ['PATH']}",
         "COMPOSE_FILE": recorded,
+        "ANIMAMA_PARAKEET_MODEL_DIR": "/verified/models",
+        "ANIMAMA_BROWSER_MODEL_DIR": "/verified/browser-models",
         "ANIMAMA_WEB_BUILD_MODE": "production",
     }
     result = subprocess.run(
@@ -92,7 +111,12 @@ def test_state_commands_match_reset_empty_selector_rules(tmp_path: Path, explici
         "fi\n"
     )
     docker.chmod(0o755)
-    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"}
+    env = {
+        **_clean_environment(tmp_path),
+        "PATH": f"{tmp_path}:{os.environ['PATH']}",
+        "ANIMAMA_PARAKEET_MODEL_DIR": "/verified/models",
+        "ANIMAMA_BROWSER_MODEL_DIR": "/verified/browser-models",
+    }
     env.pop("COMPOSE_FILE", None)
     env.pop("ANIMAMA_WEB_BUILD_MODE", None)
     if explicit_empty:
@@ -115,3 +139,141 @@ def test_state_commands_match_reset_empty_selector_rules(tmp_path: Path, explici
     else:
         assert result.returncode == 0
         assert result.stdout.endswith("/docker-compose.development.yml")
+
+
+@pytest.mark.parametrize("selector", ["default", "environment", "dotenv"])
+def test_state_commands_resolve_missing_model_record_offline(tmp_path: Path, selector: str) -> None:
+    scripts = tmp_path / "scripts"
+    (scripts / "models").mkdir(parents=True)
+    helper = scripts / "local-stack-state-common.sh"
+    helper.write_text((REPO_ROOT / "scripts/local-stack-state-common.sh").read_text())
+    (scripts / "models/parakeet.py").write_text(
+        "import sys\n"
+        "assert sys.argv[1] == 'path'\n"
+        "root = sys.argv[sys.argv.index('--root') + 1] if '--root' in sys.argv else '/default-model-store'\n"
+        "print(root + '/parakeet-tdt-0.6b-v2/verified-version')\n"
+    )
+    (scripts / "models/browser_speech.py").write_text((scripts / "models/parakeet.py").read_text())
+    docker = tmp_path / "docker"
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        'if [[ "$*" == *"config --environment"* ]]; then\n'
+        '  printf "ANIMAMA_MODEL_ROOT=%s\\n" "$TEST_DOTENV_ROOT"\n'
+        "else\n"
+        '  printf "%s" "$ANIMAMA_PARAKEET_MODEL_DIR"\n'
+        "fi\n"
+    )
+    docker.chmod(0o755)
+    environment = _clean_environment(tmp_path)
+    environment.update(PATH=f"{tmp_path}:{os.environ['PATH']}", ANIMAMA_WEB_BUILD_MODE="production")
+    root = "/default-model-store"
+    if selector == "environment":
+        root = "/environment models"
+        environment["ANIMAMA_MODEL_ROOT"] = root
+    if selector == "dotenv":
+        root = "/dotenv models"
+        environment["TEST_DOTENV_ROOT"] = root
+    result = subprocess.run(
+        ["bash", "-c", 'source "$1"; animama_state_configure p2; animama_state_compose ps', "bash", str(helper)],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout == root + "/parakeet-tdt-0.6b-v2/verified-version"
+
+
+@pytest.mark.parametrize("project", ["animama-state-fixture", "custom-project"])
+def test_state_selected_files_supply_project_and_host_roots_without_importing_secrets(
+    tmp_path: Path, project: str
+) -> None:
+    # Copy the existing helper/graph, so this test cannot read repository .env.
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    helper = scripts / "local-stack-state-common.sh"
+    shutil.copyfile(REPO_ROOT / "scripts/local-stack-state-common.sh", helper)
+    shutil.copyfile(REPO_ROOT / "docker-compose.yml", tmp_path / "docker-compose.yml")
+    shared = tmp_path / "shared secrets.env"
+    shared.write_text("OPENAI_API_KEY=fixture-provider-secret\nPOSTGRES_PASSWORD=fixture-postgres-secret\n")
+    shared.chmod(0o600)
+    dotenv = tmp_path / ".env"
+    dotenv.write_text(
+        f"COMPOSE_PROJECT_NAME={project}\n"
+        f"ANIMAMA_INCLUDED_CONTENT_HOST_PATH={tmp_path / 'included'}\n"
+        f"ANIMAMA_LOCAL_CONTENT_HOST_PATH={tmp_path / 'local'}\n"
+        f"ANIMAMA_DATA_HOST_PATH={tmp_path / 'data'}\n"
+    )
+    env = _clean_environment(tmp_path)
+    env["COMPOSE_ENV_FILES"] = "shared secrets.env,.env"
+    env.pop("OPENAI_API_KEY", None)
+    env.pop("POSTGRES_PASSWORD", None)
+    command = """source "$1"
+animama_state_configure ""
+printf '%s\\n' "$ANIMAMA_STATE_PROJECT" "$ANIMAMA_STATE_INCLUDED_ROOT" "$ANIMAMA_STATE_LOCAL_ROOT"
+printf '%s\\n' "$ANIMAMA_STATE_DATA_ROOT" "$COMPOSE_ENV_FILES" "${OPENAI_API_KEY-unset}" "${POSTGRES_PASSWORD-unset}"
+"""
+    result = subprocess.run(
+        ["bash", "-e", "-o", "pipefail", "-c", command, "bash", str(helper)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, "State configuration should accept the explicit fake env files"
+    assert result.stdout.splitlines() == [
+        project,
+        str(tmp_path / "included"),
+        str(tmp_path / "local"),
+        str(tmp_path / "data"),
+        f"{shared},{dotenv}",
+        "unset",
+        "unset",
+    ]
+
+
+@pytest.mark.parametrize("recorded_checkout", [False, True])
+def test_state_rejects_cross_project_record_before_using_its_roots(tmp_path: Path, recorded_checkout: bool) -> None:
+    env = _clean_environment(tmp_path)
+    env.update(
+        COMPOSE_PROJECT_NAME="animama-old",
+        COMPOSE_FILE="/fixture/old-compose.yml",
+        ANIMAMA_LOCAL_CONTENT_HOST_PATH=str(tmp_path / "old-local"),
+        ANIMAMA_DATA_HOST_PATH=str(tmp_path / "old-data"),
+    )
+    if recorded_checkout:
+        env["ANIMAMA_STACK_REPO_ROOT"] = str(REPO_ROOT)
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source "$1"; animama_state_configure new',
+            "bash",
+            str(REPO_ROOT / "scripts/local-stack-state-common.sh"),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 2
+    assert "sourced stack belongs to another project" in result.stderr
+    assert not (tmp_path / "old-local").exists()
+    assert not (tmp_path / "old-data").exists()
+
+
+def test_state_rejects_record_from_another_checkout(tmp_path: Path) -> None:
+    env = _clean_environment(tmp_path)
+    env["ANIMAMA_STACK_REPO_ROOT"] = str(tmp_path / "other-checkout")
+    result = subprocess.run(
+        [
+            "bash",
+            "-c",
+            'source "$1"; animama_state_configure ""',
+            "bash",
+            str(REPO_ROOT / "scripts/local-stack-state-common.sh"),
+        ],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 2
+    assert "sourced stack belongs to another checkout" in result.stderr

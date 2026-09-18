@@ -11,6 +11,42 @@ for test chats/content when this will not disrupt active work. Separate worktree
 and named stacks are useful for concurrency or disruptive changes, not mandatory
 for every mutable test. No workspace helper or formal task score is required.
 
+## Workspace Preparation
+
+Use the existing preparation workflow in
+`docs/backend/operations/development.md#preparing-a-task-workspace`. Inspect the
+checkout, revision, worktrees and active processes before reuse. Create a needed
+worktree with ordinary Git commands from an explicit reviewed revision; do not
+switch an occupied checkout or stash another task's changes. Keep each worktree's
+`.venv`, `node_modules` and generated output separate while using uv/pnpm caches.
+
+Keep reusable credentials in an owner-only external file and nonsecret settings
+in the ignored worktree `.env`. Select both from the worktree root:
+
+```bash
+export COMPOSE_ENV_FILES="$HOME/.config/animama/dev-secrets.env,$PWD/.env"
+```
+
+The second file overrides the first; inherited shell values override both. Do
+not copy the main checkout's `.env`, source secrets into the shell, or copy
+placeholder/blank credential entries from `.env.example` into the second file.
+The file selection applies only to Compose; it does not export credentials to
+host `uv` commands or native apps. Keep offline unit tests credential-free.
+Check existence and permissions without printing values, hashes, resolved
+Compose configuration or the full shell environment. For configuration changes,
+use a clean environment or selectively unset known overrides; an ordinary
+subshell retains its parent's exports. Follow the canonical guide's diagnostic
+steps rather than adding enforcement tooling.
+
+## Model Prerequisite
+
+Before first startup, run `python3 scripts/models/parakeet.py acquire` and
+`python3 scripts/models/browser_speech.py acquire` explicitly,
+or import a verified existing copy. `ANIMAMA_MODEL_ROOT` selects an absolute shared
+store root. Reset verifies it offline before changing containers and records the
+resolved version; ordinary startup never downloads models. Follow
+`docs/backend/operations/model-assets.md` for persistent self-host storage/recovery.
+
 ## Main Checkout
 
 For the primary repo checkout, keep the default local URLs and ports:
@@ -68,8 +104,15 @@ pnpm desktop:dev
 
 The file includes `ANIMAMA_PUBLIC_ORIGIN` and sets
 `ANIMAMA_DESKTOP_WEB_URL` to the same application origin. It also records the
-selected `COMPOSE_FILE` graph and `ANIMAMA_WEB_BUILD_MODE`; preserve these for
-Compose, backup and restore operations. When running two stacks from one
+selected `COMPOSE_FILE` graph, `ANIMAMA_WEB_BUILD_MODE` and normalized absolute
+`COMPOSE_ENV_FILES` paths. It never records credential values. Source the trusted
+record from the correct checkout in a new terminal to restore the same stack
+and environment-file selection for Compose, backup and restore operations. An
+empty recorded selection clears an inherited `COMPOSE_ENV_FILES`. To change
+configuration, start from a clean environment and rerun reset; sourcing an old
+record restores its resolved settings rather than rereading changed `.env` values.
+The recorded `ANIMAMA_STACK_REPO_ROOT` lets reset reject a record from another
+checkout or explicitly requested named project. When running two stacks from one
 checkout, use distinct `--stack-env-file` paths so their records cannot overwrite
 each other.
 
@@ -87,6 +130,22 @@ docker compose -p animama-abc exec animama-server alembic current
 Use service names, not generated container names. `reset.sh` prefixes configured
 container names for named stacks; project-scoped commands remain authoritative.
 
+## Readiness and Test Settings
+
+Follow `docs/backend/operations/development.md#application-readiness-and-test-settings`.
+Health alone does not prove the starter's typed avatar/Idle/gesture closure.
+Inspect installation readiness, catalog diagnostics and the selected Anima's
+runtime revision before claiming a usable fixture. Do not fill missing Included
+content by copying another task's Local library.
+
+Use the accepted main model `OpenAIResponsesHTTPAgent:gpt-5.6-luna` and verify
+`dispatch_options.reasoning_effort=none` on each test turn. Existing Anima
+profiles need explicit model selection. Title generation and Memory Manager
+have separate settings; the latter has no configurable reasoning effort. Main
+chat memory can be checked without opening the auxiliary manager. Keep deferred
+microphone, spoken-reply and upload testing separate from the essential text,
+avatar, gesture and memory journey.
+
 ## Cleanup
 
 Follow the existing cleanup workflow in `docs/backend/operations/development.md`.
@@ -101,4 +160,6 @@ never globally prune Docker, Git or caches. No new cleanup helper is required.
 When starting or debugging a stack, report the stack name, branch/worktree, base
 port, build mode and one application URL. Identify the published application
 service and confirm PostgreSQL and supporting services remain private. Note whether optional profiles such as `voice` or `memory` were
-enabled. Never print provider or desktop-control credentials.
+enabled. Never print provider or desktop-control credentials, their digests, or existing
+user memory contents. Distinguish model/asset readiness, health checks, browser
+evidence and any unperformed paid or native checks.

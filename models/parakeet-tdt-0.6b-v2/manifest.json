@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "model_id": "parakeet-tdt-0.6b-v2",
+  "license": "CC-BY-4.0",
+  "files": [
+    {
+      "path": "ATTRIBUTION.md",
+      "size": 1125,
+      "sha256": "f0253d0ae984626d09669aa7e3c102a8667b997d854db25c70850f571fa014b9",
+      "source": {
+        "local": "ATTRIBUTION.md"
+      }
+    },
+    {
+      "path": "README.md",
+      "size": 833,
+      "sha256": "788e7734fb5e3fcbbffc44e08413d5083fcc7cc5b270b79f1a210262ea9db90d",
+      "source": {
+        "local": "README.md"
+      }
+    },
+    {
+      "path": "config.json",
+      "size": 101,
+      "sha256": "562aedb0b804acbeb4e04215de190846c37e0bb239b696376df69d555785373a",
+      "source": {
+        "repository": "ysdede/parakeet-tdt-0.6b-v2-onnx",
+        "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3",
+        "path": "config.json"
+      }
+    },
+    {
+      "path": "decoder_joint-model.int8.onnx",
+      "size": 8998286,
+      "sha256": "a449f49acd68979d418651dd2dcb737cc0f1bf0225e009e29ee326354edbf7d3",
+      "source": {
+        "repository": "istupakov/parakeet-tdt-0.6b-v2-onnx",
+        "revision": "0bbb45a3365852604aef28b538a8f066f4ccaa85",
+        "path": "decoder_joint-model.int8.onnx"
+      }
+    },
+    {
+      "path": "encoder-model.int8.onnx",
+      "size": 652184014,
+      "sha256": "3e0581fda6ab843888b51e56d7ee78b6d5bc3237ec113af1f732d1d5286aa155",
+      "source": {
+        "repository": "istupakov/parakeet-tdt-0.6b-v2-onnx",
+        "revision": "0bbb45a3365852604aef28b538a8f066f4ccaa85",
+        "path": "encoder-model.int8.onnx"
+      }
+    },
+    {
+      "path": "nemo128.onnx",
+      "size": 137641,
+      "sha256": "bff2bc1bef1d1185da8bb69419b51c68fc50e88c923654ced2dfe4e055e4e938",
+      "source": {
+        "repository": "ysdede/parakeet-tdt-0.6b-v2-onnx",
+        "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3",
+        "path": "nemo128.onnx"
+      }
+    },
+    {
+      "path": "vocab.txt",
+      "size": 10409,
+      "sha256": "d5b4ca312b07f10cc89b6ff1f500201b5bd826dc3f9500c115caeb36c0b10831",
+      "source": {
+        "repository": "ysdede/parakeet-tdt-0.6b-v2-onnx",
+        "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3",
+        "path": "vocab.txt"
+      }
+    }
+  ]
+}
