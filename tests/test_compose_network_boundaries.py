@@ -712,6 +712,42 @@ def test_old_stack_record_can_render_management_without_browser_cache() -> None:
     assert mount["bind"].get("create_host_path", False) is False
 
 
+@pytest.mark.parametrize("development", [False, True])
+@pytest.mark.parametrize("configured", [False, True])
+def test_compose_forwards_auxiliary_controls_and_openai_endpoint(
+    tmp_path: Path, development: bool, configured: bool
+) -> None:
+    """Selected dotenv controls must reach both modes without changing defaults."""
+
+    expected = {
+        "ANIMAMA_CHAT_TITLE_GENERATION_ENABLED": "false" if configured else "true",
+        "ANIMAMA_CHAT_COMPACTION_ENABLED": "false" if configured else "true",
+        "OPENAI_BASE_URL": "https://approved-relay.example.invalid/v1" if configured else "",
+    }
+    selection = tmp_path / "nonsecret.env"
+    selection.write_text("".join(f"{key}={value}\n" for key, value in expected.items()) if configured else "")
+    environment = {
+        "PATH": os.environ["PATH"],
+        "HOME": os.environ["HOME"],
+        "COMPOSE_ENV_FILES": str(selection),
+        "ANIMAMA_PARAKEET_MODEL_DIR": "/verified-test-models/parakeet/version",
+        "ANIMAMA_BROWSER_MODEL_DIR": "/verified-test-models/browser/version",
+    }
+    files = ["-f", "docker-compose.yml"]
+    if development:
+        files += ["-f", "docker-compose.development.yml"]
+    rendered = subprocess.run(
+        ["docker", "compose", *files, "config", "--format", "json"],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+    )
+    assert rendered.returncode == 0, "Selected nonsecret configuration must render"
+    effective = json.loads(rendered.stdout)["services"]["animama-server"]["environment"]
+    assert {key: effective[key] for key in expected} == expected
+
+
 @pytest.mark.parametrize("project", ["animama-env-fixture", "custom-project"])
 def test_reset_selected_files_preserve_credentials_and_resume_in_a_clean_terminal(tmp_path: Path, project: str) -> None:
     shared = tmp_path / "shared config" / "dev-secrets.env"

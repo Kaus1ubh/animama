@@ -1395,6 +1395,23 @@ setting. Do not claim it uses `none`. Essential memory tools and episodic captur
 in a main chat turn use the selected primary model/reasoning. Keep a short
 rehearsal rather than assuming separate long-chat compaction inherits them.
 
+For a main-turn-only rehearsal, set `ANIMAMA_CHAT_TITLE_GENERATION_ENABLED=false`
+and `ANIMAMA_CHAT_COMPACTION_ENABLED=false`; both are forwarded by Compose and
+default to `true`. Responses native compaction is separate: set
+`ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS=0` to omit it. These controls
+preserve main-turn memory tools and episodic capture. Avoid invoking the separate
+Memory Manager when it is outside the rehearsal scope. Recreate the selected
+service after environment changes and check its effective backend settings.
+
+Compose also forwards `OPENAI_BASE_URL` as the model-client fallback endpoint;
+unset or empty retains the official OpenAI default. A selected provider catalog
+row with `provider_base_url` takes precedence, including the built-in Luna Responses
+row. Changing this environment variable alone therefore does not redirect that
+model or establish a test transport boundary. Select only trusted endpoints because
+provider credentials and prompts are sent there. Verify the selected provider row
+and the model client’s resolved endpoint before a live turn. These settings provide no hard request, token or spending cap; short prompts,
+reasoning `none` and Stop do not establish a budget ceiling.
+
 Preparing credentials, acquiring public model assets and checking readiness do
 not prove provider access or a successful paid turn. Record actual browser,
 model, persistence and restart evidence separately; do not report audio or native
