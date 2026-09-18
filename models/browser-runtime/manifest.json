@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "model_manifest": "models/browser-speech/manifest.json",
+  "files": [
+    {
+      "path": "models/pocket-tts/flow_lm_flow_int8.onnx",
+      "size": 9962530,
+      "sha256": "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529",
+      "source": {
+        "kind": "model-store",
+        "path": "flow_lm_flow_int8.onnx"
+      }
+    },
+    {
+      "path": "models/pocket-tts/flow_lm_main_int8.onnx",
+      "size": 76341627,
+      "sha256": "fd5cdd7f7ab05f638af0011b9561fe95f3d86bae7be7504e921ae3d2874b5da5",
+      "source": {
+        "kind": "model-store",
+        "path": "flow_lm_main_int8.onnx"
+      }
+    },
+    {
+      "path": "models/pocket-tts/mimi_decoder_int8.onnx",
+      "size": 22684077,
+      "sha256": "501e16f51cf3fb91bd2928ee2a10c96d3461544eff329aafca10489e990b450c",
+      "source": {
+        "kind": "model-store",
+        "path": "mimi_decoder_int8.onnx"
+      }
+    },
+    {
+      "path": "models/pocket-tts/mimi_encoder.onnx",
+      "size": 73165554,
+      "sha256": "360f050cd0b1e1c9e92e25584391a2214cb7574ba16c67ac5f471f9dce8588e4",
+      "source": {
+        "kind": "model-store",
+        "path": "mimi_encoder.onnx"
+      }
+    },
+    {
+      "path": "models/pocket-tts/text_conditioner.onnx",
+      "size": 16388363,
+      "sha256": "80ea69f46d8153a9bd42373723cedae4c88ccbde0e052c2a96e9e8f19445adf1",
+      "source": {
+        "kind": "model-store",
+        "path": "text_conditioner.onnx"
+      }
+    },
+    {
+      "path": "models/pocket-tts/tokenizer.model",
+      "size": 59339,
+      "sha256": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6",
+      "source": {
+        "kind": "model-store",
+        "path": "tokenizer.model"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices.bin",
+      "size": 1564796,
+      "sha256": "a499039e88043ff86cb39705f487cc761406d55f1e73ad19a3c055b16e86b062",
+      "source": {
+        "kind": "model-store",
+        "path": "voices.bin"
+      }
+    },
+    {
+      "path": "models/smart-turn/smart-turn-v3.2-cpu.onnx",
+      "size": 8679182,
+      "sha256": "2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f",
+      "source": {
+        "kind": "model-store",
+        "path": "smart-turn-v3.2-cpu.onnx"
+      }
+    },
+    {
+      "path": "models/vad/silero_vad_v5.onnx",
+      "size": 2327524,
+      "sha256": "2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f",
+      "source": {
+        "kind": "package",
+        "package": "@ricky0123/vad-web",
+        "name": "@ricky0123/vad-web",
+        "version": "0.0.30",
+        "path": "dist/silero_vad_v5.onnx"
+      }
+    },
+    {
+      "path": "models/vad/vad.worklet.bundle.min.js",
+      "size": 2480,
+      "sha256": "8a48fdc7429948a2fde3d29a84bb1a64c1f67b4ba578ccaa7548b7f989f06a74",
+      "source": {
+        "kind": "package",
+        "package": "@ricky0123/vad-web",
+        "name": "@ricky0123/vad-web",
+        "version": "0.0.30",
+        "path": "dist/vad.worklet.bundle.min.js"
+      }
+    },
+    {
+      "path": "ort/1.24.2/ort-wasm-simd-threaded.asyncify.mjs",
+      "size": 48533,
+      "sha256": "e8845db719fb6a5c3acedf1e7e7d23df5baa04a500a0611346824dc3fa92c966",
+      "source": {
+        "kind": "package",
+        "package": "onnxruntime-web-assets",
+        "name": "onnxruntime-web",
+        "version": "1.24.2",
+        "path": "dist/ort-wasm-simd-threaded.asyncify.mjs"
+      }
+    },
+    {
+      "path": "ort/1.24.2/ort-wasm-simd-threaded.asyncify.wasm",
+      "size": 27099554,
+      "sha256": "2e396595ccfa7e03d77465cc81222a1e4b83497a98c20778d11dbec06b6cf511",
+      "source": {
+        "kind": "package",
+        "package": "onnxruntime-web-assets",
+        "name": "onnxruntime-web",
+        "version": "1.24.2",
+        "path": "dist/ort-wasm-simd-threaded.asyncify.wasm"
+      }
+    },
+    {
+      "path": "ort/1.24.2/ort-wasm-simd-threaded.jsep.mjs",
+      "size": 46594,
+      "sha256": "eb4e7f7fdeae313dc7f91746fda51aef5ccbae5e892714a3c15df62936968622",
+      "source": {
+        "kind": "package",
+        "package": "onnxruntime-web-assets",
+        "name": "onnxruntime-web",
+        "version": "1.24.2",
+        "path": "dist/ort-wasm-simd-threaded.jsep.mjs"
+      }
+    },
+    {
+      "path": "ort/1.24.2/ort-wasm-simd-threaded.jsep.wasm",
+      "size": 24925138,
+      "sha256": "3384613cc4b1f8f500b7dc547f903857ad7cda336e7d20126bfbf686b68ae434",
+      "source": {
+        "kind": "package",
+        "package": "onnxruntime-web-assets",
+        "name": "onnxruntime-web",
+        "version": "1.24.2",
+        "path": "dist/ort-wasm-simd-threaded.jsep.wasm"
+      }
+    },
+    {
+      "path": "ort/1.24.2/ort-wasm-simd-threaded.jspi.mjs",
+      "size": 45481,
+      "sha256": "9ca21e22b87188d02234303474a846bcbd3ec6f39a4db71933745a9af99d42b8",
+      "source": {
+        "kind": "package",
+        "package": "onnxruntime-web-assets",
+        "name": "onnxruntime-web",
+        "version": "1.24.2",
+        "path": "dist/ort-wasm-simd-threaded.jspi.mjs"
+      }
+    },
+    {
+      "path": "ort/1.24.2/ort-wasm-simd-threaded.jspi.wasm",
+      "size": 16800717,
+      "sha256": "7cb7e7a2a34efc164d4c27f8c446795c88adcc34a24db74aa2f887ae1e53db9d",
+      "source": {
+        "kind": "package",
+        "package": "onnxruntime-web-assets",
+        "name": "onnxruntime-web",
+        "version": "1.24.2",
+        "path": "dist/ort-wasm-simd-threaded.jspi.wasm"
+      }
+    },
+    {
+      "path": "ort/1.24.2/ort-wasm-simd-threaded.mjs",
+      "size": 24274,
+      "sha256": "b538a29137066dbed1f0f449fb081dfd35ccde3d5b155adc34532cefa3b23ee2",
+      "source": {
+        "kind": "package",
+        "package": "onnxruntime-web-assets",
+        "name": "onnxruntime-web",
+        "version": "1.24.2",
+        "path": "dist/ort-wasm-simd-threaded.mjs"
+      }
+    },
+    {
+      "path": "ort/1.24.2/ort-wasm-simd-threaded.wasm",
+      "size": 12303130,
+      "sha256": "175fabe412fc7fd1376e3178861a47ebfdc30cedb3b2c3f6bb72c37d96c26f73",
+      "source": {
+        "kind": "package",
+        "package": "onnxruntime-web-assets",
+        "name": "onnxruntime-web",
+        "version": "1.24.2",
+        "path": "dist/ort-wasm-simd-threaded.wasm"
+      }
+    },
+    {
+      "path": "ort/1.24.2/ort.min.mjs",
+      "size": 357956,
+      "sha256": "7ef416dd6ad711a2ee8f2c87d6076e37aea588b674ad3df28e8b19a79c8f4413",
+      "source": {
+        "kind": "package",
+        "package": "onnxruntime-web-assets",
+        "name": "onnxruntime-web",
+        "version": "1.24.2",
+        "path": "dist/ort.min.mjs"
+      }
+    }
+  ]
+}

@@ -1,9 +1,12 @@
+import type { ChatFailure } from "../../chat/chat-failure";
 import type { PyChatMessage } from "@animama/runtime-contracts/api-types";
 
 export type ChatDisplayMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
+  createdAt?: string;
+  failure?: ChatFailure;
   isPending?: boolean;
   animateOnEnter?: boolean;
   animateTextEffect?: boolean;
@@ -43,6 +46,7 @@ export function mapServerMessagesForDisplay(
         id: serverMessageDisplayId(message, role, index, messageIdCounts),
         role,
         text,
+        ...(message.created_at ? { createdAt: message.created_at } : {}),
       });
     });
   });

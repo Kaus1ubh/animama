@@ -535,7 +535,9 @@ async def test_real_chunked_request_limit_prevents_completed_upload() -> None:
         await asyncio.sleep(0)
         yield b"b" * 513
 
-    async with _serve(desktop=True) as live, httpx.AsyncClient(timeout=2) as client:
+    # Exercise the byte limit independently of the short deadline used by
+    # timeout tests; loaded CI runners may need more than 0.2s to stream chunks.
+    async with _serve(desktop=True, body_timeout=5) as live, httpx.AsyncClient(timeout=2) as client:
         response = await client.post(live.origin + "/v1/upload", headers=live.headers, content=chunks())
         assert response.status_code == 413
         assert live.probe.completed_uploads == []

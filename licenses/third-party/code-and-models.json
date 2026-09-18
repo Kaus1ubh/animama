@@ -80,100 +80,104 @@
       "license": "CC-BY-NC-4.0 (conservative owner election for all seven model/tokenizer/voice assets)",
       "source": "https://huggingface.co/spaces/codexxx/pocket-tts-web",
       "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950 (five ONNX); KevinAHM 3cf6daa623e2b09992c972cab32568ee8679a154 (tokenizer/voices)",
-      "paths": [
-        {
-          "path": "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_flow_int8.onnx",
-          "sha256": "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_main_int8.onnx",
-          "sha256": "fd5cdd7f7ab05f638af0011b9561fe95f3d86bae7be7504e921ae3d2874b5da5"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/models/pocket-tts/mimi_decoder_int8.onnx",
-          "sha256": "501e16f51cf3fb91bd2928ee2a10c96d3461544eff329aafca10489e990b450c"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/models/pocket-tts/mimi_encoder.onnx",
-          "sha256": "360f050cd0b1e1c9e92e25584391a2214cb7574ba16c67ac5f471f9dce8588e4"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/models/pocket-tts/text_conditioner.onnx",
-          "sha256": "80ea69f46d8153a9bd42373723cedae4c88ccbde0e052c2a96e9e8f19445adf1"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/models/pocket-tts/tokenizer.model",
-          "sha256": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/models/pocket-tts/voices.bin",
-          "sha256": "a499039e88043ff86cb39705f487cc761406d55f1e73ad19a3c055b16e86b062"
-        }
-      ],
+      "paths": [],
       "notice_files": [
         "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
         "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt"
       ],
-      "modifications": "No model byte changes.",
+      "modifications": "No model byte changes. Phase 3 changes storage only: exact model/dependency bytes are verified before serving and retained in built artifacts. Existing licenses and notices are unchanged.",
       "status": "evidence-and-notices-prepared",
       "remaining_conditions": [
         "Noncommercial use only under the elected stricter terms. README CC BY and ONNX-LICENSE CC BY-NC conflict remains disclosed. Replace assets or obtain appropriate permission before commercial use; do not relicense these assets as AGPL."
       ],
-      "copyright": "Kyutai Pocket TTS; KevinAHM and codexxx web export sources"
+      "copyright": "Kyutai Pocket TTS; KevinAHM and codexxx web export sources",
+      "external_files": [
+        {
+          "path": "models/pocket-tts/flow_lm_flow_int8.onnx",
+          "sha256": "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529"
+        },
+        {
+          "path": "models/pocket-tts/flow_lm_main_int8.onnx",
+          "sha256": "fd5cdd7f7ab05f638af0011b9561fe95f3d86bae7be7504e921ae3d2874b5da5"
+        },
+        {
+          "path": "models/pocket-tts/mimi_decoder_int8.onnx",
+          "sha256": "501e16f51cf3fb91bd2928ee2a10c96d3461544eff329aafca10489e990b450c"
+        },
+        {
+          "path": "models/pocket-tts/mimi_encoder.onnx",
+          "sha256": "360f050cd0b1e1c9e92e25584391a2214cb7574ba16c67ac5f471f9dce8588e4"
+        },
+        {
+          "path": "models/pocket-tts/text_conditioner.onnx",
+          "sha256": "80ea69f46d8153a9bd42373723cedae4c88ccbde0e052c2a96e9e8f19445adf1"
+        },
+        {
+          "path": "models/pocket-tts/tokenizer.model",
+          "sha256": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6"
+        },
+        {
+          "path": "models/pocket-tts/voices.bin",
+          "sha256": "a499039e88043ff86cb39705f487cc761406d55f1e73ad19a3c055b16e86b062"
+        }
+      ],
+      "runtime_manifest": "models/browser-runtime/manifest.json"
     },
     {
       "id": "browser-onnx",
       "license": "MIT plus bundled third-party terms",
       "source": "https://www.npmjs.com/package/onnxruntime-web/v/1.24.2",
       "revision": "1.24.2; Microsoft source tag v1.24.2",
-      "paths": [
-        {
-          "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.mjs",
-          "sha256": "e8845db719fb6a5c3acedf1e7e7d23df5baa04a500a0611346824dc3fa92c966"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.wasm",
-          "sha256": "2e396595ccfa7e03d77465cc81222a1e4b83497a98c20778d11dbec06b6cf511"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.mjs",
-          "sha256": "eb4e7f7fdeae313dc7f91746fda51aef5ccbae5e892714a3c15df62936968622"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.wasm",
-          "sha256": "3384613cc4b1f8f500b7dc547f903857ad7cda336e7d20126bfbf686b68ae434"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.mjs",
-          "sha256": "9ca21e22b87188d02234303474a846bcbd3ec6f39a4db71933745a9af99d42b8"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.wasm",
-          "sha256": "7cb7e7a2a34efc164d4c27f8c446795c88adcc34a24db74aa2f887ae1e53db9d"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.mjs",
-          "sha256": "b538a29137066dbed1f0f449fb081dfd35ccde3d5b155adc34532cefa3b23ee2"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.wasm",
-          "sha256": "175fabe412fc7fd1376e3178861a47ebfdc30cedb3b2c3f6bb72c37d96c26f73"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/ort/1.24.2/ort.min.mjs",
-          "sha256": "7ef416dd6ad711a2ee8f2c87d6076e37aea588b674ad3df28e8b19a79c8f4413"
-        }
-      ],
+      "paths": [],
       "notice_files": [
         "src/frontend/desktop/runtime/notices/onnxruntime-mit.txt",
         "src/frontend/desktop/runtime/notices/onnxruntime-third-party-notices.txt"
       ],
-      "modifications": "Nine exact npm package files; no local byte changes. Full upstream version-matched third-party notice inventory retained rather than claiming every listed optional component is present.",
+      "modifications": "Nine exact npm package files; no local byte changes. Full upstream version-matched third-party notice inventory retained rather than claiming every listed optional component is present. Phase 3 changes storage only: exact model/dependency bytes are verified before serving and retained in built artifacts. Existing licenses and notices are unchanged.",
       "status": "evidence-and-notices-prepared",
       "remaining_conditions": [
         "Preserve notices in every source and binary distribution; verify the exact final candidate."
       ],
-      "copyright": "Microsoft Corporation and authors identified in full ThirdPartyNotices"
+      "copyright": "Microsoft Corporation and authors identified in full ThirdPartyNotices",
+      "external_files": [
+        {
+          "path": "ort/1.24.2/ort-wasm-simd-threaded.asyncify.mjs",
+          "sha256": "e8845db719fb6a5c3acedf1e7e7d23df5baa04a500a0611346824dc3fa92c966"
+        },
+        {
+          "path": "ort/1.24.2/ort-wasm-simd-threaded.asyncify.wasm",
+          "sha256": "2e396595ccfa7e03d77465cc81222a1e4b83497a98c20778d11dbec06b6cf511"
+        },
+        {
+          "path": "ort/1.24.2/ort-wasm-simd-threaded.jsep.mjs",
+          "sha256": "eb4e7f7fdeae313dc7f91746fda51aef5ccbae5e892714a3c15df62936968622"
+        },
+        {
+          "path": "ort/1.24.2/ort-wasm-simd-threaded.jsep.wasm",
+          "sha256": "3384613cc4b1f8f500b7dc547f903857ad7cda336e7d20126bfbf686b68ae434"
+        },
+        {
+          "path": "ort/1.24.2/ort-wasm-simd-threaded.jspi.mjs",
+          "sha256": "9ca21e22b87188d02234303474a846bcbd3ec6f39a4db71933745a9af99d42b8"
+        },
+        {
+          "path": "ort/1.24.2/ort-wasm-simd-threaded.jspi.wasm",
+          "sha256": "7cb7e7a2a34efc164d4c27f8c446795c88adcc34a24db74aa2f887ae1e53db9d"
+        },
+        {
+          "path": "ort/1.24.2/ort-wasm-simd-threaded.mjs",
+          "sha256": "b538a29137066dbed1f0f449fb081dfd35ccde3d5b155adc34532cefa3b23ee2"
+        },
+        {
+          "path": "ort/1.24.2/ort-wasm-simd-threaded.wasm",
+          "sha256": "175fabe412fc7fd1376e3178861a47ebfdc30cedb3b2c3f6bb72c37d96c26f73"
+        },
+        {
+          "path": "ort/1.24.2/ort.min.mjs",
+          "sha256": "7ef416dd6ad711a2ee8f2c87d6076e37aea588b674ad3df28e8b19a79c8f4413"
+        }
+      ],
+      "runtime_manifest": "models/browser-runtime/manifest.json"
     },
     {
       "id": "browser-basis",
@@ -211,46 +215,50 @@
       "license": "ISC (worklet); MIT (Silero model)",
       "source": "https://www.npmjs.com/package/@ricky0123/vad-web/v/0.0.30",
       "revision": "0.0.30; d08d8be6604cc81aa367ea10218b8120c4505c04",
-      "paths": [
-        {
-          "path": "src/frontend/web/public/onnx/models/vad/silero_vad_v5.onnx",
-          "sha256": "2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f"
-        },
-        {
-          "path": "src/frontend/web/public/onnx/models/vad/vad.worklet.bundle.min.js",
-          "sha256": "8a48fdc7429948a2fde3d29a84bb1a64c1f67b4ba578ccaa7548b7f989f06a74"
-        }
-      ],
+      "paths": [],
       "notice_files": [
         "src/frontend/desktop/runtime/notices/vad-isc-and-silero-mit.txt"
       ],
-      "modifications": "Both files match the integrity-verified npm archive.",
+      "modifications": "Both files match the integrity-verified npm archive. Phase 3 changes storage only: exact model/dependency bytes are verified before serving and retained in built artifacts. Existing licenses and notices are unchanged.",
       "status": "evidence-and-notices-prepared",
       "remaining_conditions": [
         "Preserve notices in every source and binary distribution; verify the exact final candidate."
       ],
-      "copyright": "ricky0123; Silero Team"
+      "copyright": "ricky0123; Silero Team",
+      "external_files": [
+        {
+          "path": "models/vad/silero_vad_v5.onnx",
+          "sha256": "2623a2953f6ff3d2c1e61740c6cdb7168133479b267dfef114a4a3cc5bdd788f"
+        },
+        {
+          "path": "models/vad/vad.worklet.bundle.min.js",
+          "sha256": "8a48fdc7429948a2fde3d29a84bb1a64c1f67b4ba578ccaa7548b7f989f06a74"
+        }
+      ],
+      "runtime_manifest": "models/browser-runtime/manifest.json"
     },
     {
       "id": "browser-turn",
       "license": "BSD-2-Clause",
       "source": "https://huggingface.co/pipecat-ai/smart-turn-v3",
       "revision": "f766f81d3cfdf7737ac64aad813d91bbfd56bf93",
-      "paths": [
-        {
-          "path": "src/frontend/web/public/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx",
-          "sha256": "2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f"
-        }
-      ],
+      "paths": [],
       "notice_files": [
         "src/frontend/desktop/runtime/notices/smart-turn-bsd-2-clause.txt"
       ],
-      "modifications": "No model byte change. Grant declaration is the pinned model card; full BSD text sourced from the linked code repository, not a nonexistent model LICENSE.",
+      "modifications": "No model byte change. Grant declaration is the pinned model card; full BSD text sourced from the linked code repository, not a nonexistent model LICENSE. Phase 3 changes storage only: exact model/dependency bytes are verified before serving and retained in built artifacts. Existing licenses and notices are unchanged.",
       "status": "evidence-and-notices-prepared",
       "remaining_conditions": [
         "Preserve notices in every source and binary distribution; verify the exact final candidate."
       ],
-      "copyright": "Daily, 2024-2025"
+      "copyright": "Daily, 2024-2025",
+      "external_files": [
+        {
+          "path": "models/smart-turn/smart-turn-v3.2-cpu.onnx",
+          "sha256": "2bb026316b14a660486a75b1733cd3fbab8c2fd0314dc9af7be49f8cca967e4f"
+        }
+      ],
+      "runtime_manifest": "models/browser-runtime/manifest.json"
     },
     {
       "id": "parakeet-source",
@@ -259,44 +267,47 @@
       "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
       "paths": [
         {
-          "path": "parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
+          "path": "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
           "sha256": "f0253d0ae984626d09669aa7e3c102a8667b997d854db25c70850f571fa014b9"
         },
         {
-          "path": "parakeet-tdt-0.6b-v2/README.md",
+          "path": "models/parakeet-tdt-0.6b-v2/README.md",
           "sha256": "788e7734fb5e3fcbbffc44e08413d5083fcc7cc5b270b79f1a210262ea9db90d"
-        },
-        {
-          "path": "parakeet-tdt-0.6b-v2/config.json",
-          "sha256": "562aedb0b804acbeb4e04215de190846c37e0bb239b696376df69d555785373a"
-        },
-        {
-          "path": "parakeet-tdt-0.6b-v2/decoder_joint-model.int8.onnx",
-          "sha256": "a449f49acd68979d418651dd2dcb737cc0f1bf0225e009e29ee326354edbf7d3"
-        },
-        {
-          "path": "parakeet-tdt-0.6b-v2/encoder-model.int8.onnx",
-          "sha256": "3e0581fda6ab843888b51e56d7ee78b6d5bc3237ec113af1f732d1d5286aa155"
-        },
-        {
-          "path": "parakeet-tdt-0.6b-v2/nemo128.onnx",
-          "sha256": "bff2bc1bef1d1185da8bb69419b51c68fc50e88c923654ced2dfe4e055e4e938"
-        },
-        {
-          "path": "parakeet-tdt-0.6b-v2/vocab.txt",
-          "sha256": "d5b4ca312b07f10cc89b6ff1f500201b5bd826dc3f9500c115caeb36c0b10831"
         }
       ],
       "notice_files": [
         "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
         "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
       ],
-      "modifications": "NVIDIA model converted to ONNX and INT8 quantized upstream; ysdede rebuilt preprocessor. Config/vocab match direct pinned files, not stale hashes in the producer manifest.",
+      "modifications": "NVIDIA model converted to ONNX and INT8 quantized upstream; ysdede rebuilt preprocessor. Config/vocab match direct pinned files, not stale hashes in the producer manifest. Phase 2 relocates acquisition/storage only; external payload sizes and full pinned sources are bound by the download manifest. Notices are byte-identical.",
       "status": "evidence-and-notices-prepared",
       "remaining_conditions": [
         "Preserve notices in every source and binary distribution; verify the exact final candidate."
       ],
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)"
+      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
+      "external_files": [
+        {
+          "path": "config.json",
+          "sha256": "562aedb0b804acbeb4e04215de190846c37e0bb239b696376df69d555785373a"
+        },
+        {
+          "path": "decoder_joint-model.int8.onnx",
+          "sha256": "a449f49acd68979d418651dd2dcb737cc0f1bf0225e009e29ee326354edbf7d3"
+        },
+        {
+          "path": "encoder-model.int8.onnx",
+          "sha256": "3e0581fda6ab843888b51e56d7ee78b6d5bc3237ec113af1f732d1d5286aa155"
+        },
+        {
+          "path": "nemo128.onnx",
+          "sha256": "bff2bc1bef1d1185da8bb69419b51c68fc50e88c923654ced2dfe4e055e4e938"
+        },
+        {
+          "path": "vocab.txt",
+          "sha256": "d5b4ca312b07f10cc89b6ff1f500201b5bd826dc3f9500c115caeb36c0b10831"
+        }
+      ],
+      "download_manifest": "models/parakeet-tdt-0.6b-v2/manifest.json"
     },
     {
       "id": "whisper-feature-extractor",

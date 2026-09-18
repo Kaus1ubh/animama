@@ -5,7 +5,7 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
-patterns='AssetKind|AssetVersion|PyAssetDownloadAuthorization|ORMAnimaAssetLoadout|/v1/assets|/runtime-assets|runtime-assets|anima_asset_bindings|LibraryAsset|asset-equip|asset-packs|asset_count|ANIMAMA_TYPED_(CONTENT|LOADOUT)_WRITES|R2_ASSET_(UPLOAD|DOWNLOAD)|ASSET_UPLOAD_CLEANUP|app_asset_(id|version)|__ANIMAMA_APP_AVATAR_PORTRAIT_GENERATOR__|avatar_model_url|requestAuthorizedAssetDownloadUrl|asset_avatar_portrait_model_not_ready'
+patterns='AssetKind|AssetVersion|PyAssetDownloadAuthorization|ORMAnimaAssetLoadout|/v1/assets|/runtime-assets|(^|[^[:alnum:]_-])runtime-assets([^[:alnum:]_-]|$)|anima_asset_bindings|LibraryAsset|asset-equip|asset-packs|asset_count|ANIMAMA_TYPED_(CONTENT|LOADOUT)_WRITES|R2_ASSET_(UPLOAD|DOWNLOAD)|ASSET_UPLOAD_CLEANUP|app_asset_(id|version)|__ANIMAMA_APP_AVATAR_PORTRAIT_GENERATOR__|avatar_model_url|requestAuthorizedAssetDownloadUrl|asset_avatar_portrait_model_not_ready'
 
 if rg -n "$patterns" \
   src/backend/animama \

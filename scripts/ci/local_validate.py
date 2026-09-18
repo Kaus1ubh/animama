@@ -278,6 +278,18 @@ def worker(args: argparse.Namespace) -> int:
         ("frozen-python-install", source, ["uv", "sync", "--frozen", "--python", "3.12.13", "--extra", "server"])
     ]
     if args.profile in {"web", "full"}:
+        # Keep downloaded, manifest-verified inputs outside the exact source.
+        # The browser smoke forwards this root into its isolated child servers.
+        os.environ["ANIMAMA_MODEL_ROOT"] = str(output / "models")
+        planned += [
+            (
+                f"{model}-{operation}",
+                source,
+                [sys.executable, f"scripts/models/{model}.py", operation, "--root", str(output / "models")],
+            )
+            for model in ("parakeet", "browser_speech")
+            for operation in ("acquire", "verify")
+        ]
         planned += [
             ("frozen-frontend-install", source / "src/frontend", ["pnpm", "install", "--frozen-lockfile"]),
             ("browser-install", source / "src/frontend", ["pnpm", "exec", "playwright", "install", "chromium"]),

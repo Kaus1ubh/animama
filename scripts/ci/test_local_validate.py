@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -116,6 +117,74 @@ class LocalValidationTests(unittest.TestCase):
             self.assertFalse((destination / ".git/objects/info/alternates").exists())
             self.assertEqual((source / "tracked.txt").read_text(), "unrelated change\n")
 
+    def test_worker_models_are_scoped_prerequisites_and_fail_closed(self):
+        prerequisites = [
+            f"{model}-{operation}" for model in ("parakeet", "browser_speech") for operation in ("acquire", "verify")
+        ]
+        for profile, failure in [("backend", None), ("web", None), ("full", None)] + [
+            ("web", identifier) for identifier in prerequisites
+        ]:
+            with self.subTest(profile=profile, failure=failure), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory)
+                (output / "source").mkdir()
+                args = Namespace(output=output, commit="a" * 40, baseline="b" * 40, profile=profile)
+                observed = []
+
+                def check(
+                    identifier,
+                    cwd,
+                    command,
+                    evidence,
+                    observed=observed,
+                    profile=profile,
+                    output=output,
+                    failure=failure,
+                ):
+                    observed.append(identifier)
+                    if profile in {"web", "full"}:
+                        self.assertEqual(os.environ["ANIMAMA_MODEL_ROOT"], str(output / "models"))
+                    else:
+                        self.assertNotIn("ANIMAMA_MODEL_ROOT", os.environ)
+                    if identifier in prerequisites:
+                        self.assertEqual(command[-2:], ["--root", str(output / "models")])
+                    return {
+                        "id": identifier,
+                        "status": "failed" if identifier == failure else "passed",
+                        "command": command,
+                        "duration_seconds": 0,
+                        "log_sha256": "c" * 64,
+                    }
+
+                versions = {"node": "v24.15.0", "pnpm": "10.33.0", "uv": "uv 0.11.28"}
+                exists = Path.exists
+                with (
+                    patch.dict(os.environ, {}, clear=True),
+                    patch("local_validate.platform.system", return_value="Linux"),
+                    patch("local_validate.platform.python_version", return_value="3.12.13"),
+                    patch.object(
+                        Path, "exists", lambda path, exists=exists: path == Path("/.dockerenv") or exists(path)
+                    ),
+                    patch(
+                        "local_validate.capture",
+                        side_effect=lambda command, cwd, versions=versions: versions[command[0]],
+                    ),
+                    patch("local_validate.git", side_effect=[args.commit, "d" * 40]),
+                    patch("local_validate.run_check", side_effect=check),
+                ):
+                    self.assertEqual(worker(args), 1 if failure else 0)
+                if profile == "backend":
+                    self.assertFalse(set(prerequisites) & set(observed))
+                elif failure:
+                    self.assertEqual(observed[-1], failure)
+                    self.assertNotIn("frontend-source", observed)
+                else:
+                    self.assertEqual(observed[1:5], prerequisites)
+                    self.assertLess(observed.index(prerequisites[-1]), observed.index("frontend-source"))
+                receipt = json.loads((output / "local-validation.json").read_text())
+                self.assertEqual([item["id"] for item in receipt["checks"]], observed)
+                self.assertEqual((output / "receipt-comment.md").exists(), failure is None)
+                self.assertEqual((output / "receipt-sha256.txt").exists(), failure is None)
+
     def test_worker_stops_at_failed_prerequisite_without_emitting_review_material(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
@@ -136,10 +205,13 @@ class LocalValidationTests(unittest.TestCase):
             versions = {"node": "v24.15.0", "pnpm": "10.33.0", "uv": "uv 0.11.28"}
             exists = Path.exists
             with (
+                patch.dict(os.environ),
                 patch("local_validate.platform.system", return_value="Linux"),
                 patch("local_validate.platform.python_version", return_value="3.12.13"),
-                patch.object(Path, "exists", lambda path: path == Path("/.dockerenv") or exists(path)),
-                patch("local_validate.capture", side_effect=lambda command, cwd: versions[command[0]]),
+                patch.object(Path, "exists", lambda path, exists=exists: path == Path("/.dockerenv") or exists(path)),
+                patch(
+                    "local_validate.capture", side_effect=lambda command, cwd, versions=versions: versions[command[0]]
+                ),
                 patch("local_validate.git", side_effect=[args.commit, "d" * 40]),
                 patch("local_validate.run_check", side_effect=check),
             ):

@@ -138,7 +138,13 @@ def test_python_route_tests_do_not_restore_header_authentication_fixtures() -> N
     # These boundary tests deliberately send forged credentials to prove that
     # the resolver ignores them and the collector never receives them. They do
     # not grant route-unit ownership through headers or introduce an auth mode.
-    credential_rejection_tests = {"test_local_http_lifecycle.py", "test_local_http_telemetry.py"}
+    # Model-store tests send a synthetic upstream credential only to verify
+    # that cross-host download redirects strip it; they never call local routes.
+    credential_rejection_tests = {
+        "test_local_http_lifecycle.py",
+        "test_local_http_telemetry.py",
+        "test_model_store.py",
+    }
     files = [
         path
         for path in (REPO_ROOT / "tests").glob("test_*.py")

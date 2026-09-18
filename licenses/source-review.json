@@ -5045,6 +5045,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "docs/backend/operations/model-assets.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "docs/backend/runtime/adding-ai-models.md",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -5536,14 +5543,21 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "package.json",
+      "path": "models/browser-runtime/manifest.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "Original Phase 3 exact-input manifest, model setup, serving integration or tests; third-party payloads retain separately mapped terms",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
+      "path": "models/browser-speech/manifest.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 3 exact-input manifest, model setup, serving integration or tests; third-party payloads retain separately mapped terms",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
       "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
       "basis": "Retained third-party code/model review: parakeet-source",
       "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
@@ -5562,7 +5576,7 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "parakeet-tdt-0.6b-v2/README.md",
+      "path": "models/parakeet-tdt-0.6b-v2/README.md",
       "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
       "basis": "Retained third-party code/model review: parakeet-source",
       "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
@@ -5581,98 +5595,17 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "parakeet-tdt-0.6b-v2/config.json",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
+      "path": "models/parakeet-tdt-0.6b-v2/manifest.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "parakeet-tdt-0.6b-v2/decoder_joint-model.int8.onnx",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "parakeet-tdt-0.6b-v2/encoder-model.int8.onnx",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "parakeet-tdt-0.6b-v2/nemo128.onnx",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "parakeet-tdt-0.6b-v2/vocab.txt",
-      "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
-      "basis": "Retained third-party code/model review: parakeet-source",
-      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
-      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3; istupakov 0bbb45a3365852604aef28b538a8f066f4ccaa85",
-      "copyright": "NVIDIA; upstream conversions by istupakov and ysdede; Ivan Stupakov (onnx-asr)",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt",
-        "src/frontend/desktop/runtime/notices/parakeet-attribution.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
+      "path": "package.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -5739,6 +5672,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "scripts/ci/test_validation_policy.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/ci/validation_policy.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "scripts/generate_synthetic_docs.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -5756,6 +5703,27 @@
       "path": "scripts/mixamo-assets.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/models/README.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/models/browser_speech.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 3 exact-input manifest, model setup, serving integration or tests; third-party payloads retain separately mapped terms",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/models/parakeet.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -10006,6 +9974,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/desktop/tests/optional-inputs.test.mjs",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/desktop/tests/runtime-ipc.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -10888,6 +10863,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/scripts/browser-runtime-assets.d.mts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 3 exact-input manifest, model setup, serving integration or tests; third-party payloads retain separately mapped terms",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/scripts/browser-runtime-assets.mjs",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 3 exact-input manifest, model setup, serving integration or tests; third-party payloads retain separately mapped terms",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/scripts/build-typescript-package.mjs",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -11186,364 +11175,6 @@
         "src/frontend/desktop/runtime/notices/basis-apache-2.0.txt",
         "src/frontend/desktop/runtime/notices/basis-notice.txt",
         "src/frontend/desktop/runtime/notices/basis-zstd-license.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_flow_int8.onnx",
-      "candidate_license": "CC-BY-NC-4.0 (conservative owner election for all seven model/tokenizer/voice assets)",
-      "basis": "Retained third-party code/model review: browser-pocket",
-      "source": "https://huggingface.co/spaces/codexxx/pocket-tts-web",
-      "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950 (five ONNX); KevinAHM 3cf6daa623e2b09992c972cab32568ee8679a154 (tokenizer/voices)",
-      "copyright": "Kyutai Pocket TTS; KevinAHM and codexxx web export sources",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
-        "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt"
-      ],
-      "conditions": [
-        "Noncommercial use only under the elected stricter terms. README CC BY and ONNX-LICENSE CC BY-NC conflict remains disclosed. Replace assets or obtain appropriate permission before commercial use; do not relicense these assets as AGPL."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/flow_lm_main_int8.onnx",
-      "candidate_license": "CC-BY-NC-4.0 (conservative owner election for all seven model/tokenizer/voice assets)",
-      "basis": "Retained third-party code/model review: browser-pocket",
-      "source": "https://huggingface.co/spaces/codexxx/pocket-tts-web",
-      "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950 (five ONNX); KevinAHM 3cf6daa623e2b09992c972cab32568ee8679a154 (tokenizer/voices)",
-      "copyright": "Kyutai Pocket TTS; KevinAHM and codexxx web export sources",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
-        "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt"
-      ],
-      "conditions": [
-        "Noncommercial use only under the elected stricter terms. README CC BY and ONNX-LICENSE CC BY-NC conflict remains disclosed. Replace assets or obtain appropriate permission before commercial use; do not relicense these assets as AGPL."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/mimi_decoder_int8.onnx",
-      "candidate_license": "CC-BY-NC-4.0 (conservative owner election for all seven model/tokenizer/voice assets)",
-      "basis": "Retained third-party code/model review: browser-pocket",
-      "source": "https://huggingface.co/spaces/codexxx/pocket-tts-web",
-      "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950 (five ONNX); KevinAHM 3cf6daa623e2b09992c972cab32568ee8679a154 (tokenizer/voices)",
-      "copyright": "Kyutai Pocket TTS; KevinAHM and codexxx web export sources",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
-        "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt"
-      ],
-      "conditions": [
-        "Noncommercial use only under the elected stricter terms. README CC BY and ONNX-LICENSE CC BY-NC conflict remains disclosed. Replace assets or obtain appropriate permission before commercial use; do not relicense these assets as AGPL."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/mimi_encoder.onnx",
-      "candidate_license": "CC-BY-NC-4.0 (conservative owner election for all seven model/tokenizer/voice assets)",
-      "basis": "Retained third-party code/model review: browser-pocket",
-      "source": "https://huggingface.co/spaces/codexxx/pocket-tts-web",
-      "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950 (five ONNX); KevinAHM 3cf6daa623e2b09992c972cab32568ee8679a154 (tokenizer/voices)",
-      "copyright": "Kyutai Pocket TTS; KevinAHM and codexxx web export sources",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
-        "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt"
-      ],
-      "conditions": [
-        "Noncommercial use only under the elected stricter terms. README CC BY and ONNX-LICENSE CC BY-NC conflict remains disclosed. Replace assets or obtain appropriate permission before commercial use; do not relicense these assets as AGPL."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/text_conditioner.onnx",
-      "candidate_license": "CC-BY-NC-4.0 (conservative owner election for all seven model/tokenizer/voice assets)",
-      "basis": "Retained third-party code/model review: browser-pocket",
-      "source": "https://huggingface.co/spaces/codexxx/pocket-tts-web",
-      "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950 (five ONNX); KevinAHM 3cf6daa623e2b09992c972cab32568ee8679a154 (tokenizer/voices)",
-      "copyright": "Kyutai Pocket TTS; KevinAHM and codexxx web export sources",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
-        "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt"
-      ],
-      "conditions": [
-        "Noncommercial use only under the elected stricter terms. README CC BY and ONNX-LICENSE CC BY-NC conflict remains disclosed. Replace assets or obtain appropriate permission before commercial use; do not relicense these assets as AGPL."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/tokenizer.model",
-      "candidate_license": "CC-BY-NC-4.0 (conservative owner election for all seven model/tokenizer/voice assets)",
-      "basis": "Retained third-party code/model review: browser-pocket",
-      "source": "https://huggingface.co/spaces/codexxx/pocket-tts-web",
-      "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950 (five ONNX); KevinAHM 3cf6daa623e2b09992c972cab32568ee8679a154 (tokenizer/voices)",
-      "copyright": "Kyutai Pocket TTS; KevinAHM and codexxx web export sources",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
-        "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt"
-      ],
-      "conditions": [
-        "Noncommercial use only under the elected stricter terms. README CC BY and ONNX-LICENSE CC BY-NC conflict remains disclosed. Replace assets or obtain appropriate permission before commercial use; do not relicense these assets as AGPL."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/pocket-tts/voices.bin",
-      "candidate_license": "CC-BY-NC-4.0 (conservative owner election for all seven model/tokenizer/voice assets)",
-      "basis": "Retained third-party code/model review: browser-pocket",
-      "source": "https://huggingface.co/spaces/codexxx/pocket-tts-web",
-      "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950 (five ONNX); KevinAHM 3cf6daa623e2b09992c972cab32568ee8679a154 (tokenizer/voices)",
-      "copyright": "Kyutai Pocket TTS; KevinAHM and codexxx web export sources",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
-        "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt"
-      ],
-      "conditions": [
-        "Noncommercial use only under the elected stricter terms. README CC BY and ONNX-LICENSE CC BY-NC conflict remains disclosed. Replace assets or obtain appropriate permission before commercial use; do not relicense these assets as AGPL."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx",
-      "candidate_license": "BSD-2-Clause",
-      "basis": "Retained third-party code/model review: browser-turn",
-      "source": "https://huggingface.co/pipecat-ai/smart-turn-v3",
-      "revision": "f766f81d3cfdf7737ac64aad813d91bbfd56bf93",
-      "copyright": "Daily, 2024-2025",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/smart-turn-bsd-2-clause.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/vad/silero_vad_v5.onnx",
-      "candidate_license": "ISC (worklet); MIT (Silero model)",
-      "basis": "Retained third-party code/model review: browser-vad",
-      "source": "https://www.npmjs.com/package/@ricky0123/vad-web/v/0.0.30",
-      "revision": "0.0.30; d08d8be6604cc81aa367ea10218b8120c4505c04",
-      "copyright": "ricky0123; Silero Team",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/vad-isc-and-silero-mit.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/models/vad/vad.worklet.bundle.min.js",
-      "candidate_license": "ISC (worklet); MIT (Silero model)",
-      "basis": "Retained third-party code/model review: browser-vad",
-      "source": "https://www.npmjs.com/package/@ricky0123/vad-web/v/0.0.30",
-      "revision": "0.0.30; d08d8be6604cc81aa367ea10218b8120c4505c04",
-      "copyright": "ricky0123; Silero Team",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/vad-isc-and-silero-mit.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.mjs",
-      "candidate_license": "MIT plus bundled third-party terms",
-      "basis": "Retained third-party code/model review: browser-onnx",
-      "source": "https://www.npmjs.com/package/onnxruntime-web/v/1.24.2",
-      "revision": "1.24.2; Microsoft source tag v1.24.2",
-      "copyright": "Microsoft Corporation and authors identified in full ThirdPartyNotices",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/onnxruntime-mit.txt",
-        "src/frontend/desktop/runtime/notices/onnxruntime-third-party-notices.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.asyncify.wasm",
-      "candidate_license": "MIT plus bundled third-party terms",
-      "basis": "Retained third-party code/model review: browser-onnx",
-      "source": "https://www.npmjs.com/package/onnxruntime-web/v/1.24.2",
-      "revision": "1.24.2; Microsoft source tag v1.24.2",
-      "copyright": "Microsoft Corporation and authors identified in full ThirdPartyNotices",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/onnxruntime-mit.txt",
-        "src/frontend/desktop/runtime/notices/onnxruntime-third-party-notices.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.mjs",
-      "candidate_license": "MIT plus bundled third-party terms",
-      "basis": "Retained third-party code/model review: browser-onnx",
-      "source": "https://www.npmjs.com/package/onnxruntime-web/v/1.24.2",
-      "revision": "1.24.2; Microsoft source tag v1.24.2",
-      "copyright": "Microsoft Corporation and authors identified in full ThirdPartyNotices",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/onnxruntime-mit.txt",
-        "src/frontend/desktop/runtime/notices/onnxruntime-third-party-notices.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jsep.wasm",
-      "candidate_license": "MIT plus bundled third-party terms",
-      "basis": "Retained third-party code/model review: browser-onnx",
-      "source": "https://www.npmjs.com/package/onnxruntime-web/v/1.24.2",
-      "revision": "1.24.2; Microsoft source tag v1.24.2",
-      "copyright": "Microsoft Corporation and authors identified in full ThirdPartyNotices",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/onnxruntime-mit.txt",
-        "src/frontend/desktop/runtime/notices/onnxruntime-third-party-notices.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.mjs",
-      "candidate_license": "MIT plus bundled third-party terms",
-      "basis": "Retained third-party code/model review: browser-onnx",
-      "source": "https://www.npmjs.com/package/onnxruntime-web/v/1.24.2",
-      "revision": "1.24.2; Microsoft source tag v1.24.2",
-      "copyright": "Microsoft Corporation and authors identified in full ThirdPartyNotices",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/onnxruntime-mit.txt",
-        "src/frontend/desktop/runtime/notices/onnxruntime-third-party-notices.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.jspi.wasm",
-      "candidate_license": "MIT plus bundled third-party terms",
-      "basis": "Retained third-party code/model review: browser-onnx",
-      "source": "https://www.npmjs.com/package/onnxruntime-web/v/1.24.2",
-      "revision": "1.24.2; Microsoft source tag v1.24.2",
-      "copyright": "Microsoft Corporation and authors identified in full ThirdPartyNotices",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/onnxruntime-mit.txt",
-        "src/frontend/desktop/runtime/notices/onnxruntime-third-party-notices.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.mjs",
-      "candidate_license": "MIT plus bundled third-party terms",
-      "basis": "Retained third-party code/model review: browser-onnx",
-      "source": "https://www.npmjs.com/package/onnxruntime-web/v/1.24.2",
-      "revision": "1.24.2; Microsoft source tag v1.24.2",
-      "copyright": "Microsoft Corporation and authors identified in full ThirdPartyNotices",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/onnxruntime-mit.txt",
-        "src/frontend/desktop/runtime/notices/onnxruntime-third-party-notices.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort-wasm-simd-threaded.wasm",
-      "candidate_license": "MIT plus bundled third-party terms",
-      "basis": "Retained third-party code/model review: browser-onnx",
-      "source": "https://www.npmjs.com/package/onnxruntime-web/v/1.24.2",
-      "revision": "1.24.2; Microsoft source tag v1.24.2",
-      "copyright": "Microsoft Corporation and authors identified in full ThirdPartyNotices",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/onnxruntime-mit.txt",
-        "src/frontend/desktop/runtime/notices/onnxruntime-third-party-notices.txt"
-      ],
-      "conditions": [
-        "Preserve notices in every source and binary distribution; verify the exact final candidate."
-      ],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/public/onnx/ort/1.24.2/ort.min.mjs",
-      "candidate_license": "MIT plus bundled third-party terms",
-      "basis": "Retained third-party code/model review: browser-onnx",
-      "source": "https://www.npmjs.com/package/onnxruntime-web/v/1.24.2",
-      "revision": "1.24.2; Microsoft source tag v1.24.2",
-      "copyright": "Microsoft Corporation and authors identified in full ThirdPartyNotices",
-      "evidence": [
-        "licenses/third-party/code-and-models.json"
-      ],
-      "notices": [
-        "src/frontend/desktop/runtime/notices/onnxruntime-mit.txt",
-        "src/frontend/desktop/runtime/notices/onnxruntime-third-party-notices.txt"
       ],
       "conditions": [
         "Preserve notices in every source and binary distribution; verify the exact final candidate."
@@ -19030,6 +18661,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/tests/browserRuntimeAssets.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 3 exact-input manifest, model setup, serving integration or tests; third-party payloads retain separately mapped terms",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/tests/fixtures/vrma/README.md",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Original AI-assisted test code, documentation and synthetic literal animation data; Raymond Van attribution; no imported animation bytes",
@@ -19065,6 +18703,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/tests/localParakeetModels.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/tests/production-delivery.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -19096,6 +18741,13 @@
       "path": "src/frontend/web/tsconfig.node.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/vite-plugins/browser-runtime-assets.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 3 exact-input manifest, model setup, serving integration or tests; third-party payloads retain separately mapped terms",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -19432,6 +19084,13 @@
       "path": "tests/test_avatar_content.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "tests/test_browser_model_store.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 3 exact-input manifest, model setup, serving integration or tests; third-party payloads retain separately mapped terms",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -19929,6 +19588,13 @@
       "path": "tests/test_model_provider_catalog.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "tests/test_model_store.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },

@@ -92,7 +92,7 @@
       "id": "parakeet-input",
       "name": "Optional Parakeet model inputs",
       "license": "CC-BY-4.0 (declared)",
-      "source": "parakeet-tdt-0.6b-v2/ATTRIBUTION.md pins istupakov revision 0bbb45a3365852604aef28b538a8f066f4ccaa85 and ysdede revision db4a768f5795e0f508187a34241fbeeef6ebb0d3; exact INT8 model and rebuilt preprocessor hashes were reconciled against those public revisions",
+      "source": "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md pins istupakov revision 0bbb45a3365852604aef28b538a8f066f4ccaa85 and ysdede revision db4a768f5795e0f508187a34241fbeeef6ebb0d3; exact INT8 model and rebuilt preprocessor hashes were reconciled against those public revisions",
       "review": "pending",
       "notice_files": [
         "parakeet-attribution.txt",

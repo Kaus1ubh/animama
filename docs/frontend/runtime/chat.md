@@ -25,6 +25,40 @@ POST streams still permit one attempt; typed chat mutations explicitly disable
 query-client retry defaults. A remount conflict preserves the unsent input and
 requires the existing explicit recovery action.
 
+## Failed turns and recovery
+
+The shared session keeps a failure notice beside the affected user message. Known
+provider codes distinguish missing/rejected credentials, access or usage limits,
+rate limits, timeouts and unavailable providers. Local admission errors describe
+installation access, without treating every HTTP 403 as an invalid provider key.
+Unknown errors use a safe fallback; raw provider bodies, URLs, credentials and
+exception messages are never inserted into the notice. Details show only an
+allowlisted error code. A valid provider retry delay is shown as guidance.
+
+Any received partial reply remains visible and is labelled incomplete. The notice
+makes no claim that an uncertain turn was saved. Failed turns are local to the
+mounted chat session; switching chats or reloading discards that notice/partial
+output and loads actual server history. Later successful turns do not clear older
+failure notices or move them below the new conversation. A server-confirmed
+message with the same run ID replaces its optimistic local projection.
+
+**Restore message** puts the original text into an empty composer for editing; it
+never sends a request, replaces an existing draft, or restores attachment choices.
+It is disabled while another reply is active or the composer contains a draft.
+The user decides whether to resend, including after a suggested rate-limit delay.
+POST streams are never automatically retried. Intentional Stop remains quiet and
+does not imply that the upstream provider stopped generating or billing.
+
+An in-stream error is terminal: subsequent duplicate errors, text and
+`run.completed` cannot turn that failure into a successful cached answer. EOF
+without completion reports an interrupted turn unless the stream was intentionally
+cancelled or superseded. Text snapshots update synchronously so an error or
+completion arriving in the same network chunk cannot lose the last text increment.
+
+Mounted package browser tests exercise these states with an injected fake
+transport. They prove the shared session and notice behavior without provider
+calls, a running Compose stack or native/physical acceptance.
+
 `ChatInterfaceView` renders the package's actual `ChatConversation` and existing
 `ChatInput` primitives. Its upload/model/dictation controls, quick-chat behavior,
 and desktop message insets stay local. `SidebarAnimas` renders the shared
@@ -32,7 +66,6 @@ and desktop message insets stay local. `SidebarAnimas` renders the shared
 Compiled `@animama/product-ui/styles.css` includes the shared theme and component
 utilities; `theme.css` also exposes those theme tokens for the local utility build.
 No consuming build needs the original web sources or their aliases.
-
 
 This document describes how the Vite web chat runtime runs end-to-end, including:
 
@@ -321,15 +354,15 @@ normal chat request with request-scoped options:
 
 ```json
 {
-  "message": "...",
-  "run_id": "ui-...",
-  "chat_id": "chat-...",
-  "model_provider_id": "OpenAIHTTPAgent:gpt-5-nano",
-  "dispatch_options": {
-    "main_structured_response": true,
-    "native_tools": ["web_search"],
-    "reasoning_effort": "low"
-  }
+    "message": "...",
+    "run_id": "ui-...",
+    "chat_id": "chat-...",
+    "model_provider_id": "OpenAIHTTPAgent:gpt-5-nano",
+    "dispatch_options": {
+        "main_structured_response": true,
+        "native_tools": ["web_search"],
+        "reasoning_effort": "low"
+    }
 }
 ```
 
@@ -351,16 +384,16 @@ spoken:
 
 ```json
 {
-  "run_id": "ui-...",
-  "node_id": "agent:...",
-  "text": "Short spoken text.",
-  "response_format": "main_structured_json",
-  "response_part": "speech",
-  "is_delta": true,
-  "part_index": 0,
-  "part_final": false,
-  "tokenized_text": "Short spoken text.",
-  "phonemized_text": [["..."]]
+    "run_id": "ui-...",
+    "node_id": "agent:...",
+    "text": "Short spoken text.",
+    "response_format": "main_structured_json",
+    "response_part": "speech",
+    "is_delta": true,
+    "part_index": 0,
+    "part_final": false,
+    "tokenized_text": "Short spoken text.",
+    "phonemized_text": [["..."]]
 }
 ```
 
@@ -368,14 +401,14 @@ Display events carry visible-only text and are never sent to TTS:
 
 ```json
 {
-  "run_id": "ui-...",
-  "node_id": "agent:...",
-  "text": "Display-only text.",
-  "response_format": "main_structured_json",
-  "response_part": "display",
-  "is_delta": true,
-  "part_index": 0,
-  "part_final": true
+    "run_id": "ui-...",
+    "node_id": "agent:...",
+    "text": "Display-only text.",
+    "response_format": "main_structured_json",
+    "response_part": "display",
+    "is_delta": true,
+    "part_index": 0,
+    "part_final": true
 }
 ```
 

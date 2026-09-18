@@ -286,7 +286,12 @@ ANIMAMA_WEB_BUILD_MODE=production
 The built Docker target compiles optimized React assets and copies them to
 `/opt/animama/web`. FastAPI serves those files and the API from the same
 loopback application origin; no Node or Vite server runs in this graph.
-The existing browser Parakeet directory is a separate read-only static mount.
+The browser Parakeet directory is a separate read-only static mount resolved
+from the verified shared model store. Run `python3 scripts/models/parakeet.py acquire` and
+`python3 scripts/models/browser_speech.py acquire`
+before first startup; set `ANIMAMA_MODEL_ROOT` to an absolute persistent root when
+needed. `reset.sh` records that root and the exact immutable version directory.
+See [model acquisition, offline reuse and recovery](model-assets.md).
 This selects build delivery, without adding accounts or network authentication.
 
 Apply the selection with an ordinary reset, which preserves state:
@@ -705,9 +710,9 @@ profile, actual step results and source-bound command receipts. Missing, skipped
 failed or cancelled required checks cannot pass. Use `Validation` when configuring
 future required checks; changing the workflow does not configure branch protection.
 
-This is the proposed local-first policy. Weekly scheduling and default-branch
-behavior do not activate before the workflow reaches the default branch. A passing
-implementation run is not owner acceptance of the coverage or budget tradeoff.
+The local-first workflow is active on the default branch. Its scheduled and
+default-branch behavior follows the policy below. A passing implementation run
+is not owner acceptance of the coverage or budget tradeoff.
 
 | Change or request | Independently executed hosted scope | Local evidence needed for reduction |
 | --- | --- | --- |
@@ -751,6 +756,11 @@ local contract. The runner creates a tracked-only source copy and fresh Linux
 environment with Python 3.12.13, uv 0.11.28, Node 24.15.0 and pnpm 10.33.0.
 It uses frozen installations; existing `.venv`, `node_modules`, ignored content,
 package outputs and application credentials are not copied into the source.
+The `web` and `full` profiles acquire and verify the exact public Parakeet and
+browser speech model manifests into `OUTPUT/models` before frontend checks.
+These logged prerequisites require network access; the fresh container does not
+reuse the host model cache. Child builds and browser smoke share this isolated
+store through `ANIMAMA_MODEL_ROOT`. The backend profile does not acquire models.
 Provider calls remain disabled. Retain invocation, command logs and results.
 
 A successful run writes `receipt-comment.md` and `receipt-sha256.txt` beside the
@@ -1035,12 +1045,12 @@ runtime packages in the worker image. Backend images copy the backend package,
 migrations/init SQL, and shared animation/VFX catalogs. The server image also
 receives the React output from a frontend build stage. The Docker context admits
 those frontend build inputs while excluding desktop assets, installed dependencies
-and private local files. Dependency or image changes are not built automatically by
-plain `./reset.sh`; after restoring/configuring that service, rebuild it
-explicitly when needed:
+and private local files. Plain `./reset.sh` can rebuild the backend image through
+its bootstrap step, but it does not rebuild this optional worker automatically.
+After restoring/configuring the worker service, request its build explicitly
+(for the main stack):
 
 ```bash
-docker compose -p animama build animama-file-worker
 ./reset.sh --build animama-file-worker
 ```
 
@@ -1095,35 +1105,143 @@ http://localhost:8000  local application
 Only the selected application service is published on loopback. PostgreSQL
 stays private, as does FastAPI when Vite owns the development listener.
 
+### Preparing a Task Workspace
+
+Choose the existing checkout and stack when the work will not disrupt another
+active task. Test chats and content do not themselves require isolation. Use a
+separate worktree for conflicting edits or dependency/configuration experiments,
+and start a separate stack only when useful for the task. See the
+[workspace selection rules](../../../AGENTS.md#workspace-selection).
+
+Inspect the current state before creating or reusing a task workspace:
+
+```bash
+git status --short
+git branch --show-current
+git rev-parse HEAD
+git worktree list
+```
+
+Record the source revision and check active work/processes before reusing a
+checkout. For a new worktree, choose the intended starting revision explicitly.
+This example starts at the current recorded `HEAD`, without switching the
+occupied checkout, pulling into it or stashing another task's changes:
+
+```bash
+git worktree add -b feat/abc ../animama-worktrees/abc HEAD
+cd ../animama-worktrees/abc
+```
+
+Use the [branch/PR naming convention](../../../AGENTS.md#branches-and-pull-requests).
+A worktree shares Git history but needs its own mutable installation, generated
+outputs and, when running separately, private application data.
+
+#### Credentials and nonsecret configuration
+
+Keep reusable development credentials in an owner-only file outside every
+checkout, for example `$HOME/.config/animama/dev-secrets.env`. Create or edit that
+file with a restrictive umask (`umask 077`) and ensure only its owner can read or
+write it (`chmod 600`); use a private parent directory. Obtain actual values
+through the owner's existing credential mechanism. Do not invent keys, copy a
+main checkout's `.env`, or put credentials in a branch, task receipt or command
+line. Do not overwrite an existing credential file as a setup step.
+
+Keep each worktree's ignored `.env` for the task's nonsecret configuration. Read
+`.env.example` as a nonsecret reference and choose needed entries. Omit
+credential entries entirely from this second file, including placeholder or blank
+values: either would override a valid value from the first file.
+Select the two files from the worktree root:
+
+```bash
+export COMPOSE_ENV_FILES="$HOME/.config/animama/dev-secrets.env,$PWD/.env"
+```
+
+Compose reads this comma-separated list in order, so the worktree file wins for
+any repeated name. Inherited shell values take precedence over file values.
+`COMPOSE_ENV_FILES` supplies interpolation inputs; it does not automatically
+forward every entry into a container. The Compose service must declare each
+backend setting it consumes. See Docker's documentation for
+[environment-file selection](https://docs.docker.com/compose/how-tos/environment-variables/envvars/)
+and [interpolation precedence](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/).
+
+`COMPOSE_ENV_FILES` applies to Compose only: it does not export credentials to
+`uv` host tests, a directly launched backend or native apps. Keep offline unit
+tests credential-free. A live host/native journey needs its own explicitly
+configured credential mechanism; selecting Compose files does not establish it.
+Do not `source` the secrets file into the shell. Check file existence, ownership
+and permissions without displaying its contents. Avoid `env`, `printenv`, shell
+tracing, `docker compose config` output or credential hashes in shared logs;
+resolved configuration can contain secrets. `docker compose config --quiet`
+checks the selected configuration without printing it.
+
+For an intentional configuration change, use a fresh terminal that has not
+sourced another stack record, or a clean subshell with only the necessary
+nonsecret environment retained. A normal subshell inherits its parent's exports
+and is not clean. Select these files again before running reset. For a known
+individual override, `unset NAME` removes that shell value; do not blindly unset
+unrelated environment. Shell startup files can also export overrides, so a new
+terminal alone is not proof that none remain.
+
+#### Assets and dependency installation
+
+Hydrate tracked Git LFS assets with `git lfs pull`. Verify both pinned shared
+model sets locally before startup:
+
+```bash
+python3 scripts/models/parakeet.py verify
+python3 scripts/models/browser_speech.py verify
+```
+
+For missing sets, explicitly acquire or import them using
+[model setup](model-assets.md). Configure an absolute `ANIMAMA_MODEL_ROOT` when
+using a nondefault store, consistently for verification and reset. The model
+CLI does not read Compose environment files: export the same nonsecret root in
+the shell or pass `--root /absolute/model-store` to these verification commands. Models are
+shared immutable inputs; `.venv`, `node_modules`, generated frontend output and
+runtime data remain separate per worktree. Do not copy another checkout's
+Included or Local content to make a fresh checkout appear ready. LFS hydration
+alone does not establish the starter's complete avatar/idle/gesture closure.
+For excluded animation bytes, follow the existing
+[manual acquisition instructions](../../frontend/runtime/mixamo-acquisition.md).
+That workflow records user-supplied downloads; conversion and reviewed installation
+remain separate prerequisites. Report a missing starter dependency explicitly;
+do not rename FBX files, fetch private backups or substitute synthetic motions to
+claim the real starter is ready.
+
+Install host dependencies only for the host commands the task needs. A
+Compose-only run uses image dependencies and its project-scoped frontend volume;
+it does not require a second host installation. For host frontend checks:
+
+```bash
+pnpm --dir src/frontend install --frozen-lockfile
+pnpm --dir src/frontend verify:tts-assets
+```
+
+For the supported host backend development extras, use the frozen equivalent of
+`make sync`:
+
+```bash
+uv sync --frozen --extra server --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev
+```
+
+Choose narrower existing extras when appropriate; file-worker parsing is
+separate. Package managers reuse their own download caches without sharing
+writable installations. See [dependency download caches](#dependency-download-caches).
+
 ### Parallel Worktree Dev Environments
 
-Use this flow when testing multiple branches side by side. Each worktree gets a
-separate Compose project, one loopback application port, network, and data volumes.
-
-1. Create the branch and worktree from the main checkout:
-
-```bash
-git switch main
-git pull
-git branch feat/abc
-git worktree add ../anima-worktrees/abc feat/abc
-```
-
-2. Pick an unused base port for that worktree. It assigns exactly one host
-   endpoint:
-
-```text
-base + 0  loopback application
-```
-
-3. Start or reset the stack from the worktree root:
+From the prepared worktree, choose a task name and an unused application base
+port. Check other active projects before choosing it. Start from the clean
+environment described above when selecting a new stack, rather than carrying
+another stack's record into this checkout. Start or reset only the selected stack:
 
 ```bash
-cd ../anima-worktrees/abc
 ./reset.sh --name abc --base-port 8200
 ```
 
-The stack name becomes the Compose project `animama-abc`, so containers,
+`--base-port 8200` overrides file or inherited application-port settings; optional
+`dev-tools` ports become 8204 and 8220. It does not clear unrelated inherited
+configuration. The stack name becomes the Compose project `animama-abc`, so containers,
 networks, and named volumes are isolated from the main checkout and other
 worktrees. `reset.sh` also sets `ANIMAMA_CONTAINER_NAME_PREFIX=animama-abc-`
 for named stacks so container names do not collide with the main checkout. The
@@ -1135,14 +1253,22 @@ http://animama-abc.localhost:8200  local application
 ```
 
 `reset.sh` writes `.animama-stack.env` in the checkout/worktree root with the
-derived Compose project, selected Compose files, container-name prefix,
-application port/public origin, private roots and `ANIMAMA_DESKTOP_WEB_URL`.
-It contains no credentials or host database URL. Source it before
-follow-up commands that need the generated stack settings:
+derived Compose project, selected Compose files, normalized absolute
+`COMPOSE_ENV_FILES` paths, container-name prefix, application port/public origin,
+private roots, `ANIMAMA_STACK_REPO_ROOT` and `ANIMAMA_DESKTOP_WEB_URL`. It records file paths, not credential
+values or a host database URL. In a new terminal, enter the same checkout and
+source its trusted generated record before project-scoped follow-up commands:
 
 ```bash
 source .animama-stack.env
 ```
+
+This restores the same environment-file selection without sourcing secrets into
+the shell. A recorded empty `COMPOSE_ENV_FILES` clears an inherited selection.
+The record restores resolved stack settings; it is not a way to reload changed
+configuration. For `.env` edits, follow the clean-shell guidance above and run
+reset again to regenerate the record. Reset rejects a record sourced from a
+different checkout or a different explicitly requested named project.
 
 From `src/frontend`, source the same file with:
 
@@ -1152,7 +1278,7 @@ source ../../.animama-stack.env
 
 If `--base-port` is provided without `--name`, non-main worktree directories
 infer the stack name from the directory basename. For example,
-`../anima-worktrees/abc` becomes `animama-abc`. The main checkout directory
+`../animama-worktrees/abc` becomes `animama-abc`. The main checkout directory
 named `animama` keeps the default project name unless `--name` is provided.
 
 Named stacks default to `animama-<name>.localhost` to keep browser state
@@ -1177,6 +1303,19 @@ docker compose -p animama-abc logs -f animama-server
 docker compose -p animama-abc down
 ```
 
+For a restart of existing containers with no image build, image pull or model
+acquisition step, use the sourced record and the selected project:
+
+```bash
+source .animama-stack.env
+docker compose -p "$COMPOSE_PROJECT_NAME" restart
+```
+
+This does not apply changed Compose environment or image configuration. Use reset
+when those need to be applied. An ordinary reset can rebuild the backend during
+bootstrap even when no `--build` argument was supplied; do not report it as a
+strict no-build restart.
+
 For desktop shell testing against a worktree, source the generated env file
 before launching Electron so `ANIMAMA_DESKTOP_WEB_URL` points at the worktree's
 application origin:
@@ -1192,6 +1331,125 @@ mode rejects `ANIMAMA_DESKTOP_WEB_URL` and starts its own runtime. Use an explic
 development runtime/data override only for unpackaged supervised tests; see
 `docs/frontend/desktop/platforms.md`.
 
+### Checking Inherited Overrides
+
+This optional, read-only diagnostic helps explain configuration drift when
+resuming a stack. Run it from the intended checkout after sourcing its generated
+record so the Compose graph and verified model directories are available. It
+checks a reviewed list of inherited names against the selected files using
+Compose's own parser. It captures resolved values only in memory and reports
+names and equality, never values or hashes. It is not a complete environment
+inventory or a required setup tool.
+
+```bash
+python3 - <<'PYCODE'
+import os
+import subprocess
+
+names = """
+COMPOSE_PROJECT_NAME COMPOSE_PROFILES
+ANIMAMA_WEB_BUILD_MODE ANIMAMA_MODEL_ROOT
+APP_HOST APP_SCHEME WEB_SERVER_PORT PGADMIN_PORT DOZZLE_PORT
+ANIMAMA_INCLUDED_CONTENT_HOST_PATH ANIMAMA_LOCAL_CONTENT_HOST_PATH
+ANIMAMA_DATA_HOST_PATH ANIMAMA_DOCLING_CACHE_HOST_PATH ANIMAMA_LOG_DIR
+POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB PGADMIN_EMAIL PGADMIN_PASSWORD
+OPENAI_API_KEY DEEPSEEK_API_KEY GEMINI_API_KEY HF_TOKEN
+ANIMAMA_DEFAULT_MODEL_PROVIDER_ID ANIMAMA_MEMORY_MANAGER_AGENT_MODEL
+ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER ANIMAMA_CHAT_TITLE_GENERATION_MODEL
+ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT ANIMAMA_LLM_SKIP
+""".split()
+inherited = {name: os.environ[name] for name in names if name in os.environ}
+baseline = dict(os.environ)
+for name in names:
+    baseline.pop(name, None)
+files = os.environ.get("COMPOSE_ENV_FILES", "").split(",")
+if files == [""]:
+    files = [".env"]
+command = ["docker", "compose"]
+for path in files:
+    command += ["--env-file", path]
+command += ["config", "--environment"]
+result = subprocess.run(command, env=baseline, capture_output=True, text=True)
+if result.returncode:
+    raise SystemExit("Compose comparison failed; check file paths and stack prerequisites. Output withheld.")
+resolved = dict(line.split("=", 1) for line in result.stdout.splitlines() if "=" in line)
+for name, value in sorted(inherited.items()):
+    state = "same as files" if resolved.get(name) == value else "differs or absent"
+    print(f"{name}: {state}")
+if not inherited:
+    print("No reviewed inherited overrides found.")
+PYCODE
+```
+
+Stack-derived ports and project names may differ intentionally. Investigate the
+reported names before selectively unsetting an unwanted override or starting
+from a clean environment. The diagnostic retains derived model directories and
+the Compose graph so it can render the existing stack; it does not validate a
+changed model root or forward undeclared settings. Do not print the captured
+subprocess output to diagnose a failure. This command does not start services,
+change files or make a model-provider request.
+
+### Application Readiness and Test Settings
+
+A successful reset or health response does not prove the product fixture is
+ready. Through the selected application origin, inspect `/v1/runtime-context`
+for installation readiness, `/v1/content/catalog` for typed content diagnostics,
+and `/v1/animas/creation-options` for available avatar and Idle sources. Inspect
+the selected Anima's `/v1/animas/{id}/runtime` for its `effective_revision`,
+`can_chat` and protected avatar/idle/gesture file closure. Use that
+`effective_revision` as `runtime_revision` in chat requests. Missing required
+starter content is a real blocker; do not copy another owner's Local library
+into Included or treat directory existence as successful admission. Use existing
+bootstrap/repair flows only for reported repair, preserving other tasks' data.
+
+Set the primary model through the Anima chat profile to
+`OpenAIResponsesHTTPAgent:gpt-5.6-luna`. The environment default affects new
+Animas; it does not replace an existing profile. Reasoning belongs to each chat
+request's `dispatch_options.reasoning_effort`, which must be `none` for this
+baseline. Keep main-turn memory influence and updates enabled when checking
+memory; select a disposable task chat and inspect only its own memory results.
+Microphone transcription, spoken replies and upload/parser testing are separate
+journeys and need not be part of this text/avatar/gesture/memory rehearsal.
+
+Auxiliary calls have separate owners. To configure title generation explicitly
+in the worktree's nonsecret `.env`, use:
+
+```dotenv
+ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER=OpenAIResponsesHTTPAgent
+ANIMAMA_CHAT_TITLE_GENERATION_MODEL=gpt-5.6-luna
+ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT=none
+```
+
+Compose forwards these settings to the backend. A nonempty title when creating
+a test chat avoids an auxiliary title call; this does not validate title
+generation. `ANIMAMA_MEMORY_MANAGER_AGENT_MODEL=gpt-5.6-luna` selects the separate
+Memory Manager model, but that auxiliary path has no configurable reasoning
+setting. Do not claim it uses `none`. Essential memory tools and episodic capture
+in a main chat turn use the selected primary model/reasoning. Keep a short
+rehearsal rather than assuming separate long-chat compaction inherits them.
+
+For a main-turn-only rehearsal, set `ANIMAMA_CHAT_TITLE_GENERATION_ENABLED=false`
+and `ANIMAMA_CHAT_COMPACTION_ENABLED=false`; both are forwarded by Compose and
+default to `true`. Responses native compaction is separate: set
+`ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS=0` to omit it. These controls
+preserve main-turn memory tools and episodic capture. Avoid invoking the separate
+Memory Manager when it is outside the rehearsal scope. Recreate the selected
+service after environment changes and check its effective backend settings.
+
+Compose also forwards `OPENAI_BASE_URL` as the model-client fallback endpoint;
+unset or empty retains the official OpenAI default. A selected provider catalog
+row with `provider_base_url` takes precedence, including the built-in Luna Responses
+row. Changing this environment variable alone therefore does not redirect that
+model or establish a test transport boundary. Select only trusted endpoints because
+provider credentials and prompts are sent there. Verify the selected provider row
+and the model client’s resolved endpoint before a live turn. These settings provide no hard request, token or spending cap; short prompts,
+reasoning `none` and Stop do not establish a budget ceiling.
+
+Preparing credentials, acquiring public model assets and checking readiness do
+not prove provider access or a successful paid turn. Record actual browser,
+model, persistence and restart evidence separately; do not report audio or native
+desktop acceptance from these setup checks.
+
 ### Cleaning Up Worktree Stacks
 
 Use the [workspace selection rules](../../../AGENTS.md#workspace-selection):
@@ -1206,8 +1464,9 @@ task unless it is still needed for review. Do not stop a shared development
 stack merely because one task finished. Before cleanup, inspect Git worktrees,
 branch/merge state, dirty and untracked files, generated stack record, running Compose project, and
 data roots. Include ignored files: `.animama-stacks/` may contain the only copy
-of Local content/private data, and `.env` may contain task credentials. Do not
-capture secret values in the cleanup report.
+of Local content/private data, and a legacy `.env` may contain task credentials.
+Keep the external shared credential file outside worktree cleanup. Do not capture
+secret values or their digests in the cleanup report.
 
 After verifying the generated stack record belongs to this checkout and task,
 stop its services while preserving volumes and images:
@@ -1260,6 +1519,8 @@ For new branches and PR titles, use the categorized naming policy in
 
 Core:
 
+- `COMPOSE_ENV_FILES` (ordered external credential and worktree configuration
+  files for Compose interpolation; see [workspace preparation](#preparing-a-task-workspace))
 - `ANIMAMA_PUBLIC_ORIGIN` (exact public browser origin for HTTP admission)
 - `ANIMAMA_WEB_ROOT` (absolute built React root; unset/blank for Vite development)
 - `ANIMAMA_DESKTOP_RENDERER_CAPABILITY`, `ANIMAMA_DESKTOP_CONTROL_TOKEN`
@@ -1358,3 +1619,34 @@ Restart in these tests means rebuilding database engines/sessions, bootstrap and
 filesystem services against the same isolated persisted state. It does not mean
 a PostgreSQL crash or full desktop restart. Included content is deliberately
 empty: starter repair is expected while content readiness is asserted separately.
+
+
+## Dependency download caches
+
+Keep each worktree's `.venv`, `node_modules` and generated outputs independent.
+Use uv and pnpm's own caches (`uv cache dir`, `pnpm --dir src/frontend store path`)
+with frozen installs. Do not symlink complete installations across worktrees or
+platforms. Warm offline installs require all locked artifacts already cached;
+initial setup and missing platform binaries need network access.
+
+The frontend disables pnpm's side-effects cache because its cached Electron macOS
+framework layout expands symlinks into duplicate regular files. Installation scripts
+still run. Download reuse remains enabled; an existing expanded installation may
+need a fresh frozen install before benefiting from the layout change. This is
+separate from app signing or native acceptance.
+
+Docker copies lock/config inputs before sources and uses architecture/toolchain
+qualified BuildKit download caches. Source-only edits reuse dependency layers;
+lock changes rerun frozen installs with reusable downloads. Cache contents are
+optional inputs to installation, never a substitute for a valid lock or asset hash.
+Development containers deliberately retain per-project pnpm volumes: writable
+Linux installs and volume ownership/purge lifecycle stay project scoped. This
+remaining download duplication is explicit; host and image builds share their
+normal package-manager/BuildKit caches. No global external volume or permission
+coordinator is required.
+
+Inspect consumers before package-manager cache cleanup. `uv cache clean PACKAGE`
+or a manager-supported forced reinstall can recover disposable broken cache
+entries; do not edit store internals or prune caches under active installs. A
+cache status command alone is not integrity evidence: use a fresh frozen install
+and, for reviewed browser assets, the explicit full manifest verification.

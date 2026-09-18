@@ -1,6 +1,12 @@
 import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { ProductRuntimeProvider, useRuntimeOwnerId } from "@animama/product-ui";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  useProductChatSession,
+  describeChatFailure,
+} from "@animama/product-ui/chat";
+import { ChatConversation } from "@animama/product-ui/components";
 import { useChatSse } from "@animama/product-ui/query";
 
 // A separately bundled consumer: only package exports and browser primitives.
@@ -14,6 +20,32 @@ let api;
 const transport = {
   baseUrl: "https://chat-fixture.invalid",
   fetch: async (request) => {
+    const path = new URL(request.url).pathname;
+    if (!path.endsWith("/chat:sse")) {
+      const model = {
+        id: "fixture-model",
+        model: "fixture-model",
+        model_client: "OpenAIResponsesHTTPAgent",
+        api_standard: "openai-responses",
+        settings: {},
+      };
+      let data;
+      if (path === "/v1/model-providers") data = [model];
+      else if (path === "/v1/animas/anima-fixture")
+        data = {
+          id: "anima-fixture",
+          name: "Annie",
+          chat_profile: { default_model_provider_id: model.id },
+        };
+      else if (path.endsWith("/messages")) data = { messages: [] };
+      else if (path.startsWith("/v1/chats/"))
+        data = { id: path.split("/").at(-1), anima_id: "anima-fixture" };
+      else
+        throw new Error(
+          `Unexpected fixture request: ${request.method} ${path}`,
+        );
+      return Response.json(data);
+    }
     const body = await request.clone().json();
     return new Promise((resolve) => {
       const entry = { request, body, resolve, cancelled: false };
@@ -68,20 +100,82 @@ function Consumer() {
   );
 }
 
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
+const runtime = {
+  runtimeRevision: "revision-fixture",
+  canChat: true,
+  remountLatest: () => {},
+};
+function SessionConsumer() {
+  const [chatId, setChatId] = useState("chat-fixture");
+  const session = useProductChatSession({
+    animaId: "anima-fixture",
+    routeChatId: chatId,
+    runtime,
+    openDraftChatRoute: () => {},
+    replaceChatRoute: () => {},
+  });
+  api = {
+    ...session,
+    stop: session.handleStop,
+    switchChat: () => setChatId("chat-other"),
+  };
+  return (
+    <main>
+      <textarea
+        id="draft"
+        value={session.input}
+        onChange={(event) => session.setInput(event.target.value)}
+      />
+      <button
+        id="submit"
+        disabled={!session.canChat || session.isStreaming}
+        onClick={() => session.handleSubmit()}
+      >
+        Send
+      </button>
+      <button
+        id="stop"
+        disabled={!session.isStreaming}
+        onClick={session.handleStop}
+      >
+        Stop
+      </button>
+      <output id="streaming">{String(session.isStreaming)}</output>
+      <ChatConversation
+        messages={session.displayMessages}
+        markdownEnabled
+        isStreaming={session.isStreaming}
+        completionPending={session.isAwaitingStreamingAnimationFinalization}
+        onQueueComplete={session.handleStreamingAnimationComplete}
+        onRestoreMessage={session.restoreFailedMessage}
+        restoreDisabled={Boolean(session.input.trim())}
+      />
+    </main>
+  );
+}
+
 const root = createRoot(document.getElementById("root"));
-function mount(owner = "owner-fixture") {
+function mount(owner = "owner-fixture", session = false) {
   root.render(
     <ProductRuntimeProvider
       owner={{ id: owner }}
       capabilities={{ chat: true }}
       transport={transport}
     >
-      <Consumer />
+      <QueryClientProvider client={queryClient}>
+        {session ? <SessionConsumer /> : <Consumer />}
+      </QueryClientProvider>
     </ProductRuntimeProvider>,
   );
 }
 window.fixture = {
   mount,
+  mountSession: () => mount("owner-fixture", true),
+  switchChat: () => api.switchChat(),
+  describeFailure: describeChatFailure,
   unmount: () => root.unmount(),
   stop: () => api.stop(),
   requests: () =>

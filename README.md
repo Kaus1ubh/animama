@@ -11,17 +11,19 @@ Compose; Windows and Linux packaging are not supported release targets.
 
 ## Run from source
 
-Mixamo animation bytes are now excluded from source. The
-[manual acquisition helper](docs/frontend/runtime/mixamo-acquisition.md) prepares
-a download checklist; conversion and installation are deferred. A fresh clone
-cannot yet reproduce the complete starter experience or native package. The
-commands below describe the existing development flow, not verified fresh-clone
-release instructions.
+Starter companions use the shipped authored gestures and reactions and need no
+Mixamo animations. The [optional Local installer](docs/frontend/runtime/mixamo-acquisition.md)
+can add your converted Mixamo motions to your ignored library. Download and
+conversion remain manual. Native release acceptance remains a separate gate.
 
-Install Docker with Compose and Git LFS, and hydrate the checkout assets with
-`git lfs pull`. Then start the development stack from the repository root:
+Install Docker with Compose, Git LFS and Python 3.11 or newer. Hydrate the
+remaining checkout assets with `git lfs pull`, then acquire the pinned Parakeet
+files once into the shared model store and start development from the repository
+root:
 
 ```bash
+python3 scripts/models/parakeet.py acquire
+python3 scripts/models/browser_speech.py acquire
 ./reset.sh
 ```
 
@@ -33,6 +35,10 @@ application, where FastAPI serves React directly:
 ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
 ```
 
+Model acquisition verifies exact sizes and hashes; subsequent startup is offline
+and does not download models. See [model setup and recovery](docs/backend/operations/model-assets.md)
+for importing an existing copy, custom persistent storage and sharing across worktrees.
+
 Both modes keep the application on loopback and PostgreSQL private. Remote
 self-host access requires an operator-owned authentication and TLS boundary.
 See [development and operations](docs/backend/operations/development.md) for
@@ -42,6 +48,8 @@ Desktop development and packaging use the separate
 
 ## Documentation and checks
 
+- [Shared language](GLOSSARY.md): common domain meanings for humans and agents.
+- [Architecture decisions](docs/adr/README.md): choices, rationale and history.
 - [Backend](docs/backend/README.md): APIs, persistence, content and operations.
 - [Frontend](docs/frontend/README.md): React, avatars, audio and desktop behavior.
 - [Architecture](docs/architecture/deployment-topology.md): desktop, self-host and development serving.

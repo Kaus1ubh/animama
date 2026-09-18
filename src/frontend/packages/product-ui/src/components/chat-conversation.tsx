@@ -1,4 +1,5 @@
-import { useEffect, type ComponentType } from "react";
+import { ChatFailureNotice } from "./chat-failure-notice";
+import { Fragment, useEffect, type ComponentType } from "react";
 import {
   Message as DefaultMessage,
   MessageContent,
@@ -18,6 +19,8 @@ export function ChatConversation({
   isStreaming = false,
   completionPending = false,
   onQueueComplete,
+  onRestoreMessage,
+  restoreDisabled = false,
   markdownEnabled = false,
   layout = "chat-only",
   messageComponent: Message = DefaultMessage,
@@ -26,6 +29,8 @@ export function ChatConversation({
   isStreaming?: boolean;
   completionPending?: boolean;
   onQueueComplete?: () => void;
+  onRestoreMessage?: (text: string) => void;
+  restoreDisabled?: boolean;
   markdownEnabled?: boolean;
   layout?: MessageLayout;
   messageComponent?: ComponentType<MessageProps>;
@@ -43,33 +48,46 @@ export function ChatConversation({
     >
       {" "}
       {messages.map((message) => (
-        <Message from={message.role} key={message.id} messageLayout={layout}>
-          <MessageContent
-            animateOnEnter={message.animateOnEnter}
-            from={message.role}
-            messageLayout={layout}
-          >
-            {message.isPending ? (
-              <MessageLoaderV2 />
-            ) : markdownEnabled && message.role === "assistant" ? (
-              <StreamdownResponse
-                isAnimating={isStreaming && message.animateTextEffect === true}
-              >
-                {message.text}
-              </StreamdownResponse>
-            ) : message.animateTextEffect &&
-              message.role === "assistant" &&
-              message.streamingSegments?.length ? (
-              <StreamingResponse
-                completionPending={completionPending}
-                onQueueComplete={onQueueComplete}
-                segments={message.streamingSegments}
+        <Fragment key={message.id}>
+          <Message from={message.role} messageLayout={layout}>
+            <MessageContent
+              animateOnEnter={message.animateOnEnter}
+              from={message.role}
+              messageLayout={layout}
+            >
+              {message.isPending ? (
+                <MessageLoaderV2 />
+              ) : markdownEnabled && message.role === "assistant" ? (
+                <StreamdownResponse
+                  isAnimating={
+                    isStreaming && message.animateTextEffect === true
+                  }
+                >
+                  {message.text}
+                </StreamdownResponse>
+              ) : message.animateTextEffect &&
+                message.role === "assistant" &&
+                message.streamingSegments?.length ? (
+                <StreamingResponse
+                  completionPending={completionPending}
+                  onQueueComplete={onQueueComplete}
+                  segments={message.streamingSegments}
+                />
+              ) : (
+                <PlainTextResponse>{message.text}</PlainTextResponse>
+              )}
+            </MessageContent>
+          </Message>
+          {message.failure && (
+            <Message from="assistant" messageLayout={layout}>
+              <ChatFailureNotice
+                failure={message.failure}
+                onRestoreMessage={onRestoreMessage}
+                restoreDisabled={isStreaming || restoreDisabled}
               />
-            ) : (
-              <PlainTextResponse>{message.text}</PlainTextResponse>
-            )}
-          </MessageContent>
-        </Message>
+            </Message>
+          )}
+        </Fragment>
       ))}
     </div>
   );

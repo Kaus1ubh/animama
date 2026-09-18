@@ -188,7 +188,18 @@ class Evidence:
     def for_path(self, path: str) -> tuple[str, str, str]:
         if path.startswith("content/included/"):
             return self.included(path)
-        if path.startswith("parakeet-tdt-0.6b-v2/"):
+        if path in {"models/browser-speech/manifest.json", "models/browser-runtime/manifest.json"}:
+            identifier = self.add(
+                "browser-asset-manifests",
+                source="Authored exact-input manifests; separately licensed external payloads are mapped individually.",
+                paths=["licenses/source-review.json", RUNTIME],
+                required_notices=["External model and runtime notices remain required in distributions."],
+                unresolved_decision=(
+                    "Review authored source and each referenced payload's publication terms separately."
+                ),
+            )
+            return identifier, "review-pending", "Storage migration does not grant new redistribution rights."
+        if path.startswith("models/parakeet-tdt-0.6b-v2/"):
             identifier = self.add(
                 "parakeet-source",
                 source=self.runtime["parakeet-input"]["source"],
@@ -197,9 +208,9 @@ class Evidence:
                     "db4a768f5795e0f508187a34241fbeeef6ebb0d3"
                 ),
                 license="CC-BY-4.0 (declared; exact source redistribution review pending)",
-                paths=[RUNTIME, "parakeet-tdt-0.6b-v2/ATTRIBUTION.md", "parakeet-tdt-0.6b-v2/README.md"],
+                paths=[RUNTIME, "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md", "models/parakeet-tdt-0.6b-v2/README.md"],
                 required_notices=[
-                    "parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
+                    "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
                     "NVIDIA model and conversion-source license/copyright notices",
                 ],
                 unresolved_decision=(

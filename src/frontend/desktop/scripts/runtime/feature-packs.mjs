@@ -1,4 +1,5 @@
 import { build } from "esbuild";
+import { auditOptionalInputs } from "./optional-inputs.mjs";
 import { mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -17,6 +18,15 @@ import {
 
 /** Bundle build tooling separately; only main/preload enter the application. */
 export async function stageFeaturePacks(target) {
+  const release = readJson(path.join(sourceRoot, "feature-pack-releases.json"));
+  const parakeet = auditOptionalInputs(target);
+  if (
+    release.packs["parakeet-stt"].release_status === "active" &&
+    parakeet.length === 0
+  )
+    throw new Error(
+      "Active Parakeet pack inputs are unavailable; acquire the pinned models and run a fresh stage",
+    );
   const tool = path.join(cacheRoot, "tools/feature-pack-build.mjs");
   mkdirSync(path.dirname(tool), { recursive: true });
   await build({
@@ -49,7 +59,7 @@ export async function stageFeaturePacks(target) {
     output: path.join(target.output, "feature-packs"),
     catalog: path.join(target.runtime, "pack-catalog.json"),
     appVersion: readJson(path.join(desktopRoot, "package.json")).version,
-    release: readJson(path.join(sourceRoot, "feature-pack-releases.json")),
+    release,
     budgets: readJson(path.join(sourceRoot, "size-budgets.json")).packs,
     writeTar: async (source, files, output) => {
       const inventory = `${output}.inventory.json`;

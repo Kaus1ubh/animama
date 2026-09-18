@@ -77,9 +77,9 @@ pnpm desktop:mac
 A complete fresh stage and successful audit are mandatory. The build fails on
 missing or stale evidence, unresolved input files, unsupported targets, or a
 stage-failure marker. It does not silently produce an external-web wrapper.
-The stage requires every required starter dependency to be tracked. Mixamo
-animation acquisition/conversion and a complete fresh starter build remain
-pending; ignored local copies cannot satisfy the distribution-input gate.
+The stage requires every required starter dependency to be tracked. Starter
+content no longer depends on Mixamo animations. Optional Local motions are
+excluded from staging and cannot satisfy the distribution-input gate.
 Do not copy private assets into a stage to bypass a missing dependency.
 
 The unsigned development bundle is written to

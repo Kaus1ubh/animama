@@ -1,4 +1,3 @@
-import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
@@ -9,7 +8,11 @@ import {
   includedContentCompatibilityPlugin,
   type IncludedContentAlias,
 } from "./vite-plugins/included-content-compat";
-import { localParakeetModelPlugin } from "./vite-plugins/local-parakeet-models";
+import {
+  localParakeetModelPlugin,
+  resolveLocalParakeetModelDir,
+} from "./vite-plugins/local-parakeet-models";
+import { browserRuntimeAssetsPlugin } from "./vite-plugins/browser-runtime-assets";
 import {
   localAPIProxy,
   localDevelopmentOrigins,
@@ -43,15 +46,6 @@ const localParakeetModelBaseUrl = "/__client-parakeet-models";
 const rechartsEsToolkitCompat = fileURLToPath(
   new URL("./src/lib/recharts/es-toolkit-compat", import.meta.url),
 );
-const defaultParakeetModelDir = fileURLToPath(
-  new URL("../../../parakeet-tdt-0.6b-v2", import.meta.url),
-);
-const configuredParakeetModelDir =
-  process.env.VITE_CLIENT_PARAKEET_MODEL_DIR?.trim() ||
-  process.env.VITE_CLIENT_PARAKEET_DEV_MODEL_DIR?.trim();
-const parakeetModelDir = configuredParakeetModelDir
-  ? path.resolve(configuredParakeetModelDir)
-  : defaultParakeetModelDir;
 
 const routerConfig = {
   target: "react",
@@ -128,18 +122,15 @@ export default defineConfig(({ mode, command, isPreview }) => {
   const envParakeetModelBaseUrl =
     process.env.VITE_CLIENT_PARAKEET_MODEL_BASE_URL?.trim();
   const useLocalParakeetModels =
-    !embeddedDesktop &&
-    !envParakeetModelBaseUrl &&
-    (Boolean(configuredParakeetModelDir) || existsSync(parakeetModelDir));
+    !embeddedDesktop && !envParakeetModelBaseUrl && command === "serve";
   const clientParakeetModelBaseUrl =
     (!embeddedDesktop && envParakeetModelBaseUrl) ||
-    (useLocalParakeetModels
-      ? localParakeetModelBaseUrl
-      : publicParakeetModelBaseUrl);
+    (embeddedDesktop ? publicParakeetModelBaseUrl : localParakeetModelBaseUrl);
 
   return {
     plugins: [
       localDevelopmentRouteFence(),
+      browserRuntimeAssetsPlugin(),
       includedContentCompatibilityPlugin({
         includedRoot: includedContentRoot,
         aliases: includedContentAliases,
@@ -152,7 +143,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
             // Keep the large Parakeet ONNX files out of Vite public/dist while
             // still giving browser code a same-origin URL in local dev/preview.
             localParakeetModelPlugin({
-              modelDir: parakeetModelDir,
+              modelDir: resolveLocalParakeetModelDir,
               routeBaseUrl: localParakeetModelBaseUrl,
             }),
           ]
