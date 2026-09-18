@@ -261,7 +261,7 @@ def plan(root: Path, output: Path) -> None:
         excluded = provenance_paths(root) | special_inputs(root, merge_base, changes, source_head=dependency_head)
     except (ValueError, KeyError, TypeError, OSError):
         excluded, error = set(), "Cannot establish provenance exclusions"
-    # First classify without evidence. High-risk/full requests never consult a receipt.
+    # Local assertions never reduce high-risk changes. Hosted full results may.
     selected = choose_plan(event_name, event, changes, error, reusable, excluded)
     area = classify(changes, excluded)
     reviewed = {"accepted": False, "reason": "Not applicable to this selection"}
@@ -302,6 +302,15 @@ def plan(root: Path, output: Path) -> None:
         selected = choose_plan(
             event_name, event, changes, reusable=False, periodic_unchanged=periodic_unchanged(source)
         )
+    hosted = {"accepted": False, "reason": "Not applicable to this selection"}
+    if event_name == "push" and selected["mode"] == "full" and not explicit and not error:
+        from hosted_evidence import hosted_for_main
+
+        hosted = hosted_for_main(
+            event, source_commit=source, source_tree=tree, baseline=baseline, now=datetime.now(UTC)
+        )
+        if hosted.get("accepted") is True:
+            selected = choose_plan(event_name, event, changes, hosted_verified=True)
     receipt = {
         "schema_version": 2,
         "source_commit": source,
@@ -317,6 +326,7 @@ def plan(root: Path, output: Path) -> None:
         "diff_error": error,
         "plan": selected,
         "local_evidence": reviewed,
+        "hosted_evidence": hosted,
         "main_docs_override": docs_override,
         "run_id": os.environ.get("GITHUB_RUN_ID"),
         "run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
@@ -382,6 +392,11 @@ def gate(output: Path) -> int:
     except ValueError:
         steps = None
     result = evaluate(selected, steps)
+    if isinstance(selected, dict) and selected.get("mode") == "reused":
+        from hosted_evidence import bound_evidence
+
+        if not isinstance(selection, dict) or not bound_evidence(selection):
+            result = {"success": False, "reason": "Missing or mismatched hosted reuse evidence"}
     directory = Path(os.environ.get("CI_RESULTS_DIR", str(Path(os.environ.get("RUNNER_TEMP", "/tmp")) / "checks")))
     checks, receipt_error = check_receipts(directory, selected)
     if receipt_error:
@@ -397,7 +412,14 @@ def gate(output: Path) -> int:
                 and isinstance(selected.get("reason"), str)
             ):
                 target.write("Profile: **" + selected["mode"] + "**. " + selected["reason"] + "\n\n")
-                target.write("Local assertions are owner-reviewed, not independently executed by this runner.\n\n")
+                if selected["mode"] == "reused" and result["success"]:
+                    evidence = selection["hosted_evidence"]
+                    target.write(
+                        f"Full hosted evidence: [run {evidence['run_id']}]({evidence['run_url']}); "
+                        f"artifact `{evidence['artifact_id']}`, digest `{evidence['artifact_digest']}`.\n\n"
+                    )
+                else:
+                    target.write("Local assertions are owner-reviewed, not independently executed by this runner.\n\n")
             target.write("| Check | Result | Seconds |\n| --- | --- | ---: |\n")
             for check in checks:
                 target.write(f"| {check['id']} | {check['status']} | {check['duration_seconds']} |\n")

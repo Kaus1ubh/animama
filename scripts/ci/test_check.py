@@ -84,6 +84,78 @@ class CommandTests(unittest.TestCase):
 
 
 class WorkflowContractTests(unittest.TestCase):
+    def workflow_event(
+        self,
+        *,
+        event="pull_request",
+        action="synchronize",
+        state="open",
+        base_changed=False,
+        number=4,
+        ref="refs/pull/4/merge",
+        run_id=100,
+        workflow="Portable product validation",
+    ):
+        """Evaluate the workflow's small boolean/format expression subset with event fixtures."""
+        text = (ROOT / ".github/workflows/validate-public.yml").read_text()
+        context = {
+            "github.workflow": workflow,
+            "github.event_name": event,
+            "github.event.action": action,
+            "github.event.pull_request.state": state,
+            "github.event.pull_request.number": number,
+            "github.event.changes.base": base_changed,
+            "github.ref": ref,
+            "github.run_id": run_id,
+        }
+
+        def evaluate(expression):
+            expression = re.sub(r"github\.[a-z_.]+", lambda match: repr(context[match[0]]), expression)
+            expression = expression.replace("&&", " and ").replace("||", " or ")
+            expression = re.sub(r"!(?!=)", "not ", expression)
+            return eval(" ".join(expression.split()), {"__builtins__": {}, "format": str.format})
+
+        group = re.search(r"^  group: >-\n(.*?)^  cancel-in-progress:", text, re.M | re.S)[1]
+        group = re.sub(r"\$\{\{(.*?)\}\}", lambda match: str(evaluate(match[1])), group, flags=re.S).strip()
+        condition = re.search(r"^    if: >-\n(.*?)^    runs-on:", text, re.M | re.S)[1]
+        return bool(evaluate(condition)), group
+
+    def test_metadata_edits_and_closed_prs_do_not_cancel_validation(self):
+        meaningful, pr_group = self.workflow_event()
+        self.assertTrue(meaningful)
+        for state, action in (("open", "edited"), ("closed", "edited"), ("closed", "labeled")):
+            with self.subTest(state=state, action=action):
+                enabled, ignored = self.workflow_event(state=state, action=action, ref="refs/heads/main")
+                self.assertFalse(enabled)
+                self.assertNotEqual(ignored, pr_group)
+                self.assertNotEqual(ignored, self.workflow_event(event="push", ref="refs/heads/main")[1])
+                self.assertNotEqual(ignored, self.workflow_event(state=state, action=action, run_id=101)[1])
+
+    def test_base_edits_and_existing_pr_actions_keep_pr_concurrency(self):
+        expected = self.workflow_event()[1]
+        for action in (
+            "opened",
+            "synchronize",
+            "reopened",
+            "ready_for_review",
+            "converted_to_draft",
+            "labeled",
+            "unlabeled",
+        ):
+            with self.subTest(action=action):
+                self.assertEqual(self.workflow_event(action=action), (True, expected))
+        self.assertEqual(self.workflow_event(action="edited", base_changed=True), (True, expected))
+        self.assertNotEqual(self.workflow_event(number=5)[1], expected)
+
+    def test_pr_push_schedule_manual_and_release_groups_are_separate(self):
+        results = [self.workflow_event(ref="refs/heads/main")]
+        for event in ("push", "schedule", "workflow_dispatch"):
+            results.append(self.workflow_event(event=event, ref="refs/heads/main"))
+        for run_id in (100, 101):
+            results.append(self.workflow_event(event="push", ref="refs/heads/main", workflow="Release", run_id=run_id))
+        self.assertTrue(all(enabled for enabled, _ in results))
+        self.assertEqual(len({group for _, group in results}), len(results))
+
     def test_one_job_and_selected_step_sets_match_gate(self):
         workflow = (ROOT / ".github/workflows/validate-public.yml").read_text()
         self.assertEqual(re.findall(r"^  ([a-z][a-z-]+):$", workflow.split("jobs:\n", 1)[1], re.M), ["validation"])

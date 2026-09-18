@@ -63,6 +63,7 @@ PROFILES = {
     "web": COMMON | FRONTEND | {"accountless-guards"},
     "deferred": set(),
     "unchanged": set(),
+    "reused": set(),
 }
 LOCAL_CHECKS = {"backend": {"backend-full"}, "web": {"frontend-source", "browser-smoke"}}
 PR_ACTIONS = {
@@ -162,6 +163,7 @@ def choose_plan(
     excluded_paths: Iterable[str] = (),
     local_reviewed: bool = False,
     periodic_unchanged: bool = False,
+    hosted_verified: bool = False,
 ) -> dict[str, object]:
     """A reviewed local assertion reduces routine work, never high-risk/full requests."""
     if reusable or not isinstance(event_name, str) or event_name not in {"pull_request", "push", "schedule"}:
@@ -195,6 +197,8 @@ def choose_plan(
             return _plan("deferred", "Draft deferral is not acceptance")
     if diff_error is not None:
         return _plan("full", "Complete changed-file discovery unavailable")
+    if event_name == "push" and hosted_verified is True:
+        return _plan("reused", "Verified full hosted PR validation covers this exact merged result and baseline")
     area = classify(changes, excluded_paths)
     if area == "docs":
         return _plan("docs", "Existing eligible documentation: independent focused hosted checks")

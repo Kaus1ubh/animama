@@ -26,8 +26,17 @@ permissions:
   pull-requests: read
 
 concurrency:
-  # Release callers use their run identity; PR updates supersede earlier PR work.
-  group: portable-product-${{ github.workflow }}-${{ github.workflow == 'Portable product validation' && github.ref || github.run_id }}
+  # Ignore metadata edits without cancelling a real run; PR and push runs never collide.
+  # Reusable release callers retain their own run identity.
+  group: >-
+    portable-product-${{ github.workflow }}-${{
+      github.workflow != 'Portable product validation' && format('release-{0}', github.run_id) ||
+      github.event_name == 'pull_request' &&
+      (github.event.pull_request.state != 'open' || github.event.action == 'edited' && !github.event.changes.base) &&
+      format('ignored-{0}', github.run_id) ||
+      github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) ||
+      format('{0}-{1}', github.event_name, github.ref)
+    }}
   cancel-in-progress: true
 
 defaults:
@@ -37,6 +46,10 @@ defaults:
 jobs:
   validation:
     name: Validation
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.state == 'open' &&
+       (github.event.action != 'edited' || github.event.changes.base))
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
