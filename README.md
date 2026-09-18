@@ -11,12 +11,10 @@ Compose; Windows and Linux packaging are not supported release targets.
 
 ## Run from source
 
-Mixamo animation bytes are now excluded from source. The
-[manual acquisition helper](docs/frontend/runtime/mixamo-acquisition.md) prepares
-a download checklist; conversion and installation are deferred. A fresh clone
-cannot yet reproduce the complete starter experience or native package. The
-commands below describe the existing development flow, not verified fresh-clone
-release instructions.
+Starter companions use the shipped authored gestures and reactions and need no
+Mixamo animations. The [optional Local installer](docs/frontend/runtime/mixamo-acquisition.md)
+can add your converted Mixamo motions to your ignored library. Download and
+conversion remain manual. Native release acceptance remains a separate gate.
 
 Install Docker with Compose and Git LFS, and hydrate the checkout assets with
 `git lfs pull`. Then start the development stack from the repository root:
@@ -42,6 +40,8 @@ Desktop development and packaging use the separate
 
 ## Documentation and checks
 
+- [Shared language](GLOSSARY.md): common domain meanings for humans and agents.
+- [Architecture decisions](docs/adr/README.md): choices, rationale and history.
 - [Backend](docs/backend/README.md): APIs, persistence, content and operations.
 - [Frontend](docs/frontend/README.md): React, avatars, audio and desktop behavior.
 - [Architecture](docs/architecture/deployment-topology.md): desktop, self-host and development serving.

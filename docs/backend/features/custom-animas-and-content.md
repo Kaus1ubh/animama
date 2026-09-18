@@ -53,7 +53,7 @@ chat profile, and exact typed selections through `AnimaLoadoutService.initialize
 Aggregate, identity, and loadout revisions start at 1. It never commits,
 contacts a provider, writes files, or issues runtime. The configured active
 model row is checked locally; default ElevenLabs voice is `gJx1vCzNCD1EQHT212Ls`.
-Default Idle is `builtin:idle-style:starter`, emotion is neutral, and there is
+Idle starts empty, emotion is neutral, and there is
 no Music/typed Voice binding, archive, chat, greeting, or relationship memory.
 An explicit validated internal voice choice can replace that default.
 
@@ -82,7 +82,8 @@ The [four-step browser creator](../../frontend/features/custom-anima-creation.md
 consumes the current [HTTP creation contract](../architecture/http-api.md#strict-private-creation).
 Authenticated
 `GET /v1/animas/creation-options` returns policy-derived recommendations/counts,
-limits, diagnostics, and default Idle/source revision evidence.
+limits, diagnostics, and source revision evidence. The nullable `default_idle`
+response contains `source: null` and an empty revision map.
 `POST /v1/animas:validate` validates a whole `AnimaSpec` without writes.
 `POST /v1/animas` accepts that spec plus a body `idempotency_key`; the old
 Avatar-only direct request is rejected. The browser freezes and durably saves
@@ -93,7 +94,7 @@ The strict command creates one private live Anima, never a content item.
 It includes a required stable display name and Markdown identity, one typed
 Avatar, optional profile/background Appearance, exact Gesture selections, all
 72 explicit Reaction cells, the versioned Recommended Starter Pack identity,
-and `expected_source_revisions`. Every selected root, fixed default Idle, and
+and `expected_source_revisions`. Every selected root and
 transitive support is present in that map with kind and SHA-256 revision.
 Zero Gestures/all-empty Reactions are valid with warnings. Invalid selected
 content blocks creation instead of using runtime's optional-root omission.
@@ -114,7 +115,7 @@ after the receipt write. Validation does not Rescan or mark catalog rows.
 there is no physical identity projection. The materializer never commits
 independently. Default model selection validates the configured active local
 row; default ElevenLabs voice `gJx1vCzNCD1EQHT212Ls` is assigned without a
-provider request. Default Idle is `builtin:idle-style:starter`; Music is empty,
+provider request. Idle and Music are empty,
 emotion is neutral, and no Chat row or greeting is created.
 
 An owner-scoped body idempotency key binds only after successful commit.
@@ -125,8 +126,7 @@ for the owner's lifetime. Runtime issue/preparation is a separate post-commit
 step, so a mount failure cannot create another Anima.
 
 Review evidence uses a bounded number of requests without weakening those
-guards. `POST /v1/content/evidence:resolve` resolves every selected root plus
-the fixed default Idle against one visible catalog snapshot and returns the
+guards. `POST /v1/content/evidence:resolve` resolves every selected root against one visible catalog snapshot and returns the
 complete revision union without files or database writes. The browser rejects
 partial results and still calls whole-spec validation; final creation
 re-resolves and rechecks the same exact revisions authoritatively.

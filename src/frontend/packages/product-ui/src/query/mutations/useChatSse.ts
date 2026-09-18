@@ -296,6 +296,7 @@ export function useChatSse() {
       let sseStatus: "ok" | "error" | "cancelled" = "ok";
       let tokenCount = 0;
       let sawRunCompleted = false;
+      let reportedError = false;
 
       recordSseStart(metricAttrs);
       logger.info("useChatSse", "Starting chat SSE", {
@@ -425,8 +426,11 @@ export function useChatSse() {
             sseStatus = "error";
             recordSseError(metricAttrs);
             logger.error("useChatSse", "SSE error event", data);
+            reportedError = true;
             args.onError?.(data);
-            continue;
+            // An error is terminal for this turn. A later run.completed frame
+            // closes the backend run; it must not turn failure into success.
+            break;
           }
 
           if (isEmotionUpdate(data)) {
@@ -527,18 +531,25 @@ export function useChatSse() {
             break;
           }
         }
-        if (lastSseError && !abortController.signal.aborted) {
+        if (lastSseError && !reportedError && !abortController.signal.aborted) {
           throw lastSseError;
         }
-        if (!sawRunCompleted && !abortController.signal.aborted) {
+        if (!sawRunCompleted && !reportedError && isActive()) {
           logger.warn("useChatSse", "SSE stream ended without run.completed", {
             animaId: args.animaId,
             runId: expectedRunId,
             tokenCount,
           });
+          sseStatus = "error";
+          recordSseError(metricAttrs);
+          reportedError = true;
+          args.onError?.({
+            code: "chat_stream_interrupted",
+            error: "Chat stream ended before completion",
+          });
         }
       } catch (error) {
-        if (!abortController.signal.aborted) {
+        if (isActive() && !reportedError) {
           sseStatus = "error";
           recordSseError(metricAttrs);
           logger.error("useChatSse", "SSE chat request failed", {

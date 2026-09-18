@@ -113,6 +113,7 @@ type ChatInterfaceViewProps = {
   onModelChange?: () => void;
   onPromptSuggestionSelect: (text: string) => void;
   onStop: () => void;
+  onRestoreMessage?: (text: string) => void;
   onStreamingAnimationComplete: () => void;
   onSubmit: () => void;
   onVoiceMicToggle?: () => void;
@@ -172,6 +173,7 @@ export function ChatInterfaceView({
   onModelChange,
   onPromptSuggestionSelect,
   onStop,
+  onRestoreMessage,
   onStreamingAnimationComplete,
   onSubmit,
   onVoiceMicToggle,
@@ -238,6 +240,8 @@ export function ChatInterfaceView({
                   }
                 >
                   <ChatConversation
+                    onRestoreMessage={onRestoreMessage}
+                    restoreDisabled={Boolean(input.trim())}
                     messages={displayMessages}
                     isStreaming={isStreaming}
                     completionPending={isAwaitingStreamingAnimationFinalization}
@@ -471,6 +475,7 @@ export const ChatInterface = ({
     handleSubmit,
     handleSubmitText,
     handleStop,
+    restoreFailedMessage,
     handleSkipTts,
     isTtsAudioActive,
     handleStreamingAnimationComplete,
@@ -958,6 +963,7 @@ export const ChatInterface = ({
           void handlePromptSuggestionSelect(text);
         }}
         onStop={handleStop}
+        onRestoreMessage={restoreFailedMessage}
         onStreamingAnimationComplete={handleStreamingAnimationComplete}
         onSubmit={handleSubmitWithDictation}
         onVoiceMicToggle={handleVoiceMicToggle}

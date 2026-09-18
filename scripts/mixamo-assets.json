@@ -1,506 +1,2015 @@
 {
   "schema_version": 1,
-  "status": "manual-acquisition-planning-only",
+  "status": "optional-local-content",
   "mixamo_url": "https://www.mixamo.com/",
   "workflow_url": "https://helpx.adobe.com/creative-cloud/help/animate-characters-mixamo.html",
-  "notes": "Local labels are unverified search hints. Original Adobe animation IDs, rig selection and export settings are not recorded. No download or VRMA conversion is implemented. This manifest conveys no third-party asset license.",
+  "notes": "Original Adobe animation IDs and conversion settings are not recorded. Download and conversion remain manual. Installation consumes converted VRMA files and creates private Local items; none are starter prerequisites. This manifest conveys no third-party asset license.",
   "assets": [
     {
       "target_path": "content/included/gestures/acknowledging/acknowledging.vrma",
       "category": "gesture",
       "label_hint": "acknowledging",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:acknowledging",
+        "version": 1,
+        "semantic_key": "acknowledging",
+        "name": "acknowledging",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "acknowledging.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-acknowledging/acknowledging.vrma"
     },
     {
       "target_path": "content/included/gestures/being_cocky/being_cocky.vrma",
       "category": "gesture",
       "label_hint": "Being Cocky",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:being_cocky",
+        "version": 1,
+        "semantic_key": "being_cocky",
+        "name": "Being Cocky",
+        "ai_description": "Use when the character is being arrogant, confident or showing off.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "being_cocky.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-being_cocky/being_cocky.vrma"
     },
     {
       "target_path": "content/included/gestures/being_electrocuted/being_electrocuted.vrma",
       "category": "gesture",
       "label_hint": "being_electrocuted",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:being_electrocuted",
+        "version": 1,
+        "semantic_key": "being_electrocuted",
+        "name": "being_electrocuted",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "being_electrocuted.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-being_electrocuted/being_electrocuted.vrma"
     },
     {
       "target_path": "content/included/gestures/blush/blush.vrma",
       "category": "gesture",
       "label_hint": "Blush Head scratch",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:blush",
+        "version": 1,
+        "semantic_key": "blush",
+        "name": "Blush Head scratch",
+        "ai_description": "Use when the character is embarrassed, shy or unsure about something.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "blush.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-blush/blush.vrma"
     },
     {
       "target_path": "content/included/gestures/cheering/cheering.vrma",
       "category": "gesture",
       "label_hint": "cheering",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:cheering",
+        "version": 1,
+        "semantic_key": "cheering",
+        "name": "cheering",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "cheering.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-cheering/cheering.vrma"
     },
     {
       "target_path": "content/included/gestures/clapping_v1/clapping_v1.vrma",
       "category": "gesture",
       "label_hint": "clapping_v1",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:clapping_v1",
+        "version": 1,
+        "semantic_key": "clapping_v1",
+        "name": "clapping_v1",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "clapping_v1.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-clapping_v1/clapping_v1.vrma"
     },
     {
       "target_path": "content/included/gestures/crying/crying.vrma",
       "category": "gesture",
       "label_hint": "Crying",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:crying",
+        "version": 1,
+        "semantic_key": "crying",
+        "name": "Crying",
+        "ai_description": "Use when the character is very upset or moved to tears.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "crying.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-crying/crying.vrma"
     },
     {
       "target_path": "content/included/gestures/crying_copy/crying_copy.vrma",
       "category": "gesture",
       "label_hint": "crying_copy",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:crying_copy",
+        "version": 1,
+        "semantic_key": "crying_copy",
+        "name": "crying_copy",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "crying_copy.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-crying_copy/crying_copy.vrma"
     },
     {
       "target_path": "content/included/gestures/darn_it/darn_it.vrma",
       "category": "gesture",
       "label_hint": "Darn It",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:darn_it",
+        "version": 1,
+        "semantic_key": "darn_it",
+        "name": "Darn It",
+        "ai_description": "Use when something goes wrong or the character makes a mistake.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "darn_it.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-darn_it/darn_it.vrma"
     },
     {
       "target_path": "content/included/gestures/excited/excited.vrma",
       "category": "gesture",
       "label_hint": "excited",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:excited",
+        "version": 1,
+        "semantic_key": "excited",
+        "name": "excited",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "excited.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-excited/excited.vrma"
     },
     {
       "target_path": "content/included/gestures/excited_jump_1/excited_jump_1.vrma",
       "category": "gesture",
       "label_hint": "Quick Excited Jump 1",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:excited_jump_1",
+        "version": 1,
+        "semantic_key": "excited_jump_1",
+        "name": "Quick Excited Jump 1",
+        "ai_description": "Jumping with excitement and joy.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "excited_jump_1.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-excited_jump_1/excited_jump_1.vrma"
     },
     {
       "target_path": "content/included/gestures/excited_jump_2/excited_jump_2.vrma",
       "category": "gesture",
       "label_hint": "excited_jump_2",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:excited_jump_2",
+        "version": 1,
+        "semantic_key": "excited_jump_2",
+        "name": "excited_jump_2",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "excited_jump_2.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-excited_jump_2/excited_jump_2.vrma"
     },
     {
       "target_path": "content/included/gestures/exclaim_frustrated/exclaim_frustrated.vrma",
       "category": "gesture",
       "label_hint": "Exclaim Frustrated",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:exclaim_frustrated",
+        "version": 1,
+        "semantic_key": "exclaim_frustrated",
+        "name": "Exclaim Frustrated",
+        "ai_description": "Use when the character expresses strong frustration.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "exclaim_frustrated.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-exclaim_frustrated/exclaim_frustrated.vrma"
     },
     {
       "target_path": "content/included/gestures/explain/explain.vrma",
       "category": "gesture",
       "label_hint": "Explain",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:explain",
+        "version": 1,
+        "semantic_key": "explain",
+        "name": "Explain",
+        "ai_description": "Use when the character is explaining or teaching something.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "explain.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-explain/explain.vrma"
     },
     {
       "target_path": "content/included/gestures/flattered/flattered.vrma",
       "category": "gesture",
       "label_hint": "Flattered",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:flattered",
+        "version": 1,
+        "semantic_key": "flattered",
+        "name": "Flattered",
+        "ai_description": "Use when the character receives a compliment.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "flattered.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-flattered/flattered.vrma"
     },
     {
       "target_path": "content/included/gestures/frustrated_explain/frustrated_explain.vrma",
       "category": "gesture",
       "label_hint": "Frustrated Explain",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:frustrated_explain",
+        "version": 1,
+        "semantic_key": "frustrated_explain",
+        "name": "Frustrated Explain",
+        "ai_description": "Explaining something while visibly frustrated.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "frustrated_explain.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-frustrated_explain/frustrated_explain.vrma"
     },
     {
       "target_path": "content/included/gestures/goodbye/goodbye.vrma",
       "category": "gesture",
       "label_hint": "goodbye",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:goodbye",
+        "version": 1,
+        "semantic_key": "goodbye",
+        "name": "goodbye",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "goodbye.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-goodbye/goodbye.vrma"
     },
     {
       "target_path": "content/included/gestures/happy_walk/happy_walk.vrma",
       "category": "gesture",
       "label_hint": "happy_walk",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:happy_walk",
+        "version": 1,
+        "semantic_key": "happy_walk",
+        "name": "happy_walk",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "happy_walk.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-happy_walk/happy_walk.vrma"
     },
     {
       "target_path": "content/included/gestures/happy_walk_backward/happy_walk_backward.vrma",
       "category": "gesture",
       "label_hint": "happy_walk_backward",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:happy_walk_backward",
+        "version": 1,
+        "semantic_key": "happy_walk_backward",
+        "name": "happy_walk_backward",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "happy_walk_backward.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-happy_walk_backward/happy_walk_backward.vrma"
     },
     {
       "target_path": "content/included/gestures/head_shake/head_shake.vrma",
       "category": "gesture",
       "label_hint": "Head Shake",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:head_shake",
+        "version": 1,
+        "semantic_key": "head_shake",
+        "name": "Head Shake",
+        "ai_description": "Use when the character disagrees with something the user said",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "head_shake.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-head_shake/head_shake.vrma"
     },
     {
       "target_path": "content/included/gestures/idle_fem/idle_fem.vrma",
       "category": "gesture",
       "label_hint": "idle_fem",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:idle_fem",
+        "version": 1,
+        "semantic_key": "idle_fem",
+        "name": "idle_fem",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "idle_fem.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-idle_fem/idle_fem.vrma"
     },
     {
       "target_path": "content/included/gestures/idle_idle1/idle_idle1.vrma",
       "category": "gesture",
       "label_hint": "idle_idle1",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:idle_idle1",
+        "version": 1,
+        "semantic_key": "idle_idle1",
+        "name": "idle_idle1",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "idle_idle1.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-idle_idle1/idle_idle1.vrma"
     },
     {
       "target_path": "content/included/gestures/idle_idle2/idle_idle2.vrma",
       "category": "gesture",
       "label_hint": "idle_idle2",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:idle_idle2",
+        "version": 1,
+        "semantic_key": "idle_idle2",
+        "name": "idle_idle2",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "idle_idle2.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-idle_idle2/idle_idle2.vrma"
     },
     {
       "target_path": "content/included/gestures/idle_idle3/idle_idle3.vrma",
       "category": "gesture",
       "label_hint": "idle_idle3",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:idle_idle3",
+        "version": 1,
+        "semantic_key": "idle_idle3",
+        "name": "idle_idle3",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "idle_idle3.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-idle_idle3/idle_idle3.vrma"
     },
     {
       "target_path": "content/included/gestures/idle_idle4/idle_idle4.vrma",
       "category": "gesture",
       "label_hint": "idle_idle4",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:idle_idle4",
+        "version": 1,
+        "semantic_key": "idle_idle4",
+        "name": "idle_idle4",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "idle_idle4.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-idle_idle4/idle_idle4.vrma"
     },
     {
       "target_path": "content/included/gestures/idle_look_around/idle_look_around.vrma",
       "category": "gesture",
       "label_hint": "idle_look_around",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:idle_look_around",
+        "version": 1,
+        "semantic_key": "idle_look_around",
+        "name": "idle_look_around",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "idle_look_around.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-idle_look_around/idle_look_around.vrma"
     },
     {
       "target_path": "content/included/gestures/idle_loop/idle_loop.vrma",
       "category": "gesture",
       "label_hint": "idle_loop",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:idle_loop",
+        "version": 1,
+        "semantic_key": "idle_loop",
+        "name": "idle_loop",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "idle_loop.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-idle_loop/idle_loop.vrma"
     },
     {
       "target_path": "content/included/gestures/idle_loop_copy/idle_loop_copy.vrma",
       "category": "gesture",
       "label_hint": "idle_loop_copy",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:idle_loop_copy",
+        "version": 1,
+        "semantic_key": "idle_loop_copy",
+        "name": "idle_loop_copy",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "idle_loop_copy.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-idle_loop_copy/idle_loop_copy.vrma"
     },
     {
       "target_path": "content/included/gestures/idle_sexy_dance/idle_sexy_dance.vrma",
       "category": "gesture",
       "label_hint": "idle_sexy_dance",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:idle_sexy_dance",
+        "version": 1,
+        "semantic_key": "idle_sexy_dance",
+        "name": "idle_sexy_dance",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "idle_sexy_dance.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-idle_sexy_dance/idle_sexy_dance.vrma"
     },
     {
       "target_path": "content/included/gestures/listening_head_nod/listening_head_nod.vrma",
       "category": "gesture",
       "label_hint": "Listening Head Nod",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:listening_head_nod",
+        "version": 1,
+        "semantic_key": "listening_head_nod",
+        "name": "Listening Head Nod",
+        "ai_description": "Subtle nodding while actively listening to someone.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "listening_head_nod.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-listening_head_nod/listening_head_nod.vrma"
     },
     {
       "target_path": "content/included/gestures/lookaround/lookaround.vrma",
       "category": "gesture",
       "label_hint": "Look Around",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:lookaround",
+        "version": 1,
+        "semantic_key": "lookaround",
+        "name": "Look Around",
+        "ai_description": "Character casually looks around the environment.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "lookaround.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-lookaround/lookaround.vrma"
     },
     {
       "target_path": "content/included/gestures/lookaround2/lookaround2.vrma",
       "category": "gesture",
       "label_hint": "lookaround2",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:lookaround2",
+        "version": 1,
+        "semantic_key": "lookaround2",
+        "name": "lookaround2",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "lookaround2.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-lookaround2/lookaround2.vrma"
     },
     {
       "target_path": "content/included/gestures/plead/plead.vrma",
       "category": "gesture",
       "label_hint": "Plead",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:plead",
+        "version": 1,
+        "semantic_key": "plead",
+        "name": "Plead",
+        "ai_description": "Use when the character is begging or desperately asking for something.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "plead.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-plead/plead.vrma"
     },
     {
       "target_path": "content/included/gestures/posture_a/posture_a.vrma",
       "category": "gesture",
       "label_hint": "posture_a",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:posture_a",
+        "version": 1,
+        "semantic_key": "posture_a",
+        "name": "posture_a",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "posture_a.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-posture_a/posture_a.vrma"
     },
     {
       "target_path": "content/included/gestures/posture_cat_walk/posture_cat_walk.vrma",
       "category": "gesture",
       "label_hint": "posture_cat_walk",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:posture_cat_walk",
+        "version": 1,
+        "semantic_key": "posture_cat_walk",
+        "name": "posture_cat_walk",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "posture_cat_walk.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-posture_cat_walk/posture_cat_walk.vrma"
     },
     {
       "target_path": "content/included/gestures/posture_da/posture_da.vrma",
       "category": "gesture",
       "label_hint": "posture_da",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:posture_da",
+        "version": 1,
+        "semantic_key": "posture_da",
+        "name": "posture_da",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "posture_da.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-posture_da/posture_da.vrma"
     },
     {
       "target_path": "content/included/gestures/posture_jump/posture_jump.vrma",
       "category": "gesture",
       "label_hint": "posture_jump",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:posture_jump",
+        "version": 1,
+        "semantic_key": "posture_jump",
+        "name": "posture_jump",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "posture_jump.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-posture_jump/posture_jump.vrma"
     },
     {
       "target_path": "content/included/gestures/posture_jumphigh/posture_jumphigh.vrma",
       "category": "gesture",
       "label_hint": "posture_jumphigh",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:posture_jumphigh",
+        "version": 1,
+        "semantic_key": "posture_jumphigh",
+        "name": "posture_jumphigh",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "posture_jumphigh.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-posture_jumphigh/posture_jumphigh.vrma"
     },
     {
       "target_path": "content/included/gestures/posture_sad/posture_sad.vrma",
       "category": "gesture",
       "label_hint": "Pose Sad",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:posture_sad",
+        "version": 1,
+        "semantic_key": "posture_sad",
+        "name": "Pose Sad",
+        "ai_description": "Sad posture",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "posture_sad.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-posture_sad/posture_sad.vrma"
     },
     {
       "target_path": "content/included/gestures/posture_sad_copy/posture_sad_copy.vrma",
       "category": "gesture",
       "label_hint": "posture_sad_copy",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:posture_sad_copy",
+        "version": 1,
+        "semantic_key": "posture_sad_copy",
+        "name": "posture_sad_copy",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "posture_sad_copy.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-posture_sad_copy/posture_sad_copy.vrma"
     },
     {
       "target_path": "content/included/gestures/posture_sad_custom/posture_sad_custom.vrma",
       "category": "gesture",
       "label_hint": "Pose Sad (custom)",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:posture_sad_custom",
+        "version": 1,
+        "semantic_key": "posture_sad_custom",
+        "name": "Pose Sad (custom)",
+        "ai_description": "Sad posture",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "posture_sad_custom.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-posture_sad_custom/posture_sad_custom.vrma"
     },
     {
       "target_path": "content/included/gestures/posture_step_forward/posture_step_forward.vrma",
       "category": "gesture",
       "label_hint": "posture_step_forward",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:posture_step_forward",
+        "version": 1,
+        "semantic_key": "posture_step_forward",
+        "name": "posture_step_forward",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "posture_step_forward.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-posture_step_forward/posture_step_forward.vrma"
     },
     {
       "target_path": "content/included/gestures/posture_t/posture_t.vrma",
       "category": "gesture",
       "label_hint": "posture_t",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:posture_t",
+        "version": 1,
+        "semantic_key": "posture_t",
+        "name": "posture_t",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "posture_t.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-posture_t/posture_t.vrma"
     },
     {
       "target_path": "content/included/gestures/posure_sad_upper/posure_sad_upper.vrma",
       "category": "gesture",
       "label_hint": "posure_sad_upper",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:posure_sad_upper",
+        "version": 1,
+        "semantic_key": "posure_sad_upper",
+        "name": "posure_sad_upper",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "posure_sad_upper.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-posure_sad_upper/posure_sad_upper.vrma"
     },
     {
       "target_path": "content/included/gestures/proud_of_self/proud_of_self.vrma",
       "category": "gesture",
       "label_hint": "Proud of Self",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:proud_of_self",
+        "version": 1,
+        "semantic_key": "proud_of_self",
+        "name": "Proud of Self",
+        "ai_description": "Use when the character accomplished something or feels confident.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "proud_of_self.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-proud_of_self/proud_of_self.vrma"
     },
     {
       "target_path": "content/included/gestures/quick_talk_gesture/quick_talk_gesture.vrma",
       "category": "gesture",
       "label_hint": "quick_talk_gesture",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:quick_talk_gesture",
+        "version": 1,
+        "semantic_key": "quick_talk_gesture",
+        "name": "quick_talk_gesture",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "quick_talk_gesture.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-quick_talk_gesture/quick_talk_gesture.vrma"
     },
     {
       "target_path": "content/included/gestures/relax/relax.vrma",
       "category": "gesture",
       "label_hint": "relax",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:relax",
+        "version": 1,
+        "semantic_key": "relax",
+        "name": "relax",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "relax.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-relax/relax.vrma"
     },
     {
       "target_path": "content/included/gestures/rumba_dancing/rumba_dancing.vrma",
       "category": "gesture",
       "label_hint": "rumba_dancing",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:rumba_dancing",
+        "version": 1,
+        "semantic_key": "rumba_dancing",
+        "name": "rumba_dancing",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "rumba_dancing.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-rumba_dancing/rumba_dancing.vrma"
     },
     {
       "target_path": "content/included/gestures/sarcastic_response/sarcastic_response.vrma",
       "category": "gesture",
       "label_hint": "Sarcastic Response",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:sarcastic_response",
+        "version": 1,
+        "semantic_key": "sarcastic_response",
+        "name": "Sarcastic Response",
+        "ai_description": "Use when giving a sarcastic or ironic reply.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "sarcastic_response.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-sarcastic_response/sarcastic_response.vrma"
     },
     {
       "target_path": "content/included/gestures/sexy_step_forward/sexy_step_forward.vrma",
       "category": "gesture",
       "label_hint": "sexy_step_forward",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:sexy_step_forward",
+        "version": 1,
+        "semantic_key": "sexy_step_forward",
+        "name": "sexy_step_forward",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "sexy_step_forward.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-sexy_step_forward/sexy_step_forward.vrma"
     },
     {
       "target_path": "content/included/gestures/shrug/shrug.vrma",
       "category": "gesture",
       "label_hint": "Quick Shrug",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:shrug",
+        "version": 1,
+        "semantic_key": "shrug",
+        "name": "Quick Shrug",
+        "ai_description": "Use when the character doesn't know or is indifferent.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "shrug.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-shrug/shrug.vrma"
     },
     {
       "target_path": "content/included/gestures/silly_slap/silly_slap.vrma",
       "category": "gesture",
       "label_hint": "Silly Slap",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:silly_slap",
+        "version": 1,
+        "semantic_key": "silly_slap",
+        "name": "Silly Slap",
+        "ai_description": "Playful slapping motion for the user says something inappropriate.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "silly_slap.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-silly_slap/silly_slap.vrma"
     },
     {
       "target_path": "content/included/gestures/sleepy/sleepy.vrma",
       "category": "gesture",
       "label_hint": "sleepy",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:sleepy",
+        "version": 1,
+        "semantic_key": "sleepy",
+        "name": "sleepy",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "sleepy.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-sleepy/sleepy.vrma"
     },
     {
       "target_path": "content/included/gestures/slight_bow/slight_bow.vrma",
       "category": "gesture",
       "label_hint": "Slight Bow",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:slight_bow",
+        "version": 1,
+        "semantic_key": "slight_bow",
+        "name": "Slight Bow",
+        "ai_description": "Polite bow for formal greetings or showing respect to a senior.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "slight_bow.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-slight_bow/slight_bow.vrma"
     },
     {
       "target_path": "content/included/gestures/surprised/surprised.vrma",
       "category": "gesture",
       "label_hint": "Surprised",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:surprised",
+        "version": 1,
+        "semantic_key": "surprised",
+        "name": "Surprised",
+        "ai_description": "Use when the character encounters something unexpected.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "surprised.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-surprised/surprised.vrma"
     },
     {
       "target_path": "content/included/gestures/talk/talk.vrma",
       "category": "gesture",
       "label_hint": "Talk",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:talk",
+        "version": 1,
+        "semantic_key": "talk",
+        "name": "Talk",
+        "ai_description": "General talking gesture for conversational responses.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "talk.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-talk/talk.vrma"
     },
     {
       "target_path": "content/included/gestures/telling_secret/telling_secret.vrma",
       "category": "gesture",
       "label_hint": "telling_secret",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:telling_secret",
+        "version": 1,
+        "semantic_key": "telling_secret",
+        "name": "telling_secret",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "telling_secret.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-telling_secret/telling_secret.vrma"
     },
     {
       "target_path": "content/included/gestures/thinking/thinking.vrma",
       "category": "gesture",
       "label_hint": "thinking",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:thinking",
+        "version": 1,
+        "semantic_key": "thinking",
+        "name": "thinking",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "thinking.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-thinking/thinking.vrma"
     },
     {
       "target_path": "content/included/gestures/tired/tired.vrma",
       "category": "gesture",
       "label_hint": "Tired Idle_F",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:tired",
+        "version": 1,
+        "semantic_key": "tired",
+        "name": "Tired Idle_F",
+        "ai_description": "Exhausted idle state",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "tired.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-tired/tired.vrma"
     },
     {
       "target_path": "content/included/gestures/transition_getting_up/transition_getting_up.vrma",
       "category": "gesture",
       "label_hint": "transition_getting_up",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:transition_getting_up",
+        "version": 1,
+        "semantic_key": "transition_getting_up",
+        "name": "transition_getting_up",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "transition_getting_up.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-transition_getting_up/transition_getting_up.vrma"
     },
     {
       "target_path": "content/included/gestures/transition_lying_to_stand/transition_lying_to_stand.vrma",
       "category": "gesture",
       "label_hint": "transition_lying_to_stand",
       "starter_target": false,
-      "retired_by_owner": true
+      "retired_by_owner": true,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:transition_lying_to_stand",
+        "version": 1,
+        "semantic_key": "transition_lying_to_stand",
+        "name": "transition_lying_to_stand",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "transition_lying_to_stand.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-transition_lying_to_stand/transition_lying_to_stand.vrma"
     },
     {
       "target_path": "content/included/gestures/wave/wave.vrma",
       "category": "gesture",
       "label_hint": "Quick Wave",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:wave",
+        "version": 1,
+        "semantic_key": "wave",
+        "name": "Quick Wave",
+        "ai_description": "Use to greet someone or wave hello/goodbye.",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "wave.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-wave/wave.vrma"
     },
     {
       "target_path": "content/included/gestures/whatever/whatever.vrma",
       "category": "gesture",
       "label_hint": "Whatever",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:whatever",
+        "version": 1,
+        "semantic_key": "whatever",
+        "name": "Whatever",
+        "ai_description": "Dismissive gesture showing disinterest or resignation. More exaggerated version of shrug animation",
+        "schema_version": 1,
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "whatever.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-whatever/whatever.vrma"
     },
     {
       "target_path": "content/included/gestures/where_am_i/where_am_i.vrma",
       "category": "gesture",
       "label_hint": "where_am_i",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:where_am_i",
+        "version": 1,
+        "semantic_key": "where_am_i",
+        "name": "where_am_i",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "where_am_i.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-where_am_i/where_am_i.vrma"
     },
     {
       "target_path": "content/included/gestures/youre_right/youre_right.vrma",
       "category": "gesture",
       "label_hint": "youre_right",
       "starter_target": false,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "document": {
+        "schema_version": 1,
+        "content_type": "gesture",
+        "content_id": "builtin:gesture:youre_right",
+        "version": 1,
+        "semantic_key": "youre_right",
+        "name": "youre_right",
+        "implementation": {
+          "kind": "vrma",
+          "file_role": "animation"
+        },
+        "files": [
+          {
+            "path": "youre_right.vrma",
+            "role": "animation"
+          }
+        ],
+        "dependencies": []
+      },
+      "local_path": "gestures/mixamo-youre_right/youre_right.vrma"
     },
     {
       "target_path": "content/included/idle-styles/starter/animations/angry.vrma",
       "category": "idle",
       "label_hint": "angry",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "local_path": "idle-styles/mixamo-starter/animations/angry.vrma"
     },
     {
       "target_path": "content/included/idle-styles/starter/animations/anxious_look_around.vrma",
       "category": "idle",
       "label_hint": "anxious look around",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "local_path": "idle-styles/mixamo-starter/animations/anxious_look_around.vrma"
     },
     {
       "target_path": "content/included/idle-styles/starter/animations/bored.vrma",
       "category": "idle",
       "label_hint": "bored",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "local_path": "idle-styles/mixamo-starter/animations/bored.vrma"
     },
     {
       "target_path": "content/included/idle-styles/starter/animations/happy.vrma",
       "category": "idle",
       "label_hint": "happy",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "local_path": "idle-styles/mixamo-starter/animations/happy.vrma"
     },
     {
       "target_path": "content/included/idle-styles/starter/animations/sad.vrma",
       "category": "idle",
       "label_hint": "sad",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "local_path": "idle-styles/mixamo-starter/animations/sad.vrma"
     },
     {
       "target_path": "content/included/idle-styles/starter/animations/sway.vrma",
       "category": "idle",
       "label_hint": "sway",
       "starter_target": true,
-      "retired_by_owner": false
+      "retired_by_owner": false,
+      "local_path": "idle-styles/mixamo-starter/animations/sway.vrma"
     }
-  ]
+  ],
+  "idle_style_document": {
+    "schema_version": 1,
+    "content_type": "idle_style",
+    "content_id": "builtin:idle-style:starter",
+    "version": 1,
+    "name": "Starter Idle Style",
+    "description": "Animama's emotion-aware starter idle motions.",
+    "revision": "builtin-idle-style-v1",
+    "cross_fade_seconds": 0.35,
+    "compatibility": {
+      "vrm_versions": [
+        "0.x",
+        "1.0"
+      ]
+    },
+    "animations": [
+      {
+        "animation_id": "angry",
+        "name": "Idle Angry",
+        "ordinal": 1,
+        "description": "Use when the character is upset or frustrated with someone.",
+        "playback": {
+          "loop_type": "pingpong",
+          "duration_seconds": 3.93,
+          "time_scale": 1,
+          "loop_count": 2,
+          "base_pose": "relaxedRest",
+          "blend_mode": "override"
+        },
+        "file_ref": "animations/angry.vrma"
+      },
+      {
+        "animation_id": "anxious_look_around",
+        "name": "Anxious Look Around",
+        "ordinal": 2,
+        "description": "Use when the character is nervous or worried about surroundings.",
+        "playback": {
+          "loop_type": "repeat",
+          "duration_seconds": 11.25,
+          "time_scale": 0.8,
+          "loop_count": 1,
+          "base_pose": "relaxedRest",
+          "blend_mode": "override"
+        },
+        "file_ref": "animations/anxious_look_around.vrma"
+      },
+      {
+        "animation_id": "happy",
+        "name": "Idle Happy",
+        "ordinal": 3,
+        "description": "Character happily idling.",
+        "playback": {
+          "loop_type": "pingpong",
+          "duration_seconds": 10,
+          "time_scale": 0.6,
+          "loop_count": 1,
+          "base_pose": "relaxedRest",
+          "blend_mode": "override"
+        },
+        "file_ref": "animations/happy.vrma"
+      },
+      {
+        "animation_id": "sway",
+        "name": "Idle Sway",
+        "ordinal": 4,
+        "description": "Gentle swaying idle for relaxed or chill contexts.",
+        "playback": {
+          "loop_type": "pingpong",
+          "duration_seconds": 9.92,
+          "time_scale": 0.6,
+          "loop_count": 1,
+          "base_pose": "relaxedRest",
+          "blend_mode": "override"
+        },
+        "file_ref": "animations/sway.vrma"
+      },
+      {
+        "animation_id": "bored",
+        "name": "Bored Idle",
+        "ordinal": 5,
+        "description": "Bored looking around idle Feminine",
+        "playback": {
+          "loop_type": "repeat",
+          "duration_seconds": 13.33,
+          "time_scale": 0.5,
+          "loop_count": 1,
+          "base_pose": "relaxedRest",
+          "blend_mode": "override"
+        },
+        "file_ref": "animations/bored.vrma"
+      },
+      {
+        "animation_id": "sad",
+        "name": "Sad Idle",
+        "ordinal": 6,
+        "description": "Use when the character is feeling down or melancholic.",
+        "playback": {
+          "loop_type": "pingpong",
+          "duration_seconds": 3.93,
+          "time_scale": 1,
+          "loop_count": 2,
+          "base_pose": "relaxedRest",
+          "blend_mode": "override"
+        },
+        "file_ref": "animations/sad.vrma"
+      }
+    ],
+    "dependencies": [],
+    "default_pool": [
+      "sway"
+    ],
+    "emotion_pools": {
+      "amusement": [
+        "happy"
+      ],
+      "excitement": [
+        "happy"
+      ],
+      "joy": [
+        "happy",
+        "sway"
+      ],
+      "optimism": [
+        "sway"
+      ],
+      "fear": [
+        "anxious_look_around"
+      ],
+      "nervousness": [
+        "anxious_look_around"
+      ],
+      "anger": [
+        "angry"
+      ],
+      "annoyance": [
+        "angry"
+      ],
+      "disapproval": [
+        "angry"
+      ],
+      "disappointment": [
+        "bored",
+        "sad"
+      ],
+      "grief": [
+        "sad"
+      ],
+      "sadness": [
+        "sad"
+      ]
+    },
+    "files": [
+      {
+        "path": "animations/angry.vrma",
+        "role": "animation"
+      },
+      {
+        "path": "animations/anxious_look_around.vrma",
+        "role": "animation"
+      },
+      {
+        "path": "animations/happy.vrma",
+        "role": "animation"
+      },
+      {
+        "path": "animations/sway.vrma",
+        "role": "animation"
+      },
+      {
+        "path": "animations/bored.vrma",
+        "role": "animation"
+      },
+      {
+        "path": "animations/sad.vrma",
+        "role": "animation"
+      }
+    ]
+  }
 }

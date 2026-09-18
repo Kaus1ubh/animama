@@ -137,6 +137,14 @@ describe("CreateAnimaDraft", () => {
     );
   });
 
+  it("can review and submit without an optional idle style", () => {
+    const draft = { ...readyDraft(), default_idle: null, idle_revisions: {} };
+    expect(draftIssues(draft, 3)).toEqual([]);
+    const spec = buildAnimaSpec(draft);
+    expect(spec.expected_source_revisions).not.toHaveProperty("idle");
+    expect(spec.avatar).toEqual(draft.avatar);
+  });
+
   it("normalizes text and always emits explicit null Appearance", () => {
     const spec = buildAnimaSpec(readyDraft());
     expect(spec.display_name).toBe("Rowan 🌿");

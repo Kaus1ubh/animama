@@ -23,6 +23,7 @@ def test_every_supplied_runtime_item_is_handler_validated_and_file_registered(tm
     assert runtime_entries
     required_kinds = RUNTIME_KINDS - {
         ContentKind.POSE_CLIP,
+        ContentKind.IDLE_STYLE,
         ContentKind.SOUND_EFFECT,
         ContentKind.VOICE,
         ContentKind.MUSIC_TRACK,

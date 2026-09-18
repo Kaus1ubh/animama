@@ -1,3 +1,4 @@
+import { describeChatFailure } from "./chat-failure";
 import type { Dispatch, SetStateAction } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -86,6 +87,7 @@ export type UseProductChatSessionResult = {
     clearInput?: boolean;
   }) => Promise<void>;
   handleStop: () => void;
+  restoreFailedMessage: (text: string) => void;
   handleSkipTts: () => void;
   isTtsAudioActive: boolean;
   handleStreamingAnimationComplete: () => void;
@@ -607,7 +609,17 @@ export function useProductChatSession({
   // ---------------------------------------------------------------------------
   const displayMessages = useMemo(() => {
     const base = mapServerMessagesForDisplay(serverMessages);
-    const combined = base.concat(localMessages);
+    // Keep failed local turns beside their original place after later successful
+    // turns enter the server cache. Persisted rows win if a refetch confirms them.
+    const persistedIds = new Set(base.map((message) => message.id));
+    const combined = base.concat(
+      localMessages.filter((message) => !persistedIds.has(message.id)),
+    );
+    combined.sort(
+      (a, b) =>
+        (Date.parse(a.createdAt ?? "") || 0) -
+        (Date.parse(b.createdAt ?? "") || 0),
+    );
     if (streamingRunId) {
       combined.push({
         id: chatRunMessageId(streamingRunId, "assistant"),
@@ -725,6 +737,37 @@ export function useProductChatSession({
       if (!trimmed || isStreaming) return;
       const startTime = performance.now();
       let interactionStatus: "ok" | "error" | "invalid" = "ok";
+      const runId = genRunId();
+      const submittedAt = new Date().toISOString();
+      // Snapshot partial output before clearing streaming refs. Failure notices
+      // are session-local evidence, never optimistic claims of persisted history.
+      const showFailure = (error: unknown) => {
+        const speechText = streamingSegmentsRef.current.join("");
+        const displayText = streamingDisplayTextRef.current;
+        const partialText = [
+          speechText,
+          displayText === speechText ? "" : displayText,
+        ]
+          .filter(Boolean)
+          .join("\n\n");
+        const failure = describeChatFailure(error, trimmed, partialText);
+        setLocalMessages((messages) => {
+          const id = chatRunMessageId(runId, "user");
+          const original = messages.find((message) => message.id === id);
+          if (original?.failure) return messages;
+          return original
+            ? messages.map((message) =>
+                message.id === id ? { ...message, failure } : message,
+              )
+            : messages.concat({
+                id,
+                role: "user",
+                text: trimmed,
+                createdAt: submittedAt,
+                failure,
+              });
+        });
+      };
 
       recordUiInteraction({
         action: "chat.submit",
@@ -841,13 +884,13 @@ export function useProductChatSession({
         // - optimistic user message
         // - streaming placeholder
         // - TTS and avatar run start markers
-        const runId = genRunId();
         skippedTtsRunIdsRef.current.delete(runId);
         setLocalMessages((prev) =>
           prev.concat({
             id: chatRunMessageId(runId, "user"),
             role: "user",
             text: trimmed,
+            createdAt: submittedAt,
             animateOnEnter: true,
           }),
         );
@@ -1093,11 +1136,11 @@ export function useProductChatSession({
               }
               return;
             }
-            setStreamingSegments((prev) => {
-              const next = prev.concat(token);
-              streamingSegmentsRef.current = next;
-              return next;
-            });
+            // Error/completion can follow a token in the same network chunk,
+            // before React processes state updaters. Keep the snapshot current.
+            const next = streamingSegmentsRef.current.concat(token);
+            streamingSegmentsRef.current = next;
+            setStreamingSegments(next);
             maybeMarkNonTtsResponseStarted(token);
             if (ttsEnabled && !ttsSkippedForRun(runId)) {
               appendTtsToken(runId, token);
@@ -1369,8 +1412,8 @@ export function useProductChatSession({
             cancelTts();
             abortAvatarRun(runId);
             clearAvatarVisemeBridgeRun(runId, { clearAvatarLipSync: true });
+            showFailure(error);
             clearStreamingState();
-            toast.error("Failed to stream response.");
           },
         });
       } catch (error) {
@@ -1384,7 +1427,7 @@ export function useProductChatSession({
         cancelTts();
         abortAvatarRun();
         clearAvatarVisemeBridgeAll({ clearAvatarLipSync: true });
-        toast.error("Failed to send message.");
+        showFailure(error);
         clearStreamingState();
       } finally {
         const durationMs = performance.now() - startTime;
@@ -1482,6 +1525,15 @@ export function useProductChatSession({
     },
     [submitMessage],
   );
+  const restoreFailedMessage = useCallback(
+    (text: string) => {
+      // Restoring is never a send and must not clobber a new draft.
+      if (!isStreaming)
+        setInput((current) => (current.trim() ? current : text));
+    },
+    [isStreaming],
+  );
+
   return {
     activeChat,
     input,
@@ -1495,6 +1547,7 @@ export function useProductChatSession({
     handleSubmit,
     handleSubmitText,
     handleStop,
+    restoreFailedMessage,
     handleSkipTts,
     isTtsAudioActive,
     handleStreamingAnimationComplete,

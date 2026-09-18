@@ -93,12 +93,13 @@ Markdown identity document, an admitted typed Avatar, explicit null profile and
 background Appearance choices from this browser, exact
 Gesture selections and all 72 explicit Reaction cells, a versioned Recommended
 Starter Pack, and a complete `expected_source_revisions` map. That map covers
-roots, hidden default Idle, and all supports; it is operation evidence, not an
+selected roots and all supports; it is operation evidence, not an
 active runtime mount. Empty Gesture/all-empty Reaction choices are allowed
 with warnings. Invalid selected content must be repaired or explicitly removed.
 
-Advancing Actions to Review resolves every unique selected root plus the fixed
-Idle Style through one read-only evidence request, then performs the existing
+New companions start with Idle empty; an optional Local Idle Style can be
+equipped afterward. Advancing Actions to Review resolves every unique selected
+root through one read-only evidence request, then performs the existing
 whole-spec validation. This transition does not request typed previews, fetch
 bytes, or create `content_previews` rows. A stale root or changed support keeps
 the draft unchanged and links every affected selection to repair. Explicit
