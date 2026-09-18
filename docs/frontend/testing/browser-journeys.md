@@ -47,8 +47,12 @@ unselected until individually reviewed; listing them is not passing evidence.
 The separate `local:verify:accountless` API journey covers bootstrap, settings,
 starter/custom Animas, private uploads, typed bytes, chat receipts and persistence.
 
-Run browser checks only against a disposable named stack with deterministic model
-clients and its own Local content. From the repository root:
+Run these automated Playwright journeys only against a disposable named stack
+with deterministic model clients and its own Local content. These runner guards
+do not require a separate stack for ordinary manual testing: test chats and
+content may use an existing development stack when they will not disrupt another
+active task. Follow the [workspace selection rules](../../../AGENTS.md#workspace-selection).
+For the automated runner, start from the repository root:
 
 ```bash
 ANIMAMA_LLM_SKIP=1 ./reset.sh --name browser-a --base-port 8600
@@ -64,7 +68,13 @@ The runner requires an explicit loopback application origin, a named
 `ANIMAMA_E2E_LOCAL_CONTENT_ROOT` can explicitly describe an equivalent disposable
 fixture. They are assertions of ownership, not automatic isolation: never point
 them at a personal installation. Setup, companion selection and chats persist in
-that fixture; dispose its owned database/storage after the run. Do not reuse
+that fixture. Retain the named stack's database and storage by default for review
+or continued work; disposable data does not mean automatic deletion after a run.
+Follow [task-scoped cleanup](../../backend/operations/development.md#cleaning-up-worktree-stacks)
+to inspect ownership, stop only task-owned services and preserve retained data
+before removing a worktree. Purge or storage removal needs a concrete need and
+the applicable authorization. The separate reproducible smoke runner above
+still removes the temporary databases/content it creates and owns. Do not reuse
 account credentials or old auth-state settings; the runner rejects them.
 
 ```bash
@@ -76,8 +86,9 @@ node --test scripts/e2e/*.test.mjs
 Unexpected browser `pageerror` events fail active tests and remain in the evidence.
 The runner records per-project locking, source identity, traces, request failures,
 and an exact content ownership ledger under ignored `.animama-e2e/runs/`.
-Created catalog items are deleted only with their recorded ID, revision, logical
-key and verified files. Failed cleanup remains a failed result; recovery cleanup
+Created catalog items must still be cleaned up using their recorded ID, revision,
+logical key and verified files; retaining stack data does not waive this exact
+content-ledger cleanup. Failed cleanup remains a failed result; recovery cleanup
 must target the same recorded origin/project and owned Local root. Use
 `pnpm e2e:cleanup -- RUN_ID` to inspect unresolved items, then
 `pnpm e2e:cleanup -- RUN_ID --confirm RUN_ID` with the exact generated ID to
@@ -217,8 +228,9 @@ principal values. Prefer bounded booleans, counts, response status, and hashes
 when proving persistence or token rotation. Do not record private file bodies or
 semantic memory contents unless the fixture was created expressly for the run.
 
-Every stateful journey must identify the exact named stack and resources it
-created before cleanup. A display name or guessed ID never grants deletion
+Every stateful journey must identify its selected stack and resources it created
+before cleanup; automated journeys require the exact named fixture described
+above. A display name or guessed ID never grants deletion
 authority. If ownership evidence is incomplete, stop and leave the resource for
 manual review.
 
