@@ -21,3 +21,10 @@ files and the browser are removed on completion.
 
 This is mounted package integration coverage, not a complete app journey,
 real-provider test, network disconnect test, audio check, or Electron acceptance.
+
+The consumer also mounts `useProductChatSession` with `ChatConversation` and fake
+catalog/history responses. Recovery checks cover specific/sanitized guidance,
+partial output, token/error in one chunk, errors followed by completion,
+non-destructive message restoration, later success ordering, chat switches and
+quiet intentional Stop. The fixture permits only its explicit synthetic API paths
+and never reaches a provider or an installation database.
