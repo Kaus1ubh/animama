@@ -2588,6 +2588,13 @@ id = "public-durable-documentation"
 owner = "public"
 rationale = "Durable local architecture and contributor guidance, including explicitly reviewed additions to the exported snapshot."
 paths = [
+  "GLOSSARY.md",
+  "docs/adr/README.md",
+  "docs/adr/0001-independent-local-product-and-packaged-sharing.md",
+  "docs/adr/0002-accountless-installation-and-http-admission.md",
+  "docs/adr/0003-request-local-streamed-chat.md",
+  "docs/adr/0004-filesystem-content-and-recoverable-mutations.md",
+  "docs/adr/0005-client-rendered-ui-and-local-native-composition.md",
   "docs/agents/domain.md",
   "docs/architecture/deployment-topology.md",
   "docs/architecture/discover-contract-ownership.md",

@@ -11,11 +11,11 @@ animas, anima chat profiles, model-provider catalog rows, chats, settings,
 avatars, archives, user-file uploads, searchable file chunks, the neutral
 Content Catalog, revisioned per-Anima loadouts, and voice metadata. Included
 and Local content bytes live in the canonical `content/` library. It compiles
-exact Gesture and Reaction dependency closures into request-scoped runtime
+exact Gesture and Reaction dependency closures into owner-scoped, leased runtime
 snapshots and serves registered bytes through one authenticated local route.
 
 The normal product path is request-local direct chat:
-`POST /v1/animas/{anima_id}/chat:sse` loads one anima/avatar, resolves a
+`POST /v1/animas/{anima_id}/chat:sse` loads one Anima and its selected Avatar, resolves a
 anima chat profile and model-provider catalog row, invokes a shared direct
 model client, emits the supported request-scoped SSE frames, derives avatar
 emotion/gesture events, and writes history to `chats` and `chat_messages`.

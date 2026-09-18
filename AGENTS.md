@@ -11,7 +11,7 @@ repo-wide workflow, ownership boundaries, and local development conventions.
 ## Product Shape
 
 Animama is an AI Avatar Desktop Companion app. The normal product loop is the
-local installation owner chatting with one anima/avatar through `/v1/chats` and
+local installation owner chatting with one Anima and its selected Avatar through `/v1/chats` and
 `POST /v1/animas/{anima_id}/chat:sse`, with streamed assistant text,
 avatar emotion/gesture updates, memory side effects, voice/TTS integration, and
 chat history persisted in `chats` and `chat_messages`.
@@ -47,7 +47,8 @@ planning checkout. See [Repository boundaries](docs/architecture/repository-boun
 
 Use the [domain documentation guide](docs/agents/domain.md) to distinguish
 current terminology, implemented behavior and architectural decision history.
-Read the relevant glossary entries and ADRs when present; surface conflicts
+Read relevant [glossary entries](GLOSSARY.md) and
+[ADRs](docs/adr/README.md); surface conflicts
 before changing an established meaning or decision. Intent discovery is an
 explicitly requested pilot, not a required interview for every task.
 

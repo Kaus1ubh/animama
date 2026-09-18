@@ -40,6 +40,8 @@ Desktop development and packaging use the separate
 
 ## Documentation and checks
 
+- [Shared language](GLOSSARY.md): common domain meanings for humans and agents.
+- [Architecture decisions](docs/adr/README.md): choices, rationale and history.
 - [Backend](docs/backend/README.md): APIs, persistence, content and operations.
 - [Frontend](docs/frontend/README.md): React, avatars, audio and desktop behavior.
 - [Architecture](docs/architecture/deployment-topology.md): desktop, self-host and development serving.
