@@ -1,0 +1,50 @@
+name: Parent proposal or specification
+description: Define a substantial outcome before dividing it into implementation tasks.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Follow SPECS.md for authoring and SDLC.md for the lifecycle.
+        This may begin as a proposal. Leave unresolved details explicit; submitting the form does not approve implementation.
+        Keep credentials, personal data, private plans and approval transcripts out of the issue. Use SECURITY.md for sensitive reports.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and intended users
+      description: What happens today, why should it change, and who benefits?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Goals, scope and non-goals
+      description: Include the desired outcomes and deliberate exclusions. State unresolved scope explicitly.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Required behavior
+      description: Observable outcomes and relevant failure, cancellation, recovery and persistence behavior. Add requirement IDs only if useful.
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Relevant compatibility, security, data, accessibility, performance or cost bounds.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Conditions and evidence that will establish success. Identify any criteria still to be agreed.
+      placeholder: "- [ ] Observable condition and required evidence."
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Open questions and decisions
+      description: Blocking questions, dated choices and non-sensitive owner acceptance. Keep this current as the proposal becomes agreed work.
+      value: "Status: Proposal\nOwner decision: Pending"
+  - type: textarea
+    id: delivery
+    attributes:
+      label: Delivery links
+      description: Add sub-issues, dependencies and PRs as they exist. Also establish native issue relationships where available; text alone does not create them.

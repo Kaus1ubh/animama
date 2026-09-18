@@ -33,9 +33,13 @@ chat history persisted in `chats` and `chat_messages`.
 
 ## Planning and change records
 
-For multi-file changes, runtime refactors, authentication or persistence changes,
-record the bounded approach, acceptance criteria and validation in the task or
-pull request. Keep the record current so another contributor can resume it.
+Follow [SDLC.md](SDLC.md) for the change lifecycle and [SPECS.md](SPECS.md) for
+specification authoring. Most changes use an issue, task branch, PR, checks and
+owner-approved merge. Tiny incidental corrections may omit the issue. Require an
+ExecPlan for substantial, uncertain or risky work; routine changes need an issue
+with acceptance and a brief approach. File count or duration alone is not a trigger.
+Keep the record current so another contributor can resume it. Remote rollout and
+skill adoption retain their separate authorization and verification gates.
 Use this guide, the scoped guides and checked-in architecture, contract and
 operational documentation as the implementation references.
 
@@ -82,6 +86,9 @@ Use the default [pull request template](.github/pull_request_template.md).
 Describe the problem and resulting behavior, then separate local verification
 from actual CI and browser evidence. Include the tested commit or working-tree
 state, exact commands/results, material environment limits and unperformed checks.
+Default to an ordinary merge commit after owner approval of the exact candidate.
+Squash or rebase needs an explicit exception; a default method grants no merge
+authority. Follow [review and merge evidence](SDLC.md#ci-and-merge-evidence).
 
 ## Code Quality
 

@@ -48,6 +48,8 @@ Desktop development and packaging use the separate
 
 ## Documentation and checks
 
+- [Development lifecycle](SDLC.md): issues, planning, validation, review and merge.
+- [Specification guide](SPECS.md): agreed behavior and acceptance criteria.
 - [Shared language](GLOSSARY.md): common domain meanings for humans and agents.
 - [Architecture decisions](docs/adr/README.md): choices, rationale and history.
 - [Backend](docs/backend/README.md): APIs, persistence, content and operations.
