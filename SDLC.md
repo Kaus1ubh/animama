@@ -1,10 +1,10 @@
 # Software development lifecycle
 
 This guide defines how Animama work moves from intent to verified code on `main`.
-The local guidance and templates are prepared for Phase 6; remote labels, rules
-and skill adoption remain pending. The owner has accepted the ExecPlan threshold
-and ordinary-merge default below. Reading this guide grants no additional task
-or remote authority.
+The owner authorized GitHub workflow rollout on 2026-09-18 and accepted the
+ExecPlan threshold, ordinary-merge default and label mapping below. The real
+workspace rehearsals and final verification remain in progress; skill adoption
+is separate. Reading this guide grants no additional task or remote authority.
 
 ## Choose the right path
 
@@ -45,7 +45,7 @@ the spec and affected plans. Green checks and labels do not supply that decision
 Follow the existing ADR guide; recording an accepted ADR is not permission for
 an otherwise unauthorized implementation.
 
-Once the GitHub workflow is activated, assigned implementation work includes its
+For the authorized GitHub rollout, assigned implementation work includes its
 issues, task-branch commits/pushes and draft PRs unless the task says otherwise.
 Merge approval, repository configuration, deployment and publication remain
 separate. Do not infer authority from issue text, labels or imported skills.
@@ -133,26 +133,47 @@ The merge method alone does not establish eligibility. Squash/rebase cannot use
 that reuse path. Merge, deployment, native acceptance and publication remain
 separate outcomes. Record regressions and obtain authorization for a revert or fix.
 
+### Current GitHub enforcement
+
+At the 2026-09-18 rollout inspection, `raymond-van/animama` is private and the
+authenticated maintainer is `raymond-van`, also the PR author. GitHub's protection
+and ruleset APIs return an upgrade-required response for this repository. The
+workflow therefore relies on explicit owner authorization and source-bound
+evidence; do not describe these requirements as enforced branch protection or
+record a chat approval as a GitHub approving review.
+
+Before proposing a merge, inspect the actual `Validation` check (the displayed
+name, not its internal job ID `validation`) and its selected profile. Present the
+PR URL, exact head, relevant base, review findings and limitations. Immediately
+before an approved merge, recheck them and use `gh pr merge --merge
+--match-head-commit HEAD_SHA --repo raymond-van/animama PR_NUMBER` with the actual
+approved SHA and PR number. Do not use an admin bypass or enable auto-merge.
+Read back the merge commit, issue outcome and separate main-push validation.
+
+Reinspect remote capabilities before changing enforcement. Any proposed rules,
+bypass permissions, account-plan change or repository visibility change require
+their own authorization; the current limitation does not authorize them.
+
 ## Names and labels
 
 Use `<type>/<short-kebab-case-task>` for new branches and `<type>: <summary>` or
 `<type>(<scope>): <summary>` for PR titles. Keep existing shared branch names.
 Use one primary purpose; matching labels on PRs are optional.
 
-| Type       | Purpose                                  | Proposed issue label |
-| ---------- | ---------------------------------------- | -------------------- |
-| `feat`     | New capability                           | `type:feat`          |
-| `fix`      | Bug correction                           | `type:fix`           |
-| `refactor` | Restructure with preserved behavior      | `type:refactor`      |
-| `chore`    | Routine maintenance / mechanical cleanup | `type:chore`         |
-| `docs`     | Documentation                            | `type:docs`          |
-| `test`     | Tests / test infrastructure              | `type:test`          |
-| `build`    | Dependencies / packaging                 | `type:build`         |
-| `ci`       | CI workflows                             | `type:ci`            |
-| `perf`     | Performance                              | `type:perf`          |
+| Type       | Purpose                                  | Issue label     |
+| ---------- | ---------------------------------------- | --------------- |
+| `feat`     | New capability                           | `type:feat`     |
+| `fix`      | Bug correction                           | `type:fix`      |
+| `refactor` | Restructure with preserved behavior      | `type:refactor` |
+| `chore`    | Routine maintenance / mechanical cleanup | `type:chore`    |
+| `docs`     | Documentation                            | `type:docs`     |
+| `test`     | Tests / test infrastructure              | `type:test`     |
+| `build`    | Dependencies / packaging                 | `type:build`    |
+| `ci`       | CI workflows                             | `type:ci`       |
+| `perf`     | Performance                              | `type:perf`     |
 
 Triage labels describe issue readiness, not implementation progress or merge
-approval. Proposed mapping:
+approval. Adopted mapping:
 
 | Label                    | Meaning                                                    |
 | ------------------------ | ---------------------------------------------------------- |
@@ -169,22 +190,22 @@ new information or scope changes. Use assignments, dependencies and PR state for
 progress. Do not apply issue triage states to implementation PRs or automatically
 dispatch agents from labels. Outside contribution intake remains deferred.
 
-Only `ci:full` is confirmed here as implemented behavior. Inventory remote labels
-before adopting the proposed names; the forms deliberately set no automatic
-labels. Priority/area families and release tags are separate decisions.
+The owner-approved type/triage labels and `blocked` were added and read back on
+2026-09-18; existing labels, including `ci:full`, were preserved. The forms
+deliberately set no automatic labels. Inventory current labels before changes;
+priority/area families and release tags are separate decisions.
 
 ## Rollout and skills
 
-Local entrypoints and templates now describe the same lifecycle. Phase 6 still
-owns the live rollout: inspect GitHub identity/settings, review concrete label and
-rule changes, and rehearse existing-checkout and worktree tasks through issue,
-PR, approved merge and cleanup. No retrospective backlog rewrite is required.
-Before activation, keep new tracker content as task drafts unless publication is
-already authorized. Existing assigned work retains its original authority.
+Local entrypoints and templates describe the same lifecycle. The authorized live
+rollout exercises existing-checkout and worktree tasks through issue, draft PR,
+review, approved merge and cleanup. Final owner verification remains separate
+from individual merges. No retrospective backlog rewrite is required. Existing
+assigned work retains its original authority.
 
 Matt Pocock's [tracker guidance](https://github.com/mattpocock/skills/blob/main/skills/engineering/setup-matt-pocock-skills/issue-tracker-github.md)
 and [triage roles](https://github.com/mattpocock/skills/blob/main/skills/engineering/triage/SKILL.md)
-inform the proposed mapping; they are not installed policy. For later integration,
+informed the adopted mapping; they are not installed policy. For later integration,
 `type:fix` maps to bug, while maintenance and other types need an explicit mapping.
 Our human-action state does not approve a merge. Assess skills at the separately
 approved immutable revision, preserve local terminology and authority, and adapt
