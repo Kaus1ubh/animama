@@ -7,3 +7,4 @@ export * from "./lib/chat/model-provider-compatibility";
 export * from "./lib/chat/model-provider-native-tools";
 export * from "./lib/chat/runtimeRemountRecovery";
 export * from "./lib/chat/structured-response-stream";
+export * from "./chat/chat-failure";
