@@ -72,6 +72,20 @@ class GitSelectionTests(unittest.TestCase):
             validation.plan(self.root, receipt)
         return json.loads(receipt.read_text())
 
+    def test_main_full_selection_requires_positive_hosted_evidence(self):
+        self.write("uv.lock", "version = 1\n")
+        head = self.commit("high risk")
+        for accepted in (True, False, 1, None):
+            with patch("hosted_evidence.hosted_for_main", return_value={"accepted": accepted}) as evidence:
+                receipt = self.run_plan("push", {"ref": "refs/heads/main", "before": self.base, "after": head})
+            self.assertEqual(receipt["plan"]["mode"], "reused" if accepted is True else "full")
+            self.assertEqual(evidence.call_args.kwargs["baseline"], self.base)
+            self.assertEqual(evidence.call_args.kwargs["source_tree"], self.git("rev-parse", "HEAD^{tree}"))
+        with patch("hosted_evidence.hosted_for_main") as evidence:
+            self.run_plan("pull_request", self.event(head))
+            self.run_plan("workflow_dispatch", {})
+        evidence.assert_not_called()
+
     def test_complete_diff_includes_earlier_commits(self):
         self.write("docs/backend/a.md", "earlier\n")
         self.commit("first")
@@ -400,6 +414,35 @@ class GateReceiptTests(unittest.TestCase):
         ):
             code = validation.gate(output)
         return code, json.loads(output.read_text())
+
+    def test_reused_gate_rejects_missing_or_mismatched_evidence(self):
+        from hosted_evidence import WORKFLOW_PATH
+
+        selected = choose_plan("push", {"ref": "refs/heads/main"}, [], hosted_verified=True)
+        evidence = {
+            "accepted": True,
+            "source_commit": "a" * 40,
+            "source_tree": "b" * 40,
+            "baseline": "c" * 40,
+            "run_id": 10,
+            "run_attempt": 1,
+            "artifact_id": 20,
+            "artifact_digest": "sha256:" + "d" * 64,
+            "run_url": "https://github.com/owner/repo/actions/runs/10",
+            "workflow": WORKFLOW_PATH,
+        }
+        selection = {
+            "plan": selected,
+            "event": "push",
+            "reusable": False,
+            "source_commit": "a" * 40,
+            "source_tree": "b" * 40,
+            "base": "c" * 40,
+        }
+        for value in (None, {}, evidence | {"source_tree": "d" * 40}, evidence):
+            selection["hosted_evidence"] = value
+            self.selection.write_text(json.dumps(selection))
+            self.assertEqual(self.gate()[0], 0 if value == evidence else 1)
 
     def test_full_gate_requires_successful_hashed_command_receipts(self):
         code, receipt = self.gate()

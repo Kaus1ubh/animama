@@ -150,6 +150,19 @@ class ClassificationTests(unittest.TestCase):
 
 
 class SelectionTests(unittest.TestCase):
+    def test_hosted_reuse_is_only_for_verified_main_pushes(self):
+        changes = [modified("uv.lock")]
+        self.assertEqual(choose_plan("push", main_event(), changes, hosted_verified=True)["mode"], "reused")
+        for name, value, kwargs in (
+            ("pull_request", event(), {}),
+            ("workflow_dispatch", {}, {}),
+            ("schedule", {}, {}),
+            ("push", {"ref": "refs/heads/feature"}, {}),
+            ("push", main_event(), {"reusable": True}),
+            ("push", main_event(), {"diff_error": "missing"}),
+        ):
+            self.assertEqual(choose_plan(name, value, changes, hosted_verified=True, **kwargs)["mode"], "full")
+
     def test_local_code_evidence_replaces_expensive_hosted_work_on_pr_and_main(self):
         for path, mode in (("tests/test_chat.py", "backend"), ("src/frontend/web/src/ui/components/label.tsx", "web")):
             for name, value in (("pull_request", event()), ("push", main_event())):

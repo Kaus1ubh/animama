@@ -736,6 +736,32 @@ review higher-risk behavior changes inside an allowed file and use `ci:full`.
 Repository instructions, provenance evidence, executable/symlink/LFS inputs,
 configuration, dependency/build inputs and shared contracts remain full scope.
 
+### Reuse a full hosted PR result after merging
+
+A `main` push that would otherwise require full validation can use the `reused`
+profile when the latest PR validation run successfully executed the complete
+hosted contract within seven days and before the merge. The selector verifies
+GitHub run and artifact provenance, the artifact SHA-256 digest, successful full
+step/command receipts, and the tested merge commit's Git tree and parents.
+The tested tree must equal the new `main` tree (including the workflow and all
+validation scripts), and its base must equal the push's previous `main` commit.
+A green feature-branch check alone does not qualify. If `main` advanced since the
+PR run, the different baseline requires full validation even if files happen to
+match. Local assertions and previously reused results cannot supply this proof.
+
+The lightweight run still executes CI policy tests, source/evidence selection
+and the aggregate gate. Its receipt and job summary link the original full run
+and record the artifact digest. Missing, expired, stale, failed, reduced,
+ambiguous or mismatched evidence retains full validation. Initially this supports
+same-repository PRs merged with an ordinary merge commit; forks, squash/rebase
+merges and batched pushes retain full validation. `ci:full`, manual dispatch,
+release validation and scheduled checkpoints do not use this substitution.
+Existing focused documentation and reviewed-local profiles remain unchanged.
+
+PR title/body edits and edits after closing a PR do not run validation. Base
+branch edits still do. Ignored edits have isolated concurrency groups; meaningful
+PR runs and `main` pushes cannot cancel each other.
+
 ### Produce and review a local receipt
 
 Use the committed candidate and exact comparison baseline, expressed as full
