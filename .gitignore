@@ -158,3 +158,6 @@ content/included/**/.DS_Store
 
 # Immutable browser engine payloads now come from verified stores/dependencies.
 /src/frontend/web/public/onnx/
+
+# Ignore plan subdirectories; keep each ExecPlan and other direct files trackable.
+/docs/plans/*/*/
