@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write a Specification"
+  short_description: "Turn agreed intent into observable requirements"
+  default_prompt: "Use $to-spec to turn our discussion into a reviewable specification."

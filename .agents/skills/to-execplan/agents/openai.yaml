@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write an Execution Plan"
+  short_description: "Plan phased implementation and verification"
+  default_prompt: "Use $to-execplan to plan delivery of this agreed outcome."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review the Change"
+  short_description: "Review requirements, quality and validation evidence"
+  default_prompt: "Use $code-review to independently assess this defined change."

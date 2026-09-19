@@ -1,5 +1,5 @@
 name: Bounded task or sub-issue
-description: An implementation assignment, maintenance task or routine improvement.
+description: A plan phase, implementation assignment, maintenance task or routine improvement.
 body:
   - type: markdown
     attributes:
@@ -18,6 +18,12 @@ body:
     attributes:
       label: Parent issue and requirements
       description: Optional for standalone tasks. Link the parent and relevant requirement IDs; establish the native sub-issue relationship separately where available.
+  - type: input
+    id: phase
+    attributes:
+      label: Phase
+      description: For phased work, identify the phase number and outcome. Keep the full private plan and its path out of the issue. Leave blank for standalone work.
+      placeholder: "p1: Bounded phase outcome"
   - type: textarea
     id: scope
     attributes:
@@ -34,7 +40,7 @@ body:
     id: acceptance
     attributes:
       label: Acceptance and validation
-      description: Observable results, relevant checks and any owner or manual verification.
+      description: Observable results, relevant checks and any explicit owner or manual verification gate. Record the requirements this phase proves.
       placeholder: "- [ ] Condition and evidence needed to consider this task complete."
     validations:
       required: true
@@ -47,4 +53,4 @@ body:
     id: handoff
     attributes:
       label: Assignment and handoff
-      description: Record the responsible task or person, branch/base, workspace, PR, current result and safe resumption notes when available. Never include credential values.
+      description: Record the responsible task or person, branch/base, workspace, PR, reviewed source, findings and revisions, repair rounds used, validation and remaining gates. Never include private paths or credential values.

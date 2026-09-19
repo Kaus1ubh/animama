@@ -25,7 +25,7 @@ body:
     id: behavior
     attributes:
       label: Required behavior
-      description: Observable outcomes and relevant failure, cancellation, recovery and persistence behavior. Add requirement IDs only if useful.
+      description: Observable outcomes and relevant failure, cancellation, recovery and persistence behavior. Use stable requirement IDs for phased work.
   - type: textarea
     id: constraints
     attributes:
@@ -44,7 +44,18 @@ body:
       description: Blocking questions, dated choices and non-sensitive owner acceptance. Keep this current as the proposal becomes agreed work.
       value: "Status: Proposal\nOwner decision: Pending"
   - type: textarea
+    id: spec
+    attributes:
+      label: Spec
+      description: Identify the authoritative specification. When this parent contains it, write "This issue"; otherwise link the owning issue. A retained draft is a snapshot after publication.
+      value: "This issue."
+  - type: textarea
+    id: execplan
+    attributes:
+      label: ExecPlan
+      description: State "Private plan retained by maintainers" without a private URL or path. If no ExecPlan is needed, write "Not required" and explain why.
+  - type: textarea
     id: delivery
     attributes:
       label: Delivery links
-      description: Add sub-issues, dependencies and PRs as they exist. Also establish native issue relationships where available; text alone does not create them.
+      description: Add one issue per authorized phase, dependencies and the plan's PR in this repository. Establish native issue relationships where available; text alone does not create them. Keep private planning paths out of this issue.

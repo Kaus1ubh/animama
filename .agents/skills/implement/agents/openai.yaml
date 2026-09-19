@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implement the Plan"
+  short_description: "Deliver authorized work through review and PR"
+  default_prompt: "Use $implement to deliver the agreed outcome and open its PR."

@@ -4,9 +4,21 @@
 
 ## Related work
 
-<!-- Link the issue and relevant acceptance criteria. For an issue-free incidental
+<!-- Link the parent/phase issues and relevant acceptance criteria; identify delivered
+and deferred phases. Use one PR per plan in this repository. For an issue-free incidental
 correction, state why the exception applies. Close only issues fully delivered by
 this PR; a partial child PR must not close its parent. No private-plan prerequisite. -->
+
+## Spec
+
+<!-- Link the authoritative owning issue. A retained draft is a snapshot after
+publication. For an incidental correction with no spec, explain the exception. -->
+
+## ExecPlan
+
+<!-- State "Private plan retained by maintainers" without a private URL or path,
+or "Not required" with the reason for routine or incidental work. Keep the scope,
+approach and evidence understandable within this PR. -->
 
 ## Local validation
 
@@ -32,8 +44,12 @@ Write "None identified" only if true. -->
 
 ## Review and merge handoff
 
-<!-- Before requesting merge: record the exact head and relevant base, review
-findings/disposition, current checks and owner approval status. Default: ordinary
+<!-- Record independent phase/final review scope and source, supported findings,
+revisions or rejection reasons, repair rounds used (maximum two per scope), and
+remaining blockers or explicit gates. Reuse existing evidence without restarting
+the review count. Keep private plan paths and transcripts out of this PR.
+Before requesting merge: record the exact head and relevant base, current checks
+and owner approval status. Default: ordinary
 merge commit. Approval is pending until explicitly given for the candidate;
 AI review or a passing check is not owner approval. Refresh after material edits. -->
 
@@ -41,4 +57,5 @@ AI review or a passing check is not owner approval. Refresh after material edits
 
 - [ ] Relevant tests and documentation updated, or marked not applicable.
 - [ ] Applicable local checks completed; commands, results and source state recorded above.
+- [ ] Independent review completed within its bound; findings and revisions recorded above.
 - [ ] Unresolved failures and unperformed checks disclosed above.

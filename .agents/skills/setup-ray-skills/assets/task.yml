@@ -1,0 +1,29 @@
+name: Implementation task
+description: A bounded outcome or execution-plan phase.
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome and scope
+    validations:
+      required: true
+  - type: input
+    id: parent
+    attributes:
+      label: Owning spec, requirements and phase
+      description: Link the parent when one exists; identify the phase for planned work.
+  - type: textarea
+    id: approach
+    attributes:
+      label: Approach and dependencies
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance and validation
+    validations:
+      required: true
+  - type: textarea
+    id: handoff
+    attributes:
+      label: Progress and handoff
+      description: Workspace, review result, evidence, PR and remaining explicit gates.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git and GitHub Workflow"
+  short_description: "Deliver scoped changes through issues and PRs"
+  default_prompt: "Use $git-workflow for the authorized GitHub delivery step."
