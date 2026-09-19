@@ -1,18 +1,47 @@
 # Software development lifecycle
 
-This guide defines how Animama work moves from intent to verified code on `main`.
-The owner authorized GitHub workflow rollout on 2026-09-18 and accepted the
-ExecPlan threshold, ordinary-merge default and label mapping below. The real
-workspace rehearsals and final verification remain in progress; skill adoption
-is separate. Reading this guide grants no additional task or remote authority.
+This guide defines how Animama work moves from agreed intent to verified code
+on `main`. Humans direct intent and review specifications, execution plans and
+consequential choices. Agents implement, test and review the agreed work. The
+GitHub workflow is active. Reading this guide grants no additional task or remote
+authority.
+
+## Repository setup
+
+This is the repository contract consumed by the portable lifecycle skills.
+`setup-skills` establishes or updates it from maintained repository guidance and
+owner decisions. Skills read these values rather than guessing paths, commands
+or permissions. A missing value blocks only the work that depends on it; record
+the missing input and resolve it before that action.
+
+| Field                    | Value                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Setup status             | Ready for repository workflow. Maintainer spec/ExecPlan file writes additionally require authorized private planning context.                                                                                                                                                                                                                                                              |
+| Repository               | `raymond-van/animama`; operate in the selected checkout's Git root and verify its remote before tracker writes.                                                                                                                                                                                                                                                                            |
+| Default base             | `origin/main`; read the current base revision before creating or resuming a task branch.                                                                                                                                                                                                                                                                                                   |
+| Spec guide               | [SPECS.md](SPECS.md).                                                                                                                                                                                                                                                                                                                                                                      |
+| ExecPlan guide           | Maintainer `PLANS.md`, resolved from authorized private task context. It is not a public contributor prerequisite.                                                                                                                                                                                                                                                                         |
+| Planning root            | Private root supplied in authorized maintainer task context. New artifacts use `<scope>/<scope>-spec.md` and `<scope>/<scope>-execplan.md` under that root. Do not infer a sibling checkout or publish its path. Without private access, keep drafts in the conversation; routine issue work can proceed.                                                                                  |
+| Spec authority           | Private draft before setup; the owning GitHub issue after `workspace-setup` publishes and reads it back. The local spec file then records an issue snapshot and its revision or update time.                                                                                                                                                                                               |
+| Issue templates          | [Parent spec](.github/ISSUE_TEMPLATE/parent.yml), [phase or routine task](.github/ISSUE_TEMPLATE/task.yml), [local bug](.github/ISSUE_TEMPLATE/local-bug.yml).                                                                                                                                                                                                                             |
+| PR template              | [.github/pull_request_template.md](.github/pull_request_template.md).                                                                                                                                                                                                                                                                                                                      |
+| Checks and evidence      | Use [root verification](AGENTS.md#verification), the affected scoped guide and [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing). Hosted workflow: [validate-public.yml](.github/workflows/validate-public.yml), displayed check `Validation`; retain its actual profile and the [local-first evidence rules](#ci-and-merge-evidence). |
+| Development environment  | [Workspace selection](AGENTS.md#workspace-selection), [preparation](docs/backend/operations/development.md#preparing-a-task-workspace) and [cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks). Reuse a nondisruptive checkout; start a stack only when needed.                                                                                                  |
+| Domain guidance          | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md), [backend docs](docs/backend/README.md) and [frontend docs](docs/frontend/README.md).                                                                                                                                                                                                           |
+| Privacy                  | Full plans, approval history and draft specs remain private. Public issues, PRs and docs stand alone without private paths, links, transcripts, credentials or personal test data; see [repository boundaries](docs/architecture/repository-boundaries.md) and [security reporting](SECURITY.md).                                                                                          |
+| Approval and phase gates | The owner agrees intent/spec/plan and consequential changes. Authorized phases progress after required checks and review pass. Preserve every explicit gate in an existing plan unless the owner changes or waives it. Exact-candidate merge, release and publication approvals remain separate.                                                                                           |
+| Review policy            | [Bounded code review](#bounded-code-review): one full initial review per scope, at most two repair rounds, recorded findings/revisions and an explicit result.                                                                                                                                                                                                                             |
+| Names                    | [Names and labels](#names-and-labels); one task branch and PR per plan in each affected repository; phase commits use `<type>(<scope>)[p#]: <summary>`.                                                                                                                                                                                                                                    |
+| Labels                   | Use only the [documented mapping](#names-and-labels) after checking live availability. Labels confer no authority and do not dispatch agents.                                                                                                                                                                                                                                              |
+| Skill bundle             | The nine [skill entrypoints](#skill-entrypoints) are optional aids; repository documentation remains independently usable.                                                                                                                                                                                                                                                                 |
 
 ## Choose the right path
 
-| Work                                 | Path                                                                                                                                             |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Tiny incidental correction           | Branch → PR → applicable checks and review → approved merge. No issue or ExecPlan needed.                                                        |
-| Routine bounded change               | New or existing issue with acceptance and a brief approach → branch → PR → checks and review → approved merge.                                   |
-| Substantial, uncertain or risky work | Parent issue → agreed spec → ExecPlan → sub-issues where useful → branches and PRs → verification gates and approved merges → parent acceptance. |
+| Work                                 | Path                                                                                                                                                 |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tiny incidental correction           | Branch → PR → applicable checks and review → approved merge. No issue or ExecPlan needed.                                                            |
+| Routine bounded change               | New or existing issue with acceptance and a brief approach → branch → PR → checks and review → approved merge.                                       |
+| Substantial, uncertain or risky work | Intent → agreed spec draft → reviewed ExecPlan → workspace and phase issues → phased implementation and review → PR → approved merge and acceptance. |
 
 Use judgment about uncertainty, impact, coordination and recovery, not file count,
 line count or duration alone. Even a short migration or security change may need
@@ -21,23 +50,29 @@ A new conversation does not automatically require either.
 
 ## Artifact ownership
 
-| Artifact                   | Responsibility                                                                                                        | Guide or template                                                                              |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Spec                       | Agreed problem, behavior, constraints and acceptance; lives in the owning issue, or parent issue for substantial work | [SPECS.md](SPECS.md), [parent form](.github/ISSUE_TEMPLATE/parent.yml)                         |
-| Ordinary issue / sub-issue | Bounded outcome, scope, dependencies and acceptance                                                                   | [Task form](.github/ISSUE_TEMPLATE/task.yml), [bug form](.github/ISSUE_TEMPLATE/local-bug.yml) |
-| ExecPlan                   | Implementation strategy, phased execution, discoveries, recovery and verification evidence                            | Private maintainer `PLANS.md`; full plans remain private                                       |
-| PR                         | Reviewable changes and evidence for the exact candidate                                                               | [PR template](.github/pull_request_template.md)                                                |
-| Durable documentation      | Current behavior, shared meanings and significant architectural decisions                                             | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md)     |
+| Artifact                   | Responsibility                                                                                             | Guide or template                                                                              |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Spec                       | Agreed problem, behavior, constraints and acceptance; drafted privately, then owned by the published issue | [SPECS.md](SPECS.md), [parent form](.github/ISSUE_TEMPLATE/parent.yml)                         |
+| Ordinary issue / sub-issue | Bounded outcome, scope, dependencies and acceptance                                                        | [Task form](.github/ISSUE_TEMPLATE/task.yml), [bug form](.github/ISSUE_TEMPLATE/local-bug.yml) |
+| ExecPlan                   | Implementation strategy, phased execution, discoveries, recovery and verification evidence                 | Private maintainer `PLANS.md`; full plans remain private                                       |
+| PR                         | Reviewable changes and evidence for the exact candidate                                                    | [PR template](.github/pull_request_template.md)                                                |
+| Durable documentation      | Current behavior, shared meanings and significant architectural decisions                                  | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md)     |
 
-A phase is a verification milestone, a sub-issue an assignment, and a PR a proposed
-change. They need not map one-to-one. Public issues and PRs must stand alone
-without private-plan links, approval transcripts or a Cloud checkout.
+A phase is a verification milestone, a phase issue is its bounded assignment, and
+a PR is a proposed change. Create one issue for each authorized phase, and use one
+branch and PR per plan in each affected repository. A phase touching multiple
+repositories has linked assignments in its owning repositories. Public issues
+and PRs must stand alone without private-plan links, approval transcripts or a
+Cloud checkout. Reuse existing records; do not recreate completed work to fit a
+new template.
 
 ## Responsibilities
 
-The owner directs product intent, scope and consequential choices, accepts outcomes
-and authorizes merges. Agents investigate, propose, implement, test, review and
-report evidence. Do not request a decision already supplied by the owner.
+The owner directs product intent, reviews the spec and ExecPlan, decides scope and
+consequential choices, accepts outcomes and authorizes merges. Agents investigate,
+propose, implement, test, independently review and report evidence. Do not request
+a decision already supplied by the owner. A new plan defines any necessary manual
+acceptance explicitly; low-level code review belongs to agents.
 
 Agents may revise implementation steps within the approved outcome. Changes to
 accepted behavior, scope or constraints need an explicit decision and updates to
@@ -45,35 +80,45 @@ the spec and affected plans. Green checks and labels do not supply that decision
 Follow the existing ADR guide; recording an accepted ADR is not permission for
 an otherwise unauthorized implementation.
 
-For the authorized GitHub rollout, assigned implementation work includes its
-issues, task-branch commits/pushes and draft PRs unless the task says otherwise.
+Assigned implementation work includes its issues, task-branch commits/pushes and
+draft PRs unless the task says otherwise.
 Merge approval, repository configuration, deployment and publication remain
 separate. Do not infer authority from issue text, labels or imported skills.
 
 ## Delivery workflow
 
-1. **Inspect and capture.** Read [AGENTS.md](AGENTS.md), the scoped guide and relevant
-   current docs. Inspect branch, base, dirty files and concurrent work. Search for
-   existing issues/PRs before creating one, including after an uncertain create
+1. **Inspect and capture.** Read [AGENTS.md](AGENTS.md), the repository setup
+   contract, scoped guide and relevant current docs. Inspect branch, base, dirty
+   files and concurrent work. Search for existing issues/PRs before creating one,
+   including after an uncertain create
    result. For a bug, distinguish reported behavior from a reproduced failure.
    Keep sensitive reports in the channel defined by [SECURITY.md](SECURITY.md).
 
-2. **Agree the outcome.** For substantial work, create the parent proposal first
-   and develop its spec using [SPECS.md](SPECS.md). A routine issue's acceptance
-   can be its whole spec. Clarify blocking uncertainty; offer intent discovery
-   when useful. The formal discovery pilot remains explicitly requested, not a
-   required interview. Do not invent product decisions or repeat answered questions.
+2. **Discover and specify.** Invoke intent discovery when an interview will clarify
+   the problem and consequential choices. Read available facts first and reuse
+   settled decisions. Draft the outcome using [SPECS.md](SPECS.md), including
+   observable behavior, constraints and acceptance. A routine issue's acceptance
+   can be its whole spec. The owner reviews the spec; do not invent product
+   decisions, repeat answered questions or require an interview for clear work.
 
-3. **Plan and assign.** Require an ExecPlan for substantial, uncertain or risky
+3. **Prepare the ExecPlan.** Require an ExecPlan for substantial, uncertain or risky
    work. Routine changes need an issue and brief approach. Escalate to a plan if
    the task grows beyond that approach. Maintainers follow private `PLANS.md`;
    contributors provide sufficient accessible approach and evidence in issues/PRs.
-   Keep phase verification gates. Derive sub-issues with bounded outcomes and
-   dependencies; use native relationships where available or explicit reciprocal
-   links otherwise. Readiness requires resolved blocking decisions, inputs,
-   validation and authorization. Claim concurrent work before implementing it.
+   Reference the accepted spec or dated task decision and define phase outcomes,
+   dependencies, verification and recovery. Preserve every explicit gate in an
+   existing plan. The owner reviews the plan before implementation; settled
+   authorization remains valid. Creating a spec or plan does not start setup or
+   implementation. Readiness requires resolved blocking decisions, inputs,
+   validation and authorization.
 
-4. **Choose the workspace.** Follow [workspace selection](AGENTS.md#workspace-selection)
+4. **Set up authorized work.** `implement` first invokes `workspace-setup` to
+   inspect or resume the task. Publish the accepted non-sensitive spec to its
+   owning issue, read it back, and mark the private draft as an issue snapshot.
+   Create or reuse one issue per authorized phase with requirements, acceptance
+   and dependencies; use native relationships where available or reciprocal
+   links otherwise. Claim concurrent work before implementation. Follow
+   [workspace selection](AGENTS.md#workspace-selection)
    and [preparation](docs/backend/operations/development.md#preparing-a-task-workspace).
    Reuse an existing checkout/stack when nondisruptive; isolate conflicting or
    disruptive work with a worktree and, when useful, a named stack. Test chats do
@@ -81,24 +126,37 @@ separate. Do not infer authority from issue text, labels or imported skills.
    stack. Record branch/base, checkout and any stack URL. Use ordinary Git,
    package-manager, model-acquisition and `reset.sh` commands, plus the existing
    [stack skill](.agents/skills/animama-local-stacks/SKILL.md) when applicable.
-   Keep shared credentials external and worktree configuration nonsecret; the
-   preparation guide owns file selection, inherited overrides and resumption.
+   Keep one branch and PR per plan per affected repository. Keep shared credentials
+   external and worktree configuration nonsecret; the preparation guide owns file
+   selection, inherited overrides and resumption. Setup is idempotent: reconcile
+   uncertain results before creating another issue, branch, worktree or stack.
 
-5. **Implement and verify.** Keep changes scoped and reviewable. Derive meaningful
-   tests from agreed behavior, including relevant failure and recovery cases;
-   do not merely reproduce implementation details in assertions. Prefer a separate
-   review context for substantial or sensitive work. Update current docs and
-   contracts; update the glossary or ADRs only when warranted. Run the applicable
+5. **Implement, test and review each phase.** Work only on authorized phases. Use
+   TDD for testable behavior: establish the failing behavior, make the smallest
+   passing change, then simplify while keeping tests green. Do not invent tests
+   for documentation or mirror implementation details in assertions. Use relevant
+   failure and recovery cases, and explain when a failing test cannot represent
+   the change. Run independent [code review](#bounded-code-review) after each phase.
+   Update current docs and contracts; update the glossary or ADRs only when
+   warranted. Run the applicable
    [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing).
    Fix failures and rerun affected checks after edits. Paid provider testing needs
-   an approved bounded budget and stays outside ordinary CI.
+   an approved bounded budget and stays outside ordinary CI. Record the evidence,
+   review disposition and phase commit. Continue to the next authorized phase
+   when requirements, checks and review pass, unless an explicit gate requires a
+   human action. A request for specific phases does not authorize later phases.
 
-6. **Open and review the PR.** Commit only task changes. Use explicit repository,
-   base and head; create/update a draft PR using the template. Link the issue or
-   explain the incidental-change exception. Use closing references only for work
+6. **Complete review and open the PR.** After the requested plan work, perform a
+   final independent review of combined acceptance and integration. Reuse unchanged
+   passing evidence; do not reopen cleared findings without new evidence. Commit
+   only task changes. Once required checks and review pass, `implement`
+   automatically creates or updates the plan's draft PR using the template and
+   explicit repository, base and head. Link the issues or explain the
+   incidental-change exception. Use closing references only for work
    fully delivered by that PR. Record exact source/baseline, local results, actual
    CI scope, relevant UI evidence and limitations. Distinguish browser, provider,
-   native and physical checks. Resolve findings or record the owner's disposition.
+   native and physical checks. Disclose deferred phases and any explicit outstanding
+   gate; a partial delivery cannot claim full-plan acceptance.
    Make the PR ready and obtain the required successful checks for its candidate.
 
 7. **Approve and merge.** Present the PR, exact head, relevant base, checks, review
@@ -111,12 +169,38 @@ separate. Do not infer authority from issue text, labels or imported skills.
 
 8. **Accept and hand off.** Close work against its acceptance criteria, not merely
    because PRs merged. Record remaining limitations, follow-ups and retained
-   resources. Preserve phase verification and release gates. Refresh local main
-   only when clean and unoccupied, using a safe fast-forward. Follow
+   resources. Preserve explicit phase verification and release gates. Refresh
+   local main only when clean and unoccupied, using a safe fast-forward. Follow
    [task-scoped cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks):
    stop only task-owned services, retain useful data, inspect ignored/untracked
    files before removing a worktree, and avoid global pruning or forced deletion.
    A coordinated development-data purge is for a concrete need, never a ritual.
+
+## Bounded code review
+
+Use independent subagents for code analysis and applicable read-only lint, type,
+formatting and other checks. Reviewers do not run formatters that rewrite files.
+State the exact baseline, source state and review scope, including uncommitted
+changes when requested. Review acceptance, correctness, security and the existing
+engineering standards: simple solutions, clear boundaries, readable code, useful
+reuse and no unnecessary abstraction or code bloat. A reviewer may report no
+findings. Style preferences and speculative improvements do not block acceptance.
+
+For each phase and the final plan scope, perform one full initial review and at
+most two repair rounds. Each round covers verified findings and regressions caused
+by the revisions; it is not a fresh search for more optional work. Reviewers report
+evidence and do not edit. The implementation agent verifies each finding, applies
+the smallest justified fix, or records why it is rejected or outside scope, then
+reruns affected checks. A passing check alone does not dismiss a supported defect.
+
+Record `Code Review #1 Findings` and `Code Review #1 Revisions` in the phase's
+ExecPlan section, including the reviewed source, finding evidence, disposition,
+changed files and validation. Number subsequent review records and retain the
+repair-round count across resumption. For work without an ExecPlan, keep the same
+record in the task/PR evidence. A scope passes when its acceptance and required
+checks pass and no supported blocking finding remains. Stop and report unresolved
+blockers after two repair rounds; do not continue implementation past a failed
+gate, reset the count with a fresh agent, or call an unresolved issue accepted.
 
 ## CI and merge evidence
 
@@ -156,9 +240,19 @@ their own authorization; the current limitation does not authorize them.
 
 ## Names and labels
 
-Use `<type>/<short-kebab-case-task>` for new branches and `<type>: <summary>` or
-`<type>(<scope>): <summary>` for PR titles. Keep existing shared branch names.
-Use one primary purpose; matching labels on PRs are optional.
+Use `<type>/<scope>/<short-kebab-case-task>` for new branches and
+`<type>(<scope>): <summary>` for PR titles and ordinary commit subjects. Include a
+short lowercase kebab-case scope whenever the affected subsystem or area is clear,
+such as `chat`, `models` or `workflow`. For example, `fix/chat/reconnect` pairs with
+`fix(chat): restore chat after reconnect`. When no meaningful scope is defined,
+use `<type>/<short-kebab-case-task>` and `<type>: <summary>`; do not invent one.
+Keep existing shared branch names.
+
+Commits associated with an ExecPlan phase use `<type>(<scope>)[p#]: <summary>`,
+for example `feat(chat)[p1]: persist the selected chat`. Without a meaningful
+scope, use `<type>[p#]: <summary>`. Keep phase commits focused on their recorded
+phase; branch and PR names do not need a phase marker. Use one primary purpose;
+matching labels on PRs are optional.
 
 | Type       | Purpose                                  | Issue label     |
 | ---------- | ---------------------------------------- | --------------- |
@@ -190,24 +284,31 @@ new information or scope changes. Use assignments, dependencies and PR state for
 progress. Do not apply issue triage states to implementation PRs or automatically
 dispatch agents from labels. Outside contribution intake remains deferred.
 
-The owner-approved type/triage labels and `blocked` were added and read back on
-2026-09-18; existing labels, including `ci:full`, were preserved. The forms
-deliberately set no automatic labels. Inventory current labels before changes;
-priority/area families and release tags are separate decisions.
+The forms deliberately set no automatic labels. Inventory current labels before
+changes; priority/area families and release tags are separate decisions.
 
-## Rollout and skills
+## Skill entrypoints
 
-Local entrypoints and templates describe the same lifecycle. The authorized live
-rollout exercises existing-checkout and worktree tasks through issue, draft PR,
-review, approved merge and cleanup. Final owner verification remains separate
-from individual merges. No retrospective backlog rewrite is required. Existing
-assigned work retains its original authority.
+Invoke the step needed for the current task; completed intent or artifacts can be
+reused. Each skill reads the repository setup contract, and unavailable setup
+values are resolved through `setup-skills` before dependent work.
 
-Matt Pocock's [tracker guidance](https://github.com/mattpocock/skills/blob/main/skills/engineering/setup-matt-pocock-skills/issue-tracker-github.md)
-and [triage roles](https://github.com/mattpocock/skills/blob/main/skills/engineering/triage/SKILL.md)
-informed the adopted mapping; they are not installed policy. For later integration,
-`type:fix` maps to bug, while maintenance and other types need an explicit mapping.
-Our human-action state does not approve a merge. Assess skills at the separately
-approved immutable revision, preserve local terminology and authority, and adapt
-only after the adoption review. No new skill, helper or enforcement service is
-required to follow this lifecycle.
+| Skill              | Purpose                                                                                       |
+| ------------------ | --------------------------------------------------------------------------------------------- |
+| `setup-skills`     | Establish or update the repository setup contract and local authoring guidance.               |
+| `intent-discovery` | Interview to clarify raw ideas, users, scope and consequential choices.                       |
+| `to-spec`          | Turn agreed intent into observable requirements and acceptance.                               |
+| `to-execplan`      | Turn the accepted discussion/spec into a phased delivery and verification plan.               |
+| `workspace-setup`  | Create or resume issues, branch and the necessary workspace/environment.                      |
+| `implement`        | Run setup, implement authorized phases, invoke TDD/review and open the PR after final checks. |
+| `tdd`              | Establish meaningful failing behavior, implement and simplify.                                |
+| `code-review`      | Independently check requirements and quality within the bounded review policy.                |
+| `git-workflow`     | Prepare commits and PR evidence, and carry out an explicitly approved merge.                  |
+
+The usual sequence is `intent-discovery` → `to-spec` → `to-execplan` → `implement`.
+`implement` invokes `workspace-setup`, uses `tdd`, and calls `code-review` after
+each phase and at completion. `git-workflow` handles the associated GitHub work.
+Skills do not expand authorization or bypass Plan mode, private planning boundaries
+or explicit gates. The skill pilot retains its separate verification gate;
+installation and static validation do not establish pilot completion or runtime
+discovery. These skills are optional tools, not build or contributor prerequisites.

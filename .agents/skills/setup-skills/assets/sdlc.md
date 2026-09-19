@@ -1,0 +1,88 @@
+# Software development lifecycle
+
+Humans direct intent, consequential requirements and acceptance. Agents investigate,
+plan, implement, test, review and provide evidence within that agreement. Do not
+repeat decisions already supplied by the owner. A skill does not create authority
+to change scope, repository settings, publish, deploy or merge.
+
+## Repository setup
+
+Setup status: {{READY_SCOPE_AND_UNRESOLVED_PREREQUISITES}}
+
+| Field                    | Configured value                                                                                                                    |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Repository               | {{REPOSITORY_IDENTITY}}                                                                                                             |
+| Default base             | {{DEFAULT_BASE}}                                                                                                                    |
+| Spec guide               | {{SPEC_GUIDE}}                                                                                                                      |
+| ExecPlan guide           | {{PLAN_GUIDE}}                                                                                                                      |
+| Planning root            | {{PLANNING_ROOT_AND_ACCESS_REQUIREMENTS}}                                                                                           |
+| Artifact names           | New `<scope>/<scope>-spec.md` and `<scope>/<scope>-execplan.md` under the planning root; retain existing filenames.                 |
+| Spec authority           | Agreed draft before publication; owning issue afterward, with the local file a dated snapshot. {{EXISTING_AUTHORITY_EXCEPTIONS}}    |
+| Issue templates          | {{ISSUE_TEMPLATES}}                                                                                                                 |
+| PR template              | {{PR_TEMPLATE}}                                                                                                                     |
+| Checks and evidence      | {{COMMANDS_WITH_WORKING_DIRECTORIES_AND_ACTUAL_CI_POLICY}}                                                                          |
+| Development environment  | {{ENVIRONMENT_PROCEDURE_OR_NONE_REQUIRED}}                                                                                          |
+| Domain guidance          | {{GLOSSARY_AND_ADR_LOCATIONS}}                                                                                                      |
+| Privacy                  | {{PUBLIC_PRIVATE_BOUNDARIES}}                                                                                                       |
+| Approval and phase gates | {{EXISTING_GATES_AND_MERGE_AUTHORITY}}                                                                                              |
+| Review policy            | One full initial review, at most two repair rounds; preserve counts across resumption.                                              |
+| Names                    | {{BRANCH_AND_NONPHASE_COMMIT_NAMES}}; phase commits `<type>(scope)[p#]: summary`.                                                   |
+| Labels                   | {{EXISTING_LABEL_MAPPING_OR_NO_REQUIRED_LABELS}}                                                                                    |
+| Skill bundle             | `setup-skills`, `intent-discovery`, `to-spec`, `to-execplan`, `workspace-setup`, `implement`, `tdd`, `code-review`, `git-workflow`. |
+
+Maintain this contract when the configured workflow changes. Execution skills
+consume it instead of discovering alternatives. Repair missing prerequisites
+through `setup-skills`; do not invent paths or claim unavailable checks ran.
+
+## Choose the appropriate path
+
+Tiny incidental corrections may omit an issue and ExecPlan. Routine bounded work
+uses an issue with acceptance and a brief approach. Substantial, uncertain or risky
+work needs an agreed spec and ExecPlan. Judge impact, coordination and recovery,
+not file count or duration. Escalate routine work if its approach no longer fits.
+
+## Delivery
+
+Use `intent-discovery` when intent needs clarification. `to-spec` prepares the agreed
+outcome; `to-execplan` describes its delivery when needed. Review these artifacts
+before invoking `implement`. An explicit instruction may already provide agreement.
+Unresolved consequential questions block dependent implementation.
+
+`implement` starts with `workspace-setup`, which publishes the agreed spec, prepares
+phase issues and chooses a safe workspace. Use one issue per authorized phase and
+one branch/PR per plan per affected repository by default. Reuse existing records;
+do not create retrospective work merely to fit this convention.
+
+Implement meaningful behavioral slices using `tdd`. Preserve architecture and
+unrelated work. Update current docs/contracts. Run applicable local checks, then
+independent `code-review` after each phase. Record evidence and phase commits.
+Advance automatically after required evidence and gates pass within the authorized
+phase range. Preserve every explicit gate in existing plans.
+
+Review the final integration against overall acceptance, reusing valid phase
+evidence. `git-workflow` completes pre-push checks and opens/updates the PR. Present
+the exact candidate, actual CI, review outcome and limitations for merge approval.
+Default to an ordinary merge commit; recheck the approved candidate and use head
+matching where supported. Read back the resulting merge and post-merge checks.
+Close work against acceptance, then perform task-scoped handoff and cleanup.
+
+## Review and quality
+
+Prefer clear ownership, appropriate reuse and the simplest solution meeting the
+requirements. Avoid speculative abstractions, hidden failures and tests that copy
+implementation details. Reviewers identify concrete violations with evidence;
+zero findings is valid and subjective suggestions do not block.
+
+Record `Code Review #1 Findings`, then the implementing agent's verified dispositions
+and fixes in `Code Review #1 Revisions`. Allow at most two repair rounds after the
+initial comprehensive review. Follow-ups target fixes and their regression risks,
+not a new general audit. Persist numbering and dispositions across resumptions.
+Remaining blockers at the limit stop progression; they are not waived.
+
+## Evidence and boundaries
+
+Separate local checks, hosted CI, rendered behavior, provider/native tests and human
+acceptance. Report exact source, commands, results and unperformed checks. Never
+impersonate owner review or assume written policy is remotely enforced. Public
+issues/PRs stand alone without private transcripts, credentials or private-plan links.
+Merge, deployment, release and publication are separate outcomes.

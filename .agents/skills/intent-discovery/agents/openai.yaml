@@ -1,0 +1,4 @@
+interface:
+  display_name: "Discover Intent"
+  short_description: "Clarify an idea before writing its specification"
+  default_prompt: "Use $intent-discovery to clarify this idea and its success criteria."

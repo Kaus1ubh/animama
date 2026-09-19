@@ -6,12 +6,28 @@ when each is needed and who can authorize work.
 
 ## Where a spec lives
 
-Use the owning GitHub issue body, or the parent issue for substantial work. Start
-with the [parent form](.github/ISSUE_TEMPLATE/parent.yml); it can begin as a proposal
-with open questions. For routine work, the [task form](.github/ISSUE_TEMPLATE/task.yml)
-or [bug form](.github/ISSUE_TEMPLATE/local-bug.yml) may contain enough acceptance
-without a separate specification. Before tracker activation, draft the same content
-in the authorized task record; do not create a parallel local issue tracker.
+Draft a spec before creating its implementation issues. The
+[repository setup contract](SDLC.md#repository-setup) defines the planning
+destination. For maintainer work, use `<scope>/<scope>-spec.md` under the private
+planning root supplied in the authorized task context, beside
+`<scope>-execplan.md` when an ExecPlan is needed. Do not guess that root, write
+private planning artifacts into this repository, or expose its location publicly.
+If the private destination is unavailable, keep the draft in the conversation;
+public contribution never requires a private checkout.
+
+`to-spec` prepares the draft; it does not create issues. When implementation is
+authorized, `workspace-setup` publishes the agreed, non-sensitive spec in the
+owning GitHub issue, using a parent issue for substantial work and the
+[parent form](.github/ISSUE_TEMPLATE/parent.yml) content contract. Read back the
+published issue. From that point the issue is authoritative and the local spec
+file is a snapshot: record its source URL and captured revision or update time,
+and refresh it from the issue before resuming. Do not edit the snapshot as a
+competing source of requirements.
+
+For routine work, the [task form](.github/ISSUE_TEMPLATE/task.yml) or
+[bug form](.github/ISSUE_TEMPLATE/local-bug.yml) may contain the whole spec and
+brief approach. Reuse an existing agreed issue when the outcome still fits it;
+no extra draft or discovery interview is required.
 
 This file is authoring guidance, not a collection of feature specs. Keep one
 authoritative spec per outcome. Implementation plans and sub-issues may summarize
@@ -33,15 +49,18 @@ specs must stand alone without private plans, credentials or personal test data.
 - State unknowns rather than inventing decisions. Use focused clarification;
   intent discovery is useful when uncertainty warrants it, not mandatory ceremony.
 
-User stories and Given/When/Then examples are optional. Do not restate every
-requirement in several formats. Use stable IDs such as `R1` only when they help
-link sub-issues and acceptance evidence.
+Use user stories when they clarify an actor and goal, and Given/When/Then examples
+when they make behavior easier to verify. Do not restate every requirement in
+several formats. Use stable IDs such as `R1` for phased work so phase issues and
+acceptance evidence can identify the requirements they cover.
 
 ## Template
 
-Use these sections in the parent issue. The YAML form presents the same concepts
-as entry fields. Agents creating or editing issues through tools follow this
-content contract too; browser field validation is not proof of readiness.
+Use these sections in the draft and, after publication, in the owning issue. The
+YAML parent form presents the same concepts as entry fields. Agents creating or
+editing issues through tools follow this content contract too; browser field
+validation is not proof of readiness. A local snapshot additionally records its
+issue URL and captured revision or update time.
 
 ```markdown
 # Desired outcome
@@ -100,11 +119,14 @@ explicit task instruction. Record that decision without publishing private
 transcripts. Blocking questions, inputs and validation must be resolved before
 dependent implementation. Assign a bounded research task if uncertainty remains.
 
-When creating an ExecPlan, record the source issue and the accepted revision or
-dated decision, and include enough approved context for independent resumption.
-Material requirement changes return to the owner; update the issue, affected
-plan, sub-issues and tests together. Agents may revise implementation details
-within the accepted scope without repeating product approval.
+When creating an ExecPlan, record the accepted draft and dated decision, or the
+source issue and accepted revision if already published. Include enough approved
+context for independent resumption. Workspace setup adds the published issue
+reference to the plan and snapshot. Material requirement changes return to the
+owner; update the authoritative spec, snapshot, affected plan, phase issues and
+tests together. Agents may revise implementation details within the accepted
+scope without repeating product approval. Retain any explicit verification gates
+already recorded in a plan unless the owner changes or waives them.
 
 Close the parent only after its acceptance and required owner verification, or
 an explicit cancellation/deferral decision. Merged sub-issues alone are insufficient.

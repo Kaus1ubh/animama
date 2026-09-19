@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test-Driven Development"
+  short_description: "Implement observable behavior with red-green cycles"
+  default_prompt: "Use $tdd to implement this behavior through meaningful tests."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare a Task Workspace"
+  short_description: "Prepare issues, branch and development workspace"
+  default_prompt: "Use $workspace-setup to prepare the authorized implementation workspace."

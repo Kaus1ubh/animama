@@ -10,13 +10,42 @@ scanner_pins = "scripts/repository-boundary/scanner-pins.json"
 [[groups]]
 id = "agent-guidance"
 owner = "public"
-rationale = "Reviewed public files from the immutable source export."
+rationale = "Reviewed agent guidance from the source export and explicit current-file amendments."
 paths = [
   ".agents/skills/animama-local-stacks/SKILL.md",
   ".agents/skills/animama-local-stacks/agents/openai.yaml",
   ".agents/skills/docs-sync/SKILL.md",
   ".agents/skills/docs-sync/agents/openai.yaml",
   ".agents/skills/docs-sync/references/doc-coverage-checklist.md",
+  ".agents/skills/code-review/SKILL.md",
+  ".agents/skills/code-review/agents/openai.yaml",
+  ".agents/skills/git-workflow/SKILL.md",
+  ".agents/skills/git-workflow/agents/openai.yaml",
+  ".agents/skills/implement/SKILL.md",
+  ".agents/skills/implement/agents/openai.yaml",
+  ".agents/skills/intent-discovery/SKILL.md",
+  ".agents/skills/intent-discovery/agents/openai.yaml",
+  ".agents/skills/setup-skills/SKILL.md",
+  ".agents/skills/setup-skills/agents/openai.yaml",
+  ".agents/skills/setup-skills/assets/adr-guide.md",
+  ".agents/skills/setup-skills/assets/adr-template.md",
+  ".agents/skills/setup-skills/assets/glossary.md",
+  ".agents/skills/setup-skills/assets/parent.yml",
+  ".agents/skills/setup-skills/assets/plans.md",
+  ".agents/skills/setup-skills/assets/pull-request.md",
+  ".agents/skills/setup-skills/assets/sdlc.md",
+  ".agents/skills/setup-skills/assets/specs.md",
+  ".agents/skills/setup-skills/assets/task.yml",
+  ".agents/skills/setup-skills/references/sources.md",
+  ".agents/skills/setup-skills/references/workflow-contract.md",
+  ".agents/skills/tdd/SKILL.md",
+  ".agents/skills/tdd/agents/openai.yaml",
+  ".agents/skills/to-execplan/SKILL.md",
+  ".agents/skills/to-execplan/agents/openai.yaml",
+  ".agents/skills/to-spec/SKILL.md",
+  ".agents/skills/to-spec/agents/openai.yaml",
+  ".agents/skills/workspace-setup/SKILL.md",
+  ".agents/skills/workspace-setup/agents/openai.yaml",
 ]
 
 [[groups]]

@@ -1,7 +1,7 @@
 # Domain documentation
 
-This guide supports an explicit intent-discovery pilot: when the user requests
-discovery, clarify the problem, terms and consequential choices before implementation.
+When the user requests intent discovery, clarify the problem, terms and
+consequential choices before implementation.
 It is not a compulsory interview, document-writing step or skill dependency for
 every change. Follow the [root agent guide](../../AGENTS.md) and relevant scoped
 guides; this page does not replace their instructions or approval boundaries.
@@ -32,8 +32,10 @@ Each artifact has a distinct job:
 - **Private ExecPlan:** execution steps, phases, approval history and validation
   evidence for substantial, uncertain or risky work. Full plans remain privately
   owned, including plans for local code.
-- **Issue specification:** agreed intent, behavior, constraints and acceptance;
-  the parent issue owns it for substantial work once tracker rollout is enabled.
+- **Specification:** agreed intent, behavior, constraints and acceptance. Draft
+  it privately in the configured planning destination; workspace setup publishes
+  the agreed spec in the owning issue, or parent issue for substantial work.
+  The issue then owns the spec and the private file becomes a dated snapshot.
   [SPECS.md](../../SPECS.md) defines authoring; [SDLC.md](../../SDLC.md) defines
   delivery. Routine issues need a brief approach, not a separate ExecPlan.
 
@@ -53,6 +55,7 @@ leave private execution evidence and approvals with their planning owner. Cite
 publicly available evidence where possible, without exposing private material.
 
 Reading this guide grants no publication, GitHub mutation or implementation
-authority. Do not automatically create issues, labels or comments. In Plan mode,
-discuss proposed artifacts without writing files or changing GitHub state. In an
-implementation task, follow its authorized scope and existing verification gates.
+authority. In an authorized implementation task, follow
+[SDLC.md](../../SDLC.md) for issue creation, workspace setup, implementation and
+review. Preserve every explicit verification gate in an existing plan. In Plan
+mode, discuss proposed artifacts without writing files or changing GitHub state.

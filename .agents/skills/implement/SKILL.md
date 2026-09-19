@@ -1,0 +1,55 @@
+---
+name: implement
+description: Execute an authorized discussion, spec or ExecPlan using workspace setup, behavior-focused TDD, bounded independent review, phase commits and automatic PR handoff. Supports an explicitly limited phase range.
+---
+
+# Implement the agreed outcome
+
+Read the [workflow contract](../setup-skills/references/workflow-contract.md).
+Resolve the identified discussion/spec/plan and requested scope. An explicit request
+to implement a sufficiently resolved outcome supplies implementation authority;
+do not ask for the same approval again. Stop dependent work for unresolved product
+decisions, missing setup prerequisites or an explicit existing gate. In Plan mode,
+produce an implementation proposal without executing this workflow's mutations.
+
+Invoke `workspace-setup` first, including on resume so existing state is verified.
+Use the configured brief approach for routine work; create an ExecPlan through
+`to-execplan` before proceeding if scope becomes substantial, uncertain or risky.
+
+## Execute each authorized phase
+
+Record its starting revision and intended change boundary. Inspect relevant scoped
+instructions, architecture, contracts and existing patterns. Use `tdd` for changed
+behavior and record warranted exceptions. Prefer the simplest implementation that
+meets requirements. Reuse suitable abstractions without adding speculative layers.
+Update current documentation/contracts when behavior changes.
+
+Run applicable checks before review. Fix implementation failures, rerunning affected
+checks rather than unchanged expensive suites. Delegate bounded independent work
+where useful, then integrate and inspect its actual result. Preserve unrelated edits.
+
+Invoke `code-review`. Record its Findings; verify each finding before making fixes.
+Add matching Revisions with disposition, reasons, changes and verification. Follow
+the review's targeted recheck mode and persistent budget: one full initial review,
+at most two repair rounds. Do not reset the budget on resumption or relabel a failed
+review as passing. Escalate remaining concrete blockers at the limit.
+
+Commit verified phase changes through `git-workflow` using
+`<type>(scope)[p#]: summary` and record commits/evidence in the plan. If an existing
+gate controls committing, honor it. Mark the phase complete only when its required
+checks, review and explicit gates are satisfied. Distinguish agent readiness from
+pending human acceptance. Advance automatically within the authorized phase range
+when no gate remains; do not start unrequested phases.
+
+## Finish the requested scope
+
+For a full plan, run `code-review` in final integration mode: assess cross-phase
+behavior and all accepted requirements, reusing valid phase evidence. For a phase
+subset, review the completed scope and its integration without claiming the rest
+of the plan is delivered. Apply the same bounded repair policy.
+
+Use `git-workflow` to finish scoped commits, complete applicable pre-push validation,
+push and create/update the PR automatically. Follow the actual CI policy and report
+the exact candidate, results, review dispositions, outstanding gates and limitations.
+Use closing references only for fully delivered issues. Merge requires separate
+exact-candidate approval. Keep retained workspace/services documented for handoff.

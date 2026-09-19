@@ -16,7 +16,6 @@ local installation owner chatting with one Anima and its selected Avatar through
 avatar emotion/gesture updates, memory side effects, voice/TTS integration, and
 chat history persisted in `chats` and `chat_messages`.
 
-
 ## Repository Shape
 
 - `src/backend`: FastAPI backend, direct chat runtime, domain/services,
@@ -38,8 +37,10 @@ specification authoring. Most changes use an issue, task branch, PR, checks and
 owner-approved merge. Tiny incidental corrections may omit the issue. Require an
 ExecPlan for substantial, uncertain or risky work; routine changes need an issue
 with acceptance and a brief approach. File count or duration alone is not a trigger.
-Keep the record current so another contributor can resume it. Remote rollout and
-skill adoption retain their separate authorization and verification gates.
+Keep the record current so another contributor can resume it. Read the
+[repository setup contract](SDLC.md#repository-setup) before using a lifecycle
+skill. Preserve every explicit verification gate in an existing plan; skill
+creation does not complete the separately gated skill pilot.
 Use this guide, the scoped guides and checked-in architecture, contract and
 operational documentation as the implementation references.
 
@@ -54,27 +55,37 @@ current terminology, implemented behavior and architectural decision history.
 Read relevant [glossary entries](GLOSSARY.md) and
 [ADRs](docs/adr/README.md); surface conflicts
 before changing an established meaning or decision. Intent discovery is an
-explicitly requested pilot, not a required interview for every task.
+invocable interview for unresolved intent, not a required interview for every task.
 
 ## Branches and pull requests
 
-Name new task branches `<type>/<short-kebab-case-task>`. Use the same type in
-the PR title, `<type>: <summary>`; an optional scope uses `<type>(<scope>): <summary>`.
+Include a scope whenever the affected subsystem or area is clear. Name new task
+branches `<type>/<scope>/<short-kebab-case-task>` and use the same type and scope
+in PR titles and ordinary commit subjects: `<type>(<scope>): <summary>`. Use a
+short, lowercase kebab-case scope such as `chat`, `models` or `workflow`. Omit the
+scope only when no meaningful scope is defined: `<type>/<short-kebab-case-task>`
+for branches and `<type>: <summary>` for titles/subjects. Do not invent a scope
+merely to fill the field. Branch names use slashes because Git refs cannot contain
+colons or spaces. Commits associated with an ExecPlan phase use
+`<type>(<scope>)[p#]: <summary>`, for example
+`feat(chat)[p1]: persist the selected chat`. Without a meaningful scope, use
+`<type>[p#]: <summary>`. The phase marker belongs in the commit subject, not the
+branch or PR title. Keep one branch and PR per plan in each affected repository.
 Choose the primary purpose of the change:
 
-| Type | Purpose |
-| --- | --- |
-| `feat` | New user-facing capability |
-| `fix` | Bug correction |
+| Type       | Purpose                                    |
+| ---------- | ------------------------------------------ |
+| `feat`     | New user-facing capability                 |
+| `fix`      | Bug correction                             |
 | `refactor` | Code restructuring with preserved behavior |
-| `chore` | Routine maintenance or mechanical cleanup |
-| `docs` | Documentation-only changes |
-| `test` | Test coverage or test infrastructure |
-| `build` | Dependencies, packaging or build tooling |
-| `ci` | CI workflow changes |
-| `perf` | Performance improvements |
+| `chore`    | Routine maintenance or mechanical cleanup  |
+| `docs`     | Documentation-only changes                 |
+| `test`     | Test coverage or test infrastructure       |
+| `build`    | Dependencies, packaging or build tooling   |
+| `ci`       | CI workflow changes                        |
+| `perf`     | Performance improvements                   |
 
-For example, `fix/chat-reconnect` pairs with `fix: restore chat after reconnect`.
+For example, `fix/chat/reconnect` pairs with `fix(chat): restore chat after reconnect`.
 Use `fix` for bugs; classify cleanup as `chore` or `refactor` according to intent.
 Do not add an agent-name prefix or rename an existing shared branch just to
 match this convention. Matching PR labels are optional, not a prerequisite.
@@ -121,8 +132,10 @@ solutions that fit the surrounding patterns.
    untracked files.
 2. Identify the touched subsystem and read its scoped `AGENTS.md`.
 3. Read the relevant docs entrypoints:
-  - Backend docs: `docs/backend/README.md`
-   - Frontend docs: `docs/frontend/README.md`
+
+- Backend docs: `docs/backend/README.md`
+- Frontend docs: `docs/frontend/README.md`
+
 4. Prefer existing patterns, helpers, commands, and architecture boundaries over
    introducing parallel paths.
 
@@ -285,7 +298,7 @@ architecture before adding new pages.
 Use `$docs-sync` when asked to audit documentation coverage or propose doc
 updates. Before changing OpenAI platform integrations, verify models, request
 fields, streaming behavior, tools, auth assumptions and rate limits against
-current official OpenAI documentation. Imported agent skills are optional local
+current official OpenAI documentation. Agent skills are optional local
 tools, not contributor or build prerequisites.
 
 ## Verification

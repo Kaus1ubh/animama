@@ -1,0 +1,39 @@
+name: Outcome specification
+description: Agree an outcome and acceptance before phased delivery.
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Problem and intended users
+      description: Describe the problem and who benefits.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Goals, scope and non-goals
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Required behavior and constraints
+      description: Include relevant failures, recovery, persistence and compatibility.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria and evidence
+    validations:
+      required: true
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Agreement and open decisions
+      description: State proposal or agreement, its reference, and unresolved questions.
+  - type: textarea
+    id: delivery
+    attributes:
+      label: Delivery links
+      description: Phase issues, dependencies and PRs; no private prerequisite for public readers.

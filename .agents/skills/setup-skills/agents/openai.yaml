@@ -1,0 +1,4 @@
+interface:
+  display_name: "Set Up Lifecycle Skills"
+  short_description: "Establish a repository workflow contract"
+  default_prompt: "Set up this repository with $setup-skills, preserving its existing decisions."

@@ -25,7 +25,7 @@ body:
     id: behavior
     attributes:
       label: Required behavior
-      description: Observable outcomes and relevant failure, cancellation, recovery and persistence behavior. Add requirement IDs only if useful.
+      description: Observable outcomes and relevant failure, cancellation, recovery and persistence behavior. Use stable requirement IDs for phased work.
   - type: textarea
     id: constraints
     attributes:
@@ -47,4 +47,4 @@ body:
     id: delivery
     attributes:
       label: Delivery links
-      description: Add sub-issues, dependencies and PRs as they exist. Also establish native issue relationships where available; text alone does not create them.
+      description: Add one issue per authorized phase, dependencies and the plan's PR in this repository. Establish native issue relationships where available; text alone does not create them. Keep private planning paths out of this issue.
