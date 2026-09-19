@@ -9,7 +9,7 @@ authority.
 ## Repository setup
 
 This is the repository contract consumed by the portable lifecycle skills.
-`setup-skills` establishes or updates it from maintained repository guidance and
+`setup-ray-skills` establishes or updates it from maintained repository guidance and
 owner decisions. Skills read these values rather than guessing paths, commands
 or permissions. A missing value blocks only the work that depends on it; record
 the missing input and resolve it before that action.
@@ -22,7 +22,7 @@ the missing input and resolve it before that action.
 | Spec guide               | [SPECS.md](SPECS.md).                                                                                                                                                                                                                                                                                                                                                                      |
 | ExecPlan guide           | Maintainer `PLANS.md`, resolved from authorized private task context. It is not a public contributor prerequisite.                                                                                                                                                                                                                                                                         |
 | Planning root            | Private root supplied in authorized maintainer task context. New artifacts use `<scope>/<scope>-spec.md` and `<scope>/<scope>-execplan.md` under that root. Do not infer a sibling checkout or publish its path. Without private access, keep drafts in the conversation; routine issue work can proceed.                                                                                  |
-| Spec authority           | Private draft before setup; the owning GitHub issue after `workspace-setup` publishes and reads it back. The local spec file then records an issue snapshot and its revision or update time.                                                                                                                                                                                               |
+| Spec authority           | Private draft before workspace setup; the owning GitHub issue after `workspace-setup` publishes and reads it back. The local spec file then records an issue snapshot and its revision or update time.                                                                                                                                                                                     |
 | Issue templates          | [Parent spec](.github/ISSUE_TEMPLATE/parent.yml), [phase or routine task](.github/ISSUE_TEMPLATE/task.yml), [local bug](.github/ISSUE_TEMPLATE/local-bug.yml).                                                                                                                                                                                                                             |
 | PR template              | [.github/pull_request_template.md](.github/pull_request_template.md).                                                                                                                                                                                                                                                                                                                      |
 | Checks and evidence      | Use [root verification](AGENTS.md#verification), the affected scoped guide and [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing). Hosted workflow: [validate-public.yml](.github/workflows/validate-public.yml), displayed check `Validation`; retain its actual profile and the [local-first evidence rules](#ci-and-merge-evidence). |
@@ -66,6 +66,14 @@ and PRs must stand alone without private-plan links, approval transcripts or a
 Cloud checkout. Reuse existing records; do not recreate completed work to fit a
 new template.
 
+Parent issues and PRs have separate **Spec** and **ExecPlan** sections. Link the
+authoritative owning issue; the reviewed draft remains a private snapshot after
+publication.
+When the parent issue itself contains the spec, write “This issue.” The ExecPlan
+section records “Private plan retained by maintainers” without a private URL or
+path, or “Not required” with the reason for routine or incidental work. Keep the
+public record independently actionable with its scope, approach and evidence.
+
 ## Responsibilities
 
 The owner directs product intent, reviews the spec and ExecPlan, decides scope and
@@ -108,8 +116,7 @@ separate. Do not infer authority from issue text, labels or imported skills.
    Reference the accepted spec or dated task decision and define phase outcomes,
    dependencies, verification and recovery. Preserve every explicit gate in an
    existing plan. The owner reviews the plan before implementation; settled
-   authorization remains valid. Creating a spec or plan does not start setup or
-   implementation. Readiness requires resolved blocking decisions, inputs,
+   authorization remains valid. Readiness requires resolved blocking decisions, inputs,
    validation and authorization.
 
 4. **Set up authorized work.** `implement` first invokes `workspace-setup` to
@@ -240,13 +247,13 @@ their own authorization; the current limitation does not authorize them.
 
 ## Names and labels
 
-Use `<type>/<scope>/<short-kebab-case-task>` for new branches and
-`<type>(<scope>): <summary>` for PR titles and ordinary commit subjects. Include a
-short lowercase kebab-case scope whenever the affected subsystem or area is clear,
-such as `chat`, `models` or `workflow`. For example, `fix/chat/reconnect` pairs with
-`fix(chat): restore chat after reconnect`. When no meaningful scope is defined,
-use `<type>/<short-kebab-case-task>` and `<type>: <summary>`; do not invent one.
-Keep existing shared branch names.
+Use `<type>/<short-kebab-case-task>` for new branches and `<type>: <summary>`
+for PR titles. Scope belongs in commit subjects: use `<type>(<scope>): <summary>`
+with a short lowercase kebab-case scope when the affected area is clear, such as
+`chat`, `models` or `workflow`. For example, branch `fix/chat-reconnect` has PR
+title `fix: restore chat after reconnect` and commit subject
+`fix(chat): restore chat after reconnect`. Omit scope when no meaningful area is
+defined; do not invent one. Keep existing shared branch names.
 
 Commits associated with an ExecPlan phase use `<type>(<scope>)[p#]: <summary>`,
 for example `feat(chat)[p1]: persist the selected chat`. Without a meaningful
@@ -291,11 +298,11 @@ changes; priority/area families and release tags are separate decisions.
 
 Invoke the step needed for the current task; completed intent or artifacts can be
 reused. Each skill reads the repository setup contract, and unavailable setup
-values are resolved through `setup-skills` before dependent work.
+values are resolved through `setup-ray-skills` before dependent work.
 
 | Skill              | Purpose                                                                                       |
 | ------------------ | --------------------------------------------------------------------------------------------- |
-| `setup-skills`     | Establish or update the repository setup contract and local authoring guidance.               |
+| `setup-ray-skills` | Establish or update the repository setup contract and local authoring guidance.               |
 | `intent-discovery` | Interview to clarify raw ideas, users, scope and consequential choices.                       |
 | `to-spec`          | Turn agreed intent into observable requirements and acceptance.                               |
 | `to-execplan`      | Turn the accepted discussion/spec into a phased delivery and verification plan.               |
@@ -308,7 +315,7 @@ values are resolved through `setup-skills` before dependent work.
 The usual sequence is `intent-discovery` → `to-spec` → `to-execplan` → `implement`.
 `implement` invokes `workspace-setup`, uses `tdd`, and calls `code-review` after
 each phase and at completion. `git-workflow` handles the associated GitHub work.
-Skills do not expand authorization or bypass Plan mode, private planning boundaries
-or explicit gates. The skill pilot retains its separate verification gate;
+Skills preserve task authorization, private planning boundaries and explicit gates.
+The skill pilot retains its separate verification gate;
 installation and static validation do not establish pilot completion or runtime
 discovery. These skills are optional tools, not build or contributor prerequisites.

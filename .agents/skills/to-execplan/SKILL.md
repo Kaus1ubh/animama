@@ -5,8 +5,7 @@ description: Convert an agreed spec or sufficiently resolved discussion into a p
 
 # Write the execution plan
 
-Read the [workflow contract](../setup-skills/references/workflow-contract.md) and
-configured plan guide. Locate the accepted spec revision or dated task decision,
+Read the configured plan guide. Locate the accepted spec revision or dated task decision,
 existing plan and relevant implementation. Confirm the configured planning root,
 including required private context, before writing. Do not create a public fallback
 plan when the repository requires private planning.
@@ -34,7 +33,4 @@ consequential uncertainty before dependent execution; agents may later revise
 implementation details within the accepted outcome. Routine work can use its issue
 and brief approach instead of being inflated into an ExecPlan.
 
-Finish with a reviewable plan and its unresolved decisions, if any. Do not invoke
-workspace setup or implementation here. The user's subsequent implementation
-instruction can authorize the identified plan without a second approval question.
-In Plan mode return the proposed plan without writing files.
+Finish with a reviewable plan and its unresolved decisions, if any.

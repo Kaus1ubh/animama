@@ -5,12 +5,10 @@ description: Execute an authorized discussion, spec or ExecPlan using workspace 
 
 # Implement the agreed outcome
 
-Read the [workflow contract](../setup-skills/references/workflow-contract.md).
 Resolve the identified discussion/spec/plan and requested scope. An explicit request
 to implement a sufficiently resolved outcome supplies implementation authority;
 do not ask for the same approval again. Stop dependent work for unresolved product
-decisions, missing setup prerequisites or an explicit existing gate. In Plan mode,
-produce an implementation proposal without executing this workflow's mutations.
+decisions, missing setup prerequisites or an explicit existing gate.
 
 Invoke `workspace-setup` first, including on resume so existing state is verified.
 Use the configured brief approach for routine work; create an ExecPlan through

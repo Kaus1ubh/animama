@@ -2,6 +2,16 @@ name: Outcome specification
 description: Agree an outcome and acceptance before phased delivery.
 body:
   - type: textarea
+    id: spec
+    attributes:
+      label: Spec
+      description: Link the authoritative spec, or write "This issue" when this body owns it. Identify any linked file as a dated snapshot after publication.
+  - type: textarea
+    id: execplan
+    attributes:
+      label: ExecPlan
+      description: Link the execution plan when access and privacy allow; otherwise state "Retained privately" or "Not required". Keep this issue independently usable.
+  - type: textarea
     id: outcome
     attributes:
       label: Problem and intended users

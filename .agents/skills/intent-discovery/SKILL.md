@@ -5,8 +5,7 @@ description: Interview the user to clarify a raw idea, problem or uncertain prod
 
 # Discover intent
 
-Read the [workflow contract](../setup-skills/references/workflow-contract.md), then
-the configured glossary, relevant decisions and current behavior. Treat existing
+Read the configured glossary, relevant decisions and current behavior. Treat existing
 user answers and accepted requirements as inputs, not questions to repeat.
 
 Investigate facts the repository can answer before asking the user. Separate what
@@ -27,5 +26,4 @@ every hypothetical design branch or demand implementation choices prematurely.
 
 Return a concise discovery brief with the problem, agreed outcome, scope, decisions,
 evidence and remaining blockers. Distinguish tentative ideas from agreements.
-Hand off to `to-spec` when requested; discovery itself does not publish an issue or
-start implementation. Well-defined work need not repeat this interview.
+The brief supplies the agreed inputs for `to-spec`.

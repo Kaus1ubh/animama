@@ -9,6 +9,17 @@ and deferred phases. Use one PR per plan in this repository. For an issue-free i
 correction, state why the exception applies. Close only issues fully delivered by
 this PR; a partial child PR must not close its parent. No private-plan prerequisite. -->
 
+## Spec
+
+<!-- Link the authoritative owning issue. A retained draft is a snapshot after
+publication. For an incidental correction with no spec, explain the exception. -->
+
+## ExecPlan
+
+<!-- State "Private plan retained by maintainers" without a private URL or path,
+or "Not required" with the reason for routine or incidental work. Keep the scope,
+approach and evidence understandable within this PR. -->
+
 ## Local validation
 
 <!-- Record exact source state, baseline, commands, results and environment.

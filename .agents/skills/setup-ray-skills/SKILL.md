@@ -1,5 +1,5 @@
 ---
-name: setup-skills
+name: setup-ray-skills
 description: Establish or repair a repository's SDLC skill contract, lifecycle documents, spec and execution-plan templates, domain guides, and GitHub templates. Use for initial setup or an intentional workflow update.
 ---
 
@@ -8,7 +8,7 @@ description: Establish or repair a repository's SDLC skill contract, lifecycle d
 Establish the repository contract used by this nine-skill bundle. The bundled
 instructions are portable; put project-specific facts in the generated repository
 documents. Install the nine skill directories together; each execution skill can
-then be invoked independently. See [sources](references/sources.md).
+then be invoked independently.
 
 ## Inspect before configuring
 
@@ -23,7 +23,7 @@ Reuse supplied decisions. Ask only about consequential choices that inspection
 cannot resolve: artifact authority or privacy, conflicting workflow rules, missing
 repository identity, or human gates. Ordinary invocation authorizes local setup
 edits; it does not require another blanket confirmation. Resolve conflicts before
-changing established behavior. Respect Plan mode and explicit read-only requests.
+changing established behavior.
 
 ## Establish the contract
 
@@ -56,8 +56,11 @@ context without revealing its path. Confirm that context before dependent writes
 Add or reconcile [parent](assets/parent.yml), [task](assets/task.yml) and
 [PR](assets/pull-request.md) templates. Preserve existing issue types. Record
 existing labels; creating labels, protections or CI workflows is separate work.
-Route the applicable agent entrypoint to the contract and installed skills. If
-none exists, create a concise `AGENTS.md`; avoid parallel instruction authorities.
+Route the applicable agent entrypoint to `SDLC.md` and its `Repository setup`
+section before using execution skills, with an explicit link to any established
+equivalent. State that missing or inconsistent setup is repaired through
+`setup-ray-skills`; execution skills use the configured guides and procedures.
+If no entrypoint exists, create a concise `AGENTS.md` with that routing.
 
 Use existing definitions and decisions. New glossary/ADR scaffolds may contain no
 records; do not fabricate domain terms, rationales or historical acceptance.
@@ -76,5 +79,4 @@ Report which workflow operations are ready and any blocked prerequisites.
 On rerun, update the existing setup section and affected instructions in place.
 Preserve user edits, settled choices and unrelated files. Do not duplicate sections,
 rename established artifacts or reset choices merely to match a starter template.
-Execution skills consume the resulting [workflow contract](references/workflow-contract.md);
-they do not automatically run setup or invent a replacement workflow.
+Finish with the configured entrypoints, readiness and any remaining prerequisites.

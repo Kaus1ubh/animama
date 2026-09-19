@@ -5,8 +5,7 @@ description: Implement or repair behavior through small red-green-refactor cycle
 
 # Test the behavior, then implement it
 
-Read the [workflow contract](../setup-skills/references/workflow-contract.md), the
-accepted requirements and configured test guidance. Identify a stable public or
+Read the accepted requirements and configured test guidance. Identify a stable public or
 domain boundary and meaningful failure/recovery cases from the behavior. Reuse
 appropriate existing tests and fixtures. Do not require the human to reconfirm
 ordinary test boundaries already implied by the agreed design.
@@ -33,5 +32,4 @@ artifact checks. Do not manufacture tests merely to claim TDD. If a manual/provi
 check is required, distinguish it from automated evidence and respect its gate.
 
 Return the behavior tested, observed red/green results, relevant commands and any
-exceptions or remaining validation. Do not commit or open a PR from this discipline;
-handoff goes back to the invoking implementation workflow.
+exceptions or remaining validation to the invoking implementation workflow.

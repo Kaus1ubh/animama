@@ -57,5 +57,4 @@ publicly available evidence where possible, without exposing private material.
 Reading this guide grants no publication, GitHub mutation or implementation
 authority. In an authorized implementation task, follow
 [SDLC.md](../../SDLC.md) for issue creation, workspace setup, implementation and
-review. Preserve every explicit verification gate in an existing plan. In Plan
-mode, discuss proposed artifacts without writing files or changing GitHub state.
+review. Preserve every explicit verification gate in an existing plan.

@@ -5,8 +5,7 @@ description: Turn an existing discussion, discovery brief or change request into
 
 # Write the specification
 
-Read the [workflow contract](../setup-skills/references/workflow-contract.md) and
-configured spec guide. Inspect the existing owning spec/issue before creating a
+Read the configured spec guide. Inspect the existing owning spec/issue before creating a
 new artifact. Use current discussion, discovery results and approved decisions;
 do not restart intent discovery when those inputs already resolve it.
 
@@ -28,7 +27,5 @@ publishes it and records its issue/revision, after which the file is a snapshot.
 If a published spec needs changes, prepare a clearly identified proposed revision;
 update the authority and dependent artifacts together only once agreed.
 
-Return the artifact and material open decisions for review. Do not publish the
-initial issue or start workspace setup from this skill. `to-execplan` consumes the
-accepted outcome. In Plan mode provide the spec in the response at the intended
-destination rather than writing it.
+Return the artifact and material open decisions for review. `to-execplan` consumes
+the accepted outcome.

@@ -5,10 +5,8 @@ description: Prepare or resume the issues, task branch, checkout and development
 
 # Prepare the task workspace
 
-Read the [workflow contract](../setup-skills/references/workflow-contract.md).
 Confirm the outcome, spec/plan revision, requested phases and any blocking decision
-or explicit gate. Setup of a task is distinct from installing the lifecycle through
-`setup-skills`. Do not restart repository configuration here.
+or explicit gate against the established repository setup.
 
 Inspect the actual repository, base, branch, worktrees, dirty changes and concurrent
 work. Search existing issues/PRs and prior task handoffs before creating anything.
@@ -35,6 +33,6 @@ mechanism without copying secret files or exposing their contents.
 
 Record repository/checkout, branch and base, spec authority, issues and dependencies,
 requested phase range, environment URLs if started, checks to run and remaining
-gates in the existing task record. Return this handoff to `implement`; do not recurse
-into implementation from setup itself. On resumption, verify and reuse this state
+gates in the existing task record. Return this handoff to the caller.
+On resumption, verify and reuse this state
 instead of creating duplicate issues, branches or environments.

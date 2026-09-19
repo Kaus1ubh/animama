@@ -7,6 +7,16 @@
 <!-- Owning spec/issues, requirements and delivered phases. Close only work fully
 delivered by this PR. Explain an incidental-change exception where applicable. -->
 
+## Spec
+
+<!-- Link the authoritative spec or owning issue. Identify a linked local file as
+a dated snapshot after issue publication; explain any incidental-change exception. -->
+
+## ExecPlan
+
+<!-- Link the plan only when readers have access and privacy permits. Otherwise
+state "Retained privately" or "Not required" without publishing private paths. -->
+
 ## Validation
 
 <!-- Exact source/base, working directories, commands and results. Separate local

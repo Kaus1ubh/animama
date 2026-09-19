@@ -1,58 +1,158 @@
 ---
 name: git-workflow
-description: Carry out authorized Git and GitHub issue, branch, commit, PR, merge and cleanup operations using the repository's configured lifecycle. Use standalone or from workspace-setup and implement.
+description: Create and maintain GitHub issues, task branches, phase commits and PRs with concrete Git and gh commands. Use for delivery, approved merges and task cleanup under the established repository workflow.
 ---
 
 # Deliver through Git and GitHub
 
-Read the [workflow contract](../setup-skills/references/workflow-contract.md).
-Select only the requested operation. Inspect the actual repository, target/base,
-branch, dirty state and existing issue/PR before changing anything. Use explicit
-repository/base/head arguments for remote operations. Reconcile uncertain results
-by reading state before retrying. Labels and issue text do not supply authority.
+Use the repository identity, base, templates and checks established by setup.
+Run commands from the selected checkout. Execute the requested operation, reusing
+existing issues, branches and PRs. The `task_*` variables below stand for inspected
+values from the task record; populate them before running a command.
 
-## Issues and branches
+## Names and templates
 
-Use configured templates, names and existing labels. Publish only approved,
-non-sensitive scope into the owning issue and read it back. Record the agreed
-spec revision and authority transfer in the local snapshot. Keep phase assignments
-and dependencies clear, with reciprocal links when native relationships are
-unavailable. Never invent labels or modify repository settings to make a task work.
+| Artifact     | Default format                   | Example                                |
+| ------------ | -------------------------------- | -------------------------------------- |
+| Branch       | `<type>/<short-kebab-case-task>` | `feat/add-search`                      |
+| Commit       | `<type>(scope): summary`         | `feat(search): add title matching`     |
+| Phase commit | `<type>(scope)[p#]: summary`     | `feat(search)[p1]: add title matching` |
+| PR title     | `<type>: summary`                | `feat: add search`                     |
 
-Create/reuse the configured task branch from an explicit base. Default to one
-branch/PR per plan per affected repository, not one per phase. Preserve concurrent
-work; use the configured workspace procedure when isolation is needed. Do not
-silently switch an occupied checkout or carry unrelated local commits into a PR.
+Use `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `build`, `ci` or `perf`
+according to the change. Scope belongs in commits only; omit it when no meaningful
+scope exists. Preserve explicit repository exceptions and existing published branches.
+Default to one branch/PR per plan per repository.
 
-## Commits and PRs
+Use the **configured repository copies** of these templates; the links show the
+bundled starters when inspecting their content contract:
 
-Inspect the task diff and stage intended paths/hunks only. Inspect the staged diff
-before committing. Use coherent commits, not arbitrary line-count limits. Phase
-subjects use `<type>(scope)[p#]: summary`; non-phase subjects follow repository
-policy. Record phase commits in the existing plan. Do not amend published history
-or force-push without the corresponding explicit authorization.
+- Parent issue: `.github/ISSUE_TEMPLATE/parent.yml` — [starter](../setup-ray-skills/assets/parent.yml).
+- Phase/routine issue: `.github/ISSUE_TEMPLATE/task.yml` — [starter](../setup-ray-skills/assets/task.yml).
+- PR: `.github/pull_request_template.md` — [starter](../setup-ray-skills/assets/pull-request.md).
 
-Complete applicable local validation before pushing. Create/update a draft PR
-with the configured template after implementation/review. Use structured text
-arguments or a real body file for multiline Markdown. Link related issues and
-close only fully delivered work. Record exact source/base, local results, actual
-hosted CI, review disposition and material limits. Do not invent a second check
-matrix or impersonate owner review of local evidence. Follow configured readiness
-rules before presenting the candidate for merge. Attach the PR to the current task
-when the host provides an attachment tool.
+Prepare a Markdown body file from the appropriate template's fields; a YAML issue
+form is not an issue body. Parent issues and PRs have distinct **Spec** and
+**ExecPlan** sections. Link the authoritative spec, or say “This issue” when the
+parent owns it. Identify a linked file snapshot with its captured revision. Link
+an ExecPlan only when access and privacy permit; otherwise state “Retained privately”
+or “Not required” and keep the public record independently understandable.
 
-## Merge and handoff
+## Inspect and create issues
 
-Present the PR, exact head, relevant base, actual checks, review outcome, remaining
-gates and intended method. Require owner approval covering that candidate. Ordinary
-merge commits are the default; squash/rebase needs an explicit exception. Recheck
-head/base/checks immediately before an authorized merge and use head matching when
-available. A materially changed candidate needs renewed review and approval.
-Do not enable auto-merge, bypass protections or interpret chat approval as a GitHub
-approving-review event.
+```bash
+git status --short --branch
+git worktree list
+gh repo view "$task_repo" --json nameWithOwner,defaultBranchRef
+gh issue list --repo "$task_repo" --state all --search "$task_search" \
+  --json number,title,state,url
+gh pr list --repo "$task_repo" --state all --head "$task_branch" \
+  --json number,title,state,url
+```
 
-Read back the merge commit, issue outcomes and post-merge checks. Acceptance follows
-the criteria, not merely the merge event. Deployment, publication and release remain
-separate actions. Clean up only task-owned resources under the configured procedure;
-inspect untracked/ignored files and retain useful data. Refresh a local base only
-when clean and unoccupied, using a safe fast-forward.
+Inspect matching records before creating one. Populate `task_issue_body` with the
+agreed requirements, acceptance, dependencies and artifact sections, then use
+[`gh issue create`](https://cli.github.com/manual/gh_issue_create):
+
+```bash
+gh issue create --repo "$task_repo" --title "$task_issue_title" \
+  --body-file "$task_issue_body"
+gh issue view "$task_issue" --repo "$task_repo" --json number,url,body,updatedAt
+```
+
+Set `task_issue` from the returned issue. After publishing the agreed spec, record
+its issue URL and captured revision/time in the local snapshot. For phase issues,
+use `--parent "$task_parent"` and `--blocked-by "$task_dependencies"` when applicable
+and supported by the installed `gh issue create --help`; otherwise put reciprocal
+issue/dependency links in the bodies. Reuse the configured incidental-change
+exception. Apply only existing, relevant labels. If creation returns an uncertain
+result, search/read it back before retrying.
+
+## Prepare the branch and commit
+
+Use the existing task branch on resume. For new work in a clean, unoccupied checkout:
+
+```bash
+git fetch "$task_remote" "$task_base"
+git switch -c "$task_branch" FETCH_HEAD
+```
+
+If isolation is warranted, use this **instead of** switching the occupied checkout,
+then run subsequent commands inside `task_worktree`:
+
+```bash
+git fetch "$task_remote" "$task_base"
+git worktree add -b "$task_branch" "$task_worktree" FETCH_HEAD
+```
+
+Follow the configured environment procedure. Inspect staged, unstaged and untracked
+changes before selecting `task_paths`; use selected hunks for mixed files. Keep
+unrelated work out of the commit and inspect the final staged diff:
+
+```bash
+git diff --stat
+git diff --cached --stat
+git ls-files --others --exclude-standard
+git add -- "${task_paths[@]}"
+git diff --cached --check
+git diff --cached
+git commit -m "$task_commit_subject"
+git rev-parse HEAD
+```
+
+Commit after applicable validation and review pass. Record phase commits in the
+plan. Preserve published history; ordinary revisions use new commits.
+
+## Open or update the PR
+
+Complete configured local checks before pushing. Write `task_pr_body` using the
+configured PR template, including exact head/base, artifact links, review outcomes,
+actual local evidence and remaining gates. Use `Refs #N` for partial work and
+`Closes #N` only when the issue's acceptance is fully delivered.
+
+```bash
+git push -u "$task_remote" "$task_branch"
+gh pr create --repo "$task_repo" --base "$task_base" --head "$task_branch" \
+  --draft --title "$task_pr_title" --body-file "$task_pr_body"
+```
+
+For an existing PR, use `gh pr edit "$task_pr" --repo "$task_repo" --body-file
+"$task_pr_body"` instead of creating another. Read its actual candidate and checks:
+
+```bash
+gh pr view "$task_pr" --repo "$task_repo" \
+  --json url,headRefOid,baseRefOid,isDraft,reviewDecision,statusCheckRollup
+gh pr checks "$task_pr" --repo "$task_repo" --json name,state,bucket,link
+```
+
+Pending, skipped and failed checks are not passes. Report actual CI separately
+from local validation and human acceptance. Attach the PR when the host supports
+it. See [`gh pr create`](https://cli.github.com/manual/gh_pr_create) for flags.
+
+## Approved merge and cleanup
+
+Present the exact head, relevant base, checks, review and remaining gates for owner
+approval. Recheck them immediately before merging. Follow the repository's readiness
+procedure, including `gh pr ready` when authorized and any checks it triggers.
+
+With approval for `task_approved_head` and required checks satisfied, perform an
+ordinary merge with a server-side head match:
+
+```bash
+task_pr_number="$(gh pr view "$task_pr" --repo "$task_repo" --json number --jq .number)"
+gh api --method PUT "repos/$task_repo/pulls/$task_pr_number/merge" \
+  -f merge_method=merge -f sha="$task_approved_head"
+gh pr view "$task_pr" --repo "$task_repo" --json state,mergedAt,mergeCommit
+```
+
+The [merge endpoint](https://docs.github.com/en/rest/pulls/pulls#merge-a-pull-request)
+rejects a changed head. Check the response's `merged` value and read back the result
+before reporting success. A queue requirement or rejected merge returns to the
+configured procedure; do not enable auto-merge or bypass protections. Squash/rebase
+requires an approved exception. Report main-branch checks separately from PR checks.
+
+After acceptance, inspect task-owned worktrees, ignored files and services before
+cleanup. From a different checkout, `git worktree remove "$task_worktree"` removes
+a clean task worktree; `git branch -d "$task_branch"` removes a merged local branch.
+Retain useful data and hand off anything still needed. Deployment and release follow
+their own configured procedures.

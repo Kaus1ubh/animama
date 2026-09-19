@@ -5,8 +5,7 @@ description: Independently review a defined working-tree or committed change for
 
 # Review the defined change
 
-Read the [workflow contract](../setup-skills/references/workflow-contract.md) and
-configured review policy. Establish the accepted requirements, requested phase or
+Use the configured review policy. Establish the accepted requirements, requested phase or
 whole-plan scope, relevant base and current source state. Include intended staged,
 unstaged and untracked changes; do not silently replace a working-tree request with
 a HEAD-only diff. Separate unrelated edits. Freeze the boundary while reviewing;

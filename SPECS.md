@@ -56,6 +56,12 @@ acceptance evidence can identify the requirements they cover.
 
 ## Template
 
+Parent issues and PRs include separate Spec and ExecPlan sections. The Spec
+section points to the authoritative issue after publication; a parent containing
+the spec says “This issue.” Retained draft files are snapshots, not a competing
+authority. Public ExecPlan sections state “Private plan retained by maintainers”
+without a private URL or path, or “Not required” with the reason.
+
 Use these sections in the draft and, after publication, in the owning issue. The
 YAML parent form presents the same concepts as entry fields. Agents creating or
 editing issues through tools follow this content contract too; browser field
@@ -92,6 +98,16 @@ Use "None identified" only after considering the relevant constraints.
 ## Open questions and decisions
 
 Blocking questions, agreed choices and material scope changes with their dates.
+
+## Spec
+
+This document before publication; the owning issue URL after publication.
+In the parent issue containing the spec, write “This issue.”
+
+## ExecPlan
+
+Private plan retained by maintainers; no private URL or path in the public issue.
+For routine work, write “Not required” and explain why.
 
 ## Delivery links
 

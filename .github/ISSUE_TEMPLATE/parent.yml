@@ -44,6 +44,17 @@ body:
       description: Blocking questions, dated choices and non-sensitive owner acceptance. Keep this current as the proposal becomes agreed work.
       value: "Status: Proposal\nOwner decision: Pending"
   - type: textarea
+    id: spec
+    attributes:
+      label: Spec
+      description: Identify the authoritative specification. When this parent contains it, write "This issue"; otherwise link the owning issue. A retained draft is a snapshot after publication.
+      value: "This issue."
+  - type: textarea
+    id: execplan
+    attributes:
+      label: ExecPlan
+      description: State "Private plan retained by maintainers" without a private URL or path. If no ExecPlan is needed, write "Not required" and explain why.
+  - type: textarea
     id: delivery
     attributes:
       label: Delivery links
