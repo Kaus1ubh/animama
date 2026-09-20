@@ -173,13 +173,19 @@ Development data is disposable; use the existing `reset.sh --purge` flow when a
 reset is needed, after checking the selected project and coordinating with any
 task using its data. Do not purge merely as a setup ritual.
 
-Consider a separate worktree and named stack for concurrent edits,
-dependency/configuration experiments, migrations or other disruptive work;
-use them when they help avoid interference. A worktree does not automatically
-need a running stack. Reuse the existing task workspace for follow-ups after inspecting its current branch,
-changes and active processes. Never silently switch an occupied checkout,
+Use the checkout assigned to the task. Before editing, verify its absolute Git
+root, branch or detached HEAD, source revision, dirty state and any recorded task
+workspace. Reuse an existing task worktree for implementation, validation, review
+and follow-ups; workspace setup or a new phase does not require another worktree.
+Preserve an existing task branch. For a detached task worktree, create the branch
+at its verified current HEAD when implementation is authorized. Investigate
+mismatches before switching directories, branches or the selected revision.
+
+Create another worktree only for an identified isolation need, such as conflicting
+concurrent edits or disruptive experiments, or an explicit request. A worktree does
+not automatically need a running stack. Never silently switch an occupied checkout,
 stash another task's work or stop its services. Record the chosen checkout,
-branch and any stack URL in the task handoff when they matter.
+branch, starting revision and any stack URL in the task handoff when they matter.
 
 Use ordinary Git commands and `reset.sh`. No policy engine, mandatory workspace
 helper or workspace registration service is required. Keep cleanup documented

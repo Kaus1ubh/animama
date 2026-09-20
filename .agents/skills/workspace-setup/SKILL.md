@@ -8,8 +8,11 @@ description: Prepare or resume the issues, task branch, checkout and development
 Confirm the outcome, spec/plan revision, requested phases and any blocking decision
 or explicit gate against the established repository setup.
 
-Inspect the actual repository, base, branch, worktrees, dirty changes and concurrent
-work. Search existing issues/PRs and prior task handoffs before creating anything.
+Start with the checkout supplied to the task. Inspect its absolute Git root,
+HEAD and branch (or detached HEAD), recorded base, worktree registration, dirty
+changes and concurrent work. Reconcile any mismatch with the task handoff before
+switching directories, branches or the selected revision. Search existing
+issues/PRs and prior task handoffs before creating anything.
 Read back uncertain creation results before retrying. Preserve completed phases;
 do not manufacture retrospective issues simply to populate the new convention.
 
@@ -20,9 +23,13 @@ acceptance, dependencies and relevant handoff. Use native relationships where
 available or reciprocal links otherwise. Routine work may use a single issue;
 apply the configured incidental-change exception without inventing an ExecPlan.
 
-Default to one branch per plan per affected repository. Reuse the task checkout
-when it is safe and nondisruptive. Isolate conflicting or disruptive work with an
-ordinary worktree from an explicit base. Do not switch an occupied checkout, copy
+Default to one branch per plan per affected repository. An existing suitable task
+worktree already provides isolation; reuse it across phases, review and resumption.
+Creating a task branch does not require another worktree. Preserve an existing
+task branch; for a detached task worktree, use `git-workflow` to create the branch
+at its verified current HEAD when implementation is authorized, preserving task
+commits and intended changes. Create another worktree only for an identified
+isolation need or an explicit request. Do not switch an occupied checkout, copy
 unrelated changes, or push unrelated local commits as part of preparation.
 
 Follow the configured environment procedure and any applicable available local
