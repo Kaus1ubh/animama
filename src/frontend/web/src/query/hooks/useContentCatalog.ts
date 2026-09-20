@@ -8,24 +8,37 @@ import {
 } from "@animama/runtime-contracts/sdk";
 import type { PyContentCatalog } from "@/lib/content/catalogTypes";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { refreshContentCatalogViews } from "@/query/contentCatalogInvalidation";
 import { queryKeys } from "@/query/keys";
 
 /** Read the operator-inspectable Included/Local catalog for the signed-in user. */
 export function useContentCatalog() {
   const userId = useRuntimeOwnerId();
+  const queryClient = useQueryClient();
   return useQuery<PyContentCatalog>({
     queryKey: queryKeys.content.catalog(userId ?? "__anon__"),
     enabled: Boolean(userId),
     staleTime: 15_000,
     refetchInterval: 15_000,
     retry: false,
-    queryFn: async () =>
-      (
+    queryFn: async ({ signal }) => {
+      const catalog = (
         await listContentCatalogV1ContentCatalogGet({
+          signal,
           responseValidator: undefined,
           throwOnError: true,
         })
-      ).data,
+      ).data;
+      if (userId) {
+        await refreshContentCatalogViews(
+          queryClient,
+          userId,
+          queryClient.getQueryData(queryKeys.content.catalog(userId)),
+          catalog,
+        );
+      }
+      return catalog;
+    },
   });
 }
 
@@ -34,6 +47,13 @@ export function useRescanContent() {
   const userId = useRuntimeOwnerId();
   const queryClient = useQueryClient();
   return useMutation({
+    onMutate: async () => {
+      if (userId) {
+        await queryClient.cancelQueries({
+          queryKey: queryKeys.content.catalog(userId),
+        });
+      }
+    },
     mutationFn: async () =>
       (
         await rescanContentCatalogV1ContentRescanPost({
@@ -41,10 +61,19 @@ export function useRescanContent() {
           throwOnError: true,
         })
       ).data,
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       if (!userId) return;
+      const previous = queryClient.getQueryData<PyContentCatalog>(
+        queryKeys.content.catalog(userId),
+      );
       queryClient.setQueryData(
         queryKeys.content.catalog(userId),
+        result.catalog,
+      );
+      await refreshContentCatalogViews(
+        queryClient,
+        userId,
+        previous,
         result.catalog,
       );
     },

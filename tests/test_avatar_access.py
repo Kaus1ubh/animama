@@ -177,3 +177,99 @@ async def test_avatar_catalog_projects_product_rows_and_filters_origin(async_ses
         await async_session.flush()
         await async_session.delete(await async_session.get(ORMContentCatalogItem, catalog_item_id))
         await async_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_catalog_hides_retired_defaults_and_uses_model_portraits(async_session) -> None:
+    """A model portrait is independent of any Anima's selected profile image."""
+    from animama.orm.content_catalog import ORMContentCatalogFile
+
+    suffix = uuid4().hex
+    portrait_id = f"portrait-{suffix}"
+    file_ref = f"portrait-file-{suffix}"
+    avatar_id = f"avatar-{suffix}"
+    model_id = f"model-{suffix}"
+    async_session.add(
+        ORMContentCatalogItem(
+            id=model_id,
+            source="included",
+            scope="included",
+            kind="avatar",
+            relative_locator=f"avatars/{suffix}.vrm",
+            display_name="Model",
+            status="valid",
+        )
+    )
+    await async_session.flush()
+    async_session.add_all(
+        [
+            ORMAvatar(id="avt_chibi_4", name=f"Retired {suffix}", file_path="/shared/avatars/AvatarChibi_4.vrm"),
+            ORMAvatar(
+                id=avatar_id, name=f"Valid {suffix}", file_path=f"avatars/{suffix}.vrm", catalog_item_id=model_id
+            ),
+            ORMContentCatalogItem(
+                id=portrait_id,
+                source="included",
+                scope="included",
+                kind="appearance",
+                relative_locator=f"appearances/{suffix}.webp",
+                display_name="Portrait",
+                status="valid",
+                content_metadata={"avatar_model": suffix},
+            ),
+        ]
+    )
+    await async_session.flush()
+    async_session.add(
+        ORMContentCatalogFile(
+            file_ref=file_ref,
+            item_id=portrait_id,
+            relative_path=f"appearances/{suffix}.webp",
+            role="image",
+            media_type="image/webp",
+            size_bytes=1,
+            sha256="a" * 64,
+            ordinal=1,
+        )
+    )
+    await async_session.flush()
+    try:
+        page = await avatar_router.list_avatar_catalog(
+            session=async_session, user=RequestPrincipal(id="owner"), q=suffix, origin="all", sort="name", limit=50
+        )
+        assert [item.avatar_id for item in page.items] == [avatar_id]
+        assert page.items[0].preview_url == f"/v1/content/files/{file_ref}"
+        portrait = await async_session.get(ORMContentCatalogItem, portrait_id)
+        model = await async_session.get(ORMContentCatalogItem, model_id)
+        model.source = "local"
+        model.scope = "owner"
+        model.owner_user_id = "owner"
+        await async_session.flush()
+        page = await avatar_router.list_avatar_catalog(
+            session=async_session, user=RequestPrincipal(id="owner"), q=suffix, origin="all", sort="name", limit=50
+        )
+        assert page.items[0].preview_url is None  # A Local basename collision cannot adopt Included art.
+        portrait.source = "local"
+        portrait.scope = "owner"
+        portrait.owner_user_id = "owner"
+        portrait.content_metadata = {"avatar_model": suffix, "presentation": {"avatar_item_id": model_id}}
+        await async_session.flush()
+        page = await avatar_router.list_avatar_catalog(
+            session=async_session, user=RequestPrincipal(id="owner"), q=suffix, origin="all", sort="name", limit=50
+        )
+        assert page.items[0].preview_url == f"/v1/content/files/{file_ref}"
+        portrait.owner_user_id = "someone-else"
+        await async_session.flush()
+        page = await avatar_router.list_avatar_catalog(
+            session=async_session, user=RequestPrincipal(id="owner"), q=suffix, origin="all", sort="name", limit=50
+        )
+        assert page.items[0].preview_url is None
+        portrait.owner_user_id = "owner"
+        portrait.status = "invalid"
+        await async_session.flush()
+        page = await avatar_router.list_avatar_catalog(
+            session=async_session, user=RequestPrincipal(id="owner"), q=suffix, origin="all", sort="name", limit=50
+        )
+        assert page.items[0].preview_url is None
+    finally:
+        await async_session.rollback()

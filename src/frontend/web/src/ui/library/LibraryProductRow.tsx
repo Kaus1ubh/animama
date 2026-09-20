@@ -13,6 +13,7 @@ import {
 
 import type { LibraryRowPresentation } from "@/lib/content/libraryPresentation";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/ui/components/avatar";
 
 type RowFamily = LibraryRowPresentation["family"];
 
@@ -31,10 +32,12 @@ export function LibraryProductRow({
   row,
   actions,
   className,
+  portraitUrl,
 }: {
   row: LibraryRowPresentation;
   actions: ReactNode;
   className?: string;
+  portraitUrl?: string | null;
 }) {
   const Icon = icons[row.family];
   return (
@@ -46,9 +49,14 @@ export function LibraryProductRow({
       )}
     >
       <div className="flex min-h-20 min-w-0 flex-1 items-center gap-3 px-4 py-3">
-        <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
-          <Icon className="size-5" aria-hidden="true" />
-        </span>
+        <Avatar className="size-10 rounded-lg">
+          {portraitUrl ? (
+            <AvatarImage src={portraitUrl} alt="" className="object-cover" />
+          ) : null}
+          <AvatarFallback className="text-muted-foreground rounded-lg">
+            <Icon className="size-5" aria-hidden="true" />
+          </AvatarFallback>
+        </Avatar>
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="truncate font-medium">{row.name}</span>

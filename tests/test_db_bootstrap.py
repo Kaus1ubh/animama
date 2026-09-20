@@ -196,3 +196,62 @@ def test_bootstrap_rejects_missing_seed_payload(tmp_path: Path, monkeypatch: pyt
     monkeypatch.setattr("alembic.command.upgrade", MagicMock())
     with pytest.raises(RuntimeError, match="[Ss]eed"):
         db_bootstrap.bootstrap_database()
+
+
+def test_avatar_seeds_retire_only_unreferenced_unmodified_defaults(db_ready: str) -> None:
+    """Repeatable seed cleanup must not erase historical Anima or upload links."""
+    from animama.runtime.resources import runtime_resource
+
+    url = make_url(db_ready.replace("+asyncpg", "+psycopg"))
+    with psycopg.connect(url.render_as_string(hide_password=False).replace("postgresql+psycopg", "postgresql")) as conn:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT count(*) FROM avatar")
+                assert cur.fetchone()[0] == 0
+                seeds = runtime_resource("sql").joinpath("02-seed-avatars.sql").read_text()
+                cur.execute(seeds)
+                cur.execute("SELECT id FROM avatar ORDER BY id")
+                assert cur.fetchall() == [("avt_sample_a1n",), ("avt_sample_r1",)]
+                retired = [
+                    ("avt_sample_r2", "AvatarSample_R2"),
+                    ("avt_sample_a1", "AvatarSample_A_1"),
+                    ("avt_sample_y0", "AvatarSample_Y_1"),
+                    ("avt_chibi_1", "AvatarChibi_1"),
+                    ("avt_chibi_2", "AvatarChibi_2"),
+                    ("avt_chibi_3", "AvatarChibi_3"),
+                ]
+                cur.executemany(
+                    "INSERT INTO avatar (id,name,file_path) VALUES (%s,%s,%s)",
+                    [(key, key, f"/shared/avatars/{model}.vrm") for key, model in retired],
+                )
+                cur.execute(
+                    "INSERT INTO anima (id,user_id,display_name,avatar_id) "
+                    "VALUES ('seed-ref','owner','Kept','avt_sample_a1')"
+                )
+                cur.execute("UPDATE avatar SET user_id = 'owner' WHERE id = 'avt_sample_y0'")
+                cur.execute(
+                    "INSERT INTO avatar_upload (id,user_id,storage_locator,original_filename,"
+                    "declared_size_bytes,expires_at,avatar_id) "
+                    "VALUES ('seed-upload','owner','fixture','fixture.vrm',1,CURRENT_TIMESTAMP,'avt_chibi_1')"
+                )
+                cur.execute("UPDATE avatar SET file_path = 'avatars/custom.vrm' WHERE id = 'avt_chibi_2'")
+                cur.execute(
+                    "INSERT INTO content_catalog_items "
+                    "(id,source,scope,kind,relative_locator,display_name,status) "
+                    "VALUES ('seed-mapped','included','included','avatar','avatars/kept.vrm','Kept','valid')"
+                )
+                cur.execute("UPDATE avatar SET catalog_item_id = 'seed-mapped' WHERE id = 'avt_chibi_3'")
+                for _ in range(2):
+                    cur.execute(seeds)
+                    cur.execute("SELECT id FROM avatar ORDER BY id")
+                    assert cur.fetchall() == [
+                        ("avt_chibi_1",),
+                        ("avt_chibi_2",),
+                        ("avt_chibi_3",),
+                        ("avt_sample_a1",),
+                        ("avt_sample_a1n",),
+                        ("avt_sample_r1",),
+                        ("avt_sample_y0",),
+                    ]
+        finally:
+            conn.rollback()

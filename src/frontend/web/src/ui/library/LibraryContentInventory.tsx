@@ -201,7 +201,7 @@ function ProductRow({
             </Button>
           ) : null}
           {policy.useInGesture ? (
-            <Button size="sm" variant="outline" asChild>
+            <Button size="sm" asChild>
               <Link
                 to="/a/gestures/new"
                 search={{ component: card.itemId, componentType }}
@@ -211,7 +211,7 @@ function ProductRow({
             </Button>
           ) : null}
           {policy.useInReaction ? (
-            <Button size="sm" variant="outline" asChild>
+            <Button size="sm" asChild>
               <Link
                 to="/a/reactions/new"
                 search={{ component: card.itemId, componentType }}
@@ -505,6 +505,7 @@ export function LibraryContentInventory({
               (avatar) => (
                 <LibraryProductRow
                   key={avatar.avatar_id}
+                  portraitUrl={avatar.preview_url}
                   row={{
                     family: "avatar",
                     name: avatar.name,
@@ -528,7 +529,7 @@ export function LibraryContentInventory({
                             to="/a/animas/new"
                             search={{ avatar: avatar.catalog_item_id }}
                           >
-                            <Plus /> Use Avatar
+                            <Plus /> Create Anima
                           </Link>
                         </Button>
                       ) : (
