@@ -124,6 +124,12 @@ Use services, ports, repositories, and mappers for new persistence behavior.
 Some routes use ORM models directly; keep changes local there unless you
 are intentionally refactoring the route.
 
+During development, do not add Alembic revisions. Change the ORM/database
+definitions and `alembic/versions/0001_baseline.sql` together when schema changes
+require it; update seeds or application defaults directly for data changes.
+The owner decides when to reset an existing development database. Keep Alembic
+baseline initialization and database bootstrap in place.
+
 The local Alembic graph owns the entire accountless local schema. It contains no
 hosted identity tables or foreign keys. A future hosted composition must use a
 separate migration history, app factory, principal resolver, bootstrap

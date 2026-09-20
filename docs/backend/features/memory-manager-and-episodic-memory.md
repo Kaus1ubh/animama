@@ -750,10 +750,11 @@ projection parses task state into safe counts and timestamps only and computes
 Undo eligibility from current locked-domain invariants rather than trusting a
 stored boolean.
 
-The frozen `baseline_20260908` SQL includes these columns and constraints.
-Forward schema changes require an Alembic revision that preserves existing
-runs, messages and approvals. Ordinary `./reset.sh` preserves data; it cannot
-upgrade a database stamped outside the supported revision graph. See
+The `baseline_20260908` SQL includes these columns and constraints. During
+development, update the ORM and baseline SQL directly for schema changes;
+the owner decides when to reset an existing database. Ordinary `./reset.sh`
+preserves data and does not reapply an edited baseline or upgrade a database
+stamped outside the supported revision graph. See
 [Database operations](../operations/development.md#database) before working
 with such a database or backup.
 

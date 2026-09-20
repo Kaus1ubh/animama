@@ -710,9 +710,10 @@ stale or ineligible requests return `409`.
 
 Fresh reset-created databases include run kind/task state, approval feedback,
 old/new approval descriptions, application Version, and Undo audit columns.
-Existing local databases require `./reset.sh`; a data-preserving deployment
-needs an explicit migration for the new manager columns and the binary
-episode-status constraint.
+During development, changes to these columns or the binary episode-status
+constraint update the ORM and baseline SQL directly. The owner decides when to
+reset an existing database; ordinary `./reset.sh` preserves data and does not
+reapply an edited baseline.
 
 Normal direct chat assembles the current anima identity entry content into
 system instruction context. Anima identity is always required, and

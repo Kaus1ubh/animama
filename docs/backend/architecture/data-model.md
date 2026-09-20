@@ -51,16 +51,17 @@ the same Postgres instance. Keep that total below the database's
 `max_connections` with headroom for migrations, admin tools, and maintenance
 workers.
 
-## Migrations
+## Development schema and initialization
 
 Alembic revision `baseline_20260908` creates the complete current accountless
-local schema from frozen `alembic/versions/0001_baseline.sql`. The SQL creates
+local schema from `alembic/versions/0001_baseline.sql`. The SQL creates
 the tables, constraints, indexes, runtime-worker heartbeats and content mutation
 receipts directly.
-It must not import live ORM metadata or be regenerated as models change; future
-schema changes use forward revisions. The data-only `memory_names_20260920`
-revision capitalizes current built-in memory filenames while preserving their
-normalized lookup keys, contents, version counters and append-only history.
+It does not import live ORM metadata. During development, update ORM/database
+definitions and the baseline SQL directly as needed; do not add Alembic
+revisions. Update seeds or application defaults for data changes. The owner
+decides when to reset an existing development database to apply the current
+baseline; ordinary startup does not reapply edited baseline SQL.
 
 The baseline creates and seeds the singleton installation settings row with a
 new UUIDv4 principal in the same migration transaction. The principal is not a
@@ -361,11 +362,12 @@ model-context chain. Serialized agent state is separate: it stores an exact
 paused Apply Patch interruption and is cleared after the SDK resumes without
 another interruption.
 
-The frozen baseline includes run kind, task state, the Responses cursor,
+The baseline includes run kind, task state, the Responses cursor,
 approval feedback, old/new descriptions, applied Version and Undo audit fields.
-Schema upgrades use forward Alembic revisions. Databases outside the supported
-revision graph require their matching checkout or an explicitly disposable
-reset; a routine restart does not add missing schema or discard data.
+During development, schema changes update the ORM and baseline SQL directly.
+Databases outside the supported revision graph require their matching checkout
+or an explicitly disposable reset; a routine restart does not add missing
+schema or discard data.
 
 Undo and Revert preserve the append-only model. An approved Memory Manager
 patch records the exact entry and Version it produced. Undo appends a new
@@ -393,9 +395,9 @@ paths, and anima-scope cached paths all ignore rows with `deleted_at IS NOT
 NULL`. A virtual root is used instead of a persisted root row; `parent_id = NULL`
 means the top level of the selected scope.
 
-The frozen baseline includes the memory-manager open-run index. The one-time
-pre-release reset boundary applies to old schemas; subsequent changes to this
-invariant require a forward migration.
+The baseline includes the memory-manager open-run index. During development,
+changes to this invariant update the ORM and baseline SQL directly; existing
+databases require an owner-directed reset to receive a changed baseline.
 
 The application path is:
 
@@ -454,7 +456,7 @@ changes task state to `processed`, and leaves the run `active` for ordinary
 follow-up conversation. Blocked or failed execution leaves task state
 `processing` and the fixed rows pending.
 
-The frozen Alembic baseline creates these tables on fresh installations;
+The Alembic baseline creates these tables on fresh installations;
 application startup does not create them from live ORM metadata.
 
 ### Chats And Messages
@@ -504,7 +506,7 @@ empty pre-created row, allows later model switches only when the stored
 `api_standard` matches the selected provider's `api_standard`, and rejects
 non-empty null-standard chats as invalid transcript state. Successful
 non-incognito turns update `last_model_client` and `last_model_id` together
-with usage totals and turn reservation. The frozen baseline includes these
+with usage totals and turn reservation. The baseline includes these
 columns; it does not backfill legacy databases.
 
 `ORMChatMessage` stores persisted messages in `chat_messages`:

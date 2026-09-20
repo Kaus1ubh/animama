@@ -17,10 +17,10 @@ from alembic.util import CommandError
 ROOT = Path(__file__).parents[1]
 BASELINE_MIGRATION = ROOT / "alembic" / "versions" / "0001_baseline.py"
 BASELINE_SQL = ROOT / "alembic" / "versions" / "0001_baseline.sql"
-BASELINE_SHA256 = "2ed6465982b50258523a486bd454832b38090a579349f4c54cd34e3e7eaccb87"
+BASELINE_SHA256 = "fbe65e892a48473b28144abede6ece61690d737ba1897346d54929b98259646a"
 
 
-def test_frozen_baseline_does_not_import_live_metadata() -> None:
+def test_baseline_does_not_import_live_metadata() -> None:
     migration = BASELINE_MIGRATION.read_text(encoding="utf-8")
     assert "animama.orm" not in migration
     assert "Base.metadata" not in migration
@@ -28,7 +28,7 @@ def test_frozen_baseline_does_not_import_live_metadata() -> None:
     assert "0001_baseline.sql" in migration
 
 
-def test_frozen_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
+def test_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
     baseline = BASELINE_SQL.read_bytes()
     assert hashlib.sha256(baseline).hexdigest() == BASELINE_SHA256
     sql = baseline.decode("utf-8")
@@ -38,11 +38,10 @@ def test_frozen_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
 
 def test_current_schema_is_the_single_root_and_head() -> None:
     scripts = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
-    assert scripts.get_heads() == ["memory_names_20260920"]
+    assert scripts.get_heads() == ["baseline_20260908"]
     revisions = list(scripts.walk_revisions())
-    assert len(revisions) == 2
-    assert revisions[0].down_revision == "baseline_20260908"
-    assert revisions[1].down_revision is None
+    assert len(revisions) == 1
+    assert revisions[0].down_revision is None
 
 
 def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:  # noqa: ANN001
@@ -125,7 +124,7 @@ def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:  # n
                     text("SELECT installation_principal_id FROM installation_settings")
                 ).scalar_one()
                 assert uuid.UUID(first_principal).version == 4
-                assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "memory_names_20260920"
+                assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "baseline_20260908"
             command.upgrade(config, "head")
             with engine.connect() as connection:
                 assert connection.execute(
@@ -231,79 +230,3 @@ def test_fresh_creation_receipts_are_owner_scoped_and_survive_absent_animas(
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT count(*) FROM anima_creation_receipts")) == 2
             assert connection.scalar(text("SELECT count(*) FROM anima_starter_receipts")) == 0
-
-
-def test_memory_filename_upgrade_preserves_content_history_and_lookup_keys(
-    db_url: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Capitalization changes current root files, leaving audit rows and other scopes intact."""
-
-    with migration_schema(db_url, monkeypatch) as (config, engine):
-        command.upgrade(config, "baseline_20260908")
-        rows = [
-            ("profile", None, "profile.md", "user_profile"),
-            ("identity", "anima-1", "identity.md", None),
-            ("user-identity", None, "identity.md", None),
-            ("anima-profile", "anima-1", "profile.md", None),
-            ("other-file", None, "notes.md", None),
-        ]
-        with engine.begin() as connection:
-            for entry_id, anima_id, path, kind in rows:
-                connection.execute(
-                    text(
-                        "INSERT INTO memory_entries "
-                        "(id, user_id, anima_id, type, name, normalized_name, path, normalized_path, "
-                        "content, content_sha256, size_bytes, version, kind, metadata) "
-                        "VALUES (:id, 'owner', :anima, 'file', :path, :path, :path, :path, "
-                        "'Keep this content', :sha, 17, 1, :kind, CAST(:metadata AS jsonb))"
-                    ),
-                    {
-                        "id": entry_id,
-                        "anima": anima_id,
-                        "path": path,
-                        "kind": kind,
-                        "sha": hashlib.sha256(b"Keep this content").hexdigest(),
-                        "metadata": json.dumps({"installation_bootstrap": {"managed_entry_version": 1}}),
-                    },
-                )
-            connection.execute(
-                text(
-                    "INSERT INTO memory_entry_versions "
-                    "(entry_id, user_id, anima_id, type, name, normalized_name, path, normalized_path, "
-                    "content, content_sha256, size_bytes, version, kind, metadata, operation) "
-                    "SELECT id, user_id, anima_id, type, name, normalized_name, path, normalized_path, "
-                    "content, content_sha256, size_bytes, version, kind, metadata, 'create' FROM memory_entries"
-                )
-            )
-            before = connection.execute(text("SELECT * FROM memory_entries ORDER BY id")).mappings().all()
-            history = connection.execute(text("SELECT * FROM memory_entry_versions ORDER BY id")).mappings().all()
-            owner = connection.scalar(text("SELECT installation_principal_id FROM installation_settings"))
-        command.upgrade(config, "head")
-        with engine.connect() as connection:
-            after = connection.execute(text("SELECT * FROM memory_entries ORDER BY id")).mappings().all()
-            for old, new in zip(before, after, strict=True):
-                expected_path = {"profile": "PROFILE.md", "identity": "IDENTITY.md"}.get(old["id"], old["path"])
-                assert new["name"] == new["path"] == expected_path
-                # The generated search vector can follow the display-name change.
-                assert {k: v for k, v in old.items() if k not in {"name", "path", "search_vector"}} == {
-                    k: v for k, v in new.items() if k not in {"name", "path", "search_vector"}
-                }
-                for spelling in (expected_path, expected_path.lower()):
-                    found = connection.scalar(
-                        text(
-                            "SELECT id FROM memory_entries WHERE user_id = 'owner' "
-                            "AND anima_id IS NOT DISTINCT FROM :anima AND normalized_path = :path"
-                        ),
-                        {"anima": new["anima_id"], "path": spelling.casefold()},
-                    )
-                    assert found == old["id"]
-            assert (
-                connection.execute(text("SELECT * FROM memory_entry_versions ORDER BY id")).mappings().all() == history
-            )
-            assert connection.scalar(text("SELECT installation_principal_id FROM installation_settings")) == owner
-        command.downgrade(config, "baseline_20260908")
-        with engine.connect() as connection:
-            assert connection.execute(text("SELECT * FROM memory_entries ORDER BY id")).mappings().all() == before
-            assert (
-                connection.execute(text("SELECT * FROM memory_entry_versions ORDER BY id")).mappings().all() == history
-            )

@@ -11,10 +11,9 @@ The user profile is `PROFILE.md` at the user-scope root; each Anima has its
 required `IDENTITY.md` at its own scope root. Lookups remain case-insensitive,
 so existing lowercase links and tool requests keep reaching the same entry.
 
-The `memory_names_20260920` forward migration capitalizes these live root-file
-names without changing content, entry IDs, normalized lookup keys, version
-counters, bootstrap metadata or append-only history. Other filenames and scopes
-are unchanged. Downgrading restores the former lowercase display spelling.
+New profiles and Animas use the capitalized filenames. Existing entries retain
+their stored spelling until the owner recreates the development data; this
+change does not rename existing rows or alter their contents and history.
 Historical versions and chat manifests retain the spelling originally recorded;
 identity context matches those manifests case-insensitively.
 
@@ -196,7 +195,7 @@ operations are rejected. The mounted routes are:
 - `POST /v1/memory/manager/approvals/{approval_id}:decide`
 - `POST /v1/memory/manager/approvals/{approval_id}:undo`
 
-The frozen `baseline_20260908` SQL includes the open-run index, run kind/task
+The `baseline_20260908` SQL includes the open-run index, run kind/task
 state, approval feedback, applied/Undo Version, and old/new description columns.
 Database revisions outside the supported graph require their matching checkout
 or an explicitly disposable reset; ordinary `./reset.sh` preserves data and

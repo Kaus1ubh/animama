@@ -63,7 +63,7 @@ creator and submits the complete reviewed spec through `POST /v1/animas`.
 
 New creation materializes the selected identity into the Anima's own memory
 entry. Missing or blank identity requires explicit repair before chat can invoke
-a model. The frozen baseline creates this schema directly and provides no
+a model. The baseline creates this schema directly and provides no
 identity backfill for databases outside its supported revision graph.
 
 Explicit identity edits/reverts require both the memory version and aggregate

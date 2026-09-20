@@ -1,6 +1,6 @@
--- Frozen accountless schema captured from revisions 0001 through 0013.
--- Regenerate only for an explicitly approved development reset boundary.
--- Future changes belong in forward migrations; installation identity is seeded in Python.
+-- Accountless development baseline, originally captured from revisions 0001 through 0013.
+-- Update this schema alongside ORM changes during development; do not add revisions.
+-- Installation identity is seeded in Python.
 
 CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 
