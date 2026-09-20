@@ -72,7 +72,7 @@ Global startup:
 
 `web/src/lib/feature-flags.ts` currently disables `themeSelection` for web and
 desktop. The theme provider forces the default light theme from startup, and
-the user menu shows disabled Light, Dark and Custom choices. Browser/system
+the user menu hides the entire theme section and custom-theme editor. Browser/system
 preferences and saved backend themes do not override light while this flag is
 off. Theme synchronization pauses without deleting saved preferences or custom
 colors; enabling the flag restores the existing selection behavior. Toasts use

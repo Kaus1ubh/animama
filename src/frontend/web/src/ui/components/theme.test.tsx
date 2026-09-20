@@ -1,12 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { Theme } from "./theme";
 
-it("shows theme choices disabled with light selected", () => {
+// Exercise the mounted branch so the hydration guard cannot hide a regression.
+vi.mock("react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react")>()),
+  useSyncExternalStore: () => true,
+}));
+
+it("hides theme choices when theme selection is disabled", () => {
   const html = renderToStaticMarkup(<Theme variant="tabs" showLabel />);
-  expect(html.match(/disabled=""/g)).toHaveLength(3);
-  expect(html).toContain('aria-pressed="true"');
-  expect(html).toContain("Light");
-  expect(html).toContain("Dark");
-  expect(html).toContain("Custom");
+  expect(html).toBe("");
 });
