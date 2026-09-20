@@ -35,8 +35,11 @@ Catalog. Each group owns its own loading, retry, empty, cursor, and collapse
 state. Included items are read-only Starters; Local items are editable copies
 created by the user, imported from a package, or added by the host operator.
 
-Rows show product name, AI-facing description where relevant, Included/Local
-origin, scan health, and context-specific actions. Valid content can Preview;
+Rows show the product name, useful item-specific descriptions, status badges,
+and context-specific actions. Generic description placeholders and origin/resource
+boilerplate are omitted; rows do not expand into repeated details. Catalog health
+shows actionable scan states and diagnostics, with Rescan available even when
+all content is valid. Valid content can Preview;
 Local content can open its editor. Gesture/Reaction rows can Add or Manage Anima
 loadout selections. Effects and Sounds offer “Use in Gesture/Reaction” because
 they are action ingredients, not independent equipment.

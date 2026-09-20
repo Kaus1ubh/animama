@@ -88,19 +88,23 @@ export function libraryProductActionPolicy(
   };
 }
 
-/** Build the compact primary metadata shown before a row is expanded. */
+/** Keep only item-specific metadata; status badges are rendered separately. */
 export function libraryProductMetadata(card: LibraryProductCard): string[] {
-  return [
-    card.sourceLabel,
-    card.origin,
-    ...(card.emotion ? [`${card.emotion} Level ${card.intensity ?? 1}`] : []),
-    ...(card.equippedCount
-      ? [
-          `Added to ${card.equippedCount} Anima${card.equippedCount === 1 ? "" : "s"}`,
-        ]
-      : []),
-    ...(card.updateAvailable ? ["Update available"] : []),
-  ];
+  return card.emotion ? [`${card.emotion} Level ${card.intensity ?? 1}`] : [];
+}
+
+/** Omit stock catalog placeholders without changing the underlying content. */
+export function contentRowDescription(
+  value: string | null | undefined,
+  name?: string,
+): string {
+  const description = value?.trim() ?? "";
+  const placeholder =
+    /^(?:VRM Avatar|Reusable avatar (?:pose|reaction) clip|Scene (?:background|focus-lines) effect preset|No description)\.?$/i;
+  return placeholder.test(description) ||
+    description.toLowerCase() === name?.trim().toLowerCase()
+    ? ""
+    : description;
 }
 
 export type LibraryRowPresentation = {
@@ -121,7 +125,7 @@ export function libraryRowPresentation(
   return {
     family: card.family,
     name: card.name,
-    description: card.description,
+    description: contentRowDescription(card.description, card.name),
     metadata: libraryProductMetadata(card),
     origin: card.origin,
     includedCount: card.includedCount,
@@ -136,7 +140,7 @@ export function avatarLibraryDescription(value: string | null | undefined) {
     .split(/\r?\n/)
     .map((candidate) => candidate.trim())
     .find((candidate) => candidate && !candidate.startsWith("#"));
-  return line?.replace(/^[-*+]\s+/, "") || "VRM Avatar";
+  return contentRowDescription(line?.replace(/^[-*+]\s+/, ""));
 }
 
 function reactionPlacement(value: PyReaction) {

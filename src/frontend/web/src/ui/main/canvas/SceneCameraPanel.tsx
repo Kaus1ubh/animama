@@ -28,7 +28,6 @@ type SceneCameraPanelProps = {
   bindings: SceneCameraBindings;
   className?: string;
   settings: SceneCameraSettings;
-  hasPresetSource?: boolean;
   onApplyPreset?: (preset: SceneCameraPreset) => void;
   onOrbitTargetYBoneChange: (value: SceneCameraYBoneBinding) => void;
   onFovChange: (value: number) => void;
@@ -160,7 +159,6 @@ export function SceneCameraPanel({
   className,
   settings,
   bindings,
-  hasPresetSource = false,
   onApplyPreset,
   onOrbitTargetYBoneChange,
   onFovChange,
@@ -174,9 +172,6 @@ export function SceneCameraPanel({
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">Scene Camera</p>
-          <p className="text-muted-foreground text-xs">
-            Adjust the camera and orbit target.
-          </p>
         </div>
         <Button
           type="button"
@@ -194,11 +189,6 @@ export function SceneCameraPanel({
           <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
             Presets
           </FieldLabel>
-          <p className="text-muted-foreground text-[11px]">
-            {hasPresetSource
-              ? "Portrait presets use live head binding"
-              : "Portrait presets bind when the avatar loads"}
-          </p>
         </div>
         <div className="grid grid-cols-2 gap-2">
           {SCENE_CAMERA_PRESETS.map(({ label, value }) => (

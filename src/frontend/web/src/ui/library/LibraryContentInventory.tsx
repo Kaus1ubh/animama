@@ -509,10 +509,7 @@ export function LibraryContentInventory({
                     family: "avatar",
                     name: avatar.name,
                     description: avatarLibraryDescription(avatar.description),
-                    metadata: [
-                      avatar.model_type.toUpperCase(),
-                      avatar.origin === "local" ? "Mine" : "Built-in",
-                    ],
+                    metadata: [],
                     origin: avatar.origin === "local" ? "Mine" : "Built-in",
                   }}
                   actions={

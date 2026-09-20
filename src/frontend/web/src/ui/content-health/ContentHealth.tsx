@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  AlertTriangle,
-  CheckCircle2,
-  LoaderCircle,
-  RefreshCw,
-  WifiOff,
-} from "lucide-react";
+import { AlertTriangle, LoaderCircle, RefreshCw, WifiOff } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -37,8 +31,8 @@ export function ContentHealth({
   const scanRequired = items.filter((item) => item.status === "scan_required");
   const busy = catalog.isPending || catalog.isFetching || rescan.isPending;
 
-  let label = `${items.filter((item) => item.status === "valid").length} content items ready`;
-  let Icon = CheckCircle2;
+  let label = "";
+  let Icon = RefreshCw;
   let tone = "text-muted-foreground";
   if (catalog.isError) {
     label = "Content library unavailable";
@@ -90,7 +84,7 @@ export function ContentHealth({
         ? "These items are unavailable until their files are corrected or removed and the library is rescanned."
         : scanRequired.length || catalog.data?.scan_required
           ? "Animama detected manual changes under content/. Select Rescan to validate and register them."
-          : "Every registered content item currently passes validation.";
+          : "";
 
   return (
     <div
@@ -102,58 +96,64 @@ export function ContentHealth({
       )}
       role="status"
     >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            className={cn(
-              "flex h-full min-w-0 cursor-help items-center gap-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-current",
-              compact ? "px-0" : "pr-1",
-            )}
-            aria-label={`${label}. View content health details.`}
+      {label ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "flex h-full min-w-0 cursor-help items-center gap-1 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-current",
+                compact ? "px-0" : "pr-1",
+              )}
+              aria-label={`${label}. View content health details.`}
+            >
+              <Icon
+                className={cn("size-3.5 shrink-0", busy && "animate-spin")}
+              />
+              <span
+                className={compact ? "sr-only" : "max-w-52 truncate text-xs"}
+              >
+                {label}
+              </span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent
+            align="end"
+            side="bottom"
+            sideOffset={8}
+            className="max-w-sm space-y-2 p-3 text-left text-pretty"
           >
-            <Icon className={cn("size-3.5 shrink-0", busy && "animate-spin")} />
-            <span className={compact ? "sr-only" : "max-w-52 truncate text-xs"}>
-              {label}
-            </span>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent
-          align="end"
-          side="bottom"
-          sideOffset={8}
-          className="max-w-sm space-y-2 p-3 text-left text-pretty"
-        >
-          <p className="font-medium">{label}</p>
-          <p className="opacity-85">{tooltipSummary}</p>
-          {visibleIssueDetails.length ? (
-            <ul className="space-y-2 border-t border-current/20 pt-2">
-              {visibleIssueDetails.map((detail) => (
-                <li key={detail.key}>
-                  <p className="font-medium">
-                    {detail.name}{" "}
-                    <span className="font-mono opacity-70">
-                      [{detail.code}]
-                    </span>
-                  </p>
-                  <p className="opacity-85">{detail.message}</p>
-                  {detail.path ? (
-                    <p className="mt-0.5 font-mono text-[0.6875rem] break-all opacity-70">
-                      content/{detail.path}
+            <p className="font-medium">{label}</p>
+            <p className="opacity-85">{tooltipSummary}</p>
+            {visibleIssueDetails.length ? (
+              <ul className="space-y-2 border-t border-current/20 pt-2">
+                {visibleIssueDetails.map((detail) => (
+                  <li key={detail.key}>
+                    <p className="font-medium">
+                      {detail.name}{" "}
+                      <span className="font-mono opacity-70">
+                        [{detail.code}]
+                      </span>
                     </p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {hiddenIssueCount > 0 ? (
-            <p className="border-t border-current/20 pt-2 opacity-75">
-              {hiddenIssueCount} more{" "}
-              {hiddenIssueCount === 1 ? "issue" : "issues"} not shown.
-            </p>
-          ) : null}
-        </TooltipContent>
-      </Tooltip>
+                    <p className="opacity-85">{detail.message}</p>
+                    {detail.path ? (
+                      <p className="mt-0.5 font-mono text-[0.6875rem] break-all opacity-70">
+                        content/{detail.path}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {hiddenIssueCount > 0 ? (
+              <p className="border-t border-current/20 pt-2 opacity-75">
+                {hiddenIssueCount} more{" "}
+                {hiddenIssueCount === 1 ? "issue" : "issues"} not shown.
+              </p>
+            ) : null}
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
       <Button
         type="button"
         size="icon-sm"

@@ -8,6 +8,7 @@ import {
   libraryProductMetadata,
   libraryRowPresentation,
   actionLibraryCard,
+  contentRowDescription,
 } from "./libraryPresentation";
 
 function card(
@@ -119,14 +120,9 @@ describe("Library product presentation", () => {
     expect(result.sourceLabel).toBe("Local");
   });
 
-  it("surfaces equipped and update metadata in the compact scan line", () => {
+  it("keeps statuses in badges without repeating origin metadata", () => {
     const gesture = card("gesture");
-    expect(libraryProductMetadata(gesture)).toEqual([
-      "Included",
-      "Built-in",
-      "Added to 2 Animas",
-      "Update available",
-    ]);
+    expect(libraryProductMetadata(gesture)).toEqual([]);
     expect(libraryRowPresentation(gesture)).toMatchObject({
       family: "gesture",
       includedCount: 3,
@@ -178,6 +174,10 @@ describe("Library product presentation", () => {
         "# Annie\n\n## Appearance\nAnnie has short dark hair.\n\n## Personality",
       ),
     ).toBe("Annie has short dark hair.");
-    expect(avatarLibraryDescription("# Empty")).toBe("VRM Avatar");
+    expect(avatarLibraryDescription("# Empty")).toBe("");
+    expect(contentRowDescription("Reusable avatar pose clip")).toBe("");
+    expect(contentRowDescription("Orbiting question marks and dots.")).toBe(
+      "Orbiting question marks and dots.",
+    );
   });
 });

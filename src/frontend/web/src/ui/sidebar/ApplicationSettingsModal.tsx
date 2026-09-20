@@ -890,22 +890,6 @@ export function ApplicationSettingsModal({
 
   const isBusy = isSaving || isInitializing;
   const isAudioBusy = isBusy;
-  const sectionDescription = useMemo(() => {
-    switch (activeSection) {
-      case "General":
-        return "Application settings plus local audio defaults.";
-      case "Camera":
-        return "Adjust the current scene camera and orbit target.";
-      case "Voice":
-        return "Configure speech-to-text and text-to-speech across all animas.";
-      case "Memory":
-        return "Configure application-wide memory maintenance preferences.";
-      case "Advanced":
-        return "Advanced interface and avatar control preferences.";
-      default:
-        return "";
-    }
-  }, [activeSection]);
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -921,14 +905,6 @@ export function ApplicationSettingsModal({
           activeSection={activeSection}
           onSectionChange={setActiveSection}
           headerTitle={activeSection}
-          headerDescription={sectionDescription}
-          headerMeta={
-            <p className="text-muted-foreground mt-1 text-sm">
-              {activeSection === "Camera"
-                ? "Camera changes apply to the current scene for this session."
-                : "Application preferences apply across all animas."}
-            </p>
-          }
           gridClassName="md:grid-cols-[220px_minmax(0,1fr)]"
           contentClassName="gap-5"
         >

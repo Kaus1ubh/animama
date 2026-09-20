@@ -179,8 +179,6 @@ export function AvatarSceneHost({
     useState<SceneCameraSettings>(() => getDefaultSceneCameraPreset().settings);
   const [sceneCameraBindings, setSceneCameraBindings] =
     useState<SceneCameraBindings>(() => getDefaultSceneCameraPreset().bindings);
-  const [hasSceneCameraPresetSource, setHasSceneCameraPresetSource] =
-    useState(false);
   const [isCtrlPressed, setIsCtrlPressed] = useState(false);
   const [transformMode, setTransformMode] = useState<TransformMode | null>(
     null,
@@ -406,7 +404,6 @@ export function AvatarSceneHost({
     (avatar: Avatar | null) => {
       avatarRuntimeRef.current = avatar;
       setSceneAvatar(avatar);
-      setHasSceneCameraPresetSource(Boolean(avatar?.scene));
       if (!avatar) return;
 
       setSceneCameraSettings((current) =>
@@ -441,7 +438,6 @@ export function AvatarSceneHost({
         <SceneCameraPanel
           bindings={sceneCameraBindings}
           settings={sceneCameraSettings}
-          hasPresetSource={hasSceneCameraPresetSource}
           onApplyPreset={handleSceneCameraPresetApply}
           onOrbitTargetYBoneChange={handleSceneCameraOrbitTargetYBoneChange}
           onFovChange={handleSceneCameraFovChange}
@@ -457,7 +453,6 @@ export function AvatarSceneHost({
       isPipActive,
       sceneCameraBindings,
       sceneCameraSettings,
-      hasSceneCameraPresetSource,
       handleSceneCameraPresetApply,
       handleSceneCameraOrbitTargetYBoneChange,
       handleSceneCameraFovChange,

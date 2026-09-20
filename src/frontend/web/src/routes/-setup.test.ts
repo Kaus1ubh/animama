@@ -59,7 +59,7 @@ describe("local first-run setup", () => {
     expect(html).toContain('type="checkbox"');
     expect(html).not.toContain("checked=");
     expect(html).not.toContain(">Skip<");
-    expect(html).toContain(`${(1024).toLocaleString()} bytes download`);
+    expect(html).toContain("Install offline speech recognition");
     expect(fixture.run).not.toHaveBeenCalled();
     expect(fixture.completeOnboarding).not.toHaveBeenCalled();
   });
