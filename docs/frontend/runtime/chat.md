@@ -153,7 +153,8 @@ switcher; choosing a preset or Reset restores a named preset. Camera adjustments
 remain session-only. **Mute all** sits beside the **Volume** heading. There are no separate camera or
 music launchers and no bottom-right control pill. The popover fits the viewport
 and scrolls when needed; its BGM menu stays inside the canvas fullscreen root.
-The floating header buttons retain a muted gray hover background.
+The floating header buttons and wide camera preset buttons share a muted gray
+hover background. Each chevron is centered in its clickable area.
 
 ### Layout modes
 

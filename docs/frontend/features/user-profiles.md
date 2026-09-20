@@ -23,10 +23,11 @@ Saved settings and the owned list must load before selecting a fallback. A
 deleted selection falls back to the first remaining Anima; an empty list opens
 creation. Explicit deep links are preserved.
 
-After setup, `SidebarUserMenu` shows the display name or “You.” Personalization
-opens `LocalPersonalizationModal`, which reads and patches only that private
-field, rejecting blank names rather than clearing it. “You” is only a defensive
-loading/missing-profile label. Application settings remain a separate modal. There is no local handle,
+After setup, `SidebarUserMenu` shows the display name or “You.” Its **App Settings**
+action opens the General section with a **Display Name** editor. The editor reads
+and patches only that private field, rejecting blank names rather than clearing
+it. Save updates the sidebar name; Reset discards unsaved edits. “You” is only a
+defensive loading/missing-profile label. There is no separate Personalization action. There is no local handle,
 creator page, avatar account image, account settings, sign-in, or logout.
 
 The installation bootstrap service owns initial profile and `profile.md`

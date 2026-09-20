@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import type { PyUserProfile } from "@animama/runtime-contracts/sdk";
@@ -13,31 +13,15 @@ import { UserProfileApiError } from "@/lib/user-profile/errors";
 import { useUserProfile } from "@/query/hooks/useUserProfile";
 import { useUpdateUserProfile } from "@/query/mutations/useUpdateUserProfile";
 import { Button } from "@/ui/components/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/ui/components/dialog";
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 
-type LocalPersonalizationModalProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-};
-
-function PersonalizationEditor({
+function DisplayNameEditor({
   initialProfile,
-  onSaved,
-  onCancel,
 }: {
   initialProfile: PyUserProfile;
-  onSaved: () => void;
-  onCancel: () => void;
 }) {
+  const inputId = useId();
   const [displayName, setDisplayName] = useState(
     initialProfile.display_name ?? "",
   );
@@ -56,28 +40,27 @@ function PersonalizationEditor({
     setError(null);
     try {
       await updateProfile.mutateAsync({ display_name: normalized });
-      toast.success("Personalization saved.");
-      onSaved();
+      toast.success("Display name saved.");
     } catch (caught) {
       setError(
         caught instanceof UserProfileApiError
           ? caught.message
-          : "Could not save your personalization. Try again.",
+          : "Could not save your display name. Try again.",
       );
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 px-6 pb-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <Label htmlFor="personalization-display-name">Display name</Label>
+          <Label htmlFor={inputId}>Display Name</Label>
           <span className="text-muted-foreground text-xs">
             {displayName.length}/{DISPLAY_NAME_MAX_LENGTH}
           </span>
         </div>
         <Input
-          id="personalization-display-name"
+          id={inputId}
           value={displayName}
           maxLength={DISPLAY_NAME_MAX_LENGTH}
           required
@@ -98,9 +81,20 @@ function PersonalizationEditor({
           </p>
         ) : null}
       </div>
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
+      <div className="flex justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={
+            displayName === (initialProfile.display_name ?? "") ||
+            updateProfile.isPending
+          }
+          onClick={() => {
+            setDisplayName(initialProfile.display_name ?? "");
+            setError(null);
+          }}
+        >
+          Reset
         </Button>
         <Button
           type="submit"
@@ -111,59 +105,49 @@ function PersonalizationEditor({
           ) : null}
           Save
         </Button>
-      </DialogFooter>
+      </div>
     </form>
   );
 }
 
-/** Edit the required private name without changing the installation owner. */
-export function LocalPersonalizationModal({
-  open,
-  onOpenChange,
-}: LocalPersonalizationModalProps) {
-  const profile = useUserProfile({ enabled: open });
+/** Edit the private display name within App Settings without changing its owner. */
+export function DisplayNameSettings() {
+  const profile = useUserProfile();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-popover overflow-hidden rounded-3xl p-0 sm:max-w-lg">
-        <DialogHeader className="px-6 pt-6 pb-4">
-          <DialogTitle>Personalization</DialogTitle>
-          <DialogDescription>
-            Choose what Animama calls you on this installation.
-          </DialogDescription>
-        </DialogHeader>
-        {profile.data ? (
-          <PersonalizationEditor
-            key={profile.data.display_name ?? "__empty__"}
-            initialProfile={profile.data}
-            onSaved={() => onOpenChange(false)}
-            onCancel={() => onOpenChange(false)}
-          />
-        ) : profile.isError ? (
-          <div className="space-y-4 px-6 pb-6 text-center">
-            <p className="font-medium">Personalization unavailable</p>
-            <p className="text-muted-foreground text-sm">
-              Animama could not load the local profile.
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={profile.isFetching}
-              onClick={() => void profile.refetch()}
-            >
-              Try again
-            </Button>
-          </div>
-        ) : (
-          <div
-            className="text-muted-foreground flex min-h-40 items-center justify-center gap-2 px-6 pb-6 text-sm"
-            role="status"
+    <section
+      aria-label="Display name"
+      className="border-border/60 bg-muted/10 rounded-xl border p-5"
+    >
+      {profile.data ? (
+        <DisplayNameEditor
+          key={profile.data.display_name ?? "__empty__"}
+          initialProfile={profile.data}
+        />
+      ) : profile.isError ? (
+        <div className="space-y-4 text-center">
+          <p className="font-medium">Display name unavailable</p>
+          <p className="text-muted-foreground text-sm">
+            Animama could not load the local profile.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={profile.isFetching}
+            onClick={() => void profile.refetch()}
           >
-            <Loader2 className="size-4 animate-spin" />
-            Loading personalization…
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+            Try again
+          </Button>
+        </div>
+      ) : (
+        <div
+          className="text-muted-foreground flex min-h-24 items-center justify-center gap-2 text-sm"
+          role="status"
+        >
+          <Loader2 className="size-4 animate-spin" />
+          Loading display name…
+        </div>
+      )}
+    </section>
   );
 }

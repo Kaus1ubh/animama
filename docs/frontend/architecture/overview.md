@@ -121,9 +121,9 @@ Primary routes:
   route is intentionally minimal so URL changes do not remount the avatar,
   TTS, or SSE runtime.
 
-The sidebar Personalization action opens a private display-name modal over the
-active route. Application settings remain separate. Neither action navigates or
-remounts chat/avatar runtime state.
+The sidebar App Settings action opens a modal over the active route. Its General
+section includes the private Display Name editor. Opening settings or saving a
+name does not navigate or remount chat/avatar runtime state.
 
 ## Data And Runtime Flow
 

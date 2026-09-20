@@ -55,6 +55,8 @@ import {
 } from "@/lib/speech/tts-provider";
 import { Switch } from "@/ui/components/switch";
 import { Button } from "@/ui/components/button";
+import { DialogOverlay } from "@/ui/components/dialog";
+import { DisplayNameSettings } from "@/ui/profile/DisplayNameSettings";
 import {
   Select,
   SelectContent,
@@ -908,7 +910,7 @@ export function ApplicationSettingsModal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
+        <DialogOverlay />
         <SectionedModalFrame<ApplicationSettingsSection>
           title="App Settings"
           description="Configure application-level voice and interface settings."
@@ -930,6 +932,8 @@ export function ApplicationSettingsModal({
           gridClassName="md:grid-cols-[220px_minmax(0,1fr)]"
           contentClassName="gap-5"
         >
+          {activeSection === "General" ? <DisplayNameSettings /> : null}
+
           {activeSection === "General" ? (
             <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
               <div>

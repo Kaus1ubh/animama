@@ -36,23 +36,23 @@ export function SceneCameraPresetControl({
       className="border-border/60 space-y-2 border-t pt-3"
     >
       <h3 className="text-sm font-medium">Camera</h3>
-      <div className="flex min-w-0 items-center gap-2">
+      <div className="grid min-w-0 grid-cols-[1fr_2fr_1fr] items-center gap-2">
         <Button
           type="button"
           variant="ghost"
-          size="icon-sm"
+          className="hover:bg-muted/70 dark:hover:bg-muted/70 hover:text-foreground h-10 w-full bg-transparent"
           aria-label="Previous camera preset"
           onClick={() => cycle(-1)}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <span aria-live="polite" className="min-w-0 flex-1 text-center text-sm">
+        <span aria-live="polite" className="min-w-0 text-center text-sm">
           {SCENE_CAMERA_PRESETS[index]?.label ?? "Custom"}
         </span>
         <Button
           type="button"
           variant="ghost"
-          size="icon-sm"
+          className="hover:bg-muted/70 dark:hover:bg-muted/70 hover:text-foreground h-10 w-full bg-transparent"
           aria-label="Next camera preset"
           onClick={() => cycle(1)}
         >
