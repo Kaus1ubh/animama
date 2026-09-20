@@ -25,6 +25,16 @@ POST streams still permit one attempt; typed chat mutations explicitly disable
 query-client retry defaults. A remount conflict preserves the unsent input and
 requires the existing explicit recovery action.
 
+## Model selector provider icons
+
+The selector and selected-model control use the catalog's `logo_provider` to
+render a bundled provider mark from `web/public/provider-logos`. OpenAI, Google,
+xAI, Groq, DeepSeek and Hugging Face have pinned local SVGs; other adapters keep
+an accessible initial fallback. The same assets ship in the production web
+build served by FastAPI and embedded desktop. Logos never require a CDN request.
+The asset directory records the upstream revision and preserves its MIT notice;
+desktop runtime staging includes the corresponding notice group.
+
 ## Failed turns and recovery
 
 The shared session keeps a failure notice beside the affected user message. Known

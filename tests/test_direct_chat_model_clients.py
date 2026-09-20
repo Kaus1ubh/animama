@@ -371,7 +371,7 @@ def test_direct_chat_prompt_assembler_lists_attached_upload_overviews_in_request
     assert [message["role"] for message in folded_prompt.messages] == ["system", "user"]
     folded_content = folded_prompt.messages[0]["content"]
     assert isinstance(folded_content, str)
-    assert "Do not default to reading `profile.md`" in folded_content
+    assert "Do not default to reading `PROFILE.md`" in folded_content
     assert folded_content.endswith('        title: "Milestones"')
     assert 'filename: "first-notes.md"' in folded_content
     assert "chunk_count: 12" in folded_content

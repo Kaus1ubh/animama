@@ -235,7 +235,7 @@ async def test_direct_creation_seeds_chat_profile_and_one_identity_history(async
         profile = await async_session.get(ORMAnimaChatProfile, anima_id)
         anima = await async_session.get(ORMAnima, anima_id)
         identity = await async_session.scalar(
-            select(ORMMemoryEntry).where(ORMMemoryEntry.anima_id == anima_id, ORMMemoryEntry.path == "identity.md")
+            select(ORMMemoryEntry).where(ORMMemoryEntry.anima_id == anima_id, ORMMemoryEntry.path == "IDENTITY.md")
         )
         history = await async_session.scalar(
             select(ORMMemoryEntryVersion).where(ORMMemoryEntryVersion.entry_id == identity.id)

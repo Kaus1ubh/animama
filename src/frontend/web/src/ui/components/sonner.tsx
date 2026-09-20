@@ -16,11 +16,11 @@ export function resolveSonnerTheme(theme: string): ToasterProps["theme"] {
 }
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const { theme = "system", forcedTheme } = useTheme();
 
   return (
     <Sonner
-      theme={resolveSonnerTheme(theme)}
+      theme={resolveSonnerTheme(forcedTheme ?? theme)}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,

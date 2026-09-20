@@ -110,7 +110,7 @@ class InstallationPersonalizationService:
                 entry = await self._memory_entries.get_entry_by_path_for_update(
                     user_id=principal_id,
                     anima_id=None,
-                    normalized_path=PROFILE_MEMORY_PATH,
+                    normalized_path=PROFILE_MEMORY_PATH.casefold(),
                     type=MEMORY_ENTRY_TYPE_FILE,
                 )
                 if complete_first_run and entry is None:

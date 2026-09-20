@@ -13,7 +13,7 @@ describe("invalidateAnimaDefinition", () => {
       queryKeys.animaLoadouts.detail("owner", "anima"),
       queryKeys.memoryEntries.byPath("owner", {
         animaId: "anima",
-        path: "identity.md",
+        path: "IDENTITY.md",
         type: "file",
       }),
     ];

@@ -55,3 +55,6 @@ models/browser-runtime/manifest.json text eol=lf
 
 # Do not accidentally reintroduce migrated model bytes through broad LFS rules.
 src/frontend/web/public/onnx/** -filter -diff -merge -text
+
+# Small provider marks and their notice ship as ordinary Git text, not LFS inputs.
+src/frontend/web/public/provider-logos/** -filter diff merge text eol=lf

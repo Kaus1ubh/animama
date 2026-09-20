@@ -175,7 +175,7 @@ dependency; none accepts an owner ID or internal credential from the body.
 - `POST /v1/runtime/onboarding:complete`: accept only
   `{ "display_name": string }`, required and nonblank (1–80 characters);
   atomically save private personalization,
-  guarded `profile.md` synchronization, and write-once first-run completion.
+  guarded `PROFILE.md` synchronization, and write-once first-run completion.
 - `GET /v1/users/me/profile`: return only nullable `display_name`.
 - `PATCH /v1/users/me/profile`: require and update nonblank `display_name`
   after first run. Missing, null, blank, and overlong names return 422.
@@ -514,14 +514,14 @@ not read `ORMAnima.metadata_["chat_runtime"]`, derive graph fallback config,
 read `metadata.direct_chat`, or build agent providers for the normal primary
 turn. The old graph/agent execution code has been deleted; normal avatar chat
 uses direct model clients plus the explicit profile/catalog selection above.
-Before model invocation, direct chat opens cached path `identity.md` in the
+Before model invocation, direct chat opens cached path `IDENTITY.md` in the
 active anima scope for prompt context and appends only the identity markdown
 content to the single system instruction. User profile memory entries are seeded
 during installation bootstrap but their content is not injected into direct chat
 context yet. When memory influence is enabled, direct chat adds a request-local
 `# List of memory files` developer message immediately before the latest user
 message. The list includes only user-scope file entries (`anima_id IS NULL`),
-uses cached paths such as `profile.md`, and omits anima-scoped files and tree
+uses cached paths such as `PROFILE.md`, and omits anima-scoped files and tree
 formatting. `disable_memory_influence` suppresses the list while keeping
 required anima identity active. Provider rows that do not support OpenAI's
 `developer` message role, including DeepSeek, receive that request-local memory
@@ -630,7 +630,7 @@ provenance. Missing or foreign entries return `404`; stale current Versions
 return `409`; protected/generated/directory/deleted, current/future/missing, and
 no-change targets return `400`.
 
-Anima-scoped `identity.md` reads/writes additionally return
+Anima-scoped `IDENTITY.md` reads/writes additionally return
 `aggregate_revision`. Create/repair, PATCH, and Revert for that file require
 `expected_aggregate_revision` alongside the memory version (`0` for creation).
 Missing/stale aggregate guards return `409`. Each successful write appends one
@@ -710,16 +710,17 @@ stale or ineligible requests return `409`.
 
 Fresh reset-created databases include run kind/task state, approval feedback,
 old/new approval descriptions, application Version, and Undo audit columns.
-Existing local databases require `./reset.sh`; a data-preserving deployment
-needs an explicit migration for the new manager columns and the binary
-episode-status constraint.
+During development, changes to these columns or the binary episode-status
+constraint update the ORM and baseline SQL directly. The owner decides when to
+reset an existing database; ordinary `./reset.sh` preserves data and does not
+reapply an edited baseline.
 
 Normal direct chat assembles the current anima identity entry content into
 system instruction context. Anima identity is always required, and
 `disable_memory_influence` does not remove it. Anima creation seeds
 anima-scoped identity entries with
 `description = "Initial identity of {anima.display_name}"`. The local
-installation bootstrap creates a private user-scope `profile.md` from template
+installation bootstrap creates a private user-scope `PROFILE.md` from template
 version 1; first-run personalization updates only its managed preferred-name
 line while the template metadata and version still match. AI memory tools are runtime-scoped to user-scope file
 entries only and are executed through application services, not provider

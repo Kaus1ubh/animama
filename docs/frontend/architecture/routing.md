@@ -110,7 +110,7 @@ Typed creators use stable product routes such as `/a/particle-effects/new`,
   full viewport width beneath the collapsed controls. Tab changes and Anima
   carousel navigation create normal history entries while retaining the selected tab.
 - `a/animas/$animaId/identity.tsx`: modal route for editing the anima-scoped
-  `identity.md` memory entry.
+  `IDENTITY.md` memory entry.
 - `a/avatar-portrait-debug.tsx`: development-only local VRM portrait-capture
   harness; its route guard returns not found outside Vite development mode.
 - `a/$animaId.tsx`: live anima runtime shell.

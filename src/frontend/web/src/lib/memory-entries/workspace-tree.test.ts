@@ -50,6 +50,18 @@ const entries = [
 ];
 
 describe("memory workspace tree", () => {
+  it.each(["PROFILE.md", "profile.md"])(
+    "opens the profile first with %s spelling",
+    (path) => {
+      expect(
+        initialMemoryWorkspaceFileId([
+          entry("first", "a.md", "file"),
+          entry("profile", path, "file"),
+        ]),
+      ).toBe("profile");
+    },
+  );
+
   it("keeps an empty Episodes root visible and expanded", () => {
     const tree = buildMemoryWorkspaceTree([]);
 

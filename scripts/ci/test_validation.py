@@ -28,7 +28,6 @@ class GitSelectionTests(unittest.TestCase):
         self.git("config", "user.name", "CI fixture")
         self.write("docs/backend/a.md", "initial\n")
         self.write("docs/frontend/b.md", "initial\n")
-        self.write("docs/architecture/repository-provenance.json", '{"files":[],"evidence":[]}\n')
         self.base = self.commit("base")
 
     def git(self, *args):
@@ -110,7 +109,7 @@ class GitSelectionTests(unittest.TestCase):
         self.assertEqual(merge_base, self.base)
         self.assertEqual([row["path"] for row in changes], ["docs/backend/a.md"])
 
-    def test_cli_records_source_tree_and_exports_docs_plan(self):
+    def test_cli_selects_docs_without_repository_inventories(self):
         self.write("docs/backend/a.md", "documentation\n")
         head = self.commit("docs")
         event_path = Path(self.directory.name) / "event.json"

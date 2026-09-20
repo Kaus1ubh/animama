@@ -42,9 +42,11 @@ After a successful stage and audit, `pnpm desktop:mac` copies the runtime into
 `Animama.app/Contents/Resources/runtime`, outside ASAR. Its prebuild gate requires
 the exact audited manifest/build ID and current main/preload closure, with no
 stage-failure marker. Restage and reaudit after backend, supervisor, preload, or
-web or migration changes. The consolidated frozen schema head is
-`baseline_20260908`. Profiles or backups whose revision is absent from the
-packaged migration graph require a matching app/checkout or a reviewed recovery
+web or baseline SQL changes. The current Alembic head is the single
+`baseline_20260908` revision. During development, update ORM/database definitions
+and baseline SQL directly without adding revisions; existing databases do not
+automatically receive an edited baseline. Profiles or backups whose revision is
+absent from the packaged migration graph require a matching app/checkout or a reviewed recovery
 procedure. Use an explicitly disposable fresh profile for incompatible test data.
 The stage probe uses disposable data; it does not reset an existing installation.
 Artifacts use `animama-desktop-runtime/2` and `local_http_schema_version: 1`.

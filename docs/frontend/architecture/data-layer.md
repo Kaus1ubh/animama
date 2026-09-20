@@ -169,7 +169,7 @@ pre-setup bootstrap placeholder may be null. Successful updates
 publish the authoritative response under the principal-scoped profile query
 key. There are no browser profile-ensure, username, creator-resolution, public
 visibility, or account-session operations. Installation bootstrap and the
-guarded `profile.md` preferred-name update belong to FastAPI.
+guarded `PROFILE.md` preferred-name update belong to FastAPI.
 
 ## Chat Search
 
@@ -265,7 +265,7 @@ version's adjacent detail. Query keys are scoped under
 and immutable version history.
 
 The `/a/memories` page uses those hooks for user-scope markdown entries. Anima
-details use the same hooks for the selected anima's `identity.md` editor route.
+details use the same hooks for the selected anima's `IDENTITY.md` editor route.
 The shared editor keeps draft state local to the modal and saves with the
 draft's `expected_version`. Anima identity responses also provide
 `aggregate_revision`, captured as `baseAggregateRevision` and sent as

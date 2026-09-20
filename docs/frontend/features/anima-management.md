@@ -9,9 +9,9 @@ Routes:
 - `/a/animas/new`: Avatar → Identity → Actions → Review live creation;
   existing links and optional logical Avatar handoffs remain intact.
 - `/a/animas`: resolve to the first owned Anima or `/a/animas/new`.
-- `/a/animas/:animaId`: view the rendered `identity.md` document by default.
+- `/a/animas/:animaId`: view the rendered `IDENTITY.md` document by default.
 - `/a/animas/:animaId?tab=loadout`: configure the typed loadout.
-- `/a/animas/:animaId/identity`: edit the Anima's `identity.md` memory entry.
+- `/a/animas/:animaId/identity`: edit the Anima's `IDENTITY.md` memory entry.
 - `/a/:animaId`: enter the live Avatar/chat surface.
 
 The [live creation journey](custom-anima-creation.md) uses stable live
@@ -24,7 +24,7 @@ Anima.
 
 Identity is the safe default for a bare or invalid management URL. The URL
 continues to call this state `overview`, while the visible tab says Identity.
-The panel renders the Anima-scoped `identity.md`; if that file is unavailable,
+The panel renders the Anima-scoped `IDENTITY.md`; if that file is unavailable,
 the selected Avatar's starter identity is shown as a fallback. Edit identity
 opens a nested modal route and closing it returns focus to the Identity panel.
 Saving updates the shared memory-entry query used by the rendered preview and

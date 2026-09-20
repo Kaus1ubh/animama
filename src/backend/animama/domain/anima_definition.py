@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unicodedata
 
-ANIMA_IDENTITY_PATH = "identity.md"
+ANIMA_IDENTITY_PATH = "IDENTITY.md"
 ANIMA_IDENTITY_KIND = "anima_identity"
 ANIMA_IDENTITY_MAX_BYTES = 32 * 1024
 ANIMA_DISPLAY_NAME_MAX_CHARACTERS = 40

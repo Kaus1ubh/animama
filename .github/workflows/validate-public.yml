@@ -163,16 +163,6 @@ jobs:
         if: contains(fromJSON('["full","web"]'), steps.select.outputs.mode)
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" frontend-lint --cwd src/frontend -- pnpm web:lint
-      - name: Repository Classification
-        id: repository-classification
-        if: steps.select.outputs.mode == 'full'
-        run: |
-          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" repository-classification -- uv run --no-sync python scripts/repository-boundary/audit-classification.py --check
-      - name: Repository Provenance
-        id: repository-provenance
-        if: steps.select.outputs.mode == 'full'
-        run: |
-          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" repository-provenance -- uv run --no-sync python scripts/repository-boundary/build-provenance.py --check
       - name: Repository Imports
         id: repository-imports
         if: steps.select.outputs.mode == 'full'

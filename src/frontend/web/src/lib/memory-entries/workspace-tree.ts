@@ -239,7 +239,9 @@ export function initialMemoryWorkspaceFileId(entries: PyMemoryEntryHeader[]) {
   const ordinaryFiles = entries
     .filter((entry) => entry.type === "file" && !isEpisodeLogEntry(entry))
     .sort((left, right) => left.path.localeCompare(right.path));
-  const profile = ordinaryFiles.find((entry) => entry.path === "profile.md");
+  const profile = ordinaryFiles.find(
+    (entry) => entry.path.toLowerCase() === "profile.md",
+  );
   if (profile) return profile.id;
   if (ordinaryFiles[0]) return ordinaryFiles[0].id;
   return groupEpisodeEntries(entries)[0]?.items[0]?.entry.id ?? null;

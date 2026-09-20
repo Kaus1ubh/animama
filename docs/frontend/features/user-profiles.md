@@ -31,7 +31,7 @@ unchanged, invalid, or being saved. Saving updates the sidebar name. Closing set
 defensive loading/missing-profile label. There is no separate Personalization action. There is no local handle,
 creator page, avatar account image, account settings, sign-in, or logout.
 
-The installation bootstrap service owns initial profile and `profile.md`
+The installation bootstrap service owns initial profile and `PROFILE.md`
 creation. Later profile changes update the bootstrap-managed preferred-name line
 in the same guarded backend transaction; a person's direct edit to that line
 wins. This private display name is not a hosted identity or public creator

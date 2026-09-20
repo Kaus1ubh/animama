@@ -64,9 +64,10 @@ runtime extractor; Electron's bounded zstd/USTAR pipeline owns installation.
 the data-only SQL seeds in `alembic/seeds/`, and frontend-owned manifest inputs.
 Source execution knows the checkout layout; frozen execution resolves package resources and fails if one
 is missing. Prompt code ships in the backend package, and versioned starter
-policy uses package resources. The spec includes the complete Alembic tree: currently the single
-`baseline_20260908` revision and its frozen `0001_baseline.sql`, plus any
-future forward revisions. Restage after changing these resources. Existing
+policy uses package resources. The spec includes the complete Alembic tree: the
+single `baseline_20260908` revision and its `0001_baseline.sql`. During development,
+update ORM/database definitions and the baseline SQL directly; do not add
+revisions. Restage after changing these resources. Existing
 profiles/backups with a removed pre-release revision need the matching old app
 or checkout, or an explicitly disposable fresh profile; bootstrap must not stamp
 or silently reset them. `database bootstrap` uses Alembic's Python API

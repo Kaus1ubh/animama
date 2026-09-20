@@ -4,6 +4,7 @@ import { Settings } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
+import { featureFlags } from "@/lib/feature-flags";
 import { useUserProfile } from "@/query/hooks/useUserProfile";
 import { Avatar, AvatarFallback } from "@/ui/components/avatar";
 import {
@@ -94,24 +95,28 @@ export function SidebarUserMenu() {
           sideOffset={12}
           className="z-[130] w-72 p-3"
         >
-          <DropdownMenuLabel className="text-muted-foreground dark:text-muted-foreground text-xs font-medium">
-            Theme
-          </DropdownMenuLabel>
-          <div className="px-1 pb-2">
-            <Theme
-              variant="tabs"
-              size="sm"
-              showLabel
-              themes={["light", "dark", "custom"]}
-              onCustomSelect={() => {
-                ensureCustomTheme();
-                setCustomOpen(true);
-                setMenuOpen(false);
-              }}
-              className="w-full"
-            />
-          </div>
-          <DropdownMenuSeparator />
+          {featureFlags.themeSelection ? (
+            <>
+              <DropdownMenuLabel className="text-muted-foreground dark:text-muted-foreground text-xs font-medium">
+                Theme
+              </DropdownMenuLabel>
+              <div className="px-1 pb-2">
+                <Theme
+                  variant="tabs"
+                  size="sm"
+                  showLabel
+                  themes={["light", "dark", "custom"]}
+                  onCustomSelect={() => {
+                    ensureCustomTheme();
+                    setCustomOpen(true);
+                    setMenuOpen(false);
+                  }}
+                  className="w-full"
+                />
+              </div>
+              <DropdownMenuSeparator />
+            </>
+          ) : null}
           <DropdownMenuItem
             className="gap-2"
             onSelect={(event) => {
@@ -125,7 +130,9 @@ export function SidebarUserMenu() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <CustomThemeModal open={customOpen} onOpenChange={setCustomOpen} />
+      {featureFlags.themeSelection ? (
+        <CustomThemeModal open={customOpen} onOpenChange={setCustomOpen} />
+      ) : null}
       <ApplicationSettingsModal
         open={applicationSettingsOpen}
         onOpenChange={setApplicationSettingsOpen}

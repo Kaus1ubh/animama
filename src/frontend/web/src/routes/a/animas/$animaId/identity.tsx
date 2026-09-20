@@ -33,7 +33,7 @@ function AnimaIdentityEditorRoute() {
   return (
     <MemoryEntryEditorModal
       animaId={animaId}
-      path="identity.md"
+      path="IDENTITY.md"
       allowedScope="anima"
       onClose={() => {
         void navigate({

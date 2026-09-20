@@ -40,7 +40,7 @@ mid-conversation.
 ## Live Anima definition
 
 An Anima owns its stable `display_name`, positive `aggregate_revision`, and
-SQL-backed virtual `identity.md` (`kind=anima_identity`). The identity body and
+SQL-backed virtual `IDENTITY.md` (`kind=anima_identity`). The identity body and
 its append-only history remain in `memory_entries`/`memory_entry_versions`.
 `anima_definition_revisions` records the name, identity entry/version pointer,
 actor, reason, and timestamp without copying the identity body. Chat and
@@ -63,7 +63,7 @@ creator and submits the complete reviewed spec through `POST /v1/animas`.
 
 New creation materializes the selected identity into the Anima's own memory
 entry. Missing or blank identity requires explicit repair before chat can invoke
-a model. The frozen baseline creates this schema directly and provides no
+a model. The baseline creates this schema directly and provides no
 identity backfill for databases outside its supported revision graph.
 
 Explicit identity edits/reverts require both the memory version and aggregate
@@ -111,7 +111,7 @@ Anima, name/identity history, settings, chat profile, and typed loadout. Catalog
 rows and the active model are locked for creation; exact membership, access,
 typed semantics, budgets, revisions, and verified source bytes are rechecked
 after the receipt write. Validation does not Rescan or mark catalog rows.
-`identity.md` remains a SQL-backed virtual memory entry;
+`IDENTITY.md` remains a SQL-backed virtual memory entry;
 there is no physical identity projection. The materializer never commits
 independently. Default model selection validates the configured active local
 row; default ElevenLabs voice `gJx1vCzNCD1EQHT212Ls` is assigned without a

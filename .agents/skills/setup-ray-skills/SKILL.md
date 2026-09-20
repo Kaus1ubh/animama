@@ -5,9 +5,9 @@ description: Establish or repair a repository's SDLC skill contract, lifecycle d
 
 # Set up the lifecycle skills
 
-Establish the repository contract used by this nine-skill bundle. The bundled
+Establish the repository contract used by this lifecycle skill bundle. The bundled
 instructions are portable; put project-specific facts in the generated repository
-documents. Install the nine skill directories together; each execution skill can
+documents. Install the bundled skill directories together; each execution skill can
 then be invoked independently.
 
 ## Inspect before configuring

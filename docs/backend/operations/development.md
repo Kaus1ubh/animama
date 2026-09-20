@@ -97,20 +97,21 @@ For a schema-only operation, run migrations directly:
 uv run alembic upgrade head
 ```
 
-Create a new migration after model changes:
-
-```bash
-uv run alembic revision --autogenerate -m "describe change"
-```
+During development, do not add Alembic revisions. Update ORM/database
+definitions and `alembic/versions/0001_baseline.sql` directly when changing the
+schema; change seeds or application defaults directly for data changes. The
+owner decides when to reset existing development data. Running bootstrap or
+`alembic upgrade head` against a database already at the baseline does not
+reapply changes to its SQL.
 
 The local Alembic graph owns extension creation and the complete accountless
 schema and contains no hosted identity tables. Animama Cloud uses a separate
 migration history and app composition.
 
-Alembic revision `baseline_20260908` is the frozen current local schema in
+Alembic revision `baseline_20260908` creates the current local schema from
 `alembic/versions/0001_baseline.sql`. The baseline creates installation settings
-and generates one UUIDv4 owner; it never imports live ORM metadata. Keep the
-baseline fixed and use reviewed forward revisions for subsequent model changes.
+and generates one UUIDv4 owner; it never imports live ORM metadata. Keep its SQL
+consistent with the ORM while retaining this single development baseline.
 
 A database or backup stamped with an unsupported pre-baseline revision needs
 its matching checkout, or an explicit reset of disposable development data. `alembic upgrade head` cannot bridge this
@@ -452,13 +453,12 @@ claim/adoption command, API-key provisioning script, or data-preserving
 migration from development accounts. A full purge creates a new principal;
 an ordinary restart retains it and opens the completed product journey.
 
-The frozen `0001_baseline.sql` includes `chats.openai_previous_response_id`,
+The `0001_baseline.sql` includes `chats.openai_previous_response_id`,
 the scoped `memory_entries` tree, append-only `memory_entry_versions`, their
 `version` and `description` columns, and the Avatar identity/Anima schema.
 Fresh databases receive these through Alembic, not dynamic ORM metadata
-creation. Databases from the earlier pre-public reset-shape iterations require
-the fresh-reset boundary described above; current schema changes must use
-forward revisions rather than editing the baseline or adding ad hoc tables.
+creation. Existing databases with an older schema require the owner-directed
+fresh-reset boundary described above to receive current baseline changes.
 
 The current baseline creates the neutral Content Catalog, typed
 `anima_loadouts`/`anima_content_bindings`, and
@@ -496,7 +496,7 @@ uv run python scripts/seed_synthetic_context.py \
   --prefix memory-search-demo
 ```
 
-The script writes user-scope memory files at `profile.md`,
+The script writes user-scope memory files at `PROFILE.md`,
 `notes/projects.md`, and `notes/preferences.md` through
 `MemoryEntryService.put_file_by_path(...)`. Existing files at those paths are
 updated by version. It creates or reuses a deterministic chat ID derived from
@@ -733,7 +733,7 @@ persistence and avatar logic and remain full scope. Directory location alone is
 not permission to reduce checks. Changed imports or unsupported dependency syntax
 automatically select full validation. This does not prove functional purity;
 review higher-risk behavior changes inside an allowed file and use `ci:full`.
-Repository instructions, provenance evidence, executable/symlink/LFS inputs,
+Repository instructions, executable/symlink/LFS inputs,
 configuration, dependency/build inputs and shared contracts remain full scope.
 
 ### Reuse a full hosted PR result after merging
@@ -836,7 +836,7 @@ prepares shared packages once and invokes the individual source/harness/type/tes
 build commands; standalone developer commands still prepare their dependencies.
 `pnpm ci:source` remains a local convenience, not an opaque hosted CI step.
 
-Full validation also checks classification/provenance/imports/LFS, nonempty
+Full validation also checks imports, repository dependencies and LFS, nonempty
 package-set/public-release/repository-boundary/CI tooling suites, Compose graphs,
 and both rendered Library/setup modes using fresh PostgreSQL containers and
 original synthetic content. The independent tracked-source producer keeps its
@@ -1510,7 +1510,10 @@ docker compose -p "$COMPOSE_PROJECT_NAME" --profile "*" down --remove-orphans
 ```
 
 This uses the recorded Compose files and removes only the selected project's
-containers and networks. Do not use `-v` or `--rmi` for routine handoff. If the
+containers and networks. Routine handoff retains volumes and images. An explicit
+`merge-n-clean` invocation also authorizes deleting verified task-only volumes:
+add `--volumes` only after checking ownership and other consumers. Preserve shared,
+external and main-stack volumes; never use `--rmi` for this cleanup. If the
 record is missing, reconstruct and verify the exact project, Compose files and
 storage configuration before acting; a guessed project name is insufficient.
 
@@ -1540,10 +1543,9 @@ git branch -d feat/abc
 
 If Git refuses deletion (including after a squash merge), inspect the actual
 merge and remaining commits; do not automatically retry with `-D`. No global
-Docker, volume, model-cache or Git pruning belongs in task cleanup. A cleanup
-helper or agent skill is not required. Revisit one only when a demonstrated need
-justifies it; it must follow the same simple workflow and identify its resources
-before deletion.
+Docker, volume, model-cache or Git pruning belongs in task cleanup. The optional
+[`merge-n-clean` skill](../../../.agents/skills/merge-n-clean/SKILL.md) follows this
+workflow after an approved merge and fast-forward update of the primary checkout.
 
 For new branches and PR titles, use the categorized naming policy in
 [the agent guide](../../../AGENTS.md#branches-and-pull-requests).

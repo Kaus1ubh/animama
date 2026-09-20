@@ -51,14 +51,17 @@ the same Postgres instance. Keep that total below the database's
 `max_connections` with headroom for migrations, admin tools, and maintenance
 workers.
 
-## Migrations
+## Development schema and initialization
 
 Alembic revision `baseline_20260908` creates the complete current accountless
-local schema from frozen `alembic/versions/0001_baseline.sql`. The SQL creates
+local schema from `alembic/versions/0001_baseline.sql`. The SQL creates
 the tables, constraints, indexes, runtime-worker heartbeats and content mutation
 receipts directly.
-It must not import live ORM metadata or be regenerated as models change; future
-schema changes use forward revisions.
+It does not import live ORM metadata. During development, update ORM/database
+definitions and the baseline SQL directly as needed; do not add Alembic
+revisions. Update seeds or application defaults for data changes. The owner
+decides when to reset an existing development database to apply the current
+baseline; ordinary startup does not reapply edited baseline SQL.
 
 The baseline creates and seeds the singleton installation settings row with a
 new UUIDv4 principal in the same migration transaction. The principal is not a
@@ -156,9 +159,9 @@ visibility, alias, cooldown, claim, or creator-resolution state.
 
 `LocalInstallationBootstrapService` creates the missing profile through the
 neutral `OwnerProfileBootstrapPort`. First-run completion updates the profile,
-the guarded bootstrap-managed `profile.md` version, and
+the guarded bootstrap-managed `PROFILE.md` version, and
 `installation_settings.first_run_completed_at` in one transaction. A direct
-user edit to `profile.md` disables later automatic synchronization.
+user edit to `PROFILE.md` disables later automatic synchronization.
 
 The application path is:
 
@@ -247,7 +250,7 @@ includes stable Anima name/revision and compact `anima_definition_revisions` rec
 keyed by `(anima_id, aggregate_revision)`, with display name, identity entry and
 version pointer, actor, reason, and timestamp. Identity stays in the existing
 Anima-scoped `memory_entries`/`memory_entry_versions` SQL virtual filesystem,
-with no physical `identity.md` projection. New aggregate, identity, and loadout
+with no physical `IDENTITY.md` projection. New aggregate, identity, and loadout
 revisions start at 1. Name changes advance aggregate revision; identity writes
 and Revert advance aggregate and memory version; equipment changes advance
 aggregate and loadout revision once. Runtime state, chats, and ordinary settings
@@ -359,11 +362,12 @@ model-context chain. Serialized agent state is separate: it stores an exact
 paused Apply Patch interruption and is cleared after the SDK resumes without
 another interruption.
 
-The frozen baseline includes run kind, task state, the Responses cursor,
+The baseline includes run kind, task state, the Responses cursor,
 approval feedback, old/new descriptions, applied Version and Undo audit fields.
-Schema upgrades use forward Alembic revisions. Databases outside the supported
-revision graph require their matching checkout or an explicitly disposable
-reset; a routine restart does not add missing schema or discard data.
+During development, schema changes update the ORM and baseline SQL directly.
+Databases outside the supported revision graph require their matching checkout
+or an explicitly disposable reset; a routine restart does not add missing
+schema or discard data.
 
 Undo and Revert preserve the append-only model. An approved Memory Manager
 patch records the exact entry and Version it produced. Undo appends a new
@@ -391,9 +395,9 @@ paths, and anima-scope cached paths all ignore rows with `deleted_at IS NOT
 NULL`. A virtual root is used instead of a persisted root row; `parent_id = NULL`
 means the top level of the selected scope.
 
-The frozen baseline includes the memory-manager open-run index. The one-time
-pre-release reset boundary applies to old schemas; subsequent changes to this
-invariant require a forward migration.
+The baseline includes the memory-manager open-run index. During development,
+changes to this invariant update the ORM and baseline SQL directly; existing
+databases require an owner-directed reset to receive a changed baseline.
 
 The application path is:
 
@@ -418,23 +422,23 @@ authorization loads the owned current entry even when soft-deleted, and
 generated episode-log snapshots are readable through the same interface.
 
 Source/provenance details for seeded files belong in memory-entry `metadata`
-instead of dedicated columns. Materialization seeds an anima-scoped `identity.md`
+instead of dedicated columns. Materialization seeds an anima-scoped `IDENTITY.md`
 entry with `kind = "anima_identity"` and
 `description = "Initial identity of {anima.display_name}"`. Starter adoption
 can inspect persisted `avatar_identity_seed` metadata and Version 1 history;
 ordinary creation does not invent that adoption evidence.
 
-Normal direct chat fetches cached path `identity.md` in the active anima scope
+Normal direct chat fetches cached path `IDENTITY.md` in the active anima scope
 at turn setup as required anima configuration and inserts only the identity
 markdown content into the system instruction. Installation bootstrap creates a
-user-scope `profile.md` entry for new users with `kind = "user_profile"` and
-`description = "Initial profile of {name}"`, where `{name}` resolves from Better
-Auth name, email, then user ID.
+user-scope `PROFILE.md` entry for the installation owner with `kind = "user_profile"`
+and `description = "Private installation-owner profile"`. Its guarded bootstrap
+metadata allows first-run preferred-name synchronization until the owner edits it.
 
 Direct chat also renders a request-local `# List of memory files` developer
 message immediately before the latest user message when memory influence is
 enabled. The list contains only user-scope file entries (`anima_id IS NULL`),
-uses cached paths such as `profile.md`, and omits anima-scoped files and tree
+uses cached paths such as `PROFILE.md`, and omits anima-scoped files and tree
 formatting. Each entry contains only `path` and `description`.
 The list is not persisted as a chat message or memory-entry version; persisted
 `metadata.memory_context.opened_files` keeps the `(anima_id, path)` scoped
@@ -452,7 +456,7 @@ changes task state to `processed`, and leaves the run `active` for ordinary
 follow-up conversation. Blocked or failed execution leaves task state
 `processing` and the fixed rows pending.
 
-The frozen Alembic baseline creates these tables on fresh installations;
+The Alembic baseline creates these tables on fresh installations;
 application startup does not create them from live ORM metadata.
 
 ### Chats And Messages
@@ -502,7 +506,7 @@ empty pre-created row, allows later model switches only when the stored
 `api_standard` matches the selected provider's `api_standard`, and rejects
 non-empty null-standard chats as invalid transcript state. Successful
 non-incognito turns update `last_model_client` and `last_model_id` together
-with usage totals and turn reservation. The frozen baseline includes these
+with usage totals and turn reservation. The baseline includes these
 columns; it does not backfill legacy databases.
 
 `ORMChatMessage` stores persisted messages in `chat_messages`:

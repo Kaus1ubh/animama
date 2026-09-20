@@ -17,10 +17,10 @@ from alembic.util import CommandError
 ROOT = Path(__file__).parents[1]
 BASELINE_MIGRATION = ROOT / "alembic" / "versions" / "0001_baseline.py"
 BASELINE_SQL = ROOT / "alembic" / "versions" / "0001_baseline.sql"
-BASELINE_SHA256 = "2ed6465982b50258523a486bd454832b38090a579349f4c54cd34e3e7eaccb87"
+BASELINE_SHA256 = "fbe65e892a48473b28144abede6ece61690d737ba1897346d54929b98259646a"
 
 
-def test_frozen_baseline_does_not_import_live_metadata() -> None:
+def test_baseline_does_not_import_live_metadata() -> None:
     migration = BASELINE_MIGRATION.read_text(encoding="utf-8")
     assert "animama.orm" not in migration
     assert "Base.metadata" not in migration
@@ -28,7 +28,7 @@ def test_frozen_baseline_does_not_import_live_metadata() -> None:
     assert "0001_baseline.sql" in migration
 
 
-def test_frozen_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
+def test_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
     baseline = BASELINE_SQL.read_bytes()
     assert hashlib.sha256(baseline).hexdigest() == BASELINE_SHA256
     sql = baseline.decode("utf-8")
@@ -189,7 +189,8 @@ def test_old_revision_is_rejected_without_adopting_or_changing_data(
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT version_num FROM alembic_version")) == old_revision
             assert connection.scalar(text("SELECT value FROM sentinel")) == "preserve me"
-        assert set(inspect(engine).get_table_names()) == {"alembic_version", "sentinel"}
+            schema = connection.scalar(text("SELECT current_schema()"))
+        assert set(inspect(engine).get_table_names(schema=schema)) == {"alembic_version", "sentinel"}
 
 
 def test_fresh_creation_receipts_are_owner_scoped_and_survive_absent_animas(

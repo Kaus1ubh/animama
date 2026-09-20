@@ -975,7 +975,7 @@ async def test_by_path_lookup_and_listing_root_children_recursive() -> None:
     assert profile.path == "profile.md"
     assert [entry.path for entry in root.entries] == ["notes", "profile.md"]
     assert [entry.path for entry in recursive.entries] == ["notes", "notes/prefs.md", "profile.md"]
-    assert [entry.path for entry in anima_root.entries] == ["identity.md"]
+    assert [entry.path for entry in anima_root.entries] == ["IDENTITY.md"]
 
 
 @pytest.mark.asyncio
