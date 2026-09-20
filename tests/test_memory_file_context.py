@@ -306,12 +306,12 @@ async def test_identity_file_content_enters_memory_context_from_anima_scope() ->
 
     context = await service.build_context(user_id="user-1", anima_id="anima-1")
 
-    assert identity_path == "identity.md"
+    assert identity_path == "IDENTITY.md"
     assert context.anima_identity == "Identity from memory entry"
     assert context.anima_name == "Avatar"
     assert context.manifest["opened_files"][0] == {
         "anima_id": "anima-1",
-        "path": "identity.md",
+        "path": "IDENTITY.md",
         "status": STATUS_OPENED,
         "version": 1,
         "sha256": _sha("Identity from memory entry"),
@@ -692,3 +692,28 @@ async def test_chat_metadata_manifest_records_latest_fingerprints(async_session)
     assert stored is not None
     assert stored.metadata_["memory_context"]["opened_files"][0]["anima_id"] == "anima-memory-context-meta"
     assert stored.metadata_["memory_context"]["opened_files"][0]["path"] == "identity.md"
+
+
+@pytest.mark.asyncio
+async def test_identity_capitalization_preserves_prior_context_fingerprint() -> None:
+    identity = _memory_entry("IDENTITY.md", "Same identity", anima_id="anima-1", kind="anima_identity")
+    service, _repo = _service([identity])
+    context = await service.build_context(
+        user_id="user-1",
+        anima_id="anima-1",
+        chat_metadata={
+            "memory_context": {
+                "opened_files": [
+                    {
+                        "anima_id": "anima-1",
+                        "path": "identity.md",
+                        "version": identity.version,
+                        "sha256": identity.content_sha256,
+                        "kind": "anima_identity",
+                    }
+                ]
+            }
+        },
+    )
+    assert context.manifest["opened_files"][0]["path"] == "IDENTITY.md"
+    assert context.manifest["opened_files"][0]["status"] == STATUS_CURRENT

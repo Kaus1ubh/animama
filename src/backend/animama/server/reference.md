@@ -8,7 +8,7 @@ the source of truth for schema details.
 - `POST /v1/animas`
   - Accepts strict `AnimaSpec` plus an owner-scoped body idempotency key and
     atomically creates one complete private Anima with initial revisions of 1.
-  - Creates SQL-backed `identity.md`/history, exact typed loadout, settings,
+  - Creates SQL-backed `IDENTITY.md`/history, exact typed loadout, settings,
     neutral emotion, the configured active model, and the default local voice.
     No provider request, Chat row, greeting, or runtime mount is created.
   - Returns 201 on creation, 200 for identical replay, 409 for key conflict or

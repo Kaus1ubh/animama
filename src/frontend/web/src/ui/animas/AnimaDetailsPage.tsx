@@ -571,7 +571,7 @@ export function AnimaDetailsPage({
   const runtimeContentQuery = { ...runtimeSnapshotQuery, data: runtimeContent };
   const identityQuery = useMemoryEntryByPath({
     animaId,
-    path: "identity.md",
+    path: "IDENTITY.md",
     type: "file",
     enabled: Boolean(animaId),
   });

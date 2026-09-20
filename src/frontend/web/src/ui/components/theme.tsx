@@ -7,6 +7,7 @@ import { Check, ChevronDown, Moon, Star, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { cn } from "@/lib/utils";
+import { featureFlags } from "@/lib/feature-flags";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,6 +72,40 @@ export function Theme({
     md: 16,
     lg: 20,
   };
+
+  if (!featureFlags.themeSelection) {
+    return (
+      <div className={className}>
+        <div
+          role="group"
+          aria-label="Theme"
+          className="bg-muted border-border flex items-center rounded-lg border p-1"
+        >
+          {THEME_OPTIONS.map((option) => {
+            const Icon = themeIcons[option];
+            return (
+              <button
+                key={option}
+                type="button"
+                disabled
+                aria-pressed={option === "light"}
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1 text-xs",
+                  option === "light" ? "bg-card shadow-sm" : "opacity-50",
+                )}
+              >
+                <Icon size={12} />
+                {themeConfigs[option].label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-muted-foreground mt-2 text-xs">
+          Light theme is currently the default.
+        </p>
+      </div>
+    );
+  }
 
   if (!isMounted) return null;
 

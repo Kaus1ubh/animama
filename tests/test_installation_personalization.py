@@ -54,7 +54,7 @@ async def _profile_memory(session, owner_id: str):  # noqa: ANN001
     return await SQLAlchemyMemoryEntryRepository(session).get_entry_by_path(
         user_id=owner_id,
         anima_id=None,
-        normalized_path=PROFILE_MEMORY_PATH,
+        normalized_path=PROFILE_MEMORY_PATH.casefold(),
         type=MEMORY_ENTRY_TYPE_FILE,
     )
 

@@ -19,7 +19,7 @@ export async function invalidateAnimaDefinition(
     queryClient.invalidateQueries({
       queryKey: queryKeys.memoryEntries.byPath(userId, {
         animaId,
-        path: "identity.md",
+        path: "IDENTITY.md",
         type: "file",
       }),
     }),

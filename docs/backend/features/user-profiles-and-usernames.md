@@ -26,13 +26,13 @@ Animama account service and must not be matched to local personalization.
 profile without teaching the shared service about `installation_settings`.
 
 The same owner bootstrap ensures settings, configured Starter Animas and
-receipts, and the initial user-scope `profile.md`. That memory document carries
+receipts, and the initial user-scope `PROFILE.md`. That memory document carries
 closed `installation_bootstrap` metadata containing template version `1` and
 the managed entry version. Existing profile data, settings, Starter state, and
 memory content are never overwritten by bootstrap retries.
 
 `POST /v1/runtime/onboarding:complete` requires a nonblank display name. In one
-transaction it locks installation settings, the profile, and `profile.md`; saves
+transaction it locks installation settings, the profile, and `PROFILE.md`; saves
 the normalized display name; updates only the template's preferred-name line
 when the metadata, version, and expected content still match; appends the normal
 memory version; and writes `first_run_completed_at` once. A pre-commit failure
@@ -45,7 +45,7 @@ but no name opens setup; adding a name retains its principal, content, and
 original completion timestamp. The nullable bootstrap column is not a supported way to
 clear an already chosen name.
 
-If the person edits `profile.md` directly, its content no longer matches the
+If the person edits `PROFILE.md` directly, its content no longer matches the
 managed template. Later display-name changes update private UI personalization
 only and preserve that memory edit.
 

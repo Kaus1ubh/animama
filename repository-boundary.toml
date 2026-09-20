@@ -2771,3 +2771,44 @@ paths = [
   "PLANS.md",
   "docs/adr/0007-repository-owned-planning.md",
 ]
+
+[[groups]]
+id = "model-provider-icons-and-theme-flag"
+owner = "public"
+rationale = "Local provider assets with pinned upstream attribution and renderer theme controls; publication remains separately gated."
+paths = [
+  "src/frontend/desktop/runtime/notices/provider-logos-mit.txt",
+  "src/frontend/web/public/provider-logos/LICENSE.txt",
+  "src/frontend/web/public/provider-logos/README.md",
+  "src/frontend/web/public/provider-logos/deepseek.svg",
+  "src/frontend/web/public/provider-logos/google.svg",
+  "src/frontend/web/public/provider-logos/groq.svg",
+  "src/frontend/web/public/provider-logos/huggingface.svg",
+  "src/frontend/web/public/provider-logos/openai.svg",
+  "src/frontend/web/public/provider-logos/xai.svg",
+  "src/frontend/web/src/lib/feature-flags.ts",
+  "src/frontend/web/src/ui/components/theme.test.tsx",
+  "src/frontend/web/src/ui/theme/theme-provider.test.tsx",
+]
+
+[[groups]]
+id = "local-app-polish-verification"
+owner = "public"
+rationale = "Scoped built-in filename migration, scene background implementation, and synthetic-account browser evidence for issue 23."
+paths = [
+  "alembic/versions/0002_memory_filenames.py",
+  "src/frontend/web/src/ui/main/scene-vfx/SceneVFXViewportBackground.tsx",
+  "docs/frontend/testing/evidence/local-app-polish.md",
+  "docs/frontend/testing/evidence/local-app-polish-management.png",
+  "docs/frontend/testing/evidence/local-app-polish-creator.png",
+  "src/frontend/e2e/journeys/accountless-vfx-layout.spec.ts",
+]
+
+[[groups]]
+id = "desktop-profile-reset"
+owner = "public"
+rationale = "Existing first-party desktop reset command and isolated fixture tests, already tracked in the task baseline; register omitted inventory entries without changing their behavior."
+paths = [
+  "src/frontend/desktop/scripts/reset-macos-profile.mjs",
+  "src/frontend/desktop/tests/reset-macos-profile.test.mjs",
+]

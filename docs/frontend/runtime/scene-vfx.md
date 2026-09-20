@@ -197,6 +197,14 @@ Avatar/viewport context. Backgrounds render below the Avatar; Focus Lines honor
 global live scene store, so leaving the creator cannot alter a mounted Anima
 runtime.
 
+Anima management, Scene Effect creators, and Gesture/Reaction editors extend
+Background Layers across the application viewport beneath the floating panels,
+including the sidebar. Only the background has this wider viewport: avatar
+canvas dimensions, camera framing, interaction coordinates, and Focus Lines
+keep their original preview bounds. The background measures its own surface so
+marquee rows fill the full width and follow window resizing. Dock previews keep
+their backgrounds inside the dock.
+
 The common Library resolves Included and Local Scene Effects through typed
 catalog previews and returns editable Local rows to this stable edit route.
 Once the item is saved, the creator can hand its catalog item ID and

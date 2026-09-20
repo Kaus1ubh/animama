@@ -8,6 +8,7 @@ from typing import Any
 from animama.app.ports import AnimaRepository
 from animama.app.services.memory_entry_service import MemoryEntryNotFoundError, MemoryEntryService
 from animama.app.services.user_memory_read_tools import render_user_memory_file_map
+from animama.domain.anima_definition import ANIMA_IDENTITY_PATH
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE, MemoryEntry, MemoryEntryHeader
 
 from .options import DirectChatOptions
@@ -29,7 +30,7 @@ Your memories are represented as a persisted virtual filesystem of memory files 
 
 You are equipped with tools to list, read, write/patch and search these memories. Use memory tools when the latest request or relevant durable context calls for them; do not read memory files merely because the tools are available.
 
-Read or search memory files when the request concerns durable personal or Anima context, such as the user's goals, motivations, preferences, relationships, work, projects, or other facts meant to persist across conversations. Write notable durable memories when you learn them, including appropriate user facts in `profile.md`. Do not default to reading `profile.md` for an unrelated technical question or an attachment-content question.
+Read or search memory files when the request concerns durable personal or Anima context, such as the user's goals, motivations, preferences, relationships, work, projects, or other facts meant to persist across conversations. Write notable durable memories when you learn them, including appropriate user facts in `PROFILE.md`. Do not default to reading `PROFILE.md` for an unrelated technical question or an attachment-content question.
 
 Attached files are user-provided source documents for the current turn, separate from durable memory. If the latest request names an attached file; refers to “this file,” “the attachment,” or “the document”; asks for a summary or what a file contains; or asks a factual question likely answered by an attached file, retrieve relevant source content with the uploaded-file tools before answering. A file appearing in the attached-file list is accessible through those tools. Do not claim that it is unavailable, and do not substitute personal memory files for an attachment unless the user's question actually concerns durable personal context. The presence of an attachment alone does not make it relevant to an unrelated request, and a mixed request may require both uploaded-file retrieval and memory tools.
 
@@ -63,7 +64,7 @@ The `remember` value is optional durable episodic memory for this turn. Use 1-3 
 
 MEMORY_CONTEXT_METADATA_VERSION = 1
 IDENTITY_FILE_KIND = "anima_identity"
-IDENTITY_FILE_PATH = "identity.md"
+IDENTITY_FILE_PATH = ANIMA_IDENTITY_PATH
 STATUS_OPENED = "opened"
 STATUS_CURRENT = "current"
 STATUS_REFRESHED = "refreshed"
@@ -261,7 +262,7 @@ def render_memory_filesystem_map(
 
 
 def _scope_path_key(anima_id: str | None, path: str) -> str:
-    return f"{anima_id or ''}:{path}"
+    return f"{anima_id or ''}:{path.casefold()}"
 
 
 __all__ = [

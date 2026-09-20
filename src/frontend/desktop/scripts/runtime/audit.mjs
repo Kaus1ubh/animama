@@ -184,9 +184,9 @@ try {
     throw new Error("Parakeet must remain outside core web assets");
   // The standalone output must retain every reviewed model and ORT variant.
   resolveBrowserRuntimeAssets({ builtRoot: path.join(target.runtime, "web") });
-  // Remaining small vendored runtime code stays source-bound.
+  // Small vendored runtime code and provider marks stay source-bound.
   const publicRoot = path.join(repoRoot, "src/frontend/web/public");
-  for (const prefix of ["tts", "basis"])
+  for (const prefix of ["tts", "basis", "provider-logos"])
     for (const name of filesIn(path.join(publicRoot, prefix))) {
       if (
         sha256(path.join(publicRoot, prefix, name)) !==

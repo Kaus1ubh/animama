@@ -78,7 +78,7 @@ async def test_package_v2_replay_after_fresh_bootstrap_preserves_later_changes(
         assert state.content_ready
         owner = state.principal_id
         async with first.session_factory()() as session:
-            assert await session.scalar(text("SELECT version_num FROM alembic_version")) == "baseline_20260908"
+            assert await session.scalar(text("SELECT version_num FROM alembic_version")) == "memory_names_20260920"
             paths, catalog, content, saves, packages = package_services(session, tmp_path)
             saved = await saves.save_standalone(**_command(owner))
             exported = await packages.export_item(user_id=owner, root_item_id=saved.item.id, operation_id="export")

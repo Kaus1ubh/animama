@@ -634,6 +634,12 @@ async def test_anima_scoped_identity_is_separate_from_user_scope(async_session, 
 
     assert user_lookup.id == user_profile.id
     assert anima_lookup.id == anima_identity.id
+    assert anima_lookup.name == anima_lookup.path == "IDENTITY.md"
+    uppercase_lookup = await memory_entries_router.get_memory_entry_by_path(
+        session=async_session, user=_user(owner_id), anima_id=anima_id, path="IDENTITY.md"
+    )
+    assert uppercase_lookup.id == anima_lookup.id
+    assert user_lookup.path == "identity.md"
     assert anima_lookup.scope == "anima"
     assert anima_lookup.anima_id == anima_id
 

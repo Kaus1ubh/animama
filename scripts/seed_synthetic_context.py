@@ -68,7 +68,7 @@ class ChatTurnSeed:
 def _memory_seeds(prefix: str) -> tuple[MemorySeed, ...]:
     return (
         MemorySeed(
-            path="profile.md",
+            path="PROFILE.md",
             description="Synthetic user profile for memory-search testing",
             content=(
                 "# Profile\n\n"

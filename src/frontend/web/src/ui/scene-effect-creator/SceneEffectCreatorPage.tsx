@@ -586,6 +586,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             minDistance={0.6}
             maxDistance={6}
             sceneVFX={sceneVFX}
+            sceneBackgroundScope="viewport"
             showSceneVFX
             overlay={
               showGuides ? (

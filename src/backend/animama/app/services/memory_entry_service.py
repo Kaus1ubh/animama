@@ -94,7 +94,7 @@ def is_anima_identity(entry: MemoryEntry) -> bool:
     return (
         entry.anima_id is not None
         and entry.type == MEMORY_ENTRY_TYPE_FILE
-        and (entry.normalized_path == ANIMA_IDENTITY_PATH or entry.kind == ANIMA_IDENTITY_KIND)
+        and (entry.normalized_path == ANIMA_IDENTITY_PATH.casefold() or entry.kind == ANIMA_IDENTITY_KIND)
     )
 
 
@@ -985,14 +985,15 @@ class MemoryEntryService:
 
         path = f"{parent.path}/{clean_name}" if parent is not None else clean_name
         normalized_path = f"{parent.normalized_path}/{normalized_name}" if parent is not None else normalized_name
-        identity_location = anima_id is not None and normalized_path == ANIMA_IDENTITY_PATH
+        identity_location = anima_id is not None and normalized_path == ANIMA_IDENTITY_PATH.casefold()
         if kind == ANIMA_IDENTITY_KIND and not identity_location:
-            raise MemoryEntryValidationError("Anima identity must be the Anima-scoped identity.md file")
+            raise MemoryEntryValidationError("Anima identity must be the Anima-scoped IDENTITY.md file")
         if identity_location:
             if type != MEMORY_ENTRY_TYPE_FILE or kind not in {None, ANIMA_IDENTITY_KIND}:
                 raise MemoryEntryValidationError("Anima identity must be a file with kind anima_identity")
             content = self._normalize_identity(content)
             kind = ANIMA_IDENTITY_KIND
+            clean_name = path = ANIMA_IDENTITY_PATH
         if len(path) > MEMORY_ENTRY_MAX_PATH_CHARS:
             raise MemoryEntryValidationError("Memory entry path is too long")
         existing = await self._memory_entries.get_entry_by_path_for_update(
@@ -1107,7 +1108,7 @@ class MemoryEntryService:
                 raise MemoryEntryProtectedError("Anima identity kind cannot be changed")
             next_content = self._normalize_identity(next_content)
         elif kind_set and kind == ANIMA_IDENTITY_KIND:
-            raise MemoryEntryValidationError("Anima identity must be the Anima-scoped identity.md file")
+            raise MemoryEntryValidationError("Anima identity must be the Anima-scoped IDENTITY.md file")
         content_sha256 = current.content_sha256
         size_bytes = current.size_bytes
         if current.type == MEMORY_ENTRY_TYPE_FILE:
@@ -1182,9 +1183,9 @@ class MemoryEntryService:
         next_normalized_path = (
             f"{target_parent.normalized_path}/{normalized_name}" if target_parent is not None else normalized_name
         )
-        if current.anima_id is not None and next_normalized_path == ANIMA_IDENTITY_PATH:
+        if current.anima_id is not None and next_normalized_path == ANIMA_IDENTITY_PATH.casefold():
             raise MemoryEntryProtectedError(
-                "Use explicit identity repair instead of moving another file to identity.md"
+                "Use explicit identity repair instead of moving another file to IDENTITY.md"
             )
         if not allow_system_managed and is_protected_memory_path(next_path):
             raise MemoryEntryProtectedError("Generated episode logs are read-only")
@@ -1293,7 +1294,7 @@ class MemoryEntryService:
         path: str,
         expected_revision: int | None,
     ) -> None:
-        if anima_id is None or path.casefold() != ANIMA_IDENTITY_PATH:
+        if anima_id is None or path.casefold() != ANIMA_IDENTITY_PATH.casefold():
             return
         await self._require_anima_scope_owned(user_id=user_id, anima_id=anima_id)
         if expected_revision is None:

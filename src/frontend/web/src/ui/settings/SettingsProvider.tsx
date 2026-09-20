@@ -22,6 +22,7 @@ import type {
   PyUserSettingsUpdate,
 } from "@/lib/content/catalogTypes";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { featureFlags } from "@/lib/feature-flags";
 import {
   DEFAULT_ANIMAMA_PREFERENCES,
   mergePreferences,
@@ -220,6 +221,7 @@ export function SettingsProvider({
   const appliedSettingsTheme = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!featureFlags.themeSelection) return;
     const storedTheme = userSettings?.theme ?? null;
     if (appliedSettingsTheme.current === storedTheme) return;
     appliedSettingsTheme.current = storedTheme;
@@ -240,6 +242,7 @@ export function SettingsProvider({
   }, [logger, setTheme, theme, userSettings?.theme]);
 
   useEffect(() => {
+    if (!featureFlags.themeSelection) return;
     if (!userSettings || !theme) return;
     const normalizedTheme = normalizeThemeSetting(theme);
     if (!normalizedTheme) return;

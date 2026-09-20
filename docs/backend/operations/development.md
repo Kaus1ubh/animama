@@ -496,7 +496,7 @@ uv run python scripts/seed_synthetic_context.py \
   --prefix memory-search-demo
 ```
 
-The script writes user-scope memory files at `profile.md`,
+The script writes user-scope memory files at `PROFILE.md`,
 `notes/projects.md`, and `notes/preferences.md` through
 `MemoryEntryService.put_file_by_path(...)`. Existing files at those paths are
 updated by version. It creates or reuses a deterministic chat ID derived from

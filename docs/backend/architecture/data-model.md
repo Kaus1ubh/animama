@@ -58,7 +58,9 @@ local schema from frozen `alembic/versions/0001_baseline.sql`. The SQL creates
 the tables, constraints, indexes, runtime-worker heartbeats and content mutation
 receipts directly.
 It must not import live ORM metadata or be regenerated as models change; future
-schema changes use forward revisions.
+schema changes use forward revisions. The data-only `memory_names_20260920`
+revision capitalizes current built-in memory filenames while preserving their
+normalized lookup keys, contents, version counters and append-only history.
 
 The baseline creates and seeds the singleton installation settings row with a
 new UUIDv4 principal in the same migration transaction. The principal is not a
@@ -156,9 +158,9 @@ visibility, alias, cooldown, claim, or creator-resolution state.
 
 `LocalInstallationBootstrapService` creates the missing profile through the
 neutral `OwnerProfileBootstrapPort`. First-run completion updates the profile,
-the guarded bootstrap-managed `profile.md` version, and
+the guarded bootstrap-managed `PROFILE.md` version, and
 `installation_settings.first_run_completed_at` in one transaction. A direct
-user edit to `profile.md` disables later automatic synchronization.
+user edit to `PROFILE.md` disables later automatic synchronization.
 
 The application path is:
 
@@ -247,7 +249,7 @@ includes stable Anima name/revision and compact `anima_definition_revisions` rec
 keyed by `(anima_id, aggregate_revision)`, with display name, identity entry and
 version pointer, actor, reason, and timestamp. Identity stays in the existing
 Anima-scoped `memory_entries`/`memory_entry_versions` SQL virtual filesystem,
-with no physical `identity.md` projection. New aggregate, identity, and loadout
+with no physical `IDENTITY.md` projection. New aggregate, identity, and loadout
 revisions start at 1. Name changes advance aggregate revision; identity writes
 and Revert advance aggregate and memory version; equipment changes advance
 aggregate and loadout revision once. Runtime state, chats, and ordinary settings
@@ -418,23 +420,23 @@ authorization loads the owned current entry even when soft-deleted, and
 generated episode-log snapshots are readable through the same interface.
 
 Source/provenance details for seeded files belong in memory-entry `metadata`
-instead of dedicated columns. Materialization seeds an anima-scoped `identity.md`
+instead of dedicated columns. Materialization seeds an anima-scoped `IDENTITY.md`
 entry with `kind = "anima_identity"` and
 `description = "Initial identity of {anima.display_name}"`. Starter adoption
 can inspect persisted `avatar_identity_seed` metadata and Version 1 history;
 ordinary creation does not invent that adoption evidence.
 
-Normal direct chat fetches cached path `identity.md` in the active anima scope
+Normal direct chat fetches cached path `IDENTITY.md` in the active anima scope
 at turn setup as required anima configuration and inserts only the identity
 markdown content into the system instruction. Installation bootstrap creates a
-user-scope `profile.md` entry for new users with `kind = "user_profile"` and
-`description = "Initial profile of {name}"`, where `{name}` resolves from Better
-Auth name, email, then user ID.
+user-scope `PROFILE.md` entry for the installation owner with `kind = "user_profile"`
+and `description = "Private installation-owner profile"`. Its guarded bootstrap
+metadata allows first-run preferred-name synchronization until the owner edits it.
 
 Direct chat also renders a request-local `# List of memory files` developer
 message immediately before the latest user message when memory influence is
 enabled. The list contains only user-scope file entries (`anima_id IS NULL`),
-uses cached paths such as `profile.md`, and omits anima-scoped files and tree
+uses cached paths such as `PROFILE.md`, and omits anima-scoped files and tree
 formatting. Each entry contains only `path` and `description`.
 The list is not persisted as a chat message or memory-entry version; persisted
 `metadata.memory_context.opened_files` keeps the `(anima_id, path)` scoped

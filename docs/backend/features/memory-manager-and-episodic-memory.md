@@ -24,7 +24,7 @@ The guiding split is:
 
 - **Episode items** are raw chronological capture notes.
 - **Episode logs** are generated read-only markdown projections of those rows.
-- **Curated memory** is intentional user-scope markdown such as `profile.md` or
+- **Curated memory** is intentional user-scope markdown such as `PROFILE.md` or
   `notes/preferences.md`.
 - **The Memory Manager** reviews raw notes and edits curated memory only after
   user approval.
@@ -35,7 +35,7 @@ The guiding split is:
 
 Curated memory is the editable user-scope markdown filesystem backed by
 `memory_entries` and `memory_entry_versions`. It is addressed by relative POSIX
-paths such as `profile.md`, `people/shirley.md`, or `notes/preferences.md`.
+paths such as `PROFILE.md`, `people/shirley.md`, or `notes/preferences.md`.
 
 Curated memory is what normal direct chat context and memory tools are intended
 to use as durable profile or preference state.
@@ -636,7 +636,7 @@ Body:
 
 ```json
 {
-  "content": "Update profile.md with my latest preference.",
+  "content": "Update PROFILE.md with my latest preference.",
   "auto_approve_diffs": false
 }
 ```

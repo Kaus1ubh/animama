@@ -15,7 +15,7 @@ from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE
 from animama.domain.settings import UserSettings
 
-PROFILE_MEMORY_PATH = "profile.md"
+PROFILE_MEMORY_PATH = "PROFILE.md"
 PROFILE_MEMORY_KIND = "user_profile"
 PROFILE_TEMPLATE_V1 = """# About Me
 
@@ -98,7 +98,7 @@ class OwnerBootstrapService:
         existing = await self._memory_entries.get_entry_by_path(
             user_id=owner_id,
             anima_id=None,
-            normalized_path=PROFILE_MEMORY_PATH,
+            normalized_path=PROFILE_MEMORY_PATH.casefold(),
             type=MEMORY_ENTRY_TYPE_FILE,
         )
         if existing is not None:

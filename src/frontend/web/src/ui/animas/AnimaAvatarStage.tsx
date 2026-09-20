@@ -697,6 +697,7 @@ function AnimaAvatarStageInner({
             resetCameraRequest={resetCameraRequest}
             onCameraChanged={setCameraChanged}
             sceneVFX={sceneVFX}
+            sceneBackgroundScope="viewport"
           >
             <Suspense fallback={null}>
               <StageAvatarActor

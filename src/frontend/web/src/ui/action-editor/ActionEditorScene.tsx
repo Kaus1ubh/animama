@@ -64,7 +64,12 @@ export function ActionEditorScene({
         minDistance={capabilities.intent === "reaction" ? 0.45 : 0.75}
         maxDistance={capabilities.intent === "reaction" ? 4 : 6}
         showSceneVFX={false}
-        underlay={<SceneVFXUnderlayHost allowBackgroundLayers />}
+        underlay={
+          <SceneVFXUnderlayHost
+            allowBackgroundLayers
+            backgroundScope="viewport"
+          />
+        }
         overlay={<SceneVFXOverlayHost className="z-20" />}
       >
         {preview.modelEntry ? (

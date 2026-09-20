@@ -72,10 +72,11 @@ async def test_owner_bootstrap_is_idempotent_preserves_edits_and_isolates_two_ow
     profile_memory = await memories.get_entry_by_path(
         user_id=first_owner,
         anima_id=None,
-        normalized_path=PROFILE_MEMORY_PATH,
+        normalized_path=PROFILE_MEMORY_PATH.casefold(),
         type=MEMORY_ENTRY_TYPE_FILE,
     )
     assert profile_memory is not None
+    assert profile_memory.name == profile_memory.path == "PROFILE.md"
     await memory.put_file_by_path(
         user_id=first_owner,
         path=PROFILE_MEMORY_PATH,
@@ -95,7 +96,7 @@ async def test_owner_bootstrap_is_idempotent_preserves_edits_and_isolates_two_ow
     preserved = await memories.get_entry_by_path(
         user_id=first_owner,
         anima_id=None,
-        normalized_path=PROFILE_MEMORY_PATH,
+        normalized_path=PROFILE_MEMORY_PATH.casefold(),
         type=MEMORY_ENTRY_TYPE_FILE,
     )
     assert preserved is not None and preserved.content == "# My edited profile\n"
@@ -106,7 +107,7 @@ async def test_owner_bootstrap_is_idempotent_preserves_edits_and_isolates_two_ow
         await memories.get_entry_by_path(
             user_id=second_owner,
             anima_id=None,
-            normalized_path=PROFILE_MEMORY_PATH,
+            normalized_path=PROFILE_MEMORY_PATH.casefold(),
             type=MEMORY_ENTRY_TYPE_FILE,
         )
         is not None

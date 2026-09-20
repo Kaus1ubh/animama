@@ -59,6 +59,7 @@ export type AvatarPreviewSurfaceProps = {
   onCameraChanged?: (changed: boolean) => void;
   resetCameraRequest?: number;
   sceneVFX?: SceneVFXRuntimeEntry | null;
+  sceneBackgroundScope?: "canvas" | "viewport";
   showDefaultLights?: boolean;
   showSceneVFX?: boolean;
   overlay?: ReactNode;
@@ -104,6 +105,7 @@ export function AvatarPreviewSurface({
   onCameraChanged,
   resetCameraRequest = 0,
   sceneVFX = null,
+  sceneBackgroundScope = "canvas",
   showDefaultLights = true,
   showSceneVFX = true,
   overlay,
@@ -143,7 +145,10 @@ export function AvatarPreviewSurface({
         >
           {underlay}
           {showSceneVFX ? (
-            <SceneVFXUnderlayLayers activeByKind={activeByKind} />
+            <SceneVFXUnderlayLayers
+              activeByKind={activeByKind}
+              backgroundScope={sceneBackgroundScope}
+            />
           ) : null}
           <Canvas
             data-testid={canvasTestId}
