@@ -137,18 +137,12 @@ gh pr create --repo "$task_repo" --base "$task_base" --head "$task_branch" \
   --title "$task_pr_title" --body-file "$task_pr_body"
 ```
 
-Follow the configured readiness policy. Default to a regular PR for completed
-work; add `--draft` only for unfinished work or an explicit instruction/gate.
-When an existing draft's condition is resolved, mark it ready as part of delivery
-without waiting for merge approval or checks that readiness triggers:
+Open regular PRs by default; automatically convert drafts when ready for review,
+unless explicitly instructed otherwise:
 
 ```bash
 gh pr ready "$task_pr" --repo "$task_repo"
 ```
-
-Read back `isDraft` before finishing. If a draft remains necessary, report its
-specific blocker and next action. Pending CI or merge approval alone does not
-require draft status. Ready status does not waive failed checks or human gates.
 
 For an existing PR, use `gh pr edit "$task_pr" --repo "$task_repo" --body-file
 "$task_pr_body"` instead of creating another. Read its actual candidate and checks:
