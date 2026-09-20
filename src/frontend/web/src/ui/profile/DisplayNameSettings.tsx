@@ -59,19 +59,34 @@ function DisplayNameEditor({
             {displayName.length}/{DISPLAY_NAME_MAX_LENGTH}
           </span>
         </div>
-        <Input
-          id={inputId}
-          value={displayName}
-          maxLength={DISPLAY_NAME_MAX_LENGTH}
-          required
-          autoComplete="name"
-          disabled={updateProfile.isPending}
-          placeholder="Your name"
-          onChange={(event) => {
-            setDisplayName(event.target.value);
-            setError(null);
-          }}
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            className="min-w-0 flex-1"
+            id={inputId}
+            value={displayName}
+            maxLength={DISPLAY_NAME_MAX_LENGTH}
+            required
+            autoComplete="name"
+            disabled={updateProfile.isPending}
+            placeholder="Your name"
+            onChange={(event) => {
+              setDisplayName(event.target.value);
+              setError(null);
+            }}
+          />
+          {changed ? (
+            <Button
+              type="submit"
+              className="shrink-0"
+              disabled={!normalized || updateProfile.isPending}
+            >
+              {updateProfile.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : null}
+              Save
+            </Button>
+          ) : null}
+        </div>
         <p className="text-muted-foreground text-xs">
           This name is required and private to this Animama installation.
         </p>
@@ -80,31 +95,6 @@ function DisplayNameEditor({
             {error}
           </p>
         ) : null}
-      </div>
-      <div className="flex justify-end gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={
-            displayName === (initialProfile.display_name ?? "") ||
-            updateProfile.isPending
-          }
-          onClick={() => {
-            setDisplayName(initialProfile.display_name ?? "");
-            setError(null);
-          }}
-        >
-          Reset
-        </Button>
-        <Button
-          type="submit"
-          disabled={!normalized || !changed || updateProfile.isPending}
-        >
-          {updateProfile.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : null}
-          Save
-        </Button>
       </div>
     </form>
   );
