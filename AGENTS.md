@@ -46,11 +46,13 @@ creation does not complete the separately gated skill pilot.
 Use this guide, the scoped guides and checked-in architecture, contract and
 operational documentation as the implementation references.
 
-Full execution plans and their approval history are maintained privately. Their
-location does not change implementation ownership, and they are never a local
-build, runtime or contributor prerequisite. Update durable documentation with
-behavior changes. Do not add public stub plans or links that require a private
-planning checkout. See [Repository boundaries](docs/architecture/repository-boundaries.md).
+Keep new specs and ExecPlans tracked in the repository whose implementation they
+cover. Follow [PLANS.md](PLANS.md); Animama artifacts live under `docs/plans/`,
+while Cloud owns its own plans. Write Animama plans for public review, without
+secrets, personal data, raw transcripts or private-checkout dependencies. Existing
+plans keep their locations and explicit gates unless deliberately migrated with
+owner approval; do not bulk-copy historical private plans. Update durable docs
+with behavior changes. See [Repository boundaries](docs/architecture/repository-boundaries.md).
 
 Use the [domain documentation guide](docs/agents/domain.md) to distinguish
 current terminology, implemented behavior and architectural decision history.
@@ -94,9 +96,10 @@ authority. See [worktree cleanup](docs/backend/operations/development.md#cleanin
 for the data-preserving handoff workflow.
 
 Use the default [pull request template](.github/pull_request_template.md).
-Its Spec section links the authoritative issue. Its ExecPlan section states
-that a private plan is retained, without exposing its path, or explains why
-no plan is required.
+Its Spec section links the authoritative issue. Its ExecPlan section links the
+tracked plan at the reviewed revision, or explains why no plan is required.
+For an existing private plan, state that it is retained without exposing its
+private path; keep the public issue and PR independently understandable.
 Describe the problem and resulting behavior, then separate local verification
 from actual CI and browser evidence. Include the tested commit or working-tree
 state, exact commands/results, material environment limits and unperformed checks.

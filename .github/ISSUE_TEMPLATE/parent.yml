@@ -6,7 +6,7 @@ body:
       value: |
         Follow SPECS.md for authoring and SDLC.md for the lifecycle.
         This may begin as a proposal. Leave unresolved details explicit; submitting the form does not approve implementation.
-        Keep credentials, personal data, private plans and approval transcripts out of the issue. Use SECURITY.md for sensitive reports.
+        Keep credentials, personal data, private context and raw approval transcripts out of the issue. Use SECURITY.md for sensitive reports.
   - type: textarea
     id: problem
     attributes:
@@ -53,7 +53,7 @@ body:
     id: execplan
     attributes:
       label: ExecPlan
-      description: State "Private plan retained by maintainers" without a private URL or path. If no ExecPlan is needed, write "Not required" and explain why.
+      description: Link the tracked ExecPlan at its reviewed revision. For an existing private plan, state "Private plan retained by maintainers" without a private URL or path. If no ExecPlan is needed, write "Not required" and explain why.
   - type: textarea
     id: delivery
     attributes:

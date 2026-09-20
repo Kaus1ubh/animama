@@ -113,9 +113,7 @@ def safe_active_path(path: str, owner: str, allowed_paths: set[str] | frozenset[
     """Never export runtime state even when an ownership rule accidentally admits it."""
     portable_path(path)
     folded = path.casefold()
-    if owner == "public" and (
-        folded == "plans.md" or "plans" in Path(folded).parts[:-1] or folded.startswith(PRIVATE_PREFIXES)
-    ):
+    if owner == "public" and folded.startswith(PRIVATE_PREFIXES):
         raise ValueError(f"Cloud-only input cannot enter public output: {path!r}")
     parts = path.lower().split("/")
     if any((part == ".env" or part.startswith(".env.")) and part != ".env.example" for part in parts) or parts[

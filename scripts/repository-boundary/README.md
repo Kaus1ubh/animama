@@ -49,11 +49,14 @@ decisions; they never infer ownership. A newly tracked path fails until its
 disposition is explicitly recorded. Duplicate paths, missing paths, stale
 records after removal, invalid paths, and unmerged index stages fail.
 
-All full ExecPlans under a `plans/` directory and root `PLANS.md` must be
-`cloud`-owned. The checker enforces this independently of group names, including
-plans describing local functionality. Durable architecture, public contracts and
-operational references remain in `animama`; they must not require private plan
-files after export.
+Specs and ExecPlans live in the repository that owns their implementation.
+Reviewed public-ready Animama planning documents, including root `PLANS.md` and
+files under `docs/plans/`, can be explicitly classified `public`. Cloud planning
+documents remain `cloud`-owned and are excluded from public output. The checker
+does not infer privacy from a planning filename or directory; a human must review
+the contents before classification. Historical private plans are not reclassified
+or migrated automatically. Durable architecture, public contracts and operational
+references must remain usable without a private planning checkout.
 
 `public` means the intended `animama` destination. Publication rights are an
 independent decision. Both destination repositories remain private while those
@@ -127,7 +130,6 @@ change, the normal commands above validate the real index directly.
 A passing audit proves classification and recorded-input consistency. It does
 not substitute for ownership review, exact-source secret/license scans, or
 publication approval.
-
 
 ## Candidate scanner pins
 
@@ -217,8 +219,8 @@ replaces = "README.md"
 Each mapped source inherits its reviewed owner. Unmapped active files retain
 their relative path. A replacement must name a distinct source with the same
 owner, suppresses that source's original output, and records both source blobs.
-It cannot suppress a full private plan. Only mappings actually committed and
-classified in the selected tree take effect. The optional exact `allowed_paths`
+It cannot suppress a Cloud-owned planning document. Only mappings actually
+committed and classified in the selected tree take effect. The optional exact `allowed_paths`
 list admits reviewed documentation or authored build resources in otherwise
 excluded locations; actual environment files, private-key files, databases and
 logs cannot be exempted. The real manifest also lists the three retained desktop

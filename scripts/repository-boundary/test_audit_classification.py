@@ -162,20 +162,20 @@ class ClassificationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Stale classification"):
             self.run_audit()
 
-    def test_full_plans_and_planning_guide_cannot_be_public_or_archived(self):
-        plans = ["PLANS.md", "plans/root.md", "docs/plans/local-product.md",
-                 "src/frontend/docs/plans/chat.md", "src/backend/docs/plans/memory.md"]
+    def test_repository_plans_require_explicit_classification_without_inferred_privacy(self):
+        plans = ["PLANS.md", "docs/plans/chat/chat-spec.md", "docs/plans/chat/chat-execplan.md"]
         for path in plans:
-            self.write(path, "# Private execution plan\n")
+            self.write(path, "# Reviewed repository planning document\n")
         self.git("add", "--", *plans)
+        with self.assertRaisesRegex(ValueError, "Missing classification"):
+            self.run_audit()
         self.groups.append({
             "id": "planning", "owner": "public",
-            "rationale": "Planning location is independent of implementation ownership", "paths": plans,
+            "rationale": "Reviewed repository-owned planning documents", "paths": plans,
         })
-        for owner in ("public", "archive", "excluded-generated"):
-            self.groups[-1]["owner"] = owner
-            with self.assertRaisesRegex(ValueError, "Private planning document must be cloud-owned"):
-                self.run_audit()
+        result = self.run_audit()
+        self.assertEqual(result["owners"], {"public": 9})
+        self.assertFalse(result["publication_approval"])
         self.groups[-1]["owner"] = "cloud"
         self.assertEqual(self.run_audit()["owners"]["cloud"], len(plans))
 

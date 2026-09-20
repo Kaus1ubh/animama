@@ -2762,3 +2762,12 @@ paths = [
   "src/frontend/web/vite-plugins/browser-runtime-assets.ts",
   "tests/test_browser_model_store.py",
 ]
+
+[[groups]]
+id = "repository-owned-planning"
+owner = "public"
+rationale = "Original public-ready planning guide and owner-approved planning-location decision; publication remains separately gated."
+paths = [
+  "PLANS.md",
+  "docs/adr/0007-repository-owned-planning.md",
+]

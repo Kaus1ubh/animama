@@ -43,10 +43,9 @@ def safe_file(root: Path, relative: str) -> Path:
         or str(path) != relative
         or "\\" in relative
         or any(c in relative for c in "\x00\n\r")
-        or any(part in {"..", ".git", "node_modules", ".venv", ".codex", "plans"} for part in path.parts)
+        or any(part in {"..", ".git", "node_modules", ".venv", ".codex"} for part in path.parts)
         or path.parts[0] in {"data", "cache", "backups", ".animama", ".animama-stacks"}
         or (path.name.startswith(".env") and path.name != ".env.example")
-        or path.name == "PLANS.md"
         or (relative.startswith("content/local/") and relative != "content/local/README.md")
     ):
         raise ValueError(f"Forbidden candidate path: {relative!r}")

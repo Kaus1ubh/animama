@@ -16,19 +16,19 @@ the missing input and resolve it before that action.
 
 | Field                    | Value                                                                                                                                                                                                                                                                                                                                                                                      |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Setup status             | Ready for repository workflow. Maintainer spec/ExecPlan file writes additionally require authorized private planning context.                                                                                                                                                                                                                                                              |
+| Setup status             | Ready for repository workflow, including repository-owned specs and ExecPlans.                                                                                                                                                                                                                                                                                                             |
 | Repository               | `raymond-van/animama`; operate in the selected checkout's Git root and verify its remote before tracker writes.                                                                                                                                                                                                                                                                            |
 | Default base             | `origin/main`; read the current base revision before creating or resuming a task branch.                                                                                                                                                                                                                                                                                                   |
 | Spec guide               | [SPECS.md](SPECS.md).                                                                                                                                                                                                                                                                                                                                                                      |
-| ExecPlan guide           | Maintainer `PLANS.md`, resolved from authorized private task context. It is not a public contributor prerequisite.                                                                                                                                                                                                                                                                         |
-| Planning root            | Private root supplied in authorized maintainer task context. New artifacts use `<scope>/<scope>-spec.md` and `<scope>/<scope>-execplan.md` under that root. Do not infer a sibling checkout or publish its path. Without private access, keep drafts in the conversation; routine issue work can proceed.                                                                                  |
-| Spec authority           | Private draft before workspace setup; the owning GitHub issue after `workspace-setup` publishes and reads it back. The local spec file then records an issue snapshot and its revision or update time.                                                                                                                                                                                     |
+| ExecPlan guide           | [PLANS.md](PLANS.md).                                                                                                                                                                                                                                                                                                                                                                      |
+| Planning root            | Tracked `docs/plans/` in this repository. New artifacts use `<scope>/<scope>-spec.md` and `<scope>/<scope>-execplan.md`. Cloud owns its own new plans. Resume existing plans in place unless the owner approves a deliberate migration; preserve their gates.                                                                                                                              |
+| Spec authority           | Agreed draft before workspace setup; the owning GitHub issue after `workspace-setup` publishes and reads it back. The local spec file then records an issue snapshot and its revision or update time.                                                                                                                                                                                      |
 | Issue templates          | [Parent spec](.github/ISSUE_TEMPLATE/parent.yml), [phase or routine task](.github/ISSUE_TEMPLATE/task.yml), [local bug](.github/ISSUE_TEMPLATE/local-bug.yml).                                                                                                                                                                                                                             |
 | PR template              | [.github/pull_request_template.md](.github/pull_request_template.md).                                                                                                                                                                                                                                                                                                                      |
 | Checks and evidence      | Use [root verification](AGENTS.md#verification), the affected scoped guide and [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing). Hosted workflow: [validate-public.yml](.github/workflows/validate-public.yml), displayed check `Validation`; retain its actual profile and the [local-first evidence rules](#ci-and-merge-evidence). |
 | Development environment  | [Workspace selection](AGENTS.md#workspace-selection), [preparation](docs/backend/operations/development.md#preparing-a-task-workspace) and [cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks). Reuse a nondisruptive checkout; start a stack only when needed.                                                                                                  |
 | Domain guidance          | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md), [backend docs](docs/backend/README.md) and [frontend docs](docs/frontend/README.md).                                                                                                                                                                                                           |
-| Privacy                  | Full plans, approval history and draft specs remain private. Public issues, PRs and docs stand alone without private paths, links, transcripts, credentials or personal test data; see [repository boundaries](docs/architecture/repository-boundaries.md) and [security reporting](SECURITY.md).                                                                                          |
+| Privacy                  | Animama specs and plans are public-ready engineering records. Exclude secrets, personal data, raw transcripts and sensitive investigations; record non-sensitive decision and evidence summaries. Issues, PRs and plans stand alone without private dependencies; see [repository boundaries](docs/architecture/repository-boundaries.md) and [security reporting](SECURITY.md).           |
 | Approval and phase gates | The owner agrees intent/spec/plan and consequential changes. Authorized phases progress after required checks and review pass. Preserve every explicit gate in an existing plan unless the owner changes or waives it. Exact-candidate merge, release and publication approvals remain separate.                                                                                           |
 | Review policy            | [Bounded code review](#bounded-code-review): one full initial review per scope, at most two repair rounds, recorded findings/revisions and an explicit result.                                                                                                                                                                                                                             |
 | Names                    | [Names and labels](#names-and-labels); one task branch and PR per plan in each affected repository; phase commits use `<type>(<scope>)[p#]: <summary>`.                                                                                                                                                                                                                                    |
@@ -50,13 +50,13 @@ A new conversation does not automatically require either.
 
 ## Artifact ownership
 
-| Artifact                   | Responsibility                                                                                             | Guide or template                                                                              |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Spec                       | Agreed problem, behavior, constraints and acceptance; drafted privately, then owned by the published issue | [SPECS.md](SPECS.md), [parent form](.github/ISSUE_TEMPLATE/parent.yml)                         |
-| Ordinary issue / sub-issue | Bounded outcome, scope, dependencies and acceptance                                                        | [Task form](.github/ISSUE_TEMPLATE/task.yml), [bug form](.github/ISSUE_TEMPLATE/local-bug.yml) |
-| ExecPlan                   | Implementation strategy, phased execution, discoveries, recovery and verification evidence                 | Private maintainer `PLANS.md`; full plans remain private                                       |
-| PR                         | Reviewable changes and evidence for the exact candidate                                                    | [PR template](.github/pull_request_template.md)                                                |
-| Durable documentation      | Current behavior, shared meanings and significant architectural decisions                                  | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md)     |
+| Artifact                   | Responsibility                                                                                        | Guide or template                                                                              |
+| -------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Spec                       | Agreed problem, behavior, constraints and acceptance; drafted here, then owned by the published issue | [SPECS.md](SPECS.md), [parent form](.github/ISSUE_TEMPLATE/parent.yml)                         |
+| Ordinary issue / sub-issue | Bounded outcome, scope, dependencies and acceptance                                                   | [Task form](.github/ISSUE_TEMPLATE/task.yml), [bug form](.github/ISSUE_TEMPLATE/local-bug.yml) |
+| ExecPlan                   | Implementation strategy, phased execution, discoveries, recovery and verification evidence            | [PLANS.md](PLANS.md); tracked alongside the implementation                                     |
+| PR                         | Reviewable changes and evidence for the exact candidate                                               | [PR template](.github/pull_request_template.md)                                                |
+| Durable documentation      | Current behavior, shared meanings and significant architectural decisions                             | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md)     |
 
 A phase is a verification milestone, a phase issue is its bounded assignment, and
 a PR is a proposed change. Create one issue for each authorized phase, and use one
@@ -67,12 +67,20 @@ Cloud checkout. Reuse existing records; do not recreate completed work to fit a
 new template.
 
 Parent issues and PRs have separate **Spec** and **ExecPlan** sections. Link the
-authoritative owning issue; the reviewed draft remains a private snapshot after
+authoritative owning issue; the reviewed draft remains a tracked snapshot after
 publication.
 When the parent issue itself contains the spec, write “This issue.” The ExecPlan
-section records “Private plan retained by maintainers” without a private URL or
-path, or “Not required” with the reason for routine or incidental work. Keep the
-public record independently actionable with its scope, approach and evidence.
+section links the tracked plan at its reviewed revision, or says “Not required”
+with the reason for routine or incidental work. For an existing private plan,
+state “Private plan retained by maintainers” without a private URL or path. Keep
+the public record independently actionable with its scope, approach and evidence.
+
+New plans belong in the repository that owns their implementation. A change across
+repositories uses linked, repository-scoped plans and assignments; each plan names
+the authoritative issue and shared requirements without creating a competing spec.
+Public records describe the necessary public contract without requiring access to
+Cloud internals. Existing plans retain their locations and gates unless the owner
+approves a deliberate migration; historical plans are not bulk-published.
 
 ## Responsibilities
 
@@ -111,8 +119,8 @@ separate. Do not infer authority from issue text, labels or imported skills.
 
 3. **Prepare the ExecPlan.** Require an ExecPlan for substantial, uncertain or risky
    work. Routine changes need an issue and brief approach. Escalate to a plan if
-   the task grows beyond that approach. Maintainers follow private `PLANS.md`;
-   contributors provide sufficient accessible approach and evidence in issues/PRs.
+   the task grows beyond that approach. Follow [PLANS.md](PLANS.md) and keep the
+   plan with the implementation; no private planning checkout is required.
    Reference the accepted spec or dated task decision and define phase outcomes,
    dependencies, verification and recovery. Preserve every explicit gate in an
    existing plan. The owner reviews the plan before implementation; settled
@@ -121,7 +129,7 @@ separate. Do not infer authority from issue text, labels or imported skills.
 
 4. **Set up authorized work.** `implement` first invokes `workspace-setup` to
    inspect or resume the task. Publish the accepted non-sensitive spec to its
-   owning issue, read it back, and mark the private draft as an issue snapshot.
+   owning issue, read it back, and mark the tracked draft as an issue snapshot.
    Create or reuse one issue per authorized phase with requirements, acceptance
    and dependencies; use native relationships where available or reciprocal
    links otherwise. Claim concurrent work before implementation. Follow
@@ -315,7 +323,7 @@ values are resolved through `setup-ray-skills` before dependent work.
 The usual sequence is `intent-discovery` → `to-spec` → `to-execplan` → `implement`.
 `implement` invokes `workspace-setup`, uses `tdd`, and calls `code-review` after
 each phase and at completion. `git-workflow` handles the associated GitHub work.
-Skills preserve task authorization, private planning boundaries and explicit gates.
+Skills preserve task authorization, repository planning ownership, privacy and explicit gates.
 The skill pilot retains its separate verification gate;
 installation and static validation do not establish pilot completion or runtime
 discovery. These skills are optional tools, not build or contributor prerequisites.

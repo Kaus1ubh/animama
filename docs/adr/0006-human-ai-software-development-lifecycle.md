@@ -1,6 +1,6 @@
 # 0006: Human and AI software development lifecycle
 
-- Status: accepted
+- Status: accepted; planning location/privacy superseded by [ADR 0007](0007-repository-owned-planning.md)
 - Recorded: 2026-09-19
 - Retrospective: no
 - Original decision date: 2026-09-19, through the owner's portable lifecycle implementation request and request for this record.
