@@ -74,18 +74,16 @@ function DisplayNameEditor({
               setError(null);
             }}
           />
-          {changed ? (
-            <Button
-              type="submit"
-              className="shrink-0"
-              disabled={!normalized || updateProfile.isPending}
-            >
-              {updateProfile.isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
-              Save
-            </Button>
-          ) : null}
+          <Button
+            type="submit"
+            className="shrink-0"
+            disabled={!changed || !normalized || updateProfile.isPending}
+          >
+            {updateProfile.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : null}
+            Save
+          </Button>
         </div>
         <p className="text-muted-foreground text-xs">
           This name is required and private to this Animama installation.
