@@ -41,16 +41,16 @@ New file accepts either a leaf name or a relative path. For example,
 current creation target and then selects `launch.md`. The final `.md` extension
 is added when omitted. New directory remains a single-segment operation.
 
-Generated episodes, virtual episode groups, `profile.md`, files, the source's
+Generated episodes, virtual episode groups, `PROFILE.md`, files, the source's
 current parent, the source itself, and descendants of a directory being moved
 are not valid move targets as applicable. Creation and moves are disabled while
 a virtual episode group or generated episode is focused. Creation otherwise
 targets the focused physical directory or the selected ordinary file's parent.
-The explorer initially selects `profile.md`, then the first ordinary file by
+The explorer initially selects `PROFILE.md`, then the first ordinary file by
 path, then the newest episode.
 
 Protected rows remain explicit about those constraints. The ellipsis and
-right-click menus for `profile.md` and generated episode files show Rename,
+right-click menus for `PROFILE.md` and generated episode files show Rename,
 Move, and Delete in a disabled state. The virtual Episodes root and its month
 groups also show their directory creation actions disabled, along with disabled
 Rename, Move, and Delete actions.
@@ -297,7 +297,7 @@ session controller.
 
 ## Anima Identity
 
-Anima management pages read the anima-scoped `identity.md` entry and open the
+Anima management pages read the anima-scoped `IDENTITY.md` entry and open the
 memory editor from `/a/animas/:animaId/identity`. This surface intentionally
 retains `MemoryEntryEditorModal`. Its editable branch composes the shared
 CodeMirror editor and sanitized GFM preview. It keeps both the memory version
@@ -308,7 +308,7 @@ guards and creates a new identity version rather than replacing history.
 
 The backend enforces nonblank identity and prevents renaming, moving, deleting,
 kind changes, or AI Undo for the required identity file, including untyped
-legacy `identity.md` entries. Chat never uses a mutable Avatar fallback for a
+legacy `IDENTITY.md` entries. Chat never uses a mutable Avatar fallback for a
 missing identity. Legacy repair state requires explicit owner repair; a
 directory obstructing the reserved path can be explicitly moved first.
 

@@ -7,6 +7,7 @@ import { Check, ChevronDown, Moon, Star, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 
 import { cn } from "@/lib/utils";
+import { featureFlags } from "@/lib/feature-flags";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,7 +73,7 @@ export function Theme({
     lg: 20,
   };
 
-  if (!isMounted) return null;
+  if (!featureFlags.themeSelection || !isMounted) return null;
 
   const isThemeValue = (value: unknown): value is Theme =>
     typeof value === "string" && THEME_OPTIONS.includes(value as Theme);

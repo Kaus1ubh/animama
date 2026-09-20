@@ -174,24 +174,52 @@ export type ModelSelectorLogoProps = Omit<
     | (string & {});
 };
 
-/** A local provider mark keeps model selection independent of a logo CDN. */
+// Match the provider marks emitted by the backend model catalog. Unknown
+// adapters retain the local initial fallback without constructing an asset URL.
+const PROVIDER_LOGOS = new Set([
+  "openai",
+  "google",
+  "xai",
+  "groq",
+  "deepseek",
+  "huggingface",
+]);
+
+/** Bundled provider marks work offline in both web and desktop builds. */
 export const ModelSelectorLogo = ({
   provider,
   className,
   ...props
-}: ModelSelectorLogoProps) => (
-  <span
-    {...props}
-    role="img"
-    aria-label={`${provider} provider`}
-    className={cn(
-      "inline-flex size-3 shrink-0 items-center justify-center rounded-sm border border-current/30 text-[9px] leading-none font-semibold",
-      className,
-    )}
-  >
-    {provider.trim().slice(0, 1).toUpperCase() || "?"}
-  </span>
-);
+}: ModelSelectorLogoProps) => {
+  const normalizedProvider = provider.trim().toLowerCase();
+  const hasLogo = PROVIDER_LOGOS.has(normalizedProvider);
+  return (
+    <span
+      {...props}
+      role="img"
+      aria-label={`${provider} provider`}
+      className={cn(
+        "inline-flex size-4 shrink-0 items-center justify-center",
+        !hasLogo &&
+          "rounded-sm border border-current/30 text-[9px] leading-none font-semibold",
+        className,
+      )}
+    >
+      {hasLogo ? (
+        <img
+          src={`/provider-logos/${normalizedProvider}.svg`}
+          alt=""
+          aria-hidden="true"
+          className="size-full object-contain dark:invert"
+          width={16}
+          height={16}
+        />
+      ) : (
+        provider.trim().slice(0, 1).toUpperCase() || "?"
+      )}
+    </span>
+  );
+};
 
 export type ModelSelectorLogoGroupProps = ComponentProps<"div">;
 

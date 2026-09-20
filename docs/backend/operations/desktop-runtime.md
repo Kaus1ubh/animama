@@ -122,14 +122,15 @@ unsigned development core. No unsigned-helper or arbitrary-path fallback exists.
 
 ## Migration snapshots and recovery
 
-The frozen `baseline_20260908` revision accepts fresh databases and revisions
-in its own forward graph. Databases stamped with unsupported pre-baseline
-revision IDs have no forward upgrade through this graph. Preserve an old profile and its matching
-app/checkout if its data matters; use a separate disposable fresh profile for
+The `baseline_20260908` revision initializes fresh databases. During development,
+schema changes update the ORM and baseline SQL directly without new Alembic
+revisions; existing databases do not automatically receive an edited baseline.
+Databases stamped with unsupported revision IDs have no forward upgrade through
+this graph. Preserve an old profile and its matching app/checkout if its data
+matters; use a separate disposable fresh profile for
 current native validation. Do not relabel an old database with `alembic stamp`,
 automatically purge it, or treat its snapshot as restore-compatible with the new
-history. Future supported schema changes use forward migrations from this fixed
-baseline. See [Database operations](development.md#database) for the reset and
+history. See [Database operations](development.md#database) for the reset and
 Local/private-file boundary.
 
 Before upgrading an existing schema, the supervisor runs bundled `pg_dump` in

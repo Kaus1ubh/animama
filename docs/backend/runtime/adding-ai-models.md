@@ -292,7 +292,7 @@ represented faithfully, either:
 
 - mark the missing dimension in `pricing_notes` and document the estimate's
   limitation; or
-- extend the domain, ORM, migration, mapper, serializer, estimator, seed, and
+- extend the domain, ORM, baseline SQL, mapper, serializer, estimator, seed, and
   tests before claiming complete pricing support.
 
 Unknown pricing must remain explicitly unpriced, never zero.

@@ -4,8 +4,8 @@ Revision ID: baseline_20260908
 Revises:
 Create Date: 2026-09-08
 
-The companion SQL artifact is intentionally immutable. Do not import the live
-ORM from this revision: model changes belong in forward migrations.
+During development, update the companion SQL artifact alongside ORM changes
+instead of adding revisions. Keep initialization independent of live ORM imports.
 """
 
 from __future__ import annotations
@@ -74,7 +74,7 @@ def _baseline_statements() -> list[str]:
 
 
 def upgrade() -> None:
-    """Create the exact schema captured in the frozen SQL artifact."""
+    """Create the exact schema captured in the baseline SQL artifact."""
 
     for statement in _baseline_statements():
         if statement:
@@ -89,7 +89,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop only tables owned by the frozen baseline."""
+    """Drop only tables owned by the baseline."""
 
     for table_name in reversed(_BASELINE_TABLES):
         op.execute(f'DROP TABLE IF EXISTS "{table_name}" CASCADE')

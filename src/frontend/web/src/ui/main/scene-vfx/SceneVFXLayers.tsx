@@ -5,14 +5,17 @@ import { cn } from "@/lib/utils";
 import { useCanvasViewport } from "@/ui/main/canvas/CanvasViewportContext";
 import { SceneVFXBackgroundLayersEffect } from "./SceneVFXBackgroundLayersEffect";
 import { SceneVFXFocusLinesEffect } from "./SceneVFXFocusLinesEffect";
+import { SceneVFXViewportBackground } from "./SceneVFXViewportBackground";
 
 export function SceneVFXUnderlayLayers({
   activeByKind,
   allowBackgroundLayers = true,
+  backgroundScope = "canvas",
   className,
 }: {
   activeByKind: SceneVFXActiveByKind;
   allowBackgroundLayers?: boolean;
+  backgroundScope?: "canvas" | "viewport";
   className?: string;
 }) {
   const canvasViewport = useCanvasViewport();
@@ -45,7 +48,13 @@ export function SceneVFXUnderlayLayers({
       }}
     >
       {activeBackgroundLayers ? (
-        <SceneVFXBackgroundLayersEffect runtimeEntry={activeBackgroundLayers} />
+        backgroundScope === "viewport" ? (
+          <SceneVFXViewportBackground runtimeEntry={activeBackgroundLayers} />
+        ) : (
+          <SceneVFXBackgroundLayersEffect
+            runtimeEntry={activeBackgroundLayers}
+          />
+        )
       ) : null}
       {behindAvatarFocusLines ? (
         <SceneVFXFocusLinesEffect runtimeEntry={behindAvatarFocusLines} />

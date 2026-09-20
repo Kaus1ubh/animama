@@ -29,7 +29,7 @@ field, rejecting blank names rather than clearing it. “You” is only a defens
 loading/missing-profile label. Application settings remain a separate modal. There is no local handle,
 creator page, avatar account image, account settings, sign-in, or logout.
 
-The installation bootstrap service owns initial profile and `profile.md`
+The installation bootstrap service owns initial profile and `PROFILE.md`
 creation. Later profile changes update the bootstrap-managed preferred-name line
 in the same guarded backend transaction; a person's direct edit to that line
 wins. This private display name is not a hosted identity or public creator

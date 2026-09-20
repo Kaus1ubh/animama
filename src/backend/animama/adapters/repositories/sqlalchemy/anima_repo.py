@@ -106,7 +106,7 @@ class SQLAlchemyAnimaRepository(AnimaRepository):
                 select(ORMMemoryEntry).where(
                     ORMMemoryEntry.user_id == user_id,
                     ORMMemoryEntry.anima_id == anima_id,
-                    ORMMemoryEntry.normalized_path == ANIMA_IDENTITY_PATH,
+                    ORMMemoryEntry.normalized_path == ANIMA_IDENTITY_PATH.casefold(),
                     ORMMemoryEntry.type == "file",
                     ORMMemoryEntry.deleted_at.is_(None),
                 )

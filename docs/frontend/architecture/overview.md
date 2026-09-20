@@ -70,6 +70,14 @@ Global startup:
 - `src/frontend/web/src/routes/__root.tsx` owns root document head, scroll
   restoration, scripts, and not-found rendering.
 
+`web/src/lib/feature-flags.ts` currently disables `themeSelection` for web and
+desktop. The theme provider forces the default light theme from startup, and
+the user menu hides the entire theme section and custom-theme editor. Browser/system
+preferences and saved backend themes do not override light while this flag is
+off. Theme synchronization pauses without deleting saved preferences or custom
+colors; enabling the flag restores the existing selection behavior. Toasts use
+the same forced theme.
+
 Primary routes:
 
 - Launch selection: the `/a/` index waits for saved settings and owned Animas,
@@ -111,7 +119,7 @@ Primary routes:
 - `/a/animas/:animaId`:
   `src/frontend/web/src/routes/a/animas/$animaId.tsx`; anima details and
   management. `/a/animas/:animaId/identity` opens the anima-scoped
-  `identity.md` memory editor modal.
+  `IDENTITY.md` memory editor modal.
 - `/a/avatar-portrait-debug`:
   `src/frontend/web/src/routes/a/avatar-portrait-debug.tsx`; explicitly opted-in
   development VRM portrait-capture harness. Production builds return not found.

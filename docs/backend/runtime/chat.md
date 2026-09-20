@@ -284,7 +284,7 @@ chat_api_standard_mismatch`. A non-empty chat whose `api_standard` is still
 11. The executor opens direct-chat memory context through
     `DirectChatMemoryContextService`, then fetches visible chat context through
     `ChatManager` when the selected provider needs local replay. It
-    reads cached path `identity.md` in the active anima scope. Missing/blank
+    reads cached path `IDENTITY.md` in the active anima scope. Missing/blank
     identity fails setup before model invocation and requires explicit owner
     repair. There is no current-Avatar fallback and no chat-driven identity
     creation/update. New Anima creation owns identity initialization; the current
@@ -308,7 +308,7 @@ chat_api_standard_mismatch`. A non-empty chat whose `api_standard` is still
     provider rows without developer-role support, this request-local context is
     appended to the system message instead. The memory file list
     contains only user-scope file entries (`anima_id IS NULL`), uses cached
-    paths such as `profile.md`, excludes generated episode logs
+    paths such as `PROFILE.md`, excludes generated episode logs
     (`kind = "episode_log"`), omits anima-scoped files, and does not include a
     tree. It lists user profile files but does not inject their content. The
     prompt does not read anima profile fields or

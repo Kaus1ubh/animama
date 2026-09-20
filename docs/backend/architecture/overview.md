@@ -128,7 +128,7 @@ Startup performs process-level setup:
 - establishes HTTP readiness for the bootstrap-owned principal after content
   runtime startup; failed startup cannot admit product requests
 - reconciles local content and idempotently ensures the private profile,
-  settings, `profile.md`, and configured Starter Animas
+  settings, `PROFILE.md`, and configured Starter Animas
 - reconfigures logging
 - initializes the app-scoped direct model-client registry
 - watches Local content; ordinary single-root installations also watch Included,

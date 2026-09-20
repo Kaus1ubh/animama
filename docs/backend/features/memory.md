@@ -5,6 +5,18 @@ directories. Direct chat reads Anima identity and can use constrained tools over
 user memory; the Memory Manager provides a separate maintenance and approval
 workflow.
 
+## Built-in filenames
+
+The user profile is `PROFILE.md` at the user-scope root; each Anima has its
+required `IDENTITY.md` at its own scope root. Lookups remain case-insensitive,
+so existing lowercase links and tool requests keep reaching the same entry.
+
+New profiles and Animas use the capitalized filenames. Existing entries retain
+their stored spelling until the owner recreates the development data; this
+change does not rename existing rows or alter their contents and history.
+Historical versions and chat manifests retain the spelling originally recorded;
+identity context matches those manifests case-insensitively.
+
 ## Current Direct Chat Boundary
 
 Normal `chat:sse` uses `ChatManager`, `DirectChatMemoryContextService`, and
@@ -12,7 +24,7 @@ Normal `chat:sse` uses `ChatManager`, `DirectChatMemoryContextService`, and
 prompt passed to direct model clients. Direct chat currently opens one selected
 memory file entry before model invocation:
 
-- required anima identity: cached path `identity.md` in the active anima scope
+- required anima identity: cached path `IDENTITY.md` in the active anima scope
   (`anima_id = {anima_id}`)
 
 The required anima identity is treated as anima configuration, not optional
@@ -47,7 +59,7 @@ as `developer` conversation context after the system message, preserving their
 role as historical continuity rather than user instruction.
 
 The file list uses content-free memory entry headers and includes only
-user-scope file entries (`anima_id IS NULL`) such as `profile.md` or
+user-scope file entries (`anima_id IS NULL`) such as `PROFILE.md` or
 `notes/preferences.md`. It excludes generated episodic-memory logs
 (`kind = "episode_log"`), does not list anima-scoped entries, and does not
 include a tree. Each YAML entry includes exactly `path` and `description`.
@@ -183,7 +195,7 @@ operations are rejected. The mounted routes are:
 - `POST /v1/memory/manager/approvals/{approval_id}:decide`
 - `POST /v1/memory/manager/approvals/{approval_id}:undo`
 
-The frozen `baseline_20260908` SQL includes the open-run index, run kind/task
+The `baseline_20260908` SQL includes the open-run index, run kind/task
 state, approval feedback, applied/Undo Version, and old/new description columns.
 Database revisions outside the supported graph require their matching checkout
 or an explicitly disposable reset; ordinary `./reset.sh` preserves data and
@@ -194,10 +206,10 @@ cannot bridge that schema boundary. See [Database operations](../operations/deve
 Direct `chat:sse` uses request-local JSON-schema function tools. These resolve
 paths through the `memory_entries` cached path indexes and remain scoped to
 user memory only (`anima_id IS NULL`). Models
-refer to files by user-scope paths such as `profile.md` or
+refer to files by user-scope paths such as `PROFILE.md` or
 `notes/preferences.md`. Tool path validation rejects absolute paths, `.`/`..`,
 explicit `[user]/...` roots, and `animas/...`; anima identity remains
-backend-injected only and tools cannot read or write anima-scoped `identity.md`.
+backend-injected only and tools cannot read or write anima-scoped `IDENTITY.md`.
 
 When memory influence is enabled, direct chat attaches:
 
@@ -458,9 +470,9 @@ Files are markdown documents. Directories are durable entries that can be empty.
 User-visible paths are cached from parent/name relationships for fast exact
 lookup, for example:
 
-- user scope: `profile.md`
+- user scope: `PROFILE.md`
 - user scope: `notes/preferences.md`
-- active anima scope: `identity.md`
+- active anima scope: `IDENTITY.md`
 
 The backend exposes authenticated CRUD routes under `/v1/memory/entries`:
 
@@ -526,7 +538,7 @@ revision once and append a compact definition audit pointer in the same
 transaction. A materializer's initial identity/history and aggregate both
 start at revision 1 without an intermediate edit revision.
 
-The Anima-scoped root `identity.md` must be a file with kind `anima_identity`.
+The Anima-scoped root `IDENTITY.md` must be a file with kind `anima_identity`.
 New/edited identity is nonblank UTF-8 Markdown, rejects NUL, normalizes CRLF/CR
 to LF, and preserves other Markdown whitespace. Its byte limit is the smaller
 of 32 KiB and `ANIMAMA_MEMORY_FILE_MAX_BYTES`. Generic API paths cannot bypass
@@ -598,14 +610,14 @@ which historical Version was selected; this is audit provenance and is not
 copied into the entry's user-facing metadata.
 
 `AnimaAggregateMaterializer` stores the resolved identity in an Anima-scoped
-`identity.md` entry with `kind = "anima_identity"` and
+`IDENTITY.md` entry with `kind = "anima_identity"` and
 `description = "Initial identity of {anima.display_name}"`. It uses the caller's
 SQL transaction with no physical-file projection or independent commit.
 Strict live creation supplies the authored Markdown, and backend starters
 supply their configured identity through the same materializer. Later Avatar edits and chat turns
 cannot synchronize or overwrite the existing live identity.
 
-Installation bootstrap seeds one user-scope `profile.md` entry with
+Installation bootstrap seeds one user-scope `PROFILE.md` entry with
 `kind = "user_profile"`. Optional first-run display-name completion updates its
 bootstrap-managed preferred-name line in the same backend transaction. A direct
 user edit to that line prevents later personalization changes from overwriting
