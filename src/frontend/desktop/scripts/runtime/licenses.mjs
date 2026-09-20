@@ -93,6 +93,16 @@ export function javascriptLicenses(workspaceRoot = frontendRoot) {
   };
 }
 
+/** Read a static notice by basename, keeping policy paths inside the notice directory. */
+export function readStaticLicenseNotice(name) {
+  if (!/^[a-z0-9][a-z0-9._-]{0,99}\.txt$/u.test(name))
+    throw new Error(`Invalid static license notice path: ${name}`);
+  return {
+    path: name,
+    text: readFileSync(path.join(sourceRoot, "notices", name), "utf8"),
+  };
+}
+
 /** Every staged file gets an attribution group, with unresolved provenance visible. */
 export function writeLicenses(target, contentInventory) {
   const directory = path.join(target.runtime, "licenses");
@@ -108,14 +118,7 @@ export function writeLicenses(target, contentInventory) {
   const policy = readJson(path.join(sourceRoot, "license-sources.json"));
   const policyRecords = policy.groups.map((group) => ({
     ...group,
-    notices: (group.notice_files ?? []).map((name) => {
-      if (!/^[a-z0-9][a-z0-9.-]{0,99}\.txt$/u.test(name))
-        throw new Error("Invalid static license notice path");
-      return {
-        path: name,
-        text: readFileSync(path.join(sourceRoot, "notices", name), "utf8"),
-      };
-    }),
+    notices: (group.notice_files ?? []).map(readStaticLicenseNotice),
   }));
   const native = readJson(path.join(sourceRoot, "native-components.lock.json"));
   const records = [...policyRecords, ...python, ...js.records];

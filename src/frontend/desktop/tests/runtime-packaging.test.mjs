@@ -25,7 +25,10 @@ import {
   sha256,
 } from "../scripts/runtime/common.mjs";
 import { assertBundledImports } from "../scripts/runtime/js-audit.mjs";
-import { javascriptLicenses } from "../scripts/runtime/licenses.mjs";
+import {
+  javascriptLicenses,
+  readStaticLicenseNotice,
+} from "../scripts/runtime/licenses.mjs";
 import { checkSizes, validateSizeReport } from "../scripts/runtime/size.mjs";
 import {
   isPublicReleaseRepository,
@@ -78,6 +81,35 @@ function fixture() {
 }
 
 describe("desktop runtime packaging", () => {
+  it("loads every checked-in static license notice", () => {
+    const policy = JSON.parse(
+      readFileSync(
+        new URL("../runtime/license-sources.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    for (const group of policy.groups) {
+      for (const name of group.notice_files ?? []) {
+        const notice = readStaticLicenseNotice(name);
+        expect(notice.path).toBe(name);
+        expect(notice.text.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it.each([
+    "../notice.txt",
+    "/notice.txt",
+    "sub/notice.txt",
+    "sub\\notice.txt",
+    ".hidden.txt",
+    "notice.html",
+  ])("rejects unsafe static notice path %s", (name) => {
+    expect(() => readStaticLicenseNotice(name)).toThrow(
+      "Invalid static license notice path",
+    );
+  });
+
   it("inventories a clean desktop and web workspace without a retired server directory", () => {
     const root = fixture();
     for (const name of ["desktop", "web", "node_modules/shared-fixture"]) {
