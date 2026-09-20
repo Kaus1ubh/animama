@@ -37,6 +37,7 @@ class SourcePreparationTests(unittest.TestCase):
             check=True,
         )
         files = {
+            ".gitignore": "ignored-private/\n",
             "LICENSE": "Private source\n",
             "README.md": "# Fixture\n\n## Copyright and licensing\nPrivate.\n",
             "pyproject.toml": 'license = "LicenseRef-Proprietary"\n',
@@ -48,20 +49,17 @@ class SourcePreparationTests(unittest.TestCase):
             "src/frontend/desktop/runtime/license-sources.json": (
                 '{"groups":[{"id":"animama","license":"Proprietary"}]}'
             ),
-            "docs/architecture/repository-provenance.json": (
-                '{"files":[],"evidence":[],"local_amendments":["private history"]}'
-            ),
             "licenses/source-review.json": "",
         }
-        paths = sorted([*files, "repository-boundary.toml"])
+        paths = sorted(files)
         files["licenses/source-review.json"] = json.dumps(
             {"schema": "animama-source-license-review/1", "files": [{"path": path} for path in paths]}
         )
-        files["repository-boundary.toml"] = '[[groups]]\nowner = "public"\npaths = ' + json.dumps(paths) + "\n"
         for relative, value in files.items():
             path = self.source / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(value)
+        self.stage(*paths)
         self.review = self.root / "input.json"
         module.write_exclusive(self.review, module.inventory(self.source))
         self.output = self.root / "candidate"
@@ -73,29 +71,29 @@ class SourcePreparationTests(unittest.TestCase):
     def create(self):
         return module.prepare(self.source, self.review, self.output, self.receipt)
 
-    def test_candidate_is_separate_and_excludes_unclassified_files(self):
+    def stage(self, *paths):
+        subprocess.run(["git", "add", "--", *paths], cwd=self.source, check=True)
+
+    def test_candidate_is_separate_and_excludes_untracked_and_ignored_files(self):
         (self.source / "private-secret.txt").write_text("never copy")
+        (self.source / "ignored-private").mkdir()
+        (self.source / "ignored-private/secret.txt").write_text("never copy ignored files")
         result = self.create()
         module.verify(self.output, result)
         self.assertEqual((self.source / "LICENSE").read_text(), "Private source\n")
         self.assertEqual((self.output / "LICENSE").read_text(), "AGPL fixture\n")
         self.assertFalse((self.output / ".git").exists())
         self.assertFalse((self.output / "private-secret.txt").exists())
-        self.assertNotIn(
-            "local_amendments", json.loads((self.output / "docs/architecture/repository-provenance.json").read_text())
-        )
+        self.assertFalse((self.output / "ignored-private").exists())
         self.assertFalse(result["release_approved"])
 
-    def test_reviewed_repository_plans_are_included_but_unclassified_plans_are_not(self):
+    def test_reviewed_tracked_repository_plans_are_included_but_untracked_plans_are_not(self):
         plans = ["PLANS.md", "docs/plans/chat/chat-spec.md", "docs/plans/chat/chat-execplan.md"]
         for relative in [*plans, "docs/plans/private.md"]:
             path = self.source / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(f"# Synthetic planning fixture: {relative}\n")
-        boundary_path = self.source / "repository-boundary.toml"
-        boundary = module.tomllib.loads(boundary_path.read_text())
-        paths = sorted([*boundary["groups"][0]["paths"], *plans])
-        boundary_path.write_text('[[groups]]\nowner = "public"\npaths = ' + json.dumps(paths) + "\n")
+        self.stage(*plans)
         license_path = self.source / "licenses/source-review.json"
         license_review = json.loads(license_path.read_text())
         license_review["files"].extend({"path": path} for path in plans)
@@ -110,15 +108,40 @@ class SourcePreparationTests(unittest.TestCase):
         self.assertFalse((self.output / "docs/plans/private.md").exists())
         self.assertFalse(result["release_approved"])
 
-        boundary_path.write_text(boundary_path.read_text().replace('owner = "public"', 'owner = "cloud"'))
-        with self.assertRaisesRegex(ValueError, "public-only ownership"):
-            module.inventory(self.source)
-
     def test_changed_source_fails_before_output(self):
         (self.source / "LICENSE").write_text("changed")
         with self.assertRaisesRegex(ValueError, "Source changed"):
             self.create()
         self.assertFalse(self.output.exists())
+
+    def test_added_tracked_file_invalidates_frozen_inventory(self):
+        (self.source / "new-source.py").write_text("# New source requires review\n")
+        self.stage("new-source.py")
+        with self.assertRaisesRegex(ValueError, "Source changed"):
+            self.create()
+        self.assertFalse(self.output.exists())
+
+    def test_new_tracked_file_requires_license_coverage(self):
+        (self.source / "new-source.py").write_text("# Unreviewed tracked source\n")
+        self.stage("new-source.py")
+        self.review.unlink()
+        module.write_exclusive(self.review, module.inventory(self.source))
+        with self.assertRaisesRegex(ValueError, "exact input file set"):
+            self.create()
+        self.assertFalse(self.output.exists())
+
+    def test_tracked_private_state_is_rejected(self):
+        (self.source / "data").mkdir()
+        (self.source / "data/private.txt").write_text("synthetic private state")
+        self.stage("data/private.txt")
+        with self.assertRaisesRegex(ValueError, "Forbidden candidate path"):
+            module.inventory(self.source)
+
+    def test_reserved_generated_file_is_rejected(self):
+        (self.source / "SOURCE_CANDIDATE.json").write_text("{}")
+        self.stage("SOURCE_CANDIDATE.json")
+        with self.assertRaisesRegex(ValueError, "reserved generated path"):
+            module.inventory(self.source)
 
     def test_existing_destination_is_preserved(self):
         self.output.mkdir()

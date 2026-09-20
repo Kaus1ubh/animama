@@ -7,9 +7,9 @@ Git history, upload an LFS object, or change the working source license.
 Using this review tool does not select the final repository or Git-history
 publication approach; that decision belongs to final source review.
 
-Use Python 3.11 or newer from the repository root. First review the exact paths
-in `repository-boundary.toml`, hydrate required LFS files, and update
-`licenses/source-review.json`. The source review covers every classified input;
+Use Python 3.11 or newer from the repository root. First review the tracked paths
+reported by `git ls-files`, hydrate required LFS files, and update
+`licenses/source-review.json`. The source review must cover every tracked input;
 its prepared dispositions are not publication approval. Missing assets, stale
 hashes or unexplained source changes must be resolved rather than bypassed.
 
@@ -28,13 +28,18 @@ python3 scripts/public-release/prepare_source.py verify \
 ```
 
 Inspect the frozen input manifest before preparing. The manifest binds current
-classified working bytes, executable modes and the base Git revision; it can
-represent reviewed uncommitted work. It does not recursively include untracked
+tracked working bytes, executable modes and the base Git revision; it can
+represent reviewed uncommitted work. Stage new files intended for the candidate
+before freezing the inventory. Adding or removing tracked paths, or changing
+their working bytes, invalidates the frozen inventory. It does not include untracked
 files, ignored animation/skill copies, dependencies, personal state or private
-planning. Reviewed repository-owned specs and ExecPlans may be included when
-explicitly classified and covered by the per-file source review; their directory
+planning. Reviewed repository-owned specs and ExecPlans are included when
+tracked and covered by the per-file source review; their directory
 name does not establish privacy or publication approval. Historical private plans
-are not migrated or reclassified by this tool. Changed source requires a new inventory. Destination and receipt paths
+are not migrated by this tool. Tracked private state is rejected by the path
+checks; tracking a file does not establish that its contents are safe to publish.
+Missing, duplicate or stale license-review entries block candidate preparation.
+Changed source requires a new inventory. Destination and receipt paths
 must be absent, disjoint and outside the source checkout. Retrying never replaces
 an existing candidate or receipt.
 
@@ -43,8 +48,7 @@ AGPL-3.0-only text, update original package/license metadata and add contributio
 and readiness documents. Existing third-party licenses remain intact. The
 per-file source review records exceptions including PocketTTS noncommercial
 assets; the project code license does not turn those assets into unrestricted
-open-source content. Root provenance keeps current origins and pending review
-states but omits the private working amendment log. The external receipt records
+open-source content. The external receipt records
 every output hash/mode and the transformed paths. Verification rejects extra or
 changed files and any Git metadata; run independent builds in a separate copy.
 

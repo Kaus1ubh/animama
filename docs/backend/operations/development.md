@@ -733,7 +733,7 @@ persistence and avatar logic and remain full scope. Directory location alone is
 not permission to reduce checks. Changed imports or unsupported dependency syntax
 automatically select full validation. This does not prove functional purity;
 review higher-risk behavior changes inside an allowed file and use `ci:full`.
-Repository instructions, provenance evidence, executable/symlink/LFS inputs,
+Repository instructions, executable/symlink/LFS inputs,
 configuration, dependency/build inputs and shared contracts remain full scope.
 
 ### Reuse a full hosted PR result after merging
@@ -836,7 +836,7 @@ prepares shared packages once and invokes the individual source/harness/type/tes
 build commands; standalone developer commands still prepare their dependencies.
 `pnpm ci:source` remains a local convenience, not an opaque hosted CI step.
 
-Full validation also checks classification/provenance/imports/LFS, nonempty
+Full validation also checks imports, repository dependencies and LFS, nonempty
 package-set/public-release/repository-boundary/CI tooling suites, Compose graphs,
 and both rendered Library/setup modes using fresh PostgreSQL containers and
 original synthetic content. The independent tracked-source producer keeps its

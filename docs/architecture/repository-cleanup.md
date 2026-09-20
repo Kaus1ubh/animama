@@ -10,10 +10,11 @@ that deletion is safe.
 
 - `docs/backend` and `docs/frontend` contain current implementation and operator
   guides. Cross-cutting deployment and ownership guidance stays here.
-- `contracts` and `repository-boundary.toml` remain active local build/check
-  inputs. Their presence does not require a Cloud checkout.
-- Provenance and license evidence stay with the relevant source or in the
-  covered provenance inventory. Preserve their rights dispositions during moves.
+- `contracts` remains an active local build/check input and does not require a
+  Cloud checkout.
+- License notices and attribution stay with the relevant source. Preserve their
+  rights dispositions during moves; refresh source-license review coverage when
+  preparing a release candidate.
 - Private plans, historical cleanup measurements, split receipts and maintainer
   backlog are retained privately, outside the contributor documentation.
 - Generated output and caches are separate from source. Never classify durable

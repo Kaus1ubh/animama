@@ -3,8 +3,8 @@
 Animama owns the local desktop and self-host application, reusable product code,
 public artifact contracts, tests and contributor documentation. It builds and
 runs without a private Cloud checkout, hosted credentials or private plans.
-The working source remains proprietary; “public” in classification metadata
-means the intended source destination, not permission to publish a file.
+The working source remains proprietary. Repository ownership does not grant
+permission to publish or redistribute a file.
 
 ## Code and data ownership
 
@@ -70,29 +70,27 @@ backlog and raw approval records remain in their existing private locations unle
 deliberately reviewed for migration. Preserve existing gates. Private material is
 not a local build or contributor prerequisite, and plan location grants no
 publication authority.
-The export tooling verifies exact committed inputs and generates split receipts
-in candidate directories. The active checkout does not require a root split receipt.
 
-## Classification, provenance and licensing
+## Source review and licensing
 
-[repository-boundary.toml](../../repository-boundary.toml) is an active local
-check input. Its explicit path groups give every tracked file one owner and
-require a decision for new files. Keep this metadata synchronized with moves
-and additions; do not substitute a catch-all public glob.
+Git tracks the current source tree. The former per-file boundary and provenance
+inventories and split-export tools have been retired to avoid shared metadata
+conflicts between independent task branches. Routine changes no longer require
+classification entries or provenance hash refreshes; historical split records
+remain in Git history.
 
-[repository-provenance.json](repository-provenance.json) records source blobs,
-hydrated payload hashes, LFS identities, evidence references and publication
-status for covered third-party, adapted and asset inputs. Exported-snapshot
-history and reviewed local amendments retain earlier evidence. A move changes
-its current path, not its rights disposition. Preserve third-party licenses,
-notices and required source attribution.
+Preserve third-party licenses, notices and attribution alongside their source.
+[Source-candidate preparation](../../scripts/public-release/README.md) freezes
+Git-tracked working files in an external hash-bound inventory and requires exact
+coverage in [the source-license review](../../licenses/source-review.json) before
+preparing a candidate. Review and refresh that release-only evidence for the
+selected candidate; it is not an ordinary development inventory gate.
 
-Classification, secret scans, license detection and successful builds do not
-grant redistribution permission. Pending and blocked publication records must
-be resolved before preparing an accepted public candidate. Raw-asset permission
-and embedded-product distribution permission are distinct. Required starter
-content must retain its behavior through verified permission or an explicitly
-approved equivalent replacement.
+Secret scans, license detection and successful builds do not grant redistribution
+permission. Pending rights questions must be resolved before accepting a public
+candidate. Raw-asset permission and embedded-product distribution permission are
+distinct. Required starter content must retain its behavior through verified
+permission or an explicitly approved equivalent replacement.
 
 The working repository retains its proprietary [LICENSE](../../LICENSE). The
 planned public release uses AGPL-3.0-only for project-owned material, with
@@ -108,13 +106,11 @@ From the repository root:
 ```bash
 uv run --no-sync python scripts/repository-boundary/check-python-imports.py
 uv run --no-sync python -m unittest discover -s scripts/repository-boundary -p 'test_*.py'
-git ls-files -z | uv run --no-sync python scripts/repository-boundary/audit-classification.py --stdin --check
 git diff --check
 ```
 
 Use the [boundary-tool guide](../../scripts/repository-boundary/README.md) for
-provenance checks, independent consumers and a disposable index when checking
-unstaged additions. Never include ignored runtime state merely to satisfy an
-inventory. Preserve databases, Local content, vaults, installed packs and backups
-when relocating or cleaning source. Publication and release uploads require
+import checks and independent consumers. Never include ignored runtime state in
+a source candidate. Preserve databases, Local content, vaults, installed packs and
+backups when relocating or cleaning source. Publication and release uploads require
 their own exact-candidate review and explicit authorization.
