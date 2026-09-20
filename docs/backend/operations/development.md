@@ -1133,11 +1133,10 @@ stays private, as does FastAPI when Vite owns the development listener.
 
 ### Preparing a Task Workspace
 
-Choose the existing checkout and stack when the work will not disrupt another
-active task. Test chats and content do not themselves require isolation. Use a
-separate worktree for conflicting edits or dependency/configuration experiments,
-and start a separate stack only when useful for the task. See the
-[workspace selection rules](../../../AGENTS.md#workspace-selection).
+Follow the [workspace policy](../../../AGENTS.md#workspace-selection): the primary
+checkout stays on `main`, and task branches use worktrees. Reuse the task's existing
+worktree. Stack selection is separate: an existing stack must serve the revision
+being tested and be safe to share; otherwise start a task stack when needed.
 
 Inspect the current state before creating or reusing a task workspace:
 
@@ -1148,10 +1147,16 @@ git rev-parse HEAD
 git worktree list
 ```
 
-Record the source revision and check active work/processes before reusing a
-checkout. For a new worktree, choose the intended starting revision explicitly.
-This example starts at the current recorded `HEAD`, without switching the
-occupied checkout, pulling into it or stashing another task's changes:
+Record the source revision and check active work/processes. If the supplied task
+worktree is detached, create its branch at the verified current revision:
+
+```bash
+git switch -c feat/abc
+```
+
+If the task has no worktree yet, choose the intended starting revision explicitly.
+The following alternative creates a worktree at the current recorded `HEAD`
+without switching the primary checkout. Do not run both recipes for one task:
 
 ```bash
 git worktree add -b feat/abc ../animama-worktrees/abc HEAD

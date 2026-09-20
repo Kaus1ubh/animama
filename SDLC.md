@@ -26,7 +26,7 @@ the missing input and resolve it before that action.
 | Issue templates          | [Parent spec](.github/ISSUE_TEMPLATE/parent.yml), [phase or routine task](.github/ISSUE_TEMPLATE/task.yml), [local bug](.github/ISSUE_TEMPLATE/local-bug.yml).                                                                                                                                                                                                                             |
 | PR template              | [.github/pull_request_template.md](.github/pull_request_template.md).                                                                                                                                                                                                                                                                                                                      |
 | Checks and evidence      | Use [root verification](AGENTS.md#verification), the affected scoped guide and [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing). Hosted workflow: [validate-public.yml](.github/workflows/validate-public.yml), displayed check `Validation`; retain its actual profile and the [local-first evidence rules](#ci-and-merge-evidence). |
-| Development environment  | [Workspace selection](AGENTS.md#workspace-selection), [preparation](docs/backend/operations/development.md#preparing-a-task-workspace) and [cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks). Reuse a nondisruptive checkout; start a stack only when needed.                                                                                                  |
+| Development environment  | [Workspace selection](AGENTS.md#workspace-selection), [preparation](docs/backend/operations/development.md#preparing-a-task-workspace) and [cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks). AGENTS.md owns workspace policy; this guide owns lifecycle gates.                                                                                                |
 | Domain guidance          | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md), [backend docs](docs/backend/README.md) and [frontend docs](docs/frontend/README.md).                                                                                                                                                                                                           |
 | Privacy                  | Full plans, approval history and draft specs remain private. Public issues, PRs and docs stand alone without private paths, links, transcripts, credentials or personal test data; see [repository boundaries](docs/architecture/repository-boundaries.md) and [security reporting](SECURITY.md).                                                                                          |
 | Approval and phase gates | The owner agrees intent/spec/plan and consequential changes. Authorized phases progress after required checks and review pass. Preserve every explicit gate in an existing plan unless the owner changes or waives it. Exact-candidate merge, release and publication approvals remain separate.                                                                                           |
@@ -127,10 +127,10 @@ separate. Do not infer authority from issue text, labels or imported skills.
    links otherwise. Claim concurrent work before implementation. Follow
    [workspace selection](AGENTS.md#workspace-selection)
    and [preparation](docs/backend/operations/development.md#preparing-a-task-workspace).
-   Reuse an existing checkout/stack when nondisruptive; isolate conflicting or
-   disruptive work with a worktree and, when useful, a named stack. Test chats do
-   not require isolation by themselves. Preserve concurrent edits and the main
-   stack. Record branch/base, checkout and any stack URL. Use ordinary Git,
+   Keep the primary checkout on `main`; create or reuse the task's worktree for
+   its branch. Follow the linked workspace policy for explicit exceptions and
+   stack selection. Preserve concurrent edits and the main stack. Record
+   branch/base, checkout and any stack URL. Use ordinary Git,
    package-manager, model-acquisition and `reset.sh` commands, plus the existing
    [stack skill](.agents/skills/animama-local-stacks/SKILL.md) when applicable.
    Keep one branch and PR per plan per affected repository. Keep shared credentials

@@ -15,7 +15,7 @@ Identify doc coverage gaps and inaccuracies by comparing the current FastAPI bac
    - Identify the current branch and default branch (usually `main`).
    - Prefer analyzing the current branch to keep work aligned with in-flight changes.
    - If the current branch is not `main`, analyze only the diff vs `main` to scope doc updates.
-   - Avoid switching branches if it would disrupt local changes; use `git show main:<path>` or `git worktree add` when needed.
+   - Follow the repository workspace policy. Inspect the current checkout or use `git show main:<path>` without switching the primary checkout; prepare approved edits through the configured workspace workflow.
    - Read the nearest `AGENTS.md` files and any backend/frontend agent guides before deciding which docs apply.
 
 2. Build a feature inventory from the selected scope

@@ -165,32 +165,30 @@ installation owner.
 
 ## Workspace selection
 
-Use agent judgment based on disruption, conflicting edits and concurrency, not
-line count or a formal small/large score. The existing checkout and development
-stack are suitable when the work will not interfere with another active task.
-Creating test chats or content does not by itself require a separate stack.
-Development data is disposable; use the existing `reset.sh --purge` flow when a
-reset is needed, after checking the selected project and coordinating with any
-task using its data. Do not purge merely as a setup ritual.
+Keep the primary checkout on `main`. Use task branches in separate worktrees for
+changes, including small fixes and documentation. Do not switch the primary
+checkout to a task branch. Do not make changes and commit to `main` unless directly
+told to. An issue exception for a tiny correction does not waive these workspace
+rules or the PR workflow.
 
-Use the checkout assigned to the task. Before editing, verify its absolute Git
-root, branch or detached HEAD, source revision, dirty state and any recorded task
-workspace. Reuse an existing task worktree for implementation, validation, review
-and follow-ups; workspace setup or a new phase does not require another worktree.
-Preserve an existing task branch. For a detached task worktree, create the branch
-at its verified current HEAD when implementation is authorized. Investigate
-mismatches before switching directories, branches or the selected revision.
+Reuse the worktree assigned to the task across implementation, validation, review
+and follow-ups. Before editing, verify its Git root, branch or detached HEAD,
+source revision and dirty state. Preserve an existing task branch; if detached,
+create the task branch at the verified current HEAD. Create a worktree only when
+the task does not already have a suitable one. Investigate mismatches before
+switching directories or changing the selected revision; never stash another
+task's work or silently switch an occupied checkout.
 
-Create another worktree only for an identified isolation need, such as conflicting
-concurrent edits or disruptive experiments, or an explicit request. A worktree does
-not automatically need a running stack. Never silently switch an occupied checkout,
-stash another task's work or stop its services. Record the chosen checkout,
-branch, starting revision and any stack URL in the task handoff when they matter.
+A worktree may not require a separate Compose stack. Use the existing development
+stack when it serves the required source revision and testing will not disrupt
+another task. Start a task stack when needed to run the changed source or isolate
+services/data. Test chats and content alone do not require a separate stack.
+Never stop another task's services or purge data as a setup ritual.
 
-Use ordinary Git commands and `reset.sh`. No policy engine, mandatory workspace
-helper or workspace registration service is required. Keep cleanup documented
-and scoped to the task; consider a helper or skill only after repeated work
-demonstrates a concrete need. Existing branch/PR review rules still apply.
+Record the checkout, branch, starting revision and any stack URL in the task
+handoff. Use ordinary Git commands and the existing
+[preparation and cleanup procedures](docs/backend/operations/development.md#preparing-a-task-workspace);
+no mandatory helper or policy engine is required.
 
 ## Local Stacks
 

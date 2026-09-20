@@ -85,17 +85,19 @@ Do not replace that starting revision with a newly fetched base. If the checkout
 revision or branch conflicts with the task record, reconcile the mismatch first;
 do not reset, force an existing branch or create a duplicate workspace.
 
-Only when preparing genuinely new work without a supplied task workspace, resolve
-the intended base explicitly. In a clean, unoccupied checkout:
+For genuinely new work without a supplied task workspace, resolve the intended
+base explicitly and follow the repository's workspace policy. The following
+in-place recipe applies only where that policy permits task branches in the
+checkout; a clean primary checkout alone is not permission to switch it:
 
 ```bash
 git fetch "$task_remote" "$task_base"
 git switch -c "$task_branch" FETCH_HEAD
 ```
 
-If a separate worktree is needed for isolation or explicitly requested, use this
-**instead of** switching the occupied checkout, then run subsequent commands inside
-`task_worktree`:
+If repository policy requires a worktree, or one is needed for isolation or
+explicitly requested, use this **instead of** switching the checkout. Run subsequent
+commands inside `task_worktree`:
 
 ```bash
 git fetch "$task_remote" "$task_base"

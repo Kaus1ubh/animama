@@ -5,20 +5,18 @@ description: Use when starting, resetting, debugging, or reporting local Docker 
 
 # Animama Local Stacks
 
-Use this workflow for local Animama Docker Compose stacks. Follow the workspace
-judgment rules in the root AGENTS.md: the existing development stack may be used
-for test chats/content when this will not disrupt active work. Separate worktrees
-and named stacks are useful for concurrency or disruptive changes, not mandatory
-for every mutable test. No workspace helper or formal task score is required.
+Use this workflow for local Animama Docker Compose stacks. Root
+`AGENTS.md#workspace-selection` owns checkout and branch policy. Stack selection
+is separate: reuse a stack only when it serves the required revision and testing
+will not disrupt active work. Test chats/content alone do not require a new stack.
 
 ## Workspace Preparation
 
-Use the existing preparation workflow in
-`docs/backend/operations/development.md#preparing-a-task-workspace`. Inspect the
-checkout, revision, worktrees and active processes before reuse. Create a needed
-worktree with ordinary Git commands from an explicit reviewed revision; do not
-switch an occupied checkout or stash another task's changes. Keep each worktree's
-`.venv`, `node_modules` and generated output separate while using uv/pnpm caches.
+Follow `docs/backend/operations/development.md#preparing-a-task-workspace` from
+the assigned task worktree. Inspect the checkout, revision and active processes;
+reuse the existing task worktree rather than creating another for stack setup.
+Keep each worktree's `.venv`, `node_modules` and generated output separate while
+using uv/pnpm caches.
 
 Keep reusable credentials in an owner-only external file and nonsecret settings
 in the ignored worktree `.env`. Select both from the worktree root:
