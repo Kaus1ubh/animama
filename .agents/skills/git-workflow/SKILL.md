@@ -159,6 +159,9 @@ it. See [`gh pr create`](https://cli.github.com/manual/gh_pr_create) for flags.
 
 ## Approved merge and cleanup
 
+For the complete approved merge, primary-checkout update and task cleanup, use
+`merge-n-clean`; the commands below define the merge safeguards.
+
 Use the PR's revision reference when presenting checks, review and remaining gates
 for owner approval. Recheck the candidate, ready status and required check results
 immediately before merging.

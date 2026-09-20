@@ -1510,7 +1510,10 @@ docker compose -p "$COMPOSE_PROJECT_NAME" --profile "*" down --remove-orphans
 ```
 
 This uses the recorded Compose files and removes only the selected project's
-containers and networks. Do not use `-v` or `--rmi` for routine handoff. If the
+containers and networks. Routine handoff retains volumes and images. An explicit
+`merge-n-clean` invocation also authorizes deleting verified task-only volumes:
+add `--volumes` only after checking ownership and other consumers. Preserve shared,
+external and main-stack volumes; never use `--rmi` for this cleanup. If the
 record is missing, reconstruct and verify the exact project, Compose files and
 storage configuration before acting; a guessed project name is insufficient.
 
@@ -1540,10 +1543,9 @@ git branch -d feat/abc
 
 If Git refuses deletion (including after a squash merge), inspect the actual
 merge and remaining commits; do not automatically retry with `-D`. No global
-Docker, volume, model-cache or Git pruning belongs in task cleanup. A cleanup
-helper or agent skill is not required. Revisit one only when a demonstrated need
-justifies it; it must follow the same simple workflow and identify its resources
-before deletion.
+Docker, volume, model-cache or Git pruning belongs in task cleanup. The optional
+[`merge-n-clean` skill](../../../.agents/skills/merge-n-clean/SKILL.md) follows this
+workflow after an approved merge and fast-forward update of the primary checkout.
 
 For new branches and PR titles, use the categorized naming policy in
 [the agent guide](../../../AGENTS.md#branches-and-pull-requests).

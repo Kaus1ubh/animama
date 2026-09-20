@@ -1277,7 +1277,21 @@
         ".agents/skills/setup-ray-skills/SKILL.md"
       ],
       "path_sha256": {
-        ".agents/skills/setup-ray-skills/SKILL.md": "4bd2f61a4df974967f658d1459b2aaf30619fb5b28bd75bbb6fd4ac7d8cdac56"
+        ".agents/skills/setup-ray-skills/SKILL.md": "8388faff0a1a30ee7c1562d684ffc2069dee869844c971094206ddf06b816aef"
+      }
+    },
+    {
+      "id": "original-merge-n-clean-20260920",
+      "source": "Original project-authored merge-n-clean skill using the existing repository Git and Compose workflow; no third-party instruction text vendored.",
+      "revision": "2026-09-20 owner-requested creation, including task-only volume deletion",
+      "license": "UNKNOWN; publication rights decision remains pending.",
+      "unresolved_decision": "Owner review and existing publication gates remain separate.",
+      "required_notices": [],
+      "paths": [
+        ".agents/skills/merge-n-clean/SKILL.md"
+      ],
+      "path_sha256": {
+        ".agents/skills/merge-n-clean/SKILL.md": "d458521c1a05368c2d796f6d12eccca9768d1f047174780286b4dbfbb2b7721d"
       }
     }
   ],
@@ -1354,8 +1368,8 @@
     },
     {
       "path": ".agents/skills/git-workflow/SKILL.md",
-      "git_blob_oid": "a94de3970af7085467298279a6641ceb7d7e78ba",
-      "sha256": "20ffb97b278bf20267bc972ccbf28296e6a0d8e2b4e50c9190485f12c9e8cce7",
+      "git_blob_oid": "d1fcac0930742a1b4c0a0862334679d84f698559",
+      "sha256": "21dc8ffe82213927ea20a507a4365f64f03eb6ef32d5ecf79e60879f5130a1e7",
       "evidence_ids": [
         "original-portable-sdlc-skills-20260919"
       ],
@@ -1413,9 +1427,19 @@
       "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
     },
     {
+      "path": ".agents/skills/merge-n-clean/SKILL.md",
+      "git_blob_oid": "80f94650cbd4ea9a0c7ff8c36ed4042f50ab043e",
+      "sha256": "d458521c1a05368c2d796f6d12eccca9768d1f047174780286b4dbfbb2b7721d",
+      "evidence_ids": [
+        "original-merge-n-clean-20260920"
+      ],
+      "publication_status": "review-pending",
+      "notes": "Original owner-requested merge and task cleanup instructions; not a publication approval."
+    },
+    {
       "path": ".agents/skills/setup-ray-skills/SKILL.md",
-      "git_blob_oid": "3324bf39fd8f3e1955e2190b4c617724b58a4dff",
-      "sha256": "4bd2f61a4df974967f658d1459b2aaf30619fb5b28bd75bbb6fd4ac7d8cdac56",
+      "git_blob_oid": "24e1810f0c02bba9648cf770a6d841ea77351b33",
+      "sha256": "8388faff0a1a30ee7c1562d684ffc2069dee869844c971094206ddf06b816aef",
       "evidence_ids": [
         "original-portable-sdlc-skills-20260919"
       ],
@@ -1494,8 +1518,8 @@
     },
     {
       "path": ".agents/skills/setup-ray-skills/assets/sdlc.md",
-      "git_blob_oid": "efcb41af1265a1f5bc613b0d2e7a666e54139322",
-      "sha256": "948d7d09eafe266044e0fe7247000a7d54bbebc07e1b93b282c93c8057e10115",
+      "git_blob_oid": "1002264772ae7007688d88089c1f7020a0b3dce1",
+      "sha256": "d3a74a7a82d2a62899b8e45120c89ccd620ff65fdc3785b9bd0737f0164d998e",
       "evidence_ids": [
         "original-portable-sdlc-skills-20260919"
       ],
@@ -10244,6 +10268,118 @@
           ],
           "publication_status": "review-pending",
           "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-20",
+      "base_commit": "6b4d97ba5af2a2bd15350f000bf7d3a5099547de",
+      "reason": "Add the original merge-n-clean skill and integrate existing lifecycle instructions; preserve historical attribution and publication dispositions.",
+      "previous_inventory_sha256": "0d5fcb6da40819ce5949d07b86eb5c4f51873ee5f78cd71f3f56d8258d59813a",
+      "previous_bindings": [
+        {
+          "path": ".agents/skills/git-workflow/SKILL.md",
+          "git_blob_oid": "a94de3970af7085467298279a6641ceb7d7e78ba",
+          "sha256": "20ffb97b278bf20267bc972ccbf28296e6a0d8e2b4e50c9190485f12c9e8cce7",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/setup-ray-skills/SKILL.md",
+          "git_blob_oid": "3324bf39fd8f3e1955e2190b4c617724b58a4dff",
+          "sha256": "4bd2f61a4df974967f658d1459b2aaf30619fb5b28bd75bbb6fd4ac7d8cdac56",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/setup-ray-skills/assets/sdlc.md",
+          "git_blob_oid": "efcb41af1265a1f5bc613b0d2e7a666e54139322",
+          "sha256": "948d7d09eafe266044e0fe7247000a7d54bbebc07e1b93b282c93c8057e10115",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        }
+      ],
+      "current_bindings": [
+        {
+          "path": ".agents/skills/git-workflow/SKILL.md",
+          "git_blob_oid": "d1fcac0930742a1b4c0a0862334679d84f698559",
+          "sha256": "21dc8ffe82213927ea20a507a4365f64f03eb6ef32d5ecf79e60879f5130a1e7",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/setup-ray-skills/SKILL.md",
+          "git_blob_oid": "24e1810f0c02bba9648cf770a6d841ea77351b33",
+          "sha256": "8388faff0a1a30ee7c1562d684ffc2069dee869844c971094206ddf06b816aef",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/setup-ray-skills/assets/sdlc.md",
+          "git_blob_oid": "1002264772ae7007688d88089c1f7020a0b3dce1",
+          "sha256": "d3a74a7a82d2a62899b8e45120c89ccd620ff65fdc3785b9bd0737f0164d998e",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/merge-n-clean/SKILL.md",
+          "git_blob_oid": "80f94650cbd4ea9a0c7ff8c36ed4042f50ab043e",
+          "sha256": "d458521c1a05368c2d796f6d12eccca9768d1f047174780286b4dbfbb2b7721d",
+          "evidence_ids": [
+            "original-merge-n-clean-20260920"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original owner-requested merge and task cleanup instructions; not a publication approval."
+        }
+      ],
+      "previous_evidence": [
+        {
+          "id": "original-portable-sdlc-skills-20260919",
+          "source": "Independently authored portable lifecycle skills; owner-requested revision of the original Phase 3 delivery. Conceptual upstream inspiration did not vendor third-party instruction text or scripts.",
+          "revision": "2026-09-19 original creation and owner-requested simplification",
+          "license": "AGPL-3.0-only (candidate treatment; original working source remains proprietary)",
+          "unresolved_decision": "Prepared source evidence; owner exact-candidate acceptance and final release gates remain.",
+          "required_notices": [],
+          "paths": [
+            ".agents/skills/setup-ray-skills/SKILL.md"
+          ],
+          "path_sha256": {
+            ".agents/skills/setup-ray-skills/SKILL.md": "4bd2f61a4df974967f658d1459b2aaf30619fb5b28bd75bbb6fd4ac7d8cdac56"
+          }
+        }
+      ],
+      "current_evidence": [
+        {
+          "id": "original-portable-sdlc-skills-20260919",
+          "source": "Independently authored portable lifecycle skills; owner-requested revision of the original Phase 3 delivery. Conceptual upstream inspiration did not vendor third-party instruction text or scripts.",
+          "revision": "2026-09-19 original creation and owner-requested simplification",
+          "license": "AGPL-3.0-only (candidate treatment; original working source remains proprietary)",
+          "unresolved_decision": "Prepared source evidence; owner exact-candidate acceptance and final release gates remain.",
+          "required_notices": [],
+          "paths": [
+            ".agents/skills/setup-ray-skills/SKILL.md"
+          ],
+          "path_sha256": {
+            ".agents/skills/setup-ray-skills/SKILL.md": "8388faff0a1a30ee7c1562d684ffc2069dee869844c971094206ddf06b816aef"
+          }
         }
       ]
     }

@@ -28,7 +28,7 @@ Setup status: {{READY_SCOPE_AND_UNRESOLVED_PREREQUISITES}}
 | Review policy            | One full initial review, at most two repair rounds; preserve counts across resumption.                                                                                     |
 | Names                    | Branch `<type>/<short-kebab-case-task>`; PR `<type>: summary`; commit `<type>(scope): summary`; phase commit `<type>(scope)[p#]: summary`. Preserve configured exceptions. |
 | Labels                   | {{EXISTING_LABEL_MAPPING_OR_NO_REQUIRED_LABELS}}                                                                                                                           |
-| Skill bundle             | `setup-ray-skills`, `intent-discovery`, `to-spec`, `to-execplan`, `workspace-setup`, `implement`, `tdd`, `code-review`, `git-workflow`.                                    |
+| Skill bundle             | `setup-ray-skills`, `intent-discovery`, `to-spec`, `to-execplan`, `workspace-setup`, `implement`, `tdd`, `code-review`, `git-workflow`, `merge-n-clean`.                   |
 
 Maintain this contract when the configured workflow changes. Execution skills
 consume it instead of discovering alternatives. Repair missing prerequisites
@@ -74,7 +74,8 @@ unless explicitly instructed otherwise. Present
 the exact candidate, actual CI, review outcome and limitations for merge approval.
 Default to an ordinary merge commit; recheck the approved candidate and use head
 matching where supported. Read back the resulting merge and post-merge checks.
-Close work against acceptance, then perform task-scoped handoff and cleanup.
+Use `merge-n-clean` for an explicitly approved merge, primary-checkout update and
+task-scoped cleanup.
 
 ## Review and quality
 
