@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Freeze and verify a history-free, explicitly unapproved source review candidate.
 
-Python 3.11+ is required. Only classified, hash-bound files are copied; Git,
+Python 3.11+ is required. Only tracked, hash-bound files are copied; Git,
 ignored directories and private planning are never recursively exported.
 """
 
@@ -15,7 +15,6 @@ import shutil
 import stat
 import subprocess
 import tempfile
-import tomllib
 from pathlib import Path, PurePosixPath
 
 SCHEMA = "animama-source-preparation/1"
@@ -71,15 +70,11 @@ def record(path: Path) -> dict:
 
 
 def inventory(source: Path) -> dict:
-    """Freeze the reviewed ownership list, not all files present on disk."""
-    boundary = tomllib.loads((source / "repository-boundary.toml").read_text())
-    paths = []
-    for group in boundary["groups"]:
-        if group["owner"] != "public":
-            raise ValueError("Source preparation requires a public-only ownership inventory")
-        paths.extend(group["paths"])
+    """Freeze tracked working files for review without copying untracked state."""
+    tracked = subprocess.check_output(["git", "ls-files", "-z"], cwd=source)
+    paths = [os.fsdecode(path) for path in tracked.split(b"\0") if path]
     if len(paths) != len(set(paths)) or GENERATED.intersection(paths):
-        raise ValueError("Duplicate or reserved generated path in ownership inventory")
+        raise ValueError("Duplicate or reserved generated path in tracked inputs")
     files = {path: record(safe_file(source, path)) for path in sorted(paths)}
     commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=source, text=True).strip()
     return {
@@ -212,28 +207,6 @@ See [SOURCE_CANDIDATE.json](SOURCE_CANDIDATE.json) for outstanding release gates
             }
         ),
     )
-    # The exported current-file inventory remains useful without private history.
-    boundary = candidate / "repository-boundary.toml"
-    text = (
-        boundary.read_text()
-        + '\n[[groups]]\nid = "source-candidate-generated"\nowner = "public"\n'
-        + 'rationale = "Candidate-only license and readiness documents."\n'
-        + 'paths = ["CONTRIBUTING.md", "SOURCE_CANDIDATE.json"]\n'
-    )
-    write("repository-boundary.toml", text.encode())
-    provenance = "docs/architecture/repository-provenance.json"
-    data = json.loads((candidate / provenance).read_text())
-    data.pop("local_amendments", None)
-    for item in data["files"]:
-        if item["path"] in changed:
-            payload = (candidate / item["path"]).read_bytes()
-            if "lfs_oid" in item:
-                raise ValueError("Candidate transformations must not rewrite LFS assets")
-            item["sha256"] = hashlib.sha256(payload).hexdigest()
-            item["git_blob_oid"] = hashlib.sha1(b"blob " + str(len(payload)).encode() + b"\0" + payload).hexdigest()
-    for evidence in data["evidence"]:
-        evidence["path_sha256"] = {path: sha256(candidate / path) for path in evidence["path_sha256"]}
-    write(provenance, encode(data))
     return sorted(changed)
 
 
@@ -320,7 +293,7 @@ def main() -> None:
         if args.command == "inventory":
             assert_outside(args.source.resolve(), args.out.resolve())
             write_exclusive(args.out, inventory(args.source.resolve()))
-            print("Frozen classified source inputs. Review before preparing a candidate.")
+            print("Frozen tracked source inputs. Review before preparing a candidate.")
         elif args.command == "prepare":
             result = prepare(args.source, args.inventory, args.out, args.receipt)
             print(f"Prepared private candidate: {len(result['files'])} files, tree {result['tree_sha256']}")

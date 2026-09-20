@@ -30,8 +30,6 @@ FULL = (
         "hydrate",
         "browser-install",
         "model-inputs",
-        "repository-classification",
-        "repository-provenance",
         "repository-imports",
         "repository-dependencies",
         "lfs-integrity",

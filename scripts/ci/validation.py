@@ -88,15 +88,6 @@ def discover(root: Path, event: dict) -> tuple[list[dict], str]:
     raise AssertionError("Unreachable history search")
 
 
-def provenance_paths(root: Path) -> set[str]:
-    """Documentation used as attribution evidence is a product input, not prose-only."""
-    document = json.loads((root / "docs/architecture/repository-provenance.json").read_text())
-    paths = {row["path"] for row in document["files"]}
-    for row in document["evidence"]:
-        paths.update(row["path_sha256"])
-    return paths
-
-
 def dependency_fingerprint(path: str, source: str) -> tuple[str, ...]:
     """Recognize a deliberately small static dependency grammar, not code purity.
 
@@ -258,9 +249,9 @@ def plan(root: Path, output: Path) -> None:
         error = str(exc)
     try:
         dependency_head = exact_sha(event["pull_request"]["head"]["sha"]) if event_name == "pull_request" else source
-        excluded = provenance_paths(root) | special_inputs(root, merge_base, changes, source_head=dependency_head)
+        excluded = special_inputs(root, merge_base, changes, source_head=dependency_head)
     except (ValueError, KeyError, TypeError, OSError):
-        excluded, error = set(), "Cannot establish provenance exclusions"
+        excluded, error = set(), "Cannot establish special-input exclusions"
     # Local assertions never reduce high-risk changes. Hosted full results may.
     selected = choose_plan(event_name, event, changes, error, reusable, excluded)
     area = classify(changes, excluded)
