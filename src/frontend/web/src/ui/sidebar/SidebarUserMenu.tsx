@@ -134,7 +134,7 @@ export function SidebarUserMenu() {
             }}
           >
             <Settings className="h-4 w-4" />
-            Application settings
+            App Settings
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

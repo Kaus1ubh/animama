@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  ChevronDown,
-  Maximize,
-  Minimize,
-  PictureInPicture2,
-  Settings,
-} from "lucide-react";
+import { Maximize, Minimize, PictureInPicture2, Settings } from "lucide-react";
 import { useId, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -36,7 +30,7 @@ type CanvasControlsProps = {
 };
 
 const ICON_BUTTON_CLASS =
-  "text-foreground/80 hover:text-foreground focus-visible:ring-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-transparent transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
+  "text-foreground/80 hover:bg-muted/70 hover:text-foreground focus-visible:ring-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-transparent transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent";
 
 /** Native radio groups keep mode labels bounded and support arrow-key selection. */
 function ModeSelector<T extends string>({
@@ -144,15 +138,7 @@ export function CanvasControls({
                 ]}
               />
             ) : null}
-            {cameraControls ? (
-              <details className="group border-border/60 border-t pt-3">
-                <summary className="focus-visible:ring-ring flex cursor-pointer list-none items-center justify-between rounded-sm text-sm font-medium focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
-                  Camera
-                  <ChevronDown className="h-4 w-4 group-open:rotate-180" />
-                </summary>
-                <div className="pt-3">{cameraControls}</div>
-              </details>
-            ) : null}
+            {cameraControls}
             <section
               aria-label="Audio"
               className="border-border/60 space-y-3 border-t pt-3"

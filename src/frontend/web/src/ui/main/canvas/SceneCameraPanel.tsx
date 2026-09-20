@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { Slider } from "@/ui/components/slider";
+import { SCENE_CAMERA_PRESETS } from "./sceneCameraPresets";
 import type {
   SceneCameraBindings,
   SceneCameraPreset,
@@ -26,7 +27,6 @@ import type {
 type SceneCameraPanelProps = {
   bindings: SceneCameraBindings;
   className?: string;
-  portalContainer?: HTMLElement | null;
   settings: SceneCameraSettings;
   hasPresetSource?: boolean;
   onApplyPreset?: (preset: SceneCameraPreset) => void;
@@ -47,12 +47,6 @@ type NumericInputProps = {
 };
 
 const AXES: Array<keyof SceneVector3> = ["x", "y", "z"];
-const PRESET_OPTIONS: Array<{ label: string; value: SceneCameraPreset }> = [
-  { value: "full-body", label: "Full Body" },
-  { value: "full-body-close", label: "Full Body (Close)" },
-  { value: "portrait", label: "Portrait" },
-  { value: "portrait-close", label: "Portrait (Close)" },
-];
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -80,7 +74,7 @@ function NumericInput({
       return;
     }
 
-    onValueChange(parsed);
+    if (parsed !== value) onValueChange(parsed);
     setDraft(formatNumber(parsed, precision));
   };
 
@@ -111,7 +105,7 @@ function NumericInput({
 
         const parsed = Number.parseFloat(nextDraft);
         if (!Number.isFinite(parsed)) return;
-        onValueChange(parsed);
+        if (parsed !== value) onValueChange(parsed);
       }}
       onFocus={() => {
         setDraft(formatNumber(value, precision));
@@ -164,7 +158,6 @@ function VectorControl({
 
 export function SceneCameraPanel({
   className,
-  portalContainer,
   settings,
   bindings,
   hasPresetSource = false,
@@ -208,7 +201,7 @@ export function SceneCameraPanel({
           </p>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {PRESET_OPTIONS.map(({ label, value }) => (
+          {SCENE_CAMERA_PRESETS.map(({ label, value }) => (
             <Button
               key={value}
               type="button"
@@ -239,7 +232,7 @@ export function SceneCameraPanel({
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent align="end" portalContainer={portalContainer}>
+          <SelectContent align="end">
             <SelectItem value="manual">Manual</SelectItem>
             <SelectItem value="hips">Hips</SelectItem>
             <SelectItem value="chest">Chest</SelectItem>
@@ -293,7 +286,7 @@ export function SceneCameraPanel({
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent align="end" portalContainer={portalContainer}>
+          <SelectContent align="end">
             <SelectItem value="manual">Manual</SelectItem>
             <SelectItem value="hips">Hips</SelectItem>
             <SelectItem value="chest">Chest</SelectItem>

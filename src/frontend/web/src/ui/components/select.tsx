@@ -53,15 +53,12 @@ function SelectTrigger({
 function SelectContent({
   className,
   children,
-  portalContainer,
   position = "item-aligned",
   align = "center",
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Content> & {
-  portalContainer?: HTMLElement | null;
-}) {
+}: React.ComponentProps<typeof SelectPrimitive.Content>) {
   return (
-    <SelectPrimitive.Portal container={portalContainer}>
+    <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(

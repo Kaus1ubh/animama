@@ -35,7 +35,6 @@ type AudioVolumePanelProps = {
   showTitle?: boolean;
   showBgmDetail?: boolean;
   className?: string;
-  muteAllClassName?: string;
   volumeCardClassName?: string;
 };
 
@@ -147,7 +146,6 @@ export function AudioVolumePanel({
   showTitle = true,
   showBgmDetail = false,
   className,
-  muteAllClassName,
   volumeCardClassName,
 }: AudioVolumePanelProps) {
   const {
@@ -180,31 +178,25 @@ export function AudioVolumePanel({
     <div className={cn("space-y-4", className)}>
       <div
         className={cn(
-          "border-border/70 bg-background/50 flex items-center justify-between rounded-lg border px-3 py-2.5",
-          muteAllClassName,
-        )}
-      >
-        <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-          <Checkbox
-            checked={masterMuted}
-            onCheckedChange={(checked) => setMasterMuted(checked === true)}
-            disabled={disabled}
-            aria-label="Mute all audio"
-          />
-          <span>Mute all</span>
-        </label>
-      </div>
-
-      <div
-        className={cn(
           "border-border/70 bg-background/50 rounded-lg border px-3 py-3",
           volumeCardClassName,
         )}
       >
         <div className="space-y-3">
-          {showTitle ? (
-            <p className="text-foreground text-sm font-semibold">Volume</p>
-          ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {showTitle ? (
+              <p className="text-foreground text-sm font-semibold">Volume</p>
+            ) : null}
+            <label className="text-foreground ml-auto flex items-center gap-2 text-xs font-medium">
+              <Checkbox
+                checked={masterMuted}
+                onCheckedChange={(checked) => setMasterMuted(checked === true)}
+                disabled={disabled}
+                aria-label="Mute all audio"
+              />
+              <span>Mute all</span>
+            </label>
+          </div>
           <VolumeControlRow
             label="TTS"
             value={ttsVolume}
