@@ -70,15 +70,32 @@ result, search/read it back before retrying.
 
 ## Prepare the branch and commit
 
-Use the existing task branch on resume. For new work in a clean, unoccupied checkout:
+Adopt the task's supplied checkout first. Verify its path, source revision, dirty
+state and recorded branch/base before choosing a preparation path. Use the existing
+task branch on resume; a new phase or review does not require another worktree.
+
+For a supplied detached task worktree, create the task branch at its verified
+current HEAD, preserving existing task commits and intended changes:
+
+```bash
+git switch -c "$task_branch"
+```
+
+Do not replace that starting revision with a newly fetched base. If the checkout,
+revision or branch conflicts with the task record, reconcile the mismatch first;
+do not reset, force an existing branch or create a duplicate workspace.
+
+Only when preparing genuinely new work without a supplied task workspace, resolve
+the intended base explicitly. In a clean, unoccupied checkout:
 
 ```bash
 git fetch "$task_remote" "$task_base"
 git switch -c "$task_branch" FETCH_HEAD
 ```
 
-If isolation is warranted, use this **instead of** switching the occupied checkout,
-then run subsequent commands inside `task_worktree`:
+If a separate worktree is needed for isolation or explicitly requested, use this
+**instead of** switching the occupied checkout, then run subsequent commands inside
+`task_worktree`:
 
 ```bash
 git fetch "$task_remote" "$task_base"
