@@ -29,13 +29,13 @@ Each artifact has a distinct job:
   operational instructions. Update it when that behavior changes.
 - **ADR:** a significant architectural choice and its rationale, alternatives
   and consequences. It explains why; it is not a second implementation guide.
-- **Private ExecPlan:** execution steps, phases, approval history and validation
-  evidence for substantial, uncertain or risky work. Full plans remain privately
-  owned, including plans for local code.
+- **ExecPlan:** execution steps, phases, decision summaries and validation evidence
+  for substantial, uncertain or risky work. Track new plans with their owning
+  implementation; [PLANS.md](../../PLANS.md) defines authoring and privacy.
 - **Specification:** agreed intent, behavior, constraints and acceptance. Draft
-  it privately in the configured planning destination; workspace setup publishes
+  it in this repository's configured planning destination; workspace setup publishes
   the agreed spec in the owning issue, or parent issue for substantial work.
-  The issue then owns the spec and the private file becomes a dated snapshot.
+  The issue then owns the spec and the tracked file becomes a dated snapshot.
   [SPECS.md](../../SPECS.md) defines authoring; [SDLC.md](../../SDLC.md) defines
   delivery. Routine issues need a brief approach, not a separate ExecPlan.
 
@@ -50,9 +50,11 @@ Keep current behavior documentation up to date alongside decision records.
 ## Privacy and authorization
 
 Public documentation must be self-contained without private plans, private links
-or a Cloud checkout. Promote only the enduring, reviewable contract or rationale;
-leave private execution evidence and approvals with their planning owner. Cite
-publicly available evidence where possible, without exposing private material.
+or a Cloud checkout. Plans may contain public-safe decision and validation
+summaries; current docs contain enduring contracts and rationale. Keep secrets,
+personal data, raw transcripts and sensitive investigations out of both. Existing
+private planning evidence stays with its owner unless deliberately reviewed for
+migration; changing the default location does not authorize publication.
 
 Reading this guide grants no publication, GitHub mutation or implementation
 authority. In an authorized implementation task, follow

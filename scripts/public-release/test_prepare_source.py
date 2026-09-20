@@ -86,6 +86,34 @@ class SourcePreparationTests(unittest.TestCase):
         )
         self.assertFalse(result["release_approved"])
 
+    def test_reviewed_repository_plans_are_included_but_unclassified_plans_are_not(self):
+        plans = ["PLANS.md", "docs/plans/chat/chat-spec.md", "docs/plans/chat/chat-execplan.md"]
+        for relative in [*plans, "docs/plans/private.md"]:
+            path = self.source / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(f"# Synthetic planning fixture: {relative}\n")
+        boundary_path = self.source / "repository-boundary.toml"
+        boundary = module.tomllib.loads(boundary_path.read_text())
+        paths = sorted([*boundary["groups"][0]["paths"], *plans])
+        boundary_path.write_text('[[groups]]\nowner = "public"\npaths = ' + json.dumps(paths) + "\n")
+        license_path = self.source / "licenses/source-review.json"
+        license_review = json.loads(license_path.read_text())
+        license_review["files"].extend({"path": path} for path in plans)
+        license_path.write_text(json.dumps(license_review))
+        self.review.unlink()
+        module.write_exclusive(self.review, module.inventory(self.source))
+
+        result = self.create()
+        module.verify(self.output, result)
+        for relative in plans:
+            self.assertEqual((self.output / relative).read_bytes(), (self.source / relative).read_bytes())
+        self.assertFalse((self.output / "docs/plans/private.md").exists())
+        self.assertFalse(result["release_approved"])
+
+        boundary_path.write_text(boundary_path.read_text().replace('owner = "public"', 'owner = "cloud"'))
+        with self.assertRaisesRegex(ValueError, "public-only ownership"):
+            module.inventory(self.source)
+
     def test_changed_source_fails_before_output(self):
         (self.source / "LICENSE").write_text("changed")
         with self.assertRaisesRegex(ValueError, "Source changed"):
@@ -106,7 +134,7 @@ class SourcePreparationTests(unittest.TestCase):
     def test_symlink_traversal_private_state_and_lfs_pointer_fail(self):
         link = self.source / "link"
         link.symlink_to(self.source / "LICENSE")
-        for relative in ["link", "../input.json", ".git/config", "data/file", "docs/plans/private.md", ".env"]:
+        for relative in ["link", "../input.json", ".git/config", "data/file", "docs/plans/.env", ".env"]:
             with self.subTest(relative=relative), self.assertRaises(ValueError):
                 module.safe_file(self.source, relative)
         (self.source / "pointer").write_text("version https://git-lfs.github.com/spec/v1\noid sha256:123\n")

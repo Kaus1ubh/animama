@@ -22,7 +22,7 @@ body:
     id: phase
     attributes:
       label: Phase
-      description: For phased work, identify the phase number and outcome. Keep the full private plan and its path out of the issue. Leave blank for standalone work.
+      description: For phased work, identify the phase number and outcome, and link the tracked plan when accessible. Do not expose private plan paths. Leave blank for standalone work.
       placeholder: "p1: Bounded phase outcome"
   - type: textarea
     id: scope

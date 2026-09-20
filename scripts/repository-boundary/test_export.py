@@ -231,7 +231,7 @@ class ExportTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Cloud-only input"):
             self.run_export()
         self.owners["scripts/repository-boundary/pin-upstream.py"] = "cloud"
-        for target in ("services/hosted-api/app.py", "Services/Hosted-Api/app.py", "docs/Plans/private.md"):
+        for target in ("services/hosted-api/app.py", "Services/Hosted-Api/app.py"):
             with self.subTest(target=target):
                 self.mappings = [{"source": "public.txt", "target": target}]
                 self.save()
@@ -278,7 +278,7 @@ class ExportTests(unittest.TestCase):
         examples = [b"ANIMAMA_SPLIT_SECRET_CANARY_" + b"A" * 32, b"-----" + b"BEGIN PRIVATE KEY-----\nsynthetic\n"]
         for payload in examples:
             with self.subTest(payload_type=payload[:5]):
-                self.add("canary.txt", payload)
+                self.add("docs/plans/chat/chat-execplan.md", payload)
                 self.save()
                 with self.assertRaisesRegex(ValueError, "Secret/key canary") as error:
                     self.run_export()
@@ -299,15 +299,42 @@ class ExportTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Credential"):
             self.run_export()
 
-    def test_full_private_plan_and_private_service_cannot_be_public(self):
-        self.owners["docs/plans/private.md"] = "public"
+    def test_public_repository_plans_export_and_cloud_plans_remain_private(self):
+        plans = ["PLANS.md", "docs/plans/chat/chat-spec.md", "docs/plans/chat/chat-execplan.md"]
+        for path in plans:
+            self.add(path, f"# Reviewed public planning document: {path}\n")
         self.save()
-        with self.assertRaisesRegex(ValueError, "cloud-owned"):
+        stage, _ = self.run_export()
+        for path in plans:
+            self.assertEqual((stage / "public" / path).read_bytes(), (self.root / path).read_bytes())
+            self.assertFalse((stage / "cloud" / path).exists())
+        private_path = "docs/plans/private.md"
+        self.assertFalse((stage / "public" / private_path).exists())
+        self.assertEqual((stage / "cloud" / private_path).read_bytes(), self.files[private_path])
+        self.assertTrue(verify_export(stage / "export-manifest.json", stage / "public", stage / "cloud")["verified"])
+        del self.owners[plans[-1]]
+        self.save()
+        with self.assertRaisesRegex(ValueError, "Missing classification"):
             self.run_export()
-        self.owners["docs/plans/private.md"] = "cloud"
+
+    def test_private_service_cannot_be_public(self):
         self.add("services/identity/app.py", "health = True")
         self.save()
         with self.assertRaisesRegex(ValueError, "Cloud-only"):
+            self.run_export()
+
+    def test_public_plan_replacement_does_not_allow_suppressing_cloud_plans(self):
+        self.add("PLANS.md", "# Public planning guide\n")
+        self.add("templates/planning-guide.md", "# Reviewed public guide replacement\n")
+        self.mappings = [{"source": "templates/planning-guide.md", "target": "PLANS.md", "replaces": "PLANS.md"}]
+        self.save()
+        stage, _ = self.run_export()
+        self.assertEqual((stage / "public/PLANS.md").read_text(), "# Reviewed public guide replacement\n")
+        private_path = "docs/plans/private.md"
+        self.add("templates/cloud-plan.md", "# Replacement private plan\n", owner="cloud")
+        self.mappings = [{"source": "templates/cloud-plan.md", "target": private_path, "replaces": private_path}]
+        self.save()
+        with self.assertRaisesRegex(ValueError, "cannot suppress a full private plan"):
             self.run_export()
 
     def test_same_owner_template_replacement_and_cross_owner_rejection(self):

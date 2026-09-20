@@ -37,12 +37,12 @@ integration stay in the local application. Package source cannot import
 
 ## Stable artifact boundary
 
-| Artifact | Responsibility |
-| --- | --- |
-| Python wheel | Reusable backend domain/application contracts and supported provider adapters. |
-| `@animama/runtime-contracts` | Runtime owner, transport and capabilities; generated API types, SDK and validators. |
-| `@animama/product-ui` | Injected product providers, Anima selection, chat session/stream behavior, transcript and composer. |
-| `@animama/discover-client` | Inert compatibility package retained in the artifact set. Discover and local account connection are discontinued. |
+| Artifact                     | Responsibility                                                                                                    |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Python wheel                 | Reusable backend domain/application contracts and supported provider adapters.                                    |
+| `@animama/runtime-contracts` | Runtime owner, transport and capabilities; generated API types, SDK and validators.                               |
+| `@animama/product-ui`        | Injected product providers, Anima selection, chat session/stream behavior, transcript and composer.               |
+| `@animama/discover-client`   | Inert compatibility package retained in the artifact set. Discover and local account connection are discontinued. |
 
 Private consumers pin immutable commits and packed wheel/npm/contract identities.
 Public builds do not read the private lock or require its checkout. The current
@@ -62,8 +62,14 @@ physical audio, native release acceptance or publication rights.
 - [Deployment topology](deployment-topology.md): supported serving arrangements.
 - [Discover compatibility](discover-contract-ownership.md): retained inert surface.
 
-Full execution plans, split history, private backlog and owner approval records
-are retained privately. They are not local build or contributor prerequisites.
+New specs and ExecPlans are tracked with the implementation they cover: Animama
+uses [PLANS.md](../../PLANS.md) and `docs/plans/`; Cloud owns its own plans. Public
+plans contain reviewable engineering context, decision summaries and validation
+results without private dependencies. Historical plans, split evidence, sensitive
+backlog and raw approval records remain in their existing private locations unless
+deliberately reviewed for migration. Preserve existing gates. Private material is
+not a local build or contributor prerequisite, and plan location grants no
+publication authority.
 The export tooling verifies exact committed inputs and generates split receipts
 in candidate directories. The active checkout does not require a root split receipt.
 

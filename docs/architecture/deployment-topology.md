@@ -50,5 +50,6 @@ Durable references:
 - [Desktop overview](../frontend/desktop/overview.md) and
   [desktop operations](../backend/operations/desktop-runtime.md).
 
-Execution plans and hosted operator procedures remain private. They are not
-local build, runtime or contributor prerequisites.
+New execution plans live with their owning implementation; see [PLANS.md](../../PLANS.md).
+Private hosted operator procedures and historical private plans are not local
+build, runtime or contributor prerequisites.

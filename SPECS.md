@@ -8,12 +8,12 @@ when each is needed and who can authorize work.
 
 Draft a spec before creating its implementation issues. The
 [repository setup contract](SDLC.md#repository-setup) defines the planning
-destination. For maintainer work, use `<scope>/<scope>-spec.md` under the private
-planning root supplied in the authorized task context, beside
-`<scope>-execplan.md` when an ExecPlan is needed. Do not guess that root, write
-private planning artifacts into this repository, or expose its location publicly.
-If the private destination is unavailable, keep the draft in the conversation;
-public contribution never requires a private checkout.
+destination: tracked `docs/plans/<scope>/<scope>-spec.md` in this repository,
+beside `<scope>-execplan.md` when an ExecPlan is needed. New Cloud specs belong in
+Cloud. Existing specs/plans retain their locations on resumption unless the owner
+approves a deliberate migration; do not copy historical private material into
+public records. Keep drafts public-ready and follow [PLANS.md](PLANS.md) for plan
+ownership, privacy and evidence.
 
 `to-spec` prepares the draft; it does not create issues. When implementation is
 authorized, `workspace-setup` publishes the agreed, non-sensitive spec in the
@@ -59,8 +59,9 @@ acceptance evidence can identify the requirements they cover.
 Parent issues and PRs include separate Spec and ExecPlan sections. The Spec
 section points to the authoritative issue after publication; a parent containing
 the spec says “This issue.” Retained draft files are snapshots, not a competing
-authority. Public ExecPlan sections state “Private plan retained by maintainers”
-without a private URL or path, or “Not required” with the reason.
+authority. ExecPlan sections link the tracked plan at the reviewed revision, or
+state “Not required” with the reason. For an existing private plan, state “Private
+plan retained by maintainers” without a private URL or path.
 
 Use these sections in the draft and, after publication, in the owning issue. The
 YAML parent form presents the same concepts as entry fields. Agents creating or
@@ -106,7 +107,8 @@ In the parent issue containing the spec, write “This issue.”
 
 ## ExecPlan
 
-Private plan retained by maintainers; no private URL or path in the public issue.
+Link the tracked plan at its reviewed revision.
+For an existing private plan, state that it is retained without exposing its path.
 For routine work, write “Not required” and explain why.
 
 ## Delivery links
@@ -148,4 +150,6 @@ Close the parent only after its acceptance and required owner verification, or
 an explicit cancellation/deferral decision. Merged sub-issues alone are insufficient.
 Promote implemented behavior into current documentation and significant choices
 into ADRs. Retain the spec as delivery history, not a competing current-system
-manual. Full execution evidence and approval history stay in private plans.
+manual. Keep public-safe execution evidence and dated decision summaries in the
+tracked plan; exclude raw transcripts, sensitive investigations and personal data.
+A recorded decision does not replace exact-candidate merge or release approval.

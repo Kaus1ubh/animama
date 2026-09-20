@@ -7,19 +7,20 @@ establishes common meanings between Raymond and agents.
 
 ## Index
 
-Records 0001–0005 document foundational decisions retrospectively; record 0006
-records the current lifecycle decision. Each record states its decision basis
+Records 0001–0005 document foundational decisions retrospectively; records 0006–0007
+record lifecycle and planning ownership decisions. Each record states its decision basis
 and dates. Acceptance is not proof of unknown historical human approval,
 production readiness or publication rights.
 
-| ID   | Decision                                                                                                                  | Status   |
-| ---- | ------------------------------------------------------------------------------------------------------------------------- | -------- |
-| 0001 | [Independent local product and packaged sharing](0001-independent-local-product-and-packaged-sharing.md)                  | accepted |
-| 0002 | [Accountless installation ownership and local HTTP admission](0002-accountless-installation-and-http-admission.md)        | accepted |
-| 0003 | [Request-local direct chat and streamed delivery](0003-request-local-streamed-chat.md)                                    | accepted |
-| 0004 | [Filesystem content, catalog persistence and recoverable mutations](0004-filesystem-content-and-recoverable-mutations.md) | accepted |
-| 0005 | [Client-rendered shared UI and local/native composition](0005-client-rendered-ui-and-local-native-composition.md)         | accepted |
-| 0006 | [Human and AI software development lifecycle](0006-human-ai-software-development-lifecycle.md)                            | accepted |
+| ID   | Decision                                                                                                                  | Status                                |
+| ---- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| 0001 | [Independent local product and packaged sharing](0001-independent-local-product-and-packaged-sharing.md)                  | accepted                              |
+| 0002 | [Accountless installation ownership and local HTTP admission](0002-accountless-installation-and-http-admission.md)        | accepted                              |
+| 0003 | [Request-local direct chat and streamed delivery](0003-request-local-streamed-chat.md)                                    | accepted                              |
+| 0004 | [Filesystem content, catalog persistence and recoverable mutations](0004-filesystem-content-and-recoverable-mutations.md) | accepted                              |
+| 0005 | [Client-rendered shared UI and local/native composition](0005-client-rendered-ui-and-local-native-composition.md)         | accepted                              |
+| 0006 | [Human and AI software development lifecycle](0006-human-ai-software-development-lifecycle.md)                            | accepted; planning superseded by 0007 |
+| 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                  | accepted                              |
 
 ## When and how to record a decision
 

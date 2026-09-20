@@ -31,7 +31,10 @@ Inspect the frozen input manifest before preparing. The manifest binds current
 classified working bytes, executable modes and the base Git revision; it can
 represent reviewed uncommitted work. It does not recursively include untracked
 files, ignored animation/skill copies, dependencies, personal state or private
-planning. Changed source requires a new inventory. Destination and receipt paths
+planning. Reviewed repository-owned specs and ExecPlans may be included when
+explicitly classified and covered by the per-file source review; their directory
+name does not establish privacy or publication approval. Historical private plans
+are not migrated or reclassified by this tool. Changed source requires a new inventory. Destination and receipt paths
 must be absent, disjoint and outside the source checkout. Retrying never replaces
 an existing candidate or receipt.
 

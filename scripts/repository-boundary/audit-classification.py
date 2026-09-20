@@ -210,11 +210,8 @@ def ownership(manifest: dict, paths: set[str], errors: list[str]) -> dict[str, s
                 errors.append(f"Stale classification (not tracked): {path!r}")
     for path in sorted(paths - assignments.keys()):
         errors.append(f"Missing classification: {path!r}")
-    # Full execution plans are private planning inputs even when they describe
-    # public/local code. Keep this explicit user policy independent of groups.
-    for path, owner in sorted(assignments.items()):
-        if (path == "PLANS.md" or "plans" in PurePosixPath(path).parts[:-1]) and owner != "cloud":
-            errors.append(f"Private planning document must be cloud-owned: {path!r}")
+    # Planning documents follow the same explicit ownership decisions as source.
+    # A planning path alone is neither a privacy classification nor publication approval.
     return assignments
 
 

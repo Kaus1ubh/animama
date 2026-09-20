@@ -57,7 +57,9 @@ def mappings_for(manifest: dict, assignments: dict) -> tuple[dict, dict, str]:
                 or target != original
             ):
                 raise ValueError("Replacement must name one distinct same-owner source at its original target")
-            if original == "PLANS.md" or "plans" in Path(original).parts[:-1]:
+            if assignments[original] == "cloud" and (
+                original.casefold() == "plans.md" or "plans" in Path(original.casefold()).parts[:-1]
+            ):
                 raise ValueError("A replacement cannot suppress a full private plan")
             replaced[original] = source
     if set(mapped) & set(replaced):

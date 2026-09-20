@@ -16,9 +16,10 @@ publication. For an incidental correction with no spec, explain the exception. -
 
 ## ExecPlan
 
-<!-- State "Private plan retained by maintainers" without a private URL or path,
-or "Not required" with the reason for routine or incidental work. Keep the scope,
-approach and evidence understandable within this PR. -->
+<!-- Link the tracked ExecPlan at its reviewed revision, or state "Not required"
+with the reason for routine or incidental work. For an existing private plan,
+state "Private plan retained by maintainers" without a private URL or path.
+Keep the scope, approach and evidence understandable within this PR. -->
 
 ## Local validation
 
