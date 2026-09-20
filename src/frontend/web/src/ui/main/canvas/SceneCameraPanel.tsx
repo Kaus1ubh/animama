@@ -1,17 +1,12 @@
 "use client";
 
-import { Camera, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import { FieldLabel } from "@/ui/components/field";
 import { Input } from "@/ui/components/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/ui/components/popover";
 import {
   Select,
   SelectContent,
@@ -31,6 +26,7 @@ import type {
 type SceneCameraPanelProps = {
   bindings: SceneCameraBindings;
   className?: string;
+  portalContainer?: HTMLElement | null;
   settings: SceneCameraSettings;
   hasPresetSource?: boolean;
   onApplyPreset?: (preset: SceneCameraPreset) => void;
@@ -168,6 +164,7 @@ function VectorControl({
 
 export function SceneCameraPanel({
   className,
+  portalContainer,
   settings,
   bindings,
   hasPresetSource = false,
@@ -180,153 +177,136 @@ export function SceneCameraPanel({
   onTargetChange,
 }: SceneCameraPanelProps) {
   return (
-    <div className={cn("pointer-events-auto", className)}>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="border-border/70 bg-background/80 supports-[backdrop-filter]:bg-background/65 h-10 rounded-full px-3 shadow-sm backdrop-blur-md"
-            aria-label="Open scene camera controls"
-          >
-            <Camera className="h-4 w-4" />
-            Camera
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="end"
-          side="bottom"
-          sideOffset={10}
-          className="border-border/70 bg-background/92 supports-[backdrop-filter]:bg-background/82 w-[21rem] max-w-[min(21rem,calc(100vw-1rem))] rounded-2xl p-3 shadow-lg backdrop-blur-md"
+    <div className={cn("space-y-3", className)}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold">Scene Camera</p>
+          <p className="text-muted-foreground text-xs">
+            Adjust the camera and orbit target.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs"
+          onClick={onReset}
         >
-          <div className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold">Scene Camera</p>
-                <p className="text-muted-foreground text-xs">
-                  Adjust the camera and orbit target.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-8 px-2 text-xs"
-                onClick={onReset}
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-                Reset
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-                  Presets
-                </FieldLabel>
-                <p className="text-muted-foreground text-[11px]">
-                  {hasPresetSource
-                    ? "Portrait presets use live head binding"
-                    : "Portrait presets bind when the avatar loads"}
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {PRESET_OPTIONS.map(({ label, value }) => (
-                  <Button
-                    key={value}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-auto min-h-8 px-2 py-1.5 text-left text-xs"
-                    onClick={() => onApplyPreset?.(value)}
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-                Camera Y Source
-              </FieldLabel>
-              <Select
-                value={bindings.positionYBone}
-                onValueChange={(value) =>
-                  onPositionYBoneChange(value as SceneCameraYBoneBinding)
-                }
-              >
-                <SelectTrigger className="w-full" size="sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value="manual">Manual</SelectItem>
-                  <SelectItem value="hips">Hips</SelectItem>
-                  <SelectItem value="chest">Chest</SelectItem>
-                  <SelectItem value="head">Head</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <VectorControl
-              disabledAxes={{ y: bindings.positionYBone !== "manual" }}
-              label="Camera Position"
-              onValueChange={onPositionChange}
-              value={settings.position}
-            />
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-                  Field Of View
-                </FieldLabel>
-                <NumericInput
-                  ariaLabel="Camera field of view"
-                  onValueChange={(nextValue) =>
-                    onFovChange(clamp(nextValue, 10, 90))
-                  }
-                  precision={1}
-                  value={settings.fov}
-                />
-              </div>
-              <Slider
-                min={10}
-                max={90}
-                step={0.5}
-                value={[settings.fov]}
-                onValueChange={([nextValue]) => {
-                  if (typeof nextValue !== "number") return;
-                  onFovChange(nextValue);
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-                Orbit Target Y Source
-              </FieldLabel>
-              <Select
-                value={bindings.orbitTargetYBone}
-                onValueChange={(value) =>
-                  onOrbitTargetYBoneChange(value as SceneCameraYBoneBinding)
-                }
-              >
-                <SelectTrigger className="w-full" size="sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="end">
-                  <SelectItem value="manual">Manual</SelectItem>
-                  <SelectItem value="hips">Hips</SelectItem>
-                  <SelectItem value="chest">Chest</SelectItem>
-                  <SelectItem value="head">Head</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <VectorControl
-              disabledAxes={{ y: bindings.orbitTargetYBone !== "manual" }}
-              label="Orbit Target"
-              onValueChange={onTargetChange}
-              value={settings.orbitTarget}
-            />
-          </div>
-        </PopoverContent>
-      </Popover>
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reset
+        </Button>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            Presets
+          </FieldLabel>
+          <p className="text-muted-foreground text-[11px]">
+            {hasPresetSource
+              ? "Portrait presets use live head binding"
+              : "Portrait presets bind when the avatar loads"}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {PRESET_OPTIONS.map(({ label, value }) => (
+            <Button
+              key={value}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-auto min-h-8 px-2 py-1.5 text-left text-xs"
+              onClick={() => onApplyPreset?.(value)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-2">
+        <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          Camera Y Source
+        </FieldLabel>
+        <Select
+          value={bindings.positionYBone}
+          onValueChange={(value) =>
+            onPositionYBoneChange(value as SceneCameraYBoneBinding)
+          }
+        >
+          <SelectTrigger
+            aria-label="Camera Y source"
+            className="w-full"
+            size="sm"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end" portalContainer={portalContainer}>
+            <SelectItem value="manual">Manual</SelectItem>
+            <SelectItem value="hips">Hips</SelectItem>
+            <SelectItem value="chest">Chest</SelectItem>
+            <SelectItem value="head">Head</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <VectorControl
+        disabledAxes={{ y: bindings.positionYBone !== "manual" }}
+        label="Camera Position"
+        onValueChange={onPositionChange}
+        value={settings.position}
+      />
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            Field Of View
+          </FieldLabel>
+          <NumericInput
+            ariaLabel="Camera field of view"
+            onValueChange={(nextValue) => onFovChange(clamp(nextValue, 10, 90))}
+            precision={1}
+            value={settings.fov}
+          />
+        </div>
+        <Slider
+          min={10}
+          max={90}
+          step={0.5}
+          value={[settings.fov]}
+          onValueChange={([nextValue]) => {
+            if (typeof nextValue !== "number") return;
+            onFovChange(nextValue);
+          }}
+        />
+      </div>
+      <div className="space-y-2">
+        <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+          Orbit Target Y Source
+        </FieldLabel>
+        <Select
+          value={bindings.orbitTargetYBone}
+          onValueChange={(value) =>
+            onOrbitTargetYBoneChange(value as SceneCameraYBoneBinding)
+          }
+        >
+          <SelectTrigger
+            aria-label="Orbit target Y source"
+            className="w-full"
+            size="sm"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="end" portalContainer={portalContainer}>
+            <SelectItem value="manual">Manual</SelectItem>
+            <SelectItem value="hips">Hips</SelectItem>
+            <SelectItem value="chest">Chest</SelectItem>
+            <SelectItem value="head">Head</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <VectorControl
+        disabledAxes={{ y: bindings.orbitTargetYBone !== "manual" }}
+        label="Orbit Target"
+        onValueChange={onTargetChange}
+        value={settings.orbitTarget}
+      />
     </div>
   );
 }

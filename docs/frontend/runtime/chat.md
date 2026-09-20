@@ -141,6 +141,15 @@ date beside the chat title, highlights matching snippet terms, shows one result
 per matching chat, and navigates to the selected chat without participating in
 the active SSE stream lifecycle.
 
+### Canvas controls
+
+The main chat header places floating settings, picture-in-picture and fullscreen
+buttons at the top right. The settings popover contains the display mode selector,
+expandable camera controls (while the main scene is visible), volume/mute settings
+and background music transport/track selection. There are no separate camera or
+music launchers and no bottom-right control pill. The popover fits the viewport
+and scrolls when needed; its nested menus stay inside the canvas fullscreen root.
+
 ### Layout modes
 
 `MainShell` owns `canvasMode` and passes it to the route-provided `chatPanel`

@@ -57,6 +57,7 @@ const LazyAnimaDebugPanel =
 export type AvatarSceneHostMode = "main" | "pip";
 
 export type AvatarSceneHostRenderState = {
+  cameraControls: ReactNode;
   overlayPassthroughActive: boolean;
   showScene: boolean;
 };
@@ -593,25 +594,28 @@ export function AvatarSceneHost({
             ) : null}
           </SceneHostLayer>
           {showScene ? <SceneVFXOverlayHost /> : null}
-          {mode === "main" && showScene && !isPipActive ? (
-            <SceneCameraPanel
-              className={cn(
-                "absolute top-14 right-3 z-20",
-                activeTransformMode && "right-[23.5rem]",
-              )}
-              bindings={sceneCameraBindings}
-              settings={sceneCameraSettings}
-              hasPresetSource={hasSceneCameraPresetSource}
-              onApplyPreset={handleSceneCameraPresetApply}
-              onOrbitTargetYBoneChange={handleSceneCameraOrbitTargetYBoneChange}
-              onFovChange={handleSceneCameraFovChange}
-              onPositionChange={handleSceneCameraPositionChange}
-              onPositionYBoneChange={handleSceneCameraPositionYBoneChange}
-              onReset={handleSceneCameraReset}
-              onTargetChange={handleSceneCameraTargetChange}
-            />
-          ) : null}
-          {children?.({ overlayPassthroughActive, showScene })}
+          {children?.({
+            overlayPassthroughActive,
+            showScene,
+            cameraControls:
+              mode === "main" && showScene && !isPipActive ? (
+                <SceneCameraPanel
+                  portalContainer={canvasWrapperElement}
+                  bindings={sceneCameraBindings}
+                  settings={sceneCameraSettings}
+                  hasPresetSource={hasSceneCameraPresetSource}
+                  onApplyPreset={handleSceneCameraPresetApply}
+                  onOrbitTargetYBoneChange={
+                    handleSceneCameraOrbitTargetYBoneChange
+                  }
+                  onFovChange={handleSceneCameraFovChange}
+                  onPositionChange={handleSceneCameraPositionChange}
+                  onPositionYBoneChange={handleSceneCameraPositionYBoneChange}
+                  onReset={handleSceneCameraReset}
+                  onTargetChange={handleSceneCameraTargetChange}
+                />
+              ) : null,
+          })}
           {animaDebugPanelEnabled && LazyAnimaDebugPanel ? (
             <Suspense fallback={null}>
               <LazyAnimaDebugPanel />

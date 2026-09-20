@@ -1,21 +1,27 @@
 "use client";
 
-import { Maximize, Minimize, PictureInPicture2, Settings } from "lucide-react";
-import { motion } from "motion/react";
+import {
+  ChevronDown,
+  Maximize,
+  Minimize,
+  PictureInPicture2,
+  Settings,
+} from "lucide-react";
+import { useId, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/ui/components/dropdown-menu";
-import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/ui/components/popover";
+import { AudioVolumePanel, BgmTransportRow } from "@/ui/sound/SoundControls";
 
 export type CanvasMode = "avatar-chat" | "avatar" | "chat";
 
 type CanvasControlsProps = {
   backgroundMode?: DesktopPipBackgroundMode;
+  cameraControls?: ReactNode;
   className?: string;
   isFullscreen?: boolean;
   isPipSupported?: boolean;
@@ -23,14 +29,58 @@ type CanvasControlsProps = {
   onMaximize?: () => void;
   onMinimize?: () => void;
   onPictureInPicture?: () => void;
-  onSettings?: () => void;
   mode?: CanvasMode;
   onModeChange?: (mode: CanvasMode) => void;
+  portalContainer?: HTMLElement | null;
   showBackgroundModeControl?: boolean;
 };
 
+const ICON_BUTTON_CLASS =
+  "text-foreground/80 hover:text-foreground focus-visible:ring-ring inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-transparent transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50";
+
+/** Native radio groups keep mode labels bounded and support arrow-key selection. */
+function ModeSelector<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: ReadonlyArray<{ value: T; label: string }>;
+  onChange?: (value: T) => void;
+}) {
+  const name = useId();
+  return (
+    <fieldset className="min-w-0 space-y-2">
+      <legend className="text-muted-foreground text-xs font-medium">
+        {label}
+      </legend>
+      <div className="bg-muted/60 grid auto-cols-fr grid-flow-col gap-1 rounded-lg p-1">
+        {options.map((option) => (
+          <label key={option.value} className="relative min-w-0 cursor-pointer">
+            <input
+              className="peer sr-only"
+              type="radio"
+              name={name}
+              value={option.value}
+              checked={value === option.value}
+              onChange={() => onChange?.(option.value)}
+            />
+            <span className="peer-checked:bg-background peer-checked:text-foreground peer-focus-visible:ring-ring text-muted-foreground flex h-full min-h-9 items-center justify-center rounded-md px-2 py-1.5 text-center text-xs font-medium break-words peer-checked:shadow-sm peer-focus-visible:ring-2">
+              {option.label}
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+/** A single settings surface leaves the canvas free of persistent control panels. */
 export function CanvasControls({
   backgroundMode = "transparent",
+  cameraControls,
   className,
   isFullscreen = false,
   isPipSupported = false,
@@ -38,133 +88,92 @@ export function CanvasControls({
   onMaximize,
   onMinimize,
   onPictureInPicture,
-  onSettings,
   mode = "avatar-chat",
   onModeChange,
+  portalContainer,
   showBackgroundModeControl = false,
 }: CanvasControlsProps) {
-  const handleFullscreenClick = isFullscreen ? onMinimize : onMaximize;
-  const pipDisabled = !isPipSupported;
-  const pipTitle = pipDisabled
-    ? "Picture-in-picture isn't supported in this browser"
-    : "Open picture-in-picture";
+  const pipTitle = isPipSupported
+    ? "Open picture-in-picture"
+    : "Picture-in-picture isn't supported in this browser";
+
   return (
     <div
-      className={cn(
-        "border-border/60 bg-background/60 pointer-events-auto flex items-center gap-1 rounded-full border p-1 shadow-sm backdrop-blur-md",
-        className,
-      )}
+      className={cn("pointer-events-auto flex items-center gap-1", className)}
     >
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      <Popover>
+        <PopoverTrigger asChild>
           <button
             type="button"
             aria-label="Open canvas settings"
-            onClick={onSettings}
-            className="text-foreground/80 hover:bg-muted/70 hover:text-foreground inline-flex h-9 w-9 items-center justify-center rounded-full transition"
+            title="Canvas settings"
+            className={ICON_BUTTON_CLASS}
           >
             <Settings className="h-4 w-4" />
           </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          side="top"
+        </PopoverTrigger>
+        <PopoverContent
+          aria-label="Canvas settings"
+          side="bottom"
           align="end"
-          sideOffset={12}
-          className="w-56 p-3"
+          sideOffset={10}
+          collisionPadding={8}
+          portalContainer={portalContainer}
+          className="border-border/70 bg-background/95 supports-[backdrop-filter]:bg-background/90 max-h-(--radix-popover-content-available-height) w-[22rem] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-2xl p-4 shadow-lg backdrop-blur-md"
         >
-          <DropdownMenuLabel className="text-muted-foreground dark:text-muted-foreground text-xs font-medium">
-            Mode
-          </DropdownMenuLabel>
-          <Tabs
-            value={mode}
-            onValueChange={(value) => onModeChange?.(value as CanvasMode)}
-          >
-            <TabsList className="border-border/60 bg-muted/60 inline-flex w-full items-center rounded-lg border p-1">
-              {(
-                [
-                  { value: "avatar-chat", label: "Avatar + Chat" },
-                  { value: "avatar", label: "Avatar only" },
-                  { value: "chat", label: "Chat only" },
-                ] as const
-              ).map((item) => {
-                const isSelected = mode === item.value;
-                return (
-                  <TabsTrigger
-                    key={item.value}
-                    value={item.value}
-                    className="data-[state=active]:text-foreground relative flex-1 rounded-md px-2 py-1 text-xs font-medium"
-                  >
-                    {isSelected ? (
-                      <motion.div
-                        layoutId="canvas-mode-segmented-bg"
-                        className="bg-background absolute inset-0 rounded-md shadow-sm"
-                        transition={{
-                          type: "spring",
-                          stiffness: 500,
-                          damping: 30,
-                        }}
-                      />
-                    ) : null}
-                    <span className="relative z-10">{item.label}</span>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </Tabs>
-          {showBackgroundModeControl ? (
-            <>
-              <DropdownMenuLabel className="text-muted-foreground dark:text-muted-foreground mt-3 text-xs font-medium">
-                PiP Background
-              </DropdownMenuLabel>
-              <Tabs
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold">Canvas settings</h2>
+            <ModeSelector
+              label="Mode"
+              value={mode}
+              onChange={onModeChange}
+              options={[
+                { value: "avatar-chat", label: "Avatar + Chat" },
+                { value: "avatar", label: "Avatar only" },
+                { value: "chat", label: "Chat only" },
+              ]}
+            />
+            {showBackgroundModeControl ? (
+              <ModeSelector
+                label="PiP background"
                 value={backgroundMode}
-                onValueChange={(value) =>
-                  onBackgroundModeChange?.(value as DesktopPipBackgroundMode)
-                }
-              >
-                <TabsList className="border-border/60 bg-muted/60 inline-flex w-full items-center rounded-lg border p-1">
-                  {(
-                    [
-                      { value: "transparent", label: "Transparent" },
-                      { value: "scene", label: "Scene" },
-                    ] as const
-                  ).map((item) => {
-                    const isSelected = backgroundMode === item.value;
-                    return (
-                      <TabsTrigger
-                        key={item.value}
-                        value={item.value}
-                        className="data-[state=active]:text-foreground relative flex-1 rounded-md px-2 py-1 text-xs font-medium"
-                      >
-                        {isSelected ? (
-                          <motion.div
-                            layoutId="pip-background-segmented-bg"
-                            className="bg-background absolute inset-0 rounded-md shadow-sm"
-                            transition={{
-                              type: "spring",
-                              stiffness: 500,
-                              damping: 30,
-                            }}
-                          />
-                        ) : null}
-                        <span className="relative z-10">{item.label}</span>
-                      </TabsTrigger>
-                    );
-                  })}
-                </TabsList>
-              </Tabs>
-            </>
-          ) : null}
-        </DropdownMenuContent>
-      </DropdownMenu>
+                onChange={onBackgroundModeChange}
+                options={[
+                  { value: "transparent", label: "Transparent" },
+                  { value: "scene", label: "Scene" },
+                ]}
+              />
+            ) : null}
+            {cameraControls ? (
+              <details className="group border-border/60 border-t pt-3">
+                <summary className="focus-visible:ring-ring flex cursor-pointer list-none items-center justify-between rounded-sm text-sm font-medium focus-visible:ring-2 focus-visible:outline-none [&::-webkit-details-marker]:hidden">
+                  Camera
+                  <ChevronDown className="h-4 w-4 group-open:rotate-180" />
+                </summary>
+                <div className="pt-3">{cameraControls}</div>
+              </details>
+            ) : null}
+            <section
+              aria-label="Audio"
+              className="border-border/60 space-y-3 border-t pt-3"
+            >
+              <h3 className="text-sm font-medium">Audio</h3>
+              <AudioVolumePanel />
+              <BgmTransportRow
+                className="flex-wrap gap-2 [&>div:first-child]:min-w-16"
+                portalContainer={portalContainer}
+              />
+            </section>
+          </div>
+        </PopoverContent>
+      </Popover>
       <span className="inline-flex" title={pipTitle}>
         <button
           type="button"
           aria-label="Toggle picture-in-picture"
           onClick={onPictureInPicture}
-          disabled={pipDisabled}
-          aria-disabled={pipDisabled}
-          className="text-foreground/80 hover:bg-muted/70 hover:text-foreground inline-flex h-9 w-9 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+          disabled={!isPipSupported}
+          className={ICON_BUTTON_CLASS}
         >
           <PictureInPicture2 className="h-4 w-4" />
         </button>
@@ -172,8 +181,9 @@ export function CanvasControls({
       <button
         type="button"
         aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-        onClick={handleFullscreenClick}
-        className="text-foreground/80 hover:bg-muted/70 hover:text-foreground inline-flex h-9 w-9 items-center justify-center rounded-full transition"
+        title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+        onClick={isFullscreen ? onMinimize : onMaximize}
+        className={ICON_BUTTON_CLASS}
       >
         {isFullscreen ? (
           <Minimize className="h-4 w-4" />

@@ -105,7 +105,7 @@ export function MainShell({
             mode="main"
             suspendSceneRender={suspendMainScene}
           >
-            {({ overlayPassthroughActive }) => (
+            {({ cameraControls, overlayPassthroughActive }) => (
               <>
                 <div
                   className={cn(
@@ -116,25 +116,30 @@ export function MainShell({
                   {canvasMode !== "avatar"
                     ? (renderedChatPanel ?? <RuntimeChatPlaceholder />)
                     : null}
-                  <CanvasControls
-                    backgroundMode={backgroundMode}
-                    className="absolute right-0 bottom-34 lg:bottom-12"
-                    isFullscreen={isFullscreen}
-                    isPipSupported={isPipSupported}
-                    mode={canvasMode}
-                    onBackgroundModeChange={setBackgroundMode}
-                    onMaximize={handleEnterFullscreen}
-                    onMinimize={handleExitFullscreen}
-                    onModeChange={handleCanvasModeChange}
-                    onPictureInPicture={handlePictureInPicture}
-                    showBackgroundModeControl={showBackgroundModeControl}
-                  />
                 </div>
                 <Header
                   actions={actions}
                   left={headerLeft}
                   center={headerCenter}
-                  right={headerRight}
+                  right={
+                    <div className="flex items-center gap-2">
+                      {headerRight ?? actions}
+                      <CanvasControls
+                        backgroundMode={backgroundMode}
+                        cameraControls={cameraControls}
+                        portalContainer={canvasWrapperElement}
+                        isFullscreen={isFullscreen}
+                        isPipSupported={isPipSupported}
+                        mode={canvasMode}
+                        onBackgroundModeChange={setBackgroundMode}
+                        onMaximize={handleEnterFullscreen}
+                        onMinimize={handleExitFullscreen}
+                        onModeChange={handleCanvasModeChange}
+                        onPictureInPicture={handlePictureInPicture}
+                        showBackgroundModeControl={showBackgroundModeControl}
+                      />
+                    </div>
+                  }
                   onMenuClick={headerOnMenuClick}
                   className="pointer-events-none absolute inset-x-0 top-0 z-20"
                 />

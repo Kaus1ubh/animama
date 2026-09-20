@@ -40,6 +40,7 @@ type AudioVolumePanelProps = {
 };
 
 type BgmTransportRowProps = {
+  portalContainer?: HTMLElement | null;
   className?: string;
 };
 
@@ -244,7 +245,10 @@ export function AudioVolumePanel({
   );
 }
 
-export function BgmTransportRow({ className }: BgmTransportRowProps) {
+export function BgmTransportRow({
+  className,
+  portalContainer,
+}: BgmTransportRowProps) {
   const {
     bgmState,
     bgmRuntimeId,
@@ -297,7 +301,12 @@ export function BgmTransportRow({ className }: BgmTransportRowProps) {
               <ListMusic className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="bottom" className="w-52">
+          <DropdownMenuContent
+            align="end"
+            side="bottom"
+            className="w-52"
+            portalContainer={portalContainer}
+          >
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Tracks
             </DropdownMenuLabel>
