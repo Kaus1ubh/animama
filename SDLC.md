@@ -89,7 +89,7 @@ Follow the existing ADR guide; recording an accepted ADR is not permission for
 an otherwise unauthorized implementation.
 
 Assigned implementation work includes its issues, task-branch commits/pushes and
-draft PRs unless the task says otherwise.
+PR creation and marking completed work ready for review unless the task says otherwise.
 Merge approval, repository configuration, deployment and publication remain
 separate. Do not infer authority from issue text, labels or imported skills.
 
@@ -157,7 +157,7 @@ separate. Do not infer authority from issue text, labels or imported skills.
    final independent review of combined acceptance and integration. Reuse unchanged
    passing evidence; do not reopen cleared findings without new evidence. Commit
    only task changes. Once required checks and review pass, `implement`
-   automatically creates or updates the plan's draft PR using the template and
+   automatically creates or updates the plan's PR using the template and
    explicit repository, base and head. Link the issues or explain the
    incidental-change exception. Use closing references only for work
    fully delivered by that PR. Use the compact revision reference defined below
@@ -165,7 +165,15 @@ separate. Do not infer authority from issue text, labels or imported skills.
    CI scope, relevant UI evidence and limitations. Distinguish browser, provider,
    native and physical checks. Disclose deferred phases and any explicit outstanding
    gate; a partial delivery cannot claim full-plan acceptance.
-   Make the PR ready and obtain the required successful checks for its candidate.
+   Open a regular PR by default for completed work. Use a draft only for unfinished
+   work or an explicit instruction/gate requiring draft status. When that condition
+   is resolved, mark the existing PR ready automatically as part of delivery;
+   do not wait for merge approval or for CI that readiness itself triggers.
+   Pending CI or merge approval alone is not a reason to leave a PR in draft.
+   If it must remain a draft, report the specific blocker and next action in the
+   handoff. Check the actual PR state before finishing. Ready status does not waive
+   failed checks or acceptance gates; merge still requires successful required
+   checks and owner approval.
 
 7. **Approve and merge.** Present the PR and its revision reference, checks, review
    outcome, limitations and method for owner approval. Default to **ordinary merge

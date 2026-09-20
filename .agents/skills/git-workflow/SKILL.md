@@ -134,8 +134,21 @@ in review and merge sections instead of repeating hashes. Use `Refs #N` for part
 ```bash
 git push -u "$task_remote" "$task_branch"
 gh pr create --repo "$task_repo" --base "$task_base" --head "$task_branch" \
-  --draft --title "$task_pr_title" --body-file "$task_pr_body"
+  --title "$task_pr_title" --body-file "$task_pr_body"
 ```
+
+Follow the configured readiness policy. Default to a regular PR for completed
+work; add `--draft` only for unfinished work or an explicit instruction/gate.
+When an existing draft's condition is resolved, mark it ready as part of delivery
+without waiting for merge approval or checks that readiness triggers:
+
+```bash
+gh pr ready "$task_pr" --repo "$task_repo"
+```
+
+Read back `isDraft` before finishing. If a draft remains necessary, report its
+specific blocker and next action. Pending CI or merge approval alone does not
+require draft status. Ready status does not waive failed checks or human gates.
 
 For an existing PR, use `gh pr edit "$task_pr" --repo "$task_repo" --body-file
 "$task_pr_body"` instead of creating another. Read its actual candidate and checks:
@@ -153,8 +166,8 @@ it. See [`gh pr create`](https://cli.github.com/manual/gh_pr_create) for flags.
 ## Approved merge and cleanup
 
 Use the PR's revision reference when presenting checks, review and remaining gates
-for owner approval. Recheck them immediately before merging. Follow the repository's readiness
-procedure, including `gh pr ready` when authorized and any checks it triggers.
+for owner approval. Recheck the candidate, ready status and required check results
+immediately before merging.
 
 With approval for `task_approved_head` and required checks satisfied, perform an
 ordinary merge with a server-side head match:

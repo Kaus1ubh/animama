@@ -68,7 +68,12 @@ Advance automatically after required evidence and gates pass within the authoriz
 phase range. Preserve every explicit gate in existing plans.
 
 Review the final integration against overall acceptance, reusing valid phase
-evidence. `git-workflow` completes pre-push checks and opens/updates the PR. Present
+evidence. `git-workflow` completes pre-push checks and opens/updates the PR. Default
+to regular PRs for completed work. Drafts are for unfinished work or an explicit
+instruction/gate; mark an existing draft ready automatically when that condition
+is resolved. Verify the actual PR state at handoff. If it must remain a draft,
+report the blocker and next action. Pending CI or merge approval alone does not
+require draft status; ready status does not waive required checks or human gates. Present
 the exact candidate, actual CI, review outcome and limitations for merge approval.
 Default to an ordinary merge commit; recheck the approved candidate and use head
 matching where supported. Read back the resulting merge and post-merge checks.
