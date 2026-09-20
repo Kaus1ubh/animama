@@ -129,10 +129,11 @@ for recoverable runtime failures, and mounts routes only when runtime context is
 ready. Shared routes consume the neutral runtime owner rather than importing
 the local provider.
 
-The Personalization editor is route-independent local UI. Its sidebar action
-opens `LocalPersonalizationModal` without changing the active anima, chat, or
-URL. Audio, model, interface, and provider preferences remain in the separate
-Application settings modal.
+The sidebar **App Settings** action opens a route-independent modal without
+changing the active anima, chat, or URL. Its General section includes the private
+Display Name editor alongside audio controls; camera, voice, memory, interface
+and provider settings remain in the same modal. It uses the shared dialog
+backdrop, matching Search chats and the chat model selector.
 
 ## Route Patterns
 

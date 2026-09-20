@@ -55,6 +55,8 @@ import {
 } from "@/lib/speech/tts-provider";
 import { Switch } from "@/ui/components/switch";
 import { Button } from "@/ui/components/button";
+import { DialogOverlay } from "@/ui/components/dialog";
+import { DisplayNameSettings } from "@/ui/profile/DisplayNameSettings";
 import {
   Select,
   SelectContent,
@@ -74,6 +76,7 @@ import {
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 import { SectionedModalFrame } from "@/ui/components/sectioned-modal-frame";
+import { useSceneCameraSettings } from "@/ui/settings/SceneCameraSettingsProvider";
 import { AudioVolumePanel } from "@/ui/sound/SoundControls";
 import { cn } from "@/lib/utils";
 
@@ -137,7 +140,7 @@ function ShortcutRecorder({
   );
 }
 
-const sections = ["General", "Voice", "Memory", "Advanced"] as const;
+const sections = ["General", "Camera", "Voice", "Memory", "Advanced"] as const;
 type ApplicationSettingsSection = (typeof sections)[number];
 
 const OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent";
@@ -184,6 +187,7 @@ export function ApplicationSettingsModal({
     userPreferences,
     updateUserPreferences,
   } = useSettings();
+  const cameraSettings = useSceneCameraSettings();
   const platform = useRuntimePlatform();
   const modelProviders = useModelProviders();
   const resolvedUserPreferences = useMemo<SettingsPreferences>(
@@ -890,6 +894,8 @@ export function ApplicationSettingsModal({
     switch (activeSection) {
       case "General":
         return "Application settings plus local audio defaults.";
+      case "Camera":
+        return "Adjust the current scene camera and orbit target.";
       case "Voice":
         return "Configure speech-to-text and text-to-speech across all animas.";
       case "Memory":
@@ -904,13 +910,13 @@ export function ApplicationSettingsModal({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
+        <DialogOverlay />
         <SectionedModalFrame<ApplicationSettingsSection>
-          title="Application settings"
+          title="App Settings"
           description="Configure application-level voice and interface settings."
-          closeLabel="Close application settings"
+          closeLabel="Close App Settings"
           sidebarLabel="Application"
-          sidebarTitle="Settings"
+          sidebarTitle="App Settings"
           sections={sections}
           activeSection={activeSection}
           onSectionChange={setActiveSection}
@@ -918,27 +924,26 @@ export function ApplicationSettingsModal({
           headerDescription={sectionDescription}
           headerMeta={
             <p className="text-muted-foreground mt-1 text-sm">
-              Application preferences apply across all animas.
+              {activeSection === "Camera"
+                ? "Camera changes apply to the current scene for this session."
+                : "Application preferences apply across all animas."}
             </p>
           }
           gridClassName="md:grid-cols-[220px_minmax(0,1fr)]"
           contentClassName="gap-5"
         >
+          {activeSection === "General" ? <DisplayNameSettings /> : null}
+
           {activeSection === "General" ? (
             <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
               <div>
                 <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                   Audio
                 </p>
-                <h3 className="text-foreground mt-1 text-base font-semibold">
-                  Volume
-                </h3>
               </div>
               <AudioVolumePanel
                 disabled={isAudioBusy}
-                showTitle={false}
                 showBgmDetail
-                muteAllClassName="px-4 py-3"
                 volumeCardClassName="px-4 py-3"
               />
             </section>
@@ -947,6 +952,19 @@ export function ApplicationSettingsModal({
           {activeSection === "General" ? <DesktopCredentialsPanel /> : null}
           {activeSection === "General" ? <DesktopFeaturePacksPanel /> : null}
           {activeSection === "General" ? <DesktopUpdatesPanel /> : null}
+
+          {activeSection === "Camera" ? (
+            <section className="border-border/60 bg-muted/10 space-y-4 rounded-xl border p-5">
+              {cameraSettings?.panel ? (
+                cameraSettings.panel
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  Open an Anima in Avatar + Chat or Avatar only mode to adjust
+                  its camera. Close picture-in-picture to edit the main camera.
+                </p>
+              )}
+            </section>
+          ) : null}
 
           {activeSection === "Voice" ? (
             <>

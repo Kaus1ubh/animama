@@ -26,6 +26,8 @@ import { SceneVFXOverlayHost } from "@/ui/main/scene-vfx/SceneVFXOverlayHost";
 import { CanvasViewportProvider } from "@/ui/main/canvas/CanvasViewportContext";
 import { SceneRuntimeProvider } from "@/ui/main/canvas/SceneRuntimeContext";
 import Scene from "@/ui/main/canvas/Scene";
+import { useSceneCameraSettings } from "@/ui/settings/SceneCameraSettingsProvider";
+import { SceneCameraPresetControl } from "@/ui/main/canvas/SceneCameraPresetControl";
 import { SceneCameraPanel } from "@/ui/main/canvas/SceneCameraPanel";
 import { type CanvasMode } from "@/ui/main/canvas/CanvasControls";
 import {
@@ -57,6 +59,7 @@ const LazyAnimaDebugPanel =
 export type AvatarSceneHostMode = "main" | "pip";
 
 export type AvatarSceneHostRenderState = {
+  cameraControls: ReactNode;
   overlayPassthroughActive: boolean;
   showScene: boolean;
 };
@@ -168,6 +171,10 @@ export function AvatarSceneHost({
   const [avatarTransform, setAvatarTransform] = useState<AvatarTransform>(() =>
     cloneAvatarTransform(DEFAULT_AVATAR_TRANSFORM),
   );
+  const appCameraSettings = useSceneCameraSettings();
+  const setAppCameraPanel = appCameraSettings?.setPanel;
+  const [selectedCameraPreset, setSelectedCameraPreset] =
+    useState<SceneCameraPreset | null>(DEFAULT_MAIN_SCENE_CAMERA_PRESET);
   const [sceneCameraSettings, setSceneCameraSettings] =
     useState<SceneCameraSettings>(() => getDefaultSceneCameraPreset().settings);
   const [sceneCameraBindings, setSceneCameraBindings] =
@@ -296,6 +303,7 @@ export function AvatarSceneHost({
   }, []);
   const handleSceneCameraPositionChange = useCallback(
     (axis: keyof SceneVector3, value: number) => {
+      setSelectedCameraPreset(null);
       setSceneCameraSettings((current) => ({
         ...current,
         position: {
@@ -308,6 +316,7 @@ export function AvatarSceneHost({
   );
   const handleSceneCameraTargetChange = useCallback(
     (axis: keyof SceneVector3, value: number) => {
+      setSelectedCameraPreset(null);
       setSceneCameraSettings((current) => ({
         ...current,
         orbitTarget: {
@@ -319,12 +328,14 @@ export function AvatarSceneHost({
     [],
   );
   const handleSceneCameraFovChange = useCallback((value: number) => {
+    setSelectedCameraPreset(null);
     setSceneCameraSettings((current) => ({
       ...current,
       fov: MathUtils.clamp(value, 10, 90),
     }));
   }, []);
   const handleSceneCameraReset = useCallback(() => {
+    setSelectedCameraPreset(DEFAULT_MAIN_SCENE_CAMERA_PRESET);
     const nextPreset = buildSceneCameraPreset(
       DEFAULT_MAIN_SCENE_CAMERA_PRESET,
       {
@@ -337,6 +348,7 @@ export function AvatarSceneHost({
   }, [sceneCameraSettings]);
   const handleSceneCameraPositionYBoneChange = useCallback(
     (value: SceneCameraYBoneBinding) => {
+      setSelectedCameraPreset(null);
       if (value !== "manual") {
         const nextY = avatarRuntimeRef.current?.getCameraAnchorY(value);
         if (typeof nextY === "number") {
@@ -364,6 +376,7 @@ export function AvatarSceneHost({
   );
   const handleSceneCameraOrbitTargetYBoneChange = useCallback(
     (value: SceneCameraYBoneBinding) => {
+      setSelectedCameraPreset(null);
       if (value !== "manual") {
         const nextY = avatarRuntimeRef.current?.getCameraAnchorY(value);
         if (typeof nextY === "number") {
@@ -404,6 +417,7 @@ export function AvatarSceneHost({
   );
   const handleSceneCameraPresetApply = useCallback(
     (preset: SceneCameraPreset) => {
+      setSelectedCameraPreset(preset);
       const avatar = avatarRuntimeRef.current;
       const nextPreset = buildSceneCameraPreset(preset, {
         avatar,
@@ -421,6 +435,46 @@ export function AvatarSceneHost({
   const showScene =
     mode === "pip" ||
     (!isMainSceneRenderSuspended && (canvasMode !== "chat" || isPipActive));
+  const fullCameraPanel = useMemo(
+    () =>
+      mode === "main" && showScene && !isPipActive ? (
+        <SceneCameraPanel
+          bindings={sceneCameraBindings}
+          settings={sceneCameraSettings}
+          hasPresetSource={hasSceneCameraPresetSource}
+          onApplyPreset={handleSceneCameraPresetApply}
+          onOrbitTargetYBoneChange={handleSceneCameraOrbitTargetYBoneChange}
+          onFovChange={handleSceneCameraFovChange}
+          onPositionChange={handleSceneCameraPositionChange}
+          onPositionYBoneChange={handleSceneCameraPositionYBoneChange}
+          onReset={handleSceneCameraReset}
+          onTargetChange={handleSceneCameraTargetChange}
+        />
+      ) : null,
+    [
+      mode,
+      showScene,
+      isPipActive,
+      sceneCameraBindings,
+      sceneCameraSettings,
+      hasSceneCameraPresetSource,
+      handleSceneCameraPresetApply,
+      handleSceneCameraOrbitTargetYBoneChange,
+      handleSceneCameraFovChange,
+      handleSceneCameraPositionChange,
+      handleSceneCameraPositionYBoneChange,
+      handleSceneCameraReset,
+      handleSceneCameraTargetChange,
+    ],
+  );
+
+  // Keep the scene as camera owner and remove the settings slot when it unmounts.
+  useEffect(() => {
+    if (mode !== "main" || !setAppCameraPanel) return;
+    setAppCameraPanel(fullCameraPanel);
+    return () => setAppCameraPanel(null);
+  }, [mode, fullCameraPanel, setAppCameraPanel]);
+
   const transformModeAvailable =
     mode === "main" &&
     showScene &&
@@ -593,25 +647,17 @@ export function AvatarSceneHost({
             ) : null}
           </SceneHostLayer>
           {showScene ? <SceneVFXOverlayHost /> : null}
-          {mode === "main" && showScene && !isPipActive ? (
-            <SceneCameraPanel
-              className={cn(
-                "absolute top-14 right-3 z-20",
-                activeTransformMode && "right-[23.5rem]",
-              )}
-              bindings={sceneCameraBindings}
-              settings={sceneCameraSettings}
-              hasPresetSource={hasSceneCameraPresetSource}
-              onApplyPreset={handleSceneCameraPresetApply}
-              onOrbitTargetYBoneChange={handleSceneCameraOrbitTargetYBoneChange}
-              onFovChange={handleSceneCameraFovChange}
-              onPositionChange={handleSceneCameraPositionChange}
-              onPositionYBoneChange={handleSceneCameraPositionYBoneChange}
-              onReset={handleSceneCameraReset}
-              onTargetChange={handleSceneCameraTargetChange}
-            />
-          ) : null}
-          {children?.({ overlayPassthroughActive, showScene })}
+          {children?.({
+            overlayPassthroughActive,
+            showScene,
+            cameraControls:
+              mode === "main" && showScene && !isPipActive ? (
+                <SceneCameraPresetControl
+                  preset={selectedCameraPreset}
+                  onApplyPreset={handleSceneCameraPresetApply}
+                />
+              ) : null,
+          })}
           {animaDebugPanelEnabled && LazyAnimaDebugPanel ? (
             <Suspense fallback={null}>
               <LazyAnimaDebugPanel />

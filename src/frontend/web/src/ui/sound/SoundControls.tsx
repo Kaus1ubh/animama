@@ -35,11 +35,11 @@ type AudioVolumePanelProps = {
   showTitle?: boolean;
   showBgmDetail?: boolean;
   className?: string;
-  muteAllClassName?: string;
   volumeCardClassName?: string;
 };
 
 type BgmTransportRowProps = {
+  portalContainer?: HTMLElement | null;
   className?: string;
 };
 
@@ -146,7 +146,6 @@ export function AudioVolumePanel({
   showTitle = true,
   showBgmDetail = false,
   className,
-  muteAllClassName,
   volumeCardClassName,
 }: AudioVolumePanelProps) {
   const {
@@ -179,31 +178,25 @@ export function AudioVolumePanel({
     <div className={cn("space-y-4", className)}>
       <div
         className={cn(
-          "border-border/70 bg-background/50 flex items-center justify-between rounded-lg border px-3 py-2.5",
-          muteAllClassName,
-        )}
-      >
-        <label className="text-foreground flex items-center gap-2 text-sm font-medium">
-          <Checkbox
-            checked={masterMuted}
-            onCheckedChange={(checked) => setMasterMuted(checked === true)}
-            disabled={disabled}
-            aria-label="Mute all audio"
-          />
-          <span>Mute all</span>
-        </label>
-      </div>
-
-      <div
-        className={cn(
           "border-border/70 bg-background/50 rounded-lg border px-3 py-3",
           volumeCardClassName,
         )}
       >
         <div className="space-y-3">
-          {showTitle ? (
-            <p className="text-foreground text-sm font-semibold">Volume</p>
-          ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {showTitle ? (
+              <p className="text-foreground text-sm font-semibold">Volume</p>
+            ) : null}
+            <label className="text-foreground ml-auto flex items-center gap-2 text-xs font-medium">
+              <Checkbox
+                checked={masterMuted}
+                onCheckedChange={(checked) => setMasterMuted(checked === true)}
+                disabled={disabled}
+                aria-label="Mute all audio"
+              />
+              <span>Mute all</span>
+            </label>
+          </div>
           <VolumeControlRow
             label="TTS"
             value={ttsVolume}
@@ -244,7 +237,10 @@ export function AudioVolumePanel({
   );
 }
 
-export function BgmTransportRow({ className }: BgmTransportRowProps) {
+export function BgmTransportRow({
+  className,
+  portalContainer,
+}: BgmTransportRowProps) {
   const {
     bgmState,
     bgmRuntimeId,
@@ -297,7 +293,12 @@ export function BgmTransportRow({ className }: BgmTransportRowProps) {
               <ListMusic className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" side="bottom" className="w-52">
+          <DropdownMenuContent
+            align="end"
+            side="bottom"
+            className="w-52"
+            portalContainer={portalContainer}
+          >
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Tracks
             </DropdownMenuLabel>

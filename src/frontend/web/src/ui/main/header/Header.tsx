@@ -3,11 +3,10 @@
 import type { ReactNode } from "react";
 import { Suspense, lazy, useState } from "react";
 import { useLocation, useParams } from "@tanstack/react-router";
-import { HeartPulse, Menu, Music2 } from "lucide-react";
+import { HeartPulse, Menu } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
-import { Button } from "@/ui/components/button";
 import { EmotionalState } from "@/ui/components/emotional-state";
 import {
   Popover,
@@ -21,7 +20,6 @@ import {
   AnimaInfoModal,
   type AnimaInfoSection,
 } from "@/ui/main/header/AnimaInfoModal";
-import { AudioVolumePanel, BgmTransportRow } from "@/ui/sound/SoundControls";
 import { getAnimaDisplayName } from "@/lib/anima-profile";
 
 type HeaderProps = {
@@ -37,35 +35,6 @@ const LazyHeaderDebugControls =
   __ANIMAMA_DEV_BUILD__ && DEBUG_ENABLED
     ? lazy(() => import("@/ui/debug/HeaderDebugControls"))
     : null;
-
-function SoundControlPopover() {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Open sound controls"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <Music2 className="h-4 w-4" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        side="bottom"
-        sideOffset={10}
-        className="border-border/70 bg-background/95 supports-[backdrop-filter]:bg-background/85 w-[22rem] rounded-2xl border p-4 shadow-lg backdrop-blur-md"
-      >
-        <div className="space-y-4">
-          <AudioVolumePanel />
-          <BgmTransportRow />
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 export function Header({
   actions,
@@ -185,7 +154,7 @@ export function Header({
         )}
         aria-label="Open anima details"
       >
-        <div className="mx-4.5 min-w-0">
+        <div className="min-w-0 sm:mx-4.5">
           <h1 className="text-foreground truncate text-lg font-semibold">
             {animaLabel}
           </h1>
@@ -198,12 +167,10 @@ export function Header({
   const rightContentBase =
     right ??
     (actions ? <div className="flex items-center gap-2">{actions}</div> : null);
-  const soundButton = <SoundControlPopover />;
   const rightContent =
-    rightContentBase || soundButton ? (
+    rightContentBase || LazyHeaderDebugControls ? (
       <div className="flex items-center gap-2">
         {rightContentBase}
-        {soundButton}
         {LazyHeaderDebugControls ? (
           <Suspense fallback={null}>
             <LazyHeaderDebugControls animaLabel={animaLabel} />
@@ -220,7 +187,7 @@ export function Header({
       )}
       style={headerStyle}
     >
-      <div className="pointer-events-auto grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-4">
+      <div className="pointer-events-auto grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-4">
         <div className="flex min-w-0 items-center gap-2">
           {showMenuButton ? (
             <button
@@ -238,7 +205,9 @@ export function Header({
           {leftContent ? <div className="min-w-0">{leftContent}</div> : null}
         </div>
         {centerContent ? (
-          <div className="min-w-0 justify-self-center">{centerContent}</div>
+          <div className="max-w-full min-w-0 justify-self-center [&>div]:max-w-full">
+            {centerContent}
+          </div>
         ) : (
           <div />
         )}

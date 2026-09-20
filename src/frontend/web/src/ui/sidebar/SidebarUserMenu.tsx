@@ -1,6 +1,6 @@
 "use client";
 
-import { Settings, User } from "lucide-react";
+import { Settings } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -21,7 +21,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
-import { LocalPersonalizationModal } from "@/ui/profile/LocalPersonalizationModal";
 import { ApplicationSettingsModal } from "@/ui/sidebar/ApplicationSettingsModal";
 import { useSidebar } from "@/ui/sidebar/Sidebar";
 import { ensureCustomTheme } from "@/ui/theme/custom-theme";
@@ -44,7 +43,6 @@ export function SidebarUserMenu() {
   const profile = useUserProfile();
   const [menuOpen, setMenuOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
-  const [personalizationOpen, setPersonalizationOpen] = useState(false);
   const [applicationSettingsOpen, setApplicationSettingsOpen] = useState(false);
   const displayName = profile.data?.display_name?.trim() || "You";
   const triggerButton = (
@@ -124,32 +122,17 @@ export function SidebarUserMenu() {
             onSelect={(event) => {
               event.preventDefault();
               setMenuOpen(false);
-              setPersonalizationOpen(true);
-            }}
-          >
-            <User className="h-4 w-4" />
-            Personalization
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="gap-2"
-            onSelect={(event) => {
-              event.preventDefault();
-              setMenuOpen(false);
               setApplicationSettingsOpen(true);
             }}
           >
             <Settings className="h-4 w-4" />
-            Application settings
+            App Settings
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       {featureFlags.themeSelection ? (
         <CustomThemeModal open={customOpen} onOpenChange={setCustomOpen} />
       ) : null}
-      <LocalPersonalizationModal
-        open={personalizationOpen}
-        onOpenChange={setPersonalizationOpen}
-      />
       <ApplicationSettingsModal
         open={applicationSettingsOpen}
         onOpenChange={setApplicationSettingsOpen}

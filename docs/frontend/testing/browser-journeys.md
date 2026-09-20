@@ -212,8 +212,8 @@ For a fresh accountless check:
 3. Create an Anima and open its chat surface.
 4. Load an Avatar portrait or another private byte through a same-origin `/v1`
    URL without an Authorization header.
-5. Edit Personalization and confirm the response contains only the private
-   display name, and that it cannot be cleared.
+5. Open App Settings → General, edit Display Name, and confirm the response
+   contains only the private display name and that it cannot be cleared.
 6. Restart with `./reset.sh`, reopen the same origin, and confirm setup does not
    return, local state remains, and root launch opens the last visited Anima.
 7. Confirm the user menu has no account-management or logout control.
