@@ -36,7 +36,9 @@
     "release:mac": "node scripts/runtime/release-gate.mjs mac",
     "release:windows": "node scripts/runtime/release-gate.mjs windows",
     "smoke:mac": "node scripts/runtime/release-gate.mjs smoke-mac",
-    "smoke:windows": "node scripts/runtime/release-gate.mjs smoke-windows"
+    "smoke:windows": "node scripts/runtime/release-gate.mjs smoke-windows",
+    "reset:mac": "node scripts/reset-macos-profile.mjs",
+    "reset:mac:build": "pnpm build:mac && pnpm reset:mac"
   },
   "packageManager": "pnpm@10.33.0",
   "dependencies": {

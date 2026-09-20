@@ -101,6 +101,38 @@ Use the explicit names above for new workflows. The existing
 inputs and build a signed candidate; they do not publish it. Follow
 [Releases](releases.md) for the separate native smoke and publication gates.
 
+### Reset desktop data for fresh setup
+
+Quit Animama completely, then run from `src/frontend`:
+
+```sh
+pnpm desktop:mac:reset
+```
+
+This archives `~/Library/Application Support/Animama` to a unique timestamped
+sibling `Animama.backup-...` directory and opens the existing packaged app. The
+app creates a fresh profile: repeat onboarding and enter provider keys again.
+The archive retains chats, Local content, settings, credentials, optional packs,
+and migration snapshots. It is private data; keep it protected. Nothing is deleted,
+and macOS permissions and the Compose stack are unchanged.
+
+To rebuild successfully before archiving and launching:
+
+```sh
+pnpm desktop:mac:reset:build
+```
+
+A failed build leaves the profile in place. Both commands require a stopped app
+and services; they refuse active process records, unsafe paths, a missing bundle,
+or an unresolved legacy `Anima` profile. They never kill processes. Do not launch
+another copy while resetting. The helper prints the backup path before launch;
+if launch fails, it retains the backup and does not restore automatically.
+These commands reset the standard packaged macOS profile only, not a custom
+`ANIMAMA_DESKTOP_DEV_USER_DATA` directory. They are explicit fresh-setup tools,
+not a migration repair or a full-profile restore procedure.
+
+### Supervised development
+
 For supervised development without repackaging, use a complete stage with an
 explicit separate data directory:
 
@@ -117,12 +149,12 @@ development-only and rejected in packaged mode.
 
 ## Platform And Release Gates
 
-| Target                             | Current status                                                                                             |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Target                             | Current status                                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | macOS 15+, arm64                   | Development packaging implemented; fresh-source native, minimum-OS and signed acceptance remain |
-| Windows 11, x64                    | Native packaging and recovery deferred                                     |
-| Linux                              | External-stack development only; packaging deferred beyond the current supported release                   |
-| Intel/universal macOS, Windows ARM | Not supported                                                                                 |
+| Windows 11, x64                    | Native packaging and recovery deferred                                                          |
+| Linux                              | External-stack development only; packaging deferred beyond the current supported release        |
+| Intel/universal macOS, Windows ARM | Not supported                                                                                   |
 
 Windows/Linux builder targets and command names remain in configuration,
 but the prebuild gate rejects them until their native runtime is implemented.
