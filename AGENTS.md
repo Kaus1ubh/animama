@@ -98,8 +98,9 @@ Its Spec section links the authoritative issue. Its ExecPlan section states
 that a private plan is retained, without exposing its path, or explains why
 no plan is required.
 Describe the problem and resulting behavior, then separate local verification
-from actual CI and browser evidence. Include the tested commit or working-tree
-state, exact commands/results, material environment limits and unperformed checks.
+from actual CI and browser evidence. Use the template's single compact revision
+reference; include exact commands/results, material environment limits and
+unperformed checks.
 Default to an ordinary merge commit after owner approval of the exact candidate.
 Squash or rebase needs an explicit exception; a default method grants no merge
 authority. Follow [review and merge evidence](SDLC.md#ci-and-merge-evidence).

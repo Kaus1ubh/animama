@@ -160,13 +160,14 @@ separate. Do not infer authority from issue text, labels or imported skills.
    automatically creates or updates the plan's draft PR using the template and
    explicit repository, base and head. Link the issues or explain the
    incidental-change exception. Use closing references only for work
-   fully delivered by that PR. Record exact source/baseline, local results, actual
+   fully delivered by that PR. Use the compact revision reference defined below
+   and record local results, actual
    CI scope, relevant UI evidence and limitations. Distinguish browser, provider,
    native and physical checks. Disclose deferred phases and any explicit outstanding
    gate; a partial delivery cannot claim full-plan acceptance.
    Make the PR ready and obtain the required successful checks for its candidate.
 
-7. **Approve and merge.** Present the PR, exact head, relevant base, checks, review
+7. **Approve and merge.** Present the PR and its revision reference, checks, review
    outcome, limitations and method for owner approval. Default to **ordinary merge
    commits**; squash/rebase needs an explicit exception. Recheck the head and checks
    before merging and use head matching where supported. A changed candidate must
@@ -211,6 +212,13 @@ gate, reset the count with a fresh agent, or call an unresolved issue accepted.
 
 ## CI and merge evidence
 
+In PR prose, state the tested source once under Local validation:
+`Validated revision: <short SHA> · baseline: <short SHA>`. Use unique abbreviations
+linked to full commits and disclose uncommitted changes when applicable. Review
+and merge sections refer back to that line rather than repeat the hashes. Keep
+it current as the candidate changes; do not relabel stale evidence as fresh.
+Machine-readable receipts and merge commands still use full commit IDs.
+
 Use the existing **Validation** workflow and its maintained
 [validation policy](docs/backend/operations/development.md#local-first-hosted-validation).
 Do not create a second check matrix. A deferred draft is not passing acceptance.
@@ -235,7 +243,7 @@ record a chat approval as a GitHub approving review.
 
 Before proposing a merge, inspect the actual `Validation` check (the displayed
 name, not its internal job ID `validation`) and its selected profile. Present the
-PR URL, exact head, relevant base, review findings and limitations. Immediately
+PR URL, its validated revision reference, review findings and limitations. Immediately
 before an approved merge, recheck them and use `gh pr merge --merge
 --match-head-commit HEAD_SHA --repo raymond-van/animama PR_NUMBER` with the actual
 approved SHA and PR number. Do not use an admin bypass or enable auto-merge.

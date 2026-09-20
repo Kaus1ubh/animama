@@ -19,7 +19,9 @@ state "Retained privately" or "Not required" without publishing private paths. -
 
 ## Validation
 
-<!-- Exact source/base, working directories, commands and results. Separate local
+<!-- One compact reference: Validated revision: <short SHA> · baseline: <short SHA>.
+Use unique abbreviations linked to full commits; note uncommitted changes if applicable.
+Record working directories, commands and results. Separate local
 checks, actual hosted CI and relevant rendered/provider/native/manual evidence. -->
 
 ## Review
@@ -33,5 +35,6 @@ and unresolved blockers. Do not publish private transcripts or plan dependencies
 
 ## Merge handoff
 
-<!-- Exact head/base, actual checks and method. Owner approval is pending until
+<!-- Refer to the revision reference above; record actual checks and method.
+Owner approval is pending until
 explicitly supplied for the candidate. Recheck after changes. -->

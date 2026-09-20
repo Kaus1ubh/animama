@@ -125,8 +125,10 @@ plan. Preserve published history; ordinary revisions use new commits.
 ## Open or update the PR
 
 Complete configured local checks before pushing. Write `task_pr_body` using the
-configured PR template, including exact head/base, artifact links, review outcomes,
-actual local evidence and remaining gates. Use `Refs #N` for partial work and
+configured PR template, including one compact validated-revision/baseline reference
+with unique short SHAs linked to full commits, artifact links, review outcomes,
+actual local evidence and remaining gates. Refer back to that revision reference
+in review and merge sections instead of repeating hashes. Use `Refs #N` for partial work and
 `Closes #N` only when the issue's acceptance is fully delivered.
 
 ```bash
@@ -150,8 +152,8 @@ it. See [`gh pr create`](https://cli.github.com/manual/gh_pr_create) for flags.
 
 ## Approved merge and cleanup
 
-Present the exact head, relevant base, checks, review and remaining gates for owner
-approval. Recheck them immediately before merging. Follow the repository's readiness
+Use the PR's revision reference when presenting checks, review and remaining gates
+for owner approval. Recheck them immediately before merging. Follow the repository's readiness
 procedure, including `gh pr ready` when authorized and any checks it triggers.
 
 With approval for `task_approved_head` and required checks satisfied, perform an
