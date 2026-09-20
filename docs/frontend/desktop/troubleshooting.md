@@ -105,7 +105,9 @@ coordinated backup of the whole `~/Library/Application Support/Animama` tree.
 Keep the matching app version and protect the backup as private data. Encryption
 may require the original OS account/keychain; moving the directory alone is not
 a tested cross-machine migration. There is no supported one-click full backup,
-restore or reset UI yet.
+restore or reset UI yet. Developers who explicitly choose fresh setup can use
+the [desktop reset commands](platforms.md#reset-desktop-data-for-fresh-setup),
+which archive the old profile before launching a new one.
 
 Restore is an operator-assisted procedure after preserving the current closed
 state. Never restore automatically after a failed migration; newer data may be

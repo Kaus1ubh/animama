@@ -64,7 +64,9 @@
     "local:smoke:accountless": "node --experimental-strip-types scripts/smoke-accountless-http.ts",
     "local:verify:accountless": "node --experimental-strip-types scripts/verify-accountless-journey.ts",
     "ci:source": "node scripts/ci-source.mjs",
-    "e2e:check:source": "tsc -p tsconfig.e2e.json"
+    "e2e:check:source": "tsc -p tsconfig.e2e.json",
+    "desktop:mac:reset": "pnpm --filter animama-desktop reset:mac",
+    "desktop:mac:reset:build": "pnpm --filter animama-desktop reset:mac:build"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.90.3",
