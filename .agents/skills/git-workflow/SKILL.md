@@ -85,17 +85,19 @@ Do not replace that starting revision with a newly fetched base. If the checkout
 revision or branch conflicts with the task record, reconcile the mismatch first;
 do not reset, force an existing branch or create a duplicate workspace.
 
-Only when preparing genuinely new work without a supplied task workspace, resolve
-the intended base explicitly. In a clean, unoccupied checkout:
+For genuinely new work without a supplied task workspace, resolve the intended
+base explicitly and follow the repository's workspace policy. The following
+in-place recipe applies only where that policy permits task branches in the
+checkout; a clean primary checkout alone is not permission to switch it:
 
 ```bash
 git fetch "$task_remote" "$task_base"
 git switch -c "$task_branch" FETCH_HEAD
 ```
 
-If a separate worktree is needed for isolation or explicitly requested, use this
-**instead of** switching the occupied checkout, then run subsequent commands inside
-`task_worktree`:
+If repository policy requires a worktree, or one is needed for isolation or
+explicitly requested, use this **instead of** switching the checkout. Run subsequent
+commands inside `task_worktree`:
 
 ```bash
 git fetch "$task_remote" "$task_base"
@@ -123,14 +125,23 @@ plan. Preserve published history; ordinary revisions use new commits.
 ## Open or update the PR
 
 Complete configured local checks before pushing. Write `task_pr_body` using the
-configured PR template, including exact head/base, artifact links, review outcomes,
-actual local evidence and remaining gates. Use `Refs #N` for partial work and
+configured PR template, including one compact validated-revision/baseline reference
+with unique short SHAs linked to full commits, artifact links, review outcomes,
+actual local evidence and remaining gates. Refer back to that revision reference
+in review and merge sections instead of repeating hashes. Use `Refs #N` for partial work and
 `Closes #N` only when the issue's acceptance is fully delivered.
 
 ```bash
 git push -u "$task_remote" "$task_branch"
 gh pr create --repo "$task_repo" --base "$task_base" --head "$task_branch" \
-  --draft --title "$task_pr_title" --body-file "$task_pr_body"
+  --title "$task_pr_title" --body-file "$task_pr_body"
+```
+
+Open regular PRs by default; automatically convert drafts when ready for review,
+unless explicitly instructed otherwise:
+
+```bash
+gh pr ready "$task_pr" --repo "$task_repo"
 ```
 
 For an existing PR, use `gh pr edit "$task_pr" --repo "$task_repo" --body-file
@@ -148,9 +159,9 @@ it. See [`gh pr create`](https://cli.github.com/manual/gh_pr_create) for flags.
 
 ## Approved merge and cleanup
 
-Present the exact head, relevant base, checks, review and remaining gates for owner
-approval. Recheck them immediately before merging. Follow the repository's readiness
-procedure, including `gh pr ready` when authorized and any checks it triggers.
+Use the PR's revision reference when presenting checks, review and remaining gates
+for owner approval. Recheck the candidate, ready status and required check results
+immediately before merging.
 
 With approval for `task_approved_head` and required checks satisfied, perform an
 ordinary merge with a server-side head match:

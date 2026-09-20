@@ -1284,8 +1284,8 @@
   "files": [
     {
       "path": ".agents/skills/animama-local-stacks/SKILL.md",
-      "git_blob_oid": "4a3e5579df1784976836e25ca9640f907176a3f9",
-      "sha256": "bd0b3a0cbd53ba0578385f3e7b43db5d419c83c3ac462b1ce12c2063a5bf4de1",
+      "git_blob_oid": "c8ceba243db4d959b16655f17fe1e9c5e01d0a5b",
+      "sha256": "d37fd40471cd8d2402f7e051a511ec27c7101a7f57e2836d1db883862591e388",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -1324,8 +1324,8 @@
     },
     {
       "path": ".agents/skills/docs-sync/SKILL.md",
-      "git_blob_oid": "e2ffd4761ae17537e04a395696d946e8d3e3e16d",
-      "sha256": "abcaea89a06446f344301c761569d12754e83c73d05a984227ba94619bfd878b",
+      "git_blob_oid": "950dae44279abd5802ea676541dc9ff897f9ba2c",
+      "sha256": "3b4d520ff71923b5cf69015debda085d664126d16e44a05420debd319a7e8f44",
       "evidence_ids": [
         "source-review-45773f95f46e"
       ],
@@ -1354,8 +1354,8 @@
     },
     {
       "path": ".agents/skills/git-workflow/SKILL.md",
-      "git_blob_oid": "8f7da98b13b5279b57e06da8797f2cd67bfc9d31",
-      "sha256": "6faa8148066db2c501f6c04c47f472fcedd27aa03e70fbabf797c2c57f2532d7",
+      "git_blob_oid": "a94de3970af7085467298279a6641ceb7d7e78ba",
+      "sha256": "20ffb97b278bf20267bc972ccbf28296e6a0d8e2b4e50c9190485f12c9e8cce7",
       "evidence_ids": [
         "original-portable-sdlc-skills-20260919"
       ],
@@ -1374,8 +1374,8 @@
     },
     {
       "path": ".agents/skills/implement/SKILL.md",
-      "git_blob_oid": "17dba585166e22afb8c4d58dc1b1645453c9f08c",
-      "sha256": "889ae508c90f37f46fc26282365c043208415ce1b1c35cf08bf3dadfb66e6401",
+      "git_blob_oid": "5643ceec9e0d8ef5339947c7ffedfdf0d72a85ec",
+      "sha256": "6074da9c397353576fb70a0a0c732544b0e7e9fd97cf112430c2a688f6a46db4",
       "evidence_ids": [
         "original-portable-sdlc-skills-20260919"
       ],
@@ -1484,8 +1484,8 @@
     },
     {
       "path": ".agents/skills/setup-ray-skills/assets/pull-request.md",
-      "git_blob_oid": "99377a6c7ce9414560ee0249da1b2fe4338ce7f9",
-      "sha256": "f0e2ab76cba068b94dbf617d8db33a7ed5722154acfd78a53fc846162520bf4d",
+      "git_blob_oid": "e26f3759e2e877a86d381322c79e80d4c7936e2d",
+      "sha256": "4dc83c61b40301a4cfd2a147e852be845bc5ddb7a3da1936fa53aa064777d776",
       "evidence_ids": [
         "original-portable-sdlc-skills-20260919"
       ],
@@ -1494,8 +1494,8 @@
     },
     {
       "path": ".agents/skills/setup-ray-skills/assets/sdlc.md",
-      "git_blob_oid": "b6084fba84ef9215ae28252040666d82015c9cfa",
-      "sha256": "553aa0d86461b3d3004b19969c86b89b921a33f894fc3ae6c3892a17e7d2f2dc",
+      "git_blob_oid": "efcb41af1265a1f5bc613b0d2e7a666e54139322",
+      "sha256": "948d7d09eafe266044e0fe7247000a7d54bbebc07e1b93b282c93c8057e10115",
       "evidence_ids": [
         "original-portable-sdlc-skills-20260919"
       ],
@@ -1584,8 +1584,8 @@
     },
     {
       "path": ".agents/skills/workspace-setup/SKILL.md",
-      "git_blob_oid": "c51c2fbb0a1e7940d2418b61a6653458be3a7e84",
-      "sha256": "e3a872e9808f1eebc5dabcae4e9ae3f2d4e4adcda13f528aba538b698d8e6463",
+      "git_blob_oid": "f8ea309a1b6a27e600cdc2b4bade6df63ca53824",
+      "sha256": "ccf3eebd906d60dd75ac4a4692f43822409dd305123b2d2a7b91d21e3fc6d2a2",
       "evidence_ids": [
         "original-portable-sdlc-skills-20260919"
       ],
@@ -9959,6 +9959,286 @@
           "path": ".agents/skills/workspace-setup/SKILL.md",
           "git_blob_oid": "c51c2fbb0a1e7940d2418b61a6653458be3a7e84",
           "sha256": "e3a872e9808f1eebc5dabcae4e9ae3f2d4e4adcda13f528aba538b698d8e6463",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-20",
+      "base_commit": "4106fffed7ac4dd86bbe4bb9cd228f2a3dcfeab5",
+      "reason": "Align workspace guidance with the owner-approved primary-main and task-worktree policy; preserve attribution, historical evidence and publication dispositions.",
+      "previous_inventory_sha256": "e1787b1ed99faa8d74037fda28e43607185983b8b9b7740b2d3aa8a97b58aa05",
+      "previous_bindings": [
+        {
+          "path": ".agents/skills/animama-local-stacks/SKILL.md",
+          "git_blob_oid": "4a3e5579df1784976836e25ca9640f907176a3f9",
+          "sha256": "bd0b3a0cbd53ba0578385f3e7b43db5d419c83c3ac462b1ce12c2063a5bf4de1",
+          "evidence_ids": [
+            "source-review-45773f95f46e"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Phase 5 preparation evidence; not a publication approval."
+        },
+        {
+          "path": ".agents/skills/docs-sync/SKILL.md",
+          "git_blob_oid": "e2ffd4761ae17537e04a395696d946e8d3e3e16d",
+          "sha256": "abcaea89a06446f344301c761569d12754e83c73d05a984227ba94619bfd878b",
+          "evidence_ids": [
+            "source-review-45773f95f46e"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Phase 5 preparation evidence; not a publication approval."
+        },
+        {
+          "path": ".agents/skills/git-workflow/SKILL.md",
+          "git_blob_oid": "8f7da98b13b5279b57e06da8797f2cd67bfc9d31",
+          "sha256": "6faa8148066db2c501f6c04c47f472fcedd27aa03e70fbabf797c2c57f2532d7",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/workspace-setup/SKILL.md",
+          "git_blob_oid": "c51c2fbb0a1e7940d2418b61a6653458be3a7e84",
+          "sha256": "e3a872e9808f1eebc5dabcae4e9ae3f2d4e4adcda13f528aba538b698d8e6463",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        }
+      ],
+      "current_bindings": [
+        {
+          "path": ".agents/skills/animama-local-stacks/SKILL.md",
+          "git_blob_oid": "c8ceba243db4d959b16655f17fe1e9c5e01d0a5b",
+          "sha256": "d37fd40471cd8d2402f7e051a511ec27c7101a7f57e2836d1db883862591e388",
+          "evidence_ids": [
+            "source-review-45773f95f46e"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Phase 5 preparation evidence; not a publication approval."
+        },
+        {
+          "path": ".agents/skills/docs-sync/SKILL.md",
+          "git_blob_oid": "950dae44279abd5802ea676541dc9ff897f9ba2c",
+          "sha256": "3b4d520ff71923b5cf69015debda085d664126d16e44a05420debd319a7e8f44",
+          "evidence_ids": [
+            "source-review-45773f95f46e"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Phase 5 preparation evidence; not a publication approval."
+        },
+        {
+          "path": ".agents/skills/git-workflow/SKILL.md",
+          "git_blob_oid": "49e408425adcbf7e3d543efdc7c580284aa0f52b",
+          "sha256": "acb2749ce668f72eb2644948784e02b0daaf434addbacaf8a49e85cdd93ce2cf",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/workspace-setup/SKILL.md",
+          "git_blob_oid": "f8ea309a1b6a27e600cdc2b4bade6df63ca53824",
+          "sha256": "ccf3eebd906d60dd75ac4a4692f43822409dd305123b2d2a7b91d21e3fc6d2a2",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-20",
+      "base_commit": "d3246fc2f174db567c1168636225c82a373e7bed",
+      "reason": "Use one compact linked revision reference in PR prose while preserving full commit IDs for automated evidence and merge guards.",
+      "previous_inventory_sha256": "565a80069e8804be305460aa85e4b0363044e0c14f35d244f1dae93a1c975fe2",
+      "previous_bindings": [
+        {
+          "path": ".agents/skills/git-workflow/SKILL.md",
+          "git_blob_oid": "49e408425adcbf7e3d543efdc7c580284aa0f52b",
+          "sha256": "acb2749ce668f72eb2644948784e02b0daaf434addbacaf8a49e85cdd93ce2cf",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/setup-ray-skills/assets/pull-request.md",
+          "git_blob_oid": "99377a6c7ce9414560ee0249da1b2fe4338ce7f9",
+          "sha256": "f0e2ab76cba068b94dbf617d8db33a7ed5722154acfd78a53fc846162520bf4d",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        }
+      ],
+      "current_bindings": [
+        {
+          "path": ".agents/skills/git-workflow/SKILL.md",
+          "git_blob_oid": "736a7f63e702f4da6fd0d1da933f81bf480ebd72",
+          "sha256": "eef300a2db5fc7444484ea4fcee78ff2d9a41869cb0e92bd0b31dbf7564abd5d",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/setup-ray-skills/assets/pull-request.md",
+          "git_blob_oid": "e26f3759e2e877a86d381322c79e80d4c7936e2d",
+          "sha256": "4dc83c61b40301a4cfd2a147e852be845bc5ddb7a3da1936fa53aa064777d776",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-20",
+      "base_commit": "c0742cc0f89069b8338b2bb35838988d4b9b7c3b",
+      "reason": "Complete PR readiness automatically for finished work, retaining explicit draft gates and separate merge approval.",
+      "previous_inventory_sha256": "c2ede5bd886654167f355cb39494c9011161277dff564c0ed6d7274369c9aa7d",
+      "previous_bindings": [
+        {
+          "path": ".agents/skills/git-workflow/SKILL.md",
+          "git_blob_oid": "736a7f63e702f4da6fd0d1da933f81bf480ebd72",
+          "sha256": "eef300a2db5fc7444484ea4fcee78ff2d9a41869cb0e92bd0b31dbf7564abd5d",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/implement/SKILL.md",
+          "git_blob_oid": "17dba585166e22afb8c4d58dc1b1645453c9f08c",
+          "sha256": "889ae508c90f37f46fc26282365c043208415ce1b1c35cf08bf3dadfb66e6401",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/setup-ray-skills/assets/sdlc.md",
+          "git_blob_oid": "b6084fba84ef9215ae28252040666d82015c9cfa",
+          "sha256": "553aa0d86461b3d3004b19969c86b89b921a33f894fc3ae6c3892a17e7d2f2dc",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        }
+      ],
+      "current_bindings": [
+        {
+          "path": ".agents/skills/git-workflow/SKILL.md",
+          "git_blob_oid": "60ffe22e8f7698bdcc967ce984a5639bca345bb5",
+          "sha256": "8d8a49ce9a352de1a57b6d7817047763d4b51d24e9c865afe591f01aea42354c",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/implement/SKILL.md",
+          "git_blob_oid": "942be39986739183cc9898f3fb0b8ade8f6ff547",
+          "sha256": "ac653343626f69e41d3e918c4d75ac760115c01c62df5453a5c56a46c172875a",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/setup-ray-skills/assets/sdlc.md",
+          "git_blob_oid": "222a32091ed9cfb21fff4e403922a821e843cc0b",
+          "sha256": "0f5dfeda9deb6242378d98a090154df77f289db8408f589d77bd077dcf6fbb2d",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        }
+      ]
+    },
+    {
+      "date": "2026-09-20",
+      "base_commit": "11f48f16229fb930ba3edca95fb50373ff42a95c",
+      "reason": "Shorten PR readiness wording without changing the workflow.",
+      "previous_inventory_sha256": "4b9fe396add01512eb238c9309dfb5e26e932a642c313546c43e67525042b4e9",
+      "previous_bindings": [
+        {
+          "path": ".agents/skills/git-workflow/SKILL.md",
+          "git_blob_oid": "60ffe22e8f7698bdcc967ce984a5639bca345bb5",
+          "sha256": "8d8a49ce9a352de1a57b6d7817047763d4b51d24e9c865afe591f01aea42354c",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/implement/SKILL.md",
+          "git_blob_oid": "942be39986739183cc9898f3fb0b8ade8f6ff547",
+          "sha256": "ac653343626f69e41d3e918c4d75ac760115c01c62df5453a5c56a46c172875a",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/setup-ray-skills/assets/sdlc.md",
+          "git_blob_oid": "222a32091ed9cfb21fff4e403922a821e843cc0b",
+          "sha256": "0f5dfeda9deb6242378d98a090154df77f289db8408f589d77bd077dcf6fbb2d",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        }
+      ],
+      "current_bindings": [
+        {
+          "path": ".agents/skills/git-workflow/SKILL.md",
+          "git_blob_oid": "a94de3970af7085467298279a6641ceb7d7e78ba",
+          "sha256": "20ffb97b278bf20267bc972ccbf28296e6a0d8e2b4e50c9190485f12c9e8cce7",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/implement/SKILL.md",
+          "git_blob_oid": "5643ceec9e0d8ef5339947c7ffedfdf0d72a85ec",
+          "sha256": "6074da9c397353576fb70a0a0c732544b0e7e9fd97cf112430c2a688f6a46db4",
+          "evidence_ids": [
+            "original-portable-sdlc-skills-20260919"
+          ],
+          "publication_status": "review-pending",
+          "notes": "Original portable lifecycle skill delivery; conceptual inspiration is documented; no publication approval."
+        },
+        {
+          "path": ".agents/skills/setup-ray-skills/assets/sdlc.md",
+          "git_blob_oid": "efcb41af1265a1f5bc613b0d2e7a666e54139322",
+          "sha256": "948d7d09eafe266044e0fe7247000a7d54bbebc07e1b93b282c93c8057e10115",
           "evidence_ids": [
             "original-portable-sdlc-skills-20260919"
           ],

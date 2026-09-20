@@ -23,7 +23,9 @@ Keep the scope, approach and evidence understandable within this PR. -->
 
 ## Local validation
 
-<!-- Record exact source state, baseline, commands, results and environment.
+<!-- Record one compact reference: Validated revision: <short SHA> · baseline: <short SHA>.
+Use unique abbreviations linked to full commits; note uncommitted changes if applicable.
+Record commands, results and environment.
 For local-first reduction, link the generated receipt and digest. Only the owner
 can review it; an agent-prepared receipt is not owner approval. -->
 
@@ -49,7 +51,7 @@ Write "None identified" only if true. -->
 revisions or rejection reasons, repair rounds used (maximum two per scope), and
 remaining blockers or explicit gates. Reuse existing evidence without restarting
 the review count. Keep private plan paths and transcripts out of this PR.
-Before requesting merge: record the exact head and relevant base, current checks
+Before requesting merge: refer to the revision reference above, record current checks
 and owner approval status. Default: ordinary
 merge commit. Approval is pending until explicitly given for the candidate;
 AI review or a passing check is not owner approval. Refresh after material edits. -->

@@ -172,7 +172,8 @@ credential values.
 
 ## Main-Stack Journey
 
-From the repository root, start or restart the main local stack:
+From the primary checkout on `main`, start or restart the main local stack only
+when it is safe to share with active tasks:
 
 ```bash
 ./reset.sh
@@ -189,7 +190,9 @@ deletes the selected local database and writable roots, creates a new
 installation principal, and returns to first-run setup. It is not an account
 recovery operation.
 
-For a parallel worktree, use an isolated name and application port:
+When testing the task revision requires a separate stack, run from its worktree
+with an isolated name and application port. Follow the
+[workspace policy](../../../AGENTS.md#workspace-selection):
 
 ```bash
 ./reset.sh --name browser-a --base-port 8600

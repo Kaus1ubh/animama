@@ -23,13 +23,16 @@ acceptance, dependencies and relevant handoff. Use native relationships where
 available or reciprocal links otherwise. Routine work may use a single issue;
 apply the configured incidental-change exception without inventing an ExecPlan.
 
-Default to one branch per plan per affected repository. An existing suitable task
-worktree already provides isolation; reuse it across phases, review and resumption.
+Follow the repository's workspace policy, including any requirement to keep the
+primary checkout on its default branch and use worktrees for task branches. Apply
+only explicitly authorized exceptions; an issue exception does not imply a
+workspace exception. Default to one branch per plan per affected repository.
+Reuse an existing suitable task worktree across phases, review and resumption.
 Creating a task branch does not require another worktree. Preserve an existing
 task branch; for a detached task worktree, use `git-workflow` to create the branch
 at its verified current HEAD when implementation is authorized, preserving task
 commits and intended changes. Create another worktree only for an identified
-isolation need or an explicit request. Do not switch an occupied checkout, copy
+repository policy requirement, isolation need or explicit request. Do not switch an occupied checkout, copy
 unrelated changes, or push unrelated local commits as part of preparation.
 
 Follow the configured environment procedure and any applicable available local

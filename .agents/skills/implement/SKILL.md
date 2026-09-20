@@ -47,7 +47,8 @@ subset, review the completed scope and its integration without claiming the rest
 of the plan is delivered. Apply the same bounded repair policy.
 
 Use `git-workflow` to finish scoped commits, complete applicable pre-push validation,
-push and create/update the PR automatically. Follow the actual CI policy and report
+push and create/update the PR automatically. Automatically convert drafts when ready for
+review, unless explicitly instructed otherwise. Follow the actual CI policy and report
 the exact candidate, results, review dispositions, outstanding gates and limitations.
 Use closing references only for fully delivered issues. Merge requires separate
 exact-candidate approval. Keep retained workspace/services documented for handoff.

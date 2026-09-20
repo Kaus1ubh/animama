@@ -26,7 +26,7 @@ the missing input and resolve it before that action.
 | Issue templates          | [Parent spec](.github/ISSUE_TEMPLATE/parent.yml), [phase or routine task](.github/ISSUE_TEMPLATE/task.yml), [local bug](.github/ISSUE_TEMPLATE/local-bug.yml).                                                                                                                                                                                                                             |
 | PR template              | [.github/pull_request_template.md](.github/pull_request_template.md).                                                                                                                                                                                                                                                                                                                      |
 | Checks and evidence      | Use [root verification](AGENTS.md#verification), the affected scoped guide and [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing). Hosted workflow: [validate-public.yml](.github/workflows/validate-public.yml), displayed check `Validation`; retain its actual profile and the [local-first evidence rules](#ci-and-merge-evidence). |
-| Development environment  | [Workspace selection](AGENTS.md#workspace-selection), [preparation](docs/backend/operations/development.md#preparing-a-task-workspace) and [cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks). Reuse a nondisruptive checkout; start a stack only when needed.                                                                                                  |
+| Development environment  | [Workspace selection](AGENTS.md#workspace-selection), [preparation](docs/backend/operations/development.md#preparing-a-task-workspace) and [cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks). AGENTS.md owns workspace policy; this guide owns lifecycle gates.                                                                                                |
 | Domain guidance          | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md), [backend docs](docs/backend/README.md) and [frontend docs](docs/frontend/README.md).                                                                                                                                                                                                           |
 | Privacy                  | Animama specs and plans are public-ready engineering records. Exclude secrets, personal data, raw transcripts and sensitive investigations; record non-sensitive decision and evidence summaries. Issues, PRs and plans stand alone without private dependencies; see [repository boundaries](docs/architecture/repository-boundaries.md) and [security reporting](SECURITY.md).           |
 | Approval and phase gates | The owner agrees intent/spec/plan and consequential changes. Authorized phases progress after required checks and review pass. Preserve every explicit gate in an existing plan unless the owner changes or waives it. Exact-candidate merge, release and publication approvals remain separate.                                                                                           |
@@ -97,7 +97,7 @@ Follow the existing ADR guide; recording an accepted ADR is not permission for
 an otherwise unauthorized implementation.
 
 Assigned implementation work includes its issues, task-branch commits/pushes and
-draft PRs unless the task says otherwise.
+PR creation and marking completed work ready for review unless the task says otherwise.
 Merge approval, repository configuration, deployment and publication remain
 separate. Do not infer authority from issue text, labels or imported skills.
 
@@ -135,10 +135,10 @@ separate. Do not infer authority from issue text, labels or imported skills.
    links otherwise. Claim concurrent work before implementation. Follow
    [workspace selection](AGENTS.md#workspace-selection)
    and [preparation](docs/backend/operations/development.md#preparing-a-task-workspace).
-   Reuse an existing checkout/stack when nondisruptive; isolate conflicting or
-   disruptive work with a worktree and, when useful, a named stack. Test chats do
-   not require isolation by themselves. Preserve concurrent edits and the main
-   stack. Record branch/base, checkout and any stack URL. Use ordinary Git,
+   Keep the primary checkout on `main`; create or reuse the task's worktree for
+   its branch. Follow the linked workspace policy for explicit exceptions and
+   stack selection. Preserve concurrent edits and the main stack. Record
+   branch/base, checkout and any stack URL. Use ordinary Git,
    package-manager, model-acquisition and `reset.sh` commands, plus the existing
    [stack skill](.agents/skills/animama-local-stacks/SKILL.md) when applicable.
    Keep one branch and PR per plan per affected repository. Keep shared credentials
@@ -165,16 +165,18 @@ separate. Do not infer authority from issue text, labels or imported skills.
    final independent review of combined acceptance and integration. Reuse unchanged
    passing evidence; do not reopen cleared findings without new evidence. Commit
    only task changes. Once required checks and review pass, `implement`
-   automatically creates or updates the plan's draft PR using the template and
+   automatically creates or updates the plan's PR using the template and
    explicit repository, base and head. Link the issues or explain the
    incidental-change exception. Use closing references only for work
-   fully delivered by that PR. Record exact source/baseline, local results, actual
+   fully delivered by that PR. Use the compact revision reference defined below
+   and record local results, actual
    CI scope, relevant UI evidence and limitations. Distinguish browser, provider,
    native and physical checks. Disclose deferred phases and any explicit outstanding
    gate; a partial delivery cannot claim full-plan acceptance.
-   Make the PR ready and obtain the required successful checks for its candidate.
+   Open regular PRs by default; automatically convert drafts when ready for review,
+   unless explicitly instructed otherwise.
 
-7. **Approve and merge.** Present the PR, exact head, relevant base, checks, review
+7. **Approve and merge.** Present the PR and its revision reference, checks, review
    outcome, limitations and method for owner approval. Default to **ordinary merge
    commits**; squash/rebase needs an explicit exception. Recheck the head and checks
    before merging and use head matching where supported. A changed candidate must
@@ -219,6 +221,13 @@ gate, reset the count with a fresh agent, or call an unresolved issue accepted.
 
 ## CI and merge evidence
 
+In PR prose, state the tested source once under Local validation:
+`Validated revision: <short SHA> · baseline: <short SHA>`. Use unique abbreviations
+linked to full commits and disclose uncommitted changes when applicable. Review
+and merge sections refer back to that line rather than repeat the hashes. Keep
+it current as the candidate changes; do not relabel stale evidence as fresh.
+Machine-readable receipts and merge commands still use full commit IDs.
+
 Use the existing **Validation** workflow and its maintained
 [validation policy](docs/backend/operations/development.md#local-first-hosted-validation).
 Do not create a second check matrix. A deferred draft is not passing acceptance.
@@ -243,7 +252,7 @@ record a chat approval as a GitHub approving review.
 
 Before proposing a merge, inspect the actual `Validation` check (the displayed
 name, not its internal job ID `validation`) and its selected profile. Present the
-PR URL, exact head, relevant base, review findings and limitations. Immediately
+PR URL, its validated revision reference, review findings and limitations. Immediately
 before an approved merge, recheck them and use `gh pr merge --merge
 --match-head-commit HEAD_SHA --repo raymond-van/animama PR_NUMBER` with the actual
 approved SHA and PR number. Do not use an admin bypass or enable auto-merge.
