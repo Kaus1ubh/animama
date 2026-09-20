@@ -33,7 +33,7 @@ the missing input and resolve it before that action.
 | Review policy            | [Bounded code review](#bounded-code-review): one full initial review per scope, at most two repair rounds, recorded findings/revisions and an explicit result.                                                                                                                                                                                                                             |
 | Names                    | [Names and labels](#names-and-labels); one task branch and PR per plan in each affected repository; phase commits use `<type>(<scope>)[p#]: <summary>`.                                                                                                                                                                                                                                    |
 | Labels                   | Use only the [documented mapping](#names-and-labels) after checking live availability. Labels confer no authority and do not dispatch agents.                                                                                                                                                                                                                                              |
-| Skill bundle             | The nine [skill entrypoints](#skill-entrypoints) are optional aids; repository documentation remains independently usable.                                                                                                                                                                                                                                                                 |
+| Skill bundle             | The [skill entrypoints](#skill-entrypoints) are optional aids; repository documentation remains independently usable.                                                                                                                                                                                                                                                                      |
 
 ## Choose the right path
 
@@ -328,11 +328,13 @@ values are resolved through `setup-ray-skills` before dependent work.
 | `tdd`              | Establish meaningful failing behavior, implement and simplify.                                |
 | `code-review`      | Independently check requirements and quality within the bounded review policy.                |
 | `git-workflow`     | Prepare commits and PR evidence, and carry out an explicitly approved merge.                  |
+| `merge-n-clean`    | Merge an approved PR, update the primary checkout and clean up task resources.                |
 
 The usual sequence is `intent-discovery` → `to-spec` → `to-execplan` → `implement`.
 `implement` invokes `workspace-setup`, uses `tdd`, and calls `code-review` after
 each phase and at completion. `git-workflow` handles the associated GitHub work.
-Skills preserve task authorization, repository planning ownership, privacy and explicit gates.
+After owner review, invoke `merge-n-clean` to merge, update the primary checkout
+and clean up task resources. Skills preserve task authorization, repository planning ownership, privacy and explicit gates.
 The skill pilot retains its separate verification gate;
 installation and static validation do not establish pilot completion or runtime
 discovery. These skills are optional tools, not build or contributor prerequisites.

@@ -19,6 +19,7 @@ paths = [
   ".agents/skills/docs-sync/references/doc-coverage-checklist.md",
   ".agents/skills/code-review/SKILL.md",
   ".agents/skills/code-review/agents/openai.yaml",
+  ".agents/skills/merge-n-clean/SKILL.md",
   ".agents/skills/git-workflow/SKILL.md",
   ".agents/skills/git-workflow/agents/openai.yaml",
   ".agents/skills/implement/SKILL.md",
