@@ -148,3 +148,28 @@ identity dialog's left edge is 260px against the 242px sidebar. A narrow-viewpor
 Canvas screenshot confirmed Reset shares the Camera Y Source label row. No memory edits or
 version reverts were performed. Production build and native acceptance were not
 repeated for this focused layout/copy follow-up.
+
+
+## Selected branding and preview follow-up
+
+Owner selected the companion speech-bubble mark and rounded Animama wordmark
+(option 1). Transparent generated assets now live in public/brand, with generation
+prompts recorded in the frontend brand guide. The wordmark follows sidebar text
+color through an alpha mask; the mark is reused in the compact sidebar and browser
+favicon. Static and routed document titles both read Animama. Brand hover
+backgrounds are removed; Search and Collapse are smaller and right-aligned to
+avoid wordmark overlap.
+
+Preview headers omit the revision/Anima/status subtitle. Expanded previews inset
+only the panel beside the sidebar, preserving the retained Canvas and original
+full-screen backdrop extent. Review BP1-1 identified a first-pass backdrop extent
+regression; one repair restored it and targeted independent recheck passed. This
+does not change pre-existing sidebar/backdrop stacking or claim stronger modality.
+
+Validation: web TypeScript, scoped ESLint/Prettier and PNG decode/alpha inspection
+passed. Browser checks verified light-theme expanded and compact branding, loaded
+mark bytes, title and favicon reference. A final browser screenshot verified the
+expanded Angry preview clears the expanded sidebar, has a title-only header,
+and shows smaller non-overlapping sidebar actions. No new tests were added for branding or
+copy-only changes. No packaged desktop icon change, production build or native
+acceptance was performed.

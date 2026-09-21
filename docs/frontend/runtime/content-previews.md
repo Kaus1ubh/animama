@@ -16,6 +16,10 @@ disposal, but they do not teleport one global Canvas between routes. Dialogs
 never mount a second Canvas; they receive a preview callback and status from
 their launching surface.
 
+The Dock header shows only the content name. Expanded previews fit beside the
+desktop sidebar using the shared shell inset, while retaining the same Canvas
+and full-viewport backdrop.
+
 The full-body camera profile serves Gestures and ordinary previews. Reaction
 authoring uses the portrait profile, centered from the loaded Avatar's head,
 with wheel and pinch zoom. The Particle Effect creator retains its emitter

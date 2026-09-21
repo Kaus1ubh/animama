@@ -24,6 +24,8 @@ Start here:
   delivery, ephemeral prepared mounts, degraded playback, no-hot-swap, and the
   shared web/Electron boundary.
 
+Brand assets and generation prompts: [Animama branding](brand-assets.md).
+
 Feature guides:
 
 - `features/custom-anima-creation.md`: four-step live creator, exact sources,

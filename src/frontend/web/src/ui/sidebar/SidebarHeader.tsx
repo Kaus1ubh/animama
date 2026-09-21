@@ -25,12 +25,12 @@ export const SidebarHeader = ({
     return (
       <div className="flex h-11 w-full items-center justify-between">
         <Logo />
-        <div className="flex items-center">
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
           <button
             type="button"
             onClick={onSearch}
             className={cn(
-              "inline-flex h-11 w-11 items-center justify-center rounded-md",
+              "inline-flex h-8 w-8 items-center justify-center rounded-md",
               "text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors",
             )}
             aria-label="Search chats"
@@ -42,7 +42,7 @@ export const SidebarHeader = ({
             type="button"
             onClick={() => setOpen(false)}
             className={cn(
-              "inline-flex h-11 w-11 items-center justify-center rounded-md",
+              "inline-flex h-8 w-8 items-center justify-center rounded-md",
               "text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors",
             )}
             aria-label="Close sidebar"
@@ -60,7 +60,7 @@ export const SidebarHeader = ({
       type="button"
       onClick={() => setOpen(true)}
       className={cn(
-        "border-border/60 bg-background/60 text-foreground/80 hover:bg-muted/70 hover:text-foreground flex h-11 w-11 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-colors",
+        "border-border/60 bg-background/60 text-foreground/80 hover:text-foreground flex h-11 w-11 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-colors",
       )}
       aria-label="Open sidebar"
     >
