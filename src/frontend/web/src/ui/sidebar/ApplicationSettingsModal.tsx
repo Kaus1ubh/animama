@@ -76,7 +76,6 @@ import {
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 import { SectionedModalFrame } from "@/ui/components/sectioned-modal-frame";
-import { useSceneCameraSettings } from "@/ui/settings/SceneCameraSettingsProvider";
 import { AudioVolumePanel } from "@/ui/sound/SoundControls";
 import { cn } from "@/lib/utils";
 
@@ -142,7 +141,7 @@ function ShortcutRecorder({
   );
 }
 
-const sections = ["General", "Camera", "Voice", "Memory", "Advanced"] as const;
+const sections = ["General", "Voice", "Memory", "Advanced"] as const;
 type ApplicationSettingsSection = (typeof sections)[number];
 
 const OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent";
@@ -185,7 +184,6 @@ export function ApplicationSettingsModal({
     userPreferences,
     updateUserPreferences,
   } = useSettings();
-  const cameraSettings = useSceneCameraSettings();
   const platform = useRuntimePlatform();
   const modelProviders = useModelProviders();
   const resolvedUserPreferences = useMemo<SettingsPreferences>(
@@ -926,19 +924,6 @@ export function ApplicationSettingsModal({
           {activeSection === "General" ? <DesktopCredentialsPanel /> : null}
           {activeSection === "General" ? <DesktopFeaturePacksPanel /> : null}
           {activeSection === "General" ? <DesktopUpdatesPanel /> : null}
-
-          {activeSection === "Camera" ? (
-            <section className="border-border/60 bg-muted/10 space-y-4 rounded-xl border p-5">
-              {cameraSettings?.panel ? (
-                cameraSettings.panel
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  Open an Anima in Avatar + Chat or Avatar only mode to adjust
-                  its camera. Close picture-in-picture to edit the main camera.
-                </p>
-              )}
-            </section>
-          ) : null}
 
           {activeSection === "Voice" ? (
             <>

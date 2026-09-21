@@ -111,3 +111,20 @@ camera and reaction loadout suites passed (4 tests). Independent three-file sour
 review found no actionable issues. Browser verification of this polish was not
 completed because the in-app testing tabs became unavailable. No new tests were
 added for copy/icon/spacing-only changes. Prior behavioral evidence remains valid.
+
+## Camera controls relocation
+
+Removed Camera from App Settings and moved its controls into Canvas settings.
+The preset dropdown remains visible; Fine-tune camera starts collapsed and
+reveals Reset, position, field of view, orbit target and bone bindings. Existing
+main-scene/non-PiP availability guards and camera handlers remain. Removed the
+obsolete app-wide camera panel provider. Bone selectors use native selects so
+they do not depend on a portal outside the fullscreen element.
+
+Validation: web TypeScript and scoped ESLint passed; focused camera tests passed
+(3 tests). Independent source review found no actionable issues. Browser checks
+confirmed collapsed-by-default disclosure, FOV edits selecting Custom, Reset
+restoring Full body, Head binding selecting Custom and disabling manual camera Y,
+and no Camera section in App Settings from Library. Fullscreen entry succeeded,
+but interacting through the testing browser returned to normal view, so detailed
+fullscreen interaction remains unverified. Library group layout remains unchanged.

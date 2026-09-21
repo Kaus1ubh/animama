@@ -156,9 +156,11 @@ the active SSE stream lifecycle.
 The main chat header places floating settings, picture-in-picture and fullscreen
 buttons at the top right. The settings popover contains the display mode selector,
 a camera preset dropdown (while the main scene is visible),
-volume/mute settings and background music transport/track selection. The full
-camera controls live under **App Settings → Camera** in the sidebar user menu
-and edit the same live scene. Numeric edits show **Custom** in the preset
+volume/mute settings and background music transport/track selection. Beneath the
+preset dropdown, **Fine-tune camera** expands the numeric, field-of-view and
+orbit-target controls; it starts collapsed. Camera is not an App Settings section.
+These controls appear only for an available main scene, outside picture-in-picture.
+Numeric edits show **Custom** in the preset
 dropdown; choosing a preset or Reset restores a named preset. Camera adjustments
 remain session-only. **Mute all** sits beside the **Volume** heading. There are no separate camera or
 music launchers and no bottom-right control pill. The popover fits the viewport

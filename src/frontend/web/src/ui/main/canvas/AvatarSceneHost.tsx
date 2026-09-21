@@ -26,7 +26,6 @@ import { SceneVFXOverlayHost } from "@/ui/main/scene-vfx/SceneVFXOverlayHost";
 import { CanvasViewportProvider } from "@/ui/main/canvas/CanvasViewportContext";
 import { SceneRuntimeProvider } from "@/ui/main/canvas/SceneRuntimeContext";
 import Scene from "@/ui/main/canvas/Scene";
-import { useSceneCameraSettings } from "@/ui/settings/SceneCameraSettingsProvider";
 import { SceneCameraPresetControl } from "@/ui/main/canvas/SceneCameraPresetControl";
 import { SceneCameraPanel } from "@/ui/main/canvas/SceneCameraPanel";
 import { type CanvasMode } from "@/ui/main/canvas/CanvasControls";
@@ -171,8 +170,6 @@ export function AvatarSceneHost({
   const [avatarTransform, setAvatarTransform] = useState<AvatarTransform>(() =>
     cloneAvatarTransform(DEFAULT_AVATAR_TRANSFORM),
   );
-  const appCameraSettings = useSceneCameraSettings();
-  const setAppCameraPanel = appCameraSettings?.setPanel;
   const [selectedCameraPreset, setSelectedCameraPreset] =
     useState<SceneCameraPreset | null>(DEFAULT_MAIN_SCENE_CAMERA_PRESET);
   const [sceneCameraSettings, setSceneCameraSettings] =
@@ -432,44 +429,6 @@ export function AvatarSceneHost({
   const showScene =
     mode === "pip" ||
     (!isMainSceneRenderSuspended && (canvasMode !== "chat" || isPipActive));
-  const fullCameraPanel = useMemo(
-    () =>
-      mode === "main" && showScene && !isPipActive ? (
-        <SceneCameraPanel
-          bindings={sceneCameraBindings}
-          settings={sceneCameraSettings}
-          onApplyPreset={handleSceneCameraPresetApply}
-          onOrbitTargetYBoneChange={handleSceneCameraOrbitTargetYBoneChange}
-          onFovChange={handleSceneCameraFovChange}
-          onPositionChange={handleSceneCameraPositionChange}
-          onPositionYBoneChange={handleSceneCameraPositionYBoneChange}
-          onReset={handleSceneCameraReset}
-          onTargetChange={handleSceneCameraTargetChange}
-        />
-      ) : null,
-    [
-      mode,
-      showScene,
-      isPipActive,
-      sceneCameraBindings,
-      sceneCameraSettings,
-      handleSceneCameraPresetApply,
-      handleSceneCameraOrbitTargetYBoneChange,
-      handleSceneCameraFovChange,
-      handleSceneCameraPositionChange,
-      handleSceneCameraPositionYBoneChange,
-      handleSceneCameraReset,
-      handleSceneCameraTargetChange,
-    ],
-  );
-
-  // Keep the scene as camera owner and remove the settings slot when it unmounts.
-  useEffect(() => {
-    if (mode !== "main" || !setAppCameraPanel) return;
-    setAppCameraPanel(fullCameraPanel);
-    return () => setAppCameraPanel(null);
-  }, [mode, fullCameraPanel, setAppCameraPanel]);
-
   const transformModeAvailable =
     mode === "main" &&
     showScene &&
@@ -647,10 +606,32 @@ export function AvatarSceneHost({
             showScene,
             cameraControls:
               mode === "main" && showScene && !isPipActive ? (
-                <SceneCameraPresetControl
-                  preset={selectedCameraPreset}
-                  onApplyPreset={handleSceneCameraPresetApply}
-                />
+                <div className="space-y-3">
+                  <SceneCameraPresetControl
+                    preset={selectedCameraPreset}
+                    onApplyPreset={handleSceneCameraPresetApply}
+                  />
+                  <details className="group">
+                    <summary className="focus-visible:ring-ring cursor-pointer rounded-sm text-sm outline-none focus-visible:ring-2">
+                      Fine-tune camera
+                    </summary>
+                    <SceneCameraPanel
+                      className="mt-3"
+                      bindings={sceneCameraBindings}
+                      settings={sceneCameraSettings}
+                      onOrbitTargetYBoneChange={
+                        handleSceneCameraOrbitTargetYBoneChange
+                      }
+                      onFovChange={handleSceneCameraFovChange}
+                      onPositionChange={handleSceneCameraPositionChange}
+                      onPositionYBoneChange={
+                        handleSceneCameraPositionYBoneChange
+                      }
+                      onReset={handleSceneCameraReset}
+                      onTargetChange={handleSceneCameraTargetChange}
+                    />
+                  </details>
+                </div>
               ) : null,
           })}
           {animaDebugPanelEnabled && LazyAnimaDebugPanel ? (
