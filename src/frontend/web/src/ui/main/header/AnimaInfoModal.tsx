@@ -1,11 +1,17 @@
 "use client";
 
-import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowLeft,
   Camera,
   ChevronDown,
-  ChevronRight,
   ExternalLink,
   Settings,
   X,
@@ -26,11 +32,17 @@ import {
   AnimaAppearanceDialog,
   type AnimaAppearanceSection,
 } from "@/ui/animas/AnimaAppearanceDialog";
+import { MemoryEntryEditorModal } from "@/ui/memory/MemoryEntryEditorModal";
 import { AnimaIdentitySection } from "@/ui/animas/AnimaIdentitySection";
 import { useMemoryEntryByPath } from "@/query/hooks/useMemoryEntries";
 import { resolveAnimaIdentityContent } from "@/lib/animas/anima-management-presentation";
 import { DialogOverlay } from "@/ui/components/dialog";
 import { Button } from "@/ui/components/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/ui/components/tooltip";
 import {
   EmotionSummary,
   EmotionDetails,
@@ -72,6 +84,52 @@ function AnimaProfile({
   const [view, setView] = useState<"profile" | "settings">("profile");
   const [emotionsOpen, setEmotionsOpen] = useState(false);
   const [sidePanel, setSidePanel] = useState(false);
+  const [canHover, setCanHover] = useState(false);
+  const hoverMode = sidePanel && canHover;
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const detailPanelRef = useRef<HTMLElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelHoverClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+  };
+  const openOnHover = () => {
+    cancelHoverClose();
+    if (hoverMode) setEmotionsOpen(true);
+  };
+  const scheduleHoverClose = () => {
+    if (!hoverMode) return;
+    cancelHoverClose();
+    // Give the pointer time to cross the 16px gap into the detail surface.
+    closeTimer.current = setTimeout(() => {
+      if (
+        summaryRef.current?.matches(":hover") ||
+        detailPanelRef.current?.matches(":hover")
+      )
+        return;
+      const focused = document.activeElement;
+      if (
+        focused?.matches(":focus-visible") &&
+        (summaryRef.current?.contains(focused) ||
+          detailPanelRef.current?.contains(focused))
+      )
+        return;
+      setEmotionsOpen(false);
+    }, 180);
+  };
+  useEffect(() => {
+    const query = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const update = () => setCanHover(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [hoverMode],
+  );
   const [profileElement, setProfileElement] = useState<HTMLDivElement | null>(
     null,
   );
@@ -113,9 +171,15 @@ function AnimaProfile({
     });
   };
   const collapseEmotions = () => {
+    cancelHoverClose();
+    // Focus can reveal the panel; apply the explicit dismissal after restoring it.
+    (hoverMode ? summaryRef.current : emotionTriggerRef.current)?.focus({
+      preventScroll: true,
+    });
     setEmotionsOpen(false);
-    emotionTriggerRef.current?.focus({ preventScroll: true });
   };
+  const [identityEditorOpen, setIdentityEditorOpen] = useState(false);
+  const identityTriggerRef = useRef<HTMLButtonElement | null>(null);
   const appearanceTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [appearanceSection, setAppearanceSection] =
     useState<AnimaAppearanceSection | null>(null);
@@ -163,6 +227,7 @@ function AnimaProfile({
 
   const details = (
     <EmotionDetails
+      className={sidePanel ? "[&>p]:pt-9" : undefined}
       showSummary={false}
       emotionalState={emotionalState}
       sourceLabel={emotionSourceLabel}
@@ -187,8 +252,8 @@ function AnimaProfile({
           if (openerRef.current?.isConnected) openerRef.current.focus();
         }}
         onEscapeKeyDown={(event) => {
-          // Radix gives the nested appearance editor first refusal on Escape.
-          if (appearanceSection) return;
+          // Radix gives nested editors first refusal on Escape.
+          if (appearanceSection || identityEditorOpen) return;
           if (emotionsOpen && view === "profile") {
             event.preventDefault();
             collapseEmotions();
@@ -216,35 +281,43 @@ function AnimaProfile({
               </Button>
             ) : null}
             {anima?.id ? (
-              <button
-                type="button"
-                className={iconButtonClass}
-                aria-label="Details"
-                title="Details"
-                onClick={() => openAnimaDetailsPage(anima.id)}
-              >
-                <ExternalLink className="size-5" aria-hidden="true" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className={iconButtonClass}
+                    aria-label="See full details"
+                    onClick={() => openAnimaDetailsPage(anima.id)}
+                  >
+                    <ExternalLink className="size-5" aria-hidden="true" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>See full details</TooltipContent>
+              </Tooltip>
             ) : null}
-            <button
-              ref={settingsTriggerRef}
-              type="button"
-              className={iconButtonClass}
-              aria-label="Settings"
-              title="Settings"
-              aria-pressed={view === "settings"}
-              onClick={() => {
-                if (view === "settings") {
-                  returnToProfile();
-                  return;
-                }
-                profileScroll.current = scrollRef.current?.scrollTop ?? 0;
-                setView("settings");
-                requestAnimationFrame(() => backRef.current?.focus());
-              }}
-            >
-              <Settings className="size-5" aria-hidden="true" />
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  ref={settingsTriggerRef}
+                  type="button"
+                  className={iconButtonClass}
+                  aria-label="Anima Settings"
+                  aria-pressed={view === "settings"}
+                  onClick={() => {
+                    if (view === "settings") {
+                      returnToProfile();
+                      return;
+                    }
+                    profileScroll.current = scrollRef.current?.scrollTop ?? 0;
+                    setView("settings");
+                    requestAnimationFrame(() => backRef.current?.focus());
+                  }}
+                >
+                  <Settings className="size-5" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Anima Settings</TooltipContent>
+            </Tooltip>
             <Dialog.Close asChild>
               <button
                 type="button"
@@ -324,33 +397,81 @@ function AnimaProfile({
                     {displayName}
                   </h2>
                 </div>
-                <EmotionSummary
-                  emotionalState={emotionalState}
-                  className="pt-4"
-                  headerAction={
-                    <button
-                      ref={emotionTriggerRef}
-                      type="button"
-                      aria-expanded={emotionsOpen}
-                      aria-controls={emotionPanelId}
-                      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex shrink-0 items-center gap-0.5 rounded-md py-1 pl-1 text-xs focus-visible:ring-2 focus-visible:outline-none"
-                      onClick={() => setEmotionsOpen((previous) => !previous)}
-                    >
-                      Emotions
-                      {sidePanel ? (
-                        <ChevronRight
-                          aria-hidden="true"
-                          className={cn("size-4", emotionsOpen && "rotate-180")}
-                        />
-                      ) : (
-                        <ChevronDown
-                          aria-hidden="true"
-                          className={cn("size-4", emotionsOpen && "rotate-180")}
-                        />
-                      )}
-                    </button>
-                  }
-                />
+                <div
+                  ref={summaryRef}
+                  className={cn(
+                    "rounded-lg outline-none",
+                    hoverMode &&
+                      "focus-visible:ring-ring cursor-default focus-visible:ring-2",
+                  )}
+                  tabIndex={hoverMode ? 0 : undefined}
+                  role={hoverMode ? "button" : undefined}
+                  aria-label={hoverMode ? "Explore emotions" : undefined}
+                  aria-expanded={hoverMode ? emotionsOpen : undefined}
+                  aria-controls={hoverMode ? emotionPanelId : undefined}
+                  onPointerEnter={openOnHover}
+                  onPointerLeave={scheduleHoverClose}
+                  onFocus={() => {
+                    if (hoverMode) {
+                      cancelHoverClose();
+                      setEmotionsOpen(true);
+                    }
+                  }}
+                  onBlur={scheduleHoverClose}
+                  onKeyDown={(event) => {
+                    if (
+                      hoverMode &&
+                      emotionsOpen &&
+                      event.key === "Tab" &&
+                      !event.shiftKey
+                    ) {
+                      const firstAxis =
+                        detailPanelRef.current?.querySelector<SVGGElement>(
+                          "[data-emotion-axis-label]",
+                        );
+                      if (firstAxis) {
+                        event.preventDefault();
+                        firstAxis.focus();
+                        return;
+                      }
+                    }
+                    if (
+                      hoverMode &&
+                      (event.key === "Enter" || event.key === " ")
+                    ) {
+                      event.preventDefault();
+                      setEmotionsOpen((previous) => !previous);
+                    }
+                  }}
+                >
+                  <EmotionSummary
+                    emotionalState={emotionalState}
+                    className="pt-4"
+                    headerAction={
+                      hoverMode ? undefined : (
+                        <button
+                          ref={emotionTriggerRef}
+                          type="button"
+                          aria-expanded={emotionsOpen}
+                          aria-controls={emotionPanelId}
+                          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex shrink-0 items-center gap-0.5 rounded-md py-1 pl-1 text-xs focus-visible:ring-2 focus-visible:outline-none"
+                          onClick={() =>
+                            setEmotionsOpen((previous) => !previous)
+                          }
+                        >
+                          Emotions
+                          <ChevronDown
+                            aria-hidden="true"
+                            className={cn(
+                              "size-4",
+                              emotionsOpen && "rotate-180",
+                            )}
+                          />
+                        </button>
+                      )
+                    }
+                  />
+                </div>
               </div>
               <AnimatePresence initial={false}>
                 {emotionsOpen && !sidePanel ? (
@@ -381,7 +502,10 @@ function AnimaProfile({
                     identityLoading={identityQuery.isLoading}
                     identityError={identityQuery.isError}
                     fallbackIdentity={fallbackIdentity}
-                    onEdit={() => onOpenChange(false)}
+                    onEdit={(event) => {
+                      identityTriggerRef.current = event.currentTarget;
+                      setIdentityEditorOpen(true);
+                    }}
                     presentation="plain"
                     displayName={displayName}
                   />
@@ -406,29 +530,38 @@ function AnimaProfile({
           {emotionsOpen && sidePanel && view === "profile" ? (
             <motion.section
               key="side-emotions"
+              ref={detailPanelRef}
+              onPointerEnter={cancelHoverClose}
+              onPointerLeave={scheduleHoverClose}
+              onFocusCapture={cancelHoverClose}
+              onBlurCapture={scheduleHoverClose}
               id={emotionPanelId}
               aria-label="Emotions"
               initial={{ x: reducedMotion ? 0 : -12, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: reducedMotion ? 0 : -12, opacity: 0 }}
               transition={{ duration }}
-              className="border-border bg-background absolute top-0 bottom-0 left-[calc(100%+16px)] w-[360px] overflow-y-auto overscroll-contain rounded-2xl border p-5 shadow-xl"
+              className="border-border bg-background absolute top-0 left-[calc(100%+16px)] max-h-full w-[360px] overflow-y-auto overscroll-contain rounded-2xl border px-3 py-1 shadow-xl"
             >
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold">Emotions</h2>
-                <button
-                  type="button"
-                  onClick={collapseEmotions}
-                  className={iconButtonClass}
-                  aria-label="Collapse emotions"
-                >
-                  <X aria-hidden="true" className="size-4" />
-                </button>
-              </div>
+              <h2 className="pointer-events-none absolute top-3 left-4 text-sm font-semibold">
+                Emotions
+              </h2>
               {details}
             </motion.section>
           ) : null}
         </AnimatePresence>
+        {anima?.id && identityEditorOpen ? (
+          <MemoryEntryEditorModal
+            animaId={anima.id}
+            path="IDENTITY.md"
+            allowedScope="anima"
+            onClose={() => setIdentityEditorOpen(false)}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              identityTriggerRef.current?.focus({ preventScroll: true });
+            }}
+          />
+        ) : null}
         {anima?.id && appearanceSection ? (
           <AnimaAppearanceDialog
             animaId={anima.id}

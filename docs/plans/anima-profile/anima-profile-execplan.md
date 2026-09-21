@@ -163,3 +163,35 @@ remain identical to main. Independent review and rendered recheck passed. The li
 profile showed “Feeling slightly joyful” with a peak of 3 (previous average 1),
 with no diagnostic labels or repeated panels. Existing PR #35 carries this follow-up;
 merge remains separately approved.
+
+
+## Accepted follow-up: compact hover exploration and in-place identity editing
+
+The desktop summary now opens its compact emotion panel on hover or focus when
+side space permits. A 180ms exit delay bridges the gap; pointer presence and
+keyboard focus retain it. Forward Tab enters the chart directly. Explicit toggle
+remains for inline/touch use. The larger radar emphasizes labels and points in
+individual group colors, clears pointer selection outside the plot, and omits
+label background fills. An inset Emotions heading uses existing chart whitespace;
+there is no close icon or helper prompt. Neutral content reserves heading space.
+Toolbar icons have tooltips, and the redundant visible Identity heading is removed.
+
+Chat Edit identity now opens the existing scoped memory editor without navigation.
+Closing restores its trigger focus and leaves the profile mounted. Management's
+route editor remains unchanged. Its header emotion tag now uses the shared emoji,
+color and full-feeling tooltip while retaining its Emotions-tab action.
+
+Validation: nine targeted files passed 73 tests before the final identity change;
+five identity rendering tests then passed including the button override, and three
+focused emotion/draft/cache files passed 15 tests. TypeScript, scoped ESLint,
+formatting and whitespace checks passed. Independent hover review identified a
+keyboard path issue, resolved and rechecked in one repair round. Subsequent
+identity and emoji scopes had no actionable findings. Browser checks confirmed
+keyboard entry into chart axes, transparent Esteem highlight with teal text,
+Escape collapse, Details tooltip, in-place IDENTITY.md opening/closing with route
+and trigger focus preserved, and emoji navigation into the Emotions tab. No real
+identity/emotion data was modified. Full build/native and an editor save round trip
+were not repeated. The two protected documentation files still match main.
+
+Concurrent settings commits on this same task branch were preserved. The local
+HMR stack remains running for owner acceptance; merge is separately approved.

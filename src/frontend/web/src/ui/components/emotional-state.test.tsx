@@ -50,7 +50,7 @@ describe("EmotionDetails", () => {
       />,
     );
     expect(html).toContain("each showing its strongest emotion");
-    expect(html).toContain("Hover or select an emotion");
+    expect(html).not.toContain("Hover or select an emotion");
     expect(html).not.toMatch(
       /Persisted anima state|Group averages|Emotion group details|rounded-xl border/,
     );

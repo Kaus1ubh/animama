@@ -1,5 +1,12 @@
 "use client";
 
+import { buildEmotionPresentation } from "@/lib/emotion/presentation";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/ui/components/tooltip";
+
 import {
   ChevronLeft,
   ChevronRight,
@@ -29,10 +36,7 @@ import {
   adjacentAnimaId,
   type AnimaManagementTab,
 } from "@/lib/animas/anima-management-search";
-import {
-  getAnimaMoodLabel,
-  resolveAnimaIdentityContent,
-} from "@/lib/animas/anima-management-presentation";
+import { resolveAnimaIdentityContent } from "@/lib/animas/anima-management-presentation";
 import {
   INITIAL_ANIMA_STAGE_PREVIEW_STATE,
   isAnimaStagePreviewTarget,
@@ -218,7 +222,7 @@ function ManagementPanel({
   onTabChange: (tab: AnimaManagementTab) => void;
   onStagePreview: (target: ContentPreviewTarget) => void;
 }) {
-  const moodLabel = getAnimaMoodLabel(anima.emotional_state);
+  const emotion = buildEmotionPresentation(anima.emotional_state);
   const [appearanceSection, setAppearanceSection] =
     useState<AnimaAppearanceSection | null>(null);
   const profileThumbnailMedia = useAnimaPresentationImage(profileThumbnail);
@@ -273,18 +277,20 @@ function ManagementPanel({
                 <ImageUp className="size-3.5" />
               </span>
             </button>
-            <button
-              type="button"
-              onClick={() => onTabChange("emotions")}
-              aria-label={`Open Emotions tab. Current emotional label: ${moodLabel}`}
-              className="border-border/70 bg-muted/35 text-muted-foreground hover:bg-muted/65 focus-visible:ring-ring/50 ml-auto flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px]"
-            >
-              <span
-                className="bg-primary size-2 rounded-full"
-                aria-hidden="true"
-              />
-              {moodLabel}
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => onTabChange("emotions")}
+                  aria-label={`Open Emotions tab. ${emotion.feeling.label}`}
+                  className="focus-visible:ring-ring/50 ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-2xl transition-opacity outline-none hover:opacity-80 focus-visible:ring-[3px]"
+                  style={{ backgroundColor: `${emotion.color}14` }}
+                >
+                  <span aria-hidden="true">{emotion.feeling.emoji}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{emotion.feeling.label}</TooltipContent>
+            </Tooltip>
           </div>
 
           <Tabs

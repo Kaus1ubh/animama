@@ -1,3 +1,4 @@
+import type { MouseEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import { FileText } from "lucide-react";
 
@@ -22,7 +23,7 @@ export function AnimaIdentitySection({
   identityLoading: boolean;
   identityError: boolean;
   fallbackIdentity: string;
-  onEdit?: () => void;
+  onEdit?: (event: MouseEvent<HTMLButtonElement>) => void;
   /** Plain previews follow their parent's scroll flow instead of owning a card. */
   presentation?: "panel" | "plain";
   displayName?: string;
@@ -43,24 +44,29 @@ export function AnimaIdentitySection({
           : "bg-background/92 absolute top-3 right-3 z-10 shadow-sm backdrop-blur-sm"
       }
     >
-      <Link
-        id="anima-identity-edit-trigger"
-        onClick={onEdit}
-        to="/a/animas/$animaId/identity"
-        params={{ animaId }}
-        search={{ tab: "overview" }}
-      >
-        <FileText className="size-4" />
-        Edit identity
-      </Link>
+      {onEdit ? (
+        <button id="anima-identity-edit-trigger" type="button" onClick={onEdit}>
+          <FileText className="size-4" />
+          Edit identity
+        </button>
+      ) : (
+        <Link
+          id="anima-identity-edit-trigger"
+          to="/a/animas/$animaId/identity"
+          params={{ animaId }}
+          search={{ tab: "overview" }}
+        >
+          <FileText className="size-4" />
+          Edit identity
+        </Link>
+      )}
     </Button>
   );
 
   return (
     <div className={plain ? plainLayoutClass : "xl:h-full xl:min-h-0"}>
       {plain ? (
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-foreground text-base font-semibold">Identity</h2>
+        <div className="flex items-center justify-end gap-3">
           {!identityLoading ? editIdentityButton : null}
         </div>
       ) : null}

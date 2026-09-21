@@ -1,6 +1,17 @@
 "use client";
 
-import { memo, useId, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  memo,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   PolarAngleAxis,
   PolarGrid,
@@ -27,6 +38,45 @@ type EmotionalStateProps = {
 type EmotionGroupDatum = ReturnType<
   typeof buildEmotionPresentation
 >["groups"][number];
+
+type EmotionSelection = {
+  group: EmotionGroup;
+  input: "pointer" | "keyboard" | "touch";
+} | null;
+const EmotionSelectionContext = createContext<EmotionGroup | null>(null);
+type SelectEmotion = (
+  group: EmotionGroup,
+  input: NonNullable<EmotionSelection>["input"],
+) => void;
+
+/** Selection styling updates independently from Recharts so keyboard focus survives. */
+function EmotionRadarDot({
+  cx,
+  cy,
+  payload,
+}: {
+  cx?: number;
+  cy?: number;
+  payload?: EmotionGroupDatum;
+}) {
+  const selectedGroup = useContext(EmotionSelectionContext);
+  const active = selectedGroup === payload?.group;
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={active ? 5.5 : 3.5}
+      fill={EMOTION_PALETTE[payload?.group ?? "neutral"]}
+      stroke={
+        active
+          ? EMOTION_PALETTE[payload?.group ?? "neutral"]
+          : "var(--background)"
+      }
+      strokeWidth={active ? 3 : 1.5}
+      strokeOpacity={active ? 0.3 : 1}
+    />
+  );
+}
 
 /** Plain-language mood summary shared by the Anima header and detail surfaces. */
 export function EmotionSummary({
@@ -92,30 +142,45 @@ function EmotionAxisLabel({
   index = 0,
   groups,
   onSelect,
+  onBlur,
   detailId,
 }: Partial<BaseTickContentProps> & {
   groups: EmotionGroupDatum[];
-  onSelect: (group: EmotionGroup) => void;
+  onSelect: SelectEmotion;
+  onBlur: () => void;
   detailId: string;
 }) {
   const group = groups[index];
-  const select = () => onSelect(group.group);
+  const selectedGroup = useContext(EmotionSelectionContext);
+  const pointerType = useRef<string | null>(null);
+  const select = (input: NonNullable<EmotionSelection>["input"]) =>
+    onSelect(group.group, input);
+  const active = selectedGroup === group.group;
   const anchor = textAnchor;
   const left = anchor === "end" ? -76 : anchor === "start" ? -6 : -41;
   return (
     <g
       transform={`translate(${x},${y})`}
       role="button"
+      data-emotion-axis-label=""
       tabIndex={0}
       aria-label={`${group.label}: ${group.maximum}. ${group.emotions.map((emotion) => `${emotion.label} ${emotion.value}`).join(", ")}`}
       aria-describedby={detailId}
-      onMouseEnter={select}
-      onFocus={select}
-      onClick={select}
+      onMouseEnter={() => select("pointer")}
+      onPointerDown={(event) => {
+        pointerType.current = event.pointerType;
+      }}
+      onFocus={(event) => {
+        if (event.currentTarget.matches(":focus-visible")) select("keyboard");
+      }}
+      onBlur={onBlur}
+      onClick={() =>
+        select(pointerType.current === "touch" ? "touch" : "pointer")
+      }
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          select();
+          select("keyboard");
         }
       }}
       className="group cursor-pointer outline-none"
@@ -133,7 +198,8 @@ function EmotionAxisLabel({
       <text
         textAnchor={anchor}
         dominantBaseline="central"
-        fill="var(--foreground)"
+        fill={active ? group.color : "var(--foreground)"}
+        fontWeight={active ? 600 : 400}
         fontSize={11}
         className="group-hover:font-semibold group-focus:font-semibold"
       >
@@ -148,29 +214,41 @@ const EmotionRadar = memo(function EmotionRadar({
   groups,
   color,
   onSelect,
+  onBlur,
+  onClearPointer,
   detailId,
 }: {
   groups: EmotionGroupDatum[];
   color: string;
-  onSelect: (group: EmotionGroup) => void;
+  onSelect: SelectEmotion;
+  onBlur: () => void;
+  onClearPointer: () => void;
   detailId: string;
 }) {
   return (
     <div
-      className="emotion-radar h-72 w-full"
+      className="emotion-radar h-80 w-full"
       role="group"
       aria-label="Emotion spectrum: eight groups, each showing its strongest emotion"
     >
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart
           data={groups}
-          outerRadius="65%"
-          margin={{ top: 18, right: 28, bottom: 18, left: 28 }}
-          onMouseMove={(state) => {
+          outerRadius="76%"
+          margin={{ top: 12, right: 38, bottom: 12, left: 38 }}
+          onMouseMove={(state, event) => {
+            // Axis labels sit outside the polar grid and own their hover selection.
+            if (
+              event.target instanceof Element &&
+              event.target.closest("[data-emotion-axis-label]")
+            )
+              return;
             const group = groups.find(
               (candidate) => candidate.label === state.activeLabel,
             );
-            if (group) onSelect(group.group);
+            if (state.isTooltipActive && group)
+              onSelect(group.group, "pointer");
+            else onClearPointer();
           }}
         >
           <PolarGrid
@@ -187,6 +265,7 @@ const EmotionRadar = memo(function EmotionRadar({
               <EmotionAxisLabel
                 groups={groups}
                 onSelect={onSelect}
+                onBlur={onBlur}
                 detailId={detailId}
               />
             }
@@ -209,20 +288,7 @@ const EmotionRadar = memo(function EmotionRadar({
               cx?: number;
               cy?: number;
               payload?: EmotionGroupDatum;
-            }) => (
-              <circle
-                key={props.payload?.group}
-                cx={props.cx}
-                cy={props.cy}
-                r={3.5}
-                fill={EMOTION_PALETTE[props.payload?.group ?? "neutral"]}
-                stroke="var(--background)"
-                strokeWidth={1.5}
-                onMouseEnter={() => {
-                  if (props.payload) onSelect(props.payload.group);
-                }}
-              />
-            )}
+            }) => <EmotionRadarDot key={props.payload?.group} {...props} />}
           />
         </RadarChart>
       </ResponsiveContainer>
@@ -240,10 +306,35 @@ export function EmotionDetails({
     () => buildEmotionPresentation(emotionalState),
     [emotionalState],
   );
-  const [selectedGroup, setSelectedGroup] = useState<EmotionGroup | null>(null);
+  const [selection, setSelection] = useState<EmotionSelection>(null);
+  const select = useCallback<SelectEmotion>(
+    (group, input) => setSelection({ group, input }),
+    [],
+  );
+  const clearFocus = useCallback(() => setSelection(null), []);
+  const clearPointer = useCallback(
+    () =>
+      setSelection((current) =>
+        current?.input === "pointer" ? null : current,
+      ),
+    [],
+  );
+  const interactionRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (selection?.input !== "touch") return;
+    const clearOutside = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        !interactionRef.current?.contains(event.target)
+      )
+        setSelection(null);
+    };
+    document.addEventListener("pointerdown", clearOutside);
+    return () => document.removeEventListener("pointerdown", clearOutside);
+  }, [selection?.input]);
   const detailId = useId();
   const selected = presentation.groups.find(
-    (group) => group.group === selectedGroup,
+    (group) => group.group === selection?.group,
   );
   const neutral = presentation.dominantGroup === "neutral";
   return (
@@ -259,17 +350,29 @@ export function EmotionDetails({
           </p>
         ) : null
       ) : (
-        <>
-          <EmotionRadar
-            groups={presentation.groups}
-            color={presentation.color}
-            onSelect={setSelectedGroup}
-            detailId={detailId}
-          />
+        <div
+          ref={interactionRef}
+          onPointerLeave={(event) => {
+            if (event.pointerType !== "touch")
+              setSelection((current) =>
+                current?.input === "keyboard" ? current : null,
+              );
+          }}
+        >
+          <EmotionSelectionContext.Provider value={selection?.group ?? null}>
+            <EmotionRadar
+              groups={presentation.groups}
+              color={presentation.color}
+              onSelect={select}
+              onBlur={clearFocus}
+              onClearPointer={clearPointer}
+              detailId={detailId}
+            />
+          </EmotionSelectionContext.Provider>
           {/* A reserved caption never overlaps the radar or shifts it on hover. */}
           <div
             id={detailId}
-            className="min-h-20 px-1 text-sm"
+            className="min-h-14 px-1 pb-1 text-sm"
             aria-live="polite"
           >
             {selected ? (
@@ -294,13 +397,9 @@ export function EmotionDetails({
                   ))}
                 </dl>
               </>
-            ) : (
-              <p className="text-muted-foreground text-xs">
-                Hover or select an emotion to explore it.
-              </p>
-            )}
+            ) : null}
           </div>
-        </>
+        </div>
       )}
     </section>
   );

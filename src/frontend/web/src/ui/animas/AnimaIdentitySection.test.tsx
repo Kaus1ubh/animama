@@ -39,7 +39,7 @@ describe("AnimaIdentitySection plain presentation", () => {
     expect(html).not.toContain("absolute");
     expect(html).toContain("A friendly companion.");
     expect(html).toContain("Edit identity");
-    expect(html).toMatch(/<h2[^>]*>Identity<\/h2>/);
+    expect(html).not.toMatch(/<h2[^>]*>Identity<\/h2>/);
   });
 
   it("preserves the management panel by default", () => {
@@ -60,7 +60,7 @@ describe("AnimaIdentitySection plain presentation", () => {
       />,
     );
     expect(loading).toContain("Loading identity…");
-    expect(loading).toMatch(/<h2[^>]*>Identity<\/h2>/);
+    expect(loading).not.toMatch(/<h2[^>]*>Identity<\/h2>/);
     expect(loading).not.toContain("A friendly companion.");
     const failed = renderToStaticMarkup(
       <AnimaIdentitySection
@@ -73,5 +73,22 @@ describe("AnimaIdentitySection plain presentation", () => {
     expect(failed).toContain("Starter description.");
     expect(failed).not.toContain("<h1>");
     expect(failed).toContain("Edit identity");
+  });
+});
+
+describe("identity edit action", () => {
+  it("uses a real button with no navigation when a local editor callback is supplied", () => {
+    const html = renderToStaticMarkup(
+      <AnimaIdentitySection {...identityProps} onEdit={() => {}} />,
+    );
+    expect(html).toMatch(/<button[^>]*type="button"/);
+    expect(html).not.toContain("<a ");
+    expect(html).toContain("Edit identity");
+  });
+  it("retains the identity route link when there is no override", () => {
+    const html = renderToStaticMarkup(
+      <AnimaIdentitySection {...identityProps} />,
+    );
+    expect(html).toContain('href="/a/animas/$animaId/identity"');
   });
 });

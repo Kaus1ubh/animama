@@ -392,7 +392,9 @@ Current behavior:
   the plot or focusing/tapping an axis label reveals that group and its three
   constituents in a reserved caption below the plot, so details never obscure it.
   There is no separate legend, permanent detail card or diagnostic source/scale copy.
-  Color supplements labels rather than replacing them.
+  Hover emphasizes the matching label and point using its group color, without
+  a label background. Leaving the plot clears pointer selection; keyboard focus
+  remains independently inspectable. Color supplements labels rather than replacing them.
 - Neutral shows “Feeling neutral” and “No active emotions”, without an empty
   radar, legend or fabricated summary bars.
 - Existing `default`, `compact`, `showcase` and `inline` chart consumers use the
@@ -402,11 +404,19 @@ The chat-header profile is one continuous banner, portrait and identity surface.
 Details navigates to management; Settings opens existing controls with Back and
 restores the profile scroll position. The identity uses sanitized `IDENTITY.md`
 Markdown, hiding only a leading H1 that matches the display name in this view.
-The stored document and management preview remain unchanged.
+Edit identity opens the existing memory editor within the chat profile, preserving
+the chat route and restoring focus on close. The stored document and management
+preview remain unchanged. The management header uses the same feeling emoji and
+group color, with a full-feeling tooltip; clicking it still selects Emotions.
 
 Emotions opens a 360px panel 16px to the right of the stationary centered profile
 only when the measured desktop position leaves another 16px at the viewport edge.
-Otherwise it expands inline above Identity. Resize preserves disclosure state;
+With a fine hover pointer, the summary opens the compact panel on hover or focus;
+a short close delay lets the pointer cross the gap. Keyboard Tab enters the axes.
+The panel uses an inset heading without a close icon or hover instructions.
+Without hover support, an explicit toggle controls the disclosure. When the
+viewport has insufficient side space, details expand inline above identity.
+Resize preserves disclosure state;
 Escape collapses emotions before closing the dialog. Both surfaces share one
 focus boundary and backdrop, and transitions respect reduced motion.
 
