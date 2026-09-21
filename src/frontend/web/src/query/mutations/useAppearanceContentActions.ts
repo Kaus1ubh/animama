@@ -64,7 +64,6 @@ export async function saveAppearanceImage(input: AppearanceImageSaveInput) {
       schema_version: 1,
       id: `local:appearance:${logicalName(input.name)}`,
       name: input.name,
-      supported_uses: input.uses,
       ...dimensions,
     },
   });
