@@ -87,7 +87,7 @@ type ApplicationSettingsModalProps = {
 
 type ShortcutRecorderProps = {
   label: string;
-  description: string;
+  description?: string;
   shortcut: DesktopShortcut;
   isRecording: boolean;
   disabled: boolean;
@@ -112,7 +112,9 @@ function ShortcutRecorder({
     <div className="border-border/70 bg-background/50 grid gap-3 rounded-lg border px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
       <div className="min-w-0">
         <p className="text-foreground text-sm font-medium">{label}</p>
-        <p className="text-muted-foreground text-xs">{description}</p>
+        {description ? (
+          <p className="text-muted-foreground text-xs">{description}</p>
+        ) : null}
       </div>
       <Button
         type="button"
@@ -151,7 +153,7 @@ const AVATAR_TRANSFORM_CONTROLS_TOOLTIP =
 
 const shortcutRows: Array<{
   action: DesktopShortcutAction;
-  description: string;
+  description?: string;
   allowMouseShortcut?: boolean;
 }> = [
   {
@@ -161,19 +163,15 @@ const shortcutRows: Array<{
   },
   {
     action: "quick_chat",
-    description: "Show or hide the desktop Quick Chat window.",
   },
   {
     action: "toggle_voice_mode",
-    description: "Start or stop Voice Mode.",
   },
   {
     action: "toggle_voice_mute",
-    description: "Mute or unmute the Voice Mode microphone.",
   },
   {
     action: "skip_tts",
-    description: "Stop the active spoken response.",
   },
 ];
 
@@ -946,36 +944,11 @@ export function ApplicationSettingsModal({
             <>
               <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
                 <div>
-                  <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                    Voice Mode
-                  </p>
-                  <h3 className="text-foreground mt-1 text-base font-semibold">
-                    Microphone
-                  </h3>
-                </div>
-
-                <div className="border-border/70 bg-background/50 rounded-lg border px-4 py-3">
-                  <p className="text-foreground text-sm font-medium">
-                    Default voice input
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    Voice Mode keeps the microphone session open until it is
-                    stopped or muted.
-                  </p>
-                </div>
-              </section>
-
-              <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
-                <div>
-                  <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                    Desktop
-                  </p>
-                  <h3 className="text-foreground mt-1 text-base font-semibold">
-                    Shortcuts
+                  <h3 className="text-foreground text-base font-semibold">
+                    Desktop shortcuts
                   </h3>
                   <p className="text-muted-foreground mt-2 text-xs">
-                    Shortcuts apply only in the desktop app. Press to talk can
-                    use a keyboard shortcut or mouse button.
+                    Press to talk also supports a mouse button.
                   </p>
                 </div>
 
@@ -1003,17 +976,11 @@ export function ApplicationSettingsModal({
 
               <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
                 <div>
-                  <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                    Voice Input
-                  </p>
-                  <h3 className="text-foreground mt-1 text-base font-semibold">
+                  <h3 className="text-foreground text-base font-semibold">
                     Speech-to-text provider
                   </h3>
                 </div>
                 <div className="grid gap-2">
-                  <p className="text-muted-foreground text-sm">
-                    Choose how dictation transcribes speech.
-                  </p>
                   <Select
                     value={selectedSttProvider ?? undefined}
                     onValueChange={handleSttProviderChange}
@@ -1034,10 +1001,11 @@ export function ApplicationSettingsModal({
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-muted-foreground text-xs">
-                    {currentSttOption?.description ??
-                      "Provider selection will be applied automatically."}
-                  </p>
+                  {currentSttOption?.description ? (
+                    <p className="text-muted-foreground text-xs">
+                      {currentSttOption.description}
+                    </p>
+                  ) : null}
                   {currentSttOption?.reason ? (
                     <p className="text-xs text-amber-600 dark:text-amber-500">
                       {currentSttOption.reason}
@@ -1056,10 +1024,7 @@ export function ApplicationSettingsModal({
 
               <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
                 <div>
-                  <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                    Voice Output
-                  </p>
-                  <h3 className="text-foreground mt-1 text-base font-semibold">
+                  <h3 className="text-foreground text-base font-semibold">
                     Text-to-speech
                   </h3>
                 </div>
@@ -1068,9 +1033,6 @@ export function ApplicationSettingsModal({
                   <div>
                     <p className="text-foreground text-sm font-medium">
                       Enable TTS
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      Read assistant responses aloud as they stream.
                     </p>
                   </div>
                   <Switch
@@ -1088,8 +1050,8 @@ export function ApplicationSettingsModal({
                     </p>
                     <p className="text-muted-foreground text-xs">
                       {selectedElevenLabsModelIsFinalized
-                        ? "Eleven v3 uses backend-pushed audio; this switch applies to realtime models."
-                        : "When enabled, TTS plays progressively while text streams. When disabled, TTS waits for completion and speaks once."}
+                        ? "Unavailable with Eleven v3."
+                        : "Start speaking before the full response is ready."}
                     </p>
                   </div>
                   <Switch
@@ -1109,9 +1071,7 @@ export function ApplicationSettingsModal({
                 </div>
 
                 <div className="grid gap-2">
-                  <p className="text-muted-foreground text-sm">
-                    Choose a text-to-speech provider.
-                  </p>
+                  <p className="text-muted-foreground text-sm">Provider</p>
                   <Select
                     value={selectedTtsProvider ?? undefined}
                     onValueChange={handleTtsProviderChange}
@@ -1136,12 +1096,11 @@ export function ApplicationSettingsModal({
                     <p className="text-muted-foreground text-xs">
                       Enable TTS to select a provider.
                     </p>
-                  ) : (
+                  ) : currentTtsOption?.description ? (
                     <p className="text-muted-foreground text-xs">
-                      {currentTtsOption?.description ??
-                        "Provider selection will be applied automatically."}
+                      {currentTtsOption.description}
                     </p>
-                  )}
+                  ) : null}
                   {currentTtsOption?.reason && ttsEnabled ? (
                     <p className="text-xs text-amber-600 dark:text-amber-500">
                       {currentTtsOption.reason}
@@ -1150,7 +1109,7 @@ export function ApplicationSettingsModal({
                   {ttsEnabled && selectedTtsProvider === "elevenlabs" ? (
                     <div className="mt-2 grid gap-2">
                       <p className="text-muted-foreground text-sm">
-                        Choose an ElevenLabs model.
+                        ElevenLabs model
                       </p>
                       <Select
                         value={selectedElevenLabsModelId}
@@ -1168,10 +1127,11 @@ export function ApplicationSettingsModal({
                           ))}
                         </SelectContent>
                       </Select>
-                      <p className="text-muted-foreground text-xs">
-                        {currentElevenLabsModelOption?.description ??
-                          "Model selection will be applied automatically."}
-                      </p>
+                      {currentElevenLabsModelOption?.description ? (
+                        <p className="text-muted-foreground text-xs">
+                          {currentElevenLabsModelOption.description}
+                        </p>
+                      ) : null}
                       {selectedElevenLabsModelIsFinalized ? (
                         <div className="mt-2 grid gap-2">
                           <p className="text-muted-foreground text-sm">
@@ -1207,8 +1167,7 @@ export function ApplicationSettingsModal({
                   ) : null}
                   {ttsEnabled && selectedTtsProvider === "pocket_tts" ? (
                     <p className="text-muted-foreground text-xs">
-                      Pocket voice selection and custom voice upload are
-                      configured per anima in Anima Settings.
+                      Choose a Pocket voice in Anima Settings.
                     </p>
                   ) : null}
                 </div>
@@ -1219,16 +1178,9 @@ export function ApplicationSettingsModal({
           {activeSection === "Memory" ? (
             <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
               <div>
-                <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                  Memory
-                </p>
-                <h3 className="text-foreground mt-1 text-base font-semibold">
+                <h3 className="text-foreground text-base font-semibold">
                   Memory Manager
                 </h3>
-                <p className="text-muted-foreground mt-2 text-xs">
-                  Choose the OpenAI Responses model used for memory maintenance
-                  requests.
-                </p>
               </div>
 
               <div className="grid gap-2">
@@ -1257,11 +1209,6 @@ export function ApplicationSettingsModal({
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-muted-foreground text-xs">
-                  {savedMemoryManagerModel
-                    ? `The Memory Manager will use ${savedMemoryManagerModel}.`
-                    : "The Memory Manager will use the model configured by the server."}
-                </p>
                 {modelProviders.isLoading ? (
                   <p className="text-muted-foreground text-xs">
                     Loading OpenAI Responses models...
@@ -1280,11 +1227,8 @@ export function ApplicationSettingsModal({
             <>
               <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
                 <div>
-                  <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                    Interface
-                  </p>
-                  <h3 className="text-foreground mt-1 text-base font-semibold">
-                    Cursor theme
+                  <h3 className="text-foreground text-base font-semibold">
+                    Messages
                   </h3>
                 </div>
 
@@ -1292,10 +1236,6 @@ export function ApplicationSettingsModal({
                   <div>
                     <p className="text-foreground text-sm font-medium">
                       Render assistant Markdown
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      Format assistant messages with Markdown for this app
-                      session.
                     </p>
                   </div>
                   <Switch
@@ -1308,10 +1248,7 @@ export function ApplicationSettingsModal({
 
               <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
                 <div>
-                  <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                    Advanced
-                  </p>
-                  <h3 className="text-foreground mt-1 text-base font-semibold">
+                  <h3 className="text-foreground text-base font-semibold">
                     Avatar controls
                   </h3>
                 </div>
@@ -1341,10 +1278,6 @@ export function ApplicationSettingsModal({
                         </TooltipContent>
                       </Tooltip>
                     </div>
-                    <p className="text-muted-foreground text-xs">
-                      Allow camera orbit/zoom and avatar transform editing in
-                      the avatar canvas.
-                    </p>
                   </div>
                   <Switch
                     checked={avatarTransformControlsEnabled}

@@ -97,3 +97,17 @@ and exact-candidate merge approval remain pending. No full backend suite, native
 Electron/audio acceptance or main-stack data mutation. Hosted results are reported
 separately on PR #32. Existing pre-association Local portraits fall back to the
 icon until regenerated; ambiguous basename matching is intentionally avoided.
+
+## Subsequent visual polish
+
+Owner requested camera-chevron inset spacing, text-only reaction overflow menu
+items, and further Voice/Memory/Advanced settings copy cleanup. These changes
+preserve the existing actions and controls. A generated Library group-card
+proposal was briefly applied, then fully reverted at the owner's request before
+commit; the original group layout remains.
+
+Validation: web TypeScript, scoped ESLint and Prettier checks passed; existing
+camera and reaction loadout suites passed (4 tests). Independent three-file source
+review found no actionable issues. Browser verification of this polish was not
+completed because the in-app testing tabs became unavailable. No new tests were
+added for copy/icon/spacing-only changes. Prior behavioral evidence remains valid.
