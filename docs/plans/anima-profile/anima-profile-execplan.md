@@ -229,3 +229,11 @@ and the gradient renders around the focused name. No full build/native test run.
 The owner subsequently requested reverting the gradient. Removed its Motion layers
 and hover/focus animation state; retained the plain name trigger, keyboard focus
 ring and removal of the separate emotion-status control.
+
+
+## Accepted follow-up: unobscured Anima loading stage
+
+The management VRM loading overlay no longer dims or blurs the canvas. Its status
+badge and accessible stage status both read “Loading anima”. Error overlays and
+other feature previews are unchanged. Scoped lint, formatting and whitespace
+checks passed; this presentation-only change does not alter loading behavior.

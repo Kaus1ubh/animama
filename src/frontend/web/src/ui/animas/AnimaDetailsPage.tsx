@@ -101,7 +101,7 @@ const TAB_LABELS: Record<AnimaManagementTab, string> = {
 function stagePreviewStatusLabel(status: ContentPreviewLoadStatus): string {
   switch (status) {
     case "loading":
-      return "Loading preview";
+      return "Loading anima";
     case "playing":
       return "Playing";
     case "ready":
