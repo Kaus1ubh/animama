@@ -380,23 +380,31 @@ Relevant file:
 
 Current behavior:
 
-- each row represents an `EmotionGroup`
-- the displayed group score is the average of its 3 member emotions
-- the dominant badge shows:
-  - dominant group
-  - primary emotion inside that group
-  - group intensity level
-- desktop hover reveals the underlying member emotions
-- touch devices use tap-to-expand for member-emotion details
+- The profile summary shows up to three active groups, ranked by average, as
+  labeled colored bars without scores. “Feeling…” uses the strongest individual
+  emotion within the dominant group, with an explicit emoji for each emotion.
+- `web/src/lib/emotion/presentation.ts` owns the shared group palette and headline
+  mappings. Domain normalization, averages and canonical tie-breaking are unchanged.
+- Expanded details use a Recharts radar with circular rings and a fixed 0–30 scale.
+  All eight groups remain in canonical axis order. The legend shows raw averages
+  rounded to at most one decimal; hovering or focusing a group reveals its three
+  constituent values. Color supplements labels rather than replacing them.
+- Neutral shows “Feeling neutral” and “No active emotions”, with zero-valued legend
+  entries and no empty radar or fabricated summary bars.
+- Existing `default`, `compact`, `showcase` and `inline` chart consumers use the
+  same presentation data, with compact chart sizing where appropriate.
 
-Variants:
+The chat-header profile is one continuous banner, portrait and identity surface.
+Details navigates to management; Settings opens existing controls with Back and
+restores the profile scroll position. The identity uses sanitized `IDENTITY.md`
+Markdown, hiding only a leading H1 that matches the display name in this view.
+The stored document and management preview remain unchanged.
 
-- `default`: all groups, sorted by average value
-- `compact`: top 4 active groups only
-
-If no group is active:
-
-- the component shows a neutral empty-state message
+Emotions opens a 360px panel 16px to the right of the stationary centered profile
+only when the measured desktop position leaves another 16px at the viewport edge.
+Otherwise it expands inline above Identity. Resize preserves disclosure state;
+Escape collapses emotions before closing the dialog. Both surfaces share one
+focus boundary and backdrop, and transitions respect reduced motion.
 
 ### Persisted vs live state surfaces
 

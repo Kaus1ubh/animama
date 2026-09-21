@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useParams } from "@tanstack/react-router";
 import { HeartPulse, Menu } from "lucide-react";
 
@@ -16,10 +16,8 @@ import {
 import { DEBUG_ENABLED } from "@/platform/env";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
-import {
-  AnimaInfoModal,
-  type AnimaInfoSection,
-} from "@/ui/main/header/AnimaInfoModal";
+import { AnimaInfoModal } from "@/ui/main/header/AnimaInfoModal";
+import { selectHeaderEmotionState } from "./animaModalPresentation";
 import { getAnimaDisplayName } from "@/lib/anima-profile";
 
 type HeaderProps = {
@@ -45,8 +43,6 @@ export function Header({
   className,
 }: HeaderProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [activeSection, setActiveSection] =
-    useState<AnimaInfoSection>("General");
   const [emotionPanelOpen, setEmotionPanelOpen] = useState(false);
   const {
     data: animas = [],
@@ -72,8 +68,10 @@ export function Header({
     pathname.startsWith("/a/") &&
     !pathname.startsWith("/a/animas/") &&
     !pathname.startsWith("/a/create");
-  const useLiveEmotionState =
-    isChatRoute && Boolean(currentAnimaId) && runtimeAnimaId === currentAnimaId;
+  useEffect(() => {
+    setModalOpen(false);
+    setEmotionPanelOpen(false);
+  }, [currentAnimaId]);
 
   const appShell = useOptionalAppShell();
   const handleMenuClick =
@@ -95,17 +93,18 @@ export function Header({
     : isError
       ? "Anima"
       : animaName || "No anima";
-  const openAnimaSection = (section: AnimaInfoSection) => {
+  const openAnimaProfile = () => {
     setEmotionPanelOpen(false);
-    setActiveSection(section);
     setModalOpen(true);
   };
-  const emotionalState = useLiveEmotionState
-    ? runtimeEmotionalState
-    : (activeAnima?.emotional_state ?? null);
-  const emotionSourceLabel = useLiveEmotionState
-    ? "Live runtime state"
-    : "Persisted anima state";
+  const { state: emotionalState, sourceLabel: emotionSourceLabel } =
+    selectHeaderEmotionState({
+      isChatRoute,
+      currentAnimaId,
+      runtimeAnimaId,
+      runtimeState: runtimeEmotionalState,
+      persistedState: activeAnima?.emotional_state,
+    });
   const defaultAnimaTrigger = animaLabel ? (
     <div className="flex min-w-0 items-center gap-1">
       <Popover
@@ -135,7 +134,7 @@ export function Header({
           onEscapeKeyDown={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           className={cn(
-            "border-border/70 bg-background/92 supports-[backdrop-filter]:bg-background/82 w-[17rem] max-w-[min(17rem,calc(100vw-2rem))] rounded-2xl border p-2 shadow-lg backdrop-blur-md",
+            "border-border/70 bg-background/92 supports-[backdrop-filter]:bg-background/82 max-h-[min(42rem,calc(100dvh-6rem))] w-[17rem] max-w-[min(17rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border p-2 shadow-lg backdrop-blur-md",
           )}
         >
           <EmotionalState
@@ -148,7 +147,7 @@ export function Header({
       </Popover>
       <button
         type="button"
-        onClick={() => openAnimaSection("General")}
+        onClick={openAnimaProfile}
         className={cn(
           "group hover:bg-muted/70 flex min-w-0 items-center gap-2 rounded-md bg-transparent px-2 py-1 transition",
         )}
@@ -216,8 +215,6 @@ export function Header({
       <AnimaInfoModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        activeSection={activeSection}
-        onSectionChange={setActiveSection}
         animaLabel={animaLabel}
         anima={activeAnima}
         emotionState={emotionalState}

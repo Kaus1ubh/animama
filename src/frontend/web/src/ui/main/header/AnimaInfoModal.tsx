@@ -1,7 +1,16 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { Camera } from "lucide-react";
+import { useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  Camera,
+  ChevronDown,
+  ChevronRight,
+  ExternalLink,
+  Settings,
+  X,
+} from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -22,37 +31,91 @@ import { useMemoryEntryByPath } from "@/query/hooks/useMemoryEntries";
 import { resolveAnimaIdentityContent } from "@/lib/animas/anima-management-presentation";
 import { DialogOverlay } from "@/ui/components/dialog";
 import { Button } from "@/ui/components/button";
-import { EmotionalState } from "@/ui/components/emotional-state";
-import { SectionedModalFrame } from "@/ui/components/sectioned-modal-frame";
+import {
+  EmotionSummary,
+  EmotionDetails,
+} from "@/ui/components/emotional-state";
+import { cn } from "@/lib/utils";
+import { canShowEmotionPopout } from "./animaModalPresentation";
 import { RuntimeImageFrame } from "@/ui/components/runtime-image-frame";
 import { AnimaSettingsModal } from "@/ui/main/header/AnimaSettingsModal";
-
-const sections = ["General", "Emotional State", "Settings"] as const;
-
-export type AnimaInfoSection = (typeof sections)[number];
 
 type AnimaInfoModalProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  activeSection: AnimaInfoSection;
-  onSectionChange: (section: AnimaInfoSection) => void;
   animaLabel?: string;
   anima?: PyAnimaResponse | null;
   emotionState?: unknown;
   emotionSourceLabel?: string | null;
 };
 
-export function AnimaInfoModal({
+/** Each opening gets a fresh profile session; Anima changes also reset transient UI. */
+export function AnimaInfoModal(props: AnimaInfoModalProps) {
+  return (
+    <Dialog.Root open={props.open} onOpenChange={props.onOpenChange}>
+      {props.open ? (
+        <AnimaProfile key={props.anima?.id ?? "empty"} {...props} />
+      ) : null}
+    </Dialog.Root>
+  );
+}
+
+function AnimaProfile({
   open,
   onOpenChange,
-  activeSection,
-  onSectionChange,
   animaLabel,
   anima,
   emotionState,
   emotionSourceLabel = null,
 }: AnimaInfoModalProps) {
   const navigate = useNavigate();
+  const [view, setView] = useState<"profile" | "settings">("profile");
+  const [emotionsOpen, setEmotionsOpen] = useState(false);
+  const [sidePanel, setSidePanel] = useState(false);
+  const [profileElement, setProfileElement] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const profileScroll = useRef(0);
+  const emotionTriggerRef = useRef<HTMLButtonElement>(null);
+  const settingsTriggerRef = useRef<HTMLButtonElement>(null);
+  const backRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const emotionPanelId = useId();
+  const reducedMotion = useReducedMotion();
+
+  useLayoutEffect(() => {
+    const profile = profileElement;
+    if (!profile) return;
+    const measure = () =>
+      setSidePanel(
+        canShowEmotionPopout(
+          profile.getBoundingClientRect().right,
+          window.innerWidth,
+        ),
+      );
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(profile);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [profileElement]);
+
+  const returnToProfile = () => {
+    setView("profile");
+    requestAnimationFrame(() => {
+      if (scrollRef.current)
+        scrollRef.current.scrollTop = profileScroll.current;
+      settingsTriggerRef.current?.focus({ preventScroll: true });
+    });
+  };
+  const collapseEmotions = () => {
+    setEmotionsOpen(false);
+    emotionTriggerRef.current?.focus({ preventScroll: true });
+  };
   const appearanceTriggerRef = useRef<HTMLButtonElement | null>(null);
   const [appearanceSection, setAppearanceSection] =
     useState<AnimaAppearanceSection | null>(null);
@@ -70,7 +133,7 @@ export function AnimaInfoModal({
     animaId: anima?.id,
     path: "IDENTITY.md",
     type: "file",
-    enabled: open && activeSection === "General" && Boolean(anima?.id),
+    enabled: open && Boolean(anima?.id),
   });
   const openAnimaDetailsPage = (animaId: string) => {
     onOpenChange(false);
@@ -79,19 +142,6 @@ export function AnimaInfoModal({
       params: { animaId },
     });
   };
-
-  const description = useMemo(() => {
-    switch (activeSection) {
-      case "General":
-        return "High-level anima details and identity.";
-      case "Emotional State":
-        return "Current mood, baseline affect, and emotional dynamics.";
-      case "Settings":
-        return "Advanced configuration and integration settings.";
-      default:
-        return "";
-    }
-  }, [activeSection]);
 
   const displayName = anima
     ? getAnimaDisplayName(anima)
@@ -106,72 +156,141 @@ export function AnimaInfoModal({
       ?.presentation.profile_thumbnail ?? null;
   const profileImage = useAnimaPresentationImage(profileThumbnail);
   const backgroundImage = useRuntimeContentMediaUrl(backgroundEntry);
-  const emotionalState = emotionState ?? anima?.emotional_state ?? null;
+  const emotionalState =
+    emotionState === undefined
+      ? (anima?.emotional_state ?? null)
+      : emotionState;
+
+  const details = (
+    <EmotionDetails
+      showSummary={false}
+      emotionalState={emotionalState}
+      sourceLabel={emotionSourceLabel}
+    />
+  );
+  const duration = reducedMotion ? 0 : 0.18;
+  const iconButtonClass =
+    "text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring flex size-9 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none";
+  const appearanceButtonClass =
+    "focus-visible:ring-ring flex size-10 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none";
 
   return (
-    <Dialog.Root
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) setAppearanceSection(null);
-        onOpenChange(next);
-      }}
-    >
-      <Dialog.Portal>
-        <DialogOverlay className="z-40" />
-        <SectionedModalFrame
-          title="Anima details"
-          description="Configure anima settings and behavior."
-          closeLabel="Close anima details"
-          sidebarLabel="Anima"
-          sidebarTitle={displayName}
-          sections={sections}
-          activeSection={activeSection}
-          onSectionChange={onSectionChange}
-          headerTitle={activeSection}
-          headerDescription={description}
-          headerMeta={
-            anima?.id ? (
-              <div className="mt-3">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => openAnimaDetailsPage(anima.id)}
-                >
-                  Open full details
-                </Button>
-              </div>
-            ) : null
+    <Dialog.Portal>
+      <DialogOverlay className="z-40" />
+      <Dialog.Content
+        className="fixed top-1/2 left-1/2 z-50 h-[min(820px,calc(100dvh-32px))] w-[640px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 outline-none"
+        onOpenAutoFocus={() => {
+          openerRef.current = document.activeElement as HTMLElement | null;
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          if (openerRef.current?.isConnected) openerRef.current.focus();
+        }}
+        onEscapeKeyDown={(event) => {
+          // Radix gives the nested appearance editor first refusal on Escape.
+          if (appearanceSection) return;
+          if (emotionsOpen && view === "profile") {
+            event.preventDefault();
+            collapseEmotions();
           }
+        }}
+      >
+        <Dialog.Title className="sr-only">{displayName} profile</Dialog.Title>
+        <Dialog.Description className="sr-only">
+          Appearance, emotions, identity and settings.
+        </Dialog.Description>
+        <div
+          ref={setProfileElement}
+          className="border-border bg-background flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border shadow-xl"
         >
-          {activeSection === "General" ? (
-            <div className="flex min-w-0 flex-1 flex-col gap-5">
-              <div className="border-border/60 bg-card shrink-0 overflow-hidden rounded-xl border">
-                <div className="bg-muted relative h-36 sm:h-44">
-                  {backgroundImage.url ? (
-                    <RuntimeImageFrame
-                      src={backgroundImage.url}
-                      alt={`${displayName} background`}
-                      presentation={runtimeImagePresentation(backgroundEntry)}
-                      className="size-full"
-                    />
-                  ) : null}
-                  {anima?.id ? (
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        appearanceTriggerRef.current = event.currentTarget;
-                        setAppearanceSection("background_image");
-                      }}
-                      aria-label="Edit background image"
-                      className="focus-visible:ring-ring absolute top-1/2 left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                    >
-                      <Camera className="size-5" aria-hidden="true" />
-                    </button>
-                  ) : null}
-                </div>
-                <div className="px-4 pb-5 sm:px-6">
-                  <div className="border-card bg-muted relative -mt-12 flex size-24 items-center justify-center rounded-full border-4 sm:-mt-14 sm:size-28">
+          <div className="flex shrink-0 items-center justify-end gap-1 px-4 py-3 sm:px-5">
+            {view === "settings" ? (
+              <Button
+                ref={backRef}
+                variant="ghost"
+                size="sm"
+                className="mr-auto"
+                onClick={returnToProfile}
+              >
+                <ArrowLeft aria-hidden="true" className="size-4" /> Back
+              </Button>
+            ) : null}
+            {anima?.id ? (
+              <button
+                type="button"
+                className={iconButtonClass}
+                aria-label="Details"
+                title="Details"
+                onClick={() => openAnimaDetailsPage(anima.id)}
+              >
+                <ExternalLink className="size-5" aria-hidden="true" />
+              </button>
+            ) : null}
+            <button
+              ref={settingsTriggerRef}
+              type="button"
+              className={iconButtonClass}
+              aria-label="Settings"
+              title="Settings"
+              aria-pressed={view === "settings"}
+              onClick={() => {
+                if (view === "settings") {
+                  returnToProfile();
+                  return;
+                }
+                profileScroll.current = scrollRef.current?.scrollTop ?? 0;
+                setView("settings");
+                requestAnimationFrame(() => backRef.current?.focus());
+              }}
+            >
+              <Settings className="size-5" aria-hidden="true" />
+            </button>
+            <Dialog.Close asChild>
+              <button
+                type="button"
+                className={iconButtonClass}
+                aria-label="Close anima profile"
+                title="Close"
+              >
+                <X className="size-5" aria-hidden="true" />
+              </button>
+            </Dialog.Close>
+          </div>
+          <div
+            ref={scrollRef}
+            hidden={view !== "profile"}
+            className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pb-7 sm:px-5"
+          >
+            <div className="bg-muted relative h-36 overflow-hidden rounded-t-xl sm:h-44">
+              {backgroundImage.url ? (
+                <RuntimeImageFrame
+                  src={backgroundImage.url}
+                  alt={`${displayName} background`}
+                  presentation={runtimeImagePresentation(backgroundEntry)}
+                  className="size-full"
+                />
+              ) : null}
+              {anima?.id ? (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    appearanceTriggerRef.current = event.currentTarget;
+                    setAppearanceSection("background_image");
+                  }}
+                  aria-label="Edit background image"
+                  className={cn(
+                    appearanceButtonClass,
+                    "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
+                  )}
+                >
+                  <Camera className="size-5" aria-hidden="true" />
+                </button>
+              ) : null}
+            </div>
+            <div className="px-1 sm:px-2">
+              <div className="grid grid-cols-1 gap-x-5 min-[560px]:grid-cols-[160px_minmax(0,1fr)]">
+                <div className="min-w-0">
+                  <div className="border-background bg-muted relative -mt-16 flex size-32 items-center justify-center rounded-full border-[5px] sm:-mt-[72px] sm:size-36">
                     {profileImage.url ? (
                       <RuntimeImageFrame
                         src={profileImage.url}
@@ -192,19 +311,70 @@ export function AnimaInfoModal({
                           setAppearanceSection("profile_image");
                         }}
                         aria-label="Edit profile image"
-                        className="focus-visible:ring-ring absolute top-1/2 left-1/2 flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-white transition-colors hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                        className={cn(
+                          appearanceButtonClass,
+                          "border-background absolute right-0 bottom-0 border-[3px]",
+                        )}
                       >
-                        <Camera className="size-5" aria-hidden="true" />
+                        <Camera className="size-4" aria-hidden="true" />
                       </button>
                     ) : null}
                   </div>
-                  <h3 className="text-foreground mt-3 text-xl font-semibold [overflow-wrap:anywhere]">
+                  <h2 className="text-foreground mt-2 text-2xl font-semibold tracking-tight [overflow-wrap:anywhere]">
                     {displayName}
-                  </h3>
+                  </h2>
                 </div>
+                <EmotionSummary
+                  emotionalState={emotionalState}
+                  className="pt-4"
+                  headerAction={
+                    <button
+                      ref={emotionTriggerRef}
+                      type="button"
+                      aria-expanded={emotionsOpen}
+                      aria-controls={emotionPanelId}
+                      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex shrink-0 items-center gap-0.5 rounded-md py-1 pl-1 text-xs focus-visible:ring-2 focus-visible:outline-none"
+                      onClick={() => setEmotionsOpen((previous) => !previous)}
+                    >
+                      Emotions
+                      {sidePanel ? (
+                        <ChevronRight
+                          aria-hidden="true"
+                          className={cn("size-4", emotionsOpen && "rotate-180")}
+                        />
+                      ) : (
+                        <ChevronDown
+                          aria-hidden="true"
+                          className={cn("size-4", emotionsOpen && "rotate-180")}
+                        />
+                      )}
+                    </button>
+                  }
+                />
               </div>
-              {anima?.id ? (
-                <div className="min-h-48 flex-1">
+              <AnimatePresence initial={false}>
+                {emotionsOpen && !sidePanel ? (
+                  <motion.section
+                    key="inline-emotions"
+                    id={emotionPanelId}
+                    aria-label="Emotions"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration }}
+                    className="overflow-hidden"
+                  >
+                    <div className="border-border/70 mt-5 border-t pt-5">
+                      {details}
+                    </div>
+                  </motion.section>
+                ) : null}
+              </AnimatePresence>
+              <section
+                className="border-border/70 mt-6 border-t pt-5"
+                aria-label="Identity"
+              >
+                {anima?.id ? (
                   <AnimaIdentitySection
                     animaId={anima.id}
                     identity={identity}
@@ -212,52 +382,68 @@ export function AnimaInfoModal({
                     identityError={identityQuery.isError}
                     fallbackIdentity={fallbackIdentity}
                     onEdit={() => onOpenChange(false)}
+                    presentation="plain"
+                    displayName={displayName}
                   />
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  No identity content provided yet.
-                </p>
-              )}
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    No identity content provided yet.
+                  </p>
+                )}
+              </section>
             </div>
-          ) : activeSection === "Emotional State" ? (
-            <div className="border-border/60 bg-muted/10 flex flex-1 flex-col gap-6 rounded-xl border p-6">
-              <div>
-                <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                  Emotional state
-                </p>
-                <p className="text-muted-foreground mt-2 text-sm">
-                  Ranked categorical emotion levels for the current anima state.
-                </p>
-              </div>
-              <EmotionalState
-                emotionalState={emotionalState}
-                sourceLabel={emotionSourceLabel}
-              />
+          </div>
+          {view === "settings" ? (
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6">
+              <h2 className="mb-4 text-xl font-semibold">
+                {displayName} settings
+              </h2>
+              <AnimaSettingsModal />
             </div>
-          ) : activeSection === "Settings" ? (
-            <AnimaSettingsModal />
-          ) : (
-            <div className="border-border/60 bg-muted/20 text-muted-foreground flex flex-1 items-center justify-center rounded-xl border border-dashed p-8 text-sm">
-              Section content coming soon.
-            </div>
-          )}
-          {anima?.id && appearanceSection ? (
-            <AnimaAppearanceDialog
-              animaId={anima.id}
-              animaName={displayName}
-              profileThumbnail={profileThumbnail}
-              section={appearanceSection}
-              onSectionChange={setAppearanceSection}
-              onCloseAutoFocus={(event) => {
-                event.preventDefault();
-                appearanceTriggerRef.current?.focus();
-              }}
-              onOpenChange={(next) => !next && setAppearanceSection(null)}
-            />
           ) : null}
-        </SectionedModalFrame>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </div>
+        <AnimatePresence initial={false}>
+          {emotionsOpen && sidePanel && view === "profile" ? (
+            <motion.section
+              key="side-emotions"
+              id={emotionPanelId}
+              aria-label="Emotions"
+              initial={{ x: reducedMotion ? 0 : -12, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: reducedMotion ? 0 : -12, opacity: 0 }}
+              transition={{ duration }}
+              className="border-border bg-background absolute top-0 bottom-0 left-[calc(100%+16px)] w-[360px] overflow-y-auto overscroll-contain rounded-2xl border p-5 shadow-xl"
+            >
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">Emotions</h2>
+                <button
+                  type="button"
+                  onClick={collapseEmotions}
+                  className={iconButtonClass}
+                  aria-label="Collapse emotions"
+                >
+                  <X aria-hidden="true" className="size-4" />
+                </button>
+              </div>
+              {details}
+            </motion.section>
+          ) : null}
+        </AnimatePresence>
+        {anima?.id && appearanceSection ? (
+          <AnimaAppearanceDialog
+            animaId={anima.id}
+            animaName={displayName}
+            profileThumbnail={profileThumbnail}
+            section={appearanceSection}
+            onSectionChange={setAppearanceSection}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              appearanceTriggerRef.current?.focus();
+            }}
+            onOpenChange={(next) => !next && setAppearanceSection(null)}
+          />
+        ) : null}
+      </Dialog.Content>
+    </Dialog.Portal>
   );
 }

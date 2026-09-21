@@ -14,6 +14,8 @@ export function AnimaIdentitySection({
   identityError,
   fallbackIdentity,
   onEdit,
+  presentation = "panel",
+  displayName,
 }: {
   animaId: string;
   identity: string;
@@ -21,13 +23,25 @@ export function AnimaIdentitySection({
   identityError: boolean;
   fallbackIdentity: string;
   onEdit?: () => void;
+  /** Plain previews follow their parent's scroll flow instead of owning a card. */
+  presentation?: "panel" | "plain";
+  displayName?: string;
 }) {
+  const plain = presentation === "plain";
+  const previewClass = plain
+    ? "text-foreground/90 [overflow-wrap:anywhere]"
+    : IDENTITY_PREVIEW_CLASS;
+  const plainLayoutClass = "flex min-w-0 flex-col gap-3";
   const editIdentityButton = (
     <Button
       asChild
       size="sm"
       variant="outline"
-      className="bg-background/92 absolute top-3 right-3 z-10 shadow-sm backdrop-blur-sm"
+      className={
+        plain
+          ? "shrink-0"
+          : "bg-background/92 absolute top-3 right-3 z-10 shadow-sm backdrop-blur-sm"
+      }
     >
       <Link
         id="anima-identity-edit-trigger"
@@ -43,32 +57,46 @@ export function AnimaIdentitySection({
   );
 
   return (
-    <div className="xl:h-full xl:min-h-0">
+    <div className={plain ? plainLayoutClass : "xl:h-full xl:min-h-0"}>
+      {plain ? (
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-foreground text-base font-semibold">Identity</h2>
+          {!identityLoading ? editIdentityButton : null}
+        </div>
+      ) : null}
       {identityLoading ? (
         <p className="text-muted-foreground flex h-full items-center justify-center py-8 text-center text-sm">
           Loading identity…
         </p>
       ) : identityError ? (
-        <div className="flex h-full min-h-0 flex-col gap-3">
+        <div
+          className={
+            plain ? plainLayoutClass : "flex h-full min-h-0 flex-col gap-3"
+          }
+        >
           <p className="text-destructive text-sm">
             The current identity memory file could not be loaded.
           </p>
-          <div className="relative min-h-0 flex-1">
-            {editIdentityButton}
+          <div className={plain ? plainLayoutClass : "relative min-h-0 flex-1"}>
+            {!plain ? editIdentityButton : null}
             <MemoryMarkdownPreview
               value={fallbackIdentity}
               emptyText="_No starter identity is available._"
-              className={IDENTITY_PREVIEW_CLASS}
+              className={previewClass}
+              hideLeadingHeading={plain ? displayName : undefined}
             />
           </div>
         </div>
       ) : (
-        <div className="relative xl:h-full xl:min-h-0">
-          {editIdentityButton}
+        <div
+          className={plain ? plainLayoutClass : "relative xl:h-full xl:min-h-0"}
+        >
+          {!plain ? editIdentityButton : null}
           <MemoryMarkdownPreview
             value={identity}
             emptyText="_No identity content provided yet._"
-            className={IDENTITY_PREVIEW_CLASS}
+            className={previewClass}
+            hideLeadingHeading={plain ? displayName : undefined}
           />
         </div>
       )}
