@@ -207,6 +207,7 @@ class ContentSaveService:
                     {
                         "name": f"{document.name} portrait",
                         "avatar_model": PurePosixPath(avatar.relative_locator).stem,
+                        "presentation": {"avatar_item_id": avatar.id},
                     }
                 ).encode()
             definition = definition_for_kind(kind)

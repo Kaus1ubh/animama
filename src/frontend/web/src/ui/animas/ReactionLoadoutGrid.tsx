@@ -6,9 +6,6 @@ import {
   EllipsisVertical,
   Loader2,
   Play,
-  RotateCcw,
-  Search,
-  X,
 } from "lucide-react";
 
 import type { PyReactionCell } from "@animama/runtime-contracts/api-types";
@@ -276,13 +273,11 @@ function CellActions({
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
             <Link to="/a/library" search={LIBRARY_REACTIONS}>
-              <Search />
               Choose from Library
             </Link>
           </DropdownMenuItem>
           {cell.state === "custom" || cell.state === "empty" ? (
             <DropdownMenuItem disabled={mutationsDisabled} onSelect={onRevert}>
-              <RotateCcw />
               Revert to Starter
             </DropdownMenuItem>
           ) : null}
@@ -292,7 +287,6 @@ function CellActions({
               disabled={mutationsDisabled}
               onSelect={onLeaveEmpty}
             >
-              <X />
               Leave empty
             </DropdownMenuItem>
           ) : null}

@@ -116,6 +116,8 @@ The Preview pane shows a Copy icon followed by the selected entry's current
 Version action. Copy writes the exact content currently rendered—including an
 unsaved Manual draft—to the clipboard. Version opens a responsive read-only
 history dialog without changing or discarding the current Manual draft.
+The history and identity editor dialogs stay within the available desktop space
+beside the expanded or collapsed sidebar; mobile dialogs retain viewport margins.
 Summaries are listed newest first and can
 load older pages; the latest Version is selected initially.
 

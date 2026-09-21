@@ -7,7 +7,6 @@ import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import { DesktopCredentialsPanel } from "@/ui/settings/DesktopCredentialsPanel";
 import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
-import { packSizeSummary } from "@/ui/settings/DesktopFeaturePacksPanel";
 import {
   DISPLAY_NAME_MAX_LENGTH,
   normalizeLocalDisplayName,
@@ -66,16 +65,9 @@ function LocalSetupRoute() {
         className="border-border bg-card w-full max-w-xl space-y-6 rounded-3xl border p-7 shadow-sm sm:p-9"
       >
         <header className="space-y-2">
-          <p className="text-muted-foreground text-xs font-medium tracking-[0.18em] uppercase">
-            Welcome to Animama
-          </p>
           <h1 className="text-2xl font-semibold">
             What should Animama call you?
           </h1>
-          <p className="text-muted-foreground text-sm leading-6">
-            This name stays private on this installation. It is not an account
-            or a credential.
-          </p>
         </header>
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
@@ -115,13 +107,6 @@ function LocalSetupRoute() {
               />
               Install offline speech recognition
             </label>
-            <p className="text-muted-foreground text-xs">
-              {packSizeSummary(speechPack)}
-            </p>
-            <p className="text-muted-foreground text-xs">
-              Optional. Select this to download after Continue; the app briefly
-              reloads when it is ready. You can install it later in Settings.
-            </p>
           </div>
         ) : null}
         {error ? (

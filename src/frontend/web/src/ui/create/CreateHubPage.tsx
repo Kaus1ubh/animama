@@ -190,13 +190,11 @@ export function CreateHubPage() {
   return (
     <AppShellPage contentClassName="max-w-6xl gap-9 py-8 md:py-10">
       <header className="space-y-2">
-        <p className="text-muted-foreground text-sm font-medium">Creator hub</p>
         <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
           Create
         </h1>
         <p className="text-muted-foreground max-w-3xl text-base leading-7 md:text-lg">
-          Build the characters, actions, and effects that bring your world to
-          life.
+          Create characters, actions, and effects for your Animas.
         </p>
       </header>
 

@@ -115,6 +115,7 @@ async def test_portrait_replays_original_response_after_source_avatar_changes(
     assert original.status_code == 200, original.text
     assert original.json()["name"] == "Original Avatar portrait"
     assert original.json()["kind"] == "appearance"
+    assert original.json()["presentation"]["avatar_item_id"] == avatar.id
 
     if later_change == "edited":
         updated = await workflow.save_avatar(avatar)

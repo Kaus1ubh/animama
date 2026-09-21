@@ -42,10 +42,10 @@ function NotFoundView() {
 export const Route = createRootRouteWithContext<AppRouterContext>()({
   head: () => ({
     meta: [
-      { title: "Anima Web" },
+      { title: "Animama" },
       {
         name: "description",
-        content: "Anima's Vite and TanStack Router frontend migration shell.",
+        content: "Animama, your AI avatar companion.",
       },
     ],
   }),

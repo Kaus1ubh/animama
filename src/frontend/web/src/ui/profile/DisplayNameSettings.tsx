@@ -85,9 +85,6 @@ function DisplayNameEditor({
             Save
           </Button>
         </div>
-        <p className="text-muted-foreground text-xs">
-          This name is required and private to this Animama installation.
-        </p>
         {error ? (
           <p className="text-destructive text-sm" role="alert">
             {error}

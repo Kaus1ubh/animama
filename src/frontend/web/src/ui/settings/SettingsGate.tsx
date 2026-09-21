@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { useParams } from "@tanstack/react-router";
 
 import { SettingsProvider } from "@/ui/settings/SettingsProvider";
-import { SceneCameraSettingsProvider } from "@/ui/settings/SceneCameraSettingsProvider";
 import { SoundProvider } from "@/ui/sound/SoundProvider";
 
 export function SettingsGate({ children }: { children: ReactNode }) {
@@ -13,9 +12,7 @@ export function SettingsGate({ children }: { children: ReactNode }) {
 
   return (
     <SettingsProvider animaId={animaId}>
-      <SoundProvider>
-        <SceneCameraSettingsProvider>{children}</SceneCameraSettingsProvider>
-      </SoundProvider>
+      <SoundProvider>{children}</SoundProvider>
     </SettingsProvider>
   );
 }

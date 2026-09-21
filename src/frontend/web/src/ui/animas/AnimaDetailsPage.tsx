@@ -331,10 +331,6 @@ function SettingsTab({
     <div className="space-y-4">
       <div>
         <h2 className="text-xl font-semibold">Settings</h2>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Effective read-only preferences after application defaults are
-          applied.
-        </p>
       </div>
       {isSettingsLoading ? (
         <p className="text-muted-foreground py-8 text-center text-sm">

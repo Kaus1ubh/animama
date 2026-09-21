@@ -1,24 +1,15 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
+import { ChevronDown, RotateCcw } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import { FieldLabel } from "@/ui/components/field";
 import { Input } from "@/ui/components/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui/components/select";
 import { Slider } from "@/ui/components/slider";
-import { SCENE_CAMERA_PRESETS } from "./sceneCameraPresets";
 import type {
   SceneCameraBindings,
-  SceneCameraPreset,
   SceneCameraSettings,
   SceneCameraYBoneBinding,
   SceneVector3,
@@ -28,8 +19,6 @@ type SceneCameraPanelProps = {
   bindings: SceneCameraBindings;
   className?: string;
   settings: SceneCameraSettings;
-  hasPresetSource?: boolean;
-  onApplyPreset?: (preset: SceneCameraPreset) => void;
   onOrbitTargetYBoneChange: (value: SceneCameraYBoneBinding) => void;
   onFovChange: (value: number) => void;
   onPositionChange: (axis: keyof SceneVector3, value: number) => void;
@@ -160,8 +149,6 @@ export function SceneCameraPanel({
   className,
   settings,
   bindings,
-  hasPresetSource = false,
-  onApplyPreset,
   onOrbitTargetYBoneChange,
   onFovChange,
   onPositionChange,
@@ -171,74 +158,43 @@ export function SceneCameraPanel({
 }: SceneCameraPanelProps) {
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold">Scene Camera</p>
-          <p className="text-muted-foreground text-xs">
-            Adjust the camera and orbit target.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-xs"
-          onClick={onReset}
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          Reset
-        </Button>
-      </div>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-            Presets
+            Camera Y Source
           </FieldLabel>
-          <p className="text-muted-foreground text-[11px]">
-            {hasPresetSource
-              ? "Portrait presets use live head binding"
-              : "Portrait presets bind when the avatar loads"}
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {SCENE_CAMERA_PRESETS.map(({ label, value }) => (
-            <Button
-              key={value}
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-auto min-h-8 px-2 py-1.5 text-left text-xs"
-              onClick={() => onApplyPreset?.(value)}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-          Camera Y Source
-        </FieldLabel>
-        <Select
-          value={bindings.positionYBone}
-          onValueChange={(value) =>
-            onPositionYBoneChange(value as SceneCameraYBoneBinding)
-          }
-        >
-          <SelectTrigger
-            aria-label="Camera Y source"
-            className="w-full"
+          <Button
+            type="button"
+            variant="ghost"
             size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={onReset}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent align="end">
-            <SelectItem value="manual">Manual</SelectItem>
-            <SelectItem value="hips">Hips</SelectItem>
-            <SelectItem value="chest">Chest</SelectItem>
-            <SelectItem value="head">Head</SelectItem>
-          </SelectContent>
-        </Select>
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
+          </Button>
+        </div>
+        <div className="relative">
+          <select
+            aria-label="Camera Y source"
+            className="border-input bg-background focus-visible:ring-ring h-8 w-full appearance-none rounded-md border pr-10 pl-3 text-xs outline-none focus-visible:ring-2"
+            value={bindings.positionYBone}
+            onChange={(event) =>
+              onPositionYBoneChange(
+                event.target.value as SceneCameraYBoneBinding,
+              )
+            }
+          >
+            <option value="manual">Manual</option>
+            <option value="hips">Hips</option>
+            <option value="chest">Chest</option>
+            <option value="head">Head</option>
+          </select>
+          <ChevronDown
+            aria-hidden="true"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
+          />
+        </div>
       </div>
       <VectorControl
         disabledAxes={{ y: bindings.positionYBone !== "manual" }}
@@ -273,26 +229,27 @@ export function SceneCameraPanel({
         <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
           Orbit Target Y Source
         </FieldLabel>
-        <Select
-          value={bindings.orbitTargetYBone}
-          onValueChange={(value) =>
-            onOrbitTargetYBoneChange(value as SceneCameraYBoneBinding)
-          }
-        >
-          <SelectTrigger
+        <div className="relative">
+          <select
             aria-label="Orbit target Y source"
-            className="w-full"
-            size="sm"
+            className="border-input bg-background focus-visible:ring-ring h-8 w-full appearance-none rounded-md border pr-10 pl-3 text-xs outline-none focus-visible:ring-2"
+            value={bindings.orbitTargetYBone}
+            onChange={(event) =>
+              onOrbitTargetYBoneChange(
+                event.target.value as SceneCameraYBoneBinding,
+              )
+            }
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent align="end">
-            <SelectItem value="manual">Manual</SelectItem>
-            <SelectItem value="hips">Hips</SelectItem>
-            <SelectItem value="chest">Chest</SelectItem>
-            <SelectItem value="head">Head</SelectItem>
-          </SelectContent>
-        </Select>
+            <option value="manual">Manual</option>
+            <option value="hips">Hips</option>
+            <option value="chest">Chest</option>
+            <option value="head">Head</option>
+          </select>
+          <ChevronDown
+            aria-hidden="true"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2"
+          />
+        </div>
       </div>
       <VectorControl
         disabledAxes={{ y: bindings.orbitTargetYBone !== "manual" }}

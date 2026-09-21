@@ -54,6 +54,8 @@ import { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCatalog";
 import { adaptRuntimeSnapshot } from "@/lib/runtime-content/runtimeSnapshotAdapter";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import { cn } from "@/lib/utils";
+import { useOptionalAppShell } from "@/ui/app/AppShell";
+import { resolveAppShellSidebarLayout } from "@/ui/app/appShellSidebarLayout";
 import { useAnimaRuntimeCatalog } from "@/query/hooks/useAnimaRuntimeCatalog";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { Button } from "@/ui/components/button";
@@ -107,6 +109,12 @@ const PREVIEW_FOCUSABLE_SELECTOR = [
 
 /** One force-mounted visual host; visibility changes never replace its canvas. */
 export function ContentPreviewHost() {
+  const appShell = useOptionalAppShell();
+  const sidebarInset = resolveAppShellSidebarLayout({
+    behavior: "inset",
+    isDesktop: appShell?.isDesktop === true,
+    sidebarOpen: appShell?.sidebarOpen === true,
+  })["--app-shell-sidebar-inset"];
   const {
     target,
     view,
@@ -596,7 +604,7 @@ export function ContentPreviewHost() {
         )}
         style={
           view === "expanded"
-            ? undefined
+            ? { marginLeft: sidebarInset }
             : {
                 transform: `translate3d(${dockOffset.x}px, ${dockOffset.y}px, 0)`,
               }
@@ -637,11 +645,6 @@ export function ContentPreviewHost() {
               className="block truncate text-sm font-semibold"
             >
               {target?.displayName ?? "Content Preview"}
-            </span>
-            <span className="text-muted-foreground block truncate text-xs">
-              {target
-                ? `${target.versionLabel}${previewAnimaName ? ` · ${previewAnimaName}` : ""} · ${statusLabel(status)}`
-                : "Preview"}
             </span>
           </div>
           {minimized ? (

@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { contentRowDescription } from "@/lib/content/libraryPresentation";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -37,13 +38,14 @@ export function ActionLoadoutRow({
 /** Shared compact identity with a tooltip only when its description is clipped. */
 export function ActionRowIdentity({
   name,
-  description,
+  description: rawDescription,
   badge,
 }: {
   name: string;
   description: string | null;
   badge?: ReactNode;
 }) {
+  const description = contentRowDescription(rawDescription, name);
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const [truncated, setTruncated] = useState(false);
   useEffect(() => {

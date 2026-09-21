@@ -15,7 +15,7 @@ from animama.domain.content_catalog import ContentKind, ContentSource, ContentSt
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.anima import ORMAnima
 from animama.orm.avatar import ORMAvatar
-from animama.orm.content_catalog import ORMContentCatalogItem
+from animama.orm.content_catalog import ORMContentCatalogFile, ORMContentCatalogItem
 from animama.server.schemas.avatar import (
     PyAvatarBuiltinSource,
     PyAvatarCatalogItem,
@@ -28,6 +28,18 @@ from animama.server.schemas.avatar import (
 )
 
 from ..deps import get_async_session, get_current_principal
+
+# Removed shipped models may retain rows while historical Animas reference them.
+_RETIRED_BUILTINS = {
+    "avt_sample_r2": "AvatarSample_R2.vrm",
+    "avt_sample_a1": "AvatarSample_A_1.vrm",
+    "avt_sample_y0": "AvatarSample_Y_1.vrm",
+    "avt_chibi_1": "AvatarChibi_1.vrm",
+    "avt_chibi_2": "AvatarChibi_2.vrm",
+    "avt_chibi_3": "AvatarChibi_3.vrm",
+    "avt_chibi_4": "AvatarChibi_4.vrm",
+}
+
 
 router = APIRouter(prefix="/v1", tags=["avatars"])
 
@@ -202,11 +214,47 @@ async def list_avatar_catalog(
         item = catalog_item(row)
         return "local" if item is not None and item.source == "local" else "included"
 
+    # Portrait metadata belongs to the model, independently of Anima loadouts.
+    portraits = (
+        await session.execute(
+            select(ORMContentCatalogItem.source, ORMContentCatalogItem.content_metadata, ORMContentCatalogFile.file_ref)
+            .join(ORMContentCatalogFile, ORMContentCatalogFile.item_id == ORMContentCatalogItem.id)
+            .where(
+                or_(
+                    ORMContentCatalogItem.scope.in_({"included", "installation_shared"}),
+                    ORMContentCatalogItem.owner_user_id == user.id,
+                ),
+                ORMContentCatalogItem.kind == "appearance",
+                ORMContentCatalogItem.status == "valid",
+                ORMContentCatalogFile.role == "image",
+            )
+            .order_by(ORMContentCatalogItem.id, ORMContentCatalogFile.file_ref)
+        )
+    ).all()
+    included_portrait_urls = {
+        metadata["avatar_model"]: f"/v1/content/files/{file_ref}"
+        for source, metadata, file_ref in portraits
+        if source == "included" and isinstance(metadata.get("avatar_model"), str)
+    }
+    exact_portrait_urls = {
+        metadata["presentation"]["avatar_item_id"]: f"/v1/content/files/{file_ref}"
+        for _source, metadata, file_ref in portraits
+        if isinstance(metadata.get("presentation"), dict)
+        and isinstance(metadata["presentation"].get("avatar_item_id"), str)
+    }
+
     needle = (q or "").strip().casefold()
     selected = [
         row
         for row in rows
         if _can_read(row, user.id)
+        and not (
+            row.catalog_item_id is None
+            and not row.private
+            and row.user_id is None
+            and row.file_path == f"/shared/avatars/{_RETIRED_BUILTINS.get(row.id, '')}"
+            and catalog_item(row) is None
+        )
         and (not needle or needle in row.name.casefold())
         and (origin == "all" or row_origin(row) == origin)
     ][:limit]
@@ -225,7 +273,12 @@ async def list_avatar_catalog(
                 name=row.name,
                 origin=row_origin(row),
                 model_type=row.model_type,
-                preview_url=None,
+                preview_url=(exact_portrait_urls.get(item.id) if item is not None else None)
+                or (
+                    included_portrait_urls.get(PurePosixPath(row.file_path).stem)
+                    if item is not None and item.source == "included"
+                    else None
+                ),
                 source=source,
                 updated_at=row.updated_at,
             )

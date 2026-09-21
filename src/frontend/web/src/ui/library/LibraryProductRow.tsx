@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import {
-  ChevronDown,
   Hand,
   HeartHandshake,
   Layers3,
@@ -14,6 +13,7 @@ import {
 
 import type { LibraryRowPresentation } from "@/lib/content/libraryPresentation";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/ui/components/avatar";
 
 type RowFamily = LibraryRowPresentation["family"];
 
@@ -32,10 +32,12 @@ export function LibraryProductRow({
   row,
   actions,
   className,
+  portraitUrl,
 }: {
   row: LibraryRowPresentation;
   actions: ReactNode;
   className?: string;
+  portraitUrl?: string | null;
 }) {
   const Icon = icons[row.family];
   return (
@@ -46,56 +48,41 @@ export function LibraryProductRow({
         className,
       )}
     >
-      <details className="group min-w-0 flex-1">
-        <summary className="flex min-h-20 cursor-pointer list-none items-center gap-3 px-4 py-3 marker:hidden [&::-webkit-details-marker]:hidden">
-          <span className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
+      <div className="flex min-h-20 min-w-0 flex-1 items-center gap-3 px-4 py-3">
+        <Avatar className="size-10 rounded-lg">
+          {portraitUrl ? (
+            <AvatarImage src={portraitUrl} alt="" className="object-cover" />
+          ) : null}
+          <AvatarFallback className="text-muted-foreground rounded-lg">
             <Icon className="size-5" aria-hidden="true" />
+          </AvatarFallback>
+        </Avatar>
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="truncate font-medium">{row.name}</span>
+            {row.updateAvailable ? (
+              <span className="border-primary/35 bg-primary/10 text-primary rounded-full border px-2 py-0.5 text-[11px] font-medium">
+                Update available
+              </span>
+            ) : null}
+            {row.equippedCount ? (
+              <span className="bg-muted rounded-full px-2 py-0.5 text-[11px]">
+                Added to {row.equippedCount}
+              </span>
+            ) : null}
           </span>
-          <span className="min-w-0 flex-1">
-            <span className="flex min-w-0 flex-wrap items-center gap-2">
-              <span className="truncate font-medium">{row.name}</span>
-              {row.updateAvailable ? (
-                <span className="border-primary/35 bg-primary/10 text-primary rounded-full border px-2 py-0.5 text-[11px] font-medium">
-                  Update available
-                </span>
-              ) : null}
-              {row.equippedCount ? (
-                <span className="bg-muted rounded-full px-2 py-0.5 text-[11px]">
-                  Added to {row.equippedCount}
-                </span>
-              ) : null}
-            </span>
-            <span className="text-muted-foreground mt-0.5 block truncate text-sm">
+          {row.description ? (
+            <span className="text-muted-foreground mt-0.5 block text-sm">
               {row.description}
             </span>
-            <span className="text-muted-foreground mt-1 block truncate text-xs">
+          ) : null}
+          {row.metadata.length ? (
+            <span className="text-muted-foreground mt-1 block text-xs">
               {row.metadata.join(" · ")}
             </span>
-          </span>
-          <ChevronDown
-            className="text-muted-foreground size-4 shrink-0 transition-transform group-open:rotate-180"
-            aria-hidden="true"
-          />
-        </summary>
-        <div className="border-t px-4 py-3 text-sm sm:pl-[4.25rem]">
-          <p className="text-foreground/85 leading-6">{row.description}</p>
-          <dl className="text-muted-foreground mt-2 grid gap-x-5 gap-y-1 text-xs sm:grid-cols-2">
-            <div>
-              <dt className="sr-only">Origin</dt>
-              <dd>Origin: {row.origin}</dd>
-            </div>
-            {row.includedCount ? (
-              <div>
-                <dt className="sr-only">Included resources</dt>
-                <dd>
-                  Includes {row.includedCount} resource
-                  {row.includedCount === 1 ? "" : "s"}
-                </dd>
-              </div>
-            ) : null}
-          </dl>
-        </div>
-      </details>
+          ) : null}
+        </span>
+      </div>
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-t px-4 py-3 sm:max-w-[48%] sm:justify-end sm:border-t-0 sm:border-l">
         {actions}
       </div>

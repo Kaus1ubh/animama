@@ -223,10 +223,6 @@ export function DesktopCredentialsPanel({
           </Button>
         ) : null}
       </div>
-      <p className="text-muted-foreground text-xs">
-        Saving or removing a key restarts local services. Finish your current
-        chat response first.
-      </p>
       <DesktopCredentialFailures statuses={statuses} />
       {message ? (
         <p className="text-sm" role="status">

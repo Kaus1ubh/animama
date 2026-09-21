@@ -310,7 +310,7 @@ export function AnimaAppearanceDialog({
         aria-describedby={undefined}
         className="flex max-h-[min(92dvh,52rem)] flex-col overflow-hidden sm:max-w-2xl"
       >
-        <DialogHeader className="flex-row items-center justify-between gap-3">
+        <DialogHeader className="flex-row items-center justify-between gap-3 pr-8">
           <DialogTitle>Appearance</DialogTitle>
           <ContentHealth />
         </DialogHeader>

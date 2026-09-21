@@ -205,3 +205,15 @@ creates, saves or synchronizes an Anima Blueprint. There is no “Save as Bluepr
 action or editable Local Blueprint; the reserved Anima content handler remains
 unsupported. Discover and publishing are discontinued. Existing typed `.animama`
 import/export remains independent of live Anima creation.
+
+The Library Avatar catalog omits retired shipped model defaults, including rows
+retained for historical Anima references. Repeatable database seeding includes
+only the two currently shipped VRM models. It removes a retired default only
+when its original ID and model path still match, it has no owner or catalog
+mapping, and neither an Anima nor an upload references it. Existing selections
+are never silently cleared or reassigned.
+
+Avatar catalog `preview_url` uses a valid visible portrait registered for the
+model's exact `presentation.avatar_item_id`; generated portraits record this association.
+Packaged Included portraits retain the `avatar_model` metadata fallback,
+independently of an Anima's custom profile appearance. Missing or invalid portraits leave the URL empty for icon fallback.

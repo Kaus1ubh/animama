@@ -35,15 +35,23 @@ Catalog. Each group owns its own loading, retry, empty, cursor, and collapse
 state. Included items are read-only Starters; Local items are editable copies
 created by the user, imported from a package, or added by the host operator.
 
-Rows show product name, AI-facing description where relevant, Included/Local
-origin, scan health, and context-specific actions. Valid content can Preview;
+Rows show the product name, useful item-specific descriptions, status badges,
+and context-specific actions. Generic description placeholders and origin/resource
+boilerplate are omitted; rows do not expand into repeated details. Catalog health
+stays hidden while content is valid, including during background checks. An
+attention indicator opens affected items, validation details and a Retry scan
+action when content is invalid, missing, waiting for a scan, or unavailable. Valid content can Preview;
 Local content can open its editor. Gesture/Reaction rows can Add or Manage Anima
 loadout selections. Effects and Sounds offer “Use in Gesture/Reaction” because
 they are action ingredients, not independent equipment.
 
 Avatar rows use `/v1/avatar-catalog`, which joins Avatar metadata to a valid
-catalog model and registered portrait Appearance. Preview resolves registered
-VRM bytes; a row can hand its Avatar to Anima creation.
+catalog model and registered portrait Appearance. Each row uses that model's
+generated portrait (never an Anima's custom profile picture), falling back to an
+icon when unavailable. Preview resolves registered VRM bytes; Create Anima hands
+the Avatar to Anima creation. FX Use in Gesture/Reaction actions use the same
+primary button treatment. Obsolete built-in rows with removed model files are
+omitted; reference-safe seed reconciliation preserves records needed by Animas.
 
 Chat Uploads remain separate. They use `/v1/files`, private `data/` storage,
 processing status, and retrieval diagnostics. They never enter the Content
@@ -106,9 +114,11 @@ packages or publication. Discover and hosted acquisition are discontinued.
 
 ## Manual files and packages
 
-The catalog health surface exposes explicit Rescan for host edits. Valid manual
-files become selectable but never auto-equip. Invalid or missing entries remain
-inert with discreet diagnostics.
+The local watcher scans normal host edits automatically. Catalog polling refreshes
+Library and Appearance queries when content changes; scan timestamps alone do not
+trigger repeated list fetches. Valid manual files become selectable but never
+auto-equip. Invalid or missing entries remain inert with discreet diagnostics and
+a Retry scan action.
 
 Package export generates a manifest only at export time. Package import
 validates and rewrites the complete hostile typed closure in backend staging,
