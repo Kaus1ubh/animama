@@ -16,7 +16,6 @@ export function AnimaIdentitySection({
   fallbackIdentity,
   onEdit,
   presentation = "panel",
-  displayName,
 }: {
   animaId: string;
   identity: string;
@@ -26,7 +25,6 @@ export function AnimaIdentitySection({
   onEdit?: (event: MouseEvent<HTMLButtonElement>) => void;
   /** Plain previews follow their parent's scroll flow instead of owning a card. */
   presentation?: "panel" | "plain";
-  displayName?: string;
 }) {
   const plain = presentation === "plain";
   const previewClass = plain
@@ -89,7 +87,6 @@ export function AnimaIdentitySection({
               value={fallbackIdentity}
               emptyText="_No starter identity is available._"
               className={previewClass}
-              hideLeadingHeading={plain ? displayName : undefined}
             />
           </div>
         </div>
@@ -102,7 +99,6 @@ export function AnimaIdentitySection({
             value={identity}
             emptyText="_No identity content provided yet._"
             className={previewClass}
-            hideLeadingHeading={plain ? displayName : undefined}
           />
         </div>
       )}

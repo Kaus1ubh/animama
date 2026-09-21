@@ -260,7 +260,6 @@ function AnimaProfile({
           }
         }}
       >
-        <Dialog.Title className="sr-only">{displayName} profile</Dialog.Title>
         <Dialog.Description className="sr-only">
           Appearance, emotions, identity and settings.
         </Dialog.Description>
@@ -274,12 +273,15 @@ function AnimaProfile({
                 ref={backRef}
                 variant="ghost"
                 size="sm"
-                className="mr-auto"
+                className="shrink-0"
                 onClick={returnToProfile}
               >
                 <ArrowLeft aria-hidden="true" className="size-4" /> Back
               </Button>
             ) : null}
+            <Dialog.Title className="text-foreground mr-auto min-w-0 truncate text-xl font-semibold">
+              {displayName}
+            </Dialog.Title>
             {anima?.id ? (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -393,9 +395,6 @@ function AnimaProfile({
                       </button>
                     ) : null}
                   </div>
-                  <h2 className="text-foreground mt-2 text-2xl font-semibold tracking-tight [overflow-wrap:anywhere]">
-                    {displayName}
-                  </h2>
                 </div>
                 <div
                   ref={summaryRef}
@@ -507,7 +506,6 @@ function AnimaProfile({
                       setIdentityEditorOpen(true);
                     }}
                     presentation="plain"
-                    displayName={displayName}
                   />
                 ) : (
                   <p className="text-muted-foreground text-sm">

@@ -26,15 +26,14 @@ const identityProps = {
   identityLoading: false,
   identityError: false,
   fallbackIdentity: "# Annie\n\nStarter description.",
-  displayName: "Annie",
 };
 
 describe("AnimaIdentitySection plain presentation", () => {
-  it("uses plain markdown without a duplicate heading or inner scroll surface", () => {
+  it("renders the complete markdown without an inner scroll surface", () => {
     const html = renderToStaticMarkup(
       <AnimaIdentitySection {...identityProps} presentation="plain" />,
     );
-    expect(html).not.toContain("<h1>");
+    expect(html).toContain("<h1><strong>Annie</strong></h1>");
     expect(html).not.toContain("overflow-auto");
     expect(html).not.toContain("absolute");
     expect(html).toContain("A friendly companion.");
@@ -71,7 +70,7 @@ describe("AnimaIdentitySection plain presentation", () => {
     );
     expect(failed).toContain("could not be loaded");
     expect(failed).toContain("Starter description.");
-    expect(failed).not.toContain("<h1>");
+    expect(failed).toContain("<h1>Annie</h1>");
     expect(failed).toContain("Edit identity");
   });
 });
