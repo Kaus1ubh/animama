@@ -62,7 +62,9 @@ one branch/PR per plan per affected repository by default. Reuse existing record
 do not create retrospective work merely to fit this convention.
 
 Implement meaningful behavioral slices using `tdd`. Preserve architecture and
-unrelated work. Update current docs/contracts. Run applicable local checks, then
+unrelated work. Update changed contracts and any current guidance
+made incomplete or misleading by the change. No documentation edit is needed
+when existing guidance remains useful and accurate. Run applicable local checks, then
 independent `code-review` after each phase. Record evidence and phase commits.
 Advance automatically after required evidence and gates pass within the authorized
 phase range. Preserve every explicit gate in existing plans.

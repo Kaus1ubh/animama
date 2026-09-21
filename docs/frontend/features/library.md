@@ -35,12 +35,8 @@ Catalog. Each group owns its own loading, retry, empty, cursor, and collapse
 state. Included items are read-only Starters; Local items are editable copies
 created by the user, imported from a package, or added by the host operator.
 
-Rows show the product name, useful item-specific descriptions, status badges,
-and context-specific actions. Generic description placeholders and origin/resource
-boilerplate are omitted; rows do not expand into repeated details. Catalog health
-stays hidden while content is valid, including during background checks. An
-attention indicator opens affected items, validation details and a Retry scan
-action when content is invalid, missing, waiting for a scan, or unavailable. Valid content can Preview;
+An attention indicator exposes affected items, validation details and Retry scan
+when content is invalid, missing, awaiting a scan or unavailable. Valid content can Preview;
 Local content can open its editor. Gesture/Reaction rows can Add or Manage Anima
 loadout selections. Effects and Sounds offer “Use in Gesture/Reaction” because
 they are action ingredients, not independent equipment.
@@ -49,9 +45,8 @@ Avatar rows use `/v1/avatar-catalog`, which joins Avatar metadata to a valid
 catalog model and registered portrait Appearance. Each row uses that model's
 generated portrait (never an Anima's custom profile picture), falling back to an
 icon when unavailable. Preview resolves registered VRM bytes; Create Anima hands
-the Avatar to Anima creation. FX Use in Gesture/Reaction actions use the same
-primary button treatment. Obsolete built-in rows with removed model files are
-omitted; reference-safe seed reconciliation preserves records needed by Animas.
+the Avatar to Anima creation. Entries without model files are omitted; reference-safe seed reconciliation
+preserves records needed by Animas.
 
 Chat Uploads remain separate. They use `/v1/files`, private `data/` storage,
 processing status, and retrieval diagnostics. They never enter the Content
@@ -108,9 +103,7 @@ Avatar-to-Anima entry links reach the four-step `/a/animas/new` creator with a
 logical Avatar ID. The creator resolves its exact admitted revision; an
 existing saved owner draft wins over a new hint and unavailable content leaves
 a recoverable error instead of silently choosing another Avatar.
-The [live creation workflow](custom-anima-creation.md) implements private live
-creation. It does not add a Blueprint Library kind, “Save as Blueprint”,
-packages or publication. Discover and hosted acquisition are discontinued.
+See the [live creation workflow](custom-anima-creation.md) for validation and recovery.
 
 ## Manual files and packages
 

@@ -1,20 +1,11 @@
 # Avatar VFX Guide
 
-This document explains the avatar VFX system in the Vite web frontend.
-
 Every retained built-in or private Avatar Effect projects through the typed
 content catalog used by Gesture/Reaction closure Preview. An Avatar Effect's
 associated Sound is a second exact dependency in that closure, so users do not
 bind or repair the cue separately.
 
-It covers:
-
-- the VFX types we currently support
-- how those effects are resolved and applied at runtime
-- when each effect type is the right tool
-- the practical authoring constraints behind each mode
-
-For the VRM inspection and debug modal layer around this runtime, see `docs/frontend/runtime/vrm-inspector-editor.md`.
+See [VRM inspection](vrm-inspector-editor.md) for debug session ownership.
 
 ## 1) Main files
 
@@ -55,13 +46,7 @@ Reactions rather than independently equipped to an Anima.
 
 The protected `/a/avatar-effects/new` and
 `/a/avatar-effects/:avatarEffectId/edit` routes provide the typed Avatar Effect
-creator. The editor follows the same scene-first layout as the Gesture,
-Reaction, and Particle Effect creators: one route-owned portrait Canvas docks
-beside the expanded desktop sidebar and returns to full viewport width beneath
-the compact controls. Effect Setup, Inspector, camera controls, and the compact
-Preview bar float above it using the remaining local safe inset. On a narrow
-viewport those controls return to normal document flow without mounting a
-second Canvas.
+creator with an isolated portrait preview.
 
 The author chooses the effect kind first:
 
@@ -232,18 +217,7 @@ That means:
 
 The anchor box is only a placement basis for pivoting, offsets, and default scale.
 
-### Best use cases
-
-Use anchored decals when the effect should look painted onto the face surface, but should not be stretched across the whole face texture.
-
-Good examples:
-
-- blush
-- under-eye shadows
-- mouth symbols
-- small cheek decals
-
-When the anchor is `mouth`, the controller also contributes to the automatic mouth flatten flow described above so the painted base mouth can be neutralized before the decal stack renders.
+Mouth decals also activate mouth flattening before the decal stack renders.
 
 ### Main config fields
 
@@ -292,8 +266,6 @@ For texture-backed effects, the controller composites all effects at the binding
 4. redraw one composite canvas per active slot
 5. assign one composite `CanvasTexture` per slot back to the cloned material
 
-This is the main architectural change behind stacked VFX support.
-
 The material still only sees one final texture per slot, but that final texture can represent a stack of active effects.
 
 The controller currently targets these slots:
@@ -322,21 +294,8 @@ VFX definitions.
 - `overlay` preserves the original texture and composites the VFX on top
 - `replace` draws only the effect result into the runtime texture slot
 
-### Best use cases
-
-Use this mode when the effect should stay fully UV-bound to the original mesh surface.
-
-Good examples:
-
-- iris replacement
-- full-face overlays
-- texture-bound animated face filters
-
-### When not to use it
-
-Do not use the full-face texture path for small localized cheek or mouth decals unless the asset is intentionally authored to that full-face atlas layout.
-
-If the effect is conceptually local, anchored decals are a better fit.
+Use full-surface textures only when the artwork matches the original UV layout.
+Localized cheek or mouth art uses anchored decals.
 
 ## 6) VFX type 3: `hover_plane`
 
@@ -347,8 +306,6 @@ It supports three placement kinds:
 1. `eye_hover`
 2. `mouth_hover`
 3. `box_hover`
-
-Note: "plane hover" is informal shorthand for the `hover_plane` render mode. The current hover subtypes are `eye_hover`, `mouth_hover`, and `box_hover`.
 
 ### 6.1) `eye_hover`
 
@@ -363,8 +320,6 @@ Instead:
 - it attaches a small transparent plane there
 
 While an `eye_hover` effect is active, the face flatten system also neutralizes painted eye shading on the resolved `face_skin` binding. This helps stylized 2D eye art sit more cleanly over face textures that already contain eye-region shading but no usable eye geometry.
-
-This is the current workaround for eye effects that should visually sit over the eye area but cannot be expressed through the face mesh texture path.
 
 Good examples:
 
@@ -500,60 +455,11 @@ Not every axis is equally meaningful for every render mode.
 
 ## 9) Choosing the right mode
 
-### Use anchored `face_skin` texture decals when:
-
-- the effect should look printed onto the face
-- the placement is local, not full-face
-- the target is blush, under-eye, or mouth-adjacent
-
-### Use full-surface `texture` effects when:
-
-- the asset is authored against the full eye or face texture dimensions
-- the effect should remain fully UV-bound to the mesh
-- the effect is a full-face overlay or iris replacement
-
-### Use `hover_plane` when:
-
-- the effect should float in front of the face
-- the effect should sit above the forehead or above the eyes
-- the face texture path cannot represent the effect cleanly
-
-## 10) Asset authoring guidance
-
-### Anchored decals
-
-Prefer small, local assets.
-
-In practice, a single-sided asset is the cleanest format for:
-
-- blush
-- under-eye decals
-- tears
-
-Recommended convention:
-
-- author the asset for one side
-- set `side`
-- use `requiresMirror` if the opposite side should be a mirrored copy
-
-### Full-surface texture effects
-
-Use these when the asset is intentionally authored against the original UV layout.
-
-Examples:
-
-- full-face overlays
-- iris replacements
-
-### Hover planes
-
-Use transparent PNGs designed to read as floating art.
-
-Examples:
-
-- forehead symbols
-- eye plates
-- exclamation marks
+| Mode           | Use                                    | Asset guidance                                                            |
+| -------------- | -------------------------------------- | ------------------------------------------------------------------------- |
+| Anchored decal | Local art painted onto the face        | Author one side; use `side` and `requiresMirror` for bilateral placement. |
+| Texture        | Full-face overlays or iris replacement | Match the original UV layout.                                             |
+| Hover plane    | Art floating in front of the face      | Use transparent images framed around the intended landmark.               |
 
 ## 11) Performance profile
 
@@ -595,9 +501,3 @@ There is no per-frame face landmark solve in the normal path.
 - animated texture effects are still more expensive than hover effects because the final composite texture must be refreshed on animation ticks
 - texture slot targeting is still broad; the current runtime considers both `map` and `shadeMultiplyTexture` when they exist
 - flatten quality depends on both anchor quality and the sampled face-skin region; if those are poor, the neutralized area can still look off
-
-The important takeaway is:
-
-- if the effect is local and skin-bound, use anchored decals
-- if the effect is full-texture UV-bound, use the texture path
-- if the effect should float in front of the face, use `hover_plane`

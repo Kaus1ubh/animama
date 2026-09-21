@@ -35,13 +35,6 @@ async def test_my_feature(anima_server_base_url: str, async_session) -> None:
 
 ## Current Chat Runtime Smoke Checks
 
-The normal product runtime is
-`POST /v1/animas/{anima_id}/chat:sse`. It resolves an anima chat profile or
-request `model_provider_id`, calls the selected shared direct model client, emits
-domain-level SSE frames, persists chat history, and emits one route-owned
-`run.completed` frame after successful side effects. It does not construct graph
-runners or backend agent objects.
-
 For local checks that should avoid provider calls, run the backend with
 `ANIMAMA_LLM_SKIP=1`. Startup then registers `MockModelClient` for all direct
 provider families.

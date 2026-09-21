@@ -7,15 +7,8 @@ the normal app shell: Avatar → Identity → Actions → Review. It creates one
 private live Anima and opens that Anima's chat surface after commit. It does
 not create a Chat row, greeting, Blueprint, or publication.
 
-The editable route is a canvas workspace rather than a card in a document
-page. One inset, floating workflow panel owns the step navigation, scrollable
-forms/diagnostics, and an always-visible action footer on the left; one
-persistent, waist-up Avatar renderer fills the remaining warm-neutral canvas. A single display-name plate stays at
-the canvas's top center on every step. There is no separate Creator hub route
-header. The creator uses the app shell's adaptive-canvas geometry, so the same
-flat `bg-background` surface continues beneath the collapsed sidebar rail,
-behind the floating panel, and through the right viewport edge. At narrow widths
-the same canvas and name input stack above the panel.
+One persistent Avatar preview accompanies the four-step form. The display name
+remains editable throughout the journey.
 
 Creator-hub, sidebar, carousel, Library, preview-recovery and empty-roster
 entry points open the same creator. The optional `avatar` search parameter
@@ -38,53 +31,23 @@ memory and aggregate revision guards. See the
 [HTTP contract](../../backend/architecture/http-api.md#strict-private-creation)
 and [data model](../../backend/architecture/data-model.md).
 
-The creator uses the application shell and semantic theme tokens. A provisional
-preview is not Saved to My Content, and privacy is scoped to the configured
-installation, which may be remote.
-
 ### Four-step interaction contract
 
-| Step     | Required behavior                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Avatar   | Included and My Content remain the two source tabs. The separate Upload VRM button and empty-canvas circular Upload button both open the native file picker directly, without an intermediate upload panel. A chosen file must pass the browser's 100 MiB binary VRM checks before the explicit authoritative My Content Save form appears. The selected radio card is sufficient; no duplicate “Selected” summary, profile/background image control, or existing Anima is required.                                                                        |
-| Identity | One required plain Markdown document, initially seeded with `# [NAME]` followed by Personality, Speaking style, Values, Background, and Boundaries headings/instructions. The generated heading follows the trimmed display name while it remains uncustomized. Write/Preview and explicit Avatar suggestion remain; formatting/prompt-chip toolbars, secondary tagline, and editor help/count copy do not.                                                                                                                                                 |
-| Actions  | Seed only the versioned Recommended Starter Pack. Compact management-style Gesture rows show every matching semantic key by default and select one source per key without separate semantic-key/None summary bars; clicking `Selected` clears that choice. All Reaction emotions share one joined disclosure list, with Admiration open initially and one continuous selected left border through its header and intensity rows, and edit all 24×3 cells. The tabs omit redundant assignment instructions. Preview never selects and selection never plays. |
-| Review   | Global display name, selected Avatar name, full identity rendered directly, Action counts, linked diagnostics, nonblocking warnings, and one Create Anima action after whole-spec validation. It omits Avatar/privacy/defaults cards, Starter Pack/revision disclosure, Review reel, validation status, and manual recheck controls; exact validation and source evidence remain controller/backend state.                                                                                                                                                  |
+| Step     | Behavior                                                                                                                        |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Avatar   | Select Included or Local content, or upload and explicitly save a validated VRM.                                                |
+| Identity | Edit the required Markdown identity; preview or request an Avatar suggestion.                                                   |
+| Actions  | Start from the Recommended Starter Pack, select Gestures and edit all 72 Reaction cells. Preview and selection are independent. |
+| Review   | Inspect name, Avatar, identity, Action counts and linked diagnostics before Create Anima.                                       |
 
-The saved-draft recovery surface uses the same flat `bg-background` as the
-editable creator rather than introducing a muted page backdrop. Before an
-Avatar is selected, the canvas shows only the circular Upload button and
-`Upload a VRM (<100 MB) or choose an Avatar to see them here.`
+A name is required before leaving Avatar. Back, visited steps and Review Edit
+preserve the draft. Changing Avatar retains identity and Actions while
+revalidating compatibility; filtering never changes hidden selections.
+Edited drafts offer keep editing, save and leave, or discard and leave.
 
-Back, visited steps, and Review Edit preserve the draft. Missing required fields
-focus a linked error list without a redundant heading. The progress rail marks an invalid section with a
-red label and underline without adding a second status line; completed sections
-use a light-blue checked circle and adjoining blue underline, so consecutive
-completed steps form one continuous rail. The larger display-name plate also shows a visible
-“Enter a name to continue” message when its trimmed value is missing. Name
-validation begins on Avatar, so a missing name blocks the first forward move;
-errors focus that persistent plate and do not leave an already-fixed step marked stale. Selecting a new
-Avatar retains identity/Actions and revalidates compatibility. Search/filtering
-never changes hidden selections. The pinned panel footer contains only the
-Back/Cancel and Continue/Create actions; normal privacy and “Draft saved” copy
-is omitted, while actionable storage failures remain visible in the scrollable
-body. Cancelling
-an untouched draft goes to the Creator hub; edited drafts offer keep editing,
-save and leave, or discard and leave. Do not exit through the empty-roster
-Animas resolver. The leave dialog uses a wider responsive layout so all three
-actions stay inside the modal.
-
-The Reaction editor presents every emotion in one joined bordered list matching
-the existing-Anima right panel. Admiration is expanded initially; each emotion
-can then be opened or closed independently. An expanded emotion's primary left
-border runs continuously through its header and all three intensity rows. It
-names emotion and intensity for every cell. Change opens a single-choice dialog
-for that cell with all compatible Reactions and Empty; Apply changes only that
-cell and returns focus. The same Reaction can occupy several cells regardless of
-its suggested placement. Counts describe occupied cells, not unique Reaction
-items. Narrow layouts stack three labelled cells per emotion. Reset Actions to
-Starter Pack confirms replacing all Action edits, including filtered choices,
-without changing the other steps.
+Each Reaction cell accepts any compatible Reaction or Empty. The same Reaction
+can fill several cells; counts represent occupied cells. Reset Actions to Starter
+Pack requires confirmation and replaces all Action edits, including hidden ones.
 
 ### Source and identity boundaries
 
@@ -112,11 +75,8 @@ binary GLB container and length, supported VRM 0.x/1.0 document, and absence of
 external resources. The server remains authoritative when the user confirms
 the typed Local Save. An uploaded VRM is only browser-local preview until that Save.
 Confirmed content survives cancel; unsaved browser files must be selected again
-after reload. Static-image and portrait APIs support other
-Appearance management, but Create Anima performs no Appearance list, upload,
-crop, capture, or Save request. It always submits `profile: null` and
-`background: null`, which means application appearance defaults. There is no
-Voice, Music, or Idle wizard step.
+after reload. Creation submits `profile: null` and `background: null` for default
+appearance; use [Appearance management](avatar-releases-and-appearance.md) afterward.
 
 Identity uses the existing Markdown editor/renderer primitives with one string,
 LF normalization, and the server's effective UTF-8 byte limit. A new draft is
@@ -179,9 +139,7 @@ choose an already-owned Anima and are not suitable creation entry points.
 At steady state there is one renderer, Avatar, and prepared catalog session;
 the floating preview dock stays unclaimed.
 
-No motion/audio auto-plays. The canvas has no persistent story/status card or
-camera, zoom, and audio controls. Loading, preparation, and errors use transient
-status, while individual Action rows own preview controls;
+Motion and audio play only through explicit Action previews;
 source/step changes, document hiding, and exit stop and dispose playback as
 appropriate. WebGL failure leaves the form operable.
 

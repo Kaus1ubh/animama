@@ -13,9 +13,9 @@ source imports. No new test-only dependencies are installed.
 
 Chromium executes the real React hook and generated SDK against an injected,
 controllable Fetch/ReadableStream transport. Checks cover incremental text,
-Stop, unmount, owner changes, replacement streams, buffered stale events, error
-and incomplete-stream recovery, and one POST attempt. The intentionally late
-transport responses exercise races that cooperative fetch cancellation can hide.
+Stop, unmount, owner changes, replacement streams, buffered stale events
+and one POST attempt. Late transport responses exercise races that cooperative
+fetch cancellation can hide.
 Every test owns its page and fails unexpected page errors; temporary consumer
 files and the browser are removed on completion.
 

@@ -30,22 +30,13 @@ opens a nested modal route and closing it returns focus to the Identity panel.
 Saving updates the shared memory-entry query used by the rendered preview and
 subsequent chat turns.
 
-The chat-header Anima details modal uses the same rendered identity panel and
-top-right Edit identity link, which opens the management identity editor. Its
-backdrop uses the shared light dimming also used by App Settings.
-
-The owned-Anima carousel accepts ordinary vertical mouse-wheel movement and
-translates it into horizontal carousel scrolling while there is more content in
-that direction. At either boundary, vertical scrolling remains available to
-the surrounding page.
+The chat-header Anima details modal uses the same rendered identity panel. Its
+top-right Edit identity link opens the management identity editor.
 
 ## Appearance editor
 
-The management-header appearance control opens a visual Profile/Background
-editor. Its large central upload affordance selects a private typed Appearance
-Image, while the crop workspace controls fit, focal position, and zoom. Profile
-and background framing remain independent, and removing a profile override
-returns to the selected Avatar content portrait.
+The [Appearance editor](avatar-releases-and-appearance.md) manages independent
+Profile and Background images, framing and Avatar portrait fallback.
 
 ## Loadout
 
@@ -62,18 +53,12 @@ Gestures and Reactions are complete actions. Their Particle, Avatar, and
 Scene Effects and Sound Effects are compiler-managed dependencies, so those
 ingredients never appear as separate loadout checkboxes.
 
-The visible right-panel Loadout sections are exactly Gestures, Reactions, Idle
-Style, and Music. They are collapsed by default and expand independently.
-Nested emotion accordions keep their own state after the parent section opens.
-Avatar, Appearance, and voice remain typed companion-configuration semantics
-used by their focused flows; they are not additional sections in this panel.
-Pose Clips, VFX, and SFX are never shown as direct equipment.
+The Loadout panel contains Gestures, Reactions, Idle Style and Music. Avatar,
+Appearance and voice use their own focused controls.
 
 The unified Gesture list keeps ready user-created Gestures first and optionally
 reveals active or disabled Starter Gestures through the header filter menu.
-Local search matches full names and descriptions. Long descriptions truncate
-to protect the compact action area and expose their complete text in a tooltip
-only when clipping occurs. The same menu filters equipped or unequipped rows
+Local search matches full names and descriptions. The menu filters equipped or unequipped rows
 and sorts by custom-first, name A–Z, or name Z–A. Motion type can be narrowed
 to VRMA or Clips; Clips maps to the normalized
 `anima_clip` implementation. A compact checked status identifies
@@ -103,8 +88,7 @@ temporary mute, and current manual selection remain local browser state.
 Appearance choices are separate typed images rather than generic files. A
 custom profile image wins over the selected Avatar content portrait; otherwise
 the UI falls back to the portrait and then initials. Avatar/Appearance changes
-use their typed plan/commit lanes from focused management controls without
-adding an obsolete Avatar Release section to Loadout.
+use their typed plan/commit lanes from focused management controls.
 
 ## Review and commit
 
@@ -129,13 +113,6 @@ runtime revision.
 The same `runtime_revision` is sent with every chat turn. If the snapshot is
 missing or expired, chat stops before model execution and offers a remount;
 the client never silently retries against a different loadout.
-
-The Anima list and management stage uses the shared adaptive Canvas layout. An
-expanded desktop sidebar docks beside and resizes the page, keeping the Avatar
-stage and bottom carousel centered in the remaining workspace. Collapsed
-sidebar controls float over a full-width stage without leaving a
-sidebar-colored gutter; sidebar-aware management chrome uses the shared inset
-variable when it must remain clear of those controls.
 
 Anima list and management presentation uses the bounded server projection, not
 a full runtime read per row. Private and Included thumbnails are fetched from

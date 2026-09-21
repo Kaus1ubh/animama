@@ -11,11 +11,8 @@ The user profile is `PROFILE.md` at the user-scope root; each Anima has its
 required `IDENTITY.md` at its own scope root. Lookups remain case-insensitive,
 so existing lowercase links and tool requests keep reaching the same entry.
 
-New profiles and Animas use the capitalized filenames. Existing entries retain
-their stored spelling until the owner recreates the development data; this
-change does not rename existing rows or alter their contents and history.
-Historical versions and chat manifests retain the spelling originally recorded;
-identity context matches those manifests case-insensitively.
+Stored entries, versions, and chat manifests preserve their original spelling;
+identity context matches manifests case-insensitively.
 
 ## Current Direct Chat Boundary
 
@@ -108,98 +105,18 @@ services can still refresh them when source-of-truth episode rows change.
 
 ## Memory Manager API
 
-The manual memory manager is mounted as a user-invoked maintenance workflow,
-not as part of normal `chat:sse`. The backend persists memory-manager runs,
-visible manager chat messages, and approval rows. In normal runtime mode, the
-manager is a live OpenAI Agents SDK agent configured with `ApplyPatchTool` over
-a constrained virtual memory workspace. `ANIMAMA_LLM_SKIP=1` keeps the local
-deterministic runtime for tests and no-model development.
+The Memory Manager is a separate user-invoked workflow over user-scope memory.
+It proposes create/update patches for approval and keeps episode logs read-only.
+Approvals use optimistic versions; rejection leaves memory unchanged, and Undo
+is available only while the target still matches the approved version.
 
-The live runtime uses `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, shared model
-client timeout settings, and `ANIMAMA_MEMORY_MANAGER_AGENT_MODEL` (default
-`gpt-5.4-mini`). A current-user override at
-`user_settings.preferences.memory.manager_model` takes precedence when it is a
-non-empty string; clearing it returns to the server default. The Account
-settings Memory section populates that preference from `OpenAIResponsesHTTPAgent`
-catalog entries. If the live manager is invoked without OpenAI credentials, the
-run fails clearly instead of silently falling back.
+The live runtime uses `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, and
+`ANIMAMA_MEMORY_MANAGER_AGENT_MODEL` (default `gpt-5.4-mini`). A nonempty
+`user_settings.preferences.memory.manager_model` overrides that default.
+`ANIMAMA_LLM_SKIP=1` selects the deterministic test runtime.
 
-A user request can produce a pending approval containing a frontend-safe patch
-preview with `operation`, `path`, `old_content`, `new_content`, `unified_diff`,
-`expected_version`, and `summary`. Approving a valid create/update commits the
-change through `MemoryEntryService` and atomically records the target entry ID
-and resulting Version on the approval; rejecting records the decision without
-changing memory. A rejection may also persist normalized `feedback` of at most
-2,000 characters and pass it into the resumed Agents SDK state; nonblank
-feedback is rejected for an approval decision. Stale version or path conflicts
-return `409 Conflict` and leave the approval pending.
-
-An approved create or update may expose `can_undo=true` only while it is the
-latest approved patch for that target, no approval is pending in its run, and
-the editable live target is still exactly at the applied Version. Undo rechecks
-those rules under locks. It restores only prior content for updates or
-soft-deletes only the created file for creates, appends an `undo` Version, and
-records `undone_at` plus `undo_version` while leaving the original approved
-decision intact. Successful retry is idempotent, and Undo never resumes the
-runtime or reopens processed episode rows.
-
-A persisted run can be closed through the completion endpoint once it has no
-pending approvals. Completion is idempotent, stores `status = "completed"` and
-`completed_at`, and prevents later messages from being appended. A completion
-request for a run with a pending approval returns `409 Conflict` and leaves the
-run unchanged.
-
-Run creation is also an authoritative lifecycle boundary. In the same
-transaction, it locks the current user's open runs, completes any stale
-`active` run with `metadata.completion_reason = "superseded_by_new_run"`, and
-then inserts the replacement. A `waiting_approval` run is never superseded:
-creation returns `409 Conflict` until the approval is resolved. A partial
-unique index permits at most one `active` or `waiting_approval` run per user,
-including under concurrent requests. `GET /v1/memory/manager/runs/current`
-returns that one open snapshot or `null`; it does not expose run history.
-
-Runs have permanent kinds `general` and `episode_processing`. The specialized
-`POST /v1/memory/manager/runs:process-episodes` route accepts only
-`auto_approve_diffs`, selects the current user's oldest pending rows in
-deterministic order, retains a fixed batch of at most 50, and stores private
-`E01` through `E50` alias mappings without copying episode text. Selecting an
-extra 51st row determines `has_more`; zero pending rows return `409` without
-superseding an active run. Public snapshots expose only run kind and safe task
-status/count/timestamp fields, never durable episode IDs or raw task state.
-
-During `processing`, every initial invocation and approval resume reloads that
-same owned batch. The specialized instructions treat notes as untrusted data,
-require curated-only duplicate checks with
-`include_episodic_memory=false`, and keep episode rows pending while any
-approval is unresolved. Runtime results are classified as `completed`,
-`waiting_approval`, `blocked`, or `failed`. Only a genuine completed result
-with no pending approval finalizes the batch. Finalization marks exactly the
-fixed rows processed with the manager run ID, regenerates affected daily files,
-changes the private task to `processed`, and keeps the run active. Later user
-messages use ordinary Memory Manager instructions and the existing Responses
-cursor without reinjecting the batch.
-
-The manager has no shell access. Its tools can list, read, and search
-user-scope memory files. Episode logs are readable/searchable source material
-only; generated episode paths under `episodes/**`, anima paths under
-`animas/**`, absolute/traversal paths, non-markdown paths, and delete
-operations are rejected. The mounted routes are:
-
-- `GET /v1/memory/episodes?status=pending&limit=100`
-- `POST /v1/memory/manager/runs`
-- `POST /v1/memory/manager/runs:process-episodes`
-- `GET /v1/memory/manager/runs/current`
-- `GET /v1/memory/manager/runs/{run_id}`
-- `POST /v1/memory/manager/runs/{run_id}:complete`
-- `POST /v1/memory/manager/runs/{run_id}/messages`
-- `POST /v1/memory/manager/approvals/{approval_id}:decide`
-- `POST /v1/memory/manager/approvals/{approval_id}:undo`
-
-The `baseline_20260908` SQL includes the open-run index, run kind/task
-state, approval feedback, applied/Undo Version, and old/new description columns.
-Database revisions outside the supported graph require their matching checkout
-or an explicitly disposable reset; ordinary `./reset.sh` preserves data and
-cannot bridge that schema boundary. See [Database operations](../operations/development.md#database).
+See [Memory Manager and episodic memory](memory-manager-and-episodic-memory.md)
+for routes, fixed episode batches, approval/resume behavior, Undo, and recovery.
 
 ## Direct Chat Memory Tools
 
@@ -490,7 +407,7 @@ The backend exposes authenticated CRUD routes under `/v1/memory/entries`:
   `projects/launch.md`, to create missing directories beneath that parent.
 - `PATCH /v1/memory/entries/{entry_id}`: update file content/metadata or
   move/rename one entry. It requires `expected_version` and rejects mixed
-  content edits plus move/rename in this phase.
+  content edits plus move/rename.
 - `DELETE /v1/memory/entries/{entry_id}?expected_version=N&recursive=false`:
   soft-delete one entry. Non-recursive directory deletes return `409 Conflict`
   when live children exist; `recursive=true` soft-deletes descendants too.
@@ -516,8 +433,7 @@ create, patch, move/rename, metadata edit, and delete operations against
 Forbidden`. Internal episodic-memory services pass a system-managed write flag
 when regenerating those files from `memory_episode_items`.
 
-The old `/v1/memory/files` routes are not mounted. All entry routes are scoped
-by the admitted installation request principal. When `anima_id` is non-null, the API
+All entry routes are scoped by the admitted installation request principal. When `anima_id` is non-null, the API
 validates that the anima belongs to that owner. Unit tests replace the FastAPI
 principal dependency explicitly; there is no test-header authentication path.
 

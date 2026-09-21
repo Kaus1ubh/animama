@@ -30,8 +30,7 @@ Main browser code lives under `src/frontend/web/src`:
 - `routes/`: TanStack Router file routes and route guards.
 - `app/`: router setup, global providers, local runtime readiness, neutral owner
   context, and query client.
-- `ui/`: feature UI, shell layout, sidebar, chat, canvas, settings, and debug
-  surfaces. The route-independent User Profile editor lives under `ui/profile`.
+- `ui/`: feature UI, shell layout, sidebar, chat, canvas, settings and debug surfaces.
 - `query/`: TanStack Query keys, options, read hooks, and mutations.
 - Generated OpenAPI methods and types live in the sibling
   `packages/runtime-contracts` package, not in the web source tree.
@@ -45,13 +44,9 @@ Main browser code lives under `src/frontend/web/src`:
   incremental content hashing.
 - `platform/`: Vite/browser platform adapters such as env and image rendering.
 
-Large browser-engine assets such as ONNX models and TTS resources live under
-`src/frontend/web/public`. Typed product content lives under the repository
-`content/included` and `content/local` roots, is registered by Animama, and is
-delivered through the FastAPI Content API. A narrow Vite compatibility plugin
-still exposes scene backgrounds and effect textures that the browser rendering
-engine and editors address directly; it does not expose VRM, VRMA, portrait,
-voice, or starter-Anima product catalogs.
+Browser-engine assets use the verified inputs described in
+[Content and workers](content-and-workers.md). Typed product content lives under
+`content/included` and `content/local` and is delivered through FastAPI.
 
 ## Route And Provider Flow
 
@@ -78,70 +73,19 @@ off. Theme synchronization pauses without deleting saved preferences or custom
 colors; enabling the flag restores the existing selection behavior. Toasts use
 the same forced theme.
 
-Primary routes:
+See [Routing](routing.md) for route ownership and navigation rules, and
+[Local profile](../features/user-profiles.md) for setup and launch selection.
+App Settings opens over the active route without remounting the chat runtime.
 
-- Launch selection: the `/a/` index waits for saved settings and owned Animas,
-  then opens the last visited Anima at `/a/$animaId`, falling back to the first
-  in creation order (Annie on fresh installs). It offers Retry for failed reads
-  and opens creation if none remain. Existing deep links keep their destination.
-- `/`: `src/frontend/web/src/routes/index.tsx`; sends incomplete first run to
-  `/setup` and a ready installation to `/a`.
-- `/setup`: `src/frontend/web/src/routes/setup.tsx`; required private display
-  name and Continue, with no Skip action. Embedded desktop also offers optional
-  provider-key setup through status-only main-process IPC.
-- `/a`: `src/frontend/web/src/routes/a.tsx`; accountless app shell with
-  `SettingsGate`, `AppShell`, the route-independent content Preview Dock provider,
-  and `SidebarShell`. The sidebar Create control links to the creator hub and
-  opens a hover/focus popout for Anima, Gesture, Reaction, Particle VFX, and
-  Sounds authoring routes in both expanded and collapsed states. Its expanded
-  Chats section lists the installation owner's recent conversations across all
-  Animas and identifies each row with that Anima's portrait. Compact menus on
-  the Animas and Chats section headings control Anima ordering and per-Anima
-  chat filtering without changing the active route. The default Recently used
-  Anima order promotes the live or remembered last-active Anima before falling
-  back to persisted Anima update recency.
-- `/a/create`: `src/frontend/web/src/routes/a/create.tsx`; creator hub for
-  Anima, Action, and Effects authoring.
-- `/a/animas/new`: `src/frontend/web/src/routes/a/animas.new.tsx`; the four-step
-  live creator under `ui/create-anima`, with typed sources, one selected-Avatar
-  preview, owner-scoped draft recovery, and strict idempotent submission.
-  Existing entry links and logical Avatar search/auth handoffs remain. Only
-  confirmed Saves persist content; Create commits one Anima before preparing
-  its first runtime. Cancel exits to the creator hub, not the roster resolver.
-- `/a/memories`: `src/frontend/web/src/routes/a/memories.tsx`; local memory
-  library for user-scope markdown entries and installation-owned upload/debug
-  workflows.
-- `/a/library`: `src/frontend/web/src/routes/a/library.tsx`; protected Library
-  composing typed product catalogs and Chat Uploads.
-- `/a/animas`: `src/frontend/web/src/routes/a/animas/index.tsx`; compatibility
-  resolver that replaces the URL with the first owned Anima's management route,
-  or sends an installation with no Animas to `/a/animas/new`.
-- `/a/animas/:animaId`:
-  `src/frontend/web/src/routes/a/animas/$animaId.tsx`; anima details and
-  management. `/a/animas/:animaId/identity` opens the anima-scoped
-  `IDENTITY.md` memory editor modal.
-- `/a/avatar-portrait-debug`:
-  `src/frontend/web/src/routes/a/avatar-portrait-debug.tsx`; explicitly opted-in
-  development VRM portrait-capture harness. Production builds return not found.
-- `/a/:animaId` and `/a/:animaId/c/:chatId`:
-  `src/frontend/web/src/routes/a/$animaId.tsx` owns the anima runtime shell,
-  `AnimaRouteProviders`, `MainShell`, and `ChatInterface`. The child chat
-  route is intentionally minimal so URL changes do not remount the avatar,
-  TTS, or SSE runtime.
-
-The sidebar App Settings action opens a modal over the active route. Modal
-backdrops share its light 10% black dimming and subtle blur through the shared
-dialog styles, including the Anima details and content preview modals. The App
-Settings General section includes the private Display Name editor. Opening settings or saving a
-name does not navigate or remount chat/avatar runtime state.
+Modal backdrops share the light dimming and subtle blur used by App Settings.
 
 ## Data And Runtime Flow
 
 - Generated SDK methods come from `@animama/runtime-contracts/sdk`; their
   generated source lives under `src/frontend/packages/runtime-contracts/src/generated`.
 - API base URLs and browser flags come from `src/frontend/web/src/platform/env.ts`.
-- `configureAnimaApiClient.ts` uses `window.location.origin`; the global local
-  local request interceptor adds only the CSRF marker to mutating `/v1` requests.
+- `configureAnimaApiClient.ts` uses `window.location.origin`; the local
+  request interceptor adds only the CSRF marker to mutating `/v1` requests.
 - TanStack Query state uses `src/frontend/web/src/query/keys.ts` and the hooks
   under `query/hooks` and `query/mutations`.
 - Runtime-local state that is not server state lives in Zustand stores under
@@ -164,7 +108,7 @@ User-file upload flow:
 
 1. Chat composer and Library's Chat Uploads management panel create a scoped
    Uppy instance through `useUserFileUpload`.
-2. Uppy calls generated API mutations to initialize a admitted local
+2. Uppy calls generated API mutations to initialize an admitted local
    upload, PUTs bytes through FastAPI, finalizes the atomically promoted file,
    and usually enqueues processing.
 3. `useUserFiles` lists current-user files and polls while uploads or processing
@@ -211,14 +155,9 @@ Vite owns development serving and a closed proxy to the private backend;
 production has no frontend Node service. Browser modules import neither backend
 configuration nor Electron internals.
 
-The browser retains UI/SSE metric calls and API trace propagation through
-`@opentelemetry/api`, but its startup does not register telemetry providers or
-export OTLP signals.
-The bounded FastAPI forwarder remains, disabled by default in Compose and
-always disabled in embedded desktop with a 204 response. Compose no longer
-bundles a collector or the retired `obs` stack. Local logging remains available.
-Future hosted observability requires its own explicit provider, collector, and
-privacy-safe payload configuration.
+The browser retains metric calls and API trace propagation but registers no
+telemetry exporter. The FastAPI forwarder is disabled by default in Compose
+and always disabled in embedded desktop. See [Local HTTP boundary](auth-server.md).
 
 ## Commands
 

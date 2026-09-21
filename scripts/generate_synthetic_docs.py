@@ -26,11 +26,10 @@ Choice = TypeVar("Choice", bound=str)
 OUTPUT_FORMATS: tuple[OutputFormat, ...] = ("md", "pdf", "docx")
 SIZE_PRESETS: tuple[SizePreset, ...] = ("xxsmall", "xsmall", "small", "large", "full")
 
-# The curated presets are deliberately nested. Their current UTF-8 source sizes
-# are approximately 0.04 MB, 0.08 MB, 0.17 MB, and 0.33 MB; full discovers
-# every non-plan doc. Xsmall and xxsmall remain close to one half and one
-# quarter of small as the selected documentation changes.
+# Curated presets are nested; full discovers every non-plan doc. Keep xsmall
+# and xxsmall close to one half and one quarter of small as source docs change.
 XXSMALL_SOURCE_PATHS = (
+    "docs/backend/README.md",
     "docs/backend/features/user-files.md",
     "docs/frontend/README.md",
     "docs/frontend/features/user-file-uploads.md",
@@ -38,6 +37,7 @@ XXSMALL_SOURCE_PATHS = (
 XSMALL_SOURCE_PATHS = (
     *XXSMALL_SOURCE_PATHS,
     "docs/backend/runtime/chat.md",
+    "docs/frontend/runtime/chat.md",
 )
 SMALL_SOURCE_PATHS = (
     "docs/backend/README.md",

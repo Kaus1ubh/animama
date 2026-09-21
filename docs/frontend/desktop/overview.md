@@ -60,24 +60,11 @@ An explicit unpackaged `ANIMAMA_DESKTOP_DEV_RUNTIME_ROOT` selects embedded
 testing against a complete staged runtime. Packaged builds reject web-URL,
 development runtime/data, and sandbox overrides. See [Platform builds](platforms.md).
 
-The separate Compose workflow publishes one application origin on loopback and stores
-typed content in the backend-managed, host-inspectable `content/` library.
-Electron consumes catalog and byte APIs exactly like browser web; it does not
-enumerate `content/`, receive absolute host paths, or gain arbitrary filesystem
-IPC. Creator routes and authoritative scanning make valid typed files available
-through the shared FastAPI catalog. Newly scanned files become selectable but
-are never automatically equipped.
-
-```text
-http://localhost:8000  Local application
-```
-
-Development publishes Vite with a same-origin proxy to private FastAPI. Built
-self-host publishes FastAPI serving the compiled React app. PostgreSQL stays private.
-That fixed development URL is not the embedded app's saved random loopback port.
-The optional `dev-tools` Compose profile enables localhost pgAdmin and Dozzle
-for developers; see [local administration tools](../../backend/operations/development.md#local-administration-tools).
-They are not Electron resources, renderer services, or hosted endpoints.
+Electron uses the same owner-scoped catalog and byte APIs as browser web.
+It does not enumerate the host content library or expose arbitrary filesystem
+IPC. See [Local content runtime](../architecture/local-content-runtime.md) for
+source scanning and mounted-content behavior, and
+[Platform builds](platforms.md) for external-stack development.
 
 The renderer starts through `main.local.tsx`. On a fresh database it shows the
 required private display-name setup; after completion it opens Annie's chat.
@@ -130,32 +117,16 @@ desktop/src/main-process/shortcuts/shortcuts-ipc.ts
 ```
 
 The main process validates the configured web URL and restricts renderer
-navigation to the configured origin. External HTTP(S) links are opened through
-the OS shell instead of inside Anima windows.
+navigation to the configured origin. External HTTP(S) links open through the OS shell.
 
 ## Preload Bridge
 
 Renderer access to Electron goes through `window.animamaDesktop`, exposed by the
 sandboxed preload at `desktop/src/preload.cts`.
 
-The bridge exposes:
-
-```ts
-window.animamaDesktop = {
-  version: 2,
-  isDesktop: true,
-  platform: process.platform,
-  windowRole: "main" | "pip" | "quick-chat" | "recovery",
-  runtime: { status, retry, openLogs, openBackups, quit, onStatus },
-  credentials: { list, set, delete },
-  featurePacks: { list, install, cancel, remove, onProgress },
-  updates: { status, check, download, restart, onStatus },
-  fullscreen: { ... },
-  pip: { ... },
-  quickChat: { ... },
-  shortcuts: { ... },
-};
-```
+API version 2 identifies the platform and window role and groups runtime,
+credential, feature-pack, update, fullscreen, PiP, Quick Chat and shortcut methods.
+See `desktop/src/preload.cts` for the complete surface.
 
 The preload source uses `.cts` and is bundled to `dist/preload.cjs` after
 TypeScript compilation. Keep new bridge APIs narrow, serializable, and explicit.
@@ -186,8 +157,7 @@ desktop credential controls.
 
 A busy or failed drain leaves the previous credential unchanged. Main retains
 one bounded failure status per provider across product-window recreation, so
-reopening Settings explains why the change did not finish. Settings itself is
-not kept open across recreation. A new accepted attempt clears that provider's
+reopening Settings explains why the change did not finish. A new accepted attempt clears that provider's
 previous failure. If the vault was already updated before a service restart
 failed, the saved value remains; Retry starts services with that value and
 clears the restart failure after verified readiness. These failure records stay
@@ -216,22 +186,9 @@ neither source paths nor arbitrary filesystem access. Only Local is watched.
 
 ## Optional Feature Packs
 
-Setup offers **Install offline speech recognition** unchecked. Continue saves
-first-run state before starting an explicitly selected download. An unchecked
-option never downloads. The main window's Settings shows available catalog packs (and retained installed files for recovery) with their exact
-catalog byte counts, disk requirement, progress, Cancel, and confirmed Remove.
-An unpublished or incompatible catalog entry has no enabled Install action.
-
-Expanded Included content and document processing are explicitly deferred from
-the first release, so they have no catalog entries and are hidden on a fresh
-installation. Their code remains supported for a future reviewed release; the
-two starters remain complete. Parakeet is the only active initial pack.
-
-| Pack                                   | Enabled behavior                              | When absent                                                                  |
-| -------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------- |
-| `parakeet-stt`                         | Offline dictation and Voice Mode              | Text chat, microphone permission, avatars, and PocketTTS still work          |
-| `expanded-included-content` (deferred) | More selectable Included content              | The generated core starter closure remains available                         |
-| `document-processing` (deferred)       | Extraction and indexing of uploaded documents | Originals and already indexed chunks remain; new process requests return 409 |
+Parakeet is the only active initial pack; expanded Included content and document
+processing are deferred. [Feature packs](feature-packs.md) describes availability,
+setup and removal behavior.
 
 The owner-protected `GET /v1/runtime-capabilities` is the renderer's capability
 authority. Pack status is separate from document-worker liveness. An installed
@@ -274,18 +231,10 @@ restoring a vault on another machine may also require its original OS keychain.
 Missing installation ownership fails closed, rather than generating a new owner
 over existing data.
 
-Close Animama before backing up its user-data directory; preserve the database,
-vault, Local content, and private data together. Premigration database dumps
-alone are not a complete backup. Verified dumps live under
-`backups/pre-migration/<from>-to-<to>/`. After two successful distinct app
-launches on a new schema, older known-successful dumps may be pruned. The newest
-dump, failed/interrupted upgrade snapshots, and unrecognized entries remain.
-Recovery shows the relative dump location; it never automatically restores or
-downgrades the database. See [Release recovery](releases.md#recovery-and-retention).
-Gateway/control tokens and the renderer capability are generated per launch and
-are not backup secrets. A stale live-process record requires quitting the old
-instance or restarting the computer, then Retry. Never delete PGDATA to clear a
-startup error.
+Backups must preserve the database, vault, Local content and private data together
+with the app closed. Premigration dumps are incomplete backups and never trigger
+automatic restore or downgrade. See [Backup and recovery](troubleshooting.md#backups-and-recovery)
+for retained snapshots, keychain requirements and stale-process recovery.
 
 Pack state is reconstructed, not trusted from the UI. A corrupt version is
 unmounted and can be reinstalled; a replacement is verified before damaged
@@ -363,7 +312,7 @@ platforms, the PiP body is click-through while close, resize, the hover drag
 handle, and the size slider remain interactive. Browser web still uses Document
 PiP when available.
 
-See `picture-in-picture.md` for the implementation details.
+See [Picture-in-picture](picture-in-picture.md) for implementation details.
 
 ## Desktop Keyboard Shortcuts
 
@@ -374,7 +323,7 @@ app stores and displays the application preferences, but shortcut capture only
 applies inside the desktop app. The default shortcuts toggle Voice Mode, toggle
 Voice Mode mute, and skip active TTS playback.
 
-See `keyboard-shortcuts.md` for the implementation details.
+See [Keyboard shortcuts](keyboard-shortcuts.md) for implementation details.
 
 ## Security Model
 
@@ -430,7 +379,7 @@ Renderer DevTools are available with `Ctrl+Shift+I`. Use
 
 ## Packaging
 
-Platform-specific packaging details live in `platforms.md`.
+See [Platform builds](platforms.md) for packaging commands.
 
 The unsigned development package targets macOS 15+ arm64 and requires a fresh,
 complete audited stage. Windows and Linux self-contained packaging is deferred;

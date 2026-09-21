@@ -76,9 +76,7 @@ synchronize a changed Python catalog into an existing database.
 
 `ModelProviderCatalogService` can synchronize repository rows from the Python
 catalog, but normal app startup currently relies on the post-schema SQL seed.
-The SQL renderer currently lives in `tests/test_model_provider_catalog.py`; if
-catalog updates become frequent, extract it into a supported generation script
-instead of maintaining another serialization path.
+The SQL renderer lives in `tests/test_model_provider_catalog.py`.
 
 ### Public Catalog And Frontend Discovery
 
@@ -155,7 +153,7 @@ request shape, stream semantics, structured output, and tools. Typical work is:
 2. add or update pricing metadata;
 3. regenerate the SQL seed;
 4. update catalog and validation tests;
-5. update documentation and run a live smoke test.
+5. update the supported-model reference and run a live smoke test.
 
 No registry, adapter, route, or frontend code should be necessary when the
 public schema remains unchanged.
@@ -331,70 +329,20 @@ default, grouping rule, or API-standard behavior.
 
 ## OpenAI Responses Example: GPT-5.6 Luna, Terra, And Sol
 
-As of 2026-08-08, OpenAI documents these explicit model IDs:
-
-- `gpt-5.6-luna` for cost-sensitive, high-volume work;
-- `gpt-5.6-terra` for a balance of intelligence and cost;
-- `gpt-5.6-sol` for frontier capability.
-
-The `gpt-5.6` alias routes to Sol, but explicit IDs are clearer durable catalog
-keys. All three document a 1,050,000-token context window, 922,000-token maximum
-input, 128,000-token maximum output, text/image input, text output, Responses
-support, streaming, structured outputs, function calling, prompt caching, and
-reasoning efforts `none`, `low`, `medium`, `high`, `xhigh`, and `max`.
-
-Animama currently implements Responses-only product support for Luna and Terra:
+The implemented Luna and Terra rows reuse `OpenAIResponsesModelClient`:
 
 ```text
 OpenAIResponsesHTTPAgent:gpt-5.6-luna
 OpenAIResponsesHTTPAgent:gpt-5.6-terra
 ```
 
-Sol can be added through the same catalog path when the product needs it. The
-implemented rows reuse `OpenAIResponsesModelClient`; no new backend or upstream
-endpoint is needed. The basic adapter already sends the model ID, strict
-`text.format`, `reasoning.effort`, streaming, supported tools, prompt cache
-key, `context_management`, and `previous_response_id`.
+Their catalog entries enable requestable `web_search` and backend-controlled
+memory `apply_patch`. The ordered reasoning list starts with `none`, which the
+selector sends as its default. Sol is not an implemented catalog row.
 
-Advertise only native tools integrated by Animama. Although the models support
-additional OpenAI-hosted tools, the existing direct-chat path deliberately
-supports requestable `web_search`, backend-controlled memory `apply_patch`, and
-provider-neutral function tools. Other hosted tools need explicit request,
-stream-event, result, safety, persistence, and UI design before catalog
-exposure.
-
-GPT-5.6 defaults omitted reasoning effort to `medium`. Animama intentionally
-lists all six efforts with `none` first, so its current selector explicitly
-sends `none` for Luna and Terra by default. If a future model needs a different
-product default, add a first-class default as described above.
-
-The documented standard short-context token prices per million are:
-
-| Model | Input | Cached input | Cache write | Output |
-| --- | ---: | ---: | ---: | ---: |
-| `gpt-5.6-luna` | $0.20 | $0.02 | $0.25 | $1.20 |
-| `gpt-5.6-terra` | $2.00 | $0.20 | $2.50 | $12.00 |
-| `gpt-5.6-sol` | $5.00 | $0.50 | $6.25 | $30.00 |
-
-Requests with more than 272,000 input tokens are billed at twice the input rate
-and 1.5 times the output rate for the full request. Batch and Flex rates are
-half the corresponding standard rates. OpenAI Fast mode rates are stored in
-Animama's existing priority-tier fields. Animama can represent the short/long
-input, cached-input, and output rates, but not the distinct cache-write column;
-preserve that limitation in `pricing_notes` unless the pricing schema is
-extended.
-
-Current OpenAI references:
-
-- <https://developers.openai.com/api/docs/models>
-- <https://developers.openai.com/api/docs/models/gpt-5.6-luna>
-- <https://developers.openai.com/api/docs/models/gpt-5.6-terra>
-- <https://developers.openai.com/api/docs/models/gpt-5.6-sol>
-- <https://developers.openai.com/api/docs/guides/latest-model>
-- <https://developers.openai.com/api/docs/pricing>
-
-Recheck these sources when implementing the change; model capabilities and
-pricing are time-sensitive.
+Use [the model catalog](../model-catalog.md) for supported capabilities and
+`MODEL_CATALOG` for source-attributed pricing. Verify current vendor terms
+before adding a row; dated rate-card examples are not integration requirements.
 
 ## Tests And Verification
 

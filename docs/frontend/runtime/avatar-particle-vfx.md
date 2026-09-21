@@ -22,15 +22,8 @@ Runtime code lives under:
 - `src/frontend/web/src/lib/avatar/poses/animaPoseClip/`
 - `src/frontend/web/src/lib/avatar/Avatar.ts`
 
-The code-defined authoring catalog contains `hearts`, `stars`,
-`sparkles`, `question-marks`, `exclamation`, `zzz`, `rain-cloud`,
-`hearts-v1`, `exclamation-v1`, `question-v1`, `hearts-v2`, `star-v2`, and
-`flame-loop`, plus
-`magic-sparkle-burst`, `soft-heart-pop`, `surprise-shock-pop`,
-`confusion-orbit-marks`, `sleep-bubbles`, and `sad-rain-puff`.
-Live Anima routes can resolve only the subset mounted in that Anima's
-`AnimaRuntimeCatalog`. Code-defined entries supply authoring defaults and
-compatibility metadata; they do not authorize playable bytes.
+The code-defined catalog supplies authoring defaults. Live playback resolves only
+the verified entries in the mounted `AnimaRuntimeCatalog`.
 
 ## Bundled media
 
@@ -96,19 +89,9 @@ validation, import/export tools, and Three.quarks preview lifecycle. Save uses
 Local entry. It never equips the effect to an Anima; Gesture and Reaction
 creators reference it as a dependency.
 
-The creator is scene-first on desktop. Its route-owned Canvas docks beside the
-expanded application sidebar and resizes to that usable workspace; when the
-sidebar collapses, the Canvas returns to full viewport width beneath the
-compact controls. Interactive chrome uses the remaining local sidebar inset:
-zero after the expanded surface has moved, or the compact control inset while
-the rail overlays the scene. The document toolbar, Emitters/effect setup panel,
-System/Emission/Shape/Behavior/Appearance Inspector, model/Avatar controls,
-and Preview Timeline float above the scene. Appearance groups the existing
-Texture, Color, and Renderer fields while preserving the authored
-`three.quarks` document.
-Import and JSON inspection use focused dialogs, and the Preview Timeline only
-pauses, resumes, or restarts this local creator preview—it does not author clip
-events or typed dependencies.
+The Inspector groups System, Emission, Shape, Behavior and Appearance settings.
+The Preview Timeline pauses, resumes or restarts the isolated creator preview;
+it does not author clip events or dependencies.
 
 ## Clip Events
 

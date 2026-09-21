@@ -1,42 +1,13 @@
 # Scene VFX Guide
 
-This document explains the current scene-scoped VFX system in the Vite web frontend.
-
 Scene Effects are typed catalog content and dependencies of Gestures and
 Reactions. The product creator authors Local Background Layers or Focus Lines
 items, while runtime preparation keeps those lanes distinct and resolves their
 registered files and configuration for Preview and playback.
 
-It covers:
-
-- why scene VFX is separate from avatar VFX
-- how scene VFX is stored, resolved, and rendered at runtime
-- how the current `background_layers` and `focus_lines` effects work
-- how the debug modal previews and applies scene effects
-
-For avatar-bound eye/face effects, see `docs/frontend/runtime/avatar-vfx.md`.
-
-For the VRM debug modal and editor-session architecture around this runtime, see `docs/frontend/runtime/vrm-inspector-editor.md`.
-
-For the implementation planning notes that led to this runtime, see `background-vfx.md` and `focus-lines-vfx.md` at the repo root.
-
-## 1) Why this layer exists
-
-The frontend already had an avatar VFX runtime, but that runtime is intentionally avatar-owned:
-
-- `AvatarVFXController` is created by `Avatar` after VRM load
-- it binds effects to live avatar primitives and hover planes
-- it updates from the avatar runtime tick
-- it targets face and eye surfaces, not the whole scene
-
-Scene VFX solves a different problem:
-
-- it is viewport-scoped rather than mesh-scoped
-- it can render either behind the avatar or in front of it
-- it can optionally cover normal chat/header/panel overlays
-- it should be reusable for future scene-only effect kinds
-
-That is why scene VFX is implemented as a separate runtime instead of another `AvatarVFXController` entry kind.
+Scene effects render in DOM/SVG layers behind or in front of the Avatar and
+can cover application overlays. Mesh-bound effects belong to
+[Avatar VFX](avatar-vfx.md).
 
 ## 2) Main files
 
@@ -165,15 +136,11 @@ Routes:
 - `/a/scene-effects/new`
 - `/a/scene-effects/:sceneEffectId/edit`
 
-The creator starts with all three Background Layers enabled. Solid uses the
-Anima theme's default chat-canvas background (`#faf9f5`), Pattern starts with a
-primary-blue (`#87ceeb`) polkadot, and Marquee starts enabled without any loaded
-items. Each fixed layer card exposes its enabled switch directly. Built-in
-templates remain explicit starting choices and are cloned into an independent
-private document only when selected. Marquee items can be reordered and can
-contain allowlisted Twemoji or private PNG/JPEG/WebP sources. `Focus Lines`
-exposes render placement, procedural geometry, Avatar-face or normalized
-manual-box targeting, flicker animation, and style controls.
+Background Layers combines Solid, Pattern and Marquee layers. Marquee items can
+be reordered and use allowlisted Twemoji or private PNG/JPEG/WebP sources.
+Focus Lines exposes render placement, procedural geometry, Avatar-face or
+normalized manual-box targeting, flicker animation and style controls.
+Selecting a built-in template updates the editable draft.
 
 The portable `animama/scene-effect-editor/1` JSON contains logical image names
 and exact Sound sources only. It never contains Blob URLs, download URLs, or
@@ -357,19 +324,11 @@ Important implementation detail:
 
 File: `src/frontend/web/src/ui/main/scene-vfx/SceneVFXBackgroundLayersEffect.tsx`
 
-`background_layers` is the original shipped scene effect kind.
-
 It renders three DOM layers in order:
 
 1. `SceneVFXSolidLayer`
 2. `SceneVFXPatternLayer`
 3. `SceneVFXMarqueeLayer`
-
-This effect remains fully DOM/CSS-based:
-
-- no Three.js plane
-- no post-process pass
-- no shader
 
 ### Solid fill
 
@@ -623,44 +582,7 @@ Apply:
 
 Because preview state is tracked per kind, previewing `focus_lines` does not overwrite `background_layers`, and vice versa.
 
-### Current Scene VFX controls
-
-Background-layer controls expose:
-
-- enabled toggle
-- preset selector
-- duration and sticky lifetime fields
-- `coverUiOverlays`
-- `dismissOnInput`
-- solid color controls
-- pattern kind, color, size, spacing, and opacity
-- marquee item selectors
-- marquee direction
-- marquee item size, gap, row gap, speed, opacity, rotation mode, and rotation offset
-
-Focus-line controls expose:
-
-- enabled toggle
-- duration and sticky lifetime fields
-- `coverUiOverlays`
-- `dismissOnInput`
-- render placement
-- target kind
-- face padding X and Y
-- manual-box rectangle controls
-- line count
-- color
-- opacity
-- base thickness
-- thickness variation
-- length variation
-- overscan
-- seed
-- animation timing controls
-
 ## 12) Performance notes
-
-The current scene-VFX system is still intentionally DOM-first, but the cost profile differs by kind.
 
 `background_layers`:
 
@@ -678,10 +600,6 @@ The current scene-VFX system is still intentionally DOM-first, but the cost prof
 The current implementation also avoids a common `useSyncExternalStore` pitfall by subscribing `SceneVFXLifecycleBridge` to `activeByKind` and deriving arrays with `useMemo`, instead of returning a fresh array directly from the Zustand selector.
 
 ## 13) Current limitations
-
-The scene-VFX runtime is still intentionally narrow.
-
-Current limits:
 
 - Scene Effects are triggered by configured clip events or explicit preview/
   debug controls; they are not a separate autonomous scene planner.

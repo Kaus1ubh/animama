@@ -55,9 +55,8 @@ Registered provider families are:
 - `LiteLLMAgent`: LiteLLM async chat completions
 - `MockModelClient`: deterministic local/test model client
 
-The provider type names are durable catalog identifiers. Some still end in
-`Agent` for compatibility with existing `model_providers` rows, but they are no
-longer backed by backend agent objects or graph runners.
+Provider type names, including their `Agent` suffixes, are durable catalog
+identifiers.
 
 The public model-provider catalog also reports a nullable chat compatibility
 profile for each row. `OpenAIHTTPAgent` maps to
@@ -84,7 +83,7 @@ that records usage and advances turns. Later requests can switch to another
 catalog row with the same `api_standard`, but a different standard is rejected
 with `409 chat_api_standard_mismatch` before local history, Responses cursors,
 memory side effects, or upstream model clients are used. Rows with null
-compatibility fields are not accepted for direct chat in this phase and fail
+compatibility fields are not accepted for direct chat and fail
 setup with `chat_api_standard_unsupported`.
 
 Server startup builds the app-scoped registry in `server/model_clients.py`.
@@ -129,8 +128,7 @@ OpenAI server decides whether to compact based on the rendered token count.
 
 When `ANIMAMA_LLM_SKIP=1`, startup registers `MockModelClient` for all direct
 provider families so local chat can run without upstream API keys. Mock mode is
-all-or-nothing for direct provider families; it does not use the old agent-era
-mock tuning variables.
+all-or-nothing for direct provider families.
 
 ## Stream Event Finality And Observability
 
@@ -434,11 +432,5 @@ and `chats.last_model_id` is the model slug such as `gpt-5-nano`.
 
 ## Adding Provider Support
 
-When adding a provider/model:
-
-1. Update `MODEL_CATALOG` in `src/backend/animama/app/model_catalog.py`.
-2. Add or extend a direct model client in `src/backend/animama/adapters/model_clients/`.
-3. Register the client in `src/backend/animama/server/model_clients.py`.
-4. Add capability and provider-switching tests.
-5. Update [Model catalog](../model-catalog.md) and generated frontend clients if
-   the public API shape changes.
+Follow [Adding AI model support](adding-ai-models.md) for catalog, adapter,
+registration, schema, and validation changes.

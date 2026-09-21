@@ -1,17 +1,7 @@
 # Avatar Emotion Guide
 
-This document describes the current emotion system used by the backend and frontend avatar runtime.
-
-It covers:
-
-- the canonical tracked emotions
-- derived `EmotionGroup` behavior
-- the backend `emotion.update` contract
-- frontend runtime derivation
-- avatar animation / expression / voice mapping
-- the current UI surfaces
-
-This guide documents the current system only.
+The backend persists per-emotion values; the frontend derives groups for
+presentation and uses turn metadata to select reactions.
 
 ## 1) High-level model
 
@@ -46,53 +36,16 @@ Frontend source of truth:
 
 The tracked emotions are grouped into 8 `EmotionGroup` values.
 
-### `Affection`
-
-- `admiration`
-- `caring`
-- `love`
-
-### `Esteem`
-
-- `respect`
-- `confidence`
-- `gratitude`
-
-### `Delight`
-
-- `amusement`
-- `excitement`
-- `joy`
-
-### `Drive`
-
-- `desire`
-- `curiosity`
-- `optimism`
-
-### `Alarm`
-
-- `fear`
-- `nervousness`
-- `confusion`
-
-### `Rejection`
-
-- `anger`
-- `annoyance`
-- `disapproval`
-
-### `Revulsion`
-
-- `disgust`
-- `embarrassment`
-- `remorse`
-
-### `Gloom`
-
-- `disappointment`
-- `grief`
-- `sadness`
+| Group     | Tracked emotions                |
+| --------- | ------------------------------- |
+| Affection | admiration, caring, love        |
+| Esteem    | respect, confidence, gratitude  |
+| Delight   | amusement, excitement, joy      |
+| Drive     | desire, curiosity, optimism     |
+| Alarm     | fear, nervousness, confusion    |
+| Rejection | anger, annoyance, disapproval   |
+| Revulsion | disgust, embarrassment, remorse |
+| Gloom     | disappointment, grief, sadness  |
 
 Soft opposing pairs exist only as prompt guidance:
 
@@ -281,7 +234,7 @@ Groups with average `0` are omitted from ranked runtime output.
 
 ### Anima snapshot seeding
 
-When a anima is loaded, the avatar runtime store seeds itself from `anima.emotional_state`.
+When an Anima is loaded, the avatar runtime store seeds itself from `anima.emotional_state`.
 
 Relevant flow:
 
@@ -393,7 +346,7 @@ Relevant files:
 
 ### Voice selection mapping
 
-Pocket voice selection also uses the new group layer.
+Pocket voice selection uses the derived group layer.
 
 Current voice lane mapping:
 
@@ -456,29 +409,6 @@ Current behavior:
 - anima list and anima details pages remain persisted-state views
 
 The `EmotionalState` component accepts a `sourceLabel` prop so each surface can explicitly show whether it is displaying live runtime state or persisted anima state.
-
-## 7) End-to-end flow
-
-The current end-to-end flow is:
-
-1. Backend dispatch starts with the anima’s persisted `emotional_state`.
-2. The primary chat agent returns user-facing text plus an optional validated
-   response-matched gesture through the main structured response contract.
-   Voice-structured runs also choose hidden `emotional_tone` and
-   `emotional_intensity` metadata for the current spoken utterance.
-3. Backend `chat:sse` maps the primary response metadata into one full-state
-   `emotion.update`.
-4. The frontend SSE layer forwards `emotion.update` into the avatar runtime store.
-5. The runtime store rebuilds derived emotion and group state from `emotions`.
-6. The avatar runtime uses:
-   - `dominantGroup` for animation/expression selection
-   - `dominantEmotion.group` for Pocket voice selection
-   - `emotional_tone` plus normalized `emotional_intensity` for turn-scoped
-     reaction clip selection
-7. ElevenLabs v3 may use the hidden `emotional_tone` plus backend-visible
-   emotion intensity to prefix only the upstream provider text. This does not
-   alter avatar emotion state or lip-sync metadata.
-8. UI surfaces render either the live runtime or persisted state depending on context.
 
 ## 8) Editing rules for future work
 
