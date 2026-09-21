@@ -109,41 +109,41 @@ must opt into those adjustments with the right request context.
 
 ## Provider Types
 
-| Provider type | Provider label | Default logo | Notes |
-| --- | --- | --- | --- |
-| `OpenAIHTTPAgent` | OpenAI HTTP or provider row override | `openai` or row override | OpenAI-compatible Chat Completions adapter. OpenAI rows use `https://api.openai.com/v1`; DeepSeek rows use `https://api.deepseek.com`; Hugging Face rows use `https://router.huggingface.co/v1` with Hugging Face label/logo overrides. |
-| `OpenAIResponsesHTTPAgent` | OpenAI Responses HTTP | `openai` | OpenAI Python SDK Responses adapter. Registry entries include `https://api.openai.com/v1` as the provider base URL. Turns call `/responses` directly, support typed SSE text streaming, continue chats through the chat row's `openai_previous_response_id`, and use Anima memory function tools through Responses tool/input item types. |
-| `GeminiAgent` | Gemini | `google` | Google Gemini SDK-backed adapter. Registry base URL is empty. |
-| `LiteLLMAgent` | LiteLLM | prefix-based | LiteLLM SDK-backed adapter. Only provider-prefixed aliases in this catalog are accepted. |
+| Provider type              | Provider label                       | Default logo             | Notes                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------- | ------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OpenAIHTTPAgent`          | OpenAI HTTP or provider row override | `openai` or row override | OpenAI-compatible Chat Completions adapter. OpenAI rows use `https://api.openai.com/v1`; DeepSeek rows use `https://api.deepseek.com`; Hugging Face rows use `https://router.huggingface.co/v1` with Hugging Face label/logo overrides.                                                                                                   |
+| `OpenAIResponsesHTTPAgent` | OpenAI Responses HTTP                | `openai`                 | OpenAI Python SDK Responses adapter. Registry entries include `https://api.openai.com/v1` as the provider base URL. Turns call `/responses` directly, support typed SSE text streaming, continue chats through the chat row's `openai_previous_response_id`, and use Anima memory function tools through Responses tool/input item types. |
+| `GeminiAgent`              | Gemini                               | `google`                 | Google Gemini SDK-backed adapter. Registry base URL is empty.                                                                                                                                                                                                                                                                             |
+| `LiteLLMAgent`             | LiteLLM                              | prefix-based             | LiteLLM SDK-backed adapter. Only provider-prefixed aliases in this catalog are accepted.                                                                                                                                                                                                                                                  |
 
 LiteLLM logos are chosen from the model prefix:
 
-| Prefix | Logo key |
-| --- | --- |
+| Prefix    | Logo key |
+| --------- | -------- |
 | `openai/` | `openai` |
 | `gemini/` | `google` |
-| `xai/` | `xai` |
-| `groq/` | `groq` |
+| `xai/`    | `xai`    |
+| `groq/`   | `groq`   |
 
 ## Supported Provider/Model Pairs
 
-| Provider type | Model | Accepts | Produces | Tools | Streaming | Reasoning efforts | Native tools |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `OpenAIHTTPAgent` | `gpt-5-nano` | image, text | text | yes | yes | `minimal`, `low`, `medium`, `high` | none |
-| `OpenAIResponsesHTTPAgent` | `gpt-5-nano` | image, text | text | yes | yes | `minimal`, `low`, `medium`, `high` | none |
-| `OpenAIHTTPAgent` | `gpt-5.4-nano` | image, text | text | yes | yes | `none`, `low`, `medium`, `high`, `xhigh` | none |
-| `OpenAIResponsesHTTPAgent` | `gpt-5.4-nano` | image, text | text | yes | yes | `none`, `low`, `medium`, `high`, `xhigh` | `apply_patch`, `web_search` |
-| `OpenAIResponsesHTTPAgent` | `gpt-5.6-luna` | image, text | text | yes | yes | `none`, `low`, `medium`, `high`, `xhigh`, `max` | `apply_patch`, `web_search` |
-| `OpenAIResponsesHTTPAgent` | `gpt-5.6-terra` | image, text | text | yes | yes | `none`, `low`, `medium`, `high`, `xhigh`, `max` | `apply_patch`, `web_search` |
-| `OpenAIHTTPAgent` | `deepseek-v4-flash` | text | text | yes | yes | `none`, `high`, `max` | none |
-| `OpenAIHTTPAgent` | `deepseek-v4-pro` | text | text | yes | yes | `none`, `high`, `max` | none |
-| `OpenAIHTTPAgent` | `zai-org/GLM-5.2:deepinfra` | text | text | yes | yes | n/a | none |
-| `OpenAIHTTPAgent` | `deepseek-ai/DeepSeek-V4-Pro:deepinfra` | text | text | yes | yes | n/a | none |
-| `LiteLLMAgent` | `openai/gpt-5.4-nano` | image, text | text | yes | yes | `none`, `low`, `medium`, `high`, `xhigh` | none |
-| `LiteLLMAgent` | `gemini/gemini-3.1-flash-lite-preview` | image, text | text | yes | yes | n/a | none |
-| `LiteLLMAgent` | `xai/grok-4-1-fast-reasoning-latest` | text | text | yes | yes | n/a | none |
-| `LiteLLMAgent` | `groq/openai/gpt-oss-120b` | text | text | yes | yes | n/a | none |
-| `GeminiAgent` | `gemini-3.1-flash-lite-preview` | image, text | text | yes | yes | n/a | none |
+| Provider type              | Model                                   | Accepts     | Produces | Tools | Streaming | Reasoning efforts                               | Native tools                |
+| -------------------------- | --------------------------------------- | ----------- | -------- | ----- | --------- | ----------------------------------------------- | --------------------------- |
+| `OpenAIHTTPAgent`          | `gpt-5-nano`                            | image, text | text     | yes   | yes       | `minimal`, `low`, `medium`, `high`              | none                        |
+| `OpenAIResponsesHTTPAgent` | `gpt-5-nano`                            | image, text | text     | yes   | yes       | `minimal`, `low`, `medium`, `high`              | none                        |
+| `OpenAIHTTPAgent`          | `gpt-5.4-nano`                          | image, text | text     | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`        | none                        |
+| `OpenAIResponsesHTTPAgent` | `gpt-5.4-nano`                          | image, text | text     | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`        | `apply_patch`, `web_search` |
+| `OpenAIResponsesHTTPAgent` | `gpt-5.6-luna`                          | image, text | text     | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`, `max` | `apply_patch`, `web_search` |
+| `OpenAIResponsesHTTPAgent` | `gpt-5.6-terra`                         | image, text | text     | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`, `max` | `apply_patch`, `web_search` |
+| `OpenAIHTTPAgent`          | `deepseek-v4-flash`                     | text        | text     | yes   | yes       | `none`, `high`, `max`                           | none                        |
+| `OpenAIHTTPAgent`          | `deepseek-v4-pro`                       | text        | text     | yes   | yes       | `none`, `high`, `max`                           | none                        |
+| `OpenAIHTTPAgent`          | `zai-org/GLM-5.2:deepinfra`             | text        | text     | yes   | yes       | n/a                                             | none                        |
+| `OpenAIHTTPAgent`          | `deepseek-ai/DeepSeek-V4-Pro:deepinfra` | text        | text     | yes   | yes       | n/a                                             | none                        |
+| `LiteLLMAgent`             | `openai/gpt-5.4-nano`                   | image, text | text     | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`        | none                        |
+| `LiteLLMAgent`             | `gemini/gemini-3.1-flash-lite-preview`  | image, text | text     | yes   | yes       | n/a                                             | none                        |
+| `LiteLLMAgent`             | `xai/grok-4-1-fast-reasoning-latest`    | text        | text     | yes   | yes       | n/a                                             | none                        |
+| `LiteLLMAgent`             | `groq/openai/gpt-oss-120b`              | text        | text     | yes   | yes       | n/a                                             | none                        |
+| `GeminiAgent`              | `gemini-3.1-flash-lite-preview`         | image, text | text     | yes   | yes       | n/a                                             | none                        |
 
 The `Tools` column is a broad provider capability flag. Anima memory tools are
 app-layer tools executed by the direct chat runtime when the selected provider
@@ -200,14 +200,9 @@ returning empty capability lists.
 
 `supported_reasoning_efforts` is normalized using
 `REASONING_EFFORT_ORDER = ("none", "minimal", "low", "medium", "high",
-"xhigh", "max")`, so frontend controls receive a stable display order. The current
-reasoning entries are:
-
-- `gpt-5-nano`: `minimal`, `low`, `medium`, `high`
-- `gpt-5.4-nano`: `none`, `low`, `medium`, `high`, `xhigh`
-- `gpt-5.6-luna` and `gpt-5.6-terra`: `none`, `low`, `medium`, `high`,
-  `xhigh`, `max`
-- DeepSeek V4 Flash/Pro: `none`, `high`, `max`
+"xhigh", "max")`, so frontend controls receive a stable display order.
+Per-model values are listed in
+[Supported Provider/Model Pairs](#supported-providermodel-pairs).
 
 For both GPT-5.6 rows, `none` is first in the normalized list. The frontend
 therefore sends `reasoning.effort: "none"` by default when either model is

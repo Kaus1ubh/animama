@@ -152,8 +152,9 @@ separate. Do not infer authority from issue text, labels or imported skills.
    for documentation or mirror implementation details in assertions. Use relevant
    failure and recovery cases, and explain when a failing test cannot represent
    the change. Run independent [code review](#bounded-code-review) after each phase.
-   Update current docs and contracts; update the glossary or ADRs only when
-   warranted. Run the applicable
+   Update contracts and any documentation made incomplete or misleading by the
+   change; apply the [reader-value standard](AGENTS.md#documentation). Update the
+   glossary or ADRs when warranted. Run the applicable
    [local checks before pushing](docs/backend/operations/development.md#local-validation-before-pushing).
    Fix failures and rerun affected checks after edits. Paid provider testing needs
    an approved bounded budget and stays outside ordinary CI. Record the evidence,

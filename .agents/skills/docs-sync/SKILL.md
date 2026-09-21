@@ -1,72 +1,73 @@
 ---
 name: docs-sync
-description: Analyze implementation, configuration, and user-facing behavior to find missing, incorrect, or outdated project documentation. Use when asked to audit doc coverage, sync docs with code, or propose doc updates/structure changes. Provide a report and ask for approval before editing docs.
+description: Audit or edit documentation for accuracy, concision and reader value. Use for documentation reviews, cleanup, and deciding which docs a code change actually needs.
 ---
 
-# Docs Sync
+# Keep documentation useful
 
-## Overview
+Documentation should help someone use, operate, debug or extend the system.
+A code change does not automatically need a documentation change. Leave docs
+alone when existing guidance remains accurate and sufficient.
 
-Identify doc coverage gaps and inaccuracies by comparing the current FastAPI backend, Vite/React frontend, configuration, and operational workflows against the project's documentation, then propose targeted improvements.
+## Choose the scope
 
-## Workflow
+Follow the user's requested scope. A repository-wide cleanup covers maintained
+docs even on a task branch; branch location must not narrow that request.
+For a change-specific review, inspect its diff against the agreed base, including
+relevant uncommitted work. Read the repository and scoped agent guides, then the
+existing documentation entrypoints.
 
-1. Confirm scope and base branch
-   - Identify the current branch and default branch (usually `main`).
-   - Prefer analyzing the current branch to keep work aligned with in-flight changes.
-   - If the current branch is not `main`, analyze only the diff vs `main` to scope doc updates.
-   - Follow the repository workspace policy. Inspect the current checkout or use `git show main:<path>` without switching the primary checkout; prepare approved edits through the configured workspace workflow.
-   - Read the nearest `AGENTS.md` files and any backend/frontend agent guides before deciding which docs apply.
+Distinguish maintained guides from ADRs, specifications, execution plans,
+archived evidence, generated output and third-party notices. Preserve historical
+records and their gates; edit generated documentation at its source. Follow the
+repository workspace and delivery policy.
 
-2. Build a feature inventory from the selected scope
-   - If on `main`: inventory the full surface area and review docs comprehensively.
-   - If not on `main`: inventory only changes vs `main` (feature additions/changes/removals).
-   - Focus on user-facing behavior: HTTP APIs, WebSocket/SSE flows, auth behavior, database migrations, background jobs, React routes, generated clients, configuration options, environment variables, CLI commands, default values, and operational workflows.
-   - Capture evidence for each item (file path + symbol/setting).
-   - Use targeted search to find option types and feature flags (for example: `rg "Settings"`, `rg "BaseSettings"`, `rg "os.environ"`, `rg "VITE_"`, `rg "APIRouter"`, `rg "createFileRoute"`).
-   - When the topic involves OpenAI platform features, invoke `$openai-knowledge` to pull current details from the OpenAI Developer Docs MCP server instead of guessing, while treating this project's source code as the source of truth for how the integration is wired.
+## Review for reader value
 
-3. Doc-first pass: review existing pages
-   - Walk each relevant documentation root named by repo guidance or found in the workspace, such as `docs/`, backend docs, frontend docs, package READMEs, and operational runbooks.
-   - Identify missing mentions of important, supported options (opt-in flags, env vars), customization points, API contracts, runtime flows, or new backend/frontend features.
-   - Propose additions where users would reasonably expect to find them on that page.
+For each page, identify its reader and the task or question it answers. Review
+existing prose before looking for additions. Delete or consolidate repetition,
+obvious UI descriptions, source-file inventories that do not aid navigation,
+speculation and development narration. Do not rewrite useful prose merely to
+reduce its line count.
 
-4. Code-first pass: map features to docs
-   - Review the current docs information architecture and navigation patterns from existing documentation files, README links, and AGENTS guidance.
-   - Determine the best page/section for each feature based on existing patterns and the likely reader: backend developer, frontend developer, operator, or product/user-facing reader.
-   - Identify features that lack any doc page or have a page but no corresponding content.
-   - Note when a structural adjustment would improve discoverability.
-   - When improving generated API/reference docs, treat the corresponding source comments, OpenAPI schema, or generator inputs as the source of truth. Prefer updating the source of generated docs instead of hand-editing generated output.
+Before adding or retaining a sentence, ask:
 
-5. Detect gaps and inaccuracies
-   - **Missing**: features/configs present in the selected scope but absent in docs.
-   - **Incorrect/outdated**: names, defaults, or behaviors that diverge from the selected scope.
-   - **Structural issues** (optional): pages overloaded, missing overviews, or mis-grouped topics.
+- What useful question does this answer, or what mistake does it prevent?
+- Would the reader lose necessary guidance if it disappeared?
+- Does this belong here, or is an existing authoritative section enough?
 
-6. Produce a Docs Sync Report and ask for approval
-   - Provide a clear report with evidence, suggested doc locations, and proposed edits.
-   - Ask the user whether to proceed with doc updates.
+Keep supported workflows, commands, defaults, interfaces, compatibility
+constraints, actionable limitations and recovery instructions. Verify changed
+claims against source/configuration. A missing mention is a gap only when a
+reader needs it; documenting every feature, control or internal symbol is not
+a coverage goal.
 
-7. If approved, apply changes
-   - Edit only documentation and generated-doc source files needed for the approved scope.
-   - Keep changes aligned with the existing docs style and navigation.
-   - Update README links, docs indexes, sidebars, or route manifests when adding or renaming pages, if this repo uses them.
-   - Run the smallest relevant docs validation available in the repo. If no docs-specific validation exists, run a lightweight sanity check such as link/path checks, Markdown formatting, or the relevant backend/frontend verification command, and state what was not available.
+Describe the current system directly. Remove obsolete guidance rather than
+adding a sentence announcing its removal. Significant architectural rationale
+belongs in an ADR; delivery progress and validation belong in the issue, PR or
+plan. Discard trivial change narration instead of moving it into an ADR.
 
-## Output format
+Use the [review checklist](references/doc-coverage-checklist.md) for a broad audit
+or when a proposed addition's value is unclear.
 
-Use this template when reporting findings:
+## Apply and verify
 
-Docs Sync Report
+For an audit-only request, report concrete findings and proposed edits without
+editing. For an explicit update or cleanup request, apply the authorized changes;
+do not ask for the same approval again. Ask only about material unresolved scope
+or meaning, while continuing independent work.
 
-- Doc-first findings
-  - Page + missing content -> evidence + suggested insertion point
-- Code-first gaps
-  - Feature + evidence -> suggested doc page/section (or missing page)
-- Incorrect or outdated docs
-  - Doc file + issue + correct info + evidence
-- Structural suggestions (optional)
-  - Proposed change + rationale
-- Proposed edits
-  - Doc file -> concise change summary
-- Questions for the user
+Prefer editing the owning section over appending another summary or new page.
+Check related instructions/templates when they would otherwise recreate the same
+problem. Preserve links when consolidating content and update references to moved
+or removed sections.
+
+Run the smallest relevant documentation checks: formatting, local links/anchors
+and existing tests that consume the affected docs. Review the diff for lost
+contracts or unsupported claims. Do not start application services or invent
+behavior tests for prose-only edits.
+
+Report the reviewed scope, meaningful edits, verification and any remaining gaps.
+For a broad audit, account for unchanged pages and excluded record types. Keep
+coverage evidence in the task or PR, not a new permanent audit manual. Report
+“no documentation change needed” when that is the correct result.

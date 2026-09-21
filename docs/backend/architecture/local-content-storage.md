@@ -81,9 +81,8 @@ Idle-only VRMAs live within their Idle Style. Independently reusable VFX and
 SFX remain typed dependencies and are included through the runtime/package
 closure.
 
-There is no visible workspace/applied/installed layout, generic `item.json`,
-digest blob tree, or immutable release per Save. Package manifests are created
-only during export/import. Internal snapshots and staging live under `data/`.
+Package manifests are created only during export/import. Internal snapshots
+and staging live under `data/`.
 
 Embedded desktop keeps this writable Local/private layout under Electron's
 user-data directory, but mounts Included separately from immutable application
@@ -109,9 +108,7 @@ closed registry with one handler for every scannable kind. Each handler owns
 strict parsing, bounded media validation, dependency legality, canonical file
 roles, searchable projection, runtime projection, and package-reference
 rewriting. Random files never become executable content. `animas/` remains a
-reserved rejecting lane. Live-Anima creation does not implement a Blueprint descriptor or make a live
-Anima catalog content. Discover publication is discontinued; typed package
-import/export remains independent of live Anima creation.
+reserved rejecting lane; live Animas are not catalog content.
 
 An authoritative scan walks only registered roots without following symlinks,
 parses standalone files/sidecars/descriptors, rejects traversal, links, special
@@ -150,10 +147,8 @@ The core tables are:
 - `anima_loadout_diagnostics`: warnings for rejected persisted or manually
   invalid equipment.
 
-No table stores absolute paths. Included and Local are source enum values, not
-parallel application-domain models. The release-era `content_items`,
-`content_releases`, blob, staged creator upload, and projection tables are
-absent from the current Alembic baseline; fresh installs never create them.
+No table stores absolute paths. Included and Local are source enum values,
+not separate application-domain models.
 
 ## Direct Save and deletion
 
@@ -361,15 +356,13 @@ are `cancel`, `keep_both`, and explicit `replace`. Imported provenance and
 license facts remain catalog metadata and commit with the complete result.
 Startup deterministically recovers or compensates unfinished operations before
 catalog admission; conflicting manual edits require repair with both copies
-preserved. Discover listing/publication is discontinued; hosted storage is
-outside this local architecture.
+preserved.
 
 ## Private data
 
 `ANIMAMA_DATA_ROOT` is private, non-portable storage. Default self-hosting uses
 an ignored `data/` directory in the checkout; named stacks and desktop profiles
-have their own managed roots. Removing the tracked documentation scaffold does
-not retire this storage or authorize deleting its contents.
+have their own managed roots.
 
 ```text
 user-files/                  private chat attachments

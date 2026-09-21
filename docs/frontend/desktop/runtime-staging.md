@@ -59,7 +59,7 @@ and rechecks every copied runtime file after electron-builder finishes. See
 signing uses its separate nested-sign, inventory, and outer-seal sequence.
 The FastAPI static responder must serve ONNX `.mjs` modules as JavaScript with `nosniff`;
 having the file in the inventory is insufficient if Chromium rejects its MIME
-type. Provider marks use local initials rather than fetching logos from a CDN.
+type.
 
 Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 
@@ -120,14 +120,13 @@ files. `models/browser-runtime/manifest.json` binds those plus nine ORT 1.24.2
 files from `onnxruntime-web-assets` and two VAD 0.0.30 files from its pinned
 package. Package installation supplies dependency files; staging only verifies
 and copies already acquired model inputs. It never silently downloads them or
-substitutes an installed ORT version. Other bundled ORT imports remain unchanged.
+substitutes an installed ORT version.
 
 The complete browser engine set occupies 292,826,849 bytes before distribution
 compression. It is included in `runtime/web/onnx` as independent regular files,
 so clearing a developer model cache cannot break an installed application's
-Pocket TTS, VAD or Smart Turn engine. Existing same-origin paths, module MIME
-requirements and license conditions remain unchanged. This source-storage
-workflow does not replace signing, redistribution or native acceptance gates.
+Pocket TTS, VAD or Smart Turn engine. The model-store workflow does not replace signing, redistribution or native
+acceptance gates.
 
 Use the [model-store workflow](../../backend/operations/model-assets.md) for
 `ANIMAMA_MODEL_ROOT`, Windows `%LOCALAPPDATA%\Animama\models` and WSL/Linux
@@ -141,9 +140,8 @@ from the repository root, or import a previous source copy using the
 [model-store workflow](../../backend/operations/model-assets.md). Set the absolute
 `ANIMAMA_MODEL_ROOT` only when selecting a different store. Staging consumes the
 tracked manifest and verifies each local file; it does not query Hugging Face or
-infer weights from Git's tracked-file list. The pack keeps its seven filenames,
-exact payload hashes and existing attribution. Model selection does not change
-release inventory approval, signed artifacts, hosting or native acceptance gates.
+infer weights from Git's tracked-file list. The pack requires its seven pinned files, exact payload hashes and attribution.
+Inventory review, signing, hosting and native acceptance remain separate gates.
 
 This developer/producer cache is not an installed app model directory. Installed
 models remain under the app-owned `packs/` lifecycle in Application Support, with

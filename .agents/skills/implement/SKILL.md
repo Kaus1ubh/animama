@@ -20,7 +20,8 @@ Record its starting revision and intended change boundary. Inspect relevant scop
 instructions, architecture, contracts and existing patterns. Use `tdd` for changed
 behavior and record warranted exceptions. Prefer the simplest implementation that
 meets requirements. Reuse suitable abstractions without adding speculative layers.
-Update current documentation/contracts when behavior changes.
+Update changed contracts and documentation made incomplete or misleading by the
+change. Follow the repository's reader-value standard; no doc edit is a valid outcome.
 
 Run applicable checks before review. Fix implementation failures, rerunning affected
 checks rather than unchanged expensive suites. Delegate bounded independent work

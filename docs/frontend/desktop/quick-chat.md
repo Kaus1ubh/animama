@@ -4,23 +4,6 @@ Desktop Quick Chat is a transparent native Electron window that renders the
 chat-only conversation UI for the current anima. It is opened from the main
 renderer through the global `Ctrl + Slash` shortcut.
 
-## Goals
-
-Quick Chat should:
-
-- open without browser URL/title chrome
-- use a transparent window background
-- pass clicks through transparent outer regions
-- keep the chat column scrollable
-- center and focus the chat input when shown
-- stack messages upward from directly above the centered chat input
-- grow the native window upward as messages need more space, until the window
-  reaches the work-area top
-- reuse the normal chat-only message/input UI
-- keep the main renderer as the owner of chat request, Voice Mode, TTS, and
-  desktop shortcut registration
-- avoid starting a second microphone, TTS, avatar, or shortcut runtime
-
 ## High-Level Flow
 
 ```text
@@ -66,38 +49,10 @@ The window is managed by:
 desktop/src/main-process/quick-chat/quick-chat-window-manager.ts
 ```
 
-It is created as a hidden, frameless, transparent BrowserWindow with the
-`quick-chat` role:
-
-```ts
-new BrowserWindow({
-  width,
-  height,
-  minWidth: 420,
-  minHeight: 420,
-  frame: false,
-  transparent: true,
-  backgroundColor: "#00000000",
-  hasShadow: false,
-  paintWhenInitiallyHidden: true,
-  resizable: true,
-  alwaysOnTop: true,
-  skipTaskbar: true,
-  fullscreenable: false,
-  show: false,
-  type: "toolbar",
-  title: "Anima Quick Chat",
-  webPreferences: {
-    preload,
-    additionalArguments: ["--animama-window-role=quick-chat"],
-    backgroundThrottling: false,
-    contextIsolation: true,
-    nodeIntegration: false,
-    sandbox: true,
-    webSecurity: true,
-  },
-});
-```
+It is a hidden, frameless, transparent, always-on-top toolbar window with a
+420 × 420 minimum size and the sandboxed `quick-chat` preload role. Hidden
+painting stays enabled and background throttling stays disabled so prewarming
+can complete before the first show.
 
 The default bounds are centered on the owner window's display work area. The
 manager recenters the existing hidden window before each visible show to avoid
@@ -105,7 +60,7 @@ window-manager placement drift across repeated hide/show cycles. This drift is a
 native remapping behavior: Linux window managers/compositors can re-apply
 floating-window placement when a hidden `toolbar` window is shown again, so the
 manager reapplies the intended bounds before and immediately after mapping the
-window. Bounds are not persisted in the initial implementation.
+window. Bounds are not persisted.
 
 ## Loading And Visibility
 
@@ -118,8 +73,8 @@ The main process constructs the route from the trusted configured web origin:
 If the current main route has a chat id, `chatId` is appended as a query
 parameter. Renderers do not provide arbitrary Quick Chat URLs.
 
-The main renderer prewarms the Quick Chat window with `prepare(...)` while a
-anima route is active. Prewarm creates or retargets the hidden BrowserWindow,
+The main renderer prewarms the Quick Chat window with `prepare(...)` while an
+Anima route is active. Prewarm creates or retargets the hidden BrowserWindow,
 loads the Quick Chat route, and lets it receive mirrored runtime state before
 the user presses `Ctrl + Slash`.
 
@@ -148,17 +103,8 @@ contains the current chat state.
 
 ## Window Roles
 
-The desktop preload exposes:
-
-```ts
-window.animamaDesktop.windowRole = "main" | "pip" | "quick-chat";
-```
-
-Quick Chat receives:
-
-```text
---animama-window-role=quick-chat
-```
+The preload identifies this window as `windowRole: "quick-chat"`, selected by
+`--animama-window-role=quick-chat` at creation.
 
 The web runtime platform exposes `capabilities.nativeQuickChat` when the preload
 bridge provides the Quick Chat API. Main-window hooks use the role check to
@@ -166,44 +112,11 @@ ensure only the main renderer owns desktop shortcuts and runtime side effects.
 
 ## IPC Surface
 
-The preload bridge is defined in:
-
-```text
-desktop/src/main-process/quick-chat/quick-chat-preload.cts
-```
-
-The main-process IPC handlers are defined in:
-
-```text
-desktop/src/main-process/quick-chat/quick-chat-ipc.ts
-```
-
-The renderer bridge is:
-
-```ts
-window.animamaDesktop.quickChat = {
-  open(options): Promise<DesktopQuickChatState>;
-  prepare(options): Promise<DesktopQuickChatState>;
-  close(): Promise<DesktopQuickChatState>;
-  toggle(options): Promise<DesktopQuickChatState>;
-  getState(): Promise<DesktopQuickChatState>;
-  publishRuntimeMessage(message): Promise<void>;
-  onRuntimeMessage(callback): () => void;
-  onStateChange(callback): () => void;
-  setInteractiveRegions(regions): Promise<void>;
-  setLayoutMetrics(metrics): Promise<void>;
-};
-```
-
-`DesktopQuickChatState` includes:
-
-```ts
-type DesktopQuickChatState = {
-  isOpen: boolean;
-  animaId: string | null;
-  chatId: string | null;
-};
-```
+The [preload bridge](../../../src/frontend/desktop/src/main-process/quick-chat/quick-chat-preload.cts)
+defines `window.animamaDesktop.quickChat`; the
+[IPC handlers](../../../src/frontend/desktop/src/main-process/quick-chat/quick-chat-ipc.ts)
+validate window controls, runtime messages, interactive rectangles and layout
+metrics. State contains `isOpen`, `animaId` and `chatId`.
 
 `isOpen` means the native window is currently visible. `animaId` and `chatId`
 may remain populated while the window is hidden so the prewarmed renderer can be
@@ -219,17 +132,8 @@ renderer.
 
 ## Dedicated Route
 
-The Quick Chat route lives at:
-
-```text
-web/src/routes/desktop/quick-chat/$animaId.tsx
-```
-
-Route path:
-
-```text
-/desktop/quick-chat/$animaId
-```
+[`web/src/routes/desktop/quick-chat/$animaId.tsx`](../../../src/frontend/web/src/routes/desktop/quick-chat/$animaId.tsx)
+serves `/desktop/quick-chat/$animaId`.
 
 This route stays outside `/a` so it avoids `AppShell`, sidebar, header,
 `MainShell`, avatar canvas, and main-window shortcut ownership. It renders the
@@ -247,9 +151,7 @@ the transparent BrowserWindow upward, preserving its bottom anchor, until it
 reaches the display work-area top. Once the native window cannot grow farther,
 the conversation viewport scrolls. The bottom spacer is fixed from the initial
 centered-input geometry, so growing the native window adds space above the input
-without moving the input upward on every new bubble. Quick Chat intentionally
-hides the first-chat prompt suggestions even when the main renderer includes
-them in the mirrored snapshot.
+without moving the input upward on every new bubble.
 
 The route requires the Electron `quick-chat` window role and Quick Chat preload
 bridge. Other windows and browsers redirect to `/`. The main renderer owns chat
@@ -322,7 +224,7 @@ window behavior.
 
 ## Manual Test Checklist
 
-- `Ctrl + Slash` opens Quick Chat on a anima route.
+- `Ctrl + Slash` opens Quick Chat on an Anima route.
 - The textarea is focused immediately after the window appears, without
   selecting the hidden measurement textarea used by the shared chat input.
 - The chat input appears centered vertically in the native window.

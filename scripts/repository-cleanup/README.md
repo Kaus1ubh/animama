@@ -111,8 +111,7 @@ totals, output overwrite/path protections, missing files, and unhydrated LFS
 pointers. Tests skip if scc is absent; skipped tests do not establish validation.
 
 See [cleanup guidance](../../docs/architecture/repository-cleanup.md) for review
-and measurement principles. Historical measured results and triage records are
-retained privately; they are not current validation evidence.
+and measurement principles.
 
 ## Usage analysis
 

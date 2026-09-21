@@ -1,10 +1,7 @@
 # Domain documentation
 
-When the user requests intent discovery, clarify the problem, terms and
-consequential choices before implementation.
-It is not a compulsory interview, document-writing step or skill dependency for
-every change. Follow the [root agent guide](../../AGENTS.md) and relevant scoped
-guides; this page does not replace their instructions or approval boundaries.
+Use this guide to place current guidance, shared terminology and decision history.
+Follow [SDLC.md](../../SDLC.md) for discovery and delivery.
 
 ## Read and place information
 
@@ -25,8 +22,9 @@ Each artifact has a distinct job:
 - **Glossary:** common human–AI meanings, distinctions and discouraged synonyms.
   Surface ambiguous usage and propose a precise definition before treating a new
   meaning as established. Do not rename source code merely to match a glossary edit.
-- **Current documentation:** implemented behavior, interfaces, architecture and
-  operational instructions. Update it when that behavior changes.
+- **Current documentation:** useful guidance for the implemented system. Apply
+  the [reader-value standard](../../AGENTS.md#documentation); a code change does
+  not automatically need a documentation change.
 - **ADR:** a significant architectural choice and its rationale, alternatives
   and consequences. It explains why; it is not a second implementation guide.
 - **ExecPlan:** execution steps, phases, decision summaries and validation evidence

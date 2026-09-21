@@ -25,9 +25,10 @@ upstream README/license conflict. They are not relicensed as AGPL.
 
 Imported skills, removed artwork and Mixamo clips are excluded from the source
 candidate. Private ignored files and old Git/LFS history are not publication
-inputs. Original replacement textures have checked-in SVG sources; Raymond approved
-the replacement artwork. Runtime/native appearance acceptance remains separate. A candidate is regenerated after subsequent source
-changes using the [source preparation tools](../scripts/public-release/README.md).
+inputs. Retained replacement artwork uses PNG authoring assets; see
+[Included artwork](../content/included/README.md#retained-avatar-and-effect-artwork).
+Runtime/native appearance acceptance remains separate. Regenerate the candidate
+after source changes using the [source preparation tools](../scripts/public-release/README.md).
 
 Keep upstream notices intact. The complete AGPL template and third-party legal
 texts are preserved documents, not claims that Raymond authored their wording.

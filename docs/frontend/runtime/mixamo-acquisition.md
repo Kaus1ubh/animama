@@ -8,8 +8,8 @@ tracked-only native staging gate.
 
 Mixamo motions are optional, editable Local content. They are never automatically
 equipped or included in source, Docker build contexts or desktop packages.
-The historical 71-path inventory and original control-document templates live in
-`scripts/mixamo-assets.json`; the old broken Included descriptors are removed.
+The acquisition inventory and control-document templates live in
+`scripts/mixamo-assets.json`.
 Existing companions referencing those old Included IDs need explicit replacement
 or a development database reset. No starter policy migration is provided.
 

@@ -4,11 +4,8 @@ These tools verify shared-code import direction and isolated wheel/npm consumers
 Repository ownership is documented in
 [repository boundaries](../../docs/architecture/repository-boundaries.md).
 
-The former per-file classification/provenance inventories and split exporter have
-been retired because shared inventory updates caused conflicts between task
-branches. Their historical records remain in Git history. Ordinary changes do
-not need a repository-wide inventory refresh. For an unpublished source review
-candidate, use [source preparation](../public-release/README.md).
+For an unpublished source review candidate, use
+[source preparation](../public-release/README.md).
 
 Run the tooling tests from the repository root:
 

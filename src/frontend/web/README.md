@@ -2,19 +2,8 @@
 
 Vite + React browser frontend for Anima.
 
-This package contains the web app runtime, TanStack Router route tree,
-TanStack Query data layer, UI, browser hooks, Zustand stores, generated Anima
-API client, workers, styles, and runtime assets.
-
-## Current Shape
-
-- Vite serves and builds the browser app.
-- TanStack Router file routes live under `src/routes`.
-- App startup and providers live under `src/app`.
-- Runtime code is colocated under `src/{ui,lib,hooks,stores,query,client,workers}`.
-- Small runtime assets are served from `public`; verified speech inputs keep the
-  same URLs through the shared asset resolver.
-- Local request admission and telemetry server concerns belong to FastAPI.
+See the [frontend architecture guide](../../../docs/frontend/architecture/overview.md)
+for source ownership, routes and runtime flows.
 
 ## Commands
 
@@ -51,27 +40,12 @@ python3 scripts/models/parakeet.py acquire
 python3 scripts/models/browser_speech.py acquire
 ```
 
-`models/browser-runtime/manifest.json` binds all 19 reviewed browser assets.
-Eight Pocket TTS/Smart Turn files live in a shared immutable model store; nine
-ORT 1.24.2 files come from the exact `onnxruntime-web-assets` dependency alias,
-and two VAD 0.0.30 files come from its pinned dependency. Existing bundled ORT
-imports retain their own locked versions. `pnpm install --frozen-lockfile` supplies
-these dependency assets; do not copy a different ORT release into their place.
-
-Vite development verifies and serves these inputs at their existing `/onnx/`
-URLs. Production and embedded-desktop builds require the verified browser model
-set and copy all 19 files into their output. Preview verifies that self-contained
-output, so it does not need the browser model cache. The browser does not fetch
-executable inputs from upstream hosts. `pnpm verify:tts-assets` checks source
-inputs; `pnpm verify:tts-assets -- --built-root web/dist` checks built output
-when run from `src/frontend`.
-
-Legacy operator-supplied catalogs at
-`/onnx/models/pocket-tts/animas/<safe-id>_voices.bin` remain separate optional
-inputs under `web/public`, using letters, digits, `_` or `-` for the ID. Vite
-serves only existing regular files at those paths and preserves their build
-copies; missing catalogs return 404. They are not hash-approved engine assets
-or members of the 19-file manifest. Normal uploaded catalog URLs are unaffected.
+Vite verifies the pinned browser speech inventory before serving or building.
+Production builds include those files and need no developer cache. Check source
+inputs with `pnpm verify:tts-assets` from `src/frontend`; check built output with
+`pnpm verify:tts-assets -- --built-root web/dist`.
+See [Content and workers](../../../docs/frontend/architecture/content-and-workers.md)
+for asset ownership, optional voice catalogs and dependency versions.
 
 ### Parakeet and shared storage
 

@@ -148,8 +148,8 @@ already recorded in a plan unless the owner changes or waives them.
 
 Close the parent only after its acceptance and required owner verification, or
 an explicit cancellation/deferral decision. Merged sub-issues alone are insufficient.
-Promote implemented behavior into current documentation and significant choices
-into ADRs. Retain the spec as delivery history, not a competing current-system
-manual. Keep public-safe execution evidence and dated decision summaries in the
+Update current guidance when the delivered change leaves it incomplete or
+misleading; record significant choices in ADRs. Retain the spec as delivery
+history, not a competing current-system manual. Keep public-safe execution evidence and dated decision summaries in the
 tracked plan; exclude raw transcripts, sensitive investigations and personal data.
 A recorded decision does not replace exact-candidate merge or release approval.

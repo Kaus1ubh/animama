@@ -14,7 +14,7 @@ Compose; Windows and Linux packaging are not supported release targets.
 Starter companions use the shipped authored gestures and reactions and need no
 Mixamo animations. The [optional Local installer](docs/frontend/runtime/mixamo-acquisition.md)
 can add your converted Mixamo motions to your ignored library. Download and
-conversion remain manual. Native release acceptance remains a separate gate.
+conversion remain manual.
 
 Install Docker with Compose, Git LFS and Python 3.11 or newer. Hydrate the
 remaining checkout assets with `git lfs pull`, then acquire the pinned Parakeet
@@ -50,7 +50,6 @@ Desktop development and packaging use the separate
 
 - [Development lifecycle](SDLC.md): issues, planning, validation, review and merge.
 - [Specifications](SPECS.md) and [execution plans](PLANS.md): repository-owned planning and evidence.
-- [Specification guide](SPECS.md): agreed behavior and acceptance criteria.
 - [Shared language](GLOSSARY.md): common domain meanings for humans and agents.
 - [Architecture decisions](docs/adr/README.md): choices, rationale and history.
 - [Backend](docs/backend/README.md): APIs, persistence, content and operations.
@@ -61,8 +60,7 @@ Desktop development and packaging use the separate
 
 Run `make help` for backend tasks and use the documented `pnpm` commands from
 `src/frontend` for frontend checks. Local builds and tests require no private
-Cloud checkout or hosted account. Discover is discontinued; existing typed
-`.animama` import/export remains local.
+Cloud checkout or hosted account.
 
 ## Copyright and licensing
 

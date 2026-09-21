@@ -30,7 +30,7 @@ Keep notices and exact file mappings with each candidate.
 Mixamo-derived VRMA files are ignored and excluded from source tracking and
 Docker contexts. The [optional Local installer](../runtime/mixamo-acquisition.md)
 can install manually converted motions as ordinary Local content. The shipped
-starter no longer requires them. Ignored copies cannot become release inputs.
+starter does not require them. Ignored copies cannot become release inputs.
 
 ## Pack and native dependencies
 

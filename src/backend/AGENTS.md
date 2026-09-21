@@ -72,7 +72,8 @@ a separate API contract.
 - `../../docs/backend/integrations/voice-and-speech.md`
 - `../../docs/backend/operations/development.md`
 
-When behavior changes, update these docs in the same change.
+Update these docs when a change leaves useful guidance missing or misleading;
+apply the [reader-value standard](../../AGENTS.md#documentation).
 
 ## Runtime Notes
 

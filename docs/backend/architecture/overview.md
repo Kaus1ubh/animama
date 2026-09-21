@@ -84,7 +84,7 @@ already uses direct ORM access and a focused change can preserve that boundary.
 
 ## Direct Chat Concepts
 
-Normal product chat is profile-first rather than graph-first:
+Normal product chat resolves its model through the Anima chat profile:
 
 - `anima_chat_profiles.default_model_provider_id` stores the anima's
   default catalog row.
@@ -108,15 +108,10 @@ Normal product chat is profile-first rather than graph-first:
   finish, usage, assistant phase, native tool, and unknown-event observations for
   logs and compact metadata.
 
-New anima writes do not create ingress nodes, graph JSON, durable backend
-agent rows, or `chat_runtime` metadata.
-
 ## FastAPI Application
 
 `server/app.py::create_local_app` creates the local app:
 
-- title: `Animama Local Server`
-- version: `0.1.0`
 - global telemetry middleware from `server/telemetry.py`
 - `/health`
 - all `/v1/...` routers through `server/routers/__init__.py`
@@ -184,12 +179,10 @@ and migration graph serve a local installation. A hosted service requires its
 own database, app factory, and principal resolver. Reusable domain services and
 repository ports receive an explicit owner ID and do not read `installation_settings`.
 
-The shared consumer in `scripts/repository-boundary/consumers/backend.py`
-bootstraps both a local-shaped owner and an opaque hosted-shaped owner using
-fake ports, then exercises real Anima/Chat services and direct streaming turns.
-The artifact check runs that consumer from an installed wheel while rejecting
-local imports and checkout-resolved modules. It proves shared API reuse without
-adding a hosted application or changing provider request/stream behavior.
+The installed-wheel consumer in
+`scripts/repository-boundary/consumers/backend.py` checks shared service and
+streaming reuse with explicit owners while rejecting local imports and
+checkout-resolved modules.
 
 ## Runtime Ownership
 

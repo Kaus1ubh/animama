@@ -19,11 +19,8 @@ Background bindings; it does not capture or save portraits. Browsing Avatar
 cards alone saves nothing. Appearance management and the typed portrait API
 remain separate from creation. Background Default means the normal app stage.
 
-`/a/animas/new` is the four-step live creator. Existing Library,
-preview, management, and creator-hub links retain their logical Avatar handoff;
-a saved owner draft takes precedence over a new hint. The creator uses
-validated typed references and complete expected source revisions; it creates
-no Blueprint or publication. Confirmed Avatar Saves remain My Content
-after cancellation; unsaved files require reselection after reload. See the
+`/a/animas/new` accepts a logical Avatar handoff, with a saved draft taking
+precedence. Confirmed uploads survive cancellation; unsaved files require
+reselection after reload. See the
 [live creation guide](custom-anima-creation.md) and its
 [acceptance status](custom-anima-creation.md#acceptance-and-regression-coverage).

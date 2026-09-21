@@ -91,212 +91,48 @@ Processing size defaults to `10 MiB` through `ANIMAMA_USER_FILE_MAX_PROCESS_BYTE
 
 ## Step-By-Step Upload And Processing Walkthrough
 
-This is the normal browser path when a user uploads a file from the chat
-composer or `/a/library?section=chat-uploads`. Library's Chat Uploads tab observes the
-same inventory and links to the memory Uploads manager; it does not own another
-upload pipeline.
+Chat and Library use the same upload lifecycle:
 
-1. The user picks one or more files.
+1. Uppy checks the browser allowlist and size, then calls
+   `POST /v1/files/uploads` with filename, content type, and declared size.
+   The backend validates these fields and creates an owned `pending_upload`
+   row with expiry and a private `user-files/{user_id}/{file_id}/original`
+   locator.
+2. The response supplies the file ID, API-relative PUT target, required headers,
+   and expiry. The browser uploads to `/v1/files/{file_id}/content` at the same
+   origin. FastAPI bounds the stream, spools under `data/staging/uploads`, and
+   atomically promotes the bytes to the private locator.
+3. `POST /v1/files/{file_id}:finalize` rechecks ownership, pending status,
+   containment, existence, and exact size before marking the file `uploaded`.
+   Successful byte transfer alone does not finalize an upload.
+4. When fresh capabilities allow processing, the client calls
+   `POST /v1/files/{file_id}:process`. This creates a durable queued job and
+   returns `202`; parsing never runs in the API request. Normal requests reuse
+   queued/running work or an already-ready result. `force=true` reprocesses it.
+5. The worker claims jobs with `FOR UPDATE SKIP LOCKED`, records its lease and
+   attempt, and verifies the original's size and format. Missing, changed, empty,
+   or oversized originals fail; PDFs require `%PDF-` and Office documents must
+   be ZIP containers. Expired leases can be reclaimed after a worker exits.
+6. Before parsing, a non-forced job may reuse an owned ready file with the same
+   SHA-256, normalized extension, and at least one chunk. It copies chunks,
+   embeddings, overview, and processing results into independent rows. Otherwise
+   it parses and [chunks](#chunking) the document, then embeds it if possible.
+   Embedding failure retains keyword-searchable chunks with a warning.
+7. Successful processing replaces chunks, stores the digest and timestamp, and
+   marks the job `succeeded`. The file becomes `ready` with embeddings or
+   `ready_keyword_only` without them. Failures record `last_error` and retry
+   with bounded backoff; exhausted jobs and files become `failed`. The client
+   polls `GET /v1/files` for authoritative status and processing summaries.
 
-   The frontend uses Uppy. Uppy enforces the browser-side allowlist and size
-   limit before it attempts an upload. The chat composer and memory/upload
-   surfaces use the same upload hook, so both entry points follow the same
-   backend lifecycle.
+Reused uploads remain independent for attachment, deletion, and forced
+reprocessing. `content_reused: true` records reuse without exposing the source
+file ID. Existing null digests are not backfilled; simultaneous duplicate
+uploads may both process before either result is ready.
 
-2. The frontend initializes the upload.
-
-   For each selected file, the browser calls:
-
-   ```http
-   POST /v1/files/uploads
-   ```
-
-   The request includes the original filename, browser content type, and byte
-   size. The backend authenticates the user and validates the filename,
-   extension, declared size, and content type string.
-
-3. The backend creates a pending file row.
-
-   The backend generates a new `file-...` ID and private locator. Clients do
-   not provide private locators. The generated locator is scoped under:
-
-   ```text
-   user-files/{user_id}/{file_id}/original
-   ```
-
-   The backend stores a `user_file` row with status `pending_upload`, the
-   installation principal in `user_id`, the generated locator, the display filename,
-   declared content type, declared byte size, and an upload expiry timestamp.
-
-4. The backend returns an authenticated local upload target.
-
-   The response contains the file ID, `PUT` method, API-relative
-   `/v1/files/{file_id}/content` URL, required headers, and expiry time.
-
-5. The browser uploads bytes through FastAPI.
-
-   Uppy resolves the URL against the same application origin without a bearer token.
-   FastAPI enforces declared/configured bounds, streams through a disk-backed
-   spool under `data/staging/uploads`, and atomically promotes the file to
-   `data/user-files/<user>/<file>/original`.
-
-6. The frontend finalizes the upload.
-
-   After Uppy reports object upload success, the frontend calls:
-
-   ```http
-   POST /v1/files/{file_id}:finalize
-   ```
-
-   Finalization remains separate so the backend can verify the promoted local
-   file before treating the row as durable.
-
-7. The backend verifies the object and marks it uploaded.
-
-   Finalize reloads the current user's row, checks that the generated locator
-   still belongs under that user's prefix, stats the exact local file through
-   the private storage adapter, verifies existence and size, and confirms the
-   row is still pending. On success the file status becomes `uploaded`.
-
-8. The frontend enqueues processing.
-
-   When fresh runtime capabilities allow it, the upload hook enqueues processing
-   after finalization by calling:
-
-   ```http
-   POST /v1/files/{file_id}:process
-   ```
-
-   The `/a/library?section=chat-uploads` page can also process or reprocess a file
-   manually. A normal process request reuses an existing queued or running job.
-   If the file is already `ready` or `ready_keyword_only`, a non-forced request
-   returns the current state without duplicating work. Reprocess actions send
-   `force=true`.
-
-9. The backend stores a durable processing job.
-
-   The API request does not parse the file. It creates a
-   `user_file_processing_job` row with status `queued`, marks the file
-   `processing`, commits, and returns `202 Accepted` with the job ID and current
-   statuses.
-
-10. The file worker claims the job.
-
-    The `animama-file-worker` process polls Postgres. It leases work with
-    `FOR UPDATE SKIP LOCKED`, marks a job `running`, records `locked_by` and
-    `locked_at`, increments attempts, and commits. If a worker exits while a job
-    is running, another worker can reclaim the job after the lease expires.
-
-11. The worker opens and validates the local file.
-
-    The worker opens the backend-owned local locator through a private storage
-    port with the expected exact size. It rejects missing, changed, empty, or
-    oversized payloads. Rich formats receive
-    lightweight header checks before parsing: PDFs must begin with `%PDF-`, and
-    DOCX/PPTX/XLSX files must look like ZIP containers.
-
-12. The worker computes and checks a content digest.
-
-    After validation, the worker computes SHA-256 from the downloaded bytes. A
-    non-forced job looks for another current-user file with the same digest,
-    normalized extension, `ready` or `ready_keyword_only` status, and at least
-    one chunk. When it finds one, it atomically clones that file's chunks and
-    embeddings into independent chunk rows for the new file, copies its
-    overview and processing result, stores the digest, completes the job, and
-    skips parsing and embedding. It never reuses a foreign-user file. A
-    `force=true` job always performs fresh processing.
-
-13. The worker parses and chunks the file when content was not reused.
-
-    Simple formats `.txt`, `.rst`, `.org`, `.json`, `.tsv`, and `.xml` use
-    stdlib parsing. Markdown, CSV, HTML, PDF, DOCX, PPTX, and XLSX use Docling's
-    Python API through the full `docling` dependency installed in the worker
-    image. The worker routes PyTorch dependencies to CPU-only wheels through
-    uv's explicit `pytorch-cpu` index, so the image does not include CUDA
-    runtime packages. Docling exports Markdown for fallback/debug metadata, then
-    tries Docling Core's `HybridChunker` for structure-aware chunks.
-
-    `HybridChunker` uses Docling's document hierarchy plus an OpenAI/tiktoken
-    tokenizer. Chunk sizing defaults to `800` tokens through
-    `ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS`. The tokenizer model defaults to
-    `ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL`, then `ANIMAMA_EMBEDDING_MODEL`,
-    then `text-embedding-3-small`. If tiktoken cannot resolve the configured
-    model, the worker falls back to the `cl100k_base` encoding. The local
-    Compose worker defaults to four CPUs and four GiB of memory, and Docling
-    table recognition defaults to `fast` mode to reduce CPU processing time.
-
-    The worker warms Docling's PDF pipeline at startup by default. Warm-up moves
-    pipeline/model initialization out of the first user-file job, but the worker
-    will not claim queued jobs until warm-up finishes or logs a warning.
-
-    For Docling chunks, Anima stores display text in `user_file_chunk.text`
-    but embeds Docling's contextualized text, which includes useful heading and
-    caption context. That contextualized embedding text is transient and is not
-    persisted in a column or metadata.
-
-    PDF OCR is disabled by default. Scanned PDFs may fail or produce little text
-    until OCR is explicitly enabled with `ANIMAMA_USER_FILE_DOCLING_ENABLE_OCR`.
-    Encrypted or password-protected documents are rejected with a processing
-    error.
-
-14. The worker falls back to deterministic text chunking when needed.
-
-    If Docling chunking fails or returns no chunks, the parser records a warning
-    in parser metadata and the service falls back to Markdown character-window
-    chunking. Simple stdlib formats always use the deterministic fallback
-    chunker. Prose chunks target about 2,500 characters with about 250
-    characters of overlap. Table-only stdlib TSV output is chunked by Markdown
-    table row groups.
-
-15. The worker embeds chunks when possible.
-
-    If an embedder is configured, the worker embeds parser-provided
-    contextualized text when available, otherwise the stored chunk text. It then
-    stores pgvector embeddings. If embedding is unavailable or fails, the worker
-    keeps the chunks for keyword search and records a warning instead of
-    discarding the upload.
-
-16. The worker replaces chunks and completes the job.
-
-    Reprocessing is idempotent: existing chunks for that file are replaced in
-    one success path, then deterministic replacement chunks are written. On
-    success the job becomes `succeeded`, the file receives `processed_at` and
-    the verified SHA-256 digest in `user_file.sha256`, and the file status
-    becomes:
-    - `ready` when chunks and embeddings were stored.
-    - `ready_keyword_only` when chunks were stored but embeddings were not.
-
-17. Failures are retried or surfaced.
-
-    Processing failures store a concise `last_error`. Jobs retry with bounded
-    attempts and backoff. After the configured max attempts, the job becomes
-    `failed` and the file status becomes `failed`.
-
-18. The frontend observes status through polling.
-
-    The memory Uploads surface polls `GET /v1/files` while any file is
-    `pending_upload`, `uploaded`, `processing`, or has a queued/running latest
-    job. The response includes file metadata, chunk count, latest processing job
-    summary, and any visible error.
-
-19. The user can debug search processed chunks.
-
-    The memory Uploads surface calls:
-
-    ```http
-    POST /v1/files/debug/search
-    ```
-
-    Search runs only over current-user chunks. Selecting files in the table
-    scopes search to those file IDs.
-
-Content reuse deliberately copies rather than aliases processed rows. The two
-uploads remain independent for attachment, deletion, and force-reprocessing.
-The target file keeps unrelated metadata; copied operational metadata records
-`content_reused: true` but does not expose the source file ID. Existing rows
-with `sha256 = null` are not backfilled automatically. If two identical uploads
-are processed concurrently before either becomes ready, both may do full work;
-later duplicates can reuse either completed result.
+By default, the worker warms Docling's PDF pipeline before claiming jobs. Warm-up failures
+log a warning. Tokenization uses the configured model, falling back to
+`cl100k_base` when tiktoken cannot resolve it. Scanned PDFs need explicit OCR;
+encrypted/password-protected documents fail processing.
 
 ## Statuses
 
@@ -417,15 +253,6 @@ Rows match when the text vector satisfies the query, and Anima ranks matches
 with `ts_rank_cd`, PostgreSQL's cover-density rank function. Cover-density
 ranking rewards matches where query terms appear close together.
 
-This is not BM25. BM25 is a probabilistic relevance formula used by systems
-such as Lucene/OpenSearch/Elasticsearch. It combines term frequency saturation,
-inverse document frequency, and document-length normalization. PostgreSQL FTS is
-excellent as a built-in, transactional keyword index and works well for MVP
-debug retrieval, but BM25 usually gives stronger and more tunable ranking for
-large search corpora. If keyword relevance becomes a product requirement,
-Anima could add a BM25-backed engine such as ParadeDB or a dedicated search
-service later.
-
 Semantic search embeds the query with the configured embedding provider, then
 uses pgvector cosine distance against stored chunk embeddings. The SQL orders by
 nearest vector first with `<=>` and reports score as `1 - distance`. Chunks
@@ -458,39 +285,18 @@ whole-document synthesis, sequential sections, or surrounding context.
 
 ## Local Worker
 
-Run the worker directly:
+Run a host worker with the same database and private storage configuration as
+the backend:
 
 ```bash
 uv run --extra file-worker python -m animama.workers.user_file_processing
 ```
 
-Run the local Compose stack with the worker:
-
-```bash
-./reset.sh
-```
-
-For named stacks:
-
-```bash
-./reset.sh --name abc --base-port 8200
-docker compose -p animama-abc logs -f animama-file-worker animama-server
-```
-
-The backend Dockerfile has separate final targets. The `animama-server` image
-intentionally omits Docling/parser dependencies, while the
-`animama-file-worker` image installs the full `docling` package backed by
-CPU-only PyTorch wheels. The worker service exposes no host ports, depends on
-healthy Postgres, mounts a Docling cache volume, drops Linux capabilities, uses
-`no-new-privileges`, and runs with CPU, memory, pids, and tmpfs limits.
-
-Plain `./reset.sh` does not automatically rebuild images after dependency
-changes. Rebuild explicitly when needed:
-
-```bash
-docker compose build animama-file-worker
-./reset.sh --build animama-file-worker
-```
+The Compose worker service is commented out. Configure it explicitly before
+starting or rebuilding it; see
+[optional document worker setup](../operations/development.md#optional-document-worker).
+The `animama-server` image excludes parser dependencies; the separate
+`animama-file-worker` target installs Docling with CPU-only PyTorch.
 
 ## Configuration
 
@@ -582,12 +388,6 @@ expiration. Reprocessing with `force=true` replaces chunks idempotently.
 
 ## Non-Goals
 
-This MVP does not:
-
-- expose original file download URLs
-- attach uploads to chat turns
-- let chat requests target specific uploads by file ID
-- let agents read original object bytes
-- enable OCR by default
-- support encrypted/password-protected documents
-- support macro-enabled Office files
+The API does not expose original download URLs or let agents read original
+bytes. OCR is opt-in; encrypted/password-protected documents and macro-enabled
+Office files are unsupported.

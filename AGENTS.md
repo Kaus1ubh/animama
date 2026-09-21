@@ -51,8 +51,8 @@ cover. Follow [PLANS.md](PLANS.md); Animama artifacts live under `docs/plans/`,
 while Cloud owns its own plans. Write Animama plans for public review, without
 secrets, personal data, raw transcripts or private-checkout dependencies. Existing
 plans keep their locations and explicit gates unless deliberately migrated with
-owner approval; do not bulk-copy historical private plans. Update durable docs
-with behavior changes. See [Repository boundaries](docs/architecture/repository-boundaries.md).
+owner approval; do not bulk-copy historical private plans. See
+[Repository boundaries](docs/architecture/repository-boundaries.md).
 
 Use the [domain documentation guide](docs/agents/domain.md) to distinguish
 current terminology, implemented behavior and architectural decision history.
@@ -127,8 +127,7 @@ best practices and core coding principles:
   handle secrets carefully, and treat external data as untrusted.
 - Comments and docstrings: add them frequently for public APIs, domain concepts,
   non-obvious decisions, and complex logic; keep them accurate as code changes.
-- Documentation updates: update relevant docs when behavior, configuration,
-  commands, architecture, or workflows change.
+- Documentation: follow the reader-value standard under [Documentation](#documentation).
 
 Prefer clear ownership boundaries, focused changes, readable structure, and
 solutions that fit the surrounding patterns.
@@ -305,9 +304,13 @@ startup, debugging, and reporting.
 
 ## Documentation
 
-Update docs in the same change when behavior, configuration, architecture,
-routes, workflows, or commands change. Use the existing docs information
-architecture before adding new pages.
+Update docs when a change would leave useful guidance missing or misleading.
+Each sentence should help a reader use, operate, debug or extend the system.
+An obvious UI adjustment or internal refactor may need no documentation change.
+Remove repetition and obsolete guidance instead of appending change narration.
+Describe current behavior; put significant decision history in ADRs and delivery
+evidence in issues, PRs or plans. Preserve actionable constraints and recovery
+instructions. See the [domain guide](docs/agents/domain.md) for placement.
 
 Use `$docs-sync` when asked to audit documentation coverage or propose doc
 updates. Before changing OpenAI platform integrations, verify models, request

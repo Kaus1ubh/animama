@@ -124,11 +124,9 @@ move that version aside before reacquiring. Other valid versions stay intact.
 Never edit a verified set in place. Re-run verification before restarting consumers.
 
 Inspect model paths in active stack records/mounts and desktop producer jobs before
-removing unused versions. Cleanup is explicit: no automatic eviction, cache pruning
-or seven-day deletion. OS cache eviction may require reacquisition for development;
+removing unused versions. Cleanup is explicit; the application does not evict model versions. OS cache eviction may require reacquisition for development;
 self-host operators needing durable availability should choose persistent storage.
 Installed desktop packs remain separately owned under Application Support.
-
 
 ## Browser speech assets and dependency inputs
 
@@ -165,8 +163,7 @@ The derived `ANIMAMA_BROWSER_MODEL_DIR` is recorded for Compose follow-up comman
 use `ANIMAMA_MODEL_ROOT` to select host storage. Builds and serving never acquire
 models implicitly. Different manifest revisions occupy distinct directories and
 are resolved once for each serving process; keep old versions while consumers
-still use them. Source cleanup leaves old hydrated files ignored until the owner
-chooses to remove them after verification.
+still use them.
 
 Legacy stack records can still render Compose for `ps`, `down`, backup and restore
 without the new browser cache. Without a recorded browser path, Compose's inert

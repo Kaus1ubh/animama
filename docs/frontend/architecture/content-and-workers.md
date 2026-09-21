@@ -78,9 +78,7 @@ session.
 
 Creator Save sends bounded files and an optional descriptor directly to
 FastAPI. The server performs authoritative hashing, type validation, safe
-atomic writes, and catalog reconciliation. There is no browser-to-object-store
-PUT, presign step, finalize projection, immutable release, or cleanup worker for
-creator content.
+atomic writes, and catalog reconciliation.
 
 ## Runtime preparation
 

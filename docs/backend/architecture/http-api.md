@@ -343,8 +343,7 @@ integrity remains independently enforced. Detail and mutation responses retain
 Anima rows are owner-scoped by the request principal in the retained `user_id`
 column. Direct creation uses the strict command below and the caller-owned
 `AnimaAggregateMaterializer`. Creation writes identity/history, definition audit, chat profile, settings,
-and loadout together. It does not synthesize personality JSON, runtime graph
-metadata, `chat_runtime`, or backing agent rows. Strict creation selects the
+and loadout together. Strict creation selects the
 active local `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` (default
 `OpenAIResponsesHTTPAgent:gpt-5.6-luna`) and persists ElevenLabs voice
 `gJx1vCzNCD1EQHT212Ls` without a provider request. Reads use the Anima's stable
@@ -382,7 +381,7 @@ rather than bulk or mutable request templates.
 Authenticated `GET /v1/animas/creation-options` returns versioned
 Recommended Starter Pack selections/counts, nullable default Idle evidence,
 limits, and diagnostics. Read-only `POST /v1/animas:validate` accepts
-`AnimaSpec` and returns the normalized spec/warnings. The replaced
+`AnimaSpec` and returns the normalized spec/warnings.
 `POST /v1/animas` accepts that strict spec plus a body idempotency key; the
 owner is never a browser field. The complete `expected_source_revisions` map
 includes selected roots and all typed supports with kind/revision. New companions
@@ -435,8 +434,7 @@ companion chat turn and streams Server-Sent Events. It resolves a anima chat
 profile or request-level model override, invokes an app-scoped direct model
 client, derives emotion updates from the main structured response, persists
 request-local side effects, and tears resources down when the stream finishes or
-is closed. It does not require an existing WebSocket and does not construct
-`AnimaRuntime`.
+is closed.
 
 The SSE stream currently emits:
 
@@ -509,11 +507,7 @@ intermediary transport. `dispatch_options.tts.model_id` may request
 configured default. Realtime selected models are returned in
 `tts.session.model_id`. `eleven_v3` does not start realtime bootstrap and does
 not emit `tts.session` or `tts.session.error`.
-The route does not infer TTS setup from `main_structured_response`. It also does
-not read `ORMAnima.metadata_["chat_runtime"]`, derive graph fallback config,
-read `metadata.direct_chat`, or build agent providers for the normal primary
-turn. The old graph/agent execution code has been deleted; normal avatar chat
-uses direct model clients plus the explicit profile/catalog selection above.
+The route does not infer TTS setup from `main_structured_response`.
 Before model invocation, direct chat opens cached path `IDENTITY.md` in the
 active anima scope for prompt context and appends only the identity markdown
 content to the single system instruction. User profile memory entries are seeded
@@ -539,9 +533,7 @@ owner notifications. It currently emits heartbeat comments only and has no
 Redis dependency.
 
 Realtime notification transports should be treated as delivery signals.
-Durable state remains in the database through chats, messages, anima state,
-settings, avatar rows, archive rows, user files, and future memory filesystem
-rows.
+Durable state remains in the database.
 
 ## Model Providers
 
@@ -586,8 +578,8 @@ Memory APIs expose a scoped Markdown entry tree:
 - `POST /v1/memory/manager/approvals/{approval_id}:decide`
 - `POST /v1/memory/manager/approvals/{approval_id}:undo`
 
-The old `/v1/memory/files` routes are not mounted. Memory entry routes require
-the resolved request principal and never accept a client-supplied owner.
+Memory entry routes require the resolved request principal and never accept a
+client-supplied owner.
 Rows are scoped by nullable `anima_id`: `NULL` is installation-owner memory, and
 non-null selects one anima-specific tree after validating that the anima belongs
 to the current user. The virtual root is represented by `parent_id = NULL`;
@@ -708,13 +700,6 @@ Both append an `undo` Version and preserve the original approval decision. A
 successful retry is idempotent. Missing/foreign resources return `404` and
 stale or ineligible requests return `409`.
 
-Fresh reset-created databases include run kind/task state, approval feedback,
-old/new approval descriptions, application Version, and Undo audit columns.
-During development, changes to these columns or the binary episode-status
-constraint update the ORM and baseline SQL directly. The owner decides when to
-reset an existing database; ordinary `./reset.sh` preserves data and does not
-reapply an edited baseline.
-
 Normal direct chat assembles the current anima identity entry content into
 system instruction context. Anima identity is always required, and
 `disable_memory_influence` does not remove it. Anima creation seeds
@@ -806,9 +791,7 @@ the creation-compatible root/support closure, independent of preview pins.
 
 Appearance and portrait images are typed `appearance` catalog items. Focused
 `/v1/animas/{anima_id}/appearance:plan` and `:commit` commands store
-profile/background selection plus crop/focal configuration. There is no
-numbered Avatar release, portrait upload/finalize projection, or
-`avatar-release:plan|commit` route.
+profile/background selection plus crop/focal configuration.
 
 ## User Files
 
@@ -843,8 +826,9 @@ and backend debug search. It exposes:
 - `DELETE /v1/files/uploads/{file_id}`: abort a non-finalized upload and
   best-effort delete its staged/local bytes.
 
-This route group does not expose original download URLs or connect uploads to
-chat. Supported extensions are:
+Original download URLs are not exposed. Direct chat accepts validated
+`attached_file_ids` and reads processed chunks through bounded tools; see
+[user files](../features/user-files.md#search-and-retrieval). Supported extensions are:
 `.txt`, `.md`, `.rst`, `.org`, `.json`, `.csv`, `.tsv`, `.html`, `.htm`, and
 `.xml`, plus digital rich documents `.pdf`, `.docx`, `.pptx`, and `.xlsx`.
 Macro-enabled Office files, executables, scripts, installers, and archives remain

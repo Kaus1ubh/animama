@@ -19,8 +19,7 @@ From the Animama root, using the Python environment installed by `uv sync`:
 `--output` and consumer directories must be new paths outside the checkout.
 The build emits one Python wheel, three npm tarballs, an offline local OpenAPI
 schema and the neutral RuntimeOwner JSON Schema. Contract versions come from
-`contracts/versions.json` in the exact source snapshot. Schema descriptions are
-documentation; they confer no authentication or hosted implementation.
+`contracts/versions.json` in the exact source snapshot.
 
 The canonical `manifest.json` records the full source commit/tree, copied source
 hash, source timestamp, frozen dependency-lock hashes, tool versions, producer
@@ -95,9 +94,6 @@ records the dirty snapshot hash and uses a `dev/` identity. Untracked and ignore
 files are never copied. The override is rejected in CI or when
 `ANIMAMA_RELEASE_BUILD` is set. Dirty sets cannot be promoted or used by ordinary
 Cloud CI. Build from a clean exact commit before an actual dependency update.
-Private maintainers have an artifact-based sibling rehearsal helper; it never
-creates editable public installs or source links. Public-only contributors need
-none of that private tooling. Keep Git mutations scoped to this root.
 
 Run focused producer tests and source boundaries with:
 

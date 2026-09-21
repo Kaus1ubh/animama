@@ -146,85 +146,12 @@ rescan remain later reset steps. See the
 
 ## Embedded Desktop Runtime
 
-The macOS desktop supervisor uses the same accountless backend and migrations,
-packaged as `animama-runtime`. It starts its own private native PostgreSQL and
-FastAPI processes without Compose. This does not change the main development
-stack at `http://localhost:8000`. Native acceptance uses the exact staged core
-and owned child; signed release, minimum-OS, clean-machine and user acceptance
-are separate gates.
-The canonical operator reference is [Embedded desktop operations](desktop-runtime.md),
-with [user recovery guidance](../../frontend/desktop/troubleshooting.md).
-
-The frozen command surface includes `database provision`, `database inspect`,
-`database bootstrap`, `serve`, `content rescan`, and `worker avatar-cleanup`.
-The separate `worker user-files` command returns `feature_unavailable` without
-the verified optional pack. With it, the command rechecks the fixed helper path
-and executable digest before delegating to its independently frozen process.
-No credentials are passed in argv and core never imports Docling as a fallback.
-
-The supervisor supplies these additional private settings:
-
-| Setting                                 | Contract                                                                                     |
-| --------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `ANIMAMA_DESKTOP_PGDATA`                | Expected owned data directory; database commands compare `SHOW data_directory` before writes |
-| `ANIMAMA_DESKTOP_CONTROL_TOKEN`         | Per-launch secret for private desktop readiness, separate from the renderer capability         |
-| `ANIMAMA_DESKTOP_RENDERER_CAPABILITY`  | Distinct per-launch renderer admission cookie, installed only by main                          |
-| `ANIMAMA_PUBLIC_ORIGIN`, `ANIMAMA_WEB_ROOT` | Saved loopback application origin and verified packaged React root                       |
-| `ANIMAMA_PROCESS_START_TOKEN`         | Fresh child UUID returned with its PID in private readiness                                   |
-| `ANIMAMA_PARAKEET_MODEL_MOUNT_JSON`    | Optional bounded verified desktop model inventory                                             |
-| `ANIMAMA_DESKTOP_BUILD_ID`              | Expected staged build ID, returned in private readiness                                      |
-| `ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON` | Bounded ordered array of immutable `{id, version, root, pack_id}` sources; core first        |
-| `ANIMAMA_LOCAL_CONTENT_ROOT`            | Explicit writable Local root; valid only with Included source configuration                  |
-| `ANIMAMA_USER_FILE_PROCESSING_ENABLED`  | Desktop sets true only for an active verified document pack; self-host default is true       |
-| `ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID`   | Expected worker instance for capability heartbeat matching                                   |
-| `ANIMAMA_DOCUMENT_PACK_VERSION`         | Opaque active document-pack version for private removal checks                               |
-| `ANIMAMA_PARAKEET_STT_ENABLED`          | Desktop sets true only for a verified Parakeet mount; self-host default is true              |
-| `ANIMAMA_PARAKEET_ASSET_VERSION`        | Opaque version for same-origin model caching; null for ordinary development assets           |
-| `ANIMAMA_DOCLING_ARTIFACTS_PATH`        | Worker-only fixed packaged Docling model directory                                           |
-
-`ANIMAMA_DATA_ROOT` still holds private files. Included roots must already exist,
-be absolute, contain no symlink ancestors, and be disjoint from each other and
-the writable roots. Initialization neither creates nor write-probes them.
-Core has ID `core` and no pack ID; the only optional Included source is the
-`expanded-included-content` pack. Source configuration is supplied by
-main, never a renderer or an arbitrary uploaded manifest. Only Local is watched.
-When these settings are absent, the existing Docker root behavior is preserved.
-
-Database bootstrap retains the advisory lock across packaged Alembic migrations
-(including extension creation) and idempotent SQL seeds. It reports actual
-PostgreSQL, pgvector, previous/current schema heads, seed versions, and the principal. An
-existing installation-settings table without its principal fails closed.
-Desktop provisioning can create only the fixed `animama` database at a verified
-loopback cluster. Backend readiness is not accepted until its build, schema,
-and principal agree with the supervisor and Included reconciliation succeeded.
-Private `/_desktop/feature-packs/{id}:removal-check` covers references, leases,
-content operations, and running document jobs. Every private control requires
-the separate token. Pack changes destroy product windows and show independent
-recovery before `POST /_desktop/runtime:quiesce` closes admission and drains
-active work. A bounded `runtime_busy` response blocks pointer changes. FastAPI
-restarts on the same saved origin; the supervisor verifies the exact child PID,
-start token, build, schema and principal before recreating product windows.
-Failed transitions restore the prior configuration. See the
-[capability API](../architecture/http-api.md#optional-runtime-capabilities).
-
-The document pack is executable release code: a macOS Developer ID identity,
-pinned Team ID/requirement, and notarization profile are required even when
-testing the unsigned core app. Inventory and OS publisher verification precede
-every worker launch. Build prerequisites and commands live in the
-[staging guide](../../frontend/desktop/runtime-staging.md).
-
-The macOS user-data root is `~/Library/Application Support/Animama`. Quit the app
-before backing up its database, encrypted vault, `content/local`, and `data`
-together. The vault's OS encryption may require the original login keychain;
-copying a vault alone does not guarantee recovery on another machine. Verified
-custom-format dumps in `backups/pre-migration` protect upgrades but are not a
-full filesystem/vault backup. Snapshot retention keeps the newest snapshot,
-all failed or interrupted attempts and unknown entries; it may prune older known-successful
-snapshots after two distinct successful app launches. Retry and provider
-restarts do not advance that count. Never delete the database,
-vault, or principal to work around a startup error. Retry preserves all three.
-See the [desktop guide](../../frontend/desktop/overview.md) for
-saved-port and stale-child recovery, paths, logs, and provider-key changes.
+The packaged macOS app supervises its own PostgreSQL, FastAPI, and cleanup
+worker; Compose commands do not manage that profile. Use
+[Embedded desktop operations](desktop-runtime.md) for private environment,
+readiness, optional workers, coordinated backups, and migration recovery, and
+[runtime staging](../../frontend/desktop/runtime-staging.md) for build commands.
+Native and signed-release acceptance require their own evidence.
 
 ## Self-Hosted Local Roots
 
@@ -447,27 +374,8 @@ cannot verify the outer authentication policy. Every admitted request acts as
 the same installation owner. External identity headers never establish a
 principal or create additional local users.
 
-The accountless local UI and its Compose/reset and HTTP boundary are
-runnable. There is no account
-claim/adoption command, API-key provisioning script, or data-preserving
-migration from development accounts. A full purge creates a new principal;
-an ordinary restart retains it and opens the completed product journey.
-
-The `0001_baseline.sql` includes `chats.openai_previous_response_id`,
-the scoped `memory_entries` tree, append-only `memory_entry_versions`, their
-`version` and `description` columns, and the Avatar identity/Anima schema.
-Fresh databases receive these through Alembic, not dynamic ORM metadata
-creation. Existing databases with an older schema require the owner-directed
-fresh-reset boundary described above to receive current baseline changes.
-
-The current baseline creates the neutral Content Catalog, typed
-`anima_loadouts`/`anima_content_bindings`, and
-`anima_runtime_snapshots.admitted_item_revisions` directly. It contains no
-release/blob/upload transition tables or `anima_runtime_file_memberships`.
-Runtime snapshots freeze selected catalog item revisions for chat and authorize
-files through their canonical `content_catalog_files` registrations. Historical
-stepwise-upgrade fixtures are replaced by fresh-install, final-schema-equivalence
-and bootstrap-idempotency coverage.
+For baseline compatibility and resets, see [Database](#database). An ordinary
+restart retains the installation principal; a full purge creates a new one.
 
 ## Synthetic Context Seed
 
@@ -683,9 +591,7 @@ and full requests keep complete hosted validation.
 Use the default [pull request template](../../../.github/pull_request_template.md)
 to describe the problem/result and keep local, CI and UI evidence separate. Its
 checklist confirms that applicable work is recorded; it does not assert every
-suite passed. Optional issue references can be removed. The single template
-lives at `.github/pull_request_template.md`, the default GitHub location; the
-new default becomes available after this change reaches the default branch.
+suite passed. Optional issue references can be removed.
 
 ### Backend check commands
 
@@ -714,14 +620,14 @@ The local-first workflow is active on the default branch. Its scheduled and
 default-branch behavior follows the policy below. A passing implementation run
 is not owner acceptance of the coverage or budget tradeoff.
 
-| Change or request | Independently executed hosted scope | Local evidence needed for reduction |
-| --- | --- | --- |
-| Modified eligible documentation only | Frozen Python install, typed-content audit, synthetic-document and accountless repository tests | None |
-| Allowlisted existing backend tests or pure formatter | Frozen Python install, typed-content audit, format/Ruff/mypy and accountless repository guards | Full backend checks in a fresh reviewed receipt |
-| Allowlisted web UI implementation | Frozen Python/frontend installs, package preparation, web lint, web/desktop/package/harness types, SDK freshness and accountless guards | Complete frontend source checks and both rendered browser modes in a fresh reviewed receipt |
-| High-risk, mixed, added/deleted/renamed, unknown or uncertain inputs | Full hosted validation | Local evidence cannot narrow these changes |
-| Persistent `ci:full`, manual dispatch or release reuse | Full hosted validation of exact source | No substitution |
-| Draft without `ci:full` | Selection and a non-accepting final gate | Draft deferral is not acceptance |
+| Change or request                                                    | Independently executed hosted scope                                                                                                     | Local evidence needed for reduction                                                         |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Modified eligible documentation only                                 | Frozen Python install, typed-content audit, synthetic-document and accountless repository tests                                         | None                                                                                        |
+| Allowlisted existing backend tests or pure formatter                 | Frozen Python install, typed-content audit, format/Ruff/mypy and accountless repository guards                                          | Full backend checks in a fresh reviewed receipt                                             |
+| Allowlisted web UI implementation                                    | Frozen Python/frontend installs, package preparation, web lint, web/desktop/package/harness types, SDK freshness and accountless guards | Complete frontend source checks and both rendered browser modes in a fresh reviewed receipt |
+| High-risk, mixed, added/deleted/renamed, unknown or uncertain inputs | Full hosted validation                                                                                                                  | Local evidence cannot narrow these changes                                                  |
+| Persistent `ci:full`, manual dispatch or release reuse               | Full hosted validation of exact source                                                                                                  | No substitution                                                                             |
+| Draft without `ci:full`                                              | Selection and a non-accepting final gate                                                                                                | Draft deferral is not acceptance                                                            |
 
 The selector owns the exact allowlists. Backend production eligibility initially
 contains only `src/backend/animama/app/services/memory_entry_diff.py`; ordinary
@@ -819,12 +725,11 @@ Direct pushes, unsupported merge identities, stale evidence and unavailable API
 records retain full validation. Release callers always validate their exact
 checkout in full and do not rely on previous branch runs or local assertions.
 
-The proposed weekly backstop runs Monday at **09:17 UTC**. Changed main receives
+The workflow schedules a weekly backstop for Monday at **09:17 UTC**. Changed main receives
 full validation; unchanged main may omit repetition only after a successful
 scheduled run for the same head. A problem outside a reduced check's coverage may
 remain undetected for up to seven days plus queue delay. This is an explicit
 coverage tradeoff for owner review, not permission to merge known failures.
-The schedule is not active or accepted merely because this branch contains it.
 
 ### Full checks and retained evidence
 
@@ -863,34 +768,10 @@ job's rounded duration is the run estimate; include failed/cancelled runs, label
 and ready updates, main pushes and weekly/manual work in monthly forecasts.
 Run `make check-ci` for policy, evidence, Git-discovery and gate regression tests.
 
-Before enabling remote budget enforcement, the owner should review the account's
-2,000-minute allowance, existing usage and billing period, other repositories,
-and spending/notification controls. Keep a 200-minute reserve; compare both
-20- and 30-day periods at 10 and 15 pull requests per day. Count each executed job's billable
-minutes rounded up; the current workflow consolidates planning and acceptance
-into its single `Validation` job. A deferred draft intentionally has a
-non-success aggregate and is not a passing validation receipt. No workflow edit
-changes the owner's billing budget or grants spending authority.
-
-To set an account-wide spending limit manually, open GitHub **Settings →
-Billing → Budgets and alerts → New budget**, select a product-level **Actions**
-budget and account-wide scope, enter the owner-approved amount, and enable
-**Stop usage when budget limit is reached** and budget threshold alerts.
-Also enable **Receive alerts when my included usage reaches 90% and 100%**.
-Alerts alone do not stop spending. Review existing overlapping budgets first;
-these are owner actions, not changes made by the workflow.
-See [GitHub's budget instructions](https://docs.github.com/en/billing/how-tos/set-up-budgets),
-[runner pricing](https://docs.github.com/en/billing/reference/actions-runner-pricing),
-and [included usage](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
-
-Shared host caches and trusted compatibility-baseline reuse remain separately
-owned workspace work. Reuse must verify exact inputs, origin and hashes and
-rebuild on misses or corruption; this workflow does not introduce that shortcut.
-
-Measure the new full and reduced paths, including fresh local validation cost and
-weekly work, before accepting a savings claim. Owner acceptance of the proposed
-coverage/detection-delay and budget limits remains separate from implementing
-or testing the workflow. No account budget or branch policy changes occur here.
+Billing budgets and branch protection are separate GitHub owner settings; the
+workflow does not configure them. Measure complete run costs, including local
+validation and weekly work, before claiming savings. Preserve owner review of
+coverage and detection-delay tradeoffs when changing validation policy.
 
 The development dependency group includes the PyYAML, jsonschema and ReportLab
 type stubs required by the existing mypy target. Install from `uv.lock` with
@@ -899,10 +780,7 @@ checks its configured repository scope; formatting checks only
 `src/backend/animama` and `tests`, and mypy checks those same backend/test roots.
 Python 3.12 is the minimum supported backend interpreter, and Ruff and mypy use
 that same language target. CI, immutable package production and native staging
-use Python 3.12.13; Docker uses the Python 3.12 image line. Python 3.10 and 3.11
-are no longer supported. The backend package version is 0.2.0 to identify this
-support-contract change; HTTP/schema, npm and desktop versions are independent.
-Newer Python versions must satisfy dependency metadata, but only the pinned 3.12
+use Python 3.12.13; Docker uses the Python 3.12 image line. Newer Python versions must satisfy dependency metadata, but only the pinned 3.12
 runtime is currently exercised by these CI jobs.
 
 ## Runtime Snapshot Diagnostics
@@ -983,10 +861,10 @@ On the main checkout, enable the two development tools without deleting data:
 ./reset.sh --profile dev-tools
 ```
 
-| Tool | Default URL | Private connection |
-| --- | --- | --- |
-| pgAdmin | `http://localhost:5050` | PostgreSQL at `postgres:5432` |
-| Dozzle | `http://localhost:9999` | Local Docker socket for container logs |
+| Tool    | Default URL             | Private connection                     |
+| ------- | ----------------------- | -------------------------------------- |
+| pgAdmin | `http://localhost:5050` | PostgreSQL at `postgres:5432`          |
+| Dozzle  | `http://localhost:9999` | Local Docker socket for container logs |
 
 Both host bindings are fixed to `127.0.0.1`; there is no bind-address override.
 The application remains at `http://localhost:8000`; neither tool is routed
@@ -1230,14 +1108,11 @@ CLI does not read Compose environment files: export the same nonsecret root in
 the shell or pass `--root /absolute/model-store` to these verification commands. Models are
 shared immutable inputs; `.venv`, `node_modules`, generated frontend output and
 runtime data remain separate per worktree. Do not copy another checkout's
-Included or Local content to make a fresh checkout appear ready. LFS hydration
-alone does not establish the starter's complete avatar/idle/gesture closure.
-For excluded animation bytes, follow the existing
-[manual acquisition instructions](../../frontend/runtime/mixamo-acquisition.md).
-That workflow records user-supplied downloads; conversion and reviewed installation
-remain separate prerequisites. Report a missing starter dependency explicitly;
-do not rename FBX files, fetch private backups or substitute synthetic motions to
-claim the real starter is ready.
+Included or Local content to make a fresh checkout appear ready. The tracked
+Included library supplies both starters without Mixamo animations. Report any
+missing required dependency instead of substituting private or synthetic assets.
+[Mixamo acquisition and conversion](../../frontend/runtime/mixamo-acquisition.md)
+are optional steps for adding Local motions; neither is a startup prerequisite.
 
 Install host dependencies only for the host commands the task needs. A
 Compose-only run uses image dependencies and its project-scoped frontend volume;
@@ -1634,7 +1509,9 @@ environment usage.
 
 ## Updating Docs
 
-For backend behavior, update files in `docs/backend/` alongside code changes.
+Update a backend guide only when a reader's task, contract, constraint, or
+recovery procedure changes. Revise the existing explanation; omit obvious UI
+behavior, change narration, and details already owned by another guide.
 
 ## Migration-backed content recovery checks
 
@@ -1654,7 +1531,6 @@ Restart in these tests means rebuilding database engines/sessions, bootstrap and
 filesystem services against the same isolated persisted state. It does not mean
 a PostgreSQL crash or full desktop restart. Included content is deliberately
 empty: starter repair is expected while content readiness is asserted separately.
-
 
 ## Dependency download caches
 

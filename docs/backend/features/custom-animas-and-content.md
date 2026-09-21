@@ -111,12 +111,6 @@ Anima, name/identity history, settings, chat profile, and typed loadout. Catalog
 rows and the active model are locked for creation; exact membership, access,
 typed semantics, budgets, revisions, and verified source bytes are rechecked
 after the receipt write. Validation does not Rescan or mark catalog rows.
-`IDENTITY.md` remains a SQL-backed virtual memory entry;
-there is no physical identity projection. The materializer never commits
-independently. Default model selection validates the configured active local
-row; default ElevenLabs voice `gJx1vCzNCD1EQHT212Ls` is assigned without a
-provider request. Idle and Music are empty,
-emotion is neutral, and no Chat row or greeting is created.
 
 An owner-scoped body idempotency key binds only after successful commit.
 Identical replay resolves before current-source/default validation; changed
@@ -144,30 +138,17 @@ not the stable owner/starter identity. Successful or deleted slots are never
 rewritten by a later spec version.
 
 Current defaults are Annie version 1 (`AvatarSample_A_1_New`) and Caitlyn
-version 3 (`AvatarSample_R1`, the model associated with Janna), with matching
-Included portraits when available. This corrects the earlier R2 selection.
-Caitlyn's replacement applies only to new/missing slots explicitly created by
-the service; existing Animas, identities, ownership and ready/deleted receipts
-are preserved. Her historical `avt_chibi_2` adoption identifier still identifies
-old data, not the current model. Desktop staging excludes both that former
-Chibi 2 model and the mistaken R2 replacement, together with their derived
-portraits, from both distribution partitions through the Included license
-inventory. Existing development profiles that still reference either excluded
-model need an explicit content replacement; preserving receipts does not ship
-the removed bytes in a new bundle.
+version 3 (`AvatarSample_R1`), with matching Included portraits when available.
+Existing ready/deleted starter receipts are preserved. Automatic adoption uses
+the historical `avt_chibi_2` identifier only to recognize existing data.
 
-The owner also excluded downloaded voice samples, Tokyo backgrounds/thumbnails,
-and BGM examples/metadata from both desktop partitions on 2026-09-02. Those
-examples remain in the private development checkout, but are not mounted as
-Included desktop content. Starter portraits and speech-engine assets remain
-available, and Local imports still work. An existing development Anima using an
-excluded example needs explicit replacement or removal of that binding before
-moving to the new bundle; staging never rewrites owner data to hide missing bytes.
+Desktop staging excludes Chibi 2, `AvatarSample_R2`, their derived portraits,
+downloaded voice samples, Tokyo backgrounds/thumbnails, and BGM examples.
+Existing Animas bound to excluded content need explicit replacement before
+moving to a bundle without those bytes; staging never rewrites owner data.
 
 Accountless installation bootstrap calls the owner-scoped ensure command
-without explicit repairs. Earlier account-based migration/bulk-caller behavior
-is historical; it is not part of current first-run setup. Automatic
-adoption requires exactly one original Avatar/profile/identity-seed-history
+without explicit repairs. Automatic adoption requires exactly one original Avatar/profile/identity-seed-history
 match; it preserves subsequent customization. Missing, partial, or ambiguous
 legacy evidence returns `repair_required`, never automatic recreation. Explicit
 `adopt` or `create_missing` repairs apply only to those recorded unresolved slots.
@@ -200,11 +181,8 @@ creation calls a provider.
 
 ## Local creation boundary
 
-Create Anima creates a live companion with editable dependencies. It never
-creates, saves or synchronizes an Anima Blueprint. There is no “Save as Blueprint”
-action or editable Local Blueprint; the reserved Anima content handler remains
-unsupported. Discover and publishing are discontinued. Existing typed `.animama`
-import/export remains independent of live Anima creation.
+Create Anima creates a live companion with editable dependencies. Live Animas
+cannot be packaged; typed `.animama` import/export handles catalog content only.
 
 The Library Avatar catalog omits retired shipped model defaults, including rows
 retained for historical Anima references. Repeatable database seeding includes

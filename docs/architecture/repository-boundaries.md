@@ -73,12 +73,6 @@ publication authority.
 
 ## Source review and licensing
 
-Git tracks the current source tree. The former per-file boundary and provenance
-inventories and split-export tools have been retired to avoid shared metadata
-conflicts between independent task branches. Routine changes no longer require
-classification entries or provenance hash refreshes; historical split records
-remain in Git history.
-
 Preserve third-party licenses, notices and attribution alongside their source.
 [Source-candidate preparation](../../scripts/public-release/README.md) freezes
 Git-tracked working files in an external hash-bound inventory and requires exact
