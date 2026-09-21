@@ -23,6 +23,7 @@ import type { PoseCreatorSavedDraft } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
+import { CatalogDragHandle } from "./ActionCatalogDrag";
 import { CreatorPanelCollapseButton } from "./CreatorPanelChrome";
 import type { ActionDependencySection } from "./ActionEditorWorkspaceContext";
 import type { ActionComponentType } from "./actionDependencies";
@@ -241,6 +242,7 @@ export function ActionEditorEffectsPanel({
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-0.5">
             {panelTab === "poses" ? (
               <PoseCatalog
+                mobile={mobile}
                 poses={filteredPoses}
                 hasQuery={Boolean(poseQuery.trim())}
                 onAddPose={onAddPose}
@@ -287,6 +289,8 @@ export function ActionEditorEffectsPanel({
                       return (
                         <EffectCatalogRow
                           key={item.item_id}
+                          mobile={mobile}
+                          contentType={activeTab.contentType}
                           item={item}
                           icon={activeTab.icon}
                           addedCount={addedCount}
@@ -354,11 +358,13 @@ export function ActionEditorEffectsPanel({
 
 /** Browser-local Pose library used as clip keyframe ingredients. */
 function PoseCatalog({
+  mobile,
   poses,
   hasQuery,
   onAddPose,
   onCreatePose,
 }: {
+  mobile: boolean;
   poses: PoseCreatorSavedDraft[];
   hasQuery: boolean;
   onAddPose?: (pose: PoseCreatorSavedDraft) => void;
@@ -373,12 +379,17 @@ function PoseCatalog({
               key={pose.id}
               className="border-border/70 bg-background/65 hover:bg-accent/45 group flex min-h-12 items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors"
             >
-              <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md">
-                <PersonStandingIcon className="size-3.5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium">{pose.name}</p>
-              </div>
+              <CatalogDragHandle
+                item={{ kind: "pose", pose }}
+                disabled={mobile || !onAddPose}
+              >
+                <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md">
+                  <PersonStandingIcon className="size-3.5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium">{pose.name}</p>
+                </div>
+              </CatalogDragHandle>
               <Button
                 type="button"
                 size="icon-sm"
@@ -421,11 +432,15 @@ function PoseCatalog({
 }
 
 function EffectCatalogRow({
+  mobile,
+  contentType,
   item,
   icon: Icon,
   addedCount,
   onAdd,
 }: {
+  mobile: boolean;
+  contentType: ActionComponentType;
   item: PyCatalogViewItem;
   icon: LucideIcon;
   addedCount: number;
@@ -433,20 +448,25 @@ function EffectCatalogRow({
 }) {
   return (
     <div className="border-border/70 bg-background/65 hover:bg-accent/45 group flex min-h-12 items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors">
-      <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md">
-        <Icon className="size-3.5" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium">{item.name}</p>
-        <div className="text-muted-foreground flex items-center gap-1.5 text-[10px]">
-          {item.origin !== "builtin" ? <span>Mine</span> : null}
-          {addedCount ? (
-            <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-medium">
-              {addedCount === 1 ? "Added" : `Added ×${addedCount}`}
-            </span>
-          ) : null}
+      <CatalogDragHandle
+        item={{ kind: "effect", item, contentType }}
+        disabled={mobile || !item.source}
+      >
+        <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md">
+          <Icon className="size-3.5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium">{item.name}</p>
+          <div className="text-muted-foreground flex items-center gap-1.5 text-[10px]">
+            {item.origin !== "builtin" ? <span>Mine</span> : null}
+            {addedCount ? (
+              <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-medium">
+                {addedCount === 1 ? "Added" : `Added ×${addedCount}`}
+              </span>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </CatalogDragHandle>
       <Button
         type="button"
         size="icon-sm"

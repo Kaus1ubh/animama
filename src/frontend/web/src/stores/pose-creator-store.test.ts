@@ -316,6 +316,118 @@ describe("pose creator model selection", () => {
     expect(clip.isDirty).toBe(true);
   });
 
+  it("inserts a pose at an explicit drop time in one edit without a preliminary seek", () => {
+    const store = usePoseCreatorStore.getState();
+    store.setClipCurrentTime(0.1, { snap: false });
+    const before = usePoseCreatorStore.getState().clipDraft;
+    const updates: number[] = [];
+    const unsubscribe = usePoseCreatorStore.subscribe((state) => {
+      updates.push(state.clipDraft.currentTimeSec);
+    });
+    const pose = parseAnimaPose({
+      schema: "animaPose/1.0",
+      id: "dropped-pose",
+      name: "Dropped pose",
+      expressions: { happy: 0.7 },
+    });
+
+    const alias = store.addPoseToClip(pose, pose.name, {
+      timeSec: 0.37,
+      atPlayhead: true,
+    });
+    unsubscribe();
+    const state = usePoseCreatorStore.getState();
+    expect(updates).toEqual([0.37]);
+    expect(state.clipPlaybackAbsoluteTimeSec).toBe(0.37);
+    expect(state.clipDraft.keyframes).toEqual([
+      expect.objectContaining({ pose: alias, time: 0.37 }),
+    ]);
+    expect(state.clipDraft.selectedKeyframeId).toBe(
+      state.clipDraft.keyframes[0]?.id,
+    );
+    expect(state.clipPlaybackPlaying).toBe(false);
+    expect(state.clipUndoHistory).toHaveLength(1);
+
+    store.undoClip();
+    expect(usePoseCreatorStore.getState().clipDraft.poses).toEqual(
+      before.poses,
+    );
+    expect(usePoseCreatorStore.getState().clipDraft.keyframes).toEqual(
+      before.keyframes,
+    );
+  });
+
+  it("selects only the dropped pose when an effect was previously selected", () => {
+    const store = usePoseCreatorStore.getState();
+    store.insertClipSFXEventAtPlayhead("chime");
+    expect(
+      usePoseCreatorStore.getState().clipDraft.selectedEventId,
+    ).not.toBeNull();
+    store.addPoseToClip(
+      parseAnimaPose({
+        schema: "animaPose/1.0",
+        id: "dropped-pose",
+        name: "Dropped pose",
+        expressions: { happy: 0.7 },
+      }),
+      "Dropped pose",
+      { timeSec: 0.4 },
+    );
+    const clip = usePoseCreatorStore.getState().clipDraft;
+    expect(clip.selectedEventId).toBeNull();
+    expect(clip.selectedKeyframeId).toBe(clip.keyframes[0]?.id);
+  });
+
+  it("replaces an occupied pose timestamp and restores its complete contents with one undo", () => {
+    const store = usePoseCreatorStore.getState();
+    const pose = parseAnimaPose({
+      schema: "animaPose/1.0",
+      id: "happy",
+      name: "Happy",
+      expressions: { happy: 0.5 },
+    });
+    store.addPoseToClip(pose, pose.name, { timeSec: 0.6 });
+    const before = usePoseCreatorStore.getState().clipDraft;
+    store.setClipCurrentTime(0.2, { snap: false });
+    const replacement = store.addPoseToClip(
+      { ...pose, expressions: { happy: 1 } },
+      "Happier",
+      { timeSec: 0.6 },
+    );
+    const after = usePoseCreatorStore.getState().clipDraft;
+    expect(after.keyframes).toEqual([
+      { ...before.keyframes[0], pose: replacement },
+    ]);
+    expect(after.currentTimeSec).toBe(0.6);
+    expect(after.selectedKeyframeId).toBe(before.keyframes[0]?.id);
+
+    store.undoClip();
+    expect(usePoseCreatorStore.getState().clipDraft.poses).toEqual(
+      before.poses,
+    );
+    expect(usePoseCreatorStore.getState().clipDraft.keyframes).toEqual(
+      before.keyframes,
+    );
+  });
+
+  it.each([-1, 5])(
+    "clamps an explicit pose insertion time %s to the timeline",
+    (timeSec) => {
+      const store = usePoseCreatorStore.getState();
+      const pose = parseAnimaPose({
+        schema: "animaPose/1.0",
+        id: "boundary",
+        name: "Boundary",
+        expressions: { happy: 1 },
+      });
+      const expected = Math.max(0, Math.min(store.clipDraft.duration, timeSec));
+      store.addPoseToClip(pose, pose.name, { timeSec });
+      expect(usePoseCreatorStore.getState().clipDraft.keyframes[0]?.time).toBe(
+        expected,
+      );
+    },
+  );
+
   it("copies only directly authored channels from a parented pose", () => {
     const store = usePoseCreatorStore.getState();
     const pose = parseAnimaPose({

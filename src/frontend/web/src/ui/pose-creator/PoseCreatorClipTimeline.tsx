@@ -42,6 +42,12 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { Switch } from "@/ui/components/switch";
+import { useCatalogTimelineDrop } from "@/ui/action-editor/ActionCatalogDrag";
+import {
+  TRACK_LABEL_RAIL_PX,
+  TRACK_RIGHT_INSET_PX,
+  timelinePointerTime,
+} from "@/ui/action-editor/timelineCatalogDrop";
 import { CreatorPanelCollapseButton } from "@/ui/action-editor/CreatorPanelChrome";
 import {
   POSE_CREATOR_CLIP_PLAYBACK_SPEED_OPTIONS,
@@ -65,8 +71,6 @@ type TimelineDragState =
     };
 
 const RULER_TICKS = [0, 0.25, 0.5, 0.75, 1] as const;
-const TRACK_LABEL_RAIL_PX = 72;
-const TRACK_RIGHT_INSET_PX = 16;
 const TRACK_MARKER_WIDTH_PX = TRACK_LABEL_RAIL_PX + TRACK_RIGHT_INSET_PX;
 const RULER_HEIGHT_PX = 32;
 const LANE_HEIGHT_PX = 28;
@@ -111,6 +115,11 @@ export function PoseCreatorClipTimeline({
   onExpandedChange?: (expanded: boolean) => void;
 }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const dropPreview = useCatalogTimelineDrop(
+    { track: trackRef, section: sectionRef, expanded, onExpandedChange },
+    variant === "workspace",
+  );
   const dragRef = useRef<TimelineDragState | null>(null);
   const clipDraft = usePoseCreatorStore((state) => state.clipDraft);
   const clipSnapEnabled = usePoseCreatorStore((state) => state.clipSnapEnabled);
@@ -210,6 +219,28 @@ export function PoseCreatorClipTimeline({
     (tick) => formatTimelineTime(tick.time) === playheadLabel,
   );
 
+  const dropPercent = dropPreview
+    ? getTimelinePercent(dropPreview.time, duration)
+    : 0;
+  const dropLabel = dropPreview
+    ? `${dropPreview.replacesPose ? "Replace pose at " : ""}${formatTimelineTime(dropPreview.time)}`
+    : "";
+  const overlapsDropLabel = (time: number) => {
+    if (!dropPreview) return false;
+    const width = Math.max(
+      1,
+      (trackRef.current?.clientWidth ?? 0) - TRACK_MARKER_WIDTH_PX,
+    );
+    // Account for edge-aligned replacement text as well as short centered times.
+    const labelWidth = dropLabel.length * 7;
+    const dropX = (dropPercent / 100) * width;
+    const labelLeft =
+      dropX -
+      (dropPercent > 80 ? labelWidth : dropPercent < 20 ? 0 : labelWidth / 2);
+    const otherX = (getTimelinePercent(time, duration) / 100) * width;
+    return otherX + 24 >= labelLeft && otherX - 24 <= labelLeft + labelWidth;
+  };
+
   useEffect(
     () => () => {
       if (
@@ -225,13 +256,7 @@ export function PoseCreatorClipTimeline({
   const getPointerTime = (clientX: number) => {
     const rect = trackRef.current?.getBoundingClientRect();
     if (!rect || rect.width <= 0 || duration <= 0) return 0;
-    const trackLeft = rect.left + TRACK_LABEL_RAIL_PX;
-    const trackWidth = Math.max(
-      1,
-      rect.width - TRACK_LABEL_RAIL_PX - TRACK_RIGHT_INSET_PX,
-    );
-    const ratio = Math.min(1, Math.max(0, (clientX - trackLeft) / trackWidth));
-    return ratio * duration;
+    return timelinePointerTime(clientX, rect, duration);
   };
 
   const scrubToPointer = (clientX: number) => {
@@ -369,6 +394,7 @@ export function PoseCreatorClipTimeline({
   return (
     <>
       <section
+        ref={sectionRef}
         aria-label="Timeline"
         className={cn(
           "border-border/70 bg-background w-full min-w-0 shrink-0 px-3 py-2",
@@ -643,7 +669,12 @@ export function PoseCreatorClipTimeline({
                       style={{ left: tick.left }}
                     >
                       <span className="bg-border/80 h-2 w-px" />
-                      <span className="text-muted-foreground text-[10px] leading-none">
+                      <span
+                        className={cn(
+                          "text-muted-foreground text-[10px] leading-none",
+                          overlapsDropLabel(tick.time) && "invisible",
+                        )}
+                      >
                         {formatTimelineTime(tick.time)}
                       </span>
                     </div>
@@ -701,13 +732,49 @@ export function PoseCreatorClipTimeline({
                   />
                 ))}
 
+                {dropPreview ? (
+                  <div
+                    aria-label="Timeline drop preview"
+                    className="pointer-events-none absolute top-0 bottom-0 z-30"
+                    style={{ left: getTimelineLeftStyle(dropPercent) }}
+                  >
+                    <span
+                      aria-label="Drop time"
+                      className={cn(
+                        "text-foreground absolute top-1 text-[11px] font-semibold whitespace-nowrap tabular-nums",
+                        dropPercent > 80
+                          ? "right-0"
+                          : dropPercent < 20
+                            ? "left-0"
+                            : "-translate-x-1/2",
+                      )}
+                    >
+                      {dropLabel}
+                    </span>
+                    <span className="border-primary absolute top-8 bottom-3 border-l-2 border-dashed opacity-70" />
+                    <span
+                      className="bg-primary/25 border-primary absolute size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[2px] border-2"
+                      style={{
+                        top:
+                          RULER_HEIGHT_PX +
+                          TIMELINE_LANES.findIndex(
+                            (lane) => lane.id === dropPreview.lane,
+                          ) *
+                            LANE_HEIGHT_PX +
+                          LANE_HEIGHT_PX / 2,
+                      }}
+                    />
+                  </div>
+                ) : null}
+
                 <div
                   className="bg-primary pointer-events-none absolute top-8 bottom-3 z-20 w-px"
                   style={{
                     left: getTimelineLeftStyle(playheadPercent),
                   }}
                 >
-                  {showPlayheadLabel ? (
+                  {showPlayheadLabel &&
+                  !overlapsDropLabel(clipDraft.currentTimeSec) ? (
                     <span
                       className={cn(
                         "text-foreground absolute -top-7 text-[11px] font-medium tabular-nums",

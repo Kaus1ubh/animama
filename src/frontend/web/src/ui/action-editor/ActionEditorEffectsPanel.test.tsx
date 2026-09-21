@@ -109,8 +109,7 @@ describe("ActionEditorEffectsPanel", () => {
 
     expect(html).toContain("Poses &amp; Effects");
     expect(html.indexOf(">Poses<")).toBeLessThan(html.indexOf(">Particle FX<"));
-    expect(html).toContain('placeholder="Search saved poses"');
-    expect(html).toContain("My saved poses");
+    expect(html).toContain('placeholder="Search poses"');
     expect(html).toContain("Friendly Wave");
     expect(html).toContain(
       'aria-label="Add Friendly Wave at current playhead"',

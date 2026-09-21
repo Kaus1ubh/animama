@@ -54,6 +54,7 @@ import {
   ActionEditorPreviewSettings,
   replaceActionEditorPose,
 } from "./ActionEditorPrimitives";
+import { ActionCatalogDragProvider } from "./ActionCatalogDrag";
 import { ActionEditorScene } from "./ActionEditorScene";
 import { ActionEditorEffectsPanel } from "./ActionEditorEffectsPanel";
 import { ActionEditorHeader } from "./ActionEditorHeader";
@@ -110,6 +111,14 @@ const POSE_TOOLS: ToolOption[] = [
 
 /** Immersive product editor shared by typed Gesture and Reaction routes. */
 export function ActionEditorWorkspace() {
+  return (
+    <ActionCatalogDragProvider>
+      <ActionEditorWorkspaceContent />
+    </ActionCatalogDragProvider>
+  );
+}
+
+function ActionEditorWorkspaceContent() {
   const workspace = useActionEditorWorkspace();
   const capabilities = actionEditorCapabilities(workspace.document.intent);
   const timelineBased = workspace.document.implementation === "anima_clip";
@@ -305,6 +314,7 @@ export function ActionEditorWorkspace() {
   );
   const mobileTimeline = (
     <ActionTimelineEditor
+      variant="mobile"
       reaction={workspace.document.intent === "reaction"}
       isBusy={workspace.busy}
       playbackPending={workspace.localPreviewPending}

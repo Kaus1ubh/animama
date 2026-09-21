@@ -562,7 +562,7 @@ type PoseCreatorStoreState = {
   addPoseToClip: (
     pose: AnimaPose,
     preferredAlias: string,
-    options?: { atPlayhead?: boolean },
+    options?: { atPlayhead?: boolean; timeSec?: number },
   ) => string;
   /** Create or update the sparse expression landmark at the playhead. */
   setClipExpressionsAtPlayhead: (expressions: Record<string, number>) => void;
@@ -2432,25 +2432,31 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         Object.keys(get().clipDraft.poses),
       );
       set((state) => {
-        const clipDraft = options.atPlayhead
-          ? insertClipPoseAtTime(
-              state.clipDraft,
-              createPoseCreatorClipInlinePose(pose),
-              alias,
-              state.clipDraft.currentTimeSec,
-            )
-          : withDirtyClipValidation({
-              ...state.clipDraft,
-              poses: {
-                ...state.clipDraft.poses,
-                [alias]: createPoseCreatorClipInlinePose(pose),
-              },
-              selectedPoseAlias: alias,
-            });
+        // Explicit drop times take precedence; callers already apply snapping.
+        const clipDraft =
+          options.timeSec !== undefined || options.atPlayhead
+            ? insertClipPoseAtTime(
+                state.clipDraft,
+                createPoseCreatorClipInlinePose(pose),
+                alias,
+                options.timeSec ?? state.clipDraft.currentTimeSec,
+              )
+            : withDirtyClipValidation({
+                ...state.clipDraft,
+                poses: {
+                  ...state.clipDraft.poses,
+                  [alias]: createPoseCreatorClipInlinePose(pose),
+                },
+                selectedPoseAlias: alias,
+              });
+        if (options.timeSec !== undefined) clipDraft.selectedEventId = null;
         return {
           ...recordClipDraftUndo(state, clipDraft),
           clipDraft,
           clipPlaybackPlaying: false,
+          ...(options.timeSec !== undefined
+            ? { clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec }
+            : {}),
         };
       });
       return alias;
