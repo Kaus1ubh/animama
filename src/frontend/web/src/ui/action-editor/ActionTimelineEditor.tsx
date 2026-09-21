@@ -193,7 +193,8 @@ export function ActionTimelineDocumentSync({
     if (
       shouldSkipActionTimelineEmission(draft, staleDraftBeforeHydration.current)
     ) {
-      staleDraftBeforeHydration.current = null;
+      // StrictMode can replay this effect with the same pre-hydration render.
+      // Keep rejecting that draft until a fresh store snapshot actually renders.
       return;
     }
     staleDraftBeforeHydration.current = null;
