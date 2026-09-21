@@ -9,7 +9,7 @@ describe("EmotionSummary", () => {
         emotionalState={{ love: 30, respect: 18, joy: 9, fear: 3 }}
       />,
     );
-    expect(html).toContain("Feeling loving");
+    expect(html).toContain("Feeling very loving");
     expect(html).toContain("Affection");
     expect(html).toContain("Esteem");
     expect(html).toContain("Delight");
@@ -28,13 +28,31 @@ describe("EmotionSummary", () => {
 });
 
 describe("EmotionDetails", () => {
-  it("can omit the repeated summary while retaining accessible group details", () => {
+  it("shows a concise neutral state without repeated legends or diagnostic labels", () => {
     const html = renderToStaticMarkup(
-      <EmotionDetails emotionalState={{}} showSummary={false} />,
+      <EmotionDetails
+        emotionalState={{}}
+        showSummary={false}
+        sourceLabel="Live runtime state"
+      />,
     );
-    expect(html).not.toContain("Feeling neutral");
-    expect(html).toContain("Group averages · scale 0–30");
-    expect(html).toContain("Affection");
-    expect(html.match(/<button/g)).toHaveLength(8);
+    expect(html).toContain("No active emotions.");
+    expect(html).not.toMatch(
+      /Live runtime state|Group averages|Affection|<button|<svg/,
+    );
+  });
+  it("reserves interaction details outside the plot without a persistent detail card", () => {
+    const html = renderToStaticMarkup(
+      <EmotionDetails
+        emotionalState={{ joy: 24 }}
+        showSummary={false}
+        sourceLabel="Persisted anima state"
+      />,
+    );
+    expect(html).toContain("each showing its strongest emotion");
+    expect(html).toContain("Hover or select an emotion");
+    expect(html).not.toMatch(
+      /Persisted anima state|Group averages|Emotion group details|rounded-xl border/,
+    );
   });
 });

@@ -71,6 +71,7 @@ export function buildEmotionPresentation(value: unknown) {
       group,
       label: formatEmotionGroupLabel(group),
       color: EMOTION_PALETTE[group],
+      maximum: Math.max(...emotions.map((emotion) => emotion.value)),
       average:
         emotions.reduce((sum, emotion) => sum + emotion.value, 0) /
         emotions.length,
@@ -80,15 +81,25 @@ export function buildEmotionPresentation(value: unknown) {
   const topGroups = runtime.rankedGroups
     .slice(0, 3)
     .map((summary) => groups.find((group) => group.group === summary.group)!);
-  const primary = runtime.dominantGroupSummary?.primaryEmotion?.emotion;
+  const primary = runtime.dominantGroupSummary?.primaryEmotion;
+  const baseFeeling = primary ? FEELING_LABELS[primary.emotion] : null;
+  const intensity =
+    primary && primary.value <= 15
+      ? "slightly "
+      : primary && primary.value >= 26
+        ? "very "
+        : "";
   return {
     runtime,
     groups,
     topGroups,
     dominantGroup: runtime.dominantGroup,
     color: EMOTION_PALETTE[runtime.dominantGroup],
-    feeling: primary
-      ? FEELING_LABELS[primary]
+    feeling: baseFeeling
+      ? {
+          ...baseFeeling,
+          label: baseFeeling.label.replace("Feeling ", `Feeling ${intensity}`),
+        }
       : { label: "Feeling neutral", emoji: "😐" },
   };
 }

@@ -383,14 +383,18 @@ Current behavior:
 - The profile summary shows up to three active groups, ranked by average, as
   labeled colored bars without scores. “Feeling…” uses the strongest individual
   emotion within the dominant group, with an explicit emoji for each emotion.
+  Scores 1–15 add “slightly”, 16–25 use the plain feeling, and 26–30 add “very”.
 - `web/src/lib/emotion/presentation.ts` owns the shared group palette and headline
   mappings. Domain normalization, averages and canonical tie-breaking are unchanged.
 - Expanded details use a Recharts radar with circular rings and a fixed 0–30 scale.
-  All eight groups remain in canonical axis order. The legend shows raw averages
-  rounded to at most one decimal; hovering or focusing a group reveals its three
-  constituent values. Color supplements labels rather than replacing them.
-- Neutral shows “Feeling neutral” and “No active emotions”, with zero-valued legend
-  entries and no empty radar or fabricated summary bars.
+  All eight groups remain in canonical axis order; each spoke plots the maximum
+  constituent score in its group. Three faint rings mark 10, 20 and 30. Hovering
+  the plot or focusing/tapping an axis label reveals that group and its three
+  constituents in a reserved caption below the plot, so details never obscure it.
+  There is no separate legend, permanent detail card or diagnostic source/scale copy.
+  Color supplements labels rather than replacing them.
+- Neutral shows “Feeling neutral” and “No active emotions”, without an empty
+  radar, legend or fabricated summary bars.
 - Existing `default`, `compact`, `showcase` and `inline` chart consumers use the
   same presentation data, with compact chart sizing where appropriate.
 

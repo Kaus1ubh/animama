@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { memo, useId, useMemo, useState, type ReactNode } from "react";
 import {
   PolarAngleAxis,
   PolarGrid,
@@ -8,7 +8,7 @@ import {
   Radar,
   RadarChart,
   ResponsiveContainer,
-  Tooltip,
+  type BaseTickContentProps,
 } from "recharts";
 import { type EmotionGroup } from "@/lib/emotion";
 import {
@@ -84,166 +84,224 @@ export function EmotionSummary({
   );
 }
 
-function GroupDetail({ group }: { group: EmotionGroupDatum }) {
+/** A focusable axis label doubles as the touch target for that group's details. */
+function EmotionAxisLabel({
+  x = 0,
+  y = 0,
+  textAnchor = "middle",
+  index = 0,
+  groups,
+  onSelect,
+  detailId,
+}: Partial<BaseTickContentProps> & {
+  groups: EmotionGroupDatum[];
+  onSelect: (group: EmotionGroup) => void;
+  detailId: string;
+}) {
+  const group = groups[index];
+  const select = () => onSelect(group.group);
+  const anchor = textAnchor;
+  const left = anchor === "end" ? -76 : anchor === "start" ? -6 : -41;
   return (
-    <div className="text-sm">
-      <div className="mb-3 flex items-center justify-between gap-4 font-medium">
-        <span>{group.label}</span>
-        <span className="tabular-nums">
-          {formatEmotionAverage(group.average)}
-        </span>
-      </div>
-      <dl className="space-y-2">
-        {group.emotions.map((emotion) => (
-          <div
-            key={emotion.emotion}
-            className="text-muted-foreground flex items-center justify-between gap-6"
-          >
-            <dt>{emotion.label}</dt>
-            <dd className="tabular-nums">
-              {formatEmotionAverage(emotion.value)}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </div>
+    <g
+      transform={`translate(${x},${y})`}
+      role="button"
+      tabIndex={0}
+      aria-label={`${group.label}: ${group.maximum}. ${group.emotions.map((emotion) => `${emotion.label} ${emotion.value}`).join(", ")}`}
+      aria-describedby={detailId}
+      onMouseEnter={select}
+      onFocus={select}
+      onClick={select}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          select();
+        }
+      }}
+      className="group cursor-pointer outline-none"
+    >
+      <rect
+        x={left}
+        y={-16}
+        width={82}
+        height={32}
+        rx={6}
+        fill="transparent"
+        className="group-focus-visible:stroke-ring"
+        strokeWidth={2}
+      />
+      <text
+        textAnchor={anchor}
+        dominantBaseline="central"
+        fill="var(--foreground)"
+        fontSize={11}
+        className="group-hover:font-semibold group-focus:font-semibold"
+      >
+        {group.label}
+      </text>
+    </g>
   );
 }
 
-/** Fixed-scale radar with the same constituent details available by mouse or keyboard. */
+/** Keep SVG axis nodes mounted while the separately rendered hover caption changes. */
+const EmotionRadar = memo(function EmotionRadar({
+  groups,
+  color,
+  onSelect,
+  detailId,
+}: {
+  groups: EmotionGroupDatum[];
+  color: string;
+  onSelect: (group: EmotionGroup) => void;
+  detailId: string;
+}) {
+  return (
+    <div
+      className="emotion-radar h-72 w-full"
+      role="group"
+      aria-label="Emotion spectrum: eight groups, each showing its strongest emotion"
+    >
+      <ResponsiveContainer width="100%" height="100%">
+        <RadarChart
+          data={groups}
+          outerRadius="65%"
+          margin={{ top: 18, right: 28, bottom: 18, left: 28 }}
+          onMouseMove={(state) => {
+            const group = groups.find(
+              (candidate) => candidate.label === state.activeLabel,
+            );
+            if (group) onSelect(group.group);
+          }}
+        >
+          <PolarGrid
+            gridType="circle"
+            radialLines
+            stroke="var(--border)"
+            strokeOpacity={0.5}
+          />
+          <PolarAngleAxis
+            dataKey="label"
+            tickLine={false}
+            axisLine={false}
+            tick={
+              <EmotionAxisLabel
+                groups={groups}
+                onSelect={onSelect}
+                detailId={detailId}
+              />
+            }
+          />
+          <PolarRadiusAxis
+            domain={[0, 30]}
+            ticks={[0, 10, 20, 30]}
+            tick={false}
+            axisLine={false}
+          />
+          <Radar
+            dataKey="maximum"
+            name="Strongest emotion"
+            stroke={color}
+            fill={color}
+            fillOpacity={0.1}
+            strokeWidth={1.5}
+            isAnimationActive={false}
+            dot={(props: {
+              cx?: number;
+              cy?: number;
+              payload?: EmotionGroupDatum;
+            }) => (
+              <circle
+                key={props.payload?.group}
+                cx={props.cx}
+                cy={props.cy}
+                r={3.5}
+                fill={EMOTION_PALETTE[props.payload?.group ?? "neutral"]}
+                stroke="var(--background)"
+                strokeWidth={1.5}
+                onMouseEnter={() => {
+                  if (props.payload) onSelect(props.payload.group);
+                }}
+              />
+            )}
+          />
+        </RadarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+});
+
+/** A fixed-scale radar with interaction details reserved outside the plot. */
 export function EmotionDetails({
   emotionalState,
   className,
-  sourceLabel,
   showSummary = true,
 }: Omit<EmotionalStateProps, "variant"> & { showSummary?: boolean }) {
-  const presentation = buildEmotionPresentation(emotionalState);
+  const presentation = useMemo(
+    () => buildEmotionPresentation(emotionalState),
+    [emotionalState],
+  );
   const [selectedGroup, setSelectedGroup] = useState<EmotionGroup | null>(null);
   const detailId = useId();
-  const activeGroup = selectedGroup ?? presentation.dominantGroup;
-  const selected =
-    presentation.groups.find((group) => group.group === activeGroup) ??
-    presentation.groups[0];
+  const selected = presentation.groups.find(
+    (group) => group.group === selectedGroup,
+  );
+  const neutral = presentation.dominantGroup === "neutral";
   return (
     <section
-      className={cn("space-y-5", className)}
+      className={cn("space-y-3", className)}
       aria-label="Emotional state"
     >
       {showSummary ? <EmotionSummary emotionalState={emotionalState} /> : null}
-      {sourceLabel ? (
-        <p className="text-muted-foreground text-xs">{sourceLabel}</p>
-      ) : null}
-      {presentation.dominantGroup === "neutral" ? null : (
-        <div
-          className="h-64 w-full sm:h-72"
-          role="img"
-          aria-label={`Emotion group averages, from 0 to 30. ${presentation.feeling.label}. Values are available in the legend below.`}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <RadarChart
-              data={presentation.groups}
-              outerRadius="72%"
-              margin={{ top: 12, right: 24, bottom: 12, left: 24 }}
-            >
-              <PolarGrid
-                gridType="circle"
-                radialLines
-                stroke="var(--border)"
-                strokeOpacity={0.5}
-              />
-              <PolarAngleAxis
-                dataKey="label"
-                tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
-                tickLine={false}
-              />
-              <PolarRadiusAxis
-                domain={[0, 30]}
-                ticks={[0, 10, 20, 30]}
-                tick={false}
-                axisLine={false}
-              />
-              <Tooltip
-                content={({ active, payload }) => {
-                  const group = payload?.[0]?.payload as
-                    | EmotionGroupDatum
-                    | undefined;
-                  return active && group ? (
-                    <div className="border-border bg-popover text-popover-foreground min-w-48 rounded-xl border p-4 shadow-lg">
-                      <GroupDetail group={group} />
-                    </div>
-                  ) : null;
-                }}
-              />
-              <Radar
-                dataKey="average"
-                name="Group average"
-                stroke={presentation.color}
-                fill={presentation.color}
-                fillOpacity={0.1}
-                strokeWidth={1.5}
-                isAnimationActive={false}
-                dot={(props: {
-                  cx?: number;
-                  cy?: number;
-                  payload?: EmotionGroupDatum;
-                }) => (
-                  <circle
-                    key={props.payload?.group}
-                    cx={props.cx}
-                    cy={props.cy}
-                    r={3.5}
-                    fill={EMOTION_PALETTE[props.payload?.group ?? "neutral"]}
-                    stroke="var(--background)"
-                    strokeWidth={1.5}
+      {neutral ? (
+        !showSummary ? (
+          <p className="text-muted-foreground py-3 text-sm">
+            No active emotions.
+          </p>
+        ) : null
+      ) : (
+        <>
+          <EmotionRadar
+            groups={presentation.groups}
+            color={presentation.color}
+            onSelect={setSelectedGroup}
+            detailId={detailId}
+          />
+          {/* A reserved caption never overlaps the radar or shifts it on hover. */}
+          <div
+            id={detailId}
+            className="min-h-20 px-1 text-sm"
+            aria-live="polite"
+          >
+            {selected ? (
+              <>
+                <p className="mb-2 flex items-center gap-2 font-medium">
+                  <span
+                    aria-hidden="true"
+                    className="size-2 rounded-full"
+                    style={{ backgroundColor: selected.color }}
                   />
-                )}
-              />
-            </RadarChart>
-          </ResponsiveContainer>
-        </div>
+                  {selected.label}{" "}
+                  <span className="text-muted-foreground tabular-nums">
+                    {formatEmotionAverage(selected.maximum)}
+                  </span>
+                </p>
+                <dl className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                  {selected.emotions.map((emotion) => (
+                    <div key={emotion.emotion} className="flex gap-1.5">
+                      <dt>{emotion.label}</dt>
+                      <dd className="tabular-nums">{emotion.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            ) : (
+              <p className="text-muted-foreground text-xs">
+                Hover or select an emotion to explore it.
+              </p>
+            )}
+          </div>
+        </>
       )}
-      <p className="text-muted-foreground text-xs">
-        Group averages · scale 0–30
-      </p>
-      <div className="grid gap-4">
-        <div
-          className="grid grid-cols-2 content-start gap-1"
-          aria-label="Emotion group details"
-        >
-          {presentation.groups.map((group) => (
-            <button
-              key={group.group}
-              type="button"
-              aria-describedby={
-                activeGroup === group.group ? detailId : undefined
-              }
-              onMouseEnter={() => setSelectedGroup(group.group)}
-              onFocus={() => setSelectedGroup(group.group)}
-              onClick={() => setSelectedGroup(group.group)}
-              className={cn(
-                "focus-visible:ring-ring flex min-h-10 items-center gap-2 rounded-lg px-2 text-left text-xs outline-none focus-visible:ring-2",
-                activeGroup === group.group ? "bg-muted" : "hover:bg-muted/60",
-              )}
-            >
-              <span
-                aria-hidden="true"
-                className="size-2 shrink-0 rounded-full"
-                style={{ backgroundColor: group.color }}
-              />
-              <span className="min-w-0 flex-1">{group.label}</span>
-              <span className="text-muted-foreground tabular-nums">
-                {formatEmotionAverage(group.average)}
-              </span>
-            </button>
-          ))}
-        </div>
-        <div
-          id={detailId}
-          className="border-border bg-muted/20 rounded-xl border p-4"
-        >
-          <GroupDetail group={selected} />
-        </div>
-      </div>
     </section>
   );
 }
@@ -260,8 +318,8 @@ export function EmotionalState({
       emotionalState={emotionalState}
       className={cn(
         (variant === "compact" || variant === "showcase") &&
-          "[&_[role=img]]:h-52",
-        variant === "inline" && "[&_[role=img]]:h-60",
+          "[&_.emotion-radar]:h-60",
+        variant === "inline" && "[&_.emotion-radar]:h-60",
         className,
       )}
       sourceLabel={sourceLabel}

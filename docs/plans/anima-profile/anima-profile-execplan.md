@@ -133,3 +133,33 @@ assigned development stack remains running at port 8200 for owner acceptance.
 A Radix portal timing issue found during browser testing was fixed by measuring
 once the profile element mounts. Hosted CI and owner merge approval remain separate.
 The phase commit is the implementation commit containing this completed record.
+
+
+## Accepted follow-up: simplified emotion exploration (2026-09-21)
+
+The owner requested removing diagnostic source/scale labels and repeated legend
+and detail cards. Radar spokes now plot each group's maximum normalized constituent
+value; summary ranking and bars retain domain averages. Eight fixed spokes and
+three visible rings remain. Hovering the plot or focusing/tapping an axis label
+shows a compact reserved caption below the plot, never a floating overlay.
+The owner selected three headline levels: slightly (1–15), plain (16–25), very
+(26–30), with neutral at zero. The strongest emotion inside the dominant average
+group continues to drive the headline; backend/domain scoring is unchanged.
+
+Independent follow-up review #1 against `84440b6` found no actionable findings;
+zero repair rounds consumed. Browser inspection caught Recharts remounting focused
+axis nodes when caption state changed; keeping the plot memoized with stable
+presentation data preserves keyboard focus. Browser recheck confirmed Delight →
+Tab → Drive retains focus and updates constituents. Pointer selection inside the
+plot selected Esteem without an overlay. A separate disposable synthetic preview
+confirmed all eight axes, maxima (Delight 28 while its average is lower), three
+nonzero grid circles, mobile 390px containment and label selection, and neutral
+without a plot. The caption starts below the chart bounds; no floating tooltip
+exists. Synthetic files were removed; the real profile was never overridden.
+
+Follow-up verification: the same nine-file targeted Vitest command above passed
+73 tests. TypeScript, scoped ESLint/Prettier and diff checks passed; protected docs
+remain identical to main. Independent review and rendered recheck passed. The live
+profile showed “Feeling slightly joyful” with a peak of 3 (previous average 1),
+with no diagnostic labels or repeated panels. Existing PR #35 carries this follow-up;
+merge remains separately approved.
