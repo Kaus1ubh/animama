@@ -195,3 +195,18 @@ were not repeated. The two protected documentation files still match main.
 
 Concurrent settings commits on this same task branch were preserved. The local
 HMR stack remains running for owner acceptance; merge is separately approved.
+
+
+## Accepted follow-up: approved intensity emoji mapping
+
+Applied the owner's complete 24-emotion × three-intensity mapping without changing
+labels, groups, score bands, ranking or normalization. Neutral remains 😐. The
+shared presentation selects both wording and emoji from the same intensity band,
+so summaries and the management header remain consistent. Exact owner choices,
+including repeated symbols and newer Unicode characters, are preserved.
+
+Targeted presentation/render tests pass (72 tests), including every approved emoji
+at both boundaries of each score band. TypeScript, scoped lint and formatting
+checks passed. Independent mapping/boundary review found no actionable findings.
+A read-only browser check confirmed the management header now renders 🙂 for
+“Feeling slightly joyful”. No real emotion data or backend scoring changes.

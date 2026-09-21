@@ -384,6 +384,8 @@ Current behavior:
   labeled colored bars without scores. “Feeling…” uses the strongest individual
   emotion within the dominant group, with an explicit emoji for each emotion.
   Scores 1–15 add “slightly”, 16–25 use the plain feeling, and 26–30 add “very”.
+  Each band also selects its owner-approved emoji from the shared 24 × 3 mapping;
+  neutral remains 😐. Both the profile and management header use this mapping.
 - `web/src/lib/emotion/presentation.ts` owns the shared group palette and headline
   mappings. Domain normalization, averages and canonical tie-breaking are unchanged.
 - Expanded details use a Recharts radar with circular rings and a fixed 0–30 scale.

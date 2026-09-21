@@ -8,6 +8,49 @@ import {
 } from "./presentation";
 
 describe("emotion presentation", () => {
+  it.each([
+    ["admiration", "✨", "🤩", "🌟"],
+    ["caring", "😊", "😇", "🥰"],
+    ["love", "💛", "❤️", "💖"],
+    ["respect", "🙌", "👏", "🤝"],
+    ["confidence", "😏", "😎", "💪"],
+    ["gratitude", "🙏", "🥹", "🥹"],
+    ["amusement", "🙂", "😄", "😂"],
+    ["excitement", "🙂", "🤗", "🤩"],
+    ["joy", "🙂", "😊", "😁"],
+    ["desire", "👋", "😣", "🥺"],
+    ["curiosity", "🤔", "🧐", "🤓"],
+    ["optimism", "🌤️", "☀️", "🌈"],
+    ["fear", "😨", "😰", "😱"],
+    ["nervousness", "😧", "😰", "🤢"],
+    ["confusion", "😕", "🫨", "😵‍💫"],
+    ["anger", "😒", "😠", "😡"],
+    ["annoyance", "😑", "🫩", "😤"],
+    ["disapproval", "🤨", "😑", "😠"],
+    ["disgust", "😖", "🤢", "🤮"],
+    ["embarrassment", "🫣", "😳", "🫪"],
+    ["remorse", "😔", "😓", "😣"],
+    ["disappointment", "😞", "😓", "😩"],
+    ["grief", "😔", "💔", "💔"],
+    ["sadness", "🙁", "😢", "😭"],
+  ])(
+    "uses approved intensity emojis for %s",
+    (emotion, slightly, plain, very) => {
+      for (const [score, emoji] of [
+        [1, slightly],
+        [15, slightly],
+        [16, plain],
+        [25, plain],
+        [26, very],
+        [30, very],
+      ] as const) {
+        expect(
+          buildEmotionPresentation({ [emotion]: score }).feeling.emoji,
+        ).toBe(emoji);
+      }
+    },
+  );
+
   it("covers every group, tracked feeling and neutral", () => {
     expect(Object.keys(EMOTION_PALETTE)).toHaveLength(9);
     for (const group of [...EMOTION_GROUPS, "neutral" as const])
@@ -15,14 +58,14 @@ describe("emotion presentation", () => {
     expect(Object.keys(FEELING_LABELS)).toHaveLength(24);
     for (const emotion of TRACKED_EMOTIONS) {
       expect(FEELING_LABELS[emotion].label).toMatch(/^Feeling /);
-      expect(FEELING_LABELS[emotion].emoji).toBeTruthy();
+      expect(FEELING_LABELS[emotion].emojis.plain).toBeTruthy();
     }
   });
   it.each(TRACKED_EMOTIONS)(
     "resolves an active %s to its mapped feeling",
     (emotion) => {
       expect(buildEmotionPresentation({ [emotion]: 12 }).feeling).toEqual({
-        ...FEELING_LABELS[emotion],
+        emoji: FEELING_LABELS[emotion].emojis.slightly,
         label: FEELING_LABELS[emotion].label.replace(
           "Feeling ",
           "Feeling slightly ",
@@ -32,12 +75,12 @@ describe("emotion presentation", () => {
   );
   it.each([
     [0, "Feeling neutral", "😐"],
-    [1, "Feeling slightly joyful", "😊"],
-    [15, "Feeling slightly joyful", "😊"],
+    [1, "Feeling slightly joyful", "🙂"],
+    [15, "Feeling slightly joyful", "🙂"],
     [16, "Feeling joyful", "😊"],
     [25, "Feeling joyful", "😊"],
-    [26, "Feeling very joyful", "😊"],
-    [30, "Feeling very joyful", "😊"],
+    [26, "Feeling very joyful", "😁"],
+    [30, "Feeling very joyful", "😁"],
   ])("formats the feeling intensity boundary %s", (value, label, emoji) => {
     expect(buildEmotionPresentation({ joy: value }).feeling).toEqual({
       label,
@@ -52,7 +95,7 @@ describe("emotion presentation", () => {
       desire: 20,
     });
     expect(result.dominantGroup).toBe("drive");
-    expect(result.feeling).toEqual(FEELING_LABELS.desire);
+    expect(result.feeling).toEqual({ label: "Feeling longing", emoji: "😣" });
     expect(
       result.groups.find((group) => group.group === "alarm")?.average,
     ).toBe(10);
@@ -111,7 +154,7 @@ describe("emotion presentation", () => {
       "delight",
     ]);
     expect(result.feeling).toEqual({
-      ...FEELING_LABELS.admiration,
+      emoji: "✨",
       label: "Feeling slightly admiring",
     });
     expect(result.groups).toHaveLength(8);

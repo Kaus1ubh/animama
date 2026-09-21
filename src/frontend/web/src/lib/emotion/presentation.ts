@@ -23,32 +23,104 @@ export const EMOTION_PALETTE: Record<ResolvedEmotionGroup, string> = {
 };
 export const FEELING_LABELS: Record<
   TrackedEmotion,
-  { label: string; emoji: string }
+  { label: string; emojis: Record<"slightly" | "plain" | "very", string> }
 > = {
-  admiration: { label: "Feeling admiring", emoji: "🤩" },
-  caring: { label: "Feeling caring", emoji: "🥰" },
-  love: { label: "Feeling loving", emoji: "❤️" },
-  respect: { label: "Feeling respectful", emoji: "🤝" },
-  confidence: { label: "Feeling confident", emoji: "😎" },
-  gratitude: { label: "Feeling grateful", emoji: "🙏" },
-  amusement: { label: "Feeling amused", emoji: "😄" },
-  excitement: { label: "Feeling excited", emoji: "🤗" },
-  joy: { label: "Feeling joyful", emoji: "😊" },
-  desire: { label: "Feeling longing", emoji: "💭" },
-  curiosity: { label: "Feeling curious", emoji: "🤔" },
-  optimism: { label: "Feeling optimistic", emoji: "🌤️" },
-  fear: { label: "Feeling afraid", emoji: "😨" },
-  nervousness: { label: "Feeling nervous", emoji: "😟" },
-  confusion: { label: "Feeling confused", emoji: "😕" },
-  anger: { label: "Feeling angry", emoji: "😠" },
-  annoyance: { label: "Feeling annoyed", emoji: "😒" },
-  disapproval: { label: "Feeling disapproving", emoji: "👎" },
-  disgust: { label: "Feeling disgusted", emoji: "🤢" },
-  embarrassment: { label: "Feeling embarrassed", emoji: "😳" },
-  remorse: { label: "Feeling remorseful", emoji: "😔" },
-  disappointment: { label: "Feeling disappointed", emoji: "😞" },
-  grief: { label: "Feeling grieving", emoji: "💔" },
-  sadness: { label: "Feeling sad", emoji: "😢" },
+  admiration: {
+    label: "Feeling admiring",
+    emojis: { slightly: "✨", plain: "🤩", very: "🌟" },
+  },
+  caring: {
+    label: "Feeling caring",
+    emojis: { slightly: "😊", plain: "😇", very: "🥰" },
+  },
+  love: {
+    label: "Feeling loving",
+    emojis: { slightly: "💛", plain: "❤️", very: "💖" },
+  },
+  respect: {
+    label: "Feeling respectful",
+    emojis: { slightly: "🙌", plain: "👏", very: "🤝" },
+  },
+  confidence: {
+    label: "Feeling confident",
+    emojis: { slightly: "😏", plain: "😎", very: "💪" },
+  },
+  gratitude: {
+    label: "Feeling grateful",
+    emojis: { slightly: "🙏", plain: "🥹", very: "🥹" },
+  },
+  amusement: {
+    label: "Feeling amused",
+    emojis: { slightly: "🙂", plain: "😄", very: "😂" },
+  },
+  excitement: {
+    label: "Feeling excited",
+    emojis: { slightly: "🙂", plain: "🤗", very: "🤩" },
+  },
+  joy: {
+    label: "Feeling joyful",
+    emojis: { slightly: "🙂", plain: "😊", very: "😁" },
+  },
+  desire: {
+    label: "Feeling longing",
+    emojis: { slightly: "👋", plain: "😣", very: "🥺" },
+  },
+  curiosity: {
+    label: "Feeling curious",
+    emojis: { slightly: "🤔", plain: "🧐", very: "🤓" },
+  },
+  optimism: {
+    label: "Feeling optimistic",
+    emojis: { slightly: "🌤️", plain: "☀️", very: "🌈" },
+  },
+  fear: {
+    label: "Feeling afraid",
+    emojis: { slightly: "😨", plain: "😰", very: "😱" },
+  },
+  nervousness: {
+    label: "Feeling nervous",
+    emojis: { slightly: "😧", plain: "😰", very: "🤢" },
+  },
+  confusion: {
+    label: "Feeling confused",
+    emojis: { slightly: "😕", plain: "🫨", very: "😵‍💫" },
+  },
+  anger: {
+    label: "Feeling angry",
+    emojis: { slightly: "😒", plain: "😠", very: "😡" },
+  },
+  annoyance: {
+    label: "Feeling annoyed",
+    emojis: { slightly: "😑", plain: "🫩", very: "😤" },
+  },
+  disapproval: {
+    label: "Feeling disapproving",
+    emojis: { slightly: "🤨", plain: "😑", very: "😠" },
+  },
+  disgust: {
+    label: "Feeling disgusted",
+    emojis: { slightly: "😖", plain: "🤢", very: "🤮" },
+  },
+  embarrassment: {
+    label: "Feeling embarrassed",
+    emojis: { slightly: "🫣", plain: "😳", very: "🫪" },
+  },
+  remorse: {
+    label: "Feeling remorseful",
+    emojis: { slightly: "😔", plain: "😓", very: "😣" },
+  },
+  disappointment: {
+    label: "Feeling disappointed",
+    emojis: { slightly: "😞", plain: "😓", very: "😩" },
+  },
+  grief: {
+    label: "Feeling grieving",
+    emojis: { slightly: "😔", plain: "💔", very: "💔" },
+  },
+  sadness: {
+    label: "Feeling sad",
+    emojis: { slightly: "🙁", plain: "😢", very: "😭" },
+  },
 };
 
 /** Normalize either a raw values map or runtime envelope using the domain rules. */
@@ -85,10 +157,10 @@ export function buildEmotionPresentation(value: unknown) {
   const baseFeeling = primary ? FEELING_LABELS[primary.emotion] : null;
   const intensity =
     primary && primary.value <= 15
-      ? "slightly "
+      ? "slightly"
       : primary && primary.value >= 26
-        ? "very "
-        : "";
+        ? "very"
+        : "plain";
   return {
     runtime,
     groups,
@@ -97,8 +169,11 @@ export function buildEmotionPresentation(value: unknown) {
     color: EMOTION_PALETTE[runtime.dominantGroup],
     feeling: baseFeeling
       ? {
-          ...baseFeeling,
-          label: baseFeeling.label.replace("Feeling ", `Feeling ${intensity}`),
+          emoji: baseFeeling.emojis[intensity],
+          label: baseFeeling.label.replace(
+            "Feeling ",
+            intensity === "plain" ? "Feeling " : `Feeling ${intensity} `,
+          ),
         }
       : { label: "Feeling neutral", emoji: "😐" },
   };
