@@ -190,3 +190,14 @@ reported opacity 0.029 with a 0.15s transition before the expanded header settle
 No new tests or production build were added for this visual follow-up. SVG format
 was assessed, but original approved PNGs are preserved pending faithful vector
 tracing rather than embedding raster bytes in a nominal SVG file.
+
+## Merge preparation
+
+The owner requested keeping the brand-generation notes local. The exact
+`docs/frontend/brand-assets.md` path is ignored and untracked; its public index
+link is removed. The approved logo assets remain tracked. The local document is
+preserved outside the task worktree during cleanup. No application code changed
+in this final documentation-only adjustment.
+
+The separate memory investigation was deferred at the owner's request. No memory
+fix or leak diagnosis is included in this change.
