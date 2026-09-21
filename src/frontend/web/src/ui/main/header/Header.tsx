@@ -3,16 +3,11 @@
 import type { ReactNode } from "react";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useParams } from "@tanstack/react-router";
-import { HeartPulse, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
-import { EmotionalState } from "@/ui/components/emotional-state";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/ui/components/popover";
+import { motion, useReducedMotion } from "motion/react";
 import { DEBUG_ENABLED } from "@/platform/env";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
@@ -43,7 +38,10 @@ export function Header({
   className,
 }: HeaderProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [emotionPanelOpen, setEmotionPanelOpen] = useState(false);
+  const [nameHovered, setNameHovered] = useState(false);
+  const [nameFocused, setNameFocused] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const nameHighlighted = nameHovered || nameFocused;
   const {
     data: animas = [],
     isLoading,
@@ -70,7 +68,6 @@ export function Header({
     !pathname.startsWith("/a/create");
   useEffect(() => {
     setModalOpen(false);
-    setEmotionPanelOpen(false);
   }, [currentAnimaId]);
 
   const appShell = useOptionalAppShell();
@@ -94,7 +91,6 @@ export function Header({
       ? "Anima"
       : animaName || "No anima";
   const openAnimaProfile = () => {
-    setEmotionPanelOpen(false);
     setModalOpen(true);
   };
   const { state: emotionalState, sourceLabel: emotionSourceLabel } =
@@ -106,60 +102,61 @@ export function Header({
       persistedState: activeAnima?.emotional_state,
     });
   const defaultAnimaTrigger = animaLabel ? (
-    <div className="flex min-w-0 items-center gap-1">
-      <Popover
-        open={emotionPanelOpen}
-        onOpenChange={(nextOpen) => {
-          if (nextOpen) setEmotionPanelOpen(true);
-        }}
-      >
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            onClick={() => setEmotionPanelOpen((current) => !current)}
-            className={cn(
-              "text-muted-foreground hover:text-foreground/80 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-transparent transition-colors",
-              emotionPanelOpen && "text-foreground/80",
-            )}
-            aria-label="Toggle emotional state panel"
-            aria-pressed={emotionPanelOpen}
-          >
-            <HeartPulse className="h-6 w-6" aria-hidden="true" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="center"
-          side="bottom"
-          sideOffset={10}
-          onEscapeKeyDown={(event) => event.preventDefault()}
-          onInteractOutside={(event) => event.preventDefault()}
+    <button
+      type="button"
+      onClick={openAnimaProfile}
+      onMouseEnter={() => setNameHovered(true)}
+      onMouseLeave={() => setNameHovered(false)}
+      onFocus={() => setNameFocused(true)}
+      onBlur={() => setNameFocused(false)}
+      className="focus-visible:ring-ring relative isolate max-w-full min-w-0 rounded-xl p-[2px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+      aria-label="Open anima details"
+      aria-haspopup="dialog"
+      aria-expanded={modalOpen}
+    >
+      {/* Decorative layers are invisible and stationary until hover or focus. */}
+      {[true, false].map((glow) => (
+        <motion.span
+          key={String(glow)}
+          aria-hidden="true"
           className={cn(
-            "border-border/70 bg-background/92 supports-[backdrop-filter]:bg-background/82 max-h-[min(42rem,calc(100dvh-6rem))] w-[17rem] max-w-[min(17rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border p-2 shadow-lg backdrop-blur-md",
+            "pointer-events-none absolute inset-0 -z-10 rounded-xl",
+            glow && "blur-md",
           )}
-        >
-          <EmotionalState
-            emotionalState={emotionalState}
-            variant="compact"
-            className="w-full"
-            sourceLabel={emotionSourceLabel}
-          />
-        </PopoverContent>
-      </Popover>
-      <button
-        type="button"
-        onClick={openAnimaProfile}
+          initial={false}
+          animate={{
+            opacity: nameHighlighted ? (glow ? 0.4 : 0.8) : 0,
+            backgroundPosition:
+              nameHighlighted && !reducedMotion
+                ? ["0% 50%", "100% 50%", "0% 50%"]
+                : "0% 50%",
+          }}
+          transition={{
+            opacity: { duration: reducedMotion ? 0 : 0.2 },
+            backgroundPosition: {
+              duration: nameHighlighted && !reducedMotion ? 5 : 0,
+              repeat: nameHighlighted && !reducedMotion ? Infinity : 0,
+              ease: "linear",
+            },
+          }}
+          style={{
+            backgroundSize: "400% 400%",
+            backgroundImage:
+              "radial-gradient(circle farthest-side at 0 100%, #00ccb1, transparent), radial-gradient(circle farthest-side at 100% 0, #7b61ff, transparent), radial-gradient(circle farthest-side at 100% 100%, #ffc414, transparent), radial-gradient(circle farthest-side at 0 0, #1ca0fb, #141316)",
+          }}
+        />
+      ))}
+      <div
         className={cn(
-          "group hover:bg-muted/70 flex min-w-0 items-center gap-2 rounded-md bg-transparent px-2 py-1 transition",
+          "relative flex min-w-0 items-center rounded-[10px] px-4 py-1.5 sm:px-6",
+          nameHighlighted && "bg-background",
         )}
-        aria-label="Open anima details"
       >
-        <div className="min-w-0 sm:mx-4.5">
-          <h1 className="text-foreground truncate text-lg font-semibold">
-            {animaLabel}
-          </h1>
-        </div>
-      </button>
-    </div>
+        <h1 className="text-foreground truncate text-lg font-semibold">
+          {animaLabel}
+        </h1>
+      </div>
+    </button>
   ) : null;
   const leftContent = left ?? null;
   const centerContent = center ?? defaultAnimaTrigger ?? null;

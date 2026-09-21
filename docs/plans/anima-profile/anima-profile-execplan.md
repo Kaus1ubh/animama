@@ -210,3 +210,17 @@ at both boundaries of each score band. TypeScript, scoped lint and formatting
 checks passed. Independent mapping/boundary review found no actionable findings.
 A read-only browser check confirmed the management header now renders 🙂 for
 “Feeling slightly joyful”. No real emotion data or backend scoring changes.
+
+
+## Accepted follow-up: plain name trigger with hover gradient
+
+Removed the separate header emotion-status button and its popover. The name alone
+opens the profile, retaining live emotion inputs for that modal. Two decorative
+Motion layers provide a subtle animated gradient border/glow on hover or focus;
+idle layers are hidden, and reduced motion uses a static gradient.
+
+TypeScript, scoped ESLint/Prettier and whitespace checks passed. Independent review
+found no actionable bugs; its idle-surface and narrow-width observations were
+addressed with a transparent resting surface and max-width bound. Browser checks
+confirmed the old control is absent, name opens the profile, close restores focus,
+and the gradient renders around the focused name. No full build/native test run.

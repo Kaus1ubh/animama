@@ -402,6 +402,9 @@ Current behavior:
 - Existing `default`, `compact`, `showcase` and `inline` chart consumers use the
   same presentation data, with compact chart sizing where appropriate.
 
+The chat header opens the profile through the Anima name alone; the separate
+emotion-status trigger is removed. The name has a soft gradient border/glow on
+hover or focus, with static color under reduced motion and no idle animation.
 The chat-header profile is one continuous banner, portrait and identity surface.
 Details navigates to management; Settings opens existing controls with Back and
 restores the profile scroll position. The identity uses sanitized `IDENTITY.md`
