@@ -80,6 +80,7 @@ export function AnimaAppearanceDialog({
   section,
   onSectionChange,
   onOpenChange,
+  onCloseAutoFocus,
 }: {
   animaId: string;
   animaName: string;
@@ -87,6 +88,7 @@ export function AnimaAppearanceDialog({
   section: AnimaAppearanceSection | null;
   onSectionChange: (section: AnimaAppearanceSection) => void;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const open = section !== null;
   const activeSection = section ?? "profile_image";
@@ -307,6 +309,7 @@ export function AnimaAppearanceDialog({
       onOpenChange={(next) => !next && !busy && onOpenChange(false)}
     >
       <DialogContent
+        onCloseAutoFocus={onCloseAutoFocus}
         aria-describedby={undefined}
         className="flex max-h-[min(92dvh,52rem)] flex-col overflow-hidden sm:max-w-2xl"
       >

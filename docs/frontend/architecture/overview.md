@@ -77,8 +77,6 @@ See [Routing](routing.md) for route ownership and navigation rules, and
 [Local profile](../features/user-profiles.md) for setup and launch selection.
 App Settings opens over the active route without remounting the chat runtime.
 
-Modal backdrops share the light dimming and subtle blur used by App Settings.
-
 ## Data And Runtime Flow
 
 - Generated SDK methods come from `@animama/runtime-contracts/sdk`; their

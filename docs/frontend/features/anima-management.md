@@ -30,9 +30,6 @@ opens a nested modal route and closing it returns focus to the Identity panel.
 Saving updates the shared memory-entry query used by the rendered preview and
 subsequent chat turns.
 
-The chat-header Anima details modal uses the same rendered identity panel. Its
-top-right Edit identity link opens the management identity editor.
-
 ## Appearance editor
 
 The [Appearance editor](avatar-releases-and-appearance.md) manages independent
