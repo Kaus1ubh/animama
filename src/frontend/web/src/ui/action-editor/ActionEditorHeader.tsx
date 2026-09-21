@@ -280,7 +280,7 @@ function ActionModeControl({
         >
           <span
             aria-hidden="true"
-            className="flex size-5 shrink-0 items-center justify-center rounded-full border border-current text-[11px] font-extrabold"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-current text-[11px] leading-none font-extrabold"
           >
             1
           </span>
@@ -292,7 +292,7 @@ function ActionModeControl({
         >
           <span
             aria-hidden="true"
-            className="flex size-5 shrink-0 items-center justify-center rounded-full border border-current text-[11px] font-extrabold"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-current text-[11px] leading-none font-extrabold"
           >
             2
           </span>
