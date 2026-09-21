@@ -138,11 +138,26 @@ function renderPocketVoiceSummary(
   return voice;
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
+function SummaryRow({
+  label,
+  value,
+  description,
+}: {
+  label: string;
+  value: string;
+  description?: string;
+}) {
   return (
     <div className="border-border/60 flex items-start justify-between gap-4 border-b py-3 text-sm last:border-b-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-foreground text-right font-medium">{value}</span>
+      <div className="min-w-0">
+        <span className="text-muted-foreground">{label}</span>
+        {description ? (
+          <p className="text-muted-foreground mt-1 text-xs">{description}</p>
+        ) : null}
+      </div>
+      <span className="text-foreground shrink-0 text-right font-medium">
+        {value}
+      </span>
     </div>
   );
 }
@@ -243,7 +258,6 @@ function SettingsTab({
     animaPreferences,
     isLoading: isSettingsLoading,
   } = useSettings();
-  const emotionEnabled = !effectivePreferences.emotion?.disable_influence;
   const emotionUpdatesEnabled = !effectivePreferences.emotion?.disable_updates;
   const memoryEnabled = !effectivePreferences.memory?.disable_influence;
   const memoryUpdatesEnabled = !effectivePreferences.memory?.disable_updates;
@@ -284,19 +298,18 @@ function SettingsTab({
             )}
           />
           <SummaryRow
-            label="Memory Influence"
+            label="Memory"
+            description="Read saved memories during chat. IDENTITY.md and conversation history remain active when off."
             value={memoryEnabled ? "Enabled" : "Disabled"}
           />
           <SummaryRow
-            label="Memory Updates"
+            label="Memory updates"
+            description="Save new memories during chat. Turning this off does not stop chat history from being saved."
             value={memoryUpdatesEnabled ? "Enabled" : "Disabled"}
           />
           <SummaryRow
-            label="Emotion Influence"
-            value={emotionEnabled ? "Enabled" : "Disabled"}
-          />
-          <SummaryRow
-            label="Emotion Updates"
+            label="Emotion updates"
+            description="Update emotional state during chat. When off, new emotion reactions stop; gestures still play."
             value={emotionUpdatesEnabled ? "Enabled" : "Disabled"}
           />
         </div>
