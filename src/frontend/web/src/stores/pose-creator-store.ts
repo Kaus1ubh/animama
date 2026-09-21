@@ -185,6 +185,10 @@ export type PoseCreatorSaveLocalDraftInput = {
   pose: AnimaPose;
 };
 
+// Give new pose sessions an immediately usable rotation handle. Explicit bone
+// selections remain independent of helper visibility and model loading.
+const DEFAULT_POSE_CREATOR_SELECTED_BONE = "leftUpperArm";
+
 export const POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID = "__vrm_t_pose__";
 export const DEFAULT_POSE_CREATOR_BASE_POSE: PoseCreatorBasePose =
   RELAXED_REST_POSE_ID;
@@ -684,7 +688,7 @@ function resetTransientStateForSource(
     loadStatus: "idle",
     loadError: null,
     loadProgress: null,
-    selectedBone: null,
+    selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
     selectedBoneFocusRequest: null,
     boneDrafts: {},
     expressionDrafts: {},
@@ -2303,7 +2307,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           previousIsDirty: state.isDirty,
           isDirty: false,
         },
-        selectedBone: null,
+        selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
         selectedBoneFocusRequest: null,
         boneDrafts: clonePoseCreatorBoneDrafts(input.boneDrafts),
         expressionDrafts: clonePoseCreatorExpressionDrafts(
@@ -2339,7 +2343,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           inlinePoseUndoHistory: [],
           inlinePoseRedoHistory: [],
           undoGroup: null,
-          selectedBone: null,
+          selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
           selectedBoneFocusRequest: null,
           boneDrafts: clonePoseCreatorBoneDrafts(edit.previousBoneDrafts),
           expressionDrafts: clonePoseCreatorExpressionDrafts(
@@ -2372,7 +2376,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           inlinePoseUndoHistory: [],
           inlinePoseRedoHistory: [],
           undoGroup: null,
-          selectedBone: null,
+          selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
           selectedBoneFocusRequest: null,
           boneDrafts: clonePoseCreatorBoneDrafts(edit.previousBoneDrafts),
           expressionDrafts: clonePoseCreatorExpressionDrafts(
@@ -2912,7 +2916,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
     setBasePose: (basePose) =>
       set((state) => ({
         basePose,
-        selectedBone: null,
+        selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
         selectedBoneFocusRequest: null,
         boneDrafts: {},
         poseUndoHistory: [],
@@ -3160,7 +3164,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
 
       set({
         ...replacement,
-        selectedBone: null,
+        selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
         selectedBoneFocusRequest: null,
         draftName: draft.name,
         selectedSavedDraftId: draft.id,
@@ -3176,7 +3180,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
     replaceDraftFromImport: (replacement) =>
       set({
         ...replacement,
-        selectedBone: null,
+        selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
         selectedBoneFocusRequest: null,
         selectedSavedDraftId: null,
         isDirty: true,
@@ -3189,7 +3193,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
     startNewPose: () =>
       set({
         basePose: DEFAULT_POSE_CREATOR_BASE_POSE,
-        selectedBone: null,
+        selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
         selectedBoneFocusRequest: null,
         boneDrafts: {},
         expressionDrafts: {},

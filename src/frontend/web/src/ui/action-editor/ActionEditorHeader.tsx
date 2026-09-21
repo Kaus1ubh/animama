@@ -275,7 +275,7 @@ function ActionModeControl({
     >
       <TabsList className="border-border/70 bg-background grid h-11 w-full max-w-[184px] grid-cols-2 rounded-xl border p-1 shadow-sm lg:h-12 lg:w-[184px] 2xl:w-[218px] 2xl:max-w-[218px]">
         <TabsTrigger
-          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-9 gap-1.5 rounded-lg px-2 text-xs data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
+          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-9 gap-1.5 rounded-lg px-2 text-xs transition-none data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
           value="pose"
         >
           <span
@@ -287,7 +287,7 @@ function ActionModeControl({
           Pose
         </TabsTrigger>
         <TabsTrigger
-          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-9 gap-1.5 rounded-lg px-2 text-xs data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
+          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-9 gap-1.5 rounded-lg px-2 text-xs transition-none data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
           value="clip"
         >
           <span

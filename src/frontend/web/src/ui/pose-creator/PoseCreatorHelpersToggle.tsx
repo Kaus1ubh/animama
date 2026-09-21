@@ -49,10 +49,10 @@ export function PoseCreatorHelpersToggle({
         sideOffset={8}
         className="max-w-[360px] leading-relaxed whitespace-normal"
       >
-        Show clickable bone markers. Select a bone, then drag red, green, or
-        blue for local X, Y, or Z rotation; yellow for view-axis rotation; or
-        the center for free rotation. In Clip mode, pause playback and edit an
-        inline pose to use the gizmo.
+        Show bone markers and the selected bone’s rotation gizmo. Drag red,
+        green, or blue for local X, Y, or Z rotation; yellow for view-axis
+        rotation; or the center for free rotation. In Clip mode, pause playback
+        and edit an inline pose to use the gizmo.
       </TooltipContent>
     </Tooltip>
   );

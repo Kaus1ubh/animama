@@ -35,6 +35,18 @@ describe("pose creator model selection", () => {
     usePoseCreatorStore.setState({ savedDrafts: [] });
   });
 
+  it("selects Left Upper Arm for a fresh pose and preserves the user's selection across helper and model changes", () => {
+    const store = usePoseCreatorStore.getState();
+    expect(store.selectedBone).toBe("leftUpperArm");
+    store.setSelectedBone("head");
+    store.setBoneHelperNodesVisible(false);
+    store.setModelSource(model("second"));
+    store.setBoneHelperNodesVisible(true);
+    expect(usePoseCreatorStore.getState().selectedBone).toBe("head");
+    store.startNewPose();
+    expect(usePoseCreatorStore.getState().selectedBone).toBe("leftUpperArm");
+  });
+
   it("preserves pose and clip authoring data across model switches", () => {
     const store = usePoseCreatorStore.getState();
     store.setModelSource(model("first"));
