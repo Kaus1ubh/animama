@@ -404,7 +404,7 @@ Current behavior:
   same presentation data, with compact chart sizing where appropriate.
 
 The chat header opens the profile through one button containing the active
-feeling emoji followed by the Anima name. Neutral omits the header emoji; there
+Anima name followed by the active feeling emoji. Neutral omits the header emoji; there
 is no separate emotion-status trigger. The name uses a plain button with a subtle hover background and visible keyboard
 focus.
 The chat-header profile is one continuous banner, portrait and identity surface.

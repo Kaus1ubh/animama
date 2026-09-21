@@ -107,6 +107,9 @@ export function Header({
       aria-haspopup="dialog"
       aria-expanded={modalOpen}
     >
+      <h1 className="text-foreground truncate text-lg font-semibold">
+        {animaLabel}
+      </h1>
       {emotionPresentation.dominantGroup !== "neutral" ? (
         <span
           role="img"
@@ -116,9 +119,6 @@ export function Header({
           {emotionPresentation.feeling.emoji}
         </span>
       ) : null}
-      <h1 className="text-foreground truncate text-lg font-semibold">
-        {animaLabel}
-      </h1>
     </button>
   ) : null;
   const leftContent = left ?? null;
