@@ -273,15 +273,13 @@ function AnimaProfile({
                 ref={backRef}
                 variant="ghost"
                 size="sm"
-                className="shrink-0"
+                className="mr-auto shrink-0"
                 onClick={returnToProfile}
               >
                 <ArrowLeft aria-hidden="true" className="size-4" /> Back
               </Button>
             ) : null}
-            <Dialog.Title className="text-foreground mr-auto min-w-0 truncate text-xl font-semibold">
-              {displayName}
-            </Dialog.Title>
+            <Dialog.Title className="sr-only">{displayName}</Dialog.Title>
             {anima?.id ? (
               <Tooltip>
                 <TooltipTrigger asChild>
