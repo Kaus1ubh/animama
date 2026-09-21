@@ -26,6 +26,11 @@ import { isAnimaPoseClipVFXEvent, type AnimaPoseClipEvent } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/ui/components/popover";
 import { Input } from "@/ui/components/input";
 import {
   Select,
@@ -521,41 +526,70 @@ export function PoseCreatorClipTimeline({
               Data <ChevronDownIcon className="size-3.5" />
             </Button>
 
-            <span
-              className={cn(
-                "flex shrink-0 items-center text-xs",
-                diagnosticSummary || validationErrorCount > 0
-                  ? "text-destructive"
-                  : validationWarningCount > 0
-                    ? "text-amber-600"
-                    : "text-emerald-600",
-              )}
-              title={
-                diagnosticSummary ??
-                (validationErrorCount > 0
-                  ? `${validationErrorCount} validation errors`
-                  : validationWarningCount > 0
-                    ? `${validationWarningCount} warnings`
-                    : "Ready")
-              }
-            >
-              {diagnosticSummary ||
-              validationErrorCount > 0 ||
-              validationWarningCount > 0 ? (
-                <AlertTriangleIcon className="size-3.5" />
-              ) : (
-                <CheckCircle2Icon className="size-3.5" />
-              )}
-              <span className="sr-only">
-                {diagnosticSummary
-                  ? "Preview issue"
-                  : validationErrorCount > 0
-                    ? `${validationErrorCount} errors`
-                    : validationWarningCount > 0
-                      ? `${validationWarningCount} warnings`
-                      : "Ready"}
-              </span>
-            </span>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Timeline validation details"
+                  className={cn(
+                    "flex shrink-0 items-center text-xs",
+                    diagnosticSummary || validationErrorCount > 0
+                      ? "text-destructive"
+                      : validationWarningCount > 0
+                        ? "text-amber-600"
+                        : "text-emerald-600",
+                  )}
+                  title={
+                    diagnosticSummary ??
+                    (validationErrorCount > 0
+                      ? `${validationErrorCount} validation errors`
+                      : validationWarningCount > 0
+                        ? `${validationWarningCount} warnings`
+                        : "Ready")
+                  }
+                >
+                  {diagnosticSummary ||
+                  validationErrorCount > 0 ||
+                  validationWarningCount > 0 ? (
+                    <AlertTriangleIcon className="size-3.5" />
+                  ) : (
+                    <CheckCircle2Icon className="size-3.5" />
+                  )}
+                  <span className="sr-only">
+                    {diagnosticSummary
+                      ? "Preview issue"
+                      : validationErrorCount > 0
+                        ? `${validationErrorCount} errors`
+                        : validationWarningCount > 0
+                          ? `${validationWarningCount} warnings`
+                          : "Ready"}
+                  </span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                className="max-h-80 w-80 overflow-y-auto text-xs"
+                side="top"
+              >
+                <p className="mb-2 font-semibold">Timeline validation</p>
+                {diagnosticSummary ? (
+                  <p className="mb-2">{diagnosticSummary}</p>
+                ) : null}
+                {clipDraft.validationIssues.length ? (
+                  <ul className="space-y-2">
+                    {clipDraft.validationIssues.map((issue, index) => (
+                      <li key={index}>
+                        <span className="font-medium capitalize">
+                          {issue.severity}:{" "}
+                        </span>
+                        {issue.message}
+                      </li>
+                    ))}
+                  </ul>
+                ) : !diagnosticSummary ? (
+                  <p>No validation issues.</p>
+                ) : null}
+              </PopoverContent>
+            </Popover>
 
             <label className="flex shrink-0 items-center gap-2">
               <span className="text-muted-foreground hidden text-xs font-medium 2xl:inline">

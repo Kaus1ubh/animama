@@ -186,7 +186,7 @@ export function ActionEditorHeader({
           "grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-rows-1 lg:items-start lg:gap-1.5 2xl:gap-3",
           pose
             ? "lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto]"
-            : "lg:grid-cols-[auto_auto_auto_auto_auto_minmax(120px,1fr)_auto]",
+            : "lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto_auto]",
         )}
       >
         <ActionModeControl onModeChange={onModeChange} />
@@ -199,7 +199,6 @@ export function ActionEditorHeader({
         ) : (
           <>
             <ActionNewButton busy={workspace.busy} onNew={startNew} />
-            <ActionInspectorButton>{inspector}</ActionInspectorButton>
             <ActionLoadButton />
             <ActionDocumentActions
               busy={workspace.busy}
@@ -208,6 +207,7 @@ export function ActionEditorHeader({
               onNew={startNew}
             />
             <ActionDocumentField status={status} />
+            <ActionInspectorButton>{inspector}</ActionInspectorButton>
             <ActionPrimaryActions />
           </>
         )}
@@ -224,7 +224,7 @@ function ActionInspectorButton({ children }: { children: ReactNode }) {
           type="button"
           variant="outline"
           aria-label="Inspector"
-          className="col-start-3 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[104px] 2xl:px-3"
+          className="col-start-6 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[104px] 2xl:px-3"
         >
           <SlidersHorizontalIcon className="size-4" />
           <span className="hidden 2xl:inline">Inspector</span>
@@ -314,24 +314,24 @@ function PosePrimaryActions({ busy }: { busy: boolean }) {
         type="submit"
         form="pose-creator-pose-save-form"
         variant="outline"
-        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-3"
+        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
         disabled={busy || !selectedSource}
         aria-label="Save pose"
       >
         <SaveIcon className="size-4" />
-        <span className="hidden 2xl:inline">Save</span>
+        <span className="hidden lg:inline">Save</span>
       </Button>
       <Button
         type="submit"
         form="pose-creator-pose-save-form"
         name="pose-creator-submit-action"
         value="save-and-branch"
-        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[160px] 2xl:px-3"
+        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
         disabled={busy || !selectedSource || !activeAvatar}
         aria-label="Save and branch pose"
       >
         <WandSparklesIcon className="size-4" />
-        <span className="hidden 2xl:inline">Save &amp; Branch</span>
+        <span className="hidden lg:inline">Save &amp; Branch</span>
       </Button>
     </div>
   );
@@ -348,12 +348,14 @@ function ActionNewButton({
     <Button
       type="button"
       variant="outline"
-      className="col-start-2 row-start-1 hidden h-12 min-w-[82px] rounded-xl px-3 shadow-sm lg:inline-flex"
+      aria-label="New"
+      title="New"
+      className="col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
       disabled={busy}
       onClick={onNew}
     >
       <FilePlus2Icon className="size-4" />
-      New
+      <span className="hidden 2xl:inline">New</span>
     </Button>
   );
 }
@@ -373,7 +375,7 @@ function ActionDocumentActions({
   const [jsonOpen, setJsonOpen] = useState(false);
   return (
     <>
-      <div className="border-border/70 bg-background col-start-5 row-start-1 hidden h-12 shrink-0 items-center rounded-xl border px-1 shadow-sm lg:flex">
+      <div className="border-border/70 bg-background col-start-4 row-start-1 hidden h-12 shrink-0 items-center rounded-xl border px-1 shadow-sm lg:flex">
         <IconAction
           label="Import Anima Pose Clip or project JSON"
           onClick={() => setImportOpen(true)}
@@ -537,7 +539,7 @@ function ActionDocumentField({ status }: { status: ActionHeaderStatus }) {
   }, [workspace.errorField]);
   return (
     <CreatorHeaderDocument
-      className="col-span-2 col-start-1 row-start-2 flex min-w-0 justify-center lg:col-span-1 lg:col-start-6 lg:row-start-1"
+      className="col-span-2 col-start-1 row-start-2 flex min-w-0 justify-center lg:col-span-1 lg:col-start-5 lg:row-start-1"
       widthClassName={
         gesture
           ? "w-full min-w-0 lg:max-w-[460px]"
@@ -806,11 +808,11 @@ function ActionLoadButton() {
         <Button
           type="button"
           variant="outline"
-          className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-4 lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-4"
+          className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
           aria-label={`Load ${workspace.document.intent}`}
         >
           <FolderOpenIcon className="size-4" />
-          <span className="hidden lg:inline">Load</span>
+          <span className="hidden 2xl:inline">Load</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -954,7 +956,7 @@ function ActionPrimaryActions() {
       <Button
         type="button"
         variant="outline"
-        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-3"
+        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
         disabled={disabled}
         onClick={() => void workspace.save()}
         aria-label="Save content"
@@ -964,17 +966,17 @@ function ActionPrimaryActions() {
         ) : (
           <SaveIcon className="size-4" />
         )}
-        <span className="hidden 2xl:inline">Save</span>
+        <span className="hidden lg:inline">Save</span>
       </Button>
       <Button
         type="button"
-        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[160px] 2xl:px-3"
+        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
         disabled={disabled}
         onClick={() => void workspace.saveAndEquip()}
         aria-label="Save and equip content"
       >
         <WandSparklesIcon className="size-4" />
-        <span className="hidden 2xl:inline">Save &amp; Equip</span>
+        <span className="hidden lg:inline">Save &amp; Equip</span>
       </Button>
     </div>
   );

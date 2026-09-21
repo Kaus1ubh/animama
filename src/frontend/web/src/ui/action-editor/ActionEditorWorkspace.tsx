@@ -279,13 +279,6 @@ export function ActionEditorWorkspace() {
     );
     if (!pose) return;
     state.commitClipInlinePoseEdit(pose);
-    workspace.setMode("clip");
-  };
-
-  const cancelInlineKeyframe = () => {
-    const state = usePoseCreatorStore.getState();
-    state.cancelClipInlinePoseEdit();
-    workspace.setMode("clip");
   };
 
   const updateTimeline = (sequence: Record<string, unknown>) => {
@@ -393,7 +386,10 @@ export function ActionEditorWorkspace() {
       <ActionEditorClipPreviewSync />
       <ActionEditorHeader
         history={historyController}
-        onModeChange={workspace.setMode}
+        onModeChange={(mode) => {
+          if (mode === "clip" && clipInlineEdit) applyInlineKeyframe();
+          workspace.setMode(mode);
+        }}
         inspector={
           <div className="max-h-[min(70dvh,640px)] overflow-y-auto p-1">
             <ActionEditorClipInspector
@@ -443,15 +439,6 @@ export function ActionEditorWorkspace() {
                 )}
                 <div className="pointer-events-auto absolute right-[280px] bottom-6 left-[calc(var(--app-shell-sidebar-inset)+280px)] flex justify-center gap-2 transition-[left] duration-150 ease-in-out">
                   <ActionEditorPreviewSettings />
-                  <Button variant="outline" onClick={cancelInlineKeyframe}>
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={applyInlineKeyframe}
-                    disabled={!clipInlineEdit}
-                  >
-                    Apply to Clip
-                  </Button>
                 </div>
               </div>
             ) : (
@@ -523,8 +510,6 @@ export function ActionEditorWorkspace() {
                 onTimelineExpressionsClear={clearExpressionsAtPlayhead}
               />
             }
-            onApply={applyInlineKeyframe}
-            onCancel={cancelInlineKeyframe}
           />
         </>
       ) : (
@@ -677,6 +662,7 @@ function EffectsPanel({
   const gesture = workspace.document.intent === "gesture";
   return (
     <ActionEditorEffectsPanel
+      onCreatePose={() => workspace.setMode("pose")}
       mobile={mobile}
       expanded={expanded}
       onExpandedChange={onExpandedChange}
@@ -840,16 +826,12 @@ function MobileWorkspace({
   onToolChange,
   timeline,
   reactionExpressions,
-  onApply,
-  onCancel,
 }: {
   capabilities: ReturnType<typeof actionEditorCapabilities>;
   tool: MobileTool;
   onToolChange: (tool: MobileTool) => void;
   timeline: React.ReactNode;
   reactionExpressions: React.ReactNode;
-  onApply: () => void;
-  onCancel: () => void;
 }) {
   const workspace = useActionEditorWorkspace();
   const pose = workspace.mode === "pose";
@@ -914,14 +896,6 @@ function MobileWorkspace({
           <ActionEditorExpressionSection variant="mobile" />
         )}
       </section>
-      {pose || usePoseCreatorStore.getState().clipInlineEdit ? (
-        <div className="border-border flex shrink-0 justify-end gap-2 border-t p-2">
-          <Button variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button onClick={onApply}>Apply to Clip</Button>
-        </div>
-      ) : null}
     </div>
   );
 }

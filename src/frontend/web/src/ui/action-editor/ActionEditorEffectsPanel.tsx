@@ -81,6 +81,7 @@ type ActionEditorEffectsPanelProps = {
   /** Browser-local Pose drafts shown only by the Gesture creator. */
   poses?: PoseCreatorSavedDraft[];
   onAddPose?: (pose: PoseCreatorSavedDraft) => void;
+  onCreatePose?: () => void;
 };
 
 type PanelTab = "poses" | ActionComponentType;
@@ -104,6 +105,7 @@ export function ActionEditorEffectsPanel({
   onRemove,
   poses,
   onAddPose,
+  onCreatePose,
 }: ActionEditorEffectsPanelProps) {
   const showsPoses = poses !== undefined;
   const [panelTab, setPanelTab] = useState<PanelTab>(
@@ -140,18 +142,23 @@ export function ActionEditorEffectsPanel({
         mobile ? "border-0" : "rounded-2xl shadow-xl",
       )}
     >
-      <div className="flex min-h-10 shrink-0 items-start justify-between gap-3">
+      <div
+        className={cn(
+          "flex shrink-0 items-start justify-between gap-3",
+          expanded && showsPoses ? "min-h-7" : "min-h-10",
+        )}
+      >
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">{panelLabel}</h2>
-          <p className="text-muted-foreground mt-1 truncate text-xs">
-            {expanded
-              ? showsPoses
-                ? "Add poses, visuals, and sound at the playhead."
-                : "Add visuals and sound at the playhead."
-              : showsPoses
-                ? `${poses.length} poses · ${dependencies.length} effects`
-                : `${dependencies.length} added`}
-          </p>
+          {!expanded || !showsPoses ? (
+            <p className="text-muted-foreground mt-1 truncate text-xs">
+              {expanded
+                ? "Add visuals and sound at the playhead."
+                : showsPoses
+                  ? `${poses.length} poses · ${dependencies.length} effects`
+                  : `${dependencies.length} added`}
+            </p>
+          ) : null}
         </div>
         {!mobile && onExpandedChange ? (
           <CreatorPanelCollapseButton
@@ -179,7 +186,10 @@ export function ActionEditorEffectsPanel({
               onActiveTypeChange(tab.contentType);
             }
           }}
-          className="mt-3 flex min-h-0 flex-1 flex-col"
+          className={cn(
+            "flex min-h-0 flex-1 flex-col",
+            showsPoses ? "mt-2" : "mt-3",
+          )}
         >
           <TabsList
             className={cn(
@@ -217,12 +227,12 @@ export function ActionEditorEffectsPanel({
               }}
               placeholder={
                 panelTab === "poses"
-                  ? "Search saved poses"
+                  ? "Search poses"
                   : activeTab.searchPlaceholder
               }
               aria-label={
                 panelTab === "poses"
-                  ? "Search saved poses"
+                  ? "Search poses"
                   : activeTab.searchPlaceholder
               }
             />
@@ -234,18 +244,10 @@ export function ActionEditorEffectsPanel({
                 poses={filteredPoses}
                 hasQuery={Boolean(poseQuery.trim())}
                 onAddPose={onAddPose}
+                onCreatePose={onCreatePose}
               />
             ) : (
               <>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
-                    {activeTab.catalogLabel}
-                  </p>
-                  <span className="text-muted-foreground text-[10px]">
-                    At current time
-                  </span>
-                </div>
-
                 {activeSection?.isPending ? (
                   <div
                     className="text-muted-foreground px-3 py-6 text-center text-xs"
@@ -355,21 +357,15 @@ function PoseCatalog({
   poses,
   hasQuery,
   onAddPose,
+  onCreatePose,
 }: {
   poses: PoseCreatorSavedDraft[];
   hasQuery: boolean;
   onAddPose?: (pose: PoseCreatorSavedDraft) => void;
+  onCreatePose?: () => void;
 }) {
   return (
     <>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
-          My saved poses
-        </p>
-        <span className="text-muted-foreground text-[10px]">
-          At current time
-        </span>
-      </div>
       {poses.length ? (
         <div className="space-y-1.5">
           {poses.map((pose) => (
@@ -382,9 +378,6 @@ function PoseCatalog({
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium">{pose.name}</p>
-                <p className="text-muted-foreground truncate text-[10px]">
-                  Saved in this browser
-                </p>
               </div>
               <Button
                 type="button"
@@ -411,6 +404,16 @@ function PoseCatalog({
               ? "Try a different search."
               : "Create and save a Pose to reuse it as a Gesture keyframe."}
           </p>
+          {!hasQuery ? (
+            <Button
+              className="mt-3"
+              size="sm"
+              onClick={onCreatePose}
+              disabled={!onCreatePose}
+            >
+              Create Pose
+            </Button>
+          ) : null}
         </div>
       )}
     </>
@@ -436,7 +439,7 @@ function EffectCatalogRow({
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium">{item.name}</p>
         <div className="text-muted-foreground flex items-center gap-1.5 text-[10px]">
-          <span>{item.origin === "builtin" ? "Built-in" : "Mine"}</span>
+          {item.origin !== "builtin" ? <span>Mine</span> : null}
           {addedCount ? (
             <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-medium">
               {addedCount === 1 ? "Added" : `Added ×${addedCount}`}
