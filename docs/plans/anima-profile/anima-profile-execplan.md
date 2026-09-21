@@ -18,7 +18,8 @@ No backend, schema, dependency or scoring changes.
 
 - [x] Phase 1: implement and validate profile, shared emotion presentation and identity.
 - [x] Final integration review.
-- [ ] Existing PR update after phase commit.
+- [x] Existing PR #35 updated; implementation commit `15622b9` pushed. Hosted
+  checks were not reported at readback; owner acceptance and merge remain pending.
 
 ## Surprises & Discoveries
 
