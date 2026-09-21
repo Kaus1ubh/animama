@@ -136,7 +136,12 @@ export function ActionTimelineDocumentSync({
     const previousSequence = lastReceivedSequence.current;
     lastReceivedSequence.current = editorSequence;
     lastReceived.current = serialized;
-    if (serialized === lastEmitted.current) return;
+    // Suppress only the immediate acknowledgement of a local store edit. Keeping
+    // this value after Undo would mistake Redo for an echo and leave the old
+    // store draft to overwrite the restored document (and its dependencies).
+    const acknowledgesLocalEdit = serialized === lastEmitted.current;
+    lastEmitted.current = "";
+    if (acknowledgesLocalEdit) return;
     const preservePlayhead = shouldPreserveTimelinePlayhead(
       lastTimelineSession.current,
       session,

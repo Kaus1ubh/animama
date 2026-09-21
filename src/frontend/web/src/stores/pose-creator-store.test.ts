@@ -819,3 +819,102 @@ describe("pose creator undo and redo history", () => {
     expect(selectCanRedoClip(usePoseCreatorStore.getState())).toBe(false);
   });
 });
+
+describe("timeline inspector selection", () => {
+  beforeEach(() => {
+    const store = usePoseCreatorStore.getState();
+    store.resetWorkspace();
+    store.hydrateClipDocument(
+      parseAnimaPoseClip({
+        schema: "animaPoseClip/1.0",
+        id: "selection",
+        name: "Selection",
+        duration: 1.2,
+        poses: { pose: { expressions: { happy: 0.5 } } },
+        poseKeyframes: [
+          { time: 0.25, pose: "pose" },
+          { time: 0.9, pose: "pose" },
+        ],
+        events: [{ id: "sound", kind: "sfx", time: 0.6, cueId: "bell" }],
+      }),
+    );
+  });
+
+  it("switches the inspector between events and keyframes without editing content or history", () => {
+    const store = usePoseCreatorStore.getState();
+    const original = store.clipDraft;
+    const keyframeId = original.keyframes[0]!.id;
+    store.selectClipEvent("sound");
+    expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+      selectedEventId: "sound",
+      selectedKeyframeId: null,
+      currentTimeSec: 0.6,
+    });
+    store.selectClipKeyframe(keyframeId);
+    expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+      selectedEventId: null,
+      selectedKeyframeId: keyframeId,
+      currentTimeSec: 0.25,
+    });
+    store.selectClipEvent("sound");
+    const state = usePoseCreatorStore.getState();
+    expect(state.clipDraft).toMatchObject({
+      selectedEventId: "sound",
+      selectedKeyframeId: null,
+      currentTimeSec: 0.6,
+    });
+    expect(state.clipPlaybackAbsoluteTimeSec).toBe(0.6);
+    expect(state.clipPlaybackPlaying).toBe(false);
+    expect(state.clipDraft.keyframes).toBe(original.keyframes);
+    expect(state.clipDraft.events).toBe(original.events);
+    expect(state.clipUndoHistory).toEqual([]);
+  });
+
+  it.each([null, "missing"])(
+    "clearing selection with %s leaves the other selected item and time intact",
+    (emptyId) => {
+      const store = usePoseCreatorStore.getState();
+      const keyframeId = store.clipDraft.keyframes[0]!.id;
+      store.selectClipEvent("sound");
+      store.selectClipKeyframe(emptyId);
+      expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+        selectedEventId: "sound",
+        selectedKeyframeId: null,
+        currentTimeSec: 0.6,
+      });
+      store.selectClipEvent(emptyId);
+      expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+        selectedEventId: null,
+        selectedKeyframeId: null,
+        currentTimeSec: 0.6,
+      });
+      store.selectClipKeyframe(keyframeId);
+      store.selectClipEvent(emptyId);
+      expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+        selectedEventId: null,
+        selectedKeyframeId: keyframeId,
+        currentTimeSec: 0.25,
+      });
+      store.selectClipKeyframe(emptyId);
+      expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+        selectedEventId: null,
+        selectedKeyframeId: null,
+        currentTimeSec: 0.25,
+      });
+    },
+  );
+
+  it.each([-1, 1] as const)(
+    "selects the stepped keyframe instead of leaving the effect inspector open (%s)",
+    (direction) => {
+      const store = usePoseCreatorStore.getState();
+      store.selectClipEvent("sound");
+      store.stepClipKeyframe(direction);
+      const clip = usePoseCreatorStore.getState().clipDraft;
+      const keyframe = clip.keyframes[direction === -1 ? 0 : 1]!;
+      expect(clip.selectedKeyframeId).toBe(keyframe.id);
+      expect(clip.selectedEventId).toBeNull();
+      expect(clip.currentTimeSec).toBe(keyframe.time);
+    },
+  );
+});

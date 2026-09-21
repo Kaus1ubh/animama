@@ -25,7 +25,11 @@ describe("catalog drop selection after hydration", () => {
     expect(usePoseCreatorStore.getState()).toBe(before);
     hydrateEvent();
     const events = usePoseCreatorStore.getState().clipDraft.events;
+    let updates = 0;
+    const unsubscribe = usePoseCreatorStore.subscribe(() => updates++);
     expect(selectHydratedCatalogEvent(pending, 3, true)).toBe(true);
+    unsubscribe();
+    expect(updates).toBe(1);
     const after = usePoseCreatorStore.getState();
     expect(after.clipDraft.selectedKeyframeId).toBeNull();
     expect(after.clipDraft.selectedEventId).toBe(pending.id);

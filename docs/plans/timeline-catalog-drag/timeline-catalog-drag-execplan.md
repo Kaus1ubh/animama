@@ -119,3 +119,38 @@ Native packaged acceptance and hosted CI were not run. No push or PR update.
 Concurrent header, inspector and timeline-toolbar edits were preserved in the working
 files and excluded from this increment's local commit. Temporary browser tabs were
 closed and viewport overrides reset. The existing local stack remains available.
+
+## Follow-up: marker identity, selection and history restoration
+
+The follow-up starts from `e67fd0d` on the same local branch and stack. Effect
+drop previews now reuse their event marker's shape and color. Keyframe focus,
+click and stepping clear event selection; event selection clears keyframe
+selection, so the corresponding inspector opens consistently.
+
+Browser Undo/Redo verification exposed a stale synchronization acknowledgement:
+after Undo, Redo could be mistaken for an old local edit and overwritten by the
+current store. Consume the acknowledgement once. The regression preserves refs
+across real synchronization effects and checks document history, timeline
+serialization and effect dependencies through pose and effect Undo/Redo.
+
+Validation:
+
+- Eight affected Vitest suites passed, 71 tests. Source typecheck, scoped ESLint,
+  Prettier checks and `git diff --check` passed.
+- `pnpm --dir src/frontend/web build:source` passed with the existing large-chunk
+  warning. This validates the working source, including concurrent local edits.
+- Desktop browser at localhost:8320, 1280 and 1440 pixels: pose selection opens
+  the keyframe panel after an event; pose drop at 0.60 seconds followed by Undo
+  matches baseline JSON exactly and Redo matches the inserted JSON exactly.
+- Particle and scene effects coexist at 0.60 seconds; avatar effect at 0.90.
+  One Undo removes each effect and its dependency; Redo restores the complete
+  typed project exactly. Exported `animaPoseClip/1.0` has resolving pose aliases,
+  unique event IDs, matching dependency aliases/types and the intended times.
+- The local catalog contains no SFX assets, so no browser sound drop was run.
+  Held-drag ghost appearance was checked through shared marker implementation
+  review; the browser verified completed markers, not a held-drag screenshot.
+- Independent review approved selection/marker changes and the subsequent
+  targeted synchronization repair with no concrete blockers.
+
+No push, PR update, hosted CI or new packaged-native checks. Concurrent header,
+toolbar and inspector edits remain separate. Verification tabs were closed.

@@ -12,7 +12,6 @@ export function selectHydratedCatalogEvent(
   const state = usePoseCreatorStore.getState();
   if (!state.clipDraft.events.some((event) => event.id === pending.id))
     return false;
-  state.selectClipKeyframe(null);
   state.selectClipEvent(pending.id);
   return true;
 }

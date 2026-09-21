@@ -527,8 +527,10 @@ type PoseCreatorStoreState = {
   advanceClipPlayback: (deltaSeconds: number) => void;
   stepClipTime: (direction: -1 | 1) => void;
   stepClipKeyframe: (direction: -1 | 1) => void;
+  /** Select one keyframe and clear event selection; null only clears keyframes. */
   selectClipKeyframe: (keyframeId: string | null) => void;
   selectClipPoseAlias: (alias: string | null) => void;
+  /** Select one event and clear keyframe selection; null only clears events. */
   selectClipEvent: (eventId: string | null) => void;
   insertClipAvatarVFXEventAtPlayhead: (
     effectId: string,
@@ -2122,6 +2124,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipDraft: {
             ...state.clipDraft,
             selectedKeyframeId: keyframe.id,
+            selectedEventId: null,
             selectedPoseAlias: keyframe.pose,
             currentTimeSec: keyframe.time,
           },
@@ -2142,6 +2145,9 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipDraft: {
             ...state.clipDraft,
             selectedKeyframeId: selectedKeyframe?.id ?? null,
+            selectedEventId: selectedKeyframe
+              ? null
+              : state.clipDraft.selectedEventId,
             selectedPoseAlias:
               selectedKeyframe?.pose ?? state.clipDraft.selectedPoseAlias,
             currentTimeSec: nextTime,
@@ -2175,6 +2181,9 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipDraft: {
             ...state.clipDraft,
             selectedEventId: selectedEvent?.id ?? null,
+            selectedKeyframeId: selectedEvent
+              ? null
+              : state.clipDraft.selectedKeyframeId,
             currentTimeSec: nextTime,
           },
           clipPlaybackPlaying: false,

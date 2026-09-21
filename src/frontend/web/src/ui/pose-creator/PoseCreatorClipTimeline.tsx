@@ -708,6 +708,7 @@ export function PoseCreatorClipTimeline({
                     duration={duration}
                     keyframe={keyframe}
                     selected={keyframe.id === clipDraft.selectedKeyframeId}
+                    onFocus={() => selectClipKeyframe(keyframe.id)}
                     onPointerDown={handleKeyframePointerDown}
                     onPointerMove={handleKeyframePointerMove}
                     onPointerUp={handleKeyframePointerUp}
@@ -753,7 +754,12 @@ export function PoseCreatorClipTimeline({
                     </span>
                     <span className="border-primary absolute top-8 bottom-3 border-l-2 border-dashed opacity-70" />
                     <span
-                      className="bg-primary/25 border-primary absolute size-4 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[2px] border-2"
+                      className={cn(
+                        "absolute -translate-x-1/2 -translate-y-1/2 border opacity-60 shadow-sm",
+                        dropPreview.lane === "pose"
+                          ? "bg-primary/25 border-primary size-4 rotate-45 rounded-[2px]"
+                          : getEventMarkerClassName(dropPreview.lane),
+                      )}
                       style={{
                         top:
                           RULER_HEIGHT_PX +
@@ -802,6 +808,7 @@ function KeyframeMarker({
   keyframe,
   duration,
   selected,
+  onFocus,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -810,6 +817,7 @@ function KeyframeMarker({
   keyframe: PoseCreatorClipKeyframeDraft;
   duration: number;
   selected: boolean;
+  onFocus: () => void;
   onPointerDown: (
     event: ReactPointerEvent<HTMLButtonElement>,
     keyframe: PoseCreatorClipKeyframeDraft,
@@ -840,6 +848,7 @@ function KeyframeMarker({
         keyframe.time,
       )}`}
       title={`${keyframe.pose} / ${formatTimelineTime(keyframe.time)}`}
+      onFocus={onFocus}
       onPointerDown={(event) => onPointerDown(event, keyframe)}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -893,7 +902,7 @@ function EventMarker({
         "focus-visible:ring-ring absolute z-10 -translate-x-1/2 border text-[0px] shadow-sm transition-[background-color,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
         selected ? "ring-ring ring-offset-background ring-2 ring-offset-2" : "",
         mobile && "min-h-5 min-w-5",
-        getEventMarkerClassName(event),
+        getEventMarkerClassName(event.kind),
       )}
       style={{
         top:
@@ -992,14 +1001,15 @@ function getTimelineLeftStyle(percent: number, offsetPx = 0): string {
   }${offset})`;
 }
 
-function getEventMarkerClassName(event: PoseCreatorClipEventDraft): string {
-  if (event.kind === "avatar_vfx") {
+/** Share each effect marker's shape/color with its catalog drop preview. */
+function getEventMarkerClassName(kind: TimelineEventLane): string {
+  if (kind === "avatar_vfx") {
     return "size-4 rounded-full border-emerald-300 bg-emerald-500 hover:border-emerald-100 hover:bg-emerald-400";
   }
-  if (event.kind === "scene_vfx") {
+  if (kind === "scene_vfx") {
     return "size-4 rounded-[4px] border-amber-300 bg-amber-500 hover:border-amber-100 hover:bg-amber-400";
   }
-  if (event.kind === "particle_vfx") {
+  if (kind === "particle_vfx") {
     return "size-4 rotate-45 rounded-[3px] border-violet-300 bg-violet-500 hover:border-violet-100 hover:bg-violet-400";
   }
   return "size-4 rounded-full border-sky-300 bg-sky-500 hover:border-sky-100 hover:bg-sky-400";
