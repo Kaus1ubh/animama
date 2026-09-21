@@ -397,13 +397,15 @@ Current behavior:
   Hover emphasizes the matching label and point using its group color, without
   a label background. Leaving the plot clears pointer selection; keyboard focus
   remains independently inspectable. Color supplements labels rather than replacing them.
-- Neutral shows “Feeling neutral” and “No active emotions”, without an empty
-  radar, legend or fabricated summary bars.
+- Neutral shows “Feeling neutral” without empty-state copy or fabricated bars.
+  The profile hides its emotion disclosure while neutral; management retains the
+  zero-valued eight-axis radar.
 - Existing `default`, `compact`, `showcase` and `inline` chart consumers use the
   same presentation data, with compact chart sizing where appropriate.
 
-The chat header opens the profile through the Anima name alone; the separate
-emotion-status trigger is removed. The name uses a plain button with a subtle hover background and visible keyboard
+The chat header opens the profile through one button containing the active
+feeling emoji followed by the Anima name. Neutral omits the header emoji; there
+is no separate emotion-status trigger. The name uses a plain button with a subtle hover background and visible keyboard
 focus.
 The chat-header profile is one continuous banner, portrait and identity surface.
 Details navigates to management; Settings opens existing controls with Back and

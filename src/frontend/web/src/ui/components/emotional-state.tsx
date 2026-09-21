@@ -127,9 +127,7 @@ export function EmotionSummary({
             </div>
           ))}
         </div>
-      ) : (
-        <p className="text-muted-foreground text-sm">No active emotions.</p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -336,71 +334,62 @@ export function EmotionDetails({
   const selected = presentation.groups.find(
     (group) => group.group === selection?.group,
   );
-  const neutral = presentation.dominantGroup === "neutral";
   return (
     <section
       className={cn("space-y-3", className)}
       aria-label="Emotional state"
     >
       {showSummary ? <EmotionSummary emotionalState={emotionalState} /> : null}
-      {neutral ? (
-        !showSummary ? (
-          <p className="text-muted-foreground py-3 text-sm">
-            No active emotions.
-          </p>
-        ) : null
-      ) : (
+      <div
+        ref={interactionRef}
+        onPointerLeave={(event) => {
+          if (event.pointerType !== "touch")
+            setSelection((current) =>
+              current?.input === "keyboard" ? current : null,
+            );
+        }}
+      >
+        <EmotionSelectionContext.Provider value={selection?.group ?? null}>
+          <EmotionRadar
+            groups={presentation.groups}
+            color={presentation.color}
+            onSelect={select}
+            onBlur={clearFocus}
+            onClearPointer={clearPointer}
+            detailId={detailId}
+          />
+        </EmotionSelectionContext.Provider>
+        {/* A reserved caption never overlaps the radar or shifts it on hover. */}
         <div
-          ref={interactionRef}
-          onPointerLeave={(event) => {
-            if (event.pointerType !== "touch")
-              setSelection((current) =>
-                current?.input === "keyboard" ? current : null,
-              );
-          }}
+          id={detailId}
+          className="min-h-14 px-1 pb-1 text-sm"
+          aria-live="polite"
         >
-          <EmotionSelectionContext.Provider value={selection?.group ?? null}>
-            <EmotionRadar
-              groups={presentation.groups}
-              color={presentation.color}
-              onSelect={select}
-              onBlur={clearFocus}
-              onClearPointer={clearPointer}
-              detailId={detailId}
-            />
-          </EmotionSelectionContext.Provider>
-          {/* A reserved caption never overlaps the radar or shifts it on hover. */}
-          <div
-            id={detailId}
-            className="min-h-14 px-1 pb-1 text-sm"
-            aria-live="polite"
-          >
-            {selected ? (
-              <>
-                <p className="mb-2 flex items-center gap-2 font-medium">
-                  <span
-                    aria-hidden="true"
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: selected.color }}
-                  />
-                  {selected.label}{" "}
-                  <span className="text-muted-foreground tabular-nums">
-                    {formatEmotionAverage(selected.maximum)}
-                  </span>
-                </p>
-                <dl className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                  {selected.emotions.map((emotion) => (
-                    <div key={emotion.emotion} className="flex gap-1.5">
-                      <dt>{emotion.label}</dt>
-                      <dd className="tabular-nums">{emotion.value}</dd>
-                    </div>
-                  ))}
-                </dl>
-              </>
-            ) : null}
-          </div>
+          {selected ? (
+            <>
+              <p className="mb-2 flex items-center gap-2 font-medium">
+                <span
+                  aria-hidden="true"
+                  className="size-2 rounded-full"
+                  style={{ backgroundColor: selected.color }}
+                />
+                {selected.label}{" "}
+                <span className="text-muted-foreground tabular-nums">
+                  {formatEmotionAverage(selected.maximum)}
+                </span>
+              </p>
+              <dl className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                {selected.emotions.map((emotion) => (
+                  <div key={emotion.emotion} className="flex gap-1.5">
+                    <dt>{emotion.label}</dt>
+                    <dd className="tabular-nums">{emotion.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </>
+          ) : null}
         </div>
-      )}
+      </div>
     </section>
   );
 }

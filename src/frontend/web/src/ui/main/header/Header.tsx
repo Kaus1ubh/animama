@@ -12,6 +12,7 @@ import { useAnimas } from "@/query/hooks/useAnimas";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { AnimaInfoModal } from "@/ui/main/header/AnimaInfoModal";
 import { selectHeaderEmotionState } from "./animaModalPresentation";
+import { buildEmotionPresentation } from "@/lib/emotion/presentation";
 import { getAnimaDisplayName } from "@/lib/anima-profile";
 
 type HeaderProps = {
@@ -96,15 +97,25 @@ export function Header({
       runtimeState: runtimeEmotionalState,
       persistedState: activeAnima?.emotional_state,
     });
+  const emotionPresentation = buildEmotionPresentation(emotionalState);
   const defaultAnimaTrigger = animaLabel ? (
     <button
       type="button"
       onClick={openAnimaProfile}
-      className="hover:bg-muted/70 focus-visible:ring-ring flex max-w-full min-w-0 items-center rounded-md bg-transparent px-4 py-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:px-6"
+      className="hover:bg-muted/70 focus-visible:ring-ring flex max-w-full min-w-0 items-center gap-2 rounded-md bg-transparent px-4 py-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:px-6"
       aria-label="Open anima details"
       aria-haspopup="dialog"
       aria-expanded={modalOpen}
     >
+      {emotionPresentation.dominantGroup !== "neutral" ? (
+        <span
+          role="img"
+          aria-label={emotionPresentation.feeling.label}
+          className="shrink-0 text-xl"
+        >
+          {emotionPresentation.feeling.emoji}
+        </span>
+      ) : null}
       <h1 className="text-foreground truncate text-lg font-semibold">
         {animaLabel}
       </h1>

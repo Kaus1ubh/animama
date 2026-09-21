@@ -48,6 +48,7 @@ import {
   EmotionDetails,
 } from "@/ui/components/emotional-state";
 import { cn } from "@/lib/utils";
+import { buildEmotionPresentation } from "@/lib/emotion/presentation";
 import { canShowEmotionPopout } from "./animaModalPresentation";
 import { RuntimeImageFrame } from "@/ui/components/runtime-image-frame";
 import { AnimaSettingsModal } from "@/ui/main/header/AnimaSettingsModal";
@@ -81,11 +82,20 @@ function AnimaProfile({
   emotionSourceLabel = null,
 }: AnimaInfoModalProps) {
   const navigate = useNavigate();
+  const emotionalState =
+    emotionState === undefined
+      ? (anima?.emotional_state ?? null)
+      : emotionState;
+  const hasActiveEmotions =
+    buildEmotionPresentation(emotionalState).topGroups.length > 0;
   const [view, setView] = useState<"profile" | "settings">("profile");
   const [emotionsOpen, setEmotionsOpen] = useState(false);
   const [sidePanel, setSidePanel] = useState(false);
   const [canHover, setCanHover] = useState(false);
-  const hoverMode = sidePanel && canHover;
+  const hoverMode = sidePanel && canHover && hasActiveEmotions;
+  useEffect(() => {
+    if (!hasActiveEmotions) setEmotionsOpen(false);
+  }, [hasActiveEmotions]);
   const summaryRef = useRef<HTMLDivElement>(null);
   const detailPanelRef = useRef<HTMLElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -220,14 +230,9 @@ function AnimaProfile({
       ?.presentation.profile_thumbnail ?? null;
   const profileImage = useAnimaPresentationImage(profileThumbnail);
   const backgroundImage = useRuntimeContentMediaUrl(backgroundEntry);
-  const emotionalState =
-    emotionState === undefined
-      ? (anima?.emotional_state ?? null)
-      : emotionState;
 
   const details = (
     <EmotionDetails
-      className={sidePanel ? "[&>p]:pt-9" : undefined}
       showSummary={false}
       emotionalState={emotionalState}
       sourceLabel={emotionSourceLabel}
@@ -445,7 +450,7 @@ function AnimaProfile({
                     emotionalState={emotionalState}
                     className="pt-4"
                     headerAction={
-                      hoverMode ? undefined : (
+                      hoverMode || !hasActiveEmotions ? undefined : (
                         <button
                           ref={emotionTriggerRef}
                           type="button"
@@ -471,7 +476,7 @@ function AnimaProfile({
                 </div>
               </div>
               <AnimatePresence initial={false}>
-                {emotionsOpen && !sidePanel ? (
+                {hasActiveEmotions && emotionsOpen && !sidePanel ? (
                   <motion.section
                     key="inline-emotions"
                     id={emotionPanelId}
@@ -523,7 +528,10 @@ function AnimaProfile({
           ) : null}
         </div>
         <AnimatePresence initial={false}>
-          {emotionsOpen && sidePanel && view === "profile" ? (
+          {hasActiveEmotions &&
+          emotionsOpen &&
+          sidePanel &&
+          view === "profile" ? (
             <motion.section
               key="side-emotions"
               ref={detailPanelRef}

@@ -22,13 +22,13 @@ describe("EmotionSummary", () => {
   it("renders neutral without bars or numeric diagnostics", () => {
     const html = renderToStaticMarkup(<EmotionSummary emotionalState={{}} />);
     expect(html).toContain("Feeling neutral");
-    expect(html).toContain("No active emotions.");
+    expect(html).not.toContain("No active emotions.");
     expect(html).not.toContain("width:");
   });
 });
 
 describe("EmotionDetails", () => {
-  it("shows a concise neutral state without repeated legends or diagnostic labels", () => {
+  it("keeps the neutral radar without empty-state copy or diagnostics", () => {
     const html = renderToStaticMarkup(
       <EmotionDetails
         emotionalState={{}}
@@ -36,9 +36,10 @@ describe("EmotionDetails", () => {
         sourceLabel="Live runtime state"
       />,
     );
-    expect(html).toContain("No active emotions.");
+    expect(html).not.toContain("No active emotions.");
+    expect(html).toContain("Emotion spectrum: eight groups");
     expect(html).not.toMatch(
-      /Live runtime state|Group averages|Affection|<button|<svg/,
+      /Live runtime state|Group averages|No active emotions/,
     );
   });
   it("reserves interaction details outside the plot without a persistent detail card", () => {

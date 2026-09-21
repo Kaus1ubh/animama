@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   preflight: vi.fn(),
@@ -18,6 +18,10 @@ import { saveAppearanceImage } from "./useAppearanceContentActions";
 describe("saveAppearanceImage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn().mockResolvedValue({ width: 640, height: 128, close: vi.fn() }),
+    );
     mocks.preflight.mockResolvedValue({ sourceFormat: "png", error: null });
     mocks.save.mockResolvedValue({
       item_id: "image-1",
@@ -49,6 +53,8 @@ describe("saveAppearanceImage", () => {
     });
   });
 
+  afterEach(() => vi.unstubAllGlobals());
+
   it("writes one ordinary image and readable sidecar through the catalog", async () => {
     const progress = vi.fn();
     const file = new File(["png"], "portrait.png", { type: "image/png" });
@@ -69,7 +75,6 @@ describe("saveAppearanceImage", () => {
         operationId: "appearance-op",
         metadata: expect.objectContaining({
           id: "local:appearance:portrait",
-          supported_uses: ["profile", "background"],
         }),
       }),
     );
@@ -77,6 +82,30 @@ describe("saveAppearanceImage", () => {
       stage: "processing",
       percent: null,
     });
+  });
+
+  it("keeps ordinary PNG metadata within the strict Appearance V1 document contract", async () => {
+    const file = new File(["png"], "animama-wordmark.png", {
+      type: "image/png",
+    });
+    await saveAppearanceImage({
+      name: "animama-wordmark",
+      file,
+      uses: ["profile", "background"],
+    });
+    expect(mocks.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entryName: "animama-wordmark",
+        files: [file],
+        metadata: {
+          schema_version: 1,
+          id: "local:appearance:animama-wordmark",
+          name: "animama-wordmark",
+          width: 640,
+          height: 128,
+        },
+      }),
+    );
   });
 
   it("does not write when local image validation fails", async () => {
