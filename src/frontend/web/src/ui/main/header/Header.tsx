@@ -1,25 +1,17 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useParams } from "@tanstack/react-router";
-import { HeartPulse, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
-import { EmotionalState } from "@/ui/components/emotional-state";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/ui/components/popover";
 import { DEBUG_ENABLED } from "@/platform/env";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
-import {
-  AnimaInfoModal,
-  type AnimaInfoSection,
-} from "@/ui/main/header/AnimaInfoModal";
+import { AnimaInfoModal } from "@/ui/main/header/AnimaInfoModal";
+import { selectHeaderEmotionState } from "./animaModalPresentation";
 import { getAnimaDisplayName } from "@/lib/anima-profile";
 
 type HeaderProps = {
@@ -45,9 +37,6 @@ export function Header({
   className,
 }: HeaderProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [activeSection, setActiveSection] =
-    useState<AnimaInfoSection>("General");
-  const [emotionPanelOpen, setEmotionPanelOpen] = useState(false);
   const {
     data: animas = [],
     isLoading,
@@ -72,8 +61,9 @@ export function Header({
     pathname.startsWith("/a/") &&
     !pathname.startsWith("/a/animas/") &&
     !pathname.startsWith("/a/create");
-  const useLiveEmotionState =
-    isChatRoute && Boolean(currentAnimaId) && runtimeAnimaId === currentAnimaId;
+  useEffect(() => {
+    setModalOpen(false);
+  }, [currentAnimaId]);
 
   const appShell = useOptionalAppShell();
   const handleMenuClick =
@@ -95,72 +85,30 @@ export function Header({
     : isError
       ? "Anima"
       : animaName || "No anima";
-  const openAnimaSection = (section: AnimaInfoSection) => {
-    setEmotionPanelOpen(false);
-    setActiveSection(section);
+  const openAnimaProfile = () => {
     setModalOpen(true);
   };
-  const emotionalState = useLiveEmotionState
-    ? runtimeEmotionalState
-    : (activeAnima?.emotional_state ?? null);
-  const emotionSourceLabel = useLiveEmotionState
-    ? "Live runtime state"
-    : "Persisted anima state";
+  const { state: emotionalState, sourceLabel: emotionSourceLabel } =
+    selectHeaderEmotionState({
+      isChatRoute,
+      currentAnimaId,
+      runtimeAnimaId,
+      runtimeState: runtimeEmotionalState,
+      persistedState: activeAnima?.emotional_state,
+    });
   const defaultAnimaTrigger = animaLabel ? (
-    <div className="flex min-w-0 items-center gap-1">
-      <Popover
-        open={emotionPanelOpen}
-        onOpenChange={(nextOpen) => {
-          if (nextOpen) setEmotionPanelOpen(true);
-        }}
-      >
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            onClick={() => setEmotionPanelOpen((current) => !current)}
-            className={cn(
-              "text-muted-foreground hover:text-foreground/80 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-transparent transition-colors",
-              emotionPanelOpen && "text-foreground/80",
-            )}
-            aria-label="Toggle emotional state panel"
-            aria-pressed={emotionPanelOpen}
-          >
-            <HeartPulse className="h-6 w-6" aria-hidden="true" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="center"
-          side="bottom"
-          sideOffset={10}
-          onEscapeKeyDown={(event) => event.preventDefault()}
-          onInteractOutside={(event) => event.preventDefault()}
-          className={cn(
-            "border-border/70 bg-background/92 supports-[backdrop-filter]:bg-background/82 w-[17rem] max-w-[min(17rem,calc(100vw-2rem))] rounded-2xl border p-2 shadow-lg backdrop-blur-md",
-          )}
-        >
-          <EmotionalState
-            emotionalState={emotionalState}
-            variant="compact"
-            className="w-full"
-            sourceLabel={emotionSourceLabel}
-          />
-        </PopoverContent>
-      </Popover>
-      <button
-        type="button"
-        onClick={() => openAnimaSection("General")}
-        className={cn(
-          "group hover:bg-muted/70 flex min-w-0 items-center gap-2 rounded-md bg-transparent px-2 py-1 transition",
-        )}
-        aria-label="Open anima details"
-      >
-        <div className="min-w-0 sm:mx-4.5">
-          <h1 className="text-foreground truncate text-lg font-semibold">
-            {animaLabel}
-          </h1>
-        </div>
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={openAnimaProfile}
+      className="hover:bg-muted/70 focus-visible:ring-ring flex max-w-full min-w-0 items-center rounded-md bg-transparent px-4 py-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:px-6"
+      aria-label="Open anima details"
+      aria-haspopup="dialog"
+      aria-expanded={modalOpen}
+    >
+      <h1 className="text-foreground truncate text-lg font-semibold">
+        {animaLabel}
+      </h1>
+    </button>
   ) : null;
   const leftContent = left ?? null;
   const centerContent = center ?? defaultAnimaTrigger ?? null;
@@ -216,8 +164,6 @@ export function Header({
       <AnimaInfoModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        activeSection={activeSection}
-        onSectionChange={setActiveSection}
         animaLabel={animaLabel}
         anima={activeAnima}
         emotionState={emotionalState}

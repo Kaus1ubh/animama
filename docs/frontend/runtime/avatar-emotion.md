@@ -380,23 +380,50 @@ Relevant file:
 
 Current behavior:
 
-- each row represents an `EmotionGroup`
-- the displayed group score is the average of its 3 member emotions
-- the dominant badge shows:
-  - dominant group
-  - primary emotion inside that group
-  - group intensity level
-- desktop hover reveals the underlying member emotions
-- touch devices use tap-to-expand for member-emotion details
+- The profile summary shows up to three active groups, ranked by average, as
+  labeled colored bars without scores. “Feeling…” uses the strongest individual
+  emotion within the dominant group, with an explicit emoji for each emotion.
+  Scores 1–15 add “slightly”, 16–25 use the plain feeling, and 26–30 add “very”.
+  Each band also selects its owner-approved emoji from the shared 24 × 3 mapping;
+  neutral remains 😐. Both the profile and management header use this mapping.
+- `web/src/lib/emotion/presentation.ts` owns the shared group palette and headline
+  mappings. Domain normalization, averages and canonical tie-breaking are unchanged.
+- Expanded details use a Recharts radar with circular rings and a fixed 0–30 scale.
+  All eight groups remain in canonical axis order; each spoke plots the maximum
+  constituent score in its group. Three faint rings mark 10, 20 and 30. Hovering
+  the plot or focusing/tapping an axis label reveals that group and its three
+  constituents in a reserved caption below the plot, so details never obscure it.
+  There is no separate legend, permanent detail card or diagnostic source/scale copy.
+  Hover emphasizes the matching label and point using its group color, without
+  a label background. Leaving the plot clears pointer selection; keyboard focus
+  remains independently inspectable. Color supplements labels rather than replacing them.
+- Neutral shows “Feeling neutral” and “No active emotions”, without an empty
+  radar, legend or fabricated summary bars.
+- Existing `default`, `compact`, `showcase` and `inline` chart consumers use the
+  same presentation data, with compact chart sizing where appropriate.
 
-Variants:
+The chat header opens the profile through the Anima name alone; the separate
+emotion-status trigger is removed. The name uses a plain button with a subtle hover background and visible keyboard
+focus.
+The chat-header profile is one continuous banner, portrait and identity surface.
+Details navigates to management; Settings opens existing controls with Back and
+restores the profile scroll position. The identity uses sanitized `IDENTITY.md`
+Markdown, hiding only a leading H1 that matches the display name in this view.
+Edit identity opens the existing memory editor within the chat profile, preserving
+the chat route and restoring focus on close. The stored document and management
+preview remain unchanged. The management header uses the same feeling emoji and
+group color, with a full-feeling tooltip; clicking it still selects Emotions.
 
-- `default`: all groups, sorted by average value
-- `compact`: top 4 active groups only
-
-If no group is active:
-
-- the component shows a neutral empty-state message
+Emotions opens a 360px panel 16px to the right of the stationary centered profile
+only when the measured desktop position leaves another 16px at the viewport edge.
+With a fine hover pointer, the summary opens the compact panel on hover or focus;
+a short close delay lets the pointer cross the gap. Keyboard Tab enters the axes.
+The panel uses an inset heading without a close icon or hover instructions.
+Without hover support, an explicit toggle controls the disclosure. When the
+viewport has insufficient side space, details expand inline above identity.
+Resize preserves disclosure state;
+Escape collapses emotions before closing the dialog. Both surfaces share one
+focus boundary and backdrop, and transitions respect reduced motion.
 
 ### Persisted vs live state surfaces
 

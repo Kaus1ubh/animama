@@ -23,6 +23,7 @@ import {
 import { useElementSize } from "@/hooks/useElementSize";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
+import { DialogOverlay } from "@/ui/components/dialog";
 import { Slider } from "@/ui/components/slider";
 import { AvatarBackgroundMedia } from "@/ui/main/canvas/AvatarBackgroundMedia";
 import { useCanvasViewport } from "@/ui/main/canvas/CanvasViewportContext";
@@ -235,7 +236,7 @@ export function BackgroundResizeModal({
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm" />
+        <DialogOverlay className="z-[60]" />
         <Dialog.Content
           className={cn(
             "fixed inset-3 z-[70] flex flex-col overflow-hidden rounded-3xl bg-black text-white shadow-2xl",

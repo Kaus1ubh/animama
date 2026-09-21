@@ -1,10 +1,15 @@
 "use client";
 
-import { Link } from "@tanstack/react-router";
+import { buildEmotionPresentation } from "@/lib/emotion/presentation";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/ui/components/tooltip";
+
 import {
   ChevronLeft,
   ChevronRight,
-  FileText,
   ImageUp,
   MousePointer2,
   Move3D,
@@ -25,20 +30,13 @@ import type {
   PyRuntimeImageReference,
 } from "@/lib/content/catalogTypes";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
-import {
-  formatAnimaTimestamp,
-  getAnimaDisplayName,
-  sortAnimasByRecent,
-} from "@/lib/anima-profile";
+import { getAnimaDisplayName, sortAnimasByRecent } from "@/lib/anima-profile";
 import {
   ANIMA_MANAGEMENT_TABS,
   adjacentAnimaId,
   type AnimaManagementTab,
 } from "@/lib/animas/anima-management-search";
-import {
-  getAnimaMoodLabel,
-  resolveAnimaIdentityContent,
-} from "@/lib/animas/anima-management-presentation";
+import { resolveAnimaIdentityContent } from "@/lib/animas/anima-management-presentation";
 import {
   INITIAL_ANIMA_STAGE_PREVIEW_STATE,
   isAnimaStagePreviewTarget,
@@ -53,11 +51,6 @@ import type {
 import { runtimeImagePresentation } from "@/lib/runtime-content/animaRuntimeSnapshot";
 import { runtimeContentDeliveryUrl } from "@/lib/runtime-content/runtimeContentDelivery";
 import { adaptRuntimeSnapshot } from "@/lib/runtime-content/runtimeSnapshotAdapter";
-import {
-  hasPocketAnimaVoiceOverride,
-  resolvePocketVoicePreference,
-} from "@/lib/speech/pocket/voice-preferences";
-import { toTtsProvider } from "@/lib/speech/tts-provider";
 import { cn } from "@/lib/utils";
 import { useAnima } from "@/query/hooks/useAnima";
 import { useAnimas } from "@/query/hooks/useAnimas";
@@ -87,8 +80,8 @@ import { EmotionalState } from "@/ui/components/emotional-state";
 import { RuntimeImageFrame } from "@/ui/components/runtime-image-frame";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Switch } from "@/ui/components/switch";
-import { MemoryMarkdownPreview } from "@/ui/memory/MemoryMarkdownPreview";
-import { useSettings } from "@/ui/settings/SettingsProvider";
+import { AnimaIdentitySection } from "@/ui/animas/AnimaIdentitySection";
+import { AnimaSettingsModal } from "@/ui/main/header/AnimaSettingsModal";
 
 export type AnimaDetailsPageProps = {
   animaId: string;
@@ -108,7 +101,7 @@ const TAB_LABELS: Record<AnimaManagementTab, string> = {
 function stagePreviewStatusLabel(status: ContentPreviewLoadStatus): string {
   switch (status) {
     case "loading":
-      return "Loading preview";
+      return "Loading anima";
     case "playing":
       return "Playing";
     case "ready":
@@ -118,38 +111,6 @@ function stagePreviewStatusLabel(status: ContentPreviewLoadStatus): string {
     default:
       return "Preview idle";
   }
-}
-
-const IDENTITY_PREVIEW_CLASS =
-  "anima-identity-scrollbar border-border/70 bg-muted/25 text-foreground/90 max-h-[clamp(12rem,calc(55dvh-12.5rem),32rem)] overflow-auto rounded-xl border p-5 xl:h-full xl:max-h-none";
-
-function renderTtsProviderLabel(
-  ttsEnabled: boolean,
-  provider: ReturnType<typeof toTtsProvider>,
-): string {
-  if (!ttsEnabled || !provider) return "Disabled";
-  if (provider === "browser") return "Browser";
-  if (provider === "pocket_tts") return "PocketTTS";
-  if (provider === "elevenlabs") return "ElevenLabs";
-  return provider;
-}
-
-function renderPocketVoiceSummary(
-  voice: string | null,
-  hasOverride: boolean,
-): string {
-  if (!hasOverride || !voice) return "Using user/default voice";
-  if (voice === "custom") return "Custom anima voice";
-  return voice;
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border-border/60 flex items-start justify-between gap-4 border-b py-3 text-sm last:border-b-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-foreground text-right font-medium">{value}</span>
-    </div>
-  );
 }
 
 function LoadingManagementWorkspace() {
@@ -212,7 +173,7 @@ function IdentityTab({
 }) {
   return (
     <div className="xl:h-full xl:min-h-0">
-      <IdentitySection
+      <AnimaIdentitySection
         animaId={animaId}
         identity={identity}
         identityLoading={identityLoading}
@@ -236,146 +197,6 @@ function EmotionsTab({ anima }: { anima: PyAnimaResponse }) {
   );
 }
 
-function IdentitySection({
-  animaId,
-  identity,
-  identityLoading,
-  identityError,
-  fallbackIdentity,
-}: {
-  animaId: string;
-  identity: string;
-  identityLoading: boolean;
-  identityError: boolean;
-  fallbackIdentity: string;
-}) {
-  const editIdentityButton = (
-    <Button
-      asChild
-      size="sm"
-      variant="outline"
-      className="bg-background/92 absolute top-3 right-3 z-10 shadow-sm backdrop-blur-sm"
-    >
-      <Link
-        id="anima-identity-edit-trigger"
-        to="/a/animas/$animaId/identity"
-        params={{ animaId }}
-        search={{ tab: "overview" }}
-      >
-        <FileText className="size-4" />
-        Edit identity
-      </Link>
-    </Button>
-  );
-
-  return (
-    <div className="xl:h-full xl:min-h-0">
-      {identityLoading ? (
-        <p className="text-muted-foreground flex h-full items-center justify-center py-8 text-center text-sm">
-          Loading identity…
-        </p>
-      ) : identityError ? (
-        <div className="flex h-full min-h-0 flex-col gap-3">
-          <p className="text-destructive text-sm">
-            The current identity memory file could not be loaded.
-          </p>
-          <div className="relative min-h-0 flex-1">
-            {editIdentityButton}
-            <MemoryMarkdownPreview
-              value={fallbackIdentity}
-              emptyText="_No starter identity is available._"
-              className={IDENTITY_PREVIEW_CLASS}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="relative xl:h-full xl:min-h-0">
-          {editIdentityButton}
-          <MemoryMarkdownPreview
-            value={identity}
-            emptyText="_No identity content provided yet._"
-            className={IDENTITY_PREVIEW_CLASS}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SettingsTab({
-  anima,
-  backgroundLabel,
-}: {
-  anima: PyAnimaResponse;
-  backgroundLabel: string;
-}) {
-  const {
-    effectivePreferences,
-    animaPreferences,
-    isLoading: isSettingsLoading,
-  } = useSettings();
-  const emotionEnabled = !effectivePreferences.emotion?.disable_influence;
-  const emotionUpdatesEnabled = !effectivePreferences.emotion?.disable_updates;
-  const memoryEnabled = !effectivePreferences.memory?.disable_influence;
-  const memoryUpdatesEnabled = !effectivePreferences.memory?.disable_updates;
-  const activeProvider = toTtsProvider(
-    effectivePreferences.speech?.tts_provider,
-  );
-  const ttsEnabled = effectivePreferences.speech?.tts_enabled === true;
-  const pocketVoice = resolvePocketVoicePreference(animaPreferences?.speech);
-  const animaHasPocketOverride = hasPocketAnimaVoiceOverride(
-    animaPreferences?.speech,
-  );
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-semibold">Settings</h2>
-      </div>
-      {isSettingsLoading ? (
-        <p className="text-muted-foreground py-8 text-center text-sm">
-          Loading settings…
-        </p>
-      ) : (
-        <div className="border-border/70 bg-muted/20 rounded-xl border px-4">
-          <SummaryRow
-            label="Last Updated"
-            value={formatAnimaTimestamp(anima.updated_at)}
-          />
-          <SummaryRow label="Background" value={backgroundLabel} />
-          <SummaryRow
-            label="TTS Provider"
-            value={renderTtsProviderLabel(ttsEnabled, activeProvider)}
-          />
-          <SummaryRow
-            label="Pocket Voice"
-            value={renderPocketVoiceSummary(
-              pocketVoice,
-              animaHasPocketOverride,
-            )}
-          />
-          <SummaryRow
-            label="Memory Influence"
-            value={memoryEnabled ? "Enabled" : "Disabled"}
-          />
-          <SummaryRow
-            label="Memory Updates"
-            value={memoryUpdatesEnabled ? "Enabled" : "Disabled"}
-          />
-          <SummaryRow
-            label="Emotion Influence"
-            value={emotionEnabled ? "Enabled" : "Disabled"}
-          />
-          <SummaryRow
-            label="Emotion Updates"
-            value={emotionUpdatesEnabled ? "Enabled" : "Disabled"}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ManagementPanel({
   anima,
   activeTab,
@@ -384,7 +205,6 @@ function ManagementPanel({
   identityLoading,
   identityError,
   fallbackIdentity,
-  backgroundLabel,
   profileThumbnail,
   backgroundImage,
   onTabChange,
@@ -397,13 +217,12 @@ function ManagementPanel({
   identityLoading: boolean;
   identityError: boolean;
   fallbackIdentity: string;
-  backgroundLabel: string;
   profileThumbnail: PyRuntimeImageReference | null;
   backgroundImage: RuntimeCatalogEntry | null;
   onTabChange: (tab: AnimaManagementTab) => void;
   onStagePreview: (target: ContentPreviewTarget) => void;
 }) {
-  const moodLabel = getAnimaMoodLabel(anima.emotional_state);
+  const emotion = buildEmotionPresentation(anima.emotional_state);
   const [appearanceSection, setAppearanceSection] =
     useState<AnimaAppearanceSection | null>(null);
   const profileThumbnailMedia = useAnimaPresentationImage(profileThumbnail);
@@ -458,18 +277,20 @@ function ManagementPanel({
                 <ImageUp className="size-3.5" />
               </span>
             </button>
-            <button
-              type="button"
-              onClick={() => onTabChange("emotions")}
-              aria-label={`Open Emotions tab. Current emotional label: ${moodLabel}`}
-              className="border-border/70 bg-muted/35 text-muted-foreground hover:bg-muted/65 focus-visible:ring-ring/50 ml-auto flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px]"
-            >
-              <span
-                className="bg-primary size-2 rounded-full"
-                aria-hidden="true"
-              />
-              {moodLabel}
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => onTabChange("emotions")}
+                  aria-label={`Open Emotions tab. ${emotion.feeling.label}`}
+                  className="focus-visible:ring-ring/50 ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-2xl transition-opacity outline-none hover:opacity-80 focus-visible:ring-[3px]"
+                  style={{ backgroundColor: `${emotion.color}14` }}
+                >
+                  <span aria-hidden="true">{emotion.feeling.emoji}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{emotion.feeling.label}</TooltipContent>
+            </Tooltip>
           </div>
 
           <Tabs
@@ -514,7 +335,7 @@ function ManagementPanel({
           ) : activeTab === "loadout" ? (
             <AnimaLoadout animaId={anima.id} onStagePreview={onStagePreview} />
           ) : (
-            <SettingsTab anima={anima} backgroundLabel={backgroundLabel} />
+            <AnimaSettingsModal />
           )}
         </div>
       </aside>
@@ -689,9 +510,6 @@ export function AnimaDetailsPage({
   const avatarRuntimeContent = runtimeContentQuery.data?.avatar_model ?? null;
   const avatarUrl = runtimeContentDeliveryUrl(avatarRuntimeContent);
   const canMove = sortedAnimas.length > 1 && selectedIndex >= 0;
-  const backgroundLabel =
-    runtimeContentQuery.data?.background_image?.display_name ??
-    "No background image";
 
   return (
     <AppShellPage
@@ -921,7 +739,6 @@ export function AnimaDetailsPage({
             identityLoading={identityQuery.isLoading}
             identityError={identityQuery.isError}
             fallbackIdentity={fallbackIdentity}
-            backgroundLabel={backgroundLabel}
             profileThumbnail={
               selectedAnima?.presentation.profile_thumbnail ?? null
             }

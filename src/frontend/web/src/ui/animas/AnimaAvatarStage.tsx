@@ -781,12 +781,12 @@ function AnimaAvatarStageInner({
 
       {source && status === "loading" ? (
         <div
-          className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/25 backdrop-blur-[1px]"
+          className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center"
           role="status"
           aria-live="polite"
         >
-          <div className="rounded-full border border-white/20 bg-black/45 px-4 py-2 text-xs font-medium tracking-[0.18em] text-white uppercase">
-            Loading Preview
+          <div className="rounded-full border border-white/20 bg-black/45 px-4 py-2 text-xs font-medium text-white">
+            Loading anima
           </div>
         </div>
       ) : null}

@@ -1,7 +1,13 @@
 "use client";
 
 import { Loader2, Save, Trash2 } from "lucide-react";
-import { lazy, Suspense, useEffect, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  type ComponentProps,
+} from "react";
 import { toast } from "sonner";
 
 import type { PyMemoryEntryResponse } from "@/lib/content/catalogTypes";
@@ -49,6 +55,7 @@ type MemoryEntryEditorModalProps = {
   allowedScope?: "user" | "anima" | "any";
   onEntryChanged?: (entry: PyMemoryEntryResponse) => void;
   onClose: () => void;
+  onCloseAutoFocus?: ComponentProps<typeof DialogContent>["onCloseAutoFocus"];
 };
 
 export function MemoryEntryEditorModal({
@@ -58,6 +65,7 @@ export function MemoryEntryEditorModal({
   allowedScope = "any",
   onEntryChanged,
   onClose,
+  onCloseAutoFocus,
 }: MemoryEntryEditorModalProps) {
   const hasSelection = Boolean(entryId || path);
   const byIdQuery = useMemoryEntry(entryId, {
@@ -187,6 +195,7 @@ export function MemoryEntryEditorModal({
   return (
     <Dialog open={hasSelection} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
+        onCloseAutoFocus={onCloseAutoFocus}
         avoidSidebar
         className="flex h-[min(86vh,58rem)] w-[min(96vw,90rem)] max-w-none flex-col gap-0 overflow-hidden p-0 sm:max-w-none"
       >

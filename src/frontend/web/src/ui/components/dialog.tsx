@@ -10,6 +10,10 @@ import { resolveAppShellSidebarLayout } from "@/ui/app/appShellSidebarLayout";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 
+/** Shared appearance for Radix dialogs and custom modal surfaces. */
+export const DIALOG_BACKDROP_CLASS_NAME =
+  "bg-black/10 supports-backdrop-filter:backdrop-blur-xs";
+
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -42,7 +46,8 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs",
+        "data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 fixed inset-0 isolate z-50 duration-100",
+        DIALOG_BACKDROP_CLASS_NAME,
         className,
       )}
       {...props}

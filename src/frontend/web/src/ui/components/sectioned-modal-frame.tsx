@@ -29,8 +29,6 @@ export function SectionedModalFrame<T extends string>({
   title,
   description,
   closeLabel,
-  sidebarLabel,
-  sidebarTitle,
   sections,
   activeSection,
   onSectionChange,
@@ -38,7 +36,6 @@ export function SectionedModalFrame<T extends string>({
   headerDescription,
   headerMeta,
   children,
-  navLabel = "Sections",
   dialogClassName,
   gridClassName,
   contentClassName,
@@ -62,41 +59,6 @@ export function SectionedModalFrame<T extends string>({
         )}
       >
         <aside className="border-border bg-muted/30 overflow-y-auto border-b p-4 md:border-r md:border-b-0">
-          <div className="mb-4">
-            <div className="mb-3 flex items-center justify-between md:hidden">
-              <div>
-                <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                  {sidebarLabel}
-                </p>
-                <p className="text-foreground mt-1 text-sm font-semibold">
-                  {sidebarTitle}
-                </p>
-              </div>
-              <Dialog.Close asChild>
-                <button
-                  type="button"
-                  className={cn(
-                    "inline-flex h-9 w-9 items-center justify-center rounded-full",
-                    "text-muted-foreground hover:bg-muted/60 hover:text-foreground transition",
-                  )}
-                  aria-label={closeLabel}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </Dialog.Close>
-            </div>
-            <div className="hidden md:block">
-              <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                {sidebarLabel}
-              </p>
-              <p className="text-foreground mt-1 text-sm font-semibold">
-                {sidebarTitle}
-              </p>
-            </div>
-          </div>
-          <p className="text-muted-foreground mb-3 text-xs font-medium tracking-wider uppercase">
-            {navLabel}
-          </p>
           <nav className="flex flex-wrap gap-2 md:flex-col md:gap-1">
             {sections.map((section) => {
               const active = section === activeSection;
@@ -144,7 +106,7 @@ export function SectionedModalFrame<T extends string>({
               <button
                 type="button"
                 className={cn(
-                  "hidden h-9 w-9 items-center justify-center rounded-full md:inline-flex",
+                  "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
                   "text-muted-foreground hover:bg-muted/60 hover:text-foreground transition",
                 )}
                 aria-label={closeLabel}

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
@@ -8,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 type MemoryMarkdownPreviewProps = {
   value: string;
+  children?: ReactNode;
   emptyText?: string;
   className?: string;
   allowImages?: boolean;
@@ -15,6 +18,7 @@ type MemoryMarkdownPreviewProps = {
 
 export function MemoryMarkdownPreview({
   value,
+  children,
   emptyText = "_Empty file_",
   className,
   allowImages = true,
@@ -23,16 +27,20 @@ export function MemoryMarkdownPreview({
 
   return (
     <div
-      className={cn("prose prose-sm dark:prose-invert max-w-none", className)}
+      className={cn(
+        "prose prose-sm dark:prose-invert flow-root max-w-none",
+        className,
+      )}
     >
+      {children}
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSanitize]}
-        components={
-          allowImages
-            ? undefined
-            : { img: ({ alt }) => <span>[Image: {alt || "not loaded"}]</span> }
-        }
+        components={{
+          ...(!allowImages
+            ? { img: ({ alt }) => <span>[Image: {alt || "not loaded"}]</span> }
+            : {}),
+        }}
       >
         {markdown}
       </ReactMarkdown>

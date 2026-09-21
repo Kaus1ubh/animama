@@ -59,6 +59,7 @@ import { resolveAppShellSidebarLayout } from "@/ui/app/appShellSidebarLayout";
 import { useAnimaRuntimeCatalog } from "@/query/hooks/useAnimaRuntimeCatalog";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { Button } from "@/ui/components/button";
+import { DIALOG_BACKDROP_CLASS_NAME } from "@/ui/components/dialog";
 import { Switch } from "@/ui/components/switch";
 import { TransformPanel } from "@/ui/main/canvas/TransformPanel";
 import { PlaybackObservationOutput } from "@/ui/avatar-preview/PlaybackObservationOutput";
@@ -579,7 +580,8 @@ export function ContentPreviewHost() {
     >
       <div
         className={cn(
-          "absolute inset-0 bg-black/45 transition-opacity motion-reduce:transition-none",
+          "absolute inset-0 transition-opacity motion-reduce:transition-none",
+          DIALOG_BACKDROP_CLASS_NAME,
           view === "expanded"
             ? "pointer-events-auto opacity-100"
             : "pointer-events-none opacity-0",
