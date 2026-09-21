@@ -104,7 +104,6 @@ export function AnimaSettingsModal() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isBusy = isLoading || isUpdating;
 
-  const emotionEnabled = !effectivePreferences.emotion?.disable_influence;
   const emotionUpdatesEnabled = !effectivePreferences.emotion?.disable_updates;
   const memoryEnabled = !effectivePreferences.memory?.disable_influence;
   const memoryUpdatesEnabled = !effectivePreferences.memory?.disable_updates;
@@ -138,32 +137,14 @@ export function AnimaSettingsModal() {
     });
   }, [pocketProviderEnabled, warmupPocket]);
 
-  const handleEmotionEnabled = useCallback(
-    (checked: boolean) => {
-      if (isBusy) return;
-      const disableUpdates = !checked;
-      void updateAnimaPreferences({
-        emotion: {
-          disable_influence: !checked,
-          ...(disableUpdates ? { disable_updates: true } : {}),
-        },
-      }).catch(() => toast("Failed to update emotion settings."));
-    },
-    [isBusy, updateAnimaPreferences],
-  );
-
   const handleEmotionUpdates = useCallback(
     (checked: boolean) => {
       if (isBusy) return;
-      if (!emotionEnabled && checked) {
-        toast("Enable emotion first to allow updates.");
-        return;
-      }
       void updateAnimaPreferences({
         emotion: { disable_updates: !checked },
       }).catch(() => toast("Failed to update emotion settings."));
     },
-    [emotionEnabled, isBusy, updateAnimaPreferences],
+    [isBusy, updateAnimaPreferences],
   );
 
   const handleMemoryEnabled = useCallback(
@@ -326,19 +307,11 @@ export function AnimaSettingsModal() {
         </p>
         <div className="mt-3 grid gap-3">
           <SettingRow
-            label="Enable emotion"
-            description="Allow the anima to express emotions."
-            tooltip="Toggles emotional state tracking."
-            checked={emotionEnabled}
-            disabled={isBusy}
-            onChange={handleEmotionEnabled}
-          />
-          <SettingRow
             label="Enable emotion updates"
-            description="Allow changes to emotional state over time."
-            tooltip="Lets emotions update from interactions."
+            description="Update emotional state during chat. When off, new emotion reactions stop; gestures still play."
+            tooltip="When off, the existing mood is preserved and gestures still play."
             checked={emotionUpdatesEnabled}
-            disabled={!emotionEnabled || isBusy}
+            disabled={isBusy}
             onChange={handleEmotionUpdates}
           />
         </div>
@@ -351,16 +324,16 @@ export function AnimaSettingsModal() {
         <div className="mt-3 grid gap-3">
           <SettingRow
             label="Enable memory"
-            description="Allow the anima to read from memory."
-            tooltip="Controls memory access."
+            description="Read saved memories during chat. IDENTITY.md and conversation history remain active when off."
+            tooltip="Turning this off also disables memory updates; existing memories are not deleted."
             checked={memoryEnabled}
             disabled={isBusy}
             onChange={handleMemoryEnabled}
           />
           <SettingRow
             label="Enable memory updates"
-            description="Allow writing new information to memory."
-            tooltip="Controls memory updates and persistence."
+            description="Save new memories during chat. Turning this off does not stop chat history from being saved."
+            tooltip="Existing memories remain readable while memory is enabled."
             checked={memoryUpdatesEnabled}
             disabled={!memoryEnabled || isBusy}
             onChange={handleMemoryUpdates}
