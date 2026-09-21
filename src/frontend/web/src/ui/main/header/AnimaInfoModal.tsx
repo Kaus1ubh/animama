@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -9,6 +9,10 @@ import { getAnimaDisplayName } from "@/lib/anima-profile";
 import { runtimeImagePresentation } from "@/lib/runtime-content/animaRuntimeSnapshot";
 import { useRuntimeContentMediaUrl } from "@/query/hooks/useRuntimeContentMediaUrl";
 import { useMountedAnimaRuntimeContent } from "@/ui/app/AnimaRouteProviders";
+import { AnimaIdentitySection } from "@/ui/animas/AnimaIdentitySection";
+import { useMemoryEntryByPath } from "@/query/hooks/useMemoryEntries";
+import { resolveAnimaIdentityContent } from "@/lib/animas/anima-management-presentation";
+import { DialogOverlay } from "@/ui/components/dialog";
 import { Button } from "@/ui/components/button";
 import { EmotionalState } from "@/ui/components/emotional-state";
 import { SectionedModalFrame } from "@/ui/components/sectioned-modal-frame";
@@ -42,7 +46,12 @@ export function AnimaInfoModal({
 }: AnimaInfoModalProps) {
   const navigate = useNavigate();
   const mountedRuntimeContent = useMountedAnimaRuntimeContent();
-  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const identityQuery = useMemoryEntryByPath({
+    animaId: anima?.id,
+    path: "IDENTITY.md",
+    type: "file",
+    enabled: open && activeSection === "General" && Boolean(anima?.id),
+  });
   const openAnimaDetailsPage = (animaId: string) => {
     onOpenChange(false);
     void navigate({
@@ -67,26 +76,22 @@ export function AnimaInfoModal({
   const displayName = anima
     ? getAnimaDisplayName(anima)
     : (animaLabel ?? "Anima");
-  const identity = anima?.avatar?.identity?.trim() ?? "";
+  const fallbackIdentity = anima?.avatar?.identity?.trim() ?? "";
+  const identity = resolveAnimaIdentityContent(
+    identityQuery.data?.content,
+    fallbackIdentity,
+  );
   const runtimeProfileImage = useRuntimeContentMediaUrl(
     mountedRuntimeContent.data?.profile_image,
   );
   const runtimeProfileEntry = mountedRuntimeContent.data?.profile_image;
   const profileImageUrl = runtimeProfileImage.url;
   const emotionalState = emotionState ?? anima?.emotional_state ?? null;
-  const currentKey = `${anima?.id ?? "anima"}:${activeSection}`;
-  const identityExpanded = expandedKey === currentKey;
-  const identityLimit = 220;
-  const identityNeedsTruncate = identity.length > identityLimit;
-  const identityText =
-    identityExpanded || !identityNeedsTruncate
-      ? identity
-      : `${identity.slice(0, identityLimit).trimEnd()}…`;
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
+        <DialogOverlay className="z-40" />
         <SectionedModalFrame
           title="Anima details"
           description="Configure anima settings and behavior."
@@ -114,7 +119,7 @@ export function AnimaInfoModal({
           }
         >
           {activeSection === "General" ? (
-            <div className="border-border/60 bg-muted/10 flex flex-1 flex-col gap-6 rounded-xl border p-6">
+            <div className="border-border/60 bg-muted/10 flex flex-1 flex-col gap-6 rounded-xl border p-6 xl:min-h-0">
               <div>
                 <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
                   Anima
@@ -135,29 +140,22 @@ export function AnimaInfoModal({
                   </h3>
                 </div>
               </div>
-              <div className="grid gap-6">
-                <div className="space-y-2">
-                  <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                    Identity
-                  </p>
-                  <p className="text-foreground/90 text-sm">
-                    {identityText || "No avatar identity provided yet."}{" "}
-                    {identityNeedsTruncate ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedKey((prev) =>
-                            prev === currentKey ? null : currentKey,
-                          )
-                        }
-                        className="text-primary inline text-xs font-medium transition hover:underline"
-                      >
-                        {identityExpanded ? "See less" : "See more"}
-                      </button>
-                    ) : null}
-                  </p>
+              {anima?.id ? (
+                <div className="min-h-0 flex-1">
+                  <AnimaIdentitySection
+                    animaId={anima.id}
+                    identity={identity}
+                    identityLoading={identityQuery.isLoading}
+                    identityError={identityQuery.isError}
+                    fallbackIdentity={fallbackIdentity}
+                    onEdit={() => onOpenChange(false)}
+                  />
                 </div>
-              </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  No identity content provided yet.
+                </p>
+              )}
             </div>
           ) : activeSection === "Emotional State" ? (
             <div className="border-border/60 bg-muted/10 flex flex-1 flex-col gap-6 rounded-xl border p-6">

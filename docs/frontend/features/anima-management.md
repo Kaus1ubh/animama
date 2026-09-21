@@ -30,6 +30,10 @@ opens a nested modal route and closing it returns focus to the Identity panel.
 Saving updates the shared memory-entry query used by the rendered preview and
 subsequent chat turns.
 
+The chat-header Anima details modal uses the same rendered identity panel and
+top-right Edit identity link, which opens the management identity editor. Its
+backdrop uses the shared light dimming also used by App Settings.
+
 The owned-Anima carousel accepts ordinary vertical mouse-wheel movement and
 translates it into horizontal carousel scrolling while there is more content in
 that direction. At either boundary, vertical scrolling remains available to

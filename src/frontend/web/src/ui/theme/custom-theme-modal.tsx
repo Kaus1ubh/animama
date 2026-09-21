@@ -15,6 +15,7 @@ import {
   ColorPickerSelection,
 } from "@/ui/theme/color-picker";
 import { Button } from "@/ui/components/button";
+import { DIALOG_BACKDROP_CLASS_NAME } from "@/ui/components/dialog";
 import { useCustomTheme } from "@/ui/theme/custom-theme";
 import { type ThemeVarName } from "@/ui/theme/tokens";
 
@@ -116,7 +117,10 @@ export const CustomThemeModal = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4"
+      className={cn(
+        "fixed inset-0 z-[200] flex items-center justify-center p-4",
+        DIALOG_BACKDROP_CLASS_NAME,
+      )}
       onClick={closeModal}
     >
       <div

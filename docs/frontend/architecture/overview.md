@@ -129,8 +129,10 @@ Primary routes:
   route is intentionally minimal so URL changes do not remount the avatar,
   TTS, or SSE runtime.
 
-The sidebar App Settings action opens a modal over the active route. Its General
-section includes the private Display Name editor. Opening settings or saving a
+The sidebar App Settings action opens a modal over the active route. Modal
+backdrops share its light 10% black dimming and subtle blur through the shared
+dialog styles, including the Anima details and content preview modals. The App
+Settings General section includes the private Display Name editor. Opening settings or saving a
 name does not navigate or remount chat/avatar runtime state.
 
 ## Data And Runtime Flow

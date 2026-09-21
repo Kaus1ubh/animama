@@ -10,6 +10,7 @@ import type { AvatarVFXAppliedEffectSnapshot } from "@/lib/avatar";
 import { AppImage } from "@/platform/image/AppImage";
 import { useVRMEditorDebugStore } from "@/stores/vrm-editor-debug-store";
 import { Button } from "@/ui/components/button";
+import { DialogOverlay } from "@/ui/components/dialog";
 import { SectionedModalFrame } from "@/ui/components/sectioned-modal-frame";
 import { Switch } from "@/ui/components/switch";
 import {
@@ -918,7 +919,7 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
     <>
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
+          <DialogOverlay className="z-40" />
           <SectionedModalFrame
             title="VRM object debug"
             description="Inspect the live VRM asset and runtime bindings for the active avatar."
@@ -947,7 +948,7 @@ export function VRMEditorDebugModal({ animaLabel }: { animaLabel?: string }) {
         }}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[60] bg-black/75 backdrop-blur-sm" />
+          <DialogOverlay className="z-[60]" />
           <Dialog.Content className="border-border bg-background fixed top-1/2 left-1/2 z-[61] flex max-h-[92vh] w-[min(96vw,1200px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border shadow-2xl">
             <div className="border-border/60 flex items-start justify-between gap-4 border-b p-4">
               <div>
