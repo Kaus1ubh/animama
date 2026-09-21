@@ -253,7 +253,13 @@ export function ActionEditorWorkspace() {
 
   useEffect(() => {
     if (workspace.mode === "pose") void beginInlineKeyframeEdit();
-  }, [activeAvatar, beginInlineKeyframeEdit, workspace.mode]);
+  }, [
+    activeAvatar,
+    beginInlineKeyframeEdit,
+    workspace.mode,
+    // Document sync hydrates the new session before this parent effect runs.
+    workspace.timelineSession,
+  ]);
 
   const applyInlineKeyframe = () => {
     const state = usePoseCreatorStore.getState();

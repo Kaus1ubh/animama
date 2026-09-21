@@ -12,7 +12,6 @@ import {
   Loader2Icon,
   MoreHorizontalIcon,
   PencilIcon,
-  PersonStandingIcon,
   Redo2Icon,
   SaveIcon,
   SlidersHorizontalIcon,
@@ -180,13 +179,13 @@ export function ActionEditorHeader({
   };
 
   return (
-    <header className="bg-background/95 relative z-40 shrink-0 px-2 py-2 backdrop-blur-xl sm:px-3 lg:absolute lg:inset-x-0 lg:top-0 lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:backdrop-blur-none lg:transition-[padding-left] lg:duration-150 lg:ease-in-out">
+    <header className="bg-background/95 relative z-40 shrink-0 px-2 py-2 backdrop-blur-xl sm:px-3 lg:absolute lg:inset-x-0 lg:top-0 lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:backdrop-blur-none lg:transition-[padding-left] lg:duration-150 lg:ease-in-out xl:pr-8 xl:pl-[calc(var(--app-shell-sidebar-inset)+2rem)]">
       <div
         className={cn(
-          "grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-rows-1 lg:gap-1.5 2xl:gap-3",
+          "grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-rows-1 lg:items-start lg:gap-1.5 2xl:gap-3",
           pose
-            ? "lg:grid-cols-[auto_auto_auto_auto_minmax(180px,1fr)_auto]"
-            : "lg:grid-cols-[auto_auto_auto_auto_auto_minmax(180px,1fr)_auto]",
+            ? "lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto]"
+            : "lg:grid-cols-[auto_auto_auto_auto_auto_minmax(120px,1fr)_auto]",
         )}
       >
         <ActionModeControl onModeChange={onModeChange} />
@@ -268,24 +267,36 @@ function ActionModeControl({
   }
   return (
     <Tabs
-      className="col-start-1 row-start-1 min-w-0 shrink-0"
+      className="col-start-1 row-start-1 min-w-0 shrink-0 lg:min-w-max"
       value={workspace.mode === "pose" ? "pose" : "clip"}
       onValueChange={(value) =>
         onModeChange(value === "pose" ? "pose" : "clip")
       }
     >
-      <TabsList className="border-border/70 bg-background grid h-11 w-full max-w-[164px] grid-cols-2 rounded-xl border p-1 shadow-sm lg:h-12 lg:w-[164px] 2xl:w-[218px]">
+      <TabsList className="border-border/70 bg-background grid h-11 w-full max-w-[184px] grid-cols-2 rounded-xl border p-1 shadow-sm lg:h-12 lg:w-[184px] 2xl:w-[218px] 2xl:max-w-[218px]">
         <TabsTrigger
-          className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary h-9 gap-1.5 rounded-lg px-2 text-xs data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
+          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-9 gap-1.5 rounded-lg px-2 text-xs data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
           value="pose"
         >
-          <PersonStandingIcon className="size-4" /> Pose
+          <span
+            aria-hidden="true"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full border border-current text-[11px] font-semibold"
+          >
+            1
+          </span>
+          Pose
         </TabsTrigger>
         <TabsTrigger
-          className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary h-9 gap-1.5 rounded-lg px-2 text-xs data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
+          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-9 gap-1.5 rounded-lg px-2 text-xs data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
           value="clip"
         >
-          <ClapperboardIcon className="size-4" /> Clip
+          <span
+            aria-hidden="true"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full border border-current text-[11px] font-semibold"
+          >
+            2
+          </span>
+          Clip
         </TabsTrigger>
       </TabsList>
     </Tabs>
@@ -313,7 +324,7 @@ function PosePrimaryActions({ busy }: { busy: boolean }) {
         form="pose-creator-pose-save-form"
         name="pose-creator-submit-action"
         value="save-and-branch"
-        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[128px] 2xl:px-3"
+        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[160px] 2xl:px-3"
         disabled={busy || !selectedSource || !activeAvatar}
         aria-label="Save and branch pose"
       >
@@ -933,7 +944,7 @@ function ActionPrimaryActions() {
       <Button
         type="button"
         variant="outline"
-        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[86px] 2xl:px-3"
+        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-3"
         disabled={disabled}
         onClick={() => void workspace.save()}
         aria-label="Save content"
@@ -947,7 +958,7 @@ function ActionPrimaryActions() {
       </Button>
       <Button
         type="button"
-        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[132px] 2xl:px-3"
+        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[160px] 2xl:px-3"
         disabled={disabled}
         onClick={() => void workspace.saveAndEquip()}
         aria-label="Save and equip content"
@@ -1091,7 +1102,7 @@ function ActionImportDialog({
                 return (
                   <div
                     key={reference.alias}
-                    className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,1fr)_auto] sm:items-center"
+                    className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(120px,1fr)_auto] sm:items-center"
                   >
                     <div>
                       <p className="font-mono text-xs font-medium">

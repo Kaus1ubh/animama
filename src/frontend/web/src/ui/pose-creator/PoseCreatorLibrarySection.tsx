@@ -246,7 +246,7 @@ function SavedDraftLoadButton({
         <Button
           type="button"
           variant="outline"
-          className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-4 2xl:min-w-[112px]"
+          className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-4"
           aria-label="Load pose"
         >
           <FolderOpenIcon className="size-4" />
