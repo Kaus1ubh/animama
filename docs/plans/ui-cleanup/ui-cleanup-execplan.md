@@ -128,3 +128,23 @@ restoring Full body, Head binding selecting Custom and disabling manual camera Y
 and no Camera section in App Settings from Library. Fullscreen entry succeeded,
 but interacting through the testing browser returned to normal view, so detailed
 fullscreen interaction remains unverified. Library group layout remains unchanged.
+
+
+## Dialog geometry and branding follow-up
+
+Reset now shares the Camera Y Source label row, removing its empty toolbar row.
+Identity editing and memory Versions opt into shared sidebar-aware dialog geometry
+using the existing app-shell width resolver. Their width is capped to the remaining
+viewport and they center beside the expanded or compact desktop sidebar. Other
+dialogs retain their placement. Creator hub copy is removed, the subtitle reads
+“Create characters, actions, and effects for your Animas.”, and the sidebar brand
+reads Animama. Three generated logo concepts remain proposals; no new mark is installed.
+
+Validation: TypeScript, scoped ESLint/Prettier and 31 focused tests across sidebar
+geometry, camera, memory version/layout and creator entry-point suites passed.
+Independent six-file review found no actionable issues. Browser screenshots at
+1280px confirmed identity and Versions dialogs clear the expanded sidebar; the
+identity dialog's left edge is 260px against the 242px sidebar. A narrow-viewport
+Canvas screenshot confirmed Reset shares the Camera Y Source label row. No memory edits or
+version reverts were performed. Production build and native acceptance were not
+repeated for this focused layout/copy follow-up.

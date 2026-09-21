@@ -19,7 +19,7 @@ export const Logo = () => {
         animate={{ opacity: 1 }}
         className="text-sidebar-foreground dark:text-sidebar-foreground text-base font-medium whitespace-pre"
       >
-        Anima
+        Animama
       </motion.span>
     </Link>
   );

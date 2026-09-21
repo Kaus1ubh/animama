@@ -158,22 +158,22 @@ export function SceneCameraPanel({
 }: SceneCameraPanelProps) {
   return (
     <div className={cn("space-y-3", className)}>
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2 text-xs"
-          onClick={onReset}
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-          Reset
-        </Button>
-      </div>
       <div className="space-y-2">
-        <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-          Camera Y Source
-        </FieldLabel>
+        <div className="flex items-center justify-between gap-3">
+          <FieldLabel className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+            Camera Y Source
+          </FieldLabel>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs"
+            onClick={onReset}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
+          </Button>
+        </div>
         <div className="relative">
           <select
             aria-label="Camera Y source"
