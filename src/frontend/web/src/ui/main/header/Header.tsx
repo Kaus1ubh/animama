@@ -7,7 +7,6 @@ import { Menu } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
-import { motion, useReducedMotion } from "motion/react";
 import { DEBUG_ENABLED } from "@/platform/env";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
@@ -38,10 +37,6 @@ export function Header({
   className,
 }: HeaderProps) {
   const [modalOpen, setModalOpen] = useState(false);
-  const [nameHovered, setNameHovered] = useState(false);
-  const [nameFocused, setNameFocused] = useState(false);
-  const reducedMotion = useReducedMotion();
-  const nameHighlighted = nameHovered || nameFocused;
   const {
     data: animas = [],
     isLoading,
@@ -105,57 +100,14 @@ export function Header({
     <button
       type="button"
       onClick={openAnimaProfile}
-      onMouseEnter={() => setNameHovered(true)}
-      onMouseLeave={() => setNameHovered(false)}
-      onFocus={() => setNameFocused(true)}
-      onBlur={() => setNameFocused(false)}
-      className="focus-visible:ring-ring relative isolate max-w-full min-w-0 rounded-xl p-[2px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+      className="hover:bg-muted/70 focus-visible:ring-ring flex max-w-full min-w-0 items-center rounded-md bg-transparent px-4 py-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:px-6"
       aria-label="Open anima details"
       aria-haspopup="dialog"
       aria-expanded={modalOpen}
     >
-      {/* Decorative layers are invisible and stationary until hover or focus. */}
-      {[true, false].map((glow) => (
-        <motion.span
-          key={String(glow)}
-          aria-hidden="true"
-          className={cn(
-            "pointer-events-none absolute inset-0 -z-10 rounded-xl",
-            glow && "blur-md",
-          )}
-          initial={false}
-          animate={{
-            opacity: nameHighlighted ? (glow ? 0.4 : 0.8) : 0,
-            backgroundPosition:
-              nameHighlighted && !reducedMotion
-                ? ["0% 50%", "100% 50%", "0% 50%"]
-                : "0% 50%",
-          }}
-          transition={{
-            opacity: { duration: reducedMotion ? 0 : 0.2 },
-            backgroundPosition: {
-              duration: nameHighlighted && !reducedMotion ? 5 : 0,
-              repeat: nameHighlighted && !reducedMotion ? Infinity : 0,
-              ease: "linear",
-            },
-          }}
-          style={{
-            backgroundSize: "400% 400%",
-            backgroundImage:
-              "radial-gradient(circle farthest-side at 0 100%, #00ccb1, transparent), radial-gradient(circle farthest-side at 100% 0, #7b61ff, transparent), radial-gradient(circle farthest-side at 100% 100%, #ffc414, transparent), radial-gradient(circle farthest-side at 0 0, #1ca0fb, #141316)",
-          }}
-        />
-      ))}
-      <div
-        className={cn(
-          "relative flex min-w-0 items-center rounded-[10px] px-4 py-1.5 sm:px-6",
-          nameHighlighted && "bg-background",
-        )}
-      >
-        <h1 className="text-foreground truncate text-lg font-semibold">
-          {animaLabel}
-        </h1>
-      </div>
+      <h1 className="text-foreground truncate text-lg font-semibold">
+        {animaLabel}
+      </h1>
     </button>
   ) : null;
   const leftContent = left ?? null;

@@ -224,3 +224,8 @@ found no actionable bugs; its idle-surface and narrow-width observations were
 addressed with a transparent resting surface and max-width bound. Browser checks
 confirmed the old control is absent, name opens the profile, close restores focus,
 and the gradient renders around the focused name. No full build/native test run.
+
+
+The owner subsequently requested reverting the gradient. Removed its Motion layers
+and hover/focus animation state; retained the plain name trigger, keyboard focus
+ring and removal of the separate emotion-status control.
