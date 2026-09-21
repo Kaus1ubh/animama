@@ -11,19 +11,28 @@ import {
 } from "@/ui/components/tooltip";
 
 type SidebarHeaderProps = {
-  showOpenHeader: boolean;
   onSearch: () => void;
 };
 
-export const SidebarHeader = ({
-  showOpenHeader,
-  onSearch,
-}: SidebarHeaderProps) => {
-  const { setOpen } = useSidebar();
+export const SidebarHeader = ({ onSearch }: SidebarHeaderProps) => {
+  const { open, setOpen, animate } = useSidebar();
+  const transition = animate
+    ? "transition-opacity duration-150 ease-in-out motion-reduce:transition-none"
+    : "transition-none";
 
-  if (showOpenHeader) {
-    return (
-      <div className="flex h-11 w-full items-center justify-between">
+  // Retain both layouts so opacity tracks the sidebar width without a delayed swap.
+  // Inactive controls are inert as well as invisible during the crossfade.
+  return (
+    <div className="relative h-11 shrink-0">
+      <div
+        aria-hidden={!open}
+        inert={!open}
+        className={cn(
+          "absolute top-0 left-0 flex h-11 w-[230px] items-center justify-between",
+          transition,
+          open ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+      >
         <Logo />
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
           <button
@@ -52,33 +61,38 @@ export const SidebarHeader = ({
           </button>
         </div>
       </div>
-    );
-  }
-
-  const button = (
-    <button
-      type="button"
-      onClick={() => setOpen(true)}
-      className={cn(
-        "border-border/60 bg-background/60 text-foreground/80 hover:text-foreground flex h-11 w-11 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-colors",
-      )}
-      aria-label="Open sidebar"
-    >
-      <span className="items-center group-hover/sidebar-shell:hidden">
-        <LogoMark />
-      </span>
-      <span className="hidden items-center group-hover/sidebar-shell:flex">
-        <PanelLeft className="h-5 w-5" />
-      </span>
-    </button>
-  );
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right" sideOffset={8}>
-        Open sidebar
-      </TooltipContent>
-    </Tooltip>
+      <div
+        aria-hidden={open}
+        inert={open}
+        className={cn(
+          "absolute top-0 left-0",
+          transition,
+          open ? "pointer-events-none opacity-0" : "opacity-100",
+        )}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className={cn(
+                "border-border/60 bg-background/60 text-foreground/80 hover:text-foreground flex h-11 w-11 items-center justify-center rounded-full border shadow-sm backdrop-blur-md transition-colors",
+              )}
+              aria-label="Open sidebar"
+            >
+              <span className="items-center group-hover/sidebar-shell:hidden">
+                <LogoMark className="size-7 translate-x-px -translate-y-px bg-transparent" />
+              </span>
+              <span className="hidden items-center group-hover/sidebar-shell:flex">
+                <PanelLeft className="h-5 w-5" />
+              </span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            Open sidebar
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
   );
 };

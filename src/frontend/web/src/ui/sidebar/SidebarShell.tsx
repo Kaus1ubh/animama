@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useParams } from "@tanstack/react-router";
 import {
   resolveAnimasNavigationTarget,
@@ -51,7 +51,6 @@ export function SidebarShell({
   const animate = appShell
     ? appShell.sidebarAnimating && !appShell.suppressAnimations
     : true;
-  const [showOpenHeader, setShowOpenHeader] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const sidebarLinks = useMemo(() => {
     const animasTarget = resolveAnimasNavigationTarget(animaId);
@@ -105,23 +104,11 @@ export function SidebarShell({
     ),
   };
 
-  useEffect(() => {
-    const delay = !open && animate ? 200 : 0;
-    const timer = setTimeout(() => {
-      setShowOpenHeader(open);
-    }, delay);
-
-    return () => clearTimeout(timer);
-  }, [open, animate]);
-
   return (
     <Sidebar open={open} setOpen={setOpen} animate={animate}>
       <SidebarBody className="justify-between gap-2">
         <div className="sidebar-scrollbar-hover flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
-          <SidebarHeader
-            showOpenHeader={showOpenHeader}
-            onSearch={() => setSearchOpen(true)}
-          />
+          <SidebarHeader onSearch={() => setSearchOpen(true)} />
           <div className="mt-5 flex flex-col gap-1">
             {sidebarLinks.slice(0, 1).map((link) => (
               <SidebarLink key={link.label} link={link} />

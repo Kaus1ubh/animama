@@ -173,3 +173,20 @@ expanded Angry preview clears the expanded sidebar, has a title-only header,
 and shows smaller non-overlapping sidebar actions. No new tests were added for branding or
 copy-only changes. No packaged desktop icon change, production build or native
 acceptance was performed.
+
+
+## Compact brand and transition follow-up
+
+Reduced the collapsed logo from size-8 to size-7, removed its separate backing
+inside the circular control, and applied a one-pixel right/up optical correction.
+The abrupt header change came from a 200ms delayed state swap while sidebar width
+animated over 150ms. Removed that timer and the wordmark mount fade. Both header
+layouts now remain mounted with state-driven 150ms opacity transitions; inactive
+controls are inert and aria-hidden, and reduced-motion skips fading.
+
+Web TypeScript, scoped ESLint/Prettier and independent review passed. Browser
+checks confirmed compact appearance and expansion; a live transition observation
+reported opacity 0.029 with a 0.15s transition before the expanded header settled.
+No new tests or production build were added for this visual follow-up. SVG format
+was assessed, but original approved PNGs are preserved pending faithful vector
+tracing rather than embedding raster bytes in a nominal SVG file.

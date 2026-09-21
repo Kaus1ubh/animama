@@ -4,6 +4,18 @@ Approved option 1: companion speech bubble with sky-blue rays and the rounded An
 
 Generated with the built-in imagegen tool from the owner-selected concept. Transparent PNG assets are used for the sidebar and browser favicon. The wordmark is an alpha mask so its color follows the sidebar theme. The mark has a warm backing in the sidebar for dark-theme contrast. Browser page title is Animama.
 
+## Rendering and formats
+
+The compact sidebar uses a slightly smaller mark with a one-pixel optical offset
+right and up to balance the speech bubble and upper-right rays. Header layouts
+stay mounted and crossfade with the sidebar width transition; inactive controls
+are inert and hidden from accessibility APIs. Reduced-motion users skip the fade.
+
+PNG originals preserve the approved generated artwork. A future vector master
+should use true paths, including outlined wordmark lettering, checked against
+these originals. Embedding PNG bytes inside SVG does not make the artwork vector.
+Raster favicon sizes can be exported from that approved master when available.
+
 ## Generation prompts
 
 ### Mark

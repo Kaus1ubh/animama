@@ -1,14 +1,17 @@
 import { Link } from "@tanstack/react-router";
-import { motion } from "motion/react";
+import { cn } from "@/lib/utils";
 
-export const LogoMark = () => {
+export const LogoMark = ({ className }: { className?: string }) => {
   return (
     <img
       src="/brand/animama-mark.png"
       alt=""
       width={32}
       height={32}
-      className="size-8 shrink-0 rounded-lg bg-[#faf8f5] object-contain"
+      className={cn(
+        "size-8 shrink-0 rounded-lg bg-[#faf8f5] object-contain",
+        className,
+      )}
     />
   );
 };
@@ -21,9 +24,7 @@ export const Logo = () => {
       className="text-sidebar-foreground dark:text-sidebar-foreground relative z-20 flex h-11 min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 text-sm font-normal"
     >
       <LogoMark />
-      <motion.span
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+      <span
         aria-hidden="true"
         className="bg-sidebar-foreground block h-8 w-[90px] shrink-0"
         style={{
