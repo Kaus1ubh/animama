@@ -19,6 +19,27 @@ export function shouldHydrateActionTimeline(
   return serialized !== lastReceived;
 }
 
+/** A title edit must not replace the active inline pose or its undo history. */
+export function syncActionTimelineMetadata(
+  sequence: Record<string, unknown>,
+  previous: Record<string, unknown> | null,
+): boolean {
+  if (
+    !previous ||
+    typeof sequence.id !== "string" ||
+    typeof sequence.name !== "string" ||
+    JSON.stringify({ ...sequence, id: null, name: null }) !==
+      JSON.stringify({ ...previous, id: null, name: null })
+  ) {
+    return false;
+  }
+  usePoseCreatorStore.getState().updateClipDraft({
+    id: sequence.id,
+    name: sequence.name,
+  });
+  return true;
+}
+
 /** Empty typed action documents intentionally have no playable clip yet. */
 export function isEmptyActionTimeline(
   sequence: Record<string, unknown>,
@@ -76,6 +97,7 @@ export function ActionTimelineDocumentSync({
   const draft = usePoseCreatorStore((state) => state.clipDraft);
   const undoGroup = usePoseCreatorStore((state) => state.undoGroup);
   const lastReceived = useRef("");
+  const lastReceivedSequence = useRef<Record<string, unknown> | null>(null);
   const lastEmitted = useRef("");
   const lastTimelineSession = useRef<number | null>(null);
   const staleDraftBeforeHydration = useRef<typeof draft | null>(null);
@@ -111,6 +133,8 @@ export function ActionTimelineDocumentSync({
     // document. Re-hydrating the unchanged prop here would overwrite the edit
     // before the draft-to-document effect can emit it.
     if (!shouldHydrateActionTimeline(serialized, lastReceived.current)) return;
+    const previousSequence = lastReceivedSequence.current;
+    lastReceivedSequence.current = editorSequence;
     lastReceived.current = serialized;
     if (serialized === lastEmitted.current) return;
     const preservePlayhead = shouldPreserveTimelinePlayhead(
@@ -120,6 +144,13 @@ export function ActionTimelineDocumentSync({
     const currentTimeSec =
       usePoseCreatorStore.getState().clipDraft.currentTimeSec;
     lastTimelineSession.current = session;
+    if (
+      preservePlayhead &&
+      syncActionTimelineMetadata(editorSequence, previousSequence)
+    ) {
+      staleDraftBeforeHydration.current = draft;
+      return;
+    }
     if (isEmptyActionTimeline(editorSequence)) {
       staleDraftBeforeHydration.current = draft;
       resetClipDraft(

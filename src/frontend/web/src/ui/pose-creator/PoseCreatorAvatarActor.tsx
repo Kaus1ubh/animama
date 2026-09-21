@@ -48,6 +48,9 @@ export function PoseCreatorAvatarActor({
   const logger = useMemo(() => createLogger("PoseCreatorAvatarActor"), []);
   const { camera, gl } = useThree();
   const viewportElement = gl.domElement;
+  const editingPose = usePoseCreatorStore(
+    (state) => state.authoringMode === "pose" || Boolean(state.clipInlineEdit),
+  );
   const basePose = usePoseCreatorStore((state) => state.basePose);
   const boneDrafts = usePoseCreatorStore((state) => state.boneDrafts);
   const expressionDrafts = usePoseCreatorStore(
@@ -164,14 +167,16 @@ export function PoseCreatorAvatarActor({
   });
 
   useEffect(() => {
-    if (!sceneObject || !avatarRef.current) return;
+    // Full Clip mode is rendered by PreviewSync. A late actor mount must not
+    // replace the loaded document's sample with the pose scratchpad.
+    if (!editingPose || !sceneObject || !avatarRef.current) return;
     applyPoseCreatorDraftsToAvatar(
       avatarRef.current,
       basePose,
       boneDrafts,
       expressionDrafts,
     );
-  }, [basePose, boneDrafts, expressionDrafts, sceneObject]);
+  }, [basePose, boneDrafts, editingPose, expressionDrafts, sceneObject]);
 
   if (!sceneObject) return null;
   return (

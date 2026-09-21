@@ -256,6 +256,9 @@ export function ActionEditorWorkspace() {
   }, [
     activeAvatar,
     beginInlineKeyframeEdit,
+    // Same-session document hydration can replace an inline edit without
+    // changing the Avatar or mode. Reattach editing to the new keyframe.
+    clipInlineEdit,
     workspace.mode,
     // Document sync hydrates the new session before this parent effect runs.
     workspace.timelineSession,

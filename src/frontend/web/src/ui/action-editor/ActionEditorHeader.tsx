@@ -63,6 +63,7 @@ import {
 } from "@/ui/components/select";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Textarea } from "@/ui/components/textarea";
+import { CreatorHeaderDocument } from "@/ui/content-creator/CreatorHeaderDocument";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import {
   Tooltip,
@@ -222,10 +223,11 @@ function ActionInspectorButton({ children }: { children: ReactNode }) {
         <Button
           type="button"
           variant="outline"
-          className="col-start-3 row-start-1 hidden h-12 min-w-[104px] rounded-xl px-3 shadow-sm lg:inline-flex"
+          aria-label="Inspector"
+          className="col-start-3 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[104px] 2xl:px-3"
         >
           <SlidersHorizontalIcon className="size-4" />
-          Inspector
+          <span className="hidden 2xl:inline">Inspector</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -534,99 +536,107 @@ function ActionDocumentField({ status }: { status: ActionHeaderStatus }) {
     if (workspace.errorField === "name") nameInputRef.current?.focus();
   }, [workspace.errorField]);
   return (
-    <div
-      className={cn(
-        "border-border/70 bg-background col-span-2 col-start-1 row-start-2 flex w-full min-w-0 items-center rounded-xl border px-3 shadow-sm lg:col-span-1 lg:col-start-6 lg:row-start-1 lg:justify-self-center",
+    <CreatorHeaderDocument
+      className="col-span-2 col-start-1 row-start-2 flex min-w-0 justify-center lg:col-span-1 lg:col-start-6 lg:row-start-1"
+      widthClassName={
         gesture
-          ? "h-14 lg:h-16 lg:max-w-[460px]"
-          : "h-11 lg:h-12 lg:max-w-[380px]",
-      )}
+          ? "w-full min-w-0 lg:max-w-[460px]"
+          : "w-full min-w-0 lg:max-w-[380px]"
+      }
     >
-      <div className="flex min-w-0 flex-1 flex-col justify-center">
-        <div
-          className={cn(
-            "flex min-w-0 items-center rounded-sm",
-            nameInvalid && "bg-destructive/5",
-          )}
-        >
-          <span
-            className={cn(
-              "text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-[10px] font-medium",
-              nameInvalid && "text-destructive",
-            )}
-          >
-            <PencilIcon className="size-3" />
-            Name&nbsp;&nbsp;&nbsp;&nbsp;
-          </span>
-          <Input
-            ref={nameInputRef}
-            value={workspace.document.name}
-            onChange={(event) => {
-              workspace.clearSaveErrorField("name");
-              workspace.setDocument((value) =>
-                renameActionDocument(
-                  value,
-                  event.target.value,
-                  !workspace.identityExists,
-                ),
-              );
-            }}
-            placeholder={`New ${gesture ? "Gesture" : "Reaction"}`}
-            aria-label={`${workspace.document.intent} name`}
-            aria-invalid={nameInvalid}
-            className={cn(
-              "h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent",
-              nameInvalid && "text-destructive placeholder:text-destructive/70",
-            )}
-          />
-          <ActionDocumentIndicators status={status} />
-        </div>
-        {gesture ? (
+      <div
+        className={cn(
+          "border-border/70 bg-background flex w-full min-w-0 items-center rounded-xl border px-3 shadow-sm",
+          gesture ? "h-14 lg:h-16" : "h-11 lg:h-12",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
           <div
             className={cn(
-              "border-border/60 flex min-w-0 items-center rounded-sm border-t",
-              aiDescriptionInvalid && "bg-destructive/5",
+              "flex min-w-0 items-center rounded-sm",
+              nameInvalid && "bg-destructive/5",
             )}
           >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className={cn(
-                    "text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-[10px] font-medium",
-                    aiDescriptionInvalid && "text-destructive",
-                  )}
-                  aria-label="AI selection guidance"
-                >
-                  <WandSparklesIcon className="size-3" />
-                  AI Desc.
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                Description of Gesture used by AI to determine{" "}
-                <strong>when</strong> to invoke this gesture while chatting.
-              </TooltipContent>
-            </Tooltip>
+            <span
+              className={cn(
+                "text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-[10px] font-medium",
+                nameInvalid && "text-destructive",
+              )}
+            >
+              <PencilIcon className="size-3" />
+              Name&nbsp;&nbsp;&nbsp;&nbsp;
+            </span>
             <Input
-              value={workspace.document.aiDescription}
-              onChange={(event) =>
-                workspace.setDocument((value) => ({
-                  ...value,
-                  aiDescription: event.target.value,
-                }))
-              }
-              placeholder="Description of Gesture"
-              aria-label="AI selection description"
-              aria-invalid={aiDescriptionInvalid}
+              ref={nameInputRef}
+              value={workspace.document.name}
+              onChange={(event) => {
+                workspace.clearSaveErrorField("name");
+                workspace.setDocument((value) =>
+                  renameActionDocument(
+                    value,
+                    event.target.value,
+                    !workspace.identityExists,
+                  ),
+                );
+              }}
+              placeholder={`New ${gesture ? "Gesture" : "Reaction"}`}
+              aria-label={`${workspace.document.intent} name`}
+              aria-invalid={nameInvalid}
               className={cn(
                 "h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent",
-                aiDescriptionInvalid &&
+                nameInvalid &&
                   "text-destructive placeholder:text-destructive/70",
               )}
             />
+            <ActionDocumentIndicators status={status} />
           </div>
-        ) : null}
+          {gesture ? (
+            <div
+              className={cn(
+                "border-border/60 flex min-w-0 items-center rounded-sm border-t",
+                aiDescriptionInvalid && "bg-destructive/5",
+              )}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-[10px] font-medium",
+                      aiDescriptionInvalid && "text-destructive",
+                    )}
+                    aria-label="AI selection guidance"
+                  >
+                    <WandSparklesIcon className="size-3" />
+                    AI Desc.
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Description of Gesture used by AI to determine{" "}
+                  <strong>when</strong> to invoke this gesture while chatting.
+                </TooltipContent>
+              </Tooltip>
+              <Input
+                value={workspace.document.aiDescription}
+                onChange={(event) =>
+                  workspace.setDocument((value) => ({
+                    ...value,
+                    aiDescription: event.target.value,
+                  }))
+                }
+                placeholder="Description of Gesture"
+                aria-label="AI selection description"
+                aria-invalid={aiDescriptionInvalid}
+                className={cn(
+                  "h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent",
+                  aiDescriptionInvalid &&
+                    "text-destructive placeholder:text-destructive/70",
+                )}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
-    </div>
+    </CreatorHeaderDocument>
   );
 }
 

@@ -711,6 +711,25 @@ function resetTransientStateForSource(
   };
 }
 
+/** New timeline documents must not inherit a previous creator's pose scratchpad. */
+function resetPoseAuthoringState(basePose = DEFAULT_POSE_CREATOR_BASE_POSE) {
+  return {
+    basePose,
+    selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
+    selectedBoneFocusRequest: null,
+    boneDrafts: {},
+    expressionDrafts: {},
+    isDirty: false,
+    poseUndoHistory: [],
+    poseRedoHistory: [],
+    undoGroup: null,
+    exportPreview: null,
+    draftName: "",
+    selectedSavedDraftId: null,
+    importError: null,
+  };
+}
+
 function createDefaultClipDraft(): PoseCreatorClipDraft {
   return createDefaultPoseCreatorClipDraft(
     DEFAULT_POSE_CREATOR_BASE_POSE,
@@ -1820,6 +1839,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         state.activeAvatar?.clearAllExpressionOverrides();
         state.activeAvatar?.vrm?.update(0);
         return {
+          ...resetPoseAuthoringState(),
           clipDraft: {
             ...createDefaultClipDraft(),
             ...(name ? { name } : {}),
@@ -1851,6 +1871,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           ),
         };
         set({
+          ...resetPoseAuthoringState(hydratedDraft.basePose),
           authoringMode: "clip",
           clipDraft: withPoseCreatorClipValidation(
             { ...hydratedDraft, isDirty: false },
@@ -3190,22 +3211,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         exportPreview: null,
         importError: replacement.importError ?? null,
       }),
-    startNewPose: () =>
-      set({
-        basePose: DEFAULT_POSE_CREATOR_BASE_POSE,
-        selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
-        selectedBoneFocusRequest: null,
-        boneDrafts: {},
-        expressionDrafts: {},
-        isDirty: false,
-        poseUndoHistory: [],
-        poseRedoHistory: [],
-        undoGroup: null,
-        exportPreview: null,
-        draftName: "",
-        selectedSavedDraftId: null,
-        importError: null,
-      }),
+    startNewPose: () => set(resetPoseAuthoringState()),
     resetWorkspace: () =>
       set({
         ...resetTransientStateForSource(null),

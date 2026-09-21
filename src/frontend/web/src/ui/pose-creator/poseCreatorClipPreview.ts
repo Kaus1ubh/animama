@@ -37,6 +37,11 @@ export function applyPoseCreatorClipPreview(
     omittedBasePoseId: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
   });
   if (!clip) {
+    // An empty document still owns the canvas state. Restore it after a prior
+    // preview's cleanup or a late Avatar mount instead of retaining old edits.
+    applyPoseCreatorBasePose(avatar, draft.basePose);
+    avatar.clearAllExpressionOverrides();
+    avatar.vrm?.update(0);
     return {
       applied: false,
       diagnostics: createPoseCreatorClipPreviewDiagnostics(),

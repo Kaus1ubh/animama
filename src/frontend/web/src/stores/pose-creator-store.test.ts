@@ -65,6 +65,45 @@ describe("pose creator model selection", () => {
     expect(switched.clipDraft.isDirty).toBe(true);
   });
 
+  it.each(["blank", "saved"])(
+    "drops another creator's pose scratch state when opening a %s document",
+    (documentKind) => {
+      const store = usePoseCreatorStore.getState();
+      store.setBoneDraft("leftUpperArm", {
+        baseQuaternion: [0, 0, 0, 1],
+        rotationDegrees: { x: 70, y: 0, z: 0 },
+      });
+      store.setExpressionDraft("happy", { baseValue: 0, value: 1 });
+      store.setSelectedBone("head");
+      if (documentKind === "blank") {
+        store.resetClipDraft("New Reaction");
+      } else {
+        store.hydrateClipDocument(
+          parseAnimaPoseClip({
+            schema: "animaPoseClip/1.0",
+            id: "saved-reaction",
+            name: "Saved Reaction",
+            duration: 1,
+            poses: { expression: { expressions: { sad: 0.4 } } },
+            poseKeyframes: [{ time: 0, pose: "expression" }],
+          }),
+        );
+        expect(
+          usePoseCreatorStore.getState().clipDraft.poses.expression,
+        ).toEqual({
+          expressions: { sad: 0.4 },
+        });
+      }
+      const next = usePoseCreatorStore.getState();
+      expect(next.boneDrafts).toEqual({});
+      expect(next.expressionDrafts).toEqual({});
+      expect(next.selectedBone).toBe("leftUpperArm");
+      expect(next.poseUndoHistory).toEqual([]);
+      expect(next.poseRedoHistory).toEqual([]);
+      expect(next.isDirty).toBe(false);
+    },
+  );
+
   it("hydrates exact Asset documents as clean Clip workspaces", () => {
     const hydrated = usePoseCreatorStore.getState().hydrateClipDocument(
       parseAnimaPoseClip({
