@@ -4,9 +4,7 @@ Animama Desktop supports global voice shortcuts through the Electron main
 process. The browser web app can store and display these application preferences,
 but shortcut capture only runs inside the desktop app.
 
-This page covers the desktop shortcut system only. Browser web sessions still
-show the saved preferences, but they do not register native shortcuts. For the
-Quick Chat window implementation, see `desktop/quick-chat.md`.
+For the auxiliary chat window, see [Quick Chat](quick-chat.md).
 
 ## Defaults
 
@@ -69,52 +67,16 @@ recording control can receive the input first.
 
 ## Persisted Shape
 
-The settings are stored in `user_settings.preferences.speech`:
-
-```ts
-{
-  desktop_shortcuts: {
-    press_to_talk: DesktopShortcut,
-    quick_chat: DesktopShortcut,
-    toggle_voice_mode: DesktopShortcut,
-    toggle_voice_mute: DesktopShortcut,
-    skip_tts: DesktopShortcut,
-  },
-}
-```
-
-`DesktopShortcut` is a keyboard shortcut or a mouse shortcut:
-
-```ts
-type DesktopKeyboardShortcut = {
-  type?: "keyboard";
-  code: string;
-  key?: string;
-  ctrlKey?: true;
-  altKey?: true;
-  shiftKey?: true;
-  metaKey?: true;
-};
-
-type DesktopMouseShortcut = {
-  type: "mouse";
-  button: number;
-  ctrlKey?: true;
-  altKey?: true;
-  shiftKey?: true;
-  metaKey?: true;
-};
-```
+The settings are stored under `user_settings.preferences.speech.desktop_shortcuts`,
+with entries for `press_to_talk`, `quick_chat`, `toggle_voice_mode`,
+`toggle_voice_mute` and `skip_tts`. Keyboard entries contain a physical `code`,
+optional display `key`, optional `type: "keyboard"` and modifier flags
+`ctrlKey`, `altKey`, `shiftKey`, `metaKey`. Mouse entries use `type: "mouse"`,
+`button` and the same modifier flags.
 
 Existing keyboard records without a `type` field remain valid for backward
 compatibility. The optional `key` field is display metadata only; matching uses
 the physical `code`.
-
-Press to talk may be stored as a mouse shortcut:
-
-```ts
-{ type: "mouse", button: 4, ctrlKey?: true, altKey?: true, shiftKey?: true, metaKey?: true }
-```
 
 Mouse buttons use the browser recorder's button number plus one: left is 1,
 middle is 2, right is 3, and extra buttons begin at 4. They are displayed
@@ -159,33 +121,10 @@ actions therefore use a 100 ms leading-edge cooldown in the main process: the
 first callback emits the action, and repeated callbacks for the same action
 extend the cooldown without emitting another action.
 
-The main process emits only high-level shortcut actions back to the main
-renderer:
-
-```ts
-type DesktopShortcutEvent = {
-  action:
-    | "press_to_talk"
-    | "quick_chat"
-    | "toggle_voice_mode"
-    | "toggle_voice_mute"
-    | "skip_tts";
-  phase: "down" | "up";
-};
-```
+The main process sends `{action, phase: "down" | "up"}` events to the main
+renderer. Actions use the persisted names above.
 
 PiP and Quick Chat windows cannot configure or receive shortcut events.
-
-Shortcut events are consumed only while their action is available:
-
-- Press to talk requires active Voice Mode.
-- Quick Chat requires a current anima chat route in the main renderer.
-- Voice Mode toggle requires a chat-capable chat surface.
-- Toggle mute requires active Voice Mode.
-- Skip TTS requires active TTS audio playback.
-
-Shortcut registration is paused while the settings modal is recording a new
-shortcut so the capture input can receive the keystroke first.
 
 ## Renderer Flow
 
@@ -199,20 +138,8 @@ ChatInterface
   -> window.animamaDesktop.shortcuts.setContext(...)
 ```
 
-`useDesktopVoiceShortcuts` handles incoming events:
-
-- `toggle_voice_mode/down` starts or stops Voice Mode.
-- `quick_chat/down` shows or hides the transparent Quick Chat window for the
-  current anima.
-- `toggle_voice_mute/down` toggles Voice Mode mute.
-- `skip_tts/down` skips active speech playback.
-- `press_to_talk/down` unmutes only if Voice Mode is active and currently
-  muted.
-- `press_to_talk/up` mutes only if Press to talk was the action that unmuted
-  the mic.
-
-This ownership keeps the Electron layer unaware of microphone internals. The
-main process only knows whether an action is currently applicable.
+`useDesktopVoiceShortcuts` applies the behavior described above. Electron knows
+whether an action is available; the chat runtime owns microphone and playback.
 
 ## Main-Process Flow
 
@@ -290,11 +217,6 @@ Use `pnpm desktop:pack` as the packaging smoke test when changing shortcut
 runtime dependencies.
 
 ## Platform Notes
-
-One-shot keyboard shortcuts use Electron `globalShortcut`. Press to talk uses
-the first-party addon so the desktop main process can observe keyboard and
-mouse-button down/up events for hold behavior. Press to talk events are not
-suppressed from other applications.
 
 The addon has focused macOS and Windows implementations:
 
@@ -435,8 +357,7 @@ behavior and any screenshot/log reference. A failure needs a reproduction and
 remediation; a blocked step remains an acceptance obligation with an owner.
 Do not label the entire journey passed while a required step is missing. Record
 Raymond's review separately from the operator's execution and from signed release
-approval. Permission/revocation, physical events and packaged loading were not
-executed merely by adding or running the compiled test above.
+approval.
 
 ## Manual Test Checklist
 
@@ -450,7 +371,7 @@ executed merely by adding or running the compiled test above.
 - `Ctrl + Alt + Backquote` toggles Voice Mode.
 - `Ctrl + Shift + Backquote` toggles Voice Mode mute.
 - `Ctrl + ArrowRight` skips active TTS.
-- `Ctrl + Slash` shows or hides Quick Chat on a anima chat route, focuses the
+- `Ctrl + Slash` shows or hides Quick Chat on an Anima chat route, focuses the
   chat input, and lets transparent outer window regions pass clicks through.
 - Recording a shortcut in settings pauses shortcut handling and persists the new
   binding.

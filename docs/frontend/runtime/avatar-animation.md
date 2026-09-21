@@ -1,6 +1,7 @@
 # Avatar + Animation Runtime Guide
 
-This document explains how the current frontend avatar system works, how animation/emotion state is resolved, and how a chat request lifecycle drives avatar behavior.
+The Avatar runtime loads VRMs and coordinates motion, expressions, effects and
+speech-driven presentation from chat state.
 
 For the end-to-end phoneme -> viseme -> VRM mouth animation pipeline
 (including Pocket TTS timing alignment), see
@@ -24,12 +25,9 @@ rejects humanoid tracks.
 
 Idle Styles add an emotion-aware idle lane. A mounted runtime uses the exact
 selected style (or an intentionally empty
-lane), including authorized private VRMA memberships. The runtime first picks
-the pool for the current dominant canonical emotion and otherwise uses the
-style's non-empty Default pool. Selection inside that pool is uniform and the
-existing transient previous-clip avoidance remains in force. The Motion Planner and Animation Manager apply intermittent stint timing to
-the mounted idle catalog within the same Canvas. As with
-the rest of the Loadout, a changed style appears on the next route/chat mount.
+lane), including authorized private VRMA memberships. The runtime selects the dominant emotion's pool or the non-empty Default pool,
+then samples uniformly with previous-clip avoidance. The planner schedules
+intermittent stints. Style changes take effect on the next route mount.
 
 ## 1) High-level architecture
 
@@ -447,81 +445,10 @@ for revision checks, preparation, and recovery behavior.
 
 ### `AvatarPlanner`
 
-File: `src/frontend/web/src/lib/avatar/planner/AvatarPlanner.ts`
-
-Focused guide: `docs/frontend/runtime/avatar-planner.md`
-
-Responsibilities:
-
-- Decide state-triggered motion actions from:
-  - animation signals (`interactionPhase`),
-  - current emotional state,
-  - generic avatar planner events such as `runStarted`, `emotionUpdated`, and
-    `gestureRequested`,
-  - expression reaction events such as `emotionReactionUpdated`.
-
-Base-state mapping from `interactionPhase`:
-
-- `talking -> talking`
-- `responding_no_tts -> talking`
-- `thinking/submitting -> thinking`
-- `listening/user_speaking/semantic_check -> listening`
-- `user_typing -> idle` for base VRMA selection
-- fallback `idle`
-
-Plan behavior:
-
-- Non-idle interaction phases use procedural policies, planner-owned pose
-  clips, and selected gestures rather than hidden manifest base-loop lanes.
-- Intermittent idle VRMA stints for idle state. The idle path reads
-  `manifest.json`, waits through a configurable quiet interval, plays one
-  eligible finite idle VRMA, then stops it and returns to quiet.
-- One-shot gesture plans start when:
-  - phase allows gestures (`idle` or `talking`),
-  - a pending `gestureRequested` planner event matches the active run.
-- Manifest `type: "vrma"` gesture ids play through `AnimationManager`.
-- Manifest `type: "animaPoseClip"` gesture ids play through
-  planner-owned `PoseController` clips.
-- Keeps VRMA gestures active until their computed end time. Pose-clip Gestures
-  also receive a bounded planner deadline derived from authored duration (with
-  a short default minimum), so a clip authored with `loop: true` cannot pin a
-  non-TTS chat run indefinitely. Natural clip completion, run fencing, and
-  phase changes may still end the Gesture sooner.
-- Resolves `gestureRequested.animationHint` as a production manifest gesture id.
-- Consumes `emotionUpdated` events every time with a debug reason. Emotion
-  updates do not create paired gesture requests.
-- Emits consumed planner event ids so the frame loop can remove exact events
-  from the store.
-- Uses plan keys prefixed with `gesture:` vs `loop:` to avoid collisions between one-shot and loop plans for the same clip.
-- Runtime-facing transitions are limited to enforced policies:
-  `fadeIn` / `crossfade` on entry and `fadeOut` on exit. Idle VRMA stints emit
-  an explicit faded stop on completion using the same duration as the active
-  plan's entry crossfade; other natural completion is represented by not
-  emitting a stop or replacement action.
-- Selects optional thinking PoseController clips from `runStarted` events using
-  the shared prompt-length chance table.
-- Keeps selected thinking clips pending until the avatar remains in `thinking`
-  for the configured dwell time, default `600ms`.
-- Cancels planner-owned thinking clips outside `thinking` and never treats a
-  planner-owned active clip as a manual/debug clip.
-- Selects a stable listening procedural stint once on listening or
-  `user_typing` entry: `bounce` has 40% chance, `headNod` has 40% chance, and
-  the remainder selects no listening procedural layer. `user_typing` keeps the
-  idle base VRMA loop while borrowing this procedural policy.
-- Enables planner-owned `talkingHands` while talking only after same-run
-  emotion arbitration confirms no manifest gesture request is pending. A
-  selected or requested manifest VRMA or `animaPoseClip` gesture bypasses that
-  fallback for the run, so talking hands cannot start before a late request is
-  known.
-- Emits a compact debug snapshot that reports current phase/base state,
-  planner-owned VRMA, planner-owned pose clip, talking-motion arbitration,
-  pending events, procedural stints, cancellation reasons, and ignored request
-  reasons.
-- The Animation Debug modal's Avatar Planner section lists only Gestures from
-  the mounted frozen catalog and can queue one through the normal runtime store.
-  This exercises the same planner arbitration as chat without relying on model
-  prompt compliance. The console lifecycle uses bounded `accepted`, `loading`,
-  `playing`, `completed`, and `rejected` diagnostics and omits private URLs.
+`web/src/lib/avatar/planner/AvatarPlanner.ts` chooses autonomous motion,
+procedural and reaction actions from interaction phase, emotion and run-scoped
+events. `Avatar` executes those actions. See [Avatar Planner](avatar-planner.md)
+for lane ownership, idle timing, talking-motion arbitration and transition rules.
 
 ### `ExpressionController`
 
@@ -548,7 +475,7 @@ Important behavior:
   - transition blending between segments,
   - post-segment decay back to neutral.
 
-Note: chat request wires viseme input queuing for Pocket TTS when TTS is enabled.
+See [Avatar lip-sync](avatar-lipsync.md) for provider timing and viseme inputs.
 
 ### `ProceduralAnimationController`
 
@@ -709,50 +636,13 @@ Activation:
 
 Execution paths:
 
-- Debug Play is an immediate manual sample. It does not require
-  `avatarState="talking"`, TTS chunk metadata, a speech gesture timeline, or
-  audio-clock timing. The modal sends one play request, the layer builds one
-  randomized group, and playback starts immediately.
-- Debug Play uses `gestureDurationSec / speed` as the group duration. The group
-  uses fixed entry/middle/return proportions: about 28% entry, 44% middle, and
-  28% return. If micro motion is enabled, the entry target is the first sampled
-  micro-pulse pose rather than a separate base gesture pose.
-- Debug Play schedules `microBendCount` pulse cycles. It samples optional pause
-  durations between pulses from `microBendPauseChance`,
-  `microBendPauseMinSec`, and `microBendPauseMaxSec`, so two Play clicks with
-  the same sliders can still have different internal timing.
-- Debug Play randomizes the group-level pose once per group: one-hand vs
-  both-hand mode, selected side for one-hand groups, base elbow bend, both-hand
-  bend asymmetry, elbow side drift, shoulder-forward amount, palm direction,
-  and active-side rest finger curl jitter.
-- Debug Play also samples pulse-level variation for each micro pulse. Finger
-  uncurl uses per-finger variance, thumb uncurl uses thumb variance, hand flex
-  samples inside the configured signed range, and secondary micro twist samples
-  inside `secondaryMicroTwistMin..secondaryMicroTwistMax`.
-- Live TTS synchronization is a speech-planned path. It only starts groups
-  while the avatar is talking and the lip-sync bridge exposes audio-clock
-  timing, TTS chunks, and a speech gesture timeline for the active `runId`.
-  Pocket TTS and ElevenLabs can provide audio-clock timing and
-  actual-duration-scaled gruut timing.
-  Replay TTS in the debug modal reuses the last speech-planned request, so it
-  follows this TTS path rather than the randomized debug Play path.
-- Live TTS timing is driven by selected primary-stress beats inside one TTS
-  chunk. It waits until the first usable beat is close enough for the configured
-  entry envelope, schedules each pulse apex at its selected beat time, stretches
-  base-pose holds to wait for later beats, and returns over
-  `speechGestureReturnSec`.
-- Live TTS still samples the visible pose when it starts a group: the ordinary
-  side is stable for the whole speech run, exclamation chunks use both hands,
-  group-level elbow/palm/rest-jitter values are sampled per played chunk group,
-  and pulse-level finger/thumb/hand-flex/secondary-twist values are sampled per
-  selected beat.
-- Live TTS does not use randomized micro-pause durations. Beat spacing comes
-  from the selected speech beat times, filtered by `speechBeatMinSpacingSec`.
-  Its planned `pulseScale` is currently fixed at `1`, so the main micro bend,
-  primary micro twist, thumb unspread amount, and micro head nod amount are not
-  varied by beat unless their runtime params change. The current per-beat
-  variation comes from the sampled finger/thumb uncurl, hand flex, and
-  secondary twist channels.
+- Debug Play samples one randomized group immediately, using `gestureDurationSec / speed`.
+  Entry/middle/return proportions are approximately 28%/44%/28%.
+- Live TTS schedules pulse apexes against primary-stress beats for the active run.
+  Replay TTS reuses that speech plan. It uses beat spacing rather than randomized
+  micro-pauses; `pulseScale` is fixed at `1`.
+- Both paths sample elbow, palm and rest-jitter values per group and finger,
+  thumb, hand-flex and secondary-twist variation per pulse.
 
 Scheduling model:
 
@@ -1144,11 +1034,8 @@ does not derive them from valence/control/openness axes.
 
 `src/frontend/web/src/ui/main/canvas/Scene.tsx` renders `<AvatarCanvasActor />`
 inside the main `Canvas`. Live, management, creator, and Create Anima Avatar
-canvases share `CONTINUOUS_CANVAS_RESIZE`, which disables React Three Fiber's
-measurement debounce. This keeps the renderer and perspective camera aligned
-with every intermediate width while the adaptive application sidebar animates;
-otherwise the Avatar can overshoot with the old Canvas center and disappear for
-a frame when the renderer finally adopts the settled width.
+canvases share `CONTINUOUS_CANVAS_RESIZE` to keep renderer and camera dimensions
+aligned during sidebar resizing.
 
 ### Actor setup
 
@@ -1201,7 +1088,8 @@ Files:
 - `src/frontend/web/src/ui/debug/AnimationDebugModal.tsx`
 - `src/frontend/web/src/stores/animation-debug-store.ts`
 
-When debug mode is enabled and an avatar target is registered, the header shows the animation debug button. The modal is right-docked and does not dim the rest of the UI so the avatar remains visible while tuning values.
+The Animation Debug modal is available with development debug enabled and a
+registered Avatar target.
 
 The modal currently exposes:
 
@@ -1221,160 +1109,11 @@ These controls are runtime-only tuning tools. They do not persist procedural par
 
 ## 6) Dispatch lifecycle -> avatar behavior
 
-This is the full frontend lifecycle for one chat run.
-
-### 0. Anima context established
-
-In `useChatSession`:
-
-- On anima change: `resetAvatarRuntime(animaId)`.
-- Once anima data is loaded: `setAnimaEmotionSnapshot(anima.emotional_state)`.
-
-Result:
-
-- Avatar starts from persisted emotional baseline instead of always neutral.
-
-### 1. User submits message
-
-`handleSubmit()` in `useChatSession`:
-
-- Generates `runId`.
-- Starts chat SSE.
-- Resolves speech settings from user preferences:
-  - `ttsEnabled`
-  - provider (`browser` / `pocket_tts`)
-  - whether viseme queueing should be enabled (`pocket_tts` + TTS enabled).
-- Calls:
-  - `startTtsRun(runId)` only when `ttsEnabled=true`,
-  - `startAvatarRun(runId, { inputText })` always.
-
-`startAvatarRun` includes the trimmed input text in a generic `runStarted`
-avatar planner event.
-
-Store effect:
-
-- `activeRunId = runId`
-- `interactionPhase = "thinking"`
-- `plannerEvents` contains one `runStarted` event until the avatar frame
-  loop consumes the planner output.
-
-Animation effect:
-
-- Avatar planner base state becomes `thinking` unless phase is in a listening state.
-- The planner may select a thinking PoseController clip after consuming the
-  `runStarted` event. Each thinking clip has a 10% chance above 10 trimmed
-  characters, 20% above 30, 30% above 50, and 40% above 80.
-- Selected thinking clips start only after the dwell delay, default `600ms`,
-  and fade out when talking, idle, or another non-thinking phase begins.
-
-### 2. Streaming tokens begin (`user.response`)
-
-In SSE callback `onToken(...)`:
-
-- Appends text token stream.
-- Appends token to TTS queue only when `ttsEnabled=true`.
-
-Store effect:
-
-- No direct talking transition. Avatar remains in thinking until TTS playback starts.
-
-Animation effect:
-
-- State remains `thinking` unless TTS playback has started (or user is dictating/listening).
-
-### 2a. TTS playback starts (`playback_started`)
-
-When provider playback starts (browser utterance `onstart` or Pocket playback event):
-
-- `markSpeechStarted(runId)` is called.
-
-Store effect:
-
-- `interactionPhase = "talking"`
-
-Animation effect:
-
-- Base state becomes `talking`.
-- Avatar planner switches to talking state. `talkingHands` stays disabled until
-  the run has either a manifest gesture request or an emotion update that allows
-  the talking-hands fallback.
-
-### 3. Gesture requests arrive (`avatar.gesture.requested`)
-
-In SSE callback `onAvatarGestureRequested(...)`:
-
-- `requestAvatarGesture({ eventId, runId, gesture })`.
-- The callback is reached only when both run ID and
-  `runtime_revision` match the active request and mounted catalog. A
-  mismatch is logged and dropped before store/planner queueing.
-
-Store effect:
-
-- A `gestureRequested` planner event is queued with a unique `requestId`,
-  normalized `animationHint`, timestamp, run id, and source SSE event id.
-
-Animation effect on next frame:
-
-- If the requested root is still preparing, consume the event immediately with
-  a bounded preparation diagnostic, even in a phase that would normally queue
-  a gesture. Completing the download cannot replay this event later.
-- If phase allows gesture playback and a matching gesture event is pending, the
-  planner creates a one-shot gesture plan from that event.
-- If the hint resolves in the mounted motion catalog, the exact selected
-  mounted Gesture entry is used. Its implementation may be VRMA or an
-  `animaPoseClip` clip.
-- Any valid mounted-catalog gesture request reserves talking motion for the
-  requested motion and bypasses `talkingHands` for that run. There is no
-  same-named global-manifest fallback for an unknown runtime ID.
-
-### 4. Emotion updates arrive (`emotion.update`)
-
-In SSE callback `onEmotionUpdate(...)`:
-
-- `applyAvatarEmotionUpdate({ eventId, runId, emotionalState })`.
-
-Store effect:
-
-- Full emotional state is replaced from the backend payload.
-- Ranked `activeEmotions`, emotion groups, and dominant group are updated.
-- An `emotionUpdated` planner event is queued for consumption/debug.
-
-Animation effect on next frame:
-
-- If no manifest gesture request has claimed talking motion, the same-run
-  emotion update allows `talkingHands` to run when that procedural layer is
-  eligible.
-- When the planner consumes or ignores events, the canvas frame loop removes
-  matching planner event ids from the store.
-
-Expression effect:
-
-- Dominant emotion label/intensity changes drive `ExpressionController.applyEmotionPreset(...)`.
-
-### 5. Run completes (`run.completed`)
-
-In SSE callback `onComplete(...)`:
-
-- `completeTtsRun(runId)` when TTS is enabled; otherwise `finishAvatarRun(runId)` directly.
-- message cache updates and route replacement logic proceed.
-
-Store effect:
-
-- If `ttsEnabled=true`, no immediate phase transition; avatar remains `thinking` (before playback start) or `talking` (while speaking) until playback end callbacks.
-- If `ttsEnabled=false`, `finishAvatarRun(runId)` is called on completion, returning to idle/listening according to current capture state.
-
-Animation effect:
-
-- After TTS playback ends, base state falls back to:
-  - `listening` if dictation listening capture is still active,
-  - otherwise `idle`.
-
-### 6. Error/stop/abort paths
-
-On `onError`, `AbortError`, manual stop, conversation switch, and unmount:
-
-- `abortAvatarRun(...)` is called to avoid stale talking/thinking state.
-- `stop()` aborts SSE when appropriate.
+Chat maps submit, text, speech, gesture, emotion and completion events into the
+store actions above. The [Chat guide](chat.md#8-avatar-updates-from-chat) owns
+that integration contract. Audio start/end drives talking; non-TTS responses
+retain presentation until text and same-run planner work finish. Stop, error,
+navigation and unmount abort the active run.
 
 ## 7) Dictation -> listening state
 
@@ -1409,25 +1148,7 @@ Store guards add another layer:
 
 Together this prevents stale cross-run emotion/gesture contamination.
 
-## 9) Current limitations / intentional gaps
+## Runtime tuning limits
 
-1. `playDefaultAnimation()` in `AnimationManager` is currently a no-op; runtime is driven by state-machine plans.
-2. Viseme queueing is currently gated to Pocket TTS when TTS is enabled; non-Pocket providers skip that bridge path.
-3. `useChatSse` currently surfaces emotion updates through normal chat callbacks, which may be noisy in normal UX if surfaced directly.
-4. `AnimationDebugModal` tuning is runtime-only; values reset with the avatar instance and are not persisted.
-5. Spring-bone wind/updraft editing is debug-controlled and runtime-only.
-
-## 10) Mental model summary
-
-Think of the system as:
-
-- **Chat/SSE emits intent signals and emotion deltas** ->
-- **Zustand store holds canonical avatar runtime state** ->
-- **Canvas frame loop converts state into animation plans** ->
-- **AnimationManager plays skeletal clips** ->
-- **ProceduralAnimationController layers breathing and idle sway additively** ->
-- **SpringBonePhysicsController adjusts spring-bone force settings before three-vrm updates secondary motion**.
-- **PoseController provides the active absolute catalog pose** ->
-- **ExpressionController animates face/blink/lip-sync while VFX and spring-bone controllers update runtime visuals and secondary motion**.
-
-That split keeps runtime deterministic, frame-driven, and decoupled from React render timing.
+`playDefaultAnimation()` is a no-op; state-machine plans drive automatic motion.
+Debug procedural, spring-bone and pose settings last only for the Avatar instance.

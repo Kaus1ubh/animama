@@ -16,10 +16,6 @@ disposal, but they do not teleport one global Canvas between routes. Dialogs
 never mount a second Canvas; they receive a preview callback and status from
 their launching surface.
 
-The Dock header shows only the content name. Expanded previews fit beside the
-desktop sidebar using the shared shell inset, while retaining the same Canvas
-and full-viewport backdrop.
-
 The full-body camera profile serves Gestures and ordinary previews. Reaction
 authoring uses the portrait profile, centered from the loaded Avatar's head,
 with wheel and pinch zoom. The Particle Effect creator retains its emitter
@@ -138,7 +134,7 @@ Play, Pause, Restart, Seek, and Scrub operate only on the in-memory sequence,
 loaded Avatar, and that local catalog. Transport controls do not re-resolve
 the closure.
 
-The Action header has no separate Full Preview operation. Save and Save & Equip
+Save and Save & Equip
 perform authoritative typed-document and closure validation before directly
 replacing the editable Local entry; only Save & Equip enters the reviewed
 loadout mutation flow.
@@ -168,20 +164,10 @@ identity.
 
 ## Private file capability flow
 
-1. A typed one-root preview or bundled preparation returns a `preview_id`,
-   union revision, expiry, and opaque logical file references. A bundle stores
-   one capability row and deduplicates file membership across successful roots.
-2. The browser requests the matching same-origin preview file URL through the application origin
-   without an Authorization header.
-3. The backend rechecks owner, snapshot expiry, and exact membership, then
-   returns an authenticated API-relative GET or HEAD byte URL.
-4. The browser fetches that local URL through the application origin, owns the resulting
-   Blob/object URL for the preview lifetime, and retains only the stable
-   logical reference and content revision.
-
-Preview responses and capability exchanges are private and no-store. Object
-keys, hashes, internal blob IDs, and durable signed URLs never enter React
-Query, Zustand, route state, or telemetry.
+Preview file delivery checks owner, expiry and exact membership, then verifies
+size and digest before creating session-owned Blob URLs. See
+[Protected preview preparation](../architecture/local-content-runtime.md#protected-preview-preparation)
+for the shared loader and disposal contract.
 
 ## Live runtime boundary
 

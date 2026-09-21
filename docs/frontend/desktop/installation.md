@@ -8,15 +8,14 @@ Developers should use [Platform builds](platforms.md).
 
 ## Supported target
 
-| Platform                                     | Current position                                                                                                          |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Platform                                     | Current position                                                                                  |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Apple silicon Mac, macOS 15 or later         | Declared minimum; fresh build, macOS 15 testing, clean-machine and signed acceptance remain open. |
-| Windows 11 x64                               | Deferred; no supported self-contained installer yet.                                                                      |
-| Intel Mac, universal Mac, Windows ARM, Linux | No supported self-contained release.                                                                                   |
+| Windows 11 x64                               | Deferred; no supported self-contained installer yet.                                              |
+| Intel Mac, universal Mac, Windows ARM, Linux | No supported self-contained release.                                                              |
 
 The installed app contains its own local services and database. It does not
 require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
-Those tools belong to development/build instructions, not normal installation.
 
 ## First launch, once an approved installer is available
 
@@ -36,9 +35,8 @@ Those tools belong to development/build instructions, not normal installation.
    Settings later if preferred. Later launches open the last Anima you visited,
    or the first available Anima if that Anima has been deleted.
 
-Fresh installations create Annie and Caitlyn. Caitlyn uses the owner-created
-Janna/R1 model; her companion name has not changed. A newer default does not
-overwrite existing Animas or restore a deliberately deleted starter.
+Fresh installations create Annie and Caitlyn. Starter defaults do not overwrite
+existing Animas or restore a deliberately deleted starter.
 
 ## Provider keys and speech
 

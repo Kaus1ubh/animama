@@ -1,19 +1,7 @@
 # Avatar Lip-Sync Pipeline (`src/frontend/web`)
 
-This document explains the current end-to-end vowel lip-sync pipeline in the Vite web frontend, starting from SSE phoneme/text payloads and ending with timed expression playback on a VRM avatar.
-
-It focuses on:
-
-- phoneme -> 5-vowel viseme keyframe generation
-- `vowel5` lip-sync segment playback on the avatar runtime
-- Pocket TTS timing alignment (start, actual duration recompute, and stop)
-- ElevenLabs v3 gruut-prepared TTS text handoff
-
-Related docs:
-
-- `docs/frontend/runtime/chat.md`
-- `docs/frontend/runtime/voice.md`
-- `docs/frontend/runtime/avatar-animation.md`
+The lip-sync pipeline turns SSE phonemes into audio-clocked VRM vowel expressions.
+It shares timing with [Voice](voice.md) and the [Avatar runtime](avatar-animation.md).
 
 ## 1) High-level architecture
 
@@ -152,8 +140,6 @@ If `artifacts.visemePlan` exists, `useChatSession` queues it into the bridge and
 - `phonemizedText: data.phonemized_text`
 - `tokenizedText: data.tokenized_text`
 
-This is important because actual-duration correction later recomputes from the raw inputs (not just the estimated plan).
-
 ### TTS callbacks used for lip-sync
 
 `useChatSession` registers these callbacks with `useTtsPlayback`:
@@ -193,10 +179,6 @@ The frontend anchors `playback_started` to the worklet's **real playback begin**
   - `audioStartSec`
   - `audioContext`
   - `generationId`
-
-Why this matters:
-
-- It aligns avatar mouth timing to audible playback start better than enqueue-time events.
 
 ### 5.2 Actual duration: `generation_finished.metrics.audioDuration`
 
@@ -433,62 +415,15 @@ For lip-sync stop timing, the raw Pocket playback-ended signal is the authoritat
 
 ## 12) Debugging checklist
 
-When sync looks wrong, inspect these logs in order:
+Inspect these stages in order:
 
-### 1. SSE / planner
-
-- `SSE run completed speech text` (viseme plan fields present?)
-- `visemeKeyframes...` values/logs
-
-Questions:
-
-- Did `phonemized_text` exist?
-- Was a viseme plan generated?
-
-### 2. Speech start anchor
-
-- `TTSPlayback / Audio started`
-- `AvatarVisemeSync / Recorded speech audio start for viseme sync`
-- `Expression blendshape started`
-
-Questions:
-
-- Did `audioStartSec` exist?
-- Did bridge start only after avatar state became `talking`?
-
-### 3. Provisional estimated segment
-
-- `Queue / Overprovisioning provisional viseme duration`
-- `Queue / Queued viseme lip-sync segment`
-
-Questions:
-
-- Was provisional overrun applied?
-- What was the provisional target duration?
-
-### 4. Actual-duration correction
-
-- `TTS / Audio duration resolved`
-- `AvatarVisemeSync / Recomputing viseme plan from actual speech audio duration`
-- `AvatarVisemeSync / Replaced in-flight vowel keyframes with actual-duration keyframes`
-- `AvatarVisemeSync / Replaced in-flight vowel keyframes with actual-duration keyframes`
-
-Questions:
-
-- Did actual duration arrive before viseme end?
-- Was replacement `prestart` or `inflight`?
-- Was there a large duration scale change?
-
-### 5. Stop timing
-
-- `TTS / Playback ended signal received`
-- `TTS / Hard-stopping avatar lip-sync on speech playback end`
-- `TTS / Audio ended`
-
-Questions:
-
-- Did raw playback-ended arrive and clear lip-sync?
-- Is `Audio ended` later because of run-completion gating?
+1. Confirm spoken text has matching phonemes and a generated viseme plan.
+2. Check `audioStartSec` and the bridge's `talking` gate.
+3. Check the provisional target duration and overprovisioning log.
+4. Check when actual duration arrived and whether replacement was prestart or
+   in-flight. Large duration corrections can affect perceived synchronization.
+5. Confirm raw playback-ended cleared lip-sync; the higher-level Audio ended
+   callback may wait for run completion.
 
 ## 13) Known limitations / caveats
 
@@ -506,26 +441,3 @@ Questions:
 4. **`TTS / Audio ended` is not the same as raw Pocket playback-ended**
    - `useTtsPlayback` gates `onAudioEnded` on run completion
    - use the raw playback-ended signal logs for end-of-audio alignment debugging
-
-## 14) Quick file map
-
-- SSE completion + viseme plan build:
-  - `src/frontend/web/src/query/mutations/useChatSse.ts`
-- Phoneme -> viseme planner:
-  - `src/frontend/web/src/lib/speech/gruut-viseme-keyframes.ts`
-- TTS orchestration + Pocket event forwarding:
-  - `src/frontend/web/src/hooks/use-tts-playback.ts`
-- Pocket core event bridge:
-  - `src/frontend/web/src/lib/speech/pocket/core/PocketTTSCore.js`
-- Pocket worker duration/gap accounting:
-  - `src/frontend/web/public/tts/workers/inference-worker.js`
-- Chat integration:
-  - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
-- Lip-sync bridge / timing gate:
-  - `src/frontend/web/src/stores/avatar-lipsync-bridge-store.ts`
-- Segment conversion (`vowel5`):
-  - `src/frontend/web/src/lib/avatar/vowelVisemeSegment.ts`
-- Avatar lip-sync runtime + VRM expression mapping:
-  - `src/frontend/web/src/lib/avatar/ExpressionController.ts`
-- Canvas render-loop integration:
-  - `src/frontend/web/src/ui/main/canvas/AvatarCanvasActor.tsx`

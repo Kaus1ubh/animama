@@ -10,8 +10,6 @@ Valid changes become selectable after Save or an authoritative Rescan, but are
 never automatically equipped. Imported typed packages become editable Local
 copies.
 
-There are intentionally no `workspace`, `applied`, `installed`, `drop-ins`,
-digest-blob, or staging trees here. Temporary operations, imports, exports, and
-runtime bookkeeping belong under the managed private data root (`data/` by
-default for self-hosting). That ignored runtime storage remains required; see
+Temporary operations, imports, exports, and runtime bookkeeping belong under
+the managed private data root (`data/` by default for self-hosting); see
 [private storage](../../docs/backend/architecture/local-content-storage.md#private-data).

@@ -4,20 +4,6 @@ Desktop PiP is implemented as a native Electron window that renders a dedicated
 scene-only web route. It is separate from browser Document PiP, which remains
 the fallback for the normal web app.
 
-## Goals
-
-Desktop PiP should:
-
-- have no browser URL/title chrome
-- support transparent backgrounds
-- pass clicks through the non-interactive avatar/background body
-- stay always on top
-- render avatar, scene background, scene VFX, avatar VFX, animation, and
-  lip-sync
-- keep main-window audio ownership
-- avoid loading the normal app shell, sidebar, header, or chat UI
-- avoid flashing auth/loading/app-shell pages while the second renderer starts
-
 ## High-Level Flow
 
 ```text
@@ -35,7 +21,7 @@ Main web renderer
 ```
 
 The main renderer remains the runtime and audio owner. The PiP renderer is a
-visual consumer
+visual consumer.
 
 Desktop PiP is not used for Library or Anima-management content previews. Library
 owns an app-shell Preview Dock, while Anima management reuses its existing
@@ -52,48 +38,16 @@ visual state.
 The PiP window is managed by
 `desktop/src/main-process/pip/pip-window-manager.ts`.
 
-The window is created with:
-
-```ts
-new BrowserWindow({
-  x,
-  y,
-  width: 210,
-  height: 280,
-  minWidth: 116,
-  minHeight: 154,
-  frame: false,
-  transparent: true,
-  backgroundColor: "#00000000",
-  hasShadow: false,
-  resizable: true,
-  alwaysOnTop: true,
-  skipTaskbar: true,
-  fullscreenable: false,
-  show: false,
-  type: "toolbar",
-  title: "Anima PiP",
-  webPreferences: {
-    preload,
-    additionalArguments: ["--animama-window-role=pip"],
-    contextIsolation: true,
-    nodeIntegration: false,
-    sandbox: true,
-    webSecurity: true,
-  },
-});
-```
+The window is hidden, transparent, frameless and always on top, with no shadow
+or taskbar entry. It starts at 210 × 280 with a 116 × 154 minimum size and the
+standard isolated, sandboxed preload. See the manager for the complete options.
 
 The default `x`/`y` places the PiP window near the bottom-right of the owner
 window's display work area, with a small margin so OS taskbars and docks are not
 covered. The default size scale is `0.5`.
 
-After creation, the manager calls:
-
-```ts
-pipWindow.setAlwaysOnTop(true, "floating");
-pipWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-```
+It uses the floating always-on-top level and remains visible across workspaces,
+including fullscreen workspaces.
 
 The Linux `type: "toolbar"` hint makes the window easier to identify in window
 managers. Tiling window managers may still need explicit user rules.
@@ -115,35 +69,13 @@ The window only becomes visible when both readiness conditions are true:
 1. the PiP renderer has sent a `ready` runtime message
 2. the owner renderer has sent at least one visual-state snapshot after that
 
-This prevents visible flashes of:
-
-- a loading or setup page
-- global app loading
-- the normal app shell
-- a blank or black scene frame before synced state arrives
-
 If the PiP window reloads or navigates away from `/desktop/pip/...`, the main
 process resets readiness and hides it again.
 
 ## Window Roles
 
-The desktop preload exposes:
-
-```ts
-window.animamaDesktop.windowRole = "main" | "pip";
-```
-
-The main app window receives:
-
-```text
---animama-window-role=main
-```
-
-The PiP window receives:
-
-```text
---animama-window-role=pip
-```
+The preload identifies the auxiliary window as `windowRole: "pip"`, selected
+by `--animama-window-role=pip` at window creation.
 
 Web hooks use the role to keep PiP controls and runtime producers active only
 in the main window. PiP renderers can send `ready` messages and consume visual
@@ -151,79 +83,25 @@ state, but they cannot publish owner-only runtime snapshots.
 
 ## IPC Surface
 
-The preload bridge is defined in:
-
-```text
-desktop/src/main-process/pip/pip-preload.cts
-```
-
-The main-process IPC handlers are defined in:
-
-```text
-desktop/src/main-process/pip/pip-ipc.ts
-```
-
-The renderer bridge is:
-
-```ts
-window.animamaDesktop.pip = {
-  open(options): Promise<DesktopPipState>;
-  close(): Promise<DesktopPipState>;
-  toggle(options): Promise<DesktopPipState>;
-  isOpen(): Promise<boolean>;
-  getState(): Promise<DesktopPipState>;
-  setBackgroundMode(mode): Promise<DesktopPipState>;
-  setSizeScale(sizeScale): Promise<DesktopPipState>;
-  onStateChange(callback): () => void;
-  publishRuntimeMessage(message): Promise<void>;
-  onRuntimeMessage(callback): () => void;
-  onCursorSnapshot?(callback): () => void;
-};
-```
-
-`DesktopPipState` currently includes:
-
-```ts
-type DesktopPipState = {
-  isOpen: boolean;
-  animaId: string | null;
-  chatId: string | null;
-  backgroundMode: "transparent" | "scene";
-  isHovered: boolean;
-  sizeScale: number;
-};
-```
+The [preload bridge](../../../src/frontend/desktop/src/main-process/pip/pip-preload.cts)
+defines `window.animamaDesktop.pip`; the
+[IPC handlers](../../../src/frontend/desktop/src/main-process/pip/pip-ipc.ts)
+validate window controls and runtime messages. The bridge exposes open/close,
+state, background/size controls, visual messages and cursor subscriptions.
+Subscriptions return cleanup functions.
 
 The main process validates open options and runtime message envelopes before
 acting on them. `onCursorSnapshot(...)` is optional so older desktop bridges or
 non-native PiP contexts can keep using local DOM pointer events.
 
-Desktop PiP cursor snapshots are direct PiP-renderer events, not state-store
-snapshots:
-
-```ts
-type DesktopPipCursorSnapshot = {
-  screen: { x: number; y: number };
-  pipWindow: { x: number; y: number; width: number; height: number };
-  local: { x: number; y: number };
-  isInsidePip: boolean;
-  sentAtMs: number;
-};
-```
+Cursor snapshots go directly to the PiP renderer. They contain screen and
+window-local coordinates, native window bounds, an inside-window flag and a
+capture timestamp.
 
 ## Dedicated Route
 
-The PiP route lives at:
-
-```text
-web/src/routes/desktop/pip/$animaId.tsx
-```
-
-Route path:
-
-```text
-/desktop/pip/$animaId
-```
+[`web/src/routes/desktop/pip/$animaId.tsx`](../../../src/frontend/web/src/routes/desktop/pip/$animaId.tsx)
+serves `/desktop/pip/$animaId`.
 
 This route intentionally stays outside `/a`. Routes under `/a` inherit the
 normal protected app layout, which would pull in `AppShell`, sidebar,
@@ -237,38 +115,14 @@ The route renders:
 </SettingsProvider>
 ```
 
-It does not render:
-
-- sidebar
-- header
-- chat panel
-- canvas controls
-- transform controls
-- dictation or TTS controls
-
 The route requires the Electron `pip` window role and PiP preload bridge.
 Browser and main-window navigation redirect to `/`. This role check selects the
 auxiliary UI; FastAPI still authorizes its API and content requests.
 
 ## Shared Scene Host
 
-`AvatarSceneHost` is the shared lower-level scene shell used by both main and
-PiP renderers:
-
-```tsx
-<AvatarSceneHost mode="main" />
-<AvatarSceneHost mode="pip" />
-```
-
-It owns:
-
-- canvas viewport context
-- scene runtime context
-- scene camera settings
-- avatar transform state
-- `Scene`
-- scene VFX underlays and overlays
-- avatar runtime bridge points
+`AvatarSceneHost` serves both `mode="main"` and `mode="pip"`. It owns the
+canvas viewport, scene/camera/transform state, scene VFX and avatar bridge points.
 
 `MainShell` remains responsible for product shell concerns: chat placement,
 header/sidebar integration, canvas controls, fullscreen, and PiP triggering.
@@ -312,14 +166,7 @@ processes because renderer time origins are not a shared clock.
 
 ## Audio Ownership
 
-The main renderer remains the audio owner for v1.
-
-The PiP renderer does not:
-
-- start TTS
-- play speech audio
-- run dictation
-- play duplicate runtime VFX sound cues
+The main renderer owns TTS, dictation and VFX sound cues; PiP plays no audio.
 
 PiP renders visual lip-sync from synced timing state. Fake audio contexts are
 used only to let the visual lip-sync bridge compute relative timing in the PiP
@@ -378,19 +225,8 @@ Interactive zones keep PiP mouse input enabled:
 - the top-left circular hover drag handle
 - the top size slider
 
-The PiP route uses CSS app regions:
-
-```css
-.anima-pip-drag {
-  -webkit-app-region: drag;
-  app-region: drag;
-}
-
-.anima-pip-no-drag {
-  -webkit-app-region: no-drag;
-  app-region: no-drag;
-}
-```
+The drag handle uses `-webkit-app-region: drag`; interactive controls use
+`no-drag`.
 
 The PiP body is not draggable. Drag-anywhere would conflict with body
 click-through. Instead, the route shows a top-left drag handle on hover, and
@@ -423,9 +259,6 @@ closes.
 The manager publishes `DesktopPipState.isHovered` only when the boolean changes.
 The PiP route renders the resize/boundary border and close button when
 `isHovered` is true.
-
-This is slightly more work than CSS hover, but it works over transparent pixels
-and keeps the PiP body from blocking the user's desktop.
 
 ## Global Cursor Look-At
 

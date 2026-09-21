@@ -154,8 +154,7 @@ is not the application semantic model.
 `user_id` ownership column. The only mutable field is nullable
 `display_name VARCHAR(80)`; null is allowed only for the pending-setup
 placeholder. Saving personalization requires a nonblank name. Creation and update
-timestamps complete the row. The local schema contains no username, biography,
-visibility, alias, cooldown, claim, or creator-resolution state.
+timestamps complete the row.
 
 `LocalInstallationBootstrapService` creates the missing profile through the
 neutral `OwnerProfileBootstrapPort`. First-run completion updates the profile,
@@ -176,9 +175,7 @@ current API and privacy rules.
 
 Each valid catalog item owns its current readable revision, registered files,
 and resolved dependencies. Creator Save atomically updates the Local source and
-reconciles this state. Included entries are read-only. There is no
-`ORMContentItem`, `ORMContentRelease`, `ORMContentBlob`, staged creator upload,
-or release-dependency model in the current baseline.
+reconciles this state. Included entries are read-only.
 
 `content_mutation_receipts` retains original Local mutation results under the
 composite key `(owner_user_id, operation_id)`. Each row stores the request digest,
@@ -217,10 +214,6 @@ parent item in one read-only query. It permits delivery only when the parent is
 still accessible, valid, and at the pinned revision, then rechecks the actual
 filesystem size and digest before streaming.
 
-The development schema contains only the catalog, dependency, preview,
-per-Anima binding, and exact runtime tables described above. A database reset
-creates no parallel generic package, release, or raw-binding model.
-
 ### Anima
 
 `ORMAnima` stores the user-owned anima aggregate:
@@ -235,11 +228,8 @@ creates no parallel generic package, release, or raw-binding model.
 - user-controlled metadata
 - relationships to chat profile rows and chats
 
-New anima writes do not synthesize runtime graph JSON, `chat_runtime`
-metadata, anima descriptions, anima personality JSON, direct chat instruction
-metadata, or backing `agent` rows. Display names belong to Anima, not the joined
-Avatar. The Avatar FK is `RESTRICT`; ORM back-reference handling cannot silently
-clear it when an equipped Avatar is deleted.
+Display names belong to Anima, independently of the joined Avatar. The Avatar
+FK is `RESTRICT`; deleting an equipped Avatar cannot silently clear it.
 
 New writes also create the typed loadout described above. That association is
 the authoritative source for the live canvas and direct-chat runtime; the
@@ -274,7 +264,6 @@ Starter receipts for the generated principal through the normal idempotent
 service. Intentional deletion is preserved. The receipt owner columns have no
 account foreign key; the original Anima ID survives as a tombstone. Receipt and aggregate writes share one
 caller-owned unit of work; first runtime issuance happens after commit.
-No Blueprint/publication/package table is introduced by this live-creation plan.
 
 ### Anima Chat Profile
 
@@ -387,8 +376,8 @@ search vectors, and every `memory_entry_versions.content` snapshot contain only
 the Markdown body, while `description` remains the first-class metadata field.
 One accepted native patch updates both fields and appends one Version.
 
-Public entry routes validate any non-null `anima_id` against the current Better
-Auth user before resolving or creating entries in an anima scope.
+Public entry routes validate any non-null `anima_id` against the admitted
+installation principal before resolving or creating entries in an anima scope.
 Partial unique indexes enforce one live namespace for files and directories:
 root user entries, root anima entries, non-root siblings, user-scope cached
 paths, and anima-scope cached paths all ignore rows with `deleted_at IS NOT
@@ -584,10 +573,6 @@ The active compaction row is hidden continuity context for the next direct chat
 turn. It is selected by `ChatManager` and injected before recent exact messages;
 it is not exposed as a normal chat message.
 
-`chat_messages` does not require `session_id`, and normal avatar chat does not
-create companion-session rows. The ORM package import registers `chats`,
-`chat_messages`, and `chat_compactions` in fresh metadata.
-
 `ChatManager` is the normal direct-chat persistence service. It verifies or
 creates the owned chat for the current user/anima, fetches visible chat
 history plus any active compaction summary for each turn, records user and
@@ -720,9 +705,9 @@ change is intentionally local.
 
 HTTP routes that depend on `get_async_session()` get a request-scoped
 `AsyncSession`. Application services commit through `SQLAlchemyUnitOfWork` when
-they complete a unit of work. Direct chat keeps its database session
-request-local and closes it when the SSE stream completes, is cancelled, or
-fails. Shared model clients must not retain request sessions.
+they complete a unit of work. Direct chat closes its setup session before
+streaming and opens short-lived sessions for persistence and tools. Shared
+model clients must not retain request sessions.
 
 Background workers create their own engines/session factories and open a fresh
 database session per job instead of retaining FastAPI request sessions.

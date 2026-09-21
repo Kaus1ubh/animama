@@ -37,8 +37,8 @@ implementation details and task progress belong in their existing records.
 4. Mark unresolved choices `proposed`. An AI agent may accept a supported record
    without separate confirmation from Raymond. Record the decision basis;
    this grants no authority to make otherwise unauthorized product or architecture changes.
-5. Add the record and its status to this index. Update current documentation when
-   implemented behavior changes; an ADR does not replace those updates.
+5. Add the record and its status to this index. Correct current documentation
+   made incomplete or misleading by the decision; an ADR is not a usage guide.
 
 ## History, corrections and supersession
 

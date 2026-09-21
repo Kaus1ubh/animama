@@ -117,12 +117,6 @@ promoting the closure as one journaled, recoverable operation. A collision
 drift or late failure exposes no partial Local item. Package manifests do not
 clutter everyday Local folders.
 
-Discover publication and hosted acquisition are discontinued. Local playback
-and import/export do not consult a publication, entitlement or identity service.
-
-[Strict private live creation](custom-animas-and-content.md#strict-private-creation)
-is implemented, including source validation, atomic materialization and durable
-idempotency receipts. It does not generate a Blueprint, package or publication
-and offers no “Save as Blueprint” action. Existing generic typed-content package
-APIs do not make live Anima packaging supported. The retained format is
-`animama-content-package/2` in `.animama` files.
+Packages use `animama-content-package/2` in `.animama` files. Import/export runs
+locally and supports catalog content only;
+[live Animas](custom-animas-and-content.md#strict-private-creation) cannot be packaged.

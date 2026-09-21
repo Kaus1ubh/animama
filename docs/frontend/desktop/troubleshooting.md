@@ -57,10 +57,7 @@ installation principal repairs an incomplete app bundle.
 
 Application debug panels and inspector targets are deliberately absent in
 production, including embedded desktop, regardless of saved preferences or a
-development flag. Normal settings, upload management, errors and recovery
-remain. In browser development, DevTools **Disable cache** or a hard reload
-does not represent ordinary cached startup. Browser tooling and optional local
-operator tools are not disabled by the application debug policy.
+development flag. Use the runtime logs and recovery controls to investigate production failures.
 
 ## Microphone and speech
 

@@ -16,17 +16,14 @@ and validators must reject them without network access.
 
 Starter contract tests use `write_supplied_starter_fixture` in
 `tests/anima_creation_service_support.py` to generate original minimal VRM/VRMA
-structures and portraits with explicit fixture provenance. This library exercises
-normal starter admission and persistence, including the reviewed 44 gesture
-identities. It does not prove avatar rendering, real motion playback, or the
-user-supplied asset acquisition/conversion workflow. Separate tracked-checkout
-tests require rejection when the excluded idle animation bytes are absent;
-private maintainer assets cannot satisfy those tests.
+structures and portraits with explicit fixture provenance. This library tests
+starter admission and persistence, not avatar rendering or real motion playback.
+A separate tracked-checkout test verifies that both shipped starters resolve
+without private animations. Negative fixture cases reject missing required
+dependencies or licenses.
 
-The broader catalog tests use `write_supplied_animation_fixture` to copy only
-tracked Included content and fill declared animation paths with original minimal
-VRMA structures. This preserves every reviewed descriptor and production license
-exclusion while testing handler validation, file ownership and database projection.
-Separate clean-source checks pin the 65 incomplete gesture descriptors and the
-six missing idle files. Neither fixture library is evidence of real playback or
-a license-approved distributable animation pack.
+The broader catalog tests use `write_supplied_animation_fixture` to copy tracked
+Included content and fill missing declared VRMA paths with original minimal
+structures. Production license exclusions remain intact. These fixtures test
+handler validation, file ownership and database projection; they do not establish
+real playback or authorize distribution of a generated animation pack.

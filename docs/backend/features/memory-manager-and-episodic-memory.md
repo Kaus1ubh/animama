@@ -173,12 +173,6 @@ preferences, events, decisions, active projects, or relationship/context changes
 It should not include secrets, credentials, or raw sensitive data unless the user
 explicitly asked the anima to remember it.
 
-Relevant files:
-
-- `src/backend/animama/app/main_structured_response.py`
-- `src/backend/animama/app/chat/memory_context.py`
-- `src/backend/animama/app/chat/direct_executor.py`
-
 ### 2. Successful Chat Captures An Episode Item
 
 After a successful visible turn is parsed and persisted,
@@ -198,11 +192,6 @@ response into an SSE error.
 
 The session-backed recorder builds a short-lived `MemoryEpisodeService` and
 calls `create_episode_item(...)`.
-
-Relevant files:
-
-- `src/backend/animama/server/routers/chat/session_services.py`
-- `src/backend/animama/app/services/memory_episode_service.py`
 
 ### 3. The Episode Service Refreshes The Daily File
 
@@ -272,11 +261,6 @@ attributed to the submitted user message, commits each through the same
 `decide_approval(...)` path described below, resumes the SDK state, and repeats
 up to eight times. The SDK tool still uses `needs_approval=True`; automatic mode
 does not grant the patch editor a separate immediate-write path.
-
-Relevant files:
-
-- `src/backend/animama/app/ports/memory_manager_runtime.py`
-- `src/backend/animama/app/services/memory_manager_service.py`
 
 ### 6. Approvals Commit Curated Memory Changes
 
@@ -420,13 +404,6 @@ Backend path validation remains authoritative: Apply Patch rejects episode,
 anima, invalid, non-markdown, and delete operations even though those details
 do not need to expand the compact prompt map.
 
-Relevant files:
-
-- `src/backend/animama/adapters/memory_manager/openai_agents_runtime.py`
-- `src/backend/animama/adapters/openai_agents/runner.py`
-- `src/backend/animama/adapters/memory_manager/workspace.py`
-- `src/backend/animama/app/services/user_memory_read_tools.py`
-
 ### Deterministic Runtime
 
 When `ANIMAMA_LLM_SKIP=1`, the router uses
@@ -445,9 +422,6 @@ already represented there. If every fixed text is already present, it returns a
 terminal no-patch result. Approval, or plain rejection, returns terminal review
 completion. Rejection feedback containing another valid Markdown path produces
 one revised approval at that path; resolving it completes the review.
-
-This runtime intentionally approximates the live workflow without model calls.
-It is not intended to be the product intelligence layer.
 
 ## Virtual Workspace Rules
 
@@ -478,7 +452,7 @@ after user approval.
 
 ## API Contract
 
-All routes require a admitted installation `RequestPrincipal`. The backend filters by
+All routes require an admitted installation `RequestPrincipal`. The backend filters by
 that principal's value in `user_id`; clients do not provide owner IDs.
 
 ### List Episode Items
@@ -522,7 +496,7 @@ Response:
 
 There is no public episode-status mutation endpoint. The backend-owned
 specialized processing workflow marks its fixed reviewed batch processed
-and refresh the affected daily projections.
+and refreshes the affected daily projections.
 
 ### Create Memory Manager Run
 
@@ -847,25 +821,6 @@ uv run ruff check \
   tests/test_memory_episodes.py
 ```
 
-Useful test coverage includes:
-
-- episode item creation and daily file rendering;
-- binary `pending` to `processed` transitions;
-- daily checkbox rerendering;
-- protected episode-log write rejection;
-- manager preview creation without mutating memory;
-- approval commit and rejection behavior;
-- stale version conflicts;
-- episode processing after approval;
-- rejected episode-processing recovery;
-- already represented episode handling;
-- fixed 50-item selection and overflow exclusion;
-- private alias state and safe public summary;
-- blocked/failed runtime classification;
-- atomic finalization rollback and idempotence;
-- Auto approve stopping after eight sequential patches;
-- post-processing general follow-up mode.
-
 ## Troubleshooting
 
 ### Pending episodes do not appear
@@ -956,35 +911,13 @@ Tests:
 
 ## Version History
 
-Every approved Memory Manager write uses the same monotonic memory-entry
-`version` contract as manual and direct-chat writes. The resulting immutable
-snapshot is stored in `memory_entry_versions` with its operation and separate
-change provenance.
-
-The memory workspace exposes a Versions dialog for the selected entry. History
-summaries are content-free, newest first, and cursor-paginated.
-Selecting Version N shows only the change from Version N-1 to Version N;
-Version 1 uses an empty creation baseline. Content changes use the same unified
-diff format as approval previews, while path and description changes are shown
-as structured old/new values. Generated episode logs expose this history but
-remain protected from mutation. There is no arbitrary two-version comparison.
-
-For an older Version of an editable live Markdown file, the dialog can preview
-the exact current and target content side by side plus the current-to-target
-description values, then request a separately confirmed Revert. Revert copies
-only historical content and normalized description into a new latest `revert`
-Version. It preserves entry identity, path, parent, kind, metadata, scope, and
-live state, and requires the submitted `expected_version` to match the current
-row. Current/future/missing/no-change targets and generated, protected,
-directory, deleted, or foreign entries are rejected. If a Manual draft is
-dirty or conflicted, the user must first explicitly discard it and then still
-confirm the Revert.
+Approved writes use the shared monotonic memory-entry version contract.
+See [immutable version history](memory.md#immutable-version-history) for adjacent
+version diffs and revision-guarded Revert. Approval Undo has the narrower
+eligibility rules described [above](#undo-approved-patch).
 
 ## Current Limitations
 
-- Broader component-level frontend tests for the Memory Manager modal are still
-  limited.
-- Live stack verification is still expected after the remaining episodic-memory
-  plan phases.
-- The deterministic runtime is intentionally simple and should not be treated as
-  a product-quality memory reviewer.
+The deterministic runtime checks workflow mechanics without evaluating memory
+quality. Frontend component coverage is limited; verify the affected approval,
+Undo, and episode-processing flows in the running UI.

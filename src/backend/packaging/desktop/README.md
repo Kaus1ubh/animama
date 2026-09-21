@@ -81,12 +81,11 @@ plus the same starter specs, optional portrait keys, default idle, and loadout
 policy as private creation. The core is rescanned after copying. Missing
 dependencies, license records, identity collisions, and unsafe files fail the
 stage. A development checkout's ignored assets are not silently shipping inputs.
-The starter closure must resolve without `sfx/` files and without staging-time
-dependency trimming. Required Mixamo animations are ignored user-supplied inputs;
-a clean checkout does not yet contain a complete buildable starter closure.
-Acquisition/conversion and clean-build acceptance remain outstanding; see the
-[Mixamo acquisition guide](../../../../docs/frontend/runtime/mixamo-acquisition.md).
-Ignored local copies do not satisfy the tracked-input packaging gate.
+The tracked Included library supplies both starters without Mixamo animations.
+Staging must resolve their complete reviewed closure; ignored Local assets
+cannot satisfy a missing package input. [Mixamo motions](../../../../docs/frontend/runtime/mixamo-acquisition.md)
+are optional Local content. Content-closure checks do not establish native
+playback or signed-release acceptance.
 
 `probe_postgres.py` exercises only disposable native loopback data: pgvector,
 frozen schema bootstrap twice, principal stability, absence of local account

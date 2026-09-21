@@ -6,12 +6,9 @@ Query hooks.
 
 ## Current User-Facing Surfaces
 
-`/a/memories` is the protected, installation-wide memory workspace. Beside the
-persistent application sidebar, it fills the remaining viewport with an inline
-explorer, Manual or Memory Manager work pane, and live Markdown preview. It has
-no page-level heading, tabs, outer frame, or content gutter; one shared pane
-surface and faint resizable dividers provide the visual structure. Installation upload
-management and debug retrieval tools live in Library's Chat Uploads section.
+`/a/memories` provides an installation-wide file explorer, Manual editor,
+Memory Manager and Markdown preview. Upload management and retrieval diagnostics
+live in [Library Chat Uploads](user-file-uploads.md).
 
 The workspace loads content-free entry headers recursively. Its left explorer
 keeps ordinary physical directories explicit but replaces the generated
@@ -49,12 +46,6 @@ targets the focused physical directory or the selected ordinary file's parent.
 The explorer initially selects `PROFILE.md`, then the first ordinary file by
 path, then the newest episode.
 
-Protected rows remain explicit about those constraints. The ellipsis and
-right-click menus for `PROFILE.md` and generated episode files show Rename,
-Move, and Delete in a disabled state. The virtual Episodes root and its month
-groups also show their directory creation actions disabled, along with disabled
-Rename, Move, and Delete actions.
-
 Move requests use the existing version-aware patch endpoint and are not
 applied optimistically. On success the explorer refetches the server tree while
 selection, focus, expansion, and dirty drafts remain anchored by stable entry
@@ -64,16 +55,9 @@ their text or dirty state; any unexpected version advance is shown as a draft
 conflict. A `409` keeps the visible tree unchanged, while an uncertain network
 result triggers a refresh before the entry can be retried.
 
-On desktop, the workspace runs edge-to-edge from the sidebar to the viewport
-edge. The explorer starts at a bounded 11-15rem width, can be resized up to
-28rem when space allows, and can collapse to a 44px icon rail without losing its
-expanded width. At compact widths its toolbar buttons shrink, search text
-shortens, tree indentation tightens, and row actions remain available on hover
-without overflowing the pane. A second separator resizes Work and Preview while
-keeping both at least 18rem when the workspace is wide enough. Both faint
-separators support pointer dragging and Left/Right Arrow keys; double-clicking
-either restores the default proportions. Completed sizes are stored locally on
-the device and restored after reload. Every pane scrolls independently.
+Desktop panes support pointer and keyboard resizing; double-clicking a separator
+restores its default proportions. Sizes persist on the device, and the explorer
+can collapse without losing its expanded width.
 
 The middle Work pane switches between Manual editing and Memory Manager through
 a `Manual | Memory Manager` control, with Manual first and selected by default.
@@ -116,8 +100,6 @@ The Preview pane shows a Copy icon followed by the selected entry's current
 Version action. Copy writes the exact content currently rendered—including an
 unsaved Manual draft—to the clipboard. Version opens a responsive read-only
 history dialog without changing or discarding the current Manual draft.
-The history and identity editor dialogs stay within the available desktop space
-beside the expanded or collapsed sidebar; mobile dialogs retain viewport margins.
 Summaries are listed newest first and can
 load older pages; the latest Version is selected initially.
 
@@ -187,26 +169,15 @@ restored so the proposed change cannot be stranded. Inline diff approval cards
 refresh the explorer and persisted preview after approved changes. Selecting a
 file remains visual context and does not change manager requests.
 
-Account settings includes a Memory section with a Memory Manager model
+App Settings includes a Memory section with a Memory Manager model
 selector. Its choices come from the existing model catalog and are limited to
 the OpenAI Responses provider. The choice is installation-wide and applies to new
 request-local manager runtime instances; System default clears the override and
 uses `ANIMAMA_MEMORY_MANAGER_AGENT_MODEL` from the backend environment.
 
-The conversation uses the same sticky transcript, chat-only message treatment,
-Markdown response renderer, assistant loading indicator, rounded auto-growing
-composer, and scroll-to-bottom control as the main user chat. User requests use
-contained chat bubbles, while assistant responses use a transparent, full-width
-text treatment and render Markdown. Newly returned assistant Markdown uses one
-response-wide Streamdown word-by-word reveal instead of restarting the
-animation for each paragraph or block. Persisted history remains static, and
-the complete response still arrives through one request before its reveal
-begins; this does not add SSE streaming. The assistant waiting state is a
-left-aligned, opacity-only three-dot pulse in a fixed-height line, avoiding the
-vertical growth used by the contained main-chat loader. Enter submits and
-Shift+Enter inserts a newline. The manager composer is intentionally text-only:
-an empty composer shows a disabled send arrow, and an in-flight request shows a
-disabled spinner instead of voice controls.
+The text-only composer submits with Enter and inserts a newline with Shift+Enter.
+Responses arrive in one request and render as Markdown; the reveal animation
+does not indicate SSE streaming.
 
 Submissions are projected locally while the request-response manager runtime is
 working. The trimmed user request appears immediately with an assistant loader,
@@ -216,14 +187,10 @@ newer draft is present. Approval decisions, memory diffs, and memory files are
 never changed optimistically; they update only after the backend confirms the
 decision.
 
-The toolbar always exposes one `New` action and no separate Finish action,
-confirmation dialog, generic Manager heading, or ordinary status pill. New is a
-no-op when the conversation is already fresh. Otherwise it completes an active
-run before clearing its transcript and task state, but preserves unsent composer
-text for the next conversation. It clears completed or failed runs without
-another backend write, and a failed run shows its stored error. Pending approvals
-and in-flight or loading work disable New until the current operation is safe to
-leave. The replacement row is still created lazily by the next sent message.
+`New` completes an active run before clearing its transcript, preserving unsent
+composer text. Completed or failed runs clear without another backend write.
+Pending approvals and in-flight work disable New. The next submitted message
+creates the replacement run.
 
 The backend is the stale-state safety net: creating a run completes any prior
 active run in the same transaction and records its supersession reason. It
@@ -283,9 +250,7 @@ decision remains visible as `Approved · Undone` and memory, entry, path, and
 version-history caches refresh. A `409 Conflict` refetches authoritative state
 and directs the user to Versions for historical recovery.
 
-The manager toolbar places `New` before `Process episodes` on the left. An
-outlined `Auto approve` checkbox sits beside those controls. It is off by
-default and captures consent at submission time for ordinary messages and
+`Auto approve` is off by default and captures consent at submission time for ordinary messages and
 specialized processing runs; enabling it does not approve an existing pending
 diff. The frontend sends that consent as `auto_approve_diffs` and does not issue
 automatic approval requests itself. The backend attributes newly generated

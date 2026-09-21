@@ -62,9 +62,7 @@ Run from `src/frontend`. The convenience commands are:
 
 Quit the app before replacing its bundle. For everyday launches, use
 `desktop:mac:launch`; rebuild when you want source changes included. Launching
-does not incorporate new source changes or reset application data. These
-commands do not sign or publish a release, change Compose, or alter
-`desktop:dev`'s external-stack behavior.
+does not incorporate new source changes or reset application data. These commands do not sign or publish a release.
 
 The full build reuses these individual commands in order, stopping at any failure:
 
@@ -78,7 +76,7 @@ A complete fresh stage and successful audit are mandatory. The build fails on
 missing or stale evidence, unresolved input files, unsupported targets, or a
 stage-failure marker. It does not silently produce an external-web wrapper.
 The stage requires every required starter dependency to be tracked. Starter
-content no longer depends on Mixamo animations. Optional Local motions are
+content does not depend on Mixamo animations. Optional Local motions are
 excluded from staging and cannot satisfy the distribution-input gate.
 Do not copy private assets into a stage to bypass a missing dependency.
 

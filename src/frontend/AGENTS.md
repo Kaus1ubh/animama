@@ -371,8 +371,8 @@ Prefer minimal, surgical diffs in:
 - Prefer existing dependencies. If adding a dependency is necessary, update the
   lockfile and explain why the new package is warranted.
 - Avoid broad renames or moves unless requested.
-- Update docs in `../../docs/frontend/` when architecture or runtime behavior changes
-  materially.
+- Update `../../docs/frontend/` when useful guidance becomes missing or misleading;
+  follow the [reader-value standard](../../AGENTS.md#documentation).
 
 ## Change Summary Expectations
 

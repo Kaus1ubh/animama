@@ -57,5 +57,6 @@ For example, renaming an item should specify where the new name appears, whether
 it survives reload and what happens for invalid input. Historical references are
 a separate product question, not an implementation assumption.
 
-Accept work against its criteria and explicit gates, not merely merged PRs. Move
-implemented behavior into current documentation; retain the spec as delivery history.
+Accept work against its criteria and explicit gates, not merely merged PRs. Update
+current guidance when it becomes incomplete or misleading; retain the spec as
+delivery history.

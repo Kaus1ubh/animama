@@ -1,9 +1,7 @@
 # Animama deployment topology
 
-The local product builds and runs independently of hosted services. Desktop is
-the primary product; single-owner self-hosting is also supported. Hosted work
-is deferred while the local runtime and source-release preparation are completed.
-Discover and local-hosted account connection are discontinued.
+Animama supports a self-contained desktop application and single-owner
+self-hosting. Both run independently of hosted services.
 
 ```mermaid
 flowchart TB
@@ -35,12 +33,6 @@ workers are private; optional local administration tools use separate loopback
 ports. FastAPI authorizes API and byte requests in every local composition.
 Remote access requires an operator-owned authentication and TLS boundary.
 
-The eventual hosted product is intended to retain saved companions and chats
-within a limited free tier. Its deployment, account/session boundary, databases,
-credentials and migration ownership are separate from this local installation.
-Cloudflare and a VPS are planned infrastructure; this document does not declare
-those services deployed or require private code for local builds.
-
 Durable references:
 
 - [Repository boundaries](repository-boundaries.md): source and implementation ownership.
@@ -49,7 +41,3 @@ Durable references:
   [local operations](../backend/operations/development.md).
 - [Desktop overview](../frontend/desktop/overview.md) and
   [desktop operations](../backend/operations/desktop-runtime.md).
-
-New execution plans live with their owning implementation; see [PLANS.md](../../PLANS.md).
-Private hosted operator procedures and historical private plans are not local
-build, runtime or contributor prerequisites.

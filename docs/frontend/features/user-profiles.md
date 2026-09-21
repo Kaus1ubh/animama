@@ -1,9 +1,7 @@
 # Local Profile
 
 The accountless backend profile is private personalization for one installation.
-It contains only a private display name, normalized to at most 80 Unicode
-characters. It has no username, biography, visibility, alias, public creator
-lookup, credential, or hosted-account link.
+It stores a display name normalized to at most 80 Unicode characters.
 
 The backend exposes `GET /v1/users/me/profile` and
 `PATCH /v1/users/me/profile`, plus the local runtime/bootstrap endpoints used by
@@ -23,13 +21,9 @@ Saved settings and the owned list must load before selecting a fallback. A
 deleted selection falls back to the first remaining Anima; an empty list opens
 creation. Explicit deep links are preserved.
 
-After setup, `SidebarUserMenu` shows the display name or “You.” Its **App Settings**
-action opens the General section with a **Display Name** editor. The editor reads
-and patches only that private field, rejecting blank names rather than clearing
-it. Save stays visible beside the input, grayed out while the normalized name is
-unchanged, invalid, or being saved. Saving updates the sidebar name. Closing settings discards unsaved edits. “You” is only a
-defensive loading/missing-profile label. There is no separate Personalization action. There is no local handle,
-creator page, avatar account image, account settings, sign-in, or logout.
+After setup, App Settings → General edits the display name. Blank names are
+rejected; saving updates the sidebar, and closing settings discards unsaved edits.
+The sidebar displays “You” while the profile is loading or unavailable.
 
 The installation bootstrap service owns initial profile and `PROFILE.md`
 creation. Later profile changes update the bootstrap-managed preferred-name line

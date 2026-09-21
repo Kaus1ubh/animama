@@ -1,22 +1,8 @@
 # Avatar Planner
 
-The avatar `AvatarPlanner` is the central policy engine for autonomous,
-state-triggered avatar presentation. It is not the low-level animation
-controller for the whole `Avatar`.
-
-Use this mental model:
-
-```text
-runtime state and planner events
-  -> AvatarPlanner.plan(...)
-  -> planner-owned motion/expression actions
-  -> Avatar executes actions
-  -> AnimationManager / PoseController / ProceduralAnimationController / ExpressionController animate
-```
-
-`AvatarPlanner` decides what planner-owned presentation should happen next. The
-runtime executors still own how motion is loaded, sampled, blended, applied to
-the VRM, or expressed on the face.
+`AvatarPlanner` chooses autonomous presentation actions from runtime state and
+planner events. `Avatar` executes them through its motion, expression and
+procedural controllers.
 
 ## Scope
 
@@ -41,19 +27,7 @@ File: `src/frontend/web/src/lib/avatar/planner/AvatarPlanner.ts`
   reaction clips can own particle events through their normal clip event
   timeline.
 
-`AvatarPlanner` does not own:
-
-- VRMA loading, `THREE.AnimationMixer` actions, or actual crossfade execution.
-  Those belong to `AnimationManager`.
-- Pose clip sampling, pose blending, or clip fade envelope math. Those belong to
-  `PoseController`.
-- Procedural bone offset math, activation weights, and per-frame cleanup. Those
-  belong to `ProceduralAnimationController`.
-- Lip sync, baseline emotion presets, manual expression controls, look-at,
-  spring bones, VFX execution, manual/debug controls, or per-frame avatar
-  evaluation. `Avatar`, `ReactionClipPlayer`, `ExpressionController`,
-  `AvatarVFXController`, the scene VFX store, and the sound sink execute
-  reaction clip actions.
+Execution ownership is listed under [Execution Boundary](#execution-boundary).
 
 ## Runtime Flow
 
@@ -118,10 +92,7 @@ Planner actions are separated into lanes:
 - `reactionClip`: planner-owned, non-body `AnimaPoseClip` playback selected
   from the mounted Anima's reaction catalog.
 
-The lane tells `Avatar` which executor should run the action. It also keeps
-future arbitration rules explicit: a policy can reason about base loops,
-gestures, pose clips, and procedural layers without pretending they are the
-same kind of animation.
+The lane selects the executor and the actions that require arbitration.
 
 The AI-facing Gesture selector is the Gesture item's stable reviewed semantic
 key, not an opaque file or support-resource ID. Catalog revisions may change
@@ -285,9 +256,6 @@ The `presentation.disable_vfx` preference is enforced by runtime executors,
 not by `AvatarPlanner`. It suppresses clip-owned avatar, scene, and particle
 VFX while leaving reaction SFX and manual/debug controls available.
 
-This boundary is important. The planner should stay a policy reducer. Runtime
-controllers should stay responsible for VRM-specific animation behavior.
-
 The Animation Debug modal's `Reactions` section reads planner reaction
 diagnostics from `AvatarPlannerDebugSnapshot` and live playback diagnostics
 from `ReactionClipPlayer`. Its manual reaction play/restart/clear controls are
@@ -314,26 +282,6 @@ to request a runtime-owned stop.
 No planner policy should time-scale authored motion to meet a deadline. Smooth
 handoffs may change blend weights or interpolate from captured current output,
 but the authored clip's local timing should remain intact.
-
-## What Belongs Here
-
-Add policy to `AvatarPlanner` when the behavior is:
-
-- autonomous,
-- driven by interaction phase, chat run lifecycle, emotion event, or generic
-  planner event,
-- owned by the avatar runtime rather than a manual/debug tool,
-- something that needs arbitration across VRMA, pose clips, procedural layers,
-  expression reactions, or reserved VFX lanes.
-
-Do not add code here when the work is:
-
-- clip loading or mixer control,
-- pose sampling or bone transforms,
-- procedural offset math,
-- UI/debug command execution,
-- lip-sync, baseline/manual expression, or VFX runtime behavior,
-- a manual user action that should bypass planner ownership.
 
 ## Testing
 

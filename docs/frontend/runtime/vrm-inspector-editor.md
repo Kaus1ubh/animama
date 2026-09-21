@@ -3,15 +3,7 @@
 The VRM inspector exposes asset structure and runtime material overrides for
 the rendered avatar in the Vite web frontend.
 
-It covers:
-
-- how the active rendered VRM is exposed to inspection code
-- how raw `.vrm` bytes and live Three.js runtime state are merged
-- how runtime texture VFX is applied to live eye/face material usages
-- how the debug modal is wired into the main canvas
-- which edits remain runtime-only
-
-For the broader avatar animation runtime, see `docs/frontend/runtime/avatar-animation.md`.
+See [Avatar animation](avatar-animation.md) for rendering and motion.
 
 ## 1) Why this layer exists
 
@@ -27,13 +19,6 @@ Inspection and runtime editing use three cooperating components:
 
 3. **`AvatarVFXController`**  
    A live runtime VFX controller owned by `Avatar`. It applies mesh-bound eye/face VFX by cloning per-usage materials, compositing stacked texture layers into runtime textures, and creating hover planes for face-attached overlays.
-
-This split is intentional:
-
-- `Avatar` remains the render/animation runtime.
-- `VRMDocument` is the asset/document layer.
-- `VRMEditorSession` is the runtime editing/inspection layer that can evolve toward richer tools.
-- `AvatarVFXController` is the live material/texture VFX layer that runs with the avatar.
 
 ## 2) Main files
 
@@ -225,145 +210,14 @@ That fallback mode is intentionally non-fatal:
 
 ## 7) First runtime edit: primitive visibility toggle
 
-The first edit is intentionally narrow.
-
-It is **not** a global material-definition toggle.
-
-Instead, it is a **per primitive-usage visibility override**:
-
-- the UI row lives in the `Geometry` section
-- the edit targets one bound runtime mesh/primitive usage
-- the session toggles the bound object's `visible` flag
-- `Reset overrides` restores original visibility
-
-This choice avoids several problems in v1:
-
-- mutating a shared material definition could affect many unrelated usages
-- it avoids commit/export semantics too early
-- it proves the runtime binding model with minimal risk
-
-Current semantics:
-
-- overrides are runtime-only
-- overrides live inside the session, not Zustand
-- disposing the session restores original visibility
-- the current UI/API should be read as "primitive visibility", not "material enabled"
+The Geometry section toggles one bound primitive usage's `visible` flag.
+Overrides belong to the session; Reset overrides and disposal restore original
+visibility. Shared material definitions are unaffected.
 
 ## 8) Runtime texture VFX
 
-Files:
-
-- `src/frontend/web/src/lib/avatar/vfx/AvatarVFXController.ts`
-- `src/frontend/web/src/lib/avatar/vfx/catalog.ts`
-- `src/frontend/web/src/lib/avatar/vfx/profiles.ts`
-
-For a dedicated guide to VFX types, placement modes, and authoring/runtime tradeoffs, see `docs/frontend/runtime/avatar-vfx.md`.
-
-This runtime VFX layer exists for effects that should stay attached to the avatar's existing surface UVs instead of floating in front of the face as sprites or billboards.
-
-### What `AvatarVFXController` owns
-
-`AvatarVFXController` is created by `Avatar` after a VRM load succeeds and is updated every frame from `Avatar.update(delta)` before `vrm.update(delta)`.
-
-It owns:
-
-- detection of effect-compatible primitive usages
-- role assignment for those usages (`eye_iris` vs `face_skin`)
-- original material and texture references for reset
-- cloned runtime materials on a per-usage basis
-- generated `CanvasTexture` overrides
-- per-binding effect state and UV animation state
-- a subscribable VFX snapshot for debug UI
-
-### Target detection
-
-The controller reuses the same live primitive-binding model as the inspector:
-
-- bindings are derived from the rendered `avatar.scene`
-- bindings are keyed by `nodeIndex:meshIndex:primitiveIndex`
-- effects are applied to one primitive usage at a time
-
-Target roles are currently detected by material-name heuristics, with support for future per-model profile overrides:
-
-- eye materials are matched from names like `eye` / `iris`
-- face materials are matched from names like `face` / `skin`
-
-The profile layer also defines the normalized eye/face atlas regions that an effect should draw into.
-
-### Catalog + application model
-
-The VFX catalog is code-defined in `vfx/catalog.ts`. Each entry belongs to one of three kinds:
-
-- `texture`
-- `face_anchored`
-- `hover`
-
-`AvatarVFXController` exposes matching apply entrypoints:
-
-- `applyTextureVFX(...)`
-- `applyFaceAnchoredVFX(...)`
-- `applyHoverVFX(...)`
-
-Each entry describes a shared base plus kind-specific fields:
-
-- shared: PNG asset path, transform, and animation config
-- `texture`: target role, asset shape, replace/overlay mode, and optional side/mirroring
-- `face_anchored`: face anchor, bilateral layout, pivot, and optional side/mirroring
-- `hover`: `eye_hover`, `mouth_hover`, or `box_hover`, plus the subtype-specific placement fields when needed and optional runtime skin backdrop for eye/mouth hover
-
-Application is runtime-only and per binding, but a binding can host multiple simultaneous effects:
-
-1. clone the runtime material for that primitive usage
-2. resolve placement rects or hover placements for each applied effect
-3. store the effect as one active runtime layer or hover instance
-4. redraw one composite canvas-backed texture per active texture slot when needed
-5. assign the composite texture back to the cloned material
-
-The first implementation only targets these slots when they exist:
-
-- `map`
-- `shadeMultiplyTexture`
-
-That means:
-
-- eye effects can fully replace the original iris texture look
-- face effects can preserve the original face texture and composite on top
-- multiple mesh-bound effects can stack on the same binding
-- resetting the effect restores the original runtime material
-
-### Eye and face atlas behavior
-
-For eye effects:
-
-- `single_eye` assets are drawn into both eye regions
-- the right-eye draw can be mirrored
-- `double_eye` assets are drawn into the combined eye region
-
-For face effects:
-
-- `full_face` assets are drawn into the configured face region, currently the whole texture by default
-
-The draw surface always matches the original runtime texture dimensions, so the generated replacement/overlay textures stay aligned to the VRM's existing atlas size.
-
-### Animation model
-
-For texture animation, the controller:
-
-- resolves texture placements once
-- evaluates pulse/spin/drift from `animationConfig`
-- redraws animated layers around each placement's local center
-
-Hover effects still animate through local transform changes on their face-attached groups.
-
-Current presets are:
-
-- `none`
-- `pulse`
-- `spin`
-- `drift`
-- `pulse_spin`
-
-The VFX controller also throttles animation updates to 30 FPS. Animated texture effects still require composite redraw plus texture upload on those ticks, so they remain the most expensive VFX path.
+See [Avatar VFX](avatar-vfx.md) for effect kinds, binding, texture composition,
+placement and animation.
 
 ### Session + modal integration
 
@@ -393,15 +247,11 @@ In practice that means the modal can:
 
 File: `src/frontend/web/src/hooks/useVRMEditorSession.ts`
 
-This hook is intentionally thin.
-
-It:
+The hook:
 
 - creates the `VRMEditorSession`
 - exposes the session snapshot through `useSyncExternalStore`
 - returns `{ session, snapshot, status, error, refresh }`
-
-The hook is not the domain layer. The class owns the real logic.
 
 ### `vrm-editor-debug-store`
 
@@ -477,12 +327,6 @@ The inspector supports runtime overrides with these limits:
 - target-role matching is still heuristic-first unless a model profile override exists
 - VFX application is currently limited to `map` and `shadeMultiplyTexture`
 - no diff/compare workflow between two VRMs
-
-The ownership boundaries are:
-
-- `VRMDocument` for document-level inspection and future mutations
-- `VRMEditorSession` for live runtime bindings and overrides
-- `AvatarVFXController` for live texture/material VFX on the rendered avatar
 
 ## 12) Extension boundaries
 

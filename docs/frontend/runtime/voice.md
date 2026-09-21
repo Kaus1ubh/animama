@@ -1,28 +1,9 @@
 # Voice Guide (`src/frontend/web`)
 
-This is the canonical frontend guide for voice input/output in `src/frontend/web`.
-
-## Scope
-
-Focus areas:
-
-- STT audio input, with emphasis on browser providers:
-  - Dictation mode
-  - Voice mode (same base STT flow + smart-turn auto-submit)
-- TTS audio output, with emphasis on Pocket TTS and ElevenLabs TTS
-- Runtime integration with chat + avatar phase state + debug surfaces
-- anima-specific Pocket voice catalogs when a persisted catalog URL exists
-
-Out of scope:
-
-- Backend service internals
-- Full avatar animation authoring details (see
-  `docs/frontend/runtime/avatar-animation.md` and
-  `docs/frontend/runtime/avatar-lipsync.md`)
-
-For Pocket catalog details and current custom-authoring limitations, see:
-
-- `docs/frontend/features/emotional-voice-catalog.md`
+Voice input uses browser recognition or local Parakeet with acoustic and semantic
+VAD. Output uses browser speech, PocketTTS or ElevenLabs. See
+[Avatar lip-sync](avatar-lipsync.md) for synchronization and
+[Pocket catalogs](../features/emotional-voice-catalog.md) for voice embeddings.
 
 ## Runtime Summary
 
@@ -88,11 +69,6 @@ and inference still require real reviewed artifacts and user verification.
 - `turnId`: local user speaking turn identifier. Created at voice/dictation start and rotated after smart-turn auto-submit.
 - `jobId`: smart-turn inference job identifier for one semantic check.
 
-Why both `turnId` and `runId`:
-
-- `turnId` exists before any submit, so it is the stable key for local VAD windows/transcript/audio aggregation.
-- `runId` starts only when chat chat run begins.
-
 ### Shared voice types
 
 Runtime voice types live in:
@@ -151,14 +127,7 @@ rights or inference behavior.
 
 ## STT Pipeline (Dictation + Voice Mode)
 
-Primary orchestration:
-
-- `src/frontend/web/src/hooks/use-dictation.ts` (top-level lifecycle and integration)
-- `src/frontend/web/src/hooks/voice/browser-recognition-runtime.ts` (Web Speech result/lifecycle + text buffers)
-- `src/frontend/web/src/hooks/voice/mic-vad-runtime.ts` (MicVAD callback cluster + runtime creation)
-- `src/frontend/web/src/lib/speech/client-parakeet/client.ts` (client Parakeet worker client)
-- `src/frontend/web/src/workers/client-parakeet-worker.ts` (local Parakeet ONNX runtime)
-- `src/frontend/web/src/hooks/voice/use-voice-end-turn-coordinator.ts` (pending end-turn submit coordinator)
+Implementation paths are listed in the [file map](#implementation-file-map).
 
 ### Start behavior
 
@@ -223,31 +192,10 @@ API exposes interim transcript events.
 
 #### Parakeet STT voice mode
 
-Parakeet voice mode is accepted-audio-window driven:
-
-1. `startDictation("voice")` resolves to available `parakeet` when selected or
-   when browser STT is unavailable, including the desktop shell.
-2. `startParakeetDictation("voice")` loads or reuses the local Parakeet worker,
-   creates MicVAD acoustic gate state, creates final/interim text buffers,
-   loads the smart-turn worker, and starts a separate visualizer stream.
-3. No browser `SpeechRecognition` instance is created.
-4. MicVAD is the only source of speech-window boundaries.
-5. On accepted `onSpeechEnd(audio)`, `transcribeParakeetSpeechWindow(...)`
-   sends the complete accepted mono `Float32Array` window to the worker with
-   `client_parakeet/transcribe`.
-6. The worker runs `model.transcribe(audio, 16000, ...)` once and returns final
-   text.
-7. Non-empty final text is committed to the current voice turn, emitted through
-   `onSegment({ source: "parakeet", isFinal: true })`, and recorded in the
-   shared text buffer with empty `interimText`.
-8. After text commit, the accepted audio is appended to `smartTurnAudioRef`.
-9. Smart-turn then runs on the rolling accepted audio. If it returns
-   `end_turn`, the committed Parakeet transcript is already available to the
-   same end-turn coordinator used by browser voice mode.
-
-Parakeet voice mode does not show live interim text. The first visible text for
-a speech window arrives after MicVAD accepts the window and local transcription
-finishes.
+MicVAD supplies accepted mono 16 kHz windows to `client_parakeet/transcribe`.
+Parakeet commits final text before smart-turn runs on the accepted audio, so the
+end-turn coordinator normally has text ready immediately. There is no interim
+preview. See [Final-window Parakeet path](#final-window-parakeet-path).
 
 #### Shared voice-mode behavior
 
@@ -281,14 +229,6 @@ Parakeet STT is local client-side STT:
 - accepted MicVAD windows are sent to the worker for final-window transcription
 - the model stays warm for the current app session; mic/VAD/audio resources are
   stopped on every stop
-
-Primary files:
-
-- `src/frontend/web/src/hooks/use-dictation.ts`
-- `src/frontend/web/src/hooks/voice/mic-vad-runtime.ts`
-- `src/frontend/web/src/lib/speech/client-parakeet/client.ts`
-- `src/frontend/web/src/lib/speech/client-parakeet/worker-protocol.ts`
-- `src/frontend/web/src/workers/client-parakeet-worker.ts`
 
 #### Parakeet startup
 
@@ -801,190 +741,16 @@ Mechanics:
 
 ### ElevenLabs TTS
 
-Primary files:
+Realtime models receive an SSE-provided single-use token and open a direct
+provider WebSocket. Setup waits at most 1500 ms for the session event; failures
+stop audio for that run while chat continues. Eleven v3 receives finalized PCM
+through `tts.audio` on the chat stream instead.
 
-- `src/frontend/web/src/hooks/use-elevenlabs-tts-runtime.ts`
-- `src/frontend/web/src/hooks/use-elevenlabs-finalized-tts-runtime.ts`
-- `src/frontend/web/src/hooks/use-tts-playback.ts`
-- `src/frontend/web/src/ui/main/chat/useChatSession.ts`
-
-Bootstrap flow:
-
-1. `useChatSession.ts` starts a TTS run when chat SSE starts.
-2. If the resolved provider is `elevenlabs`, `useChatSession.ts` sends
-   `dispatch_options.tts` with `enabled: true`, `provider: "elevenlabs"`,
-   `transport: "auto"`, `language_code: null`, and the selected
-   `model_id` in the `POST /v1/animas/{anima_id}/chat:sse` body. When
-   `model_id` is `eleven_v3`, it also sends `finalized_chunking` as
-   `"sentence"` or `"paragraph"`.
-3. For `eleven_flash_v2_5` and `eleven_multilingual_v2`, `chat:sse` starts
-   ElevenLabs session setup concurrently with the primary chat agent and emits
-   `tts.session` when it can initialize the realtime session. Assistant text
-   may arrive before that event.
-4. `use-elevenlabs-tts-runtime.ts` accepts the SSE session and opens the
-   direct ElevenLabs websocket. If no `tts.session` or `tts.session.error`
-   arrives within 1500 ms, the runtime marks TTS failed for that run.
-5. Backend returns a fresh single-use `tts_websocket` token for direct
-   browser-to-ElevenLabs realtime playback.
-6. For `eleven_v3`, `chat:sse` does not emit `tts.session`. The backend
-   synthesizes prepared speech as sentence or paragraph finalized-audio batches
-   and pushes `tts.audio`, `tts.done`, or `tts.error` events over the same chat
-   SSE stream.
-
-Runtime behavior:
-
-- realtime ElevenLabs audio is played through the shared PCM worklet path, not
-  `speechSynthesis`
-- finalized Eleven v3 `pcm_24000` SSE frames are decoded into Web Audio
-  `AudioBuffer` objects and scheduled with `AudioBufferSourceNode`
-- output format is `pcm_24000`
-- supported realtime models are `eleven_flash_v2_5` and
-  `eleven_multilingual_v2`; frontend speech preferences default to
-  `eleven_flash_v2_5`
-- `eleven_v3` is a finalized-text model; it uses `chat:sse` audio events and
-  starts audio once backend main-structured tone and speech text are ready
-- v3 `sentence` grouping is the default and keeps one upstream finalized
-  request per sentence for the fastest first audio; v3 `paragraph` grouping
-  waits for paragraph, four-sentence, 600-character, or final flush boundaries
-  for smoother long-form audio
-- v3 finalized speech requests can send gruut `text_with_ws` to ElevenLabs
-  with ElevenLabs text normalization off; the backend omits `previous_text` and
-  `next_text` plus request-id continuity fields for v3 because the live API
-  rejects or does not support those fields, and the resulting audio stream does
-  not request or consume ElevenLabs alignment metadata
-- Eleven v3 may receive a backend-only emotional audio tag prefix derived from
-  main-structured `emotional_tone` and backend-visible anima emotion
-  intensity; sentence grouping prefixes only the first upstream request, while
-  paragraph grouping prefixes every paragraph batch; this prefix is not present
-  in frontend text or lip-sync metadata
-- the selected model is returned as `tts.session.model_id` and used as the
-  ElevenLabs websocket `model_id` query parameter for realtime models
-- realtime playback uses `AudioContext` + `AudioWorklet`
-- finalized v3 prewarms its local `AudioContext` and gain node at run start,
-  then uses native `AudioBufferSourceNode` playback when `tts.audio` arrives
-- finalized v3 `tts.audio` frames are backend-coalesced PCM chunks so the
-  browser schedules fewer, larger audio buffers
-- paragraph-grouped v3 audio includes a backend-generated 400 ms silent PCM
-  `tts.audio` frame before each paragraph batch after the first
-- `tts_stream_chunks` remains meaningful for realtime models, so streamed SSE
-  text can be chunked into realtime TTS requests before completion
-- application settings show the chunked TTS switch unchecked and disabled while
-  `eleven_v3` is selected without overwriting the saved preference
-- application settings show the v3-only `Audio grouping` control while `eleven_v3`
-  is selected without overwriting that saved grouping when the user switches
-  back to a realtime model
-- text chunks may queue while the realtime runtime waits for the SSE-provided
-  session
-- no reconnect is attempted mid-run; websocket failure ends TTS for that run only
-- chat delivery still completes even if ElevenLabs audio fails
-- v3 audio playback and run completion are not coupled to provider timing
-  metadata
-
-### Main structured chat responses
-
-When the effective TTS setting is enabled, `useChatSession.ts` sends
-`dispatch_options.main_structured_response=true` with the chat SSE request. The
-backend validates the selected anima chat profile or request override against
-catalog support for `main_structured_response`, parses and validates the model's
-JSON envelope, then emits semantic `user.response` events with
-`response_format="main_structured_json"` and
-`response_part="speech"` or `response_part="display"`.
-
-If TTS is enabled but the backend emits ordinary `user.response` events without
-`response_part="speech"` or `response_part="display"`, chat and TTS use the
-normal text streaming path.
-
-The frontend contract is:
-
-- `emotional_tone`: requested in the model's JSON envelope but
-  backend-internal; it is not emitted as visible frontend text. Together with
-  hidden `emotional_intensity`, it lets backend `chat:sse` compute and persist
-  a full-state `emotion.update`. Missing, blank, neutral/default-friendly, or
-  unrecognized tone metadata logs a backend warning when malformed, emits a
-  no-op emotion update with `emotional_intensity=0`, and uses the backend-only
-  `[friendly]` Eleven v3 provider prefix when Eleven v3 synthesis is active.
-- `emotional_intensity`: requested in the model's JSON envelope but
-  backend-internal; the backend maps the raw `1..10` value to the avatar
-  `0..3` scale before including it as optional context on `emotion.update`.
-- `speech`: required string; rendered as the normal assistant bubble and sent to
-  TTS from the typed speech event
-- `display`: optional visible-only string; rendered as a subsequent assistant
-  bubble when it differs from `speech`
-
-Speech events can include tokenized and phonemized metadata for avatar visemes.
-For structured speech streaming, `useChatSession.ts` accumulates the raw viseme
-inputs from every speech segment that is actually sent to TTS, preferring
-`tts_text` and `tts_phonemized_text` when the backend supplies gruut
-`text_with_ws`. Display events and `emotional_tone` are never sent to frontend
-TTS. Backend parsing validates structured voice JSON before semantic events
-reach the browser; malformed JSON is not spoken as fallback text.
-
-Transport details:
-
-- realtime ElevenLabs sends text frames straight to the upstream websocket
-- finalized Eleven v3 receives `tts.audio` frames from `chat:sse`
-- sentence and paragraph v3 grouping use the same frontend SSE event contract
-- paragraph pauses are ordinary silent PCM audio frames, not separate frontend
-  timing metadata
-
-Single-run walkthrough:
-
-1. Chat opens the normal assistant SSE run and creates a `runId`.
-2. As assistant text arrives, `useChatSession.ts` hands TTS chunks to `use-tts-playback.ts`.
-3. If provider is `elevenlabs`, `useChatSession.ts` sends explicit TTS intent
-   in `dispatch_options.tts`. Realtime models start the websocket runtime for
-   that run; `eleven_v3` prewarms local finalized audio resources while it
-   waits for finalized speech text.
-4. Realtime startup does two things in parallel:
-   - creates local audio resources (`AudioContext` + shared `PCMPlayerWorklet`)
-   - waits up to 1500 ms for the `chat:sse` `tts.session` event
-5. The backend `chat:sse` TTS bootstrap runs concurrently with assistant text
-   generation, resolves the active anima voice from
-   `preferences.speech.elevenlabs.primary_voice`, and emits the session event
-   as soon as setup finishes. Emotion label and intensity are accepted for
-   compatibility but do not affect voice selection.
-6. The session response includes a fresh single-use token and the browser
-   connects to ElevenLabs directly.
-7. On websocket open:
-   - realtime sends `{ "text": " " }` to ElevenLabs immediately and marks the runtime ready
-8. As more assistant text arrives, the runtime queues and flushes incremental
-   `{ "text": "..." }` frames.
-9. When the assistant run finishes, the frontend flushes the realtime stream
-   with `{ "text": "" }`.
-10. For Eleven v3, the backend emits `tts.audio` base64 PCM chunks after the
-    main-structured `emotional_tone` and sentence or paragraph speech batch are
-    known. Any emotional prefix is applied only to the upstream ElevenLabs
-    request text.
-11. Audio frames are decoded into `Int16Array` chunks, converted to normalized
-    `Float32Array` samples, copied into 24 kHz `AudioBuffer` objects, and
-    scheduled with `AudioBufferSourceNode`.
-12. Playback timing stays local:
-    - the first scheduled v3 buffer start drives `onAudioStarted`
-    - accumulated scheduled samples drive `onAudioDurationResolved`
-13. When the upstream signals final output or `chat:sse` emits `tts.done`, the
-    runtime marks the stream finished and waits for scheduled local audio
-    sources to drain before emitting playback end.
-14. If `chat:sse` emits `tts.session.error`, the frontend marks TTS skipped for
-    that run.
-15. If websocket setup, upstream streaming, SSE-pushed v3 generation, or audio
-    decode fails, the runtime emits one warning, tears down TTS for that run,
-    and leaves the chat/SSE response stream intact.
-
-Lip-sync behavior:
-
-- ElevenLabs is treated as lip-sync-capable in the same lifecycle tier as Pocket
-- viseme source remains SSE `phonemized_text` / `tokenized_text`, with
-  gruut-prepared `tts_phonemized_text` / `tts_text` preferred when those fields
-  are the text actually sent to ElevenLabs
-- actual audio start is anchored on the local playback start event: PCM worklet
-  `firstPlayback` for realtime/Pocket paths, or the first scheduled v3
-  `AudioBufferSourceNode` start
-- actual duration is derived from played sample count, not provider timestamps
-- `avatar-lipsync-bridge-store.ts` stores provider-agnostic speech audio timing
-  so both Pocket and ElevenLabs feed the same viseme timing pipeline
-- if duration resolves before raw viseme inputs are queued, the bridge stores
-  the duration and rebuilds when inputs arrive instead of throwing through the
-  TTS callback
+See [ElevenLabs TTS](elevenlabs-tts.md) for session setup, model-specific batching,
+settings, audio events and playback timing. The [chat contract](chat.md#main-structured-response-mode)
+separates speakable `speech` from visible-only `display`; raw JSON and hidden
+emotion metadata are never spoken. The [lip-sync bridge](avatar-lipsync.md)
+uses the phonemes matching spoken text and local audio timing.
 
 ### Pocket TTS (detailed)
 
@@ -1043,111 +809,6 @@ Voice resolution:
 - custom voice token `custom` is still supported in the legacy path when a custom voice embedding exists
 - custom/cloned voices remain in-memory only; cloning does not create a anima `{animaId}_voices.bin`
 
-## End-to-End Lifecycle
-
-### A) Dictation mode (browser provider)
-
-1. User starts dictation.
-2. VAD starts and speech recognition starts.
-3. Web Speech result updates refresh per-turn text buffers (`finalText` + `interimText`).
-4. Final segments are routed/committed by acoustic gate state.
-5. Late-arriving final segments can still be committed during post-window grace.
-6. User manually submits text.
-7. Normal chat request + TTS flow starts.
-
-### B) Voice mode with browser STT
-
-1. User starts voice mode.
-2. Provider resolution selects `browser_external` or `browser_local`.
-3. Browser `SpeechRecognition`, VAD, the smart-turn worker, and waveform
-   visualizer start.
-4. User speaks:
-   - browser recognition emits final/interim transcript events
-   - transcript segments are routed through acoustic windows
-   - accepted speech audio is appended to the smart-turn turn buffer
-5. On each accepted `speech_end`, smart-turn classification runs on the rolling
-   turn audio.
-6. `continue`:
-   - keep listening
-   - keep existing turn transcript/audio
-7. `end_turn`:
-   - queue pending auto-submit and attempt immediate commit-based submit
-   - wait briefly for transcript updates if needed
-   - timeout fallback can use buffered final/interim text
-   - rotate to new turn
-   - continue listening for next turn
-8. User can pause capture without leaving voice mode:
-   - mic-side button becomes `Mute Mic` / `Unmute Mic`
-   - mute pauses recognition, VAD, and waveform capture
-   - voice mode remains active and can still be fully stopped by the voice button
-   - unmute resumes capture for the same voice-mode session
-9. If voice buffers remain stale with no further speech for 6s:
-   - runtime performs a one-shot silence reset
-   - `turnId` rotates and transcript/audio buffers are cleared
-   - listening continues in the same voice-mode session
-
-### C) Voice mode with Parakeet STT
-
-1. User starts voice mode.
-2. Provider resolution selects available `parakeet` because it is selected or
-   browser STT is unavailable.
-3. The local Parakeet worker, VAD, the smart-turn worker, and waveform
-   visualizer start.
-4. User speaks:
-   - MicVAD opens, marks, and closes speech windows
-   - no browser recognition is created
-5. On accepted `speech_end(audio)`, the accepted audio window is transcribed by
-   the Parakeet worker.
-6. Final text from Parakeet:
-   - commits to the current voice turn
-   - emits through `onSegment({ source: "parakeet", isFinal: true })`
-   - updates the shared final text buffer with empty interim text
-7. The accepted audio is appended to the smart-turn turn buffer.
-8. Smart-turn classification runs after the Parakeet final text commit.
-9. `continue`:
-   - keep listening
-   - keep existing turn transcript/audio
-10. `end_turn`:
-
-- queue pending auto-submit and attempt immediate committed-text submit
-- committed Parakeet final text is normally already available
-- rotate to new turn
-- continue listening for next turn
-
-11. User can pause capture without leaving voice mode:
-
-- mic-side button becomes `Mute Mic` / `Unmute Mic`
-- mute pauses VAD and waveform capture
-- the warmed Parakeet worker and smart-turn worker are preserved
-- voice mode remains active and can still be fully stopped by the voice button
-- unmute resumes capture for the same voice turn
-
-12. If voice buffers remain stale with no further speech for 6s:
-
-- runtime performs a one-shot silence reset
-- `turnId` rotates and transcript/audio buffers are cleared
-- listening continues in the same voice-mode session
-
-### D) Assistant response with Pocket or ElevenLabs TTS
-
-1. Chat run starts -> TTS run starts.
-2. Tokens buffer while response streams.
-3. Provider-specific runtime is prepared:
-   - Pocket resolves anima/emotion voice selection once near completion
-   - ElevenLabs bootstraps per run up front via `chat:sse` `tts.session`, with
-     a legacy realtime session endpoint fallback
-4. Pocket voice selection uses:
-   - current anima id
-   - dominant avatar emotion/intensity
-   - anima catalog fallback chain
-   - legacy shared/custom voice fallback if no anima match exists
-5. Text is synthesized through the active provider runtime:
-   - Pocket uses the local worker/runtime
-   - ElevenLabs realtime uses a direct provider websocket; finalized Eleven v3
-     audio arrives through `chat:sse`
-6. Shared playback events drive avatar speech/lipsync lifecycle.
-7. When playback and run are complete, audio-ended is emitted and avatar returns to idle.
-
 ## Assets and Configuration Checklist
 
 ### STT/VAD/smart-turn assets
@@ -1172,12 +833,8 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
   are not members of the 19-file engine inventory.
 
-Legacy operator-supplied catalogs at
-`/onnx/models/pocket-tts/animas/<safe-id>_voices.bin` remain separate optional
-inputs under `web/public`, using letters, digits, `_` or `-` for the ID. Vite
-serves only existing regular files at those paths and preserves their build
-copies; missing catalogs return 404. They are not hash-approved engine assets
-or members of the 19-file manifest. Normal uploaded catalog URLs are unaffected.
+Optional operator voice catalogs are separate from the engine inventory; see
+[Content and workers](../architecture/content-and-workers.md#vite-application-resources).
 
 From `src/frontend`, run `pnpm verify:tts-assets` for source inputs or
 `pnpm verify:tts-assets -- --built-root web/dist` for a built application. Both

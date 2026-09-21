@@ -214,16 +214,9 @@ root is excluded from playback with its dependents; unrelated content and text
 chat continue. A missing, invalid, or unposable Avatar uses the non-avatar
 fallback and a recovery diagnostic, never an unposed model.
 
-The compact content-health badge is keyboard-focusable and hoverable. Its
-tooltip explains the overall scan state and lists each available diagnostic
-with the content name, code, message, and portable `content/<path>` locator;
-users do not have to infer the issue from a count alone.
-
-Effect creators retain their visible recovery notice after a failed Save and
-also change the centered document status to `Save failed`. Hovering or focusing
-that status opens the exact save error below it, so compact creator chrome does
-not hide the actionable failure reason. Gesture and Reaction creators expose
-the same detail from their existing error indicator. All typed creators
+Content-health diagnostics identify the affected item, error code, message and
+portable `content/<path>` locator. Creator Save failures retain the draft and
+expose the actionable error. All typed creators
 normalize direct FastAPI and older wrapped error envelopes at the shared
 `saveCatalogItem` boundary. Stable failure codes explain what failed, the next
 corrective step, and whether the draft remains safe; network failures recommend
@@ -261,5 +254,4 @@ Only unpackaged external-stack development loads `ANIMAMA_DESKTOP_WEB_URL` or
 per-launch HttpOnly renderer capability. See [Desktop overview](../desktop/overview.md),
 [Feature packs](../desktop/feature-packs.md) and
 [Desktop backend operations](../../backend/operations/desktop-runtime.md).
-Implementation is not signed-release acceptance; current availability is in
-[Installation](../desktop/installation.md).
+See [Installation](../desktop/installation.md) for release availability.

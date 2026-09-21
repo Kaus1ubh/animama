@@ -1,56 +1,39 @@
-# Doc Coverage Checklist
+# Documentation review checklist
 
-Use this checklist to scan the selected scope (main = comprehensive, or current-branch diff) and validate documentation coverage.
+Use this for a broad audit or a disputed addition. It supports the reader-value
+standard in [Docs Sync](../SKILL.md), not a requirement to document every change.
 
-## Feature inventory targets
+## Page review
 
-- Public exports: classes, functions, types, and module entry points.
-- Configuration options: `*Settings` types, default config objects, and builder patterns.
-- Environment variables or runtime flags.
-- CLI commands, scripts, and example entry points that define supported usage.
-- User-facing behaviors: retry, timeouts, streaming, errors, logging, telemetry, and data handling.
-- Deprecations, removals, or renamed settings.
+- Identify the reader's task: setup, usage, operation, debugging or extension.
+- Keep information needed to complete that task, including failures and recovery.
+- Check commands, paths, defaults and behavior claims against their owning source.
+- Consolidate repeated explanations; link to one authoritative section.
+- Remove decorative UI detail, obvious behavior, speculative features and delivery
+  history. Keep concrete compatibility or safety constraints that prevent mistakes.
+- Preserve decision records, evidence and notices as records. Do not convert them
+  into apparent current instructions or erase their approvals and limitations.
 
-## Doc-first pass (page-by-page)
+## Decide whether a change needs docs
 
-- Review each relevant English page (excluding `docs/ja`, `docs/ko`, and `docs/zh`).
-- Look for missing opt-in flags, env vars, or customization options that the page implies.
-- Add new features that belong on that page based on user intent and navigation.
+| Change                                                            | Documentation decision                                                                                          |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Dialog spacing, icon alignment or a visual bug fix                | None unless existing guidance becomes misleading.                                                               |
+| A control moves                                                   | Correct an existing instruction that sends readers to the wrong place; do not list where the control is absent. |
+| An internal refactor preserves the documented contract            | None unless developer guidance references a changed entrypoint.                                                 |
+| A command, default, public contract or recovery procedure changes | Update the owning guide with verified current instructions and relevant consequences.                           |
+| A paragraph repeats another section                               | Keep the useful explanation in its owning section and link where needed.                                        |
+| A removed feature leaves obsolete instructions                    | Remove or correct those instructions; retain a migration note only when users need an action.                   |
 
-## Code-first pass (feature inventory)
+For example, “Camera is not an App Settings section” adds little. If a usage guide
+needs the location, “Open Canvas settings to adjust the camera” answers the task.
+A dialog fitting beside the sidebar normally needs no prose. A restore command
+that requires stopping the service does: omitting that condition could lose data.
 
-- Map features to the closest existing page based on the docs navigation in `mkdocs.yml`.
-- Prefer updating existing pages over creating new ones unless the topic is clearly new.
-- Use conceptual pages for cross-cutting concerns (auth, errors, streaming, tracing, tools).
-- Keep quick-start flows minimal; move advanced details into deeper pages.
+## Completion
 
-## Evidence capture
-
-- Record the main-branch file path and symbol/setting name.
-- Note defaults or behavior-critical details for accuracy checks.
-- Avoid large code dumps; a short identifier is enough.
-
-## Red flags for outdated or incorrect docs
-
-- Option names/types no longer exist or differ from code.
-- Default values or allowed ranges do not match implementation.
-- Features removed in code but still documented.
-- New behaviors introduced without corresponding docs updates.
-
-## When to propose structural changes
-
-- A page mixes unrelated audiences (quick-start + deep reference) without clear separation.
-- Multiple pages duplicate the same concept without cross-links.
-- New feature areas have no obvious home in the nav structure.
-
-## Diff mode guidance (current branch vs main)
-
-- Focus only on changed behavior: new exports/options, modified defaults, removed features, or renamed settings.
-- Use `git diff main...HEAD` (or equivalent) to constrain analysis.
-- Document removals explicitly so docs can be pruned if needed.
-
-## Patch guidance
-
-- Keep edits scoped and aligned with existing tone and format.
-- Update cross-links when moving or renaming sections.
-- Leave translated docs untouched; English-only updates.
+- Review every page in the agreed scope; unchanged is a valid disposition.
+- Check inbound links when removing a section or page.
+- Run applicable formatting, link checks and documentation-consumer tests.
+- Record coverage, limitations and checks in the task/PR without adding permanent
+  documentation solely to prove that documentation was updated.

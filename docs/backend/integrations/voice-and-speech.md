@@ -74,9 +74,7 @@ Ordinary non-TTS chat streams do not run gruut for ElevenLabs and do not emit
 `tts_text` fields. Gruut speech payloads are limited to main-structured
 `speech` parts used by active TTS runs.
 
-Realtime TTS is direct-only after `chat:sse` emits `tts.session`. Expressive
-delivery should be implemented through synthesis parameters or prompt/tagging in
-future TTS paths, not by switching among saved ElevenLabs voices.
+Realtime TTS uses a direct browser-to-provider connection after `tts.session`.
 
 ## Finalized-Text v3 TTS
 

@@ -15,11 +15,7 @@ Typed creators use stable product routes such as `/a/particle-effects/new`,
   `/setup` and a completed installation to `/a`.
 - `setup.tsx`: required private display-name setup with Continue and no Skip. It
   is reachable only while the backend reports first run incomplete.
-- `a.tsx`: accountless app area. It redirects to `/setup` only when first run
-  is incomplete. Its sidebar Create control links to the
-  creator hub and exposes direct Anima, Gesture, and Reaction shortcuts on
-  hover or focus. Its nested Effects submenu groups Particle VFX, Avatar VFX,
-  Scene VFX, and Sounds without lengthening the primary menu.
+- `a.tsx`: app shell; redirects to `/setup` while first run is incomplete.
 - `a/index.tsx`: waits for saved settings and owned Animas, then replaces `/a`
   with `/a/$animaId` for the last visited owned Anima, or the first in creation
   order (Annie on a fresh installation). A stale ID falls back; no owned Animas
@@ -49,55 +45,17 @@ Typed creators use stable product routes such as `/a/particle-effects/new`,
   Music Track authoring. Creators upload one long-form audio file, configure
   loop/gain/autoplay defaults, preview the exact registered audio, and save it
   directly without creating a generic Audio product row.
-- `a/gestures.new.tsx` and `a/gestures.$gestureId.edit.tsx`: typed Gesture
-  creation and stable-item editing. Timeline Gestures use an immersive
-  full-body Pose/Clip workspace with keyframe bone/expression authoring and
-  client-side timeline playback of the current in-memory draft;
-  imported VRMA Gestures use the same preview shell without timeline tools.
-  The header loads only ready owned Gestures, while Pose mode loads local
-  browser poses; both operations retain the dedicated route identity. On
-  desktop the route uses the shared adaptive Canvas layout: an expanded
-  sidebar docks beside and resizes the workspace, while compact sidebar
-  controls float over the full-width scene. The header and collapsible
-  authoring panels remain clear of either sidebar state.
-- `a/reactions.new.tsx` and `a/reactions.$reactionId.edit.tsx`: typed Reaction
-  creation and stable-item editing in a portrait-framed expression/effect/sound
-  workspace. Reaction routes never expose humanoid bone or pose controls and
-  their header loads only ready owned Reactions. Timeline Play prepares the
-  current exact dependency closure before dispatching local events. Neither
-  creator has a document-toolbar Preview action; only explicit Save operations
-  persist the draft. They use the same adaptive Canvas/sidebar layout as
-  Gesture creators.
-- `a/particle-effects.new.tsx` and
-  `a/particle-effects.$particleEffectId.edit.tsx`: typed Particle Effect
-  authoring in a scene-first `three.quarks` workspace. One route-owned Canvas
-  docks beside the expanded application sidebar and returns to full viewport
-  width beneath the compact controls. The document toolbar, emitter/effect setup browser, five-category
-  Inspector, preview settings, and local Preview Timeline remain control-safe
-  floating surfaces above it; narrow layouts return those surfaces to normal
-  flow without mounting another Canvas.
-- `a/avatar-effects.new.tsx` and
-  `a/avatar-effects.$avatarEffectId.edit.tsx`: typed Avatar Effect authoring
-  for Hover, Face decal, and Texture variants. One portrait Canvas uses the
-  shared adaptive expanded-dock/compact-overlay sidebar layout, with mock-aligned
-  translucent Effect Setup and Inspector panels plus a compact Preview bar.
-  Exact image bytes, Blob URLs, optional Sound dependency pins, recovery, and
-  catalog revisions remain outside route state. The edit route hydrates the
-  current Local entry and Save replaces it under the stable catalog item ID.
-  Once a ready owned item exists, the toolbar can hand only that stable item ID
-  and the `avatar_effect` type token to a new Gesture or Reaction route.
-  The bare `/a/avatar-effects` family URL redirects to the new creator.
-- `a/scene-effects.new.tsx` and
-  `a/scene-effects.$sceneEffectId.edit.tsx`: typed Scene Effect authoring for
-  Background Layers and Focus Lines. The creator uses the shared Effect
-  workspace chrome around an isolated full-scene preview, so local drafts can
-  exercise underlay/overlay placement and Avatar-face targets without writing
-  to the live Anima scene store. Private marquee image bytes, Blob URLs, exact
-  Sound pins, recovery, and catalog revisions stay outside route state; Save
-  creates or replaces one editable Local entry under the stable item ID. The bare
-  `/a/scene-effects` family URL redirects to the new creator rather than being
-  interpreted as an Anima ID. Ready owned Scene Effects expose the same
-  stable-ID-only Gesture/Reaction handoff as the other component creators.
+- `a/gestures.new.tsx` and `a/gestures.$gestureId.edit.tsx`: Gesture creation
+  and stable-item editing with VRMA or Pose Clip motion.
+- `a/reactions.new.tsx` and `a/reactions.$reactionId.edit.tsx`: Reaction
+  creation and stable-item editing with expression/effect/sound timelines.
+- `a/particle-effects.new.tsx` and `a/particle-effects.$particleEffectId.edit.tsx`:
+  [Particle Effect authoring](../runtime/avatar-particle-vfx.md).
+- `a/avatar-effects.new.tsx` and `a/avatar-effects.$avatarEffectId.edit.tsx`:
+  [Avatar Effect authoring](../runtime/avatar-vfx.md).
+- `a/scene-effects.new.tsx` and `a/scene-effects.$sceneEffectId.edit.tsx`:
+  [Scene Effect authoring](../runtime/scene-vfx.md).
+  Bare `/a/avatar-effects` and `/a/scene-effects` URLs redirect to their creators.
 - `a/animas/index.tsx`: compatibility resolver. It replaces `/a/animas` with
   the first owned Anima's canonical management URL or redirects an empty
   installation to `/a/animas/new`. The latter notice must not redirect back here,
@@ -105,10 +63,8 @@ Typed creators use stable product routes such as `/a/particle-effects/new`,
 - `a/animas/$animaId.tsx`: Anima details and management with URL-backed
   Identity, Emotions, Loadout, and Settings tabs. The Loadout view records
   `tab=loadout`. A bare management URL resolves to Identity; invalid tab values
-  do the same. Its management Canvas docks beside the expanded desktop sidebar
-  so the stage and carousel center in the remaining workspace, then returns to
-  full viewport width beneath the collapsed controls. Tab changes and Anima
-  carousel navigation create normal history entries while retaining the selected tab.
+  do the same. Tab changes and Anima carousel navigation create history entries
+  while retaining the selected tab.
 - `a/animas/$animaId/identity.tsx`: modal route for editing the anima-scoped
   `IDENTITY.md` memory entry.
 - `a/avatar-portrait-debug.tsx`: development-only local VRM portrait-capture
@@ -116,8 +72,6 @@ Typed creators use stable product routes such as `/a/particle-effects/new`,
 - `a/$animaId.tsx`: live anima runtime shell.
   Valid owned visits asynchronously update the user's last-active-Anima
   preference for cross-route authoring defaults without delaying the shell.
-  Its `MainShell` follows the same adaptive expanded-dock/compact-overlay
-  Canvas behavior as management and creator routes.
 - `a/$animaId/c/$chatId.tsx`: chat-id child route; intentionally renders
   nothing because the parent owns the runtime effects.
 
@@ -129,11 +83,8 @@ for recoverable runtime failures, and mounts routes only when runtime context is
 ready. Shared routes consume the neutral runtime owner rather than importing
 the local provider.
 
-The sidebar **App Settings** action opens a route-independent modal without
-changing the active anima, chat, or URL. Its General section includes the private
-Display Name editor alongside audio controls; camera, voice, memory, interface
-and provider settings remain in the same modal. It uses the shared dialog
-backdrop, matching Search chats and the chat model selector.
+App Settings opens a route-independent modal without changing the active Anima,
+chat or URL.
 
 ## Route Patterns
 
@@ -150,10 +101,6 @@ backdrop, matching Search chats and the chat model selector.
 - Keep subtype disclosure and locally revealed Starter page counts out of the
   URL. Changing Library category, query, or Starter inclusion remounts the
   inventory scope and opens its first non-empty subtype.
-- Render Library navigation as actual tab/tab-panel relationships. The All,
-  Avatars, Gestures & Reactions, FX, and Chat Uploads sections use URL state as
-  their controlled value, while the sticky category strip remains inside
-  Library's existing page scroll container.
 - Preserve Library search state on hard reload. Legacy `/a/creator` URLs
   resolve to the `/a/create` hub.
 - Use route `beforeLoad` for navigation decisions that must happen before a

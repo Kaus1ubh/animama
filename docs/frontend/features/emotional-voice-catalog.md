@@ -2,8 +2,7 @@
 
 PocketTTS catalogs are private binary voice-embedding files used by PocketTTS
 playback. The browser-side catalog builder encodes named embeddings, and
-backend upload primitives validate catalog bytes. The four-step Create Anima
-journey has no voice-authoring step.
+backend upload primitives validate catalog bytes.
 
 Current runtime behavior:
 

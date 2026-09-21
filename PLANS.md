@@ -11,9 +11,8 @@ Track new Animama plans at `docs/plans/<scope>/<scope>-execplan.md`, beside
 `<scope>-spec.md` when a separate spec is useful. Use the task's existing checkout
 and branch. Planning alone needs neither a Cloud checkout nor a Compose stack.
 These direct files are trackable; nested evidence directories are ignored by
-default. Keep necessary, public-safe evidence summaries in the plan and deliberately
-classify any new tracked supporting files through the
-[boundary inventory](docs/architecture/repository-boundaries.md#classification-provenance-and-licensing).
+default. Keep necessary, public-safe evidence summaries in the plan and review
+new supporting files against the [source and licensing boundary](docs/architecture/repository-boundaries.md#source-review-and-licensing).
 Do not force-add a directory of raw evidence.
 
 Cloud owns new Cloud plans. For work across repositories, keep each repository's
@@ -63,8 +62,8 @@ At each stopping point, update progress, discoveries, decisions, validation and
 remaining work. Record exact source and commands with results and limitations.
 Separate local, hosted CI, browser, provider, native and physical evidence as
 applicable; never mark an unperformed check passed. Record phase commits using
-[the naming convention](SDLC.md#names-and-labels). Update durable documentation
-when behavior changes; the plan remains delivery history, not the current manual.
+[the naming convention](SDLC.md#names-and-labels). Update current guidance when
+it becomes incomplete or misleading; the plan remains delivery history.
 
 ## Independent review
 

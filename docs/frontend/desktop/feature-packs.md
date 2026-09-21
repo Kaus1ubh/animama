@@ -15,8 +15,7 @@ serve anonymous installed-app downloads.
 | Document processing (deferred)       | `document-processing`       | Not offered in the first release. Originals can still be uploaded and stored; new extraction/indexing requests remain unavailable. |
 
 The expanded-content and document-processing packs are deferred from the
-initial catalog and hidden in Settings on a fresh installation. Their
-implementations remain for a future reviewed release. If old pack files remain,
+initial catalog and hidden in Settings on a fresh installation. If old pack files remain,
 recovery/removal controls stay visible.
 When released, the expanded pack makes content selectable; it never equips an Anima
 automatically. Its read-only Included entries are not user-owned Local files.
@@ -77,10 +76,6 @@ Pack versions are bound to compatible app versions. Use **Install compatible
 version** when offered. An app update that would strand referenced expanded
 content is blocked; resolve those references or wait for an approved compatible
 release. Never rename an old pack or change its manifest to impersonate a new one.
-
-The current distribution excludes the downloaded voice samples, background
-examples and BGM, along with their metadata/thumbnails; they are not extra
-downloads hidden in this pack. Your own Local media remains supported.
 
 For errors, see [Troubleshooting](troubleshooting.md). Maintainers should use
 [Runtime staging](runtime-staging.md) for producers and inventory approvals,

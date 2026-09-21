@@ -1,15 +1,9 @@
 # Frontend Docs
 
-These docs describe the current `src/frontend` workspace: the Vite web app in
-`web/` and the Electron
-desktop runtime in `desktop/`. For desktop use, start with
+The frontend workspace contains the Vite app in `web/` and Electron runtime in
+`desktop/`. For desktop use, start with
 [Installation and availability](desktop/installation.md); no signed public
 release is available yet.
-
-The frontend is the user-facing AI Avatar Desktop Companion experience: anima
-selection and management, `/v1/chats` history, direct `chat:sse` streaming,
-client-side STT/VAD, TTS playback, avatar rendering/animation, user-file upload
-debugging, and desktop PiP/fullscreen behavior.
 
 Start here:
 
@@ -59,30 +53,7 @@ Testing guides:
   safety, serial execution, playback/creator journeys, exact Local-content
   cleanup, and retained evidence.
 
-Architecture and implementation references:
-
-The local product and these durable guides belong in `animama`; see
-[Repository boundaries](../architecture/repository-boundaries.md).
-Contributors need no private planning checkout. Use these implementation and
-operational references:
-
-- [Local HTTP boundary](architecture/auth-server.md) and
-  [backend operations](../backend/operations/development.md): accountless
-  startup, the installation owner, loopback access and optional local admin tools.
-- [Local content runtime](architecture/local-content-runtime.md),
-  [content previews](runtime/content-previews.md) and
-  [Library](features/library.md): content custody, prepared bytes and editable
-  Local content behavior.
-- [Custom Anima creation](features/custom-anima-creation.md) and
-  [Anima management](features/anima-management.md): current creation, ownership,
-  saved-state and recovery contracts.
-- [Anima memory](features/anima-memory.md): current memory workspace and Memory
-  Manager behavior.
-- [Browser journeys](testing/browser-journeys.md): isolated targets, mutation
-  ownership, cleanup and manual verification expectations.
-- [Discover compatibility](../architecture/discover-contract-ownership.md):
-  the inert package remains for artifact compatibility; Discover and local
-  account connection are discontinued.
+For repository ownership, see [Repository boundaries](../architecture/repository-boundaries.md).
 
 Desktop:
 

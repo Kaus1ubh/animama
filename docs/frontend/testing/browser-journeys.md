@@ -36,12 +36,8 @@ The runner filters out the real-avatar pose journey in the same spec.
 The active Playwright projects use installation setup and same-origin requests,
 without accounts, stored login state, owner headers or browser bearer tokens.
 The selected `accountless-*.spec.ts` journeys cover Library, companion selection,
-chat Stop/recovery, and creator JSON import/preview. Scene Save uses an ordinary
-pointer click and rejects failed typed-content reads through the following reload;
-the reloaded item must retain the exact revision returned by Save. Layout checks
-cover the Scene, Avatar Effect and Particle creators at desktop, tablet and phone
-widths: catalog health and Save must have separate hit targets, and details/Rescan
-remain reachable. These are rendered-browser assertions, not CSS string checks.
+chat Stop/recovery, creator JSON import/preview, Save/reload revision integrity,
+and responsive access to creator health, Save and recovery controls.
 Older creator journeys remain
 unselected until individually reviewed; listing them is not passing evidence.
 The separate `local:verify:accountless` API journey covers bootstrap, settings,
@@ -126,16 +122,6 @@ pnpm e2e:test -- --project chromium --no-deps --grep "accountless built-in pose 
 
 This focused pose check is not part of the generated structural-avatar fixture's
 acceptance claim; it requires the real tracked avatar and built-in pose content.
-
-The currently supported automated frontend checks are:
-
-```bash
-cd src/frontend
-pnpm check
-pnpm web:lint
-pnpm web:test
-pnpm desktop:check
-```
 
 The bounded application smoke test accepts only the configured origin:
 

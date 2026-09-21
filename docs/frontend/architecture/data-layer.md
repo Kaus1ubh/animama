@@ -179,10 +179,7 @@ state locally because search results are transient navigation data rather than
 cached chat state. It shares the user-scoped `useAnimas` list query to map each
 result's `anima_id` to its lightweight display name and profile thumbnail,
 instead of resolving one complete runtime catalog per result. The endpoint
-paginates distinct chats, not individual message hits. Search rows show the
-anima name under the avatar, show the matching message date beside the chat
-title, and highlight matching query terms in snippets on the client by
-rendering escaped text fragments as React nodes.
+paginates distinct chats, not individual message hits. Matching snippet terms are highlighted as escaped React text nodes.
 
 ## Anima presentation and typed catalogs
 
@@ -190,9 +187,8 @@ rendering escaped text fragments as React nodes.
 search render the required bounded `presentation` projection and load private
 thumbnails with `useAnimaPresentationImage`. That hook fetches protected local
 bytes through the application origin, owns the Blob URL, and revokes it on change or
-unmount. Built-in portraits load from same-origin
-Included compatibility URLs. These surfaces never fetch a full runtime
-snapshot or load a VRM merely to show a thumbnail.
+unmount. These surfaces never fetch a full runtime snapshot or load a VRM merely to
+show a thumbnail.
 
 Content family hooks call the typed product routes and adapt their results for creator views. They preserve
 source, search, sort, and family-specific presentation while retaining the

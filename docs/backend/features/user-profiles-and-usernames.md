@@ -14,10 +14,8 @@ creator profile, or Discover identity.
 - `created_at` and `updated_at` timestamps.
 
 Saved display names must be nonblank; missing, null, empty, all-whitespace, and
-overlong inputs are rejected with HTTP 422. The local schema has no username,
-claim history, biography, visibility, alias, cooldown, deletion, email, or
-profile-image fields. Those public identity concepts belong to a future hosted
-Animama account service and must not be matched to local personalization.
+overlong inputs are rejected with HTTP 422. This record supplies private local
+personalization, not a public identity.
 
 ## Bootstrap And First Run
 
@@ -71,7 +69,3 @@ Keep `user_id` as an opaque owner key and filter every profile read/write by the
 resolved principal. Tests override `get_current_principal` through FastAPI's
 dependency system. There is no auth bypass environment variable or test owner
 header.
-
-The future hosted composition may implement `OwnerProfileBootstrapPort` with a
-central profile service keyed by its hosted Better Auth user ID. It must use a
-separate database and cannot replace or rekey the local installation principal.
