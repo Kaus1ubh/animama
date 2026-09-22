@@ -207,15 +207,7 @@ export async function prepareLibraryPreview(args: {
     name: args.contentName,
     exact: true,
   });
-  const matchingRows =
-    args.section === "pose"
-      ? namedRows.filter({
-          has: args.page.getByText(
-            origin === "Included" ? "Starter" : "Local",
-            { exact: true },
-          ),
-        })
-      : namedRows;
+  const matchingRows = namedRows;
   await expect(matchingRows).toHaveCount(1, { timeout: 15_000 });
   const row = matchingRows.first();
   await expect(row).toBeVisible();
@@ -237,8 +229,8 @@ export async function prepareLibraryPreview(args: {
         avatar: "avatar-effects",
         scene: "scene-effects",
       }[args.section];
-      // Only Pose rows display their origin. The actual preparation response
-      // binds every selected row to its exact Included/Local source instead.
+      // The preparation response binds the exact Included/Local source;
+      // row badges are presentation and are not required for this proof.
       const prepared = args.page.waitForResponse(
         (response) =>
           response.request().method() === "POST" &&

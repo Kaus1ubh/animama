@@ -1,5 +1,7 @@
 "use client";
 
+import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
+
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
@@ -172,7 +174,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   const [soundPreview, setSoundPreview] = useState<PyContentPreview | null>(
     null,
   );
-  const hydratedItemRef = useRef<string | null>(null);
+  const hydratedItemRef = useRef(new ContentEditorHydration());
   const initialFingerprintRef = useRef(
     sceneSaveFingerprint(document, imageResources),
   );
@@ -241,7 +243,8 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     [],
   );
   const onSaved = useCallback(
-    (savedDocument: SceneEffectEditorDocument) => {
+    (savedDocument: SceneEffectEditorDocument, savedItemId: string) => {
+      hydratedItemRef.current.preserve(savedItemId);
       initialFingerprintRef.current = sceneSaveFingerprint(
         savedDocument,
         imageResources,
@@ -284,16 +287,16 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       !itemId ||
       !contentSave.recoveryReady ||
       contentSave.recovered ||
-      hydratedItemRef.current === itemId ||
       !existingQuery.data
     )
       return;
-    hydratedItemRef.current = itemId;
+    const load = hydratedItemRef.current.begin(itemId);
+    if (!load) return;
     const item = existingQuery.data;
-    if (item.origin !== "owned" || !item.editable) {
+    if (item.state !== "ready" || (item.origin === "owned" && !item.editable)) {
       setHydration({
         state: "error",
-        message: "Only editable Local Scene Effects can be opened here.",
+        message: "This Scene Effect is unavailable.",
       });
       return;
     }
@@ -306,12 +309,14 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       signal: controller.signal,
     })
       .then(({ document: loadedDocument, images }) => {
+        if (controller.signal.aborted) return;
+        load.complete();
         dispatch({ type: "replace", document: loadedDocument });
         setImageResources(images);
-        initialFingerprintRef.current = sceneSaveFingerprint(
-          loadedDocument,
-          images,
-        );
+        initialFingerprintRef.current =
+          item.origin === "builtin"
+            ? "__included_copy__"
+            : sceneSaveFingerprint(loadedDocument, images);
         setHydration({ state: "ready", message: null });
         setPreviewRevision((value) => value + 1);
       })
@@ -325,7 +330,10 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
               : "The Scene Effect could not be opened.",
         });
       });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      load.cancel();
+    };
   }, [
     contentSave.recovered,
     contentSave.recoveryReady,

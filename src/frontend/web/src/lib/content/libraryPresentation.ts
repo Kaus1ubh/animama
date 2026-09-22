@@ -33,7 +33,6 @@ export type LibraryProductActionPolicy = {
   preview: boolean;
   manage: boolean;
   edit: boolean;
-  customize: boolean;
   useInGesture: boolean;
   useInReaction: boolean;
 };
@@ -78,18 +77,10 @@ export function libraryProductActionPolicy(
 ): LibraryProductActionPolicy {
   const action = card.family === "gesture" || card.family === "reaction";
   const reusableEffect = !action && card.family !== "pose";
-  const editable =
-    card.origin === "Mine" &&
-    Boolean(card.source) &&
-    (action || reusableEffect || card.family === "pose");
   return {
     preview: Boolean(card.source),
     manage: action && Boolean(card.source),
-    edit: editable,
-    customize:
-      card.family === "pose" &&
-      card.origin === "Built-in" &&
-      Boolean(card.source),
+    edit: Boolean(card.source),
     useInGesture: reusableEffect && Boolean(card.source),
     useInReaction: reusableEffect && Boolean(card.source),
   };

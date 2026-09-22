@@ -1,15 +1,14 @@
 "use client";
 
+import { useContentEditorSaveSource } from "@/hooks/useContentEditorSaveSource";
+
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
-import {
-  localContentLogicalKey,
-  saveCatalogItem,
-} from "@/lib/content/catalogApi";
+import { saveCatalogItem } from "@/lib/content/catalogApi";
 import {
   AVATAR_EFFECT_RECOVERY_SCHEMA,
   avatarEffectDefinition,
@@ -46,7 +45,7 @@ export function useAvatarEffectSave(args: {
     document: AvatarEffectEditorDocument,
     image: AvatarEffectEditorImageResource | null,
   ) => void;
-  onSaved: (document: AvatarEffectEditorDocument) => void;
+  onSaved: (document: AvatarEffectEditorDocument, savedItemId: string) => void;
 }) {
   const {
     itemId,
@@ -59,6 +58,8 @@ export function useAvatarEffectSave(args: {
   } = args;
   const userId = useRuntimeOwnerId();
   const existing = useAvatarEffect(itemId ?? null).data;
+  const { target: saveTargetFor, saved: recordSaved } =
+    useContentEditorSaveSource("avatar_effect", itemId, existing);
   const navigate = useNavigate();
   const documentKey = itemId ?? "new";
   const fingerprint = useMemo(
@@ -173,6 +174,7 @@ export function useAvatarEffectSave(args: {
     try {
       await persist(session);
       const displayName = document.name.trim();
+      const saveTarget = saveTargetFor(displayName);
       setStage("uploading");
       controller.signal.throwIfAborted();
       const dependencies = avatarEffectDependencies(document).map(
@@ -194,9 +196,7 @@ export function useAvatarEffectSave(args: {
         companionPaths: [imagePath],
         descriptor: {
           schema_version: 1,
-          id:
-            existing?.logical_key ??
-            localContentLogicalKey("avatar_effect", displayName),
+          id: saveTarget.logicalKey,
           content_type: "avatar_effect",
           name: displayName,
           description: document.description.trim() || undefined,
@@ -206,16 +206,17 @@ export function useAvatarEffectSave(args: {
           authoring: document,
         },
         operationId: session.operationId,
-        catalogItemId: existing?.item_id,
-        expectedRevision: existing?.revision_sha256,
+        catalogItemId: saveTarget.catalogItemId,
+        expectedRevision: saveTarget.expectedRevision,
       });
       setUploadProgress(100);
       await clearAvatarEffectRecovery(userId, documentKey);
       sessionRef.current = null;
       setRecovered(false);
       setRecoveryWarning(null);
+      onSaved(document, item.item_id);
+      await recordSaved(item);
       setStage("idle");
-      onSaved(document);
       toast.success("Avatar Effect saved.");
       await navigate({
         to: "/a/avatar-effects/$avatarEffectId/edit",
@@ -245,6 +246,8 @@ export function useAvatarEffectSave(args: {
     document,
     documentKey,
     existing,
+    recordSaved,
+    saveTargetFor,
     fingerprint,
     imageResource,
     itemId,

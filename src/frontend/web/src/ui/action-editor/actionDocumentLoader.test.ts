@@ -319,6 +319,32 @@ describe("Starter action customization", () => {
     expect(document.semanticKey).toMatch(/^[a-z0-9_]{1,64}$/);
   });
 
+  it("loads Included VRMA metadata as a distinct unsaved Local document", async () => {
+    const starter = item({
+      intent: "gesture",
+      id: "builtin:gesture:explain",
+      name: "Explain",
+    });
+    const source = preview({
+      intent: "gesture",
+      id: starter.item_id,
+      key: "explain",
+      semanticKey: "explain",
+    });
+    (source.closure as { root: Record<string, unknown> }).root.implementation =
+      { kind: "vrma" };
+    const document = await actionDocumentFromPreview({
+      intent: "gesture",
+      item: starter,
+      preview: source,
+      base: createGestureDocument(),
+      customizeStarter: true,
+      semanticSuffix: "abcdef12",
+    });
+    expect(document.implementation).toBe("vrma");
+    expect(document.name).toBe("Explain Custom");
+    expect(document.semanticKey).toBe("explain_custom_abcdef12");
+  });
   it("bounds generated custom selectors to the backend limit", () => {
     expect(starterGestureSemanticKey("x".repeat(100), "abcdef12")).toHaveLength(
       64,

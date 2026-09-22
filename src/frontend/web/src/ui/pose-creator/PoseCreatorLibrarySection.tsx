@@ -192,7 +192,7 @@ function SavedDraftRow({
         type="button"
         className="hover:bg-muted/50 focus-visible:ring-ring absolute inset-0 rounded-md transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
         onClick={() => onLoad(draft)}
-        aria-label={`${draft.source === "included" ? "Customize" : "Edit"} ${draft.name}`}
+        aria-label={`Edit ${draft.name}`}
       >
         <span className="sr-only">Load {draft.name}</span>
       </button>
@@ -221,19 +221,20 @@ function SavedDraftRow({
             onClick={() => onCreateBranch(draft)}
           >
             <SplitIcon className="size-3.5" />
-            {draft.source === "included" ? "Customize" : "Copy"}
+            {draft.source === "included" ? "Edit" : "Copy"}
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="text-destructive hover:text-destructive h-11 px-2 text-xs lg:h-7"
-            onClick={() => onDelete(draft)}
-            disabled={draft.source !== "local"}
-            aria-label={`Delete ${draft.name}`}
-          >
-            <Trash2Icon className="size-3.5" />
-          </Button>
+          {draft.source === "local" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive h-11 px-2 text-xs lg:h-7"
+              onClick={() => onDelete(draft)}
+              aria-label={`Delete ${draft.name}`}
+            >
+              <Trash2Icon className="size-3.5" />
+            </Button>
+          ) : null}
         </div>
       </div>
     </div>
@@ -274,17 +275,15 @@ function SavedDraftLoadButton({
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        avoidSidebar
         side="bottom"
         align="end"
         sideOffset={12}
-        className="w-[calc(100vw-1rem)] max-w-[520px] rounded-xl p-3"
+        className="w-[520px] rounded-xl p-3"
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold">Pose Library</p>
-            <p className="text-muted-foreground mt-0.5 text-xs">
-              Included and Local content
-            </p>
           </div>
           <span className="text-muted-foreground text-xs">
             {savedDrafts.length}

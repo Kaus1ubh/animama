@@ -289,10 +289,9 @@ Important behavior:
   normalized humanoid bone transforms, expression weights, and an optional
   `parent` ref to another catalog pose. `parent` fills missing targets before
   application; no `parent` means omitted static-pose bones fall back to the VRM
-  normalized T-pose after `PoseController` resets the humanoid. The built-in
-  catalog makes this fallback explicit for default/rest authoring by storing
-  `vrmTPose` as a concrete all-identity catalog pose and making `relaxedRest`
-  inherit from it.
+  normalized T-pose after `PoseController` resets the humanoid. The Included
+  `relaxedRest` snapshot contains every bone's resolved transform, including
+  identity anchors used when authoring sparse overlays.
 - `animaPoseClip/1.0` is a timed sequence. It contains clip metadata,
   optional `role`, optional `basePose`, optional `playback`, optional
   `fadeIn` / `fadeOut` playback envelopes, local pose aliases, pose keyframes,
@@ -413,11 +412,12 @@ stronger avatar VFX. The `presentation.disable_vfx` preference suppresses
 clip-owned avatar, scene, and particle VFX from pose/reaction playback while
 leaving SFX and manual/debug VFX controls unchanged.
 
-The catalog includes a concrete `vrmTPose` JSON pose with identity rotations
-for every `VRMHumanBoneList` bone. `relaxedRest` includes the resolved T-pose
-anchors from its original inherited definition. This keeps
-sparse child poses, such as clips that add `neck`, interpolating from identity
-instead of snapping from a missing source rotation.
+The Included Pose collection contains Relaxed Rest, Shy Finger Poke 1 and 2,
+and Thinking Head Scratch 1 and 2. `relaxedRest` retains resolved transforms
+for every `VRMHumanBoneList` bone, including identity anchors for sparse
+child poses. Other shipped gestures own their pose snapshots inside their
+clips; they do not require extra discoverable Pose items. A clip whose former
+base pose is absent carries those base values in each local pose snapshot.
 
 Runtime pose application checks `vrm.meta.metaVersion` through `isVrm0(...)`.
 VRM 1.x models use the catalog's normalized rotations unchanged. VRM 0.x models

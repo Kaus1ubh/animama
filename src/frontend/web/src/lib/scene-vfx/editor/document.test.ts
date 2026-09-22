@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -221,5 +222,37 @@ describe("Scene Effect editor document", () => {
     expect(
       uniqueSceneEffectImageName("My Sparkle.png", ["My-Sparkle.webp"]),
     ).toBe("My-Sparkle-2.webp");
+  });
+});
+
+it("hydrates the registered Included Comic Pop definition with runtime defaults", () => {
+  const descriptor = JSON.parse(
+    readFileSync(
+      new URL(
+        "../../../../../../../content/included/vfx/scene/comic-pop/comic-pop.json",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
+  const document = createSceneEffectDocumentFromDefinition({
+    name: descriptor.name,
+    description: descriptor.description,
+    definition: descriptor.definition,
+    images: new Map(),
+    sound: null,
+  });
+  expect(document).toMatchObject({
+    name: "Comic Pop",
+    durationMs: 5000,
+    dismissOnInput: true,
+    background: {
+      solid: { color: "#ffe869" },
+      pattern: { pattern: "star", color: "#ff547d" },
+    },
+  });
+  expect(validateSceneEffectDocument(document, [])).toEqual([]);
+  expect(sceneEffectRuntimeEntry(document, new Map())).toMatchObject({
+    durationMs: 5000,
   });
 });

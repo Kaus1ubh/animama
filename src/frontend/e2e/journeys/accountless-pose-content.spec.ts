@@ -18,7 +18,7 @@ import {
 } from "../helpers/preview-network";
 import { openLibraryPreview } from "../helpers/preview-surfaces";
 
-const includedName = "Right Thumbs Up";
+const includedName = "Shy Finger Poke 1";
 const posesUrl = "/a/library?section=actions&action=poses";
 
 test("pose content Included discovery and rendered preview @read-only", async ({
@@ -42,7 +42,7 @@ test("pose content Included discovery and rendered preview @read-only", async ({
       section: "pose",
       selectAnnie: false,
     });
-    const preview = await network.waitForPreview("right-thumbs-up");
+    const preview = await network.waitForPreview("shy-finger-poke-1");
     expect(preview.selected.kind).toBe("pose");
     const metadata = (await (await page.request.get("/v1/poses")).json()) as {
       items: Array<{ name: string; item_id: string }>;
@@ -58,7 +58,7 @@ test("pose content Included discovery and rendered preview @read-only", async ({
       maxMissingBones: 1,
       surface,
     });
-    await network.requireResources(["right-thumbs-up.json"]);
+    await network.requireResources(["shy-finger-poke-1.json"]);
     await network.attach(animamaEvidence, "pose-content-included-network");
     await attachPlaybackCheckpoint({
       evidence: animamaEvidence,
@@ -76,9 +76,14 @@ test("pose content Included discovery and rendered preview @read-only", async ({
       .fill("no-such-pose-fixture");
     await expect(page.getByRole("article")).toHaveCount(0);
     await page.getByPlaceholder("Search the Library").fill(includedName);
+    await expect(
+      page
+        .getByRole("article", { name: includedName, exact: true })
+        .getByText("Starter", { exact: true }),
+    ).toHaveCount(0);
     const customize = page
       .getByRole("article", { name: includedName, exact: true })
-      .getByRole("link", { name: "Customize", exact: true });
+      .getByRole("link", { name: "Edit", exact: true });
     await customize.focus();
     await expect(customize).toBeFocused();
     await page.keyboard.press("Enter");
@@ -138,7 +143,7 @@ test("pose content Local save edit reopen and browser storage independence", asy
   await page.getByPlaceholder("Search the Library").fill(includedName);
   await page
     .getByRole("article", { name: includedName, exact: true })
-    .getByRole("link", { name: "Customize", exact: true })
+    .getByRole("link", { name: "Edit", exact: true })
     .click();
   const nameInput = page.getByRole("textbox", {
     name: "Pose name",
@@ -345,7 +350,7 @@ test("pose content Local save edit reopen and browser storage independence", asy
         observations.some(
           (sample) =>
             sample.motion.poseClip?.active &&
-            (sample.expressions.happy ?? 0) > 0.2,
+            (sample.expressions.sad ?? 0) > 0.2,
         )
       );
     },
@@ -401,7 +406,7 @@ test("pose content editor recovers a failed detail load without creating content
   await page.goto(posesUrl);
   const row = page.getByRole("article", { name: includedName, exact: true });
   const href = await row
-    .getByRole("link", { name: "Customize", exact: true })
+    .getByRole("link", { name: "Edit", exact: true })
     .getAttribute("href");
   expect(href).toBeTruthy();
   const itemId = new URL(href!, page.url()).pathname.split("/")[3]!;
@@ -413,7 +418,7 @@ test("pose content editor recovers a failed detail load without creating content
       body: JSON.stringify({ detail: "Fixture temporary failure" }),
     }),
   );
-  await row.getByRole("link", { name: "Customize", exact: true }).click();
+  await row.getByRole("link", { name: "Edit", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText(
     "Pose could not be loaded.",
     { timeout: 20_000 },
@@ -428,4 +433,102 @@ test("pose content editor recovers a failed detail load without creating content
   ).toHaveValue(`${includedName} copy`, { timeout: 30_000 });
   await expect(page.getByRole("alert")).toHaveCount(0);
   await creatorContent.assertLocalCatalogUnchanged(before, animamaEvidence);
+});
+
+test("pose content creator load panels avoid expanded and collapsed sidebars @read-only", async ({
+  page,
+  creatorContent,
+  animamaEvidence,
+}) => {
+  const before = await creatorContent.snapshotLocalCatalog();
+  const guard = new ReadOnlyJourneyGuard(page);
+  try {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    for (const creator of ["pose", "gesture", "reaction"] as const) {
+      await page.goto(
+        creator === "reaction" ? "/a/reactions/new" : "/a/gestures/new",
+      );
+      if (creator !== "reaction") {
+        await page
+          .getByRole("tab", {
+            name: creator === "pose" ? "Pose" : "Clip",
+            exact: true,
+          })
+          .click();
+      }
+      for (const expanded of [false, true]) {
+        await expect(
+          page.getByRole("button", { name: /^(Open|Close) sidebar$/ }),
+        ).toBeVisible();
+        const toggle = page.getByRole("button", {
+          name: expanded ? "Open sidebar" : "Close sidebar",
+          exact: true,
+        });
+        if (await toggle.isVisible()) await toggle.click();
+        await expect(
+          page.getByRole("button", {
+            name: expanded ? "Close sidebar" : "Open sidebar",
+            exact: true,
+          }),
+        ).toBeVisible();
+        await page
+          .getByRole("button", { name: `Load ${creator}`, exact: true })
+          .press("Enter");
+        const panel = page.locator('[data-slot="popover-content"]');
+        await expect(panel).toBeVisible();
+        await expect
+          .poll(async () => {
+            const box = await panel.boundingBox();
+            return Boolean(
+              box &&
+              box.x >= (expanded ? 242 : 56) &&
+              box.x + box.width <= 1280,
+            );
+          })
+          .toBe(true);
+        if (creator === "pose") {
+          await expect(
+            panel.getByText("Included and Local content", { exact: true }),
+          ).toHaveCount(0);
+          for (const name of [
+            "Relaxed Rest",
+            "Shy Finger Poke 1",
+            "Shy Finger Poke 2",
+            "Thinking Head Scratch 1",
+            "Thinking Head Scratch 2",
+          ]) {
+            await expect(
+              panel.getByRole("button", {
+                name: `Delete ${name}`,
+                exact: true,
+              }),
+            ).toHaveCount(0);
+            await expect(panel.getByText(name, { exact: true })).toBeVisible();
+          }
+        }
+        await animamaEvidence.attachBuffer(
+          `load-${creator}-${expanded ? "expanded" : "collapsed"}`,
+          await page.screenshot(),
+          "image/png",
+        );
+        await page.keyboard.press("Escape");
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page
+      .getByRole("button", { name: "Load reaction", exact: true })
+      .click();
+    const panel = page.locator('[data-slot="popover-content"]');
+    await expect(panel).toBeVisible();
+    await expect
+      .poll(async () => {
+        const box = await panel.boundingBox();
+        return Boolean(box && box.x >= 0 && box.x + box.width <= 390);
+      })
+      .toBe(true);
+    await guard.assertNoMutations(animamaEvidence);
+    await creatorContent.assertLocalCatalogUnchanged(before, animamaEvidence);
+  } finally {
+    await guard.dispose();
+  }
 });

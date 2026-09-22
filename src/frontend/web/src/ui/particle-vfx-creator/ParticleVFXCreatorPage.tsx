@@ -1,5 +1,7 @@
 "use client";
 
+import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
+
 import { useFrame } from "@react-three/fiber";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import {
@@ -195,7 +197,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   const navigate = useNavigate();
   const userId = useRuntimeOwnerId();
   const existing = useParticleEffect(itemId ?? null).data;
-  const loadedItemRef = useRef<string | null>(null);
+  const loadedItemRef = useRef(new ContentEditorHydration());
   const initialDraftRef = useRef(createParticleVFXEditorDraftFromBlank());
   const [draft, setDraft] = useState<ParticleVFXEditorDraft | null>(
     initialDraftRef.current,
@@ -258,7 +260,8 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     onSelectModel: setSelectedModel,
   });
   const markSavedDraft = useCallback(
-    (savedDraft: ParticleVFXEditorDraft) => {
+    (savedDraft: ParticleVFXEditorDraft, savedItemId: string) => {
+      loadedItemRef.current.preserve(savedItemId);
       initialDraftRef.current = savedDraft;
       hydrateDraft(savedDraft);
     },
@@ -284,12 +287,12 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       source.type !== "catalog" ||
       !source.catalog_item_id ||
       !contentSave.recoveryReady ||
-      contentSave.recovered ||
-      loadedItemRef.current === itemId
+      contentSave.recovered
     ) {
       return;
     }
-    loadedItemRef.current = itemId;
+    const load = loadedItemRef.current.begin(itemId);
+    if (!load) return;
     const controller = new AbortController();
     setLoadState({ state: "loading", message: "Loading Particle Effect…" });
     void (async () => {
@@ -307,8 +310,11 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
         });
         if (!response.ok)
           throw new Error("The Particle Effect could not be loaded.");
+        const payload: unknown = await response.json();
+        if (controller.signal.aborted) return;
+        load.complete();
         hydrateDraft(
-          createParticleVFXEditorDraftFromImport(await response.json(), {
+          createParticleVFXEditorDraftFromImport(payload, {
             id: existing.item_id,
             label: existing.name,
             description: existing.description ?? "",
@@ -327,7 +333,10 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
         }
       }
     })();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      load.cancel();
+    };
   }, [
     contentSave.recovered,
     contentSave.recoveryReady,

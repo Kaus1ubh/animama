@@ -10,7 +10,12 @@ import {
   previewCatalogItem,
   saveCatalogItem,
 } from "@/lib/content/catalogApi";
+import {
+  ContentEditorHydration,
+  loadCreatorPreviewFile,
+} from "@/lib/content/contentEditorSource";
 import { componentPreviewTarget } from "@/lib/content/componentPreviewTarget";
+import { useContentEditorSaveSource } from "@/hooks/useContentEditorSaveSource";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import { cn } from "@/lib/utils";
 import { useParticleEffect, useSoundEffect } from "@/query/hooks/useEffects";
@@ -20,16 +25,6 @@ import { CreatorEffectHandoffActions } from "@/ui/content-creator";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 
 export type ComponentFamily = "particle" | "sound";
-
-function slug(value: string): string {
-  return (
-    value
-      .trim()
-      .toLocaleLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") || "content"
-  );
-}
 
 /** Direct Local file editor for the compact Particle and Sound creators. */
 export function ComponentEditorPage({
@@ -43,6 +38,13 @@ export function ComponentEditorPage({
   const particle = useParticleEffect(isParticle ? (itemId ?? null) : null);
   const sound = useSoundEffect(!isParticle ? (itemId ?? null) : null);
   const existing = isParticle ? particle.data : sound.data;
+  const { target: saveTargetFor, saved: recordSaved } =
+    useContentEditorSaveSource(
+      isParticle ? "particle_effect" : "sound_effect",
+      itemId,
+      existing,
+    );
+  const hydration = useRef(new ContentEditorHydration());
   const { openPreview } = useContentPreviewDock();
   const navigate = useNavigate();
   const [name, setName] = useState("");
@@ -51,6 +53,8 @@ export function ComponentEditorPage({
   const [volume, setVolume] = useState(1);
   const [preview, setPreview] = useState<PyContentPreview | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loadingFile, setLoadingFile] = useState(false);
+  const fileSelection = useRef(0);
   const {
     capture: captureSaveFailure,
     clear: clearSaveFailure,
@@ -65,6 +69,8 @@ export function ComponentEditorPage({
 
   useEffect(() => {
     if (!existing) return;
+    const load = hydration.current.begin(existing.item_id);
+    if (!load) return;
     setName(existing.name);
     setDescription(existing.description ?? "");
     const defaults = existing.metadata?.defaults;
@@ -72,7 +78,38 @@ export function ComponentEditorPage({
       const value = Number((defaults as Record<string, unknown>).volume ?? 1);
       if (Number.isFinite(value)) setVolume(value);
     }
-  }, [existing]);
+    if (isParticle) {
+      load.complete();
+      return;
+    }
+    const controller = new AbortController();
+    const selection = ++fileSelection.current;
+    setLoadingFile(true);
+    setFiles([]);
+    clearSaveFailure();
+    void previewCatalogItem(existing.item_id, controller.signal, "sound_effect")
+      .then(async (preview) => ({
+        preview,
+        file: await loadCreatorPreviewFile(preview, "audio", controller.signal),
+      }))
+      .then(({ preview, file }) => {
+        if (controller.signal.aborted || fileSelection.current !== selection)
+          return;
+        load.complete();
+        setFiles([file]);
+        setPreview(preview);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) captureSaveFailure(error);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingFile(false);
+      });
+    return () => {
+      controller.abort();
+      load.cancel();
+    };
+  }, [existing, isParticle, captureSaveFailure, clearSaveFailure]);
 
   useEffect(() => {
     if (errorField === "name") nameInputRef.current?.focus();
@@ -84,6 +121,7 @@ export function ComponentEditorPage({
     setBusy(true);
     clearSaveFailure();
     try {
+      const saveTarget = saveTargetFor(name);
       const locator = existing?.relative_locator ?? "";
       const entryName = name;
       const descriptorBacked =
@@ -98,8 +136,7 @@ export function ComponentEditorPage({
             companionPaths: files.map((file) => file.name),
             descriptor: {
               schema_version: 1,
-              id:
-                existing?.logical_key ?? `local:particle-effect:${slug(name)}`,
+              id: saveTarget.logicalKey,
               content_type: "particle_effect",
               name: name.trim(),
               description: description.trim() || undefined,
@@ -109,8 +146,8 @@ export function ComponentEditorPage({
                 role: index === 0 ? "manifest" : "image",
               })),
             },
-            catalogItemId: existing?.item_id,
-            expectedRevision: existing?.revision_sha256,
+            catalogItemId: saveTarget.catalogItemId,
+            expectedRevision: saveTarget.expectedRevision,
           })
         : await saveCatalogItem({
             kind: isParticle ? "particle_effect" : "sound_effect",
@@ -118,16 +155,16 @@ export function ComponentEditorPage({
             files: [primary],
             metadata: {
               schema_version: 1,
-              id:
-                existing?.logical_key ??
-                `local:${isParticle ? "particle-effect" : "sound-effect"}:${slug(name)}`,
+              id: saveTarget.logicalKey,
               name: name.trim(),
               description: description.trim() || undefined,
               defaults: isParticle ? { loop: false } : { volume },
             },
-            catalogItemId: existing?.item_id,
-            expectedRevision: existing?.revision_sha256,
+            catalogItemId: saveTarget.catalogItemId,
+            expectedRevision: saveTarget.expectedRevision,
           });
+      hydration.current.preserve(saved.item_id);
+      await recordSaved(saved);
       const resolvedPreview = await previewCatalogItem(
         saved.item_id,
         undefined,
@@ -240,10 +277,19 @@ export function ComponentEditorPage({
             aria-invalid={errorField === "files"}
             onChange={(event) => {
               clearSaveErrorField("files");
+              fileSelection.current += 1;
+              if (itemId) hydration.current.preserve(itemId);
               setFiles(Array.from(event.target.files ?? []));
             }}
           />
         </label>
+        {loadingFile ? (
+          <p role="status">Loading saved audio…</p>
+        ) : files.length ? (
+          <p className="text-muted-foreground text-sm">
+            {files.map((file) => file.name).join(", ")}
+          </p>
+        ) : null}
         <p className="text-muted-foreground text-xs">
           Saving makes this reusable by Gestures and Reactions; it does not
           equip it automatically.
@@ -256,7 +302,7 @@ export function ComponentEditorPage({
         <button
           type="button"
           className="bg-primary text-primary-foreground w-fit rounded-md px-4 py-2 disabled:opacity-50"
-          disabled={busy || !name.trim() || files.length === 0}
+          disabled={busy || loadingFile || !name.trim() || files.length === 0}
           onClick={() => void save()}
         >
           {busy ? "Saving…" : `Save ${title}`}

@@ -163,24 +163,16 @@ function ProductRow({
         : card.family === "scene"
           ? "scene_effect"
           : "sound_effect";
-  const editPath =
-    card.family === "pose"
-      ? `/a/poses/${itemId}/edit`
-      : card.origin === "Mine" && itemId
-        ? card.family === "gesture"
-          ? `/a/gestures/${itemId}/edit`
-          : card.family === "reaction"
-            ? `/a/reactions/${itemId}/edit`
-            : card.family === "particle"
-              ? `/a/particle-effects/${itemId}/edit`
-              : card.family === "avatar-effect"
-                ? `/a/avatar-effects/${itemId}/edit`
-                : card.family === "scene"
-                  ? `/a/scene-effects/${itemId}/edit`
-                  : card.family === "sound"
-                    ? `/a/sound-effects/${itemId}/edit`
-                    : null
-        : null;
+  const editPaths = {
+    pose: "/a/poses",
+    gesture: "/a/gestures",
+    reaction: "/a/reactions",
+    particle: "/a/particle-effects",
+    "avatar-effect": "/a/avatar-effects",
+    scene: "/a/scene-effects",
+    sound: "/a/sound-effects",
+  } as const;
+  const editPath = `${editPaths[card.family]}/${encodeURIComponent(itemId)}/edit`;
   const policy = libraryProductActionPolicy(card);
   return (
     <LibraryProductRow
@@ -192,17 +184,17 @@ function ProductRow({
               <Play /> Preview
             </Button>
           ) : null}
+          {policy.edit ? (
+            <Button size="sm" variant="outline" asChild>
+              <Link to={editPath}>
+                <Pencil /> Edit
+              </Link>
+            </Button>
+          ) : null}
           {policy.manage && onManage ? (
             <Button size="sm" onClick={onManage}>
               <Plus />
               Add / Manage
-            </Button>
-          ) : null}
-          {(policy.edit || policy.customize) && editPath ? (
-            <Button size="sm" variant="outline" asChild>
-              <Link to={editPath}>
-                <Pencil /> {policy.customize ? "Customize" : "Edit"}
-              </Link>
             </Button>
           ) : null}
           {policy.useInGesture ? (

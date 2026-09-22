@@ -40,16 +40,20 @@ created by the user, imported from a package, or added by the host operator.
 
 An attention indicator exposes affected items, validation details and Retry scan
 when content is invalid, missing, awaiting a scan or unavailable. Valid content can Preview;
-Local content can open its editor. Gesture/Reaction rows can Add or Manage Anima
+Edit follows Preview for Poses, Gestures, Reactions, Particle/Avatar/Scene Effects
+and Sounds. It opens the selected item in its creator: Local content updates that
+item, while Included content starts a Local copy. Gesture/Reaction rows can Add or Manage Anima
 loadout selections. Effects and Sounds offer “Use in Gesture/Reaction” because
 they are action ingredients, not independent equipment.
 
 Actions contains All, Gestures, Reactions and Poses. Poses also appear in the
-combined All inventory. Included Pose rows offer Preview and Customize; Local
-rows offer Preview and Edit. Editing opens `/a/poses/$poseId/edit` with the
+combined All inventory. Pose rows offer Preview and Edit without a Starter badge.
+Editing opens `/a/poses/$poseId/edit` with the
 existing Pose controls and an isolated Avatar, without creating a Gesture or
 replacing a suspended clip draft. Included customization creates a new Local
-identity; it never changes the starter. Poses have no Add/Manage equipment action.
+identity; it never changes the starter. The five starter Poses are Relaxed Rest,
+Shy Finger Poke 1 and 2, and Thinking Head Scratch 1 and 2. Poses have no Add/Manage
+equipment action; only Local poses offer deletion in the creator load panel.
 
 Avatar rows use `/v1/avatar-catalog`, which joins Avatar metadata to a valid
 catalog model and registered portrait Appearance. Each row uses that model's

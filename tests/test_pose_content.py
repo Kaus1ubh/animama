@@ -259,3 +259,58 @@ def test_resolved_pose_fixture_matches_frontend_values() -> None:
         descriptor_backed=True,
     )
     assert admitted.metadata["pose"] == document["pose"]
+
+
+async def test_rescan_retires_removed_included_pose_starters_from_typed_listing(pose_api) -> None:  # noqa: ANN001
+    """An existing 27-item index narrows to five usable starters without stale Library rows."""
+    import shutil
+
+    client, (paths, _catalog, service, _saves, _packages), _principal = pose_api
+    fixture = (
+        Path(__file__).parents[1]
+        / "src/frontend/web/src/lib/avatar/poses/fixtures/starter-inventory-before-content.json"
+    )
+    original = json.loads(fixture.read_text())["poses"]
+    kept = {
+        "relaxedRest",
+        "shy-finger-poke-1",
+        "shy-finger-poke-2",
+        "thinking-head-scratch-1",
+        "thinking-head-scratch-2",
+    }
+    (paths.included_licenses_root / "inventory.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "rules": [
+                    {
+                        "glob": "poses/**",
+                        "creator": "Test suite",
+                        "provenance": "Original test data",
+                        "license_id": "fixture-only",
+                    }
+                ],
+            }
+        )
+    )
+    for entry in original:
+        pose_id = entry["id"]
+        root = paths.included_root / "poses" / pose_id
+        root.mkdir(parents=True)
+        document = pose_document()
+        document["content_id"] = document["pose"]["id"] = pose_id
+        document["name"] = document["pose"]["name"] = entry["name"]
+        (root / f"{pose_id}.json").write_text(json.dumps(document))
+    await service.rescan(user_id="package-owner")
+    before = (await client.get("/v1/poses")).json()["items"]
+    assert len(before) == 27
+    retired_ids = {entry["item_id"] for entry in before if entry["pose_id"] not in kept}
+    for entry in original:
+        if entry["id"] not in kept:
+            shutil.rmtree(paths.included_root / "poses" / entry["id"])
+    scan = await service.rescan(user_id="package-owner")
+    assert not retired_ids.intersection(entry.id for entry in scan.items if entry.status.value == "valid")
+    after = (await client.get("/v1/poses")).json()["items"]
+    assert {entry["pose_id"] for entry in after} == kept
+    assert all(entry["source"] == "included" for entry in after)
+    assert (await client.get(f"/v1/poses/{sorted(retired_ids)[0]}")).status_code == 404

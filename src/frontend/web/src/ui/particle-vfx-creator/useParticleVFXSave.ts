@@ -1,5 +1,7 @@
 "use client";
 
+import { useContentEditorSaveSource } from "@/hooks/useContentEditorSaveSource";
+
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -22,10 +24,7 @@ import {
 } from "@/lib/avatar/particle-vfx";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
-import {
-  localContentLogicalKey,
-  saveCatalogItem,
-} from "@/lib/content/catalogApi";
+import { saveCatalogItem } from "@/lib/content/catalogApi";
 import { useParticleEffect } from "@/query/hooks/useEffects";
 
 export type ParticleVFXSaveStage =
@@ -58,9 +57,11 @@ export function useParticleVFXSave({
   itemId?: string;
   draft: ParticleVFXEditorDraft | null;
   onRestoreDraft: (draft: ParticleVFXEditorDraft) => void;
-  onSavedDraft: (draft: ParticleVFXEditorDraft) => void;
+  onSavedDraft: (draft: ParticleVFXEditorDraft, savedItemId: string) => void;
 }) {
   const existing = useParticleEffect(itemId ?? null).data;
+  const { target: saveTargetFor, saved: recordSaved } =
+    useContentEditorSaveSource("particle_effect", itemId, existing);
   const navigate = useNavigate();
   const userId = useRuntimeOwnerId();
   const source = useMemo(() => (itemId ? { itemId } : null), [itemId]);
@@ -174,6 +175,7 @@ export function useParticleVFXSave({
   const save = useCallback(async (): Promise<boolean> => {
     if (!canSave || !draft || !userId) return false;
     const displayName = draft.catalog.label.trim();
+    const saveTarget = saveTargetFor(displayName);
     if (!displayName || displayName.length > 120) {
       setStage("error");
       setSaveFailureMessage(
@@ -220,9 +222,7 @@ export function useParticleVFXSave({
       ];
       const descriptor = {
         schema_version: 1,
-        id:
-          existing?.logical_key ??
-          localContentLogicalKey("particle_effect", displayName),
+        id: saveTarget.logicalKey,
         content_type: "particle_effect",
         name: displayName,
         description: draft.catalog.description.trim() || null,
@@ -247,10 +247,11 @@ export function useParticleVFXSave({
         companionPaths,
         descriptor,
         operationId: session.operationId,
-        catalogItemId: existing?.item_id,
-        expectedRevision: existing?.revision_sha256,
+        catalogItemId: saveTarget.catalogItemId,
+        expectedRevision: saveTarget.expectedRevision,
       });
-      onSavedDraft(packageFiles.normalizedDraft);
+      onSavedDraft(packageFiles.normalizedDraft, item.item_id);
+      await recordSaved(item);
       await clearParticleVFXRecovery(userId, source);
       setRecovered(false);
       setRecoveryWarning(null);
@@ -282,7 +283,8 @@ export function useParticleVFXSave({
     captureSaveFailure,
     clearSaveFailure,
     draft,
-    existing,
+    recordSaved,
+    saveTargetFor,
     navigate,
     onSavedDraft,
     persistRecovery,

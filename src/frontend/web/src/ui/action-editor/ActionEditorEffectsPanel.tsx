@@ -439,14 +439,12 @@ function PoseCatalog({
                     className="size-7 shrink-0 rounded-full"
                     onClick={() => onEditPose?.(pose)}
                     disabled={!onEditPose}
-                    aria-label={`${pose.source === "included" ? "Customize" : "Edit"} ${pose.name}`}
+                    aria-label={`Edit ${pose.name}`}
                   >
                     <PencilSparklesIcon className="size-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  {pose.source === "included" ? "Customize" : "Edit"}
-                </TooltipContent>
+                <TooltipContent>Edit</TooltipContent>
               </Tooltip>
               <Tooltip delayDuration={500}>
                 <TooltipTrigger asChild>

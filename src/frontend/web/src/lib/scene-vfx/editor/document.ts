@@ -456,7 +456,10 @@ export function createSceneEffectDocumentFromDefinition(args: {
   const kind = raw.kind;
   if (kind !== "background_layers" && kind !== "focus_lines")
     throw new Error("The Scene Effect kind is unsupported.");
-  const durationMs = raw.durationMs === null ? null : Number(raw.durationMs);
+  const durationMs =
+    raw.durationMs === null
+      ? null
+      : Number(raw.durationMs ?? defaults.durationMs);
   const document: SceneEffectEditorDocument = {
     ...defaults,
     name: args.name,
@@ -464,7 +467,10 @@ export function createSceneEffectDocumentFromDefinition(args: {
     kind,
     durationMs,
     coverUiOverlays: Boolean(raw.coverUiOverlays),
-    dismissOnInput: Boolean(raw.dismissOnInput),
+    dismissOnInput:
+      raw.dismissOnInput === undefined
+        ? kind === "background_layers"
+        : Boolean(raw.dismissOnInput),
     sound: args.sound,
   };
   if (kind === "background_layers") {

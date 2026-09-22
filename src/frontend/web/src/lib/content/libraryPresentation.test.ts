@@ -40,15 +40,13 @@ describe("Library product presentation", () => {
       preview: true,
       manage: false,
       edit: true,
-      customize: false,
       useInGesture: false,
       useInReaction: false,
     });
     expect(libraryProductActionPolicy(card("pose"))).toMatchObject({
       preview: true,
       manage: false,
-      edit: false,
-      customize: true,
+      edit: true,
       useInGesture: false,
       useInReaction: false,
     });
@@ -84,8 +82,7 @@ describe("Library product presentation", () => {
       expect(libraryProductActionPolicy(card(family))).toEqual({
         preview: true,
         manage: true,
-        edit: false,
-        customize: false,
+        edit: true,
         useInGesture: false,
         useInReaction: false,
       });

@@ -5,6 +5,7 @@ import { normalizeContentLibrarySearch } from "@/lib/content/librarySearch";
 import { LibraryContentInventory } from "./LibraryContentInventory";
 const mocks = vi.hoisted(() => ({
   poseInput: vi.fn(),
+  otherRows: [] as Array<Record<string, unknown>>,
   open: vi.fn(),
   preview: null as (() => void) | null,
 }));
@@ -33,11 +34,40 @@ vi.mock("@/query/hooks/usePoses", () => ({
   },
 }));
 vi.mock("@/query/hooks/useActions", () => ({
-  useGestures: () => ({}),
-  useReactions: () => ({}),
+  useGestures: () => ({
+    data: {
+      pages: [
+        { items: mocks.otherRows.filter((row) => row.family === "gesture") },
+      ],
+    },
+  }),
+  useReactions: () => ({
+    data: {
+      pages: [
+        { items: mocks.otherRows.filter((row) => row.family === "reaction") },
+      ],
+    },
+  }),
 }));
 vi.mock("@/query/hooks/useEffects", () => ({
-  useEffects: () => ({ particles: {}, sounds: {}, avatars: {}, scenes: {} }),
+  useEffects: () =>
+    Object.fromEntries(
+      Object.entries({
+        particles: "particle",
+        sounds: "sound",
+        avatars: "avatar-effect",
+        scenes: "scene",
+      }).map(([key, family]) => [
+        key,
+        {
+          data: {
+            pages: [
+              { items: mocks.otherRows.filter((row) => row.family === family) },
+            ],
+          },
+        },
+      ]),
+    ),
 }));
 vi.mock("@/query/hooks/useAvatarCatalog", () => ({
   useAvatarCatalog: () => ({}),
@@ -71,12 +101,13 @@ vi.mock("@/ui/components/button", () => ({
   },
 }));
 beforeEach(() => {
+  mocks.otherRows = [];
   mocks.poseInput.mockClear();
   mocks.open.mockClear();
   mocks.preview = null;
 });
 describe("Library Poses", () => {
-  it("renders Starter customization and Local editing with no equipment or creation action", () => {
+  it("renders Included and Local editing with no equipment or creation action", () => {
     const html = renderToString(
       <LibraryContentInventory
         search={normalizeContentLibrarySearch({
@@ -90,10 +121,10 @@ describe("Library Poses", () => {
     );
     expect(html).toContain('id="library-poses-heading"');
     expect(html).toContain('aria-label="Salute"');
-    expect(html).toContain("Starter");
+    expect(html).not.toContain("Starter");
     expect(html).toContain("Local");
     expect(html).toContain('href="/a/poses/starter/edit"');
-    expect(html).toContain("Customize");
+    expect(html).not.toContain("Customize");
     expect(html).toContain('href="/a/poses/mine/edit"');
     expect(html).toContain("Edit");
     expect(html).not.toMatch(
@@ -110,6 +141,44 @@ describe("Library Poses", () => {
       expect.objectContaining({ sourceType: "pose_content", item: items[0] }),
     );
   });
+  it.each([
+    ["gesture", "gestures"],
+    ["reaction", "reactions"],
+    ["particle", "particle-effects"],
+    ["avatar-effect", "avatar-effects"],
+    ["scene", "scene-effects"],
+    ["sound", "sound-effects"],
+  ])(
+    "places Included and Local %s Edit immediately after Preview",
+    (family, path) => {
+      mocks.otherRows = ["builtin", "owned"].map((origin) => ({
+        family,
+        origin,
+        item_id: `${family}-${origin}`,
+        name: `${family} ${origin}`,
+        description: "",
+        source: { type: "catalog", catalog_item_id: `${family}-${origin}` },
+      }));
+      const html = renderToString(
+        <LibraryContentInventory
+          search={normalizeContentLibrarySearch({})}
+          onSearchChange={() => {}}
+        />,
+      );
+      for (const origin of ["builtin", "owned"]) {
+        const row = html
+          .split(`aria-label="${family} ${origin}"`)[1]!
+          .split("</article>")[0]!;
+        expect(row).toContain(`href="/a/${path}/${family}-${origin}/edit"`);
+        expect(row.indexOf("Preview")).toBeLessThan(row.indexOf("> Edit"));
+        if (family === "gesture" || family === "reaction")
+          expect(row.indexOf("> Edit")).toBeLessThan(
+            row.indexOf("Add / Manage"),
+          );
+        expect(row).not.toContain("Customize");
+      }
+    },
+  );
   it("requests Poses in the combined All inventory", () => {
     renderToString(
       <LibraryContentInventory

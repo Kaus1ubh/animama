@@ -30,9 +30,15 @@ def test_tracked_checkout_packages_both_starters_without_private_animations(tmp_
     assert [starter["name"] for starter in inventory["starters"]] == ["Annie", "Caitlyn"]
     assert not list(root.rglob("*.vrma"))
     poses = [entry for entry in inventory["entries"] if entry["kind"] == "pose"]
-    assert len(poses) == 27
+    assert len(poses) == 5
     assert all(entry["partition"] == "core" for entry in poses)
-    assert {"relaxedRest", "vrmTPose"} <= {entry["logical_key"] for entry in poses}
+    assert {entry["logical_key"] for entry in poses} == {
+        "relaxedRest",
+        "shy-finger-poke-1",
+        "shy-finger-poke-2",
+        "thinking-head-scratch-1",
+        "thinking-head-scratch-2",
+    }
     assert all(not starter["diagnostics"] for starter in inventory["starters"])
     assert not any("idle-style:starter" in root for starter in inventory["starters"] for root in starter["roots"])
 

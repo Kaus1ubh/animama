@@ -3,6 +3,8 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import clipSamples from "./fixtures/starter-clip-samples-before-reduction.json";
+import { parseAnimaPoseClip, sampleAnimaPoseClip } from "./animaPoseClip";
 import originalInventory from "./fixtures/starter-inventory-before-content.json";
 import { parseAnimaPose, resolveAnimaPose } from "./animaPose";
 import {
@@ -33,18 +35,32 @@ function roundedCanonical(value: unknown): unknown {
     : value;
 }
 
-describe("Included Pose starter conversion", () => {
-  it("preserves the captured pre-conversion inventory and effective runtime values", () => {
+const starterNames: Record<string, string> = {
+  relaxedRest: "Relaxed Rest",
+  "shy-finger-poke-1": "Shy Finger Poke 1",
+  "shy-finger-poke-2": "Shy Finger Poke 2",
+  "thinking-head-scratch-1": "Thinking Head Scratch 1",
+  "thinking-head-scratch-2": "Thinking Head Scratch 2",
+};
+
+describe("Included Pose starter collection", () => {
+  it("exposes only the five requested starters while preserving their effective values", () => {
     expect([...AVATAR_POSE_IDS].sort()).toEqual(
-      originalInventory.poses.map(({ id }) => id).sort(),
+      Object.keys(starterNames).sort(),
     );
     expect(DEFAULT_AVATAR_POSE_IDS).toEqual(originalInventory.defaultPoseIds);
-    for (const original of originalInventory.poses) {
+    for (const original of originalInventory.poses.filter(
+      (pose) => pose.id in starterNames,
+    )) {
       const resolved = getResolvedAvatarPose(original.id);
-      expect(resolved.name).toBe(original.name);
+      expect(resolved.name).toBe(starterNames[original.id]);
       expect(
         createHash("sha256")
-          .update(JSON.stringify(roundedCanonical(resolved)))
+          .update(
+            JSON.stringify(
+              roundedCanonical({ ...resolved, name: original.name }),
+            ),
+          )
           .digest("hex"),
       ).toBe(original.resolved_sha256);
     }
@@ -82,6 +98,34 @@ describe("Included Pose starter conversion", () => {
       if (clip.basePose) expect(AVATAR_POSE_IDS).toContain(clip.basePose);
       for (const pose of Object.values(clip.poses)) {
         if ("ref" in pose) expect(AVATAR_POSE_IDS).toContain(pose.ref);
+      }
+    }
+  });
+
+  it("preserves every shipped clip sample after removing its standalone pose dependencies", () => {
+    expect(clipSamples.clips).toHaveLength(22);
+    for (const original of clipSamples.clips) {
+      const clip = AVATAR_POSE_CLIP_CATALOG[original.id];
+      expect(clip).toBeDefined();
+      const included = JSON.parse(
+        readFileSync(
+          `${includedRoot}/../gestures/${clip.id}/${clip.id}.json`,
+          "utf8",
+        ),
+      );
+      expect(parseAnimaPoseClip(included)).toEqual(clip);
+      for (const expected of original.samples) {
+        const result = sampleAnimaPoseClip(
+          clip,
+          expected.time,
+          (id) => AVATAR_POSE_CATALOG[id] ?? null,
+        );
+        expect(result.diagnostics.missingPoseRefs).toEqual([]);
+        expect(
+          createHash("sha256")
+            .update(JSON.stringify(roundedCanonical(result.sample)))
+            .digest("hex"),
+        ).toBe(expected.sha256);
       }
     }
   });

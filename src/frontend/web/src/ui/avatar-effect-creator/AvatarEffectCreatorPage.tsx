@@ -1,5 +1,7 @@
 "use client";
 
+import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
+
 import { useFrame } from "@react-three/fiber";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import {
@@ -161,7 +163,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   const [soundPreview, setSoundPreview] = useState<PyContentPreview | null>(
     null,
   );
-  const hydratedItemRef = useRef<string | null>(null);
+  const hydratedItemRef = useRef(new ContentEditorHydration());
   const initialFingerprintRef = useRef(
     `${avatarEffectDocumentFingerprint(document)}:missing`,
   );
@@ -179,7 +181,8 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     [],
   );
   const onSaved = useCallback(
-    (savedDocument: AvatarEffectEditorDocument) => {
+    (savedDocument: AvatarEffectEditorDocument, savedItemId: string) => {
+      hydratedItemRef.current.preserve(savedItemId);
       initialFingerprintRef.current = `${avatarEffectDocumentFingerprint(savedDocument)}:${imageResource?.sha256 ?? "missing"}`;
     },
     [imageResource?.sha256],
@@ -274,16 +277,16 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       !itemId ||
       !contentSave.recoveryReady ||
       contentSave.recovered ||
-      hydratedItemRef.current === itemId ||
       !existingQuery.data
     )
       return;
-    hydratedItemRef.current = itemId;
+    const load = hydratedItemRef.current.begin(itemId);
+    if (!load) return;
     const item = existingQuery.data;
-    if (item.origin !== "owned" || !item.editable) {
+    if (item.state !== "ready" || (item.origin === "owned" && !item.editable)) {
       setHydration({
         state: "error",
-        message: "Only editable Local Avatar Effects can be opened here.",
+        message: "This Avatar Effect is unavailable.",
       });
       return;
     }
@@ -296,9 +299,14 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       signal: controller.signal,
     })
       .then(({ document: loadedDocument, image }) => {
+        if (controller.signal.aborted) return;
+        load.complete();
         dispatch({ type: "replace", document: loadedDocument });
         setImageResource(image);
-        initialFingerprintRef.current = `${avatarEffectDocumentFingerprint(loadedDocument)}:${image.sha256}`;
+        initialFingerprintRef.current =
+          item.origin === "builtin"
+            ? "__included_copy__"
+            : `${avatarEffectDocumentFingerprint(loadedDocument)}:${image.sha256}`;
         setHydration({ state: "ready", message: null });
         setPreviewRevision((value) => value + 1);
       })
@@ -312,7 +320,10 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
               : "The Avatar Effect could not be opened.",
         });
       });
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      load.cancel();
+    };
   }, [
     contentSave.recovered,
     contentSave.recoveryReady,

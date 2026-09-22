@@ -112,7 +112,7 @@ describe("ActionEditorEffectsPanel", () => {
     expect(html).toContain("Friendly Wave");
     expect(html).toContain("Included");
     expect(html).toContain("Local");
-    expect(html).toContain('aria-label="Customize Starter"');
+    expect(html).toContain('aria-label="Edit Starter"');
     expect(html).toContain('aria-label="Edit Friendly Wave"');
     expect(html.indexOf('aria-label="Edit Friendly Wave"')).toBeLessThan(
       html.indexOf('aria-label="Insert Friendly Wave at current playhead"'),

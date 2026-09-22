@@ -1,10 +1,10 @@
 # Poses as Included and Local content
 
-Status: Agreed — accepted as the input to execution planning
+Status: Implemented locally; hosted validation and owner merge approval pending
 Owner decision: 2026-09-22 intent discovery established the scope; the owner then
 invoked execution planning on this specification without requesting changes.
 Authoritative source: https://github.com/raymond-van/animama/issues/55
-Snapshot captured: 2026-09-22T18:12:50Z.
+Original snapshot captured: 2026-09-22T18:12:50Z; owner follow-up incorporated on 2026-09-22.
 Source baseline: `0657c51e211efa8bd16d1efca8dbefd878aacc74`.
 
 ## Problem and intended users
@@ -77,7 +77,9 @@ capabilities for Library editing. Do not add a Pose entry on the Create page.
 Saving a named pose writes Local content; reopening it uses that saved identity.
 Editing a pose does not silently overwrite a Gesture document or its clip.
 
-Bring the existing built-in pose collection into Included content. Both Included
+Include only Relaxed Rest, Shy Finger Poke 1 and 2, and Thinking Head Scratch 1
+and 2 as standalone starter Poses. Preserve shipped clip/default behavior while
+removing the other standalone starter entries. Both Included
 and Local poses are available in the Gesture editor's searchable Poses picker.
 Keep the existing insertion action and desktop drag-to-timeline flow, including
 their undo/redo and cancellation behavior. Included customization saves a Local
@@ -144,38 +146,38 @@ canonical pose library.
 ## Acceptance criteria
 
 - [ ] **R1, R6:** Save and update a Local pose, restart/reopen the application and
-  clear browser storage. The same saved pose remains available with its latest
-  values. An old browser pose record is not imported or used as a fallback.
-  Establish persistence with backend tests and a browser journey.
+      clear browser storage. The same saved pose remains available with its latest
+      values. An old browser pose record is not imported or used as a fallback.
+      Establish persistence with backend tests and a browser journey.
 - [ ] **R1, R5:** Valid manually added poses become usable through the existing
-  scan flow; malformed or missing content receives health diagnostics. Failed,
-  interrupted or conflicting writes preserve the saved version, retain retryable
-  work and expose no partial item. Cover failure/retry behavior with focused tests.
+      scan flow; malformed or missing content receives health diagnostics. Failed,
+      interrupted or conflicting writes preserve the saved version, retain retryable
+      work and expose no partial item. Cover failure/retry behavior with focused tests.
 - [ ] **R2:** Browser evidence shows Actions with All/Gestures/Reactions/Poses,
-  poses in combined inventories, Starter filtering and search, and stable selected
-  view after reload/navigation. There is no Library “New Pose” button or Create-page
-  Pose entry. Check desktop and a narrower layout.
+      poses in combined inventories, Starter filtering and search, and stable selected
+      view after reload/navigation. There is no Library “New Pose” button or Create-page
+      Pose entry. Check desktop and a narrower layout.
 - [ ] **R2, R3:** Preview a starter and a Local pose, customize a starter to Local,
-  then edit and reopen that Local item from Library. The Included original and any
-  unrelated Gesture work are unchanged. Record browser evidence on a real Avatar.
+      then edit and reopen that Local item from Library. The Included original and any
+      unrelated Gesture work are unchanged. Record browser evidence on a real Avatar.
 - [ ] **R3:** Existing built-in poses are discoverable in Library and the Gesture
-  pose picker. Author and save a new pose through the existing editor. Verify
-  starter catalog validity, including any shipped default/clip references.
+      pose picker. Author and save a new pose through the existing editor. Verify
+      starter catalog validity, including any shipped default/clip references.
 - [ ] **R3, R4:** Insert Included and Local poses using the ordinary action and
-  desktop drag. Verify one undoable insertion, redo and cancellation. Change and
-  delete the Library source, then reopen/play the action: copied values and motion
-  remain unchanged, including inherited values. Use focused tests and browser
-  playback evidence.
+      desktop drag. Verify one undoable insertion, redo and cancellation. Change and
+      delete the Library source, then reopen/play the action: copied values and motion
+      remain unchanged, including inherited values. Use focused tests and browser
+      playback evidence.
 - [ ] **R1, R4:** Round-trip a standalone pose through normal content package
-  export/import. Round-trip an action containing copied poses without requiring
-  its original standalone pose items. Validate values and preview/playback using
-  tests and representative manual evidence.
+      export/import. Round-trip an action containing copied poses without requiring
+      its original standalone pose items. Validate values and preview/playback using
+      tests and representative manual evidence.
 - [ ] **R5:** Exercise invalid data, unavailable preview and a failed save. Errors
-  remain visible and actionable; the editor does not claim success, discard work
-  or silently replace the saved version. Cancelling dirty replacement preserves it.
+      remain visible and actionable; the editor does not claim success, discard work
+      or silently replace the saved version. Cancelling dirty replacement preserves it.
 - [ ] **Constraints:** Focused regressions retain the Reaction humanoid restriction
-  and protected content access. Report local tests/builds, browser observations and
-  actual hosted CI separately; none alone proves packaged/native release acceptance.
+      and protected content access. Report local tests/builds, browser observations and
+      actual hosted CI separately; none alone proves packaged/native release acceptance.
 
 ## Open questions and decisions
 
@@ -193,8 +195,8 @@ separate gates.
 ## Spec
 
 Authoritative specification: https://github.com/raymond-van/animama/issues/55.
-This file is its retained snapshot captured at 2026-09-22T18:12:50Z; refresh from
-the issue before changing requirements.
+This file retains the agreed specification and the owner follow-up below; the
+issue and PR track delivery and validation.
 
 Current behavior references:
 
@@ -202,20 +204,38 @@ Current behavior references:
 - [Local content runtime](../../frontend/architecture/local-content-runtime.md).
 - [Content storage](../../backend/architecture/local-content-storage.md).
 - [Pose persistence and insertion](../../../src/frontend/web/src/stores/pose-creator-store.ts).
-- [Bundled starter catalog](../../../src/frontend/web/src/lib/avatar/poses/pose_catalog.json).
+- [Included starter poses](../../../content/included/poses/).
 
 ## ExecPlan
 
 Required: [Poses as content execution plan](poses-as-content-execplan.md). This
 change spans persistence, content validation, starter assets and editor/Library
-behavior. The plan is prepared for review; implementation has not started.
+behavior. The plan records implementation, validation and independent review.
 
 ## Delivery links
 
 Parent: https://github.com/raymond-van/animama/issues/55.
+
 - Phase 1: https://github.com/raymond-van/animama/issues/56
 - Phase 2: https://github.com/raymond-van/animama/issues/57
 - Phase 3: https://github.com/raymond-van/animama/issues/58
 - Phase 4: https://github.com/raymond-van/animama/issues/59
 
-All four implementation phases are authorized. PR and validation are pending.
+All four implementation phases are delivered in [PR #62](https://github.com/raymond-van/animama/pull/62).
+See the PR for current validation and owner approval status.
+
+## Owner follow-up — 2026-09-22
+
+The owner narrowed the standalone starter collection to the five named poses above.
+In the Pose load panel, omit the “Included and Local content” subtitle and hide
+Delete for immutable Included poses. Local deletion remains available.
+
+In Library, omit the Starter tag on Pose rows and label their existing edit/copy
+entry “Edit”. Put Edit immediately after Preview on other content types that have
+an existing creator route, loading the selected content. Included editing creates
+a Local copy; it must never overwrite Included content. Avatars and chat uploads
+have no existing creator route and remain outside that editing entry point, as
+confirmed by the owner.
+
+All creator routes using the Pose/clip load panels must keep the panel beside both
+collapsed and expanded desktop sidebars and within narrow viewports.

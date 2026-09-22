@@ -689,9 +689,11 @@ of browser pose storage. All previous findings remain resolved; UI exclusions,
 Included immutability and Reaction/equipment boundaries remain intact.
 
 Separate read-only checks by a prior implementation author verified the recorded
-evidence and clean candidate. Fresh checks passed for all 79 changed authored
-frontend files (six generated files excluded), projection freshness, Python import
-boundaries and full-patch whitespace. All 27 staged Pose descriptors still match
+evidence and clean candidate. Projection freshness, Python import boundaries and full-patch whitespace passed.
+The reported 79-file formatter check was later found to inherit the root ignore
+file and skip frontend paths; it was not valid formatting evidence. The follow-up
+corrected this by explicitly selecting the frontend ignore file and verifying
+110 authored files with `ignored:false`; all passed. All 27 staged Pose descriptors still match
 current source bytes. Unchanged passing phase evidence remains applicable.
 Frontend evidence is 247 suites / 1392 tests across a full run and targeted recovery
 of two package-build race failures, not one uninterrupted successful broad run.
@@ -756,3 +758,117 @@ shared package output concurrently with tests that import it: the final broad we
 run exposed that test-environment race, and the affected unchanged suites passed
 once the builders settled. No unresolved product decision or implementation blocker
 remains. Native release, real audio and paid-provider acceptance are not claimed.
+
+## Owner follow-up — starter selection and creator access
+
+Starting source: `289963999c97303e396b7450569bf12e1fb5374c`; same task branch,
+worktree, PR #62 and named stack. Owner instruction on 2026-09-22 authorizes:
+
+- Keep only the five requested standalone Included poses and friendly names;
+  inline/bake removed defaults and clip references without changing shipped playback.
+- Simplify Pose load rows and hide immutable-item deletion controls.
+- Label Library Pose editing “Edit”, omit its Starter tag, and expose existing
+  content creator routes immediately after Preview. Repair selected-content
+  hydration and immutable-source copy behavior where those routes need it.
+- Constrain both shared Pose/Action load popovers to the actual viewport space
+  beside collapsed and expanded sidebars; retain narrow-layout usability.
+
+Validation: focused asset/clip parity, creator save/load and Library tests; affected
+frontend type/lint/build checks; real-Avatar Library Edit and sidebar geometry
+journeys in development and built modes. Preserve existing data and review budgets.
+The previous final integration review passed without repairs; this new authorized
+scope gets one bounded follow-up review and at most two repair rounds.
+
+Implementation, affected checks, bounded follow-up review and browser acceptance are complete. Existing hosted
+Validation remains blocked by the manually disabled workflow; do not enable it
+as a side effect of this follow-up. Exact-candidate merge approval remains pending.
+
+### Follow-up Code Review #1 Findings
+
+Independent analysis found two issues in the newly exposed effect editors:
+FU-1, successful saves discarded the returned revision, so an immediate second
+changed Local save could conflict before catalog polling. FU-2, detail refreshes
+could repeat completed hydration and replace newer unsaved document/audio edits.
+No other blockers were found in starter reduction, clip parity, Library Edit
+routing/copy authority or load-panel geometry. Initial review complete; two repair
+rounds are available.
+
+### Follow-up Code Review #1 Revisions
+
+Both findings accepted. Repair round 1: preserve current editor drafts across
+catalog refreshes while advancing save identity/revision from the successful
+response. Test consecutive saves without polling/remounting, newer unsaved edits
+across detail refresh, and cancellation of unfinished hydration. Verification and
+targeted recheck pending.
+
+Rendered follow-up acceptance also found FU-3: Included Comic Pop failed hydration
+because omitted optional Scene duration was converted to a nonfinite value.
+Repair round 1 restored runtime defaults and added a regression using the actual
+Included descriptor. Targeted review #2 cleared FU-2 and FU-3 but found FU-1's cache
+update could adopt another editor's revision while retaining the old draft.
+Repair round 2 pins the loaded save precondition and advances it only on this
+editor's acknowledged Save or explicit reload; external cache refresh must retain
+the stale precondition so the backend reports a conflict. Final recheck pending;
+no additional repair rounds remain after this round.
+
+### Follow-up Code Review #3 Findings and final revisions
+
+FU-1 is resolved: the transient editor session pins the loaded item/revision,
+ignores external cache updates, and advances only after its own successful Save.
+Included-to-Local navigation retains that acknowledged identity. Eight regressions
+cover both origins across all four affected families; all failed before the repair
+and pass afterward. FU-2 and FU-3 remain resolved. The independent final targeted
+review found no remaining source blockers. Both repair rounds are used.
+
+The owner confirmed Edit uses existing creators only: Pose, Gesture, Reaction,
+Particle FX, Avatar FX, Scene FX and Sound. Avatar and Chat Upload rows retain their
+existing actions. Included editing saves a Local copy.
+
+### Follow-up local verification
+
+- Backend catalog, Pose and starter closure selection: 30 passed; changed Python
+  lint, format and typing passed. Core staging contains 143 entries and exactly
+  five Poses, with both starter Anima closures healthy.
+- Runtime selection: 88 tests passed across nine files; the generated Pose catalog
+  parity check passed. All 22 shipped clips retain their prior keyframe/midpoint
+  sample hashes after removed standalone poses were inlined.
+- Library/creator selection: 49 tests passed across eight files. Repair selection:
+  42 passed across seven files, followed by eight final save-revision regressions.
+  Pose picker/load UI selections each passed 17 tests across two files.
+- Broad web source run: 246 suites passed; four failures in two newly added red
+  repair suites subsequently passed in the focused repair run. This is combined
+  broad and targeted evidence, not a single uninterrupted green broad run.
+- Frontend source TypeScript, full web lint, source production build, desktop
+  TypeScript and E2E TypeScript passed. Final save-hook lint/types and final source
+  production build were refreshed after repair round 2. All 115 authored frontend
+  files pass Prettier using the frontend ignore/config paths explicitly.
+- Manual Library Edit loaded the selected Confusion Orbit Marks Particle FX,
+  Angry Avatar FX, Comic Pop Scene FX and registered Sound asset. Avatar/Scene
+  saves created Local copies; repeated Sound saves retained the Local identity.
+  The final Sound revision repair was checked by two changed browser saves.
+
+Manual Avatar FX, Scene FX and Sound fixtures remain in the isolated task data for
+review, alongside the earlier Gesture fixtures. Browser Pose scenarios and final
+built-mode results are recorded below after completion. No native installer,
+real-audio fidelity, paid-provider or hosted CI acceptance is inferred.
+
+Final development browser run `run-0922164710`: four Pose journeys plus installation
+setup passed (5 total, 3.3 minutes). Evidence includes static real-Avatar preview,
+Local save/edit/reload/storage independence, copied values after source edits and
+deletion, package round-trip, failed-load/save recovery, and actual popover bounds
+for Pose/Gesture/Reaction at 1280×800 with collapsed/expanded sidebar and at 390×844.
+Its ledger has no unresolved owned items; pre-existing Local content is unchanged.
+
+Final FastAPI-served built-mode run `run-0922165150`: the same four Pose journeys,
+installation setup and existing built-in pose playback regression passed (6 total,
+2.1 minutes). Its ownership ledger is clean. Final screenshots confirm the five
+Included rows clear both sidebar widths without a subtitle or trash icon.
+The isolated `animama-poses-content` stack remains in production mode at
+`http://localhost:8720`, with only the loopback application service published;
+PostgreSQL and supporting services remain private. No optional profiles are enabled.
+
+Follow-up delivery is locally complete. PR #62 carries the candidate commit and
+current hosted status. GitHub still reports Portable product validation as
+`disabled_manually`; no hosted run/check suite has started. This is a hosted gate,
+not an unresolved source-review finding. Owner approval of the exact candidate is
+pending; no merge or task cleanup was performed.

@@ -193,9 +193,6 @@ export async function actionDocumentFromPreview(args: {
   const isBuiltin = root.catalog_source === "included";
   const implementationKind =
     implementation.kind === "vrma" ? "vrma" : "anima_clip";
-  if (args.customizeStarter && implementationKind !== "anima_clip") {
-    throw new Error("Only Starter Anima Pose Clips can be customized.");
-  }
   const sequence =
     implementationKind === "anima_clip"
       ? isBuiltin

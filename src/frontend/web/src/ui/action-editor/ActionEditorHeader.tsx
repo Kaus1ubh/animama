@@ -739,9 +739,10 @@ function ActionLoadButton() {
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        avoidSidebar
         align="end"
         sideOffset={12}
-        className="w-[calc(100vw-1rem)] max-w-[420px] rounded-xl p-3"
+        className="w-[420px] rounded-xl p-3"
       >
         <div className="mb-3">
           <p className="text-sm font-semibold">
