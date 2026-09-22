@@ -6,10 +6,114 @@ import {
   resolvePrivateRuntimeContentUrl,
   resolveRuntimeContentDeliveryReference,
   runtimeContentRequiresPrivateFetch,
+  runtimeContentDownloadUrl,
 } from "./runtimeContentDelivery";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 
+const modelEntry = {
+  slot: "primary_model",
+  runtime_id: "primary",
+  kind: "avatar_model",
+  display_name: "Avatar",
+  description: null,
+  config_schema_version: 1,
+  config: {},
+  content_revision: "avatar-1",
+  source: { type: "authorized_files", files: [] },
+} satisfies RuntimeCatalogEntry;
+
 describe("runtime Asset delivery", () => {
+  it.each(["release", "abort"] as const)(
+    "releases an owned URL exactly once through %s and later cleanup",
+    async (firstCleanup) => {
+      const controller = new AbortController();
+      const revoke = vi.spyOn(URL, "revokeObjectURL");
+      const download = await runtimeContentDownloadUrl(
+        modelEntry,
+        "/model.vrm",
+        {
+          fetcher: vi
+            .fn<typeof fetch>()
+            .mockResolvedValue(new Response("model")),
+          signal: controller.signal,
+        },
+      );
+      expect(download?.url).toMatch(/^blob:/);
+      expect(revoke).not.toHaveBeenCalled();
+
+      if (firstCleanup === "abort") controller.abort();
+      else download?.release();
+      download?.release();
+      controller.abort();
+
+      expect(revoke).toHaveBeenCalledExactlyOnceWith(download?.url);
+    },
+  );
+
+  it.each([
+    { type: "public_url", url: "https://example.test/model.vrm" },
+    { type: "prepared_files", files: [] },
+  ] satisfies RuntimeCatalogEntry["source"][])(
+    "never revokes a borrowed $type URL, including an externally owned blob URL",
+    async (source) => {
+      const controller = new AbortController();
+      const fetcher = vi.fn<typeof fetch>();
+      const create = vi.spyOn(URL, "createObjectURL");
+      const revoke = vi.spyOn(URL, "revokeObjectURL");
+      const download = await runtimeContentDownloadUrl(
+        { ...modelEntry, source },
+        "blob:owned-by-preparation",
+        { fetcher, signal: controller.signal },
+      );
+
+      expect(download?.url).toBe("blob:owned-by-preparation");
+      download?.release();
+      controller.abort();
+      expect(fetcher).not.toHaveBeenCalled();
+      expect(create).not.toHaveBeenCalled();
+      expect(revoke).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not fetch or allocate when already cancelled", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const fetcher = vi.fn<typeof fetch>();
+    const create = vi.spyOn(URL, "createObjectURL");
+
+    await expect(
+      runtimeContentDownloadUrl(modelEntry, "/model.vrm", {
+        fetcher,
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("does not create a late URL when cancellation wins body decoding", async () => {
+    const controller = new AbortController();
+    let finishBody!: (blob: Blob) => void;
+    const response = new Response();
+    const readBody = vi.spyOn(response, "blob").mockImplementation(
+      () =>
+        new Promise<Blob>((resolve) => {
+          finishBody = resolve;
+        }),
+    );
+    const create = vi.spyOn(URL, "createObjectURL");
+    const pending = runtimeContentDownloadUrl(modelEntry, "/model.vrm", {
+      fetcher: vi.fn<typeof fetch>().mockResolvedValue(response),
+      signal: controller.signal,
+    });
+    await vi.waitFor(() => expect(readBody).toHaveBeenCalled());
+    controller.abort();
+    finishBody(new Blob(["model"]));
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(create).not.toHaveBeenCalled();
+  });
+
   it("resolves authorized logical paths against the configured API origin", () => {
     expect(
       resolvePrivateRuntimeContentUrl(

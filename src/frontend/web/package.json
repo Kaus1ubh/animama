@@ -74,6 +74,7 @@
     "streamdown": "^2.5.0",
     "tailwind-merge": "^3.4.0",
     "three": "^0.182.0",
+    "three-stdlib": "2.36.1",
     "three.quarks": "^0.17.1",
     "twemoji": "^14.0.2",
     "use-stick-to-bottom": "^1.1.1",

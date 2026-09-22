@@ -740,13 +740,33 @@ export class AnimaRuntimeCatalog
       ...(entry.source.type === "authorized_files"
         ? {
             getDownloadUrl: async () => {
-              const downloadUrl = await runtimeContentDownloadUrl(entry, url, {
-                fetcher: this.fetcher,
-              });
-              if (!downloadUrl) {
-                throw new Error("VRMA download URL is unavailable");
+              if (this.disposed) {
+                throw new DOMException(
+                  "Runtime catalog disposed",
+                  "AbortError",
+                );
               }
-              return downloadUrl;
+              const controller = new AbortController();
+              this.abortControllers.add(controller);
+              try {
+                const download = await runtimeContentDownloadUrl(entry, url, {
+                  fetcher: this.fetcher,
+                  signal: controller.signal,
+                });
+                if (!download) {
+                  throw new Error("VRMA download URL is unavailable");
+                }
+                return {
+                  url: download.url,
+                  release: () => {
+                    download.release();
+                    this.abortControllers.delete(controller);
+                  },
+                };
+              } catch (error) {
+                this.abortControllers.delete(controller);
+                throw error;
+              }
             },
           }
         : {}),

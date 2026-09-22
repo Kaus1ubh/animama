@@ -316,6 +316,9 @@ importers:
       three:
         specifier: ^0.182.0
         version: 0.182.0
+      three-stdlib:
+        specifier: 2.36.1
+        version: 2.36.1(three@0.182.0)
       three.quarks:
         specifier: ^0.17.1
         version: 0.17.1(three@0.182.0)

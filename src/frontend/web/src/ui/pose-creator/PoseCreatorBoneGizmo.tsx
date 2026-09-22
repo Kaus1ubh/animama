@@ -1,6 +1,6 @@
 "use client";
 
-import { TransformControls } from "@react-three/drei";
+import { AvatarTransformControls as TransformControls } from "@/ui/avatar-preview/AvatarTransformControls";
 import { useThree } from "@react-three/fiber";
 import {
   useCallback,
@@ -205,7 +205,7 @@ function installPoseCreatorRotationHandles(
 }
 
 /**
- * Attaches Drei's local rotation control to the selected normalized VRM bone
+ * Attaches the local rotation control to the selected normalized VRM bone
  * and synchronizes every drag back into the serializable pose draft.
  */
 export function PoseCreatorBoneGizmo({ avatar }: PoseCreatorBoneGizmoProps) {
