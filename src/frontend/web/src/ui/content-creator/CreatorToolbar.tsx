@@ -6,9 +6,17 @@ import {
   MoreHorizontalIcon,
   PencilIcon,
   SaveIcon,
+  Undo2Icon,
+  Redo2Icon,
   UploadIcon,
 } from "lucide-react";
 import { useEffect, useRef, type ReactNode, type Ref } from "react";
+
+import {
+  CreatorHistoryShortcut,
+  getCreatorHistoryShortcutLabels,
+  type CreatorHistoryController,
+} from "@/ui/creator-history/CreatorHistory";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
@@ -35,6 +43,11 @@ export type CreatorDocumentStatus = {
 };
 
 type CreatorToolbarProps = {
+  history?: Pick<
+    CreatorHistoryController<unknown>,
+    "canUndo" | "canRedo" | "undo" | "redo"
+  >;
+  historyDisabled?: boolean;
   typeLabel: string;
   typeIcon: ReactNode;
   contentType?: CreatorEffectType;
@@ -65,6 +78,8 @@ type CreatorToolbarProps = {
 
 /** Action-sized FX document controls, with the name visible at every width. */
 export function CreatorToolbar({
+  history,
+  historyDisabled = false,
   typeLabel,
   typeIcon,
   contentType,
@@ -91,12 +106,19 @@ export function CreatorToolbar({
   domainActions,
   contentHealth,
 }: CreatorToolbarProps) {
+  const shortcuts = getCreatorHistoryShortcutLabels();
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (documentNameInvalid) inputRef.current?.focus();
   }, [documentNameInvalid]);
   return (
     <header className="bg-background/95 relative z-40 w-full shrink-0 px-2 py-2 backdrop-blur-xl sm:pr-3 sm:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:backdrop-blur-none lg:transition-[padding-left] lg:duration-150 lg:ease-in-out xl:pr-8 xl:pl-[calc(var(--app-shell-sidebar-inset)+2rem)]">
+      {history ? (
+        <CreatorHistoryShortcut
+          controller={history}
+          isBusy={historyDisabled || saveBusy}
+        />
+      ) : null}
       <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto] lg:grid-rows-1 lg:items-start lg:gap-1.5 2xl:gap-3">
         <div className="border-border/70 bg-background col-start-1 row-start-1 flex h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium shadow-sm lg:h-12 [&_svg]:size-4 [&_svg]:shrink-0">
           {typeIcon}
@@ -146,6 +168,22 @@ export function CreatorToolbar({
             disabled={jsonDisabled}
             onClick={onJson}
           />
+          {history ? (
+            <>
+              <CreatorIconAction
+                label={`Undo · ${shortcuts.undo}`}
+                icon={<Undo2Icon />}
+                disabled={historyDisabled || saveBusy || !history.canUndo}
+                onClick={history.undo}
+              />
+              <CreatorIconAction
+                label={`Redo · ${shortcuts.redo}`}
+                icon={<Redo2Icon />}
+                disabled={historyDisabled || saveBusy || !history.canRedo}
+                onClick={history.redo}
+              />
+            </>
+          ) : null}
         </div>
         <CreatorHeaderDocument
           className="col-span-2 col-start-1 row-start-2 flex min-w-0 justify-center lg:col-span-1 lg:col-start-5 lg:row-start-1"
@@ -232,6 +270,32 @@ export function CreatorToolbar({
               <Code2Icon className="size-4" />
               View JSON
             </DropdownMenuItem>
+            {history ? (
+              <>
+                <DropdownMenuItem
+                  className="min-h-11 gap-3 rounded-lg"
+                  disabled={historyDisabled || saveBusy || !history.canUndo}
+                  onSelect={history.undo}
+                >
+                  <Undo2Icon className="size-4" />
+                  <span>Undo</span>
+                  <span className="text-muted-foreground ml-auto text-xs">
+                    {shortcuts.undo}
+                  </span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="min-h-11 gap-3 rounded-lg"
+                  disabled={historyDisabled || saveBusy || !history.canRedo}
+                  onSelect={history.redo}
+                >
+                  <Redo2Icon className="size-4" />
+                  <span>Redo</span>
+                  <span className="text-muted-foreground ml-auto text-xs">
+                    {shortcuts.redo}
+                  </span>
+                </DropdownMenuItem>
+              </>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
         <div className="col-start-3 row-start-1 flex h-11 items-center gap-1.5 lg:col-start-6 lg:h-12">

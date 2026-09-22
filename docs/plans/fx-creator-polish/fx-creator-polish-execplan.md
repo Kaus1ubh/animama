@@ -143,3 +143,71 @@ compact route forms, and a tabbed narrow layout that retains mounted authoring
 state. Reused neutral panel chrome without adopting Action editor domain state.
 No runtime schema or API contract changed, so additional operational documentation
 was not needed. Keep the task worktree and live stack for owner review.
+
+## Phase 2: FX authoring history
+
+Authorized by the owner on 2026-09-22; issue #54 extends #52 and PR #53.
+Starting source: `99e158fa0210a4a153bcce2b8bebe06a99639517`.
+Reuse the assigned branch/worktree and the retained development stack.
+
+- Reuse bounded Action creator history and keyboard shortcuts with desktop
+  toolbar buttons and narrow menu actions.
+- Track document edits, emitter/layer operations, imports and image resources;
+  keep preview and tool selection outside history. New/load/recovery reset the
+  session, while same-session saves retain history. Route navigation starts a
+  fresh session; key loaded editors by item identity.
+- Test restoration, branched redo, resource lifetime and history reset; run
+  frontend types, affected lint/format/tests and build. Inspect all three routes
+  at desktop and narrow widths including keyboard shortcuts and disabled states.
+- Complete independent phase/final integration review, then update the existing PR.
+
+Progress: complete after validation and independent review. Phase 2 used both
+repair rounds. Phase 1 review evidence and its completed scope remain unchanged.
+
+### Phase 2 Code Review #1 Findings and Revisions
+
+Independent analysis reviewed all Phase 2 changes and new files against
+`99e158f`, plus integration with the completed presentation work. FX-H1 (P2):
+saving a recovered existing item caused ordinary hydration to reset history.
+Accepted and reproduced in the browser using a deliberately failed Scene update,
+reload, edit and successful save: Undo became disabled. Repair 1 marked recovered
+items as hydrated. Checks also found four hook-dependency warnings and one
+formatting mismatch; these were corrected.
+
+### Phase 2 Code Review #2 Findings and Revisions
+
+Targeted review confirmed FX-H1's save behavior but found FX-H2 (P2): Particle's
+restore callback also serves Discard recovery, so marking it hydrated there would
+prevent loading the saved item after discard. Accepted. Repair 2 moved the marker
+to the successful-save callback in all three routes and restored original recovery
+callbacks. Review #3 passed the targeted source/integration recheck without further
+findings. Both repair rounds used; no supported source blocker remains.
+
+### Phase 2 final validation and handoff
+
+- Toolbar TDD: new availability test failed with missing Undo/Redo before the
+  implementation; passed afterward. Per-route hooks test ordered edits, emitter
+  removal, branched redo, imports, exact File restoration, reset and Particle save
+  normalization. Existing Action tests also pass.
+- Independent final checks: scoped ESLint and read-only Prettier clean; web
+  `pnpm --dir src/frontend/web exec tsc -b` passed. `vitest run src/ui/creator-history
+  src/ui/content-creator src/ui/particle-vfx-creator src/ui/avatar-effect-creator
+  src/ui/scene-effect-creator src/ui/action-editor`: 37 files / 153 tests passed.
+- `pnpm --dir src/frontend build`: passed; existing chunk-size warnings remain.
+  Full web suite and native/desktop checks were not rerun for this bounded follow-up.
+- Browser on the retained development stack: all three routes pass desktop
+  Undo/Redo, Ctrl+Z/Ctrl+Shift+Z, input focus isolation, branched redo, narrow actions
+  and New reset. Four viewport sizes (1440/1280/768/390) retain usable layouts,
+  panel/preview controls and Load access; no page errors or document overflow.
+- Real browser File upload → Undo → Redo restores valid blob bytes in Avatar and
+  Scene. Existing Scene Save → Undo → Redo restores expected name and dirty status.
+- Final recovered-save browser checks pass for Scene and Particle; Particle
+  Discard recovery reloads the saved item with empty history. The first Particle
+  probe edited before item hydration finished; the corrected fixture waits for
+  the saved document. Avatar recovery/save is source-reviewed, not separately
+  browser-exercised. Browser probes are local evidence, not hosted CI.
+- Phase 2 is complete. Same-session saves retain bounded history; navigation,
+  refresh, New, loading and recovery establish new sessions. History is in memory.
+  Native text undo retains control while an input is focused.
+- PR #53 also closes phase issue #54. Keep task stack/worktree for owner review;
+  no merge, provider, native or release approval is implied.

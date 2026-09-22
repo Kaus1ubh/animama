@@ -33,6 +33,22 @@ describe("FX document toolbar", () => {
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*aria-label="Save"/);
   });
 
+  it("exposes history actions with their disabled availability", () => {
+    const html = renderToString(
+      <CreatorToolbar
+        {...props}
+        history={{
+          canUndo: false,
+          canRedo: true,
+          undo: () => undefined,
+          redo: () => undefined,
+        }}
+      />,
+    );
+    expect(html).toMatch(/aria-label="Undo[^"]*"[^>]*disabled=""/);
+    expect(html).toMatch(/aria-label="Redo[^"]*"/);
+  });
+
   it("retains field validation and actionable failure details", () => {
     const html = renderToString(
       <CreatorToolbar

@@ -11,14 +11,7 @@ import {
   LoaderCircleIcon,
   SparklesIcon,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { previewCatalogItem } from "@/lib/content/catalogApi";
@@ -105,6 +98,7 @@ import {
   shouldBlockAvatarEffectNavigation,
 } from "./avatarEffectCreatorBehavior";
 import { useAvatarEffectSave } from "./useAvatarEffectSave";
+import { useAvatarEffectHistory } from "./useAvatarEffectHistory";
 
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
@@ -121,13 +115,8 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   const navigate = useNavigate();
   const userId = useRuntimeOwnerId();
   const existingQuery = useAvatarEffect(itemId ?? null);
-  const [document, dispatch] = useReducer(
-    avatarEffectEditorReducer,
-    undefined,
-    createDefaultAvatarEffectDocument,
-  );
-  const [imageResource, setImageResource] =
-    useState<AvatarEffectEditorImageResource | null>(null);
+  const { document, imageResource, history, dispatch, resetDocument } =
+    useAvatarEffectHistory();
   const [selectedModel, setSelectedModel] =
     useState<ContentCreatorModelSource | null>(null);
   const [previewAvatar, setPreviewAvatar] = useState<Avatar | null>(null);
@@ -170,18 +159,19 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       recoveredDocument: AvatarEffectEditorDocument,
       recoveredImage: AvatarEffectEditorImageResource | null,
     ) => {
-      dispatch({ type: "replace", document: recoveredDocument });
-      setImageResource(recoveredImage);
+      resetDocument(recoveredDocument, recoveredImage);
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
     },
-    [],
+    [resetDocument],
   );
   const onSaved = useCallback(
     (savedDocument: AvatarEffectEditorDocument) => {
+      // Saving an existing recovered document must retain its editing history.
+      hydratedItemRef.current = itemId ?? null;
       initialFingerprintRef.current = `${avatarEffectDocumentFingerprint(savedDocument)}:${imageResource?.sha256 ?? "missing"}`;
     },
-    [imageResource?.sha256],
+    [imageResource?.sha256, itemId],
   );
 
   const validation = useMemo(
@@ -200,7 +190,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     document,
     imageResource,
     initialized: hydration.state === "ready",
-    ready: !hasBlockingIssues && hydration.state === "ready",
+    ready: !hasBlockingIssues && !imageBusy && hydration.state === "ready",
     onRestore,
     onSaved,
   });
@@ -295,8 +285,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       signal: controller.signal,
     })
       .then(({ document: loadedDocument, image }) => {
-        dispatch({ type: "replace", document: loadedDocument });
-        setImageResource(image);
+        resetDocument(loadedDocument, image);
         initialFingerprintRef.current = `${avatarEffectDocumentFingerprint(loadedDocument)}:${image.sha256}`;
         setHydration({ state: "ready", message: null });
         setPreviewRevision((value) => value + 1);
@@ -317,6 +306,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     contentSave.recoveryReady,
     existingQuery.data,
     itemId,
+    resetDocument,
   ]);
 
   const canSaveFromKeyboard = contentSave.canSave;
@@ -388,19 +378,21 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
           lastModified: source.lastModified,
         });
         const sha256 = await sha256File(file);
-        setImageResource({ file, sha256 });
-        dispatch({
-          type: "patch",
-          patch: {
-            image: {
-              logicalName,
-              originalName: source.name,
-              contentType: source.type,
-              sizeBytes: source.size,
-              sha256,
+        dispatch(
+          {
+            type: "patch",
+            patch: {
+              image: {
+                logicalName,
+                originalName: source.name,
+                contentType: source.type,
+                sizeBytes: source.size,
+                sha256,
+              },
             },
           },
-        });
+          { file, sha256 },
+        );
         restartPreview();
       } catch (error) {
         setImageError(
@@ -412,7 +404,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
         setImageBusy(false);
       }
     },
-    [restartPreview],
+    [dispatch, restartPreview],
   );
 
   const importDocument = useCallback(() => {
@@ -420,8 +412,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       const parsed = parseAvatarEffectEditorExport(JSON.parse(importText));
       if (isDirty && !window.confirm("Replace the current unsaved document?"))
         return;
-      dispatch({ type: "replace", document: parsed });
-      setImageResource(null);
+      dispatch({ type: "replace", document: parsed }, null);
       setImportError(null);
       setImportOpen(false);
       restartPreview();
@@ -435,10 +426,10 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
           : "The JSON could not be imported.",
       );
     }
-  }, [importText, isDirty, restartPreview]);
+  }, [dispatch, importText, isDirty, restartPreview]);
 
   const startNewDocument = useCallback(async () => {
-    if (contentSave.isBusy) return;
+    if (contentSave.isBusy || imageBusy) return;
     if (
       isDirty &&
       !window.confirm(
@@ -460,8 +451,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     const nextDocument = createDefaultAvatarEffectDocument();
     const nextFingerprint = `${avatarEffectDocumentFingerprint(nextDocument)}:missing`;
     if (!(await contentSave.resetSession(nextFingerprint))) return;
-    dispatch({ type: "replace", document: nextDocument });
-    setImageResource(null);
+    resetDocument(nextDocument, null);
     setImageError(null);
     setImageBusy(false);
     setVfxSnapshot(null);
@@ -474,7 +464,15 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     initialFingerprintRef.current = nextFingerprint;
     setHydration({ state: "ready", message: null });
     setPreviewRevision((value) => value + 1);
-  }, [contentSave, isDirty, itemId, navigate, userId]);
+  }, [
+    contentSave,
+    imageBusy,
+    isDirty,
+    itemId,
+    navigate,
+    resetDocument,
+    userId,
+  ]);
 
   const exportText = useMemo(
     () => JSON.stringify(buildAvatarEffectEditorExport(document), null, 2),
@@ -494,7 +492,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       });
       restartPreview();
     },
-    [document.transform, restartPreview],
+    [dispatch, document.transform, restartPreview],
   );
 
   if (hydration.state === "loading" && itemId) {
@@ -575,6 +573,13 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       toolbar={
         <CreatorToolbar
           contentHealth={<ContentHealth compact />}
+          history={history}
+          historyDisabled={
+            contentSave.isBusy ||
+            imageBusy ||
+            hydration.state !== "ready" ||
+            !contentSave.recoveryReady
+          }
           typeLabel="Avatar FX"
           contentType="avatar_effect"
           typeIcon={<SparklesIcon />}
@@ -597,6 +602,9 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
                   tone: isDirty ? "dirty" : "saved",
                 }
           }
+          newDisabled={contentSave.isBusy || imageBusy}
+          importDisabled={contentSave.isBusy || imageBusy}
+          libraryDisabled={contentSave.isBusy || imageBusy}
           onNew={() => void startNewDocument()}
           onImport={() => {
             setImportText(exportText);

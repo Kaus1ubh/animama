@@ -142,6 +142,7 @@ import {
   JsonTreeNode,
   type JsonExpandMode,
 } from "@/ui/debug/vrm-editor/json-tree";
+import { useParticleVFXHistory } from "./useParticleVFXHistory";
 import { particleVFXDocumentFingerprint } from "./particleVFXDocument";
 import { useParticleVFXSave } from "./useParticleVFXSave";
 import { type ContentCreatorModelSource } from "@/ui/content-creator/contentCreatorModelPreview";
@@ -197,9 +198,10 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   const existing = useParticleEffect(itemId ?? null).data;
   const loadedItemRef = useRef<string | null>(null);
   const initialDraftRef = useRef(createParticleVFXEditorDraftFromBlank());
-  const [draft, setDraft] = useState<ParticleVFXEditorDraft | null>(
+  const { draft, history, updateDraft, resetDraft } = useParticleVFXHistory(
     initialDraftRef.current,
   );
+  const { commit, replacePresent } = history;
   const [activeEmitterPath, setActiveEmitterPath] = useState<string | null>(
     null,
   );
@@ -241,16 +243,24 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     setPreviewRevision((value) => value + 1);
   }, []);
 
+  useEffect(() => {
+    setActiveEmitterPath((path) =>
+      draft.emitters.some((emitter) => emitter.path === path)
+        ? path
+        : (draft.emitters[0]?.path ?? null),
+    );
+    restartPreview();
+  }, [draft, restartPreview]);
+
   const hydrateDraft = useCallback(
     (nextDraft: ParticleVFXEditorDraft) => {
-      setDraft(nextDraft);
+      resetDraft(nextDraft);
       setActiveEmitterPath(nextDraft.emitters[0]?.path ?? null);
       setImportText(`${JSON.stringify(nextDraft.quarksJson, null, 2)}\n`);
       setImportError(null);
       setLoadState({ state: "ready", message: null });
-      restartPreview();
     },
-    [restartPreview],
+    [resetDraft],
   );
   const modelPreview = useContentCreatorModelPreview({
     ownerKey: "particle-vfx-creator",
@@ -259,10 +269,12 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   });
   const markSavedDraft = useCallback(
     (savedDraft: ParticleVFXEditorDraft) => {
+      // Mark successful saves, not recovery/discard, as already hydrated.
+      loadedItemRef.current = itemId ?? null;
       initialDraftRef.current = savedDraft;
-      hydrateDraft(savedDraft);
+      replacePresent(savedDraft);
     },
-    [hydrateDraft],
+    [itemId, replacePresent],
   );
   const contentSave = useParticleVFXSave({
     itemId,
@@ -307,14 +319,17 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
         });
         if (!response.ok)
           throw new Error("The Particle Effect could not be loaded.");
-        hydrateDraft(
-          createParticleVFXEditorDraftFromImport(await response.json(), {
+        const loadedDraft = createParticleVFXEditorDraftFromImport(
+          await response.json(),
+          {
             id: existing.item_id,
             label: existing.name,
             description: existing.description ?? "",
             assetPath: `/effects/vfx/quark/${existing.item_id}.json`,
-          }),
+          },
         );
+        initialDraftRef.current = loadedDraft;
+        hydrateDraft(loadedDraft);
       } catch (error) {
         if (!controller.signal.aborted) {
           setLoadState({
@@ -484,18 +499,6 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     withResolver: true,
   });
 
-  const updateDraft = useCallback(
-    (updater: (current: ParticleVFXEditorDraft) => ParticleVFXEditorDraft) => {
-      setDraft((current) => {
-        if (!current) return current;
-        const next = updater(current);
-        restartPreview();
-        return next;
-      });
-    },
-    [restartPreview],
-  );
-
   const patchCatalog = useCallback(
     (patch: Parameters<typeof updateParticleVFXEditorCatalogDraft>[1]) => {
       updateDraft((current) =>
@@ -517,10 +520,9 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   const addEmitter = useCallback(() => {
     if (!draft) return;
     const nextDraft = addParticleVFXEditorEmitter(draft);
-    setDraft(nextDraft);
+    commit(nextDraft);
     setActiveEmitterPath(nextDraft.emitters.at(-1)?.path ?? null);
-    restartPreview();
-  }, [draft, restartPreview]);
+  }, [draft, commit]);
 
   const duplicateEmitter = useCallback(() => {
     if (!draft || !activeEmitterPath) return;
@@ -528,18 +530,16 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       draft,
       activeEmitterPath,
     );
-    setDraft(nextDraft);
+    commit(nextDraft);
     setActiveEmitterPath(nextDraft.emitters.at(-1)?.path ?? null);
-    restartPreview();
-  }, [activeEmitterPath, draft, restartPreview]);
+  }, [activeEmitterPath, draft, commit]);
 
   const removeEmitter = useCallback(() => {
     if (!draft || !activeEmitterPath) return;
     const nextDraft = removeParticleVFXEditorEmitter(draft, activeEmitterPath);
-    setDraft(nextDraft);
+    commit(nextDraft);
     setActiveEmitterPath(nextDraft.emitters[0]?.path ?? null);
-    restartPreview();
-  }, [activeEmitterPath, draft, restartPreview]);
+  }, [activeEmitterPath, draft, commit]);
 
   const handleImportJson = () => {
     const parsed = parseParticleVFXEditorJson(importText);
@@ -575,12 +575,11 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       performanceBudget: draft?.catalog.performanceBudget,
       shapeAutoFit: draft?.catalog.shapeAutoFit,
     });
-    setDraft(nextDraft);
+    commit(nextDraft);
     setActiveEmitterPath(nextDraft.emitters[0]?.path ?? null);
     setImportError(null);
     setLoadState({ state: "ready", message: null });
     setImportDialogOpen(false);
-    restartPreview();
   };
 
   const handleNewDocument = useCallback(async () => {
@@ -651,6 +650,12 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       bottomChromeHeight={152}
       toolbar={
         <CreatorToolbar
+          history={history}
+          historyDisabled={
+            contentSave.isBusy ||
+            !contentSave.recoveryReady ||
+            loadState.state === "loading"
+          }
           contentHealth={<ContentHealth compact />}
           typeLabel="Particle FX"
           contentType="particle_effect"

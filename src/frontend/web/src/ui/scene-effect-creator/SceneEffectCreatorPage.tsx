@@ -15,14 +15,7 @@ import {
   SparklesIcon,
   Trash2Icon,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { previewCatalogItem } from "@/lib/content/catalogApi";
@@ -118,6 +111,7 @@ import {
   shouldBlockSceneEffectNavigation,
 } from "./sceneEffectCreatorBehavior";
 import { useSceneEffectSave } from "./useSceneEffectSave";
+import { useSceneEffectHistory } from "./useSceneEffectHistory";
 
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_SCENE_IMAGE_BYTES = 32 * 1024 * 1024;
@@ -133,14 +127,14 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   const navigate = useNavigate();
   const userId = useRuntimeOwnerId();
   const existingQuery = useSceneEffect(itemId ?? null);
-  const [document, dispatch] = useReducer(
-    sceneEffectEditorReducer,
-    undefined,
-    createDefaultSceneEffectDocument,
-  );
-  const [imageResources, setImageResources] = useState<
-    SceneEffectEditorImageResource[]
-  >([]);
+  const {
+    document,
+    imageResources,
+    history,
+    dispatch,
+    resetDocument,
+    getSnapshot,
+  } = useSceneEffectHistory();
   const [imageUrls, setImageUrls] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   );
@@ -233,28 +227,29 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       recoveredDocument: SceneEffectEditorDocument,
       recoveredImages: SceneEffectEditorImageResource[],
     ) => {
-      dispatch({ type: "replace", document: recoveredDocument });
-      setImageResources(recoveredImages);
+      resetDocument(recoveredDocument, recoveredImages);
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
     },
-    [],
+    [resetDocument],
   );
   const onSaved = useCallback(
     (savedDocument: SceneEffectEditorDocument) => {
+      // Saving an existing recovered document must retain its editing history.
+      hydratedItemRef.current = itemId ?? null;
       initialFingerprintRef.current = sceneSaveFingerprint(
         savedDocument,
         imageResources,
       );
     },
-    [imageResources],
+    [imageResources, itemId],
   );
   const contentSave = useSceneEffectSave({
     itemId,
     document,
     imageResources,
     initialized: hydration.state === "ready",
-    ready: !hasBlockingIssues && hydration.state === "ready",
+    ready: !hasBlockingIssues && !imageBusy && hydration.state === "ready",
     onRestore,
     onSaved,
   });
@@ -306,8 +301,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       signal: controller.signal,
     })
       .then(({ document: loadedDocument, images }) => {
-        dispatch({ type: "replace", document: loadedDocument });
-        setImageResources(images);
+        resetDocument(loadedDocument, images);
         initialFingerprintRef.current = sceneSaveFingerprint(
           loadedDocument,
           images,
@@ -331,6 +325,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     contentSave.recoveryReady,
     existingQuery.data,
     itemId,
+    resetDocument,
   ]);
 
   const restartPreview = useCallback(() => {
@@ -379,18 +374,20 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
 
   const onItemsChange = useCallback(
     (items: SceneEffectEditorMarqueeItem[]) => {
-      dispatch({ type: "set-marquee-items", items });
       const referenced = new Set(
         items.flatMap((item) =>
           item.kind === "image" ? [item.image.logicalName] : [],
         ),
       );
-      setImageResources((current) =>
-        current.filter((resource) => referenced.has(resource.logicalName)),
+      dispatch(
+        { type: "set-marquee-items", items },
+        getSnapshot().imageResources.filter((resource) =>
+          referenced.has(resource.logicalName),
+        ),
       );
       restartPreview();
     },
-    [restartPreview],
+    [dispatch, getSnapshot, restartPreview],
   );
 
   const choosePrivateImage = useCallback(
@@ -408,6 +405,8 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       try {
         const preflight = await preflightContentFile("image", source);
         if (preflight.error) throw new Error(preflight.error);
+        const sha256 = await sha256File(source);
+        const { document, imageResources } = getSnapshot();
         const baseLogicalName = canonicalSceneEffectImageName(source.name);
         const missing = document.background.marquee.items.find(
           (item) =>
@@ -435,7 +434,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           type: source.type,
           lastModified: source.lastModified,
         });
-        const sha256 = await sha256File(file);
         const image: SceneEffectEditorImage = {
           logicalName,
           originalName: source.name,
@@ -443,34 +441,37 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           sizeBytes: source.size,
           sha256,
         };
-        setImageResources((current) => [
-          ...current.filter((resource) => resource.logicalName !== logicalName),
-          { logicalName, file, sha256 },
-        ]);
-        if (missing) {
-          dispatch({
-            type: "set-marquee-items",
-            items: document.background.marquee.items.map((item) =>
+        const current = getSnapshot();
+        const items = missing
+          ? current.document.background.marquee.items.map((item) =>
               item.kind === "image" && item.image.logicalName === logicalName
                 ? { ...item, image }
                 : item,
-            ),
-          });
-        } else {
-          dispatch({
-            type: "set-marquee-items",
-            items: [
-              ...document.background.marquee.items,
+            )
+          : [
+              ...current.document.background.marquee.items,
               {
                 id: `private-${crypto.randomUUID().slice(0, 8)}`,
-                kind: "image",
+                kind: "image" as const,
                 label: source.name.replace(/\.[^.]+$/, ""),
                 image,
               },
-            ],
+            ];
+        let nextDocument = sceneEffectEditorReducer(current.document, {
+          type: "set-marquee-items",
+          items,
+        });
+        if (!missing)
+          nextDocument = sceneEffectEditorReducer(nextDocument, {
+            type: "patch-marquee",
+            patch: { enabled: true },
           });
-          dispatch({ type: "patch-marquee", patch: { enabled: true } });
-        }
+        dispatch({ type: "replace", document: nextDocument }, [
+          ...current.imageResources.filter(
+            (resource) => resource.logicalName !== logicalName,
+          ),
+          { logicalName, file, sha256 },
+        ]);
         restartPreview();
       } catch (error) {
         setImageError(
@@ -482,7 +483,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
         setImageBusy(false);
       }
     },
-    [document.background.marquee.items, imageResources, restartPreview],
+    [dispatch, getSnapshot, restartPreview],
   );
 
   const importDocument = useCallback(() => {
@@ -490,8 +491,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       const parsed = parseSceneEffectEditorExport(JSON.parse(importText));
       if (isDirty && !window.confirm("Replace the current unsaved document?"))
         return;
-      dispatch({ type: "replace", document: parsed });
-      setImageResources([]);
+      dispatch({ type: "replace", document: parsed }, []);
       setImportError(null);
       setImportOpen(false);
       restartPreview();
@@ -506,7 +506,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           : "The JSON could not be imported.",
       );
     }
-  }, [importText, isDirty, restartPreview]);
+  }, [dispatch, importText, isDirty, restartPreview]);
 
   const exportText = useMemo(
     () => JSON.stringify(buildSceneEffectEditorExport(document), null, 2),
@@ -514,7 +514,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
 
   const startNewDocument = useCallback(async () => {
-    if (contentSave.isBusy) return;
+    if (contentSave.isBusy || imageBusy) return;
     if (
       isDirty &&
       !window.confirm(
@@ -536,8 +536,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     const nextDocument = createDefaultSceneEffectDocument();
     const nextFingerprint = sceneSaveFingerprint(nextDocument, []);
     if (!(await contentSave.resetSession(nextFingerprint))) return;
-    dispatch({ type: "replace", document: nextDocument });
-    setImageResources([]);
+    resetDocument(nextDocument, []);
     setSelectedLayer("marquee");
     setImageBusy(false);
     setImageError(null);
@@ -550,7 +549,15 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     initialFingerprintRef.current = nextFingerprint;
     setHydration({ state: "ready", message: null });
     setPreviewRevision((value) => value + 1);
-  }, [contentSave, isDirty, itemId, navigate, userId]);
+  }, [
+    contentSave,
+    imageBusy,
+    isDirty,
+    itemId,
+    navigate,
+    resetDocument,
+    userId,
+  ]);
   const sceneVFX = useMemo<SceneVFXRuntimeEntry | null>(() => {
     if (!playing) return null;
     try {
@@ -632,6 +639,13 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       toolbar={
         <CreatorToolbar
           contentHealth={<ContentHealth compact />}
+          history={history}
+          historyDisabled={
+            contentSave.isBusy ||
+            imageBusy ||
+            hydration.state !== "ready" ||
+            !contentSave.recoveryReady
+          }
           typeLabel="Scene FX"
           contentType="scene_effect"
           typeIcon={<SparklesIcon />}
@@ -654,6 +668,9 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
                   tone: isDirty ? "dirty" : "saved",
                 }
           }
+          newDisabled={contentSave.isBusy || imageBusy}
+          importDisabled={contentSave.isBusy || imageBusy}
+          libraryDisabled={contentSave.isBusy || imageBusy}
           onNew={() => void startNewDocument()}
           onImport={() => {
             setImportText(exportText);
