@@ -29,6 +29,7 @@ import {
 import { usePoses } from "@/query/hooks/usePoses";
 import { cn } from "@/lib/utils";
 import {
+  DEFAULT_POSE_CREATOR_BASE_POSE,
   selectCanRedoClip,
   selectCanRedoPose,
   selectCanUndoPose,
@@ -454,7 +455,13 @@ function ActionEditorWorkspaceContent() {
         onHistoryGroupEnd={workspace.history.endGroup}
         onChange={updateTimeline}
       />
-      <ActionEditorClipPreviewSync />
+      <ActionEditorClipPreviewSync
+        previewBasePose={
+          workspace.document.intent === "reaction"
+            ? DEFAULT_POSE_CREATOR_BASE_POSE
+            : undefined
+        }
+      />
       <ActionEditorHeader
         history={historyController}
         onModeChange={(mode) => {

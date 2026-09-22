@@ -898,3 +898,39 @@ Orbit Marks Particle FX load their actual documents with Included-copy Save enab
 Avatar name Undo restored the loaded name. Earlier complete Pose development/built
 journeys remain valid for unchanged persistence/copy source. The merge changes only
 the reviewed FX integration and shared-load coverage beyond those prior results.
+
+### Owner follow-up — Reaction preview body pose
+
+Starting candidate `ec97c0c`; retain PR #62 and the same task worktree/stack. The
+owner reported loading Reactions leaves the Avatar in T-pose and requested Relaxed
+Rest. Reproduced in the built creator on a real Avatar using Admiration Reaction 1.
+Reaction documents correctly omit humanoid/base data, but the shared preview treats
+that absent base as a skeleton reset with no replacement pose. Provide an explicit
+Reaction-only preview backdrop without changing saved/exported Reaction content or
+Gesture no-base/T-pose semantics. Cover empty, expression-only and effect-only
+Reactions, timeline seeking and document immutability, plus a real-Avatar browser
+check. This newly reported behavior gets one scoped initial review and up to two
+repair rounds; previous FX findings/budgets remain closed and unchanged.
+
+The requested JSON explanation was checked against `2899639`: 18 gesture files
+changed only their poses/basePose fields. Removed references were resolved inline;
+three removed base poses were baked into local snapshots. All 140 recorded samples
+across 22 shipped clips still match at 12 decimal places; the catalog suite passes
+5/5. Timing, transitions, loops, fades and event fields remain unchanged.
+
+The Reaction-only display backdrop is now threaded through timeline application and
+cleanup, without mutating the draft or export payload. Four focused suites passed
+23 tests (workspace selection, preview sampling, cleanup and authoring); source
+TypeScript, scoped ESLint, source production build and whitespace checks passed.
+Independent source review found no blocking findings on its initial pass; zero
+repair rounds used for this bug. An independent checker also passed the build.
+
+Manual desktop checks at 1280×720 reproduced the original T-pose, then confirmed
+Relaxed Rest on the same real Avatar after direct Reaction loading in development
+and FastAPI-served built mode at http://localhost:8720. Development playback reached
+the end with the posture retained; the JSON dialog still omitted basePose/humanoid.
+Browser automation stalled during dirty-draft replacement and later timeline
+controls, so replacement and built seeking/playback are not claimed as manual
+acceptance; focused automated tests cover these preview transitions. No content was
+saved during this check. The task stack remains in built mode. Hosted Validation
+is still separately blocked by the disabled workflow; no merge is authorized.

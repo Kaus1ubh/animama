@@ -21,7 +21,9 @@ through the client-side timeline without saving it or changing an Anima
 loadout. The editor prepares an exact dependency closure locally when timeline
 events need Effects or Sounds. Gesture supports the Anima Clip schema and a
 self-contained VRMA import. Reaction exposes expression/effect/sound timing and
-rejects humanoid tracks.
+rejects humanoid tracks. Its creator preview uses Relaxed Rest as a display-only
+body pose while loading, seeking and playing; that backdrop is not written into
+the Reaction document.
 
 Standalone Included/Local Poses contain resolved static bone and expression values.
 The Gesture editor saves them through `/v1/poses`; Library previews use a static

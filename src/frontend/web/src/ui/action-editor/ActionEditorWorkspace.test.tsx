@@ -20,6 +20,7 @@ vi.mock("@/query/hooks/usePoses", () => ({
 
 const harness = vi.hoisted(() => ({
   mode: "pose",
+  previewBasePose: undefined as string | undefined,
   document: null as ReturnType<typeof createActionDocument> | null,
   subscriptions: [] as Array<(onChange: () => void) => () => void>,
 }));
@@ -67,7 +68,14 @@ vi.mock("./ActionEditorPrimitives", () => ({
     <div data-bones={variant} />
   ),
   ActionEditorClipInspector: () => null,
-  ActionEditorClipPreviewSync: () => null,
+  ActionEditorClipPreviewSync: ({
+    previewBasePose,
+  }: {
+    previewBasePose?: string;
+  }) => {
+    harness.previewBasePose = previewBasePose;
+    return null;
+  },
   ActionEditorExpressionSection: () => <div data-expressions />,
   ActionEditorPreviewSettings: () => null,
 }));
@@ -174,3 +182,15 @@ it("captures the current copied pose when a baked timeline has no external base"
   expect(clipDraft.basePose).toBe("");
   expect(clipUndoHistory).toHaveLength(1);
 });
+
+it.each(["gesture", "reaction"] as const)(
+  "selects a preview-only base for %s",
+  (intent) => {
+    harness.document = createActionDocument(intent);
+    harness.mode = intent === "reaction" ? "reaction" : "clip";
+    renderToString(<ActionEditorWorkspace />);
+    expect(harness.previewBasePose).toBe(
+      intent === "reaction" ? "relaxedRest" : undefined,
+    );
+  },
+);

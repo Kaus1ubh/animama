@@ -84,7 +84,9 @@ function createEffectPreviewRuntimeState(): EffectPreviewRuntimeState {
   };
 }
 
-export function PoseCreatorClipPreviewSync() {
+export function PoseCreatorClipPreviewSync({
+  previewBasePose,
+}: { previewBasePose?: string } = {}) {
   const { catalog, eventCatalog } = usePoseCreatorPreview();
   const authoringMode = usePoseCreatorStore((state) => state.authoringMode);
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
@@ -141,7 +143,11 @@ export function PoseCreatorClipPreviewSync() {
       return;
     }
 
-    const result = applyPoseCreatorClipPreview(activeAvatar, clipDraft);
+    const result = applyPoseCreatorClipPreview(
+      activeAvatar,
+      clipDraft,
+      previewBasePose,
+    );
     setClipPreviewDiagnostics(
       createPoseCreatorClipPreviewDiagnostics(
         result.diagnostics,
@@ -157,7 +163,7 @@ export function PoseCreatorClipPreviewSync() {
     return () => {
       applyPoseCreatorDraftsToAvatar(
         activeAvatar,
-        basePose,
+        previewBasePose ?? basePose,
         boneDrafts,
         expressionDrafts,
       );
@@ -171,6 +177,7 @@ export function PoseCreatorClipPreviewSync() {
     clipDraft,
     expressionDrafts,
     eventCatalog.validationRefs,
+    previewBasePose,
     setClipPreviewDiagnostics,
     soundController,
   ]);
