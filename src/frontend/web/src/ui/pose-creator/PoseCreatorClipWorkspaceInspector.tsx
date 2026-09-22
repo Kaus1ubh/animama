@@ -1,13 +1,12 @@
 "use client";
 
 import {
-  ChevronRightIcon,
   CopyIcon,
   SlidersHorizontalIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import {
   isAnimaPoseClipRef,
@@ -32,7 +31,6 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { Switch } from "@/ui/components/switch";
-import { PoseCreatorClipAdvancedDialog } from "./PoseCreatorClipAdvancedDialog";
 import { POSE_CREATOR_CLIP_EASING_OPTIONS } from "./poseCreatorClipAuthoring";
 import { withUnavailableEventOption } from "./poseCreatorEventCatalog";
 import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
@@ -51,7 +49,6 @@ export function PoseCreatorClipWorkspaceInspector({
   /** Hide body-pose controls when this inspector is hosted by a Reaction. */
   allowHumanoid?: boolean;
 }) {
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const clipDraft = usePoseCreatorStore((state) => state.clipDraft);
   const clipInlineEdit = usePoseCreatorStore((state) => state.clipInlineEdit);
   const updateClipDraft = usePoseCreatorStore((state) => state.updateClipDraft);
@@ -112,12 +109,17 @@ export function PoseCreatorClipWorkspaceInspector({
     deleteSelectedClipKeyframe();
   };
 
+  if (section === "inspector" && !selectedEvent && !selectedKeyframe)
+    return null;
+
   return (
     <div
       className={
         variant === "mobile"
           ? "bg-background flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4"
-          : "relative flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto pr-1"
+          : section === "settings"
+            ? "w-full"
+            : "relative flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto pr-1"
       }
     >
       {section !== "settings" &&
@@ -129,7 +131,6 @@ export function PoseCreatorClipWorkspaceInspector({
             onUpdate={updateSelectedClipEvent}
             onDuplicate={duplicateSelectedClipEvent}
             onDelete={deleteSelectedClipEvent}
-            onOpenAdvanced={() => setAdvancedOpen(true)}
           />
         ) : selectedKeyframe ? (
           <KeyframeInspector
@@ -141,7 +142,6 @@ export function PoseCreatorClipWorkspaceInspector({
             onUpdate={updateSelectedClipKeyframe}
             onDuplicate={duplicateSelectedClipKeyframe}
             onDelete={deleteSelectedClipKeyframe}
-            onOpenAdvanced={() => setAdvancedOpen(true)}
           />
         ) : (
           <WorkspaceCard>
@@ -160,27 +160,11 @@ export function PoseCreatorClipWorkspaceInspector({
         ))}
 
       {section !== "inspector" ? (
-        <WorkspaceCard>
+        <section>
           <h2 className="text-foreground text-sm font-semibold">
             Clip settings
           </h2>
-          <div className="mt-4 space-y-3">
-            <InspectorRow label="Duration">
-              <DurationInput
-                value={clipDraft.duration}
-                label="Clip duration in seconds"
-                onChange={(duration) => updateClipDraft({ duration })}
-              />
-            </InspectorRow>
-
-            <InspectorRow label="Loop">
-              <Switch
-                checked={clipDraft.loop}
-                onCheckedChange={(loop) => updateClipDraft({ loop })}
-                aria-label="Toggle clip loop"
-              />
-            </InspectorRow>
-
+          <div className="mt-3 space-y-3">
             {allowHumanoid ? (
               <>
                 <InspectorRow label="Base">
@@ -243,22 +227,8 @@ export function PoseCreatorClipWorkspaceInspector({
               />
             </InspectorRow>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            className="border-border/70 mt-4 h-10 w-full justify-between border-t px-0 pt-3 text-xs"
-            onClick={() => setAdvancedOpen(true)}
-          >
-            More settings
-            <ChevronRightIcon className="size-4" />
-          </Button>
-        </WorkspaceCard>
+        </section>
       ) : null}
-
-      <PoseCreatorClipAdvancedDialog
-        open={advancedOpen}
-        onOpenChange={setAdvancedOpen}
-      />
     </div>
   );
 }
@@ -270,7 +240,6 @@ function EventInspector({
   onUpdate,
   onDuplicate,
   onDelete,
-  onOpenAdvanced,
 }: {
   event: AnimaPoseClipEvent;
   disabled: boolean;
@@ -280,7 +249,6 @@ function EventInspector({
   >["updateSelectedClipEvent"];
   onDuplicate: () => void;
   onDelete: () => void;
-  onOpenAdvanced: () => void;
 }) {
   const { beginUndoGroup, endUndoGroup } = usePoseCreatorClipUndoGrouping();
   const { eventCatalog } = usePoseCreatorPreview();
@@ -484,15 +452,6 @@ function EventInspector({
       </div>
 
       <div className="border-border/70 mt-4 flex items-center justify-between border-t pt-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="px-1.5 text-xs"
-          onClick={onOpenAdvanced}
-        >
-          Advanced
-        </Button>
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -530,7 +489,6 @@ function KeyframeInspector({
   onUpdate,
   onDuplicate,
   onDelete,
-  onOpenAdvanced,
 }: {
   keyframe: ReturnType<
     typeof usePoseCreatorStore.getState
@@ -544,7 +502,6 @@ function KeyframeInspector({
   >["updateSelectedClipKeyframe"];
   onDuplicate: () => void;
   onDelete: () => void;
-  onOpenAdvanced: () => void;
 }) {
   return (
     <WorkspaceCard>
@@ -620,21 +577,6 @@ function KeyframeInspector({
         </InspectorRow>
       </div>
       <div className="border-border/70 mt-4 flex items-center justify-between border-t pt-3">
-        {allowHumanoid ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="px-1.5 text-xs"
-            onClick={onOpenAdvanced}
-          >
-            Edit pose & transition
-          </Button>
-        ) : (
-          <span className="text-muted-foreground text-xs">
-            Expression timing
-          </span>
-        )}
         <div className="flex items-center gap-2">
           <Button
             type="button"

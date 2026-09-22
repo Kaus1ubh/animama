@@ -40,7 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select";
-import { Textarea } from "@/ui/components/textarea";
 import {
   CreatorHistoryShortcut,
   type CreatorHistoryController,
@@ -70,7 +69,6 @@ import { useActionEditorWorkspace } from "./ActionEditorWorkspaceContext";
 import { useActionEditorPreview } from "./ActionEditorPreviewProvider";
 import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import { pruneUnusedTimelineDependencies } from "./actionDependencies";
-import { renameActionDocument } from "./actionDocument";
 import { actionEditorCapabilities } from "./actionEditorCapabilities";
 import { retainActionEditorWorkspace } from "./actionEditorStoreLifecycle";
 import { findPoseCreatorClipKeyframeAtTime } from "@/ui/pose-creator/poseCreatorClipAuthoring";
@@ -401,14 +399,15 @@ function ActionEditorWorkspaceContent() {
           workspace.setMode(mode);
         }}
         inspector={
-          <div className="max-h-[min(70dvh,640px)] overflow-y-auto p-1">
-            <ActionEditorClipInspector
-              allowHumanoid={capabilities.allowsHumanoid}
-            />
-            <div className="border-border mt-3 border-t pt-3">
+          workspace.document.intent === "reaction" ? (
+            <div className="max-h-[min(70dvh,640px)] overflow-y-auto p-1">
+              <ActionEditorClipInspector
+                section="inspector"
+                allowHumanoid={false}
+              />
               <MetadataPanel />
             </div>
-          </div>
+          ) : null
         }
       />
 
@@ -475,6 +474,17 @@ function ActionEditorWorkspaceContent() {
                     onExpandedChange={setComponentsExpanded}
                   />
                 </div>
+                {workspace.document.intent === "gesture" &&
+                (clipDraft.selectedKeyframeId || clipDraft.selectedEventId) ? (
+                  <div
+                    className={cn(
+                      "pointer-events-auto absolute top-4 right-4 z-20 w-[248px] overflow-y-auto xl:right-8 xl:w-[296px] 2xl:w-[308px]",
+                      timelineExpanded ? "bottom-[264px]" : "bottom-[80px]",
+                    )}
+                  >
+                    <ActionEditorClipInspector section="inspector" />
+                  </div>
+                ) : null}
                 {workspace.document.intent === "reaction" ? (
                   <div
                     className={cn(
@@ -699,70 +709,7 @@ function MetadataPanel() {
   const document = workspace.document;
   return (
     <div className="space-y-4 p-1">
-      <label className="grid gap-1 text-xs font-medium">
-        Name
-        <Input
-          value={document.name}
-          onChange={(event) =>
-            workspace.setDocument((value) =>
-              renameActionDocument(
-                value,
-                event.target.value,
-                !workspace.identityExists,
-              ),
-            )
-          }
-        />
-      </label>
-      <label className="grid gap-1 text-xs font-medium">
-        {document.intent === "gesture"
-          ? "Library description (optional)"
-          : "Description (optional)"}
-        <Textarea
-          value={
-            document.intent === "gesture"
-              ? document.description
-              : document.aiDescription
-          }
-          placeholder={
-            document.intent === "gesture"
-              ? "Describe this Gesture for your Library."
-              : "Describe this Reaction for your Library."
-          }
-          onChange={(event) =>
-            workspace.setDocument((value) => ({
-              ...value,
-              ...(value.intent === "gesture"
-                ? { description: event.target.value }
-                : { aiDescription: event.target.value }),
-            }))
-          }
-        />
-      </label>
-      {document.intent === "gesture" ? (
-        <label className="grid gap-1 text-xs font-medium">
-          Implementation
-          <Select
-            value={document.implementation}
-            onValueChange={(implementation) =>
-              workspace.setDocument((value) => ({
-                ...value,
-                implementation: implementation as typeof value.implementation,
-                dependencies:
-                  implementation === "vrma" ? [] : value.dependencies,
-              }))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="anima_clip">Timeline</SelectItem>
-              <SelectItem value="vrma">VRMA import</SelectItem>
-            </SelectContent>
-          </Select>
-        </label>
-      ) : (
+      {document.intent === "reaction" ? (
         <div className="grid grid-cols-2 gap-2">
           <label className="grid gap-1 text-xs font-medium">
             Emotion
@@ -798,31 +745,14 @@ function MetadataPanel() {
             </Select>
           </label>
         </div>
-      )}
-      <label className="grid gap-1 text-xs font-medium">
-        Notes
-        <Textarea
-          value={document.notes}
-          onChange={(event) =>
-            workspace.setDocument((value) => ({
-              ...value,
-              notes: event.target.value,
-            }))
-          }
-        />
-      </label>
+      ) : null}
     </div>
   );
 }
 
-function MobileSettingsPanel({ allowHumanoid }: { allowHumanoid: boolean }) {
+function MobileSettingsPanel() {
   return (
     <div className="h-full overflow-y-auto p-3">
-      <ActionEditorClipInspector
-        variant="mobile"
-        section="settings"
-        allowHumanoid={allowHumanoid}
-      />
       <div className="border-border mt-3 border-t pt-3">
         <MetadataPanel />
       </div>
@@ -896,7 +826,7 @@ function MobileWorkspace({
           pose ? (
             <ActionEditorPreviewSettings variant="mobile" />
           ) : (
-            <MobileSettingsPanel allowHumanoid={capabilities.allowsHumanoid} />
+            <MobileSettingsPanel />
           )
         ) : tool === "bones" ? (
           <ActionEditorBoneSection variant="mobile" />

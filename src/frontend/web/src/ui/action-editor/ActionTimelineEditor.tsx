@@ -250,6 +250,7 @@ export function ActionTimelineEditor({
       <PoseCreatorClipTimeline
         variant={variant}
         poseLaneLabel={reaction ? "Expression" : "Pose"}
+        allowHumanoid={!reaction}
         playbackPending={playbackPending}
         onAddExpressionKeyframe={onAddExpressionKeyframe}
         expanded={expanded}

@@ -23,6 +23,8 @@ import {
 import { isAnimaPoseClipVFXEvent, type AnimaPoseClipEvent } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
+import { PoseCreatorClipWorkspaceInspector } from "./PoseCreatorClipWorkspaceInspector";
+import { Input } from "@/ui/components/input";
 import { Button } from "@/ui/components/button";
 import {
   Popover,
@@ -102,6 +104,7 @@ const TIMELINE_LANES: Array<{
 export function PoseCreatorClipTimeline({
   variant = "panel",
   poseLaneLabel = "Pose",
+  allowHumanoid = true,
   playbackPending = false,
   onAddExpressionKeyframe,
   expanded = true,
@@ -109,6 +112,7 @@ export function PoseCreatorClipTimeline({
 }: {
   variant?: "panel" | "workspace" | "mobile";
   poseLaneLabel?: string;
+  allowHumanoid?: boolean;
   playbackPending?: boolean;
   onAddExpressionKeyframe?: () => void;
   expanded?: boolean;
@@ -121,6 +125,7 @@ export function PoseCreatorClipTimeline({
     variant === "workspace",
   );
   const dragRef = useRef<TimelineDragState | null>(null);
+  const updateClipDraft = usePoseCreatorStore((state) => state.updateClipDraft);
   const clipDraft = usePoseCreatorStore((state) => state.clipDraft);
   const clipSnapEnabled = usePoseCreatorStore((state) => state.clipSnapEnabled);
   const clipSnapIntervalSec = usePoseCreatorStore(
@@ -406,118 +411,147 @@ export function PoseCreatorClipTimeline({
         )}
       >
         <div className="flex h-full min-w-0 flex-col gap-2">
-          <div className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto pb-0.5">
-            <div className="border-border/70 bg-muted/20 flex h-8 shrink-0 items-center rounded-md border p-0.5">
-              <Button
-                type="button"
-                variant={clipPlaybackPlaying ? "secondary" : "ghost"}
-                size="icon-sm"
-                disabled={!canPlayPreview || playbackPending}
-                onClick={
-                  clipPlaybackPlaying ? pauseClipPreview : playClipPreview
-                }
-                aria-label={
-                  clipPlaybackPlaying
-                    ? "Pause clip preview"
-                    : "Play clip preview"
-                }
-                title={
-                  playbackPending
-                    ? "Loading preview resources"
-                    : clipPlaybackPlaying
-                      ? "Pause"
-                      : "Play"
-                }
-              >
-                {clipPlaybackPlaying ? (
-                  <PauseIcon className="size-4" />
-                ) : (
-                  <PlayIcon className="size-4" />
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={!hasPlayableContent}
-                onClick={stopClipPreview}
-                aria-label="Stop clip preview"
-                title="Stop"
-              >
-                <SquareIcon className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={!canPlayPreview || playbackPending}
-                onClick={restartClipPreview}
-                aria-label="Restart clip preview"
-                title="Restart"
-              >
-                <RotateCcwIcon className="size-4" />
-              </Button>
+          <div className="grid min-w-0 shrink-0 grid-cols-[auto_auto_auto] items-center gap-1.5 overflow-x-auto pb-0.5 min-[1200px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+            <div className="flex items-center gap-3 justify-self-start">
+              <label className="flex items-center gap-2 text-xs font-medium">
+                Clip Duration
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.05}
+                  value={clipDraft.duration}
+                  onChange={(event) =>
+                    updateClipDraft({
+                      duration: Number(event.currentTarget.value),
+                    })
+                  }
+                  onFocus={beginClipUndoGroup}
+                  onBlur={endClipUndoGroup}
+                  aria-label="Clip duration in seconds"
+                  className="h-8 w-20"
+                />
+              </label>
+              <label className="flex items-center gap-2 text-xs font-medium">
+                Loop
+                <Switch
+                  checked={clipDraft.loop}
+                  onCheckedChange={(loop) => updateClipDraft({ loop })}
+                  aria-label="Toggle clip loop"
+                />
+              </label>
             </div>
+            <div className="col-start-2 row-start-1 flex items-center justify-center gap-1.5">
+              <div className="border-border/70 bg-muted/20 flex h-8 shrink-0 items-center rounded-md border p-0.5">
+                <Button
+                  type="button"
+                  variant={clipPlaybackPlaying ? "secondary" : "ghost"}
+                  size="icon-sm"
+                  disabled={!canPlayPreview || playbackPending}
+                  onClick={
+                    clipPlaybackPlaying ? pauseClipPreview : playClipPreview
+                  }
+                  aria-label={
+                    clipPlaybackPlaying
+                      ? "Pause clip preview"
+                      : "Play clip preview"
+                  }
+                  title={
+                    playbackPending
+                      ? "Loading preview resources"
+                      : clipPlaybackPlaying
+                        ? "Pause"
+                        : "Play"
+                  }
+                >
+                  {clipPlaybackPlaying ? (
+                    <PauseIcon className="size-4" />
+                  ) : (
+                    <PlayIcon className="size-4" />
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={!hasPlayableContent}
+                  onClick={stopClipPreview}
+                  aria-label="Stop clip preview"
+                  title="Stop"
+                >
+                  <SquareIcon className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={!canPlayPreview || playbackPending}
+                  onClick={restartClipPreview}
+                  aria-label="Restart clip preview"
+                  title="Restart"
+                >
+                  <RotateCcwIcon className="size-4" />
+                </Button>
+              </div>
 
-            <div className="border-border/70 bg-muted/20 flex h-8 shrink-0 items-center rounded-md border p-0.5">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={!hasKeyframes}
-                onClick={() => stepClipKeyframe(-1)}
-                aria-label="Previous keyframe"
-                title="Previous keyframe"
-              >
-                <SkipBackIcon className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={duration <= 0}
-                onClick={() => stepClipTime(-1)}
-                aria-label="Step backward one frame"
-                title="Step backward"
-              >
-                <StepBackIcon className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={duration <= 0}
-                onClick={() => stepClipTime(1)}
-                aria-label="Step forward one frame"
-                title="Step forward"
-              >
-                <StepForwardIcon className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={!hasKeyframes}
-                onClick={() => stepClipKeyframe(1)}
-                aria-label="Next keyframe"
-                title="Next keyframe"
-              >
-                <SkipForwardIcon className="size-4" />
-              </Button>
+              <div className="border-border/70 bg-muted/20 flex h-8 shrink-0 items-center rounded-md border p-0.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={!hasKeyframes}
+                  onClick={() => stepClipKeyframe(-1)}
+                  aria-label="Previous keyframe"
+                  title="Previous keyframe"
+                >
+                  <SkipBackIcon className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={duration <= 0}
+                  onClick={() => stepClipTime(-1)}
+                  aria-label="Step backward one frame"
+                  title="Step backward"
+                >
+                  <StepBackIcon className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={duration <= 0}
+                  onClick={() => stepClipTime(1)}
+                  aria-label="Step forward one frame"
+                  title="Step forward"
+                >
+                  <StepForwardIcon className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={!hasKeyframes}
+                  onClick={() => stepClipKeyframe(1)}
+                  aria-label="Next keyframe"
+                  title="Next keyframe"
+                >
+                  <SkipForwardIcon className="size-4" />
+                </Button>
+              </div>
+
+              {onAddExpressionKeyframe ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 shrink-0"
+                  onClick={onAddExpressionKeyframe}
+                >
+                  + Expression
+                </Button>
+              ) : null}
             </div>
-
-            {onAddExpressionKeyframe ? (
-              <Button
-                type="button"
-                size="sm"
-                className="h-8 shrink-0"
-                onClick={onAddExpressionKeyframe}
-              >
-                + Expression
-              </Button>
-            ) : null}
-
-            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-1.5 justify-self-end">
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -533,9 +567,15 @@ export function PoseCreatorClipTimeline({
                 <PopoverContent
                   side="top"
                   align="end"
-                  className="w-64 space-y-3"
+                  className="max-h-[min(80dvh,var(--radix-popover-content-available-height))] w-[min(360px,calc(100vw-2rem))] space-y-3 overflow-y-auto"
                 >
-                  <p className="text-sm font-semibold">Timeline settings</p>
+                  <PoseCreatorClipWorkspaceInspector
+                    section="settings"
+                    allowHumanoid={allowHumanoid}
+                  />
+                  <p className="border-t pt-3 text-sm font-semibold">
+                    Timeline settings
+                  </p>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-xs">Playback speed</span>
                     <Select
