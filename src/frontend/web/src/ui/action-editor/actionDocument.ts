@@ -1,3 +1,4 @@
+import { RELAXED_REST_POSE_ID } from "@/lib/avatar/poses/catalog";
 import type { PyContentDependency } from "@/lib/content/catalogTypes";
 
 export type ActionIntent = "gesture" | "reaction";
@@ -90,7 +91,7 @@ function defaultSequence(intent: ActionIntent): Record<string, unknown> {
     schema: "animaPoseClip/1.0",
     id: actionClipId("", intent),
     name: `New ${intent === "gesture" ? "Gesture" : "Reaction"}`,
-    duration: 1.2,
+    duration: 2,
     loop: false,
     defaultTransition: {
       easing: "easeInOutSine",
@@ -104,10 +105,14 @@ function defaultSequence(intent: ActionIntent): Record<string, unknown> {
         expression: "linear",
       },
     },
-    // A new action has no authored landmarks. Gesture Pose mode creates
-    // the first real keyframe at the playhead when the creator starts editing.
-    poses: {},
-    poseKeyframes: [],
+    ...(!reaction ? { basePose: RELAXED_REST_POSE_ID } : {}),
+    poses: reaction ? {} : { base: { ref: RELAXED_REST_POSE_ID } },
+    poseKeyframes: reaction
+      ? []
+      : [
+          { time: 0, pose: "base" },
+          { time: 2, pose: "base" },
+        ],
     events: [],
   };
 }
@@ -125,7 +130,7 @@ export function createActionDocument(intent: ActionIntent): ActionDocument {
     aiDescription: "",
     semanticKey: intent === "gesture" ? gestureSemanticKey(name) : "",
     implementation: "anima_clip",
-    suggestedEmotion: "joy",
+    suggestedEmotion: "",
     suggestedIntensity: 1,
     notes: "",
     sequence: defaultSequence(intent),

@@ -93,7 +93,11 @@ changes through `POST /v1/animas/{anima_id}/{family}:plan` and its matching
 `:commit`, with an expected revision, reviewed plan digest, and idempotency
 key. Gesture semantic keys are unique. Each Reaction binding occupies one
 canonical emotion/intensity cell, but any Reaction Action may be assigned to
-any cell; its document placement is only the creator's suggested default. Idle
+any cell. A Reaction descriptor may omit `placement_hint`; when present, it must
+supply both a tracked emotion and intensity 1, 2, or 3. This is only a suggested
+default: saving, previewing and packaging do not require it, while equipping
+still requires a canonical cell. Unplaced typed responses have null `emotion`
+and `intensity`. Idle
 Style is singular with bounded pools, Music has no duplicate item and at most
 one autoplay track, and Avatar, Appearance, and voice keep focused selection
 rules. Effects, Sounds, and Pose Clips remain

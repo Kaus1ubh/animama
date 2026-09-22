@@ -68,10 +68,10 @@ class GestureDocumentV1(ContentDocumentV1):
 
 @dataclass(frozen=True, slots=True)
 class ReactionDocumentV1(ContentDocumentV1):
-    """Editable Reaction with a suggested default emotion/intensity placement."""
+    """Editable Reaction with an optional suggested emotion/intensity placement."""
 
-    emotion: str = "joy"
-    intensity: int = 1
+    emotion: str | None = None
+    intensity: int | None = None
     implementation: ActionImplementationV1 = field(
         default_factory=lambda: ActionImplementationV1(kind="anima_clip", file_role="sequence")
     )

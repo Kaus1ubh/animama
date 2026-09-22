@@ -4,6 +4,8 @@ import json
 import struct
 from pathlib import Path
 
+import pytest
+
 from animama.adapters.content_store import FilesystemContentStore
 from animama.domain.content_catalog import ContentSource, ContentStatus
 from animama.server.config import Settings
@@ -24,7 +26,8 @@ def _glb() -> bytes:
     )
 
 
-def test_scan_admits_simple_sidecar_and_descriptor_entries_independently(tmp_path: Path) -> None:
+@pytest.mark.parametrize("with_hint", [False, True])
+def test_scan_admits_simple_sidecar_and_descriptor_entries_independently(tmp_path: Path, with_hint: bool) -> None:
     paths = initialize_local_runtime(
         Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
     )
@@ -54,7 +57,7 @@ def test_scan_admits_simple_sidecar_and_descriptor_entries_independently(tmp_pat
                 "content_type": "reaction",
                 "id": "local:reaction:happy",
                 "name": "Happy",
-                "placement_hint": {"emotion": "joy", "intensity": 2},
+                **({"placement_hint": {"emotion": "joy", "intensity": 2}} if with_hint else {}),
                 "implementation": {"kind": "anima_clip", "file_role": "sequence"},
                 "files": [{"path": "happy.json", "role": "sequence"}],
             }

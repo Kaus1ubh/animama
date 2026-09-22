@@ -3708,14 +3708,20 @@ export const zPyReaction = z.object({
         z.null()
     ])),
     editable: z.boolean(),
-    emotion: z.string(),
+    emotion: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
     files: z.optional(z.array(zPyTypedContentFile)),
     implementation: zPyActionImplementation,
-    intensity: z.union([
-        z.literal(1),
-        z.literal(2),
-        z.literal(3)
-    ]),
+    intensity: z.optional(z.union([
+        z.union([
+            z.literal(1),
+            z.literal(2),
+            z.literal(3)
+        ]),
+        z.null()
+    ])),
     item_id: z.string(),
     kind: z.optional(z.literal('reaction')).default('reaction'),
     logical_key: z.optional(z.union([

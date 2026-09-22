@@ -89,7 +89,11 @@ describe("ActionTimelineDocumentSync route handoff", () => {
       const onChange = vi.fn();
       renderToString(
         <ActionTimelineDocumentSync
-          sequence={createActionDocument(intent).sequence}
+          sequence={{
+            ...createActionDocument(intent).sequence,
+            poses: {},
+            poseKeyframes: [],
+          }}
           session={0}
           reaction={intent === "reaction"}
           onChange={onChange}

@@ -138,10 +138,14 @@ function typedMetadata(item: TypedCatalogTransport): Record<string, unknown> {
     case "reaction":
       return {
         ...common,
-        placement_hint: {
-          emotion: item.emotion,
-          intensity: item.intensity,
-        },
+        ...(item.emotion && item.intensity
+          ? {
+              placement_hint: {
+                emotion: item.emotion,
+                intensity: item.intensity,
+              },
+            }
+          : {}),
         implementation: item.implementation,
         config: item.config,
       };

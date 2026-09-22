@@ -223,6 +223,7 @@ export function ActionTimelineEditor({
   isBusy,
   playbackPending = false,
   onAddExpressionKeyframe,
+  settingsContent,
   expanded = true,
   onExpandedChange,
   variant = "workspace",
@@ -232,6 +233,7 @@ export function ActionTimelineEditor({
   isBusy: boolean;
   playbackPending?: boolean;
   onAddExpressionKeyframe?: () => void;
+  settingsContent?: React.ReactNode;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
   variant?: "workspace" | "mobile";
@@ -253,6 +255,7 @@ export function ActionTimelineEditor({
         allowHumanoid={!reaction}
         playbackPending={playbackPending}
         onAddExpressionKeyframe={onAddExpressionKeyframe}
+        settingsContent={settingsContent}
         expanded={expanded}
         onExpandedChange={onExpandedChange}
       />

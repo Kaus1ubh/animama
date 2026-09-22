@@ -27,6 +27,7 @@ import {
   getResolvedAvatarPose,
 } from "@/lib/avatar/poses/catalog";
 import {
+  isPoseCreatorBaseKeyframe,
   clonePoseCreatorClipPose,
   clonePoseCreatorClipTransition,
   clampPoseCreatorClipDuration,
@@ -597,7 +598,7 @@ type PoseCreatorStoreState = {
   ) => void;
   copyFirstClipKeyframeToEnd: () => void;
   setFinalClipKeyframeToFirstPose: () => void;
-  addReturnToBaseClipKeyframe: () => void;
+  setClipBaseEndpoint: (endpoint: "start" | "end", enabled: boolean) => void;
   setModelSource: (source: PoseCreatorModelSource | null) => void;
   setBasePose: (basePose: PoseCreatorBasePose) => void;
   setActiveAvatar: (avatar: Avatar | null) => void;
@@ -812,7 +813,7 @@ function createPoseUndoSnapshot(
 }
 
 function createClipUndoSnapshot(
-  state: PoseCreatorStoreState,
+  state: Pick<PoseCreatorStoreState, "clipDraft">,
 ): PoseCreatorClipUndoSnapshot {
   return {
     poses: clonePoseCreatorClipPoses(state.clipDraft.poses),
@@ -1812,21 +1813,65 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
       ),
     updateClipDraft: (patch) =>
       set((state) => {
-        const clipDraft = patchPoseCreatorClipDraft(
-          state.clipDraft,
-          patch,
-          POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-        );
+        const applySettings = (draft: PoseCreatorClipDraft) => {
+          let source = draft;
+          if (patch.basePose && patch.basePose !== source.basePose) {
+            const endpointIds = new Set(
+              source.keyframes
+                .filter(
+                  (frame) =>
+                    (frame.time === 0 ||
+                      Math.abs(frame.time - source.duration) < 0.0005) &&
+                    isPoseCreatorBaseKeyframe(source, frame),
+                )
+                .map((frame) => frame.id),
+            );
+            if (endpointIds.size) {
+              const alias = generatePoseCreatorClipPoseAlias(
+                "base",
+                Object.keys(source.poses),
+              );
+              source = {
+                ...source,
+                basePose: patch.basePose,
+                poses: { ...source.poses },
+                keyframes: source.keyframes.flatMap((frame) => {
+                  if (!endpointIds.has(frame.id)) return [frame];
+                  // The VRM T-pose is not a runtime pose reference.
+                  return patch.basePose === POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
+                    ? []
+                    : [{ ...frame, pose: alias }];
+                }),
+              };
+              if (patch.basePose !== POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID)
+                source.poses[alias] = createPoseCreatorClipRefPose(
+                  patch.basePose,
+                );
+            }
+          }
+          return patchPoseCreatorClipDraft(
+            source,
+            patch,
+            POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+          );
+        };
+        const clipDraft = applySettings(state.clipDraft);
         return {
           clipDraft,
           clipPlaybackPlaying: false,
           // Excluded settings are not undone, so older snapshots remain dirty.
           clipUndoHistory: state.clipUndoHistory.map((snapshot) => ({
             ...snapshot,
+            ...createClipUndoSnapshot({
+              clipDraft: applySettings({ ...state.clipDraft, ...snapshot }),
+            }),
             isDirty: clipDraft.isDirty || snapshot.isDirty,
           })),
           clipRedoHistory: state.clipRedoHistory.map((snapshot) => ({
             ...snapshot,
+            ...createClipUndoSnapshot({
+              clipDraft: applySettings({ ...state.clipDraft, ...snapshot }),
+            }),
             isDirty: clipDraft.isDirty || snapshot.isDirty,
           })),
         };
@@ -2904,37 +2949,44 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipPlaybackPlaying: false,
         };
       }),
-    addReturnToBaseClipKeyframe: () =>
+    setClipBaseEndpoint: (endpoint, enabled) =>
       set((state) => {
-        const reusableAlias = getReusableBaseAlias(state.clipDraft);
-        const alias =
-          reusableAlias ??
-          (state.clipDraft.basePose === POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
-            ? null
-            : generatePoseCreatorClipPoseAlias("base", [
-                ...Object.keys(state.clipDraft.poses),
-                state.clipDraft.basePose,
-              ]));
-        if (!alias) return state;
-
-        const draft = reusableAlias
-          ? state.clipDraft
-          : {
-              ...state.clipDraft,
-              poses: {
-                ...state.clipDraft.poses,
-                [alias]: createPoseCreatorClipRefPose(state.clipDraft.basePose),
-              },
-            };
-        const pose = draft.poses[alias];
-        if (!pose) return state;
-
-        const clipDraft = insertClipPoseAtTime(
-          draft,
-          pose,
-          alias,
-          draft.duration,
+        if (state.clipInlineEdit || state.clipDraft.duration <= 0) return state;
+        const draft = state.clipDraft;
+        const time = endpoint === "start" ? 0 : draft.duration;
+        const existing = findPoseCreatorClipKeyframeAtTime(
+          draft.keyframes,
+          time,
         );
+        const baseFrame =
+          existing && isPoseCreatorBaseKeyframe(draft, existing);
+        if (
+          enabled
+            ? existing ||
+              draft.basePose === POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
+            : !baseFrame
+        )
+          return state;
+        const alias =
+          getReusableBaseAlias(draft) ??
+          generatePoseCreatorClipPoseAlias("base", Object.keys(draft.poses));
+        const clipDraft = enabled
+          ? insertClipPoseAtTime(
+              draft,
+              createPoseCreatorClipRefPose(draft.basePose),
+              alias,
+              time,
+            )
+          : withDirtyClipValidation({
+              ...draft,
+              keyframes: draft.keyframes.filter(
+                (frame) => frame.id !== existing!.id,
+              ),
+              selectedKeyframeId:
+                draft.selectedKeyframeId === existing!.id
+                  ? null
+                  : draft.selectedKeyframeId,
+            });
         return {
           ...recordClipDraftUndo(state, clipDraft),
           clipDraft,
