@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "content_type": "pose",
+  "content_id": "relaxedRest",
+  "name": "Relaxed Rest",
+  "pose": {
+    "schema": "animaPose/1.0",
+    "id": "relaxedRest",
+    "name": "Relaxed Rest",
+    "humanoid": {
+      "hips": {
+        "position": [0, 0.1, 0]
+      },
+      "leftUpperArm": {
+        "rotation": [0, 0, 0, 1]
+      }
+    },
+    "expressions": {
+      "happy": 0.5,
+      "customSmile": 1
+    }
+  }
+}

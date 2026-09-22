@@ -358,6 +358,35 @@ export const zBodySaveParticleEffect = z.object({
 });
 
 /**
+ * Body_save_pose
+ */
+export const zBodySavePose = z.object({
+    catalog_item_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    companion_paths_json: z.optional(z.string()).default('[]'),
+    creation_context: z.optional(z.boolean()).default(false),
+    descriptor_json: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    expected_revision: z.optional(z.union([
+        z.string().regex(/^[0-9a-f]{64}$/),
+        z.null()
+    ])),
+    files: z.optional(z.union([
+        z.array(z.string()),
+        z.null()
+    ])),
+    metadata_json: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    operation_id: z.string().min(1).max(128)
+});
+
+/**
  * Body_save_pose_clip
  */
 export const zBodySavePoseClip = z.object({
@@ -1328,6 +1357,7 @@ export const zPyContentEvidenceRootRequest = z.object({
         'gesture',
         'reaction',
         'idle_style',
+        'pose',
         'pose_clip',
         'particle_effect',
         'avatar_effect',
@@ -1369,6 +1399,7 @@ export const zPyContentPreviewRootRequest = z.object({
         'gesture',
         'reaction',
         'idle_style',
+        'pose',
         'pose_clip',
         'particle_effect',
         'avatar_effect',
@@ -2731,6 +2762,7 @@ export const zPyPreparedPreviewRoot = z.object({
         'gesture',
         'reaction',
         'idle_style',
+        'pose',
         'pose_clip',
         'particle_effect',
         'avatar_effect',
@@ -3403,6 +3435,7 @@ export const zPyTypedDependency = z.object({
     kind: z.enum([
         'avatar',
         'gesture',
+        'pose',
         'pose_clip',
         'reaction',
         'particle_effect',
@@ -3663,6 +3696,31 @@ export const zPyParticleEffectPage = z.object({
 });
 
 /**
+ * PyPose
+ *
+ * Static Pose metadata; full values are delivered through registered bytes.
+ */
+export const zPyPose = z.object({
+    dependencies: z.optional(z.array(zPyTypedDependency)),
+    description: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    editable: z.boolean(),
+    files: z.optional(z.array(zPyTypedContentFile)),
+    item_id: z.string(),
+    kind: z.optional(z.literal('pose')).default('pose'),
+    logical_key: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    name: z.string(),
+    pose_id: z.string(),
+    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    source: z.enum(['included', 'local'])
+});
+
+/**
  * PyPoseClip
  */
 export const zPyPoseClip = z.object({
@@ -3695,6 +3753,13 @@ export const zPyPoseClip = z.object({
  */
 export const zPyPoseClipPage = z.object({
     items: z.array(zPyPoseClip)
+});
+
+/**
+ * PyPosePage
+ */
+export const zPyPosePage = z.object({
+    items: z.array(zPyPose)
 });
 
 /**
@@ -4312,6 +4377,9 @@ export const zPyContentPreviewsPrepareResponse = z.object({
             kind: z.literal('reaction')
         }).and(zPyReaction),
         z.object({
+            kind: z.literal('pose')
+        }).and(zPyPose),
+        z.object({
             kind: z.literal('pose_clip')
         }).and(zPyPoseClip),
         z.object({
@@ -4378,6 +4446,7 @@ export const zSourceRevision = z.object({
         'gesture',
         'reaction',
         'idle_style',
+        'pose',
         'pose_clip',
         'particle_effect',
         'avatar_effect',
@@ -4409,6 +4478,7 @@ export const zPyContentEvidenceRoot = z.object({
         'gesture',
         'reaction',
         'idle_style',
+        'pose',
         'pose_clip',
         'particle_effect',
         'avatar_effect',
@@ -4444,6 +4514,9 @@ export const zPyTypedContentPreview = z.object({
         z.object({
             kind: z.literal('reaction')
         }).and(zPyReaction),
+        z.object({
+            kind: z.literal('pose')
+        }).and(zPyPose),
         z.object({
             kind: z.literal('pose_clip')
         }).and(zPyPoseClip),
@@ -4484,6 +4557,9 @@ export const zPyTypedContentPreview = z.object({
         z.object({
             kind: z.literal('reaction')
         }).and(zPyReaction),
+        z.object({
+            kind: z.literal('pose')
+        }).and(zPyPose),
         z.object({
             kind: z.literal('pose_clip')
         }).and(zPyPoseClip),
@@ -6394,6 +6470,56 @@ export const zPreviewPoseClipData = z.object({
  * Successful Response
  */
 export const zPreviewPoseClipResponse = zPyTypedContentPreview;
+
+export const zListPosesData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zListPosesResponse = zPyPosePage;
+
+export const zSavePoseData = z.object({
+    body: zBodySavePose,
+    path: z.object({
+        entry_name: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zSavePoseResponse = zPyPose;
+
+export const zGetPoseData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetPoseResponse = zPyPose;
+
+export const zPreviewPoseData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zPreviewPoseResponse = zPyTypedContentPreview;
 
 export const zListReactionsData = z.object({
     body: z.optional(z.never()),

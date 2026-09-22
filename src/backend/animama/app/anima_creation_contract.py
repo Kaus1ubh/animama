@@ -29,6 +29,7 @@ SourceKind = Literal[
     "gesture",
     "reaction",
     "idle_style",
+    "pose",
     "pose_clip",
     "particle_effect",
     "avatar_effect",

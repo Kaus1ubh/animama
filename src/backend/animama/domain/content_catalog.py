@@ -37,6 +37,7 @@ class ContentKind(str, Enum):
 
     AVATAR = "avatar"
     GESTURE = "gesture"
+    POSE = "pose"
     POSE_CLIP = "pose_clip"
     REACTION = "reaction"
     PARTICLE_EFFECT = "particle_effect"

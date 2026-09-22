@@ -420,6 +420,7 @@ class AnimaRuntimeService:
         for binding in bindings:
             kind = ContentKind(binding.kind)
             if kind in {
+                ContentKind.POSE,
                 ContentKind.POSE_CLIP,
                 ContentKind.PARTICLE_EFFECT,
                 ContentKind.AVATAR_EFFECT,

@@ -30,6 +30,7 @@ from animama.domain.content_documents import (
     MusicTrackDocumentV1,
     ParticleEffectDocumentV1,
     PoseClipDocumentV1,
+    PoseDocumentV1,
     ReactionDocumentV1,
     SceneEffectDocumentV1,
     SoundEffectDocumentV1,
@@ -41,6 +42,7 @@ from animama.domain.emotions import TRACKED_EMOTION_SET
 from .content_file_validation import ContentFileInvalidError
 from .content_gltf import MAX_VRM_SOURCE_BYTES, validate_vrm_stream
 from .content_image import MAX_APPEARANCE_SOURCE_BYTES, validate_appearance_image_stream
+from .content_pose import validate_resolved_pose
 
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_DOCUMENT_DEPTH = 32
@@ -153,6 +155,7 @@ _KIND_FIELDS: dict[ContentKind, frozenset[str]] = {
     ContentKind.GESTURE: frozenset(
         {"semantic_key", "implementation", "config", "runtime_defaults", "technical_source"}
     ),
+    ContentKind.POSE: frozenset({"pose"}),
     ContentKind.POSE_CLIP: frozenset(
         {
             "schema",
@@ -205,6 +208,7 @@ _KIND_FIELDS: dict[ContentKind, frozenset[str]] = {
 
 _ALLOWED_DEPENDENCIES: dict[ContentKind, frozenset[ContentKind]] = {
     ContentKind.AVATAR: frozenset(),
+    ContentKind.POSE: frozenset(),
     ContentKind.GESTURE: frozenset(
         {
             ContentKind.POSE_CLIP,
@@ -746,6 +750,13 @@ class ContentTypeHandler:
                 implementation=_action_implementation(raw, default_kind="anima_clip"),
                 config=_object(raw.get("config"), field_name="config"),
             )
+        if kind is ContentKind.POSE:
+            if base["files"]:
+                raise ContentDocumentError("pose_files_not_allowed", "A Pose has no external resource files")
+            return PoseDocumentV1(
+                **base,
+                pose=validate_resolved_pose(raw.get("pose"), content_id=base["content_id"], name=base["name"]),
+            )
         if kind is ContentKind.POSE_CLIP:
             schema = raw.get("schema")
             if raw and schema != "animaPoseClip/1.0":
@@ -932,6 +943,8 @@ class ContentTypeHandler:
             )
             if document.emotion is not None and document.intensity is not None:
                 result["placement_hint"] = {"emotion": document.emotion, "intensity": document.intensity}
+        elif isinstance(document, PoseDocumentV1):
+            result["pose"] = document.pose
         elif isinstance(document, PoseClipDocumentV1):
             return dict(document.clip)
         elif isinstance(document, ParticleEffectDocumentV1):
@@ -1502,6 +1515,18 @@ CONTENT_TYPE_HANDLERS = ContentTypeHandlerRegistry(
                 frozenset({".vrma"}),
                 ".meta.json",
                 "gesture",
+            )
+        ),
+        ContentTypeHandler(
+            ContentKindDefinition(
+                ContentKind.POSE,
+                "poses",
+                frozenset(),
+                ".json",
+                "pose",
+                max_file_bytes=1024 * 1024,
+                max_entry_files=1,
+                max_entry_bytes=1024 * 1024,
             )
         ),
         ContentTypeHandler(

@@ -5,7 +5,8 @@ Source agreement: [Poses as content spec](poses-as-content-spec.md), accepted by
 owner instruction to proceed to execution planning on 2026-09-22.
 Accepted spec Git blob: `869ab830cb6a2b99e675a9102ec14de6e05a4dad`.
 Authorized scope: all four phases, following the owner's implement instruction
-on 2026-09-22. No additional product decision is required. Exact-candidate merge and release approval remain separate.
+on 2026-09-22. No additional product decision is required. Exact-candidate merge
+and release approval remain separate.
 
 ## Purpose and context
 
@@ -37,7 +38,7 @@ Authoritative spec: https://github.com/raymond-van/animama/issues/55 (captured 2
 - [x] Owner accepts plan and authorizes all four implementation phases.
 - [x] Workspace setup published and read back https://github.com/raymond-van/animama/issues/55
   at 2026-09-22T18:12:50Z; four native phase issues and dependencies created.
-- [ ] Phase 1: standalone Pose content contract and recoverable persistence.
+- [x] Phase 1: standalone Pose content contract and recoverable persistence.
 - [ ] Phase 2: canonical Included starters and distribution completeness.
 - [ ] Phase 3: durable editor collection and independent clip copies.
 - [ ] Phase 4: Library integration and complete acceptance.
@@ -179,16 +180,53 @@ database, SDK generation agrees with HTTP models, and review is clear. No UI cla
 Recovery: retain mutation journals/originals on failure; use existing recovery tests
 and never weaken validation to make test fixtures pass.
 
-Issue: https://github.com/raymond-van/animama/issues/56. Starting source: `0657c51e211efa8bd16d1efca8dbefd878aacc74`. Candidate/commit: pending.
-Evidence and remaining gates: not run; implementation authorization pending.
+Issue: https://github.com/raymond-van/animama/issues/56.
+Starting source: `72b30658307f59fafac5d9548421888947f9724b` (planning commit;
+implementation baseline unchanged). Candidate: reviewed working tree; phase commit recorded after creation.
+
+Evidence so far (2026-09-22, Python 3.12.13, Node 24.15.0, pnpm 10.33.0):
+
+- New HTTP route contract initially failed because `/v1/poses` did not exist.
+  The four API/save/conflict/replay/package tests subsequently passed; the separate
+  Included/manual-health test passed after using the existing denial/unavailable
+  HTTP 404 contract. No backend status semantics were changed to fit the test.
+- `uv run --no-sync pytest -q tests/test_pose_content_restart.py`: 2 passed on real
+  Alembic baseline databases. Fresh database/bootstrap/session/store lifetimes retain
+  pose identity and values; injected receipt-stage failure restores files/catalog
+  and permits the identical retry after restart. These tests began green after the
+  concurrent implementation; they are integration evidence, not an asserted red.
+- Planned 12-file backend regression command above: 81 passed. Strict admission
+  includes a huge-integer regression that failed with OverflowError before repair.
+- Backend affected Ruff/format and 11-file mypy checks passed; shared-import check
+  reported zero forbidden edges. Broader final verification remains in Phase 4.
+- `pnpm openapi-ts` and `pnpm packages:build` passed. Generated kind changes exposed
+  frontend transport/revision-schema omissions; authored transport/evidence plumbing
+  now passes TypeScript and its focused regressions without adding equip behavior.
+- The shared resolved Pose fixture passes both Python handler admission and the
+  TypeScript parser without dropped values (`tests/test_pose_content.py -k
+  fixture_matches` and frontend catalog API test). This is an additional sixth
+  API/contract test; the earlier five behavior cases remain green.
+- Frontend focused regression set: 69 tests across seven files passed; three newly
+  introduced transport/evidence tests failed before implementation. TypeScript,
+  affected ESLint and read-only formatting passed. SDK freshness check passed.
+- No browser, native, hosted CI or user-data reset occurred. Independent analysis
+  and checks are clear after the one type-annotation repair below.
 
 #### Code Review #1 Findings
 
-Not started. Record source, commands, stable findings and disposition here.
+Reviewed `72b3065` against the complete Phase 1 working tree, including new validator,
+API/restart tests, generated clients and final authored type plumbing. Independent
+analysis found no behavioral/security blockers. Independent checks found CHECK-1:
+`tests/test_pose_content_restart.py` required an explicit type for its command map.
+Affected Python lint/format and whitespace checks otherwise passed. Both reviewers
+accepted the existing test evidence without duplicating unchanged runs.
 
 #### Code Review #1 Revisions
 
-Not started. Record accepted repairs and affected reruns; at most two repair rounds.
+CHECK-1 accepted and fixed with `dict[str, Any]`. Targeted mypy/format recheck passed;
+SDK freshness passed. The final shared-fixture evidence was added to both language
+boundaries. One repair round used; one remains. No unresolved phase blockers.
+Independent phase result: pass; full product/browser acceptance remains Phase 4.
 
 ### Phase 2 — Canonical Included starter poses
 

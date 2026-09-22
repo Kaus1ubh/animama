@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -159,7 +160,7 @@ def test_reaction_without_hint_roundtrips_catalog_package_and_preview() -> None:
 
 
 @pytest.mark.parametrize("hint", [None, {"emotion": "joy", "intensity": 3}])
-def test_reaction_runtime_projection_uses_the_equipped_loadout_cell(hint: dict | None) -> None:
+def test_reaction_runtime_projection_uses_the_equipped_loadout_cell(hint: dict[str, Any] | None) -> None:
     handler = handler_for_kind(ContentKind.REACTION)
     parsed = handler.parse_document(
         {
@@ -325,3 +326,104 @@ def test_included_typed_documents_do_not_embed_browser_delivery_aliases() -> Non
         if any(value in path.read_text(encoding="utf-8") for value in forbidden)
     ]
     assert offenders == []
+
+
+def _pose_descriptor() -> dict[str, Any]:
+    """Resolved parser-compatible fixture, including partial bone transforms."""
+    return {
+        "schema_version": 1,
+        "content_type": "pose",
+        "content_id": "relaxedRest",
+        "name": "Relaxed Rest",
+        "pose": {
+            "schema": "animaPose/1.0",
+            "id": "relaxedRest",
+            "name": "Relaxed Rest",
+            "humanoid": {
+                "hips": {"position": [0, 0.1, 0]},
+                "leftUpperArm": {"rotation": [0, 0, 0, 1]},
+            },
+            "expressions": {"happy": 0.5, "customSmile": 1},
+        },
+    }
+
+
+def test_pose_handler_admits_resolved_values_and_roundtrips_package_identity() -> None:
+    from animama.domain.content_documents import PoseDocumentV1
+
+    descriptor = _pose_descriptor()
+    handler = handler_for_kind(ContentKind.POSE)
+    parsed = handler.parse_document(descriptor, fallback_path=Path("poses/rest"), descriptor_backed=True)
+    assert isinstance(parsed.document, PoseDocumentV1)
+    assert parsed.document.pose == descriptor["pose"]
+    assert parsed.dependencies == ()
+    assert parsed.metadata["pose"] == descriptor["pose"]
+    assert descriptor_filename(definition_for_kind(ContentKind.POSE), "rest") == "rest.json"
+    packaged = json.loads(
+        handler.rewrite_package_document(
+            json.dumps(descriptor).encode(),
+            reference_rewrites={"relaxedRest": "local:pose:rest-copy"},
+            descriptor_backed=True,
+        )
+    )
+    assert packaged["content_id"] == packaged["pose"]["id"] == "local:pose:rest-copy"
+    assert packaged["pose"]["humanoid"] == descriptor["pose"]["humanoid"]
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"parent": {"ref": "relaxedRest"}},
+        {"schema": "animaPose/2.0"},
+        {"id": "different"},
+        {"name": "Different"},
+        {"script": "alert(1)"},
+        {"rotationOrder": "XYZ"},
+        {"humanoid": {"unknownBone": {}}},
+        {"humanoid": {"hips": {"rotation": [0, 0, 0, 0]}}},
+        {"humanoid": {"hips": {"rotation": [0, 0, 0, 2]}}},
+        {"humanoid": {"hips": {"rotation": [0, 0, 1]}}},
+        {"humanoid": {"hips": {"rotationEulerDegrees": [0, 0, 90]}}},
+        {"humanoid": {"hips": {"position": [True, 0, 0]}}},
+        {"humanoid": {"hips": {"position": [float("inf"), 0, 0]}}},
+        {"humanoid": {"hips": {"position": [1e20, 0, 0]}}},
+        {"expressions": {"happy": 1.1}},
+        {"expressions": {"happy": -0.1}},
+        {"expressions": {"happy": True}},
+        {"expressions": {"": 0.5}},
+    ],
+)
+def test_pose_handler_rejects_unresolved_or_invalid_payloads(patch: dict[str, Any]) -> None:
+    descriptor = _pose_descriptor()
+    descriptor["pose"].update(patch)
+    with pytest.raises(ContentDocumentError):
+        handler_for_kind(ContentKind.POSE).parse_document(
+            descriptor,
+            fallback_path=Path("poses/rest"),
+            descriptor_backed=True,
+        )
+
+
+def test_pose_requires_descriptor_identity_and_has_no_dependencies_or_resource_files() -> None:
+    for patch in (
+        {"content_id": None},
+        {"files": [{"path": "other.json", "role": "dependency"}]},
+        {"dependencies": [{"ref": "relaxedRest", "content_type": "pose"}]},
+    ):
+        with pytest.raises(ContentDocumentError):
+            handler_for_kind(ContentKind.POSE).parse_document(
+                {**_pose_descriptor(), **patch},
+                fallback_path=Path("poses/rest"),
+                descriptor_backed=True,
+            )
+
+
+def test_pose_huge_json_integer_is_a_validation_error_not_an_overflow() -> None:
+    descriptor = _pose_descriptor()
+    descriptor["pose"]["humanoid"]["hips"]["position"] = [10**500, 0, 0]
+    with pytest.raises(ContentDocumentError):
+        handler_for_kind(ContentKind.POSE).parse_document(
+            descriptor,
+            fallback_path=Path("poses/rest"),
+            descriptor_backed=True,
+        )

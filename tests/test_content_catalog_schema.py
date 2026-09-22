@@ -45,3 +45,19 @@ async def test_orm_schema_has_one_neutral_typed_content_catalog(async_session) -
         "anima_appearance_bindings",
         "anima_runtime_file_memberships",
     }.isdisjoint(tables)
+
+
+async def test_pose_is_catalog_content_but_not_an_equippable_loadout_kind(async_session) -> None:  # noqa: ANN001
+    """The database admits poses only in the content catalog, never an Anima slot."""
+    connection = await async_session.connection()
+
+    def inspect_constraints(sync_connection):  # noqa: ANN001, ANN202
+        inspector = inspect(sync_connection)
+        return (
+            inspector.get_check_constraints("content_catalog_items"),
+            inspector.get_check_constraints("anima_content_bindings"),
+        )
+
+    catalog_checks, binding_checks = await connection.run_sync(inspect_constraints)
+    assert any("'pose'" in constraint["sqltext"] for constraint in catalog_checks)
+    assert all("'pose'" not in constraint["sqltext"] for constraint in binding_checks)

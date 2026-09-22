@@ -79,6 +79,13 @@ class ReactionDocumentV1(ContentDocumentV1):
 
 
 @dataclass(frozen=True, slots=True)
+class PoseDocumentV1(ContentDocumentV1):
+    """Self-contained static humanoid/expression state, with no live parents."""
+
+    pose: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class PoseClipDocumentV1(ContentDocumentV1):
     """A validated animaPoseClip document used by Actions and Idle Styles."""
 
@@ -190,6 +197,7 @@ class VoiceDocumentV1(ContentDocumentV1):
 type TypedContentDocument = (
     GestureDocumentV1
     | ReactionDocumentV1
+    | PoseDocumentV1
     | PoseClipDocumentV1
     | ParticleEffectDocumentV1
     | AvatarEffectDocumentV1
@@ -225,6 +233,7 @@ __all__ = [
     "IdleStyleDocumentV1",
     "MusicTrackDocumentV1",
     "ParticleEffectDocumentV1",
+    "PoseDocumentV1",
     "PoseClipDocumentV1",
     "ReactionDocumentV1",
     "SceneEffectDocumentV1",
