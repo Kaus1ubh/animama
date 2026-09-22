@@ -133,6 +133,14 @@ No supported source finding required repair. One targeted recheck covered browse
 - Two actual timing-module hot updates create two observed replacements and disconnect one, leaving one active replacement observer. An application-owned timing survives; a profiling-opt-in tab retains its React timings across route changes and HMR. Temporary verification source edits were fully restored.
 - Only disposable test tabs were closed. The original user tab, other task's stack and drafts were preserved.
 
+### Integration with current main
+
+After Phase 3 was committed as `af67aa19b1bc355840f9af721f37d86617ffbbe7`, main advanced to `912df0b20771912339d6b42b06c06b6bd1ce74bd` with PRs #43 and #47. Merge current main without rewriting published history. The only textual conflict was the shared mobile-tool fallback; retain main's expression and the reviewed single-layout ownership. No additional backend or format behavior is introduced by the memory-fix diff against this baseline.
+
+- Targeted independent integration review found no actionable findings. Main's standalone-pose/history routing, empty-document handling, saved-pose flow, inspector settings and endpoint handling remain intact. Reuse earlier phase reviews; no repair round was needed.
+- Rerun the Phase 3 Vitest command with `src/query/mutations/useActionEditorActions.test.ts` and `src/ui/reaction-editor/reactionDocument.test.ts` added: 345 tests in 69 files passed. Rerun `pnpm check`, `pnpm web:lint`, the production build with the verified model store, merged-file formatting and `git diff --check`: all passed. Production assets still exclude the timing helper and Fast Refresh symbols.
+- On merged source, an isolated desktop browser test changed arm Z rotation to -40 degrees, retained exactly one canvas and one inline Undo entry at 1440, 1280, 900 and back to 1440 pixels, then exercised the header Undo/Redo buttons. They restored -73.44 and -40 degrees respectively. No React measures remained after cleanup. The unchanged ownership and timing implementations reuse the detailed heap/HMR evidence above; no new full-process memory claim is made.
+
 ## Validation and acceptance
 
 Run from `src/frontend`: focused web tests, `pnpm check`, `pnpm web:lint`, formatting checks, and `pnpm build`. Browser evidence uses changed source and real avatar loading; listener/URL instrumentation stores metadata only. Record exact commands/results here.

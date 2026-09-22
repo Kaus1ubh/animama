@@ -22,7 +22,13 @@ import { cn } from "@/lib/utils";
 import type { PoseCreatorSavedDraft } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
+import { PencilSparklesIcon } from "@/ui/components/PencilSparklesIcon";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/ui/components/tooltip";
 import { CatalogDragHandle } from "./ActionCatalogDrag";
 import { CreatorPanelCollapseButton } from "./CreatorPanelChrome";
 import type { ActionDependencySection } from "./ActionEditorWorkspaceContext";
@@ -82,6 +88,7 @@ type ActionEditorEffectsPanelProps = {
   /** Browser-local Pose drafts shown only by the Gesture creator. */
   poses?: PoseCreatorSavedDraft[];
   onAddPose?: (pose: PoseCreatorSavedDraft) => void;
+  onEditPose?: (pose: PoseCreatorSavedDraft) => void;
   onCreatePose?: () => void;
 };
 
@@ -106,6 +113,7 @@ export function ActionEditorEffectsPanel({
   onRemove,
   poses,
   onAddPose,
+  onEditPose,
   onCreatePose,
 }: ActionEditorEffectsPanelProps) {
   const showsPoses = poses !== undefined;
@@ -246,6 +254,7 @@ export function ActionEditorEffectsPanel({
                 poses={filteredPoses}
                 hasQuery={Boolean(poseQuery.trim())}
                 onAddPose={onAddPose}
+                onEditPose={onEditPose}
                 onCreatePose={onCreatePose}
               />
             ) : (
@@ -362,12 +371,14 @@ function PoseCatalog({
   poses,
   hasQuery,
   onAddPose,
+  onEditPose,
   onCreatePose,
 }: {
   mobile: boolean;
   poses: PoseCreatorSavedDraft[];
   hasQuery: boolean;
   onAddPose?: (pose: PoseCreatorSavedDraft) => void;
+  onEditPose?: (pose: PoseCreatorSavedDraft) => void;
   onCreatePose?: () => void;
 }) {
   return (
@@ -390,18 +401,38 @@ function PoseCatalog({
                   <p className="truncate text-xs font-medium">{pose.name}</p>
                 </div>
               </CatalogDragHandle>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                className="size-7 rounded-full"
-                onClick={() => onAddPose?.(pose)}
-                disabled={!onAddPose}
-                aria-label={`Add ${pose.name} at current playhead`}
-                title="Add pose at current playhead"
-              >
-                <PlusIcon className="size-3.5" />
-              </Button>
+              <Tooltip delayDuration={500}>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="size-7 shrink-0 rounded-full"
+                    onClick={() => onEditPose?.(pose)}
+                    disabled={!onEditPose}
+                    aria-label={`Edit ${pose.name}`}
+                  >
+                    <PencilSparklesIcon className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Edit</TooltipContent>
+              </Tooltip>
+              <Tooltip delayDuration={500}>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="size-7 shrink-0 rounded-full"
+                    onClick={() => onAddPose?.(pose)}
+                    disabled={!onAddPose}
+                    aria-label={`Insert ${pose.name} at current playhead`}
+                  >
+                    <PlusIcon className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Insert at playhead</TooltipContent>
+              </Tooltip>
             </div>
           ))}
         </div>

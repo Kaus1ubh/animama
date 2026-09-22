@@ -143,7 +143,7 @@ export const POSE_CREATOR_CLIP_EASING_OPTIONS = [
 
 const DEFAULT_CLIP_ID = "pose_creator_clip";
 export const DEFAULT_POSE_CREATOR_CLIP_NAME = "New Clip";
-const DEFAULT_CLIP_DURATION = 1.2;
+const DEFAULT_CLIP_DURATION = 2;
 const KEYFRAME_TIME_EPSILON = 0.0005;
 const QUATERNION_ZERO_EPSILON = 0.000001;
 const QUATERNION_NORMALIZED_EPSILON = 0.001;
@@ -207,15 +207,44 @@ export function createUniquePoseCreatorClipName(
   return `${baseName} (${suffix})`;
 }
 
+/** Endpoint toggles follow actual base-reference landmarks, including loaded clips. */
+export function isPoseCreatorBaseKeyframe(
+  draft: PoseCreatorClipDraft,
+  frame: PoseCreatorClipKeyframeDraft,
+): boolean {
+  const pose = draft.poses[frame.pose];
+  return Boolean(
+    pose && isAnimaPoseClipRef(pose) && pose.ref === draft.basePose,
+  );
+}
+
 export function patchPoseCreatorClipDraft(
   draft: PoseCreatorClipDraft,
   patch: PoseCreatorClipDraftPatch,
   options: PoseCreatorClipValidationOptions = {},
 ): PoseCreatorClipDraft {
+  // Clearing a duration field must not collapse both endpoint landmarks to zero.
+  if (
+    patch.duration !== undefined &&
+    clampPoseCreatorClipDuration(patch.duration) <= 0
+  ) {
+    patch = { ...patch, duration: draft.duration };
+  }
   return withPoseCreatorClipValidation(
     {
       ...draft,
       ...patch,
+      // Endpoint landmarks track the clip bounds; other authored timing stays intact.
+      keyframes: sortPoseCreatorClipKeyframes(
+        draft.keyframes.map((frame) =>
+          patch.duration !== undefined &&
+          draft.duration > 0 &&
+          Math.abs(frame.time - draft.duration) < 0.0005 &&
+          isPoseCreatorBaseKeyframe(draft, frame)
+            ? { ...frame, time: clampPoseCreatorClipDuration(patch.duration) }
+            : frame,
+        ),
+      ),
       duration:
         patch.duration === undefined
           ? draft.duration

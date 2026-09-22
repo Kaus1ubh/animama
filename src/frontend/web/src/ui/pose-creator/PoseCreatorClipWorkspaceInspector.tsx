@@ -1,16 +1,13 @@
 "use client";
 
 import {
-  ChevronRightIcon,
   CopyIcon,
   SlidersHorizontalIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
 
 import {
-  isAnimaPoseClipRef,
   isAnimaPoseClipVFXEvent,
   PARTICLE_VFX_ANCHORS,
   type AnimaPoseClipEvent,
@@ -19,7 +16,6 @@ import {
 } from "@/lib/avatar";
 import {
   POSE_CREATOR_BASE_POSE_OPTIONS,
-  POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
   usePoseCreatorStore,
 } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
@@ -32,7 +28,6 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { Switch } from "@/ui/components/switch";
-import { PoseCreatorClipAdvancedDialog } from "./PoseCreatorClipAdvancedDialog";
 import { POSE_CREATOR_CLIP_EASING_OPTIONS } from "./poseCreatorClipAuthoring";
 import { withUnavailableEventOption } from "./poseCreatorEventCatalog";
 import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
@@ -45,13 +40,15 @@ export function PoseCreatorClipWorkspaceInspector({
   variant = "workspace",
   section = "all",
   allowHumanoid = true,
+  embedded = false,
 }: {
   variant?: "workspace" | "mobile";
   section?: "all" | "inspector" | "settings";
   /** Hide body-pose controls when this inspector is hosted by a Reaction. */
   allowHumanoid?: boolean;
+  /** Plain sections for selected-item controls hosted in timeline settings. */
+  embedded?: boolean;
 }) {
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const clipDraft = usePoseCreatorStore((state) => state.clipDraft);
   const clipInlineEdit = usePoseCreatorStore((state) => state.clipInlineEdit);
   const updateClipDraft = usePoseCreatorStore((state) => state.updateClipDraft);
@@ -77,9 +74,6 @@ export function PoseCreatorClipWorkspaceInspector({
   const deleteSelectedClipEvent = usePoseCreatorStore(
     (state) => state.deleteSelectedClipEvent,
   );
-  const addReturnToBaseClipKeyframe = usePoseCreatorStore(
-    (state) => state.addReturnToBaseClipKeyframe,
-  );
   const selectedKeyframe =
     clipDraft.keyframes.find(
       (keyframe) => keyframe.id === clipDraft.selectedKeyframeId,
@@ -87,52 +81,33 @@ export function PoseCreatorClipWorkspaceInspector({
   const selectedEvent =
     clipDraft.events.find((event) => event.id === clipDraft.selectedEventId) ??
     null;
-  const returnToBaseKeyframe = useMemo(
-    () =>
-      clipDraft.keyframes.find((keyframe) => {
-        if (Math.abs(keyframe.time - clipDraft.duration) > 0.0005) return false;
-        const pose = clipDraft.poses[keyframe.pose];
-        return isAnimaPoseClipRef(pose) && pose.ref === clipDraft.basePose;
-      }) ?? null,
-    [
-      clipDraft.basePose,
-      clipDraft.duration,
-      clipDraft.keyframes,
-      clipDraft.poses,
-    ],
-  );
-
-  const setReturnToBase = (enabled: boolean) => {
-    if (enabled) {
-      addReturnToBaseClipKeyframe();
-      return;
-    }
-    if (!returnToBaseKeyframe) return;
-    selectClipKeyframe(returnToBaseKeyframe.id);
-    deleteSelectedClipKeyframe();
-  };
+  if (section === "inspector" && !selectedEvent && !selectedKeyframe)
+    return null;
 
   return (
     <div
       className={
         variant === "mobile"
           ? "bg-background flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4"
-          : "relative flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto pr-1"
+          : embedded || section === "settings"
+            ? "w-full"
+            : "relative flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto pr-1"
       }
     >
       {section !== "settings" &&
         (selectedEvent ? (
           <EventInspector
+            embedded={embedded}
             event={selectedEvent}
             disabled={Boolean(clipInlineEdit)}
             onClose={() => selectClipEvent(null)}
             onUpdate={updateSelectedClipEvent}
             onDuplicate={duplicateSelectedClipEvent}
             onDelete={deleteSelectedClipEvent}
-            onOpenAdvanced={() => setAdvancedOpen(true)}
           />
         ) : selectedKeyframe ? (
           <KeyframeInspector
+            embedded={embedded}
             keyframe={selectedKeyframe}
             poseAliases={Object.keys(clipDraft.poses)}
             allowHumanoid={allowHumanoid}
@@ -141,7 +116,6 @@ export function PoseCreatorClipWorkspaceInspector({
             onUpdate={updateSelectedClipKeyframe}
             onDuplicate={duplicateSelectedClipKeyframe}
             onDelete={deleteSelectedClipKeyframe}
-            onOpenAdvanced={() => setAdvancedOpen(true)}
           />
         ) : (
           <WorkspaceCard>
@@ -160,27 +134,11 @@ export function PoseCreatorClipWorkspaceInspector({
         ))}
 
       {section !== "inspector" ? (
-        <WorkspaceCard>
+        <section>
           <h2 className="text-foreground text-sm font-semibold">
             Clip settings
           </h2>
-          <div className="mt-4 space-y-3">
-            <InspectorRow label="Duration">
-              <DurationInput
-                value={clipDraft.duration}
-                label="Clip duration in seconds"
-                onChange={(duration) => updateClipDraft({ duration })}
-              />
-            </InspectorRow>
-
-            <InspectorRow label="Loop">
-              <Switch
-                checked={clipDraft.loop}
-                onCheckedChange={(loop) => updateClipDraft({ loop })}
-                aria-label="Toggle clip loop"
-              />
-            </InspectorRow>
-
+          <div className="mt-3 space-y-3">
             {allowHumanoid ? (
               <>
                 <InspectorRow label="Base">
@@ -202,19 +160,6 @@ export function PoseCreatorClipWorkspaceInspector({
                       ))}
                     </SelectContent>
                   </Select>
-                </InspectorRow>
-
-                <InspectorRow label="Return to base">
-                  <Switch
-                    checked={Boolean(returnToBaseKeyframe)}
-                    disabled={
-                      clipDraft.basePose ===
-                        POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID ||
-                      Boolean(clipInlineEdit)
-                    }
-                    onCheckedChange={setReturnToBase}
-                    aria-label="Return to base at clip end"
-                  />
                 </InspectorRow>
               </>
             ) : null}
@@ -243,35 +188,22 @@ export function PoseCreatorClipWorkspaceInspector({
               />
             </InspectorRow>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            className="border-border/70 mt-4 h-10 w-full justify-between border-t px-0 pt-3 text-xs"
-            onClick={() => setAdvancedOpen(true)}
-          >
-            More settings
-            <ChevronRightIcon className="size-4" />
-          </Button>
-        </WorkspaceCard>
+        </section>
       ) : null}
-
-      <PoseCreatorClipAdvancedDialog
-        open={advancedOpen}
-        onOpenChange={setAdvancedOpen}
-      />
     </div>
   );
 }
 
 function EventInspector({
+  embedded,
   event,
   disabled,
   onClose,
   onUpdate,
   onDuplicate,
   onDelete,
-  onOpenAdvanced,
 }: {
+  embedded: boolean;
   event: AnimaPoseClipEvent;
   disabled: boolean;
   onClose: () => void;
@@ -280,7 +212,6 @@ function EventInspector({
   >["updateSelectedClipEvent"];
   onDuplicate: () => void;
   onDelete: () => void;
-  onOpenAdvanced: () => void;
 }) {
   const { beginUndoGroup, endUndoGroup } = usePoseCreatorClipUndoGrouping();
   const { eventCatalog } = usePoseCreatorPreview();
@@ -307,7 +238,7 @@ function EventInspector({
   };
 
   return (
-    <WorkspaceCard>
+    <WorkspaceCard embedded={embedded}>
       <InspectorHeading title="Event" subtitle={label} onClose={onClose} />
       <div className="mt-4 space-y-3">
         <InspectorRow label="Time">
@@ -484,15 +415,6 @@ function EventInspector({
       </div>
 
       <div className="border-border/70 mt-4 flex items-center justify-between border-t pt-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="px-1.5 text-xs"
-          onClick={onOpenAdvanced}
-        >
-          Advanced
-        </Button>
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -522,6 +444,7 @@ function EventInspector({
 }
 
 function KeyframeInspector({
+  embedded,
   keyframe,
   poseAliases,
   allowHumanoid,
@@ -530,8 +453,8 @@ function KeyframeInspector({
   onUpdate,
   onDuplicate,
   onDelete,
-  onOpenAdvanced,
 }: {
+  embedded: boolean;
   keyframe: ReturnType<
     typeof usePoseCreatorStore.getState
   >["clipDraft"]["keyframes"][number];
@@ -544,14 +467,13 @@ function KeyframeInspector({
   >["updateSelectedClipKeyframe"];
   onDuplicate: () => void;
   onDelete: () => void;
-  onOpenAdvanced: () => void;
 }) {
   return (
-    <WorkspaceCard>
+    <WorkspaceCard embedded={embedded}>
       <InspectorHeading
         title={allowHumanoid ? "Keyframe" : "Expression keyframe"}
         subtitle={formatSourceLabel(keyframe.pose)}
-        onClose={onClose}
+        onClose={embedded ? undefined : onClose}
       />
       <div className="mt-4 space-y-3">
         <InspectorRow label="Time">
@@ -620,21 +542,6 @@ function KeyframeInspector({
         </InspectorRow>
       </div>
       <div className="border-border/70 mt-4 flex items-center justify-between border-t pt-3">
-        {allowHumanoid ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="px-1.5 text-xs"
-            onClick={onOpenAdvanced}
-          >
-            Edit pose & transition
-          </Button>
-        ) : (
-          <span className="text-muted-foreground text-xs">
-            Expression timing
-          </span>
-        )}
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -663,9 +570,21 @@ function KeyframeInspector({
   );
 }
 
-function WorkspaceCard({ children }: { children: React.ReactNode }) {
+function WorkspaceCard({
+  children,
+  embedded = false,
+}: {
+  children: React.ReactNode;
+  embedded?: boolean;
+}) {
   return (
-    <section className="border-border/70 bg-background/95 rounded-xl border p-4 shadow-lg backdrop-blur-xl">
+    <section
+      className={
+        embedded
+          ? "border-t pt-3"
+          : "border-border/70 bg-background/95 rounded-xl border p-4 shadow-lg backdrop-blur-xl"
+      }
+    >
       {children}
     </section>
   );
@@ -678,7 +597,7 @@ function InspectorHeading({
 }: {
   title: string;
   subtitle: string;
-  onClose: () => void;
+  onClose?: () => void;
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
@@ -688,21 +607,23 @@ function InspectorHeading({
           {subtitle}
         </p>
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        className="-mt-1 -mr-1"
-        onClick={onClose}
-        aria-label={`Close ${title.toLowerCase()} inspector`}
-      >
-        <XIcon className="size-4" />
-      </Button>
+      {onClose ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="-mt-1 -mr-1"
+          onClick={onClose}
+          aria-label={`Close ${title.toLowerCase()} inspector`}
+        >
+          <XIcon className="size-4" />
+        </Button>
+      ) : null}
     </div>
   );
 }
 
-function InspectorRow({
+export function InspectorRow({
   label,
   children,
 }: {

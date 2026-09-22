@@ -61,7 +61,7 @@ function reactionSourceKey(
     : null;
 }
 
-function ReactionChoice({
+export function ReactionChoice({
   reaction,
   selected,
   disabled,
@@ -74,9 +74,13 @@ function ReactionChoice({
   onSelect: () => void;
   onPreview: () => void;
 }) {
+  const suggestion =
+    reaction.emotion && reaction.intensity
+      ? `${reaction.emotion} · ${reactionIntensityLabel(reaction.intensity)}`
+      : null;
   return (
     <CommandItem
-      value={`${reaction.name} ${reaction.description ?? ""} ${reaction.emotion} ${reactionIntensityLabel(reaction.intensity ?? 1)} ${reaction.origin}`}
+      value={`${reaction.name} ${reaction.description ?? ""} ${suggestion ?? ""} ${reaction.origin}`}
       data-checked={selected}
       disabled={disabled}
       onSelect={onSelect}
@@ -84,9 +88,11 @@ function ReactionChoice({
     >
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate">{reaction.name}</span>
-        <span className="text-muted-foreground truncate text-[11px] capitalize">
-          {reaction.emotion} · {reactionIntensityLabel(reaction.intensity ?? 1)}
-        </span>
+        {suggestion ? (
+          <span className="text-muted-foreground truncate text-[11px] capitalize">
+            {suggestion}
+          </span>
+        ) : null}
       </span>
       {reaction.origin === "builtin" ? <StarterBadge /> : null}
       <Button

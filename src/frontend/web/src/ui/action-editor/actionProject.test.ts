@@ -15,6 +15,17 @@ function addNeutralKeyframe(document: ReturnType<typeof createActionDocument>) {
 }
 
 describe("typed action project JSON", () => {
+  it("round-trips a reaction without inventing a placement suggestion", () => {
+    const document = addNeutralKeyframe(createActionDocument("reaction"));
+    document.name = "Unassigned reaction";
+    const imported = parseActionImport(
+      createActionProject(document),
+      "reaction",
+    );
+    expect(imported.kind).toBe("project");
+    if (imported.kind === "project")
+      expect(imported.project.suggestedEmotion).toBe("");
+  });
   it("imports ordinary animaPoseClip JSON directly", () => {
     const document = addNeutralKeyframe(createActionDocument("gesture"));
     const imported = parseActionImport(document.sequence, "gesture");

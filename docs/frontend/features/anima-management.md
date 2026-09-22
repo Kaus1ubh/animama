@@ -64,7 +64,7 @@ server-backed loadout review before commit. Creating a Gesture makes it
 available here but does not equip it automatically. Reaction cells visibly
 distinguish Starter, custom, and intentionally empty states. Every cell's
 searchable selector lists every ready Local and Included Reaction, with its
-authored emotion/intensity shown as context; choosing one assigns the complete
+optional suggested emotion/intensity shown as context; choosing one assigns the complete
 Action to the clicked cell regardless of that suggested placement. Adding,
 updating, replacing, removing, reverting, or leaving a Reaction empty uses the
 same review boundary. Replacing a cell names the current occupant.

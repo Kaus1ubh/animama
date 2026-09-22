@@ -962,3 +962,131 @@ describe("timeline inspector selection", () => {
     },
   );
 });
+
+describe("clip base endpoints", () => {
+  beforeEach(() => usePoseCreatorStore.getState().resetWorkspace());
+
+  it("inserts/removes only base endpoints and keeps them aligned on duration/base edits", () => {
+    const store = usePoseCreatorStore.getState();
+    store.setClipBaseEndpoint("start", true);
+    store.setClipBaseEndpoint("end", true);
+    expect(
+      usePoseCreatorStore
+        .getState()
+        .clipDraft.keyframes.map((frame) => frame.time),
+    ).toEqual([0, 2]);
+    store.updateClipDraft({ duration: 3 });
+    expect(
+      usePoseCreatorStore
+        .getState()
+        .clipDraft.keyframes.map((frame) => frame.time),
+    ).toEqual([0, 3]);
+    store.updateClipDraft({ basePose: "standing" });
+    const draft = usePoseCreatorStore.getState().clipDraft;
+    expect(
+      draft.keyframes.every(
+        (frame) =>
+          (draft.poses[frame.pose] as { ref: string }).ref === "standing",
+      ),
+    ).toBe(true);
+    store.setClipBaseEndpoint("start", false);
+    expect(
+      usePoseCreatorStore
+        .getState()
+        .clipDraft.keyframes.map((frame) => frame.time),
+    ).toEqual([3]);
+    store.undoClip();
+    expect(
+      usePoseCreatorStore
+        .getState()
+        .clipDraft.keyframes.map((frame) => frame.time),
+    ).toEqual([0, 3]);
+  });
+
+  it("preserves both endpoints when clearing and replacing the duration input", () => {
+    const store = usePoseCreatorStore.getState();
+    store.setClipBaseEndpoint("start", true);
+    store.setClipBaseEndpoint("end", true);
+    store.updateClipDraft({ duration: Number("") });
+    expect(usePoseCreatorStore.getState().clipDraft.duration).toBe(2);
+    expect(
+      usePoseCreatorStore
+        .getState()
+        .clipDraft.keyframes.map((frame) => frame.time),
+    ).toEqual([0, 2]);
+    store.updateClipDraft({ duration: 3 });
+    expect(
+      usePoseCreatorStore
+        .getState()
+        .clipDraft.keyframes.map((frame) => frame.time),
+    ).toEqual([0, 3]);
+  });
+
+  it("does not conflate start and end toggles in a loaded zero-duration clip", () => {
+    const store = usePoseCreatorStore.getState();
+    store.setClipBaseEndpoint("start", true);
+    const draft = usePoseCreatorStore.getState().clipDraft;
+    usePoseCreatorStore.setState({ clipDraft: { ...draft, duration: 0 } });
+    store.setClipBaseEndpoint("end", false);
+    expect(usePoseCreatorStore.getState().clipDraft.keyframes).toEqual(
+      draft.keyframes,
+    );
+    store.updateClipDraft({ duration: 3 });
+    expect(
+      usePoseCreatorStore
+        .getState()
+        .clipDraft.keyframes.map((frame) => frame.time),
+    ).toEqual([0]);
+  });
+
+  it("keeps endpoint undo/redo aligned after excluded settings change", () => {
+    const store = usePoseCreatorStore.getState();
+    store.setClipBaseEndpoint("end", true);
+    store.setClipBaseEndpoint("end", false);
+    store.updateClipDraft({ duration: 4 });
+    store.undoClip();
+    expect(
+      usePoseCreatorStore
+        .getState()
+        .clipDraft.keyframes.map((frame) => frame.time),
+    ).toEqual([4]);
+    store.redoClip();
+    expect(usePoseCreatorStore.getState().clipDraft.keyframes).toEqual([]);
+  });
+
+  it("preserves moved base landmarks when toggling endpoints", () => {
+    const store = usePoseCreatorStore.getState();
+    store.setClipBaseEndpoint("end", true);
+    const id = usePoseCreatorStore.getState().clipDraft.keyframes[0]!.id;
+    store.moveClipKeyframe(id, 1);
+    store.setClipBaseEndpoint("end", false);
+    expect(
+      usePoseCreatorStore
+        .getState()
+        .clipDraft.keyframes.map((frame) => frame.time),
+    ).toEqual([1]);
+    store.setClipBaseEndpoint("end", true);
+    expect(
+      usePoseCreatorStore
+        .getState()
+        .clipDraft.keyframes.map((frame) => frame.time),
+    ).toEqual([1, 2]);
+  });
+
+  it("preserves an authored pose occupying an endpoint", () => {
+    const store = usePoseCreatorStore.getState();
+    const draft = usePoseCreatorStore.getState().clipDraft;
+    usePoseCreatorStore.setState({
+      clipDraft: {
+        ...draft,
+        poses: { authored: { expressions: { happy: 1 } } },
+        keyframes: [{ id: "authored", time: 0, pose: "authored" }],
+      },
+    });
+    store.setClipBaseEndpoint("start", true);
+    store.setClipBaseEndpoint("start", false);
+    expect(usePoseCreatorStore.getState().clipDraft.keyframes).toEqual([
+      { id: "authored", time: 0, pose: "authored" },
+    ]);
+  });
+});

@@ -2,7 +2,10 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { previewGesture, previewReaction } from "@animama/runtime-contracts/sdk";
+import {
+  previewGesture,
+  previewReaction,
+} from "@animama/runtime-contracts/sdk";
 import type {
   PyActionPreview,
   PyContentFile,
@@ -59,7 +62,11 @@ function dependencyReference(source: PyExactContentSource): string {
   return source.logical_key || source.catalog_item_id;
 }
 
-function descriptorFor(document: ActionDocument, logicalKey: string) {
+/** Build the readable sidecar, omitting optional placement until chosen. */
+export function actionDescriptorFor(
+  document: ActionDocument,
+  logicalKey: string,
+) {
   const companionName =
     document.implementation === "vrma"
       ? `${slug(document.name)}.vrma`
@@ -76,12 +83,14 @@ function descriptorFor(document: ActionDocument, logicalKey: string) {
       notes: document.notes.trim() || undefined,
       ...(document.intent === "gesture"
         ? { semantic_key: document.semanticKey.trim() }
-        : {
-            placement_hint: {
-              emotion: document.suggestedEmotion,
-              intensity: document.suggestedIntensity,
-            },
-          }),
+        : document.suggestedEmotion.trim()
+          ? {
+              placement_hint: {
+                emotion: document.suggestedEmotion.trim(),
+                intensity: document.suggestedIntensity,
+              },
+            }
+          : {}),
       implementation: {
         kind: document.implementation,
         file_role:
@@ -150,7 +159,10 @@ export function useActionEditorActions(intent: ActionIntent) {
       : null;
     const logicalKey =
       existing?.logical_key ?? `local:${intent}:${slug(document.name)}`;
-    const { companionName, descriptor } = descriptorFor(document, logicalKey);
+    const { companionName, descriptor } = actionDescriptorFor(
+      document,
+      logicalKey,
+    );
     const file =
       document.implementation === "vrma"
         ? pending.file

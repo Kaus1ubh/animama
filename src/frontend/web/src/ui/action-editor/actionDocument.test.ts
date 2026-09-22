@@ -63,16 +63,21 @@ describe("actionDocument", () => {
   it("starts a new Reaction with an empty authoring timeline", () => {
     const reaction = createActionDocument("reaction");
 
+    expect(reaction.sequence.duration).toBe(2);
     expect(reaction.sequence.poses).toEqual({});
     expect(reaction.sequence.poseKeyframes).toEqual([]);
     expect(reaction.sequence.events).toEqual([]);
   });
 
-  it("starts a new Gesture without a synthetic expression keyframe", () => {
+  it("starts a two-second Gesture with base endpoints", () => {
     const gesture = createActionDocument("gesture");
 
-    expect(gesture.sequence.poses).toEqual({});
-    expect(gesture.sequence.poseKeyframes).toEqual([]);
+    expect(gesture.sequence.duration).toBe(2);
+    expect(gesture.sequence.poses).toEqual({ base: { ref: "relaxedRest" } });
+    expect(gesture.sequence.poseKeyframes).toEqual([
+      { time: 0, pose: "base" },
+      { time: 2, pose: "base" },
+    ]);
     expect(JSON.stringify(gesture.sequence)).not.toContain("happy");
   });
 

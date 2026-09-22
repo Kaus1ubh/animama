@@ -27,20 +27,14 @@ import {
 import { cn } from "@/lib/utils";
 import {
   selectCanRedoClip,
+  selectCanRedoPose,
+  selectCanUndoPose,
   selectCanUndoClip,
   usePoseCreatorStore,
 } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
 import { PlaybackObservationOutput } from "@/ui/avatar-preview/PlaybackObservationOutput";
 import { Input } from "@/ui/components/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui/components/select";
-import { Textarea } from "@/ui/components/textarea";
 import {
   CreatorHistoryShortcut,
   type CreatorHistoryController,
@@ -54,6 +48,10 @@ import {
   ActionEditorPreviewSettings,
   replaceActionEditorPose,
 } from "./ActionEditorPrimitives";
+import {
+  editActionEditorSavedPose,
+  setActionEditorAuthoringMode,
+} from "./actionEditorSavedPose";
 import { ActionCatalogDragProvider } from "./ActionCatalogDrag";
 import { ActionEditorScene } from "./ActionEditorScene";
 import { ActionEditorEffectsPanel } from "./ActionEditorEffectsPanel";
@@ -66,11 +64,14 @@ import {
   CreatorCollapsedPanelHeader,
   CreatorPanelCollapseButton,
 } from "./CreatorPanelChrome";
+import {
+  ReactionEmotionSettings,
+  ReactionTimelineSettings,
+} from "./ReactionTimelineSettings";
 import { useActionEditorWorkspace } from "./ActionEditorWorkspaceContext";
 import { useActionEditorPreview } from "./ActionEditorPreviewProvider";
 import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import { pruneUnusedTimelineDependencies } from "./actionDependencies";
-import { renameActionDocument } from "./actionDocument";
 import { actionEditorCapabilities } from "./actionEditorCapabilities";
 import { retainActionEditorWorkspace } from "./actionEditorStoreLifecycle";
 import { findPoseCreatorClipKeyframeAtTime } from "@/ui/pose-creator/poseCreatorClipAuthoring";
@@ -101,7 +102,7 @@ const CLIP_TOOLS: ToolOption[] = [
 const REACTION_TOOLS: ToolOption[] = [
   { id: "timeline", label: "Timeline", icon: Clock3Icon },
   { id: "expressions", label: "Expressions", icon: SmileIcon },
-  ...CLIP_TOOLS.slice(1),
+  { id: "components", label: "Effects", icon: LibraryIcon },
 ];
 
 const POSE_TOOLS: ToolOption[] = [
@@ -268,7 +269,12 @@ function ActionEditorWorkspaceContent() {
   }, []);
 
   useEffect(() => {
-    if (workspace.mode === "pose") void beginInlineKeyframeEdit();
+    if (
+      workspace.mode === "pose" &&
+      usePoseCreatorStore.getState().authoringMode !== "pose"
+    ) {
+      void beginInlineKeyframeEdit();
+    }
   }, [
     activeAvatar,
     beginInlineKeyframeEdit,
@@ -308,6 +314,11 @@ function ActionEditorWorkspaceContent() {
   const desktopTimeline = (
     <ActionTimelineEditor
       reaction={workspace.document.intent === "reaction"}
+      settingsContent={
+        workspace.document.intent === "reaction" ? (
+          <ReactionTimelineSettings />
+        ) : undefined
+      }
       isBusy={workspace.busy}
       playbackPending={workspace.localPreviewPending}
       onAddExpressionKeyframe={
@@ -323,6 +334,11 @@ function ActionEditorWorkspaceContent() {
     <ActionTimelineEditor
       variant="mobile"
       reaction={workspace.document.intent === "reaction"}
+      settingsContent={
+        workspace.document.intent === "reaction" ? (
+          <ReactionTimelineSettings />
+        ) : undefined
+      }
       isBusy={workspace.busy}
       playbackPending={workspace.localPreviewPending}
       onAddExpressionKeyframe={
@@ -405,18 +421,9 @@ function ActionEditorWorkspaceContent() {
         history={historyController}
         onModeChange={(mode) => {
           if (mode === "clip" && clipInlineEdit) applyInlineKeyframe();
+          setActionEditorAuthoringMode(mode);
           workspace.setMode(mode);
         }}
-        inspector={
-          <div className="max-h-[min(70dvh,640px)] overflow-y-auto p-1">
-            <ActionEditorClipInspector
-              allowHumanoid={capabilities.allowsHumanoid}
-            />
-            <div className="border-border mt-3 border-t pt-3">
-              <MetadataPanel />
-            </div>
-          </div>
-        }
       />
 
       {timelineBased ? (
@@ -482,6 +489,17 @@ function ActionEditorWorkspaceContent() {
                     onExpandedChange={setComponentsExpanded}
                   />
                 </div>
+                {workspace.document.intent === "gesture" &&
+                (clipDraft.selectedKeyframeId || clipDraft.selectedEventId) ? (
+                  <div
+                    className={cn(
+                      "pointer-events-auto absolute top-4 right-4 z-20 w-[248px] overflow-y-auto xl:right-8 xl:w-[296px] 2xl:w-[308px]",
+                      timelineExpanded ? "bottom-[264px]" : "bottom-[80px]",
+                    )}
+                  >
+                    <ActionEditorClipInspector section="inspector" />
+                  </div>
+                ) : null}
                 {workspace.document.intent === "reaction" ? (
                   <div
                     className={cn(
@@ -622,25 +640,53 @@ function ReactionExpressionPanel({
   );
 }
 
-function useActionHistoryController(
+export function useActionHistoryController(
   documentHistory: Pick<
     CreatorHistoryController<unknown>,
     "canRedo" | "canUndo" | "redo" | "undo"
   >,
   inlineEditing: boolean,
 ) {
+  const standalonePose = usePoseCreatorStore(
+    (state) => state.authoringMode === "pose",
+  );
+  const canUndoPose = usePoseCreatorStore(selectCanUndoPose);
+  const canRedoPose = usePoseCreatorStore(selectCanRedoPose);
+  const undoPose = usePoseCreatorStore((state) => state.undoPose);
+  const redoPose = usePoseCreatorStore((state) => state.redoPose);
   const canUndoInline = usePoseCreatorStore(selectCanUndoClip);
   const canRedoInline = usePoseCreatorStore(selectCanRedoClip);
   const undoClip = usePoseCreatorStore((state) => state.undoClip);
   const redoClip = usePoseCreatorStore((state) => state.redoClip);
   return useMemo(
     () => ({
-      canUndo: inlineEditing ? canUndoInline : documentHistory.canUndo,
-      canRedo: inlineEditing ? canRedoInline : documentHistory.canRedo,
-      undo: inlineEditing ? undoClip : documentHistory.undo,
-      redo: inlineEditing ? redoClip : documentHistory.redo,
+      canUndo: standalonePose
+        ? canUndoPose
+        : inlineEditing
+          ? canUndoInline
+          : documentHistory.canUndo,
+      canRedo: standalonePose
+        ? canRedoPose
+        : inlineEditing
+          ? canRedoInline
+          : documentHistory.canRedo,
+      undo: standalonePose
+        ? undoPose
+        : inlineEditing
+          ? undoClip
+          : documentHistory.undo,
+      redo: standalonePose
+        ? redoPose
+        : inlineEditing
+          ? redoClip
+          : documentHistory.redo,
     }),
     [
+      standalonePose,
+      canUndoPose,
+      canRedoPose,
+      undoPose,
+      redoPose,
       canRedoInline,
       canUndoInline,
       documentHistory,
@@ -693,148 +739,19 @@ function EffectsPanel({
       onAdd={workspace.addComponent}
       onRemove={workspace.removeDependency}
       poses={gesture ? savedPoses : undefined}
+      onEditPose={
+        gesture
+          ? (pose) => {
+              if (editActionEditorSavedPose(pose)) workspace.setMode("pose");
+            }
+          : undefined
+      }
       onAddPose={
         gesture
           ? (pose) => addPoseToClip(pose.pose, pose.name, { atPlayhead: true })
           : undefined
       }
     />
-  );
-}
-
-function MetadataPanel() {
-  const workspace = useActionEditorWorkspace();
-  const document = workspace.document;
-  return (
-    <div className="space-y-4 p-1">
-      <label className="grid gap-1 text-xs font-medium">
-        Name
-        <Input
-          value={document.name}
-          onChange={(event) =>
-            workspace.setDocument((value) =>
-              renameActionDocument(
-                value,
-                event.target.value,
-                !workspace.identityExists,
-              ),
-            )
-          }
-        />
-      </label>
-      <label className="grid gap-1 text-xs font-medium">
-        {document.intent === "gesture"
-          ? "Library description (optional)"
-          : "Description (optional)"}
-        <Textarea
-          value={
-            document.intent === "gesture"
-              ? document.description
-              : document.aiDescription
-          }
-          placeholder={
-            document.intent === "gesture"
-              ? "Describe this Gesture for your Library."
-              : "Describe this Reaction for your Library."
-          }
-          onChange={(event) =>
-            workspace.setDocument((value) => ({
-              ...value,
-              ...(value.intent === "gesture"
-                ? { description: event.target.value }
-                : { aiDescription: event.target.value }),
-            }))
-          }
-        />
-      </label>
-      {document.intent === "gesture" ? (
-        <label className="grid gap-1 text-xs font-medium">
-          Implementation
-          <Select
-            value={document.implementation}
-            onValueChange={(implementation) =>
-              workspace.setDocument((value) => ({
-                ...value,
-                implementation: implementation as typeof value.implementation,
-                dependencies:
-                  implementation === "vrma" ? [] : value.dependencies,
-              }))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="anima_clip">Timeline</SelectItem>
-              <SelectItem value="vrma">VRMA import</SelectItem>
-            </SelectContent>
-          </Select>
-        </label>
-      ) : (
-        <div className="grid grid-cols-2 gap-2">
-          <label className="grid gap-1 text-xs font-medium">
-            Emotion
-            <Input
-              value={document.suggestedEmotion}
-              onChange={(event) =>
-                workspace.setDocument((value) => ({
-                  ...value,
-                  suggestedEmotion: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <label className="grid gap-1 text-xs font-medium">
-            Intensity
-            <Select
-              value={String(document.suggestedIntensity)}
-              onValueChange={(value) =>
-                workspace.setDocument((current) => ({
-                  ...current,
-                  suggestedIntensity: Number(value) as 1 | 2 | 3,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Mild</SelectItem>
-                <SelectItem value="2">Medium</SelectItem>
-                <SelectItem value="3">Strong</SelectItem>
-              </SelectContent>
-            </Select>
-          </label>
-        </div>
-      )}
-      <label className="grid gap-1 text-xs font-medium">
-        Notes
-        <Textarea
-          value={document.notes}
-          onChange={(event) =>
-            workspace.setDocument((value) => ({
-              ...value,
-              notes: event.target.value,
-            }))
-          }
-        />
-      </label>
-    </div>
-  );
-}
-
-function MobileSettingsPanel({ allowHumanoid }: { allowHumanoid: boolean }) {
-  return (
-    <div className="h-full overflow-y-auto p-3">
-      <ActionEditorClipInspector
-        variant="mobile"
-        section="settings"
-        allowHumanoid={allowHumanoid}
-      />
-      <div className="border-border mt-3 border-t pt-3">
-        <MetadataPanel />
-      </div>
-    </div>
   );
 }
 
@@ -860,7 +777,7 @@ function MobileWorkspace({
       : CLIP_TOOLS;
   const activeTool = tools.some((option) => option.id === tool)
     ? tool
-    : tools[0].id;
+    : tools[0]!.id;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="h-[38dvh] min-h-[230px] shrink-0">
@@ -907,7 +824,9 @@ function MobileWorkspace({
           pose ? (
             <ActionEditorPreviewSettings variant="mobile" />
           ) : (
-            <MobileSettingsPanel allowHumanoid={capabilities.allowsHumanoid} />
+            <div className="p-3">
+              <ActionEditorClipInspector section="settings" />
+            </div>
           )
         ) : activeTool === "bones" ? (
           <ActionEditorBoneSection variant="mobile" />
@@ -931,7 +850,9 @@ function VrmaWorkspace({
     <div className="grid min-h-0 flex-1 lg:grid-cols-[1fr_22rem]">
       <ActionEditorScene capabilities={capabilities} />
       <aside className="border-border overflow-y-auto border-l p-5">
-        <MetadataPanel />
+        {workspace.document.intent === "reaction" ? (
+          <ReactionEmotionSettings />
+        ) : null}
         <label
           className={cn(
             "mt-5 grid gap-2 rounded-lg text-sm font-medium",

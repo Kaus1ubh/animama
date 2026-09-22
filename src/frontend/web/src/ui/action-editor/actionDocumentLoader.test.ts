@@ -327,6 +327,33 @@ describe("Starter action customization", () => {
 });
 
 describe("owned action reopening", () => {
+  it("reopens an unassigned reaction without inventing a suggestion", async () => {
+    const source = privateReactionPreview();
+    const closure = source.closure as { root: Record<string, unknown> };
+    delete closure.root.placement_hint;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            schema: "animaPoseClip/1.0",
+            id: "unassigned",
+            name: "Unassigned",
+            duration: 1,
+            poses: { neutral: {} },
+            poseKeyframes: [{ time: 0, pose: "neutral" }],
+          }),
+        ),
+      ),
+    );
+    const document = await actionDocumentFromPreview({
+      intent: "reaction",
+      item: ownedReaction(),
+      preview: source,
+      base: createReactionDocument("joy", 3),
+    });
+    expect(document.suggestedEmotion).toBe("");
+  });
   it("restores expression and effect keyframes plus exact dependencies", async () => {
     const sequence = {
       schema: "animaPoseClip/1.0",

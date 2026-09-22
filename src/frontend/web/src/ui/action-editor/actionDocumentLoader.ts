@@ -225,7 +225,7 @@ export async function actionDocumentFromPreview(args: {
     ),
     semanticKey,
     implementation: implementationKind,
-    suggestedEmotion: String(placement.emotion ?? "joy"),
+    suggestedEmotion: String(placement.emotion ?? ""),
     suggestedIntensity: selectedIntensity(placement.intensity),
     notes: args.customizeStarter
       ? `Customized from Starter ${item.name}.`
