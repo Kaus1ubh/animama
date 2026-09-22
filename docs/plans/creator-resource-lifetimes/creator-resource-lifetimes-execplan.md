@@ -14,8 +14,10 @@ Relevant boundaries are the four real TransformControls consumers and `web/src/l
 ## Progress
 
 - [x] Confirm merged baseline, fast-forward primary main, preserve occupied checkout, and publish issue #41.
+- [x] Implement both lifetime repairs, add regression coverage, and pass affected tests, typechecks, lint, formatting, and build.
 - [ ] Phase 1: repair lifetimes with regression coverage and desktop browser evidence.
-- [ ] Independent review, phase commit, final integration review, and PR.
+- [x] Complete independent source review, commit the repair, and open draft [PR #44](https://github.com/raymond-van/animama/pull/44).
+- [ ] Complete desktop browser acceptance and final integration sign-off before marking the PR ready.
 
 ## Surprises & Discoveries
 
@@ -61,7 +63,7 @@ The combined one-phase source review found no integration blockers and reuses th
 
 Run from `src/frontend`: focused web tests, `pnpm check`, `pnpm web:lint`, formatting checks, and `pnpm build`. Browser evidence uses changed source and real avatar loading; listener/URL instrumentation stores metadata only. Record exact commands/results here.
 
-Current working-tree candidate against the starting revision:
+Implementation revision `d3e688a5f256fa5fb8f97b1c914268b960e56788` against the starting revision:
 
 - Gizmo regression: four tests failed with the original Drei wrapper (render-time listener registration, mount/effect-replay retention, and orbit restoration), then all four passed with the owned wrapper. The harness exercises real three-stdlib controls and DOM event targets while controlling React effect setup/cleanup; it is not a substitute for browser acceptance.
 - Blob regression: successful real VRMA decoding failed to revoke its owned URL, and cancellation during body decoding still created a late URL. Both are fixed. The focused three-file suite passes 35 tests, including decoder failure and catalog disposal.
@@ -71,7 +73,7 @@ Current working-tree candidate against the starting revision:
 - `pnpm build` with the verified model store: passed package builds, route generation, TypeScript, and the production Vite build. Existing large-chunk advisory only.
 - Explicit Prettier checks passed every changed/new source file, `web/package.json`, and this plan. The generated pnpm lockfile has an existing formatting exception, reproduced on the unchanged baseline; the change adds only its three-line dependency declaration.
 - `git diff --check`: passed.
-- Desktop browser memory/interaction checks: pending local environment recovery. Hosted CI: not run; no candidate pushed yet.
+- Desktop browser memory/interaction checks: pending local environment recovery. Hosted CI: no checks reported on draft PR #44 at handoff; no hosted pass is claimed.
 
 Local verification, hosted CI, and native acceptance are separate. Native installer, audio, full production-memory attribution, and unrequested leak fixes are outside this repair.
 
@@ -81,4 +83,4 @@ Temporary URL release must be idempotent. Abort during download/body decoding mu
 
 ## Outcomes & Retrospective
 
-Implementation and validation pending.
+Both scoped repairs are implemented and independently source-reviewed. Regression tests, static checks, and the production web build pass. Draft PR #44 remains open while the unresponsive local Docker engine blocks the required browser measurements and gizmo interaction checks. Restarting the shared engine requires the owner's pending approval because it would interrupt other local stacks. No existing stack was stopped or reset. This repair does not establish that every contributor to the original multi-GB footprint is resolved.
