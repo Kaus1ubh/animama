@@ -2,6 +2,8 @@
 
 import * as THREE from "three";
 
+import { loadEffectImage } from "./effect-image";
+
 import type { Avatar } from "../Avatar";
 import type {
   AvatarFaceTextureAnchorSnapshot,
@@ -220,7 +222,6 @@ const SUPPORTED_TEXTURE_SLOTS: AvatarVFXTextureSlot[] = [
   "shadeMultiplyTexture",
 ];
 
-const effectImageCache = new Map<string, Promise<CanvasImageSource>>();
 const EYE_HOVER_PLANE_HEIGHT = 0.06;
 const BOX_HOVER_PLANE_HEIGHT = 0.08;
 const EYE_HOVER_SURFACE_LERP = 0.35;
@@ -864,25 +865,6 @@ function createHoverSkinBackdropMaterial(args: {
   });
   materialClone.needsUpdate = true;
   return materialClone;
-}
-
-async function loadEffectImage(assetPath: string): Promise<CanvasImageSource> {
-  const cached = effectImageCache.get(assetPath);
-  if (cached) {
-    return cached;
-  }
-
-  const task = new Promise<CanvasImageSource>((resolve, reject) => {
-    const image = new Image();
-    image.decoding = "async";
-    image.onload = () => resolve(image);
-    image.onerror = () =>
-      reject(new Error(`Failed to load VFX asset "${assetPath}".`));
-    image.src = assetPath;
-  });
-
-  effectImageCache.set(assetPath, task);
-  return task;
 }
 
 function toPixelRect(size: Size, rect: AvatarVFXNormalizedRect) {
