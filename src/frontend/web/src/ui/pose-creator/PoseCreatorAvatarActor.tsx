@@ -11,6 +11,7 @@ import type { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCata
 import {
   runtimeContentDeliveryUrl,
   runtimeContentDownloadUrl,
+  type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import { createLogger } from "@/lib/logger";
@@ -84,19 +85,21 @@ export function PoseCreatorAvatarActor({
 
     const loadAvatar = async () => {
       const logicalUrl = runtimeContentDeliveryUrl(entry);
+      let download: RuntimeContentUrlLease | null = null;
       try {
         if (!logicalUrl) {
           throw new Error("The selected Avatar Model has no runtime file.");
         }
-        const filePath = await runtimeContentDownloadUrl(entry, logicalUrl, {
+        download = await runtimeContentDownloadUrl(entry, logicalUrl, {
           signal: controller.signal,
         });
-        if (!filePath) {
+        if (!download) {
           throw new Error("The selected Avatar Model could not be authorized.");
         }
+        controller.signal.throwIfAborted();
         await avatar.load(
           {
-            filePath,
+            filePath: download.url,
             sourceUrl: logicalUrl,
             sourceKey: entry.content_revision,
           },
@@ -136,6 +139,8 @@ export function PoseCreatorAvatarActor({
           onAvatarInstanceChange?.(null);
         }
         avatar.dispose();
+      } finally {
+        download?.release();
       }
     };
 

@@ -5,6 +5,7 @@ WORKDIR /app
 RUN corepack enable
 # Install from lock/config inputs before source changes invalidate build layers.
 COPY src/frontend/package.json src/frontend/pnpm-lock.yaml src/frontend/pnpm-workspace.yaml ./
+COPY src/frontend/patches ./patches
 COPY src/frontend/web/package.json ./web/package.json
 COPY src/frontend/packages/runtime-contracts/package.json ./packages/runtime-contracts/package.json
 COPY src/frontend/packages/product-ui/package.json ./packages/product-ui/package.json

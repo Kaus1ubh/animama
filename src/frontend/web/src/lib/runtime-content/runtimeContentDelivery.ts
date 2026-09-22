@@ -131,7 +131,16 @@ export function fetchProtectedContentResponse(
   });
 }
 
-/** Resolve protected bytes to an ephemeral object URL for URL-only decoders. */
+/**
+ * A decoder URL and its lifetime. Release after consumption (including failure).
+ * Public and prepared URLs are borrowed; their release does not revoke them.
+ */
+export type RuntimeContentUrlLease = {
+  url: string;
+  release: () => void;
+};
+
+/** Acquire protected bytes for URL-only decoders, retaining explicit ownership. */
 export async function runtimeContentDownloadUrl(
   entry: RuntimeCatalogEntry,
   logicalUrl = runtimeContentDeliveryUrl(entry),
@@ -139,9 +148,12 @@ export async function runtimeContentDownloadUrl(
     fetcher?: RuntimeContentFetch;
     signal?: AbortSignal;
   } = {},
-): Promise<string | null> {
-  if (!logicalUrl || !runtimeContentRequiresPrivateFetch(entry)) {
-    return logicalUrl;
+): Promise<RuntimeContentUrlLease | null> {
+  const { signal } = options;
+  signal?.throwIfAborted();
+  if (!logicalUrl) return null;
+  if (!runtimeContentRequiresPrivateFetch(entry)) {
+    return { url: logicalUrl, release: () => {} };
   }
   const response = await fetchPrivateRuntimeContentResponse(
     entry,
@@ -153,7 +165,20 @@ export async function runtimeContentDownloadUrl(
       `Runtime content fetch failed with HTTP ${response.status}`,
     );
   }
-  return URL.createObjectURL(await response.blob());
+  signal?.throwIfAborted();
+  const blob = await response.blob();
+  // Body readers and injected fetchers may finish despite cancellation.
+  signal?.throwIfAborted();
+  const url = URL.createObjectURL(blob);
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    signal?.removeEventListener("abort", release);
+    URL.revokeObjectURL(url);
+  };
+  signal?.addEventListener("abort", release, { once: true });
+  return { url, release };
 }
 
 /** Fetch one private runtime file through the same-origin application boundary. */

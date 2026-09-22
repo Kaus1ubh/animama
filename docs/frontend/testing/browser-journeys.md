@@ -5,6 +5,21 @@ origin. FastAPI owns production serving and admission; development Vite proxies
 application routes while preserving browser metadata. Tests never invent an
 owner header or bypass the boundary to reach a separate backend origin.
 
+## Development memory and profiling
+
+The Vite app releases React's `Components ⚛` and `Scheduler ⚛` User Timing
+measures after observer delivery, so ordinary editing does not retain an
+unbounded development profile. App-owned measures and marks are preserved;
+if an app measure shares a React measure's name, both remain because the browser
+can clear only by name. Built web and desktop applications do not load this cleanup.
+
+For an intentional React Performance recording, add `?reactProfile=1` to the
+development URL and reload before recording (use `&reactProfile=1` if it already
+has a query). This choice lasts for the loaded page, including hot updates and
+route changes. Remove the parameter and reload to restore cleanup. Profiling
+retains timing data, so exclude that opt-in tab when comparing ordinary memory
+usage across repeated interactions.
+
 ## Reproducible accountless smoke
 
 After installing locked backend/frontend dependencies, Chromium (`pnpm e2e:install`)

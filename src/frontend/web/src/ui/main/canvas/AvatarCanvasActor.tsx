@@ -21,6 +21,7 @@ import { runtimeContentEntryLoadKey } from "@/lib/runtime-content/animaRuntimeSn
 import {
   runtimeContentDeliveryUrl,
   runtimeContentDownloadUrl,
+  type RuntimeContentUrlLease,
   preparedRuntimeResourceUrls,
 } from "@/lib/runtime-content/runtimeContentDelivery";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
@@ -334,6 +335,7 @@ export function AvatarCanvasActor({
 
     setAvatarReady(false);
     let isCancelled = false;
+    const controller = new AbortController();
     let idlePreloadHandle: number | null = null;
     let timeoutPreloadHandle: ReturnType<typeof setTimeout> | null = null;
     let firstFrame: ReturnType<typeof observeFirstPosedFrame> | null = null;
@@ -445,6 +447,7 @@ export function AvatarCanvasActor({
       let loadedSourceKey: string | null = null;
 
       for (const filePath of candidates) {
+        let download: RuntimeContentUrlLease | null = null;
         try {
           loadedSourceKey = avatarLoadKey;
           if (
@@ -453,13 +456,17 @@ export function AvatarCanvasActor({
           ) {
             throw new Error("avatar_model_entry_unavailable");
           }
-          const resolvedFilePath =
+          download =
             filePath === loadSpec.requestedAvatarPath
-              ? await runtimeContentDownloadUrl(runtimeAvatarEntry!, filePath)
-              : filePath;
+              ? await runtimeContentDownloadUrl(runtimeAvatarEntry!, filePath, {
+                  signal: controller.signal,
+                })
+              : null;
+          const resolvedFilePath = download?.url ?? filePath;
           if (!resolvedFilePath) {
             throw new Error("avatar_model_download_unavailable");
           }
+          controller.signal.throwIfAborted();
           await avatar.load({
             filePath: resolvedFilePath,
             sourceUrl: filePath,
@@ -472,9 +479,12 @@ export function AvatarCanvasActor({
           loadedPath = filePath;
           break;
         } catch {
+          if (isCancelled) break;
           logger.warn("Load", "Failed to load avatar candidate", {
             reason: "avatar_model_load_failed",
           });
+        } finally {
+          download?.release();
         }
       }
 
@@ -550,6 +560,7 @@ export function AvatarCanvasActor({
 
     return () => {
       isCancelled = true;
+      controller.abort();
       unsubscribeAvailability();
       firstFrame?.dispose();
       if (firstFrameRef.current === firstFrame) firstFrameRef.current = null;

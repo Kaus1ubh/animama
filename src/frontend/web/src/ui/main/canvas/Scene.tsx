@@ -4,8 +4,8 @@ import { Canvas } from "@react-three/fiber";
 import {
   OrbitControls,
   PerspectiveCamera as DreiPerspectiveCamera,
-  TransformControls,
 } from "@react-three/drei";
+import { AvatarTransformControls as TransformControls } from "@/ui/avatar-preview/AvatarTransformControls";
 import {
   Suspense,
   type ComponentRef,

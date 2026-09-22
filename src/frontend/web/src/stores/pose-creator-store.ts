@@ -949,6 +949,11 @@ function recordPoseDraftUndo(
   boneDrafts: PoseCreatorBoneDrafts,
   expressionDrafts: PoseCreatorExpressionDrafts,
 ): Partial<PoseCreatorStoreState> {
+  // The outer interaction already owns the before-snapshot and compares it
+  // once on commit. Avoid cloning/serializing every intermediate pointer move.
+  const kind = state.clipInlineEdit ? "inline_pose" : "pose";
+  if (state.undoGroup?.kind === kind) return {};
+
   const current = state.clipInlineEdit
     ? createInlinePoseUndoSnapshot(state)
     : createPoseUndoSnapshot(state);
@@ -958,19 +963,14 @@ function recordPoseDraftUndo(
     : arePoseUndoSnapshotsEqual(current, next);
   if (unchanged) return {};
 
-  if (state.clipInlineEdit) {
-    return state.undoGroup?.kind === "inline_pose"
-      ? {}
-      : {
-          inlinePoseUndoHistory: appendUndoSnapshot(
-            state.inlinePoseUndoHistory,
-            current,
-          ),
-          inlinePoseRedoHistory: [],
-        };
-  }
-  return state.undoGroup?.kind === "pose"
-    ? {}
+  return state.clipInlineEdit
+    ? {
+        inlinePoseUndoHistory: appendUndoSnapshot(
+          state.inlinePoseUndoHistory,
+          current,
+        ),
+        inlinePoseRedoHistory: [],
+      }
     : {
         poseUndoHistory: appendUndoSnapshot(state.poseUndoHistory, current),
         poseRedoHistory: [],
@@ -1063,7 +1063,8 @@ function restoreClipUndoSnapshot(
 function markClipInlineEditDirty(
   edit: PoseCreatorClipInlineEditState | null,
 ): PoseCreatorClipInlineEditState | null {
-  return edit ? { ...edit, isDirty: true } : null;
+  // Preserve workspace subscriptions while only the live pose values change.
+  return edit && !edit.isDirty ? { ...edit, isDirty: true } : edit;
 }
 
 function areClipPreviewDiagnosticsEqual(

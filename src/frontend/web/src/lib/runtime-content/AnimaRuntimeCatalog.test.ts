@@ -324,7 +324,9 @@ describe("AnimaRuntimeCatalog", () => {
     expect(gestureResource?.cacheKey).toBe(
       "vrma:victory-dance:gesture-content-3",
     );
-    await expect(idleResource?.getDownloadUrl?.()).resolves.toMatch(/^blob:/);
+    const download = await idleResource?.getDownloadUrl?.();
+    expect(download?.url).toMatch(/^blob:/);
+    download?.release();
     expect(fetcher).toHaveBeenCalledWith(
       VRMA_URL,
       expect.objectContaining({
@@ -332,6 +334,69 @@ describe("AnimaRuntimeCatalog", () => {
         redirect: "error",
       }),
     );
+  });
+
+  it("releases an outstanding animation URL when its catalog is disposed", async () => {
+    const gesture = runtimeEntry({
+      slot: "gesture",
+      runtimeId: "temporary-animation",
+      kind: "animation",
+      url: VRMA_URL,
+      role: "animation",
+    });
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(authorizedDownload(VRMA_URL));
+    const catalog = new AnimaRuntimeCatalog(
+      runtimeContent({ gestures: [gesture] }),
+      { fetcher },
+    );
+    const resource = catalog.resolveVrma(VRMA_URL)!;
+    const revoke = vi.spyOn(URL, "revokeObjectURL");
+    const download = await resource.getDownloadUrl!();
+    expect(revoke).not.toHaveBeenCalled();
+
+    catalog.dispose();
+    download.release();
+
+    expect(revoke).toHaveBeenCalledExactlyOnceWith(download.url);
+    await expect(resource.getDownloadUrl!()).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not publish a late animation URL after catalog disposal", async () => {
+    const gesture = runtimeEntry({
+      slot: "gesture",
+      runtimeId: "late-animation",
+      kind: "animation",
+      url: VRMA_URL,
+      role: "animation",
+    });
+    let finishBody!: (blob: Blob) => void;
+    const response = new Response();
+    const readBody = vi.spyOn(response, "blob").mockImplementation(
+      () =>
+        new Promise<Blob>((resolve) => {
+          finishBody = resolve;
+        }),
+    );
+    const catalog = new AnimaRuntimeCatalog(
+      runtimeContent({ gestures: [gesture] }),
+      {
+        fetcher: vi.fn<typeof fetch>().mockResolvedValue(response),
+      },
+    );
+    const create = vi.spyOn(URL, "createObjectURL");
+    const download = catalog.resolveVrma(VRMA_URL)!.getDownloadUrl!();
+    await vi.waitFor(() => expect(readBody).toHaveBeenCalled());
+
+    catalog.dispose();
+    finishBody(new Blob(["animation"]));
+
+    await expect(download).rejects.toMatchObject({ name: "AbortError" });
+    expect(create).not.toHaveBeenCalled();
   });
 
   it("fetches a private pose manifest lazily once and canonicalizes its ID", async () => {

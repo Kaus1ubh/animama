@@ -723,6 +723,50 @@ describe("pose creator undo and redo history", () => {
     expect(usePoseCreatorStore.getState().isDirty).toBe(false);
   });
 
+  it("keeps dirty inline-edit metadata stable during a continuous drag", () => {
+    const store = usePoseCreatorStore.getState();
+    store.beginClipInlinePoseEdit({
+      alias: "first",
+      keyframeId: null,
+      originalPose: { humanoid: {} },
+      boneDrafts: {},
+      expressionDrafts: {},
+      draftName: "Inline first",
+    });
+    store.beginClipUndoGroup();
+    const editBefore = usePoseCreatorStore.getState().clipInlineEdit;
+    store.setBoneDraft("head", {
+      baseQuaternion: [0, 0, 0, 1],
+      rotationDegrees: { x: 1, y: 0, z: 0 },
+    });
+    const dirtyEdit = usePoseCreatorStore.getState().clipInlineEdit;
+    expect(dirtyEdit).not.toBe(editBefore);
+    expect(dirtyEdit?.isDirty).toBe(true);
+    for (const x of [2, 3, 4]) {
+      store.setBoneDraft("head", {
+        baseQuaternion: [0, 0, 0, 1],
+        rotationDegrees: { x, y: 0, z: 0 },
+      });
+      // Workspace subscribers must not rerender for unchanged edit metadata.
+      expect(usePoseCreatorStore.getState().clipInlineEdit).toBe(dirtyEdit);
+    }
+    expect(usePoseCreatorStore.getState().inlinePoseUndoHistory).toHaveLength(
+      0,
+    );
+    store.endClipUndoGroup();
+    expect(usePoseCreatorStore.getState().inlinePoseUndoHistory).toHaveLength(
+      1,
+    );
+    store.undoClip();
+    expect(usePoseCreatorStore.getState().boneDrafts).toEqual({});
+    expect(usePoseCreatorStore.getState().clipInlineEdit?.isDirty).toBe(false);
+    store.redoClip();
+    expect(
+      usePoseCreatorStore.getState().boneDrafts.head?.rotationDegrees.x,
+    ).toBe(4);
+    expect(usePoseCreatorStore.getState().clipInlineEdit?.isDirty).toBe(true);
+  });
+
   it("uses a temporary history while editing an inline Clip pose", () => {
     const store = usePoseCreatorStore.getState();
     store.hydrateClipDocument(

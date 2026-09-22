@@ -76,6 +76,7 @@ import { actionEditorCapabilities } from "./actionEditorCapabilities";
 import { retainActionEditorWorkspace } from "./actionEditorStoreLifecycle";
 import { findPoseCreatorClipKeyframeAtTime } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import { samplePoseCreatorClipExpressions } from "@/ui/pose-creator/poseCreatorClipPreview";
+import { useActionEditorDesktopLayout } from "./useActionEditorDesktopLayout";
 
 type MobileTool =
   | "timeline"
@@ -123,11 +124,17 @@ function ActionEditorWorkspaceContent() {
   const workspace = useActionEditorWorkspace();
   const capabilities = actionEditorCapabilities(workspace.document.intent);
   const timelineBased = workspace.document.implementation === "anima_clip";
+  const desktopLayout = useActionEditorDesktopLayout();
   const [mobileTool, setMobileTool] = useState<MobileTool>("timeline");
   const [componentsExpanded, setComponentsExpanded] = useState(true);
   const [timelineExpanded, setTimelineExpanded] = useState(true);
   const [bonesExpanded, setBonesExpanded] = useState(true);
   const [expressionsExpanded, setExpressionsExpanded] = useState(true);
+  const collapseBones = useCallback(() => setBonesExpanded(false), []);
+  const collapseExpressions = useCallback(
+    () => setExpressionsExpanded(false),
+    [],
+  );
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
   const selectedBone = usePoseCreatorStore((state) => state.selectedBone);
   const clipInlineEdit = usePoseCreatorStore((state) => state.clipInlineEdit);
@@ -420,15 +427,15 @@ function ActionEditorWorkspaceContent() {
       />
 
       {timelineBased ? (
-        <>
-          <div className="relative hidden min-h-0 flex-1 overflow-hidden lg:block">
+        desktopLayout ? (
+          <div className="relative min-h-0 flex-1 overflow-hidden">
             <ActionEditorScene capabilities={capabilities} />
             {workspace.mode === "pose" ? (
               <div className="pointer-events-none absolute inset-x-0 top-[88px] bottom-0 z-30">
                 <ActionEditorBoneSection
                   variant="workspace"
                   browserExpanded={bonesExpanded}
-                  onCollapse={() => setBonesExpanded(false)}
+                  onCollapse={collapseBones}
                 />
                 {!bonesExpanded ? (
                   <CreatorCollapsedPanelHeader
@@ -441,7 +448,7 @@ function ActionEditorWorkspaceContent() {
                 {expressionsExpanded ? (
                   <ActionEditorExpressionSection
                     variant="workspace"
-                    onCollapse={() => setExpressionsExpanded(false)}
+                    onCollapse={collapseExpressions}
                   />
                 ) : (
                   <CreatorCollapsedPanelHeader
@@ -523,6 +530,7 @@ function ActionEditorWorkspaceContent() {
               </div>
             )}
           </div>
+        ) : (
           <MobileWorkspace
             capabilities={capabilities}
             tool={mobileTool}
@@ -539,7 +547,7 @@ function ActionEditorWorkspaceContent() {
               />
             }
           />
-        </>
+        )
       ) : (
         <VrmaWorkspace capabilities={capabilities} />
       )}
@@ -771,7 +779,7 @@ function MobileWorkspace({
     ? tool
     : tools[0]!.id;
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <div className="h-[38dvh] min-h-[230px] shrink-0">
         <ActionEditorScene capabilities={capabilities} />
       </div>

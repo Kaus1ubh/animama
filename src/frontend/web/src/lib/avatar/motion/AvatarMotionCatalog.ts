@@ -1,5 +1,6 @@
 import type { EmotionRuntimeState } from "@/lib/emotion";
 import type { VRMAnimation } from "@pixiv/three-vrm-animation";
+import type { RuntimeContentUrlLease } from "@/lib/runtime-content/runtimeContentDelivery";
 import {
   evaluateManifestIdleEntries,
   getAllAnimations,
@@ -41,8 +42,8 @@ export type AvatarVrmaResource = {
   /** Private runtime decodes are owned by the catalog, not the global App cache. */
   cache?: Map<string, Promise<VRMAnimation | null>>;
   resourceUrls?: Readonly<Record<string, string>>;
-  /** Resolve a fresh ephemeral URL immediately before a private load. */
-  getDownloadUrl?: () => Promise<string>;
+  /** Acquire a decoder URL; the loader must release it after consumption. */
+  getDownloadUrl?: () => Promise<RuntimeContentUrlLease>;
 };
 
 export type AvatarMotionPreloadEntry = {

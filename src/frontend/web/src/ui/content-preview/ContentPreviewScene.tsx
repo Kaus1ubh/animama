@@ -1,6 +1,6 @@
 "use client";
 
-import { TransformControls } from "@react-three/drei";
+import { AvatarTransformControls as TransformControls } from "@/ui/avatar-preview/AvatarTransformControls";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type Group, type Object3D } from "three";
@@ -31,7 +31,10 @@ import type {
   ContentPreviewTarget,
 } from "@/lib/content-preview/types";
 import { runtimeContentEntryUrl } from "@/lib/runtime-content/animaRuntimeSnapshot";
-import { runtimeContentDownloadUrl } from "@/lib/runtime-content/runtimeContentDelivery";
+import {
+  runtimeContentDownloadUrl,
+  type RuntimeContentUrlLease,
+} from "@/lib/runtime-content/runtimeContentDelivery";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import {
   applyAvatarTransformToObject,
@@ -157,23 +160,26 @@ function PreviewActor({
       return;
     }
     const generation = ++loadGenerationRef.current;
+    const controller = new AbortController();
     setSceneObject(null);
     setAvatarReadyKey(null);
     onStatusChange("loading", "Loading avatar…");
     void (async () => {
+      let download: RuntimeContentUrlLease | null = null;
       try {
-        const filePath = await runtimeContentDownloadUrl(
-          avatarEntry,
-          logicalUrl,
-        );
-        if (!filePath)
+        download = await runtimeContentDownloadUrl(avatarEntry, logicalUrl, {
+          signal: controller.signal,
+        });
+        if (!download)
           throw new Error("The preview avatar could not be authorized.");
+        controller.signal.throwIfAborted();
         await avatar.load({
-          filePath,
+          filePath: download.url,
           sourceUrl: logicalUrl,
           sourceKey: avatarSourceKey,
         });
         if (
+          controller.signal.aborted ||
           generation !== loadGenerationRef.current ||
           avatar.isDisposed ||
           !avatar.scene
@@ -187,10 +193,17 @@ function PreviewActor({
         logContentPreviewLifecycle("avatar_load", "dock");
         onStatusChange("ready");
       } catch (error) {
-        if (generation !== loadGenerationRef.current) return;
+        if (
+          controller.signal.aborted ||
+          generation !== loadGenerationRef.current
+        )
+          return;
         onStatusChange("error", errorMessage(error));
+      } finally {
+        download?.release();
       }
     })();
+    return () => controller.abort();
   }, [avatarEntry, avatarSourceKey, onStatusChange]);
 
   useEffect(() => {

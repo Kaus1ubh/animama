@@ -1,0 +1,15 @@
+diff --git a/dist/refresh-runtime.js b/dist/refresh-runtime.js
+index e798d000e9cf314b94fa8b2c10370d9202cc9421..18568df9f543d023d628099c78b8c65bfe872e98 100644
+--- a/dist/refresh-runtime.js
++++ b/dist/refresh-runtime.js
+@@ -428,6 +428,10 @@ export function injectIntoGlobalHook(globalObject) {
+           if (didError) {
+             // We'll remount it on future edits.
+             failedRoots.add(root)
++          } else if (!failedRoots.has(root)) {
++            // R3F can commit an already-unmounted root again. Release it unless
++            // an earlier error still needs the helpers for refresh recovery.
++            helpersByRoot.delete(root)
+           }
+         }
+       } else {

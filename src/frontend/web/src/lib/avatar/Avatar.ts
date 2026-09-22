@@ -2831,16 +2831,17 @@ export class Avatar {
     let entry = cache.get(resource.cacheKey);
     if (!entry) {
       entry = (async () => {
-        const downloadUrl = (await resource.getDownloadUrl?.()) ?? resource.url;
-        const loader = resource.resourceUrls
-          ? Avatar._createGLTFLoader(
-              new THREE.LoadingManager().setURLModifier(
-                preparedModelUrlResolver(downloadUrl, resource.resourceUrls),
-              ),
-            )
-          : Avatar._getGLTFLoader();
+        const download = await resource.getDownloadUrl?.();
+        const downloadUrl = download?.url ?? resource.url;
         let gltf: GLTF & { userData: { vrmAnimations?: VRMAnimation[] } };
         try {
+          const loader = resource.resourceUrls
+            ? Avatar._createGLTFLoader(
+                new THREE.LoadingManager().setURLModifier(
+                  preparedModelUrlResolver(downloadUrl, resource.resourceUrls),
+                ),
+              )
+            : Avatar._getGLTFLoader();
           gltf = (await loader.loadAsync(downloadUrl)) as GLTF & {
             userData: { vrmAnimations?: VRMAnimation[] };
           };
@@ -2849,6 +2850,8 @@ export class Avatar {
             throw createGitLfsAssetError("VRMA animation", downloadUrl, error);
           }
           throw error;
+        } finally {
+          download?.release();
         }
         const vrmAnimations = gltf.userData?.vrmAnimations ?? [];
         return vrmAnimations[0] ?? null;

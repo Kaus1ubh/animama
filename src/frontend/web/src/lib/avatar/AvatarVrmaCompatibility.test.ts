@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Avatar } from "./Avatar";
 import type { AvatarVrmaResource } from "./motion/AvatarMotionCatalog";
+import { runtimeContentDownloadUrl } from "@/lib/runtime-content/runtimeContentDelivery";
+import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 
 class TestProgressEvent extends Event {
   readonly lengthComputable: boolean;
@@ -30,6 +32,74 @@ afterEach(() => {
 });
 
 describe("Avatar VRMA loader compatibility", () => {
+  it.each(["success", "failure"])(
+    "releases the temporary protected download after decoder %s",
+    async (outcome) => {
+      const content =
+        outcome === "success"
+          ? await readFile(SYNTHETIC_VRMA)
+          : "not a glTF document";
+      let finishDecodeFetch!: (response: Response) => void;
+      const fetcher = vi
+        .fn<typeof fetch>()
+        .mockResolvedValueOnce(new Response(content))
+        .mockImplementationOnce(
+          () =>
+            new Promise<Response>((resolve) => {
+              finishDecodeFetch = resolve;
+            }),
+        );
+      vi.stubGlobal("fetch", fetcher);
+      vi.stubGlobal("ProgressEvent", TestProgressEvent);
+      const revoke = vi.spyOn(URL, "revokeObjectURL");
+      const create = vi.spyOn(URL, "createObjectURL");
+      const entry = {
+        slot: "gesture",
+        runtime_id: "temporary-download",
+        kind: "animation",
+        display_name: "Temporary download",
+        description: null,
+        config_schema_version: 1,
+        config: {},
+        content_revision: "animation-1",
+        source: { type: "authorized_files", files: [] },
+      } satisfies RuntimeCatalogEntry;
+      const resource: AvatarVrmaResource = {
+        runtimeId: entry.runtime_id,
+        url: "https://api.local/animation.vrma",
+        cacheKey: entry.content_revision,
+        cache: new Map(),
+        getDownloadUrl: async () => {
+          const download = await runtimeContentDownloadUrl(
+            entry,
+            "https://api.local/animation.vrma",
+          );
+          if (!download) throw new Error("Missing animation download");
+          return download;
+        },
+      };
+
+      const loading = Avatar.preloadVrma(resource);
+      await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+      expect(revoke).not.toHaveBeenCalled();
+      finishDecodeFetch(new Response(content));
+      if (outcome === "success") {
+        await loading;
+        expect((await resource.cache!.get(resource.cacheKey))?.duration).toBe(
+          1,
+        );
+        await Avatar.preloadVrma(resource);
+      } else {
+        await expect(loading).rejects.toThrow();
+        expect(resource.cache!.has(resource.cacheKey)).toBe(false);
+      }
+      expect(create).toHaveBeenCalledTimes(1);
+      expect(revoke).toHaveBeenCalledExactlyOnceWith(
+        create.mock.results[0]?.value,
+      );
+    },
+  );
+
   it("shares decoding within one mount but not across separate mount caches", async () => {
     const content = await readFile(SYNTHETIC_VRMA);
     const fetcher = vi.fn(async () => new Response(content));
@@ -75,8 +145,10 @@ describe("Avatar VRMA loader compatibility", () => {
         runtimeId: "compatibility-user",
         url: "https://api.local/user-animation.vrma",
         cacheKey: "compatibility:user",
-        getDownloadUrl: async () =>
-          "https://api.local/registered-animation.vrma",
+        getDownloadUrl: async () => ({
+          url: "https://api.local/registered-animation.vrma",
+          release: () => {},
+        }),
       } satisfies AvatarVrmaResource,
       expectedUrl: "https://api.local/registered-animation.vrma",
       contentPath: SYNTHETIC_VRMA,

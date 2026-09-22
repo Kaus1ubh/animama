@@ -1,6 +1,6 @@
 "use client";
 
-import { TransformControls } from "@react-three/drei";
+import { AvatarTransformControls as TransformControls } from "@/ui/avatar-preview/AvatarTransformControls";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Camera } from "lucide-react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
@@ -49,7 +49,10 @@ import type {
 import { createLogger } from "@/lib/logger";
 import { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCatalog";
 import { runtimeContentEntryUrl } from "@/lib/runtime-content/animaRuntimeSnapshot";
-import { runtimeContentDownloadUrl } from "@/lib/runtime-content/runtimeContentDelivery";
+import {
+  runtimeContentDownloadUrl,
+  type RuntimeContentUrlLease,
+} from "@/lib/runtime-content/runtimeContentDelivery";
 import type { SceneVFXRuntimeEntry } from "@/lib/scene-vfx/types";
 import { cn } from "@/lib/utils";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
@@ -206,6 +209,7 @@ function StageAvatarActor({
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     const releaseAvatar = acquireContentPreviewResource("management", "avatar");
     const loadPath =
       source.kind === "file" ? URL.createObjectURL(source.file) : source.url;
@@ -220,17 +224,21 @@ function StageAvatarActor({
     setStatus("loading");
 
     const loadAvatar = async () => {
+      let download: RuntimeContentUrlLease | null = null;
       try {
-        const resolvedLoadPath =
+        download =
           source.kind === "url" && source.runtimeContentEntry
             ? await runtimeContentDownloadUrl(
                 source.runtimeContentEntry,
                 loadPath,
+                { signal: controller.signal },
               )
-            : loadPath;
+            : null;
+        const resolvedLoadPath = download?.url ?? loadPath;
         if (!resolvedLoadPath) {
           throw new Error("avatar_model_download_unavailable");
         }
+        controller.signal.throwIfAborted();
         await avatar.load({
           filePath: resolvedLoadPath,
           sourceUrl: loadPath,
@@ -242,11 +250,11 @@ function StageAvatarActor({
         setErrorMessage(null);
         setStatus("ready");
       } catch (error) {
+        if (cancelled) return;
         logger.error("Preview", "Failed to load avatar preview", {
           sourceKind: source.kind,
           error,
         });
-        if (cancelled) return;
         if (temporaryPreviewModel) {
           temporaryModelErrorRef.current();
           onContentPreviewStatusChange?.(
@@ -257,6 +265,8 @@ function StageAvatarActor({
         }
         setStatus("error");
         setErrorMessage("This avatar could not be rendered as a VRM preview.");
+      } finally {
+        download?.release();
       }
     };
 
@@ -264,6 +274,7 @@ function StageAvatarActor({
 
     return () => {
       cancelled = true;
+      controller.abort();
       clearContentPreviewEffects({
         avatar,
         onSceneVFXChange,
