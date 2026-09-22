@@ -2,7 +2,7 @@
 
 Typed previews let a user or creator play one exact validated catalog revision
 without changing an Anima loadout. Gestures and Reactions resolve their
-complete Pose/VFX/SFX dependency closure; component, Idle Style, Music,
+complete clip/VFX/SFX dependency closure; component, Idle Style, Music,
 Avatar, and Appearance previews resolve their own exact media.
 
 ## Preview surfaces
@@ -29,6 +29,13 @@ mounted over that Anima's exact runtime catalog just like individual Particle,
 Avatar, and Scene Effects. The Dock waits for the runtime before preparing a
 scene and shows a clear blocker when no Anima or runtime is available; it never
 silently substitutes a bundled neutral model.
+
+Standalone Pose targets first load their registered descriptor through
+`PreviewByteSession`, verifying size, digest and selected revision. Preparation
+converts its resolved values to a temporary static-hold clip with an item-based
+preview ID that cannot collide with an equipped Gesture. The existing Dock player
+owns that clip and selected Anima runtime; no Pose loadout slot is introduced.
+Changing target or closing aborts pending reads and releases temporary byte URLs.
 
 All preview sessions:
 

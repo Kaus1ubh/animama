@@ -711,6 +711,44 @@ export type BodySaveParticleEffect = {
 };
 
 /**
+ * Body_save_pose
+ */
+export type BodySavePose = {
+    /**
+     * Catalog Item Id
+     */
+    catalog_item_id?: string | null;
+    /**
+     * Companion Paths Json
+     */
+    companion_paths_json?: string;
+    /**
+     * Creation Context
+     */
+    creation_context?: boolean;
+    /**
+     * Descriptor Json
+     */
+    descriptor_json?: string | null;
+    /**
+     * Expected Revision
+     */
+    expected_revision?: string | null;
+    /**
+     * Files
+     */
+    files?: Array<Blob | File> | null;
+    /**
+     * Metadata Json
+     */
+    metadata_json?: string | null;
+    /**
+     * Operation Id
+     */
+    operation_id: string;
+};
+
+/**
  * Body_save_pose_clip
  */
 export type BodySavePoseClip = {
@@ -2967,7 +3005,7 @@ export type PyContentEvidenceRoot = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -2982,7 +3020,7 @@ export type PyContentEvidenceRootRequest = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     source: ItemRevisionRef;
 };
 
@@ -3142,7 +3180,7 @@ export type PyContentPreviewRootRequest = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Source
      */
@@ -3187,6 +3225,8 @@ export type PyContentPreviewsPrepareResponse = {
     } & PyGesture) | ({
         kind: 'reaction';
     } & PyReaction) | ({
+        kind: 'pose';
+    } & PyPose) | ({
         kind: 'pose_clip';
     } & PyPoseClip) | ({
         kind: 'particle_effect';
@@ -5117,6 +5157,58 @@ export type PyParticleEffectPage = {
 };
 
 /**
+ * PyPose
+ *
+ * Static Pose metadata; full values are delivered through registered bytes.
+ */
+export type PyPose = {
+    /**
+     * Dependencies
+     */
+    dependencies?: Array<PyTypedDependency>;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Editable
+     */
+    editable: boolean;
+    /**
+     * Files
+     */
+    files?: Array<PyTypedContentFile>;
+    /**
+     * Item Id
+     */
+    item_id: string;
+    /**
+     * Kind
+     */
+    kind?: 'pose';
+    /**
+     * Logical Key
+     */
+    logical_key?: string | null;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Pose Id
+     */
+    pose_id: string;
+    /**
+     * Revision Sha256
+     */
+    revision_sha256: string;
+    /**
+     * Source
+     */
+    source: 'included' | 'local';
+};
+
+/**
  * PyPoseClip
  */
 export type PyPoseClip = {
@@ -5187,6 +5279,16 @@ export type PyPoseClipPage = {
 };
 
 /**
+ * PyPosePage
+ */
+export type PyPosePage = {
+    /**
+     * Items
+     */
+    items: Array<PyPose>;
+};
+
+/**
  * PyPreparedPreviewLease
  */
 export type PyPreparedPreviewLease = {
@@ -5223,7 +5325,7 @@ export type PyPreparedPreviewRoot = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -6418,6 +6520,8 @@ export type PyTypedContentPreview = {
     } & PyGesture) | ({
         kind: 'reaction';
     } & PyReaction) | ({
+        kind: 'pose';
+    } & PyPose) | ({
         kind: 'pose_clip';
     } & PyPoseClip) | ({
         kind: 'particle_effect';
@@ -6454,6 +6558,8 @@ export type PyTypedContentPreview = {
     } & PyGesture) | ({
         kind: 'reaction';
     } & PyReaction) | ({
+        kind: 'pose';
+    } & PyPose) | ({
         kind: 'pose_clip';
     } & PyPoseClip) | ({
         kind: 'particle_effect';
@@ -6493,7 +6599,7 @@ export type PyTypedDependency = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'gesture' | 'pose_clip' | 'reaction' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect' | 'idle_style' | 'music_track' | 'appearance' | 'voice';
+    kind: 'avatar' | 'gesture' | 'pose' | 'pose_clip' | 'reaction' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect' | 'idle_style' | 'music_track' | 'appearance' | 'voice';
     /**
      * Ref
      */
@@ -7106,7 +7212,7 @@ export type SourceRevision = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Revision Sha256
      */
@@ -11121,6 +11227,112 @@ export type PreviewPoseClipResponses = {
 };
 
 export type PreviewPoseClipResponse = PreviewPoseClipResponses[keyof PreviewPoseClipResponses];
+
+export type ListPosesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/poses';
+};
+
+export type ListPosesResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyPosePage;
+};
+
+export type ListPosesResponse = ListPosesResponses[keyof ListPosesResponses];
+
+export type SavePoseData = {
+    body: BodySavePose;
+    path: {
+        /**
+         * Entry Name
+         */
+        entry_name: string;
+    };
+    query?: never;
+    url: '/v1/poses/{entry_name}';
+};
+
+export type SavePoseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SavePoseError = SavePoseErrors[keyof SavePoseErrors];
+
+export type SavePoseResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyPose;
+};
+
+export type SavePoseResponse = SavePoseResponses[keyof SavePoseResponses];
+
+export type GetPoseData = {
+    body?: never;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/poses/{item_id}';
+};
+
+export type GetPoseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPoseError = GetPoseErrors[keyof GetPoseErrors];
+
+export type GetPoseResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyPose;
+};
+
+export type GetPoseResponse = GetPoseResponses[keyof GetPoseResponses];
+
+export type PreviewPoseData = {
+    body?: never;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/poses/{item_id}:preview';
+};
+
+export type PreviewPoseErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PreviewPoseError = PreviewPoseErrors[keyof PreviewPoseErrors];
+
+export type PreviewPoseResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyTypedContentPreview;
+};
+
+export type PreviewPoseResponse = PreviewPoseResponses[keyof PreviewPoseResponses];
 
 export type ListReactionsData = {
     body?: never;

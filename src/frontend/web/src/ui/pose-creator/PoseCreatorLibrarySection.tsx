@@ -26,6 +26,7 @@ import {
 } from "@/ui/components/dropdown-menu";
 import {
   useMemo,
+  useEffect,
   useRef,
   useState,
   type ChangeEvent,
@@ -34,19 +35,26 @@ import {
 import { toast } from "sonner";
 
 import { AVATAR_POSE_IDS, parseAnimaPose, type AnimaPose } from "@/lib/avatar";
+import type { PyPose } from "@animama/runtime-contracts/api-types";
+import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
+import { usePoses } from "@/query/hooks/usePoses";
+import { usePoseContentActions } from "@/query/mutations/usePoseContentActions";
+import {
+  preparePoseSaveAttempt,
+  poseSavedIdentity,
+  type PoseSaveAttempt,
+} from "@/lib/content/poseContent";
+import { editActionEditorSavedPose } from "@/ui/action-editor/actionEditorSavedPose";
 import { cn } from "@/lib/utils";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   DEFAULT_POSE_CREATOR_BASE_POSE,
   POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
-  getPoseCreatorBasePoseLabel,
-  isPoseCreatorBasePose,
   selectCanRedoClip,
   selectCanRedoPose,
   selectCanUndoClip,
   selectCanUndoPose,
-  type PoseCreatorSavedDraft,
-  type PoseCreatorSavedDraftSource,
+  capturePoseCreatorSubmittedDraft,
   usePoseCreatorStore,
 } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
@@ -82,7 +90,6 @@ import { getPoseCreatorHistoryShortcutLabels } from "./poseCreatorUndo";
 import {
   bakePoseCreatorAnimaPose,
   applyPoseCreatorBasePose,
-  buildPoseCreatorAnimaPose,
   buildPoseCreatorAnimaPoseForExport,
   createUniquePoseCreatorBranchName,
   formatPoseCreatorAnimaPoseJson,
@@ -91,20 +98,27 @@ import {
   type PoseCreatorPoseExportMode,
 } from "./poseCreatorAuthoring";
 
-function formatSavedDraftDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown";
-  return date.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+// One transient editor session survives toolbar remounts (for example switching to Clip).
+// Retain ambiguous Save requests so an identical retry cannot create a second Local item.
+let poseSaveAttempt: {
+  sessionToken: string;
+  attempt: PoseSaveAttempt;
+  submittedDraft: ReturnType<typeof capturePoseCreatorSubmittedDraft>;
+} | null = null;
 
-function getSavedDraftSourceLabel(source: PoseCreatorSavedDraftSource): string {
-  return `${source.displayName} · ${source.sourceLabel}`;
-}
+// These domain errors confirm that the attempted mutation did not commit.
+// Unknown operations/timeouts retain their receipt even when delivered as 4xx.
+const REJECTED_POSE_SAVE_CODES = new Set([
+  "content_path_exists",
+  "invalid_entry_name",
+  "content_path_invalid",
+  "content_invalid",
+  "catalog_revision_conflict",
+  "content_destination_mismatch",
+  "content_not_found",
+  "saved_content_invalid",
+  "content_descriptor_too_large",
+]);
 
 function sanitizeJsonFileName(value: string): string {
   return `${
@@ -158,11 +172,11 @@ function PoseDataActionTooltip({
 }
 
 type SavedDraftRowProps = {
-  draft: PoseCreatorSavedDraft;
+  draft: PyPose;
   isCurrent: boolean;
-  onLoad: (draft: PoseCreatorSavedDraft) => void;
-  onCreateBranch: (draft: PoseCreatorSavedDraft) => void;
-  onDelete: (draft: PoseCreatorSavedDraft) => void;
+  onLoad: (draft: PyPose) => void;
+  onCreateBranch: (draft: PyPose) => void;
+  onDelete: (draft: PyPose) => void;
 };
 
 function SavedDraftRow({
@@ -178,7 +192,7 @@ function SavedDraftRow({
         type="button"
         className="hover:bg-muted/50 focus-visible:ring-ring absolute inset-0 rounded-md transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
         onClick={() => onLoad(draft)}
-        aria-label={`Load ${draft.name}`}
+        aria-label={`Edit ${draft.name}`}
       >
         <span className="sr-only">Load {draft.name}</span>
       </button>
@@ -194,12 +208,8 @@ function SavedDraftRow({
               </span>
             ) : null}
           </div>
-          <p className="text-muted-foreground mt-0.5 truncate text-[10px]">
-            {getSavedDraftSourceLabel(draft.source)} / Base:{" "}
-            {getPoseCreatorBasePoseLabel(draft.basePose)}
-          </p>
           <p className="text-muted-foreground mt-0.5 text-[10px]">
-            Updated {formatSavedDraftDate(draft.updatedAt)}
+            {draft.source === "included" ? "Included" : "Local"}
           </p>
         </div>
         <div className="pointer-events-auto flex shrink-0 items-center gap-1">
@@ -211,18 +221,20 @@ function SavedDraftRow({
             onClick={() => onCreateBranch(draft)}
           >
             <SplitIcon className="size-3.5" />
-            Branch
+            {draft.source === "included" ? "Edit" : "Copy"}
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="text-destructive hover:text-destructive h-11 px-2 text-xs lg:h-7"
-            onClick={() => onDelete(draft)}
-            aria-label={`Delete ${draft.name}`}
-          >
-            <Trash2Icon className="size-3.5" />
-          </Button>
+          {draft.source === "local" ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive h-11 px-2 text-xs lg:h-7"
+              onClick={() => onDelete(draft)}
+              aria-label={`Delete ${draft.name}`}
+            >
+              <Trash2Icon className="size-3.5" />
+            </Button>
+          ) : null}
         </div>
       </div>
     </div>
@@ -231,16 +243,22 @@ function SavedDraftRow({
 
 function SavedDraftLoadButton({
   savedDrafts,
+  pending,
+  error,
+  onRetry,
   selectedSavedDraftId,
   onLoad,
   onCreateBranch,
   onDelete,
 }: {
-  savedDrafts: PoseCreatorSavedDraft[];
+  savedDrafts: PyPose[];
+  pending?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
   selectedSavedDraftId: string | null;
-  onLoad: (draft: PoseCreatorSavedDraft) => void;
-  onCreateBranch: (draft: PoseCreatorSavedDraft) => void;
-  onDelete: (draft: PoseCreatorSavedDraft) => void;
+  onLoad: (draft: PyPose) => void;
+  onCreateBranch: (draft: PyPose) => void;
+  onDelete: (draft: PyPose) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -257,29 +275,36 @@ function SavedDraftLoadButton({
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        avoidSidebar
         side="bottom"
         align="end"
         sideOffset={12}
-        className="w-[calc(100vw-1rem)] max-w-[520px] rounded-xl p-3"
+        className="w-[520px] rounded-xl p-3"
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold">Saved pose drafts</p>
-            <p className="text-muted-foreground mt-0.5 text-xs">
-              Stored in this browser
-            </p>
+            <p className="text-sm font-semibold">Pose Library</p>
           </div>
           <span className="text-muted-foreground text-xs">
             {savedDrafts.length}
           </span>
         </div>
-        {savedDrafts.length > 0 ? (
+        {pending ? (
+          <p className="text-muted-foreground text-xs">Loading poses…</p>
+        ) : error ? (
+          <div role="alert" className="text-destructive text-xs">
+            {error}
+            <Button onClick={onRetry} variant="ghost">
+              Try again
+            </Button>
+          </div>
+        ) : savedDrafts.length > 0 ? (
           <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
             {savedDrafts.map((draft) => (
               <SavedDraftRow
-                key={draft.id}
+                key={draft.item_id}
                 draft={draft}
-                isCurrent={draft.id === selectedSavedDraftId}
+                isCurrent={draft.item_id === selectedSavedDraftId}
                 onLoad={(selectedDraft) => {
                   setOpen(false);
                   onLoad(selectedDraft);
@@ -291,7 +316,7 @@ function SavedDraftLoadButton({
           </div>
         ) : (
           <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-6 text-center text-xs">
-            Save a named pose to add it here.
+            No Included or Local poses are available.
           </p>
         )}
       </PopoverContent>
@@ -301,10 +326,20 @@ function SavedDraftLoadButton({
 
 export function PoseCreatorLibrarySection({
   variant = "panel",
+  hideNew = false,
 }: {
   variant?: "panel" | "toolbar";
+  /** Item editing in Library does not introduce another New Pose entry. */
+  hideNew?: boolean;
 }) {
   const runtimePlatform = useRuntimePlatform();
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const historyShortcuts = getPoseCreatorHistoryShortcutLabels(
     runtimePlatform.os,
   );
@@ -333,19 +368,18 @@ export function PoseCreatorLibrarySection({
     ),
   );
   const draftName = usePoseCreatorStore((state) => state.draftName);
-  const savedDrafts = usePoseCreatorStore((state) => state.savedDrafts);
-  const selectedSavedDraftId = usePoseCreatorStore(
-    (state) => state.selectedSavedDraftId,
+  const posesQuery = usePoses();
+  const savedDrafts = posesQuery.data?.items ?? [];
+  const { savePose, deletePose } = usePoseContentActions();
+  const pendingSave = useRef(false);
+  const savedPoseIdentity = usePoseCreatorStore(
+    (state) => state.savedPoseIdentity,
   );
+  const selectedSavedDraftId = savedPoseIdentity?.itemId ?? null;
   const importError = usePoseCreatorStore((state) => state.importError);
   const isDirty = usePoseCreatorStore((state) => state.isDirty);
   const setDraftName = usePoseCreatorStore((state) => state.setDraftName);
   const setImportError = usePoseCreatorStore((state) => state.setImportError);
-  const saveLocalDraft = usePoseCreatorStore((state) => state.saveLocalDraft);
-  const deleteLocalDraft = usePoseCreatorStore(
-    (state) => state.deleteLocalDraft,
-  );
-  const loadSavedDraft = usePoseCreatorStore((state) => state.loadSavedDraft);
   const replaceDraftFromImport = usePoseCreatorStore(
     (state) => state.replaceDraftFromImport,
   );
@@ -373,7 +407,7 @@ export function PoseCreatorLibrarySection({
     () =>
       boneDrafts && expressionDrafts
         ? buildPoseCreatorAnimaPoseForExport(boneDrafts, expressionDrafts, {
-            id: selectedSavedDraftId,
+            id: savedPoseIdentity?.poseId,
             name: draftName,
             parentPose: basePose,
             mode: exportMode,
@@ -385,7 +419,7 @@ export function PoseCreatorLibrarySection({
       draftName,
       exportMode,
       expressionDrafts,
-      selectedSavedDraftId,
+      savedPoseIdentity?.poseId,
     ],
   );
   const currentJson = useMemo(
@@ -395,47 +429,112 @@ export function PoseCreatorLibrarySection({
         : null,
     [currentExportPose],
   );
-  const canSaveDraft = Boolean(selectedSource && hasPoseContent);
+  const canSaveDraft = Boolean(
+    selectedSource &&
+    hasPoseContent &&
+    draftName.trim() &&
+    (!savedPoseIdentity || isDirty) &&
+    !savePose.isPending,
+  );
 
-  const saveCurrentPoseDraft = (): PoseCreatorSavedDraft | null => {
-    // Read at the action boundary: the toolbar deliberately skips draft-only
-    // updates while its JSON dialog is closed.
+  const saveCurrentPoseDraft = async () => {
     const current = usePoseCreatorStore.getState();
-    if (!current.selectedSource) {
-      setImportError("Select an Avatar Model before saving a local draft.");
+    if (
+      pendingSave.current ||
+      !current.selectedSource ||
+      !current.draftName.trim() ||
+      (current.savedPoseIdentity && !current.isDirty)
+    )
       return null;
-    }
-    const currentInheritedPose = buildPoseCreatorAnimaPose(
-      current.boneDrafts,
-      current.expressionDrafts,
-      {
-        id: current.selectedSavedDraftId,
-        name: current.draftName,
-        parentPose: current.basePose,
-      },
-    );
-    if (!currentInheritedPose) {
-      setImportError(
-        "Choose a parent or adjust bones or expressions before saving a draft.",
+    const submittedDraft = capturePoseCreatorSubmittedDraft(current);
+    const sessionToken = current.poseSessionToken;
+    pendingSave.current = true;
+    setImportError(null);
+    try {
+      const pose = buildPoseCreatorAnimaPoseForExport(
+        submittedDraft.boneDrafts,
+        submittedDraft.expressionDrafts,
+        {
+          id: current.savedPoseIdentity?.poseId,
+          name: submittedDraft.draftName,
+          parentPose: submittedDraft.basePose,
+          mode: "baked",
+        },
       );
+      if (!pose) {
+        setImportError(
+          "Choose a base or adjust bones or expressions before saving a pose.",
+        );
+        return null;
+      }
+      const previous =
+        poseSaveAttempt?.sessionToken === sessionToken ? poseSaveAttempt : null;
+      let attempt = preparePoseSaveAttempt(
+        {
+          name: submittedDraft.draftName,
+          pose,
+          identity: current.savedPoseIdentity ?? undefined,
+        },
+        previous?.attempt,
+      );
+      if (previous && attempt !== previous.attempt) {
+        // A failed response may hide a committed Save. Resolve its exact receipt
+        // before changing the command, then update that same durable identity.
+        const recovered = await savePose.mutateAsync(previous.attempt.input);
+        const recoveredIdentity = poseSavedIdentity(recovered);
+        if (
+          !usePoseCreatorStore.getState().acknowledgePoseSave({
+            sessionToken,
+            submittedDraft: previous.submittedDraft,
+            savedIdentity: recoveredIdentity,
+          })
+        )
+          return null;
+        poseSaveAttempt = null;
+        attempt = preparePoseSaveAttempt({
+          name: submittedDraft.draftName,
+          pose: { ...pose, id: recoveredIdentity.poseId },
+          identity: recoveredIdentity,
+        });
+      }
+      poseSaveAttempt = { sessionToken, attempt, submittedDraft };
+      const saved = await savePose.mutateAsync(attempt.input);
+      const applied = usePoseCreatorStore.getState().acknowledgePoseSave({
+        sessionToken,
+        submittedDraft,
+        savedIdentity: poseSavedIdentity(saved),
+      });
+      if (!applied) return null;
+      poseSaveAttempt = null;
+      toast.success("Pose saved to Local content.");
+      return { item: saved, pose: attempt.input.pose, sessionToken };
+    } catch (error) {
+      if (usePoseCreatorStore.getState().poseSessionToken === sessionToken) {
+        if (
+          error instanceof ContentSaveApiError &&
+          error.status !== null &&
+          error.status >= 400 &&
+          error.status < 500 &&
+          error.code !== null &&
+          REJECTED_POSE_SAVE_CODES.has(error.code) &&
+          poseSaveAttempt?.sessionToken === sessionToken
+        ) {
+          poseSaveAttempt = null;
+        }
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Could not save this pose. Your draft is preserved.";
+        setImportError(message);
+        toast.error(message);
+      }
       return null;
+    } finally {
+      pendingSave.current = false;
     }
-    const savedDraft = saveLocalDraft({
-      source: current.selectedSource,
-      basePose: current.basePose,
-      pose: currentInheritedPose,
-    });
-    const latestError = usePoseCreatorStore.getState().importError;
-    if (latestError) {
-      toast.error(latestError);
-      return null;
-    }
-    return savedDraft;
   };
 
-  const handleSaveDraft = () => {
-    if (saveCurrentPoseDraft()) toast.success("Local pose draft saved.");
-  };
+  const handleSaveDraft = () => saveCurrentPoseDraft();
 
   const handleCopyJson = async () => {
     if (!currentJson) return;
@@ -528,34 +627,8 @@ export function PoseCreatorLibrarySection({
     }
   };
 
-  const handleLoadSavedDraft = (draft: PoseCreatorSavedDraft) => {
-    if (!activeAvatar) {
-      setImportError("Load a VRM before loading a saved draft.");
-      return;
-    }
-    if (!confirmPoseCreatorDirtyReplacement(isDirty)) return;
-
-    const nextBasePose = isPoseCreatorBasePose(draft.basePose)
-      ? draft.basePose
-      : basePose;
-    try {
-      const drafts = replacePoseCreatorDraftWithAnimaPose(
-        activeAvatar,
-        draft.pose,
-        nextBasePose,
-      );
-      const loadedDraft = loadSavedDraft(draft.id, {
-        basePose: nextBasePose,
-        boneDrafts: drafts.boneDrafts,
-        expressionDrafts: drafts.expressionDrafts,
-      });
-      if (loadedDraft) {
-        toast.success("Local pose draft loaded.");
-      }
-    } catch {
-      setImportError("Could not load the saved draft into this avatar.");
-      toast.error("Could not load saved draft.");
-    }
+  const handleLoadSavedDraft = (item: PyPose) => {
+    void editActionEditorSavedPose(item, { isCurrent: () => alive.current });
   };
 
   /** Creates an independent, unsaved pose snapshot from the supplied pose. */
@@ -595,37 +668,45 @@ export function PoseCreatorLibrarySection({
     }
   };
 
-  const handleCreateBranch = (draft: PoseCreatorSavedDraft) => {
-    if (
-      !confirmPoseCreatorDirtyReplacement(
-        isDirty,
-        "Discard unsaved pose changes and branch from this saved pose?",
-      )
-    ) {
-      return;
-    }
-    createPoseBranch(draft.pose, draft.name);
+  const handleCreateBranch = (item: PyPose) => {
+    void editActionEditorSavedPose(item, {
+      customize: true,
+      isCurrent: () => alive.current,
+    });
   };
 
-  const handleSaveAndBranch = () => {
-    const savedDraft = saveCurrentPoseDraft();
-    if (!savedDraft) return;
+  const handleSaveAndBranch = async () => {
+    const saved = await saveCurrentPoseDraft();
+    if (!saved) return;
+    const current = usePoseCreatorStore.getState();
+    // Edits made during Save must remain in the current draft.
+    if (current.poseSessionToken !== saved.sessionToken || current.isDirty)
+      return;
     createPoseBranch(
-      savedDraft.pose,
-      savedDraft.name,
-      "Pose saved and new branch created.",
+      saved.pose,
+      saved.item.name,
+      "Pose saved and a Local copy started.",
     );
   };
 
-  const handleDeleteSavedDraft = (draft: PoseCreatorSavedDraft) => {
-    if (!window.confirm(`Delete "${draft.name}" from local drafts?`)) return;
-    deleteLocalDraft(draft.id);
-    const latestError = usePoseCreatorStore.getState().importError;
-    if (latestError) {
-      toast.error(latestError);
-      return;
+  const handleDeleteSavedDraft = async (item: PyPose) => {
+    if (item.source !== "local" || deletePose.isPending) return;
+    if (!window.confirm(`Delete "${item.name}" from Local content?`)) return;
+    try {
+      await deletePose.mutateAsync(item);
+      const current = usePoseCreatorStore.getState();
+      if (current.savedPoseIdentity?.itemId === item.item_id) {
+        current.loadPoseDocument(
+          null,
+          capturePoseCreatorSubmittedDraft(current),
+        );
+      }
+      toast.success("Local pose deleted.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not delete this pose.",
+      );
     }
-    toast.success("Local pose draft deleted.");
   };
 
   const handleNewPose = () => {
@@ -658,9 +739,9 @@ export function PoseCreatorLibrarySection({
               const submitter = (event.nativeEvent as SubmitEvent)
                 .submitter as HTMLButtonElement | null;
               if (submitter?.value === "save-and-branch") {
-                handleSaveAndBranch();
+                return handleSaveAndBranch();
               } else {
-                handleSaveDraft();
+                return handleSaveDraft();
               }
             }}
           >
@@ -693,17 +774,19 @@ export function PoseCreatorLibrarySection({
           </form>
         </CreatorHeaderDocument>
 
-        <Button
-          type="button"
-          variant="outline"
-          aria-label="New"
-          title="New"
-          className="col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
-          onClick={handleNewPose}
-        >
-          <FilePlus2Icon className="size-4" />
-          <span className="hidden 2xl:inline">New</span>
-        </Button>
+        {!hideNew ? (
+          <Button
+            type="button"
+            variant="outline"
+            aria-label="New"
+            title="New"
+            className="col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
+            onClick={handleNewPose}
+          >
+            <FilePlus2Icon className="size-4" />
+            <span className="hidden 2xl:inline">New</span>
+          </Button>
+        ) : null}
 
         <div className="col-start-4 row-start-1 hidden shrink-0 items-center gap-2 lg:flex">
           <div className="border-border/70 bg-background flex h-12 items-center rounded-xl border px-1 shadow-sm">
@@ -778,13 +861,15 @@ export function PoseCreatorLibrarySection({
             sideOffset={8}
             className="w-56 rounded-xl p-1.5"
           >
-            <DropdownMenuItem
-              className="min-h-11 gap-3 rounded-lg"
-              onSelect={handleNewPose}
-            >
-              <FilePlus2Icon className="size-4" />
-              New pose
-            </DropdownMenuItem>
+            {!hideNew ? (
+              <DropdownMenuItem
+                className="min-h-11 gap-3 rounded-lg"
+                onSelect={handleNewPose}
+              >
+                <FilePlus2Icon className="size-4" />
+                New pose
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
               className="min-h-11 gap-3 rounded-lg"
               disabled={!activeAvatar}
@@ -820,7 +905,23 @@ export function PoseCreatorLibrarySection({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {importError ? (
+          <p role="alert" className="text-destructive col-span-full text-xs">
+            {importError}
+          </p>
+        ) : null}
+        {posesQuery.isError ? (
+          <p role="alert" className="text-destructive col-span-full text-xs">
+            Could not load poses.{" "}
+            <button type="button" onClick={() => void posesQuery.refetch()}>
+              Try again
+            </button>
+          </p>
+        ) : null}
         <SavedDraftLoadButton
+          pending={posesQuery.isPending}
+          error={posesQuery.error?.message}
+          onRetry={() => void posesQuery.refetch()}
           savedDrafts={savedDrafts}
           selectedSavedDraftId={selectedSavedDraftId}
           onLoad={handleLoadSavedDraft}
@@ -950,8 +1051,8 @@ export function PoseCreatorLibrarySection({
 
   return (
     <PoseCreatorPanelSection
-      title="Browser Pose Drafts"
-      subtitle={`${savedDrafts.length} browser-only drafts`}
+      title="Pose Library"
+      subtitle={`${savedDrafts.length} Included and Local poses`}
       defaultOpen
     >
       <div className="space-y-1.5">
@@ -1071,19 +1172,19 @@ export function PoseCreatorLibrarySection({
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground text-xs font-medium">
-            Saved drafts
+            Poses
           </span>
           <span className="text-muted-foreground text-[10px]">
-            Browser local
+            Included / Local
           </span>
         </div>
         {savedDrafts.length > 0 ? (
           <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
             {savedDrafts.map((draft) => (
               <SavedDraftRow
-                key={draft.id}
+                key={draft.item_id}
                 draft={draft}
-                isCurrent={draft.id === selectedSavedDraftId}
+                isCurrent={draft.item_id === selectedSavedDraftId}
                 onLoad={handleLoadSavedDraft}
                 onCreateBranch={handleCreateBranch}
                 onDelete={handleDeleteSavedDraft}
@@ -1092,7 +1193,7 @@ export function PoseCreatorLibrarySection({
           </div>
         ) : (
           <p className="text-muted-foreground text-xs">
-            Saved pose drafts will appear here.
+            Pose Library will appear here.
           </p>
         )}
       </div>

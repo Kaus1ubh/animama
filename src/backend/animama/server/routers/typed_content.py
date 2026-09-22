@@ -40,8 +40,10 @@ from animama.server.schemas.typed_content import (
     PyMusicTrackPage,
     PyParticleEffect,
     PyParticleEffectPage,
+    PyPose,
     PyPoseClip,
     PyPoseClipPage,
+    PyPosePage,
     PyReaction,
     PyReactionPage,
     PySceneEffect,
@@ -283,6 +285,13 @@ _install_family_routes(
     kind=ContentKind.REACTION,
     item_model=PyReaction,
     page_model=PyReactionPage,
+)
+_install_family_routes(
+    path="/v1/poses",
+    singular="pose",
+    kind=ContentKind.POSE,
+    item_model=PyPose,
+    page_model=PyPosePage,
 )
 _install_family_routes(
     path="/v1/pose-clips",

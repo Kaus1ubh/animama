@@ -8,6 +8,22 @@ import {
 } from "./librarySearch";
 
 describe("typed Library search", () => {
+  it("round-trips Poses and discards Gesture-only filters", () => {
+    const search = contentLibrarySearchFromUrl(
+      new URL(
+        "https://app.test/a/library?section=actions&action=poses&gestureMotion=vrma&gestureStatus=equipped&gestureUpdatesOnly=true&gestureSort=name-desc&showStarters=false&query=Salute&sort=updated",
+      ),
+    );
+    expect(search).toEqual({
+      section: "actions",
+      action: "poses",
+      showStarters: false,
+      query: "Salute",
+      sort: "name",
+    });
+    expect(normalizeContentLibrarySearch(search).action).toBe("poses");
+  });
+
   it("uses product-domain defaults", () => {
     expect(normalizeContentLibrarySearch({})).toMatchObject({
       section: "all",

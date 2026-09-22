@@ -21,7 +21,26 @@ through the client-side timeline without saving it or changing an Anima
 loadout. The editor prepares an exact dependency closure locally when timeline
 events need Effects or Sounds. Gesture supports the Anima Clip schema and a
 self-contained VRMA import. Reaction exposes expression/effect/sound timing and
-rejects humanoid tracks.
+rejects humanoid tracks. Its creator preview uses Relaxed Rest as a display-only
+body pose while loading, seeking and playing; that backdrop is not written into
+the Reaction document.
+
+Standalone Included/Local Poses contain resolved static bone and expression values.
+The Gesture editor saves them through `/v1/poses`; Library previews use a static
+hold in the existing protected preview dock without changing an Anima. Selecting a
+pose for a Gesture copies effective values, including inherited channels and the
+clip base overlay. The insertion bakes the whole candidate clip and removes its
+external base as one undoable edit, preserving existing samples. Saved/reopened
+clips therefore remain independent of source edits or deletion. Reactions retain
+their expression/effect/sound-only contract.
+
+Shipped Gestures may reference immutable poses in
+`web/src/lib/avatar/poses/json/internal-poses/`. These runtime dependencies ship in
+the frontend bundle and resolve clip `ref`/`basePose` IDs; they are not registered
+Included content or offered in Library/creator pose pickers. The five selectable
+starters remain canonical documents under `content/included/poses`. Referenced
+Gesture exports require the matching application catalog; inserted user poses
+continue to be copied as self-contained values.
 
 Idle Styles add an emotion-aware idle lane. A mounted runtime uses the exact
 selected style (or an intentionally empty
@@ -280,10 +299,9 @@ Important behavior:
   normalized humanoid bone transforms, expression weights, and an optional
   `parent` ref to another catalog pose. `parent` fills missing targets before
   application; no `parent` means omitted static-pose bones fall back to the VRM
-  normalized T-pose after `PoseController` resets the humanoid. The built-in
-  catalog makes this fallback explicit for default/rest authoring by storing
-  `vrmTPose` as a concrete all-identity catalog pose and making `relaxedRest`
-  inherit from it.
+  normalized T-pose after `PoseController` resets the humanoid. The Included
+  `relaxedRest` snapshot contains every bone's resolved transform, including
+  identity anchors used when authoring sparse overlays.
 - `animaPoseClip/1.0` is a timed sequence. It contains clip metadata,
   optional `role`, optional `basePose`, optional `playback`, optional
   `fadeIn` / `fadeOut` playback envelopes, local pose aliases, pose keyframes,
@@ -362,10 +380,15 @@ Expanding the compact panel's Active Motion Catalog does not enable the
 route mount, so it renders without polling; current playback and fade telemetry
 belongs to the separate Active Actions section, which opts into live snapshots.
 
-Built-in runtime assets behind the App provider live under:
+Standalone Included poses are authored in `content/included/poses/<id>/<id>.json`
+as self-contained, parent-free content descriptors. The synchronous App provider
+uses a generated projection; run `pnpm poses:generate` from `src/frontend` after
+changing these descriptors. The web build and source check reject projection drift.
 
-- `src/frontend/web/src/lib/avatar/poses/pose_catalog.json`
-- `src/frontend/web/src/lib/avatar/poses/json/*.json`
+Built-in runtime inputs behind the App provider live under:
+
+- `src/frontend/web/src/lib/avatar/poses/pose_catalog.json` (defaults and clip manifest)
+- `src/frontend/web/src/lib/avatar/poses/pose_catalog.generated.json` (generated poses)
 - `src/frontend/web/src/lib/avatar/poses/json/clips/*.json`
 - `src/frontend/web/src/lib/avatar/poses/json/clips/reactions/*.json`
 
@@ -399,11 +422,12 @@ stronger avatar VFX. The `presentation.disable_vfx` preference suppresses
 clip-owned avatar, scene, and particle VFX from pose/reaction playback while
 leaving SFX and manual/debug VFX controls unchanged.
 
-The catalog includes a concrete `vrmTPose` JSON pose with identity rotations
-for every `VRMHumanBoneList` bone. `relaxedRest` inherits from this pose so
-omitted relaxed-rest bones still resolve to explicit T-pose anchors. This keeps
-sparse child poses, such as clips that add `neck`, interpolating from identity
-instead of snapping from a missing source rotation.
+The Included Pose collection contains Relaxed Rest, Shy Finger Poke 1 and 2,
+and Thinking Head Scratch 1 and 2. `relaxedRest` retains resolved transforms
+for every `VRMHumanBoneList` bone, including identity anchors for sparse
+child poses. Other shipped gestures own their pose snapshots inside their
+clips; they do not require extra discoverable Pose items. A clip whose former
+base pose is absent carries those base values in each local pose snapshot.
 
 Runtime pose application checks `vrm.meta.metaVersion` through `isVrm0(...)`.
 VRM 1.x models use the catalog's normalized rotations unchanged. VRM 0.x models

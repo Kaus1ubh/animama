@@ -8,6 +8,7 @@ import {
   resolveContentPreviewEntry,
   type PreparedContentPreview,
 } from "@/lib/content-preview/preparation";
+import { resolvePosePreviewTarget } from "@/lib/content-preview/posePreviewTarget";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 import {
   logContentPreviewLifecycle,
@@ -28,9 +29,43 @@ export function usePreparedContentPreview(
   const owner = options?.owner ?? "dock";
   const lastResolutionRef = useRef<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [resolvedPose, setResolvedPose] = useState<{
+    target: ContentPreviewTarget;
+    attempt: number;
+    prepared: PreparedContentPreview | null;
+    error: string | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!target || !enabled || target.sourceType !== "pose_content") return;
+    const controller = new AbortController();
+    void resolvePosePreviewTarget(target, controller.signal)
+      .then((resolved) => prepareContentPreview(resolved, resolved.entry))
+      .then(
+        (prepared) => {
+          if (controller.signal.aborted) return;
+          setResolvedPose({ target, attempt, prepared, error: null });
+        },
+        (error: unknown) => {
+          if (controller.signal.aborted) return;
+          setResolvedPose({
+            target,
+            attempt,
+            prepared: null,
+            error: contentPreviewPreparationError(error),
+          });
+        },
+      );
+    // Closing, replacing, or handing off the dock makes every pending result obsolete.
+    return () => controller.abort();
+  }, [attempt, enabled, target]);
   const result = useMemo(() => {
     if (!target || !enabled) {
       return { prepared: null, error: null };
+    }
+    if (target.sourceType === "pose_content") {
+      return resolvedPose?.target === target && resolvedPose.attempt === attempt
+        ? resolvedPose
+        : { prepared: null, error: null };
     }
     try {
       const entry = resolveContentPreviewEntry(target, null);
@@ -50,12 +85,16 @@ export function usePreparedContentPreview(
         error: contentPreviewPreparationError(error),
       };
     }
-  }, [attempt, enabled, target]);
+  }, [attempt, enabled, target, resolvedPose]);
   const retry = useCallback(async () => {
     setAttempt((current) => current + 1);
   }, []);
   const isPending = Boolean(
-    target && enabled && !result.prepared && !result.error && false,
+    target &&
+    enabled &&
+    target.sourceType === "pose_content" &&
+    !result.prepared &&
+    !result.error,
   );
 
   useEffect(() => {

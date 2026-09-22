@@ -29,6 +29,16 @@ def test_tracked_checkout_packages_both_starters_without_private_animations(tmp_
     inventory = starter_inventory(root)
     assert [starter["name"] for starter in inventory["starters"]] == ["Annie", "Caitlyn"]
     assert not list(root.rglob("*.vrma"))
+    poses = [entry for entry in inventory["entries"] if entry["kind"] == "pose"]
+    assert len(poses) == 5
+    assert all(entry["partition"] == "core" for entry in poses)
+    assert {entry["logical_key"] for entry in poses} == {
+        "relaxedRest",
+        "shy-finger-poke-1",
+        "shy-finger-poke-2",
+        "thinking-head-scratch-1",
+        "thinking-head-scratch-2",
+    }
     assert all(not starter["diagnostics"] for starter in inventory["starters"])
     assert not any("idle-style:starter" in root for starter in inventory["starters"] for root in starter["roots"])
 
@@ -142,3 +152,76 @@ def test_production_license_policy_keeps_private_examples_excluded() -> None:
     for path in excluded_paths:
         record = next(rule for rule in rules if fnmatch.fnmatchcase(path, rule["glob"]))
         assert record.get("distribution") == "excluded", path
+
+
+def _with_authoring_pose(staged_core: Path, root: Path) -> Path:
+    """Add an unequipped pose to otherwise complete starter content."""
+    shutil.copytree(staged_core, root)
+    descriptor = root / "poses/authoring-only/authoring-only.json"
+    descriptor.parent.mkdir(parents=True)
+    descriptor.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "content_type": "pose",
+                "content_id": "authoringOnly",
+                "name": "Authoring only",
+                "pose": {
+                    "schema": "animaPose/1.0",
+                    "id": "authoringOnly",
+                    "name": "Authoring only",
+                    "humanoid": {"leftUpperArm": {"rotation": [0, 0, 0, 1]}},
+                },
+            }
+        )
+    )
+    return descriptor
+
+
+def test_unequipped_authoring_pose_is_required_core_content(staged_core: Path, tmp_path: Path) -> None:
+    root = tmp_path / "included"
+    descriptor = _with_authoring_pose(staged_core, root)
+
+    inventory = starter_inventory(root)
+
+    pose = next(entry for entry in inventory["entries"] if entry["logical_key"] == "authoringOnly")
+    assert pose["partition"] == "core"
+    assert pose["dependencies"] == []
+    assert pose["files"] == [descriptor.relative_to(root).as_posix()]
+    assert all(pose["locator"] not in starter["entries"] for starter in inventory["starters"])
+    assert next(file for file in inventory["files"] if file["path"] == pose["files"][0])["partition"] == "core"
+
+
+@pytest.mark.parametrize("failure", ["untracked", "excluded", "invalid"])
+def test_required_authoring_pose_fails_instead_of_silently_leaving_core(
+    staged_core: Path,
+    tmp_path: Path,
+    failure: str,
+) -> None:
+    root = tmp_path / "included"
+    descriptor = _with_authoring_pose(staged_core, root)
+    allowed_paths = None
+    if failure == "untracked":
+        allowed_paths = {
+            path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file() and path != descriptor
+        }
+    elif failure == "excluded":
+        license_path = root / "licenses/inventory.json"
+        policy = json.loads(license_path.read_text())
+        policy["rules"].insert(
+            0,
+            {
+                "glob": "poses/**",
+                "license_id": "test-excluded",
+                "provenance": "Explicitly excluded test input",
+                "distribution": "excluded",
+            },
+        )
+        license_path.write_text(json.dumps(policy))
+    else:
+        document = json.loads(descriptor.read_text())
+        document["pose"]["parent"] = {"ref": "missingParent"}
+        descriptor.write_text(json.dumps(document))
+
+    with pytest.raises(TypedContentAdmissionError, match="source_invalid|source_unavailable"):
+        starter_inventory(root, allowed_paths=allowed_paths)

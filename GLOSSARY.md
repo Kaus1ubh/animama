@@ -49,6 +49,18 @@ Content in the writable local library, including created, imported or manually
 added items. **Local** distinguishes this content from Included content; both are
 used by the local application and access is governed separately by the catalog.
 
+## Pose
+
+A static set of humanoid bone transforms and expression weights. A saved Pose is
+self-contained Included or Local content. Inserting it into a Gesture copies its
+effective values; later source edits or deletion do not change that Gesture.
+
+## Pose Clip
+
+A timed animation sequence of poses and optional effects or sounds. A Gesture can
+own its clip as an internal file; an independently reusable Pose Clip has its own
+catalog item. A standalone Pose has no timeline and is not Anima equipment.
+
 ## Loadout
 
 An Anima's persisted, revisioned selection of content and bindings. It describes

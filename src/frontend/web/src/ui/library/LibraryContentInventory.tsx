@@ -38,10 +38,13 @@ import {
   libraryProductActionPolicy,
   libraryRowPresentation,
   actionLibraryCard,
+  poseLibraryCard,
   type LibraryProductCard,
 } from "@/lib/content/libraryPresentation";
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
 import { actionPreviewTarget } from "@/lib/content-preview/actionPreviewTarget";
+import { posePreviewTarget } from "@/lib/content-preview/posePreviewTarget";
+import { usePoses } from "@/query/hooks/usePoses";
 import { useAvatarCatalog } from "@/query/hooks/useAvatarCatalog";
 import { useEffects } from "@/query/hooks/useEffects";
 import { useGestures, useReactions } from "@/query/hooks/useActions";
@@ -160,22 +163,16 @@ function ProductRow({
         : card.family === "scene"
           ? "scene_effect"
           : "sound_effect";
-  const editPath =
-    card.origin === "Mine" && itemId
-      ? card.family === "gesture"
-        ? `/a/gestures/${itemId}/edit`
-        : card.family === "reaction"
-          ? `/a/reactions/${itemId}/edit`
-          : card.family === "particle"
-            ? `/a/particle-effects/${itemId}/edit`
-            : card.family === "avatar-effect"
-              ? `/a/avatar-effects/${itemId}/edit`
-              : card.family === "scene"
-                ? `/a/scene-effects/${itemId}/edit`
-                : card.family === "sound"
-                  ? `/a/sound-effects/${itemId}/edit`
-                  : null
-      : null;
+  const editPaths = {
+    pose: "/a/poses",
+    gesture: "/a/gestures",
+    reaction: "/a/reactions",
+    particle: "/a/particle-effects",
+    "avatar-effect": "/a/avatar-effects",
+    scene: "/a/scene-effects",
+    sound: "/a/sound-effects",
+  } as const;
+  const editPath = `${editPaths[card.family]}/${encodeURIComponent(itemId)}/edit`;
   const policy = libraryProductActionPolicy(card);
   return (
     <LibraryProductRow
@@ -187,17 +184,17 @@ function ProductRow({
               <Play /> Preview
             </Button>
           ) : null}
-          {policy.manage && onManage ? (
-            <Button size="sm" onClick={onManage}>
-              <Plus />
-              Add / Manage
-            </Button>
-          ) : null}
-          {policy.edit && editPath ? (
+          {policy.edit ? (
             <Button size="sm" variant="outline" asChild>
               <Link to={editPath}>
                 <Pencil /> Edit
               </Link>
+            </Button>
+          ) : null}
+          {policy.manage && onManage ? (
+            <Button size="sm" onClick={onManage}>
+              <Plus />
+              Add / Manage
             </Button>
           ) : null}
           {policy.useInGesture ? (
@@ -269,6 +266,11 @@ export function LibraryContentInventory({
         : search.gestureMotion,
     enabled: includes("gestures"),
   });
+  const poses = usePoses({
+    query: search.query,
+    origin,
+    enabled: includes("poses"),
+  });
   const reactions = useReactions({
     query: search.query,
     origin,
@@ -333,6 +335,14 @@ export function LibraryContentInventory({
     values: PyCatalogViewItem[],
   ) => values.map((item) => effectLibraryCard(family, item));
 
+  const previewPose = (card: LibraryProductCard) => {
+    const item = poses.data?.items.find(
+      (candidate) => candidate.item_id === card.itemId,
+    );
+    if (!item) return;
+    setEffectPreview(null);
+    openPreview(posePreviewTarget(item));
+  };
   const previewAction = async (card: LibraryProductCard) => {
     if (!card.source) return;
     setEffectPreview(null);
@@ -407,9 +417,11 @@ export function LibraryContentInventory({
         key={card.key}
         card={card}
         onPreview={() =>
-          void (card.family === "gesture" || card.family === "reaction"
-            ? previewAction(card)
-            : previewEffect(card))
+          void (card.family === "pose"
+            ? previewPose(card)
+            : card.family === "gesture" || card.family === "reaction"
+              ? previewAction(card)
+              : previewEffect(card))
         }
         onManage={
           card.family === "gesture" || card.family === "reaction"
@@ -423,7 +435,7 @@ export function LibraryContentInventory({
     id: LibraryInventoryGroup;
     title: string;
     cards: LibraryProductCard[];
-    query?: typeof gestures;
+    query?: typeof gestures | typeof poses;
   }> = [
     { id: "gestures", title: "Gestures", cards: gestureRows, query: gestures },
     {
@@ -431,6 +443,12 @@ export function LibraryContentInventory({
       title: "Reactions",
       cards: reactionRows,
       query: reactions as typeof gestures,
+    },
+    {
+      id: "poses",
+      title: "Poses",
+      cards: (poses.data?.items ?? []).map(poseLibraryCard),
+      query: poses,
     },
     {
       id: "particle",
@@ -553,7 +571,9 @@ export function LibraryContentInventory({
               id={group.id}
               title={group.title}
               footer={
-                group.query ? <LoadMore query={group.query} /> : undefined
+                group.query && "fetchNextPage" in group.query ? (
+                  <LoadMore query={group.query} />
+                ) : undefined
               }
             >
               <InventoryState

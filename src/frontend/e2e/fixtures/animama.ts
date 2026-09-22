@@ -46,6 +46,7 @@ export type EvidenceAttachment = {
 
 export type CreatorContentKind =
   | "gesture"
+  | "pose"
   | "reaction"
   | "particle_effect"
   | "avatar_effect"
@@ -110,6 +111,11 @@ export type CreatorContentFixture = {
       itemId: string;
       revisionSha256: string;
     },
+  ): Promise<void>;
+  recordOwnedContentRevision(
+    plan: CreatorContentPlan,
+    previous: { itemId: string; revisionSha256: string },
+    updated: { itemId: string; revisionSha256: string },
   ): Promise<void>;
   verifyOwnedContent(
     plan: CreatorContentPlan,
@@ -342,6 +348,19 @@ export const test = base.extend<AnimamaFixtures>({
           event: "owned",
         });
       },
+      async recordOwnedContentRevision(plan, previous, updated) {
+        if (previous.itemId !== updated.itemId)
+          throw new Error("Edited content changed its owned identity.");
+        const item = await readPlannedOwnedItem(plan, updated);
+        await appendContentLedgerEvent(ledgerPath, {
+          ...plan,
+          event: "updated",
+          itemId: updated.itemId,
+          revisionSha256: updated.revisionSha256,
+          previousRevisionSha256: previous.revisionSha256,
+          relativeLocator: item.relative_locator,
+        });
+      },
       async verifyOwnedContent(plan, owned) {
         const item = await readPlannedOwnedItem(plan, owned);
         const files = (await verifyLocalCatalogItemFiles({
@@ -393,14 +412,21 @@ export const test = base.extend<AnimamaFixtures>({
           "deleted",
         ];
         if (
-          lifecycle.length !== expectedLifecycle.length ||
-          lifecycle.some((event, index) => event !== expectedLifecycle[index])
+          lifecycle.includes("updated")
+            ? lifecycle.at(-2) !== "cleanup_started" ||
+              lifecycle.at(-1) !== "deleted"
+            : lifecycle.length !== expectedLifecycle.length ||
+              lifecycle.some(
+                (event, index) => event !== expectedLifecycle[index],
+              )
         ) {
           throw new Error(
             `Creator content ledger did not end in the exact owned deletion lifecycle: ${lifecycle.join(" -> ") || "empty"}.`,
           );
         }
-        const ownedEvent = events.find((event) => event.event === "owned");
+        const ownedEvent = events.findLast(
+          (event) => event.event === "owned" || event.event === "updated",
+        );
         if (
           !ownedEvent ||
           ownedEvent.itemId !== owned.itemId ||

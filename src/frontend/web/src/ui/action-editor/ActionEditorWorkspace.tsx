@@ -13,6 +13,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type ComponentType,
 } from "react";
 
@@ -21,11 +22,14 @@ import {
   getResolvedAvatarPose,
   isAnimaPoseClipRef,
   parseAnimaPose,
+  sampleAnimaPoseClip,
   type AnimaPose,
   type AnimaPoseClipPose,
 } from "@/lib/avatar";
+import { usePoses } from "@/query/hooks/usePoses";
 import { cn } from "@/lib/utils";
 import {
+  DEFAULT_POSE_CREATOR_BASE_POSE,
   selectCanRedoClip,
   selectCanRedoPose,
   selectCanUndoPose,
@@ -50,6 +54,7 @@ import {
 } from "./ActionEditorPrimitives";
 import {
   editActionEditorSavedPose,
+  insertActionEditorSavedPose,
   setActionEditorAuthoringMode,
 } from "./actionEditorSavedPose";
 import { ActionCatalogDragProvider } from "./ActionCatalogDrag";
@@ -74,9 +79,49 @@ import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import { pruneUnusedTimelineDependencies } from "./actionDependencies";
 import { actionEditorCapabilities } from "./actionEditorCapabilities";
 import { retainActionEditorWorkspace } from "./actionEditorStoreLifecycle";
-import { findPoseCreatorClipKeyframeAtTime } from "@/ui/pose-creator/poseCreatorClipAuthoring";
+import {
+  buildAnimaPoseClipFromPoseCreatorDraft,
+  findPoseCreatorClipKeyframeAtTime,
+} from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import { samplePoseCreatorClipExpressions } from "@/ui/pose-creator/poseCreatorClipPreview";
 import { useActionEditorDesktopLayout } from "./useActionEditorDesktopLayout";
+
+/** Capture a keyframe before entering inline editing at an unselected playhead. */
+export function captureActionEditorPoseAtPlayhead(): boolean {
+  const state = usePoseCreatorStore.getState();
+  try {
+    const draft = state.clipDraft;
+    const clip = buildAnimaPoseClipFromPoseCreatorDraft(draft);
+    const sample = clip
+      ? sampleAnimaPoseClip(clip, draft.currentTimeSec, getResolvedAvatarPose)
+      : null;
+    if (sample?.diagnostics.missingPoseRefs.length)
+      throw new Error("Some clip poses are unavailable.");
+    const pose = sample
+      ? parseAnimaPose({
+          schema: ANIMA_POSE_SCHEMA,
+          id: `${draft.id}.capture`,
+          name: "Captured pose",
+          ...sample.sample,
+        })
+      : draft.basePose
+        ? getResolvedAvatarPose(draft.basePose)
+        : parseAnimaPose({
+            schema: ANIMA_POSE_SCHEMA,
+            id: `${draft.id}.capture`,
+            name: "Captured pose",
+          });
+    state.captureClipPoseAtPlayhead(pose);
+    return true;
+  } catch (error) {
+    state.setImportError(
+      error instanceof Error
+        ? error.message
+        : "Could not capture the current clip pose.",
+    );
+    return false;
+  }
+}
 
 type MobileTool =
   | "timeline"
@@ -163,9 +208,6 @@ function ActionEditorWorkspaceContent() {
     (state) => state.setAuthoringMode,
   );
   const resetWorkspace = usePoseCreatorStore((state) => state.resetWorkspace);
-  const hydrateLocalDrafts = usePoseCreatorStore(
-    (state) => state.hydrateLocalDrafts,
-  );
   const historyController = useActionHistoryController(
     workspace.history,
     Boolean(clipInlineEdit),
@@ -173,8 +215,7 @@ function ActionEditorWorkspaceContent() {
 
   useEffect(() => {
     setAuthoringMode("clip");
-    hydrateLocalDrafts();
-  }, [hydrateLocalDrafts, setAuthoringMode]);
+  }, [setAuthoringMode]);
   useEffect(
     () => retainActionEditorWorkspace(resetWorkspace),
     [resetWorkspace],
@@ -230,9 +271,7 @@ function ActionEditorWorkspaceContent() {
       (value) => value.id === state.clipDraft.selectedKeyframeId,
     );
     if (!keyframe) {
-      state.captureClipPoseAtPlayhead(
-        getResolvedAvatarPose(state.clipDraft.basePose),
-      );
+      if (!captureActionEditorPoseAtPlayhead()) return false;
       const next = usePoseCreatorStore.getState();
       keyframe = next.clipDraft.keyframes.find(
         (value) => value.id === next.clipDraft.selectedKeyframeId,
@@ -416,7 +455,13 @@ function ActionEditorWorkspaceContent() {
         onHistoryGroupEnd={workspace.history.endGroup}
         onChange={updateTimeline}
       />
-      <ActionEditorClipPreviewSync />
+      <ActionEditorClipPreviewSync
+        previewBasePose={
+          workspace.document.intent === "reaction"
+            ? DEFAULT_POSE_CREATOR_BASE_POSE
+            : undefined
+        }
+      />
       <ActionEditorHeader
         history={historyController}
         onModeChange={(mode) => {
@@ -721,9 +766,23 @@ function EffectsPanel({
   onExpandedChange?: (expanded: boolean) => void;
 }) {
   const workspace = useActionEditorWorkspace();
-  const savedPoses = usePoseCreatorStore((state) => state.savedDrafts);
-  const addPoseToClip = usePoseCreatorStore((state) => state.addPoseToClip);
   const gesture = workspace.document.intent === "gesture";
+  const posesQuery = usePoses({ enabled: gesture });
+  const savedPoses = posesQuery.data?.items ?? [];
+  const live = useRef(workspace);
+  live.current = workspace;
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  const isCurrent = () =>
+    alive.current &&
+    live.current.timelineSession === workspace.timelineSession &&
+    live.current.document.intent === "gesture" &&
+    live.current.mode === workspace.mode;
   return (
     <ActionEditorEffectsPanel
       onCreatePose={() => workspace.setMode("pose")}
@@ -739,16 +798,25 @@ function EffectsPanel({
       onAdd={workspace.addComponent}
       onRemove={workspace.removeDependency}
       poses={gesture ? savedPoses : undefined}
+      posesPending={posesQuery.isPending}
+      posesError={posesQuery.error?.message ?? null}
+      onRetryPoses={() => void posesQuery.refetch()}
       onEditPose={
         gesture
           ? (pose) => {
-              if (editActionEditorSavedPose(pose)) workspace.setMode("pose");
+              void editActionEditorSavedPose(pose, { isCurrent }).then(
+                (loaded) => {
+                  if (loaded && isCurrent()) workspace.setMode("pose");
+                },
+              );
             }
           : undefined
       }
       onAddPose={
         gesture
-          ? (pose) => addPoseToClip(pose.pose, pose.name, { atPlayhead: true })
+          ? (pose) => {
+              void insertActionEditorSavedPose(pose, { isCurrent });
+            }
           : undefined
       }
     />

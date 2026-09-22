@@ -23,6 +23,7 @@ import type {
 export type ContentKind =
   | "avatar"
   | "gesture"
+  | "pose"
   | "pose_clip"
   | "reaction"
   | "particle_effect"

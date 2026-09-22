@@ -15,6 +15,7 @@ import {
   reactionCount,
   reconcileCreationIssues,
   setReaction,
+  sourceMapSchema,
 } from "./createAnimaDraft";
 import { DEFAULT_ANIMA_IDENTITY_MARKDOWN } from "./createAnimaIdentity";
 import {
@@ -25,6 +26,16 @@ import {
 } from "./createAnimaTestFixtures";
 
 describe("CreateAnimaDraft", () => {
+  it("accepts Pose source evidence without adding a creation equipment root", () => {
+    const evidence = { pose: revision("pose") };
+    expect(sourceMapSchema.parse(evidence)).toEqual(evidence);
+    const draft = { ...readyDraft(), seed_revisions: evidence };
+    expect(createAnimaDraftSchema.safeParse(draft).success).toBe(true);
+    expect(
+      creationRoots(draft).some((root) => String(root.kind) === "pose"),
+    ).toBe(false);
+  });
+
   it("constructs schema v2 with the exact editable identity seed and 72 null cells", () => {
     const draft = newCreateAnimaDraft();
     expect(draft.schema_version).toBe(2);

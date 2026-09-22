@@ -22,6 +22,7 @@ from animama.app.services.typed_content_service import TypedContentAdmissionErro
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     CatalogContentFile,
+    ContentKind,
     ContentScope,
     ContentSource,
     ContentStatus,
@@ -145,7 +146,11 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
         return closure
 
     common = resolve_roots(recommended)
-    core = set(common)
+    # The authoring collection ships with core even when no Anima equips it.
+    # Select before admission filtering so excluded/untracked/invalid required
+    # poses fail resolution instead of silently disappearing from distribution.
+    authoring_roots = [entry.relative_locator for entry in scanned if entry.kind is ContentKind.POSE]
+    core = common | resolve_roots(authoring_roots)
     starters = []
     for spec in STARTER_ANIMA_SPECS:
         roots = [spec.avatar_locator]

@@ -38,6 +38,7 @@ import { Route as AAnimasAnimaIdRouteImport } from "./routes/a/animas/$animaId";
 import { Route as ASoundEffectsSoundEffectIdEditRouteImport } from "./routes/a/sound-effects.$soundEffectId.edit";
 import { Route as ASceneEffectsSceneEffectIdEditRouteImport } from "./routes/a/scene-effects.$sceneEffectId.edit";
 import { Route as AReactionsReactionIdEditRouteImport } from "./routes/a/reactions.$reactionId.edit";
+import { Route as APosesPoseIdEditRouteImport } from "./routes/a/poses.$poseId.edit";
 import { Route as AParticleEffectsParticleEffectIdEditRouteImport } from "./routes/a/particle-effects.$particleEffectId.edit";
 import { Route as AMusicTracksMusicTrackIdEditRouteImport } from "./routes/a/music-tracks.$musicTrackId.edit";
 import { Route as AIdleStylesIdleStyleIdEditRouteImport } from "./routes/a/idle-styles.$idleStyleId.edit";
@@ -194,6 +195,11 @@ const AReactionsReactionIdEditRoute =
     path: "/reactions/$reactionId/edit",
     getParentRoute: () => ARoute,
   } as any);
+const APosesPoseIdEditRoute = APosesPoseIdEditRouteImport.update({
+  id: "/poses/$poseId/edit",
+  path: "/poses/$poseId/edit",
+  getParentRoute: () => ARoute,
+} as any);
 const AParticleEffectsParticleEffectIdEditRoute =
   AParticleEffectsParticleEffectIdEditRouteImport.update({
     id: "/particle-effects/$particleEffectId/edit",
@@ -268,6 +274,7 @@ export interface FileRoutesByFullPath {
   "/a/idle-styles/$idleStyleId/edit": typeof AIdleStylesIdleStyleIdEditRoute;
   "/a/music-tracks/$musicTrackId/edit": typeof AMusicTracksMusicTrackIdEditRoute;
   "/a/particle-effects/$particleEffectId/edit": typeof AParticleEffectsParticleEffectIdEditRoute;
+  "/a/poses/$poseId/edit": typeof APosesPoseIdEditRoute;
   "/a/reactions/$reactionId/edit": typeof AReactionsReactionIdEditRoute;
   "/a/scene-effects/$sceneEffectId/edit": typeof ASceneEffectsSceneEffectIdEditRoute;
   "/a/sound-effects/$soundEffectId/edit": typeof ASoundEffectsSoundEffectIdEditRoute;
@@ -303,6 +310,7 @@ export interface FileRoutesByTo {
   "/a/idle-styles/$idleStyleId/edit": typeof AIdleStylesIdleStyleIdEditRoute;
   "/a/music-tracks/$musicTrackId/edit": typeof AMusicTracksMusicTrackIdEditRoute;
   "/a/particle-effects/$particleEffectId/edit": typeof AParticleEffectsParticleEffectIdEditRoute;
+  "/a/poses/$poseId/edit": typeof APosesPoseIdEditRoute;
   "/a/reactions/$reactionId/edit": typeof AReactionsReactionIdEditRoute;
   "/a/scene-effects/$sceneEffectId/edit": typeof ASceneEffectsSceneEffectIdEditRoute;
   "/a/sound-effects/$soundEffectId/edit": typeof ASoundEffectsSoundEffectIdEditRoute;
@@ -342,6 +350,7 @@ export interface FileRoutesById {
   "/a/idle-styles/$idleStyleId/edit": typeof AIdleStylesIdleStyleIdEditRoute;
   "/a/music-tracks/$musicTrackId/edit": typeof AMusicTracksMusicTrackIdEditRoute;
   "/a/particle-effects/$particleEffectId/edit": typeof AParticleEffectsParticleEffectIdEditRoute;
+  "/a/poses/$poseId/edit": typeof APosesPoseIdEditRoute;
   "/a/reactions/$reactionId/edit": typeof AReactionsReactionIdEditRoute;
   "/a/scene-effects/$sceneEffectId/edit": typeof ASceneEffectsSceneEffectIdEditRoute;
   "/a/sound-effects/$soundEffectId/edit": typeof ASoundEffectsSoundEffectIdEditRoute;
@@ -382,6 +391,7 @@ export interface FileRouteTypes {
     | "/a/idle-styles/$idleStyleId/edit"
     | "/a/music-tracks/$musicTrackId/edit"
     | "/a/particle-effects/$particleEffectId/edit"
+    | "/a/poses/$poseId/edit"
     | "/a/reactions/$reactionId/edit"
     | "/a/scene-effects/$sceneEffectId/edit"
     | "/a/sound-effects/$soundEffectId/edit";
@@ -417,6 +427,7 @@ export interface FileRouteTypes {
     | "/a/idle-styles/$idleStyleId/edit"
     | "/a/music-tracks/$musicTrackId/edit"
     | "/a/particle-effects/$particleEffectId/edit"
+    | "/a/poses/$poseId/edit"
     | "/a/reactions/$reactionId/edit"
     | "/a/scene-effects/$sceneEffectId/edit"
     | "/a/sound-effects/$soundEffectId/edit";
@@ -455,6 +466,7 @@ export interface FileRouteTypes {
     | "/a/idle-styles/$idleStyleId/edit"
     | "/a/music-tracks/$musicTrackId/edit"
     | "/a/particle-effects/$particleEffectId/edit"
+    | "/a/poses/$poseId/edit"
     | "/a/reactions/$reactionId/edit"
     | "/a/scene-effects/$sceneEffectId/edit"
     | "/a/sound-effects/$soundEffectId/edit";
@@ -673,6 +685,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AReactionsReactionIdEditRouteImport;
       parentRoute: typeof ARoute;
     };
+    "/a/poses/$poseId/edit": {
+      id: "/a/poses/$poseId/edit";
+      path: "/poses/$poseId/edit";
+      fullPath: "/a/poses/$poseId/edit";
+      preLoaderRoute: typeof APosesPoseIdEditRouteImport;
+      parentRoute: typeof ARoute;
+    };
     "/a/particle-effects/$particleEffectId/edit": {
       id: "/a/particle-effects/$particleEffectId/edit";
       path: "/particle-effects/$particleEffectId/edit";
@@ -789,6 +808,7 @@ interface ARouteChildren {
   AIdleStylesIdleStyleIdEditRoute: typeof AIdleStylesIdleStyleIdEditRoute;
   AMusicTracksMusicTrackIdEditRoute: typeof AMusicTracksMusicTrackIdEditRoute;
   AParticleEffectsParticleEffectIdEditRoute: typeof AParticleEffectsParticleEffectIdEditRoute;
+  APosesPoseIdEditRoute: typeof APosesPoseIdEditRoute;
   AReactionsReactionIdEditRoute: typeof AReactionsReactionIdEditRoute;
   ASceneEffectsSceneEffectIdEditRoute: typeof ASceneEffectsSceneEffectIdEditRoute;
   ASoundEffectsSoundEffectIdEditRoute: typeof ASoundEffectsSoundEffectIdEditRoute;
@@ -818,6 +838,7 @@ const ARouteChildren: ARouteChildren = {
   AMusicTracksMusicTrackIdEditRoute: AMusicTracksMusicTrackIdEditRoute,
   AParticleEffectsParticleEffectIdEditRoute:
     AParticleEffectsParticleEffectIdEditRoute,
+  APosesPoseIdEditRoute: APosesPoseIdEditRoute,
   AReactionsReactionIdEditRoute: AReactionsReactionIdEditRoute,
   ASceneEffectsSceneEffectIdEditRoute: ASceneEffectsSceneEffectIdEditRoute,
   ASoundEffectsSoundEffectIdEditRoute: ASoundEffectsSoundEffectIdEditRoute,

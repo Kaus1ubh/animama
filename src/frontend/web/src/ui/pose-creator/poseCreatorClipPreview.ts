@@ -22,9 +22,11 @@ type PoseCreatorClipPreviewResult = {
   diagnostics: PoseCreatorClipPreviewDiagnostics;
 };
 
+/** A preview base supplies posture without adding humanoid data to the authored clip. */
 export function applyPoseCreatorClipPreview(
   avatar: Avatar | null,
   draft: PoseCreatorClipDraft,
+  previewBasePose?: string,
 ): PoseCreatorClipPreviewResult {
   if (!avatar) {
     return {
@@ -39,7 +41,7 @@ export function applyPoseCreatorClipPreview(
   if (!clip) {
     // An empty document still owns the canvas state. Restore it after a prior
     // preview's cleanup or a late Avatar mount instead of retaining old edits.
-    applyPoseCreatorBasePose(avatar, draft.basePose);
+    applyPoseCreatorBasePose(avatar, previewBasePose ?? draft.basePose);
     avatar.clearAllExpressionOverrides();
     avatar.vrm?.update(0);
     return {
@@ -53,7 +55,7 @@ export function applyPoseCreatorClipPreview(
     draft.currentTimeSec,
     resolveCatalogPose,
   );
-  applyPoseCreatorBasePose(avatar, draft.basePose);
+  applyPoseCreatorBasePose(avatar, previewBasePose ?? draft.basePose);
   // Humanoid poses can be written directly, but facial values must go through
   // Avatar's expression controller. Direct VRM expression-manager writes are
   // overwritten by Avatar.update() on the next frame, which made a one-off

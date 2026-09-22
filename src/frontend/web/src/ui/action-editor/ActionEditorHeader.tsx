@@ -72,6 +72,7 @@ import {
   getCreatorHistoryShortcutLabels,
   type CreatorHistoryController,
 } from "@/ui/creator-history/CreatorHistory";
+import { PosePrimaryActions } from "@/ui/pose-creator/PosePrimaryActions";
 import { PoseCreatorLibrarySection } from "@/ui/pose-creator/PoseCreatorLibrarySection";
 import { actionValidationMessages } from "./actionValidationMessages";
 import { renameActionDocument } from "./actionDocument";
@@ -265,38 +266,6 @@ function ActionModeControl({
         </TabsTrigger>
       </TabsList>
     </Tabs>
-  );
-}
-
-function PosePrimaryActions({ busy }: { busy: boolean }) {
-  const selectedSource = usePoseCreatorStore((state) => state.selectedSource);
-  const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
-  return (
-    <div className="col-start-3 row-start-1 flex h-11 items-center gap-1.5 lg:col-start-6 lg:h-12">
-      <Button
-        type="submit"
-        form="pose-creator-pose-save-form"
-        variant="outline"
-        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
-        disabled={busy || !selectedSource}
-        aria-label="Save pose"
-      >
-        <SaveIcon className="size-4" />
-        <span className="hidden lg:inline">Save</span>
-      </Button>
-      <Button
-        type="submit"
-        form="pose-creator-pose-save-form"
-        name="pose-creator-submit-action"
-        value="save-and-branch"
-        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
-        disabled={busy || !selectedSource || !activeAvatar}
-        aria-label="Save and branch pose"
-      >
-        <WandSparklesIcon className="size-4" />
-        <span className="hidden lg:inline">Save &amp; Branch</span>
-      </Button>
-    </div>
   );
 }
 
@@ -770,9 +739,10 @@ function ActionLoadButton() {
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        avoidSidebar
         align="end"
         sideOffset={12}
-        className="w-[calc(100vw-1rem)] max-w-[420px] rounded-xl p-3"
+        className="w-[420px] rounded-xl p-3"
       >
         <div className="mb-3">
           <p className="text-sm font-semibold">

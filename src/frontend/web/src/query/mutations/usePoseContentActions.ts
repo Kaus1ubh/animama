@@ -1,0 +1,69 @@
+"use client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { savePose } from "@animama/runtime-contracts/sdk";
+import type { PyPose } from "@animama/runtime-contracts/api-types";
+import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { deleteCatalogItem } from "@/lib/content/catalogApi";
+import { toContentSaveApiError } from "@/lib/content/contentSaveErrors";
+import type { PoseSaveInput } from "@/lib/content/poseContent";
+import { queryKeys } from "@/query/keys";
+
+/** Submit the captured revision and operation unchanged, including retries. */
+export async function savePoseContent(input: PoseSaveInput): Promise<PyPose> {
+  if (!input.name.trim() || input.pose.parent)
+    throw new Error("A named, resolved Pose is required.");
+  if (Boolean(input.itemId) !== Boolean(input.expectedRevision))
+    throw new Error("The loaded Pose revision is required.");
+  try {
+    const response = await savePose({
+      path: { entry_name: input.name },
+      body: {
+        operation_id: input.operationId,
+        catalog_item_id: input.itemId,
+        expected_revision: input.expectedRevision,
+        descriptor_json: JSON.stringify({
+          schema_version: 1,
+          content_type: "pose",
+          content_id: input.pose.id,
+          name: input.name,
+          pose: { ...input.pose, name: input.name },
+        }),
+      },
+      requestValidator: undefined,
+      responseValidator: undefined,
+      throwOnError: false,
+    });
+    if (response.error !== undefined || !response.data)
+      throw toContentSaveApiError(response.error, response.response.status);
+    return response.data;
+  } catch (error) {
+    throw toContentSaveApiError(error);
+  }
+}
+
+/** Mutations refresh only Pose and neutral catalog views, preserving loaded draft revisions. */
+export function usePoseContentActions() {
+  const owner = useRuntimeOwnerId();
+  const client = useQueryClient();
+  const refresh = async () => {
+    if (!owner) return;
+    await Promise.all([
+      client.invalidateQueries({ queryKey: queryKeys.poses.all(owner) }),
+      client.invalidateQueries({ queryKey: queryKeys.content.catalog(owner) }),
+    ]);
+  };
+  const save = useMutation({
+    mutationKey: queryKeys.poses.save(owner ?? "__anon__"),
+    mutationFn: savePoseContent,
+    onSuccess: refresh,
+  });
+  const remove = useMutation({
+    mutationFn: async (item: PyPose) => {
+      if (!item.editable || item.source !== "local")
+        throw new Error("Included Poses cannot be deleted.");
+      await deleteCatalogItem(item.item_id, item.revision_sha256);
+    },
+    onSuccess: refresh,
+  });
+  return { savePose: save, deletePose: remove };
+}

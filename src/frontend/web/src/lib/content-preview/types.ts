@@ -1,3 +1,4 @@
+import type { PyPose } from "@animama/runtime-contracts/api-types";
 import type {
   RuntimeResourceKind,
   AnimaRuntimeCatalogSnapshot,
@@ -34,6 +35,7 @@ type ContentPreviewTargetBase = {
 };
 
 export type ContentPreviewTarget =
+  | (ContentPreviewTargetBase & { sourceType: "pose_content"; item: PyPose })
   | (ContentPreviewTargetBase & {
       sourceType: "resolved_entry";
       entry: RuntimeCatalogEntry;

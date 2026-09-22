@@ -3,7 +3,7 @@
 ## Neutral Content Catalog
 
 Gesture, Reaction, Particle Effect, Avatar Effect, Scene Effect, Sound Effect,
-Idle Style, Music Track, Avatar, Appearance, voice, and pose clip content share
+Idle Style, Music Track, Avatar, Appearance, voice, pose, and pose clip content share
 one readable Content Catalog. The `anima` kind is reserved/rejecting;
 live Animas are private aggregates. Included and Local are filesystem sources,
 not parallel domain models. Concrete validators and runtime players remain

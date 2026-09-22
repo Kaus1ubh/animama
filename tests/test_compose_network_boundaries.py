@@ -575,7 +575,9 @@ def test_web_launcher_runs_only_the_development_server(tmp_path: Path, mode: str
     assert result.returncode == 0, result.stderr
     assert commands == ["development|development|--filter animama-web dev --host 0.0.0.0 --port 5173 --strictPort"]
     scripts = json.loads((REPO_ROOT / "src/frontend/web/package.json").read_text())["scripts"]
-    assert scripts["dev"].startswith("pnpm --dir .. packages:build && pnpm routes:generate && vite")
+    assert scripts["dev"].startswith(
+        "pnpm --dir .. poses:check && pnpm --dir .. packages:build && pnpm routes:generate && vite"
+    )
 
 
 @pytest.mark.parametrize("mode", ["production", "invalid"])

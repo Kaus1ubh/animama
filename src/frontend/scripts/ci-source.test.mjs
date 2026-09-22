@@ -62,7 +62,7 @@ test("standalone wrappers prepare packages while internal leaves do not rebuild"
   );
   assert.equal(
     web.scripts["build:source"],
-    "pnpm routes:generate && tsc -b && vite build",
+    "pnpm --dir .. poses:check && pnpm routes:generate && tsc -b && vite build",
   );
 });
 

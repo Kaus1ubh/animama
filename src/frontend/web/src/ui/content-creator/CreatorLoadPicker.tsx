@@ -91,9 +91,10 @@ export function CreatorLoadPicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent
+        avoidSidebar
         align="start"
         sideOffset={12}
-        className="w-[calc(100vw-1rem)] max-w-[420px] rounded-xl p-3"
+        className="w-[420px] rounded-xl p-3"
       >
         <CreatorLoadContents
           contentType={contentType}

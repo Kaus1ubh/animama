@@ -1,16 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { parseAnimaPose } from "@/lib/avatar/poses/animaPose";
+import compatibilityPose from "@/lib/avatar/poses/fixtures/content-compatibility-valid.json";
 import { ContentSaveApiError } from "./contentSaveErrors";
 
 const clientMocks = vi.hoisted(() => ({
   saveGesture: vi.fn(),
+  savePose: vi.fn(),
+  previewPose: vi.fn(),
 }));
 
 vi.mock("@animama/runtime-contracts/sdk", () => ({
   saveGesture: clientMocks.saveGesture,
+  savePose: clientMocks.savePose,
+  previewPose: clientMocks.previewPose,
 }));
 
-import { saveCatalogItem } from "./catalogApi";
+import { previewCatalogItem, saveCatalogItem } from "./catalogApi";
 
 describe("saveCatalogItem error boundary", () => {
   afterEach(() => {
@@ -95,5 +101,71 @@ describe("saveCatalogItem error boundary", () => {
           "Animama could not be reached. Check that the local stack is running, then retry. Your draft is preserved.",
       }),
     );
+  });
+});
+
+describe("Pose catalog transport", () => {
+  it("consumes the shared backend Pose fixture without dropping static values", () => {
+    expect(parseAnimaPose(compatibilityPose.pose)).toEqual(
+      compatibilityPose.pose,
+    );
+  });
+
+  const pose = {
+    kind: "pose" as const,
+    item_id: "pose-item",
+    source: "local" as const,
+    logical_key: "local:pose:salute",
+    name: "Salute",
+    revision_sha256: "pose-revision",
+    editable: true,
+    pose_id: "local:pose:salute",
+    dependencies: [],
+    files: [],
+  };
+
+  it("saves through the Pose family and preserves its catalog identity", async () => {
+    clientMocks.savePose.mockResolvedValue({
+      data: pose,
+      response: new Response(null, { status: 200 }),
+    });
+    const saved = await saveCatalogItem({
+      kind: "pose",
+      entryName: "Salute",
+      files: [],
+      operationId: "save-pose",
+      descriptor: { content_type: "pose" },
+    });
+    expect(saved).toMatchObject({
+      kind: "pose",
+      item_id: "pose-item",
+      logical_key: "local:pose:salute",
+      implementation_kind: null,
+      metadata: { content_type: "pose", id: "local:pose:salute" },
+    });
+    expect(clientMocks.savePose).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: { entry_name: "Salute" },
+        body: expect.objectContaining({ operation_id: "save-pose" }),
+      }),
+    );
+  });
+
+  it("previews Pose content through its typed endpoint", async () => {
+    clientMocks.previewPose.mockResolvedValue({
+      data: {
+        preview_id: "pose-preview",
+        revision_sha256: "pose-revision",
+        expires_at: "2026-09-22T00:00:00Z",
+        item: pose,
+        files: [],
+      },
+    });
+    await expect(
+      previewCatalogItem("pose-item", undefined, "pose"),
+    ).resolves.toMatchObject({
+      item: { kind: "pose", item_id: "pose-item" },
+      metadata: { content_type: "pose", id: "local:pose:salute" },
+    });
   });
 });

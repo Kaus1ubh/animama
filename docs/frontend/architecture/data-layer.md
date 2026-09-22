@@ -24,7 +24,7 @@ review the generated changes, and rebuild the package artifacts.
 The generated client exposes infrastructure-only Content Catalog operations,
 typed product List/Get/Save/Preview methods, package import/export,
 registered-file delivery, typed Anima loadout commands/runtime closures,
-Avatars, appearances, and the rest of the product API. Gesture, Reaction,
+Avatars, appearances, and the rest of the product API. Gesture, Reaction, Pose,
 effect, sound, idle, music, Avatar, Appearance, and voice hooks consume their
 generated discriminated contracts while retaining the one catalog item
 identity underneath.
@@ -225,9 +225,16 @@ and exposes `search_uploaded_files` only for attached searchable uploads.
 ## Library source composition
 
 The `/a/library` route presents family-specific views over the one catalog.
-Gesture, Reaction, typed effect/sound, Idle Style, Music Track, and Avatar
+Gesture, Reaction, Pose, typed effect/sound, Idle Style, Music Track, and Avatar
 hooks use their typed product responses while sharing stable catalog
 identities.
+
+The Actions section contains All, Gestures, Reactions and Poses. Pose queries list
+metadata; loading or inserting a pose resolves its exact registered preview bytes.
+Local poses open in the standalone editor, while Included Customize starts a Local
+copy. Creation remains inside the Gesture editor, with no Library new-pose button
+or Create-page entry. Pose editing retains loaded identity/revision and transient
+drafts; the old browser-saved collection is neither read nor migrated.
 
 `ActionManageDialog` reads every selected Anima's current catalog loadout and
 equips or unequips the selected action against its exact revision with a

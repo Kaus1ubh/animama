@@ -1,15 +1,14 @@
 "use client";
 
+import { useContentEditorSaveSource } from "@/hooks/useContentEditorSaveSource";
+
 import { useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
-import {
-  localContentLogicalKey,
-  saveCatalogItem,
-} from "@/lib/content/catalogApi";
+import { saveCatalogItem } from "@/lib/content/catalogApi";
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
 import {
   SCENE_EFFECT_RECOVERY_SCHEMA,
@@ -48,7 +47,7 @@ export function useSceneEffectSave(args: {
     document: SceneEffectEditorDocument,
     images: SceneEffectEditorImageResource[],
   ) => void;
-  onSaved: (document: SceneEffectEditorDocument) => void;
+  onSaved: (document: SceneEffectEditorDocument, savedItemId: string) => void;
 }) {
   const {
     itemId,
@@ -61,6 +60,8 @@ export function useSceneEffectSave(args: {
   } = args;
   const userId = useRuntimeOwnerId();
   const existing = useSceneEffect(itemId ?? null).data;
+  const { target: saveTargetFor, saved: recordSaved } =
+    useContentEditorSaveSource("scene_effect", itemId, existing);
   const navigate = useNavigate();
   const documentKey = itemId ?? "new";
   const fingerprint = useMemo(
@@ -168,6 +169,7 @@ export function useSceneEffectSave(args: {
     try {
       await persist(session);
       const displayName = document.name.trim();
+      const saveTarget = saveTargetFor(displayName);
       const referenced = sceneEffectImageMetadata(document);
       const resourcesByName = new Map(
         imageResources.map((resource) => [resource.logicalName, resource]),
@@ -206,9 +208,7 @@ export function useSceneEffectSave(args: {
         companionPaths,
         descriptor: {
           schema_version: 1,
-          id:
-            existing?.logical_key ??
-            localContentLogicalKey("scene_effect", displayName),
+          id: saveTarget.logicalKey,
           content_type: "scene_effect",
           name: displayName,
           description: document.description.trim() || undefined,
@@ -227,16 +227,17 @@ export function useSceneEffectSave(args: {
           authoring: document,
         },
         operationId: session.operationId,
-        catalogItemId: existing?.item_id,
-        expectedRevision: existing?.revision_sha256,
+        catalogItemId: saveTarget.catalogItemId,
+        expectedRevision: saveTarget.expectedRevision,
       });
       setUploadProgress(100);
       await clearSceneEffectRecovery(userId, documentKey);
       sessionRef.current = null;
       setRecovered(false);
       setRecoveryWarning(null);
+      onSaved(document, item.item_id);
+      await recordSaved(item);
       setStage("idle");
-      onSaved(document);
       toast.success("Scene Effect saved.");
       await navigate({
         to: "/a/scene-effects/$sceneEffectId/edit",
@@ -266,6 +267,8 @@ export function useSceneEffectSave(args: {
     document,
     documentKey,
     existing,
+    recordSaved,
+    saveTargetFor,
     fingerprint,
     imageResources,
     itemId,

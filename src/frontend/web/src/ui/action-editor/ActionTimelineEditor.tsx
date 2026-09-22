@@ -2,10 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 
-import {
-  DEFAULT_POSE_CREATOR_BASE_POSE,
-  usePoseCreatorStore,
-} from "@/stores/pose-creator-store";
+import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { PoseCreatorClipTimeline } from "@/ui/pose-creator/PoseCreatorClipTimeline";
 import { cn } from "@/lib/utils";
@@ -170,10 +167,6 @@ export function ActionTimelineDocumentSync({
     try {
       if (
         hydrate(parseAnimaPoseClip(editorSequence), {
-          // Omitted motion means the neutral creator stance for both product
-          // types. The explicit T-pose remains available as an authoring
-          // choice, but is never an implicit hydration fallback.
-          fallbackBasePose: DEFAULT_POSE_CREATOR_BASE_POSE,
           ...(preservePlayhead ? { currentTimeSec } : {}),
         })
       ) {

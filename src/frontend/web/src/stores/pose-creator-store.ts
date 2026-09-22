@@ -5,6 +5,7 @@ import { Euler, MathUtils } from "three";
 import { create } from "zustand";
 
 import {
+  parseAnimaPoseClip,
   isAnimaPoseClipRef,
   isAnimaPoseClipVFXEvent,
   type AnimaPoseClip,
@@ -16,8 +17,8 @@ import {
   type ParticleVFXCatalogEntry,
 } from "@/lib/avatar";
 import {
-  cloneAnimaPose,
   parseAnimaPose,
+  resolveAnimaPose,
   type AnimaPose,
 } from "@/lib/avatar/poses/animaPose";
 import {
@@ -27,6 +28,7 @@ import {
   getResolvedAvatarPose,
 } from "@/lib/avatar/poses/catalog";
 import {
+  bakePoseCreatorClipReferences,
   isPoseCreatorBaseKeyframe,
   clonePoseCreatorClipPose,
   clonePoseCreatorClipTransition,
@@ -68,20 +70,27 @@ import {
 } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import type { PoseCreatorModelSource } from "@/ui/pose-creator/poseCreatorPreview";
 
-export type PoseCreatorSavedDraftSource = Pick<
-  PoseCreatorModelSource,
-  "key" | "sourceType" | "displayName" | "sourceLabel" | "versionLabel"
->;
-
-export type PoseCreatorSavedDraft = {
-  id: string;
+/** Exact saved identity; canonical collection and payloads remain in Query. */
+export type PoseCreatorSavedPoseIdentity = {
+  itemId: string;
+  poseId: string;
+  logicalKey: string | null;
+  revision: string;
   name: string;
-  createdAt: string;
-  updatedAt: string;
-  source: PoseCreatorSavedDraftSource;
-  basePose: PoseCreatorBasePose;
-  pose: AnimaPose;
 };
+
+/** Immutable values submitted by an editor Save, excluding runtime state. */
+export type PoseCreatorSubmittedDraft = {
+  draftName: string;
+  basePose: PoseCreatorBasePose;
+  boneDrafts: PoseCreatorBoneDrafts;
+  expressionDrafts: PoseCreatorExpressionDrafts;
+};
+
+let editorSessionSequence = 0;
+function nextEditorSessionToken(): string {
+  return `pose-editor:${++editorSessionSequence}`;
+}
 
 export type PoseCreatorLoadStatus = "idle" | "loading" | "ready" | "error";
 export type PoseCreatorBasePose = string;
@@ -124,7 +133,6 @@ export type PoseCreatorDraftReplacement = {
   basePose: PoseCreatorBasePose;
   boneDrafts: PoseCreatorBoneDrafts;
   expressionDrafts: PoseCreatorExpressionDrafts;
-  selectedSavedDraftId: string | null;
   isDirty: boolean;
   importError?: string | null;
 };
@@ -147,6 +155,7 @@ type PoseCreatorPoseUndoSnapshot = {
 };
 
 type PoseCreatorClipUndoSnapshot = {
+  basePose: string;
   poses: PoseCreatorClipDraft["poses"];
   keyframes: PoseCreatorClipDraft["keyframes"];
   events: PoseCreatorClipDraft["events"];
@@ -180,12 +189,6 @@ type PoseCreatorUndoGroup =
       snapshot: PoseCreatorInlinePoseUndoSnapshot;
     };
 
-export type PoseCreatorSaveLocalDraftInput = {
-  source: PoseCreatorModelSource;
-  basePose: PoseCreatorBasePose;
-  pose: AnimaPose;
-};
-
 // Give new pose sessions an immediately usable rotation handle. Explicit bone
 // selections remain independent of helper visibility and model loading.
 const DEFAULT_POSE_CREATOR_SELECTED_BONE = "leftUpperArm";
@@ -193,9 +196,6 @@ const DEFAULT_POSE_CREATOR_SELECTED_BONE = "leftUpperArm";
 export const POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID = "__vrm_t_pose__";
 export const DEFAULT_POSE_CREATOR_BASE_POSE: PoseCreatorBasePose =
   RELAXED_REST_POSE_ID;
-export const POSE_CREATOR_LOCAL_DRAFTS_STORAGE_KEY =
-  "anima.poseCreator.localDrafts.v1";
-export const POSE_CREATOR_LOCAL_DRAFTS_SCHEMA = "poseCreatorLocalDrafts/1.0";
 export const POSE_CREATOR_UNDO_HISTORY_LIMIT = 50;
 export const POSE_CREATOR_CLIP_VALIDATION_OPTIONS = {
   knownPoseIds: AVATAR_POSE_IDS,
@@ -230,213 +230,8 @@ export function getPoseCreatorBasePoseLabel(
   );
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function sanitizeRequiredString(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function sanitizeIsoDateString(value: unknown): string | null {
-  const text = sanitizeRequiredString(value);
-  if (!text || Number.isNaN(Date.parse(text))) return null;
-  return text;
-}
-
-function sanitizeSavedDraftSource(
-  value: unknown,
-): PoseCreatorSavedDraftSource | null {
-  if (!isRecord(value)) return null;
-  const key = sanitizeRequiredString(value.key);
-  const displayName = sanitizeRequiredString(value.displayName);
-  const versionLabel = sanitizeRequiredString(value.versionLabel);
-  const sourceLabel = sanitizeRequiredString(value.sourceLabel);
-  const sourceType = sanitizeRequiredString(value.sourceType);
-  if (
-    key &&
-    displayName &&
-    versionLabel &&
-    sourceLabel === "Preview Anima" &&
-    sourceType === "resolved_entry"
-  ) {
-    return {
-      key,
-      displayName,
-      versionLabel,
-      sourceLabel,
-      sourceType,
-    };
-  }
-
-  return null;
-}
-
-function sanitizeSavedDraft(value: unknown): PoseCreatorSavedDraft | null {
-  if (!isRecord(value)) return null;
-  const id = sanitizeRequiredString(value.id);
-  const name = sanitizeRequiredString(value.name);
-  const createdAt = sanitizeIsoDateString(value.createdAt);
-  const updatedAt = sanitizeIsoDateString(value.updatedAt);
-  const source = sanitizeSavedDraftSource(value.source);
-  const basePose = sanitizeRequiredString(value.basePose);
-  if (!id || !name || !createdAt || !updatedAt || !source || !basePose) {
-    return null;
-  }
-
-  try {
-    return {
-      id,
-      name,
-      createdAt,
-      updatedAt,
-      source,
-      basePose,
-      pose: cloneAnimaPose(parseAnimaPose(value.pose)),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function getBrowserLocalStorage(): Storage | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-function sortSavedDrafts(
-  drafts: PoseCreatorSavedDraft[],
-): PoseCreatorSavedDraft[] {
-  return [...drafts].sort((left, right) => {
-    const dateDelta = Date.parse(right.updatedAt) - Date.parse(left.updatedAt);
-    if (dateDelta !== 0) return dateDelta;
-    return left.name.localeCompare(right.name);
-  });
-}
-
-function readLocalDraftsFromStorage(): PoseCreatorSavedDraft[] {
-  const storage = getBrowserLocalStorage();
-  if (!storage) return [];
-
-  try {
-    const rawValue = storage.getItem(POSE_CREATOR_LOCAL_DRAFTS_STORAGE_KEY);
-    if (!rawValue) return [];
-    const value: unknown = JSON.parse(rawValue);
-    if (
-      !isRecord(value) ||
-      value.schema !== POSE_CREATOR_LOCAL_DRAFTS_SCHEMA ||
-      !Array.isArray(value.drafts)
-    ) {
-      return [];
-    }
-
-    const drafts: PoseCreatorSavedDraft[] = [];
-    const seenIds = new Set<string>();
-    for (const item of value.drafts) {
-      const draft = sanitizeSavedDraft(item);
-      if (!draft || seenIds.has(draft.id)) continue;
-      seenIds.add(draft.id);
-      drafts.push(draft);
-    }
-    return sortSavedDrafts(drafts);
-  } catch {
-    return [];
-  }
-}
-
-function persistLocalDrafts(drafts: PoseCreatorSavedDraft[]): string | null {
-  const storage = getBrowserLocalStorage();
-  if (!storage) return "Browser local storage is unavailable.";
-
-  try {
-    storage.setItem(
-      POSE_CREATOR_LOCAL_DRAFTS_STORAGE_KEY,
-      JSON.stringify({
-        schema: POSE_CREATOR_LOCAL_DRAFTS_SCHEMA,
-        drafts: sortSavedDrafts(drafts),
-      }),
-    );
-    return null;
-  } catch {
-    return "Failed to write local pose drafts.";
-  }
-}
-
-function createSavedDraftSource(
-  source: PoseCreatorModelSource,
-): PoseCreatorSavedDraftSource {
-  return {
-    key: source.key,
-    sourceType: source.sourceType,
-    displayName: source.displayName,
-    sourceLabel: source.sourceLabel,
-    versionLabel: source.versionLabel,
-  };
-}
-
-function slugifyDraftName(name: string): string {
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return slug || "pose";
-}
-
-function createUniqueDraftId(
-  name: string,
-  savedDrafts: PoseCreatorSavedDraft[],
-): string {
-  const baseId = slugifyDraftName(name);
-  const usedIds = new Set(savedDrafts.map((draft) => draft.id));
-  if (!usedIds.has(baseId)) return baseId;
-
-  let suffix = 2;
-  while (usedIds.has(`${baseId}-${suffix}`)) {
-    suffix += 1;
-  }
-  return `${baseId}-${suffix}`;
-}
-
-const DEFAULT_NEW_POSE_NAME = "New Pose";
-
-function createUniqueNewPoseName(savedDrafts: PoseCreatorSavedDraft[]): string {
-  const usedNames = new Set(
-    savedDrafts.map((draft) => draft.name.trim().toLocaleLowerCase()),
-  );
-  if (!usedNames.has(DEFAULT_NEW_POSE_NAME.toLocaleLowerCase())) {
-    return DEFAULT_NEW_POSE_NAME;
-  }
-
-  let suffix = 1;
-  while (
-    usedNames.has(`${DEFAULT_NEW_POSE_NAME} (${suffix})`.toLocaleLowerCase())
-  ) {
-    suffix += 1;
-  }
-  return `${DEFAULT_NEW_POSE_NAME} (${suffix})`;
-}
-
-function withDraftMetadata(
-  pose: AnimaPose,
-  id: string,
-  name: string,
-): AnimaPose {
-  return parseAnimaPose({
-    ...cloneAnimaPose(pose),
-    id,
-    name,
-  });
-}
-
 function hasCurrentSavedDraft(state: PoseCreatorStoreState): boolean {
-  return state.selectedSavedDraftId !== null;
+  return state.savedPoseIdentity !== null;
 }
 
 function getDirtyStateAfterDraftMutation(
@@ -450,9 +245,9 @@ function getDirtyStateAfterDraftMutation(
 /**
  * In-progress editor and playback state only.
  *
- * Exact server document identity belongs to PoseCreatorDocumentProvider,
- * server queries belong to TanStack Query, and interrupted Save recovery is
- * owned by the typed action editor actions rather than this Zustand store.
+ * Saved identity and editor tokens fence asynchronous content operations.
+ * Canonical collections belong to TanStack Query; this store never persists
+ * a second browser pose library.
  */
 type PoseCreatorStoreState = {
   authoringMode: PoseCreatorAuthoringMode;
@@ -471,8 +266,9 @@ type PoseCreatorStoreState = {
   isDirty: boolean;
   exportPreview: string | null;
   draftName: string;
-  savedDrafts: PoseCreatorSavedDraft[];
-  selectedSavedDraftId: string | null;
+  savedPoseIdentity: PoseCreatorSavedPoseIdentity | null;
+  poseSessionToken: string;
+  clipSessionToken: string;
   importError: string | null;
   clipDraft: PoseCreatorClipDraft;
   clipInlineEdit: PoseCreatorClipInlineEditState | null;
@@ -566,7 +362,7 @@ type PoseCreatorStoreState = {
     pose: AnimaPose,
     preferredAlias: string,
     options?: { atPlayhead?: boolean; timeSec?: number },
-  ) => string;
+  ) => string | null;
   /** Create or update the sparse expression landmark at the playhead. */
   setClipExpressionsAtPlayhead: (expressions: Record<string, number>) => void;
   addClipKeyframeForAliasAtPlayhead: (alias: string) => void;
@@ -621,23 +417,17 @@ type PoseCreatorStoreState = {
   setExportPreview: (preview: string | null) => void;
   setDraftName: (name: string) => void;
   setImportError: (error: string | null) => void;
-  hydrateLocalDrafts: () => void;
-  saveLocalDraft: (
-    input: PoseCreatorSaveLocalDraftInput,
-  ) => PoseCreatorSavedDraft | null;
-  deleteLocalDraft: (id: string) => void;
-  loadSavedDraft: (
-    id: string,
-    replacement: Omit<
-      PoseCreatorDraftReplacement,
-      "draftName" | "selectedSavedDraftId" | "isDirty" | "importError"
-    >,
-  ) => PoseCreatorSavedDraft | null;
+  loadPoseDocument: (
+    identity: PoseCreatorSavedPoseIdentity | null,
+    replacement: PoseCreatorSubmittedDraft,
+  ) => void;
+  acknowledgePoseSave: (input: {
+    sessionToken: string;
+    submittedDraft: PoseCreatorSubmittedDraft;
+    savedIdentity: PoseCreatorSavedPoseIdentity;
+  }) => boolean;
   replaceDraftFromImport: (
-    replacement: Omit<
-      PoseCreatorDraftReplacement,
-      "selectedSavedDraftId" | "isDirty"
-    >,
+    replacement: Omit<PoseCreatorDraftReplacement, "isDirty">,
   ) => void;
   startNewPose: () => void;
   resetWorkspace: () => void;
@@ -658,7 +448,9 @@ type PoseCreatorTransientState = Pick<
   | "isDirty"
   | "exportPreview"
   | "draftName"
-  | "selectedSavedDraftId"
+  | "savedPoseIdentity"
+  | "poseSessionToken"
+  | "clipSessionToken"
   | "importError"
   | "clipDraft"
   | "clipInlineEdit"
@@ -699,8 +491,10 @@ function resetTransientStateForSource(
     isDirty: false,
     exportPreview: null,
     draftName: "",
-    selectedSavedDraftId: null,
+    savedPoseIdentity: null,
+    poseSessionToken: nextEditorSessionToken(),
     importError: null,
+    clipSessionToken: nextEditorSessionToken(),
     clipDraft: createDefaultClipDraft(),
     clipInlineEdit: null,
     clipSnapEnabled: true,
@@ -728,7 +522,8 @@ function resetPoseAuthoringState(basePose = DEFAULT_POSE_CREATOR_BASE_POSE) {
     undoGroup: null,
     exportPreview: null,
     draftName: "",
-    selectedSavedDraftId: null,
+    savedPoseIdentity: null,
+    poseSessionToken: nextEditorSessionToken(),
     importError: null,
   };
 }
@@ -816,6 +611,7 @@ function createClipUndoSnapshot(
   state: Pick<PoseCreatorStoreState, "clipDraft">,
 ): PoseCreatorClipUndoSnapshot {
   return {
+    basePose: state.clipDraft.basePose,
     poses: clonePoseCreatorClipPoses(state.clipDraft.poses),
     keyframes: state.clipDraft.keyframes.map((keyframe) => ({
       ...keyframe,
@@ -903,6 +699,7 @@ function areClipUndoSnapshotsEqual(
   right: PoseCreatorClipUndoSnapshot,
 ): boolean {
   return (
+    left.basePose === right.basePose &&
     JSON.stringify(left.poses) === JSON.stringify(right.poses) &&
     JSON.stringify(left.keyframes) === JSON.stringify(right.keyframes) &&
     JSON.stringify(left.events) === JSON.stringify(right.events)
@@ -1044,6 +841,7 @@ function restoreClipUndoSnapshot(
   return withPoseCreatorClipValidation(
     {
       ...draft,
+      basePose: snapshot.basePose,
       poses,
       keyframes,
       events,
@@ -1316,7 +1114,11 @@ function findAvailableClipKeyframeTime(
 }
 
 function getReusableBaseAlias(draft: PoseCreatorClipDraft): string | null {
-  if (draft.basePose === POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID) return null;
+  if (
+    !draft.basePose ||
+    draft.basePose === POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
+  )
+    return null;
 
   for (const [alias, pose] of Object.entries(draft.poses)) {
     if (isAnimaPoseClipRef(pose) && pose.ref === draft.basePose) {
@@ -1555,7 +1357,6 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
     authoringMode: "pose",
     basePose: DEFAULT_POSE_CREATOR_BASE_POSE,
     boneHelperNodesVisible: true,
-    savedDrafts: [],
     poseUndoHistory: [],
     poseRedoHistory: [],
     clipUndoHistory: [],
@@ -1888,6 +1689,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         state.activeAvatar?.vrm?.update(0);
         return {
           ...resetPoseAuthoringState(),
+          clipSessionToken: nextEditorSessionToken(),
           clipDraft: {
             ...createDefaultClipDraft(),
             ...(name ? { name } : {}),
@@ -1921,6 +1723,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         set({
           ...resetPoseAuthoringState(hydratedDraft.basePose),
           authoringMode: "clip",
+          clipSessionToken: nextEditorSessionToken(),
           clipDraft: withPoseCreatorClipValidation(
             { ...hydratedDraft, isDirty: false },
             POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
@@ -1973,6 +1776,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
       }),
     replaceClipDraftFromImport: (clipDraft) =>
       set({
+        clipSessionToken: nextEditorSessionToken(),
         clipDraft: withPoseCreatorClipValidation(
           {
             ...clipDraft,
@@ -2482,39 +2286,68 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         };
       }),
     addPoseToClip: (pose, preferredAlias, options = {}) => {
+      const state = get();
       const alias = generatePoseCreatorClipPoseAlias(
         preferredAlias,
-        Object.keys(get().clipDraft.poses),
+        Object.keys(state.clipDraft.poses),
       );
-      set((state) => {
-        // Explicit drop times take precedence; callers already apply snapping.
-        const clipDraft =
+      try {
+        const resolved = resolveAnimaPose(
+          parseAnimaPose(pose),
+          getResolvedAvatarPose,
+        );
+        const inline = createPoseCreatorClipInlinePose(resolved);
+        const candidate =
           options.timeSec !== undefined || options.atPlayhead
             ? insertClipPoseAtTime(
                 state.clipDraft,
-                createPoseCreatorClipInlinePose(pose),
+                inline,
                 alias,
                 options.timeSec ?? state.clipDraft.currentTimeSec,
               )
             : withDirtyClipValidation({
                 ...state.clipDraft,
-                poses: {
-                  ...state.clipDraft.poses,
-                  [alias]: createPoseCreatorClipInlinePose(pose),
-                },
+                poses: { ...state.clipDraft.poses, [alias]: inline },
                 selectedPoseAlias: alias,
               });
-        if (options.timeSec !== undefined) clipDraft.selectedEventId = null;
-        return {
+        // Bake the candidate pose inventory independently of timeline validity:
+        // authoring may still have no keyframes or unfinished loop endpoints.
+        // Keep all actual timing, event and selection fields in the draft below.
+        const clip = parseAnimaPoseClip({
+          schema: "animaPoseClip/1.0",
+          id: candidate.id,
+          name: candidate.name || "New Clip",
+          duration: candidate.duration,
+          ...(candidate.basePose &&
+          candidate.basePose !== POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
+            ? { basePose: candidate.basePose }
+            : {}),
+          poses: candidate.poses,
+          poseKeyframes: [{ time: 0, pose: alias }],
+        });
+        const baked = bakePoseCreatorClipReferences(clip, {
+          resolvePose: getResolvedAvatarPose,
+        });
+        if (!baked) return null;
+        const clipDraft = withDirtyClipValidation({
+          ...candidate,
+          basePose: "",
+          poses: baked.poses,
+          ...(options.timeSec !== undefined ? { selectedEventId: null } : {}),
+        });
+        set({
           ...recordClipDraftUndo(state, clipDraft),
           clipDraft,
           clipPlaybackPlaying: false,
           ...(options.timeSec !== undefined
             ? { clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec }
             : {}),
-        };
-      });
-      return alias;
+        });
+        return alias;
+      } catch {
+        // Missing/malformed parents reject the whole insertion, including history.
+        return null;
+      }
     },
     setClipExpressionsAtPlayhead: (expressions) =>
       set((state) => {
@@ -2964,6 +2797,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         if (
           enabled
             ? existing ||
+              !draft.basePose ||
               draft.basePose === POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
             : !baseFrame
         )
@@ -3136,15 +2970,12 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
     setExportPreview: (exportPreview) => set({ exportPreview }),
     setDraftName: (draftName) =>
       set((state) => {
-        const selectedDraft = state.selectedSavedDraftId
-          ? state.savedDrafts.find(
-              (draft) => draft.id === state.selectedSavedDraftId,
-            )
-          : null;
         const trimmedName = draftName.trim();
         const isDirty =
           state.isDirty ||
-          Boolean(selectedDraft && trimmedName !== selectedDraft.name);
+          (state.savedPoseIdentity
+            ? trimmedName !== state.savedPoseIdentity.name
+            : trimmedName.length > 0);
         return {
           draftName,
           isDirty,
@@ -3159,119 +2990,56 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         };
       }),
     setImportError: (importError) => set({ importError }),
-    hydrateLocalDrafts: () =>
-      set((state) => {
-        const savedDrafts = readLocalDraftsFromStorage();
-        return {
-          savedDrafts,
-          draftName: state.draftName,
-          selectedSavedDraftId:
-            state.selectedSavedDraftId &&
-            savedDrafts.some((draft) => draft.id === state.selectedSavedDraftId)
-              ? state.selectedSavedDraftId
-              : null,
-        };
-      }),
-    saveLocalDraft: (input) => {
-      let savedDraft: PoseCreatorSavedDraft | null = null;
-
-      set((state) => {
-        const name =
-          state.draftName.trim() || createUniqueNewPoseName(state.savedDrafts);
-
-        const existingDraft = state.selectedSavedDraftId
-          ? state.savedDrafts.find(
-              (draft) => draft.id === state.selectedSavedDraftId,
-            )
-          : null;
-        const id =
-          existingDraft?.id ?? createUniqueDraftId(name, state.savedDrafts);
-        const now = new Date().toISOString();
-        savedDraft = {
-          id,
-          name,
-          createdAt: existingDraft?.createdAt ?? now,
-          updatedAt: now,
-          source: createSavedDraftSource(input.source),
-          basePose: input.basePose,
-          pose: withDraftMetadata(input.pose, id, name),
-        };
-
-        const nextDrafts = sortSavedDrafts(
-          existingDraft
-            ? state.savedDrafts.map((draft) =>
-                draft.id === existingDraft.id ? savedDraft! : draft,
-              )
-            : [savedDraft, ...state.savedDrafts],
-        );
-        const persistError = persistLocalDrafts(nextDrafts);
-        const savedSnapshot = createPoseUndoSnapshot({
-          ...state,
-          isDirty: false,
-        });
-        return {
-          savedDrafts: nextDrafts,
-          selectedSavedDraftId: id,
-          draftName: name,
-          isDirty: persistError !== null,
-          importError: persistError,
-          poseUndoHistory: persistError
-            ? state.poseUndoHistory
-            : rebasePoseHistory(state.poseUndoHistory, savedSnapshot),
-          poseRedoHistory: persistError
-            ? state.poseRedoHistory
-            : rebasePoseHistory(state.poseRedoHistory, savedSnapshot),
-        };
-      });
-
-      return savedDraft;
-    },
-    deleteLocalDraft: (id) =>
-      set((state) => {
-        const nextDrafts = state.savedDrafts.filter((draft) => draft.id !== id);
-        if (nextDrafts.length === state.savedDrafts.length) return state;
-
-        const deletesCurrentDraft = state.selectedSavedDraftId === id;
-        const persistError = persistLocalDrafts(nextDrafts);
-        return {
-          savedDrafts: nextDrafts,
-          selectedSavedDraftId: deletesCurrentDraft
-            ? null
-            : state.selectedSavedDraftId,
-          isDirty: deletesCurrentDraft
-            ? hasDrafts(state.boneDrafts, state.expressionDrafts)
-            : state.isDirty,
-          importError: persistError,
-        };
-      }),
-    loadSavedDraft: (id, replacement) => {
-      const draft = get().savedDrafts.find((item) => item.id === id) ?? null;
-      if (!draft) {
-        set({ importError: "Saved draft was not found." });
-        return null;
-      }
-
+    loadPoseDocument: (identity, replacement) =>
       set({
-        ...replacement,
+        ...capturePoseCreatorSubmittedDraft(replacement),
+        savedPoseIdentity: identity ? { ...identity } : null,
+        poseSessionToken: nextEditorSessionToken(),
         selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
         selectedBoneFocusRequest: null,
-        draftName: draft.name,
-        selectedSavedDraftId: draft.id,
-        isDirty: false,
+        isDirty: identity === null,
         poseUndoHistory: [],
         poseRedoHistory: [],
         undoGroup: null,
         exportPreview: null,
         importError: null,
+      }),
+    acknowledgePoseSave: ({ sessionToken, submittedDraft, savedIdentity }) => {
+      const state = get();
+      if (state.poseSessionToken !== sessionToken) return false;
+      const matches =
+        JSON.stringify(capturePoseCreatorSubmittedDraft(state)) ===
+        JSON.stringify(submittedDraft);
+      const metadataChanged =
+        state.basePose !== submittedDraft.basePose ||
+        state.draftName !== submittedDraft.draftName;
+      const savedSnapshot = {
+        boneDrafts: submittedDraft.boneDrafts,
+        expressionDrafts: submittedDraft.expressionDrafts,
+        isDirty: false,
+      };
+      const rebase = (history: PoseCreatorPoseUndoSnapshot[]) =>
+        rebasePoseHistory(history, savedSnapshot).map((snapshot) => ({
+          ...snapshot,
+          isDirty: metadataChanged || snapshot.isDirty,
+        }));
+      set({
+        savedPoseIdentity: { ...savedIdentity },
+        ...(matches ? { draftName: savedIdentity.name } : {}),
+        isDirty: !matches,
+        importError: null,
+        poseUndoHistory: rebase(state.poseUndoHistory),
+        poseRedoHistory: rebase(state.poseRedoHistory),
       });
-      return draft;
+      return true;
     },
     replaceDraftFromImport: (replacement) =>
       set({
         ...replacement,
         selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
         selectedBoneFocusRequest: null,
-        selectedSavedDraftId: null,
+        savedPoseIdentity: null,
+        poseSessionToken: nextEditorSessionToken(),
         isDirty: true,
         poseUndoHistory: [],
         poseRedoHistory: [],
@@ -3325,4 +3093,16 @@ export function selectCanRedoClip(
   return state.clipInlineEdit
     ? state.inlinePoseRedoHistory.length > 0
     : state.clipRedoHistory.length > 0;
+}
+
+/** Capture immutable Save values before an asynchronous request begins. */
+export function capturePoseCreatorSubmittedDraft(
+  state: PoseCreatorSubmittedDraft,
+): PoseCreatorSubmittedDraft {
+  return {
+    draftName: state.draftName,
+    basePose: state.basePose,
+    boneDrafts: clonePoseCreatorBoneDrafts(state.boneDrafts),
+    expressionDrafts: clonePoseCreatorExpressionDrafts(state.expressionDrafts),
+  };
 }

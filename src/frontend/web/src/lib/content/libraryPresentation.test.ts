@@ -35,6 +35,22 @@ function card(
 }
 
 describe("Library product presentation", () => {
+  it("offers Pose editing without equipment or Reaction insertion", () => {
+    expect(libraryProductActionPolicy(card("pose", "Mine"))).toMatchObject({
+      preview: true,
+      manage: false,
+      edit: true,
+      useInGesture: false,
+      useInReaction: false,
+    });
+    expect(libraryProductActionPolicy(card("pose"))).toMatchObject({
+      preview: true,
+      manage: false,
+      edit: true,
+      useInGesture: false,
+      useInReaction: false,
+    });
+  });
   it("never needs a technical file kind to present a Gesture", () => {
     const card = actionLibraryCard("gesture", {
       item_id: "gesture-1",
@@ -66,7 +82,7 @@ describe("Library product presentation", () => {
       expect(libraryProductActionPolicy(card(family))).toEqual({
         preview: true,
         manage: true,
-        edit: false,
+        edit: true,
         useInGesture: false,
         useInReaction: false,
       });

@@ -25,6 +25,7 @@ describe("detected content changes", () => {
     });
     const key = queryKeys.gestures.list("owner", "", "all");
     client.setQueryData(key, ["Old gesture"]);
+    client.setQueryData(queryKeys.poses.list("owner"), ["Old pose"]);
     client.setQueryData(queryKeys.appearanceImages.list("owner"), [
       "Old portrait",
     ]);
@@ -43,6 +44,9 @@ describe("detected content changes", () => {
       catalog("new"),
     );
     expect(observer.getCurrentResult().data).toEqual(["Updated gesture"]);
+    expect(
+      client.getQueryState(queryKeys.poses.list("owner"))?.isInvalidated,
+    ).toBe(true);
     expect(
       client.getQueryState(queryKeys.appearanceImages.list("owner"))
         ?.isInvalidated,

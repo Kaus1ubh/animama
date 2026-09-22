@@ -12,6 +12,7 @@ import {
   previewIdleStyle,
   previewMusicTrack,
   previewParticleEffect,
+  previewPose,
   previewPoseClip,
   previewReaction,
   previewSceneEffect,
@@ -23,6 +24,7 @@ import {
   saveIdleStyle,
   saveMusicTrack,
   saveParticleEffect,
+  savePose,
   savePoseClip,
   saveReaction,
   saveSceneEffect,
@@ -38,6 +40,7 @@ import type {
   PyIdleStyle,
   PyMusicTrack,
   PyParticleEffect,
+  PyPose,
   PyPoseClip,
   PyReaction,
   PySceneEffect,
@@ -53,6 +56,7 @@ import { typedComponentPreviewMetadata } from "@/lib/content/typedPreviewAdapter
 type TypedCatalogTransport =
   | (PyGesture & { kind: "gesture" })
   | (PyReaction & { kind: "reaction" })
+  | (PyPose & { kind: "pose" })
   | (PyPoseClip & { kind: "pose_clip" })
   | (PyParticleEffect & { kind: "particle_effect" })
   | (PyAvatarEffect & { kind: "avatar_effect" })
@@ -149,6 +153,8 @@ function typedMetadata(item: TypedCatalogTransport): Record<string, unknown> {
         implementation: item.implementation,
         config: item.config,
       };
+    case "pose":
+      return { ...common, id: item.pose_id };
     case "pose_clip":
       return {
         ...common,
@@ -296,6 +302,12 @@ export async function saveCatalogItem(
         kind: "reaction",
       };
       break;
+    case "pose":
+      item = {
+        ...(await contentSaveData(savePose(typedOptions))),
+        kind: "pose",
+      };
+      break;
     case "pose_clip":
       item = {
         ...(await contentSaveData(savePoseClip(typedOptions))),
@@ -381,6 +393,8 @@ export async function previewTypedCatalogItem(
       return (await previewGesture(options)).data;
     case "reaction":
       return (await previewReaction(options)).data;
+    case "pose":
+      return (await previewPose(options)).data;
     case "pose_clip":
       return (await previewPoseClip(options)).data;
     case "particle_effect":

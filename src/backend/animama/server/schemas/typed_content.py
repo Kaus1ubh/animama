@@ -35,6 +35,7 @@ from animama.domain.content_documents import (
     MusicTrackDocumentV1,
     ParticleEffectDocumentV1,
     PoseClipDocumentV1,
+    PoseDocumentV1,
     ReactionDocumentV1,
     SceneEffectDocumentV1,
     SoundEffectDocumentV1,
@@ -49,6 +50,7 @@ class PyTypedDependency(BaseModel):
     kind: Literal[
         "avatar",
         "gesture",
+        "pose",
         "pose_clip",
         "reaction",
         "particle_effect",
@@ -154,6 +156,13 @@ class PyReaction(PyTypedContentBase):
     config: dict[str, object] = Field(default_factory=dict)
 
 
+class PyPose(PyTypedContentBase):
+    """Static Pose metadata; full values are delivered through registered bytes."""
+
+    kind: Literal["pose"] = "pose"
+    pose_id: str
+
+
 class PyPoseClip(PyTypedContentBase):
     kind: Literal["pose_clip"] = "pose_clip"
     clip_id: str
@@ -242,6 +251,7 @@ class PyVoiceContent(PyTypedContentBase):
 PyTypedContent = Annotated[
     PyGesture
     | PyReaction
+    | PyPose
     | PyPoseClip
     | PyParticleEffect
     | PyAvatarEffect
@@ -316,6 +326,8 @@ def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
             ),
             config=document.config,
         )
+    if isinstance(document, PoseDocumentV1):
+        return PyPose(**base, pose_id=document.pose["id"])
     if isinstance(document, PoseClipDocumentV1):
         return PyPoseClip(
             **base,
@@ -417,6 +429,12 @@ class PyReactionPage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[PyReaction]
+
+
+class PyPosePage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[PyPose]
 
 
 class PyPoseClipPage(BaseModel):

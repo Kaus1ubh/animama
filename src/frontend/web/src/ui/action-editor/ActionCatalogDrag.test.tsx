@@ -6,13 +6,19 @@ import type {
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { parseAnimaPose } from "@/lib/avatar";
+import { parseAnimaPose, type Avatar } from "@/lib/avatar";
+import { loadPoseContent } from "@/lib/content/poseContent";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import {
   ActionCatalogDragProvider,
   useCatalogTimelineDrop,
 } from "./ActionCatalogDrag";
 import type { CatalogDragItem } from "./timelineCatalogDrop";
+
+vi.mock("@/lib/content/poseContent", async (original) => ({
+  ...(await original<typeof import("@/lib/content/poseContent")>()),
+  loadPoseContent: vi.fn(),
+}));
 
 const harness = vi.hoisted(() => ({
   effects: [] as Array<() => void | (() => void)>,
@@ -38,7 +44,10 @@ vi.mock("@dnd-kit/core", () => ({
 vi.mock("./ActionEditorWorkspaceContext", () => ({
   useActionEditorWorkspace: () => ({
     mode: harness.mode,
-    document: { implementation: "anima_clip" },
+    document: {
+      implementation: "anima_clip",
+      intent: harness.mode === "reaction" ? "reaction" : "gesture",
+    },
     timelineSession: 1,
     addComponent: harness.addComponent,
   }),
@@ -55,24 +64,13 @@ const rect = {
 const savedPose: CatalogDragItem = {
   kind: "pose",
   pose: {
-    id: "wave",
+    item_id: "wave",
     name: "Wave",
-    createdAt: "2026-09-21T00:00:00Z",
-    updatedAt: "2026-09-21T00:00:00Z",
-    source: {
-      key: "preview",
-      sourceType: "resolved_entry",
-      displayName: "Preview",
-      sourceLabel: "Preview Anima",
-      versionLabel: "Current",
-    },
-    basePose: "relaxedRest",
-    pose: parseAnimaPose({
-      schema: "animaPose/1.0",
-      id: "wave",
-      name: "Wave",
-      expressions: { happy: 0.5 },
-    }),
+    kind: "pose",
+    source: "local",
+    pose_id: "wave",
+    revision_sha256: "rev",
+    editable: true,
   },
 };
 let cleanups: Array<void | (() => void)> = [];
@@ -124,6 +122,15 @@ function movement(x: number, y = 250) {
 beforeEach(() => {
   vi.useFakeTimers();
   harness.mode = "clip";
+  vi.mocked(loadPoseContent).mockResolvedValue({
+    item: savedPose.pose,
+    pose: parseAnimaPose({
+      schema: "animaPose/1.0",
+      id: "wave",
+      name: "Wave",
+      expressions: { happy: 0.5 },
+    }),
+  });
   harness.effects.length = 0;
   harness.callbacks = null;
   harness.addComponent.mockClear();
@@ -153,6 +160,7 @@ beforeEach(() => {
   vi.stubGlobal("cancelAnimationFrame", clearTimeout);
   usePoseCreatorStore.getState().resetWorkspace();
   usePoseCreatorStore.setState((state) => ({
+    activeAvatar: {} as Avatar,
     clipDraft: { ...state.clipDraft, duration: 1 },
   }));
   usePoseCreatorStore.getState().setClipSnapEnabled(true);
@@ -166,7 +174,7 @@ afterEach(() => {
 });
 
 describe("catalog drag coordinator", () => {
-  it("keeps hovering transient and commits one snapped pose edit only on release", () => {
+  it("keeps hovering transient and commits one snapped pose edit only on release", async () => {
     mount();
     const before = usePoseCreatorStore.getState();
     start();
@@ -176,6 +184,8 @@ describe("catalog drag coordinator", () => {
     expect(harness.addComponent).not.toHaveBeenCalled();
 
     harness.callbacks?.onDragEnd?.(movement(438));
+    await Promise.resolve();
+    await Promise.resolve();
     const after = usePoseCreatorStore.getState();
     expect(after.clipDraft.keyframes).toEqual([
       expect.objectContaining({ time: 0.3, pose: "wave" }),

@@ -1,0 +1,190 @@
+{
+  "schema": "animaPose/1.0",
+  "id": "right-finger-point",
+  "name": "Right Finger Point",
+  "humanoid": {
+    "hips": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "spine": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "chest": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "upperChest": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "neck": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "head": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "leftEye": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "rightEye": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "jaw": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "leftUpperLeg": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "leftLowerLeg": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "leftFoot": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "leftToes": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "rightUpperLeg": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "rightLowerLeg": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "rightFoot": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "rightToes": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "leftShoulder": {
+      "rotation": [0, 0, -0.024920720015711974, 0.9996894306302825]
+    },
+    "leftUpperArm": {
+      "rotation": [
+        -0.0531503400592097, 0.07125473007937806, -0.5955379206634317,
+        0.7983936308894137
+      ]
+    },
+    "leftLowerArm": {
+      "rotation": [0, -0.04893693003344051, 0, 0.9988018706825204]
+    },
+    "leftHand": {
+      "rotation": [0, 0, -0.053381690058988684, 0.9985741811034602]
+    },
+    "rightShoulder": {
+      "rotation": [
+        -0.10493107946276205, -0.014615029925172326, 0.0278532298573939,
+        0.9939819249108995
+      ]
+    },
+    "rightUpperArm": {
+      "rotation": [
+        -0.11195324003166919, -0.09308367002633139, 0.5439165901538625,
+        0.8264119102337744
+      ]
+    },
+    "rightLowerArm": {
+      "rotation": [
+        0.14177777061066021, 0.895149633855557, 0.06611206028475554,
+        0.4174151317978758
+      ]
+    },
+    "rightHand": {
+      "rotation": [0, -0.06975647003629905, 0, 0.9975640505191007]
+    },
+    "leftThumbMetacarpal": {
+      "rotation": [
+        -0.022697519941665533, 0.2757952892911838, -0.07881806979743118,
+        0.9577105475386063
+      ]
+    },
+    "leftThumbProximal": {
+      "rotation": [0, 0, -0.07114926995021703, 0.9974656793020756]
+    },
+    "leftThumbDistal": {
+      "rotation": [0, 0, -0.053381690058988684, 0.9985741811034602]
+    },
+    "leftIndexProximal": {
+      "rotation": [0, 0, -0.08889429956889668, 0.996041065169582]
+    },
+    "leftIndexIntermediate": {
+      "rotation": [0, 0, -0.17708473965608906, 0.9841956080886234]
+    },
+    "leftIndexDistal": {
+      "rotation": [0, 0, -0.13312133962636447, 0.9910997472182514]
+    },
+    "leftMiddleProximal": {
+      "rotation": [0, 0, -0.08889429956889668, 0.996041065169582]
+    },
+    "leftMiddleIntermediate": {
+      "rotation": [0, 0, -0.17708473965608906, 0.9841956080886234]
+    },
+    "leftMiddleDistal": {
+      "rotation": [0, 0, -0.13312133962636447, 0.9910997472182514]
+    },
+    "leftRingProximal": {
+      "rotation": [0, 0, -0.08446046013314092, 0.9964268315707371]
+    },
+    "leftRingIntermediate": {
+      "rotation": [0, 0, -0.16831734014909086, 0.985732860873135]
+    },
+    "leftRingDistal": {
+      "rotation": [0, 0, -0.12429421957792938, 0.9922454066305945]
+    },
+    "leftLittleProximal": {
+      "rotation": [0, 0, -0.08002495006524106, 0.9967928608126444]
+    },
+    "leftLittleIntermediate": {
+      "rotation": [0, 0, -0.1595366006902032, 0.9871920142708889]
+    },
+    "leftLittleDistal": {
+      "rotation": [0, 0, -0.11545725987232101, 0.9933124489015404]
+    },
+    "rightThumbMetacarpal": {
+      "rotation": [
+        -0.1464982102562162, -0.32921088057576925, 0.29537416051659093,
+        0.884823471547501
+      ]
+    },
+    "rightThumbProximal": {
+      "rotation": [0, 0, 0.17364818044476726, 0.9848077525224004]
+    },
+    "rightThumbDistal": {
+      "rotation": [0, 0, 0.08715573985518908, 0.9961946983448037]
+    },
+    "rightIndexProximal": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "rightIndexIntermediate": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "rightIndexDistal": {
+      "rotation": [0, 0, 0, 1]
+    },
+    "rightMiddleProximal": {
+      "rotation": [0, 0, 0.5735764408146979, 0.8191520411635091]
+    },
+    "rightMiddleIntermediate": {
+      "rotation": [0, 0, 0.7372773370784208, 0.6755902073228658]
+    },
+    "rightMiddleDistal": {
+      "rotation": [0, 0, 0.4617486119914707, 0.8870108338255798]
+    },
+    "rightRingProximal": {
+      "rotation": [0, 0, 0.5735764408146979, 0.8191520411635091]
+    },
+    "rightRingIntermediate": {
+      "rotation": [0, 0, 0.7372773370784208, 0.6755902073228658]
+    },
+    "rightRingDistal": {
+      "rotation": [0, 0, 0.4617486119914707, 0.8870108338255798]
+    },
+    "rightLittleProximal": {
+      "rotation": [0, 0, 0.5735764408146979, 0.8191520411635091]
+    },
+    "rightLittleIntermediate": {
+      "rotation": [0, 0, 0.7372773370784208, 0.6755902073228658]
+    },
+    "rightLittleDistal": {
+      "rotation": [0, 0, 0.4617486119914707, 0.8870108338255798]
+    }
+  }
+}

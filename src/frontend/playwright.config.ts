@@ -79,7 +79,8 @@ export default defineConfig({
     },
     {
       name: "chromium",
-      testMatch: /accountless-(?:library|journeys|vfx-layout)\.spec\.ts/,
+      testMatch:
+        /accountless-(?:library|journeys|vfx-layout|pose-content)\.spec\.ts/,
       dependencies: ["installation-setup"],
       use: {
         browserName: "chromium",

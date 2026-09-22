@@ -86,6 +86,7 @@ import {
   type ActionIntent,
 } from "./actionDocument";
 import { actionEditorCapabilities } from "./actionEditorCapabilities";
+import { loadCreatorPreviewFile } from "@/lib/content/contentEditorSource";
 import {
   isCustomizableStarterAction,
   actionDocumentFromPreview,
@@ -310,12 +311,22 @@ export function ActionEditorPage({
   const avatarRows = useMemo(() => componentRows(avatars.data), [avatars.data]);
   const sceneRows = useMemo(() => componentRows(scenes.data), [scenes.data]);
 
-  /** Reconstruct one owned editable catalog item without route remounting. */
-  const hydrateOwnedAction = useCallback(
+  const loadGeneration = useRef(0);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  /** Reopen Local content or initialize an immutable Included source as a Local copy. */
+  const hydrateCatalogAction = useCallback(
     async (item: PyGesture | PyReaction, discardCurrentRecovery: boolean) => {
+      const generation = ++loadGeneration.current;
       clearSaveFailure();
       try {
-        if (item.origin !== "owned" || item.state !== "ready") {
+        if (item.state !== "ready") {
           throw new Error("This saved action is not available.");
         }
         if (!item.source)
@@ -328,19 +339,28 @@ export function ActionEditorPage({
           item,
           preview,
           base: createDocument(),
+          customizeStarter: item.origin === "builtin",
         });
         const target = actionPreviewTarget(preview, next.name);
         if (target.sourceType !== "resolved_action") {
           throw new Error("The saved action preview was incomplete.");
         }
+        const animation =
+          next.implementation === "vrma"
+            ? await loadCreatorPreviewFile(preview, "animation")
+            : null;
+        if (!mounted.current || generation !== loadGeneration.current)
+          return false;
         finalized.current = false;
-        setActiveItemId(item.item_id);
+        setActiveItemId(item.origin === "owned" ? item.item_id : null);
         setIdentity(null);
         setUploadedRootFile(null);
-        setVrma(null);
+        setVrma(animation);
         setPreviewRuntime(creatorActionPreviewRuntime(target.runtime));
         setRootPreviewDependencyDigest(JSON.stringify(next.dependencies));
-        replaceLoadedDocument(next, true);
+        if (item.origin === "builtin")
+          cleanDigest.current = "__included_copy__";
+        replaceLoadedDocument(next, item.origin === "owned");
         setMode(
           next.implementation === "vrma" ? "vrma" : capabilities.defaultMode,
         );
@@ -352,7 +372,10 @@ export function ActionEditorPage({
             itemId ?? null,
           );
         }
+        return true;
       } catch (cause) {
+        if (!mounted.current || generation !== loadGeneration.current)
+          return false;
         setFailureMessage(
           cause instanceof Error
             ? cause.message
@@ -375,7 +398,7 @@ export function ActionEditorPage({
   );
   const loadOwned = useCallback(
     async (item: PyGesture | PyReaction) => {
-      await hydrateOwnedAction(item, true);
+      if (!(await hydrateCatalogAction(item, true))) return;
       // The Load dialog already reviewed discarding the previous document.
       // Keep the generic dirty-route blocker from canceling this canonical URL
       // synchronization before React commits the newly hydrated clean digest.
@@ -396,7 +419,7 @@ export function ActionEditorPage({
         internalNavigation.current = false;
       }
     },
-    [hydrateOwnedAction, intent, navigate],
+    [hydrateCatalogAction, intent, navigate],
   );
 
   useEffect(() => {
@@ -444,8 +467,9 @@ export function ActionEditorPage({
     const item = existing.data;
     if (!item || item.state !== "ready") return;
     hydrating.current = true;
-    void hydrateOwnedAction(item, false)
-      .then(() => {
+    void hydrateCatalogAction(item, false)
+      .then((loaded) => {
+        if (!loaded) return;
         hydrated.current = true;
         setHydrationReady(true);
       })
@@ -453,69 +477,17 @@ export function ActionEditorPage({
       .finally(() => {
         hydrating.current = false;
       });
-  }, [existing.data, hydrateOwnedAction]);
+  }, [existing.data, hydrateCatalogAction]);
 
-  /** Hydrate one immutable Starter Anima Pose Clip as a new private document. */
+  /** The Load dialog uses the same copy-safe hydration as the Library route. */
   const loadStarter = useCallback(
     async (item: PyGesture | PyReaction) => {
-      clearSaveFailure();
-      try {
-        if (!isCustomizableStarterAction(item, intent) || !item.source) {
-          throw new Error("Only Starter Anima Pose Clips can be customized.");
-        }
-        const preview = await actions.starterPreview.mutateAsync({
-          source: item.source,
-        });
-        const next = await actionDocumentFromPreview({
-          intent,
-          item,
-          preview,
-          base: createDocument(),
-          customizeStarter: true,
-          semanticSuffix: crypto.randomUUID(),
-        });
-        const target = actionPreviewTarget(preview, next.name);
-        if (target.sourceType !== "resolved_action") {
-          throw new Error("The Starter action preview was incomplete.");
-        }
-        finalized.current = false;
-        setActiveItemId(null);
-        setIdentity(null);
-        setUploadedRootFile(null);
-        setVrma(null);
-        setPreviewRuntime(creatorActionPreviewRuntime(target.runtime));
-        setRootPreviewDependencyDigest(JSON.stringify(next.dependencies));
-        cleanDigest.current = "__starter_template__";
-        replaceLoadedDocument(next);
-        setMode(capabilities.defaultMode);
-        if (userId) {
-          clearActionRecovery(
-            window.localStorage,
-            userId,
-            intent,
-            itemId ?? null,
-          );
-        }
-      } catch (cause) {
-        setFailureMessage(
-          cause instanceof Error
-            ? cause.message
-            : "This Starter content could not be loaded.",
-        );
-        throw cause;
+      if (!isCustomizableStarterAction(item, intent) || !item.source) {
+        throw new Error("Only Starter Anima Pose Clips can be customized.");
       }
+      await hydrateCatalogAction(item, true);
     },
-    [
-      actions.starterPreview,
-      capabilities.defaultMode,
-      clearSaveFailure,
-      createDocument,
-      intent,
-      itemId,
-      replaceLoadedDocument,
-      setFailureMessage,
-      userId,
-    ],
+    [hydrateCatalogAction, intent],
   );
 
   useEffect(() => {

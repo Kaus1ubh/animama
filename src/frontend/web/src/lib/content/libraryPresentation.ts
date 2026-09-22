@@ -1,3 +1,4 @@
+import type { PyPose } from "@animama/runtime-contracts/api-types";
 import type {
   PyCatalogViewItem,
   PyGesture,
@@ -11,6 +12,7 @@ export type LibraryProductCard = {
   family:
     | "gesture"
     | "reaction"
+    | "pose"
     | "particle"
     | "avatar-effect"
     | "scene"
@@ -74,15 +76,11 @@ export function libraryProductActionPolicy(
   card: LibraryProductCard,
 ): LibraryProductActionPolicy {
   const action = card.family === "gesture" || card.family === "reaction";
-  const reusableEffect = !action;
-  const editable =
-    card.origin === "Mine" &&
-    Boolean(card.source) &&
-    (action || reusableEffect);
+  const reusableEffect = !action && card.family !== "pose";
   return {
     preview: Boolean(card.source),
     manage: action && Boolean(card.source),
-    edit: editable,
+    edit: Boolean(card.source),
     useInGesture: reusableEffect && Boolean(card.source),
     useInReaction: reusableEffect && Boolean(card.source),
   };
@@ -192,5 +190,26 @@ export function effectLibraryCard(
     equippedCount: 0,
     includedCount: 0,
     source: value.source,
+  };
+}
+
+/** Present standalone Pose metadata without treating it as equipment. */
+export function poseLibraryCard(item: PyPose): LibraryProductCard {
+  return {
+    key: `pose:${item.item_id}`,
+    itemId: item.item_id,
+    family: "pose",
+    name: item.name,
+    description: item.description ?? "",
+    origin: item.source === "included" ? "Built-in" : "Mine",
+    sourceLabel: item.source === "included" ? "Starter" : "Local",
+    updateAvailable: false,
+    equippedCount: 0,
+    includedCount: 0,
+    source: {
+      type: "catalog",
+      catalog_item_id: item.item_id,
+      logical_key: item.logical_key ?? item.pose_id,
+    },
   };
 }

@@ -191,3 +191,50 @@ test("rejects unknown fields and a truncated JSON line", async () => {
     await assert.rejects(readContentLedger(ledgerPath), /invalid JSON/);
   });
 });
+
+test("pose edits advance only an already owned identity from its exact recorded revision", async () => {
+  await withLedger(async (ledgerPath) => {
+    const plannedPose = {
+      ...common,
+      kind: "pose",
+      logicalKey: "local:pose:fixture",
+    };
+    const original = {
+      ...owned,
+      ...plannedPose,
+      relativeLocator: "poses/fixture",
+    };
+    await appendContentLedgerEvent(ledgerPath, {
+      ...plannedPose,
+      event: "planned",
+    });
+    await appendContentLedgerEvent(ledgerPath, { ...original, event: "owned" });
+    const update = {
+      ...original,
+      event: "updated",
+      previousRevisionSha256: original.revisionSha256,
+      revisionSha256: "b".repeat(64),
+    };
+    for (const changes of [
+      { previousRevisionSha256: "c".repeat(64) },
+      { itemId: "not-owned" },
+      { relativeLocator: "poses/not-owned" },
+      { logicalKey: "local:pose:not-owned" },
+    ]) {
+      await assert.rejects(
+        appendContentLedgerEvent(ledgerPath, { ...update, ...changes }),
+      );
+    }
+    await appendContentLedgerEvent(ledgerPath, update);
+    const state = unresolvedOwnedContent(
+      await readContentLedger(ledgerPath),
+    )[0];
+    assert.equal(state.owned.itemId, original.itemId);
+    assert.equal(state.owned.revisionSha256, update.revisionSha256);
+    assert.equal(state.owned.relativeLocator, original.relativeLocator);
+    assert.equal(
+      (await readContentLedger(ledgerPath))[1].revisionSha256,
+      original.revisionSha256,
+    );
+  });
+});

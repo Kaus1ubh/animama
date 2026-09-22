@@ -207,7 +207,9 @@ def test_avatar_seeds_retire_only_unreferenced_unmodified_defaults(db_ready: str
         try:
             with conn.cursor() as cur:
                 cur.execute("SELECT count(*) FROM avatar")
-                assert cur.fetchone()[0] == 0
+                initial_count = cur.fetchone()
+                assert initial_count is not None
+                assert initial_count[0] == 0
                 seeds = runtime_resource("sql").joinpath("02-seed-avatars.sql").read_text()
                 cur.execute(seeds)
                 cur.execute("SELECT id FROM avatar ORDER BY id")

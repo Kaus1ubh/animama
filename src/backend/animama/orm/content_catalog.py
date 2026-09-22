@@ -15,6 +15,7 @@ from .sqlalchemy_base import SqlalchemyBase
 CONTENT_KINDS = (
     "avatar",
     "gesture",
+    "pose",
     "pose_clip",
     "reaction",
     "particle_effect",
