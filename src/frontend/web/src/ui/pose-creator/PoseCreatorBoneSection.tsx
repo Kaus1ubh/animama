@@ -12,7 +12,7 @@ import {
   SearchIcon,
   XIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import type {
@@ -113,7 +113,7 @@ type BoneTreeProps = {
   variant?: "panel" | "workspace" | "mobile";
 };
 
-function BoneTree({
+const BoneTree = memo(function BoneTree({
   tree,
   expandedBoneNames,
   selectedBone,
@@ -145,7 +145,7 @@ function BoneTree({
       ))}
     </div>
   );
-}
+});
 
 function BoneTreeRow({
   node,
@@ -309,7 +309,6 @@ export function PoseCreatorBoneSection({
   const boneDrafts = usePoseCreatorStore((state) => state.boneDrafts);
   const setSelectedBone = usePoseCreatorStore((state) => state.setSelectedBone);
   const focusBone = usePoseCreatorStore((state) => state.focusBone);
-  const clearBoneDrafts = usePoseCreatorStore((state) => state.clearBoneDrafts);
   const boneHelperNodesVisible = usePoseCreatorStore(
     (state) => state.boneHelperNodesVisible,
   );
@@ -328,7 +327,17 @@ export function PoseCreatorBoneSection({
     () => readPoseCreatorBoneRows(activeAvatar, boneDrafts),
     [activeAvatar, boneDrafts],
   );
-  const boneTree = useMemo(() => buildPoseCreatorBoneTree(rows), [rows]);
+  // Workspace/mobile lists show bone metadata only. Keep that tree stable as
+  // the selected bone's live rotation controls update during a drag.
+  const browserRows = useMemo(
+    () => readPoseCreatorBoneRows(activeAvatar, {}),
+    [activeAvatar],
+  );
+  const treeRows = variant === "panel" ? rows : browserRows;
+  const boneTree = useMemo(
+    () => buildPoseCreatorBoneTree(treeRows),
+    [treeRows],
+  );
   const expandableBoneNames = useMemo(
     () => collectExpandableBoneNames(boneTree),
     [boneTree],
@@ -371,6 +380,13 @@ export function PoseCreatorBoneSection({
   const filteredBoneTree = useMemo(
     () => filterBoneTree(boneTree, boneSearch),
     [boneSearch, boneTree],
+  );
+  const searchExpandedBoneNames = useMemo(
+    () =>
+      boneSearch.trim()
+        ? new Set(browserRows.map((row) => row.boneName))
+        : expandedBoneNames,
+    [boneSearch, browserRows, expandedBoneNames],
   );
 
   useEffect(() => {
@@ -461,15 +477,19 @@ export function PoseCreatorBoneSection({
     updateSelectedBoneRotation(createZeroRotationDegrees());
   };
 
-  const handleResetAllBones = () => {
+  const handleResetAllBones = useCallback(() => {
+    // The browser can stay memoized while rotations change. Read the current
+    // drafts when the user resets them rather than capturing a stale pose.
+    const { activeAvatar, boneDrafts, clearBoneDrafts } =
+      usePoseCreatorStore.getState();
     if (!activeAvatar) return;
     for (const [boneName, draft] of Object.entries(boneDrafts)) {
       restoreBoneBaseQuaternion(activeAvatar, boneName, draft);
     }
     clearBoneDrafts();
-  };
+  }, []);
 
-  const handleToggleBone = (boneName: string) => {
+  const handleToggleBone = useCallback((boneName: string) => {
     setExpandedBoneNames((current) => {
       const next = new Set(current);
       if (next.has(boneName)) {
@@ -479,33 +499,187 @@ export function PoseCreatorBoneSection({
       }
       return next;
     });
-  };
+  }, []);
 
-  const handleExpandAllBones = () => {
+  const handleExpandAllBones = useCallback(() => {
     setExpandedBoneNames(new Set(expandableBoneNames));
-  };
+  }, [expandableBoneNames]);
 
-  const handleCollapseAllBones = () => {
+  const handleCollapseAllBones = useCallback(() => {
     setExpandedBoneNames(new Set());
-  };
+  }, []);
 
-  const handleSelectBone = (boneName: string) => {
-    if (variant !== "panel" && selectedBone === boneName) {
-      setSelectedBone(null);
-      return;
-    }
-    focusBone(boneName);
-    expandBoneAncestors(boneName);
-  };
+  const handleSelectBone = useCallback(
+    (boneName: string) => {
+      if (variant !== "panel" && selectedBone === boneName) {
+        setSelectedBone(null);
+        return;
+      }
+      focusBone(boneName);
+      expandBoneAncestors(boneName);
+    },
+    [expandBoneAncestors, focusBone, selectedBone, setSelectedBone, variant],
+  );
 
   const handleMirrorOppositeBoneChange = (checked: boolean) => {
     setMirrorOppositeBoneEnabled(checked);
   };
 
+  const hasSelectedRow = selectedRow !== null;
+  const availableBoneCount = availableRows.length;
+  const hasDraftedBones = activeDraftCount > 0;
+  // The complete browser, including its tooltip portals, does not depend on
+  // live rotation values. Only the authoring controls below update per drag.
+  const boneBrowser = useMemo(() => {
+    if (variant === "panel" || !browserExpanded) return null;
+    return (
+      <aside
+        className={cn(
+          "border-border/65 bg-background/92 pointer-events-auto flex flex-col border p-4 backdrop-blur-xl",
+          variant === "mobile"
+            ? hasSelectedRow
+              ? "hidden"
+              : "h-full min-h-0 w-full border-0"
+            : "absolute top-4 left-[calc(var(--app-shell-sidebar-inset)+1rem)] w-[248px] rounded-2xl shadow-xl shadow-black/8 transition-[left] duration-150 ease-in-out xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)] xl:w-[288px] 2xl:w-[340px]",
+        )}
+      >
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold">Bones</h2>
+            <p className="text-muted-foreground mt-0.5 text-[11px]">
+              {availableBoneCount} available
+            </p>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="text-muted-foreground size-7"
+                  onClick={handleExpandAllBones}
+                  disabled={
+                    expandableBoneNames.length === 0 ||
+                    expandableBoneNames.every((boneName) =>
+                      expandedBoneNames.has(boneName),
+                    )
+                  }
+                  aria-label="Expand all bone groups"
+                >
+                  <ChevronsDownIcon className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Expand all</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="text-muted-foreground size-7"
+                  onClick={handleCollapseAllBones}
+                  disabled={expandedBoneNames.size === 0}
+                  aria-label="Collapse all bone groups"
+                >
+                  <ChevronsUpIcon className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Collapse all</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="text-muted-foreground size-7"
+                  onClick={handleResetAllBones}
+                  disabled={!hasDraftedBones}
+                  aria-label="Reset all bone changes"
+                >
+                  <RotateCcwIcon className="size-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Reset all changes</TooltipContent>
+            </Tooltip>
+            {variant === "workspace" && onCollapse ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="text-muted-foreground size-7"
+                    onClick={onCollapse}
+                    aria-label="Collapse bone tools"
+                  >
+                    <ChevronUpIcon className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Collapse bone tools
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
+          </div>
+        </div>
+        <div className="mb-3 flex items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
+            <Input
+              value={boneSearch}
+              onChange={(event) => setBoneSearch(event.currentTarget.value)}
+              placeholder="Search bones"
+              aria-label="Search bones"
+              className="bg-background/70 h-9 rounded-lg pl-9 text-xs shadow-none"
+            />
+          </div>
+          <PoseCreatorHelpersToggle
+            checked={boneHelperNodesVisible}
+            onCheckedChange={setBoneHelperNodesVisible}
+          />
+        </div>
+        {filteredBoneTree.length > 0 ? (
+          <BoneTree
+            tree={filteredBoneTree}
+            expandedBoneNames={searchExpandedBoneNames}
+            selectedBone={selectedBone}
+            onToggleBone={handleToggleBone}
+            onSelectBone={handleSelectBone}
+            variant={variant === "mobile" ? "mobile" : "workspace"}
+          />
+        ) : (
+          <p className="text-muted-foreground py-8 text-center text-xs">
+            No matching bones
+          </p>
+        )}
+      </aside>
+    );
+  }, [
+    availableBoneCount,
+    boneHelperNodesVisible,
+    boneSearch,
+    browserExpanded,
+    expandableBoneNames,
+    expandedBoneNames,
+    filteredBoneTree,
+    handleCollapseAllBones,
+    handleExpandAllBones,
+    handleResetAllBones,
+    handleSelectBone,
+    handleToggleBone,
+    hasDraftedBones,
+    hasSelectedRow,
+    onCollapse,
+    searchExpandedBoneNames,
+    selectedBone,
+    setBoneHelperNodesVisible,
+    variant,
+  ]);
+
   if (variant !== "panel") {
-    const searchExpandedBoneNames = boneSearch.trim()
-      ? new Set(rows.map((row) => row.boneName))
-      : expandedBoneNames;
     const selectedBoneIsRest = Boolean(
       selectedDraft &&
       ROTATION_AXES.every(
@@ -515,131 +689,7 @@ export function PoseCreatorBoneSection({
 
     return (
       <>
-        {browserExpanded ? (
-          <aside
-            className={cn(
-              "border-border/65 bg-background/92 pointer-events-auto flex flex-col border p-4 backdrop-blur-xl",
-              variant === "mobile"
-                ? selectedRow
-                  ? "hidden"
-                  : "h-full min-h-0 w-full border-0"
-                : "absolute top-4 left-[calc(var(--app-shell-sidebar-inset)+1rem)] w-[248px] rounded-2xl shadow-xl shadow-black/8 transition-[left] duration-150 ease-in-out xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)] xl:w-[288px] 2xl:w-[340px]",
-            )}
-          >
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold">Bones</h2>
-                <p className="text-muted-foreground mt-0.5 text-[11px]">
-                  {availableRows.length} available
-                </p>
-              </div>
-              <div className="flex items-center gap-0.5">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      className="text-muted-foreground size-7"
-                      onClick={handleExpandAllBones}
-                      disabled={
-                        expandableBoneNames.length === 0 ||
-                        expandableBoneNames.every((boneName) =>
-                          expandedBoneNames.has(boneName),
-                        )
-                      }
-                      aria-label="Expand all bone groups"
-                    >
-                      <ChevronsDownIcon className="size-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">Expand all</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      className="text-muted-foreground size-7"
-                      onClick={handleCollapseAllBones}
-                      disabled={expandedBoneNames.size === 0}
-                      aria-label="Collapse all bone groups"
-                    >
-                      <ChevronsUpIcon className="size-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">Collapse all</TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      className="text-muted-foreground size-7"
-                      onClick={handleResetAllBones}
-                      disabled={activeDraftCount === 0}
-                      aria-label="Reset all bone changes"
-                    >
-                      <RotateCcwIcon className="size-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">Reset all changes</TooltipContent>
-                </Tooltip>
-                {variant === "workspace" && onCollapse ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        size="icon-sm"
-                        variant="ghost"
-                        className="text-muted-foreground size-7"
-                        onClick={onCollapse}
-                        aria-label="Collapse bone tools"
-                      >
-                        <ChevronUpIcon className="size-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom">
-                      Collapse bone tools
-                    </TooltipContent>
-                  </Tooltip>
-                ) : null}
-              </div>
-            </div>
-            <div className="mb-3 flex items-center gap-2">
-              <div className="relative min-w-0 flex-1">
-                <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2" />
-                <Input
-                  value={boneSearch}
-                  onChange={(event) => setBoneSearch(event.currentTarget.value)}
-                  placeholder="Search bones"
-                  aria-label="Search bones"
-                  className="bg-background/70 h-9 rounded-lg pl-9 text-xs shadow-none"
-                />
-              </div>
-              <PoseCreatorHelpersToggle
-                checked={boneHelperNodesVisible}
-                onCheckedChange={setBoneHelperNodesVisible}
-              />
-            </div>
-            {filteredBoneTree.length > 0 ? (
-              <BoneTree
-                tree={filteredBoneTree}
-                expandedBoneNames={searchExpandedBoneNames}
-                selectedBone={selectedBone}
-                onToggleBone={handleToggleBone}
-                onSelectBone={handleSelectBone}
-                variant={variant === "mobile" ? "mobile" : "workspace"}
-              />
-            ) : (
-              <p className="text-muted-foreground py-8 text-center text-xs">
-                No matching bones
-              </p>
-            )}
-          </aside>
-        ) : null}
+        {boneBrowser}
 
         {selectedRow || variant === "workspace" ? (
           <aside

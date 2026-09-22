@@ -2,7 +2,7 @@
 
 import { createPortal, useThree } from "@react-three/fiber";
 import { VRMHumanBoneList, type VRMHumanBoneName } from "@pixiv/three-vrm";
-import { Fragment, useMemo } from "react";
+import { Fragment, memo, useMemo } from "react";
 import type { Object3D } from "three";
 
 import type { Avatar } from "@/lib/avatar";
@@ -60,7 +60,9 @@ function PoseCreatorBoneMarkerNode({
   );
 }
 
-export function PoseCreatorBoneMarkers({
+// Markers follow their bone Object3D transforms without React updates. Avoid
+// rebuilding every portal for an unrelated draft update in the avatar actor.
+export const PoseCreatorBoneMarkers = memo(function PoseCreatorBoneMarkers({
   avatar,
 }: PoseCreatorBoneMarkersProps) {
   const boneHelperNodesVisible = usePoseCreatorStore(
@@ -94,4 +96,4 @@ export function PoseCreatorBoneMarkers({
       ))}
     </>
   ) : null;
-}
+});

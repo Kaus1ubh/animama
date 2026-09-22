@@ -330,6 +330,19 @@ type BuildPoseCreatorAnimaPoseOptions = {
   mode?: PoseCreatorPoseExportMode;
 };
 
+/** Check export availability without building quaternions or serializing a pose. */
+export function hasPoseCreatorDraftContent(
+  boneDrafts: PoseCreatorBoneDrafts,
+  expressionDrafts: PoseCreatorExpressionDrafts,
+  parentPose: PoseCreatorBasePose | null | undefined,
+): boolean {
+  return Boolean(
+    getPoseCreatorParentRef(parentPose) ||
+    Object.keys(boneDrafts).some(isPoseCreatorHumanBoneName) ||
+    Object.keys(expressionDrafts).length > 0,
+  );
+}
+
 export function buildPoseCreatorAnimaPose(
   boneDrafts: PoseCreatorBoneDrafts,
   expressionDrafts: PoseCreatorExpressionDrafts,

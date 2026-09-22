@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronUpIcon, RotateCcwIcon, SearchIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 
 import {
   readAvailableAvatarExpressions,
@@ -30,7 +30,7 @@ function formatExpressionLabel(expressionName: string): string {
   return spaced.replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-export function PoseCreatorExpressionSection({
+function PoseCreatorExpressionSectionContent({
   variant = "panel",
   onCollapse,
   embedded = false,
@@ -381,3 +381,8 @@ export function PoseCreatorExpressionSection({
     </PoseCreatorPanelSection>
   );
 }
+
+/** Keep bone/history updates from rendering the unrelated expression sliders. */
+export const PoseCreatorExpressionSection = memo(
+  PoseCreatorExpressionSectionContent,
+);

@@ -5,10 +5,54 @@ import {
   bakePoseCreatorAnimaPose,
   createUniquePoseCreatorBranchName,
   createBoneDraft,
+  buildPoseCreatorAnimaPose,
+  hasPoseCreatorDraftContent,
 } from "./poseCreatorAuthoring";
+import {
+  POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
+  type PoseCreatorBoneDrafts,
+  type PoseCreatorExpressionDrafts,
+} from "@/stores/pose-creator-store";
 import { shouldShowPoseCreatorBoneGizmo } from "./poseCreatorBoneGizmoVisibility";
 
 describe("Pose Creator pose reuse", () => {
+  it("keeps the cheap toolbar availability check consistent with pose export", () => {
+    const rotation = {
+      baseQuaternion: [0, 0, 0, 1] as [number, number, number, number],
+      rotationDegrees: { x: 0, y: 0, z: 0 },
+    };
+    const boneCases: PoseCreatorBoneDrafts[] = [
+      {},
+      { head: rotation },
+      { missingBone: rotation },
+    ];
+    const expressionCases: PoseCreatorExpressionDrafts[] = [
+      {},
+      { happy: { baseValue: 0, value: 0 } },
+    ];
+    for (const parentPose of [
+      "relaxedRest",
+      POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
+      null,
+    ]) {
+      for (const boneDrafts of boneCases) {
+        for (const expressionDrafts of expressionCases) {
+          expect(
+            hasPoseCreatorDraftContent(
+              boneDrafts,
+              expressionDrafts,
+              parentPose,
+            ),
+          ).toBe(
+            buildPoseCreatorAnimaPose(boneDrafts, expressionDrafts, {
+              parentPose,
+            }) !== null,
+          );
+        }
+      }
+    }
+  });
+
   it("bakes a saved parented pose into an independent snapshot", () => {
     const baked = bakePoseCreatorAnimaPose(
       parseAnimaPose({

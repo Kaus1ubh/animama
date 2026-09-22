@@ -86,6 +86,7 @@ import {
   buildPoseCreatorAnimaPoseForExport,
   createUniquePoseCreatorBranchName,
   formatPoseCreatorAnimaPoseJson,
+  hasPoseCreatorDraftContent,
   replacePoseCreatorDraftWithAnimaPose,
   type PoseCreatorPoseExportMode,
 } from "./poseCreatorAuthoring";
@@ -313,12 +314,23 @@ export function PoseCreatorLibrarySection({
   const [jsonDialogOpen, setJsonDialogOpen] = useState(false);
   const [exportMode, setExportMode] =
     useState<PoseCreatorPoseExportMode>("inherited");
+  const showJson = variant === "panel" || jsonDialogOpen;
   const selectedSource = usePoseCreatorStore((state) => state.selectedSource);
   const basePose = usePoseCreatorStore((state) => state.basePose);
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
-  const boneDrafts = usePoseCreatorStore((state) => state.boneDrafts);
-  const expressionDrafts = usePoseCreatorStore(
-    (state) => state.expressionDrafts,
+  // Hidden export UI must not rebuild the toolbar on every gizmo movement.
+  const boneDrafts = usePoseCreatorStore((state) =>
+    showJson ? state.boneDrafts : null,
+  );
+  const expressionDrafts = usePoseCreatorStore((state) =>
+    showJson ? state.expressionDrafts : null,
+  );
+  const hasPoseContent = usePoseCreatorStore((state) =>
+    hasPoseCreatorDraftContent(
+      state.boneDrafts,
+      state.expressionDrafts,
+      state.basePose,
+    ),
   );
   const draftName = usePoseCreatorStore((state) => state.draftName);
   const savedDrafts = usePoseCreatorStore((state) => state.savedDrafts);
@@ -357,23 +369,16 @@ export function PoseCreatorLibrarySection({
     ? canRedoInlinePose
     : canRedoStandalonePose;
   const redoPose = isInlineClipPose ? redoInlinePose : redoStandalonePose;
-  const currentInheritedPose = useMemo(
-    () =>
-      buildPoseCreatorAnimaPose(boneDrafts, expressionDrafts, {
-        id: selectedSavedDraftId,
-        name: draftName,
-        parentPose: basePose,
-      }),
-    [basePose, boneDrafts, draftName, expressionDrafts, selectedSavedDraftId],
-  );
   const currentExportPose = useMemo(
     () =>
-      buildPoseCreatorAnimaPoseForExport(boneDrafts, expressionDrafts, {
-        id: selectedSavedDraftId,
-        name: draftName,
-        parentPose: basePose,
-        mode: exportMode,
-      }),
+      boneDrafts && expressionDrafts
+        ? buildPoseCreatorAnimaPoseForExport(boneDrafts, expressionDrafts, {
+            id: selectedSavedDraftId,
+            name: draftName,
+            parentPose: basePose,
+            mode: exportMode,
+          })
+        : null,
     [
       basePose,
       boneDrafts,
@@ -390,13 +395,25 @@ export function PoseCreatorLibrarySection({
         : null,
     [currentExportPose],
   );
-  const canSaveDraft = Boolean(selectedSource && currentInheritedPose);
+  const canSaveDraft = Boolean(selectedSource && hasPoseContent);
 
   const saveCurrentPoseDraft = (): PoseCreatorSavedDraft | null => {
-    if (!selectedSource) {
+    // Read at the action boundary: the toolbar deliberately skips draft-only
+    // updates while its JSON dialog is closed.
+    const current = usePoseCreatorStore.getState();
+    if (!current.selectedSource) {
       setImportError("Select an Avatar Model before saving a local draft.");
       return null;
     }
+    const currentInheritedPose = buildPoseCreatorAnimaPose(
+      current.boneDrafts,
+      current.expressionDrafts,
+      {
+        id: current.selectedSavedDraftId,
+        name: current.draftName,
+        parentPose: current.basePose,
+      },
+    );
     if (!currentInheritedPose) {
       setImportError(
         "Choose a parent or adjust bones or expressions before saving a draft.",
@@ -404,8 +421,8 @@ export function PoseCreatorLibrarySection({
       return null;
     }
     const savedDraft = saveLocalDraft({
-      source: selectedSource,
-      basePose,
+      source: current.selectedSource,
+      basePose: current.basePose,
       pose: currentInheritedPose,
     });
     const latestError = usePoseCreatorStore.getState().importError;
@@ -708,7 +725,7 @@ export function PoseCreatorLibrarySection({
                 size="icon-sm"
                 variant="ghost"
                 onClick={() => setJsonDialogOpen(true)}
-                disabled={!currentJson}
+                disabled={!hasPoseContent}
                 aria-label="View pose JSON"
               >
                 <Code2Icon className="size-3.5" />
@@ -778,7 +795,7 @@ export function PoseCreatorLibrarySection({
             </DropdownMenuItem>
             <DropdownMenuItem
               className="min-h-11 gap-3 rounded-lg"
-              disabled={!currentJson}
+              disabled={!hasPoseContent}
               onSelect={() => setJsonDialogOpen(true)}
             >
               <Code2Icon className="size-4" />

@@ -1,4 +1,4 @@
-# Release creator resources and unmounted Fast Refresh roots
+# Release creator resources and reduce drag rendering overhead
 
 Source agreement: issue [#41](https://github.com/raymond-van/animama/issues/41), read back at 2026-09-22T00:09:03Z.
 Authorized scope: the complete bounded repair, local verification, independent review, and a separate PR. Merge approval remains separate.
@@ -21,6 +21,8 @@ Relevant boundaries are the four real TransformControls consumers and `web/src/l
 - [x] Complete independent source review, commit the repair, and open draft [PR #44](https://github.com/raymond-van/animama/pull/44).
 - [x] Complete desktop browser acceptance and final integration sign-off before marking the PR ready.
 - [x] Phase 2: release already-unmounted Fast Refresh roots, preserve refresh/error recovery, and verify installed dependencies and browser resource counts.
+
+- [x] Phase 3: implementation, regression/browser checks, final build and independent review complete.
 
 ## Surprises & Discoveries
 
@@ -91,6 +93,46 @@ Independent source review found no actionable findings in the installed-runtime 
 
 React timing accumulation, FX image caching, bitmap ownership, and full process-memory attribution remain separate from this follow-up. No claim is made about the total Chrome process footprint or packaged desktop acceptance.
 
+## Phase 3: Keep dragging responsive and bound development timings
+
+Issue [#49](https://github.com/raymond-van/animama/issues/49), read back at 2026-09-22T16:08:09Z. Starting revision: `42c7cc255553555af5b3859225a36469597e7072`. Owner authorized this repair and a review of the complete memory-fix PR. Reuse the current task checkout and development stack; no merge authorization.
+
+1. Preserve unchanged inline-edit metadata and avoid snapshot cloning inside an existing Undo group. Keep Pose and inline Clip histories bounded and one entry per drag.
+2. Isolate bone-tree, marker portals, expressions and header work from live bone updates where those inputs are unchanged; preserve selected-bone controls and on-demand Save/JSON behavior. Mount only the active desktop/mobile layout so hidden canvases and panels do not duplicate live work; keep document/history above the breakpoint boundary.
+3. Observe only React-owned development performance measures and release them without deleting application-owned timings. Document an intentional-profiling opt-in and pair observer installation with HMR cleanup. Do not install it in production.
+4. Add meaningful red/green regressions, run affected suites and static/build checks, and compare actual desktop browser drags on changed source. Verify Undo/Redo, helper toggles, final pose, timing bounds and post-GC ownership counts. Retain the limitations of synthetic input and shared-machine timing.
+5. Independently review the previous PR fixes, then the Phase 3 changes and final integration. Use one initial review with at most two repair rounds per requested scope. Record findings and dispositions, commit and update PR #44.
+
+### Phase 3 discoveries and decisions
+
+- One drag produced 117,780 development timing entries and one approximately 6 KB Undo snapshot. Clearing timing entries reduced the test snapshot by approximately 18 MB; profiling retention and stutter require separate validation.
+- Disabling timing calls alone did not remove slow frames. Repeated inline edits replaced already-dirty metadata, triggering unrelated workspace renders. Per-move history recording also cloned snapshots before detecting the existing drag group.
+- The avatar actor rebuilt 54 marker portals during each draft update. Both desktop and mobile workspace/canvas trees were also mounted at once and only hidden with CSS, duplicating live work. Profile timings under remote debugging are not equivalent to uninstrumented product frame times.
+
+### Requested full PR review
+
+Independent read-only review of `de29b181..42c7cc2` found no actionable findings in the owned gizmo wrapper and four consumers, all six URL consumers including VRMA decode/cancellation/disposal, and the Fast Refresh patch/tests/install inputs. Camera/element identities keep controls stable during rotation. Prior functional drag evidence does not establish smooth sustained dragging. Repair rounds: 0 of 2.
+
+### Phase 3 Code Review #1 Findings
+
+Independent review found no actionable findings in timing cleanup/HMR ownership, grouped history, stable inline metadata, and live Save/JSON/subscription behavior. A targeted recheck covered the subsequently measured hidden-layout and static-panel render work: one active layout, preserved document/history ownership above the breakpoint, and current callbacks/subscriptions in memoized UI. It found no actionable findings. Final integration accepted the browser evidence below; the final checks subsequently passed, leaving no scoped blocker.
+
+### Phase 3 Code Review #1 Revisions
+
+No supported source finding required repair. One targeted recheck covered browser-driven additions; no broad review was restarted. Repair rounds used: 0 of 2. The previous PR-wide review and Phase 1/2 evidence remain valid for unchanged source.
+
+### Phase 3 validation
+
+- RED/GREEN: unchanged inline-edit metadata identity failed before and passed after; original closed-toolbar tests failed for draft subscriptions and stale Save behavior; duplicate-layout tests failed for two scenes and missing resize notification; timing-buffer regression retained 1,000 entries before cleanup. All now pass.
+- `pnpm exec vitest run src/stores/pose-creator-store.test.ts src/ui/avatar-preview src/lib/runtime-content src/lib/avatar/AvatarVrmaCompatibility.test.ts src/ui/pose-creator src/ui/content-preview src/ui/content-creator src/ui/animas src/ui/main/canvas src/lib/development src/ui/action-editor` from `src/frontend/web`: 323 tests across 63 files passed on final source. An earlier concurrent run caught two unfinished test-harness assertions; those were corrected and the serialized final run passed.
+- Final integrated `pnpm check`, `pnpm web:lint`, and production `pnpm build` ran serially and passed. Explicit formatting checks passed all 20 changed/new source and documentation files, and `git diff --check` passed. Production asset content, filenames and manifest contain no timing-helper/profiling-option or Fast Refresh symbols. The production build transformed 4,919 modules with only the existing large-chunk advisory. Package manifests, lockfile, dependency patches and Docker inputs are unchanged from Phase 2, so its frozen host/Linux installation evidence is reused.
+- Desktop browser on http://localhost:8340 with a real avatar: each final 30-move synthetic drag generates approximately 3,750 React timings, versus approximately 66,000 in the earlier investigation; no React measures remain after observer delivery. Bone-tree rows, marker portals and the expression panel no longer render on each move. The final sample has eight Portal renders at interaction boundaries instead of approximately 1,600 across movement.
+- Instrumented final drags averaged roughly 48–58 ms between animation frames, while earlier observations were much slower. These are shared-machine remote-debugging observations at different viewport/DPR settings, not a controlled benchmark or a 60fps claim. A CPU trace collector exceeded its analysis string limit; sampled render counts and direct frame timings were still available. No complete process/GPU attribution is claimed.
+- Exactly one canvas remains mounted at 1440, 1280 and 900 CSS pixels and after returning to 1440. Crossing the breakpoint preserves the numeric pose and one inline Undo entry. Undo restores the initial arm rotation and Redo restores the drag result. The JSON dialog parses as `animaPose/1.0` and reflects current arm quaternion data.
+- Post-GC snapshots before and after three additional drag/Undo cycles retain the same two renderer objects (after prior layout swaps), one TransformControls and 24 native avatar bitmaps, with zero native PerformanceMeasure objects. Total snapshot self sizes were approximately 169.4 MB and 170.8 MB. Retained historical renderer objects are not claimed eliminated.
+- Two actual timing-module hot updates create two observed replacements and disconnect one, leaving one active replacement observer. An application-owned timing survives; a profiling-opt-in tab retains its React timings across route changes and HMR. Temporary verification source edits were fully restored.
+- Only disposable test tabs were closed. The original user tab, other task's stack and drafts were preserved.
+
 ## Validation and acceptance
 
 Run from `src/frontend`: focused web tests, `pnpm check`, `pnpm web:lint`, formatting checks, and `pnpm build`. Browser evidence uses changed source and real avatar loading; listener/URL instrumentation stores metadata only. Record exact commands/results here.
@@ -115,4 +157,4 @@ Temporary URL release must be idempotent. Abort during download/body decoding mu
 
 ## Outcomes & Retrospective
 
-The gizmo and URL ownership repairs and development Fast Refresh follow-up are implemented, independently source-reviewed, and browser-validated. Repeated navigation no longer accumulates one renderer and avatar bitmap set per cycle in the measured scenario. The task-owned development stack remains available at http://localhost:8340. This repair does not establish that every contributor to the original multi-GB footprint is resolved; merge still requires owner approval.
+The PR now covers explicit gizmo/URL ownership, Fast Refresh root cleanup, development timing cleanup, and reduced drag-time rendering. Browser tests show bounded sampled resources, one mounted responsive canvas, working Undo/Redo and current JSON export. The task-owned development stack remains available at http://localhost:8340. All applicable local gates passed; hosted validation and owner approval remain separate. This does not establish that every contributor to the original multi-GB footprint is resolved or guarantee a particular frame rate; merge still requires owner approval.
