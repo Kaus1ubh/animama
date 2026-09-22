@@ -43,7 +43,7 @@ export function CreatorPreviewBar({
   return (
     <section
       className={cn(
-        "bg-background/92 border-border/70 h-full overflow-hidden rounded-2xl border p-3 shadow-xl backdrop-blur-xl",
+        "bg-background/92 border-border/70 min-h-14 rounded-2xl border p-3 shadow-sm lg:h-full lg:overflow-hidden",
         className,
       )}
     >
@@ -73,60 +73,70 @@ function CompactPreviewContent(props: CompactPreviewProps) {
     duration,
   } = props;
   return (
-    <div className="flex h-full flex-wrap items-center gap-2">
-      <div className="mr-2 min-w-[110px]">
+    <div className="flex h-full flex-wrap items-center gap-3">
+      <div className="mr-auto max-w-48 min-w-0">
         <div className="text-sm font-semibold">{title}</div>
         <div className="text-muted-foreground truncate text-xs">{subtitle}</div>
       </div>
-      <Button
-        type="button"
-        size="icon"
-        variant="outline"
-        onClick={() => onPlayingChange(!playing)}
-        aria-label={playing ? "Pause preview" : "Play preview"}
-      >
-        {playing ? <PauseIcon /> : <PlayIcon />}
-      </Button>
-      <Button
-        type="button"
-        size="icon"
-        variant="outline"
-        onClick={() => onPlayingChange(false)}
-        aria-label="Stop preview"
-      >
-        <SquareIcon />
-      </Button>
-      <Button
-        type="button"
-        size="icon"
-        variant="outline"
-        onClick={onRestart}
-        aria-label="Restart preview"
-      >
-        <RefreshCwIcon />
-      </Button>
+      <div className="border-border/70 bg-muted/20 flex shrink-0 items-center rounded-lg border p-0.5">
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          onClick={() => onPlayingChange(!playing)}
+          aria-label={playing ? "Pause preview" : "Play preview"}
+          title={playing ? "Pause" : "Play"}
+        >
+          {playing ? <PauseIcon /> : <PlayIcon />}
+        </Button>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          onClick={() => onPlayingChange(false)}
+          aria-label="Stop preview"
+          title="Stop"
+        >
+          <SquareIcon />
+        </Button>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          onClick={onRestart}
+          aria-label="Restart preview"
+          title="Restart"
+        >
+          <RefreshCwIcon />
+        </Button>
+      </div>
       <div className="bg-muted/55 mx-1 hidden h-1 min-w-20 flex-1 overflow-hidden rounded-full sm:block">
         <div
           className={cn(
-            "h-full w-full origin-left bg-sky-400",
+            "bg-primary h-full w-full origin-left",
             playing && progressClassName,
           )}
         />
       </div>
-      <span className="text-muted-foreground ml-auto text-xs">Duration</span>
-      <Input
-        className="h-9 w-20"
-        type="number"
-        min={duration.min}
-        max={duration.max}
-        step={duration.step}
-        value={duration.value}
-        disabled={duration.disabled}
-        onChange={(event) => duration.onValueChange(event.target.valueAsNumber)}
-      />
-      <span className="text-muted-foreground text-xs">
-        {duration.unit ?? "seconds"}
-      </span>
+      <label className="ml-auto flex items-center gap-2 text-xs">
+        <span className="text-muted-foreground">Duration</span>
+        <Input
+          className="h-8 w-20 text-xs"
+          aria-label="Preview duration in seconds"
+          type="number"
+          min={duration.min}
+          max={duration.max}
+          step={duration.step}
+          value={duration.value}
+          disabled={duration.disabled}
+          onChange={(event) =>
+            duration.onValueChange(event.target.valueAsNumber)
+          }
+        />
+        <span className="text-muted-foreground text-xs">
+          {duration.unit ?? "s"}
+        </span>
+      </label>
     </div>
   );
 }

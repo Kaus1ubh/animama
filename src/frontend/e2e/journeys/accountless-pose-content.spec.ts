@@ -444,11 +444,16 @@ test("pose content creator load panels avoid expanded and collapsed sidebars @re
   const guard = new ReadOnlyJourneyGuard(page);
   try {
     await page.setViewportSize({ width: 1280, height: 800 });
-    for (const creator of ["pose", "gesture", "reaction"] as const) {
-      await page.goto(
-        creator === "reaction" ? "/a/reactions/new" : "/a/gestures/new",
-      );
-      if (creator !== "reaction") {
+    for (const [creator, route] of [
+      ["pose", "/a/gestures/new"],
+      ["gesture", "/a/gestures/new"],
+      ["reaction", "/a/reactions/new"],
+      ["Particle FX", "/a/particle-effects/new"],
+      ["Avatar FX", "/a/avatar-effects/new"],
+      ["Scene FX", "/a/scene-effects/new"],
+    ] as const) {
+      await page.goto(route);
+      if (creator === "pose" || creator === "gesture") {
         await page
           .getByRole("tab", {
             name: creator === "pose" ? "Pose" : "Clip",
@@ -516,7 +521,7 @@ test("pose content creator load panels avoid expanded and collapsed sidebars @re
     }
     await page.setViewportSize({ width: 390, height: 844 });
     await page
-      .getByRole("button", { name: "Load reaction", exact: true })
+      .getByRole("button", { name: "Load Scene FX", exact: true })
       .click();
     const panel = page.locator('[data-slot="popover-content"]');
     await expect(panel).toBeVisible();

@@ -35,6 +35,7 @@ export function CreatorNumberField({
       labelClassName={cn(compact && "text-[11px]")}
     >
       <Input
+        className={cn("h-8 text-xs", compact && "px-2")}
         id={id}
         aria-label={label}
         type="number"

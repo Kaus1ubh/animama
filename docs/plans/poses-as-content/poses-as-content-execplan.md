@@ -872,3 +872,29 @@ current hosted status. GitHub still reports Portable product validation as
 `disabled_manually`; no hosted run/check suite has started. This is a hosted gate,
 not an unresolved source-review finding. Owner approval of the exact candidate is
 pending; no merge or task cleanup was performed.
+
+### Main integration after follow-up publication
+
+Publishing follow-up `c04262b` exposed three FX page conflicts with main `8cc9522`,
+which had added shared FX toolbars, load pickers and undo/redo history. Merge main
+into the same task branch without rewriting published history. Reconcile each
+page's initial hydration with the history reset APIs while preserving completed
+loads, Included-copy dirty state, acknowledged save identity and existing history
+on Save. Apply the same sidebar-aware popover bounds to main's shared FX load
+picker; the geometry journey now covers all six creators and narrow Scene FX.
+
+The independent targeted reconciliation review found no new source blockers;
+prior FU-1/FU-2/FU-3 dispositions and the used repair budget remain unchanged.
+Focused integration tests passed: 51 across ten suites, including all three history
+hooks, creator load/toolbar contracts and repaired save/hydration boundaries.
+Frontend source typing, scoped lint and five changed integration-file formatting
+checks passed. Build and built-browser integration acceptance are recorded below.
+
+Integration source production build and E2E TypeScript passed. Refreshed built-mode
+run `run-0922165908` passed setup and the six-creator sidebar geometry journey
+(2 tests, 54.3 seconds), including narrow Scene FX and a clean ownership ledger.
+Manual built-mode checks confirmed Angry Avatar FX, Comic Pop Scene FX and Confusion
+Orbit Marks Particle FX load their actual documents with Included-copy Save enabled;
+Avatar name Undo restored the loaded name. Earlier complete Pose development/built
+journeys remain valid for unchanged persistence/copy source. The merge changes only
+the reviewed FX integration and shared-load coverage beyond those prior results.
