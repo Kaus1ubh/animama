@@ -8,6 +8,8 @@ src/frontend/**
 !src/frontend/package.json
 !src/frontend/pnpm-lock.yaml
 !src/frontend/pnpm-workspace.yaml
+!src/frontend/patches/
+!src/frontend/patches/**
 !src/frontend/prettier.config.mjs
 !src/frontend/scripts/
 !src/frontend/scripts/**

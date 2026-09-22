@@ -15,7 +15,7 @@
     "prettier": "prettier --ignore-path ../.prettierignore --write '*.{js,mjs,ts,json,css,md}' 'scripts/**/*.{js,mjs,ts}' 'src/**/*.{ts,tsx,js,jsx,css,md,json}' '../prettier.config.mjs' 'public/**/*.{md,json}'",
     "prettier:check": "prettier --ignore-path ../.prettierignore --check '*.{js,mjs,ts,json,css,md}' 'scripts/**/*.{js,mjs,ts}' 'src/**/*.{ts,tsx,js,jsx,css,md,json}' '../prettier.config.mjs' 'public/**/*.{md,json}'",
     "check:source": "tsc -b",
-    "test:source": "vitest run",
+    "test:source": "node --experimental-vm-modules --test scripts/fast-refresh-lifecycle.test.mjs && vitest run",
     "build:source": "pnpm routes:generate && tsc -b && vite build"
   },
   "packageManager": "pnpm@10.33.0",

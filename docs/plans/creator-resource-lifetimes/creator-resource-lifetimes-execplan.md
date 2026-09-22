@@ -1,7 +1,9 @@
-# Release creator gizmos and temporary runtime URLs
+# Release creator resources and unmounted Fast Refresh roots
 
 Source agreement: issue [#41](https://github.com/raymond-van/animama/issues/41), read back at 2026-09-22T00:09:03Z.
 Authorized scope: the complete bounded repair, local verification, independent review, and a separate PR. Merge approval remains separate.
+
+2026-09-22 follow-up: the owner authorized the confirmed development Fast Refresh root retention repair, tracked by [#45](https://github.com/raymond-van/animama/issues/45), as Phase 2 in the same branch and PR. Issue #45 was read back at 2026-09-22T14:34:01Z. The prior phase's browser gates remain required.
 
 ## Purpose and context
 
@@ -15,16 +17,17 @@ Relevant boundaries are the four real TransformControls consumers and `web/src/l
 
 - [x] Confirm merged baseline, fast-forward primary main, preserve occupied checkout, and publish issue #41.
 - [x] Implement both lifetime repairs, add regression coverage, and pass affected tests, typechecks, lint, formatting, and build.
-- [ ] Phase 1: repair lifetimes with regression coverage and desktop browser evidence.
+- [x] Phase 1: repair lifetimes with regression coverage and desktop browser evidence.
 - [x] Complete independent source review, commit the repair, and open draft [PR #44](https://github.com/raymond-van/animama/pull/44).
-- [ ] Complete desktop browser acceptance and final integration sign-off before marking the PR ready.
+- [x] Complete desktop browser acceptance and final integration sign-off before marking the PR ready.
+- [x] Phase 2: release already-unmounted Fast Refresh roots, preserve refresh/error recovery, and verify installed dependencies and browser resource counts.
 
 ## Surprises & Discoveries
 
 - Investigation reproduced controls increasing 0 → 2 → 4 → 6 and one unreleased model Blob URL per creator entry. It did not reproduce every component of the long-lived tab's multi-GB footprint.
 - `ParticleVFXCreatorPage` contains an unrelated HTML form named TransformControls; the actual Drei wrapper has four consumers.
 - Removing a control mid-drag must restore the previous OrbitControls enabled state. The regression also covers an already-disabled orbit control.
-- The isolated browser stack could not start while the local Docker engine was unresponsive. Existing application requests also timed out; no browser acceptance is claimed yet.
+- Initial browser acceptance was blocked by an unresponsive Docker engine. It subsequently recovered; the isolated development stack now serves changed source at http://localhost:8340. No shared engine restart was needed.
 
 ## Decision Log
 
@@ -49,15 +52,44 @@ Completion requires issue acceptance, no supported blocking findings, and disclo
 
 Independent source review of the combined working-tree diff against the starting revision found no actionable source findings. It covered the new control wrapper and tests, all four consumers, the lease helper and tests, all six download consumers, and catalog/VRMA release paths. Construction, cleanup, callbacks, refs, OrbitControls restoration, borrowed ownership, idempotence, and cancellation were checked. Independent read-only validation confirmed build/format/diff checks and reused the passing tests/typecheck/lint evidence below.
 
-Overall acceptance remains incomplete because real desktop browser resource measurements and interactions are still required. This is not a claim that the original multi-GB footprint is fully resolved.
+The initially outstanding desktop browser gate is now covered by the Phase 2 validation below. This is not a claim that the original multi-GB footprint is fully resolved.
 
 ### Code Review #1 Revisions
 
-No source repairs requested. Repair rounds used: 0 of 2. Browser acceptance is an outstanding gate, not a rejected finding or a waived check.
+No source repairs requested. Repair rounds used: 0 of 2. The browser gate was preserved and completed after the stack recovered.
 
 ## Final integration review
 
-The combined one-phase source review found no integration blockers and reuses the passing static/build/test evidence. Final acceptance still requires helper off/on, creator route cycles, gizmo editing with Undo, and URL/listener counts returning to baseline after cancellation/unmount on the changed source. Keep the PR draft until this gate is met; the issue remains open.
+Both phases reuse the passing Phase 1 application tests and independent source review. The browser gate is complete: helper off/on, creator navigation, gizmo editing with Undo, and temporary URL/listener cleanup were exercised on changed source. Final independent integration review passed with no remaining scoped blockers, reusing prior source reviews and checks plus the completed browser evidence. Repair rounds used: 0 of 2. Owner merge approval remains separate.
+
+## Phase 2: Release development Fast Refresh roots
+
+Issue: #45. Starting revision: `1634e58491f762299aad5758b87a873d92b4acb5`. The existing named development stack is now healthy. Reuse the task checkout and stack; preserve the user's diagnostic tab.
+
+The installed Vite React plugin adds every committed root to its helper Map. React Three Fiber emits a second empty commit after unmount; the runtime re-adds that root without deleting it. Post-GC snapshots retain one renderer and 26 decoded avatar bitmaps per ordinary navigation cycle. A test-tab guard stops the repeated accumulation. This is development instrumentation; no production-runtime change is intended.
+
+1. Add a deterministic test against the installed refresh runtime reproducing the duplicate empty commit. Cover active-root refresh, retryable failed roots, and forwarding every decorated DevTools callback.
+2. Apply a version-specific pnpm patch to the runtime's empty-root bookkeeping. Keep failed-root recovery and normal hot reload; do not suppress the global hook. Include patch files in frozen installs and Docker build inputs.
+3. Run the regression red/green, frozen install, relevant test suites, frontend/desktop typechecks, lint, changed-file formatting, and production build. Verify development serves the patch and production assets exclude Fast Refresh.
+4. In a fresh desktop browser tab on changed source, repeat sidebar/avatar and creator navigation, collect post-GC snapshots, verify no per-cycle renderer/bitmap growth, exercise hot refresh, and complete remaining Phase 1 gizmo/URL acceptance.
+5. Run bounded independent Phase 2 source/checks review (one initial review, at most two repair rounds), then final integration review using still-valid Phase 1 evidence. Commit and update PR #44 with separate local/browser/hosted results.
+
+### Phase 2 review and revisions
+
+Independent source review found no actionable findings in the installed-runtime patch, error recovery, callback forwarding, frozen lockfile, Docker inputs, regression tests, and documentation. Independent checks passed. Repair rounds used: 0 of 2.
+
+### Phase 2 validation
+
+- Installed-runtime regression: original runtime failed the duplicate-empty-commit test (3 passed, 1 failed); patched runtime passes all 4 tests, including active refresh, failed-root retry, and DevTools forwarding. Command: `node --experimental-vm-modules --test web/scripts/fast-refresh-lifecycle.test.mjs` from `src/frontend`.
+- `pnpm check`, `pnpm web:lint`, explicit changed-file Prettier checks, and `git diff --check`: passed. The earlier 189 application regressions remain valid because Phase 2 changes development dependency bookkeeping only.
+- `pnpm --store-dir /Users/ray/Library/pnpm/store install --frozen-lockfile --offline`: passed. `ANIMAMA_MODEL_ROOT=/Users/ray/Library/Caches/Animama/models pnpm build`: passed with the existing chunk-size advisory. Production assets contain neither `helpersByRoot` nor `registerBeforePerformReactRefresh`.
+- Docker `web-builder` target with verified browser model build context: passed, including frozen Linux dependency installation with the patch. Validation image digest: `sha256:daa1c3dc124249d19ca69f202c750d0745612ce87b459068d6f350947adf338f`.
+- Desktop Chrome, real avatar, development stack at http://localhost:8340: the served refresh runtime contains the patch. Post-GC snapshots after 1 and 7 New Chat → Library cycles both contain 1 WebGLRenderer, 20 MToonMaterial objects, and 26 native ImageBitmaps. Unpatched evidence grew from 1 to 4 renderers and 26 to 104 bitmaps across 4 cycles.
+- After visiting Gesture and Reaction creators, snapshots before and after four additional creator visits both contain 2 renderers and 52 native bitmaps. These bounded retained resources are not claimed as eliminated. All 378 traced temporary URLs were revoked; no document pointer listeners remained on the Create page.
+- Three helper off/on cycles produced document pointer-listener counts 0, 1, 0, 1, 0, 1; creator unmount returned to 0. A synthetic browser pointer drag through the real canvas gizmo changed the selected arm's Z rotation from -73.4 to -44.4 degrees; Undo restored -73.4. The gizmo was also visually confirmed.
+- A temporary Library heading edit appeared via HMR and restored without changing `performance.timeOrigin` or losing the observation probe. The temporary source edit was fully restored.
+
+React timing accumulation, FX image caching, bitmap ownership, and full process-memory attribution remain separate from this follow-up. No claim is made about the total Chrome process footprint or packaged desktop acceptance.
 
 ## Validation and acceptance
 
@@ -73,7 +105,7 @@ Implementation revision `d3e688a5f256fa5fb8f97b1c914268b960e56788` against the s
 - `pnpm build` with the verified model store: passed package builds, route generation, TypeScript, and the production Vite build. Existing large-chunk advisory only.
 - Explicit Prettier checks passed every changed/new source file, `web/package.json`, and this plan. The generated pnpm lockfile has an existing formatting exception, reproduced on the unchanged baseline; the change adds only its three-line dependency declaration.
 - `git diff --check`: passed.
-- Desktop browser memory/interaction checks: pending local environment recovery. Hosted CI: no checks reported on draft PR #44 at handoff; no hosted pass is claimed.
+- Desktop browser memory/interaction checks: completed in Phase 2 above. Hosted CI is reported separately in the PR; local checks are not a hosted pass.
 
 Local verification, hosted CI, and native acceptance are separate. Native installer, audio, full production-memory attribution, and unrequested leak fixes are outside this repair.
 
@@ -83,4 +115,4 @@ Temporary URL release must be idempotent. Abort during download/body decoding mu
 
 ## Outcomes & Retrospective
 
-Both scoped repairs are implemented and independently source-reviewed. Regression tests, static checks, and the production web build pass. Draft PR #44 remains open while the unresponsive local Docker engine blocks the required browser measurements and gizmo interaction checks. Restarting the shared engine requires the owner's pending approval because it would interrupt other local stacks. No existing stack was stopped or reset. This repair does not establish that every contributor to the original multi-GB footprint is resolved.
+The gizmo and URL ownership repairs and development Fast Refresh follow-up are implemented, independently source-reviewed, and browser-validated. Repeated navigation no longer accumulates one renderer and avatar bitmap set per cycle in the measured scenario. The task-owned development stack remains available at http://localhost:8340. This repair does not establish that every contributor to the original multi-GB footprint is resolved; merge still requires owner approval.
