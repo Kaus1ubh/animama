@@ -2,6 +2,7 @@ import type { FormEvent, ReactElement } from "react";
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { PoseCreatorLibrarySection } from "./PoseCreatorLibrarySection";
 import { buildPoseCreatorAnimaPoseForExport } from "./poseCreatorAuthoring";
@@ -9,7 +10,19 @@ import { buildPoseCreatorAnimaPoseForExport } from "./poseCreatorAuthoring";
 type State = ReturnType<typeof usePoseCreatorStore.getState>;
 const harness = vi.hoisted(() => ({
   selectors: [] as Array<(state: State) => unknown>,
+  save: vi.fn(),
+  deletePose: vi.fn(),
   submit: null as ((event: FormEvent) => void) | null,
+}));
+
+vi.mock("@/query/hooks/usePoses", () => ({
+  usePoses: () => ({ data: { items: [] }, isError: false, refetch: vi.fn() }),
+}));
+vi.mock("@/query/mutations/usePoseContentActions", () => ({
+  usePoseContentActions: () => ({
+    savePose: { mutateAsync: harness.save, isPending: false },
+    deletePose: { mutateAsync: harness.deletePose, isPending: false },
+  }),
 }));
 
 // SSR supplies the actual component selectors and event closures; the live
@@ -56,7 +69,18 @@ const armDraft = (x: number) => ({
 
 beforeEach(() => {
   usePoseCreatorStore.getState().resetWorkspace();
-  usePoseCreatorStore.setState({ savedDrafts: [] });
+  harness.save.mockReset();
+  harness.save.mockImplementation(async (input) => ({
+    item_id: input.itemId ?? "saved-item",
+    name: input.name,
+    kind: "pose",
+    source: "local",
+    pose_id: input.pose.id,
+    logical_key: input.pose.id,
+    revision_sha256: "saved-revision",
+    editable: true,
+  }));
+  usePoseCreatorStore.getState().setDraftName("Wave");
   usePoseCreatorStore.getState().setBoneDraft("leftUpperArm", armDraft(10));
   usePoseCreatorStore.getState().beginPoseUndoGroup();
   harness.selectors = [];
@@ -106,7 +130,7 @@ describe("Pose toolbar during bone rotation", () => {
     },
   );
 
-  it("saves the latest rotation even when the toolbar has not rendered again", () => {
+  it("saves the latest rotation even when the toolbar has not rendered again", async () => {
     usePoseCreatorStore.setState({
       selectedSource: {
         key: "test-avatar",
@@ -124,12 +148,12 @@ describe("Pose toolbar during bone rotation", () => {
     });
     renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
     usePoseCreatorStore.getState().setBoneDraft("leftUpperArm", armDraft(90));
-    harness.submit!({
+    await harness.submit!({
       preventDefault: () => undefined,
       nativeEvent: {},
     } as FormEvent);
 
-    const pose = usePoseCreatorStore.getState().savedDrafts.at(-1)?.pose;
+    const pose = harness.save.mock.calls[0][0].pose;
     expect(pose?.humanoid?.leftUpperArm?.rotation?.[0]).toBeCloseTo(
       Math.SQRT1_2,
     );
@@ -141,5 +165,213 @@ describe("Pose toolbar during bone rotation", () => {
   it("retains JSON generation for the explicit data panel", () => {
     renderToString(<PoseCreatorLibrarySection variant="panel" />);
     expect(buildPoseCreatorAnimaPoseForExport).toHaveBeenCalledOnce();
+  });
+});
+
+const source = {
+  key: "test-avatar",
+  sourceType: "resolved_entry" as const,
+  animaId: "preview",
+  effectiveRevision: "r",
+  contentRevision: "m",
+  displayName: "Test avatar",
+  versionLabel: "v1",
+  sourceLabel: "Preview Anima" as const,
+  runtimeId: "primary",
+  configSchemaVersion: 1,
+  config: {},
+};
+const submit = () =>
+  harness.submit!({
+    preventDefault: () => undefined,
+    nativeEvent: {},
+  } as FormEvent);
+
+describe("durable Pose save lifecycle", () => {
+  it.each([
+    new Error("Save unavailable"),
+    new ContentSaveApiError(409, "operation_in_progress", "Save unavailable"),
+  ])(
+    "retains the unresolved operation while preserving newer edits (%s)",
+    async (failure) => {
+      usePoseCreatorStore.setState({ selectedSource: source });
+      harness.save.mockRejectedValue(failure);
+      renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
+      await submit();
+      expect(usePoseCreatorStore.getState().isDirty).toBe(true);
+      expect(usePoseCreatorStore.getState().importError).toBe(
+        "Save unavailable",
+      );
+      await submit();
+      expect(harness.save.mock.calls[1][0]).toBe(harness.save.mock.calls[0][0]);
+      usePoseCreatorStore.getState().setDraftName("Changed");
+      await submit();
+      expect(harness.save.mock.calls[2][0]).toBe(harness.save.mock.calls[0][0]);
+      expect(usePoseCreatorStore.getState()).toMatchObject({
+        draftName: "Changed",
+        isDirty: true,
+        savedPoseIdentity: null,
+      });
+    },
+  );
+
+  it("allows a corrected new create after a definitive name rejection", async () => {
+    usePoseCreatorStore.setState({ selectedSource: source });
+    harness.save.mockRejectedValueOnce(
+      new ContentSaveApiError(
+        409,
+        "content_path_exists",
+        "Choose another name.",
+      ),
+    );
+    renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
+    await submit();
+    const rejected = harness.save.mock.calls[0][0];
+    usePoseCreatorStore.getState().setDraftName("Available name");
+    await submit();
+    expect(harness.save).toHaveBeenCalledTimes(2);
+    const corrected = harness.save.mock.calls[1][0];
+    expect(corrected.name).toBe("Available name");
+    expect(corrected.itemId).toBeUndefined();
+    expect(corrected.operationId).not.toBe(rejected.operationId);
+    expect(usePoseCreatorStore.getState()).toMatchObject({
+      draftName: "Available name",
+      isDirty: false,
+    });
+  });
+
+  it("settles a response-lost create before saving renamed content as an update", async () => {
+    usePoseCreatorStore.setState({ selectedSource: source });
+    harness.save.mockRejectedValueOnce(new Error("Response lost"));
+    renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
+    await submit();
+    const created = harness.save.mock.calls[0][0];
+    usePoseCreatorStore.getState().setDraftName("Renamed");
+    let settle!: (value: unknown) => void;
+    harness.save.mockReturnValueOnce(
+      new Promise((resolve) => {
+        settle = resolve;
+      }),
+    );
+    const saving = submit();
+    expect(harness.save.mock.calls[1][0]).toBe(created);
+    usePoseCreatorStore
+      .getState()
+      .setDraftName("Later edit during reconciliation");
+    settle({
+      item_id: "one-pose",
+      kind: "pose",
+      name: created.name,
+      source: "local",
+      pose_id: created.pose.id,
+      revision_sha256: "created-r1",
+      editable: true,
+    });
+    await saving;
+    expect(harness.save).toHaveBeenCalledTimes(3);
+    const update = harness.save.mock.calls[2][0];
+    expect(update).toMatchObject({
+      itemId: "one-pose",
+      expectedRevision: "created-r1",
+      name: "Renamed",
+      pose: { id: created.pose.id, name: "Renamed" },
+    });
+    expect(update.operationId).not.toBe(created.operationId);
+    expect(usePoseCreatorStore.getState()).toMatchObject({
+      draftName: "Later edit during reconciliation",
+      isDirty: true,
+    });
+    expect(usePoseCreatorStore.getState().savedPoseIdentity).toMatchObject({
+      itemId: "one-pose",
+      poseId: created.pose.id,
+    });
+  });
+
+  it("stops after settlement when the owner opens another pose session", async () => {
+    usePoseCreatorStore.setState({ selectedSource: source });
+    harness.save.mockRejectedValueOnce(new Error("Response lost"));
+    renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
+    await submit();
+    const original = harness.save.mock.calls[0][0];
+    usePoseCreatorStore.getState().setDraftName("Renamed");
+    let settle!: (value: unknown) => void;
+    harness.save.mockReturnValueOnce(
+      new Promise((resolve) => {
+        settle = resolve;
+      }),
+    );
+    const saving = submit();
+    usePoseCreatorStore.getState().startNewPose();
+    usePoseCreatorStore.getState().setDraftName("Independent draft");
+    settle({
+      item_id: "old-pose",
+      kind: "pose",
+      name: original.name,
+      source: "local",
+      pose_id: original.pose.id,
+      revision_sha256: "old-r1",
+      editable: true,
+    });
+    await saving;
+    expect(harness.save).toHaveBeenCalledTimes(2);
+    expect(usePoseCreatorStore.getState()).toMatchObject({
+      draftName: "Independent draft",
+      savedPoseIdentity: null,
+      isDirty: true,
+    });
+  });
+
+  it("retains a failed Save request across a toolbar remount in the same session", async () => {
+    usePoseCreatorStore.setState({ selectedSource: source });
+    harness.save.mockRejectedValue(new Error("Response lost"));
+    renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
+    await submit();
+    const initial = harness.save.mock.calls[0][0];
+    renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
+    await submit();
+    expect(harness.save.mock.calls[1][0]).toBe(initial);
+  });
+
+  it("keeps pending edits dirty and suppresses duplicate in-flight submissions", async () => {
+    usePoseCreatorStore.setState({ selectedSource: source });
+    let finish!: (value: unknown) => void;
+    harness.save.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
+    const pending = submit();
+    await submit();
+    expect(harness.save).toHaveBeenCalledOnce();
+    usePoseCreatorStore.getState().setDraftName("Newer edit");
+    const input = harness.save.mock.calls[0][0];
+    finish({
+      item_id: input.itemId ?? "saved-item",
+      name: input.name,
+      kind: "pose",
+      source: "local",
+      pose_id: input.pose.id,
+      revision_sha256: "r2",
+      editable: true,
+    });
+    await pending;
+    expect(usePoseCreatorStore.getState()).toMatchObject({
+      draftName: "Newer edit",
+      isDirty: true,
+      savedPoseIdentity: { itemId: "saved-item", revision: "r2" },
+    });
+  });
+
+  it("shows preparation errors and preserves the unsaved draft", async () => {
+    usePoseCreatorStore.setState({
+      selectedSource: source,
+      basePose: "missing-base",
+    });
+    renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
+    await expect(Promise.resolve(submit())).resolves.toBeNull();
+    expect(harness.save).not.toHaveBeenCalled();
+    expect(usePoseCreatorStore.getState().isDirty).toBe(true);
+    expect(usePoseCreatorStore.getState().importError).toBeTruthy();
   });
 });

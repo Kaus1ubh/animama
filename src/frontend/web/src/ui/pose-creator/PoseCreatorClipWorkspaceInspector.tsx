@@ -34,6 +34,7 @@ import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
 import { usePoseCreatorClipUndoGrouping } from "./usePoseCreatorUndoGrouping";
 
 const INHERIT_VALUE = "__inherit__";
+const NO_BASE_VALUE = "__no_base__";
 
 /** Focus the selected timeline item and common Clip settings in desktop or mobile workspaces. */
 export function PoseCreatorClipWorkspaceInspector({
@@ -143,8 +144,12 @@ export function PoseCreatorClipWorkspaceInspector({
               <>
                 <InspectorRow label="Base">
                   <Select
-                    value={clipDraft.basePose}
-                    onValueChange={(basePose) => updateClipDraft({ basePose })}
+                    value={clipDraft.basePose || NO_BASE_VALUE}
+                    onValueChange={(basePose) =>
+                      updateClipDraft({
+                        basePose: basePose === NO_BASE_VALUE ? "" : basePose,
+                      })
+                    }
                   >
                     <SelectTrigger
                       className="h-9 w-[176px]"
@@ -153,6 +158,7 @@ export function PoseCreatorClipWorkspaceInspector({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value={NO_BASE_VALUE}>None</SelectItem>
                       {POSE_CREATOR_BASE_POSE_OPTIONS.map((option) => (
                         <SelectItem key={option.id} value={option.id}>
                           {option.label}

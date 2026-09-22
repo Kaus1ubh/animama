@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { parseAnimaPose, parseAnimaPoseClip, type Avatar } from "@/lib/avatar";
+import { sampleAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
+import { buildAnimaPoseClipFromPoseCreatorDraft } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import type { PoseCreatorModelSource } from "@/ui/pose-creator/poseCreatorPreview";
 import {
+  capturePoseCreatorSubmittedDraft,
   POSE_CREATOR_UNDO_HISTORY_LIMIT,
   POSE_CREATOR_BASE_POSE_OPTIONS,
   POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
@@ -32,7 +36,6 @@ function model(key: string): PoseCreatorModelSource {
 describe("pose creator model selection", () => {
   beforeEach(() => {
     usePoseCreatorStore.getState().resetWorkspace();
-    usePoseCreatorStore.setState({ savedDrafts: [] });
   });
 
   it("selects Left Upper Arm for a fresh pose and preserves the user's selection across helper and model changes", () => {
@@ -124,7 +127,7 @@ describe("pose creator model selection", () => {
     expect(store.clipDraft.isDirty).toBe(false);
   });
 
-  it("uses relaxed-rest as the default for a motion-free creator document", () => {
+  it("preserves no external base for a motion-free creator document", () => {
     const hydrated = usePoseCreatorStore.getState().hydrateClipDocument(
       parseAnimaPoseClip({
         schema: "animaPoseClip/1.0",
@@ -137,9 +140,7 @@ describe("pose creator model selection", () => {
     );
 
     expect(hydrated).toBe(true);
-    expect(usePoseCreatorStore.getState().clipDraft.basePose).toBe(
-      "relaxedRest",
-    );
+    expect(usePoseCreatorStore.getState().clipDraft.basePose).toBe("");
   });
 
   it("preserves an explicit playhead while hydrating an in-place effect update", () => {
@@ -191,9 +192,7 @@ describe("pose creator model selection", () => {
     );
 
     expect(hydrated).toBe(true);
-    expect(usePoseCreatorStore.getState().clipDraft.basePose).toBe(
-      "relaxedRest",
-    );
+    expect(usePoseCreatorStore.getState().clipDraft.basePose).toBe("");
     usePoseCreatorStore.getState().playClipPreview();
     expect(usePoseCreatorStore.getState().clipPlaybackPlaying).toBe(true);
 
@@ -243,7 +242,7 @@ describe("pose creator model selection", () => {
     expect(reset.draftName).toBe("");
     expect(reset.boneDrafts).toEqual({});
     expect(reset.expressionDrafts).toEqual({});
-    expect(reset.selectedSavedDraftId).toBeNull();
+    expect(reset.savedPoseIdentity).toBeNull();
     expect(reset.isDirty).toBe(false);
     expect(reset.clipDraft.name).toBe("Keep this clip");
     expect(reset.clipDraft.isDirty).toBe(true);
@@ -259,35 +258,76 @@ describe("pose creator model selection", () => {
     expect(usePoseCreatorStore.getState().mirrorOppositeBone).toBe(true);
   });
 
-  it("assigns an incremented default Pose name only when an unnamed draft is saved", () => {
+  it("acknowledges saved identity without clearing newer edits or a replacement session", () => {
     const store = usePoseCreatorStore.getState();
-    const source = model("default-name");
-    store.setDraftName("New Pose");
-    store.saveLocalDraft({
-      source,
-      basePose: "relaxedRest",
-      pose: parseAnimaPose({
-        schema: "animaPose/1.0",
-        id: "new-pose",
-        name: "New Pose",
+    store.setDraftName("Saved pose");
+    store.setExpressionDraft("happy", { baseValue: 0, value: 0.3 });
+    const submittedDraft = capturePoseCreatorSubmittedDraft(
+      usePoseCreatorStore.getState(),
+    );
+    const sessionToken = usePoseCreatorStore.getState().poseSessionToken;
+    const savedIdentity = {
+      itemId: "item",
+      poseId: "pose",
+      logicalKey: "local:pose:saved",
+      revision: "r1",
+      name: "Saved pose",
+    };
+    store.setExpressionDraft("happy", { baseValue: 0, value: 0.8 });
+    expect(
+      store.acknowledgePoseSave({
+        sessionToken,
+        submittedDraft,
+        savedIdentity,
       }),
-    });
-
-    usePoseCreatorStore.getState().startNewPose();
-    expect(usePoseCreatorStore.getState().draftName).toBe("");
-
-    const saved = usePoseCreatorStore.getState().saveLocalDraft({
-      source,
-      basePose: "relaxedRest",
-      pose: parseAnimaPose({
-        schema: "animaPose/1.0",
-        id: "unnamed-pose",
-        name: "Pose Creator Draft",
+    ).toBe(true);
+    expect(usePoseCreatorStore.getState().savedPoseIdentity).toEqual(
+      savedIdentity,
+    );
+    expect(usePoseCreatorStore.getState().isDirty).toBe(true);
+    expect(usePoseCreatorStore.getState().expressionDrafts.happy?.value).toBe(
+      0.8,
+    );
+    store.startNewPose();
+    expect(
+      store.acknowledgePoseSave({
+        sessionToken,
+        submittedDraft,
+        savedIdentity,
       }),
-    });
+    ).toBe(false);
+    expect(usePoseCreatorStore.getState().savedPoseIdentity).toBeNull();
+  });
 
-    expect(saved?.name).toBe("New Pose (1)");
-    expect(usePoseCreatorStore.getState().draftName).toBe("New Pose (1)");
+  it("loads Local identity and customizes an Included snapshot without browser storage", () => {
+    const storage = {
+      getItem: vi.fn(() => '{"drafts":[{"id":"old"}]}'),
+      setItem: vi.fn(),
+    };
+    vi.stubGlobal("window", { localStorage: storage });
+    const store = usePoseCreatorStore.getState();
+    const replacement = {
+      draftName: "Pose",
+      basePose: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
+      boneDrafts: {},
+      expressionDrafts: { happy: { baseValue: 0, value: 0.4 } },
+    };
+    const identity = {
+      itemId: "local",
+      poseId: "pose",
+      logicalKey: "local:pose:pose",
+      revision: "r1",
+      name: "Pose",
+    };
+    store.loadPoseDocument(identity, replacement);
+    expect(usePoseCreatorStore.getState().isDirty).toBe(false);
+    const token = usePoseCreatorStore.getState().poseSessionToken;
+    store.loadPoseDocument(null, replacement);
+    expect(usePoseCreatorStore.getState().poseSessionToken).not.toBe(token);
+    expect(usePoseCreatorStore.getState().savedPoseIdentity).toBeNull();
+    expect(usePoseCreatorStore.getState().isDirty).toBe(true);
+    expect(storage.getItem).not.toHaveBeenCalled();
+    expect(storage.setItem).not.toHaveBeenCalled();
   });
 
   it("copies saved pose snapshots into a Clip with or without a keyframe", () => {
@@ -307,7 +347,7 @@ describe("pose creator model selection", () => {
 
     expect(availableAlias).toBe("jumpingJack");
     expect(keyframedAlias).toBe("jumpingJack_2");
-    expect(clip.poses[availableAlias]).toEqual({
+    expect(clip.poses[availableAlias!]).toMatchObject({
       humanoid: { head: { rotation: [0, 0, 0, 1] } },
     });
     expect(clip.keyframes).toHaveLength(1);
@@ -428,7 +468,7 @@ describe("pose creator model selection", () => {
     },
   );
 
-  it("copies only directly authored channels from a parented pose", () => {
+  it("copies inherited and directly authored channels from a parented pose", () => {
     const store = usePoseCreatorStore.getState();
     const pose = parseAnimaPose({
       schema: "animaPose/1.0",
@@ -440,7 +480,10 @@ describe("pose creator model selection", () => {
 
     const alias = store.addPoseToClip(pose, pose.name, { atPlayhead: true });
 
-    expect(usePoseCreatorStore.getState().clipDraft.poses[alias]).toEqual({
+    expect(
+      usePoseCreatorStore.getState().clipDraft.poses[alias!],
+    ).toMatchObject({
+      humanoid: { head: { rotation: [0, 0, 0, 1] } },
       expressions: { surprised: 1, blink: 1 },
     });
   });
@@ -507,7 +550,6 @@ describe("pose creator model selection", () => {
 describe("pose creator undo and redo history", () => {
   beforeEach(() => {
     usePoseCreatorStore.getState().resetWorkspace();
-    usePoseCreatorStore.setState({ savedDrafts: [] });
   });
 
   afterEach(() => {
@@ -685,28 +727,29 @@ describe("pose creator undo and redo history", () => {
     expect(redone.isDirty).toBe(false);
   });
 
-  it("rebases both Pose history directions when a browser draft is saved", () => {
+  it("rebases both Pose history directions when a durable pose save is acknowledged", () => {
     vi.stubGlobal("window", {
       localStorage: {
         getItem: vi.fn(() => null),
         setItem: vi.fn(),
       },
     });
-    const source = model("pose-save-history");
     const store = usePoseCreatorStore.getState();
     store.setExpressionDraft("happy", { baseValue: 0, value: 0.25 });
     store.setExpressionDraft("happy", { baseValue: 0, value: 0.75 });
     store.undoPose();
 
-    usePoseCreatorStore.getState().saveLocalDraft({
-      source,
-      basePose: "relaxedRest",
-      pose: parseAnimaPose({
-        schema: "animaPose/1.0",
-        id: "pose-save-history",
-        name: "Pose save history",
-        expressions: { happy: 0.25 },
-      }),
+    const current = usePoseCreatorStore.getState();
+    current.acknowledgePoseSave({
+      sessionToken: current.poseSessionToken,
+      submittedDraft: capturePoseCreatorSubmittedDraft(current),
+      savedIdentity: {
+        itemId: "saved",
+        poseId: "pose-save-history",
+        logicalKey: null,
+        revision: "r1",
+        name: current.draftName,
+      },
     });
 
     expect(selectCanRedoPose(usePoseCreatorStore.getState())).toBe(true);
@@ -854,6 +897,7 @@ describe("pose creator undo and redo history", () => {
         schema: "animaPose/1.0",
         id: "temporary",
         name: "Temporary",
+        expressions: { happy: 0.5 },
       }),
       "temporary",
     );
@@ -1088,5 +1132,102 @@ describe("clip base endpoints", () => {
     expect(usePoseCreatorStore.getState().clipDraft.keyframes).toEqual([
       { id: "authored", time: 0, pose: "authored" },
     ]);
+  });
+});
+
+describe("durable pose copy boundaries", () => {
+  beforeEach(() => usePoseCreatorStore.getState().resetWorkspace());
+  it("freezes base and parent values in one undoable insertion and survives no-base hydration", () => {
+    const store = usePoseCreatorStore.getState();
+    store.hydrateClipDocument(
+      parseAnimaPoseClip({
+        schema: "animaPoseClip/1.0",
+        id: "copy",
+        name: "Copy",
+        duration: 2,
+        basePose: "relaxedRest",
+        poses: { rest: { ref: "relaxedRest" } },
+        poseKeyframes: [
+          { time: 0, pose: "rest" },
+          { time: 2, pose: "rest" },
+        ],
+      }),
+    );
+    const before = usePoseCreatorStore.getState().clipDraft;
+    const beforeClip = buildAnimaPoseClipFromPoseCreatorDraft(before)!;
+    const pose = parseAnimaPose({
+      schema: "animaPose/1.0",
+      id: "child",
+      name: "Child",
+      parent: { ref: "relaxedRest" },
+      expressions: { happy: 0.7 },
+    });
+    const alias = store.addPoseToClip(pose, "Child", { timeSec: 1 });
+    const copied = usePoseCreatorStore.getState().clipDraft;
+    expect(alias).not.toBeNull();
+    expect(copied.basePose).toBe("");
+    const clip = buildAnimaPoseClipFromPoseCreatorDraft(copied)!;
+    for (const time of [0, 2]) {
+      expect(sampleAnimaPoseClip(clip, time).sample).toEqual(
+        sampleAnimaPoseClip(beforeClip, time, getResolvedAvatarPose).sample,
+      );
+    }
+    for (const time of [0, 0.5, 1, 1.5, 2]) {
+      expect(sampleAnimaPoseClip(clip, time, () => null)).toEqual(
+        sampleAnimaPoseClip(clip, time, () => ({
+          humanoid: {},
+          expressions: { happy: 0 },
+        })),
+      );
+    }
+    const copiedHumanoid = sampleAnimaPoseClip(clip, 1).sample.humanoid!;
+    for (const [bone, transform] of Object.entries(
+      getResolvedAvatarPose("relaxedRest").humanoid!,
+    )) {
+      transform.rotation?.forEach((value, index) =>
+        expect(
+          copiedHumanoid[bone as keyof typeof copiedHumanoid]?.rotation?.[
+            index
+          ],
+        ).toBeCloseTo(value, 12),
+      );
+    }
+    expect(sampleAnimaPoseClip(clip, 1).sample.expressions).toEqual({
+      happy: 0.7,
+    });
+    store.undoClip();
+    expect(usePoseCreatorStore.getState().clipDraft.basePose).toBe(
+      before.basePose,
+    );
+    expect(usePoseCreatorStore.getState().clipDraft.poses).toEqual(
+      before.poses,
+    );
+    store.redoClip();
+    expect(usePoseCreatorStore.getState().clipDraft.basePose).toBe("");
+    store.hydrateClipDocument(clip);
+    expect(usePoseCreatorStore.getState().clipDraft.basePose).toBe("");
+    expect(
+      buildAnimaPoseClipFromPoseCreatorDraft(
+        usePoseCreatorStore.getState().clipDraft,
+      ),
+    ).toEqual(clip);
+  });
+  it("rejects unresolved inheritance without changing the clip or history", () => {
+    const before = usePoseCreatorStore.getState();
+    const alias = before.addPoseToClip(
+      parseAnimaPose({
+        schema: "animaPose/1.0",
+        id: "bad",
+        name: "Bad",
+        parent: { ref: "missing" },
+      }),
+      "Bad",
+      { atPlayhead: true },
+    );
+    expect(alias).toBeNull();
+    expect(usePoseCreatorStore.getState().clipDraft).toBe(before.clipDraft);
+    expect(usePoseCreatorStore.getState().clipUndoHistory).toBe(
+      before.clipUndoHistory,
+    );
   });
 });

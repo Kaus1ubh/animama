@@ -23,6 +23,7 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import { insertActionEditorSavedPose } from "./actionEditorSavedPose";
 import { cn } from "@/lib/utils";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { findPoseCreatorClipKeyframeAtTime } from "@/ui/pose-creator/poseCreatorClipAuthoring";
@@ -60,6 +61,15 @@ export function ActionCatalogDragProvider({
   children: ReactNode;
 }) {
   const workspace = useActionEditorWorkspace();
+  const liveWorkspace = useRef(workspace);
+  liveWorkspace.current = workspace;
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const enabled =
     (workspace.mode === "clip" || workspace.mode === "reaction") &&
     workspace.document.implementation === "anima_clip";
@@ -219,7 +229,13 @@ export function ActionCatalogDragProvider({
     const item = dragged.data.current?.catalogItem as
       | CatalogDragItem
       | undefined;
-    if (!enabled || !item || !(activatorEvent instanceof MouseEvent)) return;
+    if (
+      !enabled ||
+      !item ||
+      (item.kind === "pose" && workspace.document.intent !== "gesture") ||
+      !(activatorEvent instanceof MouseEvent)
+    )
+      return;
     const point = { x: activatorEvent.clientX, y: activatorEvent.clientY };
     drag.current = { item, origin: point, point };
     setActive(item);
@@ -251,12 +267,26 @@ export function ActionCatalogDragProvider({
         let committed = false;
         if (enabled && next && item) {
           if (item.kind === "pose") {
-            usePoseCreatorStore
-              .getState()
-              .addPoseToClip(item.pose.pose, item.pose.name, {
-                timeSec: next.time,
-              });
-            committed = true;
+            const session = workspace.timelineSession;
+            const restoreCollapse = autoExpanded.current;
+            // End the pointer gesture immediately; only successful insertion retains expansion.
+            finish(true);
+            void insertActionEditorSavedPose(item.pose, {
+              timeSec: next.time,
+              isCurrent: () =>
+                alive.current &&
+                liveWorkspace.current.timelineSession === session &&
+                liveWorkspace.current.document.intent === "gesture" &&
+                liveWorkspace.current.mode === "clip",
+            }).then((inserted) => {
+              if (
+                !inserted &&
+                alive.current &&
+                liveWorkspace.current.timelineSession === session
+              )
+                restoreCollapse?.(false);
+            });
+            return;
           } else {
             const id = workspace.addComponent(item.item, item.contentType, {
               timeSec: next.time,
@@ -317,7 +347,7 @@ export function CatalogDragHandle({
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id:
       item.kind === "pose"
-        ? `pose:${item.pose.id}:${instanceId}`
+        ? `pose:${item.pose.item_id}:${instanceId}`
         : `effect:${item.contentType}:${item.item.item_id}:${instanceId}`,
     data: { catalogItem: item },
     disabled: !enabled,

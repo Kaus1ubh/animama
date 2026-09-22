@@ -76,6 +76,14 @@ export const queryKeys = {
     bundle: (userId: string, digest: string) =>
       ["action-component-previews", userId, "bundle", digest] as const,
   },
+  poses: {
+    all: (userId: string) => ["poses", userId] as const,
+    list: (userId: string, query = "", origin = "all") =>
+      [...queryKeys.poses.all(userId), "list", query, origin] as const,
+    detail: (userId: string, itemId: string) =>
+      [...queryKeys.poses.all(userId), "detail", itemId] as const,
+    save: (userId: string) => [...queryKeys.poses.all(userId), "save"] as const,
+  },
   gestures: {
     all: (userId: string) => ["gestures", userId] as const,
     detail: (userId: string, itemId: string) =>

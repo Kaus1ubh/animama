@@ -19,7 +19,7 @@ import type {
   PyExactContentSource,
 } from "@/lib/content/catalogTypes";
 import { cn } from "@/lib/utils";
-import type { PoseCreatorSavedDraft } from "@/stores/pose-creator-store";
+import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { PencilSparklesIcon } from "@/ui/components/PencilSparklesIcon";
@@ -86,9 +86,12 @@ type ActionEditorEffectsPanelProps = {
   onAdd: (item: PyCatalogViewItem, contentType: ActionComponentType) => void;
   onRemove: (alias: string) => void;
   /** Browser-local Pose drafts shown only by the Gesture creator. */
-  poses?: PoseCreatorSavedDraft[];
-  onAddPose?: (pose: PoseCreatorSavedDraft) => void;
-  onEditPose?: (pose: PoseCreatorSavedDraft) => void;
+  poses?: PyPose[];
+  posesPending?: boolean;
+  posesError?: string | null;
+  onRetryPoses?: () => void;
+  onAddPose?: (pose: PyPose) => void;
+  onEditPose?: (pose: PyPose) => void;
   onCreatePose?: () => void;
 };
 
@@ -112,6 +115,9 @@ export function ActionEditorEffectsPanel({
   onAdd,
   onRemove,
   poses,
+  posesPending = false,
+  posesError = null,
+  onRetryPoses,
   onAddPose,
   onEditPose,
   onCreatePose,
@@ -252,6 +258,9 @@ export function ActionEditorEffectsPanel({
               <PoseCatalog
                 mobile={mobile}
                 poses={filteredPoses}
+                pending={posesPending}
+                error={posesError}
+                onRetry={onRetryPoses}
                 hasQuery={Boolean(poseQuery.trim())}
                 onAddPose={onAddPose}
                 onEditPose={onEditPose}
@@ -370,24 +379,41 @@ function PoseCatalog({
   mobile,
   poses,
   hasQuery,
+  pending,
+  error,
+  onRetry,
   onAddPose,
   onEditPose,
   onCreatePose,
 }: {
   mobile: boolean;
-  poses: PoseCreatorSavedDraft[];
+  poses: PyPose[];
   hasQuery: boolean;
-  onAddPose?: (pose: PoseCreatorSavedDraft) => void;
-  onEditPose?: (pose: PoseCreatorSavedDraft) => void;
+  pending?: boolean;
+  error?: string | null;
+  onRetry?: () => void;
+  onAddPose?: (pose: PyPose) => void;
+  onEditPose?: (pose: PyPose) => void;
   onCreatePose?: () => void;
 }) {
+  if (pending)
+    return <p className="text-muted-foreground text-xs">Loading poses…</p>;
+  if (error)
+    return (
+      <div role="alert" className="text-destructive text-xs">
+        Could not load poses. {error}
+        <Button variant="ghost" onClick={onRetry}>
+          Try again
+        </Button>
+      </div>
+    );
   return (
     <>
       {poses.length ? (
         <div className="space-y-1.5">
           {poses.map((pose) => (
             <div
-              key={pose.id}
+              key={pose.item_id}
               className="border-border/70 bg-background/65 hover:bg-accent/45 group flex min-h-12 items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors"
             >
               <CatalogDragHandle
@@ -399,6 +425,9 @@ function PoseCatalog({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium">{pose.name}</p>
+                  <p className="text-muted-foreground text-[10px]">
+                    {pose.source === "included" ? "Included" : "Local"}
+                  </p>
                 </div>
               </CatalogDragHandle>
               <Tooltip delayDuration={500}>
@@ -410,12 +439,14 @@ function PoseCatalog({
                     className="size-7 shrink-0 rounded-full"
                     onClick={() => onEditPose?.(pose)}
                     disabled={!onEditPose}
-                    aria-label={`Edit ${pose.name}`}
+                    aria-label={`${pose.source === "included" ? "Customize" : "Edit"} ${pose.name}`}
                   >
                     <PencilSparklesIcon className="size-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Edit</TooltipContent>
+                <TooltipContent>
+                  {pose.source === "included" ? "Customize" : "Edit"}
+                </TooltipContent>
               </Tooltip>
               <Tooltip delayDuration={500}>
                 <TooltipTrigger asChild>

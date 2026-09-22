@@ -25,6 +25,7 @@ export async function refreshContentCatalogViews(
       queryKeys.avatarCatalog.all(owner),
       queryKeys.avatars.all(owner),
       queryKeys.gestures.all(owner),
+      queryKeys.poses.all(owner),
       queryKeys.reactions.all(owner),
       queryKeys.particleEffects.all(owner),
       queryKeys.avatarEffects.all(owner),

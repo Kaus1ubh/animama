@@ -44,7 +44,7 @@ Authoritative spec: https://github.com/raymond-van/animama/issues/55 (captured 2
   at 2026-09-22T18:12:50Z; four native phase issues and dependencies created.
 - [x] Phase 1: standalone Pose content contract and recoverable persistence.
 - [x] Phase 2: canonical Included starters and distribution completeness.
-- [ ] Phase 3: durable editor collection and independent clip copies.
+- [x] Phase 3: durable editor collection and independent clip copies.
 - [ ] Phase 4: Library integration and complete acceptance.
 - [ ] Final integration review, regular PR, actual hosted Validation and owner acceptance.
 
@@ -283,7 +283,8 @@ Recovery: retain original definitions until equivalence passes; recover with Git
 not an ad hoc reverse converter or user-data reset. Missing source/licensing evidence
 blocks affected distribution work and must be reported rather than bypassed.
 
-Issue: https://github.com/raymond-van/animama/issues/57. Starting source: `db1a7d90a1a04420733d3851417291982384d482`. Commit: pending.
+Issue: https://github.com/raymond-van/animama/issues/57. Starting source: `db1a7d90a1a04420733d3851417291982384d482`.
+Commit: `d6f2b727a1939f998d8677c1abb4f214159ee708`.
 Evidence (2026-09-22):
 
 - Four core-distribution regressions failed before implementation, then passed:
@@ -386,16 +387,75 @@ copy sampling remains invariant under source changes, errors preserve work, and
 review passes. Recovery: retain dirty drafts on failed publication; do not fall
 back to browser persistence. Keep operation receipts to reconcile ambiguous success.
 
-Issue: https://github.com/raymond-van/animama/issues/58. Starting source: Phase 2 completion, to record. Commit: pending.
-Evidence and remaining gates: not run.
+Issue: https://github.com/raymond-van/animama/issues/58. Starting source: `d6f2b727a1939f998d8677c1abb4f214159ee708`. Commit: pending.
+Evidence in progress (2026-09-22):
+
+- New checked byte loader first reproduced two meaningful failures: changed revision
+  and mismatched descriptor identity were accepted. Both now reject before returning
+  a draft; stale selection rejects before fetching bytes.
+- `pnpm --dir src/frontend/web exec vitest run src/lib/content/poseContent.test.ts
+  src/query/mutations/usePoseContentActions.test.ts
+  src/query/contentCatalogInvalidation.test.ts`: 9 passed. Tests cover captured
+  revision/operation reuse after response loss, fresh operation for changed payload,
+  descriptor identity, conflict propagation and owner-scoped cache invalidation.
+- Planned 12 editor suites plus `poseContent`, `usePoseContentActions`, `usePoses`,
+  `contentCatalogInvalidation` and `ActionEditorHeader` suites: 130 passed across
+  17 files (`/tmp/poses-phase3-full.log`). Final toolbar remount retry regression
+  then failed before repair and all 8 toolbar tests passed after; no unrelated
+  passing suite was repeated. Copy regressions first reproduced the retained
+  external base and wrongly accepted missing parent, then passed.
+- Store/authoring/persistence 62 tests include sampled keyframe/interpolation
+  invariance after parent/base replacement and deletion, atomic Undo/Redo,
+  save-during-edit acknowledgment, stale sessions, ignored browser records and
+  JSON/project no-base round-trips. Query hook 8 tests verify owner gating and
+  isolated caches with metadata-only listing.
+- Manual development browser at `http://localhost:8720`, desktop 1280x720:
+  Create page has no Pose entry; Gesture picker lists Included content; Arms
+  Crossed click insertion rendered on the real Annie Avatar; one Undo restored
+  original base/keyframes and Redo restored the copy. Included Customize opened
+  a separate unsaved Pose; Save showed Saved/disabled Save and created Local
+  item `4a44f0d6-9d05-4e6e-ac1a-48ff19ed2824`, named
+  `Pose content browser check`, revision
+  `f95cac8e9f8ce8dafbbb7ade291fa6cea873094a2574c3ee1993b549ae999e50`.
+  Returned to the unchanged Gesture and dragged that Local pose to 1.00s;
+  the keyframe and success toast appeared. Saved `Pose copy browser gesture`
+  after required AI guidance; inspected persisted sequence has no `basePose`
+  or pose `ref` and contains base, armsCrossed and poseContentBrowserCheck values.
+  These two manually created items remain only in the task-owned Local root
+  for subsequent Library/restart acceptance and exact-identity cleanup.
+- Task container package outputs were rebuilt after shared query-key changes;
+  the initial stale-package page-load failure resolved. This was an environment
+  refresh, not a source change or a waived browser failure.
+- Browser reload of saved Gesture retained all three copied keyframes and disabled
+  external-base endpoint controls; saved status remained correct. See review below.
 
 #### Code Review #1 Findings
 
-Not started. Record source and behavior/history evidence here.
+Initial review against `d6f2b727`: independent checks passed (web source check,
+product-ui type check, 29-file ESLint, 30-file read-only Prettier, diff whitespace).
+Analysis identified three R5 failures:
+
+- P3-1: insertion could succeed with an unavailable Avatar before/during loading.
+- P3-2: failed atomic baking returned silently instead of an actionable error.
+- P3-3: changing a new draft after an ambiguous create response could create a
+  second item or collide by path instead of reconciling the retained receipt.
 
 #### Code Review #1 Revisions
 
-Not started. Record repairs and affected reruns; at most two repair rounds.
+Accepted all three findings against explicit R5. P3-1/P3-2 guard initial/current
+Avatar and report atomic rejection; three meaningful reds preceded 22 passing
+helper/drag/history tests. P3-3 reconciles the retained request before updating
+changed payloads, preserves newer edits/session ownership, and allows corrected
+submissions after definitive domain rejection. Twelve toolbar tests passed after
+three meaningful retry/rejection reds. Independent targeted analysis and checks
+passed: integrated web TypeScript/projection, affected ESLint/Prettier and whitespace.
+One repair round consumed; one remains. No unresolved Phase 3 blockers.
+
+Full backend validation exposed pre-existing missing type narrowing in two tests
+(byte-identical to the original baseline). Added explicit PyReaction and non-None
+row assertions without weakening behavior; targeted mypy, three tests and Ruff
+lint/format passed, with independent review. Broader backend validation continues
+for Phase 4; it is not represented as passing yet.
 
 ### Phase 4 — Library integration and complete acceptance
 

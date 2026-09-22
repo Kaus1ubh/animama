@@ -1,5 +1,5 @@
 import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
-import type { PoseCreatorSavedDraft } from "@/stores/pose-creator-store";
+import type { PyPose } from "@animama/runtime-contracts/api-types";
 import {
   clampPoseCreatorClipTime,
   snapPoseCreatorClipTime,
@@ -9,7 +9,7 @@ import type { ActionComponentType } from "./actionDependencies";
 export const TRACK_LABEL_RAIL_PX = 72;
 export const TRACK_RIGHT_INSET_PX = 16;
 export type CatalogDragItem =
-  | { kind: "pose"; pose: PoseCreatorSavedDraft }
+  | { kind: "pose"; pose: PyPose }
   | {
       kind: "effect";
       item: PyCatalogViewItem;

@@ -471,6 +471,7 @@ export function PoseCreatorClipTimeline({
                           checked={checked}
                           disabled={
                             occupied ||
+                            !clipDraft.basePose ||
                             clipDraft.duration <= 0 ||
                             Boolean(clipInlineEdit) ||
                             clipDraft.basePose ===

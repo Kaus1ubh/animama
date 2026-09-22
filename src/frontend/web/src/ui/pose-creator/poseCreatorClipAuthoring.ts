@@ -356,7 +356,8 @@ export function createPoseCreatorClipDraftFromAnimaPoseClip(
       // those retained App documents a deterministic finite save timeline.
       duration: timelineDuration > 0 ? timelineDuration : clip.playback ? 1 : 0,
       loop: clip.loop === true,
-      basePose: clip.basePose ?? options.fallbackBasePose,
+      // Absence is an explicit standalone snapshot, never an implicit live default.
+      basePose: clip.basePose ?? "",
       defaultTransition: clip.defaultTransition
         ? clonePoseCreatorClipTransition(clip.defaultTransition)
         : cloneDefaultTransition(),
@@ -487,14 +488,8 @@ export function validatePoseCreatorClipDraft(
     });
   }
 
-  if (!draft.basePose.trim()) {
-    issues.push({
-      severity: "error",
-      code: "missing-base-pose",
-      message: "Base pose is required.",
-      target: "basePose",
-    });
-  } else if (
+  if (
+    draft.basePose &&
     draft.basePose !== options.omittedBasePoseId &&
     knownPoseIds.size > 0 &&
     !knownPoseIds.has(draft.basePose)

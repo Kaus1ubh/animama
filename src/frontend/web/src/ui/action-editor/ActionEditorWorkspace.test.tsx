@@ -3,8 +3,20 @@ import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
-import { ActionEditorWorkspace } from "./ActionEditorWorkspace";
+import {
+  ActionEditorWorkspace,
+  captureActionEditorPoseAtPlayhead,
+} from "./ActionEditorWorkspace";
 import { createActionDocument } from "./actionDocument";
+
+vi.mock("@/query/hooks/usePoses", () => ({
+  usePoses: () => ({
+    data: { items: [] },
+    isPending: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}));
 
 const harness = vi.hoisted(() => ({
   mode: "pose",
@@ -134,4 +146,31 @@ describe("Action editor viewport ownership", () => {
     expect(onChange).toHaveBeenCalledOnce();
     expect(window.matchMedia).toHaveBeenCalledWith("(min-width: 1024px)");
   });
+});
+
+it("captures the current copied pose when a baked timeline has no external base", () => {
+  usePoseCreatorStore.setState((state) => ({
+    clipDraft: {
+      ...state.clipDraft,
+      basePose: "",
+      currentTimeSec: 0.5,
+      poses: {
+        start: {
+          humanoid: { hips: { position: [0, 0.4, 0] } },
+          expressions: { happy: 0.6 },
+        },
+      },
+      keyframes: [{ id: "start", pose: "start", time: 0 }],
+      selectedKeyframeId: null,
+    },
+  }));
+  expect(captureActionEditorPoseAtPlayhead()).toBe(true);
+  const { clipDraft, clipUndoHistory } = usePoseCreatorStore.getState();
+  const added = clipDraft.keyframes.find((frame) => frame.time === 0.5)!;
+  expect(clipDraft.poses[added.pose]).toMatchObject({
+    humanoid: { hips: { position: [0, 0.4, 0] } },
+    expressions: { happy: 0.6 },
+  });
+  expect(clipDraft.basePose).toBe("");
+  expect(clipUndoHistory).toHaveLength(1);
 });

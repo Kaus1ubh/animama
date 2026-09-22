@@ -1,7 +1,4 @@
-import {
-  DEFAULT_POSE_CREATOR_BASE_POSE,
-  POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-} from "@/stores/pose-creator-store";
+import { POSE_CREATOR_CLIP_VALIDATION_OPTIONS } from "@/stores/pose-creator-store";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import {
   buildAnimaPoseClipFromPoseCreatorDraft,
@@ -74,7 +71,7 @@ export function canonicalizeActionComponentInsertion(
       document.sequence,
       {
         ...POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
-        fallbackBasePose: DEFAULT_POSE_CREATOR_BASE_POSE,
+        fallbackBasePose: "",
       },
     );
     const sequence = actionSequenceFromTimelineDraft(draft, document.intent);

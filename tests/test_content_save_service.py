@@ -21,7 +21,7 @@ from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.routers.content import router
 from animama.server.routers.typed_content import router as typed_content_router
-from animama.server.schemas.typed_content import typed_content_response
+from animama.server.schemas.typed_content import PyReaction, typed_content_response
 from tests.local_http_client import local_client
 from tests.typed_loadout_support import cleanup_loadout_fixture, create_loadout_fixture
 
@@ -158,6 +158,7 @@ async def test_direct_descriptor_save_uses_entry_name_and_removes_stale_companio
             expected_revision=None,
         )
         response = typed_content_response(TypedContentService.parse(created.item))
+        assert isinstance(response, PyReaction)
         assert response.emotion == ("joy" if with_hint else None)
         assert response.intensity == (2 if with_hint else None)
         root = paths.local_root / "reactions/happy"

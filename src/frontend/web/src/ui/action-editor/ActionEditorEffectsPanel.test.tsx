@@ -2,8 +2,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
-import { parseAnimaPose } from "@/lib/avatar/poses/animaPose";
-import type { PoseCreatorSavedDraft } from "@/stores/pose-creator-store";
+import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { ActionEditorEffectsPanel } from "./ActionEditorEffectsPanel";
 import type { ActionDependencySection } from "./ActionEditorWorkspaceContext";
 
@@ -70,28 +69,18 @@ const sections: ActionDependencySection[] = [
   },
 ];
 
-const savedPose: PoseCreatorSavedDraft = {
-  id: "friendly-wave",
+const savedPose: PyPose = {
+  item_id: "friendly-wave",
   name: "Friendly Wave",
-  createdAt: "2026-08-16T12:00:00.000Z",
-  updatedAt: "2026-08-16T12:00:00.000Z",
-  source: {
-    key: "preview-anima",
-    sourceType: "resolved_entry",
-    displayName: "Annie",
-    sourceLabel: "Preview Anima",
-    versionLabel: "Current",
-  },
-  basePose: "relaxedRest",
-  pose: parseAnimaPose({
-    schema: "animaPose/1.0",
-    id: "friendly-wave",
-    name: "Friendly Wave",
-  }),
+  kind: "pose",
+  source: "local",
+  pose_id: "wave",
+  revision_sha256: "rev",
+  editable: true,
 };
 
 describe("ActionEditorEffectsPanel", () => {
-  it("shows browser-local Poses before Effects for Gesture authoring", () => {
+  it("shows Included and Local Poses before Effects for Gesture authoring", () => {
     const html = renderToString(
       <ActionEditorEffectsPanel
         query=""
@@ -102,7 +91,16 @@ describe("ActionEditorEffectsPanel", () => {
         dependencies={[]}
         onAdd={() => undefined}
         onRemove={() => undefined}
-        poses={[savedPose]}
+        poses={[
+          savedPose,
+          {
+            ...savedPose,
+            item_id: "included",
+            source: "included",
+            name: "Starter",
+            editable: false,
+          },
+        ]}
         onAddPose={() => undefined}
         onEditPose={() => undefined}
       />,
@@ -112,6 +110,9 @@ describe("ActionEditorEffectsPanel", () => {
     expect(html.indexOf(">Poses<")).toBeLessThan(html.indexOf(">Particle FX<"));
     expect(html).toContain('placeholder="Search poses"');
     expect(html).toContain("Friendly Wave");
+    expect(html).toContain("Included");
+    expect(html).toContain("Local");
+    expect(html).toContain('aria-label="Customize Starter"');
     expect(html).toContain('aria-label="Edit Friendly Wave"');
     expect(html.indexOf('aria-label="Edit Friendly Wave"')).toBeLessThan(
       html.indexOf('aria-label="Insert Friendly Wave at current playhead"'),

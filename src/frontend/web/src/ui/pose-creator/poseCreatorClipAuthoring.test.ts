@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   createDefaultPoseCreatorClipDraft,
+  createPoseCreatorClipDraftFromAnimaPoseClip,
+  buildPoseCreatorClipForExport,
   createUniquePoseCreatorClipName,
   validatePoseCreatorClipDraft,
 } from "./poseCreatorClipAuthoring";
@@ -34,5 +36,33 @@ describe("createUniquePoseCreatorClipName", () => {
         "New Clip (3)",
       ]),
     ).toBe("New Clip (2)");
+  });
+});
+
+describe("standalone clip hydration", () => {
+  it("retains omitted base across referenced and baked export despite a caller fallback", () => {
+    const input = {
+      schema: "animaPoseClip/1.0",
+      id: "copied",
+      name: "Copied",
+      duration: 1,
+      poses: { first: { expressions: { happy: 0.5 } } },
+      poseKeyframes: [{ time: 0, pose: "first" }],
+    };
+    const draft = createPoseCreatorClipDraftFromAnimaPoseClip(input, {
+      fallbackBasePose: "relaxedRest",
+    });
+    expect(draft.basePose).toBe("");
+    expect(validatePoseCreatorClipDraft(draft)).toEqual([]);
+    for (const mode of ["referenced", "baked"] as const) {
+      const exported = buildPoseCreatorClipForExport(draft, {
+        mode,
+        resolvePose: () => {
+          throw new Error("No external pose should be needed");
+        },
+      });
+      expect(exported?.basePose).toBeUndefined();
+      expect(exported?.poses).toEqual(input.poses);
+    }
   });
 });
