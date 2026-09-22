@@ -211,3 +211,22 @@ findings. Both repair rounds used; no supported source blocker remains.
   Native text undo retains control while an input is focused.
 - PR #53 also closes phase issue #54. Keep task stack/worktree for owner review;
   no merge, provider, native or release approval is implied.
+
+## Final lighting correction and merge authorization
+
+2026-09-22: owner requested removal of Particle's extra canvas lighting, then
+commit/push and merge/cleanup of PR #53. Removed its three custom lights and
+`showDefaultLights={false}` so it uses the shared preview default, matching the
+other creators. No camera, particle or history behavior changed.
+
+Independent final-delta source/integration review passed with no findings or
+repair rounds. Read-only ESLint/Prettier, web `tsc -b`, and focused Particle plus
+avatar-preview tests (5 files / 13 tests) passed. Desktop 1440x900 and narrow
+390x844 browser rendering and emitter add/undo/redo passed with no page errors.
+No new test was added for this four-line visual correction; existing behavior
+coverage and rendered checks apply. Prior production build evidence remains
+applicable; it was not repeated for deletion of JSX light nodes.
+
+Owner merge/cleanup authorization covers this validated final correction and the
+existing PR scope. Use head-matched ordinary merge, update clean primary main,
+and remove only this task's verified stack, exclusive volumes and worktree.

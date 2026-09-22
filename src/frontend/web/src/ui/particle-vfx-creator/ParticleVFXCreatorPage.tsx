@@ -1631,12 +1631,8 @@ function ParticleVFXCreatorPreview({
       lifecycleOwner="creator"
       minDistance={0.1}
       maxDistance={15}
-      showDefaultLights={false}
       showSceneVFX={false}
     >
-      <ambientLight intensity={0.9} />
-      <directionalLight position={[2, 4, 3]} intensity={1.6} />
-      <directionalLight position={[-3, 2.5, -2]} intensity={0.6} />
       <gridHelper
         args={[3, 12, "#3f3f46", "#27272a"]}
         position={[0, -0.55, 0]}
