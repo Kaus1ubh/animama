@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AlertTriangleIcon,
   Settings2Icon,
   PauseIcon,
   PlayIcon,
@@ -36,11 +35,6 @@ import {
   PopoverTrigger,
 } from "@/ui/components/popover";
 import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/ui/components/tooltip";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -62,7 +56,6 @@ import {
   POSE_CREATOR_CLIP_SNAP_INTERVAL_OPTIONS,
   type PoseCreatorClipEventDraft,
   type PoseCreatorClipKeyframeDraft,
-  type PoseCreatorClipPreviewDiagnostics,
 } from "./poseCreatorClipAuthoring";
 
 type TimelineDragState =
@@ -150,9 +143,6 @@ export function PoseCreatorClipTimeline({
   const clipSnapIntervalSec = usePoseCreatorStore(
     (state) => state.clipSnapIntervalSec,
   );
-  const clipPreviewDiagnostics = usePoseCreatorStore(
-    (state) => state.clipPreviewDiagnostics,
-  );
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
   const clipPlaybackPlaying = usePoseCreatorStore(
     (state) => state.clipPlaybackPlaying,
@@ -213,15 +203,6 @@ export function PoseCreatorClipTimeline({
     clipDraft.currentTimeSec,
     duration,
   );
-  const diagnosticSummary = getClipPreviewDiagnosticSummary(
-    clipPreviewDiagnostics,
-  );
-  const validationErrorCount = clipDraft.validationIssues.filter(
-    (issue) => issue.severity === "error",
-  ).length;
-  const validationWarningCount = clipDraft.validationIssues.filter(
-    (issue) => issue.severity === "warning",
-  ).length;
   const eventMarkerLayouts = useMemo(
     () => buildEventMarkerLayouts(clipDraft.events, duration),
     [clipDraft.events, duration],
@@ -714,35 +695,6 @@ export function PoseCreatorClipTimeline({
                   </div>
                 </PopoverContent>
               </Popover>
-              {diagnosticSummary ||
-              validationErrorCount > 0 ||
-              validationWarningCount > 0 ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="Timeline validation issues"
-                      className={cn(
-                        "flex size-8 shrink-0 items-center justify-center rounded-md",
-                        diagnosticSummary || validationErrorCount > 0
-                          ? "text-destructive"
-                          : "text-amber-600",
-                      )}
-                    >
-                      <AlertTriangleIcon className="size-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="max-h-[min(70dvh,var(--radix-tooltip-content-available-height))] max-w-80 space-y-2 overflow-y-auto text-xs"
-                  >
-                    {diagnosticSummary ? <p>{diagnosticSummary}</p> : null}
-                    {clipDraft.validationIssues.map((issue, index) => (
-                      <p key={index}>{issue.message}</p>
-                    ))}
-                  </TooltipContent>
-                </Tooltip>
-              ) : null}
               {variant === "workspace" && onExpandedChange ? (
                 <CreatorPanelCollapseButton
                   label="timeline"
@@ -1150,35 +1102,6 @@ function formatEventMarkerTitle(event: PoseCreatorClipEventDraft): string {
     parts.push(`duration ${formatTimelineTime(event.duration)}`);
   }
   return parts.join(" / ");
-}
-
-function getClipPreviewDiagnosticSummary(
-  diagnostics: PoseCreatorClipPreviewDiagnostics,
-): string | null {
-  const parts: string[] = [];
-  if (diagnostics.missingPoseRefs.length > 0) {
-    parts.push(`Missing poses: ${diagnostics.missingPoseRefs.join(", ")}`);
-  }
-  if (diagnostics.missingAvatarVFXIds.length > 0) {
-    parts.push(
-      `Missing avatar VFX: ${diagnostics.missingAvatarVFXIds.join(", ")}`,
-    );
-  }
-  if (diagnostics.missingSceneVFXPresetIds.length > 0) {
-    parts.push(
-      `Missing scene VFX: ${diagnostics.missingSceneVFXPresetIds.join(", ")}`,
-    );
-  }
-  if (diagnostics.missingParticleVFXIds.length > 0) {
-    parts.push(
-      `Missing particle VFX: ${diagnostics.missingParticleVFXIds.join(", ")}`,
-    );
-  }
-  if (diagnostics.missingSFXCueIds.length > 0) {
-    parts.push(`Missing SFX: ${diagnostics.missingSFXCueIds.join(", ")}`);
-  }
-  parts.push(...diagnostics.eventAdapterWarnings);
-  return parts.length > 0 ? parts.join(" / ") : null;
 }
 
 function getTimelinePercent(time: number, duration: number): number {

@@ -525,20 +525,7 @@ export function validatePoseCreatorClipDraft(
     });
   } else {
     const sortedKeyframes = sortPoseCreatorClipKeyframes(draft.keyframes);
-    const firstKeyframe = sortedKeyframes[0];
     const finalKeyframe = sortedKeyframes[sortedKeyframes.length - 1];
-    if (
-      firstKeyframe &&
-      Number.isFinite(firstKeyframe.time) &&
-      Math.abs(firstKeyframe.time) > KEYFRAME_TIME_EPSILON
-    ) {
-      issues.push({
-        severity: "warning",
-        code: "first-keyframe-not-zero",
-        message: "First keyframe should usually start at 0 seconds.",
-        target: firstKeyframe.id,
-      });
-    }
     if (
       finalKeyframe &&
       Number.isFinite(finalKeyframe.time) &&

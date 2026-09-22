@@ -595,23 +595,29 @@ export function ActionEditorPage({
 
   /** Save once and return the exact typed target used by Save & Equip. */
   const saveAction = async (): Promise<ManageActionTarget> => {
+    setValidationAttempted(true);
     clearSaveFailure();
+    // Live validation belongs to the document, not a cached save failure.
+    let currentDocument: ActionDocument;
     try {
-      const currentDocument = capturePersistenceDocument();
-      const currentIssues = validateActionDocument(currentDocument);
-      if (currentIssues.length) {
-        setValidationAttempted(true);
-        const description = currentIssues
-          .map((issue) => issue.message)
-          .join(" ");
-        toast.error(
-          `Complete the required ${intent === "gesture" ? "Gesture" : "Reaction"} details.`,
-          {
-            description,
-          },
-        );
-        throw new Error(description);
-      }
+      currentDocument = capturePersistenceDocument();
+    } catch (cause) {
+      // Serialization can fail before live document validation runs.
+      setSaveStage("idle");
+      throw captureSaveFailure(cause);
+    }
+    const currentIssues = validateActionDocument(currentDocument);
+    if (currentIssues.length) {
+      const description = currentIssues.map((issue) => issue.message).join(" ");
+      toast.error(
+        `Complete the required ${intent === "gesture" ? "Gesture" : "Reaction"} details.`,
+        {
+          description,
+        },
+      );
+      throw new Error(description);
+    }
+    try {
       setSaveStage("preparing");
       const session = await ensureSession(currentDocument);
       const file =

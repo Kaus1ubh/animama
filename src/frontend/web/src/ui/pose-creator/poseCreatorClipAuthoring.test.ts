@@ -3,9 +3,17 @@ import { describe, expect, it } from "vitest";
 import {
   createDefaultPoseCreatorClipDraft,
   createUniquePoseCreatorClipName,
+  validatePoseCreatorClipDraft,
 } from "./poseCreatorClipAuthoring";
 
 describe("createUniquePoseCreatorClipName", () => {
+  it("allows the first authored pose after zero when Start base is off", () => {
+    const draft = createDefaultPoseCreatorClipDraft("relaxedRest");
+    draft.poses = { smile: { expressions: { happy: 0.5 } } };
+    draft.keyframes = [{ id: "late", pose: "smile", time: 1 }];
+    expect(validatePoseCreatorClipDraft(draft)).toEqual([]);
+  });
+
   it("leaves a new clip name empty so New Clip remains a placeholder", () => {
     const draft = createDefaultPoseCreatorClipDraft("relaxedRest");
     expect(draft.name).toBe("");

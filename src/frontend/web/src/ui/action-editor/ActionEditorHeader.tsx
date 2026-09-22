@@ -2,7 +2,6 @@
 
 import {
   AlertTriangleIcon,
-  CircleAlertIcon,
   ClapperboardIcon,
   Code2Icon,
   CopyIcon,
@@ -74,6 +73,7 @@ import {
   type CreatorHistoryController,
 } from "@/ui/creator-history/CreatorHistory";
 import { PoseCreatorLibrarySection } from "@/ui/pose-creator/PoseCreatorLibrarySection";
+import { actionValidationMessages } from "./actionValidationMessages";
 import { renameActionDocument } from "./actionDocument";
 import { isCustomizableStarterAction } from "./actionDocumentLoader";
 import {
@@ -608,6 +608,20 @@ function ActionDocumentField({ status }: { status: ActionHeaderStatus }) {
 /** Compact workflow feedback anchored to the far edge of the Name row. */
 function ActionDocumentIndicators({ status }: { status: ActionHeaderStatus }) {
   const workspace = useActionEditorWorkspace();
+  const clipIssues = usePoseCreatorStore(
+    (state) => state.clipDraft.validationIssues,
+  );
+  const diagnostics = usePoseCreatorStore(
+    (state) => state.clipPreviewDiagnostics,
+  );
+  const timeline = workspace.document.implementation === "anima_clip";
+  const messages = actionValidationMessages(
+    workspace.validationAttempted,
+    workspace.issues,
+    timeline ? clipIssues : [],
+    timeline ? diagnostics : null,
+    workspace.error,
+  );
   return (
     <div className="ml-2 flex shrink-0 items-center gap-1.5 leading-none">
       <Tooltip>
@@ -632,16 +646,15 @@ function ActionDocumentIndicators({ status }: { status: ActionHeaderStatus }) {
         </TooltipTrigger>
         <TooltipContent side="bottom">{status.label}</TooltipContent>
       </Tooltip>
-      {workspace.validationAttempted && workspace.issues.length ? (
+      {messages.length ? (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
               className="text-destructive flex h-5 items-center gap-1 text-[10px] hover:opacity-80"
-              aria-label={`${workspace.issues.length} validation ${workspace.issues.length === 1 ? "issue" : "issues"}`}
-              title={workspace.issues.map((issue) => issue.message).join("\n")}
+              aria-label={`${messages.length} validation ${messages.length === 1 ? "issue" : "issues"}`}
             >
-              <span>{workspace.issues.length}</span>
+              <span>{messages.length}</span>
               <AlertTriangleIcon className="size-3" />
             </button>
           </TooltipTrigger>
@@ -651,31 +664,9 @@ function ActionDocumentIndicators({ status }: { status: ActionHeaderStatus }) {
             sideOffset={8}
             className="max-w-sm space-y-1 text-left"
           >
-            {workspace.issues.map((issue) => (
-              <p key={`${issue.field}:${issue.message}`}>{issue.message}</p>
+            {messages.map((message) => (
+              <p key={message}>{message}</p>
             ))}
-          </TooltipContent>
-        </Tooltip>
-      ) : null}
-      {workspace.error &&
-      !(workspace.validationAttempted && workspace.issues.length) ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className="text-destructive flex size-5 items-center justify-center"
-              aria-label={actionSaveErrorLabel(workspace.error)}
-              title={workspace.error}
-            >
-              <CircleAlertIcon className="size-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent
-            side="bottom"
-            align="end"
-            className="max-w-sm text-left"
-          >
-            {workspace.error}
           </TooltipContent>
         </Tooltip>
       ) : null}
