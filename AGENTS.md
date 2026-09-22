@@ -320,6 +320,8 @@ tools, not contributor or build prerequisites.
 
 ## Verification
 
+Animama is primarily a desktop app: test UI changes at desktop viewport sizes first, then check narrower layouts for regressions.
+
 Choose the smallest meaningful verification for the change and state what was
 not run.
 

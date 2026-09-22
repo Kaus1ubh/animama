@@ -1,3 +1,6 @@
+import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { usePoseCreatorStore } from "@/stores/pose-creator-store";
+import { shouldShowPoseCreatorBoneGizmo } from "@/ui/pose-creator/poseCreatorBoneGizmoVisibility";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -8,6 +11,7 @@ import {
   shouldPreserveTimelinePlayhead,
   shouldHydrateActionTimeline,
   shouldSkipActionTimelineEmission,
+  syncActionTimelineMetadata,
 } from "./ActionTimelineEditor";
 
 let timelineProps: Record<string, unknown> | null = null;
@@ -20,6 +24,68 @@ vi.mock("@/ui/pose-creator/PoseCreatorClipTimeline", () => ({
 }));
 
 describe("ActionTimelineEditor", () => {
+  it("keeps the active pose, selected bone, and gizmo when a document is renamed", () => {
+    const sequence = {
+      schema: "animaPoseClip/1.0",
+      id: "original",
+      name: "Original",
+      duration: 1,
+      poses: {
+        start: { humanoid: { leftUpperArm: { rotation: [0, 0, 0, 1] } } },
+      },
+      poseKeyframes: [{ time: 0, pose: "start" }],
+    };
+    const store = usePoseCreatorStore.getState();
+    store.resetWorkspace();
+    store.hydrateClipDocument(parseAnimaPoseClip(sequence));
+    const hydrated = usePoseCreatorStore.getState();
+    store.beginClipInlinePoseEdit({
+      alias: "start",
+      keyframeId: hydrated.clipDraft.keyframes[0]!.id,
+      originalPose: hydrated.clipDraft.poses.start!,
+      boneDrafts: {},
+      expressionDrafts: {},
+      draftName: "Editing start",
+    });
+    store.setSelectedBone("head");
+    store.setBoneDraft("head", {
+      baseQuaternion: [0, 0, 0, 1],
+      rotationDegrees: { x: 0, y: 25, z: 0 },
+    });
+    const before = usePoseCreatorStore.getState();
+
+    expect(
+      syncActionTimelineMetadata(
+        { ...sequence, id: "renamed", name: "Renamed" },
+        sequence,
+      ),
+    ).toBe(true);
+    const after = usePoseCreatorStore.getState();
+    expect(after.clipDraft.name).toBe("Renamed");
+    expect(after.clipDraft.id).toBe("renamed");
+    expect(after.clipInlineEdit).toBe(before.clipInlineEdit);
+    expect(after.boneDrafts).toBe(before.boneDrafts);
+    expect(after.inlinePoseUndoHistory).toBe(before.inlinePoseUndoHistory);
+    expect(after.selectedBone).toBe("head");
+    expect(
+      shouldShowPoseCreatorBoneGizmo({
+        boneHelperNodesVisible: true,
+        authoringMode: after.authoringMode,
+        hasClipInlineEdit: Boolean(after.clipInlineEdit),
+        clipPlaybackPlaying: after.clipPlaybackPlaying,
+      }),
+    ).toBe(true);
+    // Actual timeline changes still require hydration, even when also renamed.
+    expect(
+      syncActionTimelineMetadata(
+        { ...sequence, name: "Replaced", duration: 2 },
+        sequence,
+      ),
+    ).toBe(false);
+    expect(usePoseCreatorStore.getState().clipDraft.name).toBe("Renamed");
+    store.resetWorkspace();
+  });
+
   it("recognizes a deliberately blank action timeline as a store reset", () => {
     expect(isEmptyActionTimeline({ poses: {}, poseKeyframes: [] })).toBe(true);
     expect(

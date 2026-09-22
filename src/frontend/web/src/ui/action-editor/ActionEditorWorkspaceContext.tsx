@@ -56,10 +56,12 @@ export type ActionEditorWorkspaceValue = {
   activeDependencyType: ActionComponentType;
   setActiveDependencyType: (contentType: ActionComponentType) => void;
   dependencySections: ActionDependencySection[];
+  /** Add one effect and dependency atomically, returning its timeline event ID. */
   addComponent: (
     item: PyCatalogViewItem,
     contentType: ActionComponentType,
-  ) => void;
+    options?: { timeSec?: number },
+  ) => string | undefined;
   removeDependency: (alias: string) => void;
   mapDependency: (
     alias: string,

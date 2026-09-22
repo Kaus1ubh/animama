@@ -35,6 +35,18 @@ describe("pose creator model selection", () => {
     usePoseCreatorStore.setState({ savedDrafts: [] });
   });
 
+  it("selects Left Upper Arm for a fresh pose and preserves the user's selection across helper and model changes", () => {
+    const store = usePoseCreatorStore.getState();
+    expect(store.selectedBone).toBe("leftUpperArm");
+    store.setSelectedBone("head");
+    store.setBoneHelperNodesVisible(false);
+    store.setModelSource(model("second"));
+    store.setBoneHelperNodesVisible(true);
+    expect(usePoseCreatorStore.getState().selectedBone).toBe("head");
+    store.startNewPose();
+    expect(usePoseCreatorStore.getState().selectedBone).toBe("leftUpperArm");
+  });
+
   it("preserves pose and clip authoring data across model switches", () => {
     const store = usePoseCreatorStore.getState();
     store.setModelSource(model("first"));
@@ -52,6 +64,45 @@ describe("pose creator model selection", () => {
     expect(switched.clipDraft.name).toBe("Keep this clip");
     expect(switched.clipDraft.isDirty).toBe(true);
   });
+
+  it.each(["blank", "saved"])(
+    "drops another creator's pose scratch state when opening a %s document",
+    (documentKind) => {
+      const store = usePoseCreatorStore.getState();
+      store.setBoneDraft("leftUpperArm", {
+        baseQuaternion: [0, 0, 0, 1],
+        rotationDegrees: { x: 70, y: 0, z: 0 },
+      });
+      store.setExpressionDraft("happy", { baseValue: 0, value: 1 });
+      store.setSelectedBone("head");
+      if (documentKind === "blank") {
+        store.resetClipDraft("New Reaction");
+      } else {
+        store.hydrateClipDocument(
+          parseAnimaPoseClip({
+            schema: "animaPoseClip/1.0",
+            id: "saved-reaction",
+            name: "Saved Reaction",
+            duration: 1,
+            poses: { expression: { expressions: { sad: 0.4 } } },
+            poseKeyframes: [{ time: 0, pose: "expression" }],
+          }),
+        );
+        expect(
+          usePoseCreatorStore.getState().clipDraft.poses.expression,
+        ).toEqual({
+          expressions: { sad: 0.4 },
+        });
+      }
+      const next = usePoseCreatorStore.getState();
+      expect(next.boneDrafts).toEqual({});
+      expect(next.expressionDrafts).toEqual({});
+      expect(next.selectedBone).toBe("leftUpperArm");
+      expect(next.poseUndoHistory).toEqual([]);
+      expect(next.poseRedoHistory).toEqual([]);
+      expect(next.isDirty).toBe(false);
+    },
+  );
 
   it("hydrates exact Asset documents as clean Clip workspaces", () => {
     const hydrated = usePoseCreatorStore.getState().hydrateClipDocument(
@@ -264,6 +315,118 @@ describe("pose creator model selection", () => {
     expect(clip.selectedPoseAlias).toBe(keyframedAlias);
     expect(clip.isDirty).toBe(true);
   });
+
+  it("inserts a pose at an explicit drop time in one edit without a preliminary seek", () => {
+    const store = usePoseCreatorStore.getState();
+    store.setClipCurrentTime(0.1, { snap: false });
+    const before = usePoseCreatorStore.getState().clipDraft;
+    const updates: number[] = [];
+    const unsubscribe = usePoseCreatorStore.subscribe((state) => {
+      updates.push(state.clipDraft.currentTimeSec);
+    });
+    const pose = parseAnimaPose({
+      schema: "animaPose/1.0",
+      id: "dropped-pose",
+      name: "Dropped pose",
+      expressions: { happy: 0.7 },
+    });
+
+    const alias = store.addPoseToClip(pose, pose.name, {
+      timeSec: 0.37,
+      atPlayhead: true,
+    });
+    unsubscribe();
+    const state = usePoseCreatorStore.getState();
+    expect(updates).toEqual([0.37]);
+    expect(state.clipPlaybackAbsoluteTimeSec).toBe(0.37);
+    expect(state.clipDraft.keyframes).toEqual([
+      expect.objectContaining({ pose: alias, time: 0.37 }),
+    ]);
+    expect(state.clipDraft.selectedKeyframeId).toBe(
+      state.clipDraft.keyframes[0]?.id,
+    );
+    expect(state.clipPlaybackPlaying).toBe(false);
+    expect(state.clipUndoHistory).toHaveLength(1);
+
+    store.undoClip();
+    expect(usePoseCreatorStore.getState().clipDraft.poses).toEqual(
+      before.poses,
+    );
+    expect(usePoseCreatorStore.getState().clipDraft.keyframes).toEqual(
+      before.keyframes,
+    );
+  });
+
+  it("selects only the dropped pose when an effect was previously selected", () => {
+    const store = usePoseCreatorStore.getState();
+    store.insertClipSFXEventAtPlayhead("chime");
+    expect(
+      usePoseCreatorStore.getState().clipDraft.selectedEventId,
+    ).not.toBeNull();
+    store.addPoseToClip(
+      parseAnimaPose({
+        schema: "animaPose/1.0",
+        id: "dropped-pose",
+        name: "Dropped pose",
+        expressions: { happy: 0.7 },
+      }),
+      "Dropped pose",
+      { timeSec: 0.4 },
+    );
+    const clip = usePoseCreatorStore.getState().clipDraft;
+    expect(clip.selectedEventId).toBeNull();
+    expect(clip.selectedKeyframeId).toBe(clip.keyframes[0]?.id);
+  });
+
+  it("replaces an occupied pose timestamp and restores its complete contents with one undo", () => {
+    const store = usePoseCreatorStore.getState();
+    const pose = parseAnimaPose({
+      schema: "animaPose/1.0",
+      id: "happy",
+      name: "Happy",
+      expressions: { happy: 0.5 },
+    });
+    store.addPoseToClip(pose, pose.name, { timeSec: 0.6 });
+    const before = usePoseCreatorStore.getState().clipDraft;
+    store.setClipCurrentTime(0.2, { snap: false });
+    const replacement = store.addPoseToClip(
+      { ...pose, expressions: { happy: 1 } },
+      "Happier",
+      { timeSec: 0.6 },
+    );
+    const after = usePoseCreatorStore.getState().clipDraft;
+    expect(after.keyframes).toEqual([
+      { ...before.keyframes[0], pose: replacement },
+    ]);
+    expect(after.currentTimeSec).toBe(0.6);
+    expect(after.selectedKeyframeId).toBe(before.keyframes[0]?.id);
+
+    store.undoClip();
+    expect(usePoseCreatorStore.getState().clipDraft.poses).toEqual(
+      before.poses,
+    );
+    expect(usePoseCreatorStore.getState().clipDraft.keyframes).toEqual(
+      before.keyframes,
+    );
+  });
+
+  it.each([-1, 5])(
+    "clamps an explicit pose insertion time %s to the timeline",
+    (timeSec) => {
+      const store = usePoseCreatorStore.getState();
+      const pose = parseAnimaPose({
+        schema: "animaPose/1.0",
+        id: "boundary",
+        name: "Boundary",
+        expressions: { happy: 1 },
+      });
+      const expected = Math.max(0, Math.min(store.clipDraft.duration, timeSec));
+      store.addPoseToClip(pose, pose.name, { timeSec });
+      expect(usePoseCreatorStore.getState().clipDraft.keyframes[0]?.time).toBe(
+        expected,
+      );
+    },
+  );
 
   it("copies only directly authored channels from a parented pose", () => {
     const store = usePoseCreatorStore.getState();
@@ -655,4 +818,103 @@ describe("pose creator undo and redo history", () => {
     expect(selectCanUndoClip(usePoseCreatorStore.getState())).toBe(false);
     expect(selectCanRedoClip(usePoseCreatorStore.getState())).toBe(false);
   });
+});
+
+describe("timeline inspector selection", () => {
+  beforeEach(() => {
+    const store = usePoseCreatorStore.getState();
+    store.resetWorkspace();
+    store.hydrateClipDocument(
+      parseAnimaPoseClip({
+        schema: "animaPoseClip/1.0",
+        id: "selection",
+        name: "Selection",
+        duration: 1.2,
+        poses: { pose: { expressions: { happy: 0.5 } } },
+        poseKeyframes: [
+          { time: 0.25, pose: "pose" },
+          { time: 0.9, pose: "pose" },
+        ],
+        events: [{ id: "sound", kind: "sfx", time: 0.6, cueId: "bell" }],
+      }),
+    );
+  });
+
+  it("switches the inspector between events and keyframes without editing content or history", () => {
+    const store = usePoseCreatorStore.getState();
+    const original = store.clipDraft;
+    const keyframeId = original.keyframes[0]!.id;
+    store.selectClipEvent("sound");
+    expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+      selectedEventId: "sound",
+      selectedKeyframeId: null,
+      currentTimeSec: 0.6,
+    });
+    store.selectClipKeyframe(keyframeId);
+    expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+      selectedEventId: null,
+      selectedKeyframeId: keyframeId,
+      currentTimeSec: 0.25,
+    });
+    store.selectClipEvent("sound");
+    const state = usePoseCreatorStore.getState();
+    expect(state.clipDraft).toMatchObject({
+      selectedEventId: "sound",
+      selectedKeyframeId: null,
+      currentTimeSec: 0.6,
+    });
+    expect(state.clipPlaybackAbsoluteTimeSec).toBe(0.6);
+    expect(state.clipPlaybackPlaying).toBe(false);
+    expect(state.clipDraft.keyframes).toBe(original.keyframes);
+    expect(state.clipDraft.events).toBe(original.events);
+    expect(state.clipUndoHistory).toEqual([]);
+  });
+
+  it.each([null, "missing"])(
+    "clearing selection with %s leaves the other selected item and time intact",
+    (emptyId) => {
+      const store = usePoseCreatorStore.getState();
+      const keyframeId = store.clipDraft.keyframes[0]!.id;
+      store.selectClipEvent("sound");
+      store.selectClipKeyframe(emptyId);
+      expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+        selectedEventId: "sound",
+        selectedKeyframeId: null,
+        currentTimeSec: 0.6,
+      });
+      store.selectClipEvent(emptyId);
+      expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+        selectedEventId: null,
+        selectedKeyframeId: null,
+        currentTimeSec: 0.6,
+      });
+      store.selectClipKeyframe(keyframeId);
+      store.selectClipEvent(emptyId);
+      expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+        selectedEventId: null,
+        selectedKeyframeId: keyframeId,
+        currentTimeSec: 0.25,
+      });
+      store.selectClipKeyframe(emptyId);
+      expect(usePoseCreatorStore.getState().clipDraft).toMatchObject({
+        selectedEventId: null,
+        selectedKeyframeId: null,
+        currentTimeSec: 0.25,
+      });
+    },
+  );
+
+  it.each([-1, 1] as const)(
+    "selects the stepped keyframe instead of leaving the effect inspector open (%s)",
+    (direction) => {
+      const store = usePoseCreatorStore.getState();
+      store.selectClipEvent("sound");
+      store.stepClipKeyframe(direction);
+      const clip = usePoseCreatorStore.getState().clipDraft;
+      const keyframe = clip.keyframes[direction === -1 ? 0 : 1]!;
+      expect(clip.selectedKeyframeId).toBe(keyframe.id);
+      expect(clip.selectedEventId).toBeNull();
+      expect(clip.currentTimeSec).toBe(keyframe.time);
+    },
+  );
 });

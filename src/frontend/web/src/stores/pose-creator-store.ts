@@ -185,6 +185,10 @@ export type PoseCreatorSaveLocalDraftInput = {
   pose: AnimaPose;
 };
 
+// Give new pose sessions an immediately usable rotation handle. Explicit bone
+// selections remain independent of helper visibility and model loading.
+const DEFAULT_POSE_CREATOR_SELECTED_BONE = "leftUpperArm";
+
 export const POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID = "__vrm_t_pose__";
 export const DEFAULT_POSE_CREATOR_BASE_POSE: PoseCreatorBasePose =
   RELAXED_REST_POSE_ID;
@@ -523,8 +527,10 @@ type PoseCreatorStoreState = {
   advanceClipPlayback: (deltaSeconds: number) => void;
   stepClipTime: (direction: -1 | 1) => void;
   stepClipKeyframe: (direction: -1 | 1) => void;
+  /** Select one keyframe and clear event selection; null only clears keyframes. */
   selectClipKeyframe: (keyframeId: string | null) => void;
   selectClipPoseAlias: (alias: string | null) => void;
+  /** Select one event and clear keyframe selection; null only clears events. */
   selectClipEvent: (eventId: string | null) => void;
   insertClipAvatarVFXEventAtPlayhead: (
     effectId: string,
@@ -558,7 +564,7 @@ type PoseCreatorStoreState = {
   addPoseToClip: (
     pose: AnimaPose,
     preferredAlias: string,
-    options?: { atPlayhead?: boolean },
+    options?: { atPlayhead?: boolean; timeSec?: number },
   ) => string;
   /** Create or update the sparse expression landmark at the playhead. */
   setClipExpressionsAtPlayhead: (expressions: Record<string, number>) => void;
@@ -684,7 +690,7 @@ function resetTransientStateForSource(
     loadStatus: "idle",
     loadError: null,
     loadProgress: null,
-    selectedBone: null,
+    selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
     selectedBoneFocusRequest: null,
     boneDrafts: {},
     expressionDrafts: {},
@@ -704,6 +710,25 @@ function resetTransientStateForSource(
     clipPreviewClearRevision: 0,
     clipPlaybackCompletedRevision: 0,
     clipPlaybackSpeed: DEFAULT_POSE_CREATOR_CLIP_PLAYBACK_SPEED,
+  };
+}
+
+/** New timeline documents must not inherit a previous creator's pose scratchpad. */
+function resetPoseAuthoringState(basePose = DEFAULT_POSE_CREATOR_BASE_POSE) {
+  return {
+    basePose,
+    selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
+    selectedBoneFocusRequest: null,
+    boneDrafts: {},
+    expressionDrafts: {},
+    isDirty: false,
+    poseUndoHistory: [],
+    poseRedoHistory: [],
+    undoGroup: null,
+    exportPreview: null,
+    draftName: "",
+    selectedSavedDraftId: null,
+    importError: null,
   };
 }
 
@@ -1816,6 +1841,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         state.activeAvatar?.clearAllExpressionOverrides();
         state.activeAvatar?.vrm?.update(0);
         return {
+          ...resetPoseAuthoringState(),
           clipDraft: {
             ...createDefaultClipDraft(),
             ...(name ? { name } : {}),
@@ -1847,6 +1873,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           ),
         };
         set({
+          ...resetPoseAuthoringState(hydratedDraft.basePose),
           authoringMode: "clip",
           clipDraft: withPoseCreatorClipValidation(
             { ...hydratedDraft, isDirty: false },
@@ -2097,6 +2124,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipDraft: {
             ...state.clipDraft,
             selectedKeyframeId: keyframe.id,
+            selectedEventId: null,
             selectedPoseAlias: keyframe.pose,
             currentTimeSec: keyframe.time,
           },
@@ -2117,6 +2145,9 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipDraft: {
             ...state.clipDraft,
             selectedKeyframeId: selectedKeyframe?.id ?? null,
+            selectedEventId: selectedKeyframe
+              ? null
+              : state.clipDraft.selectedEventId,
             selectedPoseAlias:
               selectedKeyframe?.pose ?? state.clipDraft.selectedPoseAlias,
             currentTimeSec: nextTime,
@@ -2150,6 +2181,9 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           clipDraft: {
             ...state.clipDraft,
             selectedEventId: selectedEvent?.id ?? null,
+            selectedKeyframeId: selectedEvent
+              ? null
+              : state.clipDraft.selectedKeyframeId,
             currentTimeSec: nextTime,
           },
           clipPlaybackPlaying: false,
@@ -2303,7 +2337,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           previousIsDirty: state.isDirty,
           isDirty: false,
         },
-        selectedBone: null,
+        selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
         selectedBoneFocusRequest: null,
         boneDrafts: clonePoseCreatorBoneDrafts(input.boneDrafts),
         expressionDrafts: clonePoseCreatorExpressionDrafts(
@@ -2339,7 +2373,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           inlinePoseUndoHistory: [],
           inlinePoseRedoHistory: [],
           undoGroup: null,
-          selectedBone: null,
+          selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
           selectedBoneFocusRequest: null,
           boneDrafts: clonePoseCreatorBoneDrafts(edit.previousBoneDrafts),
           expressionDrafts: clonePoseCreatorExpressionDrafts(
@@ -2372,7 +2406,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           inlinePoseUndoHistory: [],
           inlinePoseRedoHistory: [],
           undoGroup: null,
-          selectedBone: null,
+          selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
           selectedBoneFocusRequest: null,
           boneDrafts: clonePoseCreatorBoneDrafts(edit.previousBoneDrafts),
           expressionDrafts: clonePoseCreatorExpressionDrafts(
@@ -2407,25 +2441,31 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         Object.keys(get().clipDraft.poses),
       );
       set((state) => {
-        const clipDraft = options.atPlayhead
-          ? insertClipPoseAtTime(
-              state.clipDraft,
-              createPoseCreatorClipInlinePose(pose),
-              alias,
-              state.clipDraft.currentTimeSec,
-            )
-          : withDirtyClipValidation({
-              ...state.clipDraft,
-              poses: {
-                ...state.clipDraft.poses,
-                [alias]: createPoseCreatorClipInlinePose(pose),
-              },
-              selectedPoseAlias: alias,
-            });
+        // Explicit drop times take precedence; callers already apply snapping.
+        const clipDraft =
+          options.timeSec !== undefined || options.atPlayhead
+            ? insertClipPoseAtTime(
+                state.clipDraft,
+                createPoseCreatorClipInlinePose(pose),
+                alias,
+                options.timeSec ?? state.clipDraft.currentTimeSec,
+              )
+            : withDirtyClipValidation({
+                ...state.clipDraft,
+                poses: {
+                  ...state.clipDraft.poses,
+                  [alias]: createPoseCreatorClipInlinePose(pose),
+                },
+                selectedPoseAlias: alias,
+              });
+        if (options.timeSec !== undefined) clipDraft.selectedEventId = null;
         return {
           ...recordClipDraftUndo(state, clipDraft),
           clipDraft,
           clipPlaybackPlaying: false,
+          ...(options.timeSec !== undefined
+            ? { clipPlaybackAbsoluteTimeSec: clipDraft.currentTimeSec }
+            : {}),
         };
       });
       return alias;
@@ -2912,7 +2952,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
     setBasePose: (basePose) =>
       set((state) => ({
         basePose,
-        selectedBone: null,
+        selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
         selectedBoneFocusRequest: null,
         boneDrafts: {},
         poseUndoHistory: [],
@@ -3160,7 +3200,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
 
       set({
         ...replacement,
-        selectedBone: null,
+        selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
         selectedBoneFocusRequest: null,
         draftName: draft.name,
         selectedSavedDraftId: draft.id,
@@ -3176,7 +3216,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
     replaceDraftFromImport: (replacement) =>
       set({
         ...replacement,
-        selectedBone: null,
+        selectedBone: DEFAULT_POSE_CREATOR_SELECTED_BONE,
         selectedBoneFocusRequest: null,
         selectedSavedDraftId: null,
         isDirty: true,
@@ -3186,22 +3226,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         exportPreview: null,
         importError: replacement.importError ?? null,
       }),
-    startNewPose: () =>
-      set({
-        basePose: DEFAULT_POSE_CREATOR_BASE_POSE,
-        selectedBone: null,
-        selectedBoneFocusRequest: null,
-        boneDrafts: {},
-        expressionDrafts: {},
-        isDirty: false,
-        poseUndoHistory: [],
-        poseRedoHistory: [],
-        undoGroup: null,
-        exportPreview: null,
-        draftName: "",
-        selectedSavedDraftId: null,
-        importError: null,
-      }),
+    startNewPose: () => set(resetPoseAuthoringState()),
     resetWorkspace: () =>
       set({
         ...resetTransientStateForSource(null),

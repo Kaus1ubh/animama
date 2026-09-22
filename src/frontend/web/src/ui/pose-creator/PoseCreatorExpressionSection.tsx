@@ -155,17 +155,6 @@ export function PoseCreatorExpressionSection({
                 {expressionNames.length} available
               </p>
             </div>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              className="text-muted-foreground size-7"
-              onClick={handleClearAllExpressions}
-              disabled={!activeAvatar || activeDraftCount === 0}
-              aria-label="Clear all expression changes"
-            >
-              <RotateCcwIcon className="size-3.5" />
-            </Button>
             {variant === "workspace" && onCollapse ? (
               <Button
                 type="button"

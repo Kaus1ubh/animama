@@ -67,9 +67,24 @@ describe("Pose Creator pose reuse", () => {
 });
 
 describe("Pose Creator bone gizmo visibility", () => {
+  it.each(["pose", "clip"] as const)(
+    "hides the gizmo when helpers are disabled in %s mode",
+    (authoringMode) => {
+      expect(
+        shouldShowPoseCreatorBoneGizmo({
+          boneHelperNodesVisible: false,
+          authoringMode,
+          hasClipInlineEdit: true,
+          clipPlaybackPlaying: false,
+        }),
+      ).toBe(false);
+    },
+  );
+
   it("shows throughout Pose authoring", () => {
     expect(
       shouldShowPoseCreatorBoneGizmo({
+        boneHelperNodesVisible: true,
         authoringMode: "pose",
         hasClipInlineEdit: false,
         clipPlaybackPlaying: false,
@@ -80,6 +95,7 @@ describe("Pose Creator bone gizmo visibility", () => {
   it("shows only for paused Clip inline-pose editing", () => {
     expect(
       shouldShowPoseCreatorBoneGizmo({
+        boneHelperNodesVisible: true,
         authoringMode: "clip",
         hasClipInlineEdit: true,
         clipPlaybackPlaying: false,
@@ -87,6 +103,7 @@ describe("Pose Creator bone gizmo visibility", () => {
     ).toBe(true);
     expect(
       shouldShowPoseCreatorBoneGizmo({
+        boneHelperNodesVisible: true,
         authoringMode: "clip",
         hasClipInlineEdit: true,
         clipPlaybackPlaying: true,
@@ -94,6 +111,7 @@ describe("Pose Creator bone gizmo visibility", () => {
     ).toBe(false);
     expect(
       shouldShowPoseCreatorBoneGizmo({
+        boneHelperNodesVisible: true,
         authoringMode: "clip",
         hasClipInlineEdit: false,
         clipPlaybackPlaying: false,

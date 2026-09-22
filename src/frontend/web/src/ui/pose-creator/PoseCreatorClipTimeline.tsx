@@ -2,8 +2,7 @@
 
 import {
   AlertTriangleIcon,
-  CheckCircle2Icon,
-  ChevronDownIcon,
+  Settings2Icon,
   PauseIcon,
   PlayIcon,
   RotateCcwIcon,
@@ -17,7 +16,6 @@ import {
   useEffect,
   useMemo,
   useRef,
-  useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -26,7 +24,16 @@ import { isAnimaPoseClipVFXEvent, type AnimaPoseClipEvent } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
-import { Input } from "@/ui/components/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/ui/components/popover";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/ui/components/tooltip";
 import {
   Select,
   SelectContent,
@@ -35,6 +42,12 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { Switch } from "@/ui/components/switch";
+import { useCatalogTimelineDrop } from "@/ui/action-editor/ActionCatalogDrag";
+import {
+  TRACK_LABEL_RAIL_PX,
+  TRACK_RIGHT_INSET_PX,
+  timelinePointerTime,
+} from "@/ui/action-editor/timelineCatalogDrop";
 import { CreatorPanelCollapseButton } from "@/ui/action-editor/CreatorPanelChrome";
 import {
   POSE_CREATOR_CLIP_PLAYBACK_SPEED_OPTIONS,
@@ -43,7 +56,6 @@ import {
   type PoseCreatorClipKeyframeDraft,
   type PoseCreatorClipPreviewDiagnostics,
 } from "./poseCreatorClipAuthoring";
-import { PoseCreatorClipAdvancedDialog } from "./PoseCreatorClipAdvancedDialog";
 
 type TimelineDragState =
   | { kind: "playhead" }
@@ -59,8 +71,6 @@ type TimelineDragState =
     };
 
 const RULER_TICKS = [0, 0.25, 0.5, 0.75, 1] as const;
-const TRACK_LABEL_RAIL_PX = 72;
-const TRACK_RIGHT_INSET_PX = 16;
 const TRACK_MARKER_WIDTH_PX = TRACK_LABEL_RAIL_PX + TRACK_RIGHT_INSET_PX;
 const RULER_HEIGHT_PX = 32;
 const LANE_HEIGHT_PX = 28;
@@ -105,8 +115,12 @@ export function PoseCreatorClipTimeline({
   onExpandedChange?: (expanded: boolean) => void;
 }) {
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const dropPreview = useCatalogTimelineDrop(
+    { track: trackRef, section: sectionRef, expanded, onExpandedChange },
+    variant === "workspace",
+  );
   const dragRef = useRef<TimelineDragState | null>(null);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
   const clipDraft = usePoseCreatorStore((state) => state.clipDraft);
   const clipSnapEnabled = usePoseCreatorStore((state) => state.clipSnapEnabled);
   const clipSnapIntervalSec = usePoseCreatorStore(
@@ -198,6 +212,35 @@ export function PoseCreatorClipTimeline({
     [duration],
   );
 
+  // Compare displayed precision so floating-point playback positions do not
+  // repeat the same time label already supplied by the ruler.
+  const playheadLabel = formatTimelineTime(clipDraft.currentTimeSec);
+  const showPlayheadLabel = !ticks.some(
+    (tick) => formatTimelineTime(tick.time) === playheadLabel,
+  );
+
+  const dropPercent = dropPreview
+    ? getTimelinePercent(dropPreview.time, duration)
+    : 0;
+  const dropLabel = dropPreview
+    ? `${dropPreview.replacesPose ? "Replace pose at " : ""}${formatTimelineTime(dropPreview.time)}`
+    : "";
+  const overlapsDropLabel = (time: number) => {
+    if (!dropPreview) return false;
+    const width = Math.max(
+      1,
+      (trackRef.current?.clientWidth ?? 0) - TRACK_MARKER_WIDTH_PX,
+    );
+    // Account for edge-aligned replacement text as well as short centered times.
+    const labelWidth = dropLabel.length * 7;
+    const dropX = (dropPercent / 100) * width;
+    const labelLeft =
+      dropX -
+      (dropPercent > 80 ? labelWidth : dropPercent < 20 ? 0 : labelWidth / 2);
+    const otherX = (getTimelinePercent(time, duration) / 100) * width;
+    return otherX + 24 >= labelLeft && otherX - 24 <= labelLeft + labelWidth;
+  };
+
   useEffect(
     () => () => {
       if (
@@ -213,13 +256,7 @@ export function PoseCreatorClipTimeline({
   const getPointerTime = (clientX: number) => {
     const rect = trackRef.current?.getBoundingClientRect();
     if (!rect || rect.width <= 0 || duration <= 0) return 0;
-    const trackLeft = rect.left + TRACK_LABEL_RAIL_PX;
-    const trackWidth = Math.max(
-      1,
-      rect.width - TRACK_LABEL_RAIL_PX - TRACK_RIGHT_INSET_PX,
-    );
-    const ratio = Math.min(1, Math.max(0, (clientX - trackLeft) / trackWidth));
-    return ratio * duration;
+    return timelinePointerTime(clientX, rect, duration);
   };
 
   const scrubToPointer = (clientX: number) => {
@@ -357,6 +394,8 @@ export function PoseCreatorClipTimeline({
   return (
     <>
       <section
+        ref={sectionRef}
+        aria-label="Timeline"
         className={cn(
           "border-border/70 bg-background w-full min-w-0 shrink-0 px-3 py-2",
           variant === "workspace"
@@ -368,18 +407,6 @@ export function PoseCreatorClipTimeline({
       >
         <div className="flex h-full min-w-0 flex-col gap-2">
           <div className="flex min-w-0 shrink-0 items-center gap-1.5 overflow-x-auto pb-0.5">
-            <div className="flex shrink-0 items-baseline gap-2">
-              <h2 className="text-foreground text-sm font-semibold">
-                Timeline
-              </h2>
-              <span
-                className="text-muted-foreground text-xs"
-                title={`${clipDraft.keyframes.length} keyframes / ${clipDraft.events.length} events`}
-              >
-                {clipDraft.keyframes.length}K · {clipDraft.events.length}E
-              </span>
-            </div>
-
             <div className="border-border/70 bg-muted/20 flex h-8 shrink-0 items-center rounded-md border p-0.5">
               <Button
                 type="button"
@@ -479,26 +506,6 @@ export function PoseCreatorClipTimeline({
               </Button>
             </div>
 
-            <Select
-              value={String(clipPlaybackSpeed)}
-              onValueChange={(value) => setClipPlaybackSpeed(Number(value))}
-            >
-              <SelectTrigger
-                className="h-8 w-16 shrink-0"
-                size="sm"
-                aria-label="Clip playback speed"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {POSE_CREATOR_CLIP_PLAYBACK_SPEED_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={String(option.value)}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             {onAddExpressionKeyframe ? (
               <Button
                 type="button"
@@ -510,110 +517,135 @@ export function PoseCreatorClipTimeline({
               </Button>
             ) : null}
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 shrink-0 gap-1 px-2"
-              onClick={() => setAdvancedOpen(true)}
-              title="Clip data"
-            >
-              Data <ChevronDownIcon className="size-3.5" />
-            </Button>
-
-            <span
-              className={cn(
-                "flex shrink-0 items-center text-xs",
-                diagnosticSummary || validationErrorCount > 0
-                  ? "text-destructive"
-                  : validationWarningCount > 0
-                    ? "text-amber-600"
-                    : "text-emerald-600",
-              )}
-              title={
-                diagnosticSummary ??
-                (validationErrorCount > 0
-                  ? `${validationErrorCount} validation errors`
-                  : validationWarningCount > 0
-                    ? `${validationWarningCount} warnings`
-                    : "Ready")
-              }
-            >
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Timeline settings"
+                    title="Timeline settings"
+                  >
+                    <Settings2Icon className="size-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="top"
+                  align="end"
+                  className="w-64 space-y-3"
+                >
+                  <p className="text-sm font-semibold">Timeline settings</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs">Playback speed</span>
+                    <Select
+                      value={String(clipPlaybackSpeed)}
+                      onValueChange={(value) =>
+                        setClipPlaybackSpeed(Number(value))
+                      }
+                    >
+                      <SelectTrigger
+                        className="h-8 w-16 shrink-0"
+                        size="sm"
+                        aria-label="Clip playback speed"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        {POSE_CREATOR_CLIP_PLAYBACK_SPEED_OPTIONS.map(
+                          (option) => (
+                            <SelectItem
+                              key={option.value}
+                              value={String(option.value)}
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ),
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="flex h-8 items-center justify-between gap-3">
+                      <span className="text-muted-foreground text-xs font-medium">
+                        Snap
+                      </span>
+                      <Switch
+                        checked={clipSnapEnabled}
+                        onCheckedChange={setClipSnapEnabled}
+                        aria-label="Toggle timeline snap"
+                      />
+                    </label>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs">Snap interval</span>
+                      <Select
+                        value={String(clipSnapIntervalSec)}
+                        onValueChange={(value) =>
+                          setClipSnapInterval(Number(value))
+                        }
+                      >
+                        <SelectTrigger
+                          className="h-8 w-20 shrink-0"
+                          size="sm"
+                          aria-label="Timeline snap interval"
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent align="end">
+                          {POSE_CREATOR_CLIP_SNAP_INTERVAL_OPTIONS.map(
+                            (option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={String(option.value)}
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ),
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
               {diagnosticSummary ||
               validationErrorCount > 0 ||
               validationWarningCount > 0 ? (
-                <AlertTriangleIcon className="size-3.5" />
-              ) : (
-                <CheckCircle2Icon className="size-3.5" />
-              )}
-              <span className="sr-only">
-                {diagnosticSummary
-                  ? "Preview issue"
-                  : validationErrorCount > 0
-                    ? `${validationErrorCount} errors`
-                    : validationWarningCount > 0
-                      ? `${validationWarningCount} warnings`
-                      : "Ready"}
-              </span>
-            </span>
-
-            <label className="flex shrink-0 items-center gap-2">
-              <span className="text-muted-foreground hidden text-xs font-medium 2xl:inline">
-                Time
-              </span>
-              <Input
-                className="h-8 w-20 text-sm"
-                type="number"
-                min={0}
-                max={duration}
-                step={0.01}
-                value={clipDraft.currentTimeSec}
-                onChange={(event) =>
-                  setClipCurrentTime(Number(event.currentTarget.value))
-                }
-                aria-label="Clip timeline playhead time"
-              />
-            </label>
-
-            <label className="bg-muted/20 flex h-8 shrink-0 items-center gap-2 rounded-md px-2">
-              <span className="text-muted-foreground hidden text-xs font-medium 2xl:inline">
-                Snap
-              </span>
-              <Switch
-                checked={clipSnapEnabled}
-                onCheckedChange={setClipSnapEnabled}
-                aria-label="Toggle timeline snap"
-              />
-            </label>
-
-            <Select
-              value={String(clipSnapIntervalSec)}
-              onValueChange={(value) => setClipSnapInterval(Number(value))}
-            >
-              <SelectTrigger
-                className="h-8 w-20 shrink-0"
-                size="sm"
-                aria-label="Timeline snap interval"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent align="end">
-                {POSE_CREATOR_CLIP_SNAP_INTERVAL_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={String(option.value)}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {variant === "workspace" && onExpandedChange ? (
-              <CreatorPanelCollapseButton
-                label="timeline"
-                expanded={expanded}
-                collapseDirection="down"
-                onExpandedChange={onExpandedChange}
-              />
-            ) : null}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Timeline validation issues"
+                      className={cn(
+                        "flex size-8 shrink-0 items-center justify-center rounded-md",
+                        diagnosticSummary || validationErrorCount > 0
+                          ? "text-destructive"
+                          : "text-amber-600",
+                      )}
+                    >
+                      <AlertTriangleIcon className="size-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-h-[min(70dvh,var(--radix-tooltip-content-available-height))] max-w-80 space-y-2 overflow-y-auto text-xs"
+                  >
+                    {diagnosticSummary ? <p>{diagnosticSummary}</p> : null}
+                    {clipDraft.validationIssues.map((issue, index) => (
+                      <p key={index}>{issue.message}</p>
+                    ))}
+                  </TooltipContent>
+                </Tooltip>
+              ) : null}
+              {variant === "workspace" && onExpandedChange ? (
+                <CreatorPanelCollapseButton
+                  label="timeline"
+                  expanded={expanded}
+                  collapseDirection="down"
+                  onExpandedChange={onExpandedChange}
+                />
+              ) : null}
+            </div>
           </div>
 
           {expanded ? (
@@ -637,7 +669,12 @@ export function PoseCreatorClipTimeline({
                       style={{ left: tick.left }}
                     >
                       <span className="bg-border/80 h-2 w-px" />
-                      <span className="text-muted-foreground text-[10px] leading-none">
+                      <span
+                        className={cn(
+                          "text-muted-foreground text-[10px] leading-none",
+                          overlapsDropLabel(tick.time) && "invisible",
+                        )}
+                      >
                         {formatTimelineTime(tick.time)}
                       </span>
                     </div>
@@ -671,6 +708,7 @@ export function PoseCreatorClipTimeline({
                     duration={duration}
                     keyframe={keyframe}
                     selected={keyframe.id === clipDraft.selectedKeyframeId}
+                    onFocus={() => selectClipKeyframe(keyframe.id)}
                     onPointerDown={handleKeyframePointerDown}
                     onPointerMove={handleKeyframePointerMove}
                     onPointerUp={handleKeyframePointerUp}
@@ -695,12 +733,66 @@ export function PoseCreatorClipTimeline({
                   />
                 ))}
 
+                {dropPreview ? (
+                  <div
+                    aria-label="Timeline drop preview"
+                    className="pointer-events-none absolute top-0 bottom-0 z-30"
+                    style={{ left: getTimelineLeftStyle(dropPercent) }}
+                  >
+                    <span
+                      aria-label="Drop time"
+                      className={cn(
+                        "text-foreground absolute top-1 text-[11px] font-semibold whitespace-nowrap tabular-nums",
+                        dropPercent > 80
+                          ? "right-0"
+                          : dropPercent < 20
+                            ? "left-0"
+                            : "-translate-x-1/2",
+                      )}
+                    >
+                      {dropLabel}
+                    </span>
+                    <span className="border-primary absolute top-8 bottom-3 border-l-2 border-dashed opacity-70" />
+                    <span
+                      className={cn(
+                        "absolute -translate-x-1/2 -translate-y-1/2 border opacity-60 shadow-sm",
+                        dropPreview.lane === "pose"
+                          ? "bg-primary/25 border-primary size-4 rotate-45 rounded-[2px]"
+                          : getEventMarkerClassName(dropPreview.lane),
+                      )}
+                      style={{
+                        top:
+                          RULER_HEIGHT_PX +
+                          TIMELINE_LANES.findIndex(
+                            (lane) => lane.id === dropPreview.lane,
+                          ) *
+                            LANE_HEIGHT_PX +
+                          LANE_HEIGHT_PX / 2,
+                      }}
+                    />
+                  </div>
+                ) : null}
+
                 <div
                   className="bg-primary pointer-events-none absolute top-8 bottom-3 z-20 w-px"
                   style={{
                     left: getTimelineLeftStyle(playheadPercent),
                   }}
                 >
+                  {showPlayheadLabel &&
+                  !overlapsDropLabel(clipDraft.currentTimeSec) ? (
+                    <span
+                      className={cn(
+                        "text-foreground absolute -top-7 text-[11px] font-medium tabular-nums",
+                        playheadPercent > 95
+                          ? "right-0"
+                          : "left-1/2 -translate-x-1/2",
+                      )}
+                      aria-label="Current playhead time"
+                    >
+                      {playheadLabel}
+                    </span>
+                  ) : null}
                   <span className="bg-primary absolute top-0 left-1/2 size-2 -translate-x-1/2 -translate-y-1/2 rotate-45 rounded-[2px]" />
                 </div>
               </div>
@@ -708,10 +800,6 @@ export function PoseCreatorClipTimeline({
           ) : null}
         </div>
       </section>
-      <PoseCreatorClipAdvancedDialog
-        open={advancedOpen}
-        onOpenChange={setAdvancedOpen}
-      />
     </>
   );
 }
@@ -720,6 +808,7 @@ function KeyframeMarker({
   keyframe,
   duration,
   selected,
+  onFocus,
   onPointerDown,
   onPointerMove,
   onPointerUp,
@@ -728,6 +817,7 @@ function KeyframeMarker({
   keyframe: PoseCreatorClipKeyframeDraft;
   duration: number;
   selected: boolean;
+  onFocus: () => void;
   onPointerDown: (
     event: ReactPointerEvent<HTMLButtonElement>,
     keyframe: PoseCreatorClipKeyframeDraft,
@@ -758,6 +848,7 @@ function KeyframeMarker({
         keyframe.time,
       )}`}
       title={`${keyframe.pose} / ${formatTimelineTime(keyframe.time)}`}
+      onFocus={onFocus}
       onPointerDown={(event) => onPointerDown(event, keyframe)}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -811,7 +902,7 @@ function EventMarker({
         "focus-visible:ring-ring absolute z-10 -translate-x-1/2 border text-[0px] shadow-sm transition-[background-color,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
         selected ? "ring-ring ring-offset-background ring-2 ring-offset-2" : "",
         mobile && "min-h-5 min-w-5",
-        getEventMarkerClassName(event),
+        getEventMarkerClassName(event.kind),
       )}
       style={{
         top:
@@ -910,14 +1001,15 @@ function getTimelineLeftStyle(percent: number, offsetPx = 0): string {
   }${offset})`;
 }
 
-function getEventMarkerClassName(event: PoseCreatorClipEventDraft): string {
-  if (event.kind === "avatar_vfx") {
+/** Share each effect marker's shape/color with its catalog drop preview. */
+function getEventMarkerClassName(kind: TimelineEventLane): string {
+  if (kind === "avatar_vfx") {
     return "size-4 rounded-full border-emerald-300 bg-emerald-500 hover:border-emerald-100 hover:bg-emerald-400";
   }
-  if (event.kind === "scene_vfx") {
+  if (kind === "scene_vfx") {
     return "size-4 rounded-[4px] border-amber-300 bg-amber-500 hover:border-amber-100 hover:bg-amber-400";
   }
-  if (event.kind === "particle_vfx") {
+  if (kind === "particle_vfx") {
     return "size-4 rotate-45 rounded-[3px] border-violet-300 bg-violet-500 hover:border-violet-100 hover:bg-violet-400";
   }
   return "size-4 rounded-full border-sky-300 bg-sky-500 hover:border-sky-100 hover:bg-sky-400";

@@ -62,7 +62,10 @@ import {
   mapActionDependency,
   removeActionDependency,
 } from "./actionDependencies";
-import { actionDocumentForPersistence } from "./actionPersistence";
+import {
+  actionDocumentForPersistence,
+  canonicalizeActionComponentInsertion,
+} from "./actionPersistence";
 import { ActionEditorPreviewProvider } from "./ActionEditorPreviewProvider";
 import { ActionEditorWorkspace } from "./ActionEditorWorkspace";
 import {
@@ -734,16 +737,27 @@ export function ActionEditorPage({
     );
   }, []);
   const addComponent = useCallback(
-    (item: PyCatalogViewItem, contentType: ActionComponentType) => {
+    (
+      item: PyCatalogViewItem,
+      contentType: ActionComponentType,
+      options?: { timeSec?: number },
+    ) => {
       if (!item.source) return;
-      commitAuthoring(
-        addActionComponentEvent(documentRef.current, {
-          name: item.name,
-          contentType,
-          source: item.source,
-          time: usePoseCreatorStore.getState().clipDraft.currentTimeSec,
-        }),
-      );
+      const next = addActionComponentEvent(documentRef.current, {
+        name: item.name,
+        contentType,
+        source: item.source,
+        time:
+          options?.timeSec ??
+          usePoseCreatorStore.getState().clipDraft.currentTimeSec,
+      });
+      commitAuthoring(canonicalizeActionComponentInsertion(next));
+      // Read the appended ID before canonicalization sorts events by time.
+      // The caller can select the exact dropped event after timeline hydration.
+      const event = Array.isArray(next.sequence.events)
+        ? next.sequence.events.at(-1)
+        : undefined;
+      return event && typeof event.id === "string" ? event.id : undefined;
     },
     [commitAuthoring],
   );

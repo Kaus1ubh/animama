@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { actionEditorCapabilities } from "./actionEditorCapabilities";
 
 describe("action editor capabilities", () => {
+  it("starts gesture creation in pose mode", () => {
+    expect(actionEditorCapabilities("gesture").defaultMode).toBe("pose");
+  });
+
   it("exposes pose and clip authoring only for Gestures", () => {
     const gesture = actionEditorCapabilities("gesture");
     expect(gesture.allowedModes).toContain("pose");

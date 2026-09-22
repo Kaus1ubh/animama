@@ -23,6 +23,7 @@ import type { PoseCreatorSavedDraft } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
+import { CatalogDragHandle } from "./ActionCatalogDrag";
 import { CreatorPanelCollapseButton } from "./CreatorPanelChrome";
 import type { ActionDependencySection } from "./ActionEditorWorkspaceContext";
 import type { ActionComponentType } from "./actionDependencies";
@@ -81,6 +82,7 @@ type ActionEditorEffectsPanelProps = {
   /** Browser-local Pose drafts shown only by the Gesture creator. */
   poses?: PoseCreatorSavedDraft[];
   onAddPose?: (pose: PoseCreatorSavedDraft) => void;
+  onCreatePose?: () => void;
 };
 
 type PanelTab = "poses" | ActionComponentType;
@@ -104,6 +106,7 @@ export function ActionEditorEffectsPanel({
   onRemove,
   poses,
   onAddPose,
+  onCreatePose,
 }: ActionEditorEffectsPanelProps) {
   const showsPoses = poses !== undefined;
   const [panelTab, setPanelTab] = useState<PanelTab>(
@@ -140,18 +143,23 @@ export function ActionEditorEffectsPanel({
         mobile ? "border-0" : "rounded-2xl shadow-xl",
       )}
     >
-      <div className="flex min-h-10 shrink-0 items-start justify-between gap-3">
+      <div
+        className={cn(
+          "flex shrink-0 items-start justify-between gap-3",
+          expanded && showsPoses ? "min-h-7" : "min-h-10",
+        )}
+      >
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">{panelLabel}</h2>
-          <p className="text-muted-foreground mt-1 truncate text-xs">
-            {expanded
-              ? showsPoses
-                ? "Add poses, visuals, and sound at the playhead."
-                : "Add visuals and sound at the playhead."
-              : showsPoses
-                ? `${poses.length} poses · ${dependencies.length} effects`
-                : `${dependencies.length} added`}
-          </p>
+          {!expanded || !showsPoses ? (
+            <p className="text-muted-foreground mt-1 truncate text-xs">
+              {expanded
+                ? "Add visuals and sound at the playhead."
+                : showsPoses
+                  ? `${poses.length} poses · ${dependencies.length} effects`
+                  : `${dependencies.length} added`}
+            </p>
+          ) : null}
         </div>
         {!mobile && onExpandedChange ? (
           <CreatorPanelCollapseButton
@@ -179,7 +187,10 @@ export function ActionEditorEffectsPanel({
               onActiveTypeChange(tab.contentType);
             }
           }}
-          className="mt-3 flex min-h-0 flex-1 flex-col"
+          className={cn(
+            "flex min-h-0 flex-1 flex-col",
+            showsPoses ? "mt-2" : "mt-3",
+          )}
         >
           <TabsList
             className={cn(
@@ -217,12 +228,12 @@ export function ActionEditorEffectsPanel({
               }}
               placeholder={
                 panelTab === "poses"
-                  ? "Search saved poses"
+                  ? "Search poses"
                   : activeTab.searchPlaceholder
               }
               aria-label={
                 panelTab === "poses"
-                  ? "Search saved poses"
+                  ? "Search poses"
                   : activeTab.searchPlaceholder
               }
             />
@@ -231,21 +242,14 @@ export function ActionEditorEffectsPanel({
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-0.5">
             {panelTab === "poses" ? (
               <PoseCatalog
+                mobile={mobile}
                 poses={filteredPoses}
                 hasQuery={Boolean(poseQuery.trim())}
                 onAddPose={onAddPose}
+                onCreatePose={onCreatePose}
               />
             ) : (
               <>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
-                    {activeTab.catalogLabel}
-                  </p>
-                  <span className="text-muted-foreground text-[10px]">
-                    At current time
-                  </span>
-                </div>
-
                 {activeSection?.isPending ? (
                   <div
                     className="text-muted-foreground px-3 py-6 text-center text-xs"
@@ -285,6 +289,8 @@ export function ActionEditorEffectsPanel({
                       return (
                         <EffectCatalogRow
                           key={item.item_id}
+                          mobile={mobile}
+                          contentType={activeTab.contentType}
                           item={item}
                           icon={activeTab.icon}
                           addedCount={addedCount}
@@ -352,24 +358,20 @@ export function ActionEditorEffectsPanel({
 
 /** Browser-local Pose library used as clip keyframe ingredients. */
 function PoseCatalog({
+  mobile,
   poses,
   hasQuery,
   onAddPose,
+  onCreatePose,
 }: {
+  mobile: boolean;
   poses: PoseCreatorSavedDraft[];
   hasQuery: boolean;
   onAddPose?: (pose: PoseCreatorSavedDraft) => void;
+  onCreatePose?: () => void;
 }) {
   return (
     <>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">
-          My saved poses
-        </p>
-        <span className="text-muted-foreground text-[10px]">
-          At current time
-        </span>
-      </div>
       {poses.length ? (
         <div className="space-y-1.5">
           {poses.map((pose) => (
@@ -377,15 +379,17 @@ function PoseCatalog({
               key={pose.id}
               className="border-border/70 bg-background/65 hover:bg-accent/45 group flex min-h-12 items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors"
             >
-              <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md">
-                <PersonStandingIcon className="size-3.5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-medium">{pose.name}</p>
-                <p className="text-muted-foreground truncate text-[10px]">
-                  Saved in this browser
-                </p>
-              </div>
+              <CatalogDragHandle
+                item={{ kind: "pose", pose }}
+                disabled={mobile || !onAddPose}
+              >
+                <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md">
+                  <PersonStandingIcon className="size-3.5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium">{pose.name}</p>
+                </div>
+              </CatalogDragHandle>
               <Button
                 type="button"
                 size="icon-sm"
@@ -411,6 +415,16 @@ function PoseCatalog({
               ? "Try a different search."
               : "Create and save a Pose to reuse it as a Gesture keyframe."}
           </p>
+          {!hasQuery ? (
+            <Button
+              className="mt-3"
+              size="sm"
+              onClick={onCreatePose}
+              disabled={!onCreatePose}
+            >
+              Create Pose
+            </Button>
+          ) : null}
         </div>
       )}
     </>
@@ -418,11 +432,15 @@ function PoseCatalog({
 }
 
 function EffectCatalogRow({
+  mobile,
+  contentType,
   item,
   icon: Icon,
   addedCount,
   onAdd,
 }: {
+  mobile: boolean;
+  contentType: ActionComponentType;
   item: PyCatalogViewItem;
   icon: LucideIcon;
   addedCount: number;
@@ -430,20 +448,25 @@ function EffectCatalogRow({
 }) {
   return (
     <div className="border-border/70 bg-background/65 hover:bg-accent/45 group flex min-h-12 items-center gap-2 rounded-lg border px-2 py-1.5 transition-colors">
-      <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md">
-        <Icon className="size-3.5" />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium">{item.name}</p>
-        <div className="text-muted-foreground flex items-center gap-1.5 text-[10px]">
-          <span>{item.origin === "builtin" ? "Built-in" : "Mine"}</span>
-          {addedCount ? (
-            <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-medium">
-              {addedCount === 1 ? "Added" : `Added ×${addedCount}`}
-            </span>
-          ) : null}
+      <CatalogDragHandle
+        item={{ kind: "effect", item, contentType }}
+        disabled={mobile || !item.source}
+      >
+        <span className="bg-muted text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-md">
+          <Icon className="size-3.5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-medium">{item.name}</p>
+          <div className="text-muted-foreground flex items-center gap-1.5 text-[10px]">
+            {item.origin !== "builtin" ? <span>Mine</span> : null}
+            {addedCount ? (
+              <span className="bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-medium">
+                {addedCount === 1 ? "Added" : `Added ×${addedCount}`}
+              </span>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </CatalogDragHandle>
       <Button
         type="button"
         size="icon-sm"

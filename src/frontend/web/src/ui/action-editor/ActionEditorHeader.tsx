@@ -12,7 +12,6 @@ import {
   Loader2Icon,
   MoreHorizontalIcon,
   PencilIcon,
-  PersonStandingIcon,
   Redo2Icon,
   SaveIcon,
   SlidersHorizontalIcon,
@@ -64,6 +63,7 @@ import {
 } from "@/ui/components/select";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Textarea } from "@/ui/components/textarea";
+import { CreatorHeaderDocument } from "@/ui/content-creator/CreatorHeaderDocument";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import {
   Tooltip,
@@ -180,13 +180,13 @@ export function ActionEditorHeader({
   };
 
   return (
-    <header className="bg-background/95 relative z-40 shrink-0 px-2 py-2 backdrop-blur-xl sm:px-3 lg:absolute lg:inset-x-0 lg:top-0 lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:backdrop-blur-none lg:transition-[padding-left] lg:duration-150 lg:ease-in-out">
+    <header className="bg-background/95 relative z-40 shrink-0 px-2 py-2 backdrop-blur-xl sm:px-3 lg:absolute lg:inset-x-0 lg:top-0 lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:backdrop-blur-none lg:transition-[padding-left] lg:duration-150 lg:ease-in-out xl:pr-8 xl:pl-[calc(var(--app-shell-sidebar-inset)+2rem)]">
       <div
         className={cn(
-          "grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-rows-1 lg:gap-1.5 2xl:gap-3",
+          "grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-rows-1 lg:items-start lg:gap-1.5 2xl:gap-3",
           pose
-            ? "lg:grid-cols-[auto_auto_auto_auto_minmax(180px,1fr)_auto]"
-            : "lg:grid-cols-[auto_auto_auto_auto_auto_minmax(180px,1fr)_auto]",
+            ? "lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto]"
+            : "lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto_auto]",
         )}
       >
         <ActionModeControl onModeChange={onModeChange} />
@@ -199,7 +199,6 @@ export function ActionEditorHeader({
         ) : (
           <>
             <ActionNewButton busy={workspace.busy} onNew={startNew} />
-            <ActionInspectorButton>{inspector}</ActionInspectorButton>
             <ActionLoadButton />
             <ActionDocumentActions
               busy={workspace.busy}
@@ -208,6 +207,7 @@ export function ActionEditorHeader({
               onNew={startNew}
             />
             <ActionDocumentField status={status} />
+            <ActionInspectorButton>{inspector}</ActionInspectorButton>
             <ActionPrimaryActions />
           </>
         )}
@@ -223,10 +223,11 @@ function ActionInspectorButton({ children }: { children: ReactNode }) {
         <Button
           type="button"
           variant="outline"
-          className="col-start-3 row-start-1 hidden h-12 min-w-[104px] rounded-xl px-3 shadow-sm lg:inline-flex"
+          aria-label="Inspector"
+          className="col-start-6 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[104px] 2xl:px-3"
         >
           <SlidersHorizontalIcon className="size-4" />
-          Inspector
+          <span className="hidden 2xl:inline">Inspector</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -268,24 +269,36 @@ function ActionModeControl({
   }
   return (
     <Tabs
-      className="col-start-1 row-start-1 min-w-0 shrink-0"
+      className="col-start-1 row-start-1 min-w-0 shrink-0 lg:min-w-max"
       value={workspace.mode === "pose" ? "pose" : "clip"}
       onValueChange={(value) =>
         onModeChange(value === "pose" ? "pose" : "clip")
       }
     >
-      <TabsList className="border-border/70 bg-background grid h-11 w-full max-w-[164px] grid-cols-2 rounded-xl border p-1 shadow-sm lg:h-12 lg:w-[164px] 2xl:w-[218px]">
+      <TabsList className="border-border/70 bg-background grid h-11 w-full max-w-[184px] grid-cols-2 rounded-xl border p-1 shadow-sm lg:h-12 lg:w-[184px] 2xl:w-[218px] 2xl:max-w-[218px]">
         <TabsTrigger
-          className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary h-9 gap-1.5 rounded-lg px-2 text-xs data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
+          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-9 gap-1.5 rounded-lg px-2 text-xs transition-none data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
           value="pose"
         >
-          <PersonStandingIcon className="size-4" /> Pose
+          <span
+            aria-hidden="true"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-current text-[11px] leading-none font-extrabold"
+          >
+            1
+          </span>
+          Pose
         </TabsTrigger>
         <TabsTrigger
-          className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary h-9 gap-1.5 rounded-lg px-2 text-xs data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
+          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground h-9 gap-1.5 rounded-lg px-2 text-xs transition-none data-[state=active]:shadow-none sm:text-sm lg:h-10 2xl:px-4"
           value="clip"
         >
-          <ClapperboardIcon className="size-4" /> Clip
+          <span
+            aria-hidden="true"
+            className="flex size-5 shrink-0 items-center justify-center rounded-full border-2 border-current text-[11px] leading-none font-extrabold"
+          >
+            2
+          </span>
+          Clip
         </TabsTrigger>
       </TabsList>
     </Tabs>
@@ -301,24 +314,24 @@ function PosePrimaryActions({ busy }: { busy: boolean }) {
         type="submit"
         form="pose-creator-pose-save-form"
         variant="outline"
-        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-3"
+        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
         disabled={busy || !selectedSource}
         aria-label="Save pose"
       >
         <SaveIcon className="size-4" />
-        <span className="hidden 2xl:inline">Save</span>
+        <span className="hidden lg:inline">Save</span>
       </Button>
       <Button
         type="submit"
         form="pose-creator-pose-save-form"
         name="pose-creator-submit-action"
         value="save-and-branch"
-        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[128px] 2xl:px-3"
+        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
         disabled={busy || !selectedSource || !activeAvatar}
         aria-label="Save and branch pose"
       >
         <WandSparklesIcon className="size-4" />
-        <span className="hidden 2xl:inline">Save &amp; Branch</span>
+        <span className="hidden lg:inline">Save &amp; Branch</span>
       </Button>
     </div>
   );
@@ -335,12 +348,14 @@ function ActionNewButton({
     <Button
       type="button"
       variant="outline"
-      className="col-start-2 row-start-1 hidden h-12 min-w-[82px] rounded-xl px-3 shadow-sm lg:inline-flex"
+      aria-label="New"
+      title="New"
+      className="col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
       disabled={busy}
       onClick={onNew}
     >
       <FilePlus2Icon className="size-4" />
-      New
+      <span className="hidden 2xl:inline">New</span>
     </Button>
   );
 }
@@ -360,7 +375,7 @@ function ActionDocumentActions({
   const [jsonOpen, setJsonOpen] = useState(false);
   return (
     <>
-      <div className="border-border/70 bg-background col-start-5 row-start-1 hidden h-12 shrink-0 items-center rounded-xl border px-1 shadow-sm lg:flex">
+      <div className="border-border/70 bg-background col-start-4 row-start-1 hidden h-12 shrink-0 items-center rounded-xl border px-1 shadow-sm lg:flex">
         <IconAction
           label="Import Anima Pose Clip or project JSON"
           onClick={() => setImportOpen(true)}
@@ -523,99 +538,107 @@ function ActionDocumentField({ status }: { status: ActionHeaderStatus }) {
     if (workspace.errorField === "name") nameInputRef.current?.focus();
   }, [workspace.errorField]);
   return (
-    <div
-      className={cn(
-        "border-border/70 bg-background col-span-2 col-start-1 row-start-2 flex w-full min-w-0 items-center rounded-xl border px-3 shadow-sm lg:col-span-1 lg:col-start-6 lg:row-start-1 lg:justify-self-center",
+    <CreatorHeaderDocument
+      className="col-span-2 col-start-1 row-start-2 flex min-w-0 justify-center lg:col-span-1 lg:col-start-5 lg:row-start-1"
+      widthClassName={
         gesture
-          ? "h-14 lg:h-16 lg:max-w-[460px]"
-          : "h-11 lg:h-12 lg:max-w-[380px]",
-      )}
+          ? "w-full min-w-0 lg:max-w-[460px]"
+          : "w-full min-w-0 lg:max-w-[380px]"
+      }
     >
-      <div className="flex min-w-0 flex-1 flex-col justify-center">
-        <div
-          className={cn(
-            "flex min-w-0 items-center rounded-sm",
-            nameInvalid && "bg-destructive/5",
-          )}
-        >
-          <span
-            className={cn(
-              "text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-[10px] font-medium",
-              nameInvalid && "text-destructive",
-            )}
-          >
-            <PencilIcon className="size-3" />
-            Name&nbsp;&nbsp;&nbsp;&nbsp;
-          </span>
-          <Input
-            ref={nameInputRef}
-            value={workspace.document.name}
-            onChange={(event) => {
-              workspace.clearSaveErrorField("name");
-              workspace.setDocument((value) =>
-                renameActionDocument(
-                  value,
-                  event.target.value,
-                  !workspace.identityExists,
-                ),
-              );
-            }}
-            placeholder={`New ${gesture ? "Gesture" : "Reaction"}`}
-            aria-label={`${workspace.document.intent} name`}
-            aria-invalid={nameInvalid}
-            className={cn(
-              "h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent",
-              nameInvalid && "text-destructive placeholder:text-destructive/70",
-            )}
-          />
-          <ActionDocumentIndicators status={status} />
-        </div>
-        {gesture ? (
+      <div
+        className={cn(
+          "border-border/70 bg-background flex w-full min-w-0 items-center rounded-xl border px-3 shadow-sm",
+          gesture ? "h-14 lg:h-16" : "h-11 lg:h-12",
+        )}
+      >
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
           <div
             className={cn(
-              "border-border/60 flex min-w-0 items-center rounded-sm border-t",
-              aiDescriptionInvalid && "bg-destructive/5",
+              "flex min-w-0 items-center rounded-sm",
+              nameInvalid && "bg-destructive/5",
             )}
           >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span
-                  className={cn(
-                    "text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-[10px] font-medium",
-                    aiDescriptionInvalid && "text-destructive",
-                  )}
-                  aria-label="AI selection guidance"
-                >
-                  <WandSparklesIcon className="size-3" />
-                  AI Desc.
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                Description of Gesture used by AI to determine{" "}
-                <strong>when</strong> to invoke this gesture while chatting.
-              </TooltipContent>
-            </Tooltip>
+            <span
+              className={cn(
+                "text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-[10px] font-medium",
+                nameInvalid && "text-destructive",
+              )}
+            >
+              <PencilIcon className="size-3" />
+              Name&nbsp;&nbsp;&nbsp;&nbsp;
+            </span>
             <Input
-              value={workspace.document.aiDescription}
-              onChange={(event) =>
-                workspace.setDocument((value) => ({
-                  ...value,
-                  aiDescription: event.target.value,
-                }))
-              }
-              placeholder="Description of Gesture"
-              aria-label="AI selection description"
-              aria-invalid={aiDescriptionInvalid}
+              ref={nameInputRef}
+              value={workspace.document.name}
+              onChange={(event) => {
+                workspace.clearSaveErrorField("name");
+                workspace.setDocument((value) =>
+                  renameActionDocument(
+                    value,
+                    event.target.value,
+                    !workspace.identityExists,
+                  ),
+                );
+              }}
+              placeholder={`New ${gesture ? "Gesture" : "Reaction"}`}
+              aria-label={`${workspace.document.intent} name`}
+              aria-invalid={nameInvalid}
               className={cn(
                 "h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent",
-                aiDescriptionInvalid &&
+                nameInvalid &&
                   "text-destructive placeholder:text-destructive/70",
               )}
             />
+            <ActionDocumentIndicators status={status} />
           </div>
-        ) : null}
+          {gesture ? (
+            <div
+              className={cn(
+                "border-border/60 flex min-w-0 items-center rounded-sm border-t",
+                aiDescriptionInvalid && "bg-destructive/5",
+              )}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span
+                    className={cn(
+                      "text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-[10px] font-medium",
+                      aiDescriptionInvalid && "text-destructive",
+                    )}
+                    aria-label="AI selection guidance"
+                  >
+                    <WandSparklesIcon className="size-3" />
+                    AI Desc.
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Description of Gesture used by AI to determine{" "}
+                  <strong>when</strong> to invoke this gesture while chatting.
+                </TooltipContent>
+              </Tooltip>
+              <Input
+                value={workspace.document.aiDescription}
+                onChange={(event) =>
+                  workspace.setDocument((value) => ({
+                    ...value,
+                    aiDescription: event.target.value,
+                  }))
+                }
+                placeholder="Description of Gesture"
+                aria-label="AI selection description"
+                aria-invalid={aiDescriptionInvalid}
+                className={cn(
+                  "h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent",
+                  aiDescriptionInvalid &&
+                    "text-destructive placeholder:text-destructive/70",
+                )}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
-    </div>
+    </CreatorHeaderDocument>
   );
 }
 
@@ -785,11 +808,11 @@ function ActionLoadButton() {
         <Button
           type="button"
           variant="outline"
-          className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-4 lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-4"
+          className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
           aria-label={`Load ${workspace.document.intent}`}
         >
           <FolderOpenIcon className="size-4" />
-          <span className="hidden lg:inline">Load</span>
+          <span className="hidden 2xl:inline">Load</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -933,7 +956,7 @@ function ActionPrimaryActions() {
       <Button
         type="button"
         variant="outline"
-        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[86px] 2xl:px-3"
+        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
         disabled={disabled}
         onClick={() => void workspace.save()}
         aria-label="Save content"
@@ -943,17 +966,17 @@ function ActionPrimaryActions() {
         ) : (
           <SaveIcon className="size-4" />
         )}
-        <span className="hidden 2xl:inline">Save</span>
+        <span className="hidden lg:inline">Save</span>
       </Button>
       <Button
         type="button"
-        className="size-11 rounded-xl p-0 shadow-sm lg:size-12 2xl:h-12 2xl:w-auto 2xl:min-w-[132px] 2xl:px-3"
+        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
         disabled={disabled}
         onClick={() => void workspace.saveAndEquip()}
         aria-label="Save and equip content"
       >
         <WandSparklesIcon className="size-4" />
-        <span className="hidden 2xl:inline">Save &amp; Equip</span>
+        <span className="hidden lg:inline">Save &amp; Equip</span>
       </Button>
     </div>
   );
@@ -1091,7 +1114,7 @@ function ActionImportDialog({
                 return (
                   <div
                     key={reference.alias}
-                    className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(180px,1fr)_auto] sm:items-center"
+                    className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(120px,1fr)_auto] sm:items-center"
                   >
                     <div>
                       <p className="font-mono text-xs font-medium">

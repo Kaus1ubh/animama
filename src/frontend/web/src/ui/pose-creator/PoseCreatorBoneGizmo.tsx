@@ -212,6 +212,9 @@ export function PoseCreatorBoneGizmo({ avatar }: PoseCreatorBoneGizmoProps) {
   const viewportWidth = useThree((state) => state.size.width);
   const authoringMode = usePoseCreatorStore((state) => state.authoringMode);
   const selectedBone = usePoseCreatorStore((state) => state.selectedBone);
+  const boneHelperNodesVisible = usePoseCreatorStore(
+    (state) => state.boneHelperNodesVisible,
+  );
   const clipInlineEdit = usePoseCreatorStore((state) => state.clipInlineEdit);
   const clipPlaybackPlaying = usePoseCreatorStore(
     (state) => state.clipPlaybackPlaying,
@@ -230,6 +233,7 @@ export function PoseCreatorBoneGizmo({ avatar }: PoseCreatorBoneGizmoProps) {
     [avatar, selectedBone],
   );
   const visible = shouldShowPoseCreatorBoneGizmo({
+    boneHelperNodesVisible,
     authoringMode,
     hasClipInlineEdit: Boolean(clipInlineEdit),
     clipPlaybackPlaying,

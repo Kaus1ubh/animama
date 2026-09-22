@@ -1,5 +1,7 @@
 "use client";
 
+import { CreatorHeaderDocument } from "@/ui/content-creator/CreatorHeaderDocument";
+
 import {
   Code2Icon,
   CopyIcon,
@@ -246,11 +248,11 @@ function SavedDraftLoadButton({
         <Button
           type="button"
           variant="outline"
-          className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-4 2xl:min-w-[112px]"
+          className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
           aria-label="Load pose"
         >
           <FolderOpenIcon className="size-4" />
-          <span className="hidden lg:inline">Load</span>
+          <span className="hidden 2xl:inline">Load</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -627,54 +629,63 @@ export function PoseCreatorLibrarySection({
     const isSaved = Boolean(selectedSavedDraftId) && !isDirty;
     return (
       <>
-        <form
-          id="pose-creator-pose-save-form"
-          className="border-border/70 bg-background col-span-2 col-start-1 row-start-2 flex h-11 w-full min-w-0 items-center rounded-xl border px-3 shadow-sm lg:col-span-1 lg:col-start-5 lg:row-start-1 lg:h-12 lg:max-w-[300px] lg:justify-self-center 2xl:max-w-[380px]"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const submitter = (event.nativeEvent as SubmitEvent)
-              .submitter as HTMLButtonElement | null;
-            if (submitter?.value === "save-and-branch") {
-              handleSaveAndBranch();
-            } else {
-              handleSaveDraft();
-            }
-          }}
+        <CreatorHeaderDocument
+          className="col-span-2 col-start-1 row-start-2 flex min-w-0 justify-center lg:col-span-1 lg:col-start-5 lg:row-start-1"
+          widthClassName="w-full min-w-0 lg:max-w-[300px] 2xl:max-w-[380px]"
         >
-          <Input
-            value={draftName}
-            onChange={(event) => setDraftName(event.currentTarget.value)}
-            placeholder="New Pose"
-            aria-label="Pose name"
-            className="h-9 min-w-0 flex-1 border-0 bg-transparent px-1 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
-          />
-          <PencilIcon className="text-muted-foreground mx-1 size-3.5 shrink-0" />
-          <span className="bg-border h-5 w-px shrink-0" />
-          <PoseDataActionTooltip label={isSaved ? "Saved" : "Unsaved"}>
-            <span
-              className="ml-3 inline-flex size-5 shrink-0 items-center justify-center"
-              role="status"
-              aria-label={isSaved ? "Saved" : "Unsaved"}
-              title={isSaved ? "Saved" : "Unsaved"}
-            >
-              <span
-                className={cn(
-                  "size-2 rounded-full",
-                  isSaved ? "bg-emerald-500" : "bg-primary",
-                )}
-              />
+          <form
+            id="pose-creator-pose-save-form"
+            className="border-border/70 bg-background flex h-11 w-full min-w-0 items-center rounded-xl border px-3 shadow-sm lg:h-12"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const submitter = (event.nativeEvent as SubmitEvent)
+                .submitter as HTMLButtonElement | null;
+              if (submitter?.value === "save-and-branch") {
+                handleSaveAndBranch();
+              } else {
+                handleSaveDraft();
+              }
+            }}
+          >
+            <span className="text-muted-foreground ml-1 inline-flex shrink-0 items-center gap-1 text-[10px] font-medium">
+              <PencilIcon className="size-3" />
+              Name&nbsp;&nbsp;&nbsp;&nbsp;
             </span>
-          </PoseDataActionTooltip>
-        </form>
+            <Input
+              value={draftName}
+              onChange={(event) => setDraftName(event.currentTarget.value)}
+              placeholder="New Pose"
+              aria-label="Pose name"
+              className="h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
+            />
+            <PoseDataActionTooltip label={isSaved ? "Saved" : "Unsaved"}>
+              <span
+                className="ml-2 inline-flex size-5 shrink-0 items-center justify-center"
+                role="status"
+                aria-label={isSaved ? "Saved" : "Unsaved"}
+                title={isSaved ? "Saved" : "Unsaved"}
+              >
+                <span
+                  className={cn(
+                    "size-2 rounded-full",
+                    isSaved ? "bg-emerald-500" : "bg-primary",
+                  )}
+                />
+              </span>
+            </PoseDataActionTooltip>
+          </form>
+        </CreatorHeaderDocument>
 
         <Button
           type="button"
           variant="outline"
-          className="col-start-2 row-start-1 hidden h-12 min-w-[82px] rounded-xl px-3 shadow-sm lg:inline-flex"
+          aria-label="New"
+          title="New"
+          className="col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
           onClick={handleNewPose}
         >
           <FilePlus2Icon className="size-4" />
-          New
+          <span className="hidden 2xl:inline">New</span>
         </Button>
 
         <div className="col-start-4 row-start-1 hidden shrink-0 items-center gap-2 lg:flex">

@@ -1,7 +1,11 @@
-import { POSE_CREATOR_CLIP_VALIDATION_OPTIONS } from "@/stores/pose-creator-store";
+import {
+  DEFAULT_POSE_CREATOR_BASE_POSE,
+  POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+} from "@/stores/pose-creator-store";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import {
   buildAnimaPoseClipFromPoseCreatorDraft,
+  createPoseCreatorClipDraftFromAnimaPoseClip,
   type PoseCreatorClipDraft,
 } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import { pruneUnusedDependencies } from "./actionDependencies";
@@ -58,6 +62,28 @@ export function actionSequenceFromTimelineDraft(
   }
   const sequence = clip as unknown as Record<string, unknown>;
   return intent === "reaction" ? sanitizeReactionSequence(sequence) : sequence;
+}
+
+/** Commit component insertion in the same form that timeline hydration emits. */
+export function canonicalizeActionComponentInsertion(
+  document: ActionDocument,
+): ActionDocument {
+  if (document.implementation !== "anima_clip") return document;
+  try {
+    const draft = createPoseCreatorClipDraftFromAnimaPoseClip(
+      document.sequence,
+      {
+        ...POSE_CREATOR_CLIP_VALIDATION_OPTIONS,
+        fallbackBasePose: DEFAULT_POSE_CREATOR_BASE_POSE,
+      },
+    );
+    const sequence = actionSequenceFromTimelineDraft(draft, document.intent);
+    return sequence ? { ...document, sequence } : document;
+  } catch {
+    // Imported documents may still need repair. Retain their invalid fields so
+    // validation can report them instead of rejecting or silently deleting edits.
+    return document;
+  }
 }
 
 /**
