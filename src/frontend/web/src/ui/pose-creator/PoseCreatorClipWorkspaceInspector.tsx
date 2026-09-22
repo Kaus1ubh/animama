@@ -43,11 +43,14 @@ export function PoseCreatorClipWorkspaceInspector({
   variant = "workspace",
   section = "all",
   allowHumanoid = true,
+  embedded = false,
 }: {
   variant?: "workspace" | "mobile";
   section?: "all" | "inspector" | "settings";
   /** Hide body-pose controls when this inspector is hosted by a Reaction. */
   allowHumanoid?: boolean;
+  /** Plain sections for selected-item controls hosted in timeline settings. */
+  embedded?: boolean;
 }) {
   const clipDraft = usePoseCreatorStore((state) => state.clipDraft);
   const clipInlineEdit = usePoseCreatorStore((state) => state.clipInlineEdit);
@@ -117,7 +120,7 @@ export function PoseCreatorClipWorkspaceInspector({
       className={
         variant === "mobile"
           ? "bg-background flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4"
-          : section === "settings"
+          : embedded || section === "settings"
             ? "w-full"
             : "relative flex h-full min-h-0 w-full flex-col gap-3 overflow-y-auto pr-1"
       }
@@ -125,6 +128,7 @@ export function PoseCreatorClipWorkspaceInspector({
       {section !== "settings" &&
         (selectedEvent ? (
           <EventInspector
+            embedded={embedded}
             event={selectedEvent}
             disabled={Boolean(clipInlineEdit)}
             onClose={() => selectClipEvent(null)}
@@ -134,6 +138,7 @@ export function PoseCreatorClipWorkspaceInspector({
           />
         ) : selectedKeyframe ? (
           <KeyframeInspector
+            embedded={embedded}
             keyframe={selectedKeyframe}
             poseAliases={Object.keys(clipDraft.poses)}
             allowHumanoid={allowHumanoid}
@@ -234,6 +239,7 @@ export function PoseCreatorClipWorkspaceInspector({
 }
 
 function EventInspector({
+  embedded,
   event,
   disabled,
   onClose,
@@ -241,6 +247,7 @@ function EventInspector({
   onDuplicate,
   onDelete,
 }: {
+  embedded: boolean;
   event: AnimaPoseClipEvent;
   disabled: boolean;
   onClose: () => void;
@@ -275,7 +282,7 @@ function EventInspector({
   };
 
   return (
-    <WorkspaceCard>
+    <WorkspaceCard embedded={embedded}>
       <InspectorHeading title="Event" subtitle={label} onClose={onClose} />
       <div className="mt-4 space-y-3">
         <InspectorRow label="Time">
@@ -481,6 +488,7 @@ function EventInspector({
 }
 
 function KeyframeInspector({
+  embedded,
   keyframe,
   poseAliases,
   allowHumanoid,
@@ -490,6 +498,7 @@ function KeyframeInspector({
   onDuplicate,
   onDelete,
 }: {
+  embedded: boolean;
   keyframe: ReturnType<
     typeof usePoseCreatorStore.getState
   >["clipDraft"]["keyframes"][number];
@@ -504,11 +513,11 @@ function KeyframeInspector({
   onDelete: () => void;
 }) {
   return (
-    <WorkspaceCard>
+    <WorkspaceCard embedded={embedded}>
       <InspectorHeading
         title={allowHumanoid ? "Keyframe" : "Expression keyframe"}
         subtitle={formatSourceLabel(keyframe.pose)}
-        onClose={onClose}
+        onClose={embedded ? undefined : onClose}
       />
       <div className="mt-4 space-y-3">
         <InspectorRow label="Time">
@@ -605,9 +614,21 @@ function KeyframeInspector({
   );
 }
 
-function WorkspaceCard({ children }: { children: React.ReactNode }) {
+function WorkspaceCard({
+  children,
+  embedded = false,
+}: {
+  children: React.ReactNode;
+  embedded?: boolean;
+}) {
   return (
-    <section className="border-border/70 bg-background/95 rounded-xl border p-4 shadow-lg backdrop-blur-xl">
+    <section
+      className={
+        embedded
+          ? "border-t pt-3"
+          : "border-border/70 bg-background/95 rounded-xl border p-4 shadow-lg backdrop-blur-xl"
+      }
+    >
       {children}
     </section>
   );
@@ -620,7 +641,7 @@ function InspectorHeading({
 }: {
   title: string;
   subtitle: string;
-  onClose: () => void;
+  onClose?: () => void;
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
@@ -630,21 +651,23 @@ function InspectorHeading({
           {subtitle}
         </p>
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        className="-mt-1 -mr-1"
-        onClick={onClose}
-        aria-label={`Close ${title.toLowerCase()} inspector`}
-      >
-        <XIcon className="size-4" />
-      </Button>
+      {onClose ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="-mt-1 -mr-1"
+          onClick={onClose}
+          aria-label={`Close ${title.toLowerCase()} inspector`}
+        >
+          <XIcon className="size-4" />
+        </Button>
+      ) : null}
     </div>
   );
 }
 
-function InspectorRow({
+export function InspectorRow({
   label,
   children,
 }: {

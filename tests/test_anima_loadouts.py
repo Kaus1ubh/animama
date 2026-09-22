@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from animama.app.services.anima_loadout_service import AnimaLoadoutService
+from animama.domain.anima_loadout import AnimaLoadoutError
 from tests.typed_loadout_support import (
     add_typed_item,
     catalog_source,
@@ -76,7 +77,8 @@ async def test_gesture_plan_commit_is_typed_revisioned_and_idempotent(async_sess
 
 
 @pytest.mark.asyncio
-async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session) -> None:  # noqa: ANN001
+@pytest.mark.parametrize("with_hint", [False, True])
+async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session, with_hint: bool) -> None:  # noqa: ANN001
     fixture = await create_loadout_fixture(async_session)
     reaction = await add_typed_item(
         async_session,
@@ -84,7 +86,7 @@ async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session) -> No
         kind="reaction",
         name="Strong Joy",
         metadata={
-            "placement_hint": {"emotion": "joy", "intensity": 3},
+            **({"placement_hint": {"emotion": "joy", "intensity": 3}} if with_hint else {}),
             "implementation": {"kind": "anima_clip", "file_role": "sequence"},
             "config": {},
         },
@@ -97,6 +99,16 @@ async def test_reaction_can_be_assigned_to_any_loadout_cell(async_session) -> No
     }
     service = AnimaLoadoutService(async_session)
     try:
+        for missing_field in ("emotion", "intensity"):
+            incomplete = {key: value for key, value in intent.items() if key != missing_field}
+            with pytest.raises(AnimaLoadoutError, match="reaction_cell_invalid"):
+                await service.plan(
+                    user_id=fixture.user_id,
+                    anima_id=fixture.anima_id,
+                    family="reaction",
+                    expected_revision=1,
+                    intent=incomplete,
+                )
         plan = await service.plan(
             user_id=fixture.user_id,
             anima_id=fixture.anima_id,

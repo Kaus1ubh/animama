@@ -125,7 +125,7 @@ export function createActionDocument(intent: ActionIntent): ActionDocument {
     aiDescription: "",
     semanticKey: intent === "gesture" ? gestureSemanticKey(name) : "",
     implementation: "anima_clip",
-    suggestedEmotion: "joy",
+    suggestedEmotion: "",
     suggestedIntensity: 1,
     notes: "",
     sequence: defaultSequence(intent),

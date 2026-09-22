@@ -728,14 +728,17 @@ class ContentTypeHandler:
                 config=_object(raw.get("config"), field_name="config"),
             )
         if kind is ContentKind.REACTION:
-            placement = _object(raw.get("placement_hint"), field_name="placement_hint")
-            emotion = _string(placement.get("emotion"), field_name="placement_hint.emotion").lower()
-            intensity = placement.get("intensity")
-            if emotion not in TRACKED_EMOTION_SET or intensity not in {1, 2, 3}:
-                raise ContentDocumentError(
-                    "invalid_reaction_cell",
-                    "Reaction placement requires a tracked emotion and intensity 1, 2, or 3",
-                )
+            emotion = None
+            intensity = None
+            if "placement_hint" in raw:
+                placement = _object(raw["placement_hint"], field_name="placement_hint")
+                emotion = _string(placement.get("emotion"), field_name="placement_hint.emotion").lower()
+                intensity = placement.get("intensity")
+                if emotion not in TRACKED_EMOTION_SET or type(intensity) is not int or intensity not in {1, 2, 3}:
+                    raise ContentDocumentError(
+                        "invalid_reaction_cell",
+                        "Reaction placement requires a tracked emotion and intensity 1, 2, or 3",
+                    )
             return ReactionDocumentV1(
                 **base,
                 emotion=emotion,
@@ -923,11 +926,12 @@ class ContentTypeHandler:
         elif isinstance(document, ReactionDocumentV1):
             result.update(
                 {
-                    "placement_hint": {"emotion": document.emotion, "intensity": document.intensity},
                     "implementation": _implementation_projection(document.implementation),
                     "config": document.config,
                 }
             )
+            if document.emotion is not None and document.intensity is not None:
+                result["placement_hint"] = {"emotion": document.emotion, "intensity": document.intensity}
         elif isinstance(document, PoseClipDocumentV1):
             return dict(document.clip)
         elif isinstance(document, ParticleEffectDocumentV1):

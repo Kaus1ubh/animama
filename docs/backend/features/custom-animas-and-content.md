@@ -7,7 +7,7 @@ bring their required VFX and Sound dependencies with them; users do not equip
 those supports independently.
 
 A Gesture requires a stable semantic selector and AI-facing description because
-the chat model may choose it. A Reaction document carries a suggested
+the chat model may choose it. A Reaction document may carry a suggested
 emotion/intensity placement, while the Anima loadout may assign that complete
 Reaction Action to any canonical cell. Both can use `animaPoseClip/1.0`;
 Gestures may also use VRMA. Event-only clips are valid, but a clip with neither

@@ -12,6 +12,7 @@ from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_save_service import ContentSaveService
+from animama.app.services.typed_content_service import TypedContentService
 from animama.domain.content_catalog import ContentConflictError, ContentKind
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMAnimaContentBinding, ORMContentCatalogItem
@@ -20,6 +21,7 @@ from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.routers.content import router
 from animama.server.routers.typed_content import router as typed_content_router
+from animama.server.schemas.typed_content import typed_content_response
 from tests.local_http_client import local_client
 from tests.typed_loadout_support import cleanup_loadout_fixture, create_loadout_fixture
 
@@ -112,8 +114,9 @@ async def test_direct_standalone_save_edits_one_readable_file_under_a_revision_f
         await async_session.commit()
 
 
+@pytest.mark.parametrize("with_hint", [False, True])
 async def test_direct_descriptor_save_uses_entry_name_and_removes_stale_companions(
-    async_session, tmp_path: Path
+    async_session, tmp_path: Path, with_hint: bool
 ) -> None:  # noqa: ANN001
     service, paths = _services(async_session, tmp_path)
     first_descriptor = json.dumps(
@@ -122,7 +125,7 @@ async def test_direct_descriptor_save_uses_entry_name_and_removes_stale_companio
             "content_type": "reaction",
             "id": "local:reaction:happy",
             "name": "Happy",
-            "placement_hint": {"emotion": "joy", "intensity": 2},
+            **({"placement_hint": {"emotion": "joy", "intensity": 2}} if with_hint else {}),
             "implementation": {"kind": "vrma", "file_role": "animation"},
             "files": [
                 {"path": "smile.vrma", "role": "animation"},
@@ -137,7 +140,7 @@ async def test_direct_descriptor_save_uses_entry_name_and_removes_stale_companio
             "content_type": "reaction",
             "id": "local:reaction:happy",
             "name": "Happy",
-            "placement_hint": {"emotion": "joy", "intensity": 2},
+            **({"placement_hint": {"emotion": "joy", "intensity": 2}} if with_hint else {}),
             "implementation": {"kind": "vrma", "file_role": "animation"},
             "files": [{"path": "smile.vrma", "role": "animation"}],
             "dependencies": [],
@@ -154,6 +157,9 @@ async def test_direct_descriptor_save_uses_entry_name_and_removes_stale_companio
             catalog_item_id=None,
             expected_revision=None,
         )
+        response = typed_content_response(TypedContentService.parse(created.item))
+        assert response.emotion == ("joy" if with_hint else None)
+        assert response.intensity == (2 if with_hint else None)
         root = paths.local_root / "reactions/happy"
         assert (root / "happy.meta.json").is_file()
         assert (root / "sparkle.json").is_file()

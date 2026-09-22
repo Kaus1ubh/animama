@@ -107,6 +107,7 @@ export function PoseCreatorClipTimeline({
   allowHumanoid = true,
   playbackPending = false,
   onAddExpressionKeyframe,
+  settingsContent,
   expanded = true,
   onExpandedChange,
 }: {
@@ -115,6 +116,7 @@ export function PoseCreatorClipTimeline({
   allowHumanoid?: boolean;
   playbackPending?: boolean;
   onAddExpressionKeyframe?: () => void;
+  settingsContent?: React.ReactNode;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
 }) {
@@ -573,6 +575,7 @@ export function PoseCreatorClipTimeline({
                     section="settings"
                     allowHumanoid={allowHumanoid}
                   />
+                  {settingsContent}
                   <p className="border-t pt-3 text-sm font-semibold">
                     Timeline settings
                   </p>

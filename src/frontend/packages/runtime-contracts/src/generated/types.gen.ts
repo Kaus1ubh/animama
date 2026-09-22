@@ -5263,7 +5263,7 @@ export type PyReaction = {
     /**
      * Emotion
      */
-    emotion: string;
+    emotion?: string | null;
     /**
      * Files
      */
@@ -5272,7 +5272,7 @@ export type PyReaction = {
     /**
      * Intensity
      */
-    intensity: 1 | 2 | 3;
+    intensity?: 1 | 2 | 3 | null;
     /**
      * Item Id
      */

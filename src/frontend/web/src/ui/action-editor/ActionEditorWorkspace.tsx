@@ -36,13 +36,6 @@ import { Button } from "@/ui/components/button";
 import { PlaybackObservationOutput } from "@/ui/avatar-preview/PlaybackObservationOutput";
 import { Input } from "@/ui/components/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui/components/select";
-import {
   CreatorHistoryShortcut,
   type CreatorHistoryController,
 } from "@/ui/creator-history/CreatorHistory";
@@ -71,6 +64,10 @@ import {
   CreatorCollapsedPanelHeader,
   CreatorPanelCollapseButton,
 } from "./CreatorPanelChrome";
+import {
+  ReactionEmotionSettings,
+  ReactionTimelineSettings,
+} from "./ReactionTimelineSettings";
 import { useActionEditorWorkspace } from "./ActionEditorWorkspaceContext";
 import { useActionEditorPreview } from "./ActionEditorPreviewProvider";
 import { useSceneVFXStore } from "@/stores/scene-vfx-store";
@@ -104,7 +101,7 @@ const CLIP_TOOLS: ToolOption[] = [
 const REACTION_TOOLS: ToolOption[] = [
   { id: "timeline", label: "Timeline", icon: Clock3Icon },
   { id: "expressions", label: "Expressions", icon: SmileIcon },
-  ...CLIP_TOOLS.slice(1),
+  { id: "components", label: "Effects", icon: LibraryIcon },
 ];
 
 const POSE_TOOLS: ToolOption[] = [
@@ -310,6 +307,11 @@ function ActionEditorWorkspaceContent() {
   const desktopTimeline = (
     <ActionTimelineEditor
       reaction={workspace.document.intent === "reaction"}
+      settingsContent={
+        workspace.document.intent === "reaction" ? (
+          <ReactionTimelineSettings />
+        ) : undefined
+      }
       isBusy={workspace.busy}
       playbackPending={workspace.localPreviewPending}
       onAddExpressionKeyframe={
@@ -325,6 +327,11 @@ function ActionEditorWorkspaceContent() {
     <ActionTimelineEditor
       variant="mobile"
       reaction={workspace.document.intent === "reaction"}
+      settingsContent={
+        workspace.document.intent === "reaction" ? (
+          <ReactionTimelineSettings />
+        ) : undefined
+      }
       isBusy={workspace.busy}
       playbackPending={workspace.localPreviewPending}
       onAddExpressionKeyframe={
@@ -410,17 +417,6 @@ function ActionEditorWorkspaceContent() {
           setActionEditorAuthoringMode(mode);
           workspace.setMode(mode);
         }}
-        inspector={
-          workspace.document.intent === "reaction" ? (
-            <div className="max-h-[min(70dvh,640px)] overflow-y-auto p-1">
-              <ActionEditorClipInspector
-                section="inspector"
-                allowHumanoid={false}
-              />
-              <MetadataPanel />
-            </div>
-          ) : null
-        }
       />
 
       {timelineBased ? (
@@ -751,62 +747,6 @@ function EffectsPanel({
   );
 }
 
-function MetadataPanel() {
-  const workspace = useActionEditorWorkspace();
-  const document = workspace.document;
-  return (
-    <div className="space-y-4 p-1">
-      {document.intent === "reaction" ? (
-        <div className="grid grid-cols-2 gap-2">
-          <label className="grid gap-1 text-xs font-medium">
-            Emotion
-            <Input
-              value={document.suggestedEmotion}
-              onChange={(event) =>
-                workspace.setDocument((value) => ({
-                  ...value,
-                  suggestedEmotion: event.target.value,
-                }))
-              }
-            />
-          </label>
-          <label className="grid gap-1 text-xs font-medium">
-            Intensity
-            <Select
-              value={String(document.suggestedIntensity)}
-              onValueChange={(value) =>
-                workspace.setDocument((current) => ({
-                  ...current,
-                  suggestedIntensity: Number(value) as 1 | 2 | 3,
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Mild</SelectItem>
-                <SelectItem value="2">Medium</SelectItem>
-                <SelectItem value="3">Strong</SelectItem>
-              </SelectContent>
-            </Select>
-          </label>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function MobileSettingsPanel() {
-  return (
-    <div className="h-full overflow-y-auto p-3">
-      <div className="border-border mt-3 border-t pt-3">
-        <MetadataPanel />
-      </div>
-    </div>
-  );
-}
-
 function MobileWorkspace({
   capabilities,
   tool,
@@ -876,7 +816,9 @@ function MobileWorkspace({
           pose ? (
             <ActionEditorPreviewSettings variant="mobile" />
           ) : (
-            <MobileSettingsPanel />
+            <div className="p-3">
+              <ActionEditorClipInspector section="settings" />
+            </div>
           )
         ) : activeTool === "bones" ? (
           <ActionEditorBoneSection variant="mobile" />
@@ -900,7 +842,9 @@ function VrmaWorkspace({
     <div className="grid min-h-0 flex-1 lg:grid-cols-[1fr_22rem]">
       <ActionEditorScene capabilities={capabilities} />
       <aside className="border-border overflow-y-auto border-l p-5">
-        <MetadataPanel />
+        {workspace.document.intent === "reaction" ? (
+          <ReactionEmotionSettings />
+        ) : null}
         <label
           className={cn(
             "mt-5 grid gap-2 rounded-lg text-sm font-medium",

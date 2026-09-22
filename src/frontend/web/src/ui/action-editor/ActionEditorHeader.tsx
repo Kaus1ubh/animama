@@ -14,7 +14,6 @@ import {
   PencilIcon,
   Redo2Icon,
   SaveIcon,
-  SlidersHorizontalIcon,
   Undo2Icon,
   UploadIcon,
   WandSparklesIcon,
@@ -149,11 +148,9 @@ function HeaderTooltip({
 export function ActionEditorHeader({
   history,
   onModeChange,
-  inspector,
 }: {
   history: HeaderHistory;
   onModeChange: (mode: ActionEditorMode) => void;
-  inspector: ReactNode;
 }) {
   const workspace = useActionEditorWorkspace();
   const platform = useRuntimePlatform();
@@ -184,9 +181,7 @@ export function ActionEditorHeader({
       <div
         className={cn(
           "grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-rows-1 lg:items-start lg:gap-1.5 2xl:gap-3",
-          pose
-            ? "lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto]"
-            : "lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto_auto]",
+          "lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto]",
         )}
       >
         <ActionModeControl onModeChange={onModeChange} />
@@ -207,45 +202,11 @@ export function ActionEditorHeader({
               onNew={startNew}
             />
             <ActionDocumentField status={status} />
-            {inspector ? (
-              <ActionInspectorButton>{inspector}</ActionInspectorButton>
-            ) : null}
             <ActionPrimaryActions />
           </>
         )}
       </div>
     </header>
-  );
-}
-
-function ActionInspectorButton({ children }: { children: ReactNode }) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          aria-label="Inspector"
-          className="col-start-6 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[104px] 2xl:px-3"
-        >
-          <SlidersHorizontalIcon className="size-4" />
-          <span className="hidden 2xl:inline">Inspector</span>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="start"
-        sideOffset={10}
-        className="w-[min(420px,calc(100vw-2rem))] rounded-2xl p-3"
-      >
-        <div className="border-border mb-3 border-b pb-2">
-          <p className="text-sm font-semibold">Inspector</p>
-          <p className="text-muted-foreground text-xs">
-            Selection, clip settings, and content details
-          </p>
-        </div>
-        {children}
-      </PopoverContent>
-    </Popover>
   );
 }
 
@@ -954,7 +915,7 @@ function ActionPrimaryActions() {
     dirty: workspace.dirty,
   });
   return (
-    <div className="col-start-3 row-start-1 flex h-11 items-center gap-1.5 lg:col-start-7 lg:h-12">
+    <div className="col-start-3 row-start-1 flex h-11 items-center gap-1.5 lg:col-start-6 lg:h-12">
       <Button
         type="button"
         variant="outline"

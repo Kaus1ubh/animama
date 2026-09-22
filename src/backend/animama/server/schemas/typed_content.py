@@ -148,8 +148,8 @@ class PyGesture(PyTypedContentBase):
 
 class PyReaction(PyTypedContentBase):
     kind: Literal["reaction"] = "reaction"
-    emotion: str
-    intensity: Literal[1, 2, 3]
+    emotion: str | None = None
+    intensity: Literal[1, 2, 3] | None = None
     implementation: PyActionImplementation
     config: dict[str, object] = Field(default_factory=dict)
 

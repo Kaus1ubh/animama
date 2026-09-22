@@ -207,9 +207,9 @@ export function typedActionPreview(
     description: item.description,
     semantic_key: item.kind === "gesture" ? item.semantic_key : undefined,
     placement_hint:
-      item.kind === "reaction"
+      item.kind === "reaction" && item.emotion && item.intensity
         ? { emotion: item.emotion, intensity: item.intensity }
-        : {},
+        : undefined,
     implementation: item.implementation,
     config: item.config,
     dependencies: item.dependencies,

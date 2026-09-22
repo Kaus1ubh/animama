@@ -4,7 +4,7 @@ import {
 } from "@/ui/action-editor/actionDocument";
 
 export function createReactionDocument(
-  emotion = "joy",
+  emotion = "",
   intensity: 1 | 2 | 3 = 1,
 ): ActionDocument {
   return {

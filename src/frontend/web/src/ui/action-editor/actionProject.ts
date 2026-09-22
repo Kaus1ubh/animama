@@ -164,7 +164,7 @@ export function parseActionImport(
       description: optionalString(value.description),
       aiDescription: optionalString(value.aiDescription),
       semanticKey: optionalString(value.semanticKey),
-      suggestedEmotion: optionalString(value.suggestedEmotion) || "joy",
+      suggestedEmotion: optionalString(value.suggestedEmotion),
       suggestedIntensity: intensity as 1 | 2 | 3,
       notes: optionalString(value.notes),
       sequence: parseAnimaPoseClip(value.sequence),

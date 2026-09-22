@@ -685,7 +685,7 @@ export function ActionEditorPage({
             `local:${intent}:${currentDocument.semanticKey || ready.item_id}`,
         },
         semanticKey: currentDocument.semanticKey,
-        ...(intent === "reaction"
+        ...(intent === "reaction" && currentDocument.suggestedEmotion.trim()
           ? {
               emotion: currentDocument.suggestedEmotion,
               intensity: currentDocument.suggestedIntensity,

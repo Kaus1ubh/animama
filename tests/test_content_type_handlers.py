@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -60,7 +61,7 @@ def test_gesture_handler_derives_standalone_document_and_rejects_loose_fields() 
     assert error.value.code == "unexpected_document_fields"
 
 
-def test_reaction_handler_requires_exact_cell_and_registered_runtime_media() -> None:
+def test_reaction_handler_preserves_hint_and_requires_registered_runtime_media() -> None:
     parsed = handler_for_kind(ContentKind.REACTION).parse_document(
         {
             "schema_version": 1,
@@ -99,14 +100,73 @@ def test_reaction_handler_requires_exact_cell_and_registered_runtime_media() -> 
     assert error.value.code == "public_url_not_portable"
 
 
-def test_reaction_runtime_projection_uses_the_equipped_loadout_cell() -> None:
+@pytest.mark.parametrize(
+    "placement",
+    [
+        None,
+        {},
+        {"emotion": "joy"},
+        {"intensity": 2},
+        {"emotion": "unknown", "intensity": 2},
+        {"emotion": "joy", "intensity": 4},
+        {"emotion": "joy", "intensity": True},
+        {"emotion": "joy", "intensity": 1.0},
+    ],
+)
+def test_reaction_rejects_invalid_supplied_placement(placement: object) -> None:
+    with pytest.raises(ContentDocumentError):
+        handler_for_kind(ContentKind.REACTION).parse_document(
+            {"schema_version": 1, "content_type": "reaction", "name": "Unplaced", "placement_hint": placement},
+            fallback_path=Path("reactions/unplaced"),
+            descriptor_backed=True,
+        )
+
+
+def test_reaction_without_hint_roundtrips_catalog_package_and_preview() -> None:
+    handler = handler_for_kind(ContentKind.REACTION)
+    descriptor = {
+        "schema_version": 1,
+        "content_type": "reaction",
+        "name": "Unplaced",
+        "implementation": {"kind": "anima_clip", "file_role": "sequence"},
+    }
+    parsed = handler.parse_document(descriptor, fallback_path=Path("reactions/unplaced"), descriptor_backed=True)
+    assert isinstance(parsed.document, ReactionDocumentV1)
+    assert (parsed.document.emotion, parsed.document.intensity) == (None, None)
+    assert "placement_hint" not in parsed.metadata
+    packaged = json.loads(
+        handler.rewrite_package_document(json.dumps(descriptor).encode(), reference_rewrites={}, descriptor_backed=True)
+    )
+    assert "placement_hint" not in packaged
+    projected = handler.project_runtime(
+        parsed.document,
+        RuntimeProjectionInput(
+            item_id="reaction-item",
+            runtime_root_id="reaction-root",
+            slot_key="preview",
+            source={"type": "catalog_item"},
+            revision="revision-1",
+            context={},
+            files=[],
+            logical_files={},
+            dependency_files={},
+            reference_map={},
+        ),
+    )
+    assert projected.payload is not None
+    assert projected.payload["emotion"] is None
+    assert projected.payload["intensity"] is None
+
+
+@pytest.mark.parametrize("hint", [None, {"emotion": "joy", "intensity": 3}])
+def test_reaction_runtime_projection_uses_the_equipped_loadout_cell(hint: dict | None) -> None:
     handler = handler_for_kind(ContentKind.REACTION)
     parsed = handler.parse_document(
         {
             "schema_version": 1,
             "content_type": "reaction",
             "name": "Strong Joy",
-            "placement_hint": {"emotion": "joy", "intensity": 3},
+            **({"placement_hint": hint} if hint else {}),
             "implementation": {"kind": "anima_clip", "file_role": "sequence"},
         },
         fallback_path=Path("reactions/strong-joy"),
