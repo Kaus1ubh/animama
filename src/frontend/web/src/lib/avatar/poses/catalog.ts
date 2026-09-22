@@ -44,9 +44,24 @@ const rawReactionClipModules = import.meta.glob(
   },
 ) as Record<string, unknown>;
 
+// Runtime-only dependencies resolve shipped Gesture refs without becoming Library content.
+const rawInternalPoseModules = import.meta.glob(
+  "./json/internal-poses/*.json",
+  {
+    eager: true,
+    import: "default",
+  },
+) as Record<string, unknown>;
+const internalPoses = Object.fromEntries(
+  Object.entries(rawInternalPoseModules).map(([source, pose]) => [
+    source.slice(source.lastIndexOf("/") + 1, -".json".length),
+    pose,
+  ]),
+);
+
 const manifest = parsePoseCatalogManifest(rawCatalog);
 const loadedPoseCatalog = pruneUnresolvablePoseCatalog(
-  loadPoseCatalog(generatedPoses.poses),
+  loadPoseCatalog({ ...internalPoses, ...generatedPoses.poses }),
 );
 
 export const AVATAR_POSE_CATALOG: Readonly<Record<string, AnimaPose>> =
@@ -136,7 +151,7 @@ export function normalizeAvatarPoseClipId(clipId: string): string {
     : trimmed;
 }
 
-/** Synchronous defaults and shipped clip refs use a checked canonical-content projection. */
+/** Load Included pose projections and immutable internal Gesture dependencies. */
 function loadPoseCatalog(
   rawPoses: Readonly<Record<string, unknown>>,
 ): Record<string, AnimaPose> {
@@ -147,7 +162,7 @@ function loadPoseCatalog(
       if (pose.id !== poseId) throw new Error("Projected Pose id mismatch");
       catalog[poseId] = pose;
     } catch (error) {
-      logger.warn("Pose", "Skipping invalid projected Included Pose", {
+      logger.warn("Pose", "Skipping invalid runtime Pose", {
         poseId,
         error,
       });

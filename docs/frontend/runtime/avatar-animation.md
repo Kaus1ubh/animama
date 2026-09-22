@@ -34,6 +34,14 @@ external base as one undoable edit, preserving existing samples. Saved/reopened
 clips therefore remain independent of source edits or deletion. Reactions retain
 their expression/effect/sound-only contract.
 
+Shipped Gestures may reference immutable poses in
+`web/src/lib/avatar/poses/json/internal-poses/`. These runtime dependencies ship in
+the frontend bundle and resolve clip `ref`/`basePose` IDs; they are not registered
+Included content or offered in Library/creator pose pickers. The five selectable
+starters remain canonical documents under `content/included/poses`. Referenced
+Gesture exports require the matching application catalog; inserted user poses
+continue to be copied as self-contained values.
+
 Idle Styles add an emotion-aware idle lane. A mounted runtime uses the exact
 selected style (or an intentionally empty
 lane), including authorized private VRMA memberships. The runtime selects the dominant emotion's pool or the non-empty Default pool,

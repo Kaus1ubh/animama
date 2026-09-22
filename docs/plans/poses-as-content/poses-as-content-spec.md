@@ -227,6 +227,10 @@ See the PR for current validation and owner approval status.
 ## Owner follow-up — 2026-09-22
 
 The owner narrowed the standalone starter collection to the five named poses above.
+Shipped Gestures retain their `ref` and `basePose` references. Other referenced pose
+definitions remain bundled internal runtime dependencies, excluded from Library
+and creator pose pickers; they are not standalone Included content. This does not
+change value-copy insertion for user-authored clips.
 In the Pose load panel, omit the “Included and Local content” subtitle and hide
 Delete for immutable Included poses. Local deletion remains available.
 

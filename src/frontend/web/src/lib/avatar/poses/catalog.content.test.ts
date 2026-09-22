@@ -45,7 +45,7 @@ const starterNames: Record<string, string> = {
 
 describe("Included Pose starter collection", () => {
   it("exposes only the five requested starters while preserving their effective values", () => {
-    expect([...AVATAR_POSE_IDS].sort()).toEqual(
+    expect(readdirSync(includedRoot).sort()).toEqual(
       Object.keys(starterNames).sort(),
     );
     expect(DEFAULT_AVATAR_POSE_IDS).toEqual(originalInventory.defaultPoseIds);
@@ -69,7 +69,7 @@ describe("Included Pose starter collection", () => {
   it("exposes every starter as canonical parent-free Included content", () => {
     expect(existsSync(includedRoot)).toBe(true);
     const entries = readdirSync(includedRoot).sort();
-    expect(entries).toEqual([...AVATAR_POSE_IDS].sort());
+    expect(entries).toEqual(Object.keys(starterNames).sort());
     for (const id of entries) {
       const descriptor = JSON.parse(
         readFileSync(`${includedRoot}/${id}/${id}.json`, "utf8"),
@@ -88,6 +88,40 @@ describe("Included Pose starter collection", () => {
     }
   });
 
+  it("keeps shipped gesture refs resolvable without exposing their dependencies as content", () => {
+    expect(AVATAR_POSE_CLIP_CATALOG["arms-crossed"].poses.armsCrossed).toEqual({
+      ref: "arms-crossed",
+    });
+    expect(AVATAR_POSE_CLIP_CATALOG["double-thumbs-up"].basePose).toBe(
+      "double-thumbs-up",
+    );
+    const referencedIds = new Set<string>();
+    for (const clip of Object.values(AVATAR_POSE_CLIP_CATALOG)) {
+      if (clip.basePose) referencedIds.add(clip.basePose);
+      for (const pose of Object.values(clip.poses)) {
+        if ("ref" in pose) referencedIds.add(pose.ref);
+      }
+    }
+    expect([...AVATAR_POSE_IDS].sort()).toEqual([...referencedIds].sort());
+    expect(
+      [...referencedIds].filter((id) => !(id in starterNames)),
+    ).toHaveLength(21);
+    for (const original of originalInventory.poses.filter(
+      (pose) => referencedIds.has(pose.id) && !(pose.id in starterNames),
+    )) {
+      expect(existsSync(`${includedRoot}/${original.id}`)).toBe(false);
+      expect(
+        createHash("sha256")
+          .update(
+            JSON.stringify(
+              roundedCanonical(getResolvedAvatarPose(original.id)),
+            ),
+          )
+          .digest("hex"),
+      ).toBe(original.resolved_sha256);
+    }
+  });
+
   it("keeps all shipped clip references and expression-only reactions resolvable", () => {
     expect(Object.keys(AVATAR_POSE_CLIP_CATALOG)).toHaveLength(22);
     expect(Object.keys(AVATAR_REACTION_CLIP_CATALOG)).toHaveLength(72);
@@ -102,7 +136,7 @@ describe("Included Pose starter collection", () => {
     }
   });
 
-  it("preserves every shipped clip sample after removing its standalone pose dependencies", () => {
+  it("preserves every shipped clip sample with internal pose dependencies", () => {
     expect(clipSamples.clips).toHaveLength(22);
     for (const original of clipSamples.clips) {
       const clip = AVATAR_POSE_CLIP_CATALOG[original.id];

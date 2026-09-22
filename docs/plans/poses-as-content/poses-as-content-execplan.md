@@ -934,3 +934,44 @@ controls, so replacement and built seeking/playback are not claimed as manual
 acceptance; focused automated tests cover these preview transitions. No content was
 saved during this check. The task stack remains in built mode. Hosted Validation
 is still separately blocked by the disabled workflow; no merge is authorized.
+
+### Owner follow-up — Internal gesture pose references
+
+Starting candidate `9511e9f`, same task branch/worktree and PR #62. The owner
+requested retaining shipped gesture refs as internal dependencies. Restore the
+pre-reduction gesture documents, bundle only their 21 non-visible pose dependencies
+with the frontend runtime, and retain the five canonical Included poses exposed by
+Library and creator pickers. Internal dependencies are immutable runtime inputs,
+not registered content. Preserve sampled playback, copied user clips and the
+Reaction preview fix. Verify all refs/base refs, full sample parity, the five-item
+content boundary, creator load/export behavior and production bundling. This
+changed design gets one initial scoped independent review and at most two repair
+rounds; prior review scopes remain closed.
+
+The reference regression failed on the prior embedded Arms Crossed snapshot, then
+passed after restoring all 36 Gesture/source projection files verbatim from
+`2899639`. Only 21 referenced non-visible pose definitions are retained; the unused
+T-pose asset is omitted. Six catalog tests pass, including all 140 sample hashes
+and internal resolved-value parity. The eight-suite frontend selection passed
+89 tests covering catalog/playback, authoring, copy/load and Reaction preview.
+Source production build (including projection drift and TypeScript), scoped lint,
+authored source/asset formatting and whitespace checks passed. Backend catalog,
+integrity, starter closure and Pose tests passed 30/30; direct staging inventory
+remains 143 core entries including exactly five Poses.
+
+Code Review #1 Findings: independent analysis found no blocking findings. Both
+Gesture copies match the pre-reduction source, internal refs are bundled, picker
+queries remain limited to content, and the package-reference dependency is
+documented. Code Review #1 Revisions: none required; zero repair rounds used.
+The independent backend checker confirmed the five-item/staging boundary.
+
+The same `animama-poses-content` production stack was rebuilt at
+http://localhost:8720 (loopback application only, no optional profiles; PostgreSQL
+remains private). Manual 1280×720 acceptance confirms exactly five Library Pose
+rows and five creator Pose choices. Opening Included Arms Crossed through Library
+Edit renders crossed arms on the real Avatar, playback advances, and the creator
+JSON retains `poses.armsCrossed.ref = "arms-crossed"` with `basePose = "relaxedRest"`.
+No content was saved. Development/native acceptance was not rerun for this
+behavior-preserving catalog restoration; full sample parity and production
+bundling/rendering cover the affected boundary. Hosted Validation remains
+separately blocked by the disabled workflow; no merge approval is implied.
