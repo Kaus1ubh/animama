@@ -114,10 +114,10 @@ describe("ActionEditorEffectsPanel", () => {
     expect(html).toContain("Friendly Wave");
     expect(html).toContain('aria-label="Edit Friendly Wave"');
     expect(html.indexOf('aria-label="Edit Friendly Wave"')).toBeLessThan(
-      html.indexOf('aria-label="Add Friendly Wave at current playhead"'),
+      html.indexOf('aria-label="Insert Friendly Wave at current playhead"'),
     );
     expect(html).toContain(
-      'aria-label="Add Friendly Wave at current playhead"',
+      'aria-label="Insert Friendly Wave at current playhead"',
     );
   });
 

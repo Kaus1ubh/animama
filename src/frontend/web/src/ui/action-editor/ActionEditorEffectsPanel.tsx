@@ -401,7 +401,7 @@ function PoseCatalog({
                   <p className="truncate text-xs font-medium">{pose.name}</p>
                 </div>
               </CatalogDragHandle>
-              <Tooltip delayDuration={1000}>
+              <Tooltip delayDuration={500}>
                 <TooltipTrigger asChild>
                   <Button
                     type="button"
@@ -417,7 +417,7 @@ function PoseCatalog({
                 </TooltipTrigger>
                 <TooltipContent>Edit</TooltipContent>
               </Tooltip>
-              <Tooltip delayDuration={1000}>
+              <Tooltip delayDuration={500}>
                 <TooltipTrigger asChild>
                   <Button
                     type="button"
@@ -426,12 +426,12 @@ function PoseCatalog({
                     className="size-7 shrink-0 rounded-full"
                     onClick={() => onAddPose?.(pose)}
                     disabled={!onAddPose}
-                    aria-label={`Add ${pose.name} at current playhead`}
+                    aria-label={`Insert ${pose.name} at current playhead`}
                   >
                     <PlusIcon className="size-3.5" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Add to playhead</TooltipContent>
+                <TooltipContent>Insert at playhead</TooltipContent>
               </Tooltip>
             </div>
           ))}
