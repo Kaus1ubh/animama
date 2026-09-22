@@ -15,14 +15,7 @@ import {
   SparklesIcon,
   Trash2Icon,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { previewCatalogItem } from "@/lib/content/catalogApi";
@@ -118,6 +111,7 @@ import {
   shouldBlockSceneEffectNavigation,
 } from "./sceneEffectCreatorBehavior";
 import { useSceneEffectSave } from "./useSceneEffectSave";
+import { useSceneEffectHistory } from "./useSceneEffectHistory";
 
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_SCENE_IMAGE_BYTES = 32 * 1024 * 1024;
@@ -133,14 +127,14 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   const navigate = useNavigate();
   const userId = useRuntimeOwnerId();
   const existingQuery = useSceneEffect(itemId ?? null);
-  const [document, dispatch] = useReducer(
-    sceneEffectEditorReducer,
-    undefined,
-    createDefaultSceneEffectDocument,
-  );
-  const [imageResources, setImageResources] = useState<
-    SceneEffectEditorImageResource[]
-  >([]);
+  const {
+    document,
+    imageResources,
+    history,
+    dispatch,
+    resetDocument,
+    getSnapshot,
+  } = useSceneEffectHistory();
   const [imageUrls, setImageUrls] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   );
@@ -233,28 +227,29 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       recoveredDocument: SceneEffectEditorDocument,
       recoveredImages: SceneEffectEditorImageResource[],
     ) => {
-      dispatch({ type: "replace", document: recoveredDocument });
-      setImageResources(recoveredImages);
+      resetDocument(recoveredDocument, recoveredImages);
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
     },
-    [],
+    [resetDocument],
   );
   const onSaved = useCallback(
     (savedDocument: SceneEffectEditorDocument) => {
+      // Saving an existing recovered document must retain its editing history.
+      hydratedItemRef.current = itemId ?? null;
       initialFingerprintRef.current = sceneSaveFingerprint(
         savedDocument,
         imageResources,
       );
     },
-    [imageResources],
+    [imageResources, itemId],
   );
   const contentSave = useSceneEffectSave({
     itemId,
     document,
     imageResources,
     initialized: hydration.state === "ready",
-    ready: !hasBlockingIssues && hydration.state === "ready",
+    ready: !hasBlockingIssues && !imageBusy && hydration.state === "ready",
     onRestore,
     onSaved,
   });
@@ -306,8 +301,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       signal: controller.signal,
     })
       .then(({ document: loadedDocument, images }) => {
-        dispatch({ type: "replace", document: loadedDocument });
-        setImageResources(images);
+        resetDocument(loadedDocument, images);
         initialFingerprintRef.current = sceneSaveFingerprint(
           loadedDocument,
           images,
@@ -331,6 +325,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     contentSave.recoveryReady,
     existingQuery.data,
     itemId,
+    resetDocument,
   ]);
 
   const restartPreview = useCallback(() => {
@@ -379,18 +374,20 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
 
   const onItemsChange = useCallback(
     (items: SceneEffectEditorMarqueeItem[]) => {
-      dispatch({ type: "set-marquee-items", items });
       const referenced = new Set(
         items.flatMap((item) =>
           item.kind === "image" ? [item.image.logicalName] : [],
         ),
       );
-      setImageResources((current) =>
-        current.filter((resource) => referenced.has(resource.logicalName)),
+      dispatch(
+        { type: "set-marquee-items", items },
+        getSnapshot().imageResources.filter((resource) =>
+          referenced.has(resource.logicalName),
+        ),
       );
       restartPreview();
     },
-    [restartPreview],
+    [dispatch, getSnapshot, restartPreview],
   );
 
   const choosePrivateImage = useCallback(
@@ -408,6 +405,8 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       try {
         const preflight = await preflightContentFile("image", source);
         if (preflight.error) throw new Error(preflight.error);
+        const sha256 = await sha256File(source);
+        const { document, imageResources } = getSnapshot();
         const baseLogicalName = canonicalSceneEffectImageName(source.name);
         const missing = document.background.marquee.items.find(
           (item) =>
@@ -435,7 +434,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           type: source.type,
           lastModified: source.lastModified,
         });
-        const sha256 = await sha256File(file);
         const image: SceneEffectEditorImage = {
           logicalName,
           originalName: source.name,
@@ -443,34 +441,37 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           sizeBytes: source.size,
           sha256,
         };
-        setImageResources((current) => [
-          ...current.filter((resource) => resource.logicalName !== logicalName),
-          { logicalName, file, sha256 },
-        ]);
-        if (missing) {
-          dispatch({
-            type: "set-marquee-items",
-            items: document.background.marquee.items.map((item) =>
+        const current = getSnapshot();
+        const items = missing
+          ? current.document.background.marquee.items.map((item) =>
               item.kind === "image" && item.image.logicalName === logicalName
                 ? { ...item, image }
                 : item,
-            ),
-          });
-        } else {
-          dispatch({
-            type: "set-marquee-items",
-            items: [
-              ...document.background.marquee.items,
+            )
+          : [
+              ...current.document.background.marquee.items,
               {
                 id: `private-${crypto.randomUUID().slice(0, 8)}`,
-                kind: "image",
+                kind: "image" as const,
                 label: source.name.replace(/\.[^.]+$/, ""),
                 image,
               },
-            ],
+            ];
+        let nextDocument = sceneEffectEditorReducer(current.document, {
+          type: "set-marquee-items",
+          items,
+        });
+        if (!missing)
+          nextDocument = sceneEffectEditorReducer(nextDocument, {
+            type: "patch-marquee",
+            patch: { enabled: true },
           });
-          dispatch({ type: "patch-marquee", patch: { enabled: true } });
-        }
+        dispatch({ type: "replace", document: nextDocument }, [
+          ...current.imageResources.filter(
+            (resource) => resource.logicalName !== logicalName,
+          ),
+          { logicalName, file, sha256 },
+        ]);
         restartPreview();
       } catch (error) {
         setImageError(
@@ -482,7 +483,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
         setImageBusy(false);
       }
     },
-    [document.background.marquee.items, imageResources, restartPreview],
+    [dispatch, getSnapshot, restartPreview],
   );
 
   const importDocument = useCallback(() => {
@@ -490,8 +491,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       const parsed = parseSceneEffectEditorExport(JSON.parse(importText));
       if (isDirty && !window.confirm("Replace the current unsaved document?"))
         return;
-      dispatch({ type: "replace", document: parsed });
-      setImageResources([]);
+      dispatch({ type: "replace", document: parsed }, []);
       setImportError(null);
       setImportOpen(false);
       restartPreview();
@@ -506,7 +506,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           : "The JSON could not be imported.",
       );
     }
-  }, [importText, isDirty, restartPreview]);
+  }, [dispatch, importText, isDirty, restartPreview]);
 
   const exportText = useMemo(
     () => JSON.stringify(buildSceneEffectEditorExport(document), null, 2),
@@ -514,7 +514,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
 
   const startNewDocument = useCallback(async () => {
-    if (contentSave.isBusy) return;
+    if (contentSave.isBusy || imageBusy) return;
     if (
       isDirty &&
       !window.confirm(
@@ -536,8 +536,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     const nextDocument = createDefaultSceneEffectDocument();
     const nextFingerprint = sceneSaveFingerprint(nextDocument, []);
     if (!(await contentSave.resetSession(nextFingerprint))) return;
-    dispatch({ type: "replace", document: nextDocument });
-    setImageResources([]);
+    resetDocument(nextDocument, []);
     setSelectedLayer("marquee");
     setImageBusy(false);
     setImageError(null);
@@ -550,7 +549,15 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     initialFingerprintRef.current = nextFingerprint;
     setHydration({ state: "ready", message: null });
     setPreviewRevision((value) => value + 1);
-  }, [contentSave, isDirty, itemId, navigate, userId]);
+  }, [
+    contentSave,
+    imageBusy,
+    isDirty,
+    itemId,
+    navigate,
+    resetDocument,
+    userId,
+  ]);
   const sceneVFX = useMemo<SceneVFXRuntimeEntry | null>(() => {
     if (!playing) return null;
     try {
@@ -632,9 +639,23 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       toolbar={
         <CreatorToolbar
           contentHealth={<ContentHealth compact />}
-          typeLabel="Scene Effect"
+          history={history}
+          historyDisabled={
+            contentSave.isBusy ||
+            imageBusy ||
+            hydration.state !== "ready" ||
+            !contentSave.recoveryReady
+          }
+          typeLabel="Scene FX"
+          contentType="scene_effect"
           typeIcon={<SparklesIcon />}
           documentName={document.name}
+          documentNameInvalid={contentSave.errorField === "name"}
+          documentNameDisabled={contentSave.isBusy}
+          onDocumentNameChange={(name) => {
+            contentSave.clearSaveErrorField("name");
+            dispatch({ type: "patch", patch: { name } });
+          }}
           status={
             contentSave.error
               ? {
@@ -647,18 +668,15 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
                   tone: isDirty ? "dirty" : "saved",
                 }
           }
+          newDisabled={contentSave.isBusy || imageBusy}
+          importDisabled={contentSave.isBusy || imageBusy}
+          libraryDisabled={contentSave.isBusy || imageBusy}
           onNew={() => void startNewDocument()}
           onImport={() => {
             setImportText(exportText);
             setImportOpen(true);
           }}
           onJson={() => setJsonOpen(true)}
-          onLibrary={() =>
-            navigate({
-              to: "/a/library",
-              search: { section: "fx", fx: "scene" },
-            })
-          }
           onSave={() => void contentSave.save()}
           saveDisabled={!contentSave.canSave}
           saveBusy={contentSave.isBusy}
@@ -682,15 +700,15 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           }
         />
       }
+      leftPanelLabel="Setup"
+      rightPanelLabel="Inspector"
       leftPanel={
         <SceneSetupPanel
           document={document}
           selectedLayer={selectedLayer}
-          saveErrorField={contentSave.errorField}
           soundOptions={soundOptions}
           soundPending={soundQuery.isPending}
           onSelectedLayer={setSelectedLayer}
-          onClearSaveErrorField={contentSave.clearSaveErrorField}
           onDispatch={(action) => {
             dispatch(action);
             restartPreview();
@@ -781,7 +799,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           ) : null}
           {contentSave.error || contentSave.recoveryWarning ? (
             <CreatorSaveNotice
-              className="absolute right-5 bottom-28 z-[60] max-w-md"
+              className="absolute top-[calc(var(--creator-header-height)+0.5rem)] right-4 left-4 z-[60] sm:left-auto sm:max-w-md lg:top-auto lg:bottom-28"
               message={contentSave.error ?? contentSave.recoveryWarning}
               tone={contentSave.error ? "error" : "warning"}
               actions={
@@ -858,16 +876,13 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
 function SceneSetupPanel({
   document,
   selectedLayer,
-  saveErrorField,
   soundOptions,
   soundPending,
   onSelectedLayer,
-  onClearSaveErrorField,
   onDispatch,
 }: {
   document: SceneEffectEditorDocument;
   selectedLayer: BackgroundLayer;
-  saveErrorField: string | null;
   soundOptions: Array<{
     item_id: string;
     name: string;
@@ -875,21 +890,10 @@ function SceneSetupPanel({
   }>;
   soundPending: boolean;
   onSelectedLayer: (layer: BackgroundLayer) => void;
-  onClearSaveErrorField: (field: string) => void;
   onDispatch: React.Dispatch<Parameters<typeof sceneEffectEditorReducer>[1]>;
 }) {
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (saveErrorField === "name") nameInputRef.current?.focus();
-  }, [saveErrorField]);
   return (
-    <FloatingPanel className="h-full overflow-y-auto">
-      <div className="mb-3">
-        <h2 className="font-semibold">Scene Setup</h2>
-        <p className="text-muted-foreground text-xs">
-          Viewport-owned portable VFX
-        </p>
-      </div>
+    <FloatingPanel title="Scene Setup" bodyClassName="overflow-y-auto">
       <Tabs
         value={document.kind}
         onValueChange={(kind) =>
@@ -899,27 +903,19 @@ function SceneSetupPanel({
           })
         }
       >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="background_layers">Background Layers</TabsTrigger>
-          <TabsTrigger value="focus_lines">Focus Lines</TabsTrigger>
+        <TabsList className="grid h-9 w-full grid-cols-2">
+          <TabsTrigger
+            value="background_layers"
+            className="min-w-0 px-1 text-xs"
+          >
+            Background
+          </TabsTrigger>
+          <TabsTrigger value="focus_lines" className="min-w-0 px-1 text-xs">
+            Focus Lines
+          </TabsTrigger>
         </TabsList>
       </Tabs>
-      <div className="mt-4 space-y-4">
-        <Field label="Name" invalid={saveErrorField === "name"}>
-          <Input
-            ref={nameInputRef}
-            value={document.name}
-            maxLength={120}
-            aria-invalid={saveErrorField === "name"}
-            onChange={(event) => {
-              onClearSaveErrorField("name");
-              onDispatch({
-                type: "patch",
-                patch: { name: event.target.value },
-              });
-            }}
-          />
-        </Field>
+      <div className="mt-3 space-y-3">
         <Field label="Starting template">
           <Select
             value=""
@@ -933,7 +929,7 @@ function SceneSetupPanel({
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue placeholder="Custom" />
             </SelectTrigger>
             <SelectContent>
@@ -949,14 +945,7 @@ function SceneSetupPanel({
         </Field>
         {document.kind === "background_layers" ? (
           <div className="space-y-2">
-            <div className="flex items-end justify-between">
-              <div>
-                <Label>Layers</Label>
-                <p className="text-muted-foreground text-xs">
-                  3 fixed render layers
-                </p>
-              </div>
-            </div>
+            <Label className="text-xs">Layers</Label>
             <LayerCard
               selected={selectedLayer === "marquee"}
               title="Marquee"
@@ -989,16 +978,15 @@ function SceneSetupPanel({
             />
           </div>
         ) : (
-          <div className="border-border/70 bg-background/55 rounded-xl border p-3">
-            <div className="font-medium">Focus Lines</div>
+          <div className="border-border/70 bg-background/55 rounded-lg border p-3">
+            <div className="text-xs font-medium">Focus Lines</div>
             <p className="text-muted-foreground text-xs">
-              Screen-space emphasis around an Avatar face or manual viewport
-              box.
+              Emphasize the Avatar’s face or a selected area.
             </p>
           </div>
         )}
 
-        <div className="border-border/70 space-y-3 border-t pt-4">
+        <div className="border-border/70 space-y-3 border-t pt-3">
           <Label>Effect behavior</Label>
           <div className="grid grid-cols-2 gap-2">
             <NumberField
@@ -1067,7 +1055,7 @@ function SceneSetupPanel({
                 });
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger size="sm" className="w-full text-xs">
                 <SelectValue
                   placeholder={soundPending ? "Loading sounds…" : "No sound"}
                 />
@@ -1101,6 +1089,7 @@ function SceneSetupPanel({
           </Field>
           <Field label="Description">
             <Textarea
+              className="min-h-16 text-xs"
               rows={2}
               value={document.description}
               maxLength={2000}
@@ -1136,14 +1125,15 @@ function LayerCard({
   return (
     <div
       className={cn(
-        "border-border/70 bg-background/55 flex items-center gap-2 rounded-xl border p-2",
+        "border-border/70 bg-background/55 flex items-center gap-2 rounded-lg border p-2",
         selected && "border-sky-300 bg-sky-50/75 dark:bg-sky-950/35",
       )}
     >
       <GripVerticalIcon className="text-muted-foreground size-4" />
       <button
         type="button"
-        className="min-w-0 flex-1 text-left"
+        className="focus-visible:ring-ring min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-2"
+        aria-pressed={selected}
         onClick={onSelect}
       >
         <div className="text-sm font-medium">{title}</div>
@@ -1186,15 +1176,15 @@ function SceneInspectorPanel({
   onClearSaveErrorField: (field: string) => void;
 }) {
   return (
-    <FloatingPanel className="h-full overflow-y-auto">
-      <div className="mb-3">
-        <h2 className="font-semibold">Inspector</h2>
-        <p className="text-muted-foreground text-xs">
-          {document.kind === "background_layers"
-            ? `${humanize(selectedLayer)} layer`
-            : "Focus Lines"}
-        </p>
-      </div>
+    <FloatingPanel
+      title="Inspector"
+      summary={
+        document.kind === "background_layers"
+          ? `${humanize(selectedLayer)} layer`
+          : "Focus Lines"
+      }
+      bodyClassName="overflow-y-auto"
+    >
       {document.kind === "background_layers" ? (
         selectedLayer === "marquee" ? (
           <MarqueeInspector
@@ -1216,26 +1206,37 @@ function SceneInspectorPanel({
       ) : (
         <FocusInspector document={document} onDispatch={onDispatch} />
       )}
-      <div className="border-border/70 mt-4 space-y-2 border-t pt-4">
-        <StatusRow
-          good={validation.every((issue) => issue.severity !== "error")}
-          label="Definition ready"
-          detail={
-            validation.find((issue) => issue.severity === "error")?.message ??
-            "Closed Scene definition is valid."
-          }
-        />
-        <StatusRow
-          good={avatarStatus.state === "ready"}
-          label="Preview Avatar"
-          detail={avatarStatus.message ?? humanize(avatarStatus.state)}
-        />
-        <StatusRow
-          good
-          label="Preview isolated"
-          detail="The live Anima Scene store is untouched."
-        />
-      </div>
+      <details
+        className="border-border/70 mt-3 border-t pt-3"
+        open={
+          validation.some((issue) => issue.severity === "error") || undefined
+        }
+      >
+        <summary className="cursor-pointer text-xs font-medium">Checks</summary>
+        <div className="mt-3 space-y-3">
+          {validation.length ? (
+            validation.map((issue, index) => (
+              <StatusRow
+                key={`${issue.field}:${index}`}
+                good={issue.severity !== "error"}
+                label={humanize(issue.field)}
+                detail={issue.message}
+              />
+            ))
+          ) : (
+            <StatusRow
+              good
+              label="Ready to save"
+              detail="Scene settings are ready."
+            />
+          )}
+          <StatusRow
+            good={avatarStatus.state === "ready"}
+            label="Preview Avatar"
+            detail={avatarStatus.message ?? humanize(avatarStatus.state)}
+          />
+        </div>
+      </details>
     </FloatingPanel>
   );
 }
@@ -1267,12 +1268,18 @@ function MarqueeInspector({
   );
   return (
     <Tabs defaultValue="content">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="content">Content</TabsTrigger>
-        <TabsTrigger value="motion">Motion</TabsTrigger>
-        <TabsTrigger value="appearance">Appearance</TabsTrigger>
+      <TabsList className="grid h-9 w-full grid-cols-3">
+        <TabsTrigger value="content" className="min-w-0 px-1 text-xs">
+          Content
+        </TabsTrigger>
+        <TabsTrigger value="motion" className="min-w-0 px-1 text-xs">
+          Motion
+        </TabsTrigger>
+        <TabsTrigger value="appearance" className="min-w-0 px-1 text-xs">
+          Appearance
+        </TabsTrigger>
       </TabsList>
-      <TabsContent value="content" className="mt-4 space-y-3">
+      <TabsContent value="content" className="mt-3 space-y-3">
         <Label>Items</Label>
         {marquee.items.length ? (
           <div className="space-y-2">
@@ -1305,7 +1312,7 @@ function MarqueeInspector({
         )}
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <Select value={emojiId} onValueChange={setEmojiId}>
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue placeholder="Choose emoji" />
             </SelectTrigger>
             <SelectContent>
@@ -1371,7 +1378,7 @@ function MarqueeInspector({
           <p className="text-destructive text-xs">{imageError}</p>
         ) : null}
       </TabsContent>
-      <TabsContent value="motion" className="mt-4 space-y-4">
+      <TabsContent value="motion" className="mt-3 space-y-3">
         <Field label="Direction">
           <Select
             value={marquee.direction}
@@ -1382,7 +1389,7 @@ function MarqueeInspector({
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1417,7 +1424,7 @@ function MarqueeInspector({
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1443,7 +1450,7 @@ function MarqueeInspector({
           }
         />
       </TabsContent>
-      <TabsContent value="appearance" className="mt-4 grid grid-cols-2 gap-3">
+      <TabsContent value="appearance" className="mt-3 grid grid-cols-2 gap-3">
         <NumberField
           label="Item size"
           value={marquee.itemSize}
@@ -1558,7 +1565,7 @@ function MarqueeItemRow({
 function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
   const pattern = document.background.pattern;
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <ToggleRow
         label="Pattern enabled"
         checked={pattern.enabled}
@@ -1576,7 +1583,7 @@ function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
             })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger size="sm" className="w-full text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1633,7 +1640,7 @@ function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
 
 function SolidInspector({ document, onDispatch }: InspectorFieldsProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <ToggleRow
         label="Solid enabled"
         checked={document.background.solid.enabled}
@@ -1656,13 +1663,21 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
   const focus = document.focus;
   return (
     <Tabs defaultValue="target">
-      <TabsList className="grid w-full grid-cols-4">
-        <TabsTrigger value="target">Target</TabsTrigger>
-        <TabsTrigger value="geometry">Lines</TabsTrigger>
-        <TabsTrigger value="animation">Motion</TabsTrigger>
-        <TabsTrigger value="appearance">Style</TabsTrigger>
+      <TabsList className="grid h-9 w-full grid-cols-4">
+        <TabsTrigger value="target" className="min-w-0 px-1 text-xs">
+          Target
+        </TabsTrigger>
+        <TabsTrigger value="geometry" className="min-w-0 px-1 text-xs">
+          Lines
+        </TabsTrigger>
+        <TabsTrigger value="animation" className="min-w-0 px-1 text-xs">
+          Motion
+        </TabsTrigger>
+        <TabsTrigger value="appearance" className="min-w-0 px-1 text-xs">
+          Style
+        </TabsTrigger>
       </TabsList>
-      <TabsContent value="target" className="mt-4 space-y-4">
+      <TabsContent value="target" className="mt-3 space-y-3">
         <Field label="Render placement">
           <Select
             value={focus.renderPlacement}
@@ -1676,7 +1691,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1701,7 +1716,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1782,7 +1797,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           </div>
         )}
       </TabsContent>
-      <TabsContent value="geometry" className="mt-4 grid grid-cols-2 gap-3">
+      <TabsContent value="geometry" className="mt-3 grid grid-cols-2 gap-3">
         <NumberField
           label="Line count"
           value={focus.lineCount}
@@ -1844,7 +1859,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           }
         />
       </TabsContent>
-      <TabsContent value="animation" className="mt-4 grid grid-cols-2 gap-3">
+      <TabsContent value="animation" className="mt-3 grid grid-cols-2 gap-3">
         {(
           [
             "minVisibleMs",
@@ -1882,7 +1897,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           }
         />
       </TabsContent>
-      <TabsContent value="appearance" className="mt-4 space-y-4">
+      <TabsContent value="appearance" className="mt-3 space-y-3">
         <ColorField
           label="Line color"
           value={focus.color}
@@ -2067,7 +2082,7 @@ function CreatorLoading({ message }: { message: string }) {
 
 function InlineError({ message }: { message: string }) {
   return (
-    <div className="bg-destructive/10 text-destructive border-destructive/30 absolute top-20 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+    <div className="bg-destructive/10 text-destructive border-destructive/30 absolute top-[calc(var(--creator-header-height)+0.5rem)] left-1/2 z-[60] flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-lg border px-3 py-2 text-sm">
       <AlertTriangleIcon className="size-4" />
       {message}
     </div>

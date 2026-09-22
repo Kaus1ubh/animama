@@ -11,14 +11,7 @@ import {
   LoaderCircleIcon,
   SparklesIcon,
 } from "lucide-react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { previewCatalogItem } from "@/lib/content/catalogApi";
@@ -86,7 +79,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/ui/components/dialog";
-import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import {
   Select,
@@ -106,6 +98,7 @@ import {
   shouldBlockAvatarEffectNavigation,
 } from "./avatarEffectCreatorBehavior";
 import { useAvatarEffectSave } from "./useAvatarEffectSave";
+import { useAvatarEffectHistory } from "./useAvatarEffectHistory";
 
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
@@ -122,13 +115,8 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   const navigate = useNavigate();
   const userId = useRuntimeOwnerId();
   const existingQuery = useAvatarEffect(itemId ?? null);
-  const [document, dispatch] = useReducer(
-    avatarEffectEditorReducer,
-    undefined,
-    createDefaultAvatarEffectDocument,
-  );
-  const [imageResource, setImageResource] =
-    useState<AvatarEffectEditorImageResource | null>(null);
+  const { document, imageResource, history, dispatch, resetDocument } =
+    useAvatarEffectHistory();
   const [selectedModel, setSelectedModel] =
     useState<ContentCreatorModelSource | null>(null);
   const [previewAvatar, setPreviewAvatar] = useState<Avatar | null>(null);
@@ -171,18 +159,19 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       recoveredDocument: AvatarEffectEditorDocument,
       recoveredImage: AvatarEffectEditorImageResource | null,
     ) => {
-      dispatch({ type: "replace", document: recoveredDocument });
-      setImageResource(recoveredImage);
+      resetDocument(recoveredDocument, recoveredImage);
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
     },
-    [],
+    [resetDocument],
   );
   const onSaved = useCallback(
     (savedDocument: AvatarEffectEditorDocument) => {
+      // Saving an existing recovered document must retain its editing history.
+      hydratedItemRef.current = itemId ?? null;
       initialFingerprintRef.current = `${avatarEffectDocumentFingerprint(savedDocument)}:${imageResource?.sha256 ?? "missing"}`;
     },
-    [imageResource?.sha256],
+    [imageResource?.sha256, itemId],
   );
 
   const validation = useMemo(
@@ -201,7 +190,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     document,
     imageResource,
     initialized: hydration.state === "ready",
-    ready: !hasBlockingIssues && hydration.state === "ready",
+    ready: !hasBlockingIssues && !imageBusy && hydration.state === "ready",
     onRestore,
     onSaved,
   });
@@ -296,8 +285,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       signal: controller.signal,
     })
       .then(({ document: loadedDocument, image }) => {
-        dispatch({ type: "replace", document: loadedDocument });
-        setImageResource(image);
+        resetDocument(loadedDocument, image);
         initialFingerprintRef.current = `${avatarEffectDocumentFingerprint(loadedDocument)}:${image.sha256}`;
         setHydration({ state: "ready", message: null });
         setPreviewRevision((value) => value + 1);
@@ -318,6 +306,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     contentSave.recoveryReady,
     existingQuery.data,
     itemId,
+    resetDocument,
   ]);
 
   const canSaveFromKeyboard = contentSave.canSave;
@@ -389,19 +378,21 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
           lastModified: source.lastModified,
         });
         const sha256 = await sha256File(file);
-        setImageResource({ file, sha256 });
-        dispatch({
-          type: "patch",
-          patch: {
-            image: {
-              logicalName,
-              originalName: source.name,
-              contentType: source.type,
-              sizeBytes: source.size,
-              sha256,
+        dispatch(
+          {
+            type: "patch",
+            patch: {
+              image: {
+                logicalName,
+                originalName: source.name,
+                contentType: source.type,
+                sizeBytes: source.size,
+                sha256,
+              },
             },
           },
-        });
+          { file, sha256 },
+        );
         restartPreview();
       } catch (error) {
         setImageError(
@@ -413,7 +404,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
         setImageBusy(false);
       }
     },
-    [restartPreview],
+    [dispatch, restartPreview],
   );
 
   const importDocument = useCallback(() => {
@@ -421,8 +412,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       const parsed = parseAvatarEffectEditorExport(JSON.parse(importText));
       if (isDirty && !window.confirm("Replace the current unsaved document?"))
         return;
-      dispatch({ type: "replace", document: parsed });
-      setImageResource(null);
+      dispatch({ type: "replace", document: parsed }, null);
       setImportError(null);
       setImportOpen(false);
       restartPreview();
@@ -436,10 +426,10 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
           : "The JSON could not be imported.",
       );
     }
-  }, [importText, isDirty, restartPreview]);
+  }, [dispatch, importText, isDirty, restartPreview]);
 
   const startNewDocument = useCallback(async () => {
-    if (contentSave.isBusy) return;
+    if (contentSave.isBusy || imageBusy) return;
     if (
       isDirty &&
       !window.confirm(
@@ -461,8 +451,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     const nextDocument = createDefaultAvatarEffectDocument();
     const nextFingerprint = `${avatarEffectDocumentFingerprint(nextDocument)}:missing`;
     if (!(await contentSave.resetSession(nextFingerprint))) return;
-    dispatch({ type: "replace", document: nextDocument });
-    setImageResource(null);
+    resetDocument(nextDocument, null);
     setImageError(null);
     setImageBusy(false);
     setVfxSnapshot(null);
@@ -475,7 +464,15 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     initialFingerprintRef.current = nextFingerprint;
     setHydration({ state: "ready", message: null });
     setPreviewRevision((value) => value + 1);
-  }, [contentSave, isDirty, itemId, navigate, userId]);
+  }, [
+    contentSave,
+    imageBusy,
+    isDirty,
+    itemId,
+    navigate,
+    resetDocument,
+    userId,
+  ]);
 
   const exportText = useMemo(
     () => JSON.stringify(buildAvatarEffectEditorExport(document), null, 2),
@@ -495,7 +492,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       });
       restartPreview();
     },
-    [document.transform, restartPreview],
+    [dispatch, document.transform, restartPreview],
   );
 
   if (hydration.state === "loading" && itemId) {
@@ -576,9 +573,23 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       toolbar={
         <CreatorToolbar
           contentHealth={<ContentHealth compact />}
-          typeLabel="Avatar Effect"
+          history={history}
+          historyDisabled={
+            contentSave.isBusy ||
+            imageBusy ||
+            hydration.state !== "ready" ||
+            !contentSave.recoveryReady
+          }
+          typeLabel="Avatar FX"
+          contentType="avatar_effect"
           typeIcon={<SparklesIcon />}
           documentName={document.name}
+          documentNameInvalid={contentSave.errorField === "name"}
+          documentNameDisabled={contentSave.isBusy}
+          onDocumentNameChange={(name) => {
+            contentSave.clearSaveErrorField("name");
+            dispatch({ type: "patch", patch: { name } });
+          }}
           status={
             contentSave.error
               ? {
@@ -591,18 +602,15 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
                   tone: isDirty ? "dirty" : "saved",
                 }
           }
+          newDisabled={contentSave.isBusy || imageBusy}
+          importDisabled={contentSave.isBusy || imageBusy}
+          libraryDisabled={contentSave.isBusy || imageBusy}
           onNew={() => void startNewDocument()}
           onImport={() => {
             setImportText(exportText);
             setImportOpen(true);
           }}
           onJson={() => setJsonOpen(true)}
-          onLibrary={() =>
-            navigate({
-              to: "/a/library",
-              search: { section: "fx", fx: "avatar" },
-            })
-          }
           onSave={() => void contentSave.save()}
           saveDisabled={!contentSave.canSave}
           saveBusy={contentSave.isBusy}
@@ -626,6 +634,8 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
           }
         />
       }
+      leftPanelLabel="Setup"
+      rightPanelLabel="Inspector"
       leftPanel={
         <EffectSetupPanel
           document={document}
@@ -727,7 +737,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
           ) : null}
           {contentSave.error || contentSave.recoveryWarning ? (
             <CreatorSaveNotice
-              className="absolute right-5 bottom-28 z-[60] max-w-md"
+              className="absolute top-[calc(var(--creator-header-height)+0.5rem)] right-4 left-4 z-[60] sm:left-auto sm:max-w-md lg:top-auto lg:bottom-28"
               message={contentSave.error ?? contentSave.recoveryWarning}
               tone={contentSave.error ? "error" : "warning"}
               actions={
@@ -834,18 +844,8 @@ function EffectSetupPanel({
   onClearSaveErrorField: (field: string) => void;
   onDragActive: (active: boolean) => void;
 }) {
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (saveErrorField === "name") nameInputRef.current?.focus();
-  }, [saveErrorField]);
   return (
-    <FloatingPanel className="h-full overflow-y-auto">
-      <div className="mb-3">
-        <h2 className="font-semibold">Effect Setup</h2>
-        <p className="text-muted-foreground text-xs">
-          Kind-first portable Avatar VFX
-        </p>
-      </div>
+    <FloatingPanel title="Effect Setup" bodyClassName="overflow-y-auto">
       <Tabs
         value={document.kind}
         onValueChange={(kind) =>
@@ -855,31 +855,23 @@ function EffectSetupPanel({
           })
         }
       >
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="hover">Hover</TabsTrigger>
-          <TabsTrigger value="face_anchored">Face decal</TabsTrigger>
-          <TabsTrigger value="texture">Texture</TabsTrigger>
+        <TabsList className="grid h-9 w-full grid-cols-3">
+          <TabsTrigger value="hover" className="min-w-0 px-1 text-xs">
+            Hover
+          </TabsTrigger>
+          <TabsTrigger value="face_anchored" className="min-w-0 px-1 text-xs">
+            Face decal
+          </TabsTrigger>
+          <TabsTrigger value="texture" className="min-w-0 px-1 text-xs">
+            Texture
+          </TabsTrigger>
         </TabsList>
       </Tabs>
 
-      <div className="mt-4 space-y-4">
-        <Field label="Name" invalid={saveErrorField === "name"}>
-          <Input
-            ref={nameInputRef}
-            value={document.name}
-            maxLength={120}
-            aria-invalid={saveErrorField === "name"}
-            onChange={(event) => {
-              onClearSaveErrorField("name");
-              onDispatch({
-                type: "patch",
-                patch: { name: event.target.value },
-              });
-            }}
-          />
-        </Field>
+      <div className="mt-3 space-y-3">
         <Field label="Description">
           <Textarea
+            className="min-h-16 text-xs"
             rows={2}
             value={document.description}
             onChange={(event) =>
@@ -894,7 +886,7 @@ function EffectSetupPanel({
         <Field label="Effect image" invalid={saveErrorField === "files"}>
           <label
             className={cn(
-              "border-border/70 bg-background/55 hover:bg-accent/50 flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-3 transition",
+              "border-border/70 bg-background/55 hover:bg-accent/50 flex cursor-pointer items-center gap-3 rounded-lg border border-dashed p-3 transition",
               dragActive && "border-sky-400 bg-sky-100/50 dark:bg-sky-950/30",
               saveErrorField === "files" && "border-destructive",
             )}
@@ -914,7 +906,7 @@ function EffectSetupPanel({
               }
             }}
           >
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
               {imageBusy ? (
                 <LoaderCircleIcon className="animate-spin" />
               ) : (
@@ -986,7 +978,7 @@ function EffectSetupPanel({
               });
             }}
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue
                 placeholder={soundPending ? "Loading sounds…" : "No sound"}
               />
@@ -1038,7 +1030,7 @@ function HoverFields({ document, onDispatch }: EditorFieldsProps) {
             })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger size="sm" className="w-full text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1061,7 +1053,7 @@ function HoverFields({ document, onDispatch }: EditorFieldsProps) {
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1130,7 +1122,7 @@ function FaceFields({ document, onDispatch }: EditorFieldsProps) {
             })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger size="sm" className="w-full text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1152,7 +1144,7 @@ function FaceFields({ document, onDispatch }: EditorFieldsProps) {
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger size="sm" className="w-full text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1185,7 +1177,7 @@ function FaceFields({ document, onDispatch }: EditorFieldsProps) {
             })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger size="sm" className="w-full text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1235,7 +1227,7 @@ function TextureFields({ document, onDispatch }: EditorFieldsProps) {
             })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger size="sm" className="w-full text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1265,7 +1257,7 @@ function TextureFields({ document, onDispatch }: EditorFieldsProps) {
             })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger size="sm" className="w-full text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1285,7 +1277,7 @@ function TextureFields({ document, onDispatch }: EditorFieldsProps) {
             })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger size="sm" className="w-full text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1342,21 +1334,27 @@ function InspectorPanel({
   ) => void;
 }) {
   return (
-    <FloatingPanel className="h-full overflow-y-auto">
-      <div className="mb-3">
-        <h2 className="font-semibold">Inspector</h2>
-        <p className="text-muted-foreground text-xs">
-          Live preview · {humanize(document.kind)}
-        </p>
-      </div>
+    <FloatingPanel
+      title="Inspector"
+      summary={humanize(document.kind)}
+      bodyClassName="overflow-y-auto"
+    >
       <Tabs defaultValue="placement">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="placement">Placement</TabsTrigger>
-          <TabsTrigger value="transform">Transform</TabsTrigger>
-          <TabsTrigger value="animation">Animation</TabsTrigger>
-          <TabsTrigger value="diagnostics">Checks</TabsTrigger>
+        <TabsList className="grid h-9 w-full grid-cols-4">
+          <TabsTrigger value="placement" className="min-w-0 px-1 text-xs">
+            Placement
+          </TabsTrigger>
+          <TabsTrigger value="transform" className="min-w-0 px-1 text-xs">
+            Transform
+          </TabsTrigger>
+          <TabsTrigger value="animation" className="min-w-0 px-1 text-xs">
+            Animation
+          </TabsTrigger>
+          <TabsTrigger value="diagnostics" className="min-w-0 px-1 text-xs">
+            Checks
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="placement" className="mt-4 space-y-4">
+        <TabsContent value="placement" className="mt-3 space-y-3">
           <Field label="Preview Avatar">
             <Select
               value={selectedModel?.key ?? ""}
@@ -1367,7 +1365,7 @@ function InspectorPanel({
                 if (source) modelPreview.selectModel(source);
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger size="sm" className="w-full text-xs">
                 <SelectValue placeholder="Select Avatar" />
               </SelectTrigger>
               <SelectContent>
@@ -1403,13 +1401,15 @@ function InspectorPanel({
               onPatchTransform("scale", axis, value)
             }
           />
-          <CompatibilityCard
-            avatarStatus={avatarStatus}
-            modelCompatible={modelCompatible}
-            warnings={vfxSnapshot?.warnings ?? []}
-          />
+          {modelCompatible === false || avatarStatus.state === "error" ? (
+            <CompatibilityCard
+              avatarStatus={avatarStatus}
+              modelCompatible={modelCompatible}
+              warnings={vfxSnapshot?.warnings ?? []}
+            />
+          ) : null}
         </TabsContent>
-        <TabsContent value="transform" className="mt-4 space-y-4">
+        <TabsContent value="transform" className="mt-3 space-y-3">
           {(["offset", "scale", "rotation"] as const).map((group) => (
             <div key={group}>
               <Label className="mb-2 block capitalize">{group}</Label>
@@ -1423,7 +1423,7 @@ function InspectorPanel({
             </div>
           ))}
         </TabsContent>
-        <TabsContent value="animation" className="mt-4 space-y-4">
+        <TabsContent value="animation" className="mt-3 space-y-3">
           <Field label="Animation preset">
             <Select
               value={animationPreset(document)}
@@ -1438,7 +1438,7 @@ function InspectorPanel({
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger size="sm" className="w-full text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1465,7 +1465,7 @@ function InspectorPanel({
                 })
               }
             >
-              <SelectTrigger>
+              <SelectTrigger size="sm" className="w-full text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1489,12 +1489,17 @@ function InspectorPanel({
             />
           ) : null}
         </TabsContent>
-        <TabsContent value="diagnostics" className="mt-4 space-y-3">
+        <TabsContent value="diagnostics" className="mt-3 space-y-3">
+          <CompatibilityCard
+            avatarStatus={avatarStatus}
+            modelCompatible={modelCompatible}
+            warnings={vfxSnapshot?.warnings ?? []}
+          />
           {validation.length === 0 ? (
             <StatusRow
               good
               label="Ready to save"
-              detail="Definition, exact bytes, and selected Avatar are ready."
+              detail="Effect image and settings are ready."
             />
           ) : (
             validation.map((issue, index) => (
@@ -1644,7 +1649,7 @@ function SideField({
           onValue(side === "both" ? null : (side as "left" | "right"))
         }
       >
-        <SelectTrigger>
+        <SelectTrigger size="sm" className="w-full text-xs">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -1801,7 +1806,7 @@ function CreatorLoading({ message }: { message: string }) {
 
 function InlineError({ message }: { message: string }) {
   return (
-    <div className="bg-destructive/10 text-destructive border-destructive/30 absolute top-20 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+    <div className="bg-destructive/10 text-destructive border-destructive/30 absolute top-[calc(var(--creator-header-height)+0.5rem)] left-1/2 z-[60] flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-lg border px-3 py-2 text-sm">
       <AlertTriangleIcon className="size-4" />
       {message}
     </div>

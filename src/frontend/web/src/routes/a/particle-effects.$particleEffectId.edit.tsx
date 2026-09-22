@@ -19,7 +19,10 @@ function EditParticleEffectRoute() {
       <ContentPreviewExclusiveCanvasGate
         ownerId={`particle-effect-creator:${particleEffectId}`}
       >
-        <ParticleVFXCreatorPage itemId={particleEffectId} />
+        <ParticleVFXCreatorPage
+          key={particleEffectId}
+          itemId={particleEffectId}
+        />
       </ContentPreviewExclusiveCanvasGate>
     </AppShellPage>
   );

@@ -8,6 +8,7 @@ export type CreatorHistoryController<T> = {
   present: T;
   commit: (value: T) => void;
   reset: (value: T) => void;
+  replacePresent: (value: T) => void;
   beginGroup: () => void;
   endGroup: () => void;
   undo: () => void;
@@ -178,6 +179,15 @@ export function useCreatorHistory<T>({
     [applyState, equals, limit],
   );
 
+  // Save normalization updates the current snapshot without creating an edit or
+  // discarding the session's undo/redo steps.
+  const replacePresent = useCallback(
+    (value: T) => {
+      applyState({ ...stateRef.current, present: value });
+    },
+    [applyState],
+  );
+
   const reset = useCallback(
     (value: T) => {
       applyState(
@@ -221,12 +231,13 @@ export function useCreatorHistory<T>({
       present: state.present,
       commit,
       reset,
+      replacePresent,
       beginGroup,
       endGroup,
       undo,
       redo,
     }),
-    [beginGroup, commit, endGroup, redo, reset, state, undo],
+    [beginGroup, commit, endGroup, redo, reset, replacePresent, state, undo],
   );
 }
 

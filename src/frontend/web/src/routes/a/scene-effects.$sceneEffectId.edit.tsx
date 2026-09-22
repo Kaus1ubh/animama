@@ -19,7 +19,7 @@ function EditSceneEffectRoute() {
       <ContentPreviewExclusiveCanvasGate
         ownerId={`scene-effect-creator:${sceneEffectId}`}
       >
-        <SceneEffectCreatorPage itemId={sceneEffectId} />
+        <SceneEffectCreatorPage key={sceneEffectId} itemId={sceneEffectId} />
       </ContentPreviewExclusiveCanvasGate>
     </AppShellPage>
   );

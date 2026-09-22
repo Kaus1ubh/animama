@@ -19,7 +19,7 @@ function EditAvatarEffectRoute() {
       <ContentPreviewExclusiveCanvasGate
         ownerId={`avatar-effect-creator:${avatarEffectId}`}
       >
-        <AvatarEffectCreatorPage itemId={avatarEffectId} />
+        <AvatarEffectCreatorPage key={avatarEffectId} itemId={avatarEffectId} />
       </ContentPreviewExclusiveCanvasGate>
     </AppShellPage>
   );
