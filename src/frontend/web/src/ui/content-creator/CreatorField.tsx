@@ -24,6 +24,7 @@ export function CreatorField({
     <Field
       data-invalid={invalid || undefined}
       className={cn(
+        "gap-1.5",
         invalid && "bg-destructive/5 ring-destructive/40 rounded-lg p-2 ring-1",
         className,
       )}

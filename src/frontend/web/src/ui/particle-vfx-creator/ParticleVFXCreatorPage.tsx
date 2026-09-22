@@ -644,33 +644,25 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   return (
     <CreatorWorkspaceShell
       busy={contentSave.isBusy}
+      leftPanelLabel="Emitters"
+      rightPanelLabel="Inspector"
       leftPanelWidth={340}
       rightPanelWidth={392}
       bottomChromeHeight={152}
       toolbar={
         <CreatorToolbar
           contentHealth={<ContentHealth compact />}
-          typeLabel="Effect"
+          typeLabel="Particle FX"
+          contentType="particle_effect"
           typeIcon={<SparklesIcon />}
           documentName={draft?.catalog.label ?? "New Particle Effect"}
-          documentControl={
-            <Input
-              ref={documentNameInputRef}
-              aria-label="Particle Effect name"
-              aria-invalid={contentSave.errorField === "name"}
-              value={draft?.catalog.label ?? ""}
-              onChange={(event) => {
-                contentSave.clearSaveErrorField("name");
-                patchCatalog({ label: event.target.value });
-              }}
-              disabled={!draft || contentSave.isBusy}
-              className={cn(
-                "h-6 min-w-0 border-0 bg-transparent px-1 text-center text-sm font-semibold shadow-none focus-visible:ring-0 dark:bg-transparent",
-                contentSave.errorField === "name" &&
-                  "bg-destructive/5 text-destructive ring-destructive/40 ring-1",
-              )}
-            />
-          }
+          documentNameInputRef={documentNameInputRef}
+          documentNameInvalid={contentSave.errorField === "name"}
+          documentNameDisabled={!draft || contentSave.isBusy}
+          onDocumentNameChange={(label) => {
+            contentSave.clearSaveErrorField("name");
+            patchCatalog({ label });
+          }}
           status={
             contentSave.error
               ? {
@@ -686,11 +678,6 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           onNew={() => void handleNewDocument()}
           onImport={() => setImportDialogOpen(true)}
           onJson={() => setJsonViewerOpen(true)}
-          onLibrary={() =>
-            void navigate({
-              to: "/a/create",
-            })
-          }
           onSave={() => void contentSave.save()}
           newDisabled={contentSave.isBusy}
           importDisabled={contentSave.isBusy}
@@ -705,166 +692,25 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 : "Save"
           }
           domainActions={
-            <>
-              <CreatorEffectHandoffActions
-                itemId={
-                  existing?.origin === "owned" && existing.source
-                    ? existing.item_id
-                    : null
-                }
-                componentType="particle_effect"
-              />
-              {showAvatar ? (
-                <div className="flex items-center gap-1 lg:hidden">
-                  <Label
-                    htmlFor="particle-vfx-creator-preview-model"
-                    className="sr-only"
-                  >
-                    Preview Avatar Model
-                  </Label>
-                  <Select
-                    value={selectedModel?.key ?? ""}
-                    onValueChange={(key) => {
-                      const source = modelPreview.modelOptions.find(
-                        (option) => option.key === key,
-                      );
-                      if (source) modelPreview.selectModel(source);
-                    }}
-                    disabled={
-                      modelPreview.isModelCatalogPending &&
-                      modelPreview.modelOptions.length === 0
-                    }
-                  >
-                    <SelectTrigger
-                      id="particle-vfx-creator-preview-model"
-                      className="h-8 w-[180px]"
-                      aria-label="Preview Avatar"
-                    >
-                      <SelectValue
-                        placeholder={
-                          modelPreview.isModelCatalogPending
-                            ? "Loading models…"
-                            : "Select preview model"
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {selectedModel &&
-                      !modelPreview.modelOptions.some(
-                        (option) => option.key === selectedModel.key,
-                      ) ? (
-                        <SelectItem value={selectedModel.key}>
-                          {selectedModel.displayName} · Preview Anima
-                        </SelectItem>
-                      ) : null}
-                      {modelPreview.modelOptions.map((source) => (
-                        <SelectItem key={source.key} value={source.key}>
-                          {source.displayName} · {source.sourceLabel}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {modelPreview.hasMoreModels ? (
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      disabled={modelPreview.isLoadingMoreModels}
-                      onClick={() => void modelPreview.loadMoreModels()}
-                      aria-label="Load more Avatars"
-                    >
-                      <PlusIcon />
-                    </Button>
-                  ) : null}
-                  {modelPreview.modelError ||
-                  modelPreview.runtimeError ||
-                  modelPreview.animaError ||
-                  modelPreview.modelCatalogError ? (
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      onClick={() =>
-                        void Promise.all([
-                          modelPreview.retryAnima(),
-                          modelPreview.retryRuntime(),
-                          modelPreview.retryModels(),
-                          modelPreview.retrySelectedModel(),
-                        ])
-                      }
-                      aria-label="Retry preview Avatar Model"
-                    >
-                      <RefreshCwIcon />
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
-              <div className="border-border bg-background/80 flex h-10 items-center gap-2 rounded-xl border px-2 lg:hidden">
-                <Switch
-                  id="particle-vfx-creator-show-avatar"
-                  checked={showAvatar}
-                  onCheckedChange={setShowAvatar}
-                  disabled={!draft}
-                />
-                <Label
-                  htmlFor="particle-vfx-creator-show-avatar"
-                  className="cursor-pointer text-xs font-medium"
-                >
-                  Show Avatar
-                </Label>
-              </div>
-              <div className="border-border bg-background/80 flex h-10 items-center gap-2 rounded-xl border px-2 lg:hidden">
-                <Switch
-                  id="particle-vfx-creator-show-emitter-outline"
-                  checked={showEmitterOutline}
-                  onCheckedChange={setShowEmitterOutline}
-                  disabled={!activeEmitter}
-                />
-                <Label
-                  htmlFor="particle-vfx-creator-show-emitter-outline"
-                  className="cursor-pointer text-xs font-medium"
-                >
-                  Shape Outline
-                </Label>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="lg:hidden"
-                onClick={restartPreview}
-                disabled={!draft}
-              >
-                <RefreshCwIcon />
-                Restart
-              </Button>
-            </>
+            <CreatorEffectHandoffActions
+              itemId={
+                existing?.origin === "owned" && existing.source
+                  ? existing.item_id
+                  : null
+              }
+              componentType="particle_effect"
+            />
           }
         />
       }
       leftPanel={
-        <CreatorFloatingPanel className="h-full overflow-y-auto p-0">
-          <section className="border-border border-b p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-sm font-semibold">Emitters</h2>
-                <p className="text-muted-foreground text-xs">
-                  {draft?.emitters.length ?? 0} emitter
-                  {(draft?.emitters.length ?? 0) === 1 ? "" : "s"}
-                </p>
-              </div>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                onClick={addEmitter}
-                disabled={!draft}
-                aria-label="Add emitter"
-              >
-                <PlusIcon />
-              </Button>
-            </div>
-            <div className="relative mt-3">
+        <CreatorFloatingPanel
+          title="Emitters"
+          summary={`${draft?.emitters.length ?? 0} emitter${(draft?.emitters.length ?? 0) === 1 ? "" : "s"}`}
+          bodyClassName="p-0"
+        >
+          <section className="border-border border-b p-3">
+            <div className="relative">
               <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
               <Input
                 value={emitterQuery}
@@ -907,7 +753,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 </p>
               ) : null}
             </div>
-            <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Button
                 type="button"
                 size="sm"
@@ -925,22 +771,23 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 disabled={!activeEmitter}
                 aria-label="Duplicate selected emitter"
               >
-                <CopyIcon />
+                <CopyIcon /> Duplicate
               </Button>
               <Button
                 type="button"
-                size="sm"
+                size="icon-sm"
                 variant="outline"
                 onClick={removeEmitter}
                 disabled={!activeEmitter || (draft?.emitters.length ?? 0) <= 1}
                 aria-label="Remove selected emitter"
+                title="Remove selected emitter"
               >
                 <Trash2Icon />
               </Button>
             </div>
           </section>
 
-          <section className="border-border border-b p-4">
+          <section className="border-border border-b p-3">
             <h2 className="text-sm font-semibold">Effect setup</h2>
             <div className="mt-3 space-y-3">
               <SelectField
@@ -973,7 +820,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             </div>
           </section>
 
-          <section className="border-border border-b p-4">
+          <section className="border-border border-b p-3">
             <h2 className="text-xs font-semibold tracking-wide uppercase">
               Document
             </h2>
@@ -1025,7 +872,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             </div>
           </section>
 
-          <section className="border-border border-b p-4">
+          <section className="border-border border-b p-3">
             <h2 className="text-xs font-semibold tracking-wide uppercase">
               Transform
             </h2>
@@ -1041,7 +888,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             />
           </section>
 
-          <section className="border-border border-b p-4">
+          <section className="border-border border-b p-3">
             <h2 className="text-xs font-semibold tracking-wide uppercase">
               Budget
             </h2>
@@ -1111,14 +958,14 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             </div>
           </section>
 
-          <section className="border-border border-b p-4">
+          <section className="border-border border-b p-3">
             <h2 className="text-xs font-semibold tracking-wide uppercase">
               Validation
             </h2>
             <IssueList issues={issues} loadState={loadState} />
           </section>
 
-          <section className="space-y-4 p-4">
+          <section className="space-y-3 p-3">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-xs font-semibold tracking-wide uppercase">
                 Export
@@ -1159,7 +1006,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       }
       canvas={
         <div
-          className="bg-background relative h-full min-h-[430px]"
+          className="bg-background relative h-full min-h-0"
           data-playback-surface="creator-stage"
         >
           <ParticleVFXCreatorPreview
@@ -1203,68 +1050,62 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
               runtimeId: draft?.catalog.id ?? "new-particle-vfx",
             }}
           />
-          <div
-            className={cn(
-              "bg-background/90 pointer-events-none absolute top-3 left-3 rounded-xl border px-3 py-2 text-xs shadow-sm backdrop-blur",
-              previewStatus.state === "error" || previewResolution.error
-                ? "lg:top-[84px] lg:left-1/2 lg:-translate-x-1/2"
-                : "lg:hidden",
-            )}
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            <div className="font-medium">
-              {previewStatus.state === "ready"
-                ? "Preview ready"
-                : previewStatus.state === "loading"
-                  ? "Loading preview"
-                  : previewStatus.state === "error"
-                    ? "Preview error"
-                    : "Preview idle"}
+          {previewStatus.state === "error" ||
+          previewResolution.error ||
+          avatarPreviewStatus.state === "error" ? (
+            <div
+              className="bg-background/90 pointer-events-none absolute top-3 left-1/2 z-30 w-[min(340px,calc(100%-1.5rem))] -translate-x-1/2 rounded-xl border px-3 py-2 text-xs shadow-sm backdrop-blur lg:top-[84px]"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+            >
+              <div className="font-medium">
+                {previewStatus.state === "ready"
+                  ? "Preview ready"
+                  : previewStatus.state === "loading"
+                    ? "Loading preview"
+                    : previewStatus.state === "error"
+                      ? "Preview error"
+                      : "Preview idle"}
+              </div>
+              {previewStatus.message ? (
+                <div className="text-muted-foreground mt-1 max-w-[340px]">
+                  {previewStatus.message}
+                </div>
+              ) : null}
+              {previewResolution.error ? (
+                <div className="text-destructive mt-1 max-w-[340px]">
+                  {previewResolution.error}
+                </div>
+              ) : null}
+              {showAvatar ? (
+                <div className="border-border text-muted-foreground mt-2 border-t pt-2">
+                  <span className="text-foreground font-medium">
+                    {avatarPreviewStatus.state === "ready"
+                      ? "Avatar ready"
+                      : avatarPreviewStatus.state === "loading"
+                        ? "Avatar loading"
+                        : avatarPreviewStatus.state === "error"
+                          ? "Avatar error"
+                          : "Avatar idle"}
+                  </span>
+                  {avatarPreviewStatus.message ? (
+                    <span className="ml-1">{avatarPreviewStatus.message}</span>
+                  ) : null}
+                  {selectedModel ? (
+                    <div className="mt-1">
+                      {selectedModel.sourceLabel}: {selectedModel.displayName}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+              {!showAvatar && draft?.catalog.shapeAutoFit ? (
+                <div className="border-border text-muted-foreground mt-2 border-t pt-2">
+                  Auto-fit resolves when an avatar is available.
+                </div>
+              ) : null}
             </div>
-            {previewStatus.message ? (
-              <div className="text-muted-foreground mt-1 max-w-[340px]">
-                {previewStatus.message}
-              </div>
-            ) : null}
-            {previewResolution.error ? (
-              <div className="text-destructive mt-1 max-w-[340px]">
-                {previewResolution.error}
-              </div>
-            ) : null}
-            {showAvatar ? (
-              <div className="border-border text-muted-foreground mt-2 border-t pt-2">
-                <span className="text-foreground font-medium">
-                  {avatarPreviewStatus.state === "ready"
-                    ? "Avatar ready"
-                    : avatarPreviewStatus.state === "loading"
-                      ? "Avatar loading"
-                      : avatarPreviewStatus.state === "error"
-                        ? "Avatar error"
-                        : "Avatar idle"}
-                </span>
-                {avatarPreviewStatus.message ? (
-                  <span className="ml-1">{avatarPreviewStatus.message}</span>
-                ) : null}
-                {selectedModel ? (
-                  <div className="mt-1">
-                    {selectedModel.sourceLabel}: {selectedModel.displayName}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            {!showAvatar && draft?.catalog.shapeAutoFit ? (
-              <div className="border-border text-muted-foreground mt-2 border-t pt-2">
-                Auto-fit resolves when an avatar is available.
-              </div>
-            ) : null}
-          </div>
-          <div className="bg-background/90 pointer-events-none absolute right-3 bottom-3 rounded-xl border px-3 py-2 text-xs shadow-sm backdrop-blur lg:hidden">
-            <span className="text-muted-foreground">Estimated </span>
-            <span className="font-medium">{estimatedParticles}</span>
-            <span className="text-muted-foreground"> particles</span>
-          </div>
+          ) : null}
         </div>
       }
       rightPanel={
@@ -1276,9 +1117,6 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           onPatch={(patch) =>
             activeEmitter && patchEmitter(activeEmitter.path, patch)
           }
-          onAddEmitter={addEmitter}
-          onDuplicateEmitter={duplicateEmitter}
-          onRemoveEmitter={removeEmitter}
         />
       }
       canvasControls={
@@ -1292,17 +1130,30 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                   placeholder: modelPreview.isModelCatalogPending
                     ? "Loading models…"
                     : "Select preview model",
-                  options: modelPreview.modelOptions.map((source) => ({
-                    value: source.key,
-                    label: source.displayName,
-                  })),
+                  options: [
+                    ...(selectedModel &&
+                    !modelPreview.modelOptions.some(
+                      (option) => option.key === selectedModel.key,
+                    )
+                      ? [
+                          {
+                            value: selectedModel.key,
+                            label: selectedModel.displayName,
+                          },
+                        ]
+                      : []),
+                    ...modelPreview.modelOptions.map((source) => ({
+                      value: source.key,
+                      label: source.displayName,
+                    })),
+                  ],
                   onValueChange: (key) => {
                     const source = modelPreview.modelOptions.find(
                       (option) => option.key === key,
                     );
                     if (source) modelPreview.selectModel(source);
                   },
-                  triggerClassName: "w-[min(220px,28vw)]",
+                  triggerClassName: "w-[min(220px,50vw)]",
                   disabled:
                     modelPreview.isModelCatalogPending &&
                     modelPreview.modelOptions.length === 0,
@@ -1316,6 +1167,40 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           onGuidesChange={setShowAvatar}
           domainControl={
             <>
+              {showAvatar && modelPreview.hasMoreModels ? (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  disabled={modelPreview.isLoadingMoreModels}
+                  onClick={() => void modelPreview.loadMoreModels()}
+                  aria-label="Load more Avatars"
+                >
+                  <PlusIcon />
+                </Button>
+              ) : null}
+              {showAvatar &&
+              (modelPreview.modelError ||
+                modelPreview.runtimeError ||
+                modelPreview.animaError ||
+                modelPreview.modelCatalogError) ? (
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={() =>
+                    void Promise.all([
+                      modelPreview.retryAnima(),
+                      modelPreview.retryRuntime(),
+                      modelPreview.retryModels(),
+                      modelPreview.retrySelectedModel(),
+                    ])
+                  }
+                  aria-label="Retry preview Avatar Model"
+                >
+                  <RefreshCwIcon />
+                </Button>
+              ) : null}
               <span className="text-muted-foreground ml-1 shrink-0 text-xs font-medium">
                 Outline
               </span>
@@ -1358,7 +1243,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           contentSave.isBusy ? (
             <CreatorSaveNotice
               noticeRef={saveStatusRef}
-              className="absolute top-[76px] right-4 left-[calc(var(--app-shell-sidebar-inset)+1rem)] z-50 transition-[left] duration-150 xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)]"
+              className="absolute top-[calc(var(--creator-header-height)+0.5rem)] right-4 left-4 z-50 transition-[left] duration-150 sm:left-16 lg:left-[calc(var(--app-shell-sidebar-inset)+1rem)] xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)]"
               tone={contentSave.error ? "error" : "warning"}
               busy={contentSave.isBusy}
               focusOnError
@@ -2259,101 +2144,57 @@ function EmitterAuthoringTabs({
   activeEmitterPath,
   onSelectEmitter,
   onPatch,
-  onAddEmitter,
-  onDuplicateEmitter,
-  onRemoveEmitter,
 }: {
   draft: ParticleVFXEditorDraft | null;
   activeEmitter: ParticleVFXEmitterDraft | null;
   activeEmitterPath: string | null;
   onSelectEmitter: (path: string) => void;
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
-  onAddEmitter: () => void;
-  onDuplicateEmitter: () => void;
-  onRemoveEmitter: () => void;
 }) {
   return (
-    <CreatorFloatingPanel className="flex h-full min-h-[560px] flex-col overflow-hidden p-0">
-      <div className="border-border flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <SparklesIcon className="text-primary size-4 shrink-0" />
-          <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold">Inspector</h2>
-            <p className="text-muted-foreground truncate text-xs">
-              {activeEmitter?.name ?? "Select an emitter"}
-            </p>
-          </div>
-        </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <Select
-            onValueChange={(value) =>
-              onPatch({
-                emitterTemplateId: value as ParticleVFXEditorEmitterTemplateId,
-              })
-            }
-            disabled={!activeEmitter}
-          >
-            <SelectTrigger className="w-[140px]" size="sm">
-              <SelectValue placeholder="Template" />
-            </SelectTrigger>
-            <SelectContent>
-              {PARTICLE_VFX_EDITOR_EMITTER_TEMPLATES.map((template) => (
-                <SelectItem key={template.id} value={template.id}>
-                  {template.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={activeEmitterPath ?? undefined}
-            onValueChange={onSelectEmitter}
-            disabled={!draft || draft.emitters.length === 0}
-          >
-            <SelectTrigger className="w-[220px] lg:hidden" size="sm">
-              <SelectValue placeholder="Select emitter" />
-            </SelectTrigger>
-            <SelectContent>
-              {draft?.emitters.map((emitter) => (
-                <SelectItem key={emitter.path} value={emitter.path}>
-                  {emitter.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="lg:hidden"
-            onClick={onAddEmitter}
-            disabled={!draft}
-          >
-            <PlusIcon />
-            Add
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="lg:hidden"
-            onClick={onDuplicateEmitter}
-            disabled={!activeEmitter}
-          >
-            <CopyIcon />
-            Duplicate
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="lg:hidden"
-            onClick={onRemoveEmitter}
-            disabled={!activeEmitter || (draft?.emitters.length ?? 0) <= 1}
-          >
-            <Trash2Icon />
-            Remove
-          </Button>
-        </div>
+    <CreatorFloatingPanel
+      title="Inspector"
+      summary={activeEmitter?.name ?? "Select an emitter"}
+      bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden p-0"
+      headerActions={
+        <Select
+          onValueChange={(value) =>
+            onPatch({
+              emitterTemplateId: value as ParticleVFXEditorEmitterTemplateId,
+            })
+          }
+          disabled={!activeEmitter}
+        >
+          <SelectTrigger className="w-[140px]" size="sm">
+            <SelectValue placeholder="Template" />
+          </SelectTrigger>
+          <SelectContent>
+            {PARTICLE_VFX_EDITOR_EMITTER_TEMPLATES.map((template) => (
+              <SelectItem key={template.id} value={template.id}>
+                {template.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      }
+    >
+      <div className="border-border border-b p-3 lg:hidden">
+        <Select
+          value={activeEmitterPath ?? undefined}
+          onValueChange={onSelectEmitter}
+          disabled={!draft || draft.emitters.length === 0}
+        >
+          <SelectTrigger className="w-[220px] lg:hidden" size="sm">
+            <SelectValue placeholder="Select emitter" />
+          </SelectTrigger>
+          <SelectContent>
+            {draft?.emitters.map((emitter) => (
+              <SelectItem key={emitter.path} value={emitter.path}>
+                {emitter.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {!activeEmitter ? (
@@ -2362,7 +2203,7 @@ function EmitterAuthoringTabs({
         </div>
       ) : (
         <Tabs defaultValue="system" className="flex min-h-0 flex-1 flex-col">
-          <div className="border-border overflow-x-auto border-b px-4 py-2">
+          <div className="border-border overflow-x-auto border-b px-3 py-2">
             <TabsList className="grid h-8 w-full grid-cols-5 p-0.5">
               <TabsTrigger className="h-7 px-1 text-[10px]" value="system">
                 System
@@ -2382,7 +2223,7 @@ function EmitterAuthoringTabs({
             </TabsList>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
             <TabsContent value="system" className="mt-0">
               <EmitterSystemPanel emitter={activeEmitter} onPatch={onPatch} />
             </TabsContent>

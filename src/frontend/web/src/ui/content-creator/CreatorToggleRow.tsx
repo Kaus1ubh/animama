@@ -16,9 +16,9 @@ export function CreatorToggleRow({
   onChecked: (checked: boolean) => void;
 }) {
   return (
-    <Field orientation="horizontal" className="items-start">
+    <Field orientation="horizontal" className="items-center gap-3">
       <div>
-        <FieldLabel>{label}</FieldLabel>
+        <FieldLabel className="text-xs">{label}</FieldLabel>
         {description ? (
           <p className="text-muted-foreground text-xs">{description}</p>
         ) : null}

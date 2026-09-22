@@ -632,9 +632,16 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       toolbar={
         <CreatorToolbar
           contentHealth={<ContentHealth compact />}
-          typeLabel="Scene Effect"
+          typeLabel="Scene FX"
+          contentType="scene_effect"
           typeIcon={<SparklesIcon />}
           documentName={document.name}
+          documentNameInvalid={contentSave.errorField === "name"}
+          documentNameDisabled={contentSave.isBusy}
+          onDocumentNameChange={(name) => {
+            contentSave.clearSaveErrorField("name");
+            dispatch({ type: "patch", patch: { name } });
+          }}
           status={
             contentSave.error
               ? {
@@ -653,12 +660,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             setImportOpen(true);
           }}
           onJson={() => setJsonOpen(true)}
-          onLibrary={() =>
-            navigate({
-              to: "/a/library",
-              search: { section: "fx", fx: "scene" },
-            })
-          }
           onSave={() => void contentSave.save()}
           saveDisabled={!contentSave.canSave}
           saveBusy={contentSave.isBusy}
@@ -682,15 +683,15 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           }
         />
       }
+      leftPanelLabel="Setup"
+      rightPanelLabel="Inspector"
       leftPanel={
         <SceneSetupPanel
           document={document}
           selectedLayer={selectedLayer}
-          saveErrorField={contentSave.errorField}
           soundOptions={soundOptions}
           soundPending={soundQuery.isPending}
           onSelectedLayer={setSelectedLayer}
-          onClearSaveErrorField={contentSave.clearSaveErrorField}
           onDispatch={(action) => {
             dispatch(action);
             restartPreview();
@@ -781,7 +782,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           ) : null}
           {contentSave.error || contentSave.recoveryWarning ? (
             <CreatorSaveNotice
-              className="absolute right-5 bottom-28 z-[60] max-w-md"
+              className="absolute top-[calc(var(--creator-header-height)+0.5rem)] right-4 left-4 z-[60] sm:left-auto sm:max-w-md lg:top-auto lg:bottom-28"
               message={contentSave.error ?? contentSave.recoveryWarning}
               tone={contentSave.error ? "error" : "warning"}
               actions={
@@ -858,16 +859,13 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
 function SceneSetupPanel({
   document,
   selectedLayer,
-  saveErrorField,
   soundOptions,
   soundPending,
   onSelectedLayer,
-  onClearSaveErrorField,
   onDispatch,
 }: {
   document: SceneEffectEditorDocument;
   selectedLayer: BackgroundLayer;
-  saveErrorField: string | null;
   soundOptions: Array<{
     item_id: string;
     name: string;
@@ -875,21 +873,10 @@ function SceneSetupPanel({
   }>;
   soundPending: boolean;
   onSelectedLayer: (layer: BackgroundLayer) => void;
-  onClearSaveErrorField: (field: string) => void;
   onDispatch: React.Dispatch<Parameters<typeof sceneEffectEditorReducer>[1]>;
 }) {
-  const nameInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (saveErrorField === "name") nameInputRef.current?.focus();
-  }, [saveErrorField]);
   return (
-    <FloatingPanel className="h-full overflow-y-auto">
-      <div className="mb-3">
-        <h2 className="font-semibold">Scene Setup</h2>
-        <p className="text-muted-foreground text-xs">
-          Viewport-owned portable VFX
-        </p>
-      </div>
+    <FloatingPanel title="Scene Setup" bodyClassName="overflow-y-auto">
       <Tabs
         value={document.kind}
         onValueChange={(kind) =>
@@ -899,27 +886,19 @@ function SceneSetupPanel({
           })
         }
       >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="background_layers">Background Layers</TabsTrigger>
-          <TabsTrigger value="focus_lines">Focus Lines</TabsTrigger>
+        <TabsList className="grid h-9 w-full grid-cols-2">
+          <TabsTrigger
+            value="background_layers"
+            className="min-w-0 px-1 text-xs"
+          >
+            Background
+          </TabsTrigger>
+          <TabsTrigger value="focus_lines" className="min-w-0 px-1 text-xs">
+            Focus Lines
+          </TabsTrigger>
         </TabsList>
       </Tabs>
-      <div className="mt-4 space-y-4">
-        <Field label="Name" invalid={saveErrorField === "name"}>
-          <Input
-            ref={nameInputRef}
-            value={document.name}
-            maxLength={120}
-            aria-invalid={saveErrorField === "name"}
-            onChange={(event) => {
-              onClearSaveErrorField("name");
-              onDispatch({
-                type: "patch",
-                patch: { name: event.target.value },
-              });
-            }}
-          />
-        </Field>
+      <div className="mt-3 space-y-3">
         <Field label="Starting template">
           <Select
             value=""
@@ -933,7 +912,7 @@ function SceneSetupPanel({
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue placeholder="Custom" />
             </SelectTrigger>
             <SelectContent>
@@ -949,14 +928,7 @@ function SceneSetupPanel({
         </Field>
         {document.kind === "background_layers" ? (
           <div className="space-y-2">
-            <div className="flex items-end justify-between">
-              <div>
-                <Label>Layers</Label>
-                <p className="text-muted-foreground text-xs">
-                  3 fixed render layers
-                </p>
-              </div>
-            </div>
+            <Label className="text-xs">Layers</Label>
             <LayerCard
               selected={selectedLayer === "marquee"}
               title="Marquee"
@@ -989,16 +961,15 @@ function SceneSetupPanel({
             />
           </div>
         ) : (
-          <div className="border-border/70 bg-background/55 rounded-xl border p-3">
-            <div className="font-medium">Focus Lines</div>
+          <div className="border-border/70 bg-background/55 rounded-lg border p-3">
+            <div className="text-xs font-medium">Focus Lines</div>
             <p className="text-muted-foreground text-xs">
-              Screen-space emphasis around an Avatar face or manual viewport
-              box.
+              Emphasize the Avatar’s face or a selected area.
             </p>
           </div>
         )}
 
-        <div className="border-border/70 space-y-3 border-t pt-4">
+        <div className="border-border/70 space-y-3 border-t pt-3">
           <Label>Effect behavior</Label>
           <div className="grid grid-cols-2 gap-2">
             <NumberField
@@ -1067,7 +1038,7 @@ function SceneSetupPanel({
                 });
               }}
             >
-              <SelectTrigger>
+              <SelectTrigger size="sm" className="w-full text-xs">
                 <SelectValue
                   placeholder={soundPending ? "Loading sounds…" : "No sound"}
                 />
@@ -1101,6 +1072,7 @@ function SceneSetupPanel({
           </Field>
           <Field label="Description">
             <Textarea
+              className="min-h-16 text-xs"
               rows={2}
               value={document.description}
               maxLength={2000}
@@ -1136,14 +1108,15 @@ function LayerCard({
   return (
     <div
       className={cn(
-        "border-border/70 bg-background/55 flex items-center gap-2 rounded-xl border p-2",
+        "border-border/70 bg-background/55 flex items-center gap-2 rounded-lg border p-2",
         selected && "border-sky-300 bg-sky-50/75 dark:bg-sky-950/35",
       )}
     >
       <GripVerticalIcon className="text-muted-foreground size-4" />
       <button
         type="button"
-        className="min-w-0 flex-1 text-left"
+        className="focus-visible:ring-ring min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-2"
+        aria-pressed={selected}
         onClick={onSelect}
       >
         <div className="text-sm font-medium">{title}</div>
@@ -1186,15 +1159,15 @@ function SceneInspectorPanel({
   onClearSaveErrorField: (field: string) => void;
 }) {
   return (
-    <FloatingPanel className="h-full overflow-y-auto">
-      <div className="mb-3">
-        <h2 className="font-semibold">Inspector</h2>
-        <p className="text-muted-foreground text-xs">
-          {document.kind === "background_layers"
-            ? `${humanize(selectedLayer)} layer`
-            : "Focus Lines"}
-        </p>
-      </div>
+    <FloatingPanel
+      title="Inspector"
+      summary={
+        document.kind === "background_layers"
+          ? `${humanize(selectedLayer)} layer`
+          : "Focus Lines"
+      }
+      bodyClassName="overflow-y-auto"
+    >
       {document.kind === "background_layers" ? (
         selectedLayer === "marquee" ? (
           <MarqueeInspector
@@ -1216,26 +1189,37 @@ function SceneInspectorPanel({
       ) : (
         <FocusInspector document={document} onDispatch={onDispatch} />
       )}
-      <div className="border-border/70 mt-4 space-y-2 border-t pt-4">
-        <StatusRow
-          good={validation.every((issue) => issue.severity !== "error")}
-          label="Definition ready"
-          detail={
-            validation.find((issue) => issue.severity === "error")?.message ??
-            "Closed Scene definition is valid."
-          }
-        />
-        <StatusRow
-          good={avatarStatus.state === "ready"}
-          label="Preview Avatar"
-          detail={avatarStatus.message ?? humanize(avatarStatus.state)}
-        />
-        <StatusRow
-          good
-          label="Preview isolated"
-          detail="The live Anima Scene store is untouched."
-        />
-      </div>
+      <details
+        className="border-border/70 mt-3 border-t pt-3"
+        open={
+          validation.some((issue) => issue.severity === "error") || undefined
+        }
+      >
+        <summary className="cursor-pointer text-xs font-medium">Checks</summary>
+        <div className="mt-3 space-y-3">
+          {validation.length ? (
+            validation.map((issue, index) => (
+              <StatusRow
+                key={`${issue.field}:${index}`}
+                good={issue.severity !== "error"}
+                label={humanize(issue.field)}
+                detail={issue.message}
+              />
+            ))
+          ) : (
+            <StatusRow
+              good
+              label="Ready to save"
+              detail="Scene settings are ready."
+            />
+          )}
+          <StatusRow
+            good={avatarStatus.state === "ready"}
+            label="Preview Avatar"
+            detail={avatarStatus.message ?? humanize(avatarStatus.state)}
+          />
+        </div>
+      </details>
     </FloatingPanel>
   );
 }
@@ -1267,12 +1251,18 @@ function MarqueeInspector({
   );
   return (
     <Tabs defaultValue="content">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="content">Content</TabsTrigger>
-        <TabsTrigger value="motion">Motion</TabsTrigger>
-        <TabsTrigger value="appearance">Appearance</TabsTrigger>
+      <TabsList className="grid h-9 w-full grid-cols-3">
+        <TabsTrigger value="content" className="min-w-0 px-1 text-xs">
+          Content
+        </TabsTrigger>
+        <TabsTrigger value="motion" className="min-w-0 px-1 text-xs">
+          Motion
+        </TabsTrigger>
+        <TabsTrigger value="appearance" className="min-w-0 px-1 text-xs">
+          Appearance
+        </TabsTrigger>
       </TabsList>
-      <TabsContent value="content" className="mt-4 space-y-3">
+      <TabsContent value="content" className="mt-3 space-y-3">
         <Label>Items</Label>
         {marquee.items.length ? (
           <div className="space-y-2">
@@ -1305,7 +1295,7 @@ function MarqueeInspector({
         )}
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <Select value={emojiId} onValueChange={setEmojiId}>
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue placeholder="Choose emoji" />
             </SelectTrigger>
             <SelectContent>
@@ -1371,7 +1361,7 @@ function MarqueeInspector({
           <p className="text-destructive text-xs">{imageError}</p>
         ) : null}
       </TabsContent>
-      <TabsContent value="motion" className="mt-4 space-y-4">
+      <TabsContent value="motion" className="mt-3 space-y-3">
         <Field label="Direction">
           <Select
             value={marquee.direction}
@@ -1382,7 +1372,7 @@ function MarqueeInspector({
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1417,7 +1407,7 @@ function MarqueeInspector({
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1443,7 +1433,7 @@ function MarqueeInspector({
           }
         />
       </TabsContent>
-      <TabsContent value="appearance" className="mt-4 grid grid-cols-2 gap-3">
+      <TabsContent value="appearance" className="mt-3 grid grid-cols-2 gap-3">
         <NumberField
           label="Item size"
           value={marquee.itemSize}
@@ -1558,7 +1548,7 @@ function MarqueeItemRow({
 function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
   const pattern = document.background.pattern;
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <ToggleRow
         label="Pattern enabled"
         checked={pattern.enabled}
@@ -1576,7 +1566,7 @@ function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
             })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger size="sm" className="w-full text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1633,7 +1623,7 @@ function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
 
 function SolidInspector({ document, onDispatch }: InspectorFieldsProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <ToggleRow
         label="Solid enabled"
         checked={document.background.solid.enabled}
@@ -1656,13 +1646,21 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
   const focus = document.focus;
   return (
     <Tabs defaultValue="target">
-      <TabsList className="grid w-full grid-cols-4">
-        <TabsTrigger value="target">Target</TabsTrigger>
-        <TabsTrigger value="geometry">Lines</TabsTrigger>
-        <TabsTrigger value="animation">Motion</TabsTrigger>
-        <TabsTrigger value="appearance">Style</TabsTrigger>
+      <TabsList className="grid h-9 w-full grid-cols-4">
+        <TabsTrigger value="target" className="min-w-0 px-1 text-xs">
+          Target
+        </TabsTrigger>
+        <TabsTrigger value="geometry" className="min-w-0 px-1 text-xs">
+          Lines
+        </TabsTrigger>
+        <TabsTrigger value="animation" className="min-w-0 px-1 text-xs">
+          Motion
+        </TabsTrigger>
+        <TabsTrigger value="appearance" className="min-w-0 px-1 text-xs">
+          Style
+        </TabsTrigger>
       </TabsList>
-      <TabsContent value="target" className="mt-4 space-y-4">
+      <TabsContent value="target" className="mt-3 space-y-3">
         <Field label="Render placement">
           <Select
             value={focus.renderPlacement}
@@ -1676,7 +1674,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1701,7 +1699,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
               })
             }
           >
-            <SelectTrigger>
+            <SelectTrigger size="sm" className="w-full text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -1782,7 +1780,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           </div>
         )}
       </TabsContent>
-      <TabsContent value="geometry" className="mt-4 grid grid-cols-2 gap-3">
+      <TabsContent value="geometry" className="mt-3 grid grid-cols-2 gap-3">
         <NumberField
           label="Line count"
           value={focus.lineCount}
@@ -1844,7 +1842,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           }
         />
       </TabsContent>
-      <TabsContent value="animation" className="mt-4 grid grid-cols-2 gap-3">
+      <TabsContent value="animation" className="mt-3 grid grid-cols-2 gap-3">
         {(
           [
             "minVisibleMs",
@@ -1882,7 +1880,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           }
         />
       </TabsContent>
-      <TabsContent value="appearance" className="mt-4 space-y-4">
+      <TabsContent value="appearance" className="mt-3 space-y-3">
         <ColorField
           label="Line color"
           value={focus.color}
@@ -2067,7 +2065,7 @@ function CreatorLoading({ message }: { message: string }) {
 
 function InlineError({ message }: { message: string }) {
   return (
-    <div className="bg-destructive/10 text-destructive border-destructive/30 absolute top-20 left-1/2 z-[60] flex -translate-x-1/2 items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+    <div className="bg-destructive/10 text-destructive border-destructive/30 absolute top-[calc(var(--creator-header-height)+0.5rem)] left-1/2 z-[60] flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-lg border px-3 py-2 text-sm">
       <AlertTriangleIcon className="size-4" />
       {message}
     </div>

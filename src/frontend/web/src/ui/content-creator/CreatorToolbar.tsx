@@ -1,20 +1,31 @@
 import {
-  BookOpenIcon,
   Code2Icon,
-  ImagePlusIcon,
+  FilePlus2Icon,
+  FolderOpenIcon,
   LoaderCircleIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
   SaveIcon,
   UploadIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type Ref } from "react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/ui/components/dropdown-menu";
+import { Input } from "@/ui/components/input";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
+import { CreatorHeaderDocument } from "./CreatorHeaderDocument";
+import { CreatorLoadPicker, type CreatorEffectType } from "./CreatorLoadPicker";
 
 export type CreatorDocumentStatus = {
   label: string;
@@ -26,13 +37,18 @@ export type CreatorDocumentStatus = {
 type CreatorToolbarProps = {
   typeLabel: string;
   typeIcon: ReactNode;
+  contentType?: CreatorEffectType;
   documentName?: string;
+  onDocumentNameChange?: (name: string) => void;
+  documentNameInputRef?: Ref<HTMLInputElement>;
+  documentNameInvalid?: boolean;
+  documentNameDisabled?: boolean;
   documentControl?: ReactNode;
   status: CreatorDocumentStatus;
   onNew: () => void;
   onImport: () => void;
   onJson: () => void;
-  onLibrary: () => void;
+  onLibrary?: () => void;
   onSave: () => void;
   newDisabled?: boolean;
   importDisabled?: boolean;
@@ -47,11 +63,16 @@ type CreatorToolbarProps = {
   contentHealth?: ReactNode;
 };
 
-/** Common Effect-creator document actions and status presentation. */
+/** Action-sized FX document controls, with the name visible at every width. */
 export function CreatorToolbar({
   typeLabel,
   typeIcon,
+  contentType,
   documentName,
+  onDocumentNameChange,
+  documentNameInputRef,
+  documentNameInvalid,
+  documentNameDisabled,
   documentControl,
   status,
   onNew,
@@ -70,99 +91,197 @@ export function CreatorToolbar({
   domainActions,
   contentHealth,
 }: CreatorToolbarProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (documentNameInvalid) inputRef.current?.focus();
+  }, [documentNameInvalid]);
   return (
-    <header className="pointer-events-none absolute inset-x-0 top-0 z-50 flex flex-wrap items-start justify-between gap-3 p-3 md:pl-[calc(var(--app-shell-sidebar-inset)+2rem)] lg:flex-nowrap lg:p-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:transition-[padding-left] lg:duration-150 lg:ease-in-out">
-      <div className="pointer-events-auto flex flex-wrap gap-2 lg:shrink-0">
-        <CreatorToolbarButton active icon={typeIcon} label={typeLabel} />
-        <CreatorToolbarButton
-          icon={<ImagePlusIcon />}
-          label="New"
-          onClick={onNew}
-          disabled={newDisabled}
-        />
-        <CreatorToolbarButton
-          icon={<UploadIcon />}
-          label="Import"
-          onClick={onImport}
-          disabled={importDisabled}
-        />
-        <CreatorToolbarButton
-          icon={<Code2Icon />}
-          label="JSON"
-          onClick={onJson}
-          disabled={jsonDisabled}
-        />
-      </div>
-
-      <div className="bg-background/88 border-border/70 pointer-events-auto hidden h-12 w-64 min-w-0 items-center rounded-xl border px-4 py-2 text-center shadow-sm backdrop-blur-xl md:flex md:flex-col md:justify-center">
-        {documentControl ?? (
-          <div className="w-full truncate text-sm font-semibold">
-            {documentName}
-          </div>
-        )}
-        <CreatorToolbarStatus status={status} />
-      </div>
-
-      <div className="pointer-events-auto ml-auto flex flex-wrap items-center justify-end gap-2 lg:shrink-0">
-        {contentHealth}
-        {domainActions}
-        <CreatorToolbarButton
-          className="hidden sm:inline-flex"
-          icon={<BookOpenIcon />}
-          label={libraryLabel}
-          onClick={onLibrary}
-          disabled={libraryDisabled}
-        />
+    <header className="bg-background/95 relative z-40 w-full shrink-0 px-2 py-2 backdrop-blur-xl sm:pr-3 sm:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:backdrop-blur-none lg:transition-[padding-left] lg:duration-150 lg:ease-in-out xl:pr-8 xl:pl-[calc(var(--app-shell-sidebar-inset)+2rem)]">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-cols-[auto_auto_auto_auto_minmax(120px,1fr)_auto] lg:grid-rows-1 lg:items-start lg:gap-1.5 2xl:gap-3">
+        <div className="border-border/70 bg-background col-start-1 row-start-1 flex h-11 min-w-0 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium shadow-sm lg:h-12 [&_svg]:size-4 [&_svg]:shrink-0">
+          {typeIcon}
+          <span className="truncate">{typeLabel}</span>
+        </div>
         <Button
           type="button"
-          className="h-11 rounded-xl px-4 shadow-sm"
-          disabled={saveDisabled}
-          onClick={onSave}
+          variant="outline"
+          aria-label="New"
+          title="New"
+          className="col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
+          disabled={newDisabled}
+          onClick={onNew}
         >
-          {saveBusy ? (
-            <LoaderCircleIcon className="animate-spin motion-reduce:animate-none" />
-          ) : (
-            <SaveIcon />
-          )}
-          {saveLabel}
+          <FilePlus2Icon className="size-4" />
+          <span className="hidden 2xl:inline">New</span>
         </Button>
+        {contentType ? (
+          <CreatorLoadPicker
+            contentType={contentType}
+            disabled={libraryDisabled}
+          />
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:size-12 2xl:w-auto 2xl:px-4"
+            aria-label={libraryLabel}
+            title={libraryLabel}
+            disabled={libraryDisabled}
+            onClick={onLibrary}
+          >
+            <FolderOpenIcon className="size-4" />
+            <span className="hidden 2xl:inline">{libraryLabel}</span>
+          </Button>
+        )}
+        <div className="border-border/70 bg-background col-start-4 row-start-1 hidden h-12 shrink-0 items-center rounded-xl border px-1 shadow-sm lg:flex">
+          <CreatorIconAction
+            label="Import"
+            icon={<UploadIcon />}
+            disabled={importDisabled}
+            onClick={onImport}
+          />
+          <CreatorIconAction
+            label="View JSON"
+            icon={<Code2Icon />}
+            disabled={jsonDisabled}
+            onClick={onJson}
+          />
+        </div>
+        <CreatorHeaderDocument
+          className="col-span-2 col-start-1 row-start-2 flex min-w-0 justify-center lg:col-span-1 lg:col-start-5 lg:row-start-1"
+          widthClassName="w-full min-w-0 lg:max-w-[380px]"
+        >
+          <div
+            className={cn(
+              "border-border/70 bg-background flex h-11 min-w-0 items-center gap-1 rounded-xl border px-3 shadow-sm lg:h-12",
+              documentNameInvalid && "border-destructive/50 bg-destructive/5",
+            )}
+          >
+            {documentControl ??
+              (onDocumentNameChange ? (
+                <>
+                  <span className="text-muted-foreground inline-flex shrink-0 items-center gap-1 text-[10px] font-medium">
+                    <PencilIcon className="size-3" />
+                    Name
+                  </span>
+                  <Input
+                    ref={(element) => {
+                      inputRef.current = element;
+                      if (typeof documentNameInputRef === "function")
+                        documentNameInputRef(element);
+                      else if (documentNameInputRef)
+                        documentNameInputRef.current = element;
+                    }}
+                    value={documentName ?? ""}
+                    onChange={(event) =>
+                      onDocumentNameChange(event.target.value)
+                    }
+                    aria-label={`${typeLabel} name`}
+                    aria-invalid={documentNameInvalid}
+                    disabled={documentNameDisabled}
+                    placeholder={`New ${typeLabel}`}
+                    className="h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
+                  />
+                </>
+              ) : (
+                <div className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {documentName}
+                </div>
+              ))}
+            <CreatorToolbarStatus status={status} />
+            {contentHealth}
+          </div>
+        </CreatorHeaderDocument>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="col-start-3 row-start-2 size-11 rounded-xl p-0 shadow-sm lg:hidden"
+              aria-label="More creator actions"
+            >
+              <MoreHorizontalIcon className="size-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            sideOffset={8}
+            className="w-60 rounded-xl p-1.5"
+          >
+            <DropdownMenuItem
+              className="min-h-11 gap-3 rounded-lg"
+              disabled={newDisabled}
+              onSelect={onNew}
+            >
+              <FilePlus2Icon className="size-4" />
+              New
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="min-h-11 gap-3 rounded-lg"
+              disabled={importDisabled}
+              onSelect={onImport}
+            >
+              <UploadIcon className="size-4" />
+              Import
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="min-h-11 gap-3 rounded-lg"
+              disabled={jsonDisabled}
+              onSelect={onJson}
+            >
+              <Code2Icon className="size-4" />
+              View JSON
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <div className="col-start-3 row-start-1 flex h-11 items-center gap-1.5 lg:col-start-6 lg:h-12">
+          {domainActions}
+          <Button
+            type="button"
+            variant="outline"
+            className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
+            disabled={saveDisabled}
+            onClick={onSave}
+            aria-label={saveLabel}
+            title={saveLabel}
+          >
+            {saveBusy ? (
+              <LoaderCircleIcon className="size-4 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <SaveIcon className="size-4" />
+            )}
+            <span className="hidden lg:inline">{saveLabel}</span>
+          </Button>
+        </div>
       </div>
     </header>
   );
 }
 
-/** Compact creator status with optional keyboard- and hover-accessible detail. */
+/** Keep save state compact while retaining its full accessible explanation. */
 function CreatorToolbarStatus({ status }: { status: CreatorDocumentStatus }) {
-  const content = (
-    <span className="text-muted-foreground flex items-center justify-center gap-2 text-[11px]">
-      <span
-        className={cn(
-          "size-2 rounded-full",
-          status.tone === "saved" && "bg-emerald-500",
-          (!status.tone || status.tone === "dirty") && "bg-sky-400",
-          status.tone === "warning" && "bg-amber-500",
-          status.tone === "error" && "bg-destructive",
-        )}
-      />
-      {status.label}
-    </span>
-  );
-
-  if (!status.tooltip) return content;
-
+  const label =
+    typeof status.tooltip === "string"
+      ? `${status.label}: ${status.tooltip}`
+      : status.label;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="focus-visible:ring-ring rounded-sm outline-none focus-visible:ring-2"
-          aria-label={
-            typeof status.tooltip === "string"
-              ? `${status.label}: ${status.tooltip}`
-              : status.label
-          }
+          aria-label={label}
+          className="focus-visible:ring-ring inline-flex size-6 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2"
         >
-          {content}
+          <span
+            aria-hidden="true"
+            className={cn(
+              "size-2 rounded-full",
+              status.tone === "saved" && "bg-emerald-500",
+              (!status.tone || status.tone === "dirty") && "bg-sky-400",
+              status.tone === "warning" && "bg-amber-500",
+              status.tone === "error" && "bg-destructive",
+            )}
+          />
         </button>
       </TooltipTrigger>
       <TooltipContent
@@ -170,42 +289,41 @@ function CreatorToolbarStatus({ status }: { status: CreatorDocumentStatus }) {
         sideOffset={8}
         className="max-w-sm text-left"
       >
-        {status.tooltip}
+        {status.tooltip ?? status.label}
       </TooltipContent>
     </Tooltip>
   );
 }
 
-function CreatorToolbarButton({
+function CreatorIconAction({
   icon,
   label,
-  active,
-  className,
   disabled,
   onClick,
 }: {
   icon: ReactNode;
   label: string;
-  active?: boolean;
-  className?: string;
   disabled?: boolean;
-  onClick?: () => void;
+  onClick: () => void;
 }) {
   return (
-    <Button
-      type="button"
-      variant="outline"
-      className={cn(
-        "bg-background/88 h-11 rounded-xl shadow-sm backdrop-blur-xl [&_svg]:size-4",
-        active &&
-          "border-sky-300 bg-sky-100/80 text-sky-950 dark:bg-sky-950/60 dark:text-sky-100",
-        className,
-      )}
-      disabled={disabled}
-      onClick={onClick}
-    >
-      {icon}
-      <span className="hidden xl:inline">{label}</span>
-    </Button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={label}
+          disabled={disabled}
+          onClick={onClick}
+          className="[&_svg]:size-3.5"
+        >
+          {icon}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={8}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 }

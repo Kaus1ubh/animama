@@ -56,31 +56,35 @@ export function CreatorCanvasControls({
   return (
     <div
       className={cn(
-        "bg-background/88 border-border/70 flex max-w-full items-center gap-2 overflow-x-auto rounded-xl border p-2 shadow-lg backdrop-blur-xl",
+        "bg-background/88 border-border/70 flex max-w-full flex-wrap items-center gap-2 rounded-xl border p-2 shadow-sm backdrop-blur-xl",
         className,
       )}
     >
       {model ? <CreatorCanvasSelectControl control={model} /> : null}
       {model && view ? <span className="bg-border h-5 w-px shrink-0" /> : null}
       {view ? <CreatorCanvasSelectControl control={view} /> : null}
-      <Switch
-        checked={guides}
-        disabled={guidesDisabled}
-        onCheckedChange={onGuidesChange}
-        aria-label={guidesAriaLabel}
-      />
-      <span className="text-muted-foreground shrink-0 text-xs">
-        {guidesLabel}
-      </span>
+      <label className="flex shrink-0 items-center gap-2 text-xs">
+        <Switch
+          checked={guides}
+          disabled={guidesDisabled}
+          onCheckedChange={onGuidesChange}
+          aria-label={guidesAriaLabel}
+        />
+        <span className="text-muted-foreground shrink-0 text-xs">
+          {guidesLabel}
+        </span>
+      </label>
       {domainControl}
       <Button
         type="button"
-        size="sm"
+        size="icon-sm"
         variant="ghost"
         disabled={restartDisabled}
         onClick={onRestart}
+        aria-label="Restart preview"
+        title="Restart preview"
       >
-        <RefreshCwIcon /> Restart
+        <RefreshCwIcon />
       </Button>
     </div>
   );
@@ -92,7 +96,7 @@ function CreatorCanvasSelectControl({
   control: CreatorCanvasSelect;
 }) {
   return (
-    <>
+    <div className="flex min-w-0 items-center gap-1">
       <span className="text-muted-foreground shrink-0 pl-1 text-xs">
         {control.label}
       </span>
@@ -103,9 +107,10 @@ function CreatorCanvasSelectControl({
       >
         <SelectTrigger
           className={cn(
-            "h-8 border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent",
+            "h-8 max-w-32 border-0 bg-transparent text-xs shadow-none focus-visible:ring-0 dark:bg-transparent",
             control.triggerClassName,
           )}
+          aria-label={`Preview ${control.label.toLowerCase()}`}
         >
           <SelectValue placeholder={control.placeholder} />
         </SelectTrigger>
@@ -117,6 +122,6 @@ function CreatorCanvasSelectControl({
           ))}
         </SelectContent>
       </Select>
-    </>
+    </div>
   );
 }
