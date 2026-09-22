@@ -2,7 +2,7 @@
 
 Animama models runtime media as concrete product types: Avatars, Gestures,
 Reactions, Particle Effects, Avatar Effects, Scene Effects, Sound Effects, Idle
-Styles, Music Tracks, Appearance Images, voices, and Pose Clips. All types
+Styles, Music Tracks, Appearance Images, voices, Poses, and Pose Clips. All types
 share one neutral Content Catalog while keeping strict versioned documents,
 handlers, APIs, and runtime projectors. The `anima` catalog kind is
 reserved and rejecting; live Animas are private application aggregates, not
@@ -65,7 +65,7 @@ POST   /v1/{typed-family}/{item_id}:preview
 ```
 
 The family response is a generated discriminated contract such as
-`PyGesture`, `PyReaction`, `PyParticleEffect`, `PyIdleStyle`, or
+`PyGesture`, `PyReaction`, `PyPose`, `PyParticleEffect`, `PyIdleStyle`, or
 `PyMusicTrack`, not a semantic `metadata` dictionary. Typed routers delegate
 safe paths, optimistic catalog revisions, atomic replacement, reconciliation,
 and preview freezing to shared catalog services; they do not own parallel

@@ -194,7 +194,7 @@ Local profiles provide private display-name personalization. See
 Avatar metadata joined to valid Content Catalog models and registered
 portraits. It returns Included or Local origin without exposing paths.
 
-Gestures, Reactions, Pose Clips, effects, Sounds, Idle Styles, Music Tracks,
+Gestures, Reactions, Poses, Pose Clips, effects, Sounds, Idle Styles, Music Tracks,
 Avatar content, Appearance, and portable voice content expose generated typed
 contracts over the neutral catalog. Each family supports List/Get/Save/Preview
 under its own `/v1/{typed-family}` prefix; for example:
@@ -206,7 +206,7 @@ PUT    /v1/gestures/{entry_name}
 POST   /v1/gestures/{item_id}:preview
 ```
 
-Equivalent families are `reactions`, `pose-clips`, `particle-effects`,
+Equivalent families are `reactions`, `poses`, `pose-clips`, `particle-effects`,
 `avatar-effects`, `scene-effects`, `sound-effects`, `idle-styles`,
 `music-tracks`, `avatar-content`, `appearance-content`, and `voice-content`.
 The closed handler for the selected kind validates the schema-versioned
@@ -214,6 +214,12 @@ document, files, dependencies, roles, runtime projection, and portable package
 references. Unknown fields and mismatched kinds are rejected. Avatar and Scene
 definitions contain bounded renderer settings and registered logical resource
 names; external/data/Blob URLs, scripts, shaders, and host paths are rejected.
+
+The Pose family returns `PyPose` metadata; registered preview bytes carry the
+resolved pose values. Pose Save uses the loaded catalog revision and an operation
+ID, preserving the same request for ambiguous retries. Included items are read-only;
+customization saves a new Local identity. Parent references are not admitted, and
+there is no Pose loadout slot.
 
 A typed `POST .../{item_id}:preview` freezes one current validated root and its
 dependency-complete support closure. Exact preview bytes use

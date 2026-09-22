@@ -23,6 +23,15 @@ events need Effects or Sounds. Gesture supports the Anima Clip schema and a
 self-contained VRMA import. Reaction exposes expression/effect/sound timing and
 rejects humanoid tracks.
 
+Standalone Included/Local Poses contain resolved static bone and expression values.
+The Gesture editor saves them through `/v1/poses`; Library previews use a static
+hold in the existing protected preview dock without changing an Anima. Selecting a
+pose for a Gesture copies effective values, including inherited channels and the
+clip base overlay. The insertion bakes the whole candidate clip and removes its
+external base as one undoable edit, preserving existing samples. Saved/reopened
+clips therefore remain independent of source edits or deletion. Reactions retain
+their expression/effect/sound-only contract.
+
 Idle Styles add an emotion-aware idle lane. A mounted runtime uses the exact
 selected style (or an intentionally empty
 lane), including authorized private VRMA memberships. The runtime selects the dominant emotion's pool or the non-empty Default pool,

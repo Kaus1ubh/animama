@@ -19,6 +19,7 @@ type RowFamily = LibraryRowPresentation["family"];
 
 const icons = {
   gesture: Hand,
+  pose: UserRound,
   reaction: HeartHandshake,
   particle: Sparkles,
   "avatar-effect": ScanFace,
@@ -60,6 +61,11 @@ export function LibraryProductRow({
         <span className="min-w-0 flex-1">
           <span className="flex min-w-0 flex-wrap items-center gap-2">
             <span className="truncate font-medium">{row.name}</span>
+            {row.family === "pose" ? (
+              <span className="bg-muted rounded-full px-2 py-0.5 text-[11px]">
+                {row.origin === "Built-in" ? "Starter" : "Local"}
+              </span>
+            ) : null}
             {row.updateAvailable ? (
               <span className="border-primary/35 bg-primary/10 text-primary rounded-full border px-2 py-0.5 text-[11px] font-medium">
                 Update available

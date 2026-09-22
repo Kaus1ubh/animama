@@ -327,8 +327,11 @@ function SavedDraftLoadButton({
 
 export function PoseCreatorLibrarySection({
   variant = "panel",
+  hideNew = false,
 }: {
   variant?: "panel" | "toolbar";
+  /** Item editing in Library does not introduce another New Pose entry. */
+  hideNew?: boolean;
 }) {
   const runtimePlatform = useRuntimePlatform();
   const alive = useRef(true);
@@ -772,17 +775,19 @@ export function PoseCreatorLibrarySection({
           </form>
         </CreatorHeaderDocument>
 
-        <Button
-          type="button"
-          variant="outline"
-          aria-label="New"
-          title="New"
-          className="col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
-          onClick={handleNewPose}
-        >
-          <FilePlus2Icon className="size-4" />
-          <span className="hidden 2xl:inline">New</span>
-        </Button>
+        {!hideNew ? (
+          <Button
+            type="button"
+            variant="outline"
+            aria-label="New"
+            title="New"
+            className="col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
+            onClick={handleNewPose}
+          >
+            <FilePlus2Icon className="size-4" />
+            <span className="hidden 2xl:inline">New</span>
+          </Button>
+        ) : null}
 
         <div className="col-start-4 row-start-1 hidden shrink-0 items-center gap-2 lg:flex">
           <div className="border-border/70 bg-background flex h-12 items-center rounded-xl border px-1 shadow-sm">
@@ -857,13 +862,15 @@ export function PoseCreatorLibrarySection({
             sideOffset={8}
             className="w-56 rounded-xl p-1.5"
           >
-            <DropdownMenuItem
-              className="min-h-11 gap-3 rounded-lg"
-              onSelect={handleNewPose}
-            >
-              <FilePlus2Icon className="size-4" />
-              New pose
-            </DropdownMenuItem>
+            {!hideNew ? (
+              <DropdownMenuItem
+                className="min-h-11 gap-3 rounded-lg"
+                onSelect={handleNewPose}
+              >
+                <FilePlus2Icon className="size-4" />
+                New pose
+              </DropdownMenuItem>
+            ) : null}
             <DropdownMenuItem
               className="min-h-11 gap-3 rounded-lg"
               disabled={!activeAvatar}

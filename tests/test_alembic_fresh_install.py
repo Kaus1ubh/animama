@@ -17,7 +17,7 @@ from alembic.util import CommandError
 ROOT = Path(__file__).parents[1]
 BASELINE_MIGRATION = ROOT / "alembic" / "versions" / "0001_baseline.py"
 BASELINE_SQL = ROOT / "alembic" / "versions" / "0001_baseline.sql"
-BASELINE_SHA256 = "fbe65e892a48473b28144abede6ece61690d737ba1897346d54929b98259646a"
+BASELINE_SHA256 = "03007b0c5113a7801c78e617b91757aa783e0abcaf229af24dc68973b8024e43"
 
 
 def test_baseline_does_not_import_live_metadata() -> None:
@@ -68,6 +68,11 @@ def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:  # n
             assert "installation_settings" in tables
             assert "content_catalog_items" in tables
             assert "anima_content_bindings" in tables
+            # Poses are catalog content; the frozen schema must not equip them.
+            catalog_checks = inspect(engine).get_check_constraints("content_catalog_items")
+            binding_checks = inspect(engine).get_check_constraints("anima_content_bindings")
+            assert any("'pose'" in check["sqltext"] for check in catalog_checks)
+            assert all("'pose'" not in check["sqltext"] for check in binding_checks)
             assert "anima_runtime_snapshots" in tables
             assert "runtime_worker_heartbeats" in tables
             assert "content_mutation_receipts" in tables

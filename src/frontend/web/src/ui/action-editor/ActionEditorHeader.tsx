@@ -26,9 +26,6 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { useIsMutating } from "@tanstack/react-query";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
-import { queryKeys } from "@/query/keys";
 
 import type { PyGesture, PyReaction } from "@/lib/content/catalogTypes";
 import { cn } from "@/lib/utils";
@@ -75,6 +72,7 @@ import {
   getCreatorHistoryShortcutLabels,
   type CreatorHistoryController,
 } from "@/ui/creator-history/CreatorHistory";
+import { PosePrimaryActions } from "@/ui/pose-creator/PosePrimaryActions";
 import { PoseCreatorLibrarySection } from "@/ui/pose-creator/PoseCreatorLibrarySection";
 import { actionValidationMessages } from "./actionValidationMessages";
 import { renameActionDocument } from "./actionDocument";
@@ -268,47 +266,6 @@ function ActionModeControl({
         </TabsTrigger>
       </TabsList>
     </Tabs>
-  );
-}
-
-function PosePrimaryActions({ busy }: { busy: boolean }) {
-  const owner = useRuntimeOwnerId();
-  const saving =
-    useIsMutating({ mutationKey: queryKeys.poses.save(owner ?? "__anon__") }) >
-    0;
-  const isDirty = usePoseCreatorStore((state) => state.isDirty);
-  const saved = usePoseCreatorStore((state) => state.savedPoseIdentity);
-  const name = usePoseCreatorStore((state) => state.draftName);
-  const saveDisabled =
-    busy || saving || !name.trim() || Boolean(saved && !isDirty);
-  const selectedSource = usePoseCreatorStore((state) => state.selectedSource);
-  const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
-  return (
-    <div className="col-start-3 row-start-1 flex h-11 items-center gap-1.5 lg:col-start-6 lg:h-12">
-      <Button
-        type="submit"
-        form="pose-creator-pose-save-form"
-        variant="outline"
-        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
-        disabled={saveDisabled || !selectedSource}
-        aria-label="Save pose"
-      >
-        <SaveIcon className="size-4" />
-        <span className="hidden lg:inline">Save</span>
-      </Button>
-      <Button
-        type="submit"
-        form="pose-creator-pose-save-form"
-        name="pose-creator-submit-action"
-        value="save-and-branch"
-        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
-        disabled={saveDisabled || !selectedSource || !activeAvatar}
-        aria-label="Save and branch pose"
-      >
-        <WandSparklesIcon className="size-4" />
-        <span className="hidden lg:inline">Save &amp; Branch</span>
-      </Button>
-    </div>
   );
 }
 

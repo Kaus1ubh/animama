@@ -138,6 +138,17 @@ pnpm e2e:test -- --project chromium --no-deps --grep "accountless built-in pose 
 This focused pose check is not part of the generated structural-avatar fixture's
 acceptance claim; it requires the real tracked avatar and built-in pose content.
 
+The active `pose content` group covers standalone Included/Local Poses: Library
+discovery, real-Avatar static preview, customization, editing, failed-save retry,
+browser-storage independence, and portable Pose packages. It uses named-stack
+mutation opt-in and the exact content ownership ledger described below. Run it with
+mutation opt-in on a disposable task stack; verify selection before execution:
+
+```bash
+pnpm e2e:list -- --project chromium --grep "pose content"
+pnpm e2e:test -- --project chromium --grep "pose content"
+```
+
 The bounded application smoke test accepts only the configured origin:
 
 ```bash

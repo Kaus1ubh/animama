@@ -4,6 +4,7 @@ export type LibraryInventoryGroup =
   | "avatars"
   | "gestures"
   | "reactions"
+  | "poses"
   | "particle"
   | "avatar-effects"
   | "scene"
@@ -17,7 +18,8 @@ export function contentInventoryGroups(
   if (search.section === "actions") {
     if (search.action === "gestures") return ["gestures"];
     if (search.action === "reactions") return ["reactions"];
-    return ["gestures", "reactions"];
+    if (search.action === "poses") return ["poses"];
+    return ["gestures", "reactions", "poses"];
   }
   if (search.section === "fx") {
     if (search.fx === "particle") return ["particle"];
@@ -31,6 +33,7 @@ export function contentInventoryGroups(
     "avatars",
     "gestures",
     "reactions",
+    "poses",
     "particle",
     "avatar-effects",
     "scene",

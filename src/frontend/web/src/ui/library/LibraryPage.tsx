@@ -12,7 +12,7 @@ import { ContentHealth } from "@/ui/content-health/ContentHealth";
 const SECTIONS = [
   ["all", "All"],
   ["avatars", "Avatars"],
-  ["actions", "Gestures & Reactions"],
+  ["actions", "Actions"],
   ["fx", "FX"],
   ["chat-uploads", "Chat Uploads"],
 ] as const;
@@ -55,7 +55,7 @@ export function LibraryPage({
       </nav>
       {search.section === "actions" ? (
         <div className="flex flex-wrap items-center gap-2 pt-4">
-          {(["all", "gestures", "reactions"] as const).map((value) => (
+          {(["all", "gestures", "reactions", "poses"] as const).map((value) => (
             <Button
               key={value}
               size="sm"

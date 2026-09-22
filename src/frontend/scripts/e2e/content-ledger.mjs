@@ -7,6 +7,7 @@ const CONTENT_LEDGER_SCHEMA_VERSION = 1;
 const CONTENT_LEDGER_EVENTS = [
   "planned",
   "owned",
+  "updated",
   "verified",
   "cleanup_started",
   "deleted",
@@ -15,6 +16,7 @@ const CONTENT_LEDGER_EVENTS = [
 
 const CONTENT_KINDS = new Set([
   "gesture",
+  "pose",
   "reaction",
   "particle_effect",
   "avatar_effect",
@@ -33,6 +35,12 @@ const COMMON_KEYS = new Set([
 const EVENT_KEYS = {
   planned: new Set(),
   owned: new Set(["itemId", "revisionSha256", "relativeLocator"]),
+  updated: new Set([
+    "itemId",
+    "revisionSha256",
+    "relativeLocator",
+    "previousRevisionSha256",
+  ]),
   verified: new Set([
     "itemId",
     "revisionSha256",
@@ -101,7 +109,15 @@ function validateIdentityFields(event) {
       "Content ledger revisionSha256 must be a lowercase SHA-256.",
     );
   }
-  if (event.event === "owned") {
+  if (
+    event.event === "updated" &&
+    !/^[0-9a-f]{64}$/.test(event.previousRevisionSha256 ?? "")
+  ) {
+    throw new Error(
+      "Content ledger update requires its exact previous revision.",
+    );
+  }
+  if (event.event === "owned" || event.event === "updated") {
     requiredString(event.relativeLocator, "relativeLocator", 512);
   } else if (event.event === "verified") {
     if (!Number.isSafeInteger(event.fileCount) || event.fileCount < 1) {
@@ -212,7 +228,8 @@ function assertSharedIdentity(previous, next) {
   if (
     previous.revisionSha256 &&
     next.revisionSha256 &&
-    previous.revisionSha256 !== next.revisionSha256
+    previous.revisionSha256 !== next.revisionSha256 &&
+    next.event !== "updated"
   ) {
     throw new Error("Content ledger transition changed revisionSha256.");
   }
@@ -236,10 +253,25 @@ function validateContentLedgerTransition(events, candidate) {
   }
 
   assertSharedIdentity(previous, event);
+  if (event.event === "updated") {
+    const owned = related.findLast(
+      (value) => value.event === "owned" || value.event === "updated",
+    );
+    if (
+      !owned ||
+      event.previousRevisionSha256 !== previous.revisionSha256 ||
+      event.relativeLocator !== owned.relativeLocator
+    ) {
+      throw new Error(
+        "Content ledger update must preserve its owned path and exact previous revision.",
+      );
+    }
+  }
   const allowed = {
     planned: ["owned"],
-    owned: ["verified", "cleanup_started"],
-    verified: ["cleanup_started"],
+    owned: ["verified", "updated", "cleanup_started"],
+    updated: ["verified", "updated", "cleanup_started"],
+    verified: ["updated", "cleanup_started"],
     cleanup_started: ["deleted", "cleanup_failed"],
     cleanup_failed: ["cleanup_started"],
     deleted: [],
@@ -306,7 +338,10 @@ export function summarizeContentLedger(events) {
       last: null,
     };
     if (event.event === "planned") current.planned = event;
-    if (event.event === "owned") current.owned = event;
+    if (event.event === "owned" || event.event === "updated") {
+      current.owned = event;
+      current.verified = null;
+    }
     if (event.event === "verified") current.verified = event;
     current.last = event;
     byJourney.set(event.journeyKey, current);

@@ -42,6 +42,7 @@ content/
   included/                   read-only application content
     avatars/
     gestures/
+    poses/
     pose-clips/
     reactions/
     vfx/{particle,avatar,scene}/
@@ -81,6 +82,14 @@ Idle-only VRMAs live within their Idle Style. Independently reusable VFX and
 SFX remain typed dependencies and are included through the runtime/package
 closure.
 
+Standalone Poses use `poses/<entry>/<entry>.json`: a `pose` descriptor containing
+one resolved `animaPose/1.0` payload with matching identity and name. Admission
+rejects parent references, unknown bones, invalid transforms and expression
+weights. The descriptor is bounded to 1 MB and has no dependent files. Included
+starter poses and Local editor saves use this same contract; the browser stores
+only transient pose edits. Poses can be previewed and packaged, but cannot be
+equipped in an Anima loadout.
+
 Package manifests are created only during export/import. Internal snapshots
 and staging live under `data/`.
 
@@ -102,7 +111,7 @@ backup/reset scripts do not apply to the separate desktop profile or vault.
 ## Typed handlers, scanner, and neutral catalog
 
 `domain/content_documents.py` defines the framework-neutral, schema-versioned
-Gesture, Reaction, Pose Clip, Effect, Sound, Idle Style, Music Track, Avatar,
+Gesture, Reaction, Pose, Pose Clip, Effect, Sound, Idle Style, Music Track, Avatar,
 Appearance, and portable voice documents. `content_kind_registry.py` is a
 closed registry with one handler for every scannable kind. Each handler owns
 strict parsing, bounded media validation, dependency legality, canonical file
@@ -251,7 +260,7 @@ POST   /v1/animas/{anima_id}/runtime/revisions/{revision}:renew
 GET    /v1/animas/{anima_id}/runtime/revisions/{revision}/files/{file_ref}
 ```
 
-Typed families are `gestures`, `reactions`, `pose-clips`,
+Typed families are `gestures`, `reactions`, `poses`, `pose-clips`,
 `particle-effects`, `avatar-effects`, `scene-effects`, `sound-effects`,
 `idle-styles`, `music-tracks`, `avatar-content`, `appearance-content`, and
 `voice-content`. `/v1/content` is deliberately infrastructure-only; it no

@@ -7,7 +7,12 @@ export const LIBRARY_SECTIONS = [
 ] as const;
 export type ContentLibrarySection = (typeof LIBRARY_SECTIONS)[number];
 
-export const LIBRARY_ACTION_FILTERS = ["all", "gestures", "reactions"] as const;
+export const LIBRARY_ACTION_FILTERS = [
+  "all",
+  "gestures",
+  "reactions",
+  "poses",
+] as const;
 export type LibraryActionFilter = (typeof LIBRARY_ACTION_FILTERS)[number];
 
 export const LIBRARY_GESTURE_MOTION_FILTERS = [
@@ -121,11 +126,16 @@ export function normalizeContentLibrarySearch(
       ? search.gestureSort
       : "custom-first",
     fx: oneOf(LIBRARY_FX_FILTERS, search.fx) ? search.fx : "all",
-    sort: oneOf(LIBRARY_SORTS, search.sort)
-      ? search.sort
-      : query
-        ? "relevance"
-        : "name",
+    sort:
+      section === "actions" &&
+      search.action === "poses" &&
+      search.sort === "updated"
+        ? "name"
+        : oneOf(LIBRARY_SORTS, search.sort)
+          ? search.sort
+          : query
+            ? "relevance"
+            : "name",
     ...(query ? { query } : {}),
     ...(uploadQuery ? { uploadQuery } : {}),
     uploadStatus: oneOf(LIBRARY_UPLOAD_STATUSES, search.uploadStatus)
@@ -164,7 +174,7 @@ export function compactContentLibrarySearch(
 
   if (normalized.section === "actions") {
     if (normalized.action !== "all") compact.action = normalized.action;
-    if (normalized.action !== "reactions") {
+    if (normalized.action === "all" || normalized.action === "gestures") {
       if (normalized.gestureMotion !== "all") {
         compact.gestureMotion = normalized.gestureMotion;
       }

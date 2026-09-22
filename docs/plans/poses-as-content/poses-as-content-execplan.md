@@ -19,9 +19,10 @@ starter authoring, no live pose links and no browser-pose migration.
 The repository is `raymond-van/animama`. Reuse the task's existing
 `poses-as-content/animama` worktree and branch `feat/poses-as-content`.
 Starting revision: `0657c51e211efa8bd16d1efca8dbefd878aacc74`.
-Primary `main` remains unchanged. Implementation uses task stack `animama-poses-content`,
-development mode, at `http://localhost:8720` (Vite is the only published application
-service; PostgreSQL/supporting services stay private; no optional profiles).
+This task leaves the primary checkout on `main`. Implementation uses task stack
+`animama-poses-content` at `http://localhost:8720`. Both development (Vite) and built
+(FastAPI) modes are tested; it is currently retained in built mode. Only the selected
+application service is published; PostgreSQL stays private; no optional profiles.
 Started with `ANIMAMA_LLM_SKIP=1 ./reset.sh --name poses-content --base-port 8720 --host localhost`.
 Task Local content/database are separate from the main installation; no provider calls are needed.
 Before any implementation, verify Git root, branch, HEAD and dirty state; retain
@@ -45,7 +46,7 @@ Authoritative spec: https://github.com/raymond-van/animama/issues/55 (captured 2
 - [x] Phase 1: standalone Pose content contract and recoverable persistence.
 - [x] Phase 2: canonical Included starters and distribution completeness.
 - [x] Phase 3: durable editor collection and independent clip copies.
-- [ ] Phase 4: Library integration and complete acceptance.
+- [x] Phase 4: Library integration and complete acceptance.
 - [ ] Final integration review, regular PR, actual hosted Validation and owner acceptance.
 
 ## Surprises & Discoveries
@@ -117,7 +118,7 @@ Frontend entrypoints are under `src/frontend/web/src/`:
 When implementation is authorized, use workspace-setup to publish the agreed spec
 and create/reconcile one parent and one issue per phase. Read the remote issue back;
 it becomes the authority. Add issue URLs and its captured update time here and in
-the spec. Parent and phase issues are recorded above; no PR exists yet. Preserve the task branch and use
+the spec. Parent and phase issues are recorded above; the final PR covers their combined delivery. Preserve the task branch and use
 `feat(poses)[p#]: ...` phase commits; one regular PR covers the combined result.
 
 Install locked dependencies following the existing worktree preparation guide.
@@ -387,7 +388,7 @@ copy sampling remains invariant under source changes, errors preserve work, and
 review passes. Recovery: retain dirty drafts on failed publication; do not fall
 back to browser persistence. Keep operation receipts to reconcile ambiguous success.
 
-Issue: https://github.com/raymond-van/animama/issues/58. Starting source: `d6f2b727a1939f998d8677c1abb4f214159ee708`. Commit: pending.
+Issue: https://github.com/raymond-van/animama/issues/58. Starting source: `d6f2b727a1939f998d8677c1abb4f214159ee708`. Commit: `c4d737552b35af56a69bd2273d2b495fb7181b32`.
 Evidence in progress (2026-09-22):
 
 - New checked byte loader first reproduced two meaningful failures: changed revision
@@ -508,23 +509,100 @@ remain explicitly pending until actually observed.
 Recovery: failed content operations use normal journals/receipts; failed test data
 cleanup uses the runner's exact ownership ledger. Do not hide failed cleanup as a pass.
 
-Issue: https://github.com/raymond-van/animama/issues/59. Starting source: Phase 3 completion, to record. Commit: pending.
-Evidence and remaining gates: not run.
+Issue: https://github.com/raymond-van/animama/issues/59. Starting source: `c4d737552b35af56a69bd2273d2b495fb7181b32`. Commit: pending.
+Evidence in progress:
+
+- Full backend gate initially reported four failures: the approved baseline kind
+  addition needed its reviewed SQL fingerprint updated; the dev-launcher test
+  needed the new deterministic pose check prefix; an unchanged desktop test still
+  expected two migrations although the baseline has one. Corrected these exact
+  expectations and added fresh-database constraints proving Pose catalog admission
+  without Pose equip admission. Fresh-install tests: 7 passed; launcher/desktop
+  regressions: 136 passed; affected Ruff/format passed. Final `make check-test`
+  passed: typed-content audit, read-only format, Ruff, mypy and 1757 tests,
+  with 7 live/optional tests skipped. No paid-provider acceptance claimed.
+- `pnpm openapi-ts:check` passed (17 generated files current); package type checks
+  and 19 package tests passed. These package sources are unchanged by Library work.
+- Initial integrated frontend checks passed: `pnpm check`, `pnpm web:lint`,
+  `pnpm web:test` (1383 tests / 245 files), `pnpm build`, and desktop tests
+  (257 / 12 files). Ongoing Library/route refinements require affected reruns.
+- Desktop live testing caught a static-preview runtime ID collision with an
+  equipped Gesture sharing the Included Pose ID. A catalog-level regression
+  reproduced it; preview IDs now use an isolated item-based namespace. Rendered
+  desktop confirmation passed: Arms Crossed plays on Annie, Replay/Stop enabled.
+- Standalone Local editor manually checked at 1280x800 and 390x844: saved values,
+  disabled unchanged Save, no New control, bounded toolbar/panels, real Avatar
+  preserved on responsive changes, and Back → Stay retains the unsaved name.
+  Temporary navigation edits were discarded without changing saved content.
+- Generator tests: 13 passed. Dependency boundary: zero private edges. LFS integrity
+  passed. Built Compose image prepared without interrupting development journeys.
+- Source independence: changed the manual Local Pose to VRM T-Pose with happy=1;
+  reopened the saved Gesture and its 1-second copied keyframe still rendered Arms
+  Crossed. Deleted that exact source item, then exported/imported the Gesture with
+  keep-both. Original clip digest and imported pose/keyframe values remained equal.
+  Imported fixture `d011d33e-1b66-4598-ad67-fccb3ace43ac` and original Gesture remain
+  in the isolated task library. The imported Gesture rendered its copied Arms
+  Crossed keyframe and played past 1.18 seconds with the source Pose absent.
+- Restarted only the task-owned backend, preserving data. The original Local Pose
+  retained its exact item ID and revision; the saved Gesture reopened with copied
+  keyframes at 0/1/2 seconds, no external base, Saved status and real-Avatar playback.
+- Library Recent sorting already lacks timestamps in the existing typed Action
+  projection. Poses retain name/relevance behavior; unsupported Recently updated
+  is omitted for the Pose subtype rather than inventing timestamps or broadening
+  unrelated typed contracts. Development browser run `run-0922152705` passed all three active Pose journeys
+  plus installation setup (4 tests, 1.6 minutes), with no unresolved owned items and
+  unchanged pre-existing Local catalog. Covered real Included/Local/imported Pose
+  previews, keyboard customization, save/retry/edit/reopen, legacy storage ignored,
+  storage clearing, copied clip equality after source rename/deletion, error retry,
+  narrow layout and exact cleanup. Built-mode run `run-0922153227` passed setup, the same three Pose journeys
+  and the existing real-Avatar built-in playback regression (5 tests, 1.3 minutes).
+  Its ownership ledger is clean; the pre-existing Local catalog is unchanged.
+  FastAPI serves hashed production assets with no Vite client. The earlier built
+  run passed all new journeys but the old regression stopped before playback on
+  an outdated origin-badge assertion. The shared helper now checks exact source
+  and name from the successful Preview response; targeted review passed and the
+  complete combined built run is green.
+- Final E2E selection and TypeScript passed; helper tests 15 and runner tests 42
+  passed. Read-only formatting passed for 41 authored frontend files, followed by
+  the final helper check; whitespace passed. No native/signing/audio/provider
+  acceptance is claimed.
 
 #### Code Review #1 Findings
 
-Not started. Record source, UI and combined acceptance findings here.
+Reviewed Phase 4 against `c4d7375`, including new route/preview files. Independent
+analysis found no product-code blockers in filtering, session isolation, dirty
+navigation, revisioned Save, verified bytes, cancellation/disposal, or preview
+identity. P4-DOC1: the primary Library guide omitted Poses and its canonical URL.
+Checks by a prior implementation author (not represented as independent analysis)
+confirmed type/lint/build results and noted the adjacent preview guide omission.
+
+The final broad web run passed 245 suites / 1376 tests but two suites could not
+import a package while concurrent E2E preparation rebuilt its output. After all
+builders settled, the two unchanged suites passed 16 tests: 247 suites / 1392 tests
+covered across the broad run and targeted recheck, not a single clean broad run.
+Remaining formatting concerns are limited to E2E files still being authored.
+Browser/package evidence and built-mode acceptance above are complete.
 
 #### Code Review #1 Revisions
 
-Not started. Record repairs and affected reruns; at most two repair rounds.
+Repair round 1: accepted P4-DOC1 and adjacent preview documentation gap. Updated
+the primary Library guide with Poses inventory/URLs, preview/edit/customize flows,
+sorting availability and creation/equipment exclusions. Updated the preview guide
+with verified static-hold preparation and disposal. Targeted independent recheck passed for the documentation and build-wrapper
+assertion repair (`poses:check` prefix). Runner safety tests: 42 passed; browser
+helper unit tests: 14 passed. Independent completion review of the final E2E sources found no blockers in
+planned ownership, exact Save/revision binding, package import and scoped cleanup.
+The mutating journey uses isolated-runner opt-in and an ownership ledger, not the
+blocking CreatorMutationGuard. Automated source editing is rename-only; manual
+transform-change and imported Gesture playback evidence supplies that stronger
+acceptance boundary. Phase 4 is ready with no unresolved blockers. One repair round used; one remains.
 
 ## Validation and acceptance
 
 ### Environment and commands
 
-Planning has run no application tests or stack. Implementation must first confirm
-which stack serves the actual task source. Reuse a suitable non-disruptive stack for
+Implementation uses the task-owned source and stack recorded above. On resume,
+confirm which stack serves the actual task source. Reuse a suitable non-disruptive stack for
 manual checks; automated mutating journeys require the disposable named setup in
 [browser journeys](../../frontend/testing/browser-journeys.md). Read the local-stack
 skill before startup. If creating a task stack, verify shared model assets first,

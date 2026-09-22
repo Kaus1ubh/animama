@@ -194,7 +194,7 @@ export function componentPreviewTarget(
   preview: PyContentPreview,
   contentType: VisualComponentType,
   displayName: string,
-): ContentPreviewTarget {
+): Extract<ContentPreviewTarget, { sourceType: "resolved_entry" }> {
   const metadata = object(preview.metadata);
   const contentId = String(metadata.content_id ?? preview.preview_id);
   const { kind, slot } = presentation(

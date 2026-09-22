@@ -6,8 +6,8 @@ import {
   type AnimaPose,
   type ResolvedAnimaPose,
 } from "@/lib/avatar/poses/animaPose";
-import { readBoundedJsonResponse } from "@/lib/runtime-content/runtimeContentDelivery";
-import { fetchContentPreviewFile } from "./contentPreview";
+import { PreviewByteSession } from "@/lib/runtime-content/PreviewByteSession";
+import { contentPreviewFileUrl } from "./contentPreview";
 
 export type PoseContentDocument = { item: PyPose; pose: ResolvedAnimaPose };
 
@@ -35,32 +35,57 @@ export async function loadPoseContent(
     (candidate) => candidate.role === "descriptor",
   );
   if (!file) throw new Error("The Pose descriptor is unavailable.");
-  const response = await fetchContentPreviewFile(
-    { preview_id: preview.preview_id, revision: preview.revision_sha256 },
-    file,
-    { signal },
+  const session = await PreviewByteSession.prepare(
+    {
+      preview_id: preview.preview_id,
+      revision: preview.revision_sha256,
+      revision_sha256: preview.revision_sha256,
+      expires_at: preview.expires_at,
+      metadata: {},
+      files: [
+        {
+          ...file,
+          url: contentPreviewFileUrl(
+            {
+              preview_id: preview.preview_id,
+              revision: preview.revision_sha256,
+            },
+            file,
+          ),
+        },
+      ],
+    },
+    { signal, maxTotalBytes: 1024 * 1024 },
   );
-  if (!response.ok) throw new Error("Could not load the Pose content.");
-  const raw = await readBoundedJsonResponse(response, 1024 * 1024);
-  if (!raw || typeof raw !== "object")
-    throw new Error("Invalid Pose descriptor.");
-  const descriptor = raw as Record<string, unknown>;
-  if (
-    descriptor.schema_version !== 1 ||
-    descriptor.content_type !== "pose" ||
-    descriptor.content_id !== item.pose_id ||
-    descriptor.name !== item.name
-  ) {
-    throw new Error(
-      "The Pose descriptor identity does not match the selected content.",
-    );
+  try {
+    const prepared = session.files.get(file.file_ref);
+    if (!prepared) throw new Error("The Pose descriptor is unavailable.");
+    const raw: unknown = JSON.parse(await prepared.blob.text());
+    if (!raw || typeof raw !== "object")
+      throw new Error("Invalid Pose descriptor.");
+    const descriptor = raw as Record<string, unknown>;
+    if (
+      descriptor.schema_version !== 1 ||
+      descriptor.content_type !== "pose" ||
+      descriptor.content_id !== item.pose_id ||
+      descriptor.name !== item.name
+    ) {
+      throw new Error(
+        "The Pose descriptor identity does not match the selected content.",
+      );
+    }
+    const pose = parseAnimaPose(descriptor.pose);
+    if (pose.id !== item.pose_id || pose.name !== item.name)
+      throw new Error(
+        "The Pose payload identity does not match its descriptor.",
+      );
+    signal?.throwIfAborted();
+    if (pose.parent) throw new Error("Saved Poses must be self-contained.");
+    return { item, pose };
+  } finally {
+    // The resolved values are copied in memory; descriptor URLs never outlive admission.
+    session.dispose();
   }
-  const pose = parseAnimaPose(descriptor.pose);
-  if (pose.id !== item.pose_id || pose.name !== item.name)
-    throw new Error("The Pose payload identity does not match its descriptor.");
-  signal?.throwIfAborted();
-  if (pose.parent) throw new Error("Saved Poses must be self-contained.");
-  return { item, pose };
 }
 
 export type PoseSavedIdentity = {

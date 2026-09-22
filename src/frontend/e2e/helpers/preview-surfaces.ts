@@ -7,6 +7,7 @@ import {
 
 export type LibraryPreviewSection =
   | "gesture"
+  | "pose"
   | "reaction"
   | "particle"
   | "avatar"
@@ -127,8 +128,10 @@ async function openFilteredLibrary(args: {
   await navigateToLibrary(args.page);
 
   const sectionName =
-    args.section === "gesture" || args.section === "reaction"
-      ? "Gestures & Reactions"
+    args.section === "gesture" ||
+    args.section === "reaction" ||
+    args.section === "pose"
+      ? "Actions"
       : "FX";
   const sectionNav = args.page.getByRole("navigation", {
     name: "Library sections",
@@ -141,9 +144,11 @@ async function openFilteredLibrary(args: {
   const subsectionName =
     args.section === "gesture"
       ? "Gestures"
-      : args.section === "reaction"
-        ? "Reactions"
-        : `${args.section[0]!.toUpperCase()}${args.section.slice(1)} FX`;
+      : args.section === "pose"
+        ? "Poses"
+        : args.section === "reaction"
+          ? "Reactions"
+          : `${args.section[0]!.toUpperCase()}${args.section.slice(1)} FX`;
   // The inventory disclosure can share the same accessible name; filter
   // buttons do not carry the disclosure's aria-expanded state.
   const subsectionFilter = args.page
@@ -198,11 +203,19 @@ export async function prepareLibraryPreview(args: {
     selectAnnie: args.selectAnnie ?? true,
   });
 
-  const matchingRows = args.page
-    .getByRole("article", { name: args.contentName, exact: true })
-    .filter({
-      hasText: origin === "Included" ? "Included · Built-in" : "Local · Mine",
-    });
+  const namedRows = args.page.getByRole("article", {
+    name: args.contentName,
+    exact: true,
+  });
+  const matchingRows =
+    args.section === "pose"
+      ? namedRows.filter({
+          has: args.page.getByText(
+            origin === "Included" ? "Starter" : "Local",
+            { exact: true },
+          ),
+        })
+      : namedRows;
   await expect(matchingRows).toHaveCount(1, { timeout: 15_000 });
   const row = matchingRows.first();
   await expect(row).toBeVisible();
@@ -216,7 +229,33 @@ export async function prepareLibraryPreview(args: {
     previewButton: preview,
     surface: dock,
     async open() {
+      const family = {
+        pose: "poses",
+        gesture: "gestures",
+        reaction: "reactions",
+        particle: "particle-effects",
+        avatar: "avatar-effects",
+        scene: "scene-effects",
+      }[args.section];
+      // Only Pose rows display their origin. The actual preparation response
+      // binds every selected row to its exact Included/Local source instead.
+      const prepared = args.page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          new RegExp(`^/v1/${family}/[^/]+:preview$`).test(
+            new URL(response.url()).pathname,
+          ),
+      );
       await preview.click();
+      const response = await prepared;
+      expect(response.ok()).toBe(true);
+      const body = (await response.json()) as {
+        item: { source: string; name: string };
+      };
+      expect(body.item.source).toBe(
+        origin === "Included" ? "included" : "local",
+      );
+      expect(body.item.name).toBe(args.contentName);
       await expect(dock).toBeVisible({ timeout: 15_000 });
       await expect(dock).toHaveAttribute(
         "data-playback-surface",

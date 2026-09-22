@@ -39,7 +39,8 @@ export function LibraryFilterMenu({
   const uploads = search.section === "chat-uploads";
   const gestures =
     search.section === "all" ||
-    (search.section === "actions" && search.action !== "reactions");
+    (search.section === "actions" &&
+      (search.action === "all" || search.action === "gestures"));
   const gestureFiltersActive =
     gestures &&
     (search.gestureUpdatesOnly ||
@@ -137,12 +138,14 @@ export function LibraryFilterMenu({
               >
                 Name
               </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem
-                value="updated"
-                onSelect={(event) => event.preventDefault()}
-              >
-                Recently updated
-              </DropdownMenuRadioItem>
+              {!(search.section === "actions" && search.action === "poses") ? (
+                <DropdownMenuRadioItem
+                  value="updated"
+                  onSelect={(event) => event.preventDefault()}
+                >
+                  Recently updated
+                </DropdownMenuRadioItem>
+              ) : null}
               <DropdownMenuRadioItem
                 value="relevance"
                 onSelect={(event) => event.preventDefault()}

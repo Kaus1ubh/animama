@@ -27,7 +27,7 @@ export type PreviewNetworkSnapshot = {
 };
 
 const PREVIEW_PATH =
-  /^\/v1\/(gestures|reactions|pose-clips|particle-effects|avatar-effects|scene-effects)\/[^/]+:preview$/;
+  /^\/v1\/(poses|gestures|reactions|pose-clips|particle-effects|avatar-effects|scene-effects)\/[^/]+:preview$/;
 const PROTECTED_FILE_PATH =
   /^\/v1\/content\/previews\/[^/]+\/revisions\/[^/]+\/files\/[^/]+$/;
 
@@ -51,6 +51,7 @@ function runtimeId(item: Record<string, unknown>): string {
       `${String(item.emotion ?? "")}-${String(item.intensity ?? "")}`
     );
   }
+  if (kind === "pose") return String(item.pose_id ?? "");
   if (kind === "pose_clip") return String(item.clip_id ?? "");
   return logicalLeaf(item.logical_key ?? item.item_id);
 }
@@ -265,7 +266,7 @@ function mutationClass(request: Request): string | null {
     return "anima-loadout-plan-or-commit";
   }
   if (
-    /^\/v1\/(gestures|reactions|pose-clips|particle-effects|avatar-effects|scene-effects)(?:\/|$)/.test(
+    /^\/v1\/(poses|gestures|reactions|pose-clips|particle-effects|avatar-effects|scene-effects)(?:\/|$)/.test(
       path,
     )
   ) {

@@ -375,3 +375,12 @@ describe("durable Pose save lifecycle", () => {
     expect(usePoseCreatorStore.getState().importError).toBeTruthy();
   });
 });
+
+it("omits New from the standalone Library editor while retaining Pose Save", () => {
+  const html = renderToString(
+    <PoseCreatorLibrarySection variant="toolbar" hideNew />,
+  );
+  expect(html).not.toContain('aria-label="New"');
+  expect(html).toContain('id="pose-creator-pose-save-form"');
+  expect(html).toContain('aria-label="Pose name"');
+});

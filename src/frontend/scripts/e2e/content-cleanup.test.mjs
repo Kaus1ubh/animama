@@ -192,3 +192,48 @@ test("marks an already-missing exact item only after host absence proof", async 
     await rm(value.temporary, { recursive: true, force: true });
   }
 });
+
+test("cleans only the latest explicitly recorded revision after an owned edit", async () => {
+  const value = await setup();
+  try {
+    const revision = "b".repeat(64);
+    await appendContentLedgerEvent(value.ledgerPath, {
+      ...owned,
+      event: "updated",
+      previousRevisionSha256: owned.revisionSha256,
+      revisionSha256: revision,
+    });
+    let present = true;
+    const deleted = [];
+    const summary = await cleanupOwnedContent({
+      ledgerPath: value.ledgerPath,
+      catalogClient: {
+        getItem: async () =>
+          present
+            ? {
+                item_id: owned.itemId,
+                source: "local",
+                origin: "local",
+                kind: owned.kind,
+                logical_key: owned.logicalKey,
+                relative_locator: owned.relativeLocator,
+                revision_sha256: revision,
+              }
+            : null,
+        deleteItem: async (itemId, expectedRevision) => {
+          deleted.push([itemId, expectedRevision]);
+          present = false;
+          await rm(value.artifact, { recursive: true });
+          return { status: 204 };
+        },
+      },
+      localRoot: value.localRoot,
+      repositoryRoot: value.repositoryRoot,
+      actor: "fixture",
+    });
+    assert.equal(summary.deleted, 1);
+    assert.deepEqual(deleted, [[owned.itemId, revision]]);
+  } finally {
+    await rm(value.temporary, { recursive: true, force: true });
+  }
+});

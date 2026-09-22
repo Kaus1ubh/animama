@@ -43,7 +43,7 @@ function target(
   kind: ContentPreviewKind,
   slot: RuntimeContentSlot,
   runtimeId: string,
-): ContentPreviewTarget {
+): Extract<ContentPreviewTarget, { sourceType: "resolved_entry" }> {
   const resolved = entry(kind, slot, runtimeId);
   return {
     key: resolved.content_revision,

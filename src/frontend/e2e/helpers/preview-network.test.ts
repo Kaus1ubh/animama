@@ -243,3 +243,23 @@ test("creator ownership rejects mismatched typed Save identities", async () => {
     );
   }
 });
+
+test("creator guard permits Pose previews but blocks unarmed Pose mutations", async () => {
+  const page = new FakePage();
+  const guard = await CreatorMutationGuard.attach(
+    page as unknown as Page,
+    "http://localhost:8000",
+  );
+  assert.equal(
+    await page.issue(
+      request("POST", "http://localhost:8000/v1/poses/item-1:preview"),
+    ),
+    "continued",
+  );
+  assert.equal(
+    await page.issue(request("PUT", "http://localhost:8000/v1/poses/unowned")),
+    "aborted",
+  );
+  await assert.rejects(guard.assertPolicy(evidence()), /1 forbidden mutation/);
+  await guard.dispose();
+});

@@ -374,7 +374,7 @@ export function ActionEditorEffectsPanel({
   );
 }
 
-/** Browser-local Pose library used as clip keyframe ingredients. */
+/** Included and Local Pose library used as clip keyframe ingredients. */
 function PoseCatalog({
   mobile,
   poses,
