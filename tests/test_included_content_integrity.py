@@ -20,6 +20,7 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     assert rules[-1]["glob"] == "**/*"
     assert rules[-1]["creator"] == "Animama project owner"
     by_glob = {rule["glob"]: rule for rule in rules}
+    assert by_glob["poses/**/*.json"]["license_id"] == "LicenseRef-Animama-owner-authored"
     assert by_glob["gestures/**/*.json"]["license_id"] == "LicenseRef-Animama-owner-authored"
     assert by_glob["gestures/**/*.vrma"]["license_id"] == "LicenseRef-Adobe-Mixamo-embedded-product"
     assert by_glob["gestures/**/*.vrma"].get("distribution") != "excluded"

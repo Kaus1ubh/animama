@@ -19,7 +19,11 @@ starter authoring, no live pose links and no browser-pose migration.
 The repository is `raymond-van/animama`. Reuse the task's existing
 `poses-as-content/animama` worktree and branch `feat/poses-as-content`.
 Starting revision: `0657c51e211efa8bd16d1efca8dbefd878aacc74`.
-Primary `main` remains unchanged. No Compose stack has been started for planning.
+Primary `main` remains unchanged. Implementation uses task stack `animama-poses-content`,
+development mode, at `http://localhost:8720` (Vite is the only published application
+service; PostgreSQL/supporting services stay private; no optional profiles).
+Started with `ANIMAMA_LLM_SKIP=1 ./reset.sh --name poses-content --base-port 8720 --host localhost`.
+Task Local content/database are separate from the main installation; no provider calls are needed.
 Before any implementation, verify Git root, branch, HEAD and dirty state; retain
 these planning files and unrelated changes. Do not replace this worktree or reset
 its revision merely because the base branch advances.
@@ -39,7 +43,7 @@ Authoritative spec: https://github.com/raymond-van/animama/issues/55 (captured 2
 - [x] Workspace setup published and read back https://github.com/raymond-van/animama/issues/55
   at 2026-09-22T18:12:50Z; four native phase issues and dependencies created.
 - [x] Phase 1: standalone Pose content contract and recoverable persistence.
-- [ ] Phase 2: canonical Included starters and distribution completeness.
+- [x] Phase 2: canonical Included starters and distribution completeness.
 - [ ] Phase 3: durable editor collection and independent clip copies.
 - [ ] Phase 4: Library integration and complete acceptance.
 - [ ] Final integration review, regular PR, actual hosted Validation and owner acceptance.
@@ -182,7 +186,7 @@ and never weaken validation to make test fixtures pass.
 
 Issue: https://github.com/raymond-van/animama/issues/56.
 Starting source: `72b30658307f59fafac5d9548421888947f9724b` (planning commit;
-implementation baseline unchanged). Candidate: reviewed working tree; phase commit recorded after creation.
+implementation baseline unchanged). Committed candidate: `db1a7d90a1a04420733d3851417291982384d482`.
 
 Evidence so far (2026-09-22, Python 3.12.13, Node 24.15.0, pnpm 10.33.0):
 
@@ -279,16 +283,48 @@ Recovery: retain original definitions until equivalence passes; recover with Git
 not an ad hoc reverse converter or user-data reset. Missing source/licensing evidence
 blocks affected distribution work and must be reported rather than bypassed.
 
-Issue: https://github.com/raymond-van/animama/issues/57. Starting source: Phase 1 completion, to record. Commit: pending.
-Evidence and remaining gates: not run.
+Issue: https://github.com/raymond-van/animama/issues/57. Starting source: `db1a7d90a1a04420733d3851417291982384d482`. Commit: pending.
+Evidence (2026-09-22):
+
+- Four core-distribution regressions failed before implementation, then passed:
+  standalone unequipped poses ship in core; untracked, excluded and invalid Pose
+  roots fail distribution instead of disappearing.
+- All 27 ordinary Included Pose descriptors scan as valid. The canonical collection
+  preserves original IDs and names, including `relaxedRest` and `vrmTPose`.
+- `git lfs pull` hydrated tracked assets in this worktree before staging.
+- `uv run --no-sync python src/backend/packaging/desktop/stage_content.py --output
+  /private/tmp/poses-core-stage.gZwgKF`: passed, 165 core entries, both starter
+  Animas zero diagnostics. Staged output remains available for review; this is
+  content-distribution evidence, not signed/native installer acceptance.
+- Affected backend Ruff lint/format and mypy (4 files) passed.
+- `uv run --no-sync pytest -q tests/test_included_content_catalog.py
+  tests/test_included_content_integrity.py tests/test_starter_content_closure.py`:
+  23 passed. Independent reviewer verified all 27 staged Pose bytes and exact fresh
+  core-inventory rescan equality.
+- `node --test src/frontend/scripts/generate-pose-catalog.test.mjs`: 3 passed,
+  covering deterministic projection, read-only stale/missing checks and invalid
+  descriptor identity/parent rejection.
+- `pnpm --dir src/frontend/web exec vitest run src/lib/avatar/poses
+  src/lib/avatar/reaction/ReactionClipPlayer.test.ts`: 9 passed across 4 files.
+  Captured pre-conversion resolved hashes match all 27 canonical poses; 22 Gesture
+  and 72 Reaction clips resolve. Canonical-content existence test failed before
+  conversion, then passed. Other parity checks started green and remained green.
+- `pnpm --dir src/frontend/web check:source`: passed, including `poses:check`.
+  Focused ESLint, Prettier and `git diff --check` passed. Full web build is Phase 4.
+- Original raw conversion capture remains in `/tmp/poses-original-resolved.json`;
+  tracked `fixtures/starter-inventory-before-content.json` records original
+  revision, IDs, names, defaults and hashes at 12-decimal numeric precision.
 
 #### Code Review #1 Findings
 
-Not started. Record source, starter inventory/parity evidence and findings here.
+Initial phase review against `db1a7d9`: independent analysis and checks passed.
+No actionable findings. Reviewed canonical authority, captured value parity,
+Docker/Compose source paths, drift enforcement, core selection and provenance.
 
 #### Code Review #1 Revisions
 
-Not started. Record repairs and affected reruns; at most two repair rounds.
+No repairs required. Zero repair rounds used; two remain. Phase 2 completion
+conditions satisfied; no native/release/browser acceptance claimed.
 
 ### Phase 3 — Durable pose authoring and true copy-on-insert
 

@@ -362,10 +362,15 @@ Expanding the compact panel's Active Motion Catalog does not enable the
 route mount, so it renders without polling; current playback and fade telemetry
 belongs to the separate Active Actions section, which opts into live snapshots.
 
-Built-in runtime assets behind the App provider live under:
+Standalone Included poses are authored in `content/included/poses/<id>/<id>.json`
+as self-contained, parent-free content descriptors. The synchronous App provider
+uses a generated projection; run `pnpm poses:generate` from `src/frontend` after
+changing these descriptors. The web build and source check reject projection drift.
 
-- `src/frontend/web/src/lib/avatar/poses/pose_catalog.json`
-- `src/frontend/web/src/lib/avatar/poses/json/*.json`
+Built-in runtime inputs behind the App provider live under:
+
+- `src/frontend/web/src/lib/avatar/poses/pose_catalog.json` (defaults and clip manifest)
+- `src/frontend/web/src/lib/avatar/poses/pose_catalog.generated.json` (generated poses)
 - `src/frontend/web/src/lib/avatar/poses/json/clips/*.json`
 - `src/frontend/web/src/lib/avatar/poses/json/clips/reactions/*.json`
 
@@ -400,8 +405,8 @@ clip-owned avatar, scene, and particle VFX from pose/reaction playback while
 leaving SFX and manual/debug VFX controls unchanged.
 
 The catalog includes a concrete `vrmTPose` JSON pose with identity rotations
-for every `VRMHumanBoneList` bone. `relaxedRest` inherits from this pose so
-omitted relaxed-rest bones still resolve to explicit T-pose anchors. This keeps
+for every `VRMHumanBoneList` bone. `relaxedRest` includes the resolved T-pose
+anchors from its original inherited definition. This keeps
 sparse child poses, such as clips that add `neck`, interpolating from identity
 instead of snapping from a missing source rotation.
 

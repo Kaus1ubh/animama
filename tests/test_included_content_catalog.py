@@ -45,6 +45,7 @@ def test_readable_included_library_projects_every_supported_entry(included: Path
     logical_keys = [entry.logical_key for entry in entries if entry.logical_key]
     assert len(logical_keys) == len(set(logical_keys))
     assert {entry.kind for entry in entries} >= {
+        ContentKind.POSE,
         ContentKind.AVATAR,
         ContentKind.GESTURE,
         ContentKind.REACTION,
@@ -144,3 +145,47 @@ def test_every_included_sound_dependency_resolves_to_a_shipped_sound(included: P
     )
 
     assert unresolved == []
+
+
+def test_all_original_pose_starters_are_registered_self_contained_content(included: Path) -> None:
+    expected_ids = {
+        "arms-crossed",
+        "cat-monster-rawr",
+        "cat-monster-rawr-2",
+        "cheeky-finger-guns",
+        "cheeky-finger-guns-2",
+        "double-peace-sign",
+        "double-thumbs-down",
+        "double-thumbs-up",
+        "hands-on-hips",
+        "heart-hands",
+        "left-ok-sign",
+        "left-peace-sign",
+        "meme-dab",
+        "relaxedRest",
+        "right-face-palm",
+        "right-finger-point",
+        "right-thumbs-down",
+        "right-thumbs-up",
+        "shy-finger-poke-1",
+        "shy-finger-poke-2",
+        "single-hand-on-heart",
+        "soldier-salute",
+        "soldier-salute-2",
+        "thinking-hand-on-chin",
+        "thinking-head-scratch-1",
+        "thinking-head-scratch-2",
+        "vrmTPose",
+    }
+    poses = [entry for entry in _scan_included(included) if entry.kind is ContentKind.POSE]
+    assert {entry.logical_key for entry in poses} == expected_ids
+    for entry in poses:
+        assert entry.status is ContentStatus.VALID
+        assert entry.dependencies == ()
+        assert entry.relative_locator == f"poses/{entry.logical_key}"
+        assert len(entry.files) == 1 and entry.files[0].role == "descriptor"
+        assert entry.descriptor_relative_path == f"poses/{entry.logical_key}/{entry.logical_key}.json"
+        document = json.loads((included / entry.descriptor_relative_path).read_text())
+        assert document["content_id"] == document["pose"]["id"] == entry.logical_key
+        assert document["name"] == document["pose"]["name"] == entry.display_name
+        assert "parent" not in document["pose"]

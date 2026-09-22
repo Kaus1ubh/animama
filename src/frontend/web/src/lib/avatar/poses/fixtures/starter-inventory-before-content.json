@@ -1,0 +1,169 @@
+{
+  "source_revision": "db1a7d90a1a04420733d3851417291982384d482",
+  "numeric_precision": 12,
+  "defaultPoseIds": ["relaxedRest"],
+  "poses": [
+    {
+      "id": "vrmTPose",
+      "source": "./json/vrm_t_pose-1.json",
+      "name": "VRM T-Pose",
+      "resolved_sha256": "68cadae8c5f8d6e6449073a549853572164b76a4090e81c2b2b1080f79dd5325"
+    },
+    {
+      "id": "relaxedRest",
+      "source": "./json/relaxed_rest-1.json",
+      "name": "Relaxed Rest",
+      "resolved_sha256": "a8c892f6f04dc8725d2357a3b7d7e933e16b9e0a61e43dbea084af8f513f0916"
+    },
+    {
+      "id": "right-thumbs-up",
+      "source": "./json/right-thumbs-up-1.json",
+      "name": "Right Thumbs Up",
+      "resolved_sha256": "f0811e8b6c209e4418edba6e90eb3c3a374f3615671f9697c06ca8f6bbf19222"
+    },
+    {
+      "id": "right-thumbs-down",
+      "source": "./json/right-thumbs-down-1.json",
+      "name": "Right Thumbs Down",
+      "resolved_sha256": "fc0c1aece559544849697d102d56c94ea03d23d3b5a3c22ea8212159b0d39ec2"
+    },
+    {
+      "id": "double-thumbs-up",
+      "source": "./json/double-thumbs-up-1.json",
+      "name": "Double Thumbs Up",
+      "resolved_sha256": "9d5187ff95cda7cfcf91ffab2cdafebaf84604d110704adf409e3e82beedb9b0"
+    },
+    {
+      "id": "double-thumbs-down",
+      "source": "./json/double-thumbs-down-1.json",
+      "name": "Double Thumbs Down",
+      "resolved_sha256": "8d0a4580325bbb39874b35c0621820a4fd9db2ec1ee73a492876a17d49a97b20"
+    },
+    {
+      "id": "right-face-palm",
+      "source": "./json/right-face-palm-1.json",
+      "name": "Right face palm",
+      "resolved_sha256": "df9cd39447073627fe12e518f766a401c3e686bf45c799c010a5706d41473a94"
+    },
+    {
+      "id": "right-finger-point",
+      "source": "./json/right-finger-point-1.json",
+      "name": "Right Finger Point",
+      "resolved_sha256": "69803d1846f5366dc628ffc81467f54cd9e06b9ecc8a55540dd247b71d37ae0c"
+    },
+    {
+      "id": "left-peace-sign",
+      "source": "./json/left-peace-sign-1.json",
+      "name": "Left Peace Sign",
+      "resolved_sha256": "85b42631e13adba371747b6918d4929edecf0c7bf0cf5323646b6ec44dfe6b9d"
+    },
+    {
+      "id": "double-peace-sign",
+      "source": "./json/double-peace-sign-1.json",
+      "name": "Double Peace Sign",
+      "resolved_sha256": "5105f57bbef1adf6dc93f275aa841708fd1f5ebc8c4fe4c37be38d4445100daa"
+    },
+    {
+      "id": "left-ok-sign",
+      "source": "./json/left-ok-sign-1.json",
+      "name": "Left OK Sign",
+      "resolved_sha256": "4d25fc4f7f84250059d7a4fc38c6cb92371e69d6c93935ddb1758516fd65cabc"
+    },
+    {
+      "id": "hands-on-hips",
+      "source": "./json/hands-on-hips-1.json",
+      "name": "Hands On Hips",
+      "resolved_sha256": "e0c3b2eb1f07299d0366c4df8cb2ad7ee5a1a38bfd7dc95bb47214d555321217"
+    },
+    {
+      "id": "arms-crossed",
+      "source": "./json/arms-crossed-1.json",
+      "name": "Arms Crossed",
+      "resolved_sha256": "4ff38533f64df31e4992ac43a218a954476f5cb5527b25819398ceb951c173d5"
+    },
+    {
+      "id": "heart-hands",
+      "source": "./json/heart-hands-1.json",
+      "name": "Heart Hands",
+      "resolved_sha256": "cd2f2913cc74709dd12975c4b0b95c977c1e22accacdefa70ae2a68981aacef0"
+    },
+    {
+      "id": "soldier-salute",
+      "source": "./json/soldier-salute-1.json",
+      "name": "Soldier Salute",
+      "resolved_sha256": "0378318b071089e854da1fb1b5b18900f88f437bcffa0ad8bf22b88dae5bfbe8"
+    },
+    {
+      "id": "soldier-salute-2",
+      "source": "./json/soldier-salute-2.json",
+      "name": "Soldier Salute 2",
+      "resolved_sha256": "082be58602943a4c3191592da3c71157d7f21e0940f1f3e1c45257a403309977"
+    },
+    {
+      "id": "cat-monster-rawr",
+      "source": "./json/cat-monster-rawr-1.json",
+      "name": "Cat Monster Rawr",
+      "resolved_sha256": "d8c56d1437fb9d1f094bf03456b7a748488814f18d6284af678ec4b65df58f7e"
+    },
+    {
+      "id": "cat-monster-rawr-2",
+      "source": "./json/cat-monster-rawr-2.json",
+      "name": "Cat Monster Rawr",
+      "resolved_sha256": "126fa38e80c3cc780b8e53a0966b59fff6615eb93b77fe8bca099b04831d057d"
+    },
+    {
+      "id": "meme-dab",
+      "source": "./json/meme-dab-1.json",
+      "name": "Meme Dab",
+      "resolved_sha256": "eb0b0f60b9d42b809f682a32b0fc047229272835b5f85cd99e7a339e6934e876"
+    },
+    {
+      "id": "single-hand-on-heart",
+      "source": "./json/single-hand-on-heart-1.json",
+      "name": "Single Hand On Heart",
+      "resolved_sha256": "47ecc08f04e2ebe8bcf57627ec1e16d9b234ca0ce30d16308258e0cc94be98c6"
+    },
+    {
+      "id": "cheeky-finger-guns",
+      "source": "./json/cheeky-finger-guns-1.json",
+      "name": "Cheeky Finger Guns",
+      "resolved_sha256": "1d3993799ff3970be8f552f0543594709c52c977fe1ccfec45620dd3f88ef726"
+    },
+    {
+      "id": "cheeky-finger-guns-2",
+      "source": "./json/cheeky-finger-guns-2.json",
+      "name": "Cheeky Finger Guns 2",
+      "resolved_sha256": "29b19095822d0833436ad6bf280d8be7f9abb8654ed2a7d6822949479674fa88"
+    },
+    {
+      "id": "shy-finger-poke-1",
+      "source": "./json/shy-finger-poke-1.json",
+      "name": "shy-finger-poke-1",
+      "resolved_sha256": "a833e81b660a0a528dd691a413b185b3fcb1ecded9cc5e27b0be331f66c02b0b"
+    },
+    {
+      "id": "shy-finger-poke-2",
+      "source": "./json/shy-finger-poke-2.json",
+      "name": "shy-finger-poke-2",
+      "resolved_sha256": "06b31420e25800994fda40b4738bb69449d7fb2467adb83ab2e841826e483cb6"
+    },
+    {
+      "id": "thinking-hand-on-chin",
+      "source": "./json/thinking-hand-on-chin-1.json",
+      "name": "Thinking-hand-on-chin",
+      "resolved_sha256": "3ed6a40b950a03f4514752337b88a248965fbb1ab06aafa444715b869ddf416d"
+    },
+    {
+      "id": "thinking-head-scratch-1",
+      "source": "./json/thinking-head-scratch-1.json",
+      "name": "thinking-head-scratch-1",
+      "resolved_sha256": "b9b1f9795d8c642f0002cb66ee7078a804d601d106b518b6dff0154adee3573c"
+    },
+    {
+      "id": "thinking-head-scratch-2",
+      "source": "./json/thinking-head-scratch-2.json",
+      "name": "thinking-head-scratch-2",
+      "resolved_sha256": "05fe7f7e3d1763053e16d58c21da1d69dba3ea985eaf930c51d9fa7f891614ee"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import rawCatalog from "./pose_catalog.json";
+import generatedPoses from "./pose_catalog.generated.json";
 import { createLogger } from "@/lib/logger";
 import { isTrackedEmotion } from "@/lib/emotion";
 import {
@@ -27,14 +28,8 @@ type PoseCatalogEntry = {
 type PoseCatalogManifest = {
   schema: "animaPoseCatalog/1.0";
   defaultPoseIds: string[];
-  poses: PoseCatalogEntry[];
   clips: PoseCatalogEntry[];
 };
-
-const rawPoseModules = import.meta.glob("./json/*.json", {
-  eager: true,
-  import: "default",
-}) as Record<string, unknown>;
 
 const rawClipModules = import.meta.glob("./json/clips/*.json", {
   eager: true,
@@ -51,7 +46,7 @@ const rawReactionClipModules = import.meta.glob(
 
 const manifest = parsePoseCatalogManifest(rawCatalog);
 const loadedPoseCatalog = pruneUnresolvablePoseCatalog(
-  loadPoseCatalog(manifest),
+  loadPoseCatalog(generatedPoses.poses),
 );
 
 export const AVATAR_POSE_CATALOG: Readonly<Record<string, AnimaPose>> =
@@ -141,50 +136,22 @@ export function normalizeAvatarPoseClipId(clipId: string): string {
     : trimmed;
 }
 
+/** Synchronous defaults and shipped clip refs use a checked canonical-content projection. */
 function loadPoseCatalog(
-  catalogManifest: PoseCatalogManifest,
+  rawPoses: Readonly<Record<string, unknown>>,
 ): Record<string, AnimaPose> {
   const catalog: Record<string, AnimaPose> = {};
-  for (const entry of catalogManifest.poses) {
-    if (catalog[entry.id]) {
-      logger.warn("Pose", "Skipping duplicate avatar pose catalog entry", {
-        poseId: entry.id,
-        source: entry.source,
-      });
-      continue;
-    }
-
-    const rawPose = rawPoseModules[entry.source];
-    if (!rawPose) {
-      logger.warn("Pose", "Skipping missing avatar pose JSON source", {
-        poseId: entry.id,
-        source: entry.source,
-      });
-      continue;
-    }
-
-    let pose: AnimaPose;
+  for (const [poseId, rawPose] of Object.entries(rawPoses)) {
     try {
-      pose = parseAnimaPose(rawPose);
+      const pose = parseAnimaPose(rawPose);
+      if (pose.id !== poseId) throw new Error("Projected Pose id mismatch");
+      catalog[poseId] = pose;
     } catch (error) {
-      logger.warn("Pose", "Skipping invalid avatar pose JSON source", {
-        poseId: entry.id,
-        source: entry.source,
+      logger.warn("Pose", "Skipping invalid projected Included Pose", {
+        poseId,
         error,
       });
-      continue;
     }
-
-    if (pose.id !== entry.id) {
-      logger.warn("Pose", "Skipping avatar pose with mismatched id", {
-        catalogPoseId: entry.id,
-        source: entry.source,
-        poseId: pose.id,
-      });
-      continue;
-    }
-
-    catalog[entry.id] = pose;
   }
   return catalog;
 }
@@ -390,7 +357,7 @@ function parsePoseCatalogManifest(value: unknown): PoseCatalogManifest {
   if (!isRecord(value) || value.schema !== "animaPoseCatalog/1.0") {
     throw new Error("Invalid avatar pose catalog manifest");
   }
-  if (!Array.isArray(value.defaultPoseIds) || !Array.isArray(value.poses)) {
+  if (!Array.isArray(value.defaultPoseIds)) {
     throw new Error("Invalid avatar pose catalog entries");
   }
   if (value.clips !== undefined && !Array.isArray(value.clips)) {
@@ -400,7 +367,6 @@ function parsePoseCatalogManifest(value: unknown): PoseCatalogManifest {
   return {
     schema: value.schema,
     defaultPoseIds: value.defaultPoseIds.map(parseCatalogString),
-    poses: parsePoseCatalogEntries(value.poses, "pose"),
     clips: parsePoseCatalogEntries(value.clips ?? [], "clip"),
   };
 }

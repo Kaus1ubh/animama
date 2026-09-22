@@ -94,6 +94,13 @@
       "distribution": "excluded"
     },
     {
+      "glob": "poses/**/*.json",
+      "creator": "Animama project owner",
+      "provenance": "Resolved copies of the existing Animama built-in JSON pose definitions. The owner confirmed authorship of the JSON gesture and pose definitions and metadata on 2026-09-03, as recorded in the gesture JSON rule. Conversion preserves their effective transforms and expressions; no third-party animation bytes are included.",
+      "license_id": "LicenseRef-Animama-owner-authored",
+      "redistribution_review": "pending"
+    },
+    {
       "glob": "gestures/**/*.json",
       "creator": "Animama project owner",
       "provenance": "The owner confirms they authored the JSON gesture and pose definitions and their metadata (2026-09-03). Any referenced VRMA animation retains its separate Adobe Mixamo provenance and product-use terms.",
