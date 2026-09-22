@@ -1,6 +1,6 @@
 # Poses as content execution plan
 
-Status: Accepted; implementation authorized on 2026-09-22.
+Status: All four phases complete and locally reviewed; PR/hosted CI handoff pending.
 Source agreement: [Poses as content spec](poses-as-content-spec.md), accepted by
 owner instruction to proceed to execution planning on 2026-09-22.
 Accepted spec Git blob: `869ab830cb6a2b99e675a9102ec14de6e05a4dad`.
@@ -42,12 +42,14 @@ Authoritative spec: https://github.com/raymond-van/animama/issues/55 (captured 2
 - [x] Prepare phases, recovery steps and acceptance evidence.
 - [x] Owner accepts plan and authorizes all four implementation phases.
 - [x] Workspace setup published and read back https://github.com/raymond-van/animama/issues/55
-  at 2026-09-22T18:12:50Z; four native phase issues and dependencies created.
+      at 2026-09-22T18:12:50Z; four native phase issues and dependencies created.
 - [x] Phase 1: standalone Pose content contract and recoverable persistence.
 - [x] Phase 2: canonical Included starters and distribution completeness.
 - [x] Phase 3: durable editor collection and independent clip copies.
 - [x] Phase 4: Library integration and complete acceptance.
-- [ ] Final integration review, regular PR, actual hosted Validation and owner acceptance.
+- [x] Final integration review: no blocking findings; initial pass, no repairs.
+- [ ] Regular PR and actual full hosted Validation.
+- [ ] Exact-candidate owner merge approval.
 
 ## Surprises & Discoveries
 
@@ -94,24 +96,24 @@ Authoritative spec: https://github.com/raymond-van/animama/issues/55 (captured 2
 
 Backend entrypoints are under `src/backend/animama/`:
 
-| Boundary | Existing implementation |
-| --- | --- |
+| Boundary                          | Existing implementation                                                                                                         |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | Kinds, documents, database checks | `domain/content_catalog.py`, `domain/content_documents.py`, `orm/content_catalog.py`; root `alembic/versions/0001_baseline.sql` |
-| Admission and persistence | `app/services/content_kind_registry.py`, `typed_content_service.py`, `content_save_service.py`, `local_content_mutations.py` |
-| HTTP and shared typed models | `server/routers/typed_content.py`, `server/schemas/typed_content.py`, `app/anima_creation_contract.py` |
-| Source/package boundary | `adapters/content_store/`, `app/services/content_package_service.py` |
-| Desktop starter selection | `runtime/starter_content.py`; `src/backend/packaging/desktop/stage_content.py` |
+| Admission and persistence         | `app/services/content_kind_registry.py`, `typed_content_service.py`, `content_save_service.py`, `local_content_mutations.py`    |
+| HTTP and shared typed models      | `server/routers/typed_content.py`, `server/schemas/typed_content.py`, `app/anima_creation_contract.py`                          |
+| Source/package boundary           | `adapters/content_store/`, `app/services/content_package_service.py`                                                            |
+| Desktop starter selection         | `runtime/starter_content.py`; `src/backend/packaging/desktop/stage_content.py`                                                  |
 
 Frontend entrypoints are under `src/frontend/web/src/`:
 
-| Boundary | Existing implementation |
-| --- | --- |
-| Pose values and starter resolution | `lib/avatar/poses/animaPose.ts`, `catalog.ts`, `pose_catalog.json`, `json/` |
-| Drafts and controls | `stores/pose-creator-store.ts`, `ui/pose-creator/poseCreatorAuthoring.ts`, `PoseCreatorLibrarySection.tsx` |
-| Clip persistence and history | `ui/pose-creator/poseCreatorClipAuthoring.ts`, `ui/action-editor/actionPersistence.ts`, `ActionTimelineEditor.tsx` |
-| Picker and insertion | `ui/action-editor/ActionEditorWorkspace.tsx`, `ActionEditorEffectsPanel.tsx`, `actionEditorSavedPose.ts`, `ActionCatalogDrag.tsx`, `timelineCatalogDrop.ts` |
-| Queries and previews | `query/keys.ts`, `query/hooks/`, `query/mutations/`, `lib/content/catalogApi.ts`, `typedPreviewAdapters.ts`, `lib/content-preview/` |
-| Library and routes | `lib/content/librarySearch.ts`, `libraryContentInventory.ts`, `libraryPresentation.ts`, `ui/library/`, `routes/a/library.tsx` |
+| Boundary                           | Existing implementation                                                                                                                                     |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pose values and starter resolution | `lib/avatar/poses/animaPose.ts`, `catalog.ts`, `pose_catalog.json`, `json/`                                                                                 |
+| Drafts and controls                | `stores/pose-creator-store.ts`, `ui/pose-creator/poseCreatorAuthoring.ts`, `PoseCreatorLibrarySection.tsx`                                                  |
+| Clip persistence and history       | `ui/pose-creator/poseCreatorClipAuthoring.ts`, `ui/action-editor/actionPersistence.ts`, `ActionTimelineEditor.tsx`                                          |
+| Picker and insertion               | `ui/action-editor/ActionEditorWorkspace.tsx`, `ActionEditorEffectsPanel.tsx`, `actionEditorSavedPose.ts`, `ActionCatalogDrag.tsx`, `timelineCatalogDrop.ts` |
+| Queries and previews               | `query/keys.ts`, `query/hooks/`, `query/mutations/`, `lib/content/catalogApi.ts`, `typedPreviewAdapters.ts`, `lib/content-preview/`                         |
+| Library and routes                 | `lib/content/librarySearch.ts`, `libraryContentInventory.ts`, `libraryPresentation.ts`, `ui/library/`, `routes/a/library.tsx`                               |
 
 ## Setup and execution rules
 
@@ -209,7 +211,7 @@ Evidence so far (2026-09-22, Python 3.12.13, Node 24.15.0, pnpm 10.33.0):
   now passes TypeScript and its focused regressions without adding equip behavior.
 - The shared resolved Pose fixture passes both Python handler admission and the
   TypeScript parser without dropped values (`tests/test_pose_content.py -k
-  fixture_matches` and frontend catalog API test). This is an additional sixth
+fixture_matches` and frontend catalog API test). This is an additional sixth
   API/contract test; the earlier five behavior cases remain green.
 - Frontend focused regression set: 69 tests across seven files passed; three newly
   introduced transport/evidence tests failed before implementation. TypeScript,
@@ -295,19 +297,19 @@ Evidence (2026-09-22):
   preserves original IDs and names, including `relaxedRest` and `vrmTPose`.
 - `git lfs pull` hydrated tracked assets in this worktree before staging.
 - `uv run --no-sync python src/backend/packaging/desktop/stage_content.py --output
-  /private/tmp/poses-core-stage.gZwgKF`: passed, 165 core entries, both starter
+/private/tmp/poses-core-stage.gZwgKF`: passed, 165 core entries, both starter
   Animas zero diagnostics. Staged output remains available for review; this is
   content-distribution evidence, not signed/native installer acceptance.
 - Affected backend Ruff lint/format and mypy (4 files) passed.
 - `uv run --no-sync pytest -q tests/test_included_content_catalog.py
-  tests/test_included_content_integrity.py tests/test_starter_content_closure.py`:
+tests/test_included_content_integrity.py tests/test_starter_content_closure.py`:
   23 passed. Independent reviewer verified all 27 staged Pose bytes and exact fresh
   core-inventory rescan equality.
 - `node --test src/frontend/scripts/generate-pose-catalog.test.mjs`: 3 passed,
   covering deterministic projection, read-only stale/missing checks and invalid
   descriptor identity/parent rejection.
 - `pnpm --dir src/frontend/web exec vitest run src/lib/avatar/poses
-  src/lib/avatar/reaction/ReactionClipPlayer.test.ts`: 9 passed across 4 files.
+src/lib/avatar/reaction/ReactionClipPlayer.test.ts`: 9 passed across 4 files.
   Captured pre-conversion resolved hashes match all 27 canonical poses; 22 Gesture
   and 72 Reaction clips resolve. Canonical-content existence test failed before
   conversion, then passed. Other parity checks started green and remained green.
@@ -395,8 +397,8 @@ Evidence in progress (2026-09-22):
   and mismatched descriptor identity were accepted. Both now reject before returning
   a draft; stale selection rejects before fetching bytes.
 - `pnpm --dir src/frontend/web exec vitest run src/lib/content/poseContent.test.ts
-  src/query/mutations/usePoseContentActions.test.ts
-  src/query/contentCatalogInvalidation.test.ts`: 9 passed. Tests cover captured
+src/query/mutations/usePoseContentActions.test.ts
+src/query/contentCatalogInvalidation.test.ts`: 9 passed. Tests cover captured
   revision/operation reuse after response loss, fresh operation for changed payload,
   descriptor identity, conflict propagation and owner-scoped cache invalidation.
 - Planned 12 editor suites plus `poseContent`, `usePoseContentActions`, `usePoses`,
@@ -509,8 +511,8 @@ remain explicitly pending until actually observed.
 Recovery: failed content operations use normal journals/receipts; failed test data
 cleanup uses the runner's exact ownership ledger. Do not hide failed cleanup as a pass.
 
-Issue: https://github.com/raymond-van/animama/issues/59. Starting source: `c4d737552b35af56a69bd2273d2b495fb7181b32`. Commit: pending.
-Evidence in progress:
+Issue: https://github.com/raymond-van/animama/issues/59. Starting source: `c4d737552b35af56a69bd2273d2b495fb7181b32`. Commit: `49dedbf3a7c0df5c4710abfa075be4010a33376e`.
+Completed evidence:
 
 - Full backend gate initially reported four failures: the approved baseline kind
   addition needed its reviewed SQL fingerprint updated; the dev-launcher test
@@ -580,7 +582,7 @@ The final broad web run passed 245 suites / 1376 tests but two suites could not
 import a package while concurrent E2E preparation rebuilt its output. After all
 builders settled, the two unchanged suites passed 16 tests: 247 suites / 1392 tests
 covered across the broad run and targeted recheck, not a single clean broad run.
-Remaining formatting concerns are limited to E2E files still being authored.
+Final formatting checks cleared all authored E2E files.
 Browser/package evidence and built-mode acceptance above are complete.
 
 #### Code Review #1 Revisions
@@ -653,16 +655,16 @@ claimed by these gates. Starter staging evidence covers content packaging only.
 
 ### Acceptance evidence matrix
 
-| Evidence | Requirements and observable result |
-| --- | --- |
-| API/database and scan tests | R1/R5: durable identity/value updates, restart persistence, stale-save rejection, recoverable publication/retry, invalid/missing health, Included/access denial |
-| Canonical starter and staging parity | R3/constraints: every former built-in preserves effective values; shipped defaults/clips work; default core distribution includes poses |
-| Real-Avatar Library journey | R2/R3: Actions/Poses and combined lists, filtering/search/navigation, starter/local preview, Customize, Local edit/reopen, no new-item/Create entry |
-| Persistence browser journey | R1/R6: editor Save survives reload, scoped browser storage clearing and backend restart; seeded legacy browser poses stay unused |
-| Sampled values and rendered action playback | R3/R4: click/drag, one Undo/Redo, cancel and independent copied poses after source/parent/base updates or deletion, including saved/reopened action |
-| Conflict/error/dirty-work journey | R5: failed save keeps work, stale revisions are visible, cancellation preserves drafts and unrelated Gesture editing, unavailable preview has no false success |
-| Backend package round-trips plus preview | R1/R4: standalone imported Pose has the same values; imported action plays copied poses with original pose files absent |
-| Desktop then narrow layout and keyboard | Constraints: usable bounded controls, explicit insertion alternative to drag, no Reaction humanoid or equip expansion |
+| Evidence                                    | Requirements and observable result                                                                                                                              |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API/database and scan tests                 | R1/R5: durable identity/value updates, restart persistence, stale-save rejection, recoverable publication/retry, invalid/missing health, Included/access denial |
+| Canonical starter and staging parity        | R3/constraints: every former built-in preserves effective values; shipped defaults/clips work; default core distribution includes poses                         |
+| Real-Avatar Library journey                 | R2/R3: Actions/Poses and combined lists, filtering/search/navigation, starter/local preview, Customize, Local edit/reopen, no new-item/Create entry             |
+| Persistence browser journey                 | R1/R6: editor Save survives reload, scoped browser storage clearing and backend restart; seeded legacy browser poses stay unused                                |
+| Sampled values and rendered action playback | R3/R4: click/drag, one Undo/Redo, cancel and independent copied poses after source/parent/base updates or deletion, including saved/reopened action             |
+| Conflict/error/dirty-work journey           | R5: failed save keeps work, stale revisions are visible, cancellation preserves drafts and unrelated Gesture editing, unavailable preview has no false success  |
+| Backend package round-trips plus preview    | R1/R4: standalone imported Pose has the same values; imported action plays copied poses with original pose files absent                                         |
+| Desktop then narrow layout and keyboard     | Constraints: usable bounded controls, explicit insertion alternative to drag, no Reaction humanoid or equip expansion                                           |
 
 Use real Avatar evidence for rendering; synthetic smoke tests alone do not establish
 pose fidelity. Record desktop and narrow viewport dimensions, representative poses,
@@ -679,11 +681,27 @@ repeat cleared findings without new evidence.
 
 ### Code Review #1 Findings
 
-Not started. Baseline/candidate, evidence mapping and findings: pending.
+Independent integration analysis reviewed `49dedbf3a7c0df5c4710abfa075be4010a33376e`
+against `0657c51e211efa8bd16d1efca8dbefd878aacc74`: no blocking findings.
+R1–R6 remain coherent across content persistence, starter packaging, editor retry
+and session handling, copied clip values, Library preview/editing and retirement
+of browser pose storage. All previous findings remain resolved; UI exclusions,
+Included immutability and Reaction/equipment boundaries remain intact.
+
+Separate read-only checks by a prior implementation author verified the recorded
+evidence and clean candidate. Fresh checks passed for all 79 changed authored
+frontend files (six generated files excluded), projection freshness, Python import
+boundaries and full-patch whitespace. All 27 staged Pose descriptors still match
+current source bytes. Unchanged passing phase evidence remains applicable.
+Frontend evidence is 247 suites / 1392 tests across a full run and targeted recovery
+of two package-build race failures, not one uninterrupted successful broad run.
 
 ### Code Review #1 Revisions
 
-Not started. Repairs, reruns and remaining review budget: pending.
+No final integration repairs required. The initial review is complete; both repair
+rounds remain available. The final handoff commit changes this execution record
+only, so product-source checks and independent analysis remain applicable.
+Hosted Validation and exact-head owner approval remain separate pending gates.
 
 Open/update one regular PR after required local gates and authorized implementation
 are complete. Link the authoritative spec issue and plan, separate local/browser
@@ -722,10 +740,19 @@ found. No product tests, asset conversion or application startup occurred.
 
 ## Outcomes & Retrospective
 
-All implementation phases are authorized. Workspace and tracker setup are complete.
-Phase work, product tests, browser evidence, hosted CI and final acceptance remain
-pending; update this section as execution progresses.
-There are no unresolved product decisions. The implementation choices above are
-concrete defaults; adjust them within the spec if source evidence warrants it.
-Runtime/input availability is checked at setup and must be recorded as a blocker
-if missing, not treated as successful validation.
+All four phases are implemented, committed and independently reviewed. Backend,
+frontend, package, desktop and real-Avatar development/built-mode evidence satisfy
+the local acceptance matrix. The public PR is the continuing record for hosted
+Validation and exact-candidate owner approval; neither is inferred from local checks.
+
+Retain the existing `poses-as-content/animama` worktree, `feat/poses-as-content`
+branch and `animama-poses-content` built-mode stack at `http://localhost:8720`
+until cleanup is authorized. The original and imported manual Gesture fixtures
+remain in this isolated installation for review; their source Pose was deliberately
+deleted to establish copied-value independence. Automated ownership ledgers are clean.
+
+Source-bound evidence prevented unnecessary expensive reruns. Avoid rebuilding
+shared package output concurrently with tests that import it: the final broad web
+run exposed that test-environment race, and the affected unchanged suites passed
+once the builders settled. No unresolved product decision or implementation blocker
+remains. Native release, real audio and paid-provider acceptance are not claimed.
