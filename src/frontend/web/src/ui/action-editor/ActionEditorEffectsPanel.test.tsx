@@ -104,6 +104,7 @@ describe("ActionEditorEffectsPanel", () => {
         onRemove={() => undefined}
         poses={[savedPose]}
         onAddPose={() => undefined}
+        onEditPose={() => undefined}
       />,
     );
 
@@ -111,6 +112,10 @@ describe("ActionEditorEffectsPanel", () => {
     expect(html.indexOf(">Poses<")).toBeLessThan(html.indexOf(">Particle FX<"));
     expect(html).toContain('placeholder="Search poses"');
     expect(html).toContain("Friendly Wave");
+    expect(html).toContain('aria-label="Edit Friendly Wave"');
+    expect(html.indexOf('aria-label="Edit Friendly Wave"')).toBeLessThan(
+      html.indexOf('aria-label="Add Friendly Wave at current playhead"'),
+    );
     expect(html).toContain(
       'aria-label="Add Friendly Wave at current playhead"',
     );

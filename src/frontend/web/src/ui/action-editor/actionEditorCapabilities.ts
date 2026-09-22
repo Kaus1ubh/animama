@@ -17,7 +17,7 @@ const CAPABILITIES: Record<ActionIntent, ActionEditorCapabilities> = {
   gesture: {
     intent: "gesture",
     cameraProfile: "full-body",
-    defaultMode: "pose",
+    defaultMode: "clip",
     allowedModes: ["pose", "clip", "vrma"],
     allowsHumanoid: true,
     allowsExpressions: true,

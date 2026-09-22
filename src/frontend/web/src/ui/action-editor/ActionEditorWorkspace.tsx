@@ -27,6 +27,8 @@ import {
 import { cn } from "@/lib/utils";
 import {
   selectCanRedoClip,
+  selectCanRedoPose,
+  selectCanUndoPose,
   selectCanUndoClip,
   usePoseCreatorStore,
 } from "@/stores/pose-creator-store";
@@ -53,6 +55,10 @@ import {
   ActionEditorPreviewSettings,
   replaceActionEditorPose,
 } from "./ActionEditorPrimitives";
+import {
+  editActionEditorSavedPose,
+  setActionEditorAuthoringMode,
+} from "./actionEditorSavedPose";
 import { ActionCatalogDragProvider } from "./ActionCatalogDrag";
 import { ActionEditorScene } from "./ActionEditorScene";
 import { ActionEditorEffectsPanel } from "./ActionEditorEffectsPanel";
@@ -259,7 +265,12 @@ function ActionEditorWorkspaceContent() {
   }, []);
 
   useEffect(() => {
-    if (workspace.mode === "pose") void beginInlineKeyframeEdit();
+    if (
+      workspace.mode === "pose" &&
+      usePoseCreatorStore.getState().authoringMode !== "pose"
+    ) {
+      void beginInlineKeyframeEdit();
+    }
   }, [
     activeAvatar,
     beginInlineKeyframeEdit,
@@ -396,6 +407,7 @@ function ActionEditorWorkspaceContent() {
         history={historyController}
         onModeChange={(mode) => {
           if (mode === "clip" && clipInlineEdit) applyInlineKeyframe();
+          setActionEditorAuthoringMode(mode);
           workspace.setMode(mode);
         }}
         inspector={
@@ -624,25 +636,53 @@ function ReactionExpressionPanel({
   );
 }
 
-function useActionHistoryController(
+export function useActionHistoryController(
   documentHistory: Pick<
     CreatorHistoryController<unknown>,
     "canRedo" | "canUndo" | "redo" | "undo"
   >,
   inlineEditing: boolean,
 ) {
+  const standalonePose = usePoseCreatorStore(
+    (state) => state.authoringMode === "pose",
+  );
+  const canUndoPose = usePoseCreatorStore(selectCanUndoPose);
+  const canRedoPose = usePoseCreatorStore(selectCanRedoPose);
+  const undoPose = usePoseCreatorStore((state) => state.undoPose);
+  const redoPose = usePoseCreatorStore((state) => state.redoPose);
   const canUndoInline = usePoseCreatorStore(selectCanUndoClip);
   const canRedoInline = usePoseCreatorStore(selectCanRedoClip);
   const undoClip = usePoseCreatorStore((state) => state.undoClip);
   const redoClip = usePoseCreatorStore((state) => state.redoClip);
   return useMemo(
     () => ({
-      canUndo: inlineEditing ? canUndoInline : documentHistory.canUndo,
-      canRedo: inlineEditing ? canRedoInline : documentHistory.canRedo,
-      undo: inlineEditing ? undoClip : documentHistory.undo,
-      redo: inlineEditing ? redoClip : documentHistory.redo,
+      canUndo: standalonePose
+        ? canUndoPose
+        : inlineEditing
+          ? canUndoInline
+          : documentHistory.canUndo,
+      canRedo: standalonePose
+        ? canRedoPose
+        : inlineEditing
+          ? canRedoInline
+          : documentHistory.canRedo,
+      undo: standalonePose
+        ? undoPose
+        : inlineEditing
+          ? undoClip
+          : documentHistory.undo,
+      redo: standalonePose
+        ? redoPose
+        : inlineEditing
+          ? redoClip
+          : documentHistory.redo,
     }),
     [
+      standalonePose,
+      canUndoPose,
+      canRedoPose,
+      undoPose,
+      redoPose,
       canRedoInline,
       canUndoInline,
       documentHistory,
@@ -695,6 +735,13 @@ function EffectsPanel({
       onAdd={workspace.addComponent}
       onRemove={workspace.removeDependency}
       poses={gesture ? savedPoses : undefined}
+      onEditPose={
+        gesture
+          ? (pose) => {
+              if (editActionEditorSavedPose(pose)) workspace.setMode("pose");
+            }
+          : undefined
+      }
       onAddPose={
         gesture
           ? (pose) => addPoseToClip(pose.pose, pose.name, { atPlayhead: true })
@@ -780,6 +827,9 @@ function MobileWorkspace({
     : workspace.document.intent === "reaction"
       ? REACTION_TOOLS
       : CLIP_TOOLS;
+  const activeTool = tools.some((option) => option.id === tool)
+    ? tool
+    : tools[0]!.id;
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:hidden">
       <div className="h-[38dvh] min-h-[230px] shrink-0">
@@ -798,10 +848,10 @@ function MobileWorkspace({
                 variant="ghost"
                 className={cn(
                   "h-10 min-w-24 gap-1.5 text-xs",
-                  tool === option.id && "bg-muted",
+                  activeTool === option.id && "bg-muted",
                 )}
                 role="tab"
-                aria-selected={tool === option.id}
+                aria-selected={activeTool === option.id}
                 onClick={() => onToolChange(option.id)}
               >
                 <Icon className="size-4" />
@@ -812,23 +862,23 @@ function MobileWorkspace({
         </div>
       </nav>
       <section className="bg-background min-h-0 flex-1 overflow-hidden">
-        {tool === "timeline" ? (
+        {activeTool === "timeline" ? (
           timeline
-        ) : tool === "components" ? (
+        ) : activeTool === "components" ? (
           <EffectsPanel mobile />
-        ) : tool === "inspector" ? (
+        ) : activeTool === "inspector" ? (
           <ActionEditorClipInspector
             variant="mobile"
             section="inspector"
             allowHumanoid={capabilities.allowsHumanoid}
           />
-        ) : tool === "settings" ? (
+        ) : activeTool === "settings" ? (
           pose ? (
             <ActionEditorPreviewSettings variant="mobile" />
           ) : (
             <MobileSettingsPanel />
           )
-        ) : tool === "bones" ? (
+        ) : activeTool === "bones" ? (
           <ActionEditorBoneSection variant="mobile" />
         ) : workspace.document.intent === "reaction" ? (
           reactionExpressions

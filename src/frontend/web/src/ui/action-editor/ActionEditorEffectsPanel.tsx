@@ -82,6 +82,7 @@ type ActionEditorEffectsPanelProps = {
   /** Browser-local Pose drafts shown only by the Gesture creator. */
   poses?: PoseCreatorSavedDraft[];
   onAddPose?: (pose: PoseCreatorSavedDraft) => void;
+  onEditPose?: (pose: PoseCreatorSavedDraft) => void;
   onCreatePose?: () => void;
 };
 
@@ -106,6 +107,7 @@ export function ActionEditorEffectsPanel({
   onRemove,
   poses,
   onAddPose,
+  onEditPose,
   onCreatePose,
 }: ActionEditorEffectsPanelProps) {
   const showsPoses = poses !== undefined;
@@ -246,6 +248,7 @@ export function ActionEditorEffectsPanel({
                 poses={filteredPoses}
                 hasQuery={Boolean(poseQuery.trim())}
                 onAddPose={onAddPose}
+                onEditPose={onEditPose}
                 onCreatePose={onCreatePose}
               />
             ) : (
@@ -362,12 +365,14 @@ function PoseCatalog({
   poses,
   hasQuery,
   onAddPose,
+  onEditPose,
   onCreatePose,
 }: {
   mobile: boolean;
   poses: PoseCreatorSavedDraft[];
   hasQuery: boolean;
   onAddPose?: (pose: PoseCreatorSavedDraft) => void;
+  onEditPose?: (pose: PoseCreatorSavedDraft) => void;
   onCreatePose?: () => void;
 }) {
   return (
@@ -390,6 +395,17 @@ function PoseCatalog({
                   <p className="truncate text-xs font-medium">{pose.name}</p>
                 </div>
               </CatalogDragHandle>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 shrink-0 px-2 text-xs"
+                onClick={() => onEditPose?.(pose)}
+                disabled={!onEditPose}
+                aria-label={`Edit ${pose.name}`}
+              >
+                Edit
+              </Button>
               <Button
                 type="button"
                 size="icon-sm"
