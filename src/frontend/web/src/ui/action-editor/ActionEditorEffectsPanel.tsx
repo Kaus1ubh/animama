@@ -401,7 +401,7 @@ function PoseCatalog({
                   <p className="truncate text-xs font-medium">{pose.name}</p>
                 </div>
               </CatalogDragHandle>
-              <Tooltip>
+              <Tooltip delayDuration={1000}>
                 <TooltipTrigger asChild>
                   <Button
                     type="button"
@@ -417,7 +417,7 @@ function PoseCatalog({
                 </TooltipTrigger>
                 <TooltipContent>Edit</TooltipContent>
               </Tooltip>
-              <Tooltip>
+              <Tooltip delayDuration={1000}>
                 <TooltipTrigger asChild>
                   <Button
                     type="button"

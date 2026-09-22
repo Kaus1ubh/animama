@@ -6,10 +6,8 @@ import {
   Trash2Icon,
   XIcon,
 } from "lucide-react";
-import { useMemo } from "react";
 
 import {
-  isAnimaPoseClipRef,
   isAnimaPoseClipVFXEvent,
   PARTICLE_VFX_ANCHORS,
   type AnimaPoseClipEvent,
@@ -18,7 +16,6 @@ import {
 } from "@/lib/avatar";
 import {
   POSE_CREATOR_BASE_POSE_OPTIONS,
-  POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
   usePoseCreatorStore,
 } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
@@ -77,9 +74,6 @@ export function PoseCreatorClipWorkspaceInspector({
   const deleteSelectedClipEvent = usePoseCreatorStore(
     (state) => state.deleteSelectedClipEvent,
   );
-  const addReturnToBaseClipKeyframe = usePoseCreatorStore(
-    (state) => state.addReturnToBaseClipKeyframe,
-  );
   const selectedKeyframe =
     clipDraft.keyframes.find(
       (keyframe) => keyframe.id === clipDraft.selectedKeyframeId,
@@ -87,31 +81,6 @@ export function PoseCreatorClipWorkspaceInspector({
   const selectedEvent =
     clipDraft.events.find((event) => event.id === clipDraft.selectedEventId) ??
     null;
-  const returnToBaseKeyframe = useMemo(
-    () =>
-      clipDraft.keyframes.find((keyframe) => {
-        if (Math.abs(keyframe.time - clipDraft.duration) > 0.0005) return false;
-        const pose = clipDraft.poses[keyframe.pose];
-        return isAnimaPoseClipRef(pose) && pose.ref === clipDraft.basePose;
-      }) ?? null,
-    [
-      clipDraft.basePose,
-      clipDraft.duration,
-      clipDraft.keyframes,
-      clipDraft.poses,
-    ],
-  );
-
-  const setReturnToBase = (enabled: boolean) => {
-    if (enabled) {
-      addReturnToBaseClipKeyframe();
-      return;
-    }
-    if (!returnToBaseKeyframe) return;
-    selectClipKeyframe(returnToBaseKeyframe.id);
-    deleteSelectedClipKeyframe();
-  };
-
   if (section === "inspector" && !selectedEvent && !selectedKeyframe)
     return null;
 
@@ -191,19 +160,6 @@ export function PoseCreatorClipWorkspaceInspector({
                       ))}
                     </SelectContent>
                   </Select>
-                </InspectorRow>
-
-                <InspectorRow label="Return to base">
-                  <Switch
-                    checked={Boolean(returnToBaseKeyframe)}
-                    disabled={
-                      clipDraft.basePose ===
-                        POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID ||
-                      Boolean(clipInlineEdit)
-                    }
-                    onCheckedChange={setReturnToBase}
-                    aria-label="Return to base at clip end"
-                  />
                 </InspectorRow>
               </>
             ) : null}

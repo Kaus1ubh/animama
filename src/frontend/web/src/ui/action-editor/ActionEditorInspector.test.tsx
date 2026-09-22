@@ -8,7 +8,7 @@ describe("ActionEditorClipInspector capabilities", () => {
     const html = renderToString(<ActionEditorClipInspector allowHumanoid />);
 
     expect(html).toContain("Clip base pose");
-    expect(html).toContain("Return to base");
+    expect(html).not.toContain("Return to base");
   });
 
   it("removes humanoid clip settings from Reactions", () => {
