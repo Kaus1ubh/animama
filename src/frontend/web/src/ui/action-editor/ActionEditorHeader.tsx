@@ -207,7 +207,9 @@ export function ActionEditorHeader({
               onNew={startNew}
             />
             <ActionDocumentField status={status} />
-            <ActionInspectorButton>{inspector}</ActionInspectorButton>
+            {inspector ? (
+              <ActionInspectorButton>{inspector}</ActionInspectorButton>
+            ) : null}
             <ActionPrimaryActions />
           </>
         )}
@@ -377,7 +379,7 @@ function ActionDocumentActions({
     <>
       <div className="border-border/70 bg-background col-start-4 row-start-1 hidden h-12 shrink-0 items-center rounded-xl border px-1 shadow-sm lg:flex">
         <IconAction
-          label="Import Anima Pose Clip or project JSON"
+          label="Import"
           onClick={() => setImportOpen(true)}
           disabled={busy}
         >
@@ -479,7 +481,7 @@ function MobileActions({
         />
         <MenuAction
           icon={UploadIcon}
-          label="Import JSON"
+          label="Import"
           onSelect={onImport}
           disabled={busy}
         />
@@ -1038,13 +1040,38 @@ function ActionImportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100dvh-1rem)] gap-0 overflow-hidden p-0 sm:max-w-2xl">
         <DialogHeader className="border-border border-b px-5 py-4 pr-12">
-          <DialogTitle>Import creator JSON</DialogTitle>
+          <DialogTitle>Import</DialogTitle>
           <DialogDescription>
             Open an animaPoseClip/1.0 file directly or restore an Animama typed
             project with exact dependency pins.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto p-4 sm:p-5">
+          {workspace.document.intent === "gesture" ? (
+            <label className="grid gap-2 rounded-lg border p-3 text-sm font-medium">
+              VRMA animation (experimental)
+              <span className="text-muted-foreground text-xs font-normal">
+                Not fully supported or tested. Importing switches this gesture
+                from timeline authoring to VRMA.
+              </span>
+              <Input
+                type="file"
+                accept=".vrma,model/gltf-binary"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  if (!file) return;
+                  workspace.setDocument((value) => ({
+                    ...value,
+                    implementation: "vrma",
+                    dependencies: [],
+                  }));
+                  workspace.setVrma(file);
+                  onOpenChange(false);
+                }}
+              />
+            </label>
+          ) : null}
+
           <input
             ref={fileRef}
             type="file"
