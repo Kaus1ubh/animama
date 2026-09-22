@@ -22,7 +22,13 @@ import { cn } from "@/lib/utils";
 import type { PoseCreatorSavedDraft } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
+import { PencilSparklesIcon } from "@/ui/components/PencilSparklesIcon";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/ui/components/tooltip";
 import { CatalogDragHandle } from "./ActionCatalogDrag";
 import { CreatorPanelCollapseButton } from "./CreatorPanelChrome";
 import type { ActionDependencySection } from "./ActionEditorWorkspaceContext";
@@ -395,29 +401,38 @@ function PoseCatalog({
                   <p className="truncate text-xs font-medium">{pose.name}</p>
                 </div>
               </CatalogDragHandle>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="h-7 shrink-0 px-2 text-xs"
-                onClick={() => onEditPose?.(pose)}
-                disabled={!onEditPose}
-                aria-label={`Edit ${pose.name}`}
-              >
-                Edit
-              </Button>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                className="size-7 rounded-full"
-                onClick={() => onAddPose?.(pose)}
-                disabled={!onAddPose}
-                aria-label={`Add ${pose.name} at current playhead`}
-                title="Add pose at current playhead"
-              >
-                <PlusIcon className="size-3.5" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="size-7 shrink-0 rounded-full"
+                    onClick={() => onEditPose?.(pose)}
+                    disabled={!onEditPose}
+                    aria-label={`Edit ${pose.name}`}
+                  >
+                    <PencilSparklesIcon className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Edit</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    className="size-7 shrink-0 rounded-full"
+                    onClick={() => onAddPose?.(pose)}
+                    disabled={!onAddPose}
+                    aria-label={`Add ${pose.name} at current playhead`}
+                  >
+                    <PlusIcon className="size-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Add to playhead</TooltipContent>
+              </Tooltip>
             </div>
           ))}
         </div>
