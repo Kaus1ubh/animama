@@ -135,13 +135,14 @@ describe("Avatar Effect editor document", () => {
 
     const hydrated = createAvatarEffectDocumentFromDefinition({
       name: source.name,
-      description: "Portable face decal",
+      description: "",
       definition: avatarEffectDefinition(source),
       image,
       sound: null,
     });
 
     expect(hydrated).toMatchObject({
+      description: "",
       kind: "face_anchored",
       face: { anchor: "blush", layout: "span", pivot: "bottom-center" },
     });

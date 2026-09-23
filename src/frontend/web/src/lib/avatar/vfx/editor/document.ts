@@ -305,7 +305,8 @@ export function createAvatarEffectDocumentFromDefinition(args: {
     ...raw,
     id: "avatar-effect-editor-hydration",
     label: args.name,
-    description: args.description,
+    // Runtime entries require display copy; the authoring description is optional.
+    description: args.description.trim() || args.name,
     assetPath: "blob:avatar-effect-hydration",
   });
   const document = createDefaultAvatarEffectDocument();
