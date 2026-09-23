@@ -237,13 +237,14 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
   const onSaved = useCallback(
     (savedDocument: SceneEffectEditorDocument, savedItemId: string) => {
+      dispatch({ type: "patch", patch: { name: savedDocument.name } });
       hydratedItemRef.current.preserve(savedItemId);
       initialFingerprintRef.current = sceneSaveFingerprint(
         savedDocument,
         imageResources,
       );
     },
-    [imageResources],
+    [dispatch, imageResources],
   );
   const contentSave = useSceneEffectSave({
     itemId,
@@ -584,7 +585,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     <CreatorWorkspaceShell
       leftPanelWidth={330}
       rightPanelWidth={370}
-      bottomChromeHeight={92}
+      bottomChromeHeight={144}
       busy={contentSave.isBusy}
       canvas={
         <div
@@ -776,6 +777,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       }
       previewBar={
         <CreatorPreviewBar
+          title="Scene FX"
           subtitle={`${humanize(document.kind)} · ${document.durationMs === null ? "Sticky" : `${(document.durationMs / 1000).toFixed(1)}s`}`}
           playing={playing}
           onPlayingChange={setPreviewPlaying}
@@ -783,8 +785,9 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           progressClassName={SCENE_EFFECT_PREVIEW_MOTION_CLASS}
           duration={{
             value:
-              document.durationMs === null ? 5 : document.durationMs / 1000,
-            disabled: document.durationMs === null,
+              document.durationMs === null ? null : document.durationMs / 1000,
+            label: "Effect duration",
+            indefiniteLabel: "Sticky · until cleared",
             min: 0.1,
             max: 30,
             step: 0.1,
@@ -866,6 +869,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             onImport={importDocument}
           />
           <LeaveDialog
+            busy={contentSave.isBusy}
             open={blocker.status === "blocked"}
             onOpenChange={(open) => {
               if (!open && blocker.status === "blocked") blocker.reset?.();
@@ -2042,11 +2046,13 @@ function ScenePreviewGuides({
 }
 
 function LeaveDialog({
+  busy,
   open,
   onOpenChange,
   onStay,
   onLeave,
 }: {
+  busy: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStay: () => void;
@@ -2056,19 +2062,22 @@ function LeaveDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Leave this Scene Effect?</DialogTitle>
+          <DialogTitle>
+            {busy
+              ? "Leave while content is being saved?"
+              : "Discard authoring changes?"}
+          </DialogTitle>
           <DialogDescription>
-            Your local recovery is preserved, but these changes are not a ready
-            saved content item yet.
+            {busy
+              ? "This Scene Effect is still being saved. Local recovery remains available when you return."
+              : "This Scene Effect has local authoring changes. Leaving will discard them from the active workspace. Local recovery remains available when you return."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={onStay}>
-            Keep editing
+            Stay
           </Button>
-          <Button variant="destructive" onClick={onLeave}>
-            Leave editor
-          </Button>
+          <Button onClick={onLeave}>Discard and continue</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

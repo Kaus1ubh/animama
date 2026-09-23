@@ -389,9 +389,9 @@ function validateRuntimeDefaults(catalog: ParticleVFXEditorCatalogDraft): void {
       "Particle VFX name must contain 1 to 120 characters.",
     );
   }
-  if (!catalog.description.trim() || catalog.description.length > 500) {
+  if (catalog.description.length > 500) {
     throw new ParticleVFXContentPackageError(
-      "Particle VFX description must contain 1 to 500 characters.",
+      "Particle VFX description must contain at most 500 characters.",
     );
   }
   const transform = catalog.defaultTransform;

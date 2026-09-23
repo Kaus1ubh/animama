@@ -6,8 +6,14 @@ import {
 } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import type { ActionComponentType } from "./actionDependencies";
 
-export const TRACK_LABEL_RAIL_PX = 72;
-export const TRACK_RIGHT_INSET_PX = 16;
+import {
+  TRACK_LABEL_RAIL_PX,
+  TRACK_RIGHT_INSET_PX,
+} from "@/ui/content-creator/creatorTimelineGeometry";
+export {
+  TRACK_LABEL_RAIL_PX,
+  TRACK_RIGHT_INSET_PX,
+} from "@/ui/content-creator/creatorTimelineGeometry";
 export type CatalogDragItem =
   | { kind: "pose"; pose: PyPose }
   | {

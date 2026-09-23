@@ -230,12 +230,8 @@ export function validateSceneEffectDocument(
   resources: readonly SceneEffectEditorImageResource[],
 ): SceneEffectValidationIssue[] {
   const issues: SceneEffectValidationIssue[] = [];
-  if (!document.name.trim() || document.name.trim().length > 120)
-    issue(
-      issues,
-      "name",
-      "Give the Scene Effect a name between 1 and 120 characters.",
-    );
+  if (document.name.trim().length > 120)
+    issue(issues, "name", "Keep the Scene Effect name within 120 characters.");
   if (document.description.length > 2000)
     issue(
       issues,

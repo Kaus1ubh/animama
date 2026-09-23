@@ -29,6 +29,16 @@ const image = {
 };
 
 describe("Scene Effect editor document", () => {
+  it("keeps new names empty and permits automatic naming on save", () => {
+    const document = createDefaultSceneEffectDocument();
+    expect(document.name).toBe("");
+    expect(
+      validateSceneEffectDocument(document, []).filter(
+        (issue) => issue.field === "name",
+      ),
+    ).toEqual([]);
+  });
+
   it("starts new documents with all background layers enabled and themed", () => {
     const document = createDefaultSceneEffectDocument();
 

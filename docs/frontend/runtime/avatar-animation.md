@@ -315,7 +315,9 @@ Important behavior:
   and SFX. Those events store catalog ids, not embedded effect assets. An
   effect-only clip may use empty `poses` and `poseKeyframes` collections as long
   as it contains at least one valid event; the editor does not manufacture a
-  neutral expression landmark merely to carry VFX or sound.
+  neutral expression landmark merely to carry VFX or sound. Event-only Gesture
+  playback, fades and cleanup preserve the selected body/expression pose; only
+  the clip's events own effects until their end or cancellation.
 - Clip `duration` is required when `playback` is absent. When `playback` is
   present, `duration` may be omitted; runtime helpers derive the authored
   timeline extent from pose keyframe times and event trigger times. VFX event
@@ -450,6 +452,12 @@ Updates include the catalog item ID and expected revision; the backend validates
 and atomically updates readable Local files. Save & Equip uses the saved catalog
 selection in the reviewed Anima loadout flow. Existing and starter Actions use
 typed preview reads to hydrate protected files and dependency runtime.
+
+`CreatorTimeline` supplies controlled transport and track presentation to Gesture,
+Reaction and all three VFX creators. Each editor retains its own playback owner:
+Particle exposes its elapsed preview clock, while Avatar/Scene rulers show saved
+lifetime configuration without seeking or an elapsed playhead. Avatar's run-end
+buffer starts after a conversation run; it is not a standalone preview deadline.
 
 There is no separate generic Pose Creator route or raw package save provider.
 Clip JSON remains `animaPoseClip/1.0`; a separate versioned project envelope is

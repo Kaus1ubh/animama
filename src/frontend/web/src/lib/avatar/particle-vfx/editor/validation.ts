@@ -1,3 +1,5 @@
+import { isParticleVFXAnchor } from "../runtime";
+import { collectEmitterNodes } from "./emitters";
 import { readJsonObject } from "./json";
 import { isSupportedRenderMode } from "./renderer";
 import {
@@ -88,6 +90,18 @@ export function validateParticleVFXEditorDraft(
       });
     }
   });
+
+  for (const { object: node, path } of collectEmitterNodes(draft.quarksJson)) {
+    const anchor = readJsonObject(node.userData)?.animamaParticleAnchor;
+    if (anchor !== undefined && !isParticleVFXAnchor(anchor)) {
+      issues.push({
+        severity: "error",
+        code: "invalid-emitter-anchor",
+        message: "Choose a supported emitter anchor or Inherit.",
+        target: path,
+      });
+    }
+  }
 
   for (const emitter of draft.emitters) {
     const target = `emitter:${emitter.name}`;

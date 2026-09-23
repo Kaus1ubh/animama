@@ -38,6 +38,9 @@ export function sampleAnimaPoseClip(
   const sampledTime = sampleClipTime(sanitizedClip, timeSec);
   const keyframes = sanitizedClip.poseKeyframes;
 
+  // Effect-only clips own event timing, with no body or expression sample.
+  if (keyframes.length === 0) return { sample: {}, diagnostics };
+
   if (keyframes.length === 1 || sampledTime <= keyframes[0].time) {
     return {
       sample: resolveKeyframeSample(
