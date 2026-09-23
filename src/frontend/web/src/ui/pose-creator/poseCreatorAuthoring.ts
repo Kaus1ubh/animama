@@ -6,6 +6,7 @@ import {
   type VRMPoseTransform,
 } from "@pixiv/three-vrm";
 import { Euler, MathUtils, Quaternion } from "three";
+import { createUniqueContentBranchName } from "@/lib/content/uniqueContentName";
 
 import type { Avatar } from "@/lib/avatar";
 import {
@@ -91,18 +92,10 @@ export function createUniquePoseCreatorBranchName(
   sourceName: string,
   existingNames: readonly string[],
 ): string {
-  const normalizedSourceName = sourceName.trim() || "New Pose";
-  const numberedSource = /^(.+?)\s*\((\d+)\)$/.exec(normalizedSourceName);
-  const baseName = numberedSource?.[1] ?? normalizedSourceName;
-  let suffix = numberedSource ? Number(numberedSource[2]) + 1 : 1;
-  const usedNames = new Set(
-    existingNames.map((name) => name.trim().toLocaleLowerCase()),
+  return createUniqueContentBranchName(
+    sourceName.trim() || "New Pose",
+    existingNames,
   );
-
-  while (usedNames.has(`${baseName} (${suffix})`.toLocaleLowerCase())) {
-    suffix += 1;
-  }
-  return `${baseName} (${suffix})`;
 }
 
 export function readPoseCreatorBoneRows(

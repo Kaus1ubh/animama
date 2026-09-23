@@ -302,7 +302,7 @@ function ActionEditorWorkspaceContent() {
       originalPose: pose,
       boneDrafts: drafts.boneDrafts,
       expressionDrafts: drafts.expressionDrafts,
-      draftName: `Keyframe ${alias}`,
+      draftName: "",
     });
     return true;
   }, []);

@@ -63,7 +63,7 @@ import {
   removeActionDependency,
 } from "./actionDependencies";
 import {
-  actionDocumentForPersistence,
+  captureActionDocumentForSave,
   canonicalizeActionComponentInsertion,
 } from "./actionPersistence";
 import { ActionEditorPreviewProvider } from "./ActionEditorPreviewProvider";
@@ -542,15 +542,17 @@ export function ActionEditorPage({
   }, [intent, document.implementation, mode]);
 
   /** Capture the live timeline before any preview or catalog Save. */
-  const capturePersistenceDocument = useCallback(() => {
-    const next = actionDocumentForPersistence(
-      documentRef.current,
-      usePoseCreatorStore.getState().clipDraft,
+  const capturePersistenceDocument = async () => {
+    const next = await captureActionDocumentForSave(
+      () => documentRef.current,
+      () => usePoseCreatorStore.getState().clipDraft,
+      () => actions.allocateDefaultName("New Reaction"),
     );
     documentRef.current = next;
+    setDocument(next);
     historyRef.current.commit(actionAuthoringSnapshot(next));
     return next;
-  }, []);
+  };
 
   const ensureSession = async (currentDocument: ActionDocument) => {
     const operationId = crypto.randomUUID();
@@ -578,7 +580,8 @@ export function ActionEditorPage({
     // Live validation belongs to the document, not a cached save failure.
     let currentDocument: ActionDocument;
     try {
-      currentDocument = capturePersistenceDocument();
+      setSaveStage("preparing");
+      currentDocument = await capturePersistenceDocument();
     } catch (cause) {
       // Serialization can fail before live document validation runs.
       setSaveStage("idle");
@@ -586,6 +589,7 @@ export function ActionEditorPage({
     }
     const currentIssues = validateActionDocument(currentDocument);
     if (currentIssues.length) {
+      setSaveStage("idle");
       const description = currentIssues.map((issue) => issue.message).join(" ");
       toast.error(
         `Complete the required ${intent === "gesture" ? "Gesture" : "Reaction"} details.`,

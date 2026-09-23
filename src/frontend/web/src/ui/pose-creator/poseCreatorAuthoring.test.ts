@@ -77,21 +77,24 @@ describe("Pose Creator pose reuse", () => {
 
   it("allocates numeric branch names from plain and numbered source names", () => {
     expect(createUniquePoseCreatorBranchName("surprised", [])).toBe(
-      "surprised (1)",
+      "surprised 1",
     );
     expect(createUniquePoseCreatorBranchName("shocked (1)", [])).toBe(
-      "shocked (2)",
+      "shocked 2",
+    );
+    expect(createUniquePoseCreatorBranchName("shocked 2", [])).toBe(
+      "shocked 3",
     );
   });
 
   it("skips used branch names case-insensitively", () => {
     expect(
       createUniquePoseCreatorBranchName(" Shocked (1) ", [
-        "shocked (2)",
-        "SHOCKED (3) ",
-        "shocked (5)",
+        "shocked 2",
+        "SHOCKED 3 ",
+        "shocked 5",
       ]),
-    ).toBe("Shocked (4)");
+    ).toBe("Shocked 4");
   });
 
   it("preserves the pre-drag base quaternion supplied by direct manipulation", () => {

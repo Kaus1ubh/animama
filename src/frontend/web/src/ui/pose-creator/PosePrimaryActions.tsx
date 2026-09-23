@@ -15,9 +15,7 @@ export function PosePrimaryActions({ busy = false }: { busy?: boolean }) {
     0;
   const isDirty = usePoseCreatorStore((state) => state.isDirty);
   const saved = usePoseCreatorStore((state) => state.savedPoseIdentity);
-  const name = usePoseCreatorStore((state) => state.draftName);
-  const saveDisabled =
-    busy || saving || !name.trim() || Boolean(saved && !isDirty);
+  const saveDisabled = busy || saving || Boolean(saved && !isDirty);
   const selectedSource = usePoseCreatorStore((state) => state.selectedSource);
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
   return (

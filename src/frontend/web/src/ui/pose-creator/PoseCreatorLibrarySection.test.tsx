@@ -11,12 +11,14 @@ type State = ReturnType<typeof usePoseCreatorStore.getState>;
 const harness = vi.hoisted(() => ({
   selectors: [] as Array<(state: State) => unknown>,
   save: vi.fn(),
+  names: vi.fn(),
   deletePose: vi.fn(),
   submit: null as ((event: FormEvent) => void) | null,
 }));
 
 vi.mock("@/query/hooks/usePoses", () => ({
   usePoses: () => ({ data: { items: [] }, isError: false, refetch: vi.fn() }),
+  fetchPoseNames: harness.names,
 }));
 vi.mock("@/query/mutations/usePoseContentActions", () => ({
   usePoseContentActions: () => ({
@@ -70,6 +72,7 @@ const armDraft = (x: number) => ({
 beforeEach(() => {
   usePoseCreatorStore.getState().resetWorkspace();
   harness.save.mockReset();
+  harness.names.mockReset().mockResolvedValue([]);
   harness.save.mockImplementation(async (input) => ({
     item_id: input.itemId ?? "saved-item",
     name: input.name,
@@ -188,6 +191,75 @@ const submit = () =>
   } as FormEvent);
 
 describe("durable Pose save lifecycle", () => {
+  it("saves a blank name using the current catalog and shows the chosen name", async () => {
+    usePoseCreatorStore.setState({ selectedSource: source, draftName: "" });
+    harness.names.mockResolvedValue(["New Pose", "New Pose 1"]);
+    const html = renderToString(
+      <PoseCreatorLibrarySection variant="toolbar" />,
+    );
+    expect(html).toContain('placeholder="New Pose"');
+    await submit();
+    expect(harness.names).toHaveBeenCalledOnce();
+    expect(harness.save.mock.calls[0][0]).toMatchObject({
+      name: "New Pose 2",
+      pose: { name: "New Pose 2" },
+    });
+    expect(usePoseCreatorStore.getState()).toMatchObject({
+      draftName: "New Pose 2",
+      isDirty: false,
+    });
+  });
+
+  it("reuses an unresolved blank-name save instead of allocating another name", async () => {
+    usePoseCreatorStore.setState({ selectedSource: source, draftName: "" });
+    harness.save.mockRejectedValueOnce(new Error("Response lost"));
+    renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
+    await submit();
+    const original = harness.save.mock.calls[0][0];
+    harness.names.mockResolvedValue(["New Pose"]);
+    await submit();
+    expect(harness.names).toHaveBeenCalledOnce();
+    expect(harness.save.mock.calls[1][0]).toBe(original);
+    expect(original.name).toBe("New Pose");
+  });
+
+  it("preserves explicit names and newer edits during automatic name lookup", async () => {
+    usePoseCreatorStore.setState({ selectedSource: source, draftName: "" });
+    let resolveNames!: (names: string[]) => void;
+    harness.names.mockReturnValueOnce(
+      new Promise<string[]>((resolve) => {
+        resolveNames = resolve;
+      }),
+    );
+    renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
+    const pending = submit();
+    usePoseCreatorStore.getState().setDraftName("My pose");
+    resolveNames([]);
+    await pending;
+    expect(usePoseCreatorStore.getState()).toMatchObject({
+      draftName: "My pose",
+      isDirty: true,
+    });
+    await submit();
+    expect(harness.save.mock.calls[1][0]).toMatchObject({
+      name: "My pose",
+      itemId: "saved-item",
+    });
+    expect(harness.names).toHaveBeenCalledOnce();
+  });
+
+  it("preserves the blank draft and permits retry when catalog lookup fails", async () => {
+    usePoseCreatorStore.setState({ selectedSource: source, draftName: "" });
+    harness.names.mockRejectedValueOnce(new Error("Catalog unavailable"));
+    renderToString(<PoseCreatorLibrarySection variant="toolbar" />);
+    await submit();
+    expect(harness.save).not.toHaveBeenCalled();
+    expect(usePoseCreatorStore.getState().draftName).toBe("");
+    await submit();
+    expect(harness.save).toHaveBeenCalledOnce();
+    expect(harness.save.mock.calls[0][0].name).toBe("New Pose");
+  });
+
   it.each([
     new Error("Save unavailable"),
     new ContentSaveApiError(409, "operation_in_progress", "Save unavailable"),

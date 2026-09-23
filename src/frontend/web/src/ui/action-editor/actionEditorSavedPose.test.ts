@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { parseAnimaPose, type Avatar } from "@/lib/avatar";
+import { fetchPoseNames } from "@/query/hooks/usePoses";
 import { loadPoseContent } from "@/lib/content/poseContent";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { replacePoseCreatorDraftWithAnimaPose } from "@/ui/pose-creator/poseCreatorAuthoring";
@@ -11,6 +12,8 @@ import {
   insertActionEditorSavedPose,
   setActionEditorAuthoringMode,
 } from "./actionEditorSavedPose";
+
+vi.mock("@/query/hooks/usePoses", () => ({ fetchPoseNames: vi.fn() }));
 
 vi.mock("@/lib/content/poseContent", async (original) => ({
   ...(await original<typeof import("@/lib/content/poseContent")>()),
@@ -69,6 +72,7 @@ beforeEach(() => {
   vi.mocked(confirmPoseCreatorDirtyReplacement).mockReturnValue(true);
   vi.mocked(replacePoseCreatorDraftWithAnimaPose).mockReturnValue(replacement);
   vi.mocked(loadPoseContent).mockResolvedValue({ item, pose });
+  vi.mocked(fetchPoseNames).mockResolvedValue(["Wave", "Wave 1"]);
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -103,7 +107,7 @@ describe("editing durable poses", () => {
     ).toBe(true);
     expect(usePoseCreatorStore.getState()).toMatchObject({
       savedPoseIdentity: null,
-      draftName: "Wave copy",
+      draftName: "Wave 2",
       isDirty: true,
     });
   });

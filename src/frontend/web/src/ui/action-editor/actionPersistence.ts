@@ -110,3 +110,23 @@ export function actionDocumentForPersistence(
     normalizeActionDocument({ ...canonicalDocument, sequence }),
   );
 }
+
+/** Resolve a default name before sampling the live draft, preserving edits during lookup. */
+export async function captureActionDocumentForSave(
+  readDocument: () => ActionDocument,
+  readDraft: () => PoseCreatorClipDraft,
+  allocateReactionName: () => Promise<string>,
+): Promise<ActionDocument> {
+  const initial = readDocument();
+  const fallbackName =
+    initial.intent === "reaction" && !initial.name.trim()
+      ? await allocateReactionName()
+      : null;
+  const current = readDocument();
+  return actionDocumentForPersistence(
+    fallbackName && !current.name.trim()
+      ? { ...current, name: fallbackName }
+      : current,
+    readDraft(),
+  );
+}

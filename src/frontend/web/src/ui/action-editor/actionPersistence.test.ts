@@ -14,10 +14,41 @@ import { createActionProject, parseActionImport } from "./actionProject";
 import { createActionDocument } from "./actionDocument";
 import {
   actionDocumentForPersistence,
+  captureActionDocumentForSave,
   canonicalizeActionComponentInsertion,
 } from "./actionPersistence";
 
 describe("actionDocumentForPersistence", () => {
+  it.each(["", "My Reaction"])(
+    "preserves live timeline and name edits during automatic naming (%s)",
+    async (typedName) => {
+      const document = createActionDocument("reaction");
+      const draft = createDefaultPoseCreatorClipDraft(
+        DEFAULT_POSE_CREATOR_BASE_POSE,
+      );
+      let finishLookup!: (name: string) => void;
+      const pending = captureActionDocumentForSave(
+        () => document,
+        () => draft,
+        () =>
+          new Promise<string>((resolve) => {
+            finishLookup = resolve;
+          }),
+      );
+      document.name = typedName;
+      draft.poses = { smile: { expressions: { happy: 0.75 } } };
+      draft.keyframes = [{ id: "smile", time: 0.4, pose: "smile" }];
+      finishLookup("New Reaction 1");
+      const saved = await pending;
+      expect(saved.name).toBe(typedName || "New Reaction 1");
+      expect(saved.sequence.poses).toEqual({
+        smile: { expressions: { happy: 0.75 } },
+      });
+      expect(saved.sequence.poseKeyframes).toEqual([
+        { time: 0.4, pose: "smile" },
+      ]);
+    },
+  );
   it("captures the live timeline and removes declarations unused by that snapshot", () => {
     const document = createActionDocument("reaction");
     document.dependencies = [

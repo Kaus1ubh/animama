@@ -37,7 +37,8 @@ import { toast } from "sonner";
 import { AVATAR_POSE_IDS, parseAnimaPose, type AnimaPose } from "@/lib/avatar";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
-import { usePoses } from "@/query/hooks/usePoses";
+import { fetchPoseNames, usePoses } from "@/query/hooks/usePoses";
+import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { usePoseContentActions } from "@/query/mutations/usePoseContentActions";
 import {
   preparePoseSaveAttempt,
@@ -432,7 +433,6 @@ export function PoseCreatorLibrarySection({
   const canSaveDraft = Boolean(
     selectedSource &&
     hasPoseContent &&
-    draftName.trim() &&
     (!savedPoseIdentity || isDirty) &&
     !savePose.isPending,
   );
@@ -442,7 +442,6 @@ export function PoseCreatorLibrarySection({
     if (
       pendingSave.current ||
       !current.selectedSource ||
-      !current.draftName.trim() ||
       (current.savedPoseIdentity && !current.isDirty)
     )
       return null;
@@ -451,12 +450,21 @@ export function PoseCreatorLibrarySection({
     pendingSave.current = true;
     setImportError(null);
     try {
+      const previous =
+        poseSaveAttempt?.sessionToken === sessionToken ? poseSaveAttempt : null;
+      const name =
+        submittedDraft.draftName.trim() ||
+        (previous && !previous.submittedDraft.draftName.trim()
+          ? previous.attempt.input.name
+          : createUniqueContentName("New Pose", await fetchPoseNames()));
+      if (usePoseCreatorStore.getState().poseSessionToken !== sessionToken)
+        return null;
       const pose = buildPoseCreatorAnimaPoseForExport(
         submittedDraft.boneDrafts,
         submittedDraft.expressionDrafts,
         {
           id: current.savedPoseIdentity?.poseId,
-          name: submittedDraft.draftName,
+          name,
           parentPose: submittedDraft.basePose,
           mode: "baked",
         },
@@ -467,11 +475,9 @@ export function PoseCreatorLibrarySection({
         );
         return null;
       }
-      const previous =
-        poseSaveAttempt?.sessionToken === sessionToken ? poseSaveAttempt : null;
       let attempt = preparePoseSaveAttempt(
         {
-          name: submittedDraft.draftName,
+          name,
           pose,
           identity: current.savedPoseIdentity ?? undefined,
         },
@@ -492,7 +498,7 @@ export function PoseCreatorLibrarySection({
           return null;
         poseSaveAttempt = null;
         attempt = preparePoseSaveAttempt({
-          name: submittedDraft.draftName,
+          name,
           pose: { ...pose, id: recoveredIdentity.poseId },
           identity: recoveredIdentity,
         });
@@ -632,7 +638,7 @@ export function PoseCreatorLibrarySection({
   };
 
   /** Creates an independent, unsaved pose snapshot from the supplied pose. */
-  const createPoseBranch = (
+  const createPoseBranch = async (
     pose: AnimaPose,
     sourceName: string,
     successMessage = "New unsaved pose branch created.",
@@ -642,7 +648,19 @@ export function PoseCreatorLibrarySection({
       return false;
     }
 
+    const captured = usePoseCreatorStore.getState();
     try {
+      const existingNames = await fetchPoseNames();
+      const current = usePoseCreatorStore.getState();
+      if (
+        !alive.current ||
+        current.poseSessionToken !== captured.poseSessionToken ||
+        current.activeAvatar !== captured.activeAvatar ||
+        current.draftName !== captured.draftName ||
+        current.boneDrafts !== captured.boneDrafts ||
+        current.expressionDrafts !== captured.expressionDrafts
+      )
+        return false;
       const bakedPose = bakePoseCreatorAnimaPose(pose);
       const drafts = replacePoseCreatorDraftWithAnimaPose(
         activeAvatar,
@@ -650,10 +668,7 @@ export function PoseCreatorLibrarySection({
         POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
       );
       replaceDraftFromImport({
-        draftName: createUniquePoseCreatorBranchName(
-          sourceName,
-          savedDrafts.map((draft) => draft.name),
-        ),
+        draftName: createUniquePoseCreatorBranchName(sourceName, existingNames),
         basePose: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
         boneDrafts: drafts.boneDrafts,
         expressionDrafts: drafts.expressionDrafts,
@@ -682,7 +697,7 @@ export function PoseCreatorLibrarySection({
     // Edits made during Save must remain in the current draft.
     if (current.poseSessionToken !== saved.sessionToken || current.isDirty)
       return;
-    createPoseBranch(
+    await createPoseBranch(
       saved.pose,
       saved.item.name,
       "Pose saved and a Local copy started.",
@@ -1062,7 +1077,7 @@ export function PoseCreatorLibrarySection({
         <Input
           value={draftName}
           onChange={(event) => setDraftName(event.currentTarget.value)}
-          placeholder="Standing wave"
+          placeholder="New Pose"
           aria-label="Draft name"
         />
       </div>
