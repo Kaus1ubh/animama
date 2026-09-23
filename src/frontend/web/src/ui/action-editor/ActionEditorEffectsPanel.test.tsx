@@ -1,10 +1,14 @@
 import { renderToString } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { ActionEditorEffectsPanel } from "./ActionEditorEffectsPanel";
 import type { ActionDependencySection } from "./ActionEditorWorkspaceContext";
+
+vi.mock("@/ui/sound-upload/SoundUploadButton", () => ({
+  SoundUploadButton: () => <button>Upload</button>,
+}));
 
 const particle: PyCatalogViewItem = {
   item_id: "particle-1",
@@ -80,6 +84,27 @@ const savedPose: PyPose = {
 };
 
 describe("ActionEditorEffectsPanel", () => {
+  it("offers upload and separate sound preview and explicit insertion", () => {
+    const html = renderToString(
+      <ActionEditorEffectsPanel
+        query=""
+        onQueryChange={() => undefined}
+        activeType="sound_effect"
+        onActiveTypeChange={() => undefined}
+        sections={sections.map((section) =>
+          section.contentType === "sound_effect"
+            ? { ...section, items: [{ ...particle, name: "Pop" }] }
+            : section,
+        )}
+        dependencies={[]}
+        onAdd={() => undefined}
+        onRemove={() => undefined}
+      />,
+    );
+    expect(html).toContain(">Upload<");
+    expect(html).toContain('aria-label="Play Pop"');
+    expect(html).toContain('aria-label="Add Pop to timeline"');
+  });
   it("shows Included and Local Poses before Effects for Gesture authoring", () => {
     const html = renderToString(
       <ActionEditorEffectsPanel
