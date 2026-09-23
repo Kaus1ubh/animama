@@ -813,7 +813,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
             onOpenChange={(open) => {
               if (!open && blocker.status === "blocked") blocker.reset?.();
             }}
-            description="Your local recovery is preserved, but this editor still has unsaved changes."
+            busy={contentSave.isBusy}
             onStay={() => blocker.reset?.()}
             onLeave={() => blocker.proceed?.()}
           />
@@ -1701,13 +1701,13 @@ function AvatarEffectAxisFields({
 function AvatarEffectLeaveDialog({
   open,
   onOpenChange,
-  description,
+  busy,
   onStay,
   onLeave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  description: string;
+  busy: boolean;
   onStay: () => void;
   onLeave: () => void;
 }) {
@@ -1715,16 +1715,22 @@ function AvatarEffectLeaveDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Leave with unsaved changes?</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
+          <DialogTitle>
+            {busy
+              ? "Leave while content is being saved?"
+              : "Discard authoring changes?"}
+          </DialogTitle>
+          <DialogDescription>
+            {busy
+              ? "This Avatar Effect is still being saved. Local recovery remains available when you return."
+              : "This Avatar Effect has local authoring changes. Leaving will discard them from the active workspace. Local recovery remains available when you return."}
+          </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={onStay}>
-            Keep editing
+            Stay
           </Button>
-          <Button variant="destructive" onClick={onLeave}>
-            Leave editor
-          </Button>
+          <Button onClick={onLeave}>Discard and continue</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

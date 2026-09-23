@@ -867,6 +867,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             onImport={importDocument}
           />
           <LeaveDialog
+            busy={contentSave.isBusy}
             open={blocker.status === "blocked"}
             onOpenChange={(open) => {
               if (!open && blocker.status === "blocked") blocker.reset?.();
@@ -2043,11 +2044,13 @@ function ScenePreviewGuides({
 }
 
 function LeaveDialog({
+  busy,
   open,
   onOpenChange,
   onStay,
   onLeave,
 }: {
+  busy: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStay: () => void;
@@ -2057,19 +2060,22 @@ function LeaveDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Leave this Scene Effect?</DialogTitle>
+          <DialogTitle>
+            {busy
+              ? "Leave while content is being saved?"
+              : "Discard authoring changes?"}
+          </DialogTitle>
           <DialogDescription>
-            Your local recovery is preserved, but these changes are not a ready
-            saved content item yet.
+            {busy
+              ? "This Scene Effect is still being saved. Local recovery remains available when you return."
+              : "This Scene Effect has local authoring changes. Leaving will discard them from the active workspace. Local recovery remains available when you return."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={onStay}>
-            Keep editing
+            Stay
           </Button>
-          <Button variant="destructive" onClick={onLeave}>
-            Leave editor
-          </Button>
+          <Button onClick={onLeave}>Discard and continue</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
