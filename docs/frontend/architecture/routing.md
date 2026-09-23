@@ -4,7 +4,7 @@ The web app uses TanStack Router with file routes in
 `src/frontend/web/src/routes`.
 
 Typed creators use stable product routes such as `/a/particle-effects/new`,
-`/a/avatar-effects/new`, `/a/scene-effects/new`, `/a/sound-effects/new`,
+`/a/avatar-effects/new`, `/a/scene-effects/new`,
 `/a/gestures/new`, and `/a/reactions/new`.
 
 ## Route Tree
@@ -22,7 +22,9 @@ Typed creators use stable product routes such as `/a/particle-effects/new`,
   opens `/a/animas/new`. Query failures offer Retry without replacing selection.
   Explicit chat and management URLs are unaffected.
 - `a/create.tsx`: creator hub for Anima, Action, and Effects authoring,
-  including direct Particle, Avatar, Scene, and Sound Effect entry points.
+  including direct Particle, Avatar and Scene Effect entry points.
+- Legacy Sound Effect new/edit routes redirect to `/a/library?section=fx&fx=sound`;
+  sounds are uploaded in action/effect pickers and managed in Library.
 - `a/animas.new.tsx`: the four-step `ui/create-anima/CreateAnimaPage` in the
   app shell. It accepts only the optional bounded logical `avatar` ID and
   resolves its admitted revision. Saved owner-scoped drafts take precedence
@@ -108,7 +110,7 @@ chat or URL.
 - Normalize optional search values in the route's search helper and pass plain
   values and callbacks into feature components.
 - Keep creator route identity stable and content-free. Gesture, Reaction,
-  Particle Effect, Avatar Effect, Scene Effect, and Sound Effect edit routes
+  Particle Effect, Avatar Effect and Scene Effect edit routes
   carry only the logical typed content ID. Exact revisions, JSON,
   uploaded bytes, Blob URLs, and recovery state remain outside browser history.
   Dirty documents and active uploads block route and browser exit until the

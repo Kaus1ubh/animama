@@ -163,7 +163,6 @@ describe("Library Poses", () => {
     ["particle", "particle-effects"],
     ["avatar-effect", "avatar-effects"],
     ["scene", "scene-effects"],
-    ["sound", "sound-effects"],
   ])(
     "places Included and Local %s Edit immediately after Preview",
     (family, path) => {
@@ -195,6 +194,27 @@ describe("Library Poses", () => {
       }
     },
   );
+  it("opens sound management in the Library without a standalone editor link", () => {
+    mocks.otherRows = [
+      {
+        family: "sound",
+        origin: "owned",
+        item_id: "sound-1",
+        name: "Bell",
+        description: "",
+        source: { type: "catalog", catalog_item_id: "sound-1" },
+      },
+    ];
+    const html = renderToString(
+      <LibraryContentInventory
+        search={normalizeContentLibrarySearch({ section: "fx", fx: "sound" })}
+        onSearchChange={() => {}}
+      />,
+    );
+    expect(html).toContain('aria-label="Manage sound"');
+    expect(html).not.toContain("/a/sound-effects/");
+    expect(html).toContain('aria-label="Play"');
+  });
   it("requests Poses in the combined All inventory", () => {
     renderToString(
       <LibraryContentInventory

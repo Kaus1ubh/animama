@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactElement, useMemo, useState } from "react";
+import { type ReactElement, useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ChevronDown,
@@ -19,7 +19,6 @@ import {
 
 import type {
   PyAvatarCatalogItem,
-  PyContentPreview,
   PyCatalogViewItem,
 } from "@/lib/content/catalogTypes";
 import {
@@ -58,11 +57,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
-import { useContentPreviewAudio } from "@/ui/content-preview/useContentPreviewAudio";
+import { SoundPickerPreview } from "@/ui/sound-preview/SoundPickerPreview";
 import {
   ActionManageDialog,
   type ManageActionTarget,
 } from "@/ui/action-manage/ActionManageDialog";
+import { LibrarySoundDialog } from "./LibrarySoundDialog";
 import { LibraryFilterMenu } from "./LibraryFilterMenu";
 import { LibraryProductRow, type LibraryLayout } from "./LibraryProductRow";
 import { useLibraryLayout } from "./useLibraryLayout";
@@ -189,11 +189,13 @@ function ProductRow({
   card,
   onPreview,
   onManage,
+  previewing = false,
   layout,
 }: {
   card: LibraryProductCard;
   onPreview: () => void;
   onManage?: () => void;
+  previewing?: boolean;
   layout: LibraryLayout;
 }) {
   const itemId = card.itemId;
@@ -212,10 +214,12 @@ function ProductRow({
     particle: "/a/particle-effects",
     "avatar-effect": "/a/avatar-effects",
     scene: "/a/scene-effects",
-    sound: "/a/sound-effects",
+    sound: "/a/library",
   } as const;
   const editPath = `${editPaths[card.family]}/${encodeURIComponent(itemId)}/edit`;
   const policy = libraryProductActionPolicy(card);
+  const previewLabel =
+    card.family === "sound" ? (previewing ? "Stop" : "Play") : "Preview";
   return (
     <LibraryProductRow
       layout={layout}
@@ -223,19 +227,31 @@ function ProductRow({
       actions={
         <>
           {policy.preview ? (
-            <ActionTooltip label="Preview" layout={layout}>
+            <ActionTooltip label={previewLabel} layout={layout}>
               <Button
                 size={layout === "grid" ? "icon-sm" : "sm"}
                 variant="outline"
                 onClick={onPreview}
-                aria-label="Preview"
+                aria-label={previewLabel}
               >
-                <Play />
-                {layout === "list" ? " Preview" : null}
+                {previewing ? <Pause /> : <Play />}
+                {layout === "list" ? ` ${previewLabel}` : null}
               </Button>
             </ActionTooltip>
           ) : null}
-          {policy.edit ? (
+          {card.family === "sound" && onManage ? (
+            <ActionTooltip label="Manage sound" layout={layout}>
+              <Button
+                size={layout === "grid" ? "icon-sm" : "sm"}
+                variant="outline"
+                onClick={onManage}
+                aria-label="Manage sound"
+              >
+                <Pencil />
+                {layout === "list" ? " Manage" : null}
+              </Button>
+            </ActionTooltip>
+          ) : policy.edit ? (
             <ActionTooltip label="Edit" layout={layout}>
               <Button
                 size={layout === "grid" ? "icon-sm" : "sm"}
@@ -372,14 +388,24 @@ export function LibraryContentInventory({
     sort: search.sort,
     enabled: includes("avatars"),
   });
+  const [managedSound, setManagedSound] = useState<PyCatalogViewItem | null>(
+    null,
+  );
   const [manage, setManage] = useState<ManageActionTarget | null>(null);
-  const [effectPreview, setEffectPreview] = useState<PyContentPreview | null>(
-    null,
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const soundPreview = useMemo(
+    () =>
+      new SoundPickerPreview((id, error) => {
+        setPreviewingId(id);
+        setPreviewError(error ?? null);
+      }),
+    [],
   );
-  const [effectPreviewName, setEffectPreviewName] = useState<string | null>(
-    null,
+  useEffect(
+    () => () => soundPreview.stop(),
+    [soundPreview, search.section, search.fx],
   );
-  const effectAudio = useContentPreviewAudio(effectPreview);
   const { openPreview } = useContentPreviewDock();
   const gestureRows = useMemo(() => {
     const cards = (
@@ -413,12 +439,12 @@ export function LibraryContentInventory({
       (candidate) => candidate.item_id === card.itemId,
     );
     if (!item) return;
-    setEffectPreview(null);
+    soundPreview.stop();
     openPreview(posePreviewTarget(item));
   };
   const previewAction = async (card: LibraryProductCard) => {
     if (!card.source) return;
-    setEffectPreview(null);
+    soundPreview.stop();
     if (card.source.type !== "catalog") return;
     const preview = typedActionPreview(
       await previewTypedCatalogItem(
@@ -429,8 +455,13 @@ export function LibraryContentInventory({
     openPreview(actionPreviewTarget(preview, card.name));
   };
   const previewEffect = async (card: LibraryProductCard) => {
+    if (card.family === "sound") {
+      if (previewingId === card.itemId) soundPreview.stop();
+      else void soundPreview.play(card.itemId);
+      return;
+    }
     if (!card.source) return;
-    setEffectPreview(null);
+    soundPreview.stop();
     if (card.source.type !== "catalog") return;
     const kind = (
       {
@@ -449,9 +480,6 @@ export function LibraryContentInventory({
       openPreview(
         componentPreviewTarget(preview, "particle_effect", card.name),
       );
-    } else if (card.family === "sound") {
-      setEffectPreviewName(card.name);
-      setEffectPreview(preview);
     } else if (card.family === "avatar-effect" || card.family === "scene") {
       openPreview(
         componentPreviewTarget(
@@ -464,7 +492,7 @@ export function LibraryContentInventory({
   };
   const previewAvatar = async (avatar: PyAvatarCatalogItem) => {
     if (!avatar.catalog_item_id) return;
-    setEffectPreview(null);
+    soundPreview.stop();
     const preview = await previewCatalogItem(
       avatar.catalog_item_id,
       undefined,
@@ -490,6 +518,7 @@ export function LibraryContentInventory({
         key={card.key}
         card={card}
         layout={layout}
+        previewing={card.family === "sound" && previewingId === card.itemId}
         onPreview={() =>
           void (card.family === "pose"
             ? previewPose(card)
@@ -500,7 +529,15 @@ export function LibraryContentInventory({
         onManage={
           card.family === "gesture" || card.family === "reaction"
             ? () => manageCard(card)
-            : undefined
+            : card.family === "sound"
+              ? () => {
+                  soundPreview.stop();
+                  const item = sounds.data?.pages
+                    .flatMap((page) => page.items)
+                    .find((candidate) => candidate.item_id === card.itemId);
+                  if (item) setManagedSound(item);
+                }
+              : undefined
         }
       />
     ));
@@ -708,44 +745,10 @@ export function LibraryContentInventory({
             </ProductGroup>
           </div>
         ))}
-      {effectPreview ? (
-        <section
-          className="bg-muted flex flex-wrap items-center justify-between gap-3 rounded-xl p-4"
-          aria-live="polite"
-        >
-          <div>
-            <h2 className="font-medium">
-              Sound preview{effectPreviewName ? ` · ${effectPreviewName}` : ""}
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              {effectAudio.status === "loading"
-                ? "Preparing exact audio…"
-                : effectAudio.status === "playing"
-                  ? "Playing"
-                  : effectAudio.status === "blocked"
-                    ? "Your browser blocked automatic playback."
-                    : "Ready to play"}
-            </p>
-          </div>
-          {effectAudio.status === "playing" ? (
-            <Button size="sm" variant="outline" onClick={effectAudio.stop}>
-              <Pause /> Stop
-            </Button>
-          ) : effectAudio.url ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void effectAudio.play()}
-            >
-              <Play /> Play
-            </Button>
-          ) : null}
-          {effectAudio.error ? (
-            <p className="text-destructive basis-full text-sm">
-              {effectAudio.error}
-            </p>
-          ) : null}
-        </section>
+      {previewError ? (
+        <p role="alert" className="text-destructive text-sm">
+          {previewError}
+        </p>
       ) : null}
       {!groups.length ? (
         <div className="rounded-xl border border-dashed p-8 text-center">
@@ -754,6 +757,13 @@ export function LibraryContentInventory({
             Chat Uploads are managed separately below.
           </p>
         </div>
+      ) : null}
+      {managedSound ? (
+        <LibrarySoundDialog
+          key={managedSound.item_id}
+          item={managedSound}
+          onClose={() => setManagedSound(null)}
+        />
       ) : null}
       <ActionManageDialog
         open={Boolean(manage)}

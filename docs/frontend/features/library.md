@@ -40,10 +40,11 @@ created by the user, imported from a package, or added by the host operator.
 
 An attention indicator exposes affected items, validation details and Retry scan
 when content is invalid, missing, awaiting a scan or unavailable. Valid content can Preview;
-Edit follows Preview for Poses, Gestures, Reactions, Particle/Avatar/Scene Effects
-and Sounds. It opens the selected item in its creator: Local content updates that
+Edit follows Preview for Poses, Gestures, Reactions and Particle/Avatar/Scene Effects.
+It opens the selected item in its creator: Local content updates that
 item, while Included content starts a Local copy. Gesture/Reaction rows can Add or Manage Anima
-loadout selections. Effects and Sounds offer “Use in Gesture/Reaction” because
+loadout selections. Sounds offer Play/Stop and Manage for Local rename, same-format replacement and
+guarded deletion. Included Sounds are read-only. Effects and Sounds offer “Use in Gesture/Reaction” because
 they are action ingredients, not independent equipment.
 
 Actions contains All, Gestures, Reactions and Poses. Poses also appear in the
@@ -95,7 +96,8 @@ remain transitive dependencies of their owning Gesture or Reaction.
 ## Creation
 
 `/a/create` links to dedicated Anima, Gesture, Reaction, Particle VFX, Avatar
-VFX, Scene VFX, and Sound creators. Creator Save writes ordinary files through
+VFX and Scene VFX creators. Sound uploads live in Gesture/Reaction SFX tabs and
+Avatar/Scene FX accompanying-sound pickers. Creator Save writes ordinary files through
 the matching typed family route, such as `/v1/gestures/{entry_name}` or
 `/v1/particle-effects/{entry_name}`. Editing a Local item updates that item
 directly; there is no release, finalize, or Apply workflow.
