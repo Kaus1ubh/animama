@@ -169,10 +169,11 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
   const onSaved = useCallback(
     (savedDocument: AvatarEffectEditorDocument, savedItemId: string) => {
+      dispatch({ type: "patch", patch: { name: savedDocument.name } });
       hydratedItemRef.current.preserve(savedItemId);
       initialFingerprintRef.current = `${avatarEffectDocumentFingerprint(savedDocument)}:${imageResource?.sha256 ?? "missing"}`;
     },
-    [imageResource?.sha256],
+    [dispatch, imageResource?.sha256],
   );
 
   const validation = useMemo(

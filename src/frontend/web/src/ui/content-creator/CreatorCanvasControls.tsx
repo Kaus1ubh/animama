@@ -50,7 +50,7 @@ export function CreatorCanvasControls({
   onGuidesChange: (checked: boolean) => void;
   domainControl?: ReactNode;
   restartDisabled?: boolean;
-  onRestart: () => void;
+  onRestart?: () => void;
   className?: string;
 }) {
   return (
@@ -75,17 +75,19 @@ export function CreatorCanvasControls({
         </span>
       </label>
       {domainControl}
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        disabled={restartDisabled}
-        onClick={onRestart}
-        aria-label="Restart preview"
-        title="Restart preview"
-      >
-        <RefreshCwIcon />
-      </Button>
+      {onRestart ? (
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          disabled={restartDisabled}
+          onClick={onRestart}
+          aria-label="Restart preview"
+          title="Restart preview"
+        >
+          <RefreshCwIcon />
+        </Button>
+      ) : null}
     </div>
   );
 }

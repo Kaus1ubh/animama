@@ -46,6 +46,16 @@ describe("Avatar Effect editor document", () => {
     ).toEqual([]);
   });
 
+  it("keeps new names empty and permits automatic naming on save", () => {
+    const document = createDefaultAvatarEffectDocument();
+    expect(document.name).toBe("");
+    expect(
+      validateAvatarEffectDocument(document, {
+        imageBytesAvailable: false,
+      }).filter((issue) => issue.field === "name"),
+    ).toEqual([]);
+  });
+
   it("keeps kind-specific state while switching creator tabs", () => {
     const initial = createDefaultAvatarEffectDocument();
     const withHover = avatarEffectEditorReducer(initial, {

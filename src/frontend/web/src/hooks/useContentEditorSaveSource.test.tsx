@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { listCatalogItems } from "@/lib/content/catalogApi";
 import { useContentEditorSaveSource } from "./useContentEditorSaveSource";
 import { queryKeys } from "@/query/keys";
 import type {
@@ -10,6 +11,69 @@ import type {
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
   useRuntimeOwnerId: () => "owner",
 }));
+vi.mock("@/lib/content/catalogApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/content/catalogApi")>()),
+  listCatalogItems: vi.fn(),
+}));
+
+beforeEach(() => vi.mocked(listCatalogItems).mockReset());
+
+describe.each([
+  ["avatar_effect", "New Avatar FX"],
+  ["scene_effect", "New Scene FX"],
+  ["particle_effect", "New Particle FX"],
+] as const)("%s unnamed saves", (kind, fallback) => {
+  function openSession(existing?: PyCatalogViewItem) {
+    let session!: ReturnType<typeof useContentEditorSaveSource>;
+    function Harness() {
+      session = useContentEditorSaveSource(kind, existing?.item_id, existing);
+      return null;
+    }
+    renderToStaticMarkup(
+      <QueryClientProvider client={new QueryClient()}>
+        <Harness />
+      </QueryClientProvider>,
+    );
+    return session;
+  }
+
+  it("allocates a numbered fallback across case-insensitive catalog collisions", async () => {
+    vi.mocked(listCatalogItems).mockResolvedValue([
+      { item_id: "a", name: fallback.toLowerCase() },
+      { item_id: "b", name: `${fallback} 1` },
+    ] as PyContentItem[]);
+
+    expect(await openSession().resolveName("  ", fallback)).toBe(
+      `${fallback} 2`,
+    );
+    expect(listCatalogItems).toHaveBeenCalledWith(kind);
+  });
+
+  it("preserves an explicit name without requiring a catalog lookup", async () => {
+    expect(await openSession().resolveName("  My FX  ", fallback)).toBe(
+      "My FX",
+    );
+    expect(listCatalogItems).not.toHaveBeenCalled();
+  });
+
+  it.each(["owned", "builtin"] as const)(
+    "excludes only an existing Local update, preserving collisions for %s sources",
+    async (origin) => {
+      const existing = {
+        item_id: "source",
+        name: fallback,
+        origin,
+      } as PyCatalogViewItem;
+      vi.mocked(listCatalogItems).mockResolvedValue([
+        { item_id: existing.item_id, name: existing.name } as PyContentItem,
+      ]);
+
+      expect(await openSession(existing).resolveName("", fallback)).toBe(
+        origin === "owned" ? fallback : `${fallback} 1`,
+      );
+    },
+  );
+});
 
 const cases = [
   ["avatar_effect", queryKeys.avatarEffects],

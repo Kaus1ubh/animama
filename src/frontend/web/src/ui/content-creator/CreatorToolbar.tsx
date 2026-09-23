@@ -303,8 +303,8 @@ export function CreatorToolbar({
           {domainActions}
           <Button
             type="button"
-            variant="outline"
-            className="dark:bg-background dark:hover:bg-accent size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
+            variant="default"
+            className="hover:bg-primary size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
             disabled={saveDisabled}
             onClick={onSave}
             aria-label={saveLabel}

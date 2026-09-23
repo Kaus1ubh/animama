@@ -237,13 +237,14 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   );
   const onSaved = useCallback(
     (savedDocument: SceneEffectEditorDocument, savedItemId: string) => {
+      dispatch({ type: "patch", patch: { name: savedDocument.name } });
       hydratedItemRef.current.preserve(savedItemId);
       initialFingerprintRef.current = sceneSaveFingerprint(
         savedDocument,
         imageResources,
       );
     },
-    [imageResources],
+    [dispatch, imageResources],
   );
   const contentSave = useSceneEffectSave({
     itemId,

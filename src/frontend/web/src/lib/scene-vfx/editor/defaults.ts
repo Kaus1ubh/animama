@@ -57,7 +57,7 @@ export function sceneEffectTemplate(
 export function createDefaultSceneEffectDocument(): SceneEffectEditorDocument {
   return {
     schema: SCENE_EFFECT_EDITOR_SCHEMA,
-    name: "New Scene Effect",
+    name: "",
     description: "",
     kind: "background_layers",
     durationMs: 5000,

@@ -4,7 +4,7 @@ import { AVATAR_EFFECT_EDITOR_SCHEMA } from "./types";
 export function createDefaultAvatarEffectDocument(): AvatarEffectEditorDocument {
   return {
     schema: AVATAR_EFFECT_EDITOR_SCHEMA,
-    name: "New Avatar Effect",
+    name: "",
     description: "",
     kind: "hover",
     region: "eyes",

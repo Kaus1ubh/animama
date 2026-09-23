@@ -33,6 +33,7 @@ export type SceneEffectSaveStage =
 
 type SaveSession = {
   operationId: string;
+  resolvedName?: string;
   contentFingerprint: string;
 };
 
@@ -60,8 +61,11 @@ export function useSceneEffectSave(args: {
   } = args;
   const userId = useRuntimeOwnerId();
   const existing = useSceneEffect(itemId ?? null).data;
-  const { target: saveTargetFor, saved: recordSaved } =
-    useContentEditorSaveSource("scene_effect", itemId, existing);
+  const {
+    target: saveTargetFor,
+    saved: recordSaved,
+    resolveName,
+  } = useContentEditorSaveSource("scene_effect", itemId, existing);
   const navigate = useNavigate();
   const documentKey = itemId ?? "new";
   const fingerprint = useMemo(
@@ -119,14 +123,20 @@ export function useSceneEffectSave(args: {
   }, [documentKey, onRestore, userId]);
 
   const persist = useCallback(
-    async (session: SaveSession) => {
+    async (
+      session: SaveSession,
+      savedDocument = {
+        ...document,
+        name: document.name.trim() || session.resolvedName || document.name,
+      },
+    ) => {
       if (!userId) return;
       const result = await saveSceneEffectRecovery({
         schema: SCENE_EFFECT_RECOVERY_SCHEMA,
         userId,
         documentKey,
         operationId: session.operationId,
-        document,
+        document: savedDocument,
         imageResources,
         contentFingerprint: session.contentFingerprint,
         updatedAt: new Date().toISOString(),
@@ -167,8 +177,13 @@ export function useSceneEffectSave(args: {
     const controller = new AbortController();
     controllerRef.current = controller;
     try {
-      await persist(session);
-      const displayName = document.name.trim();
+      const displayName =
+        document.name.trim() ||
+        session.resolvedName ||
+        (await resolveName(document.name, "New Scene FX"));
+      session.resolvedName = displayName;
+      const savedDocument = { ...document, name: displayName };
+      await persist(session, savedDocument);
       const saveTarget = saveTargetFor(displayName);
       const referenced = sceneEffectImageMetadata(document);
       const resourcesByName = new Map(
@@ -224,7 +239,7 @@ export function useSceneEffectSave(args: {
               { role: "image", ordinal: index + 2 },
             ]),
           ),
-          authoring: document,
+          authoring: savedDocument,
         },
         operationId: session.operationId,
         catalogItemId: saveTarget.catalogItemId,
@@ -235,7 +250,7 @@ export function useSceneEffectSave(args: {
       sessionRef.current = null;
       setRecovered(false);
       setRecoveryWarning(null);
-      onSaved(document, item.item_id);
+      onSaved(savedDocument, item.item_id);
       await recordSaved(item);
       setStage("idle");
       toast.success("Scene Effect saved.");
@@ -269,6 +284,7 @@ export function useSceneEffectSave(args: {
     existing,
     recordSaved,
     saveTargetFor,
+    resolveName,
     fingerprint,
     imageResources,
     itemId,

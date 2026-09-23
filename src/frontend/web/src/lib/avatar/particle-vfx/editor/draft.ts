@@ -118,7 +118,7 @@ export function createParticleVFXEditorDraftFromBlank(
   const catalog: ParticleVFXEditorCatalogDraft = {
     ...DEFAULT_IMPORTED_CATALOG_DRAFT,
     id: DEFAULT_NEW_EFFECT_ID,
-    label: "Custom Particle VFX",
+    label: "",
     description: "New particle effect.",
     assetPath: `/effects/vfx/quark/${DEFAULT_NEW_EFFECT_ID}.json`,
     defaultDurationSec: 1.2,

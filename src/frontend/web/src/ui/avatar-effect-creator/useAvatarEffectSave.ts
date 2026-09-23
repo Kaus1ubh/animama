@@ -32,6 +32,7 @@ export type AvatarEffectSaveStage =
 
 type SaveSession = {
   operationId: string;
+  resolvedName?: string;
   contentFingerprint: string;
 };
 
@@ -58,8 +59,11 @@ export function useAvatarEffectSave(args: {
   } = args;
   const userId = useRuntimeOwnerId();
   const existing = useAvatarEffect(itemId ?? null).data;
-  const { target: saveTargetFor, saved: recordSaved } =
-    useContentEditorSaveSource("avatar_effect", itemId, existing);
+  const {
+    target: saveTargetFor,
+    saved: recordSaved,
+    resolveName,
+  } = useContentEditorSaveSource("avatar_effect", itemId, existing);
   const navigate = useNavigate();
   const documentKey = itemId ?? "new";
   const fingerprint = useMemo(
@@ -117,14 +121,20 @@ export function useAvatarEffectSave(args: {
   }, [documentKey, onRestore, userId]);
 
   const persist = useCallback(
-    async (session: SaveSession) => {
+    async (
+      session: SaveSession,
+      savedDocument = {
+        ...document,
+        name: document.name.trim() || session.resolvedName || document.name,
+      },
+    ) => {
       if (!userId) return;
       const result = await saveAvatarEffectRecovery({
         schema: AVATAR_EFFECT_RECOVERY_SCHEMA,
         userId,
         documentKey,
         operationId: session.operationId,
-        document,
+        document: savedDocument,
         imageResource,
         contentFingerprint: session.contentFingerprint,
         updatedAt: new Date().toISOString(),
@@ -172,8 +182,13 @@ export function useAvatarEffectSave(args: {
     const controller = new AbortController();
     controllerRef.current = controller;
     try {
-      await persist(session);
-      const displayName = document.name.trim();
+      const displayName =
+        document.name.trim() ||
+        session.resolvedName ||
+        (await resolveName(document.name, "New Avatar FX"));
+      session.resolvedName = displayName;
+      const savedDocument = { ...document, name: displayName };
+      await persist(session, savedDocument);
       const saveTarget = saveTargetFor(displayName);
       setStage("uploading");
       controller.signal.throwIfAborted();
@@ -203,7 +218,7 @@ export function useAvatarEffectSave(args: {
           definition: avatarEffectDefinition(document),
           dependencies,
           files: [{ path: imagePath, role: "image" }],
-          authoring: document,
+          authoring: savedDocument,
         },
         operationId: session.operationId,
         catalogItemId: saveTarget.catalogItemId,
@@ -214,7 +229,7 @@ export function useAvatarEffectSave(args: {
       sessionRef.current = null;
       setRecovered(false);
       setRecoveryWarning(null);
-      onSaved(document, item.item_id);
+      onSaved(savedDocument, item.item_id);
       await recordSaved(item);
       setStage("idle");
       toast.success("Avatar Effect saved.");
@@ -248,6 +263,7 @@ export function useAvatarEffectSave(args: {
     existing,
     recordSaved,
     saveTargetFor,
+    resolveName,
     fingerprint,
     imageResource,
     itemId,

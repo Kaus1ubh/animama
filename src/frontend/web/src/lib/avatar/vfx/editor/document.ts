@@ -161,11 +161,11 @@ export function validateAvatarEffectDocument(
   options: { imageBytesAvailable: boolean; modelCompatible?: boolean | null },
 ): AvatarEffectValidationIssue[] {
   const issues: AvatarEffectValidationIssue[] = [];
-  if (!document.name.trim() || document.name.trim().length > 120) {
+  if (document.name.trim().length > 120) {
     issues.push({
       field: "name",
       severity: "error",
-      message: "Give the Avatar Effect a name between 1 and 120 characters.",
+      message: "Keep the Avatar Effect name within 120 characters.",
     });
   }
   if (!document.image) {

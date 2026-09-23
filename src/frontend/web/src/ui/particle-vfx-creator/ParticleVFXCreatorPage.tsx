@@ -172,9 +172,11 @@ type PreviewEmitter = THREE.Object3D & {
 const PARTICLE_VFX_CREATOR_AVATAR_CAMERA_SETTINGS =
   buildSceneCameraPreset("full-body").settings;
 const PARTICLE_VFX_CREATOR_EMITTER_CAMERA_SETTINGS: SceneCameraSettings = {
-  position: { x: 0, y: 1.05, z: 3.1 },
-  fov: 38,
-  orbitTarget: { x: 0, y: 0.65, z: 0 },
+  // Standalone emitters sit at the origin. Keep the avatar view's angle and
+  // distance while centering that origin instead of looking above it.
+  position: { x: 0, y: 0.2, z: 3.2 },
+  fov: PARTICLE_VFX_CREATOR_AVATAR_CAMERA_SETTINGS.fov,
+  orbitTarget: { x: 0, y: 0, z: 0 },
 };
 const PARTICLE_VFX_TEXTURE_GROUPS = PARTICLE_VFX_EDITOR_TEXTURE_ROLE_ORDER.map(
   (role) => ({
@@ -222,7 +224,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     message: null,
   });
   const [showAvatar, setShowAvatar] = useState(true);
-  const [showEmitterOutline, setShowEmitterOutline] = useState(false);
+  const [showEmitterOutline, setShowEmitterOutline] = useState(true);
   const [selectedModel, setSelectedModel] =
     useState<ContentCreatorModelSource | null>(null);
   const [previewAvatar, setPreviewAvatar] = useState<Avatar | null>(null);
@@ -664,7 +666,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           typeLabel="Particle FX"
           contentType="particle_effect"
           typeIcon={<SparklesIcon />}
-          documentName={draft?.catalog.label ?? "New Particle Effect"}
+          documentName={draft?.catalog.label ?? ""}
           documentNameInputRef={documentNameInputRef}
           documentNameInvalid={contentSave.errorField === "name"}
           documentNameDisabled={!draft || contentSave.isBusy}
@@ -1221,8 +1223,6 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
               />
             </>
           }
-          restartDisabled={!draft}
-          onRestart={restartPreview}
         />
       }
       previewBar={
