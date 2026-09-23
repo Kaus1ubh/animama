@@ -6,6 +6,7 @@ import {
   buildPoseCreatorClipForExport,
   createUniquePoseCreatorClipName,
   validatePoseCreatorClipDraft,
+  isPoseCreatorBaseKeyframe,
 } from "./poseCreatorClipAuthoring";
 
 describe("createUniquePoseCreatorClipName", () => {
@@ -40,6 +41,36 @@ describe("createUniquePoseCreatorClipName", () => {
 });
 
 describe("standalone clip hydration", () => {
+  it.each([true, false])(
+    "preserves saved endpoint choices: enabled=%s",
+    (enabled) => {
+      const draft = createPoseCreatorClipDraftFromAnimaPoseClip(
+        {
+          schema: "animaPoseClip/1.0",
+          id: "saved",
+          name: "Saved",
+          duration: 2,
+          basePose: "relaxedRest",
+          poses: {
+            base: { ref: "relaxedRest" },
+            middle: { expressions: { happy: 0.5 } },
+          },
+          poseKeyframes: [
+            ...(enabled ? [{ time: 0, pose: "base" }] : []),
+            { time: 1, pose: "middle" },
+            ...(enabled ? [{ time: 2, pose: "base" }] : []),
+          ],
+        },
+        { fallbackBasePose: "relaxedRest" },
+      );
+      expect(
+        draft.keyframes.filter((frame) =>
+          isPoseCreatorBaseKeyframe(draft, frame),
+        ),
+      ).toHaveLength(enabled ? 2 : 0);
+    },
+  );
+
   it("retains omitted base across referenced and baked export despite a caller fallback", () => {
     const input = {
       schema: "animaPoseClip/1.0",

@@ -111,7 +111,7 @@ function ProductGroup({
           <div
             className={
               layout === "grid"
-                ? "grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3"
+                ? "grid grid-cols-[repeat(auto-fill,minmax(min(100%,13rem),1fr))] gap-3"
                 : "overflow-hidden rounded-xl border"
             }
           >
@@ -178,7 +178,7 @@ function ActionTooltip({
 }) {
   if (layout === "list") return children;
   return (
-    <Tooltip delayDuration={500}>
+    <Tooltip delayDuration={300}>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
@@ -582,11 +582,11 @@ export function LibraryContentInventory({
         >
           {(
             [
-              ["list", "List view", List],
               ["grid", "Grid view", LayoutGrid],
+              ["list", "List view", List],
             ] as const
           ).map(([value, label, Icon]) => (
-            <Tooltip key={value} delayDuration={500}>
+            <Tooltip key={value} delayDuration={300}>
               <TooltipTrigger asChild>
                 <Button
                   size="icon-sm"

@@ -120,6 +120,9 @@ beforeEach(() => {
   mocks.preview = null;
 });
 describe("Library Poses", () => {
+  beforeEach(() => {
+    vi.stubGlobal("window", { localStorage: { getItem: () => "list" } });
+  });
   it("renders Included and Local editing with no equipment or creation action", () => {
     const html = renderToString(
       <LibraryContentInventory
@@ -219,18 +222,17 @@ describe("Library layout", () => {
       />,
     );
 
-  it("defaults to list and restores grid after choosing it", () => {
+  it("defaults to grid and remembers an explicitly selected list", () => {
     const values = new Map<string, string>();
     const storage = {
       getItem: (key: string) => values.get(key) ?? null,
       setItem: (key: string, value: string) => values.set(key, value),
     };
     vi.stubGlobal("window", { localStorage: storage });
-    expect(renderInventory()).toContain(
-      'aria-label="List view" aria-pressed="true"',
-    );
-    mocks.layoutActions["Grid view"]!();
     const grid = renderInventory();
+    expect(grid.indexOf('aria-label="Grid view"')).toBeLessThan(
+      grid.indexOf('aria-label="List view"'),
+    );
     expect(grid).toContain('aria-label="Grid view" aria-pressed="true"');
     const row = grid.split('aria-label="Salute"')[1]!.split("</article>")[0]!;
     expect(row).toContain('aria-label="Preview"');
@@ -252,9 +254,9 @@ describe("Library layout", () => {
       },
     });
     expect(renderInventory()).toContain(
-      'aria-label="List view" aria-pressed="true"',
+      'aria-label="Grid view" aria-pressed="true"',
     );
-    expect(() => mocks.layoutActions["Grid view"]!()).not.toThrow();
+    expect(() => mocks.layoutActions["List view"]!()).not.toThrow();
     expect(warning).toHaveBeenCalled();
   });
 });

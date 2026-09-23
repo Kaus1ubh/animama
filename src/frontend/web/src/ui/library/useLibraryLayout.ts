@@ -7,14 +7,14 @@ const STORAGE_KEY = "animama.library.layout";
 const logger = createLogger("LibraryLayout");
 
 function loadLayout(): LibraryLayout {
-  if (typeof window === "undefined") return "list";
+  if (typeof window === "undefined") return "grid";
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "grid"
-      ? "grid"
-      : "list";
+    return window.localStorage.getItem(STORAGE_KEY) === "list"
+      ? "list"
+      : "grid";
   } catch (error) {
     logger.warn("Storage", "Could not load Library layout", { error });
-    return "list";
+    return "grid";
   }
 }
 

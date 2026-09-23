@@ -106,13 +106,8 @@ function defaultSequence(intent: ActionIntent): Record<string, unknown> {
       },
     },
     ...(!reaction ? { basePose: RELAXED_REST_POSE_ID } : {}),
-    poses: reaction ? {} : { base: { ref: RELAXED_REST_POSE_ID } },
-    poseKeyframes: reaction
-      ? []
-      : [
-          { time: 0, pose: "base" },
-          { time: 2, pose: "base" },
-        ],
+    poses: {},
+    poseKeyframes: [],
     events: [],
   };
 }

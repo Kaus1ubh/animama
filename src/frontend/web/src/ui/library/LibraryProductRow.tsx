@@ -36,7 +36,7 @@ export function LibraryProductRow({
   actions,
   className,
   portraitUrl,
-  layout = "list",
+  layout = "grid",
 }: {
   row: LibraryRowPresentation;
   actions: ReactNode;
@@ -100,7 +100,7 @@ export function LibraryProductRow({
         className={cn(
           "flex shrink-0 flex-wrap items-center gap-2 px-4 py-3",
           layout === "grid"
-            ? "justify-end pt-0"
+            ? "justify-start pt-0"
             : "sm:max-w-[48%] sm:justify-end",
         )}
       >

@@ -69,15 +69,13 @@ describe("actionDocument", () => {
     expect(reaction.sequence.events).toEqual([]);
   });
 
-  it("starts a two-second Gesture with base endpoints", () => {
+  it("starts a two-second Gesture without base endpoints", () => {
     const gesture = createActionDocument("gesture");
 
     expect(gesture.sequence.duration).toBe(2);
-    expect(gesture.sequence.poses).toEqual({ base: { ref: "relaxedRest" } });
-    expect(gesture.sequence.poseKeyframes).toEqual([
-      { time: 0, pose: "base" },
-      { time: 2, pose: "base" },
-    ]);
+    expect(gesture.sequence.basePose).toBe("relaxedRest");
+    expect(gesture.sequence.poses).toEqual({});
+    expect(gesture.sequence.poseKeyframes).toEqual([]);
     expect(JSON.stringify(gesture.sequence)).not.toContain("happy");
   });
 
