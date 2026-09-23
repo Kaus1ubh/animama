@@ -11,9 +11,13 @@ import {
   sampleAnimaPoseClip,
 } from "@/lib/avatar/poses/animaPoseClip";
 import { createActionProject, parseActionImport } from "./actionProject";
-import { createActionDocument } from "./actionDocument";
+import {
+  createActionDocument,
+  sanitizeReactionSequence,
+} from "./actionDocument";
 import {
   actionDocumentForPersistence,
+  actionSequenceFromTimelineDraft,
   captureActionDocumentForSave,
   canonicalizeActionComponentInsertion,
 } from "./actionPersistence";
@@ -158,4 +162,82 @@ describe("copied pose persistence", () => {
     }
     store.resetWorkspace();
   });
+});
+
+describe("empty authoring timeline history", () => {
+  it("emits an empty Reaction in the same normalized form as editor history", () => {
+    const draft = createDefaultPoseCreatorClipDraft("relaxedRest");
+    const empty = actionSequenceFromTimelineDraft(draft, "reaction", {
+      allowEmpty: true,
+    })!;
+    expect(empty).toEqual(sanitizeReactionSequence(empty));
+    expect(empty).not.toHaveProperty("basePose");
+    expect(empty.defaultTransition).not.toHaveProperty(
+      "interpolation.humanoidRotation",
+    );
+  });
+  it.each(["pose", "event"])(
+    "records the final %s deletion without making empty clips saveable",
+    (kind) => {
+      const store = usePoseCreatorStore.getState();
+      store.resetWorkspace();
+      const sequence = {
+        schema: "animaPoseClip/1.0",
+        id: "last-marker",
+        name: "Last marker",
+        duration: 4,
+        defaultTransition: { easing: "linear" },
+        fadeIn: { duration: 0.3 },
+        poses:
+          kind === "pose"
+            ? { expression: { expressions: { happy: 0.6 } } }
+            : {},
+        poseKeyframes: kind === "pose" ? [{ time: 1, pose: "expression" }] : [],
+        events:
+          kind === "event"
+            ? [
+                {
+                  id: "hearts",
+                  kind: "avatar_vfx",
+                  time: 1,
+                  effectId: "hearts",
+                },
+              ]
+            : [],
+      };
+      store.hydrateClipDocument(parseAnimaPoseClip(sequence));
+      if (kind === "pose") store.deleteSelectedClipKeyframe();
+      else {
+        store.selectClipEvent("hearts");
+        store.deleteSelectedClipEvent();
+      }
+      const draft = usePoseCreatorStore.getState().clipDraft;
+      const empty = actionSequenceFromTimelineDraft(draft, "reaction", {
+        allowEmpty: true,
+      });
+      expect(empty).toMatchObject({
+        id: "last-marker",
+        name: "Last marker",
+        duration: 4,
+        fadeIn: { duration: 0.3 },
+        poses: {},
+        poseKeyframes: [],
+        events: [],
+      });
+      expect(actionSequenceFromTimelineDraft(draft, "reaction")).toBeNull();
+      expect(() =>
+        actionDocumentForPersistence(createActionDocument("reaction"), draft),
+      ).toThrow(/invalid keyframes or events/);
+      store.insertClipSFXEventAtPlayhead("new-sound");
+      const next = actionSequenceFromTimelineDraft(
+        usePoseCreatorStore.getState().clipDraft,
+        "reaction",
+      );
+      expect(next?.poseKeyframes).toEqual([]);
+      expect(next?.events).toEqual([
+        expect.objectContaining({ kind: "sfx", cueId: "new-sound" }),
+      ]);
+      store.resetWorkspace();
+    },
+  );
 });

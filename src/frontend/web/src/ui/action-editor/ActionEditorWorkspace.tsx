@@ -312,7 +312,10 @@ function ActionEditorWorkspaceContent() {
       workspace.mode === "pose" &&
       usePoseCreatorStore.getState().authoringMode !== "pose"
     ) {
-      void beginInlineKeyframeEdit();
+      setActionEditorAuthoringMode("pose");
+      if (usePoseCreatorStore.getState().authoringMode !== "pose") {
+        void beginInlineKeyframeEdit();
+      }
     }
   }, [
     activeAvatar,

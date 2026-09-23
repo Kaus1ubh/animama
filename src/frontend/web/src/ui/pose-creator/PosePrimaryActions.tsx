@@ -36,8 +36,8 @@ export function PosePrimaryActions({ busy = false }: { busy?: boolean }) {
         form="pose-creator-pose-save-form"
         name="pose-creator-submit-action"
         value="save-and-branch"
-        variant="outline"
-        className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
+        variant="default"
+        className="hover:bg-primary disabled:text-muted-foreground size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
         disabled={saveDisabled || !selectedSource || !activeAvatar}
         aria-label="Save and branch pose"
       >

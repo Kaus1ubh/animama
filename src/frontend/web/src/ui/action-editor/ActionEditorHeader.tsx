@@ -894,9 +894,9 @@ function ActionPrimaryActions() {
       </Button>
       <Button
         type="button"
-        className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
+        className="hover:bg-primary disabled:text-muted-foreground size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
         disabled={disabled}
-        variant="outline"
+        variant="default"
         onClick={() => void workspace.saveAndEquip()}
         aria-label="Save and equip content"
       >

@@ -12,5 +12,7 @@ export const Route = createFileRoute("/")({
 function HomeRoute() {
   const { state } = useLocalRuntime();
   if (state.status !== "ready") return null;
-  return <Navigate to={localRuntimeHomePath(state)} replace />;
+  // Entry navigation has already passed the creator's discard prompt. Navigate's
+  // layout effect can run before that departed creator unregisters its blocker.
+  return <Navigate to={localRuntimeHomePath(state)} replace ignoreBlocker />;
 }

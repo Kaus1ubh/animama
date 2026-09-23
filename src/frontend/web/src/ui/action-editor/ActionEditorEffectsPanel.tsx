@@ -160,7 +160,7 @@ export function ActionEditorEffectsPanel({
       <div
         className={cn(
           "flex shrink-0 items-start justify-between gap-3",
-          expanded && showsPoses ? "min-h-7" : "min-h-10",
+          expanded ? "min-h-7" : "min-h-10",
         )}
       >
         <div className="min-w-0">
@@ -199,10 +199,7 @@ export function ActionEditorEffectsPanel({
               onActiveTypeChange(tab.contentType);
             }
           }}
-          className={cn(
-            "flex min-h-0 flex-1 flex-col",
-            showsPoses ? "mt-2" : "mt-3",
-          )}
+          className="mt-2 flex min-h-0 flex-1 flex-col"
         >
           <TabsList
             className={cn(

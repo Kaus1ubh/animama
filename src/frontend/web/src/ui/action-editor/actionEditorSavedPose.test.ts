@@ -77,6 +77,18 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks());
 
 describe("editing durable poses", () => {
+  it("opens a fresh standalone pose without adding captured clip content", () => {
+    const clip = usePoseCreatorStore.getState().clipDraft;
+    setActionEditorAuthoringMode("pose");
+    expect(usePoseCreatorStore.getState().authoringMode).toBe("pose");
+    setActionEditorAuthoringMode("clip");
+    setActionEditorAuthoringMode("pose");
+    expect(usePoseCreatorStore.getState().authoringMode).toBe("pose");
+    expect(usePoseCreatorStore.getState().clipDraft).toBe(clip);
+    expect(clip.keyframes).toEqual([]);
+    expect(clip.poses).toEqual({});
+  });
+
   it("loads Local identity/revision independently of the clip and resumes the draft", async () => {
     const clip = usePoseCreatorStore.getState().clipDraft;
     expect(await editActionEditorSavedPose(item)).toBe(true);

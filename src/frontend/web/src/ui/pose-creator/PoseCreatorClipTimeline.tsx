@@ -22,6 +22,7 @@ import {
 
 import { isAnimaPoseClipVFXEvent, type AnimaPoseClipEvent } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
+import { handleTimelineDeleteKey } from "./poseCreatorTimelineKeyboard";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { PoseCreatorClipWorkspaceInspector } from "./PoseCreatorClipWorkspaceInspector";
 import { Input } from "@/ui/components/input";
@@ -165,9 +166,6 @@ export function PoseCreatorClipTimeline({
   const nudgeSelectedClipEvent = usePoseCreatorStore(
     (state) => state.nudgeSelectedClipEvent,
   );
-  const deleteSelectedClipEvent = usePoseCreatorStore(
-    (state) => state.deleteSelectedClipEvent,
-  );
   const playClipPreview = usePoseCreatorStore((state) => state.playClipPreview);
   const pauseClipPreview = usePoseCreatorStore(
     (state) => state.pauseClipPreview,
@@ -290,6 +288,7 @@ export function PoseCreatorClipTimeline({
       keyframeId: keyframe.id,
       pointerOffsetSec: keyframe.time - pointerTime,
     };
+    event.currentTarget.focus({ preventScroll: true });
     event.currentTarget.setPointerCapture(event.pointerId);
     selectClipKeyframe(keyframe.id);
     beginClipUndoGroup();
@@ -332,6 +331,7 @@ export function PoseCreatorClipTimeline({
       eventId: clipEvent.id,
       pointerOffsetSec: clipEvent.time - pointerTime,
     };
+    event.currentTarget.focus({ preventScroll: true });
     event.currentTarget.setPointerCapture(event.pointerId);
     selectClipEvent(clipEvent.id);
     beginClipUndoGroup();
@@ -372,17 +372,6 @@ export function PoseCreatorClipTimeline({
       nudgeSelectedClipEvent(event.key === "ArrowLeft" ? -1 : 1);
       return;
     }
-
-    if (event.key !== "Delete" && event.key !== "Backspace") return;
-    event.preventDefault();
-    selectClipEvent(clipEvent.id);
-    if (
-      window.confirm(
-        `Delete ${formatEffectEventKind(clipEvent)} event ${clipEvent.id}?`,
-      )
-    ) {
-      deleteSelectedClipEvent();
-    }
   };
 
   return (
@@ -390,6 +379,8 @@ export function PoseCreatorClipTimeline({
       <section
         ref={sectionRef}
         aria-label="Timeline"
+        tabIndex={-1}
+        onKeyDown={handleTimelineDeleteKey}
         className={cn(
           "border-border/70 bg-background w-full min-w-0 shrink-0 px-3 py-2",
           variant === "workspace"

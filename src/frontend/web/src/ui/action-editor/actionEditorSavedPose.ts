@@ -156,12 +156,14 @@ export async function insertActionEditorSavedPose(
   }
 }
 
-/** Resume a standalone Pose after previewing the clip without replacing its draft. */
+/** Keep new and saved standalone Pose drafts separate from clip keyframes. */
 export function setActionEditorAuthoringMode(mode: ActionEditorMode): void {
   const state = usePoseCreatorStore.getState();
   const resumePose =
     mode === "pose" &&
     !state.clipInlineEdit &&
-    (state.savedPoseIdentity !== null || state.isDirty);
+    (state.savedPoseIdentity !== null ||
+      state.isDirty ||
+      state.clipDraft.keyframes.length === 0);
   state.setAuthoringMode(resumePose ? "pose" : "clip");
 }
