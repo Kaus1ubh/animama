@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "finger-heart-pose",
   "name": "finger-heart-pose",
-  "ai_description": "Reusable avatar pose clip",
+  "ai_description": "Make a small finger heart to express affection, appreciation, or a sweet thank-you.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

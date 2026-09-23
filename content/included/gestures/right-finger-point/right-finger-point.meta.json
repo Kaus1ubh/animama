@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "right-finger-point",
   "name": "right-finger-point",
-  "ai_description": "Reusable avatar pose clip",
+  "ai_description": "Point with the right index finger to emphasize a key point, offer a reminder, or playfully call something out.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

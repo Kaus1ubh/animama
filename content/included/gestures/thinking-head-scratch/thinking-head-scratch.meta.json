@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "thinking-head-scratch",
   "name": "thinking-head-scratch",
-  "ai_description": "Reusable avatar pose clip",
+  "ai_description": "Scratch the head to express puzzlement, uncertainty, or an attempt to work something out.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

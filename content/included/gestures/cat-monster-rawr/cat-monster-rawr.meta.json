@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "cat-monster-rawr",
   "name": "cat-monster-rawr",
-  "ai_description": "Reusable avatar pose clip",
+  "ai_description": "Make a playful clawing pose for a pretend roar, mischievous teasing, or mock intimidation.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"
