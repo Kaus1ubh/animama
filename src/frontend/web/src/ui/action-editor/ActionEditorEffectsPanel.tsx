@@ -253,33 +253,37 @@ export function ActionEditorEffectsPanel({
             ))}
           </TabsList>
 
-          <div className="relative mt-3 shrink-0">
-            <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-            <Input
-              className="h-9 pl-8 text-xs"
-              value={panelTab === "poses" ? poseQuery : query}
-              onChange={(event) => {
-                if (panelTab === "poses") setPoseQuery(event.target.value);
-                else onQueryChange(event.target.value);
-              }}
-              placeholder={
-                panelTab === "poses"
-                  ? "Search poses"
-                  : activeTab.searchPlaceholder
-              }
-              aria-label={
-                panelTab === "poses"
-                  ? "Search poses"
-                  : activeTab.searchPlaceholder
-              }
-            />
-          </div>
-
-          {panelTab === "sound_effect" ? (
-            <div className="mt-2 shrink-0">
-              <SoundUploadButton />
+          <div
+            className={cn(
+              "mt-3 grid shrink-0 items-center gap-2",
+              panelTab === "sound_effect" && "grid-cols-[minmax(0,1fr)_auto]",
+            )}
+          >
+            <div className="relative min-w-0">
+              <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
+              <Input
+                className="h-9 pl-8 text-xs"
+                value={panelTab === "poses" ? poseQuery : query}
+                onChange={(event) => {
+                  if (panelTab === "poses") setPoseQuery(event.target.value);
+                  else onQueryChange(event.target.value);
+                }}
+                placeholder={
+                  panelTab === "poses"
+                    ? "Search poses"
+                    : activeTab.searchPlaceholder
+                }
+                aria-label={
+                  panelTab === "poses"
+                    ? "Search poses"
+                    : activeTab.searchPlaceholder
+                }
+              />
             </div>
-          ) : null}
+            {panelTab === "sound_effect" ? (
+              <SoundUploadButton className="contents [&>ul]:col-span-full" />
+            ) : null}
+          </div>
           {previewState.error ? (
             <p role="alert" className="text-destructive mt-2 text-xs">
               {previewState.error}
