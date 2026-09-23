@@ -1,0 +1,801 @@
+# Local content and complete Anima sharing
+
+Status: Proposed execution plan; implementation has not started.
+
+Source agreement: [local-content-sharing-spec.md](local-content-sharing-spec.md),
+requirements R1–R9 and its acceptance table, following the owner's 2026-09-23
+instruction to turn that specification into an ExecPlan and explicitly use the UI
+mockups. The spec remains the requirements authority; this plan owns execution.
+
+Authorized scope now: planning only. The proposed implementation covers phases
+1–6 in Animama. An implementation instruction authorizes the requested range;
+do not infer implementation, data conversion, publication or merge approval from
+this document. No product decision is currently blocking the plan.
+
+Workspace: reuse the assigned `0c75/animama` worktree and existing
+`feat/local-content-sharing` branch. Planning baseline:
+`98220eae162651207960ffa9657aa54581a80265`. At authoring, only this scope's planning
+directory was untracked; no application code had changed. No stack was started.
+Use one branch and PR for this plan. Workspace setup will publish the agreed spec
+to its owning issue and create/reuse one issue per authorized phase. No issue,
+commit or PR has been created for this delivery.
+
+## Purpose and context
+
+Make Library's Import / Export flow exchange one content item, multiple items or
+one complete fresh Anima through a local `.animama` file. Dependencies and the
+appropriate Appearance images travel automatically. Imports create independent,
+editable Local copies and never transfer private conversation history or provider
+configuration. No Discover, hosted publishing, distribution service, new catalog
+Voice integration or editable Blueprint type belongs in this work.
+
+The prerequisite content changes are part of the same outcome: Idle Styles own
+Gesture pools, Music/BGM is retired, and standalone catalog Pose Clips become
+Action-owned animation content where referenced. Preserve existing Local data,
+Included immutability, TTS, Sound Effects, static Poses and Creator JSON workflows.
+
+Read [PLANS.md](../../../PLANS.md), [SDLC.md](../../../SDLC.md), the scoped agent
+guides and [ADR 0004](../../adr/0004-filesystem-content-and-recoverable-mutations.md)
+before implementation. Do not use the historical Discover proposal as a contract.
+Planning and implementation require no Cloud checkout or private source.
+
+### Source orientation
+
+Paths below are relative to the repository root. `B` means
+`src/backend/animama`; `W` means `src/frontend/web/src`.
+
+| Boundary | Starting points and relevant behavior |
+| --- | --- |
+| Typed documents and admission | `B/domain/content_documents.py`, `B/app/services/content_kind_registry.py`, `B/adapters/content_store/filesystem_store.py`: versioned documents, kind rules, registered files and reference rewriting. |
+| Local publication and recovery | `B/app/services/local_content_mutations.py`, `B/adapters/repositories/sqlalchemy/content_catalog_repo.py`, `B/server/content_startup.py`: source lock, file journals, SQL receipt and startup reconciliation. |
+| Package service and HTTP | `B/app/services/content_package_service.py`, `B/server/routers/content.py`, `B/server/schemas/content.py`: current `/2` single-root export and immediate import; no review/commit product flow. |
+| Anima definition and creation | `B/app/services/anima_aggregate_materializer.py`, `anima_creation_service.py`, `anima_loadout_service.py` in the same service directory; `B/domain/anima_creation.py` and the SQLAlchemy aggregate unit of work. |
+| Appearance associations | `B/server/routers/avatar.py`, `B/app/services/content_save_service.py`: an Avatar portrait is a separate Appearance association, not a normal Avatar dependency edge. |
+| Idle runtime | `W/lib/runtime-content/AnimaRuntimeCatalog.ts`, `runtimeSnapshotAdapter.ts`, `W/lib/avatar/planner/AvatarPlanner.ts`, `W/lib/avatar/Avatar.ts`, `W/lib/avatar/poses/PoseController.ts`. |
+| Library and editing | `W/ui/library/LibraryPage.tsx`, `LibraryContentInventory.tsx`, `W/lib/content/libraryContentInventory.ts`, `W/ui/creator/IdleStyleEditorPage.tsx`, `W/ui/animas/IdleStyleLoadoutSection.tsx`. |
+| Sound ownership | `W/lib/sound/SoundController.ts`, `W/ui/sound/SoundProvider.tsx`, `W/ui/main/canvas/AvatarCanvasActor.tsx`: preserve TTS/SFX while removing BGM and exposing occurrence-owned cancellation. |
+
+## Progress
+
+- [x] 2026-09-23: inspect spec, repository contracts and relevant implementation;
+  preserve the three original mockups beside the plan.
+- [x] 2026-09-23: draft implementation phases, technical choices and evidence gates.
+- [ ] Implementation authorization/workspace setup: owning spec issue, phase
+  issues, exact starting revisions and selected validation environment.
+- [ ] Phase 1: Gesture-based Idle Styles and preservation of existing idle behavior.
+- [ ] Phase 2: retire Music/BGM and standalone Pose Clip availability safely.
+- [ ] Phase 3: portable multi-root and full-Anima export with exact review snapshots.
+- [ ] Phase 4: staged, reviewed import and one recoverable installation operation.
+- [ ] Phase 5: Library frontend using the supplied UI mockups.
+- [ ] Phase 6: combined acceptance, current documentation and final review.
+
+## Surprises & Discoveries
+
+- Existing import reuses matching non-root dependencies before applying its
+  `keep_both` policy. Independent imported copies require changing that path;
+  selecting the existing policy alone does not satisfy R4.
+- `LocalContentMutations` already shields owned work from request cancellation
+  and uses the committed SQL receipt as completion authority. Reuse it; do not
+  create an independent installation transaction manager.
+- The package ceiling is 4 GiB, but local HTTP admission limits each request to
+  128 MiB and its body read to 120 seconds. Large imports need bounded parts;
+  increasing the global admission limit is outside this plan.
+- Current import retains one spooled handle per member. Individually bounded
+  reads are insufficient for a large multi-item archive; bound aggregate memory
+  and open handles as well as bytes on disk.
+- Idle currently selects finite VRMA lanes. The clip Gesture planner applies a
+  two-second minimum while its executor does not pass the same speed into clip
+  playback. Idle needs consistent finite motion/event timing, not a direct reuse
+  of those mismatched calculations. The old Style crossfade field is disconnected
+  from the snapshot adapter; do not claim to preserve a working Style control.
+- SoundController can stop an individual SFX ID, but the provider/actor event
+  path does not retain that ownership. Include accompanying effect sounds when
+  wiring cancellation, not just direct SFX events.
+- Removing retired enum values immediately would break stored catalog rows and
+  historical receipt decoding. No old package support is required, but readable
+  local data and durable operation outcomes remain required.
+- Playwright uses an explicit journey allowlist. A new test file does not run
+  until it is selected in `src/frontend/playwright.config.ts`.
+
+## Decision Log
+
+| Date / actor | Decision and reason |
+| --- | --- |
+| 2026-09-23 / owner | Local files, whole-package import, automatic non-parenthesized collision suffixes, independent dependencies and the fresh-Anima privacy boundary; details remain in the spec/discovery record. |
+| 2026-09-23 / owner | Use the three saved mockups when implementing frontend components. Their confirmed behavioral corrections take precedence over illustrative copy. |
+| 2026-09-23 / planning | Implement Idle Styles before removing legacy clip readers. This preserves an executable conversion path rather than deleting a format while it still has consumers. |
+| 2026-09-23 / planning | Write `animama-content-package/3`, with content roots or one portable Anima definition. Keep ZIP and existing typed validators; no `/2` compatibility requirement. |
+| 2026-09-23 / planning | Prepare an immutable export archive before review; download exactly that archive. Stage imports privately, then commit the reviewed plan through the existing mutation authority. |
+| 2026-09-23 / planning | Use bounded sequential upload parts under the existing local HTTP boundary and private filesystem review records; no hosted service, general upload framework or new SQL staging table. |
+| 2026-09-23 / planning | Default suffix spelling is `-2`, `-3`, etc. Add Idle Styles as an existing-content category in Library/export. These make the spec's reviewable defaults concrete. |
+
+Technical choices may be revised with source evidence while preserving the spec.
+Record changes here. A different privacy boundary, overwrite behavior, content
+model or destructive data policy requires an owner decision before dependent work.
+
+## Implementation contracts
+
+### Canonical Idle Style and finite playback
+
+Give the new Idle Style document its own versioned shape: a Default list of
+Gesture dependency references and an emotion/intensity map. Omitted cell means
+inherit Default; explicit `none` means No idle; `pool` contains a nonempty unique
+list of Gesture references. Default may be empty. Use the tracked emotion set
+and levels 1–3; validate kinds, closure and playback eligibility on Save/import.
+No per-cell speed, looping, timing or per-Anima pool override is introduced.
+
+Use exact Gesture revisions to derive normalized playback facts consumed by
+validation, previews, planner and executor. Share fixture cases across backend
+validation and frontend interpretation rather than inventing parallel rules:
+
+| Implementation | Finite eligibility and playback |
+| --- | --- |
+| VRMA `once` | One positive-duration cycle. |
+| VRMA `pingpong` | Positive authored repetition count; preserve the existing absent-count default of two traversals. |
+| VRMA `repeat` | Explicit positive finite repetition count. Unbounded repeat is ineligible. |
+| Non-looping `animaPoseClip` | One positive finite timeline, with no phase/state/run lifetime override. |
+| Looping `animaPoseClip` | Explicit positive finite Gesture `loop_count`, with no phase/state/run lifetime override; execute exactly those cycles. |
+
+The finite horizon is timeline duration multiplied by traversals/cycles, divided
+by positive authored speed. Reject invalid/unknown bounds rather than substituting
+a duration. Advance the actual pose/event clock at that speed. A prepared idle
+occurrence starts its clock when playback can start; pending bytes must not eat
+its timeline. Deliver intended boundary events once, including time zero and
+finite repetitions, without entering an extra loop at completion.
+
+Keep the normal 180-second quiet interval, existing priority/reset behavior and
+procedural rest. Select uniformly from the resolved cell and avoid the preceding
+Gesture identity when alternatives exist. An emotion change affects the next
+selection. A completed/interrupted occurrence is never resumed. An occurrence
+owns its motion, expressions, effect handles and direct/accompanying SFX IDs;
+invalidate its asynchronous callbacks and stop only its owned resources on
+completion, interruption or unmount. Do not stop unrelated TTS/SFX.
+
+### Local transition, without a reset
+
+Implement one narrowly scoped transition service over existing catalog/store and
+aggregate ports. Run recovery first, then detect legacy documents/rows, plan
+conversion and publish under the existing source transaction fence before the
+new runtime consumes affected bindings. Reuse it for startup and explicit rescans;
+do not hide a one-time conversion only in an editor.
+
+Identify each conversion by algorithm version, source identity/revision and
+affected binding revisions. Preserve original files and the relevant prior
+binding facts in private, non-scanned recovery storage before changing them.
+Completed mutation journals are normally cleaned up, so they alone cannot be the
+retained originals. Record old-to-new identities and the result in a durable
+receipt. A second run must preserve later edits and create no additional copies.
+
+Convert Local definitions in place where identity can be retained. If an old
+Included source needs generated content or different bindings, create a Local
+converted copy and remap its affected consumers in the same operation; never
+write into an immutable mount. Update maintained shipped definitions at their
+authoritative source and regenerate shared catalog resources. Unconvertible
+items retain originals and safe diagnostics; do not mark their conversion
+complete or silently substitute another animation. Unrelated valid content may
+remain usable unless an unresolved recovery journal requires the existing
+readiness fence.
+
+Keep retired kind decoding internal for existing rows/receipts while removing
+those kinds from supported authoring, selection, packaging and runtime APIs.
+Do not tighten database constraints so existing values become unreadable. Prefer
+the existing JSON/receipt storage for transitions. If a schema change proves
+necessary, follow the baseline-only development policy; no new Alembic revision
+or reset is authorized, and dependent execution must first resolve how the
+existing-data requirement remains satisfied.
+
+### Portable package and reviewed snapshot
+
+Use one strict `/3` manifest, retaining the existing member hashes, typed file
+roles and per-entry attribution/license fields. A `content` package has a
+nonempty ordered `root_entry_ids` set. An `anima` package has one allowlisted
+definition whose equipment references package entry IDs. The definition is
+transport metadata, never an editable catalog Anima/Blueprint entry.
+
+Build closure from saved, revision-fenced content and Anima authority, including
+effective starters and explicit exclusions. Every declared entry must be reachable
+from selected roots, definition equipment or the explicit image associations;
+reject missing, extra or cyclic members. Deduplicate each source entry within
+the package. A selected root also required by another root counts as selected
+once. Do not reuse a best-effort mounted runtime projection for export.
+
+Add explicit Avatar-to-default-portrait associations to the portable projection;
+do not change internal Appearance ownership to make them ordinary model files.
+Anima profile/background selections and framing refer independently to Appearance
+entries. Rewrite associations through the import mapping into receiver-local
+IDs/logical keys; preserve an image used in both roles without duplicate bytes.
+Missing selected images block review; genuinely absent optional portraits do not.
+
+The Anima definition allowlists name, reviewed identity text, Avatar, complete
+Reaction cell matrix, Gesture selections and supported binding configuration,
+Idle Style/absence, and Appearance selections/framing. Freeze effective selections
+as explicit equipment and exclusions so receiver defaults cannot add content.
+Extend internal resolved creation inputs to carry binding configuration; do not
+serialize public creation commands containing local IDs or arbitrary settings.
+Replace the current arbitrary override dictionaries at this portable boundary
+with bounded, per-implementation supported fields. Characterize the existing
+`duration_seconds`, `loop_type`, `loop_count`, `time_scale`, `weight`, `blend_mode`,
+`base_pose` and `emotion_weights` consumers and carry only applicable validated
+values; reject unknown keys and runtime-generated reference maps. Apply the
+receiving definition limits (currently at most 40 name code points and 32 KiB
+identity, possibly configured smaller) and the whole-Anima runtime budget.
+Only recipient defaults supply model/voice/runtime settings. Source ownership,
+history, chats, memory relationships, attachments and credentials have no fields
+in the portable definition.
+
+For app-provided effect/animation primitives, record a checked capability/version
+requirement in the manifest, or serialize already supported portable data.
+Derive requirements from actual definitions, including `animaPose/1.0`,
+`animaPoseClip/1.0`, `animama/avatar-effect/1` and `animama/scene-effect/1`, and
+validate supported primitive variants against a closed backend registry with
+shared renderer fixtures. A generic effect-definition object or runtime snapshot
+`catalog_version` is not a portable compatibility guarantee.
+Reject unavailable capabilities before installation; never load executable code
+or fetch external resources from a package. Preserve supported license metadata
+without presenting it as a rights determination.
+
+Prepare and hash a complete cached export before returning its review. Read exact
+source revisions, verify bytes and recheck definition/association fences during
+preparation. A change during capture requires fresh review. Changes afterward do
+not replace the already reviewed cache. Stream that cache on Download; expiration
+requires preparation/review again, never silent regeneration.
+
+### Import review and operation lifecycle
+
+Keep a small typed package-review service behind generated same-origin API calls.
+Proposed route shape under `/v1/content`:
+
+| Operation | Contract |
+| --- | --- |
+| `POST /package-exports:summary` | Resolve selected roots/Anima, dependencies, validation problems and estimated size without creating an archive. Used by the selection sidebar. |
+| `POST /package-exports` | Prepare selected content or one Anima from expected revisions; return review ID/digest, exact contents, size and expiry. |
+| `GET /package-exports/{id}/file` | Stream the already reviewed archive with a safe Content-Disposition filename, length/hash and no-store response. |
+| `POST /package-imports` | Allocate a private stage for one named file, expected byte count and operation identity. Return an opaque server-generated ID and part size. |
+| `PUT /package-imports/{id}/parts/{index}` | Sequential bounded parts; acknowledge offset/hash. An identical retry is safe; changed or out-of-order input conflicts. |
+| `POST /package-imports/{id}/review` | Seal the complete archive, validate it, compute receiver-local identities/names and return the whole-package review plus its digest. |
+| `POST /package-imports/{id}/commit` | Commit that digest and operation identity. No replacement policy or subset selection. |
+| `GET /package-imports/{id}` | Read the current stage, next upload offset or reviewed plan so an interrupted acknowledgement can be resolved. |
+| `GET /package-operations/{operation_id}` | Resolve active/recovery-needed/completed outcome from owner-scoped stage/lock/journal/receipt facts. A completed receipt wins even after staging expires. |
+| `DELETE /package-imports/{id}` / `DELETE /package-exports/{id}` | Release an inactive review/cache. Refuse to present an active or unknown commit as cancelled. |
+
+Use existing imports/exports staging roots, random server-generated paths and
+atomic fsynced metadata. Store owner, byte progress, archive hash, immutable
+review digest, destination facts, operation identity and expiry. Coordinate
+stage writes and cleanup with a per-stage OS advisory lock that releases on
+process death. The source fence is held for installation, not while a person
+reads the modal. All routes require ordinary installation admission/ownership;
+a stage ID or digest is not an authorization token.
+
+Start with 8 MiB sequential parts, bounded below the unchanged 128 MiB request
+ceiling. Persist each acknowledged part/offset so interruption cannot turn a
+partial write into accepted bytes. The browser reads `File.slice` parts and
+retries only the same part/operation; it never buffers a whole multi-GiB file.
+Recompute the complete server-side archive hash before review and commit. Bound
+pending import/export stages to two per owner and 8 GiB of total archive bytes;
+reserve declared import bytes and export estimates before writing, then enforce
+actual bytes. Allow at most one expanded validation tree per stage, bounded by
+the 4 GiB expanded limit, and release redundant partial/assembled copies as soon
+as verified replacement is durable. Expire inactive stages after 30 minutes,
+refreshed by successful upload parts or explicit review renewal. Reject extra
+admission without evicting another active review; report insufficient disk space
+before work when detectable. Sweep expired unlocked stages on startup and staging
+requests. Expiry never deletes active work, recovery journals/originals or durable
+receipts. These are implementation defaults, independently testable with smaller
+fixture limits.
+
+The canonical reviewed plan fixes fresh logical identities, destinations,
+collision suffixes and any Anima name. Avoid existing Local and Included name/key
+ambiguities; allocate within length/path constraints and within the whole package.
+Preserve Gesture semantic selectors independently of display/file-name suffixes.
+Reserve no catalog items during review. Commit rescans/rechecks destinations and
+receiving creation prerequisites under the fence. Drift requires a new reviewed
+plan/operation; it does not silently pick another suffix. Every dependency is
+newly installed for this import, shared only among members of this import.
+
+Perform file publication, catalog reconciliation/owner assignment, fresh Anima
+materialization when requested, and the final receipt inside one
+`LocalContentMutations.run` action with one shared SQL session. Use the
+noncommitting aggregate materializer/unit of work, not `create()` followed by
+another commit. The receipt stores a versioned result snapshot with installed
+IDs and optional Anima ID. Compute the canonical review digest from the sealed
+archive SHA plus the complete destination, Anima and association plan. At commit,
+recompute and compare the staged archive SHA to the sealed value; never update
+the reviewed value to accept changed bytes. Derive the mutation request digest
+from the submitted immutable review digest and operation/schema discriminator,
+so receipt lookup needs no staged bytes. Replay checks that digest before expiry
+or destination validation, returning original success even if the result was
+later edited or deleted. Different input under that identity conflicts.
+
+After a lost response, retain only the non-sensitive operation/review identifiers
+needed to query status; do not persist identity text or the whole package in
+browser storage. An active lock with no receipt means pending, not failure. After
+restart, resolve journals under the source fence before allowing a retry or new
+installation. Runtime preparation/navigation happens after successful commit;
+failure there retries preparation for the installed Anima, never installation.
+
+### Resource and archive limits
+
+Preserve the existing ceilings and define their counting consistently in writer,
+reader and tests: at most 2,048 payload files plus `package.json`, at most 4 MiB
+manifest bytes, at most 4 GiB compressed archive bytes and 4 GiB total expanded
+bytes including the manifest, and at most 200:1 expansion per member. Strict `/3`
+packages contain declared regular files only; directory, symlink, duplicate,
+encrypted, traversing and undeclared members are rejected. Per-kind file/entry,
+JSON-depth and runtime validation limits still apply.
+
+Verify members sequentially into private staging rather than retaining all
+spooled members. Bound package payload buffers to 16 MiB total and simultaneously
+open package payload handles to 16, then reopen only the member being published.
+Account for separately bounded manifest/parser allocations as well. Count actual
+streamed bytes as well as advertised ZIP metadata; fail before partial admission
+on truncation, wrong size/hash, disk
+exhaustion or limit breach. Use reduced-limit boundary tests plus a real
+multi-part file larger than 128 MiB; multi-GiB RAM allocation is not a test strategy.
+
+## Phased implementation
+
+Each phase record below must acquire an issue URL, starting SHA, resulting commit,
+exact commands/results and limitations during execution. A later phase starts
+from the recorded predecessor result, not an assumed moving `main`. Phase commits
+use the repository form, for example `feat(content)[p3]: export portable packages`.
+
+For every phase and final integration scope, perform one full independent review
+and at most two repair rounds. Record numbered Findings/Revisions with stable
+finding IDs, evidence, disposition, changes and affected rechecks. Append #2/#3
+only as needed; retain counts across resumption. Supported blockers remaining at
+the limit stop dependent progression. No new human approval is required between
+authorized phases once their specified gates pass.
+
+### Phase 1: Gesture-based Idle Styles preserve authored behavior
+
+Requirements: R6–R7, the Idle conversion portion of R9. Dependencies: accepted
+implementation range and workspace setup. Legacy clip readers remain available.
+
+1. Add canonical Style parsing, serialization, dependency rules and finite
+   Gesture eligibility. Update loadout/runtime DTOs and generated SDK together.
+   Keep idle dependency implementations separate from `runtime.gestures`, which
+   the chat boundary uses to enumerate AI-callable equipment.
+2. Extend the runtime motion catalog, planner and both players using the finite
+   contract above. Add occurrence ownership through PoseController, effect
+   dispatch, SoundProvider and AvatarCanvasActor. Fence both sides of asynchronous
+   loads; do not use global sound cancellation for an idle occurrence.
+3. Replace Style VRMA uploading/pool overrides with selecting existing Gestures.
+   Show Default, intensity cells, inherit and No idle with useful eligibility
+   reasons. Make the loadout section choose/preview/edit/duplicate a Style or none.
+   Reuse normal Local Save and Included customization behavior.
+4. Convert old Style-owned VRMA lanes into Action-owned Gesture files, preserving
+   authored playback. Reuse a referenced Gesture only when its playback matches;
+   otherwise create a preserving Local Gesture variant rather than modifying a
+   shared original. Translate old emotion-only pools to all three cells; preserve
+   old empty-pool fallback as inheritance, not the newly distinct No idle state.
+5. Materialize each distinct effective per-Anima override as a separate Style
+   before clearing that binding's override. Preserve explicit no-Style state,
+   attribution, binding revisions and recovery originals. Old standalone clip
+   references may be read for conversion but are not part of the new Style API;
+   produce Action-owned Gesture content and leave remaining Action consumers for
+   Phase 2. Never equip conversion-created Gestures for AI invocation.
+
+Validation: add conversion/finite fixtures and tests for all cell states,
+deterministic ties, duplicate pool membership, single/multiple-candidate repeats,
+speed, finite loops, event boundaries, delayed loading and interruption/unmount.
+Observe both actual implementations and unrelated audio continuity. Starting
+backend batch from repository root:
+
+```bash
+uv run pytest -q tests/test_content_type_handlers.py tests/test_anima_idle_style_loadout.py tests/test_anima_runtime_closure.py tests/test_content_mutation_workflows.py
+```
+
+From `src/frontend`, after `pnpm packages:build`:
+
+```bash
+pnpm --filter animama-web exec vitest run tests/avatar/AvatarPlannerMotion.test.ts tests/avatar/AvatarPlanner.test.ts src/lib/runtime-content/idleStyleProjection.test.ts src/lib/content/idleStyleDocument.test.ts src/lib/loadout/idleStylePresentation.test.ts
+pnpm --filter animama-web exec vitest run src/lib/avatar/poses/PoseController.playbackObservation.test.ts src/lib/avatar/AvatarClipAudio.test.ts src/lib/sound/SoundController.test.ts
+```
+
+Add exact commands for new behavior tests to this record when named. Completion:
+new Style Save/Preview/Equip and both finite players work; fixture conversion
+survives restart/rerun without changing private data or AI equipment. Capture a
+rendered real-avatar playback observation for both implementations; record native
+audio acceptance separately in Phase 6. No live provider calls are needed.
+Recovery: failed conversion rolls back cooperating files/bindings, retains
+originals and reports the affected source; ambiguous manual edits remain fenced.
+
+Issue / starting SHA / commit / evidence: not started; populate during execution.
+
+#### Code Review #1 Findings
+
+Not run. Record reviewed source, checks and actionable findings here.
+
+#### Code Review #1 Revisions
+
+Not run. Two repair rounds remain; record dispositions and verification here.
+
+### Phase 2: Retire unsupported content without losing Actions or audio files
+
+Requirements: R8–R9. Dependency: Phase 1 canonical idle conversion and playback.
+
+1. Characterize existing Music bindings/preferences, standalone clip files,
+   Gesture/Reaction references and historical receipts using synthetic fixtures.
+   Extend the transition service before removing supported handlers/routes.
+2. Copy referenced standalone clip payloads into their owning Actions, promoting
+   and rewriting effect/sound dependency aliases and file references. Multiple
+   Actions may receive owned copies of one old clip. Preserve each Action's
+   identity/configuration, exact event behavior and the untouched clip original.
+3. Remove Music discovery/authoring, typed equipment operations, runtime
+   projections, BGM controls/provider paths and preference use. Remove old active
+   Music bindings through the preserving transition; keep original audio files
+   and prior binding evidence. Do not relabel audio as SFX.
+4. Exclude standalone Pose Clips/Music from supported scan admission, product
+   schemas, editors, pickers and package kinds. Retain isolated legacy decoding
+   and safe diagnostics for retired files/rows/receipts. Keep `animaPoseClip`
+   parsers/player, Action files, static Poses and raw Creator JSON round trips.
+   Regenerate SDK/router/catalog outputs using their existing generators.
+
+Likely interfaces: typed registry/store, catalog row/receipt decoders, loadout
+service/domain/schemas, runtime projection, Music editor/routes/loadout section,
+sound preferences/provider/controller. Retain TTS and SFX paths in shared modules.
+
+Validate Action effect/audio equivalence, shared old clips, unused retired files,
+second conversion, restart after failure, retired result replay, and manual edits
+after conversion. Convert existing Music-positive tests into removal/preservation
+coverage rather than deleting the evidence. Starting root batch:
+
+```bash
+uv run pytest -q tests/test_anima_music_loadout.py tests/test_content_type_handlers.py tests/test_content_save_service.py tests/test_typed_content_save_replay.py tests/test_content_migration_recovery.py tests/test_pose_content.py
+```
+
+Run affected frontend sound/Creator/runtime tests; replace obsolete expectations
+with assertions that BGM is absent while TTS/SFX and Creator clips remain usable.
+Completion: no active retired-kind references remain in successfully converted
+fixtures; invalid legacy input reports a problem without data loss or scan crashes.
+Recovery follows the transition contract; no profile reset or source-file deletion.
+
+Issue / starting SHA / commit / evidence: not started.
+
+#### Code Review #1 Findings
+
+Not run. Include preservation and private legacy-decoder boundaries in review.
+
+#### Code Review #1 Revisions
+
+Not run. Two repair rounds remain.
+
+### Phase 3: Export portable content and complete Anima definitions
+
+Requirements: R1–R3, export freshness from R5, package constraints. Dependencies:
+Phases 1–2 supported content model; no Library sharing UI yet.
+
+1. Refactor current package validation/planning away from file publication so
+   inspection can validate without installing. Add strict `/3` content/Anima
+   manifest DTOs and capability requirements. Remove `/2` assumptions from active
+   writer/reader tests; retain historical operation decoding separately.
+2. Generalize one-root closure to multiple explicit roots, full transitive
+   dependencies and automatic image associations. Use complete saved Anima
+   definition/loadout authority with source/revision fences, not degraded runtime
+   output. Carry supported configuration and all empty cells explicitly.
+3. Implement allowlisted portable Anima projection and the reverse resolved-input
+   mapping. Extend internal Gesture/Reaction creation selections with supported
+   configuration so materialization will not discard binding overrides.
+4. Add a non-archiving dependency/count/estimated-size projection for selection.
+   Only Review export prepares the exact verified archive and download cache;
+   checkbox changes must not serialize whole archives. Implement bounded member
+   validation and clear unsupported schema/capability errors without changing
+   global HTTP admission. Run the same validator on produced exports so the
+   application cannot generate an archive that its own importer rejects.
+
+Likely interfaces: `ContentPackageService`, content/Anima definition DTOs,
+`content_kind_registry` rewrites, Avatar portrait lookup, aggregate/loadout read
+ports and internal resolved creation model. Keep public creator behavior covered
+when extending those shared internal inputs.
+
+Use fixture archives for one item, overlapping roots, both Gesture implementations,
+Style pools, image role reuse, distinct profile/background, all Reaction cells,
+empty Style and binding overrides. Put unique private-history, credential and
+sender-owner markers in fixture storage and prove they are absent from exported
+JSON/files; receiving owner assignment is tested in Phase 4. Assert source drift
+either rejects capture or downloads the exact already reviewed snapshot.
+
+```bash
+uv run pytest -q tests/test_local_content_export_contract.py tests/test_local_content_import_contract.py tests/test_anima_presentations.py tests/test_anima_loadouts.py tests/test_anima_materializer.py
+```
+
+Completion: valid whole-package inspection has no durable content/Anima side
+effects; malformed closure/images/capabilities fail before export/import success.
+Record exact new fixture commands. Recovery: failed/cancelled preparation removes
+only its owned temporary cache; later edits never alter an existing review.
+
+Issue / starting SHA / commit / evidence: not started.
+
+#### Code Review #1 Findings
+
+Not run. Include privacy allowlists, exact closure and image rewriting.
+
+#### Code Review #1 Revisions
+
+Not run. Two repair rounds remain.
+
+### Phase 4: Review and install one complete recoverable operation
+
+Requirements: R1, R3–R5, archive/admission constraints. Dependency: Phase 3 package
+contracts and all prerequisite content transitions.
+
+1. Add private stage records, part upload, inspection, cached download, discard
+   and operation-status contracts above. Enforce the expiry/quota/buffer defaults
+   with boundary tests. Handle duplicate part submission, lost acknowledgements,
+   client cancellation, disk exhaustion and process restart without partial
+   catalog admission or abandoned unlimited staging.
+2. Build reviewed import plans with fresh content identities and `-2` suffixes.
+   Remove matching-dependency reuse, including matches against Included content.
+   Rewrite all typed references, image associations and Anima equipment through
+   the same map. Shared dependencies within one import remain shared.
+3. Commit through one existing mutation authority and shared SQL unit of work.
+   Validate receiver creation prerequisites and preserve all configuration using
+   the aggregate materializer. Create no chat and call no model/voice provider.
+4. Add versioned receipt replay/status handling before requiring staged bytes.
+   A retry after cache cleanup or later edit/delete returns the original result;
+   it does not reinstall. Fence a lost response against repeated UI submissions.
+   Resolve stage locks and recovery before classifying a no-receipt outcome.
+5. Regenerate the SDK offline. Reconcile the old immediate package endpoints:
+   remove or route them through the new validated service as appropriate to their
+   current callers, without retaining an unchecked replacement or two-commit
+   path. Update affected tests/callers together; no legacy-package adapter needed.
+
+Use real transactional DB/store fixtures to inject failures after file promotion,
+catalog reconciliation, owner assignment, Anima child creation and immediately
+before/after the final SQL commit. Recreate service/database lifetimes and recover;
+check no partial selectable content/Anima, exactly one successful result, preserved
+manual edits and durable receipts. Include concurrent destination changes,
+same-ID/different-input conflict and a deliberately new import producing new copies.
+
+```bash
+uv run pytest -q tests/test_local_content_import_contract.py tests/test_content_mutation_cancellation.py tests/test_content_mutation_receipt_race.py tests/test_content_mutation_startup.py tests/test_content_migration_recovery.py tests/test_anima_creation.py tests/test_anima_materializer.py tests/test_local_http_admission.py tests/test_local_http_transport.py
+```
+
+Add focused stage/API tests, including a real file above 128 MiB sent as parts,
+per-kind/resource limits and hostile byte/metadata cases. From `src/frontend` run
+`pnpm openapi-ts`, then build/check generated package consumers; no hand edits.
+Completion: the API offers truthful review/commit/status/cancellation and one
+coordinated outcome for content-only and Anima imports. A post-commit runtime
+preparation failure can retry preparation without materializing again.
+
+Issue / starting SHA / commit / evidence: not started.
+
+#### Code Review #1 Findings
+
+Not run. Include concurrency, cleanup quotas, crash boundaries and owner admission.
+
+#### Code Review #1 Revisions
+
+Not run. Two repair rounds remain.
+
+### Phase 5: Implement the Library frontend from the UI mockups
+
+Requirements: R1–R5 and the spec's UI references/accessibility constraints.
+Dependencies: stable generated Phase 4 contracts; supported Phase 1–2 content.
+
+**Open all three saved mockups before implementing the frontend components and
+use them throughout visual review.** Match their modal structure, information
+hierarchy, spacing and selection/review flow using current app components/tokens.
+Do not treat these as optional inspiration or redesign the surrounding Library.
+
+| Required mockup | Components and behavior to implement against it |
+| --- | --- |
+| [01 — Import / Export entry](reference-01-import-export-entry.png) | `LibraryPage.tsx` header button and a focused `LibrarySharingDialog.tsx` with two entry cards, one-file drop/picker and export navigation. |
+| [02 — Import review](reference-02-review-import.png) | `ContentImportReview.tsx`: package header, selected roots or Anima, required-item disclosure, resolved names and final whole-package action. Replace the illustrative dropdown/parentheses with automatic suffix review. |
+| [03 — Export selection](reference-03-export-selection.png) | `ContentExportSelection.tsx` and Anima selection: Content/Anima tabs, searchable typed rows, persistent multi-selection and package summary before review. |
+
+Component names are proposed seams, not a required abstraction hierarchy. Reuse
+Dialog, Button, query hooks and existing catalog presentation. Do not route these
+files through Chat Uploads/Uppy or introduce a second private attachment system.
+
+1. Add Idle Styles to Library inventory/search/filter/presentation and the export
+   picker. Store selections by catalog identity across pagination/filter changes.
+   Keep Appearance dependency-only; exclude Music, standalone Clips, Voice and
+   Chat Uploads. Fetch package counts/required items from the backend selection
+   summary operation; cancel or ignore stale responses when selection changes.
+   Prepare the immutable archive only when the user chooses Review export.
+2. Build content and complete-Anima selection/review. Provide full scrollable
+   identity text, equipment/configuration, dependencies and local-storage copy.
+   Show the automatic collision names and block invalid final actions. Explain
+   that content-only installation adds Library items for later equipping.
+3. Implement part progress, validation, stale-review refresh, cached export save,
+   precommit discard, pending/unknown commit recovery and success navigation.
+   Download through the admitted same-origin browser download path with safe
+   Content-Disposition; do not fetch the entire archive into a Blob/ArrayBuffer.
+   Keep active response/cache lifetime protected from cleanup. Use truthful
+   Download started feedback unless the platform confirms completion; verify
+   Electron save/cancel/error behavior without adding broad filesystem IPC.
+   Disable repeated submissions. Closing a pending commit preserves its operation
+   recovery path; it must not announce cancellation or silently create a new copy.
+4. Add the states absent from the screenshots: Anima review; export review/save;
+   empty/no selection; invalid/missing dependency; oversized/unsupported file;
+   suffix/length errors; expired review; upload failure/retry; long package/identity;
+   installed Anima needing runtime preparation; and completion for each package kind.
+
+Validate focused selection/state-machine/component tests plus an active
+`accountless-content-sharing.spec.ts` journey in Playwright's allowlist. Use the
+named disposable fixture and consent described by
+[browser journeys](../../frontend/testing/browser-journeys.md). From `src/frontend`:
+
+```bash
+pnpm e2e:list -- --project chromium --grep "local content sharing"
+pnpm e2e:test -- --project chromium --grep "local content sharing"
+```
+
+Confirm the first command actually lists the new journey. Compare screenshots to
+all three mockups at a desktop viewport first (for example 1440×900), then a
+narrow viewport (for example 390×844). Verify bounded scrolling, readable long
+names/identity, reachable final actions, tab/checkbox labels, visible focus,
+Escape/back behavior and focus return. Exercise both Vite development and built
+FastAPI serving at the same-origin boundary. Record reviewed screenshots as
+public-safe evidence references and summarize differences; don't force-add raw
+traces or private evidence directories.
+
+Completion: both full user journeys work with the agreed mockup structure,
+truthful counts/copy and keyboard support. Native picker/download/playback
+acceptance remains explicit in Phase 6; DOM tests alone cannot close it.
+Recovery: refresh resolves the existing import operation; cancelling an inactive
+stage discards only owned temporary data and keeps prior Library selection/content.
+
+Issue / starting SHA / commit / evidence: not started.
+
+#### Code Review #1 Findings
+
+Not run. Include direct comparison with all three mockups and missing-state checks.
+
+#### Code Review #1 Revisions
+
+Not run. Two repair rounds remain.
+
+### Phase 6: Prove combined sharing, preservation and desktop behavior
+
+Requirements: every spec acceptance row. Dependency: Phases 1–5 evidence and
+bounded reviews passed. This phase closes cross-boundary gaps, not a fresh search
+for unrelated cleanup or a repetition of unchanged passing tests.
+
+1. Transfer original fixtures between two independent installation owners/Local
+   roots: one Gesture, overlapping selected roots, an Idle Style, an Avatar with
+   portrait and a complete Anima with distinct images/empty cells/overrides.
+   Edit one imported dependency and prove earlier content/Animas remain unchanged.
+2. Run the transition and import restart scenarios against disposable existing-
+   data fixtures as well as fresh baseline databases. Include old completed
+   receipts and unrelated identity/history sentinels. Inspect exported contents
+   for private data and verify no provider request during install.
+3. Record actual VRM/VRMA/clip/SFX/VFX behavior. Observe one normal 180-second idle
+   interval in real time; use deterministic clocks for the remaining matrix.
+   Verify audible interruption, finite repetitions, effect cleanup and unrelated
+   TTS/SFX continuity. Retain separate real browser and macOS Electron evidence.
+4. Exercise file choose/drop, save and import result recovery in Electron using
+   an isolated test profile/runtime and admitted local origin. Record whether
+   this is an external-stack development shell or packaged embedded runtime.
+   Neither substitutes for the other; if the required native environment or
+   playable assets are unavailable, leave that acceptance pending and report it.
+   No signed release, paid provider run or publication is needed here.
+5. Update useful current guidance: glossary Pose Clip/Idle Style definitions,
+   typed content/package docs, Library, loadouts/creation, idle/audio runtime,
+   browser journeys and local-storage recovery. Remove obsolete BGM/override
+   promises rather than append delivery history. Keep details in their owning
+   docs; an ADR is needed only if implementation changes an established boundary.
+6. Complete the validation ledger and final integration review below, then
+   deliver the authorized work through the usual single-PR workflow. Separate
+   actual hosted `Validation` from local checks and pending manual acceptance.
+
+Completion: all required evidence is recorded or an explicit owner waiver is
+identified; do not label unavailable browser/native evidence as passed. Exact-
+candidate merge and any publication remain separate owner gates.
+
+Issue / starting SHA / commit / evidence: not started.
+
+#### Code Review #1 Findings
+
+Not run. Review cross-installation acceptance and preservation evidence.
+
+#### Code Review #1 Revisions
+
+Not run. Two repair rounds remain.
+
+## Validation and acceptance
+
+Use behavior-first tests for consequential changes, with failing-before evidence
+where applicable. The phase batches are starting points; add tests for new
+contracts and record actual commands, exact source, result and environment.
+Source inspection and this plan are not passing runtime evidence.
+
+| Evidence | Required boundary | Current result |
+| --- | --- | --- |
+| Planning | Spec/plan/mockup links, source paths, whitespace and consistency | 2026-09-23: 17 local links, all listed existing test/source paths, six phases, three PNGs and Markdown whitespace checked; independent planning findings addressed. No code tests run. |
+| Phase 1 | Cell resolution, finite clocks/events, both players, isolated AI equipment, old idle conversion | Not run. |
+| Phase 2 | Retired data/receipts, preserved Actions/audio/TTS/Creator JSON, repeatable transition | Not run. |
+| Phase 3 | Multi-root/Anima projection, private-data absence, images, exact export bytes | Not run. |
+| Phase 4 | Whole-package review, multipart limits, independent copies, single outcome under failure/retry/restart | Not run. |
+| Phase 5 | Three mockup comparisons, complete content/Anima flows, keyboard and narrow layouts, both serving modes | Not run. |
+| Phase 6 | Independent installations, retained existing data, real audio/avatar and explicit native evidence | Not run. |
+| Hosted CI / release | Actual candidate `Validation` scope; separate release/publication approval | Not requested or run. |
+
+Before pushing the implementation candidate, run applicable offline checks from
+the repository root:
+
+```bash
+make check-test
+uv run --no-sync python scripts/repository-boundary/check-python-imports.py
+git diff --check
+```
+
+From `src/frontend`:
+
+```bash
+pnpm openapi-ts:check
+pnpm check
+pnpm web:lint
+pnpm web:test
+pnpm build
+pnpm prettier:check
+pnpm packages:test
+pnpm e2e:check
+```
+
+Build package artifacts before package fixtures. Add `pnpm desktop:test` when
+desktop bridge/download code is changed; `pnpm check` already includes desktop
+type checking. Run shared-catalog generation/checks when authoritative catalog
+inputs change. Record prerequisite/environment failures without presenting them
+as product results. Do not invoke live-provider tests, packaged release tools,
+global resets or cleanup of another task's resources to finish this plan.
+
+## Idempotence and recovery
+
+- Before actual conversion, verify coordinated database/Local/private-data
+  backup and restore on disposable fixtures using the documented storage
+  contract. Preserve private recovery originals outside scanned/exported roots.
+- A conversion replay uses its original receipt/mapping; it does not overwrite
+  a later edited Style/Action or duplicate generated Gestures. Changed legacy
+  inputs require a newly validated conversion, not reuse of an old digest.
+- Import staging contains no selectable Library items. Cleanup uses stage
+  ownership, expiry and locks, never filename guesses. Active/ambiguous commits
+  retain journals and originals until the receipt authority resolves them.
+- A committed receipt means content and optional Anima belong to one completed
+  outcome. Repeated requests return its snapshot; deleted results stay deleted.
+  No receipt plus an unresolved active journal requires recovery, not another
+  independent import. Preserve conflicting manual edits and report safe reasons.
+- If a deployed conversion must be undone, restoring old code alone is not a
+  data rollback. Restore cooperating authorities from the verified pre-transition
+  backup, or implement a reviewed reverse conversion that checks later edits.
+  Never reset a user's library or discard evidence as a recovery shortcut.
+
+## Final integration review
+
+Review the combined diff against the starting baseline and every spec acceptance
+row. Reuse still-valid phase results and test failures fixed at their exact
+revision; rerun affected checks when subsequent changes invalidate them. Check
+that old data compatibility has not accidentally become old-package support or
+retained product Music/standalone Clip behavior. Review all three mockups against
+the implemented screens and explicitly inspect the Anima/error states they omit.
+
+### Code Review #1 Findings
+
+Not run. Record final source/base, requirement mapping, independent reviewers,
+checks, evidence and stable findings. Local/browser/native/hosted results stay
+separate. No review count is consumed by authoring this document.
+
+### Code Review #1 Revisions
+
+Not run. Two repair rounds remain. Record each verified disposition, correction,
+affected recheck and remaining blocker; append numbered repair records as needed.
+
+## Outcomes & Retrospective
+
+2026-09-23: proposed six-phase plan produced from the specification and current
+source. It explicitly connects all three saved UI mockups to frontend work and
+acceptance. No product behavior, installation data, stack, issue, commit or PR
+changed during planning.
+
+The initial independent planning consistency pass identified export-summary
+cost, renderer download buffering, sealed digest/replay, upload resumption and
+capability-validation gaps. These were addressed in the implementation contracts
+and affected phases. This planning review is not implementation code review or
+runtime acceptance and consumes no phase code-review round.
+
+Remaining gates are implementation authorization, each phase's checks/review,
+rendered and native acceptance, final integration review and exact-candidate merge
+approval. There is no unresolved product interview question. Exact helper/DTO
+names and supported-field/capability enumeration are bounded implementation work
+before dependent APIs ship, not reasons to reopen agreed sharing behavior.
