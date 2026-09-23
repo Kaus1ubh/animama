@@ -128,7 +128,7 @@ export function handPresetQuaternion(
       preset === "fist"
         ? bone.segment.segment === "proximal"
           ? 65
-          : 40
+          : 15
         : bone.segment.segment === "proximal" && preset === "open-together"
           ? 38
           : 0,
@@ -192,16 +192,37 @@ function fitThumbPreset(
       .normalize()
       .applyQuaternion(handRotation);
   } else {
-    const indexRotation =
+    // Cross the folded fingers toward the ring finger; aiming at the index
+    // alone points the thumb down beside the fist instead of across it.
+    const crossFinger =
+      preset === "fist"
+        ? ["Ring", "Middle"]
+            .map((digit) => ({
+              base: node(`${digit}Proximal`),
+              tip: node(`${digit}Intermediate`),
+            }))
+            .find((pair) => pair.base?.parent === index.parent && pair.tip)
+        : undefined;
+    const crossBase = crossFinger?.base ?? index;
+    const crossTip = crossFinger?.tip ?? indexMiddle;
+    const fingerRotation =
       preset === "fist"
         ? adjustHandQuaternion(new Quaternion(), side, "index", "curl", 80)
         : new Quaternion();
-    const target = indexMiddle.position
+    const target = crossTip.position
       .clone()
-      .applyQuaternion(convertPoseQuaternionBasis(avatar.vrm, indexRotation))
-      .add(index.position);
-    // Aim outside the curled finger's palmward surface, not through its joint.
-    if (preset === "fist") target.y -= indexMiddle.position.length() * 0.3;
+      .applyQuaternion(convertPoseQuaternionBasis(avatar.vrm, fingerRotation))
+      .add(crossBase.position);
+    if (preset === "fist") {
+      // A small palmward clearance keeps the thumb outside the folded mesh.
+      target.y -= indexMiddle.position.length() * 0.15;
+    } else {
+      const outward = little
+        ? index.position.clone().sub(little.position).normalize()
+        : new Vector3(0, 0, avatar.vrm?.meta.metaVersion === "0" ? -1 : 1);
+      // Keep a visible thumb-width gap instead of driving into the index mesh.
+      target.addScaledVector(outward, indexMiddle.position.length() * 0.6);
+    }
     index.parent.updateWorldMatrix(true, false);
     index.parent.localToWorld(target);
     proximal.parent.updateWorldMatrix(true, false);

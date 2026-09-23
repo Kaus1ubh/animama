@@ -425,3 +425,34 @@ evidence for this model, not universal hand-shape acceptance.
 Previous real-VRM0 and owner acceptance gates remain open; no further fixture
 upload attempted. The existing development/HMR stack remains at
 `http://animama-hand-authoring-6f31.localhost:8280`.
+
+## Owner side-view calibration — 2026-09-23
+
+Starting revision `0e12b07`. Owner screenshots reveal that the prior Fist thumb
+protrudes away from the curled fingers and Together compresses the thumb into
+the hand. Refine Fist across the outside of the curled fingers and add small
+Together clearance; preserve metacarpals and the other preset behavior. This is
+additional owner feedback, not approval of earlier anatomical acceptance.
+New preset ideas are discussion only; no additional presets are in this change.
+
+Fist now aims across the ring-finger region with a gentler 15-degree distal bend.
+Together offsets outward by 0.6 times proximal finger length; the initial 0.3
+revision still appeared flush with the skin and was increased after inspection.
+Fresh-page front and oblique browser checks on both bundled VRM1 hands retained
+actual Relaxed Rest metacarpal rotations: the dangling fist tip is removed and
+Together has visible clearance. Full per-model/owner acceptance remains open.
+
+### Code Review #1 Findings and Revisions
+
+Independent analysis found no actionable code issues. Browser inspection required
+one Together clearance adjustment; it did not change Fist. Targeted independent
+recheck found no introduced defect. One of two repair rounds used for this scope.
+The reviewer caught an overstated test-threshold report; the test evidence was
+corrected before delivery.
+
+Independent checks passed: `pnpm web:check`, `pnpm web:lint`, six focused hand/VRM
+suites (51 tests), scoped Prettier, and production build. After the clearance
+adjustment, core tests, web typecheck, scoped lint/format and build were refreshed.
+Build retains its existing chunk-size advisory. No full-suite rerun was needed
+for this isolated geometry adjustment; prior full-suite evidence remains recorded
+above. Hosted CI and representative VRM0 visual verification remain unverified.

@@ -106,7 +106,8 @@ with a concise reason when no selected available bone supports it.
 
 Thumb Curl bends its selected proximal/distal segments inward; Spread acts on
 the thumb proximal and fans it outward. Together aligns the thumb alongside the
-fingers, while Fist folds it against the curled fingers. Presets account for the
+fingers with a small visible gap, while Fist folds it across the outside of the
+curled fingers without leaving its tip protruding downward. Presets account for the
 retained metacarpal orientation. Do not spread finger middle/tip joints. Exact rotation
 mapping, ranges and preset angles require validation on supported Avatars.
 

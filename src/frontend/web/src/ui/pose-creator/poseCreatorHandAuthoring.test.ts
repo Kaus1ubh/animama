@@ -97,8 +97,16 @@ describe("calibrated hand directions", () => {
         new Vector3(0, 1, 0),
         side === "left" ? angle : -angle,
       );
+      meta.position.set(0.00293, -0.00836, 0.01333);
+      if (angle)
+        meta.quaternion.multiply(
+          new Quaternion().setFromAxisAngle(
+            new Vector3(0, 0, 1),
+            side === "left" ? -0.164 : 0.164,
+          ),
+        );
       const proximal = new Object3D();
-      proximal.position.set(0.0323, -0.01008, 0.03861);
+      proximal.position.set(0.02937, -0.00172, 0.02528);
       meta.add(proximal);
       const distal = new Object3D();
       distal.position.set(0.01873, -0.00081, 0.01474);
@@ -109,7 +117,25 @@ describe("calibrated hand directions", () => {
       const middle = new Object3D();
       middle.position.set(0.02762, 0, -0.00054);
       index.add(middle);
-      for (const node of [proximal, distal, index, middle]) {
+      const ring = new Object3D();
+      ring.position.set(0.05449, 0.00616, -0.01135);
+      hand.add(ring);
+      const ringTip = new Object3D();
+      ringTip.position.set(0.02854, 0, 0);
+      ring.add(ringTip);
+      const little = new Object3D();
+      little.position.set(0.05073, 0.00616, -0.02437);
+      hand.add(little);
+      for (const node of [
+        meta,
+        proximal,
+        distal,
+        index,
+        middle,
+        ring,
+        ringTip,
+        little,
+      ]) {
         if (side === "right") node.position.x *= -1;
         if (version === "0") {
           node.position.x *= -1;
@@ -121,6 +147,9 @@ describe("calibrated hand directions", () => {
         [`${side}ThumbDistal`]: distal,
         [`${side}IndexProximal`]: index,
         [`${side}IndexIntermediate`]: middle,
+        [`${side}RingProximal`]: ring,
+        [`${side}RingIntermediate`]: ringTip,
+        [`${side}LittleProximal`]: little,
       };
       const avatar = {
         vrm: {
@@ -130,6 +159,9 @@ describe("calibrated hand directions", () => {
           },
         },
       } as unknown as Avatar;
+      meta.quaternion.copy(
+        convertPoseQuaternionBasis(avatar.vrm, meta.quaternion),
+      );
       const bone = {
         side,
         boneName: `${side}ThumbProximal`,
@@ -158,15 +190,63 @@ describe("calibrated hand directions", () => {
             : new Quaternion(),
         ),
       );
-      const target = middle.getWorldPosition(new Vector3());
-      if (preset === "fist") {
-        const offset = hand
-          .localToWorld(new Vector3(0, -middle.position.length() * 0.3, 0))
-          .sub(hand.getWorldPosition(new Vector3()));
-        target.add(offset);
-      }
+      ring.quaternion.copy(index.quaternion);
+      const target = (preset === "fist" ? ringTip : middle).getWorldPosition(
+        new Vector3(),
+      );
+      const localOffset =
+        preset === "fist"
+          ? new Vector3(0, -middle.position.length() * 0.15, 0)
+          : index.position
+              .clone()
+              .sub(little.position)
+              .normalize()
+              .multiplyScalar(middle.position.length() * 0.6);
+      target.add(
+        hand
+          .localToWorld(localOffset)
+          .sub(hand.getWorldPosition(new Vector3())),
+      );
       target.sub(proximal.getWorldPosition(new Vector3())).normalize();
       expect(actual.distanceTo(target)).toBeLessThan(1e-7);
+      const directionInHand = actual
+        .clone()
+        .applyQuaternion(hand.getWorldQuaternion(new Quaternion()).invert());
+      const outward = index.position.clone().sub(little.position).normalize();
+      if (preset === "fist") {
+        // The thumb crosses toward the other fingers instead of dangling along the index.
+        expect(directionInHand.dot(outward)).toBeLessThan(-0.25);
+        const tipRotation = handPresetQuaternion(
+          {
+            ...bone,
+            segment: HAND_SEGMENTS.find(
+              (segment) => segment.id === "thumbDistal",
+            )!,
+          },
+          preset,
+          avatar,
+        );
+        expect(tipRotation.angleTo(new Quaternion())).toBeLessThan(
+          (20 * Math.PI) / 180,
+        );
+        expect(tipRotation.angleTo(new Quaternion())).toBeGreaterThan(
+          (10 * Math.PI) / 180,
+        );
+      } else {
+        const baseInHand = hand.worldToLocal(
+          proximal.getWorldPosition(new Vector3()),
+        );
+        const indexJoint = middle.position.clone().add(index.position);
+        const distance = (indexJoint.x - baseInHand.x) / directionInHand.x;
+        const thumbAtIndex = baseInHand.addScaledVector(
+          directionInHand,
+          distance,
+        );
+        // A visible margin remains on the thumb side of the open index.
+        expect(thumbAtIndex.sub(indexJoint).dot(outward)).toBeGreaterThan(
+          middle.position.length() * 0.5,
+        );
+      }
       expect(meta.quaternion.toArray()).toEqual(before.toArray());
       proximal.quaternion.copy(runtime);
       expect(
