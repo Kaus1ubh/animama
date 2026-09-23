@@ -7,6 +7,7 @@ import {
   createUniquePoseCreatorClipName,
   validatePoseCreatorClipDraft,
   isPoseCreatorBaseKeyframe,
+  patchPoseCreatorClipEventDraft,
 } from "./poseCreatorClipAuthoring";
 
 describe("createUniquePoseCreatorClipName", () => {
@@ -95,5 +96,98 @@ describe("standalone clip hydration", () => {
       expect(exported?.basePose).toBeUndefined();
       expect(exported?.poses).toEqual(input.poses);
     }
+  });
+});
+
+describe("accompanying audio authoring", () => {
+  it("preserves per-event suppression through edits, export and reopen", () => {
+    const input = {
+      schema: "animaPoseClip/1.0",
+      id: "audio",
+      name: "Audio",
+      duration: 2,
+      poses: { first: { expressions: { happy: 0.5 } } },
+      poseKeyframes: [{ time: 0, pose: "first" }],
+      events: [
+        {
+          id: "avatar",
+          kind: "avatar_vfx",
+          effectId: "sparkles",
+          time: 0,
+          playAccompanyingSound: false,
+        },
+        {
+          id: "scene",
+          kind: "scene_vfx",
+          sceneKind: "background_layers",
+          presetId: "stars",
+          time: 0,
+          playAccompanyingSound: false,
+        },
+      ],
+    };
+    const draft = createPoseCreatorClipDraftFromAnimaPoseClip(input, {
+      fallbackBasePose: "relaxedRest",
+    });
+    draft.events = draft.events.map((event) =>
+      patchPoseCreatorClipEventDraft(event, { time: 0.5 }, 2),
+    );
+    const exported = buildPoseCreatorClipForExport(draft, {
+      mode: "referenced",
+    });
+    const reopened = createPoseCreatorClipDraftFromAnimaPoseClip(
+      JSON.parse(JSON.stringify(exported)),
+      { fallbackBasePose: "relaxedRest" },
+    );
+    expect(reopened.events).toHaveLength(2);
+    for (const event of reopened.events)
+      expect(event).toMatchObject({ time: 0.5, playAccompanyingSound: false });
+    expect(
+      patchPoseCreatorClipEventDraft(
+        reopened.events[0]!,
+        { playAccompanyingSound: true },
+        2,
+      ),
+    ).toMatchObject({ playAccompanyingSound: true });
+  });
+});
+
+describe("event-only authoring", () => {
+  it("exports and reopens effects without requiring an unrelated pose", () => {
+    const draft = createPoseCreatorClipDraftFromAnimaPoseClip(
+      {
+        schema: "animaPoseClip/1.0",
+        id: "sound-only",
+        name: "Sound only",
+        duration: 1,
+        poses: {},
+        poseKeyframes: [],
+        events: [{ id: "chime", kind: "sfx", cueId: "chime", time: 0 }],
+      },
+      { fallbackBasePose: "relaxedRest" },
+    );
+    expect(validatePoseCreatorClipDraft(draft)).toEqual([]);
+    const exported = buildPoseCreatorClipForExport(draft, {
+      mode: "referenced",
+    });
+    expect(exported).toMatchObject({
+      poses: {},
+      poseKeyframes: [],
+      events: [{ id: "chime", kind: "sfx", cueId: "chime", time: 0 }],
+    });
+    expect(
+      createPoseCreatorClipDraftFromAnimaPoseClip(exported, {
+        fallbackBasePose: "relaxedRest",
+      }).events,
+    ).toHaveLength(1);
+    draft.events = [];
+    expect(
+      validatePoseCreatorClipDraft(draft).some(
+        (issue) => issue.severity === "error",
+      ),
+    ).toBe(true);
+    expect(
+      buildPoseCreatorClipForExport(draft, { mode: "referenced" }),
+    ).toBeNull();
   });
 });

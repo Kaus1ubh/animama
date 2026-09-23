@@ -1,3 +1,4 @@
+import type { AnimaPoseClipEvent } from "@/lib/avatar/poses/animaPoseClip/schema";
 import type { ParticleVFXCatalogEntry } from "@/lib/avatar/particle-vfx/types";
 import type { AvatarVFXCatalogEntry } from "@/lib/avatar/vfx/types";
 import type { RuntimeAudioDescriptor } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
@@ -25,6 +26,7 @@ export type PoseCreatorSceneVFXOption = {
   label: string;
   detail: string;
   sceneKind: SceneVFXKind;
+  soundOnApply?: string | null;
 };
 
 export type PoseCreatorSFXOption = {
@@ -109,10 +111,12 @@ export function createPoseCreatorEventCatalog(
   const sceneBackground = sceneOptions(
     source.listSceneVFX("background_layers"),
     "background_layers",
+    sfxIds,
   );
   const sceneFocus = sceneOptions(
     source.listSceneVFX("focus_lines"),
     "focus_lines",
+    sfxIds,
   );
 
   return {
@@ -150,6 +154,7 @@ export function withUnavailableEventOption<
 function sceneOptions(
   entries: readonly SceneVFXEntry[],
   kind: SceneVFXKind,
+  sfxIds: Set<string>,
 ): PoseCreatorSceneVFXOption[] {
   return sortOptions(
     entries.map((entry) => ({
@@ -157,6 +162,10 @@ function sceneOptions(
       label: entry.label,
       detail: `${kind === "background_layers" ? "background layers" : "focus lines"} / available resource`,
       sceneKind: kind,
+      soundOnApply:
+        entry.sound?.onApply && sfxIds.has(entry.sound.onApply)
+          ? entry.sound.onApply
+          : null,
     })),
   );
 }
@@ -168,4 +177,22 @@ function sortOptions<T extends { id: string; label: string }>(
     (left, right) =>
       left.label.localeCompare(right.label) || left.id.localeCompare(right.id),
   );
+}
+
+/** Resolve only the sound attached to this exact effect, never an independent SFX event. */
+export function accompanyingEventSound(
+  event: AnimaPoseClipEvent,
+  catalog: PoseCreatorEventCatalog,
+): PoseCreatorSFXOption | null {
+  const soundId =
+    event.kind === "avatar_vfx"
+      ? catalog.avatarVFX.find((option) => option.id === event.effectId)
+          ?.soundOnApply
+      : event.kind === "scene_vfx"
+        ? (event.sceneKind === "background_layers"
+            ? catalog.sceneBackground
+            : catalog.sceneFocus
+          ).find((option) => option.id === event.presetId)?.soundOnApply
+        : null;
+  return catalog.sfx.find((option) => option.id === soundId) ?? null;
 }

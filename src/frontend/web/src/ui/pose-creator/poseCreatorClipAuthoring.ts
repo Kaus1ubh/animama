@@ -51,6 +51,7 @@ export type PoseCreatorClipKeyframeDraftPatch = Partial<
 };
 
 export type PoseCreatorClipEventDraftPatch = {
+  playAccompanyingSound?: boolean;
   time?: number;
   duration?: number | null;
   effectId?: string;
@@ -502,7 +503,8 @@ export function validatePoseCreatorClipDraft(
     });
   }
 
-  if (localAliases.size === 0) {
+  // Actions may consist entirely of typed VFX/SFX events.
+  if (localAliases.size === 0 && draft.events.length === 0) {
     issues.push({
       severity: "error",
       code: "empty-poses",
@@ -511,7 +513,7 @@ export function validatePoseCreatorClipDraft(
     });
   }
 
-  if (draft.keyframes.length === 0) {
+  if (draft.keyframes.length === 0 && draft.events.length === 0) {
     issues.push({
       severity: "error",
       code: "empty-keyframes",
@@ -1101,6 +1103,9 @@ export function clonePoseCreatorClipEvent(
       kind: "avatar_vfx",
       effectId: event.effectId,
       ...clonePoseCreatorClipVFXEventFields(event),
+      ...(event.playAccompanyingSound !== undefined
+        ? { playAccompanyingSound: event.playAccompanyingSound }
+        : {}),
     };
   }
 
@@ -1112,6 +1117,9 @@ export function clonePoseCreatorClipEvent(
       sceneKind: event.sceneKind,
       presetId: event.presetId,
       ...clonePoseCreatorClipVFXEventFields(event),
+      ...(event.playAccompanyingSound !== undefined
+        ? { playAccompanyingSound: event.playAccompanyingSound }
+        : {}),
     };
   }
 
@@ -1554,6 +1562,8 @@ export function patchPoseCreatorClipEventDraft(
       event,
     ) as AnimaPoseClipAvatarVFXEvent;
     nextEvent.time = time;
+    if (patch.playAccompanyingSound !== undefined)
+      nextEvent.playAccompanyingSound = patch.playAccompanyingSound;
     if (patch.effectId !== undefined) nextEvent.effectId = patch.effectId;
     applyPoseCreatorClipVFXDurationPatch(nextEvent, patch);
     return nextEvent;
@@ -1564,6 +1574,8 @@ export function patchPoseCreatorClipEventDraft(
       event,
     ) as AnimaPoseClipSceneVFXEvent;
     nextEvent.time = time;
+    if (patch.playAccompanyingSound !== undefined)
+      nextEvent.playAccompanyingSound = patch.playAccompanyingSound;
     if (patch.sceneKind !== undefined) nextEvent.sceneKind = patch.sceneKind;
     if (patch.presetId !== undefined) nextEvent.presetId = patch.presetId;
     applyPoseCreatorClipVFXDurationPatch(nextEvent, patch);

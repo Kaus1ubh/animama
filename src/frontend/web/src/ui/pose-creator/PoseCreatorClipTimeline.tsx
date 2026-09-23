@@ -2,6 +2,8 @@
 
 import {
   Settings2Icon,
+  Volume2Icon,
+  VolumeXIcon,
   PauseIcon,
   PlayIcon,
   RotateCcwIcon,
@@ -53,6 +55,9 @@ import {
   type PoseCreatorClipEventDraft,
   type PoseCreatorClipKeyframeDraft,
 } from "./poseCreatorClipAuthoring";
+
+import { accompanyingEventSound } from "./poseCreatorEventCatalog";
+import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
 
 type TimelineDragState =
   | { kind: "playhead" }
@@ -113,6 +118,7 @@ export function PoseCreatorClipTimeline({
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
 }) {
+  const { eventCatalog } = usePoseCreatorPreview();
   const trackRef = useRef<HTMLDivElement | null>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
   const dropPreview = useCatalogTimelineDrop(
@@ -707,6 +713,9 @@ export function PoseCreatorClipTimeline({
                     key={layout.event.id}
                     duration={duration}
                     event={layout.event}
+                    accompanyingSound={
+                      accompanyingEventSound(layout.event, eventCatalog)?.label
+                    }
                     lane={layout.lane}
                     offsetPx={layout.offsetPx}
                     selected={layout.event.id === clipDraft.selectedEventId}
@@ -849,6 +858,7 @@ function KeyframeMarker({
 
 function EventMarker({
   event,
+  accompanyingSound,
   duration,
   lane,
   offsetPx,
@@ -861,6 +871,7 @@ function EventMarker({
   mobile,
 }: {
   event: PoseCreatorClipEventDraft;
+  accompanyingSound?: string;
   duration: number;
   lane: TimelineEventLane;
   offsetPx: number;
@@ -906,6 +917,19 @@ function EventMarker({
       onKeyDown={(keyboardEvent) => onKeyDown(keyboardEvent, event)}
     >
       {event.id}
+      {accompanyingSound ? (
+        <span
+          className="bg-background absolute -top-2 -right-2 rounded-full p-0.5"
+          aria-label={`Accompanying sound: ${accompanyingSound}`}
+        >
+          {(event.kind === "avatar_vfx" || event.kind === "scene_vfx") &&
+          event.playAccompanyingSound === false ? (
+            <VolumeXIcon className="size-2.5" />
+          ) : (
+            <Volume2Icon className="size-2.5" />
+          )}
+        </span>
+      ) : null}
     </button>
   );
 }

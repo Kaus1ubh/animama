@@ -34,7 +34,10 @@ import {
   isPoseCreatorBaseKeyframe,
   POSE_CREATOR_CLIP_EASING_OPTIONS,
 } from "./poseCreatorClipAuthoring";
-import { withUnavailableEventOption } from "./poseCreatorEventCatalog";
+import {
+  accompanyingEventSound,
+  withUnavailableEventOption,
+} from "./poseCreatorEventCatalog";
 import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
 import { usePoseCreatorClipUndoGrouping } from "./usePoseCreatorUndoGrouping";
 
@@ -273,6 +276,7 @@ function EventInspector({
   const { beginUndoGroup, endUndoGroup } = usePoseCreatorClipUndoGrouping();
   const { eventCatalog } = usePoseCreatorPreview();
   const label = resolveEventLabel(event, eventCatalog);
+  const accompanyingSound = accompanyingEventSound(event, eventCatalog);
   const sceneOptions =
     event.kind === "scene_vfx" && event.sceneKind === "background_layers"
       ? eventCatalog.sceneBackground
@@ -307,6 +311,24 @@ function EventInspector({
           />
         </InspectorRow>
 
+        {accompanyingSound &&
+        (event.kind === "avatar_vfx" || event.kind === "scene_vfx") ? (
+          <>
+            <InspectorRow label="Accompanying sound">
+              <ReadOnlyField>{accompanyingSound.label}</ReadOnlyField>
+            </InspectorRow>
+            <InspectorRow label="Play accompanying sound">
+              <Switch
+                aria-label="Play accompanying sound"
+                checked={event.playAccompanyingSound !== false}
+                disabled={disabled}
+                onCheckedChange={(playAccompanyingSound) =>
+                  onUpdate({ playAccompanyingSound })
+                }
+              />
+            </InspectorRow>
+          </>
+        ) : null}
         <InspectorRow label="Type">
           <ReadOnlyField>{formatEventKind(event)}</ReadOnlyField>
         </InspectorRow>

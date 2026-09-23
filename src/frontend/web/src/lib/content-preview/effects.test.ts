@@ -363,3 +363,55 @@ describe("Asset preview effect playback", () => {
     expect(onSceneVFXChange).toHaveBeenCalledWith(null);
   });
 });
+
+describe("clip accompanying audio", () => {
+  it.each([undefined, true, false])(
+    "keeps visuals and independent SFX with accompanying=%s",
+    async (playAccompanyingSound) => {
+      const preset = getSceneBackgroundLayerPresetById("kawaii-sparkles");
+      if (!preset) throw new Error("Missing scene fixture");
+      const onSceneVFXChange = vi.fn();
+      const playSfx = vi.fn();
+      const bridge = createContentPreviewClipEventBridge({
+        catalog: {
+          loadSceneVFX: vi.fn().mockResolvedValue({
+            ...preset,
+            sound: { onApply: "accompanying" },
+          }),
+        },
+        onSceneVFXChange,
+        playSfx,
+      });
+      const context = {
+        clipId: "clip",
+        eventId: "event",
+        appliedId: "clip:event",
+        playbackTime: 0,
+        clipTime: 0,
+        occurrenceIndex: 0,
+      };
+      await bridge.sink.applySceneVFX?.(
+        {
+          id: "event",
+          time: 0,
+          kind: "scene_vfx",
+          sceneKind: "background_layers",
+          presetId: preset.id,
+          playAccompanyingSound,
+        },
+        context,
+      );
+      expect(onSceneVFXChange).toHaveBeenCalledWith(
+        expect.objectContaining({ runtimeId: preset.id }),
+      );
+      expect(playSfx.mock.calls).toEqual(
+        playAccompanyingSound === false ? [] : [["accompanying"]],
+      );
+      await bridge.sink.playSfx?.(
+        { id: "independent", time: 0, kind: "sfx", cueId: "independent" },
+        context,
+      );
+      expect(playSfx).toHaveBeenLastCalledWith("independent");
+    },
+  );
+});

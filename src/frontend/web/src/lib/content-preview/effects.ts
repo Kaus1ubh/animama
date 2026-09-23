@@ -217,7 +217,8 @@ export function createContentPreviewClipEventBridge(args: {
         effect.id,
       ),
     );
-    if (effect.sound?.onApply) await args.playSfx(effect.sound.onApply);
+    if (event.playAccompanyingSound !== false && effect.sound?.onApply)
+      await args.playSfx(effect.sound.onApply);
   };
 
   const clearSceneVFX: NonNullable<AnimaPoseClipEventSink["clearSceneVFX"]> = (

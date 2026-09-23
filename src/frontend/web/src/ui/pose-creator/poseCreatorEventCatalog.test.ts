@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createPoseCreatorEventCatalog,
+  accompanyingEventSound,
   withUnavailableEventOption,
   type PoseCreatorEventCatalogSource,
 } from "./poseCreatorEventCatalog";
@@ -37,6 +38,7 @@ describe("Pose Creator equipped event catalog", () => {
         {
           id: `equipped-${kind}`,
           label: `Equipped ${kind}`,
+          sound: { onApply: "equipped-sfx" },
           kind,
         },
       ],
@@ -63,6 +65,25 @@ describe("Pose Creator equipped event catalog", () => {
       sfxCueIds: ["equipped-sfx"],
     });
     expect(catalog.avatarVFX[0]?.soundOnApply).toBe("equipped-sfx");
+    expect(catalog.sceneFocus[0]?.soundOnApply).toBe("equipped-sfx");
+    expect(
+      accompanyingEventSound(
+        {
+          id: "scene",
+          kind: "scene_vfx",
+          presetId: "equipped-focus_lines",
+          sceneKind: "focus_lines",
+          time: 0,
+        },
+        catalog,
+      )?.label,
+    ).toBe("Equipped SFX");
+    expect(
+      accompanyingEventSound(
+        { id: "avatar", kind: "avatar_vfx", effectId: "missing", time: 0 },
+        catalog,
+      ),
+    ).toBeNull();
   });
 
   it("keeps an imported unavailable runtime ID visible without rewriting it", () => {

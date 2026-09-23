@@ -531,6 +531,7 @@ function dispatchPoseCreatorClipDueEvent({
       activeAvatar,
       mode,
       catalog,
+      playApplySound: soundController?.playSfxCue,
     });
     return;
   }
@@ -620,6 +621,7 @@ function applyPoseCreatorClipVFXEvent({
   activeAvatar,
   mode,
   catalog,
+  playApplySound,
 }: {
   event: AnimaPoseClipVFXEvent;
   context: AnimaPoseClipEventContext;
@@ -627,6 +629,8 @@ function applyPoseCreatorClipVFXEvent({
   activeAvatar: Avatar;
   mode: PoseCreatorClipPreviewMode;
   catalog: AnimaRuntimeCatalog | null;
+  /** Only due-event dispatch supplies audio; scrub and restored effects stay silent. */
+  playApplySound?: SoundContextValue["playSfxCue"];
 }) {
   clearPoseCreatorClipPreviewEffect(
     runtimeState,
@@ -646,14 +650,18 @@ function applyPoseCreatorClipVFXEvent({
 
   if (event.kind === "avatar_vfx") {
     const session = runtimeState.session;
-    void (async () =>
-      applyAvatarVFXEffectById({
+    let soundCueId: string | undefined;
+    void (async () => {
+      const effect = (await catalog?.loadAvatarVFX(event.effectId)) ?? null;
+      soundCueId = effect?.sound?.onApply;
+      return applyAvatarVFXEffectById({
         avatar: activeAvatar,
         effectId: event.effectId,
         appliedEffectId: context.appliedId,
-        effectEntry: (await catalog?.loadAvatarVFX(event.effectId)) ?? null,
-      }))()
-      .then((didApply) => {
+        effectEntry: effect,
+      });
+    })()
+      .then(async (didApply) => {
         const currentEffect = runtimeState.activeEffects.get(context.appliedId);
         if (
           runtimeState.session !== session ||
@@ -669,6 +677,8 @@ function applyPoseCreatorClipVFXEvent({
         }
         if (!didApply) {
           runtimeState.activeEffects.delete(context.appliedId);
+        } else if (event.playAccompanyingSound !== false && soundCueId) {
+          await playApplySound?.(soundCueId);
         }
       })
       .catch(() => {
@@ -728,7 +738,13 @@ function applyPoseCreatorClipVFXEvent({
     return;
   }
 
-  applyPoseCreatorSceneVFXEvent(runtimeState, event, context, catalog);
+  applyPoseCreatorSceneVFXEvent(
+    runtimeState,
+    event,
+    context,
+    catalog,
+    playApplySound,
+  );
 }
 
 function applyPoseCreatorSceneVFXEvent(
@@ -736,6 +752,7 @@ function applyPoseCreatorSceneVFXEvent(
   event: AnimaPoseClipSceneVFXEvent,
   context: AnimaPoseClipEventContext,
   catalog: AnimaRuntimeCatalog | null,
+  playApplySound?: SoundContextValue["playSfxCue"],
 ) {
   const session = runtimeState.session;
   void (async () => {
@@ -743,7 +760,7 @@ function applyPoseCreatorSceneVFXEvent(
       (await catalog?.loadSceneVFX(event.sceneKind, event.presetId)) ?? null;
     if (
       runtimeState.session !== session ||
-      !runtimeState.activeEffects.has(context.appliedId)
+      runtimeState.activeEffects.get(context.appliedId)?.context !== context
     ) {
       return;
     }
@@ -769,6 +786,9 @@ function applyPoseCreatorSceneVFXEvent(
       id: context.appliedId,
       durationMs: null,
     });
+    if (event.playAccompanyingSound !== false && preset.sound?.onApply) {
+      await playApplySound?.(preset.sound.onApply);
+    }
   })();
 }
 

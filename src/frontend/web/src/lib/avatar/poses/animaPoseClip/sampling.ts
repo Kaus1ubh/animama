@@ -38,6 +38,20 @@ export function sampleAnimaPoseClip(
   const sampledTime = sampleClipTime(sanitizedClip, timeSec);
   const keyframes = sanitizedClip.poseKeyframes;
 
+  // Effects-only actions have no pose sample; keep only an explicitly chosen base.
+  if (keyframes.length === 0) {
+    return {
+      sample: sanitizedClip.basePose
+        ? resolveExternalPoseSample(
+            sanitizedClip.basePose,
+            resolvePoseRef,
+            diagnostics,
+          )
+        : {},
+      diagnostics,
+    };
+  }
+
   if (keyframes.length === 1 || sampledTime <= keyframes[0].time) {
     return {
       sample: resolveKeyframeSample(
