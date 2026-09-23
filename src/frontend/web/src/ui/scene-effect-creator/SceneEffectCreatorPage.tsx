@@ -45,6 +45,7 @@ import {
   sceneEffectEditorReducer,
   sceneEffectImageMetadata,
   sceneEffectRuntimeEntry,
+  SCENE_EFFECT_IMAGE_TYPES,
   uniqueSceneEffectImageName,
   validateSceneEffectDocument,
   type SceneEffectEditorDocument,
@@ -117,7 +118,6 @@ import {
 import { useSceneEffectSave } from "./useSceneEffectSave";
 import { useSceneEffectHistory } from "./useSceneEffectHistory";
 
-const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_SCENE_IMAGE_BYTES = 32 * 1024 * 1024;
 type PreviewStatus = {
   state: "idle" | "loading" | "ready" | "error";
@@ -402,8 +402,8 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   const choosePrivateImage = useCallback(
     async (source: File) => {
       setImageError(null);
-      if (!IMAGE_TYPES.has(source.type)) {
-        setImageError("Choose a PNG, JPEG, or WebP image.");
+      if (!SCENE_EFFECT_IMAGE_TYPES.has(source.type)) {
+        setImageError("Choose a PNG, JPEG, WebP, or static SVG image.");
         return;
       }
       if (source.size > MAX_SCENE_IMAGE_BYTES) {
@@ -434,7 +434,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
               ),
             );
         const sourceExtension =
-          source.name.match(/\.(png|jpe?g|webp)$/i)?.[0] ?? ".webp";
+          source.name.match(/\.(png|jpe?g|webp|svg)$/i)?.[0] ?? ".webp";
         const uploadName = logicalName.replace(
           /\.webp$/i,
           sourceExtension.toLowerCase(),
@@ -1375,7 +1375,7 @@ function MarqueeInspector({
           <input
             className="sr-only"
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept={[...SCENE_EFFECT_IMAGE_TYPES].join(",")}
             aria-invalid={saveErrorField === "files"}
             onChange={(event) => {
               const file = event.target.files?.[0];

@@ -29,6 +29,43 @@ const image = {
 };
 
 describe("Scene Effect editor document", () => {
+  it("reopens Included SVG artwork as a valid editable Local document", () => {
+    const svg = {
+      ...image,
+      logicalName: "star.svg",
+      originalName: "star.svg",
+      contentType: "image/svg+xml",
+    };
+    const document = createDefaultSceneEffectDocument();
+    document.background.marquee.items = [
+      { id: "star", kind: "image", label: "Star", image: svg },
+    ];
+    const reopened = createSceneEffectDocumentFromDefinition({
+      name: "Local stars",
+      description: "",
+      definition: sceneEffectDefinition(document),
+      images: new Map([[svg.logicalName, svg]]),
+      sound: null,
+    });
+    expect(
+      validateSceneEffectDocument(reopened, [
+        {
+          logicalName: svg.logicalName,
+          file: new File(
+            ['<svg xmlns="http://www.w3.org/2000/svg"/>'],
+            svg.originalName,
+            { type: svg.contentType },
+          ),
+          sha256: svg.sha256,
+        },
+      ]),
+    ).toEqual([]);
+    expect(canonicalSceneEffectImageName("My Star.SVG")).toBe("My-Star.svg");
+    expect(uniqueSceneEffectImageName("My Star.svg", ["My-Star.svg"])).toBe(
+      "My-Star-2.svg",
+    );
+    expect(sceneEffectImageMetadata(reopened)).toEqual([svg]);
+  });
   it("keeps new names empty and permits automatic naming on save", () => {
     const document = createDefaultSceneEffectDocument();
     expect(document.name).toBe("");
