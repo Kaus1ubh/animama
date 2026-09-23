@@ -64,28 +64,14 @@ export function resolveParticleVFXCreatorPreviewPlacement(args: {
   shapeAutoFit?: ParticleVFXShapeAutoFit | null;
 }): ParticleVFXCreatorPreviewPlacement {
   const transform = normalizeParticleVFXTransform(args.transform);
-  if (args.avatar && args.shapeAutoFit) {
-    const autoFitResult = resolveParticleVFXAvatarBoundsRectangleFit({
-      avatar: args.avatar,
-      transform,
-      shapeAutoFit: args.shapeAutoFit,
-    });
-    if (autoFitResult.fit) {
-      return {
-        position: autoFitResult.fit.position,
-        rotation: { ...transform.rotation },
-        scale: { ...transform.scale },
-        resolvedAnchor: args.anchor,
-        boneName: null,
-        warning: autoFitResult.warning,
-        autoFit: {
-          kind: "avatarBoundsRectangle",
-          width: autoFitResult.fit.width,
-          height: autoFitResult.fit.height,
-        },
-      };
-    }
-  }
+  const autoFitResult =
+    args.avatar && args.shapeAutoFit
+      ? resolveParticleVFXAvatarBoundsRectangleFit({
+          avatar: args.avatar,
+          transform,
+          shapeAutoFit: args.shapeAutoFit,
+        })
+      : null;
 
   const resolved = args.avatar
     ? resolveParticleVFXAnchorLocalPosition({
@@ -104,9 +90,16 @@ export function resolveParticleVFXCreatorPreviewPlacement(args: {
     boneName: resolved?.boneName ?? null,
     warning:
       resolved?.warning ??
+      autoFitResult?.warning ??
       (args.avatar
         ? null
         : "Preview avatar is not available; using root transform."),
-    autoFit: null,
+    autoFit: autoFitResult?.fit
+      ? {
+          kind: "avatarBoundsRectangle",
+          width: autoFitResult.fit.width,
+          height: autoFitResult.fit.height,
+        }
+      : null,
   };
 }

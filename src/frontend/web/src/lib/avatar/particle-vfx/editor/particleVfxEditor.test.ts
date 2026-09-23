@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   applyParticleVFXEmitterPatch,
+  addParticleVFXEditorEmitter,
+  createParticleVFXEditorDraftFromImport,
   createParticleVFXEditorDraftFromBlank,
   updateParticleVFXEditorCatalogDraft,
 } from "./draft";
@@ -112,6 +114,67 @@ describe("Particle VFX Asset readiness", () => {
     rawImage!.url = "textures/private-only.png";
     expect(() => resolveParticleVFXEditorPreviewJson(draft, new Map())).toThrow(
       "textures/private-only.png is unavailable",
+    );
+  });
+});
+
+describe("Per-emitter anchor authoring", () => {
+  it("round-trips independent overrides and returns to inheritance without losing metadata", () => {
+    let draft = addParticleVFXEditorEmitter(
+      createParticleVFXEditorDraftFromBlank(),
+    );
+    expect(draft.emitters.map((emitter) => emitter.anchor)).toEqual([
+      null,
+      null,
+    ]);
+    const root = draft.quarksJson.object as {
+      children: Record<string, unknown>[];
+    };
+    root.children[0]!.userData = { authorNote: "preserved" };
+    draft = applyParticleVFXEmitterPatch(draft, draft.emitters[0]!.path, {
+      anchor: "head",
+      localPosition: { x: 0.2, y: 0.1 },
+    });
+    draft = applyParticleVFXEmitterPatch(draft, draft.emitters[1]!.path, {
+      anchor: "leftHand",
+    });
+    const reopened = createParticleVFXEditorDraftFromImport(
+      JSON.parse(JSON.stringify(draft.quarksJson)),
+      draft.catalog,
+    );
+    expect(reopened.emitters.map((emitter) => emitter.anchor)).toEqual([
+      "head",
+      "leftHand",
+    ]);
+    expect(reopened.emitters[0]!.localPosition).toEqual({
+      x: 0.2,
+      y: 0.1,
+      z: 0,
+    });
+    const inherited = applyParticleVFXEmitterPatch(
+      reopened,
+      reopened.emitters[0]!.path,
+      { anchor: null },
+    );
+    expect(inherited.emitters[0]!.anchor).toBeNull();
+    expect(
+      (inherited.quarksJson.object as typeof root).children[0]!.userData,
+    ).toEqual({ authorNote: "preserved" });
+  });
+
+  it("blocks an unsupported serialized anchor rather than silently changing its meaning", () => {
+    const draft = createParticleVFXEditorDraftFromBlank();
+    (
+      draft.quarksJson.object as { children: Record<string, unknown>[] }
+    ).children[0]!.userData = { animamaParticleAnchor: "tail" };
+    const imported = createParticleVFXEditorDraftFromImport(draft.quarksJson);
+    expect(validateParticleVFXContentReadiness(imported).issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "invalid-emitter-anchor",
+          severity: "error",
+        }),
+      ]),
     );
   });
 });

@@ -89,7 +89,16 @@ validation, import/export tools, and Three.quarks preview lifecycle. Save uses
 Local entry. It never equips the effect to an Anima; Gesture and Reaction
 creators reference it as a dependency.
 
-The Inspector groups System, Emission, Shape, Behavior and Appearance settings.
+The left panel separates emitter selection from whole-effect defaults. Name lives
+in the header; internal IDs, resource JSON and clip-event snippets are available
+in the export dialog. Existing descriptions are retained without a main-editor
+field. Preload and performance limits remain available under Advanced settings.
+The compact validation status expands to show issues that need attention.
+
+The Inspector groups Emitter, Emission, Shape, Behavior and Appearance settings.
+Emitter cycle duration and looping control each system; Effect playback duration
+and the advanced maximum duration bound the entire instance. Allow emitter looping
+permits authored loops without removing the instance lifetime or particle budget.
 The Preview Timeline pauses, resumes or restarts the isolated creator preview;
 it does not author clip events or dependencies.
 
@@ -144,11 +153,25 @@ selected anchor, but disables continuous anchor follow for that active instance
 and records a diagnostic warning. Use local-space emitters for effects that must
 stay attached to a moving head, hand, or foot for their full lifetime.
 
-Avatar-bounds rectangle auto-fit is resolved once per play from rendered mesh
+An emitter may override the effect/event anchor through its optional serialized
+`userData.animamaParticleAnchor`. Supported values are the same anchors listed
+above; missing metadata inherits the effect or clip event anchor. The Inspector's
+Inherit option removes the override. Each emitter's authored offset and enclosing
+transforms are applied relative to its resolved anchor, while the global transform
+continues to affect offsets. Overrides follow independently when anchor following
+is enabled; the existing whole-instance world-space safeguard still applies.
+
+“Fit rectangle to avatar” is available when rectangle emitters exist. Its selector
+limits fitting to the named rectangle emitters; other shapes are unaffected.
+Width/height padding and minimum/maximum sizes are in meters; an omitted maximum
+has no limit beyond the runtime safeguards. Fitting changes emission dimensions,
+not camera framing or emitter placement. Each emitter keeps its anchor and offset.
+
+Avatar-bounds rectangle fitting is resolved once per play from rendered mesh
 bounds. It ignores existing particle roots so active effects do not inflate the
 avatar bounds, patches cloned `emitterShape` objects only, and leaves cached
 prefabs untouched. If bounds cannot be computed or no matching rectangle
-emitter is found, playback falls back to normal anchor placement and records a
+emitter is found, playback retains normal anchor placement and records a
 warning.
 
 ## Runtime Flow

@@ -234,3 +234,40 @@ describe("Particle VFX editable content package", () => {
     ).rejects.toThrow("mismatched or unsupported image bytes");
   });
 });
+
+it.each(["", "Existing description"])(
+  "preserves optional description %j and emitter anchors in a saved package",
+  async (description) => {
+    let draft = updateParticleVFXEditorCatalogDraft(namedDraft(), {
+      description,
+    });
+    draft = applyParticleVFXEmitterPatch(draft, draft.emitters[0]!.path, {
+      anchor: "rightHand",
+    });
+    const built = await buildParticleVFXContentPackage({
+      draft,
+      resources: [resource("textures/soft-dot.png", PNG, "image/png")],
+    });
+    expect(built.normalizedDraft.catalog.description).toBe(description);
+    expect(built.normalizedDraft.emitters[0]!.anchor).toBe("rightHand");
+    expect(
+      JSON.parse(await built.manifestFile.text()).object.children[0].userData
+        .animamaParticleAnchor,
+    ).toBe("rightHand");
+  },
+);
+
+it("saves avatar rectangle fitting with no maximum size limit", async () => {
+  const draft = updateParticleVFXEditorCatalogDraft(namedDraft(), {
+    shapeAutoFit: {
+      kind: "avatarBoundsRectangle",
+      padding: { width: 0, height: 0 },
+      minSize: { width: 0.1, height: 0.1 },
+    },
+  });
+  const built = await buildParticleVFXContentPackage({
+    draft,
+    resources: [resource("textures/soft-dot.png", PNG, "image/png")],
+  });
+  expect(built.normalizedDraft.catalog.shapeAutoFit?.maxSize).toBeUndefined();
+});

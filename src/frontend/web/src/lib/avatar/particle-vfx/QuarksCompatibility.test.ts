@@ -16,6 +16,23 @@ describe("Three.quarks backend compatibility fixture", () => {
     expect(emitters).toEqual(["fixture-emitter"]);
   });
 
+  it("preserves emitter anchors through real parsing, cloning, and serialization", () => {
+    const json = structuredClone(compatibilityValid);
+    Object.assign(json.object.children[0]!, {
+      userData: { animamaParticleAnchor: "leftHand", custom: "preserve" },
+    });
+    const object = new QuarksLoader().parse(json);
+    const clone = object.clone(true);
+    expect(clone.children[0]?.userData).toEqual({
+      animamaParticleAnchor: "leftHand",
+      custom: "preserve",
+    });
+    const reopened = new QuarksLoader().parse(clone.toJSON());
+    expect(reopened.children[0]?.userData.animamaParticleAnchor).toBe(
+      "leftHand",
+    );
+  });
+
   it("consumes every creator render mode, shape, generator, and behavior", () => {
     const object = new QuarksLoader().parse(compatibilityAdvancedValid);
     const renderModes: number[] = [];

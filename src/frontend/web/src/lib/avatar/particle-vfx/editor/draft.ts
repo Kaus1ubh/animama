@@ -84,6 +84,7 @@ import type {
   ParticleVFXEmitterPatch,
 } from "./types";
 import type { ParticleVFXCatalogEntry } from "../types";
+import { isParticleVFXAnchor } from "../runtime";
 
 export function parseParticleVFXEditorJson(
   value: string,
@@ -119,7 +120,7 @@ export function createParticleVFXEditorDraftFromBlank(
     ...DEFAULT_IMPORTED_CATALOG_DRAFT,
     id: DEFAULT_NEW_EFFECT_ID,
     label: "",
-    description: "New particle effect.",
+    description: "",
     assetPath: `/effects/vfx/quark/${DEFAULT_NEW_EFFECT_ID}.json`,
     defaultDurationSec: 1.2,
     defaultTransform: createDefaultParticleVFXTransform(),
@@ -291,6 +292,11 @@ export function applyParticleVFXEmitterPatch(
   }
   if (typeof patch.name === "string") {
     emitter.name = patch.name.trim() || "emitter";
+  }
+  if (patch.anchor !== undefined) {
+    const userData = ensureJsonObjectProperty(emitter, "userData");
+    if (patch.anchor === null) delete userData.animamaParticleAnchor;
+    else userData.animamaParticleAnchor = patch.anchor;
   }
   if (patch.localPosition) {
     setObjectLocalPosition(emitter, {
@@ -521,6 +527,7 @@ function collectEmitterDraft(
   index: number,
 ): ParticleVFXEmitterDraft {
   const ps = readJsonObject(object.ps);
+  const anchor = readJsonObject(object.userData)?.animamaParticleAnchor;
   const force = ps ? findForceOverLifeBehavior(ps) : null;
   const burst = readFirstBurst(ps);
   const texture = ps ? readEmitterTexture(quarksJson, ps) : null;
@@ -532,6 +539,7 @@ function collectEmitterDraft(
     path,
     uuid: typeof object.uuid === "string" ? object.uuid : null,
     name: readEmitterName(object, index + 1),
+    anchor: isParticleVFXAnchor(anchor) ? anchor : null,
     localPosition: readObjectLocalPosition(object),
     durationSec: readFiniteNumber(ps?.duration),
     looping: ps?.looping === true,

@@ -75,6 +75,8 @@ export function normalizeParticleVFXShapeAutoFit(
     ?.map((name) => name.trim())
     .filter(Boolean);
 
+  const maxWidth = readOptionalPositiveFinite(shapeAutoFit.maxSize?.width);
+  const maxHeight = readOptionalPositiveFinite(shapeAutoFit.maxSize?.height);
   return {
     kind: "avatarBoundsRectangle",
     padding: {
@@ -91,10 +93,10 @@ export function normalizeParticleVFXShapeAutoFit(
         DEFAULT_RECTANGLE_MIN_SIZE,
       ),
     },
-    maxSize: {
-      width: readOptionalPositiveFinite(shapeAutoFit.maxSize?.width),
-      height: readOptionalPositiveFinite(shapeAutoFit.maxSize?.height),
-    },
+    maxSize:
+      maxWidth !== undefined || maxHeight !== undefined
+        ? { width: maxWidth, height: maxHeight }
+        : undefined,
     emitterNames:
       emitterNames && emitterNames.length > 0 ? emitterNames : undefined,
   };

@@ -373,6 +373,8 @@ export type ParticleVFXEmitterDraft = {
   path: string;
   uuid: string | null;
   name: string;
+  /** Null inherits the effect or clip event anchor. */
+  anchor: ParticleVFXAnchor | null;
   localPosition: ParticleVFXTransformAxisTriple;
   durationSec: number | null;
   looping: boolean;
@@ -429,6 +431,7 @@ export type ParticleVFXEditorDraft = {
 export type ParticleVFXEditorValidationIssue = {
   severity: "error" | "warning";
   code:
+    | "invalid-emitter-anchor"
     | "invalid-json"
     | "missing-object"
     | "missing-emitter"
@@ -477,6 +480,7 @@ export type ParticleVFXContentReadiness = {
 
 export type ParticleVFXEmitterPatch = Partial<{
   name: string;
+  anchor: ParticleVFXAnchor | null;
   localPosition: Partial<ParticleVFXTransformAxisTriple>;
   durationSec: number;
   looping: boolean;
