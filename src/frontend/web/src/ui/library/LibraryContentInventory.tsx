@@ -224,6 +224,8 @@ function ProductRow({
     <LibraryProductRow
       layout={layout}
       row={libraryRowPresentation(card)}
+      thumbnailUrl={card.thumbnailUrl}
+      particleThumbnail={card.particleThumbnail}
       actions={
         <>
           {policy.preview ? (

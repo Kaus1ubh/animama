@@ -6,6 +6,11 @@
  */
 export * from "@animama/runtime-contracts/api-types";
 
+import {
+  contentThumbnailUrl,
+  particleThumbnailSource,
+} from "./contentThumbnail";
+
 import type {
   PyGesture as PyTransportGesture,
   PyIdleStyle as PyTransportIdleStyle,
@@ -109,6 +114,12 @@ export type PyCatalogViewItem = Partial<
   updated_at: string | null;
   included_resource_counts?: Record<string, number>;
   update_available?: boolean;
+  thumbnail_url?: string | null;
+  particle_thumbnail?: {
+    manifestUrl: string;
+    texturePath: string;
+    revision: string;
+  };
 };
 
 type TypedCatalogView<T extends { source: "included" | "local" }> = Partial<
@@ -414,6 +425,14 @@ export function typedComponentCatalogViewItem(
     state: "ready",
     status: "valid",
     revision_sha256: item.revision_sha256,
+    thumbnail_url:
+      item.kind === "sound_effect"
+        ? null
+        : contentThumbnailUrl(item.files ?? []),
+    particle_thumbnail:
+      item.kind === "particle_effect"
+        ? particleThumbnailSource(item.files ?? [], item.revision_sha256)
+        : undefined,
     editable: item.editable,
     metadata,
     created_at: null,
