@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ReactElement, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ChevronDown,
   ChevronRight,
+  LayoutGrid,
+  List,
   Loader2,
   Pause,
   Pencil,
@@ -51,13 +53,19 @@ import { useGestures, useReactions } from "@/query/hooks/useActions";
 import { useContentPreviewDock } from "@/ui/content-preview/ContentPreviewDockProvider";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/ui/components/tooltip";
 import { useContentPreviewAudio } from "@/ui/content-preview/useContentPreviewAudio";
 import {
   ActionManageDialog,
   type ManageActionTarget,
 } from "@/ui/action-manage/ActionManageDialog";
 import { LibraryFilterMenu } from "./LibraryFilterMenu";
-import { LibraryProductRow } from "./LibraryProductRow";
+import { LibraryProductRow, type LibraryLayout } from "./LibraryProductRow";
+import { useLibraryLayout } from "./useLibraryLayout";
 
 type SearchUpdate = (update: Partial<ContentLibrarySearch>) => void;
 
@@ -66,11 +74,13 @@ function ProductGroup({
   title,
   children,
   footer,
+  layout,
 }: {
   id: string;
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  layout: LibraryLayout;
 }) {
   const [expanded, setExpanded] = useState(true);
   const contentId = `library-${id}-content`;
@@ -98,7 +108,15 @@ function ProductGroup({
       </h2>
       {expanded ? (
         <div id={contentId} className="space-y-3">
-          <div className="overflow-hidden rounded-xl border">{children}</div>
+          <div
+            className={
+              layout === "grid"
+                ? "grid grid-cols-[repeat(auto-fill,minmax(min(100%,17rem),1fr))] gap-3"
+                : "overflow-hidden rounded-xl border"
+            }
+          >
+            {children}
+          </div>
           {footer}
         </div>
       ) : null}
@@ -125,7 +143,10 @@ function InventoryState({
     );
   if (error)
     return (
-      <div role="alert" className="flex items-center justify-between gap-3 p-4">
+      <div
+        role="alert"
+        className="col-span-full flex items-center justify-between gap-3 p-4"
+      >
         <p className="text-destructive text-sm">
           This group could not be loaded.
         </p>
@@ -145,14 +166,35 @@ function InventoryState({
   return null;
 }
 
+/** Grid actions retain their accessible name and reveal labels after a short hover. */
+function ActionTooltip({
+  label,
+  layout,
+  children,
+}: {
+  label: string;
+  layout: LibraryLayout;
+  children: ReactElement;
+}) {
+  if (layout === "list") return children;
+  return (
+    <Tooltip delayDuration={500}>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function ProductRow({
   card,
   onPreview,
   onManage,
+  layout,
 }: {
   card: LibraryProductCard;
   onPreview: () => void;
   onManage?: () => void;
+  layout: LibraryLayout;
 }) {
   const itemId = card.itemId;
   const componentType =
@@ -176,46 +218,76 @@ function ProductRow({
   const policy = libraryProductActionPolicy(card);
   return (
     <LibraryProductRow
+      layout={layout}
       row={libraryRowPresentation(card)}
       actions={
         <>
           {policy.preview ? (
-            <Button size="sm" variant="outline" onClick={onPreview}>
-              <Play /> Preview
-            </Button>
+            <ActionTooltip label="Preview" layout={layout}>
+              <Button
+                size={layout === "grid" ? "icon-sm" : "sm"}
+                variant="outline"
+                onClick={onPreview}
+                aria-label="Preview"
+              >
+                <Play />
+                {layout === "list" ? " Preview" : null}
+              </Button>
+            </ActionTooltip>
           ) : null}
           {policy.edit ? (
-            <Button size="sm" variant="outline" asChild>
-              <Link to={editPath}>
-                <Pencil /> Edit
-              </Link>
-            </Button>
+            <ActionTooltip label="Edit" layout={layout}>
+              <Button
+                size={layout === "grid" ? "icon-sm" : "sm"}
+                variant="outline"
+                asChild
+              >
+                <Link to={editPath} aria-label="Edit">
+                  <Pencil />
+                  {layout === "list" ? " Edit" : null}
+                </Link>
+              </Button>
+            </ActionTooltip>
           ) : null}
           {policy.manage && onManage ? (
-            <Button size="sm" onClick={onManage}>
-              <Plus />
-              Add / Manage
-            </Button>
+            <ActionTooltip label="Add / Manage" layout={layout}>
+              <Button
+                size={layout === "grid" ? "icon-sm" : "sm"}
+                onClick={onManage}
+                aria-label="Add / Manage"
+              >
+                <Plus />
+                {layout === "list" ? "Add / Manage" : null}
+              </Button>
+            </ActionTooltip>
           ) : null}
           {policy.useInGesture ? (
-            <Button size="sm" asChild>
-              <Link
-                to="/a/gestures/new"
-                search={{ component: card.itemId, componentType }}
-              >
-                <WandSparkles /> Use in Gesture
-              </Link>
-            </Button>
+            <ActionTooltip label="Use in Gesture" layout={layout}>
+              <Button size={layout === "grid" ? "icon-sm" : "sm"} asChild>
+                <Link
+                  to="/a/gestures/new"
+                  search={{ component: card.itemId, componentType }}
+                  aria-label="Use in Gesture"
+                >
+                  <WandSparkles />
+                  {layout === "list" ? " Use in Gesture" : null}
+                </Link>
+              </Button>
+            </ActionTooltip>
           ) : null}
           {policy.useInReaction ? (
-            <Button size="sm" asChild>
-              <Link
-                to="/a/reactions/new"
-                search={{ component: card.itemId, componentType }}
-              >
-                <WandSparkles /> Use in Reaction
-              </Link>
-            </Button>
+            <ActionTooltip label="Use in Reaction" layout={layout}>
+              <Button size={layout === "grid" ? "icon-sm" : "sm"} asChild>
+                <Link
+                  to="/a/reactions/new"
+                  search={{ component: card.itemId, componentType }}
+                  aria-label="Use in Reaction"
+                >
+                  <WandSparkles />
+                  {layout === "list" ? " Use in Reaction" : null}
+                </Link>
+              </Button>
+            </ActionTooltip>
           ) : null}
         </>
       }
@@ -253,6 +325,7 @@ export function LibraryContentInventory({
   search: ContentLibrarySearch;
   onSearchChange: SearchUpdate;
 }) {
+  const [layout, setLayout] = useLibraryLayout();
   const groups = contentInventoryGroups(search);
   const includes = (group: LibraryInventoryGroup) => groups.includes(group);
   const origin = search.showStarters ? "all" : "owned";
@@ -416,6 +489,7 @@ export function LibraryContentInventory({
       <ProductRow
         key={card.key}
         card={card}
+        layout={layout}
         onPreview={() =>
           void (card.family === "pose"
             ? previewPose(card)
@@ -489,8 +563,8 @@ export function LibraryContentInventory({
   ];
   return (
     <div className="space-y-3">
-      <div className="bg-background/95 sticky top-11 z-30 grid grid-cols-[minmax(0,1fr)_auto] gap-3 py-3 backdrop-blur-sm">
-        <label className="relative">
+      <div className="bg-background/95 sticky top-11 z-30 flex items-center gap-3 py-3 backdrop-blur-sm">
+        <label className="relative min-w-0 flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             className="h-11 pl-9"
@@ -501,11 +575,39 @@ export function LibraryContentInventory({
             }
           />
         </label>
+        <div
+          role="group"
+          aria-label="Library layout"
+          className="flex items-center gap-1 rounded-lg border p-1"
+        >
+          {(
+            [
+              ["list", "List view", List],
+              ["grid", "Grid view", LayoutGrid],
+            ] as const
+          ).map(([value, label, Icon]) => (
+            <Tooltip key={value} delayDuration={500}>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon-sm"
+                  variant={layout === value ? "secondary" : "ghost"}
+                  aria-label={label}
+                  aria-pressed={layout === value}
+                  onClick={() => setLayout(value)}
+                >
+                  <Icon aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{label}</TooltipContent>
+            </Tooltip>
+          ))}
+        </div>
         <LibraryFilterMenu search={search} onSearchChange={onSearchChange} />
       </div>
       {groups.includes("avatars") ? (
         <div>
           <ProductGroup
+            layout={layout}
             id="avatars"
             title="Avatars"
             footer={<LoadMore query={avatars} />}
@@ -523,6 +625,7 @@ export function LibraryContentInventory({
               (avatar) => (
                 <LibraryProductRow
                   key={avatar.avatar_id}
+                  layout={layout}
                   portraitUrl={avatar.preview_url}
                   row={{
                     family: "avatar",
@@ -533,27 +636,45 @@ export function LibraryContentInventory({
                   }}
                   actions={
                     <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={!avatar.catalog_item_id}
-                        onClick={() => void previewAvatar(avatar)}
-                      >
-                        <Play /> Preview
-                      </Button>
+                      <ActionTooltip label="Preview" layout={layout}>
+                        <Button
+                          size={layout === "grid" ? "icon-sm" : "sm"}
+                          variant="outline"
+                          disabled={!avatar.catalog_item_id}
+                          onClick={() => void previewAvatar(avatar)}
+                          aria-label="Preview"
+                        >
+                          <Play />
+                          {layout === "list" ? " Preview" : null}
+                        </Button>
+                      </ActionTooltip>
                       {avatar.catalog_item_id ? (
-                        <Button size="sm" asChild>
-                          <Link
-                            to="/a/animas/new"
-                            search={{ avatar: avatar.catalog_item_id }}
+                        <ActionTooltip label="Create Anima" layout={layout}>
+                          <Button
+                            size={layout === "grid" ? "icon-sm" : "sm"}
+                            asChild
                           >
-                            <Plus /> Create Anima
-                          </Link>
-                        </Button>
+                            <Link
+                              to="/a/animas/new"
+                              search={{ avatar: avatar.catalog_item_id }}
+                              aria-label="Create Anima"
+                            >
+                              <Plus />
+                              {layout === "list" ? " Create Anima" : null}
+                            </Link>
+                          </Button>
+                        </ActionTooltip>
                       ) : (
-                        <Button size="sm" disabled>
-                          <Plus /> Draft
-                        </Button>
+                        <ActionTooltip label="Draft" layout={layout}>
+                          <Button
+                            size={layout === "grid" ? "icon-sm" : "sm"}
+                            disabled
+                            aria-label="Draft"
+                          >
+                            <Plus />
+                            {layout === "list" ? " Draft" : null}
+                          </Button>
+                        </ActionTooltip>
                       )}
                     </>
                   }
@@ -568,6 +689,7 @@ export function LibraryContentInventory({
         .map((group) => (
           <div key={group.id}>
             <ProductGroup
+              layout={layout}
               id={group.id}
               title={group.title}
               footer={

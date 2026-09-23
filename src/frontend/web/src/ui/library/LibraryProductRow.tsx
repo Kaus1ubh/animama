@@ -15,6 +15,8 @@ import type { LibraryRowPresentation } from "@/lib/content/libraryPresentation";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/ui/components/avatar";
 
+export type LibraryLayout = "list" | "grid";
+
 type RowFamily = LibraryRowPresentation["family"];
 
 const icons = {
@@ -34,18 +36,23 @@ export function LibraryProductRow({
   actions,
   className,
   portraitUrl,
+  layout = "list",
 }: {
   row: LibraryRowPresentation;
   actions: ReactNode;
   className?: string;
   portraitUrl?: string | null;
+  layout?: LibraryLayout;
 }) {
   const Icon = icons[row.family];
   return (
     <article
       aria-label={row.name}
       className={cn(
-        "bg-card flex min-w-0 flex-col border-b last:border-b-0 sm:flex-row sm:items-stretch",
+        "bg-card flex min-w-0 flex-col",
+        layout === "grid"
+          ? "rounded-xl border"
+          : "border-b last:border-b-0 sm:flex-row sm:items-stretch",
         className,
       )}
     >
@@ -89,7 +96,14 @@ export function LibraryProductRow({
           ) : null}
         </span>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-t px-4 py-3 sm:max-w-[48%] sm:justify-end sm:border-t-0 sm:border-l">
+      <div
+        className={cn(
+          "flex shrink-0 flex-wrap items-center gap-2 px-4 py-3",
+          layout === "grid"
+            ? "justify-end pt-0"
+            : "sm:max-w-[48%] sm:justify-end",
+        )}
+      >
         {actions}
       </div>
     </article>

@@ -149,6 +149,7 @@ function AnimaProfile({
   const settingsTriggerRef = useRef<HTMLButtonElement>(null);
   const backRef = useRef<HTMLButtonElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const emotionPanelId = useId();
   const reducedMotion = useReducedMotion();
 
@@ -248,9 +249,14 @@ function AnimaProfile({
     <Dialog.Portal>
       <DialogOverlay className="z-40" />
       <Dialog.Content
+        ref={dialogRef}
+        tabIndex={-1}
         className="fixed top-1/2 left-1/2 z-50 h-[min(820px,calc(100dvh-32px))] w-[640px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 outline-none"
-        onOpenAutoFocus={() => {
+        onOpenAutoFocus={(event) => {
           openerRef.current = document.activeElement as HTMLElement | null;
+          // Start at the profile itself so opening it does not focus a tooltip trigger.
+          event.preventDefault();
+          dialogRef.current?.focus();
         }}
         onCloseAutoFocus={(event) => {
           event.preventDefault();

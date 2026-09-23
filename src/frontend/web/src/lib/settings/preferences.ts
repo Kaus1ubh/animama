@@ -124,6 +124,8 @@ export type PresentationPreferences = {
 };
 
 export type SettingsPreferences = {
+  /** Keeps first-message suggestions dismissed across chats and deleted history. */
+  has_sent_chat_message?: boolean;
   memory?: MemoryPreferences;
   emotion?: PreferenceToggleSection;
   presentation?: PresentationPreferences;
