@@ -1,5 +1,6 @@
 import { MathUtils, Quaternion, Vector3 } from "three";
 import type { Avatar } from "@/lib/avatar";
+import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
 import { getPoseCreatorNormalizedBoneNode } from "./poseCreatorAuthoring";
 
 export type HandTarget = "left" | "right" | "both";
@@ -19,7 +20,7 @@ export const HAND_SEGMENTS: HandSegment[] = (
   ["thumb", "index", "middle", "ring", "little"] as const
 ).flatMap((digit) =>
   (digit === "thumb"
-    ? (["metacarpal", "proximal", "distal"] as const)
+    ? (["proximal", "distal"] as const)
     : (["proximal", "intermediate", "distal"] as const)
   ).map((segment, index) => ({
     id: `${digit}${capitalize(segment)}`,
@@ -90,19 +91,15 @@ export function adjustHandQuaternion(
     HAND_ADJUSTMENT_LIMITS[adjustment],
   );
   const sign = side === "left" ? -1 : 1;
-  // Thumb flexion crosses the palm on Y; its base abduction uses Z.
+  // Thumb flexion adducts across the palm; finger spread fans away from it.
   const axis =
     adjustment === "curl"
       ? new Vector3(
           0,
-          digit === "thumb" ? sign : 0,
+          digit === "thumb" ? -sign : 0,
           digit === "thumb" ? 0 : sign,
         )
-      : new Vector3(
-          0,
-          digit === "thumb" ? 0 : sign,
-          digit === "thumb" ? sign : 0,
-        );
+      : new Vector3(0, digit === "thumb" ? sign : -sign, 0);
   const angle = amount * (adjustment === "spread" ? spreadWeight[digit] : 1);
   return start
     .clone()
@@ -116,17 +113,30 @@ export function adjustHandQuaternion(
 export function handPresetQuaternion(
   bone: HandBone,
   preset: HandPreset,
+  avatar?: Avatar | null,
 ): Quaternion {
+  if (bone.segment.digit === "thumb") {
+    if (bone.segment.segment === "proximal" && avatar) {
+      const fitted = fitThumbPreset(avatar, bone.side, preset);
+      if (fitted) return fitted;
+    }
+    return adjustHandQuaternion(
+      new Quaternion(),
+      bone.side,
+      "thumb",
+      "curl",
+      preset === "fist"
+        ? bone.segment.segment === "proximal"
+          ? 65
+          : 40
+        : bone.segment.segment === "proximal" && preset === "open-together"
+          ? 38
+          : 0,
+    );
+  }
   let result = new Quaternion();
   if (preset === "fist") {
-    const angle =
-      bone.segment.digit === "thumb"
-        ? bone.segment.spread
-          ? 35
-          : 45
-        : bone.segment.segment === "distal"
-          ? 60
-          : 80;
+    const angle = bone.segment.segment === "distal" ? 60 : 80;
     result = adjustHandQuaternion(
       result,
       bone.side,
@@ -141,7 +151,75 @@ export function handPresetQuaternion(
       bone.side,
       bone.segment.digit,
       "spread",
-      preset === "open-spread" ? 30 : bone.segment.digit === "thumb" ? 10 : 0,
+      preset === "open-spread" ? 30 : 0,
     );
   return result;
+}
+
+/** Fit the two editable thumb joints around the retained metacarpal pose.
+ * Normalized joint offsets provide the rest directions without altering the rig.
+ */
+function fitThumbPreset(
+  avatar: Avatar,
+  side: HandSide,
+  preset: HandPreset,
+): Quaternion | null {
+  const node = (name: string) =>
+    getPoseCreatorNormalizedBoneNode(avatar, `${side}${name}`);
+  const proximal = node("ThumbProximal");
+  const distal = node("ThumbDistal");
+  const index = node("IndexProximal");
+  const indexMiddle = node("IndexIntermediate");
+  const little = node("LittleProximal");
+  if (
+    !proximal?.parent ||
+    !distal ||
+    !index?.parent ||
+    !indexMiddle ||
+    (preset === "open-spread" && !little)
+  )
+    return null;
+  const restDirection = distal.position.clone();
+  if (restDirection.lengthSq() < 1e-12) return null;
+  const parentRotation = proximal.parent.getWorldQuaternion(new Quaternion());
+  const handRotation = index.parent.getWorldQuaternion(new Quaternion());
+  let targetDirection: Vector3;
+  if (preset === "open-spread") {
+    const forward = indexMiddle.position.clone().normalize();
+    const outward = index.position.clone().sub(little!.position).normalize();
+    targetDirection = forward
+      .addScaledVector(outward, 0.85)
+      .normalize()
+      .applyQuaternion(handRotation);
+  } else {
+    const indexRotation =
+      preset === "fist"
+        ? adjustHandQuaternion(new Quaternion(), side, "index", "curl", 80)
+        : new Quaternion();
+    const target = indexMiddle.position
+      .clone()
+      .applyQuaternion(convertPoseQuaternionBasis(avatar.vrm, indexRotation))
+      .add(index.position);
+    // Aim outside the curled finger's palmward surface, not through its joint.
+    if (preset === "fist") target.y -= indexMiddle.position.length() * 0.3;
+    index.parent.updateWorldMatrix(true, false);
+    index.parent.localToWorld(target);
+    proximal.parent.updateWorldMatrix(true, false);
+    targetDirection = proximal.parent
+      .worldToLocal(target)
+      .sub(proximal.position);
+    if (targetDirection.lengthSq() < 1e-12) return null;
+    const runtime = new Quaternion().setFromUnitVectors(
+      restDirection.normalize(),
+      targetDirection.normalize(),
+    );
+    return convertPoseQuaternionBasis(avatar.vrm, runtime);
+  }
+  if (targetDirection.lengthSq() < 1e-12) return null;
+  targetDirection.applyQuaternion(parentRotation.invert()).normalize();
+  const runtime = new Quaternion().setFromUnitVectors(
+    restDirection.normalize(),
+    targetDirection,
+  );
+  return convertPoseQuaternionBasis(avatar.vrm, runtime);
 }

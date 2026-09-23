@@ -383,3 +383,45 @@ history/representation defects, and browser checks caught responsive scrolling,
 clip insertion and inline-edit integration issues missed by static render tests.
 The task stack and workspace remain available for owner acceptance; no merge or
 cleanup has been authorized.
+
+## Owner calibration follow-up — 2026-09-23
+
+New owner feedback supersedes the original 15-target/thumb-metacarpal scope:
+use 14 targets, preserve metacarpal rotations, fix thumb Fist/Together and outward
+Spread, and remove the live-edit footer. Starting revision `9ac80a3`. This is a
+bounded owner-requested calibration revision; prior phase review budgets/results
+remain recorded above. No broader re-review of resolved findings is intended.
+
+Actual bundled VRM1 joint geometry confirms the reversed finger spread and thumb
+curl signs. Thumb presets use normalized joint offsets and the current parent
+orientation so retaining a rotated metacarpal does not defeat Together alignment.
+Preset calculations remain atomic and idempotent. No saved-pose metadata changes.
+
+### Code Review #1 Findings
+
+Independent analysis of this nine-file calibration diff against `9ac80a3` found
+no actionable issues. It checked retained metacarpals, atomic/idempotent presets,
+missing-geometry fallbacks, direction mappings and panel scope.
+
+### Code Review #1 Revisions
+
+No repair required; 0/2 repair rounds used for this new owner-requested scope.
+Prior phase budgets are unchanged. Independent read-only checks passed:
+`pnpm web:check`, `pnpm web:lint`, scoped Prettier on all seven changed frontend
+files, `pnpm build`, and `git diff --check`. Full `pnpm web:test` passed with
+281 files / 1650 Vitest tests plus 3 pose-catalog and 4 Fast Refresh node tests.
+The first test run overlapped a package rebuild and failed one import suite;
+a serial rerun after the build passed. No source repair was needed. The build
+retains the existing large-chunk advisory.
+
+Fresh-page browser checks on bundled VRM1 Annie at 1280×720 verified Both Fist,
+Together and outward Spread with one metacarpal pre-rotated. Together places
+thumbs alongside fingers; the fist target includes a palmward surface offset.
+The exported metacarpal remains equivalent within 9e-10 component rounding;
+the absent opposite metacarpal stays absent. The diagram exposes only proximal
+and distal thumb targets and the footer is absent. These checks are calibration
+evidence for this model, not universal hand-shape acceptance.
+
+Previous real-VRM0 and owner acceptance gates remain open; no further fixture
+upload attempted. The existing development/HMR stack remains at
+`http://animama-hand-authoring-6f31.localhost:8280`.

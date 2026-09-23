@@ -47,12 +47,13 @@ function model(): PoseCreatorHands {
   };
 }
 describe("Hands panel", () => {
-  it("exposes 15 individual segment buttons including thumb base without shortcuts", () => {
+  it("exposes 14 segment buttons without the thumb metacarpal or shortcuts", () => {
     const html = renderToStaticMarkup(
       <PoseCreatorHandPanel hands={model()} onClose={() => {}} />,
     );
-    expect(html.match(/role="button"/g)).toHaveLength(15);
-    expect(html).toContain('aria-label="Left thumb metacarpal"');
+    expect(html.match(/role="button"/g)).toHaveLength(14);
+    expect(html).not.toContain('aria-label="Left thumb metacarpal"');
+    expect(html).toContain('aria-label="Left thumb proximal"');
     expect(html).toContain('aria-label="Left index distal"');
     expect(html).toContain("2 bones selected");
     expect(html).not.toMatch(/>Apply<|>Clear<|>All fingers</);
@@ -64,7 +65,7 @@ describe("Hands panel", () => {
       {
         ...hands.available[0],
         side: "right",
-        boneName: "rightThumbMetacarpal",
+        boneName: "rightThumbProximal",
       },
     ];
     const html = renderToStaticMarkup(
@@ -74,8 +75,8 @@ describe("Hands panel", () => {
     expect(html).toMatch(
       /aria-label="Spread selected base bones"[^>]*disabled=""/,
     );
-    expect(html).toContain("Right thumb metacarpal");
-    expect(html).toContain("Changes update the pose immediately.");
+    expect(html).toContain("Right thumb proximal");
+    expect(html).not.toContain("Changes update the pose immediately.");
   });
 });
 

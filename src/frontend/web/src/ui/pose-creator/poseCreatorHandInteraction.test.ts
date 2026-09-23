@@ -58,7 +58,7 @@ describe("hand interactions", () => {
   it("opening, selection capture and zero adjustment leave a clean draft untouched", () => {
     fixture();
     const before = usePoseCreatorStore.getState().boneDrafts;
-    controller.begin("left", ["thumbMetacarpal"], "curl");
+    controller.begin("left", ["thumbProximal"], "curl");
     controller.update(0);
     controller.end();
     expect(usePoseCreatorStore.getState().boneDrafts).toBe(before);
@@ -179,13 +179,13 @@ describe("hand interactions", () => {
     expect(usePoseCreatorStore.getState().isDirty).toBe(false);
     expect(usePoseCreatorStore.getState().poseUndoHistory).toHaveLength(0);
   });
-  it("exposes 15 distinct segments and asymmetric availability", () => {
+  it("exposes 14 distinct segments and asymmetric availability", () => {
     const { avatar, nodes } = fixture();
-    nodes.delete("rightThumbMetacarpal");
-    expect(HAND_SEGMENTS).toHaveLength(15);
-    expect(resolveHandBones(avatar, "both").available).toHaveLength(29);
+    nodes.delete("rightThumbProximal");
+    expect(HAND_SEGMENTS).toHaveLength(14);
+    expect(resolveHandBones(avatar, "both").available).toHaveLength(27);
     expect(resolveHandBones(avatar, "both").unavailable[0].boneName).toBe(
-      "rightThumbMetacarpal",
+      "rightThumbProximal",
     );
   });
   it("keeps Both asymmetry, repeated previews stable, and a single undo entry", () => {
@@ -234,11 +234,49 @@ describe("hand interactions", () => {
       0.6,
     );
   });
+  it("leaves existing thumb metacarpals unchanged across presets and adjustments", () => {
+    const { nodes } = fixture();
+    for (const side of ["left", "right"]) {
+      const node = new Object3D();
+      node.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), 0.4);
+      nodes.set(`${side}ThumbMetacarpal`, node);
+      usePoseCreatorStore.getState().setBoneDraft(`${side}ThumbMetacarpal`, {
+        baseQuaternion: [0, 0, 0, 1],
+        rotationDegrees: { x: 0, y: (0.4 * 180) / Math.PI, z: 0 },
+      });
+    }
+    const original = usePoseCreatorStore.getState().boneDrafts;
+    for (const preset of ["fist", "open-together", "open-spread"] as const) {
+      expect(controller.preset("both", preset)).toBe(true);
+      for (const side of ["left", "right"]) {
+        expect(
+          usePoseCreatorStore.getState().boneDrafts[`${side}ThumbMetacarpal`],
+        ).toEqual(original[`${side}ThumbMetacarpal`]);
+        expect(
+          nodes
+            .get(`${side}ThumbMetacarpal`)!
+            .quaternion.angleTo(
+              new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.4),
+            ),
+        ).toBeCloseTo(0);
+      }
+    }
+    expect(controller.begin("both", ["thumbMetacarpal"], "curl")).toBe(false);
+    expect(
+      controller.begin("both", ["thumbProximal", "thumbDistal"], "curl"),
+    ).toBe(true);
+    controller.update(10);
+    controller.end();
+    for (const side of ["left", "right"])
+      expect(
+        usePoseCreatorStore.getState().boneDrafts[`${side}ThumbMetacarpal`],
+      ).toEqual(original[`${side}ThumbMetacarpal`]);
+  });
   it("presets are one idempotent undoable action", () => {
     fixture();
     expect(controller.preset("left", "fist")).toBe(true);
     const first = usePoseCreatorStore.getState().boneDrafts;
-    expect(Object.keys(first)).toHaveLength(15);
+    expect(Object.keys(first)).toHaveLength(14);
     expect(controller.preset("left", "fist")).toBe(true);
     expect(usePoseCreatorStore.getState().boneDrafts).toBe(first);
     expect(usePoseCreatorStore.getState().poseUndoHistory).toHaveLength(1);

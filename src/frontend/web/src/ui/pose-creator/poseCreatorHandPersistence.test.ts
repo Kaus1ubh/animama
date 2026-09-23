@@ -141,7 +141,7 @@ describe("hand edits through existing pose content paths", () => {
     expect(exportedAgain.humanoid?.leftIndexProximal?.position).toEqual(
       draft.position,
     );
-    expect(Object.keys(exportedAgain.humanoid!)).toHaveLength(16);
+    expect(Object.keys(exportedAgain.humanoid!)).toHaveLength(15);
     for (const name of Object.keys(saved.humanoid!) as Array<
       keyof NonNullable<typeof saved.humanoid>
     >) {
@@ -188,7 +188,7 @@ describe("hand edits through existing pose content paths", () => {
     const committed = usePoseCreatorStore.getState().clipDraft.poses.hand;
     expect(committed).toHaveProperty("humanoid");
     if (!("humanoid" in committed)) throw new Error("Expected inline pose");
-    expect(Object.keys(committed.humanoid!)).toHaveLength(30);
+    expect(Object.keys(committed.humanoid!)).toHaveLength(28);
     for (const name of Object.keys(edited.humanoid!) as Array<
       keyof NonNullable<typeof edited.humanoid>
     >) {

@@ -267,7 +267,12 @@ export function createHandInteractionController() {
         // identity rotations needed to override a later clip's inherited base.
         return apply(
           captures,
-          ({ bone }) => handPresetQuaternion(bone, preset),
+          ({ bone }) =>
+            handPresetQuaternion(
+              bone,
+              preset,
+              usePoseCreatorStore.getState().activeAvatar,
+            ),
           true,
         );
       } catch (error) {

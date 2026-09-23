@@ -9,6 +9,8 @@ accepts this specification, including its interaction defaults, as the planning 
 Authoritative source: https://github.com/raymond-van/animama/issues/76.
 Snapshot captured 2026-09-23T22:04:51Z after publication and readback.
 Owner authorized all implementation phases and a development stack on 2026-09-23.
+Owner feedback on 2026-09-23 revises thumb scope to proximal/distal only, corrects
+fist/together thumb alignment and outward spread, and removes the live-edit footer.
 
 ## Problem and intended users
 
@@ -48,7 +50,7 @@ panel changes neither rotations nor document dirty state.
 
 Use the accepted mockup's order: Hands title; Left/Right/Both selector; three
 compact preset tiles; selectable hand diagram and selection summary; named
-adjustments; a short live-edit hint. Reduce section gaps, preset padding and
+adjustments. Omit the live-edit footer. Reduce section gaps, preset padding and
 diagram height relative to the mockup. Preserve legibility and distinct bone hit
 targets rather than uniformly shrinking the interface. Avoid unnecessary section
 headings or repeated explanatory text.
@@ -66,10 +68,10 @@ Left and Right refer to the Avatar's own sides. Selecting Both targets the
 corresponding bones on both hands; it does not copy one hand onto the other.
 Changing the target or selection never changes the pose.
 
-Use a plain hand schematic with separate selectable targets for three bones in
-each digit. For the four fingers, these are proximal, intermediate and distal;
-for the thumb, metacarpal, proximal and distal, including its base within the
-palm. Each target toggles independently without a modifier key. Users can select
+Use a plain hand schematic with 14 selectable targets: proximal, intermediate
+and distal for each of the four fingers, and proximal/distal for the thumb.
+The thumb metacarpal is not selectable and helper operations preserve its current
+rotation. Each target toggles independently without a modifier key. Users can select
 any combination across digits. The palm/wrist is not an editable target.
 
 Show selected segments and a concise selection summary with correct digit/segment
@@ -84,10 +86,10 @@ focus; selection cannot rely on color alone.
 
 ### R3 — Hand presets
 
-Provide Fist, Open · spread and Open · together. A preset replaces the finger
+Provide Fist, Open · spread and Open · together. A preset replaces the eligible finger
 rotations of the selected hand(s), regardless of diagram selection. Make that
 whole-hand scope apparent through a concise tooltip or accessible description.
-Preserve wrists, arms, other body bones, bone positions and expressions.
+Preserve thumb metacarpals, wrists, arms, other body bones, bone positions and expressions.
 
 Presets are immediate actions, not persistent modes or inferred classifications.
 Selecting the same preset repeatedly must not accumulate rotation. Apply Both
@@ -102,9 +104,10 @@ selected eligible base segments. If a selection mixes base and other segments,
 Spread changes only the bases and identifies that scope. Disable an adjustment
 with a concise reason when no selected available bone supports it.
 
-Thumb mappings must reflect thumb anatomy: curl bends its selected segments,
-and base spread moves the thumb across the palm or outward. Do not treat its
-base like a non-thumb knuckle or spread middle/tip finger joints. Exact rotation
+Thumb Curl bends its selected proximal/distal segments inward; Spread acts on
+the thumb proximal and fans it outward. Together aligns the thumb alongside the
+fingers, while Fist folds it against the curled fingers. Presets account for the
+retained metacarpal orientation. Do not spread finger middle/tip joints. Exact rotation
 mapping, ranges and preset angles require validation on supported Avatars.
 
 Adjustments operate relative to each affected bone's current rotation. A drag
@@ -122,8 +125,8 @@ rendered preview. Preserve unrelated rotations and transforms.
 
 ### R5 — Live editing, lifecycle and recovery
 
-No Hands-panel Apply or tool-reset confirmation is needed. State that changes update the
-pose immediately. Changing selected bones or hand target lets the user continue
+No Hands-panel Apply or tool-reset confirmation is needed. Changes update the
+pose immediately without a footer stating this. Changing selected bones or hand target lets the user continue
 editing without discarding earlier changes. Closing Hands preserves edits;
 existing Save remains responsible for persistence.
 
@@ -179,7 +182,7 @@ Preserve Included immutability and existing Local save/conflict/failure behavior
       sidebar and Bones, with other pose controls present. Owner visual review
       confirms the more compact layout without cramped selection targets.
 - [ ] **R2:** Individual segment and keyboard selection work across all digits,
-      including the thumb base. Correct names, side orientation, selection states
+      including both editable thumb segments. Correct names, side orientation, selection states
       and Both correspondence are verified. No selection shortcuts appear.
 - [ ] **R3–R4:** Focused tests establish preset idempotence, selected-bone scope,
       unchanged unrelated transforms, relative adjustment without drift, preserved

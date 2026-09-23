@@ -18,11 +18,11 @@ const digits = {
   middle: { x: 102, y: 23 },
   index: { x: 138, y: 40 },
 };
-/** Schematic normalized anatomy: the thumb's metacarpal remains inside the palm. */
+/** The thumb metacarpal stays part of the palm, outside the helper's controls. */
 function segmentPosition(segment: HandSegment) {
   if (segment.digit === "thumb") {
-    const index = ["metacarpal", "proximal", "distal"].indexOf(segment.segment);
-    return { x: 150 + index * 19, y: 187 - index * 24, angle: 38 };
+    const index = ["proximal", "distal"].indexOf(segment.segment);
+    return { x: 169 + index * 19, y: 163 - index * 24, angle: 38 };
   }
   const digit = digits[segment.digit];
   const index = ["distal", "intermediate", "proximal"].indexOf(segment.segment);
@@ -262,8 +262,7 @@ export function PoseCreatorHandPanel({
                   }}
                 >
                   <title>
-                    {segment.label}
-                    {!available ? " — unavailable" : ""}
+                    {`${segment.label}${!available ? " — unavailable" : ""}`}
                   </title>
                   <rect
                     x="-3"
@@ -328,9 +327,6 @@ export function PoseCreatorHandPanel({
           {hands.error}
         </p>
       ) : null}
-      <p className="text-muted-foreground border-border/70 border-t pt-2 text-[10px]">
-        Changes update the pose immediately.
-      </p>
     </section>
   );
 }
