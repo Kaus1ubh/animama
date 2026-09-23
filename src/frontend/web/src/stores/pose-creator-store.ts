@@ -1,8 +1,9 @@
 "use client";
 
 import { VRMHumanBoneList, type VRMHumanBoneName } from "@pixiv/three-vrm";
-import { Euler, MathUtils } from "three";
+import { Euler, MathUtils, Quaternion } from "three";
 import { create } from "zustand";
+import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
 
 import {
   parseAnimaPoseClip,
@@ -655,17 +656,27 @@ function reapplyPoseUndoSnapshotToAvatar(
   for (const [boneName, draft] of Object.entries(state.boneDrafts)) {
     vrm.humanoid
       .getNormalizedBoneNode(boneName as VRMHumanBoneName)
-      ?.quaternion.fromArray(draft.baseQuaternion);
+      ?.quaternion.copy(
+        convertPoseQuaternionBasis(
+          vrm,
+          new Quaternion(...draft.baseQuaternion),
+        ),
+      );
   }
   for (const [boneName, draft] of Object.entries(snapshot.boneDrafts)) {
     vrm.humanoid
       .getNormalizedBoneNode(boneName as VRMHumanBoneName)
-      ?.quaternion.setFromEuler(
-        new Euler(
-          MathUtils.degToRad(draft.rotationDegrees.x),
-          MathUtils.degToRad(draft.rotationDegrees.y),
-          MathUtils.degToRad(draft.rotationDegrees.z),
-          "XYZ",
+      ?.quaternion.copy(
+        convertPoseQuaternionBasis(
+          vrm,
+          new Quaternion().setFromEuler(
+            new Euler(
+              MathUtils.degToRad(draft.rotationDegrees.x),
+              MathUtils.degToRad(draft.rotationDegrees.y),
+              MathUtils.degToRad(draft.rotationDegrees.z),
+              "XYZ",
+            ),
+          ),
         ),
       );
   }

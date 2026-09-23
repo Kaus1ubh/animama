@@ -34,8 +34,10 @@ export function usePoseCreatorHands(enabled: boolean) {
   const [value, setValue] = useState(0);
   const [adjustment, setAdjustment] = useState<HandAdjustment | null>(null);
   const active = useRef<HandAdjustment | null>(null);
+  // The inline keyframe editor keeps the owning store in Clip mode.
+  const poseEditing = mode === "pose" || Boolean(inlineIdentity);
   const canEdit =
-    enabled && mode === "pose" && loadStatus === "ready" && Boolean(avatar);
+    enabled && poseEditing && loadStatus === "ready" && Boolean(avatar);
 
   useEffect(() => {
     const instance = createHandInteractionController();
@@ -73,8 +75,8 @@ export function usePoseCreatorHands(enabled: boolean) {
       setValue(0);
       setAdjustment(null);
     }
-    if (!enabled || mode !== "pose") setOpenState(false);
-  }, [canEdit, enabled, mode]);
+    if (!enabled || !poseEditing) setOpenState(false);
+  }, [canEdit, enabled, poseEditing]);
   useEffect(() => {
     active.current = null;
     setValue(0);
@@ -96,7 +98,7 @@ export function usePoseCreatorHands(enabled: boolean) {
     selectedAvailable,
     setOpen(next: boolean) {
       end();
-      setOpenState(next && enabled && mode === "pose");
+      setOpenState(next && enabled && poseEditing);
     },
     setTarget(next: HandTarget) {
       end();

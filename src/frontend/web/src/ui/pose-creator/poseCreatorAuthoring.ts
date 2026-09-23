@@ -21,6 +21,7 @@ import {
   resolveAnimaPose,
   type AnimaPose,
 } from "@/lib/avatar";
+import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
 import { readAvatarExpressionValue } from "@/lib/avatar/expressionUtils";
 import { POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID } from "@/stores/pose-creator-store";
 import type {
@@ -113,7 +114,9 @@ export function readPoseCreatorBoneRows(
       rawNodeName: rawNode?.name || null,
       normalizedNodeName: normalizedNode?.name || null,
       currentEulerDegrees: normalizedNode
-        ? quaternionToEulerDegrees(normalizedNode.quaternion)
+        ? quaternionToEulerDegrees(
+            convertPoseQuaternionBasis(avatar?.vrm, normalizedNode.quaternion),
+          )
         : null,
       draft: boneDrafts[boneName] ?? null,
     };
@@ -238,7 +241,9 @@ export function captureBoneBaseQuaternion(
 ): PoseCreatorQuaternionTuple | null {
   const normalizedNode = getPoseCreatorNormalizedBoneNode(avatar, boneName);
   if (!normalizedNode) return null;
-  return quaternionToTuple(normalizedNode.quaternion);
+  return quaternionToTuple(
+    convertPoseQuaternionBasis(avatar?.vrm, normalizedNode.quaternion),
+  );
 }
 
 /** Reads the selected normalized bone using the Pose Creator's canonical XYZ Euler basis. */
@@ -248,7 +253,9 @@ export function readPoseCreatorBoneRotationDegrees(
 ): PoseCreatorRotationDegrees | null {
   const normalizedNode = getPoseCreatorNormalizedBoneNode(avatar, boneName);
   return normalizedNode
-    ? quaternionToEulerDegrees(normalizedNode.quaternion)
+    ? quaternionToEulerDegrees(
+        convertPoseQuaternionBasis(avatar?.vrm, normalizedNode.quaternion),
+      )
     : null;
 }
 
@@ -260,7 +267,10 @@ export function applyBoneDraft(
   const normalizedNode = getPoseCreatorNormalizedBoneNode(avatar, boneName);
   if (!normalizedNode) return false;
   normalizedNode.quaternion.copy(
-    quaternionFromRotationDegrees(draft.rotationDegrees),
+    convertPoseQuaternionBasis(
+      avatar?.vrm,
+      quaternionFromRotationDegrees(draft.rotationDegrees),
+    ),
   );
   avatar?.vrm?.update(0);
   return true;
@@ -273,7 +283,12 @@ export function restoreBoneBaseQuaternion(
 ): boolean {
   const normalizedNode = getPoseCreatorNormalizedBoneNode(avatar, boneName);
   if (!normalizedNode) return false;
-  normalizedNode.quaternion.copy(quaternionFromTuple(draft.baseQuaternion));
+  normalizedNode.quaternion.copy(
+    convertPoseQuaternionBasis(
+      avatar?.vrm,
+      quaternionFromTuple(draft.baseQuaternion),
+    ),
+  );
   avatar?.vrm?.update(0);
   return true;
 }

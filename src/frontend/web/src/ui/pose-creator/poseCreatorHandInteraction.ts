@@ -1,4 +1,5 @@
 import { Euler, MathUtils, Quaternion } from "three";
+import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
 import {
   usePoseCreatorStore,
   type PoseCreatorBoneDraft,
@@ -6,7 +7,6 @@ import {
 import {
   createBoneDraft,
   getPoseCreatorNormalizedBoneNode,
-  isBoneDraftAtBase,
 } from "./poseCreatorAuthoring";
 import {
   adjustHandQuaternion,
@@ -92,7 +92,7 @@ export function createHandInteractionController() {
     if (
       !state.activeAvatar ||
       state.loadStatus !== "ready" ||
-      state.authoringMode !== "pose"
+      (state.authoringMode !== "pose" && !state.clipInlineEdit)
     )
       throw new Error("Wait for the Avatar to load before editing hands.");
     return resolveHandBones(state.activeAvatar, target, ids).available.map(
@@ -111,7 +111,10 @@ export function createHandInteractionController() {
                 "XYZ",
               ),
             )
-          : node.quaternion.clone();
+          : convertPoseQuaternionBasis(
+              state.activeAvatar?.vrm,
+              node.quaternion,
+            );
         const draft = createBoneDraft(
           state.activeAvatar,
           bone.boneName,
@@ -133,6 +136,7 @@ export function createHandInteractionController() {
   const apply = (
     captures: Capture[],
     calculate: (capture: Capture) => Quaternion,
+    retainExplicit = false,
   ) => {
     const state = usePoseCreatorStore.getState();
     const prepared = captures.map((entry) => {
@@ -161,13 +165,15 @@ export function createHandInteractionController() {
         },
       };
     });
+    // A changed-to-base rotation is intentional content, unlike returning to
+    // the captured start. Keep it explicit so clip inheritance cannot bend it.
     const updates = Object.fromEntries(
       prepared.map((entry) => [
         entry.bone.boneName,
-        entry.quaternion.angleTo(entry.captureQuaternion) < 1e-7
-          ? entry.originalDraft
-          : isBoneDraftAtBase(entry.draft)
-            ? null
+        retainExplicit
+          ? entry.draft
+          : entry.quaternion.angleTo(entry.captureQuaternion) < 1e-7
+            ? entry.originalDraft
             : entry.draft,
       ]),
     );
@@ -176,7 +182,9 @@ export function createHandInteractionController() {
       if (!state.setBoneDraftBatch(updates))
         throw new Error("Invalid hand rotation. The pose was left unchanged.");
       for (const entry of prepared)
-        entry.node.quaternion.copy(entry.quaternion);
+        entry.node.quaternion.copy(
+          convertPoseQuaternionBasis(state.activeAvatar?.vrm, entry.quaternion),
+        );
       state.activeAvatar?.vrm?.update(0);
     } finally {
       ownWrite = false;
@@ -255,8 +263,12 @@ export function createHandInteractionController() {
           throw new Error(
             "Finish the current pose edit before applying a hand preset.",
           );
-        return apply(captures, ({ bone }) =>
-          handPresetQuaternion(bone, preset),
+        // Presets explicitly replace all available finger channels, including
+        // identity rotations needed to override a later clip's inherited base.
+        return apply(
+          captures,
+          ({ bone }) => handPresetQuaternion(bone, preset),
+          true,
         );
       } catch (error) {
         return fail(error);

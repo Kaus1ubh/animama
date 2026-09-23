@@ -453,6 +453,13 @@ and atomically updates readable Local files. Save & Equip uses the saved catalog
 selection in the reviewed Anima loadout flow. Existing and starter Actions use
 typed preview reads to hydrate protected files and dependency runtime.
 
+Gesture Pose mode's Hands tool edits ordinary finger-bone drafts. Presets replace
+the chosen whole hand(s); Curl and Spread apply relative deltas to selected
+segments. Returning a control to zero after release leaves the pose unchanged.
+Both adjusts each hand from its own current values independently of the
+single-bone mirror option. Selection and tool visibility are transient; Save and
+inline keyframe completion use the existing pose contract without helper metadata.
+
 `CreatorTimeline` supplies controlled transport and track presentation to Gesture,
 Reaction and all three VFX creators. Each editor retains its own playback owner:
 Particle exposes its elapsed preview clock, while Avatar/Scene rulers show saved

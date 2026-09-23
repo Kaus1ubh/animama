@@ -6,7 +6,7 @@ Authorized scope: All three phases and local development stack, authorized by
 the owner on 2026-09-23 through implement. Parent spec: https://github.com/raymond-van/animama/issues/76.
 Starting revision: `98220eae162651207960ffa9657aa54581a80265`.
 Branch: retain `docs/hand-authoring-spec` in the assigned task worktree; one branch
-and one PR for this plan. Parent #76; phases #77, #78 and #79. Phase 1 commit `f8906e7`; Phase 2 commit pending; PR pending.
+and one PR for this plan. Parent #76; phases #77, #78 and #79. Phase 1 commit `f8906e7`; Phase 2 commit `343ce0f`; PR pending.
 
 ## Purpose and context
 
@@ -45,7 +45,8 @@ Paths below are relative to `src/frontend/web/src/`:
 - [x] Phase 1: Atomic hand transformations and undo behavior; review #2 passed.
 - [x] Phase 2: Compact accessible panel integrated; targeted review #2 passed.
 - [ ] Phase 3: Calibrated Avatar behavior, persistence and final acceptance evidence.
-- [ ] Final integration review, PR and owner visual acceptance.
+- [x] Bounded final integration code review; two repair rounds completed.
+- [ ] PR hosted checks and owner visual acceptance.
 
 ## Surprises & Discoveries
 
@@ -213,7 +214,7 @@ change to meet these cases without redefining the accepted behavior.
 Completion: complete panel workflow is usable and tested; independent review
 passes. Capture a compactness comparison for Phase 3 owner review.
 
-Evidence: Issue #78; starting SHA `f8906e7`; commit pending. Independent six-file
+Evidence: Issue #78; starting SHA `f8906e7`; commit `343ce0f`. Independent six-file
 focused suite passed 34 tests; web TypeScript and full web lint passed. Two panel
 slot regressions and one layout regression were observed red before implementation.
 After repair, panel/controller tests passed 18 tests and panel/workspace passed 15;
@@ -279,15 +280,50 @@ and the owner confirms compact layout and usable bone targets. Missing real-mode
 coverage or owner visual review remains pending; do not silently substitute tests
 or generated mockups. Merge requires separate exact-candidate owner approval.
 
-Evidence: Issue #79; starting SHA pending; commit/PR pending; checks not run.
+Evidence: Issue #79; starting SHA `343ce0f`; commit/PR pending. Three initial
+persistence tests passed; browser save/reopen and pasted-JSON roundtrip preserved
+all 20 authored channels exactly, with no helper keys. Opening/closing the saved
+pose retained Saved status and empty Undo history. A Gesture copy exposed omitted
+intentional identity rotations inheriting the clip base; two new regressions fail
+before correction. Presets now retain explicit identity drafts. Static integration
+analysis also found VRM 0 authoring using runtime-basis nodes directly while
+playback retargets canonical rotations. Shared normalized read/write conversion
+now keeps previews, Inherit and Undo consistent with canonical saved content.
+Three VRM 0 regressions failed before correction; six version-basis tests pass. Initial complete local check: `pnpm check`
+passed; `pnpm web:test` passed 279 files/1622 tests plus 7 script tests after
+rerunning with loopback permissions (the sandbox run failed HTTP fixture binds).
+Root `make format-check` passed 513 files. After the final repair, `pnpm check`,
+`pnpm web:lint`, `pnpm web:test` (all tests) and `pnpm build` passed on the integrated
+source. Build retains its existing large-chunk advisory. No native package, paid
+model call or hosted CI result is implied by these local checks.
+
+Documentation review: add one paragraph to the existing Avatar authoring guide
+clarifying relative zero, preset scope, Both and ordinary persistence. No new
+manual or architecture decision is needed.
 
 #### Code Review #1 Findings
 
-Not started. Record reviewed revision, findings and result here.
+Initial combined Phase 3/integration review found HA-P3-01: relative straightening
+still removed deliberate zero channels after the preset-only fix. Accepted.
+After repair, the browser found HA-P3-02: existing inline editing retains store
+mode `clip`, so the helper's pose-only editability check incorrectly disabled it.
 
 #### Code Review #1 Revisions
 
-Not started. Record dispositions, fixes and recheck evidence; repair rounds used: 0/2.
+Repair 1: actual relative edits retain explicit drafts; no-op/return-to-start keeps
+original representation. Fist → selected −80° → export/insertion failed before
+fix and passed afterward; 27 focused tests, TypeScript and scoped lint passed.
+Targeted review #2 passed HA-P3-01.
+Repair 2: hook and controller allow active inline editing while the store stays
+in Clip mode; ordinary Clip playback remains excluded. The actual hydrated-clip
+lifecycle and hook eligibility tests both failed before correction. Final focused
+suite passed 22 tests; TypeScript, scoped ESLint and formatting passed. Independent
+targeted review #3 passed. A fresh browser instance then verified Left Open ·
+together in a reopened Gesture, Pose-to-Clip completion with explicit identity
+finger rotations, one-step Undo restoring the previous fist, Redo and Save.
+An older HMR session retained stale interaction closures; final verification used
+a fresh page instance rather than treating that session as final-source evidence.
+Repair rounds used: 2/2. Code analysis passes; anatomy/owner acceptance is pending.
 
 ## Final integration review
 
@@ -298,11 +334,15 @@ Reuse still-valid phase results instead of repeating every check.
 
 ### Code Review #1 Findings
 
-Not started; final revision and result pending.
+Combined with Phase 3 review to reuse phase evidence. HA-P3-01 and HA-P3-02 are
+the supported integration defects; no other concrete issue was found. Acceptance
+remains incomplete while real-model anatomy and owner visual gates are pending.
 
 ### Code Review #1 Revisions
 
-Not started; repair rounds used: 0/2. Record accepted fixes and targeted rechecks.
+Repair history is recorded above; combined repair budget 2/2. Final targeted
+review #3 passes code analysis. Fresh-browser inline confirmation passes. Overall
+acceptance remains incomplete until real-model anatomy and owner layout review.
 
 ## Validation and acceptance
 
@@ -312,9 +352,11 @@ spec remains the acceptance checklist; do not mark an unchecked outcome complete
 based solely on a phase commit. No application tests, stack startup or visual
 validation were performed during plan authoring.
 
-Outstanding gates: real VRM 0.x/1.x anatomical
-verification; owner compact-layout acceptance; applicable local checks and actual
-hosted CI; independent integration review; exact-candidate merge approval.
+Outstanding gates: comprehensive real VRM 0.x/1.x anatomical verification and
+actual pointer-cancellation browser coverage; owner compact-layout acceptance;
+actual hosted CI; exact-candidate merge approval. Bundled VRM 1.x rendering and
+preset smoke checks are not full per-joint calibration. VRM 0 import was denied.
+Applicable local checks and bounded independent code review have passed.
 No unresolved product decision blocks the proposed phases. Calibration details
 are bounded implementation work; inability to meet the spec must be surfaced.
 
@@ -333,9 +375,10 @@ are bounded implementation work; inability to meet the spec must be surfaced.
 
 ## Outcomes & Retrospective
 
-Plan prepared; implementation and acceptance remain pending. Independent planning
-review found no material missing phase or gate; its session-identity and batch-update
-clarifications are included above. Spec status/defaults consistently record the
-ExecPlan request as acceptance for planning. Local artifact link and whitespace
-checks passed. This planning review does not consume implementation review rounds.
-Update with delivered behavior, evidence, deviations and residual limits as work progresses.
+Phases 1 and 2 are implemented and reviewed. Phase 3 added durable explicit-zero
+rotations and a shared canonical/runtime quaternion boundary; remaining final
+verification and real-model/owner acceptance are recorded above. Tests caught
+history/representation defects, and browser checks caught responsive scrolling,
+clip insertion and inline-edit integration issues missed by static render tests.
+The task stack and workspace remain available for owner acceptance; no merge or
+cleanup has been authorized.
