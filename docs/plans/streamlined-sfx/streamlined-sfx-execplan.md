@@ -141,8 +141,8 @@ Local evidence:
   `pnpm build` passed. Check/build reran after final repairs; affected tests, lint
   and read-only Prettier checks also passed. The build reports existing large chunks.
 - Python 3.12 with task `PYTHONPATH=src/backend`: `pytest -q
-  tests/test_content_audio.py tests/test_typed_content_save_replay.py
-  tests/test_typed_content_apis.py tests/test_content_type_handlers.py` passed 61 tests.
+tests/test_content_audio.py tests/test_typed_content_save_replay.py
+tests/test_typed_content_apis.py tests/test_content_type_handlers.py` passed 61 tests.
 - `pytest -q tests/test_content_save_service.py tests/test_local_content_catalog.py`:
   12 catalog revision, dependency and delete tests passed using isolated
   PostgreSQL test containers. Initial sandbox Docker access failure was resolved
