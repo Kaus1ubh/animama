@@ -2,13 +2,114 @@ import type { Locator, Page } from "playwright/test";
 
 import { expect, test } from "../fixtures/animama";
 import { openCreatorStage } from "../helpers/creator-surfaces";
-import { readPlaybackObservation } from "../helpers/playback-observation";
+import {
+  OBSERVATION_SAMPLE_INTERVAL_MS,
+  readPlaybackObservation,
+  type PlaybackObservation,
+} from "../helpers/playback-observation";
 import { ReadOnlyJourneyGuard } from "../helpers/preview-network";
-import { openAnnieLoadoutPreview } from "../helpers/preview-surfaces";
+import {
+  openAnnieLoadoutPreview,
+  prepareLibraryPreview,
+} from "../helpers/preview-surfaces";
 
 const viewport = { width: 1600, height: 1000 };
 
 test.use({ viewport });
+
+test("accountless avatar effect Library Edit keeps Eye = playing through creator rerenders", async ({
+  page,
+  animamaEvidence,
+  creatorContent,
+}) => {
+  const catalogBefore = await creatorContent.snapshotLocalCatalog();
+  const guard = new ReadOnlyJourneyGuard(page);
+  const samples: PlaybackObservation[] = [];
+  try {
+    await prepareLibraryPreview({
+      contentName: "Eye =",
+      page,
+      section: "avatar",
+    });
+    await page
+      .getByRole("article", { name: "Eye =", exact: true })
+      .getByRole("link", { name: "Edit", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/a\/avatar-effects\/[^/?#]+/);
+    const surface = page.locator('[data-playback-surface="creator-stage"]');
+    await expect(surface).toHaveCount(1);
+    await expect
+      .poll(
+        async () => (await readPlaybackObservation(surface)).target.status,
+        {
+          timeout: 30_000,
+        },
+      )
+      .toBe("playing");
+
+    // A single Playing snapshot can catch the flicker. Require sustained
+    // activation across unrelated parent renders and an explicit stop/replay.
+    for (const phase of ["initial", "guides", "replay"]) {
+      if (phase === "guides") {
+        await page
+          .getByRole("switch", { name: "Show placement guides", exact: true })
+          .click();
+      } else if (phase === "replay") {
+        await page
+          .getByRole("button", { name: "Stop preview", exact: true })
+          .click();
+        await expect
+          .poll(async () => {
+            const observation = await readPlaybackObservation(surface);
+            return {
+              status: observation.target.status,
+              effects: observation.effects.avatar.length,
+            };
+          })
+          .toEqual({ status: "stopped", effects: 0 });
+        await page
+          .getByRole("button", { name: "Play preview", exact: true })
+          .click();
+        await expect
+          .poll(
+            async () => (await readPlaybackObservation(surface)).target.status,
+          )
+          .toBe("playing");
+      }
+      for (let index = 0; index < 10; index += 1) {
+        await page.waitForTimeout(OBSERVATION_SAMPLE_INTERVAL_MS);
+        const observation = await readPlaybackObservation(surface);
+        samples.push(observation);
+        expect(observation.target, phase).toEqual({
+          kind: "avatar_vfx",
+          runtimeId: "Eye =",
+          status: "playing",
+        });
+        expect(observation.effects.avatar, phase).toHaveLength(1);
+        expect(observation.effects.avatar[0], phase).toMatchObject({
+          runtimeId: "avatar-effect-editor-preview",
+          active: true,
+        });
+        expect(observation.diagnostics, phase).toEqual([]);
+      }
+    }
+  } finally {
+    await animamaEvidence.attachJson(
+      "avatar-effect-editor-stable-playback",
+      samples,
+    );
+    try {
+      await guard.assertNoMutations(animamaEvidence);
+      await creatorContent.assertLocalCatalogUnchanged(
+        catalogBefore,
+        animamaEvidence,
+        "avatar-effect-editor-preview",
+      );
+    } finally {
+      await guard.dispose();
+    }
+  }
+});
 
 /** Measure the painted background separately from the avatar's unchanged stage. */
 async function expectViewportBackground(page: Page): Promise<Locator> {

@@ -1548,7 +1548,8 @@ CONTENT_TYPE_HANDLERS = ContentTypeHandlerRegistry(
             ContentKindDefinition(
                 ContentKind.AVATAR_EFFECT,
                 "vfx/avatar",
-                frozenset({".png", ".jpg", ".jpeg", ".webp", ".svg"}),
+                # Images are effect resources; only authored descriptors define playback.
+                frozenset(),
                 ".json",
                 "avatar_effect",
             )

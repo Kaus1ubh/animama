@@ -149,6 +149,11 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   const [importError, setImportError] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  // Snapshot updates must not recreate the definition and restart playback.
+  const previewEffect = useMemo(
+    () => (imageUrl ? safeRuntimeEntry(document, imageUrl) : null),
+    [document, imageUrl],
+  );
   const [soundPreview, setSoundPreview] = useState<PyContentPreview | null>(
     null,
   );
@@ -544,7 +549,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
               <AvatarEffectPreviewActor
                 entry={modelPreview.modelEntry}
                 entryKey={modelPreview.modelEntryKey}
-                effect={imageUrl ? safeRuntimeEntry(document, imageUrl) : null}
+                effect={previewEffect}
                 playing={playing}
                 revision={previewRevision}
                 onAvatarChange={setPreviewAvatar}
@@ -1537,8 +1542,9 @@ function AvatarEffectPreviewActor({
     if (playing) avatar?.vfxController?.update(delta);
   });
 
+  // The Avatar exists before its async model load creates the VFX controller.
+  const controller = avatar?.vfxController;
   useEffect(() => {
-    const controller = avatar?.vfxController;
     if (!controller || !effect || !playing) {
       controller?.clearAllEffects();
       onSnapshot(controller?.getSnapshot() ?? null);
@@ -1589,7 +1595,14 @@ function AvatarEffectPreviewActor({
       unsubscribe();
       controller.removeEffect(PREVIEW_EFFECT_ID);
     };
-  }, [avatar, effect, onCompatibilityChange, onSnapshot, playing, revision]);
+  }, [
+    controller,
+    effect,
+    onCompatibilityChange,
+    onSnapshot,
+    playing,
+    revision,
+  ]);
 
   if (!sceneObject) return null;
   return <primitive object={sceneObject} dispose={null} />;
