@@ -63,7 +63,7 @@ import {
   removeActionDependency,
 } from "./actionDependencies";
 import {
-  actionDocumentForPersistence,
+  captureActionDocumentForSave,
   canonicalizeActionComponentInsertion,
 } from "./actionPersistence";
 import { ActionEditorPreviewProvider } from "./ActionEditorPreviewProvider";
@@ -85,7 +85,10 @@ import {
   type ActionDocument,
   type ActionIntent,
 } from "./actionDocument";
-import { actionEditorCapabilities } from "./actionEditorCapabilities";
+import {
+  actionEditorCapabilities,
+  loadedActionEditorMode,
+} from "./actionEditorCapabilities";
 import { loadCreatorPreviewFile } from "@/lib/content/contentEditorSource";
 import {
   isCustomizableStarterAction,
@@ -179,7 +182,11 @@ export function ActionEditorPage({
   const [rootPreviewDependencyDigest, setRootPreviewDependencyDigest] =
     useState<string | null>(null);
   const capabilities = actionEditorCapabilities(intent);
-  const [mode, setMode] = useState(capabilities.defaultMode);
+  const [mode, setMode] = useState(
+    itemId
+      ? loadedActionEditorMode(intent, document.implementation)
+      : capabilities.defaultMode,
+  );
   const hydrated = useRef(false);
   const hydrating = useRef(false);
   const [hydrationReady, setHydrationReady] = useState(false);
@@ -361,9 +368,7 @@ export function ActionEditorPage({
         if (item.origin === "builtin")
           cleanDigest.current = "__included_copy__";
         replaceLoadedDocument(next, item.origin === "owned");
-        setMode(
-          next.implementation === "vrma" ? "vrma" : capabilities.defaultMode,
-        );
+        setMode(loadedActionEditorMode(intent, next.implementation));
         if (discardCurrentRecovery && userId) {
           clearActionRecovery(
             window.localStorage,
@@ -386,7 +391,6 @@ export function ActionEditorPage({
     },
     [
       actions.starterPreview,
-      capabilities.defaultMode,
       clearSaveFailure,
       createDocument,
       intent,
@@ -444,6 +448,7 @@ export function ActionEditorPage({
     setRootPreviewDependencyDigest(null);
     setPreviewRuntime(null);
     replaceLoadedDocument(recovery.document);
+    setMode(loadedActionEditorMode(intent, recovery.document.implementation));
     if (recovery.itemId !== itemId) setActiveItemId(null);
     if (
       recovery.itemId &&
@@ -532,19 +537,22 @@ export function ActionEditorPage({
 
   useEffect(() => {
     if (document.implementation === "vrma") setMode("vrma");
-    else if (mode === "vrma") setMode(capabilities.defaultMode);
-  }, [capabilities.defaultMode, document.implementation, mode]);
+    else if (mode === "vrma")
+      setMode(loadedActionEditorMode(intent, document.implementation));
+  }, [intent, document.implementation, mode]);
 
   /** Capture the live timeline before any preview or catalog Save. */
-  const capturePersistenceDocument = useCallback(() => {
-    const next = actionDocumentForPersistence(
-      documentRef.current,
-      usePoseCreatorStore.getState().clipDraft,
+  const capturePersistenceDocument = async () => {
+    const next = await captureActionDocumentForSave(
+      () => documentRef.current,
+      () => usePoseCreatorStore.getState().clipDraft,
+      () => actions.allocateDefaultName("New Reaction"),
     );
     documentRef.current = next;
+    setDocument(next);
     historyRef.current.commit(actionAuthoringSnapshot(next));
     return next;
-  }, []);
+  };
 
   const ensureSession = async (currentDocument: ActionDocument) => {
     const operationId = crypto.randomUUID();
@@ -572,7 +580,8 @@ export function ActionEditorPage({
     // Live validation belongs to the document, not a cached save failure.
     let currentDocument: ActionDocument;
     try {
-      currentDocument = capturePersistenceDocument();
+      setSaveStage("preparing");
+      currentDocument = await capturePersistenceDocument();
     } catch (cause) {
       // Serialization can fail before live document validation runs.
       setSaveStage("idle");
@@ -580,6 +589,7 @@ export function ActionEditorPage({
     }
     const currentIssues = validateActionDocument(currentDocument);
     if (currentIssues.length) {
+      setSaveStage("idle");
       const description = currentIssues.map((issue) => issue.message).join(" ");
       toast.error(
         `Complete the required ${intent === "gesture" ? "Gesture" : "Reaction"} details.`,
@@ -806,7 +816,7 @@ export function ActionEditorPage({
       }
       setVrma(null);
       setValidationAttempted(false);
-      setMode(capabilities.defaultMode);
+      setMode(loadedActionEditorMode(intent, next.implementation));
       setDocument((documentState) => ({
         ...documentState,
         name: next.name,
@@ -821,7 +831,7 @@ export function ActionEditorPage({
       historyRef.current.commit(actionAuthoringSnapshot(next));
       setTimelineSession((value) => value + 1);
     },
-    [capabilities.defaultMode, identity, intent],
+    [identity, intent],
   );
   const startNew = useCallback(async () => {
     const next = createDocument();

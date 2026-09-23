@@ -1,12 +1,16 @@
 import { toast } from "sonner";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { loadPoseContent, poseSavedIdentity } from "@/lib/content/poseContent";
+import { fetchPoseNames } from "@/query/hooks/usePoses";
 import type { ActionEditorMode } from "./actionEditorCapabilities";
 import {
   POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
   usePoseCreatorStore,
 } from "@/stores/pose-creator-store";
-import { replacePoseCreatorDraftWithAnimaPose } from "@/ui/pose-creator/poseCreatorAuthoring";
+import {
+  createUniquePoseCreatorBranchName,
+  replacePoseCreatorDraftWithAnimaPose,
+} from "@/ui/pose-creator/poseCreatorAuthoring";
 import { confirmPoseCreatorDirtyReplacement } from "@/ui/pose-creator/poseCreatorDirtyGuard";
 
 let poseLoadRequest = 0;
@@ -31,7 +35,11 @@ export async function editActionEditorSavedPose(
     return false;
   const request = ++poseLoadRequest;
   try {
-    const document = await loadPoseContent(item);
+    const copy = options.customize || item.source === "included";
+    const [document, existingNames] = await Promise.all([
+      loadPoseContent(item),
+      copy ? fetchPoseNames() : Promise.resolve([]),
+    ]);
     const current = usePoseCreatorStore.getState();
     if (
       request !== poseLoadRequest ||
@@ -51,9 +59,10 @@ export async function editActionEditorSavedPose(
       POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
     );
     current.cancelClipInlinePoseEdit();
-    const copy = options.customize || item.source === "included";
     current.loadPoseDocument(copy ? null : poseSavedIdentity(document.item), {
-      draftName: copy ? `${item.name} copy` : item.name,
+      draftName: copy
+        ? createUniquePoseCreatorBranchName(item.name, existingNames)
+        : item.name,
       basePose: POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
       ...replacement,
     });
@@ -147,12 +156,14 @@ export async function insertActionEditorSavedPose(
   }
 }
 
-/** Resume a standalone Pose after previewing the clip without replacing its draft. */
+/** Keep new and saved standalone Pose drafts separate from clip keyframes. */
 export function setActionEditorAuthoringMode(mode: ActionEditorMode): void {
   const state = usePoseCreatorStore.getState();
   const resumePose =
     mode === "pose" &&
     !state.clipInlineEdit &&
-    (state.savedPoseIdentity !== null || state.isDirty);
+    (state.savedPoseIdentity !== null ||
+      state.isDirty ||
+      state.clipDraft.keyframes.length === 0);
   state.setAuthoringMode(resumePose ? "pose" : "clip");
 }

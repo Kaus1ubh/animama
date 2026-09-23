@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   isEmptyActionTimeline,
+  consumeActionTimelineHydrationBaseline,
   ActionTimelineDocumentSync,
   ActionTimelineEditor,
   shouldPreserveTimelinePlayhead,
@@ -13,6 +14,9 @@ import {
   shouldSkipActionTimelineEmission,
   syncActionTimelineMetadata,
 } from "./ActionTimelineEditor";
+
+import { actionSequenceFromTimelineDraft } from "./actionPersistence";
+import { createActionDocument } from "./actionDocument";
 
 let timelineProps: Record<string, unknown> | null = null;
 
@@ -24,6 +28,69 @@ vi.mock("@/ui/pose-creator/PoseCreatorClipTimeline", () => ({
 }));
 
 describe("ActionTimelineEditor", () => {
+  it.each(["gesture", "reaction"] as const)(
+    "keeps fresh %s normalization out of history while recording later deletion",
+    (intent) => {
+      const store = usePoseCreatorStore.getState();
+      store.resetWorkspace();
+      const incoming = createActionDocument(intent).sequence;
+      store.resetClipDraft(String(incoming.name));
+      store.updateClipDraft({
+        id: String(incoming.id),
+        duration: Number(incoming.duration),
+        basePose: intent === "gesture" ? "relaxedRest" : "",
+      });
+      const serialize = () =>
+        JSON.stringify(
+          actionSequenceFromTimelineDraft(
+            usePoseCreatorStore.getState().clipDraft,
+            intent,
+            { allowEmpty: true },
+          ),
+        );
+      const initial = serialize();
+      expect(initial).not.toBe(JSON.stringify(incoming));
+      const baseline = { current: initial as string | null };
+      expect(consumeActionTimelineHydrationBaseline(initial, baseline)).toBe(
+        true,
+      );
+      expect(consumeActionTimelineHydrationBaseline(initial, baseline)).toBe(
+        true,
+      );
+      store.insertClipSFXEventAtPlayhead("hearts");
+      expect(
+        consumeActionTimelineHydrationBaseline(serialize(), baseline),
+      ).toBe(false);
+      expect(baseline.current).toBeNull();
+      store.deleteSelectedClipEvent();
+      expect(serialize()).toBe(initial);
+      expect(
+        consumeActionTimelineHydrationBaseline(serialize(), baseline),
+      ).toBe(false);
+      store.resetWorkspace();
+    },
+  );
+
+  it("emits metadata edits after empty hydration", () => {
+    const store = usePoseCreatorStore.getState();
+    store.resetWorkspace();
+    const serialize = () =>
+      JSON.stringify(
+        actionSequenceFromTimelineDraft(
+          usePoseCreatorStore.getState().clipDraft,
+          "gesture",
+          { allowEmpty: true },
+        ),
+      );
+    const baseline = { current: serialize() as string | null };
+    store.updateClipDraft({ duration: 7 });
+    expect(consumeActionTimelineHydrationBaseline(serialize(), baseline)).toBe(
+      false,
+    );
+    expect(baseline.current).toBeNull();
+    store.resetWorkspace();
+  });
+
   it("keeps the active pose, selected bone, and gizmo when a document is renamed", () => {
     const sequence = {
       schema: "animaPoseClip/1.0",
@@ -143,14 +210,12 @@ describe("ActionTimelineEditor", () => {
   });
 
   it("keeps timeline transport local while forwarding editor controls", () => {
-    const addExpression = () => undefined;
     const onExpandedChange = () => undefined;
     renderToString(
       <ActionTimelineEditor
         reaction
         isBusy={false}
         playbackPending
-        onAddExpressionKeyframe={addExpression}
         expanded={false}
         onExpandedChange={onExpandedChange}
       />,
@@ -158,7 +223,6 @@ describe("ActionTimelineEditor", () => {
 
     expect(timelineProps?.onPreparePreview).toBeUndefined();
     expect(timelineProps?.playbackPending).toBe(true);
-    expect(timelineProps?.onAddExpressionKeyframe).toBe(addExpression);
     expect(timelineProps?.expanded).toBe(false);
     expect(timelineProps?.onExpandedChange).toBe(onExpandedChange);
   });

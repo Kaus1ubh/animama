@@ -16,6 +16,7 @@ import {
 } from "@/lib/avatar";
 import {
   POSE_CREATOR_BASE_POSE_OPTIONS,
+  POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
   usePoseCreatorStore,
 } from "@/stores/pose-creator-store";
 import { Button } from "@/ui/components/button";
@@ -28,7 +29,11 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { Switch } from "@/ui/components/switch";
-import { POSE_CREATOR_CLIP_EASING_OPTIONS } from "./poseCreatorClipAuthoring";
+import {
+  findPoseCreatorClipKeyframeAtTime,
+  isPoseCreatorBaseKeyframe,
+  POSE_CREATOR_CLIP_EASING_OPTIONS,
+} from "./poseCreatorClipAuthoring";
 import { withUnavailableEventOption } from "./poseCreatorEventCatalog";
 import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
 import { usePoseCreatorClipUndoGrouping } from "./usePoseCreatorUndoGrouping";
@@ -53,6 +58,9 @@ export function PoseCreatorClipWorkspaceInspector({
   const clipDraft = usePoseCreatorStore((state) => state.clipDraft);
   const clipInlineEdit = usePoseCreatorStore((state) => state.clipInlineEdit);
   const updateClipDraft = usePoseCreatorStore((state) => state.updateClipDraft);
+  const setClipBaseEndpoint = usePoseCreatorStore(
+    (state) => state.setClipBaseEndpoint,
+  );
   const selectClipKeyframe = usePoseCreatorStore(
     (state) => state.selectClipKeyframe,
   );
@@ -169,6 +177,49 @@ export function PoseCreatorClipWorkspaceInspector({
                 </InspectorRow>
               </>
             ) : null}
+
+            {allowHumanoid
+              ? (["start", "end"] as const).map((endpoint) => {
+                  const frame = findPoseCreatorClipKeyframeAtTime(
+                    clipDraft.keyframes,
+                    endpoint === "start" ? 0 : clipDraft.duration,
+                  );
+                  const checked = Boolean(
+                    frame && isPoseCreatorBaseKeyframe(clipDraft, frame),
+                  );
+                  const occupied = Boolean(frame && !checked);
+                  const label =
+                    endpoint === "start" ? "Start base" : "End base";
+                  return (
+                    <label
+                      key={endpoint}
+                      className="text-muted-foreground flex min-h-9 items-center justify-between gap-3 text-xs font-medium"
+                      title={
+                        occupied
+                          ? "Move or remove the existing endpoint pose to add a base keyframe."
+                          : undefined
+                      }
+                    >
+                      {label}
+                      <Switch
+                        checked={checked}
+                        disabled={
+                          occupied ||
+                          !clipDraft.basePose ||
+                          clipDraft.duration <= 0 ||
+                          Boolean(clipInlineEdit) ||
+                          clipDraft.basePose ===
+                            POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
+                        }
+                        onCheckedChange={(enabled) =>
+                          setClipBaseEndpoint(endpoint, enabled)
+                        }
+                        aria-label={label}
+                      />
+                    </label>
+                  );
+                })
+              : null}
 
             <InspectorRow label="Fade in">
               <DurationInput
@@ -588,7 +639,7 @@ function WorkspaceCard({
       className={
         embedded
           ? "border-t pt-3"
-          : "border-border/70 bg-background/95 rounded-xl border p-4 shadow-lg backdrop-blur-xl"
+          : "border-border/70 bg-background rounded-xl border p-4 shadow-lg backdrop-blur-xl"
       }
     >
       {children}

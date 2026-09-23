@@ -5,6 +5,7 @@ import { normalizeContentLibrarySearch } from "@/lib/content/librarySearch";
 import { LibraryContentInventory } from "./LibraryContentInventory";
 const mocks = vi.hoisted(() => ({
   poseInput: vi.fn(),
+  layoutActions: {} as Record<string, () => void>,
   otherRows: [] as Array<Record<string, unknown>>,
   open: vi.fn(),
   preview: null as (() => void) | null,
@@ -82,9 +83,16 @@ vi.mock("@/ui/action-manage/ActionManageDialog", () => ({
   ActionManageDialog: () => null,
 }));
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ to, children }: { to: string; children: ReactNode }) => (
-    <a href={to}>{children}</a>
+  Link: ({ to, children, ...props }: { to: string; children: ReactNode }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
   ),
+}));
+vi.mock("@/ui/components/tooltip", () => ({
+  Tooltip: ({ children }: { children: ReactNode }) => children,
+  TooltipTrigger: ({ children }: { children: ReactNode }) => children,
+  TooltipContent: () => null,
 }));
 vi.mock("@/ui/components/button", () => ({
   Button: ({
@@ -94,19 +102,27 @@ vi.mock("@/ui/components/button", () => ({
   }: {
     children: ReactNode;
     onClick?: () => void;
+    "aria-label"?: string;
   }) => {
+    if (onClick && props["aria-label"]?.endsWith(" view"))
+      mocks.layoutActions[props["aria-label"]] = onClick;
     if (onClick && Array.isArray(children) && children.includes(" Preview"))
       mocks.preview ??= onClick;
     return <button {...props}>{children}</button>;
   },
 }));
 beforeEach(() => {
+  vi.unstubAllGlobals();
+  mocks.layoutActions = {};
   mocks.otherRows = [];
   mocks.poseInput.mockClear();
   mocks.open.mockClear();
   mocks.preview = null;
 });
 describe("Library Poses", () => {
+  beforeEach(() => {
+    vi.stubGlobal("window", { localStorage: { getItem: () => "list" } });
+  });
   it("renders Included and Local editing with no equipment or creation action", () => {
     const html = renderToString(
       <LibraryContentInventory
@@ -191,5 +207,56 @@ describe("Library Poses", () => {
       origin: "all",
       enabled: true,
     });
+  });
+});
+
+describe("Library layout", () => {
+  const renderInventory = () =>
+    renderToString(
+      <LibraryContentInventory
+        search={normalizeContentLibrarySearch({
+          section: "actions",
+          action: "poses",
+        })}
+        onSearchChange={() => {}}
+      />,
+    );
+
+  it("defaults to grid and remembers an explicitly selected list", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    };
+    vi.stubGlobal("window", { localStorage: storage });
+    const grid = renderInventory();
+    expect(grid.indexOf('aria-label="Grid view"')).toBeLessThan(
+      grid.indexOf('aria-label="List view"'),
+    );
+    expect(grid).toContain('aria-label="Grid view" aria-pressed="true"');
+    const row = grid.split('aria-label="Salute"')[1]!.split("</article>")[0]!;
+    expect(row).toContain('aria-label="Preview"');
+    expect(row).toContain('aria-label="Edit"');
+    expect(row).toContain('href="/a/poses/starter/edit"');
+    expect(row).not.toContain(" Preview<");
+    expect(row).not.toContain(" Edit<");
+    mocks.layoutActions["List view"]!();
+    expect(renderInventory()).toContain(
+      'aria-label="List view" aria-pressed="true"',
+    );
+  });
+
+  it("keeps the Library usable when preference storage is unavailable", () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("window", {
+      get localStorage() {
+        throw new Error("Storage unavailable");
+      },
+    });
+    expect(renderInventory()).toContain(
+      'aria-label="Grid view" aria-pressed="true"',
+    );
+    expect(() => mocks.layoutActions["List view"]!()).not.toThrow();
+    expect(warning).toHaveBeenCalled();
   });
 });

@@ -302,7 +302,7 @@ function ActionEditorWorkspaceContent() {
       originalPose: pose,
       boneDrafts: drafts.boneDrafts,
       expressionDrafts: drafts.expressionDrafts,
-      draftName: `Keyframe ${alias}`,
+      draftName: "",
     });
     return true;
   }, []);
@@ -312,7 +312,10 @@ function ActionEditorWorkspaceContent() {
       workspace.mode === "pose" &&
       usePoseCreatorStore.getState().authoringMode !== "pose"
     ) {
-      void beginInlineKeyframeEdit();
+      setActionEditorAuthoringMode("pose");
+      if (usePoseCreatorStore.getState().authoringMode !== "pose") {
+        void beginInlineKeyframeEdit();
+      }
     }
   }, [
     activeAvatar,
@@ -360,11 +363,6 @@ function ActionEditorWorkspaceContent() {
       }
       isBusy={workspace.busy}
       playbackPending={workspace.localPreviewPending}
-      onAddExpressionKeyframe={
-        workspace.document.intent === "reaction"
-          ? ensureExpressionKeyframeAtPlayhead
-          : undefined
-      }
       expanded={timelineExpanded}
       onExpandedChange={setTimelineExpanded}
     />
@@ -380,11 +378,6 @@ function ActionEditorWorkspaceContent() {
       }
       isBusy={workspace.busy}
       playbackPending={workspace.localPreviewPending}
-      onAddExpressionKeyframe={
-        workspace.document.intent === "reaction"
-          ? ensureExpressionKeyframeAtPlayhead
-          : undefined
-      }
     />
   );
   const visiblePreviewError =
@@ -623,7 +616,7 @@ function ReactionExpressionPanel({
   return (
     <section
       className={cn(
-        "bg-background/92 flex min-h-14 flex-col overflow-hidden rounded-2xl border shadow-xl backdrop-blur-xl",
+        "bg-background flex min-h-14 flex-col overflow-hidden rounded-2xl border shadow-xl backdrop-blur-xl",
         expanded ? "min-h-[220px] flex-1" : "h-auto shrink-0",
       )}
     >
@@ -659,17 +652,13 @@ function ReactionExpressionPanel({
       </div>
       {expanded ? (
         <div className="flex min-h-0 flex-1 flex-col p-3">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            {!hasKeyframe ? (
+          {!hasKeyframe ? (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <Button size="sm" onClick={onEnsureKeyframe}>
                 + Keyframe at playhead
               </Button>
-            ) : (
-              <span className="text-muted-foreground text-xs">
-                Slider changes update this keyframe.
-              </span>
-            )}
-          </div>
+            </div>
+          ) : null}
           <div className="min-h-0 flex-1">
             <ActionEditorExpressionSection
               variant="mobile"

@@ -56,7 +56,7 @@ export function CreatorCanvasControls({
   return (
     <div
       className={cn(
-        "bg-background/88 border-border/70 flex max-w-full flex-wrap items-center gap-2 rounded-xl border p-2 shadow-sm backdrop-blur-xl",
+        "bg-background border-border/70 flex max-w-full flex-wrap items-center gap-2 rounded-xl border p-2 shadow-sm",
         className,
       )}
     >

@@ -136,7 +136,7 @@ function PoseCreatorExpressionSectionContent({
     return (
       <aside
         className={cn(
-          "border-border/65 bg-background/92 pointer-events-auto flex flex-col overflow-hidden border p-4 backdrop-blur-xl",
+          "border-border/65 bg-background pointer-events-auto flex flex-col overflow-hidden border p-4 backdrop-blur-xl",
           embedded
             ? "h-full min-h-0 w-full border-0 bg-transparent p-0 backdrop-blur-none"
             : variant === "mobile"
@@ -180,7 +180,7 @@ function PoseCreatorExpressionSectionContent({
               }
               placeholder="Search expressions"
               aria-label="Search expressions"
-              className="bg-background/70 h-9 rounded-lg pl-9 text-xs shadow-none"
+              className="bg-background h-9 rounded-lg pl-9 text-xs shadow-none"
             />
           </div>
           {embedded ? (

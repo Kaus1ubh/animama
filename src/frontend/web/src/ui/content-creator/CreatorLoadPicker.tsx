@@ -82,7 +82,7 @@ export function CreatorLoadPicker({
           type="button"
           variant="outline"
           disabled={disabled}
-          className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:h-12 lg:w-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
+          className="dark:bg-background dark:hover:bg-accent col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:h-12 lg:w-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
           aria-label={`Load ${labels[contentType]}`}
           title="Load"
         >

@@ -6,6 +6,15 @@ import type { PyPose, PyPosePage } from "@animama/runtime-contracts/api-types";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
+/** Naming must use the current complete catalog; this endpoint is not paginated. */
+export async function fetchPoseNames(): Promise<string[]> {
+  const { data } = await listPoses({
+    responseValidator: undefined,
+    throwOnError: true,
+  });
+  return data.items.map((item) => item.name);
+}
+
 /** List metadata only; registered Pose bytes are loaded on demand. */
 export function usePoses(
   input: {

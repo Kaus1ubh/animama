@@ -22,10 +22,8 @@ import {
 
 import { isAnimaPoseClipVFXEvent, type AnimaPoseClipEvent } from "@/lib/avatar";
 import { cn } from "@/lib/utils";
-import {
-  POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
-  usePoseCreatorStore,
-} from "@/stores/pose-creator-store";
+import { handleTimelineDeleteKey } from "./poseCreatorTimelineKeyboard";
+import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { PoseCreatorClipWorkspaceInspector } from "./PoseCreatorClipWorkspaceInspector";
 import { Input } from "@/ui/components/input";
 import { Button } from "@/ui/components/button";
@@ -50,8 +48,6 @@ import {
 } from "@/ui/action-editor/timelineCatalogDrop";
 import { CreatorPanelCollapseButton } from "@/ui/action-editor/CreatorPanelChrome";
 import {
-  findPoseCreatorClipKeyframeAtTime,
-  isPoseCreatorBaseKeyframe,
   POSE_CREATOR_CLIP_PLAYBACK_SPEED_OPTIONS,
   POSE_CREATOR_CLIP_SNAP_INTERVAL_OPTIONS,
   type PoseCreatorClipEventDraft,
@@ -105,7 +101,6 @@ export function PoseCreatorClipTimeline({
   poseLaneLabel = "Pose",
   allowHumanoid = true,
   playbackPending = false,
-  onAddExpressionKeyframe,
   settingsContent,
   expanded = true,
   onExpandedChange,
@@ -114,7 +109,6 @@ export function PoseCreatorClipTimeline({
   poseLaneLabel?: string;
   allowHumanoid?: boolean;
   playbackPending?: boolean;
-  onAddExpressionKeyframe?: () => void;
   settingsContent?: React.ReactNode;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
@@ -134,10 +128,6 @@ export function PoseCreatorClipTimeline({
   useEffect(
     () => setDurationInput(String(clipDraft.duration)),
     [clipDraft.duration],
-  );
-  const clipInlineEdit = usePoseCreatorStore((state) => state.clipInlineEdit);
-  const setClipBaseEndpoint = usePoseCreatorStore(
-    (state) => state.setClipBaseEndpoint,
   );
   const clipSnapEnabled = usePoseCreatorStore((state) => state.clipSnapEnabled);
   const clipSnapIntervalSec = usePoseCreatorStore(
@@ -175,9 +165,6 @@ export function PoseCreatorClipTimeline({
   );
   const nudgeSelectedClipEvent = usePoseCreatorStore(
     (state) => state.nudgeSelectedClipEvent,
-  );
-  const deleteSelectedClipEvent = usePoseCreatorStore(
-    (state) => state.deleteSelectedClipEvent,
   );
   const playClipPreview = usePoseCreatorStore((state) => state.playClipPreview);
   const pauseClipPreview = usePoseCreatorStore(
@@ -301,6 +288,7 @@ export function PoseCreatorClipTimeline({
       keyframeId: keyframe.id,
       pointerOffsetSec: keyframe.time - pointerTime,
     };
+    event.currentTarget.focus({ preventScroll: true });
     event.currentTarget.setPointerCapture(event.pointerId);
     selectClipKeyframe(keyframe.id);
     beginClipUndoGroup();
@@ -343,6 +331,7 @@ export function PoseCreatorClipTimeline({
       eventId: clipEvent.id,
       pointerOffsetSec: clipEvent.time - pointerTime,
     };
+    event.currentTarget.focus({ preventScroll: true });
     event.currentTarget.setPointerCapture(event.pointerId);
     selectClipEvent(clipEvent.id);
     beginClipUndoGroup();
@@ -383,17 +372,6 @@ export function PoseCreatorClipTimeline({
       nudgeSelectedClipEvent(event.key === "ArrowLeft" ? -1 : 1);
       return;
     }
-
-    if (event.key !== "Delete" && event.key !== "Backspace") return;
-    event.preventDefault();
-    selectClipEvent(clipEvent.id);
-    if (
-      window.confirm(
-        `Delete ${formatEffectEventKind(clipEvent)} event ${clipEvent.id}?`,
-      )
-    ) {
-      deleteSelectedClipEvent();
-    }
   };
 
   return (
@@ -401,6 +379,8 @@ export function PoseCreatorClipTimeline({
       <section
         ref={sectionRef}
         aria-label="Timeline"
+        tabIndex={-1}
+        onKeyDown={handleTimelineDeleteKey}
         className={cn(
           "border-border/70 bg-background w-full min-w-0 shrink-0 px-3 py-2",
           variant === "workspace"
@@ -414,7 +394,7 @@ export function PoseCreatorClipTimeline({
           <div className="grid min-w-0 shrink-0 grid-cols-[auto_auto_auto] items-center gap-1.5 overflow-x-auto pb-0.5 min-[1200px]:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
             <div className="flex flex-wrap items-center gap-3 justify-self-start">
               <label className="flex items-center gap-2 text-xs font-medium">
-                Clip Duration
+                Duration
                 <Input
                   type="number"
                   min={0}
@@ -444,48 +424,6 @@ export function PoseCreatorClipTimeline({
                   aria-label="Toggle clip loop"
                 />
               </label>
-              {allowHumanoid
-                ? (["start", "end"] as const).map((endpoint) => {
-                    const frame = findPoseCreatorClipKeyframeAtTime(
-                      clipDraft.keyframes,
-                      endpoint === "start" ? 0 : clipDraft.duration,
-                    );
-                    const checked = Boolean(
-                      frame && isPoseCreatorBaseKeyframe(clipDraft, frame),
-                    );
-                    const occupied = Boolean(frame && !checked);
-                    const label =
-                      endpoint === "start" ? "Start base" : "End base";
-                    return (
-                      <label
-                        key={endpoint}
-                        className="flex items-center gap-2 text-xs font-medium whitespace-nowrap"
-                        title={
-                          occupied
-                            ? "Move or remove the existing endpoint pose to add a base keyframe."
-                            : undefined
-                        }
-                      >
-                        {label}
-                        <Switch
-                          checked={checked}
-                          disabled={
-                            occupied ||
-                            !clipDraft.basePose ||
-                            clipDraft.duration <= 0 ||
-                            Boolean(clipInlineEdit) ||
-                            clipDraft.basePose ===
-                              POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID
-                          }
-                          onCheckedChange={(enabled) =>
-                            setClipBaseEndpoint(endpoint, enabled)
-                          }
-                          aria-label={label}
-                        />
-                      </label>
-                    );
-                  })
-                : null}
             </div>
             <div className="col-start-2 row-start-1 flex items-center justify-center gap-1.5">
               <div className="border-border/70 bg-muted/20 flex h-8 shrink-0 items-center rounded-md border p-0.5">
@@ -586,17 +524,6 @@ export function PoseCreatorClipTimeline({
                   <SkipForwardIcon className="size-4" />
                 </Button>
               </div>
-
-              {onAddExpressionKeyframe ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8 shrink-0"
-                  onClick={onAddExpressionKeyframe}
-                >
-                  + Expression
-                </Button>
-              ) : null}
             </div>
             <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-1.5 justify-self-end">
               <Popover>
@@ -752,7 +679,7 @@ export function PoseCreatorClipTimeline({
                       height: LANE_HEIGHT_PX,
                     }}
                   >
-                    <div className="bg-background/95 text-muted-foreground sticky left-0 z-30 flex h-full w-[72px] items-center px-2 text-[10px] font-medium tracking-normal uppercase backdrop-blur-sm">
+                    <div className="bg-background text-muted-foreground sticky left-0 z-30 flex h-full w-[72px] items-center px-2 text-[10px] font-medium tracking-normal uppercase backdrop-blur-sm">
                       <span className="truncate">
                         {lane.id === "pose" ? poseLaneLabel : lane.label}
                       </span>

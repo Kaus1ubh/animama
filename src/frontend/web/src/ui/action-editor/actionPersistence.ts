@@ -17,6 +17,7 @@ import {
 export function actionSequenceFromTimelineDraft(
   draft: PoseCreatorClipDraft,
   intent: ActionIntent,
+  options: { allowEmpty?: boolean } = {},
 ): Record<string, unknown> | null {
   let clip = buildAnimaPoseClipFromPoseCreatorDraft(
     draft,
@@ -27,7 +28,7 @@ export function actionSequenceFromTimelineDraft(
       // Typed Reactions may legitimately be effect-only. The Pose
       // Creator export validator requires a pose/keyframe, so fall back to the
       // actual animaPoseClip schema after removing editor-only draft fields.
-      clip = parseAnimaPoseClip({
+      const serializedDraft = {
         schema: "animaPoseClip/1.0",
         id: draft.id.trim(),
         name: draft.name.trim() || "New Clip",
@@ -52,7 +53,18 @@ export function actionSequenceFromTimelineDraft(
         ...(draft.events.length
           ? { events: structuredClone(draft.events) }
           : {}),
-      });
+      };
+      // Empty authoring documents must enter history when the last marker is
+      // removed. Persistence still requires a playable clip by default.
+      if (
+        options.allowEmpty &&
+        !draft.keyframes.length &&
+        !draft.events.length
+      ) {
+        const empty = { ...serializedDraft, poses: {}, events: [] };
+        return intent === "reaction" ? sanitizeReactionSequence(empty) : empty;
+      }
+      clip = parseAnimaPoseClip(serializedDraft);
     } catch {
       return null;
     }
@@ -108,5 +120,25 @@ export function actionDocumentForPersistence(
   }
   return pruneUnusedDependencies(
     normalizeActionDocument({ ...canonicalDocument, sequence }),
+  );
+}
+
+/** Resolve a default name before sampling the live draft, preserving edits during lookup. */
+export async function captureActionDocumentForSave(
+  readDocument: () => ActionDocument,
+  readDraft: () => PoseCreatorClipDraft,
+  allocateReactionName: () => Promise<string>,
+): Promise<ActionDocument> {
+  const initial = readDocument();
+  const fallbackName =
+    initial.intent === "reaction" && !initial.name.trim()
+      ? await allocateReactionName()
+      : null;
+  const current = readDocument();
+  return actionDocumentForPersistence(
+    fallbackName && !current.name.trim()
+      ? { ...current, name: fallbackName }
+      : current,
+    readDraft(),
   );
 }

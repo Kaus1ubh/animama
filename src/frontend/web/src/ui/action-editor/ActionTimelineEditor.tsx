@@ -6,6 +6,7 @@ import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { PoseCreatorClipTimeline } from "@/ui/pose-creator/PoseCreatorClipTimeline";
 import { cn } from "@/lib/utils";
+import type { PoseCreatorClipDraftPatch } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import { sanitizeReactionSequence } from "./actionDocument";
 import { actionSequenceFromTimelineDraft } from "./actionPersistence";
 
@@ -72,6 +73,16 @@ export function shouldSkipActionTimelineEmission<T>(
   return staleDraft !== null && draft === staleDraft;
 }
 
+/** Ignore hydration normalization until the first authored change, then retire it. */
+export function consumeActionTimelineHydrationBaseline(
+  serializedDraft: string,
+  baseline: { current: string | null },
+): boolean {
+  if (serializedDraft === baseline.current) return true;
+  baseline.current = null;
+  return false;
+}
+
 /** Keep typed documents synchronized with the existing timeline and undo store. */
 export function ActionTimelineDocumentSync({
   sequence,
@@ -96,6 +107,7 @@ export function ActionTimelineDocumentSync({
   const lastReceived = useRef("");
   const lastReceivedSequence = useRef<Record<string, unknown> | null>(null);
   const lastEmitted = useRef("");
+  const hydratedDraftBaseline = useRef<string | null>(null);
   const lastTimelineSession = useRef<number | null>(null);
   const staleDraftBeforeHydration = useRef<typeof draft | null>(null);
   const groupActive = useRef(false);
@@ -130,6 +142,16 @@ export function ActionTimelineDocumentSync({
     // document. Re-hydrating the unchanged prop here would overwrite the edit
     // before the draft-to-document effect can emit it.
     if (!shouldHydrateActionTimeline(serialized, lastReceived.current)) return;
+    const recordHydratedBaseline = () => {
+      const hydrated = actionSequenceFromTimelineDraft(
+        usePoseCreatorStore.getState().clipDraft,
+        reaction ? "reaction" : "gesture",
+        { allowEmpty: true },
+      );
+      hydratedDraftBaseline.current = hydrated
+        ? JSON.stringify(hydrated)
+        : null;
+    };
     const previousSequence = lastReceivedSequence.current;
     lastReceivedSequence.current = editorSequence;
     lastReceived.current = serialized;
@@ -151,6 +173,7 @@ export function ActionTimelineDocumentSync({
       syncActionTimelineMetadata(editorSequence, previousSequence)
     ) {
       staleDraftBeforeHydration.current = draft;
+      recordHydratedBaseline();
       return;
     }
     if (isEmptyActionTimeline(editorSequence)) {
@@ -160,6 +183,29 @@ export function ActionTimelineDocumentSync({
           ? editorSequence.name
           : undefined,
       );
+      // Empty authoring sequences retain their settings through Undo/Redo even
+      // though the runtime clip parser correctly rejects an unplayable clip.
+      const settings: PoseCreatorClipDraftPatch = { basePose: "" };
+      for (const key of ["id", "name", "basePose"] as const) {
+        const value = editorSequence[key];
+        if (typeof value === "string") settings[key] = value;
+      }
+      if (typeof editorSequence.duration === "number")
+        settings.duration = editorSequence.duration;
+      settings.loop = editorSequence.loop === true;
+      if (
+        editorSequence.defaultTransition &&
+        typeof editorSequence.defaultTransition === "object"
+      )
+        settings.defaultTransition =
+          editorSequence.defaultTransition as PoseCreatorClipDraftPatch["defaultTransition"];
+      for (const key of ["fadeIn", "fadeOut"] as const) {
+        const value = editorSequence[key];
+        if (value && typeof value === "object")
+          settings[key] = value as PoseCreatorClipDraftPatch[typeof key];
+      }
+      usePoseCreatorStore.getState().updateClipDraft(settings);
+      recordHydratedBaseline();
       // The reset is the successful hydration for an intentionally blank
       // document. Suppress the same render's stale pre-reset draft emission.
       return;
@@ -173,6 +219,7 @@ export function ActionTimelineDocumentSync({
         // Hydration updates Zustand after this render. Do not immediately emit
         // the stale pre-hydration draft back over the typed document.
         staleDraftBeforeHydration.current = draft;
+        recordHydratedBaseline();
       }
     } catch {
       // Keep the last valid timeline while imported JSON is being repaired.
@@ -199,9 +246,12 @@ export function ActionTimelineDocumentSync({
     const nextClip = actionSequenceFromTimelineDraft(
       draft,
       reaction ? "reaction" : "gesture",
+      { allowEmpty: true },
     );
     if (!nextClip) return;
     const next = JSON.stringify(nextClip);
+    if (consumeActionTimelineHydrationBaseline(next, hydratedDraftBaseline))
+      return;
     if (next === serialized) return;
     lastEmitted.current = next;
     onChange(nextClip);
@@ -215,7 +265,6 @@ export function ActionTimelineEditor({
   reaction,
   isBusy,
   playbackPending = false,
-  onAddExpressionKeyframe,
   settingsContent,
   expanded = true,
   onExpandedChange,
@@ -225,7 +274,6 @@ export function ActionTimelineEditor({
   reaction: boolean;
   isBusy: boolean;
   playbackPending?: boolean;
-  onAddExpressionKeyframe?: () => void;
   settingsContent?: React.ReactNode;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
@@ -247,7 +295,6 @@ export function ActionTimelineEditor({
         poseLaneLabel={reaction ? "Expression" : "Pose"}
         allowHumanoid={!reaction}
         playbackPending={playbackPending}
-        onAddExpressionKeyframe={onAddExpressionKeyframe}
         settingsContent={settingsContent}
         expanded={expanded}
         onExpandedChange={onExpandedChange}

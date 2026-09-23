@@ -319,7 +319,7 @@ export function ActionCatalogDragProvider({
         ? createPortal(
             <DragOverlay dropAnimation={null} style={{ pointerEvents: "none" }}>
               {active ? (
-                <div className="bg-background/90 border-primary/50 max-w-48 truncate rounded-lg border px-3 py-2 text-xs opacity-85 shadow-lg">
+                <div className="bg-background border-primary/50 max-w-48 truncate rounded-lg border px-3 py-2 text-xs opacity-85 shadow-lg">
                   {catalogDragName(active)}
                 </div>
               ) : null}

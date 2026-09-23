@@ -275,7 +275,7 @@ export function MusicTrackEditorPage({ itemId }: { itemId?: string }) {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            className="bg-primary text-primary-foreground rounded-md px-4 py-2 disabled:opacity-50"
+            className="border-border bg-background text-foreground disabled:text-muted-foreground rounded-md border px-4 py-2 disabled:opacity-100"
             disabled={busy || !file || !resolvedName.trim()}
             onClick={() => void save()}
           >

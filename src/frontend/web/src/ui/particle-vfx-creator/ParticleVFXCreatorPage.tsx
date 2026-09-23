@@ -1063,7 +1063,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           previewResolution.error ||
           avatarPreviewStatus.state === "error" ? (
             <div
-              className="bg-background/90 pointer-events-none absolute top-3 left-1/2 z-30 w-[min(340px,calc(100%-1.5rem))] -translate-x-1/2 rounded-xl border px-3 py-2 text-xs shadow-sm backdrop-blur lg:top-[84px]"
+              className="bg-background pointer-events-none absolute top-3 left-1/2 z-30 w-[min(340px,calc(100%-1.5rem))] -translate-x-1/2 rounded-xl border px-3 py-2 text-xs shadow-sm lg:top-[84px]"
               role="status"
               aria-live="polite"
               aria-atomic="true"

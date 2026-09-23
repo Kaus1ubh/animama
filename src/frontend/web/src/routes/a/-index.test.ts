@@ -56,6 +56,7 @@ describe("chat launch", () => {
       to: "/a/$animaId",
       params: { animaId: "annie" },
       replace: true,
+      ignoreBlocker: true,
     });
   });
 
@@ -66,6 +67,7 @@ describe("chat launch", () => {
       to: "/a/$animaId",
       params: { animaId: "caitlyn" },
       replace: true,
+      ignoreBlocker: true,
     });
   });
 
@@ -102,6 +104,7 @@ describe("chat launch", () => {
     expect(fixture.navigate).toHaveBeenCalledWith({
       to: "/a/animas/new",
       replace: true,
+      ignoreBlocker: true,
     });
   });
 });

@@ -52,12 +52,12 @@ describe("creator editor primitives", () => {
     expect(html.match(/lg:overflow-visible/g)).toHaveLength(2);
   });
 
-  it("matches the elevated translucent surface used by action creators", () => {
+  it("matches the opaque panel surface used by action creators", () => {
     const html = renderToString(
       <CreatorFloatingPanel>Inspector</CreatorFloatingPanel>,
     );
 
-    expect(html).toContain("bg-background/92");
+    expect(html).toContain("bg-background");
     expect(html).toContain("border-border/65");
     expect(html).toContain("shadow-xl");
     expect(html).toContain("shadow-black/8");

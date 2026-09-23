@@ -34,6 +34,7 @@ import {
 import { ChatFileDropOverlay } from "./ChatFileDropOverlay";
 import { useChatSession } from "./useChatSession";
 import { PromptSuggestion } from "./PromptSuggestion";
+import { useFirstChatSuggestions } from "./useFirstChatSuggestions";
 import { useDictation } from "@/hooks/use-dictation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDesktopVoiceShortcuts } from "@/hooks/use-desktop-voice-shortcuts";
@@ -790,7 +791,9 @@ export const ChatInterface = ({
     ];
   }, [animaName]);
 
+  const isFirstChat = useFirstChatSuggestions(displayMessages);
   const showPromptSuggestions =
+    isFirstChat &&
     Boolean(animaName) &&
     canChat &&
     !isStreaming &&

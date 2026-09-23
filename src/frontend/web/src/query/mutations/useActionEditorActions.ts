@@ -21,6 +21,7 @@ import {
   saveCatalogItem,
 } from "@/lib/content/catalogApi";
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
+import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 import type {
@@ -302,6 +303,14 @@ export function useActionEditorActions(intent: ActionIntent) {
   });
 
   return {
+    /** Read the full current catalog so default names also avoid unloaded items. */
+    allocateDefaultName: async (baseName: string) => {
+      const items = await listCatalogItems(intent);
+      return createUniqueContentName(
+        baseName,
+        items.map((item) => item.name),
+      );
+    },
     beginSession,
     updateSession,
     starterPreview,

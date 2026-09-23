@@ -93,7 +93,7 @@ export function ActionEditorScene({
       {!activeAvatar ? (
         <div className="pointer-events-none absolute inset-0 z-40 grid place-items-center p-6">
           <div
-            className="bg-background/90 border-border pointer-events-auto max-w-sm rounded-xl border p-4 text-center shadow-lg backdrop-blur-sm"
+            className="bg-background border-border pointer-events-auto max-w-sm rounded-xl border p-4 text-center shadow-lg backdrop-blur-sm"
             role={visibleError ? "alert" : "status"}
           >
             <p className="text-sm font-medium">

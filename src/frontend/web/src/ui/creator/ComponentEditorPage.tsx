@@ -301,7 +301,7 @@ export function ComponentEditorPage({
         ) : null}
         <button
           type="button"
-          className="bg-primary text-primary-foreground w-fit rounded-md px-4 py-2 disabled:opacity-50"
+          className="border-border bg-background text-foreground disabled:text-muted-foreground w-fit rounded-md border px-4 py-2 disabled:opacity-100"
           disabled={busy || loadingFile || !name.trim() || files.length === 0}
           onClick={() => void save()}
         >

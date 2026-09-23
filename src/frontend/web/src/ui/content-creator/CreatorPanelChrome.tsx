@@ -76,7 +76,7 @@ export function CreatorCollapsedPanelHeader({
   return (
     <section
       className={cn(
-        "border-border/65 bg-background/92 pointer-events-auto flex min-h-14 items-center gap-3 rounded-2xl border px-3 py-2 shadow-xl backdrop-blur-xl",
+        "border-border/65 bg-background pointer-events-auto flex min-h-14 items-center gap-3 rounded-2xl border px-3 py-2 shadow-xl",
         className,
       )}
     >

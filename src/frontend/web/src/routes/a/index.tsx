@@ -52,9 +52,11 @@ function ChatLaunchRoute() {
     animas.data.map((anima) => anima.id),
     settings.data.last_active_anima_id,
   );
+  // Continue the accepted entry navigation without reopening a departing
+  // creator's blocker before its passive-effect cleanup has run.
   return animaId ? (
-    <Navigate to="/a/$animaId" params={{ animaId }} replace />
+    <Navigate to="/a/$animaId" params={{ animaId }} replace ignoreBlocker />
   ) : (
-    <Navigate to="/a/animas/new" replace />
+    <Navigate to="/a/animas/new" replace ignoreBlocker />
   );
 }

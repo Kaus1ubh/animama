@@ -153,25 +153,23 @@ export function ActionEditorEffectsPanel({
   return (
     <section
       className={cn(
-        "bg-background/92 flex h-full min-h-0 flex-col overflow-hidden border p-3 backdrop-blur-xl",
+        "bg-background flex h-full min-h-0 flex-col overflow-hidden border p-3 backdrop-blur-xl",
         mobile ? "border-0" : "rounded-2xl shadow-xl",
       )}
     >
       <div
         className={cn(
           "flex shrink-0 items-start justify-between gap-3",
-          expanded && showsPoses ? "min-h-7" : "min-h-10",
+          expanded ? "min-h-7" : "min-h-10",
         )}
       >
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">{panelLabel}</h2>
-          {!expanded || !showsPoses ? (
+          {!expanded ? (
             <p className="text-muted-foreground mt-1 truncate text-xs">
-              {expanded
-                ? "Add visuals and sound at the playhead."
-                : showsPoses
-                  ? `${poses.length} poses · ${dependencies.length} effects`
-                  : `${dependencies.length} added`}
+              {showsPoses
+                ? `${poses.length} poses · ${dependencies.length} effects`
+                : `${dependencies.length} added`}
             </p>
           ) : null}
         </div>
@@ -201,10 +199,7 @@ export function ActionEditorEffectsPanel({
               onActiveTypeChange(tab.contentType);
             }
           }}
-          className={cn(
-            "flex min-h-0 flex-1 flex-col",
-            showsPoses ? "mt-2" : "mt-3",
-          )}
+          className="mt-2 flex min-h-0 flex-1 flex-col"
         >
           <TabsList
             className={cn(

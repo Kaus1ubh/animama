@@ -39,7 +39,7 @@ export function CreatorEffectHandoffActions({
         <Button
           type="button"
           variant="outline"
-          className="bg-background/88 h-11 rounded-xl shadow-sm backdrop-blur-xl"
+          className="bg-background dark:bg-background dark:hover:bg-accent h-11 rounded-xl shadow-sm"
         >
           <WandSparklesIcon />
           <span className="hidden xl:inline">Use in…</span>

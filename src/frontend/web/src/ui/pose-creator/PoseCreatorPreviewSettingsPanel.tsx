@@ -60,7 +60,7 @@ export function PoseCreatorPreviewSettingsPanel({
       className={
         variant === "mobile"
           ? "bg-background pointer-events-auto flex h-full min-h-0 w-full flex-col gap-4 overflow-y-auto p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
-          : "border-border/65 bg-background/92 pointer-events-auto flex h-14 max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-2xl border px-2 shadow-xl shadow-black/8 backdrop-blur-xl xl:gap-2 xl:px-3"
+          : "border-border/65 bg-background pointer-events-auto flex h-14 max-w-full min-w-0 items-center gap-1 overflow-hidden rounded-2xl border px-2 shadow-xl shadow-black/8 backdrop-blur-xl xl:gap-2 xl:px-3"
       }
     >
       {variant === "mobile" ? (
