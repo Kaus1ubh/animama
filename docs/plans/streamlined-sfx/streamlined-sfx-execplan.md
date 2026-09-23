@@ -7,7 +7,8 @@ by invoking implement after the plan handoff.
 Starting revision and recorded origin/main: `a5a7ba05fc8b72f7821b8afb707df3a8852a8b6b`.
 Branch: `feat/streamline-sfx`, in `/Users/ray/code/animama-ai/worktrees/e9cf/animama`.
 Implementation phase commits: `df51ecf` (upload), `91c40e0` (events/playback),
-`99d6382` (Library/routes). Final repair and PR handoff are pending.
+`99d6382` (Library/routes), `bbf206a` (final repair). Delivery and hosted
+CI status are recorded on the owning issue and PR.
 
 ## Progress
 
@@ -18,7 +19,8 @@ Implementation phase commits: `df51ecf` (upload), `91c40e0` (events/playback),
 - [x] Run full frontend checks, relevant backend tests and final integration review.
 - [x] Complete the browser checks recorded below at desktop and narrow sizes.
 - [x] Record browser acceptance and explicitly separate remaining environment limits.
-- [ ] Commit reviewed scope, push, create PR and record actual hosted CI.
+- [x] Commit reviewed scope and prepare the ordinary PR handoff.
+- [ ] Record hosted CI result on the PR after publication.
 - [ ] Obtain separate exact-candidate owner approval before merge.
 
 ## Decisions and discoveries
