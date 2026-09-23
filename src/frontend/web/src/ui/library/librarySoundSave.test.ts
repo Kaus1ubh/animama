@@ -75,5 +75,5 @@ it("keeps display names independent of the portable update route token", () => {
     "operation",
   );
   expect(result.entryName).toBe("sound");
-  expect(result.metadata.name).toBe("猫 (1)");
+  expect(result.metadata?.name).toBe("猫 (1)");
 });

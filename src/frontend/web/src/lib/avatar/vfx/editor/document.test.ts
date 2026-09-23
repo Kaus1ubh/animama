@@ -137,6 +137,30 @@ describe("Avatar Effect editor document", () => {
     });
   });
 
+  it.each(["", "   "])(
+    "reopens saved effects with optional description %j",
+    (description) => {
+      const source = {
+        ...createDefaultAvatarEffectDocument(),
+        name: "Uploaded Stars",
+        description,
+        image,
+      };
+      const hydrated = createAvatarEffectDocumentFromDefinition({
+        name: source.name,
+        description,
+        definition: avatarEffectDefinition(source),
+        image,
+        sound: null,
+      });
+      expect(hydrated.name).toBe(source.name);
+      expect(hydrated.description).toBe(description);
+      expect(avatarEffectDefinition(hydrated)).toEqual(
+        avatarEffectDefinition(source),
+      );
+    },
+  );
+
   it("uses canonical stable fingerprints and safe image names", () => {
     const left = createDefaultAvatarEffectDocument();
     const right = structuredClone(left);

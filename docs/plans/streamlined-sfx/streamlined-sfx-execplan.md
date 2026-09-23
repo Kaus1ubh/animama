@@ -6,7 +6,8 @@ Authorized outcome: R1–R6, all phases. Owner approved implementation on 2026-0
 by invoking implement after the plan handoff.
 Starting revision and recorded origin/main: `a5a7ba05fc8b72f7821b8afb707df3a8852a8b6b`.
 Branch: `feat/streamline-sfx`, in `/Users/ray/code/animama-ai/worktrees/e9cf/animama`.
-Implementation is delivered in the working tree; commits and PR handoff are pending.
+Implementation phase commits: `df51ecf` (upload), `91c40e0` (events/playback),
+`99d6382` (Library/routes). Final repair and PR handoff are pending.
 
 ## Progress
 
@@ -43,7 +44,7 @@ Implementation is delivered in the working tree; commits and PR handoff are pend
 ## Phase 1: Persistent upload and explicit selection
 
 Requirements R1–R3; [#70](https://github.com/raymond-van/animama/issues/70).
-Starting source: the recorded baseline; phase commit pending.
+Starting source: the recorded baseline; phase commit `df51ecf`.
 
 Delivered reusable `SoundUploadQueue`/`SoundUploadButton` in both action creators
 and both visual-effect sound pickers. Each file saves independently, retains its
@@ -68,7 +69,7 @@ acceptance are recorded below rather than inferred from unit tests.
 ## Phase 2: Event-scoped accompanying sound
 
 Requirements R4–R5; [#71](https://github.com/raymond-van/animama/issues/71).
-Starting source: phase 1 working-tree implementation; phase commit pending.
+Starting source: phase 1 implementation; phase commit `91c40e0`.
 
 Delivered optional default-on suppression in canonical Avatar/Scene event schemas,
 authoring clones and saved action documents. The existing event panel shows the
@@ -92,7 +93,7 @@ behavior, not audible or packaged desktop acceptance.
 ## Phase 3: Library management and route retirement
 
 Requirement R6; [#72](https://github.com/raymond-van/animama/issues/72).
-Starting source: phases 1–2 working-tree implementation; phase commit pending.
+Starting source: phases 1–2 implementation; phase commit `99d6382`.
 
 Delivered Library Play/Stop, rename, audio replacement and revision-guarded delete
 with confirmation. Uncertain save retries retain their receipt; successful writes
@@ -119,7 +120,13 @@ the subsequent Unicode fix passed 5 targeted helper/dialog tests and scoped ESLi
 Independent cross-phase analysis found no remaining actionable blockers. Final
 check review identified formatting in `content-preview/effects.test.ts`; the
 coordinator corrected it. Applicable local checks below passed. Browser coverage
-is partial and remains separate from implementation readiness.
+remains separate from audible and packaged acceptance. Final repair round 2 fixed
+an observed existing Avatar FX hydration mismatch: blank optional descriptions
+now use the name only as strict parser input, retaining the authored blank field.
+Two red regression cases became green; 22 document/runtime catalog tests and
+scoped ESLint passed. Targeted independent repair-round-2 review passed with no findings. Browser
+reopen then loaded the saved name, image and associated sound correctly. A follow-up type
+check also corrected the Unicode regression test's optional metadata access.
 
 Commit verified phases with `feat(sfx)[p#]: ...`; keep one branch/PR. Publish after
 local checks, record actual hosted Validation scope, and do not claim an owner-reviewed
@@ -130,9 +137,16 @@ local receipt. No merge without separate approval of the exact candidate.
 Local evidence:
 
 - Frontend full web suite: 267 test files, 1,531 tests passed.
-- Frontend check, lint and build passed; affected formatting checks passed after
-  the final formatting repair.
-- Relevant backend audio/typed-content suite: 61 tests passed.
+- From `src/frontend`: `pnpm check`, `pnpm web:lint`, `pnpm web:test` and
+  `pnpm build` passed. Check/build reran after final repairs; affected tests, lint
+  and read-only Prettier checks also passed. The build reports existing large chunks.
+- Python 3.12 with task `PYTHONPATH=src/backend`: `pytest -q
+  tests/test_content_audio.py tests/test_typed_content_save_replay.py
+  tests/test_typed_content_apis.py tests/test_content_type_handlers.py` passed 61 tests.
+- `pytest -q tests/test_content_save_service.py tests/test_local_content_catalog.py`:
+  12 catalog revision, dependency and delete tests passed using isolated
+  PostgreSQL test containers. Initial sandbox Docker access failure was resolved
+  by running with approved Docker access.
 - Focused automated coverage includes partial upload failure/retry, collisions,
   refresh failure, preview cancellation, explicit insertion, schema compatibility,
   event suppression, save/reopen and actual runtime audio-dispatch sinks.
@@ -146,11 +160,11 @@ Browser evidence, using the authorized private sample audio in task-local conten
   existing SFX timeline marker count unchanged. Selecting the silent Comic Pop
   effect showed no speaker marker and no accompanying-sound name/toggle in the
   existing Event inspector.
-- Scene accompanying-sound picker uploaded a sound; Avatar picker selected existing
-  sound. A saved event-only Reaction retained Avatar suppression false after reload,
+- Both Scene and Avatar accompanying-sound pickers uploaded sounds; Avatar also
+  selected an existing sound. A saved event-only Reaction retained Avatar suppression false after reload,
   while its Scene event retained default-on sound behavior.
-- Library Unicode rename and same-format Ogg replacement succeeded. The legacy new
-  URL redirected to Sounds Library.
+- Library Unicode rename and same-format Ogg replacement succeeded. Both legacy new/edit
+  URLs redirected to Sounds Library.
 - At 390×844, creator and Library management layouts were visually checked after
   desktop checks.
 
