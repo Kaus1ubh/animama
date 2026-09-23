@@ -585,7 +585,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     <CreatorWorkspaceShell
       leftPanelWidth={330}
       rightPanelWidth={370}
-      bottomChromeHeight={92}
+      bottomChromeHeight={144}
       busy={contentSave.isBusy}
       canvas={
         <div
@@ -777,6 +777,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
       }
       previewBar={
         <CreatorPreviewBar
+          title="Scene FX"
           subtitle={`${humanize(document.kind)} · ${document.durationMs === null ? "Sticky" : `${(document.durationMs / 1000).toFixed(1)}s`}`}
           playing={playing}
           onPlayingChange={setPreviewPlaying}
@@ -784,8 +785,9 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
           progressClassName={SCENE_EFFECT_PREVIEW_MOTION_CLASS}
           duration={{
             value:
-              document.durationMs === null ? 5 : document.durationMs / 1000,
-            disabled: document.durationMs === null,
+              document.durationMs === null ? null : document.durationMs / 1000,
+            label: "Effect duration",
+            indefiniteLabel: "Sticky · until cleared",
             min: 0.1,
             max: 30,
             step: 0.1,

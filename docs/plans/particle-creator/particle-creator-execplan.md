@@ -107,3 +107,29 @@ Code Review #1 Revisions: accepted both. Public Avatar playback now acquires bod
 Regressions failed before the sampler, creator validator, pose ownership and public Avatar/rest-transition repairs, then passed. The shared toolbar regression also failed before header validation was added. Independent checks after the repairs passed 125 tests across 22 files, web lint, web source types and read-only Prettier for all 16 changed/new frontend files. The production build passed with the existing large-chunk warning. Git diff checks passed. The final candidate appears in PR #66.
 
 Phase commit subject: `fix(vfx)[p2]: preview event-only gestures and simplify creator status`. Existing creator polish is preserved. No new infrastructure or backend changes. The development stack remains at http://animama-vfx-bcbb.localhost:8260 for continued work; ordinary merge requires owner approval of the final candidate.
+
+## Phase 3: shared creator timelines
+
+Authorized follow-up: [issue #73](https://github.com/raymond-van/animama/issues/73), read back at its 2026-09-23T18:39:57Z revision. Starting source: 1bd195f. Reuse worktree bcbb, branch chore/vfx-creator-polish, PR #66 and http://animama-vfx-bcbb.localhost:8260. Earlier phases remain complete.
+
+1. Extract controlled transport, toolbar, ruler, lanes, playhead and geometry from Gesture/Reaction; retain its pointer, keyboard, drop and playback ownership.
+2. Reuse those components in Particle while preserving its timer, pause/resume, stop/restart, finite completion and emitter selection.
+3. Reuse the controls and track layout in Avatar/Scene. Preserve apply/clear/restart and sound callbacks. Saved durations are lifetime configuration, not preview clocks; display turns/sticky without fabricated elapsed time or seeking.
+4. Run focused component/timeline/playback regressions, source types, lint, formatting and production build. Inspect desktop first, then narrow layouts, exercising route controls and Gesture editing.
+5. Run independent analysis and read-only checks; at most two repair rounds for this phase, then integration assessment reusing completed phase evidence. Commit the phase and update PR #66; merge remains owner-gated.
+
+Progress: implementation and scoped validation complete; owner merge approval remains pending. Mechanical presentation extraction preserves behavior and uses existing regression suites plus browser interaction checks; new lifetime rendering receives focused component coverage. No runtime/schema changes, stack reset or data purge.
+
+### Phase 3 review and validation
+
+Code Review #1 Findings: no concrete findings. Independent analysis confirmed shared presentation reuse and unchanged Gesture/Reaction pointer, keyboard, drop and runtime ownership; Particle timer/effects remain unchanged. Code Review #1 Revisions: none required, zero repair rounds used. Combined integration review reuses completed phases rather than reopening them.
+
+Independent checks in the existing task web container passed 186 tests across 20 files, `pnpm --dir web check:source`, `pnpm web:lint`, changed-source Prettier and `pnpm build`. Build retains its existing large-chunk warning. Focused suites cover shared presentation, creator primitives, timeline drop/deletion/authoring, particle editor, event-only clips, public Avatar playback and cleanup. `git diff --check` passed.
+
+Desktop browser checks at 1280px width verified all three VFX timeline layouts and Gesture's extracted controls. Particle Stop reset to 0.00s; Play advanced, Pause held at 0.25s, resume advanced from that value, natural completion reached 1.20s and Restart reset. Both lane fills and labels select their emitter. Scene Pause/Stop clear the effect and Restart changes its instance ID. Avatar controls switch playback state. Turns/sticky states omit the seconds input/ruler. Gesture scrubbing reached 1.00s and frame stepping reached 1.033s; Stop emptied all effect sets.
+
+At 390×844 all three VFX Preview tabs expose their transport and tracks; long toolbar content scrolls horizontally. Particle was also checked at 768×900. Temporary lifetime/loop edits were restored without saving; browser viewport overrides were reset. Retained particle and Gesture fixtures remain available in the task stack.
+
+Fresh rendered-effect acceptance is incomplete: the loaded Avatar fixture displayed Playing without a visible/observed active effect, and the Gesture particle lane reported one controller warning. A source trace found a preexisting Avatar snapshot/effect-identity reapply path, unchanged by this phase; the particle warning was not diagnosed. Earlier phase-2 full three-effect browser evidence remains historical, not a fresh pass. Runtime regression tests pass; native Electron, audible sound, live chat/provider invocation, moving-VRM fidelity and Reaction browser playback were not reverified. No unrelated runtime repair was included in this presentation extraction.
+
+Phase commit subject: `refactor(vfx)[p3]: share creator timeline controls and layout`. No reset, migration or purge. PR #66 carries the exact candidate and current evidence; merge remains owner-gated.

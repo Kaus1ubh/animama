@@ -19,12 +19,9 @@ import {
   CopyIcon,
   DownloadIcon,
   ImageIcon,
-  PauseIcon,
-  PlayIcon,
   PlusIcon,
   RefreshCwIcon,
   SearchIcon,
-  SquareIcon,
   SparklesIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -120,6 +117,19 @@ import {
   CreatorToolbar,
   CreatorWorkspaceShell,
 } from "@/ui/content-creator";
+import {
+  CreatorTimelineLane,
+  CreatorTimelinePlayhead,
+  CreatorTimelineRuler,
+  CreatorTimelineToolbar,
+  CreatorTimelineTransport,
+} from "@/ui/content-creator/CreatorTimeline";
+import {
+  LANE_HEIGHT_PX,
+  RULER_HEIGHT_PX,
+  TRACK_LABEL_RAIL_PX,
+  TRACK_RIGHT_INSET_PX,
+} from "@/ui/content-creator/creatorTimelineGeometry";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import { Button } from "@/ui/components/button";
 import { Checkbox } from "@/ui/components/checkbox";
@@ -1335,8 +1345,6 @@ function ParticleVFXPreviewTimeline({
     return () => window.clearInterval(interval);
   }, [durationSec, onPlaybackEnded, playing, ready]);
 
-  const progress = Math.min(100, Math.max(0, (timeSec / durationSec) * 100));
-  const ticks = [0, 0.25, 0.5, 0.75, 1];
   const handleTogglePlayback = () => {
     if (!playing && timeSec >= durationSec) {
       onRestart();
@@ -1347,97 +1355,83 @@ function ParticleVFXPreviewTimeline({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="border-border/60 flex min-h-12 flex-wrap items-center gap-2 border-b px-3 py-2">
-        <div className="mr-2 min-w-[128px]">
-          <h2 className="text-sm font-semibold">Preview Timeline</h2>
-          <p className="text-muted-foreground text-[11px]">
-            {emitters.length} emitter{emitters.length === 1 ? "" : "s"}
-          </p>
-        </div>
-        <div className="border-border/70 bg-background flex h-9 items-center rounded-lg border px-1 shadow-sm">
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            onClick={handleTogglePlayback}
-            disabled={!ready}
-            aria-label={
-              playing && ready ? "Pause effect preview" : "Play effect preview"
-            }
-          >
-            {playing && ready ? <PauseIcon /> : <PlayIcon />}
-          </Button>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            onClick={onStop}
-            aria-label="Stop effect preview"
-          >
-            <SquareIcon />
-          </Button>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            onClick={onRestart}
-            aria-label="Restart effect preview"
-          >
-            <RefreshCwIcon />
-          </Button>
-        </div>
-        <div className="border-border/70 bg-background ml-auto flex h-9 items-center rounded-lg border px-3 text-sm font-semibold shadow-sm">
-          {timeSec.toFixed(2)}s
-        </div>
-        <span className="text-muted-foreground flex items-center gap-2 px-2 text-xs">
-          <span
-            className={cn(
-              "size-2 rounded-full",
-              playing && ready ? "bg-primary" : "bg-muted-foreground/50",
-            )}
-          />
-          {!ready ? "Loading" : playing ? "Playing" : "Paused"}
-        </span>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
-        <div className="text-muted-foreground ml-[112px] grid grid-cols-5 text-[10px] tabular-nums">
-          {ticks.map((tick, index) => (
-            <span
-              key={tick}
-              className={index === ticks.length - 1 ? "text-right" : undefined}
-            >
-              {(durationSec * tick).toFixed(2)}s
-            </span>
-          ))}
-        </div>
-        <div className="mt-1 space-y-1">
-          {emitters.map((emitter) => (
-            <button
-              key={emitter.path}
-              type="button"
-              className="group flex h-7 w-full items-center gap-2 text-left"
-              onClick={() => onSelectEmitter(emitter.path)}
-            >
-              <span
-                className={cn(
-                  "w-[104px] truncate text-[11px] font-medium",
-                  emitter.path === activeEmitterPath
-                    ? "text-foreground"
-                    : "text-muted-foreground",
-                )}
+      <div className="border-border/60 border-b px-3 py-2">
+        <CreatorTimelineToolbar
+          leading={
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold">Preview Timeline</h2>
+              <p className="text-muted-foreground text-[11px]">
+                {emitters.length} emitter{emitters.length === 1 ? "" : "s"}
+              </p>
+            </div>
+          }
+          transport={
+            <CreatorTimelineTransport
+              playing={playing && ready}
+              onTogglePlayback={handleTogglePlayback}
+              onStop={onStop}
+              onRestart={onRestart}
+              playDisabled={!ready}
+              label="effect preview"
+            />
+          }
+          trailing={
+            <div className="flex items-center gap-3">
+              <output
+                className="text-sm font-medium tabular-nums"
+                aria-label="Effect preview time"
               >
-                {emitter.name}
-              </span>
-              <span className="bg-muted/70 border-border/60 relative h-5 min-w-0 flex-1 overflow-hidden rounded-md border">
-                <span className="bg-primary/20 absolute inset-y-0 left-0 w-full" />
+                {timeSec.toFixed(2)}s
+              </output>
+              <span className="text-muted-foreground flex items-center gap-2 text-xs">
                 <span
-                  className="bg-primary absolute inset-y-0 w-px"
-                  style={{ left: `${progress}%` }}
+                  className={cn(
+                    "size-2 rounded-full",
+                    playing && ready ? "bg-primary" : "bg-muted-foreground/50",
+                  )}
                 />
+                {!ready ? "Loading" : playing ? "Playing" : "Paused"}
               </span>
-            </button>
+            </div>
+          }
+        />
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          className="relative"
+          style={{
+            minHeight:
+              RULER_HEIGHT_PX +
+              Math.max(1, emitters.length) * LANE_HEIGHT_PX +
+              12,
+          }}
+        >
+          <CreatorTimelineRuler durationSec={durationSec} />
+          {emitters.map((emitter, index) => (
+            <CreatorTimelineLane
+              key={emitter.path}
+              index={index}
+              label={emitter.name}
+              selected={emitter.path === activeEmitterPath}
+              onSelect={() => onSelectEmitter(emitter.path)}
+            >
+              <button
+                type="button"
+                aria-label={`Select emitter ${emitter.name}`}
+                aria-pressed={emitter.path === activeEmitterPath}
+                onClick={() => onSelectEmitter(emitter.path)}
+                className="bg-primary/20 border-primary/25 pointer-events-auto absolute inset-y-1 rounded border"
+                style={{
+                  left: TRACK_LABEL_RAIL_PX,
+                  right: TRACK_RIGHT_INSET_PX,
+                }}
+              />
+            </CreatorTimelineLane>
           ))}
+          <CreatorTimelinePlayhead
+            timeSec={timeSec}
+            durationSec={durationSec}
+          />
         </div>
       </div>
     </div>

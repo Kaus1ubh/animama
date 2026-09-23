@@ -453,6 +453,12 @@ and atomically updates readable Local files. Save & Equip uses the saved catalog
 selection in the reviewed Anima loadout flow. Existing and starter Actions use
 typed preview reads to hydrate protected files and dependency runtime.
 
+`CreatorTimeline` supplies controlled transport and track presentation to Gesture,
+Reaction and all three VFX creators. Each editor retains its own playback owner:
+Particle exposes its elapsed preview clock, while Avatar/Scene rulers show saved
+lifetime configuration without seeking or an elapsed playhead. Avatar's run-end
+buffer starts after a conversation run; it is not a standalone preview deadline.
+
 There is no separate generic Pose Creator route or raw package save provider.
 Clip JSON remains `animaPoseClip/1.0`; a separate versioned project envelope is
 available when typed effect/sound dependencies must round-trip with the sequence.

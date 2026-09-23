@@ -1,9 +1,18 @@
-import { PauseIcon, PlayIcon, RefreshCwIcon, SquareIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
-import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
+
+import {
+  CreatorTimelineLane,
+  CreatorTimelineRuler,
+  CreatorTimelineToolbar,
+  CreatorTimelineTransport,
+} from "./CreatorTimeline";
+import {
+  TRACK_LABEL_RAIL_PX,
+  TRACK_RIGHT_INSET_PX,
+} from "./creatorTimelineGeometry";
 
 type CompactPreviewProps = {
   children?: never;
@@ -14,7 +23,9 @@ type CompactPreviewProps = {
   onRestart: () => void;
   progressClassName?: string;
   duration: {
-    value: number;
+    value: number | null;
+    label?: string;
+    indefiniteLabel?: string;
     disabled?: boolean;
     min: number;
     max: number;
@@ -72,71 +83,81 @@ function CompactPreviewContent(props: CompactPreviewProps) {
     progressClassName,
     duration,
   } = props;
+  const durationLabel = duration.label ?? "Duration";
   return (
-    <div className="flex h-full flex-wrap items-center gap-3">
-      <div className="mr-auto max-w-48 min-w-0">
-        <div className="text-sm font-semibold">{title}</div>
-        <div className="text-muted-foreground truncate text-xs">{subtitle}</div>
-      </div>
-      <div className="border-border/70 bg-muted/20 flex shrink-0 items-center rounded-lg border p-0.5">
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          onClick={() => onPlayingChange(!playing)}
-          aria-label={playing ? "Pause preview" : "Play preview"}
-          title={playing ? "Pause" : "Play"}
-        >
-          {playing ? <PauseIcon /> : <PlayIcon />}
-        </Button>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          onClick={() => onPlayingChange(false)}
-          aria-label="Stop preview"
-          title="Stop"
-        >
-          <SquareIcon />
-        </Button>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          onClick={onRestart}
-          aria-label="Restart preview"
-          title="Restart"
-        >
-          <RefreshCwIcon />
-        </Button>
-      </div>
-      <div className="bg-muted/55 mx-1 hidden h-1 min-w-20 flex-1 overflow-hidden rounded-full sm:block">
-        <div
-          className={cn(
-            "bg-primary h-full w-full origin-left",
-            playing && progressClassName,
+    <div className="flex h-full min-w-0 flex-col gap-2">
+      <CreatorTimelineToolbar
+        leading={
+          duration.value === null ? (
+            <span className="text-muted-foreground text-xs">
+              {duration.indefiniteLabel ?? "Until stopped"}
+            </span>
+          ) : (
+            <label className="flex items-center gap-2 text-xs">
+              <span className="text-muted-foreground whitespace-nowrap">
+                {durationLabel}
+              </span>
+              <Input
+                className="h-8 w-20 text-xs"
+                aria-label={`${durationLabel} in seconds`}
+                type="number"
+                min={duration.min}
+                max={duration.max}
+                step={duration.step}
+                value={duration.value}
+                disabled={duration.disabled}
+                onChange={(event) =>
+                  duration.onValueChange(event.target.valueAsNumber)
+                }
+              />
+              <span className="text-muted-foreground">
+                {duration.unit ?? "s"}
+              </span>
+            </label>
+          )
+        }
+        transport={
+          <CreatorTimelineTransport
+            label="preview"
+            playing={playing}
+            onTogglePlayback={() => onPlayingChange(!playing)}
+            onStop={() => onPlayingChange(false)}
+            onRestart={onRestart}
+          />
+        }
+        trailing={
+          <span className="text-muted-foreground text-xs">
+            {playing ? "Playing" : "Stopped"}
+          </span>
+        }
+      />
+      <div className="min-h-[76px] overflow-x-auto rounded-md">
+        <div className="border-border/70 bg-muted/20 relative h-[76px] min-w-80 overflow-hidden rounded-md border">
+          {/* These routes have no elapsed clock: the ruler shows saved lifetime configuration. */}
+          {duration.value !== null ? (
+            <CreatorTimelineRuler durationSec={duration.value} />
+          ) : (
+            <span
+              className="text-muted-foreground absolute top-2 text-[10px]"
+              style={{ left: TRACK_LABEL_RAIL_PX }}
+            >
+              {duration.indefiniteLabel ?? "Until stopped"}
+            </span>
           )}
-        />
+          <CreatorTimelineLane index={0} label={title}>
+            <div
+              className={cn(
+                "bg-primary/15 text-foreground absolute top-1 bottom-1 truncate rounded px-2 text-[10px] leading-[18px]",
+                playing && progressClassName,
+              )}
+              style={{ left: TRACK_LABEL_RAIL_PX, right: TRACK_RIGHT_INSET_PX }}
+              title={subtitle}
+            >
+              {subtitle}
+            </div>
+          </CreatorTimelineLane>
+        </div>
       </div>
-      <label className="ml-auto flex items-center gap-2 text-xs">
-        <span className="text-muted-foreground">Duration</span>
-        <Input
-          className="h-8 w-20 text-xs"
-          aria-label="Preview duration in seconds"
-          type="number"
-          min={duration.min}
-          max={duration.max}
-          step={duration.step}
-          value={duration.value}
-          disabled={duration.disabled}
-          onChange={(event) =>
-            duration.onValueChange(event.target.valueAsNumber)
-          }
-        />
-        <span className="text-muted-foreground text-xs">
-          {duration.unit ?? "s"}
-        </span>
-      </label>
     </div>
   );
 }

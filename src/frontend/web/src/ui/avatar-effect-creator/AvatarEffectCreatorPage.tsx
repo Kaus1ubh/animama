@@ -513,10 +513,11 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   const duration =
     document.lifetime?.kind === "duration"
       ? document.lifetime.runEndBufferSec
-      : 2;
+      : null;
 
   return (
     <CreatorWorkspaceShell
+      bottomChromeHeight={144}
       canvas={
         <div
           className="relative size-full"
@@ -727,14 +728,19 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       }
       previewBar={
         <CreatorPreviewBar
-          subtitle={document.name}
+          title="Avatar FX"
+          subtitle={document.name || "New Avatar FX"}
           playing={playing}
           onPlayingChange={setPreviewPlaying}
           onRestart={restartPreviewWithSound}
           progressClassName={AVATAR_EFFECT_PREVIEW_MOTION_CLASS}
           duration={{
             value: duration,
-            disabled: document.lifetime?.kind === "turns",
+            label: "Run-end buffer",
+            indefiniteLabel:
+              document.lifetime?.kind === "turns"
+                ? `${document.lifetime.turns} conversation turn${document.lifetime.turns === 1 ? "" : "s"}`
+                : "Until stopped",
             min: 0.05,
             max: 30,
             step: 0.05,
