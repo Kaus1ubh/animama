@@ -108,6 +108,8 @@ export type AnimaPoseClipAvatarVFXEvent = {
   id: string;
   time: number;
   kind: "avatar_vfx";
+  /** Omitted in older clips: accompanying audio remains enabled. */
+  playAccompanyingSound?: boolean;
   effectId: string;
   duration?: number;
   envelope?: AnimaPoseClipVFXEnvelope;
@@ -118,6 +120,8 @@ export type AnimaPoseClipSceneVFXEvent = {
   id: string;
   time: number;
   kind: "scene_vfx";
+  /** Omitted in older clips: accompanying audio remains enabled. */
+  playAccompanyingSound?: boolean;
   sceneKind: AnimaPoseClipSceneVFXKind;
   presetId: string;
   duration?: number;
@@ -531,6 +535,12 @@ function sanitizeAvatarVFXEvent(
   const effectId = sanitizeRequiredString(value.effectId);
   if (!effectId) return null;
 
+  if (
+    value.playAccompanyingSound !== undefined &&
+    typeof value.playAccompanyingSound !== "boolean"
+  )
+    return null;
+
   const vfxFields = sanitizeVFXEventFields(value);
   if (!vfxFields) return null;
 
@@ -540,6 +550,9 @@ function sanitizeAvatarVFXEvent(
     kind: "avatar_vfx",
     effectId,
     ...vfxFields,
+    ...(value.playAccompanyingSound !== undefined
+      ? { playAccompanyingSound: value.playAccompanyingSound }
+      : {}),
   };
 }
 
@@ -552,6 +565,12 @@ function sanitizeSceneVFXEvent(
   const presetId = sanitizeRequiredString(value.presetId);
   if (!sceneKind || !presetId) return null;
 
+  if (
+    value.playAccompanyingSound !== undefined &&
+    typeof value.playAccompanyingSound !== "boolean"
+  )
+    return null;
+
   const vfxFields = sanitizeVFXEventFields(value);
   if (!vfxFields) return null;
 
@@ -562,6 +581,9 @@ function sanitizeSceneVFXEvent(
     sceneKind,
     presetId,
     ...vfxFields,
+    ...(value.playAccompanyingSound !== undefined
+      ? { playAccompanyingSound: value.playAccompanyingSound }
+      : {}),
   };
 }
 

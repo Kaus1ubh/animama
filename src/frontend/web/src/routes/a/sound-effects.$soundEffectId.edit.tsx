@@ -1,17 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { AppShellPage } from "@/ui/app/AppShellPage";
-import { ComponentEditorPage } from "@/ui/creator/ComponentEditorPage";
-
+/** Old bookmarks now land on the persistent Sounds Library. */
 export const Route = createFileRoute("/a/sound-effects/$soundEffectId/edit")({
-  component: EditSoundEffectRoute,
+  beforeLoad: () => {
+    throw redirect({
+      to: "/a/library",
+      search: { section: "fx", fx: "sound" },
+      replace: true,
+    });
+  },
 });
-
-function EditSoundEffectRoute() {
-  const { soundEffectId } = Route.useParams();
-  return (
-    <AppShellPage>
-      <ComponentEditorPage family="sound" itemId={soundEffectId} />
-    </AppShellPage>
-  );
-}

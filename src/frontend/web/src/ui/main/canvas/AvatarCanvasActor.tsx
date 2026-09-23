@@ -180,7 +180,7 @@ export function AvatarCanvasActor({
         applyClipOwnedSceneVFX(poseClipSceneVfxRef.current, event, context, {
           resolvePreset: () => preset,
         });
-        if (preset?.sound?.onApply)
+        if (event.playAccompanyingSound !== false && preset?.sound?.onApply)
           await playSfxCueRef.current?.(preset.sound.onApply);
       },
       clearSceneVFX: (event, context) => {
@@ -228,7 +228,7 @@ export function AvatarCanvasActor({
             resolvePreset: () => preset,
           },
         );
-        if (preset?.sound?.onApply)
+        if (event.playAccompanyingSound !== false && preset?.sound?.onApply)
           await playSfxCueRef.current?.(preset.sound.onApply);
       },
       clearSceneVFX: (event, context) => {

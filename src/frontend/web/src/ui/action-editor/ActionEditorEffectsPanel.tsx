@@ -4,6 +4,8 @@ import {
   Layers3Icon,
   PersonStandingIcon,
   PlusIcon,
+  PlayIcon,
+  SquareIcon,
   SearchIcon,
   SparklesIcon,
   UserRoundIcon,
@@ -11,7 +13,7 @@ import {
   XIcon,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type {
   PyContentDependency,
@@ -33,6 +35,10 @@ import { CatalogDragHandle } from "./ActionCatalogDrag";
 import { CreatorPanelCollapseButton } from "./CreatorPanelChrome";
 import type { ActionDependencySection } from "./ActionEditorWorkspaceContext";
 import type { ActionComponentType } from "./actionDependencies";
+
+import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
+import { SoundPickerPreview } from "@/ui/sound-preview/SoundPickerPreview";
+import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 
 type EffectTab = {
   contentType: ActionComponentType;
@@ -122,10 +128,31 @@ export function ActionEditorEffectsPanel({
   onEditPose,
   onCreatePose,
 }: ActionEditorEffectsPanelProps) {
+  const [previewState, setPreviewState] = useState<{
+    id: string | null;
+    error?: string;
+  }>({ id: null });
+  const preview = useMemo(
+    () => new SoundPickerPreview((id, error) => setPreviewState({ id, error })),
+    [],
+  );
+  useEffect(() => {
+    const unsubscribe = usePoseCreatorStore.subscribe((state, previous) => {
+      if (state.clipPlaybackPlaying && !previous.clipPlaybackPlaying)
+        preview.stop();
+    });
+    return () => {
+      unsubscribe();
+      preview.stop();
+    };
+  }, [preview]);
   const showsPoses = poses !== undefined;
   const [panelTab, setPanelTab] = useState<PanelTab>(
     showsPoses ? "poses" : activeType,
   );
+  useEffect(() => {
+    preview.stop();
+  }, [panelTab, preview]);
   const [poseQuery, setPoseQuery] = useState("");
   const activeTab =
     EFFECT_TABS.find((tab) => tab.contentType === activeType) ?? EFFECT_TABS[0];
@@ -226,28 +253,42 @@ export function ActionEditorEffectsPanel({
             ))}
           </TabsList>
 
-          <div className="relative mt-3 shrink-0">
-            <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-            <Input
-              className="h-9 pl-8 text-xs"
-              value={panelTab === "poses" ? poseQuery : query}
-              onChange={(event) => {
-                if (panelTab === "poses") setPoseQuery(event.target.value);
-                else onQueryChange(event.target.value);
-              }}
-              placeholder={
-                panelTab === "poses"
-                  ? "Search poses"
-                  : activeTab.searchPlaceholder
-              }
-              aria-label={
-                panelTab === "poses"
-                  ? "Search poses"
-                  : activeTab.searchPlaceholder
-              }
-            />
+          <div
+            className={cn(
+              "mt-3 grid shrink-0 items-center gap-2",
+              panelTab === "sound_effect" && "grid-cols-[minmax(0,1fr)_auto]",
+            )}
+          >
+            <div className="relative min-w-0">
+              <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
+              <Input
+                className="h-9 pl-8 text-xs"
+                value={panelTab === "poses" ? poseQuery : query}
+                onChange={(event) => {
+                  if (panelTab === "poses") setPoseQuery(event.target.value);
+                  else onQueryChange(event.target.value);
+                }}
+                placeholder={
+                  panelTab === "poses"
+                    ? "Search poses"
+                    : activeTab.searchPlaceholder
+                }
+                aria-label={
+                  panelTab === "poses"
+                    ? "Search poses"
+                    : activeTab.searchPlaceholder
+                }
+              />
+            </div>
+            {panelTab === "sound_effect" ? (
+              <SoundUploadButton className="contents [&>ul]:col-span-full" />
+            ) : null}
           </div>
-
+          {previewState.error ? (
+            <p role="alert" className="text-destructive mt-2 text-xs">
+              {previewState.error}
+            </p>
+          ) : null}
           <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-0.5">
             {panelTab === "poses" ? (
               <PoseCatalog
@@ -308,6 +349,16 @@ export function ActionEditorEffectsPanel({
                           icon={activeTab.icon}
                           addedCount={addedCount}
                           onAdd={() => onAdd(item, activeTab.contentType)}
+                          previewing={previewState.id === item.item_id}
+                          onPreview={
+                            activeTab.contentType === "sound_effect"
+                              ? () => {
+                                  if (previewState.id === item.item_id)
+                                    preview.stop();
+                                  else void preview.play(item.item_id);
+                                }
+                              : undefined
+                          }
                         />
                       );
                     })}
@@ -493,12 +544,16 @@ function EffectCatalogRow({
   icon: Icon,
   addedCount,
   onAdd,
+  previewing,
+  onPreview,
 }: {
   mobile: boolean;
   contentType: ActionComponentType;
   item: PyCatalogViewItem;
   icon: LucideIcon;
   addedCount: number;
+  previewing?: boolean;
+  onPreview?: () => void;
   onAdd: () => void;
 }) {
   return (
@@ -522,6 +577,23 @@ function EffectCatalogRow({
           </div>
         </div>
       </CatalogDragHandle>
+      {onPreview ? (
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className="size-7 shrink-0 rounded-full"
+          disabled={!item.source}
+          onClick={onPreview}
+          aria-label={`${previewing ? "Stop" : "Play"} ${item.name}`}
+        >
+          {previewing ? (
+            <SquareIcon className="size-3.5" />
+          ) : (
+            <PlayIcon className="size-3.5" />
+          )}
+        </Button>
+      ) : null}
       <Button
         type="button"
         size="icon-sm"
@@ -529,7 +601,11 @@ function EffectCatalogRow({
         className="size-7 rounded-full"
         disabled={!item.source}
         onClick={onAdd}
-        aria-label={`Add ${item.name} at current playhead`}
+        aria-label={
+          contentType === "sound_effect"
+            ? `Add ${item.name} to timeline`
+            : `Add ${item.name} at current playhead`
+        }
         title={
           item.source ? "Add at current playhead" : "Content is unavailable"
         }

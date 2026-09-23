@@ -8,7 +8,6 @@ import {
   ImagePlay,
   Sparkles,
   UsersRound,
-  Volume2,
   WandSparkles,
 } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
@@ -82,12 +81,6 @@ const EFFECT_CREATE_LINKS = [
     icon: ImagePlay,
     iconClassName:
       "bg-violet-200 text-violet-950 dark:bg-violet-900 dark:text-violet-100",
-  },
-  {
-    label: "Sounds",
-    to: "/a/sound-effects/new" as const,
-    icon: Volume2,
-    iconClassName: "bg-muted text-muted-foreground",
   },
 ] as const;
 

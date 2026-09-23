@@ -8,6 +8,15 @@ const sidebarSource = new URL(
 );
 
 describe("Effect creator entry points", () => {
+  it("retires sound creation links and explains the inline upload flow", async () => {
+    const [hub, sidebar] = await Promise.all([
+      readFile(hubSource, "utf8"),
+      readFile(sidebarSource, "utf8"),
+    ]);
+    expect(hub).not.toContain("/a/sound-effects/new");
+    expect(sidebar).not.toContain("/a/sound-effects/new");
+    expect(hub).toContain("Upload sounds");
+  });
   it.each([
     ["Avatar VFX", "/a/avatar-effects/new"],
     ["Scene VFX", "/a/scene-effects/new"],

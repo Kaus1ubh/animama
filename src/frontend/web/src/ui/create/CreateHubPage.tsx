@@ -8,7 +8,6 @@ import {
   ImagePlay,
   Sparkles,
   UsersRound,
-  Volume2,
   WandSparkles,
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
@@ -28,8 +27,7 @@ type AvailableCreatorCard = {
     | "/a/reactions/new"
     | "/a/particle-effects/new"
     | "/a/avatar-effects/new"
-    | "/a/scene-effects/new"
-    | "/a/sound-effects/new";
+    | "/a/scene-effects/new";
   icon: CreatorIcon;
   iconClassName: string;
 };
@@ -92,15 +90,6 @@ const EFFECT_CREATORS: EffectCreatorCard[] = [
     icon: ImagePlay,
     iconClassName:
       "bg-violet-200 text-violet-950 dark:bg-violet-900 dark:text-violet-100",
-  },
-  {
-    status: "available",
-    title: "Sounds",
-    description: "Add audio cues and expressive accents.",
-    action: "Create sound",
-    to: "/a/sound-effects/new",
-    icon: Volume2,
-    iconClassName: "bg-muted text-muted-foreground",
   },
 ];
 
@@ -262,10 +251,11 @@ export function CreateHubPage() {
             Effects
           </h2>
           <p className="text-muted-foreground text-sm md:text-base">
-            Layer reusable effects into Gestures and Reactions.
+            Layer reusable effects into Gestures and Reactions. Upload sounds in
+            their SFX tabs or the accompanying-sound pickers.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {EFFECT_CREATORS.map((card) =>
             card.status === "available" ? (
               <AvailableEffectCard key={card.to} card={card} />

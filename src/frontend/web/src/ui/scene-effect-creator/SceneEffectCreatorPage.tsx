@@ -1,5 +1,7 @@
 "use client";
 
+import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
+
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 
 import { useBlocker, useNavigate } from "@tanstack/react-router";
@@ -1042,6 +1044,7 @@ function SceneSetupPanel({
             }
           />
           <Field label="Sound when applied">
+            <SoundUploadButton />
             <Select
               value={soundSourceKey(document.sound?.source ?? null)}
               onValueChange={(value) => {

@@ -6,11 +6,21 @@ runtime IDs are the public control surface, while URLs remain an internal
 delivery detail. TTS orchestration and voice catalogs remain outside the typed
 Sound Effect and Music Track catalogs.
 
-`/a/sound-effects/new` and `/a/sound-effects/:soundEffectId/edit` create typed
-Local Sound Effect items with one validated audio file and a bounded default
-volume. The `/a/create` hub links to Sound creation, and saved Sounds appear
-in the typed Library and preview through a short-lived content snapshot. Sounds
-are reusable components, not direct Anima loadout choices.
+Gesture and Reaction SFX tabs and Avatar/Scene FX sound pickers upload reusable
+Local Sounds from WAV, MP3 or Ogg files. Each file saves independently with its own
+retry identity; successful uploads remain in Library when an action draft is
+discarded. Uploading never inserts a timeline event. SFX rows separate Play/Stop
+from Add to timeline, and picker audio stops on tab/route changes or timeline play.
+Library Sounds provides preview, rename, same-format audio replacement and guarded
+delete. Old Sound creator URLs redirect to Library. Sounds remain typed catalog
+components with stable identities and revision checks, not direct Anima loadouts.
+
+Avatar/Scene timeline events may set `playAccompanyingSound: false` to suppress
+only that occurrence's attached sound. Omission means enabled for existing events.
+The visual effect and exact sound dependency closure remain intact; independent
+SFX events are unaffected. The existing event panel shows the sound name and toggle,
+and the timeline shows a speaker only when the effect has accompanying sound.
+
 `/a/music-tracks/new` creates typed Music Tracks with one long-form audio file,
 while the Anima Loadout owns enabled, autoplay, loop, and gain choices for selected
 Music Tracks.

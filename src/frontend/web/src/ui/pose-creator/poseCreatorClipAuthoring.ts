@@ -51,6 +51,7 @@ export type PoseCreatorClipKeyframeDraftPatch = Partial<
 };
 
 export type PoseCreatorClipEventDraftPatch = {
+  playAccompanyingSound?: boolean;
   time?: number;
   duration?: number | null;
   effectId?: string;
@@ -1102,6 +1103,9 @@ export function clonePoseCreatorClipEvent(
       kind: "avatar_vfx",
       effectId: event.effectId,
       ...clonePoseCreatorClipVFXEventFields(event),
+      ...(event.playAccompanyingSound !== undefined
+        ? { playAccompanyingSound: event.playAccompanyingSound }
+        : {}),
     };
   }
 
@@ -1113,6 +1117,9 @@ export function clonePoseCreatorClipEvent(
       sceneKind: event.sceneKind,
       presetId: event.presetId,
       ...clonePoseCreatorClipVFXEventFields(event),
+      ...(event.playAccompanyingSound !== undefined
+        ? { playAccompanyingSound: event.playAccompanyingSound }
+        : {}),
     };
   }
 
@@ -1555,6 +1562,8 @@ export function patchPoseCreatorClipEventDraft(
       event,
     ) as AnimaPoseClipAvatarVFXEvent;
     nextEvent.time = time;
+    if (patch.playAccompanyingSound !== undefined)
+      nextEvent.playAccompanyingSound = patch.playAccompanyingSound;
     if (patch.effectId !== undefined) nextEvent.effectId = patch.effectId;
     applyPoseCreatorClipVFXDurationPatch(nextEvent, patch);
     return nextEvent;
@@ -1565,6 +1574,8 @@ export function patchPoseCreatorClipEventDraft(
       event,
     ) as AnimaPoseClipSceneVFXEvent;
     nextEvent.time = time;
+    if (patch.playAccompanyingSound !== undefined)
+      nextEvent.playAccompanyingSound = patch.playAccompanyingSound;
     if (patch.sceneKind !== undefined) nextEvent.sceneKind = patch.sceneKind;
     if (patch.presetId !== undefined) nextEvent.presetId = patch.presetId;
     applyPoseCreatorClipVFXDurationPatch(nextEvent, patch);

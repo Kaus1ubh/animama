@@ -2233,7 +2233,11 @@ export class Avatar {
     event: Parameters<NonNullable<AnimaPoseClipEventSink["applyAvatarVFX"]>>[0],
     context: AnimaPoseClipEventContext,
   ): Promise<void> => {
-    await this._applyClipOwnedAvatarVFX(event, context);
+    await this._applyClipOwnedAvatarVFX(
+      event,
+      context,
+      this._poseClipExternalEventSink,
+    );
   };
 
   private _clearPoseClipAvatarVFX = (
@@ -2267,7 +2271,11 @@ export class Avatar {
     event: Parameters<NonNullable<AnimaPoseClipEventSink["applyAvatarVFX"]>>[0],
     context: AnimaPoseClipEventContext,
   ): Promise<void> => {
-    await this._applyClipOwnedAvatarVFX(event, context);
+    await this._applyClipOwnedAvatarVFX(
+      event,
+      context,
+      this._reactionClipExternalEventSink,
+    );
   };
 
   private _clearReactionClipAvatarVFX = (
@@ -2300,6 +2308,7 @@ export class Avatar {
   private async _applyClipOwnedAvatarVFX(
     event: Parameters<NonNullable<AnimaPoseClipEventSink["applyAvatarVFX"]>>[0],
     context: AnimaPoseClipEventContext,
+    soundSink: AnimaPoseClipEventSink | null,
   ): Promise<void> {
     if (!this._clipVFXEnabled) return;
     if (!this.isReady || !this.vfxController) {
@@ -2310,12 +2319,15 @@ export class Avatar {
     this._clipOwnedAvatarVFXIds.add(context.appliedId);
 
     let didApply = false;
+    let soundCueId: string | undefined;
     try {
+      const effect = await this._mediaCatalog.loadAvatarVFX(event.effectId);
+      soundCueId = effect?.sound?.onApply;
       didApply = await applyAvatarVFXEffectById({
         avatar: this,
         effectId: event.effectId,
         appliedEffectId: context.appliedId,
-        effectEntry: await this._mediaCatalog.loadAvatarVFX(event.effectId),
+        effectEntry: effect,
       });
     } catch (error) {
       const wasCancelled = this._wasClipOwnedAvatarVFXCancelled(
@@ -2338,6 +2350,15 @@ export class Avatar {
     if (this._wasClipOwnedAvatarVFXCancelled(context.appliedId)) {
       this.vfxController?.removeEffect(context.appliedId);
       this._clipOwnedAvatarVFXIds.delete(context.appliedId);
+      return;
+    }
+
+    // Audio belongs to this occurrence, never to the shared effect definition.
+    if (event.playAccompanyingSound !== false && soundCueId) {
+      await soundSink?.playSfx?.(
+        { id: event.id, time: event.time, kind: "sfx", cueId: soundCueId },
+        context,
+      );
     }
   }
 
