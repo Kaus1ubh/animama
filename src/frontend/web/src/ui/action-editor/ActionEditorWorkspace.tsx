@@ -2,6 +2,7 @@
 
 import {
   BoneIcon,
+  HandIcon,
   Clock3Icon,
   LibraryIcon,
   Settings2Icon,
@@ -15,7 +16,11 @@ import {
   useState,
   useRef,
   type ComponentType,
+  type ReactNode,
 } from "react";
+import { PoseCreatorHandPanel } from "@/ui/pose-creator/PoseCreatorHandPanel";
+import { usePoseCreatorHands } from "@/ui/pose-creator/usePoseCreatorHands";
+import { handPanelLayout } from "./handPanelLayout";
 
 import {
   ANIMA_POSE_SCHEMA,
@@ -170,12 +175,74 @@ function ActionEditorWorkspaceContent() {
   const capabilities = actionEditorCapabilities(workspace.document.intent);
   const timelineBased = workspace.document.implementation === "anima_clip";
   const desktopLayout = useActionEditorDesktopLayout();
+  const handsEnabled =
+    timelineBased &&
+    workspace.document.intent === "gesture" &&
+    workspace.mode === "pose";
+  const hands = usePoseCreatorHands(handsEnabled);
+  const handStageRef = useRef<HTMLDivElement>(null);
+  const handToggleRef = useRef<HTMLButtonElement>(null);
+  const [handPlacement, setHandPlacement] = useState({
+    adjacent: false,
+    left: 16,
+  });
+  useEffect(() => {
+    const stage = handStageRef.current;
+    if (!stage || !desktopLayout) return;
+    const measure = () =>
+      setHandPlacement(
+        handPanelLayout(
+          stage.getBoundingClientRect().width,
+          window.innerWidth,
+          parseFloat(
+            getComputedStyle(stage).getPropertyValue(
+              "--app-shell-sidebar-inset",
+            ),
+          ) || 0,
+        ),
+      );
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(stage);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [desktopLayout, handsEnabled]);
   const [mobileTool, setMobileTool] = useState<MobileTool>("timeline");
   const [componentsExpanded, setComponentsExpanded] = useState(true);
   const [timelineExpanded, setTimelineExpanded] = useState(true);
   const [bonesExpanded, setBonesExpanded] = useState(true);
   const [expressionsExpanded, setExpressionsExpanded] = useState(true);
-  const collapseBones = useCallback(() => setBonesExpanded(false), []);
+  const collapseBones = () => {
+    hands.setOpen(false);
+    setBonesExpanded(false);
+  };
+  const closeHands = () => {
+    hands.setOpen(false);
+    setBonesExpanded(true);
+    requestAnimationFrame(() => handToggleRef.current?.focus());
+  };
+  const handToggle = handsEnabled ? (
+    <Button
+      ref={handToggleRef}
+      type="button"
+      variant="outline"
+      size="icon-sm"
+      aria-label={hands.open ? "Hide hand authoring" : "Show hand authoring"}
+      aria-pressed={hands.open}
+      disabled={!hands.canEdit}
+      title="Hand authoring"
+      className={cn(
+        "bg-background size-11 shrink-0 rounded-lg shadow-none lg:size-9",
+        hands.open && "border-primary/40 bg-primary/8 text-primary",
+      )}
+      onClick={() => hands.setOpen(!hands.open)}
+    >
+      <HandIcon className="size-4" />
+    </Button>
+  ) : undefined;
   const collapseExpressions = useCallback(
     () => setExpressionsExpanded(false),
     [],
@@ -469,13 +536,28 @@ function ActionEditorWorkspaceContent() {
           <div className="relative min-h-0 flex-1 overflow-hidden">
             <ActionEditorScene capabilities={capabilities} />
             {workspace.mode === "pose" ? (
-              <div className="pointer-events-none absolute inset-x-0 top-[88px] bottom-0 z-30">
+              <div
+                ref={handStageRef}
+                className="pointer-events-none absolute inset-x-0 top-[88px] bottom-0 z-30"
+              >
                 <ActionEditorBoneSection
                   variant="workspace"
-                  browserExpanded={bonesExpanded}
+                  browserExpanded={
+                    bonesExpanded && !(hands.open && !handPlacement.adjacent)
+                  }
                   onCollapse={collapseBones}
+                  handToggle={handToggle}
                 />
-                {!bonesExpanded ? (
+                {handsEnabled && hands.open ? (
+                  <aside
+                    aria-label="Hand authoring"
+                    className="border-border/65 bg-background pointer-events-auto absolute top-4 z-30 max-h-[calc(100%-2rem)] w-[280px] overflow-y-auto rounded-2xl border shadow-xl shadow-black/8"
+                    style={{ left: handPlacement.left }}
+                  >
+                    <PoseCreatorHandPanel hands={hands} onClose={closeHands} />
+                  </aside>
+                ) : null}
+                {!bonesExpanded && !hands.open ? (
                   <CreatorCollapsedPanelHeader
                     label="Bones"
                     summary="Pose controls"
@@ -570,6 +652,12 @@ function ActionEditorWorkspaceContent() {
           </div>
         ) : (
           <MobileWorkspace
+            handToggle={handToggle}
+            handPanel={
+              handsEnabled && hands.open ? (
+                <PoseCreatorHandPanel hands={hands} onClose={closeHands} />
+              ) : undefined
+            }
             capabilities={capabilities}
             tool={mobileTool}
             onToolChange={(tool) => {
@@ -813,12 +901,16 @@ function EffectsPanel({
 }
 
 function MobileWorkspace({
+  handToggle,
+  handPanel,
   capabilities,
   tool,
   onToolChange,
   timeline,
   reactionExpressions,
 }: {
+  handToggle?: ReactNode;
+  handPanel?: ReactNode;
   capabilities: ReturnType<typeof actionEditorCapabilities>;
   tool: MobileTool;
   onToolChange: (tool: MobileTool) => void;
@@ -886,7 +978,13 @@ function MobileWorkspace({
             </div>
           )
         ) : activeTool === "bones" ? (
-          <ActionEditorBoneSection variant="mobile" />
+          handPanel ? (
+            <div className="h-full overflow-y-auto overscroll-contain">
+              {handPanel}
+            </div>
+          ) : (
+            <ActionEditorBoneSection variant="mobile" handToggle={handToggle} />
+          )
         ) : workspace.document.intent === "reaction" ? (
           reactionExpressions
         ) : (

@@ -6,7 +6,7 @@ Authorized scope: All three phases and local development stack, authorized by
 the owner on 2026-09-23 through implement. Parent spec: https://github.com/raymond-van/animama/issues/76.
 Starting revision: `98220eae162651207960ffa9657aa54581a80265`.
 Branch: retain `docs/hand-authoring-spec` in the assigned task worktree; one branch
-and one PR for this plan. Parent #76; phases #77, #78 and #79. No implementation commit or PR yet.
+and one PR for this plan. Parent #76; phases #77, #78 and #79. Phase 1 commit `f8906e7`; Phase 2 commit pending; PR pending.
 
 ## Purpose and context
 
@@ -43,7 +43,7 @@ Paths below are relative to `src/frontend/web/src/`:
 - [x] Prepare phased plan and link accepted spec.
 - [x] Owner authorized all phases; spec published/read back as #76 and phase issues created.
 - [x] Phase 1: Atomic hand transformations and undo behavior; review #2 passed.
-- [ ] Phase 2: Compact accessible panel integrated into Gesture Pose mode.
+- [x] Phase 2: Compact accessible panel integrated; targeted review #2 passed.
 - [ ] Phase 3: Calibrated Avatar behavior, persistence and final acceptance evidence.
 - [ ] Final integration review, PR and owner visual acceptance.
 
@@ -153,11 +153,11 @@ Completion: numerical/state contracts pass, no regression in inherited rotations
 or inline history, and independent review passes. Numerical tests do not establish
 anatomical visual correctness; that remains an explicit Phase 3 gate.
 
-Evidence: Issue #77; starting SHA `98220ea`; commit pending. Initial five-file
+Evidence: Issue #77; starting SHA `98220ea`; commit `f8906e7`. Initial five-file
 focused run: 74 tests passed (independently rerun). Implementer web TypeScript
 and scoped ESLint passed. Pure transform and batch-store tests observed intended
 red failures before implementation; controller tests include a return-to-zero
-representation regression. Controller lifecycle repair is in progress.
+representation regression. Controller lifecycle repair completed below.
 
 #### Code Review #1 Findings
 
@@ -213,15 +213,31 @@ change to meet these cases without redefining the accepted behavior.
 Completion: complete panel workflow is usable and tested; independent review
 passes. Capture a compactness comparison for Phase 3 owner review.
 
-Evidence: Issue #78; starting SHA pending; commit pending; checks not run.
+Evidence: Issue #78; starting SHA `f8906e7`; commit pending. Independent six-file
+focused suite passed 34 tests; web TypeScript and full web lint passed. Two panel
+slot regressions and one layout regression were observed red before implementation.
+After repair, panel/controller tests passed 18 tests and panel/workspace passed 15;
+TypeScript and changed-file lint/format passed. Browser checks at 1440×900,
+1280×800, 1024×768 and 390×844 covered adjacent/fallback placement, sidebar states,
+individual click/keyboard selection, Both counts, no selection-only Undo entry,
+keyboard adjustment/recentering, single-step Undo, close focus and responsive
+selection preservation. Mobile scrolling reached both sliders and the live hint.
+Pointer cancellation and anatomical acceptance remain Phase 3 checks.
 
 #### Code Review #1 Findings
 
-Not started. Record reviewed revision, findings and result here.
+HA-P2-01: Mobile Hands lacked bounded scrolling, clipping controls.
+HA-P2-02: Slider change could restart an interaction invalidated by Undo/session change.
+Both accepted; independent read-only checks passed.
 
 #### Code Review #1 Revisions
 
-Not started. Record dispositions, fixes and recheck evidence; repair rounds used: 0/2.
+Repair 1: mobile Hands gets a bounded scroll wrapper; browser confirms reachable
+controls at 390×844. Changes only update existing interactions; explicit pointer
+or non-repeated key starts begin them. A real-handler/controller regression failed
+before the fix and passed afterward for start/change → Undo → late change.
+Targeted independent review #2 passed both fixes and their regression scope.
+Repair rounds used: 1/2. Owner compactness acceptance remains pending.
 
 ### Phase 3 — Avatar calibration and durable pose acceptance
 
