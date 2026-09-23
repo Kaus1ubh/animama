@@ -100,7 +100,6 @@ export function PoseCreatorClipTimeline({
   poseLaneLabel = "Pose",
   allowHumanoid = true,
   playbackPending = false,
-  onAddExpressionKeyframe,
   settingsContent,
   expanded = true,
   onExpandedChange,
@@ -109,7 +108,6 @@ export function PoseCreatorClipTimeline({
   poseLaneLabel?: string;
   allowHumanoid?: boolean;
   playbackPending?: boolean;
-  onAddExpressionKeyframe?: () => void;
   settingsContent?: React.ReactNode;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
@@ -535,17 +533,6 @@ export function PoseCreatorClipTimeline({
                   <SkipForwardIcon className="size-4" />
                 </Button>
               </div>
-
-              {onAddExpressionKeyframe ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="h-8 shrink-0"
-                  onClick={onAddExpressionKeyframe}
-                >
-                  + Expression
-                </Button>
-              ) : null}
             </div>
             <div className="col-start-3 row-start-1 flex shrink-0 items-center gap-1.5 justify-self-end">
               <Popover>
@@ -701,7 +688,7 @@ export function PoseCreatorClipTimeline({
                       height: LANE_HEIGHT_PX,
                     }}
                   >
-                    <div className="bg-background/95 text-muted-foreground sticky left-0 z-30 flex h-full w-[72px] items-center px-2 text-[10px] font-medium tracking-normal uppercase backdrop-blur-sm">
+                    <div className="bg-background text-muted-foreground sticky left-0 z-30 flex h-full w-[72px] items-center px-2 text-[10px] font-medium tracking-normal uppercase backdrop-blur-sm">
                       <span className="truncate">
                         {lane.id === "pose" ? poseLaneLabel : lane.label}
                       </span>

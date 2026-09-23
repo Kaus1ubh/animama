@@ -215,7 +215,6 @@ export function ActionTimelineEditor({
   reaction,
   isBusy,
   playbackPending = false,
-  onAddExpressionKeyframe,
   settingsContent,
   expanded = true,
   onExpandedChange,
@@ -225,7 +224,6 @@ export function ActionTimelineEditor({
   reaction: boolean;
   isBusy: boolean;
   playbackPending?: boolean;
-  onAddExpressionKeyframe?: () => void;
   settingsContent?: React.ReactNode;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
@@ -247,7 +245,6 @@ export function ActionTimelineEditor({
         poseLaneLabel={reaction ? "Expression" : "Pose"}
         allowHumanoid={!reaction}
         playbackPending={playbackPending}
-        onAddExpressionKeyframe={onAddExpressionKeyframe}
         settingsContent={settingsContent}
         expanded={expanded}
         onExpandedChange={onExpandedChange}

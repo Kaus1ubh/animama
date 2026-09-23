@@ -28,7 +28,7 @@ export function PoseCreatorHelpersToggle({
           variant="outline"
           size="icon-sm"
           className={cn(
-            "bg-background/70 size-11 shrink-0 rounded-lg shadow-none lg:size-9",
+            "bg-background size-11 shrink-0 rounded-lg shadow-none lg:size-9",
             checked && "border-primary/40 bg-primary/8 text-primary",
           )}
           onClick={() => onCheckedChange(!checked)}

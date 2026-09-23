@@ -37,7 +37,7 @@ export function CreatorSaveNotice({
     <section
       ref={noticeRef}
       className={cn(
-        "border-border bg-background/95 flex flex-wrap items-center gap-3 rounded-xl border px-4 py-2 text-xs shadow-lg backdrop-blur-xl",
+        "border-border bg-background flex flex-wrap items-center gap-3 rounded-xl border px-4 py-2 text-xs shadow-lg",
         className,
       )}
       role={isError ? "alert" : "status"}

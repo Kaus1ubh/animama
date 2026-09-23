@@ -24,7 +24,7 @@ export function PosePrimaryActions({ busy = false }: { busy?: boolean }) {
         type="submit"
         form="pose-creator-pose-save-form"
         variant="outline"
-        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
+        className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
         disabled={saveDisabled || !selectedSource}
         aria-label="Save pose"
       >
@@ -36,7 +36,8 @@ export function PosePrimaryActions({ busy = false }: { busy?: boolean }) {
         form="pose-creator-pose-save-form"
         name="pose-creator-submit-action"
         value="save-and-branch"
-        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
+        variant="outline"
+        className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
         disabled={saveDisabled || !selectedSource || !activeAvatar}
         aria-label="Save and branch pose"
       >

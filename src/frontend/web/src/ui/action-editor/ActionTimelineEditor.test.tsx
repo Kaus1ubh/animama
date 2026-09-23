@@ -143,14 +143,12 @@ describe("ActionTimelineEditor", () => {
   });
 
   it("keeps timeline transport local while forwarding editor controls", () => {
-    const addExpression = () => undefined;
     const onExpandedChange = () => undefined;
     renderToString(
       <ActionTimelineEditor
         reaction
         isBusy={false}
         playbackPending
-        onAddExpressionKeyframe={addExpression}
         expanded={false}
         onExpandedChange={onExpandedChange}
       />,
@@ -158,7 +156,6 @@ describe("ActionTimelineEditor", () => {
 
     expect(timelineProps?.onPreparePreview).toBeUndefined();
     expect(timelineProps?.playbackPending).toBe(true);
-    expect(timelineProps?.onAddExpressionKeyframe).toBe(addExpression);
     expect(timelineProps?.expanded).toBe(false);
     expect(timelineProps?.onExpandedChange).toBe(onExpandedChange);
   });

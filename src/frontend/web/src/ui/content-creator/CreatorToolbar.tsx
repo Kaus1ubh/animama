@@ -112,7 +112,7 @@ export function CreatorToolbar({
     if (documentNameInvalid) inputRef.current?.focus();
   }, [documentNameInvalid]);
   return (
-    <header className="bg-background/95 relative z-40 w-full shrink-0 px-2 py-2 backdrop-blur-xl sm:pr-3 sm:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:backdrop-blur-none lg:transition-[padding-left] lg:duration-150 lg:ease-in-out xl:pr-8 xl:pl-[calc(var(--app-shell-sidebar-inset)+2rem)]">
+    <header className="[&_button:disabled]:text-muted-foreground bg-background relative z-40 w-full shrink-0 px-2 py-2 sm:pr-3 sm:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:transition-[padding-left] lg:duration-150 lg:ease-in-out xl:pr-8 xl:pl-[calc(var(--app-shell-sidebar-inset)+2rem)] [&_button:disabled]:opacity-100">
       {history ? (
         <CreatorHistoryShortcut
           controller={history}
@@ -129,7 +129,7 @@ export function CreatorToolbar({
           variant="outline"
           aria-label="New"
           title="New"
-          className="col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
+          className="dark:bg-background dark:hover:bg-accent col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
           disabled={newDisabled}
           onClick={onNew}
         >
@@ -145,7 +145,7 @@ export function CreatorToolbar({
           <Button
             type="button"
             variant="outline"
-            className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:size-12 2xl:w-auto 2xl:px-4"
+            className="dark:bg-background dark:hover:bg-accent col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:size-12 2xl:w-auto 2xl:px-4"
             aria-label={libraryLabel}
             title={libraryLabel}
             disabled={libraryDisabled}
@@ -192,7 +192,8 @@ export function CreatorToolbar({
           <div
             className={cn(
               "border-border/70 bg-background flex h-11 min-w-0 items-center gap-1 rounded-xl border px-3 shadow-sm lg:h-12",
-              documentNameInvalid && "border-destructive/50 bg-destructive/5",
+              documentNameInvalid &&
+                "border-destructive/50 ring-destructive/40 ring-1",
             )}
           >
             {documentControl ??
@@ -235,7 +236,7 @@ export function CreatorToolbar({
             <Button
               type="button"
               variant="outline"
-              className="col-start-3 row-start-2 size-11 rounded-xl p-0 shadow-sm lg:hidden"
+              className="dark:bg-background dark:hover:bg-accent col-start-3 row-start-2 size-11 rounded-xl p-0 shadow-sm lg:hidden"
               aria-label="More creator actions"
             >
               <MoreHorizontalIcon className="size-5" />
@@ -303,7 +304,7 @@ export function CreatorToolbar({
           <Button
             type="button"
             variant="outline"
-            className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
+            className="dark:bg-background dark:hover:bg-accent size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
             disabled={saveDisabled}
             onClick={onSave}
             aria-label={saveLabel}

@@ -639,7 +639,7 @@ function WorkspaceCard({
       className={
         embedded
           ? "border-t pt-3"
-          : "border-border/70 bg-background/95 rounded-xl border p-4 shadow-lg backdrop-blur-xl"
+          : "border-border/70 bg-background rounded-xl border p-4 shadow-lg backdrop-blur-xl"
       }
     >
       {children}

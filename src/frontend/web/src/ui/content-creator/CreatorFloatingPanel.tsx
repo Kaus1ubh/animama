@@ -25,7 +25,7 @@ export function CreatorFloatingPanel({
     <section
       aria-labelledby={title ? titleId : undefined}
       className={cn(
-        "border-border/65 bg-background/92 flex min-h-0 flex-col rounded-2xl border shadow-xl shadow-black/8 backdrop-blur-xl",
+        "border-border/65 bg-background flex min-h-0 flex-col rounded-2xl border shadow-xl shadow-black/8",
         title ? "h-full" : "p-3",
         className,
         title && "p-0",

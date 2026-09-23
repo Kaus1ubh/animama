@@ -535,7 +535,7 @@ export function PoseCreatorBoneSection({
     return (
       <aside
         className={cn(
-          "border-border/65 bg-background/92 pointer-events-auto flex flex-col border p-4 backdrop-blur-xl",
+          "border-border/65 bg-background pointer-events-auto flex flex-col border p-4 backdrop-blur-xl",
           variant === "mobile"
             ? hasSelectedRow
               ? "hidden"
@@ -633,7 +633,7 @@ export function PoseCreatorBoneSection({
               onChange={(event) => setBoneSearch(event.currentTarget.value)}
               placeholder="Search bones"
               aria-label="Search bones"
-              className="bg-background/70 h-9 rounded-lg pl-9 text-xs shadow-none"
+              className="bg-background h-9 rounded-lg pl-9 text-xs shadow-none"
             />
           </div>
           <PoseCreatorHelpersToggle
@@ -694,7 +694,7 @@ export function PoseCreatorBoneSection({
         {selectedRow || variant === "workspace" ? (
           <aside
             className={cn(
-              "border-border/65 bg-background/92 pointer-events-auto border p-4 backdrop-blur-xl",
+              "border-border/65 bg-background pointer-events-auto border p-4 backdrop-blur-xl",
               variant === "mobile"
                 ? "h-full min-h-0 w-full overflow-y-auto border-0 pb-[calc(1rem+env(safe-area-inset-bottom))]"
                 : "absolute top-4 right-4 w-[248px] rounded-2xl shadow-xl shadow-black/8 xl:right-8 xl:w-[296px] 2xl:w-[308px]",

@@ -153,7 +153,7 @@ export function ActionEditorEffectsPanel({
   return (
     <section
       className={cn(
-        "bg-background/92 flex h-full min-h-0 flex-col overflow-hidden border p-3 backdrop-blur-xl",
+        "bg-background flex h-full min-h-0 flex-col overflow-hidden border p-3 backdrop-blur-xl",
         mobile ? "border-0" : "rounded-2xl shadow-xl",
       )}
     >
@@ -165,13 +165,11 @@ export function ActionEditorEffectsPanel({
       >
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">{panelLabel}</h2>
-          {!expanded || !showsPoses ? (
+          {!expanded ? (
             <p className="text-muted-foreground mt-1 truncate text-xs">
-              {expanded
-                ? "Add visuals and sound at the playhead."
-                : showsPoses
-                  ? `${poses.length} poses · ${dependencies.length} effects`
-                  : `${dependencies.length} added`}
+              {showsPoses
+                ? `${poses.length} poses · ${dependencies.length} effects`
+                : `${dependencies.length} added`}
             </p>
           ) : null}
         </div>

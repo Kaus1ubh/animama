@@ -178,7 +178,7 @@ export function ActionEditorHeader({
   };
 
   return (
-    <header className="bg-background/95 relative z-40 shrink-0 px-2 py-2 backdrop-blur-xl sm:px-3 lg:absolute lg:inset-x-0 lg:top-0 lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:backdrop-blur-none lg:transition-[padding-left] lg:duration-150 lg:ease-in-out xl:pr-8 xl:pl-[calc(var(--app-shell-sidebar-inset)+2rem)]">
+    <header className="bg-background relative z-40 shrink-0 px-2 py-2 backdrop-blur-xl sm:px-3 lg:absolute lg:inset-x-0 lg:top-0 lg:bg-transparent lg:py-3 lg:pr-4 lg:pl-[calc(var(--app-shell-sidebar-inset)+1rem)] lg:backdrop-blur-none lg:transition-[padding-left] lg:duration-150 lg:ease-in-out xl:pr-8 xl:pl-[calc(var(--app-shell-sidebar-inset)+2rem)]">
       <div
         className={cn(
           "grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] grid-rows-[auto_auto] items-center gap-2 lg:grid-rows-1 lg:items-start lg:gap-1.5 2xl:gap-3",
@@ -282,7 +282,7 @@ function ActionNewButton({
       variant="outline"
       aria-label="New"
       title="New"
-      className="col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
+      className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
       disabled={busy}
       onClick={onNew}
     >
@@ -392,7 +392,7 @@ function MobileActions({
         <Button
           type="button"
           variant="outline"
-          className="col-start-3 row-start-2 size-11 rounded-xl p-0 shadow-sm lg:hidden"
+          className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-3 row-start-2 size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:hidden"
           aria-label="More creator actions"
         >
           <MoreHorizontalIcon className="size-5" />
@@ -731,7 +731,7 @@ function ActionLoadButton() {
         <Button
           type="button"
           variant="outline"
-          className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
+          className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:col-start-3 lg:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
           aria-label={`Load ${workspace.document.intent}`}
         >
           <FolderOpenIcon className="size-4" />
@@ -880,7 +880,7 @@ function ActionPrimaryActions() {
       <Button
         type="button"
         variant="outline"
-        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
+        className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
         disabled={disabled}
         onClick={() => void workspace.save()}
         aria-label="Save content"
@@ -894,8 +894,9 @@ function ActionPrimaryActions() {
       </Button>
       <Button
         type="button"
-        className="size-11 rounded-xl p-0 shadow-sm lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
+        className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
         disabled={disabled}
+        variant="outline"
         onClick={() => void workspace.saveAndEquip()}
         aria-label="Save and equip content"
       >

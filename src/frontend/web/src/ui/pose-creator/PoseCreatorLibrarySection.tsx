@@ -268,7 +268,7 @@ function SavedDraftLoadButton({
         <Button
           type="button"
           variant="outline"
-          className="col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm lg:col-start-3 lg:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
+          className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:col-start-3 lg:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
           aria-label="Load pose"
         >
           <FolderOpenIcon className="size-4" />
@@ -795,7 +795,7 @@ export function PoseCreatorLibrarySection({
             variant="outline"
             aria-label="New"
             title="New"
-            className="col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
+            className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
             onClick={handleNewPose}
           >
             <FilePlus2Icon className="size-4" />
@@ -865,7 +865,7 @@ export function PoseCreatorLibrarySection({
             <Button
               type="button"
               variant="outline"
-              className="col-start-3 row-start-2 size-11 rounded-xl p-0 shadow-sm lg:hidden"
+              className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-3 row-start-2 size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:hidden"
               aria-label="More pose actions"
             >
               <MoreHorizontalIcon className="size-5" />

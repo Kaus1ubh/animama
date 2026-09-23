@@ -43,7 +43,7 @@ export function CreatorPreviewBar({
   return (
     <section
       className={cn(
-        "bg-background/92 border-border/70 min-h-14 rounded-2xl border p-3 shadow-sm lg:h-full lg:overflow-hidden",
+        "bg-background border-border/70 min-h-14 rounded-2xl border p-3 shadow-sm lg:h-full lg:overflow-hidden",
         className,
       )}
     >
