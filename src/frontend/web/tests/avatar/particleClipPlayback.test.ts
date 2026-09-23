@@ -60,6 +60,7 @@ function createPlaybackHarness(lane: "gesture" | "reaction") {
   const avatar = new Avatar(new Object3D());
   avatar.vrm = {
     scene,
+    update: () => {},
     humanoid: {
       getNormalizedPose: () => ({}),
       setNormalizedPose: () => {},
@@ -86,8 +87,8 @@ function createPlaybackHarness(lane: "gesture" | "reaction") {
     id: "anchored-clip",
     name: "Anchored clip",
     duration: 2,
-    poses: { rest: {} },
-    poseKeyframes: [{ time: 0, pose: "rest" }],
+    poses: {},
+    poseKeyframes: [],
     events: [
       {
         id: "particles",
@@ -100,7 +101,7 @@ function createPlaybackHarness(lane: "gesture" | "reaction") {
   });
   const play = () =>
     lane === "gesture"
-      ? avatar.poseController!.playAnimaPoseClip(clip)
+      ? avatar.playAnimaPoseClip(clip)
       : avatar.reactionClipPlayer!.play({
           ownerId: "reaction-owner",
           runId: "run",
@@ -110,12 +111,10 @@ function createPlaybackHarness(lane: "gesture" | "reaction") {
         });
   const stop = () =>
     lane === "gesture"
-      ? avatar.poseController!.stopClip({ immediate: true })
+      ? avatar.stopClip()
       : avatar.reactionClipPlayer!.clear(null, { immediate: true });
   const update = (dt: number) => {
-    if (lane === "gesture") avatar.poseController!.update(dt);
-    else avatar.reactionClipPlayer!.update(dt);
-    controller.update(dt);
+    avatar.update(dt);
     scene.updateMatrixWorld(true);
   };
   return { scene, bones, controller, play, stop, update };

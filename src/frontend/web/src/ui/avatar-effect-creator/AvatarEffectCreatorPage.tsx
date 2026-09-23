@@ -6,7 +6,6 @@ import { useFrame } from "@react-three/fiber";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
-  CheckCircle2Icon,
   Code2Icon,
   FileImageIcon,
   FolderOpenIcon,
@@ -583,6 +582,21 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       toolbar={
         <CreatorToolbar
           contentHealth={<ContentHealth compact />}
+          validationMessages={[
+            ...validation.map((issue) => issue.message),
+            ...(vfxSnapshot?.warnings ?? []),
+            ...[
+              modelPreview.animaError,
+              modelPreview.runtimeError,
+              modelPreview.modelError,
+            ].filter((message): message is string => Boolean(message)),
+            ...(avatarStatus.state === "error"
+              ? [avatarStatus.message ?? "Unable to load the preview Avatar."]
+              : []),
+            ...(hydration.state === "error"
+              ? [hydration.message ?? "Unable to open effect."]
+              : []),
+          ]}
           history={history}
           historyDisabled={
             contentSave.isBusy ||
@@ -668,12 +682,8 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       rightPanel={
         <InspectorPanel
           document={document}
-          validation={validation}
-          avatarStatus={avatarStatus}
           modelPreview={modelPreview}
           selectedModel={selectedModel}
-          vfxSnapshot={vfxSnapshot}
-          modelCompatible={modelCompatible}
           onDispatch={(action) => {
             dispatch(action);
             restartPreview();
@@ -1320,22 +1330,14 @@ type EditorFieldsProps = {
 
 function InspectorPanel({
   document,
-  validation,
-  avatarStatus,
   modelPreview,
   selectedModel,
-  vfxSnapshot,
-  modelCompatible,
   onDispatch,
   onPatchTransform,
 }: {
   document: AvatarEffectEditorDocument;
-  validation: ReturnType<typeof validateAvatarEffectDocument>;
-  avatarStatus: PreviewStatus;
   modelPreview: ReturnType<typeof useContentCreatorModelPreview>;
   selectedModel: ContentCreatorModelSource | null;
-  vfxSnapshot: AvatarVFXSnapshot | null;
-  modelCompatible: boolean | null;
   onDispatch: React.Dispatch<Parameters<typeof avatarEffectEditorReducer>[1]>;
   onPatchTransform: (
     group: keyof AvatarVFXTransform,
@@ -1350,7 +1352,7 @@ function InspectorPanel({
       bodyClassName="overflow-y-auto"
     >
       <Tabs defaultValue="placement">
-        <TabsList className="grid h-9 w-full grid-cols-4">
+        <TabsList className="grid h-9 w-full grid-cols-3">
           <TabsTrigger value="placement" className="min-w-0 px-1 text-xs">
             Placement
           </TabsTrigger>
@@ -1359,9 +1361,6 @@ function InspectorPanel({
           </TabsTrigger>
           <TabsTrigger value="animation" className="min-w-0 px-1 text-xs">
             Animation
-          </TabsTrigger>
-          <TabsTrigger value="diagnostics" className="min-w-0 px-1 text-xs">
-            Checks
           </TabsTrigger>
         </TabsList>
         <TabsContent value="placement" className="mt-3 space-y-3">
@@ -1411,13 +1410,6 @@ function InspectorPanel({
               onPatchTransform("scale", axis, value)
             }
           />
-          {modelCompatible === false || avatarStatus.state === "error" ? (
-            <CompatibilityCard
-              avatarStatus={avatarStatus}
-              modelCompatible={modelCompatible}
-              warnings={vfxSnapshot?.warnings ?? []}
-            />
-          ) : null}
         </TabsContent>
         <TabsContent value="transform" className="mt-3 space-y-3">
           {(["offset", "scale", "rotation"] as const).map((group) => (
@@ -1498,41 +1490,6 @@ function InspectorPanel({
               }
             />
           ) : null}
-        </TabsContent>
-        <TabsContent value="diagnostics" className="mt-3 space-y-3">
-          <CompatibilityCard
-            avatarStatus={avatarStatus}
-            modelCompatible={modelCompatible}
-            warnings={vfxSnapshot?.warnings ?? []}
-          />
-          {validation.length === 0 ? (
-            <StatusRow
-              good
-              label="Ready to save"
-              detail="Effect image and settings are ready."
-            />
-          ) : (
-            validation.map((issue, index) => (
-              <StatusRow
-                key={`${issue.field}:${index}`}
-                good={issue.severity !== "error"}
-                warning={issue.severity === "warning"}
-                label={humanize(issue.field)}
-                detail={issue.message}
-              />
-            ))
-          )}
-          <StatusRow
-            good={avatarStatus.state === "ready"}
-            label="Avatar preview"
-            detail={avatarStatus.message ?? humanize(avatarStatus.state)}
-          />
-          <StatusRow
-            good={Boolean(vfxSnapshot?.activeEffects.length)}
-            warning={!vfxSnapshot?.activeEffects.length}
-            label="Live effect bindings"
-            detail={`${vfxSnapshot?.activeEffects.length ?? 0} active · ${vfxSnapshot?.targetBindings.length ?? 0} targets`}
-          />
         </TabsContent>
       </Tabs>
     </FloatingPanel>
@@ -1734,78 +1691,6 @@ function AvatarEffectLeaveDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function CompatibilityCard({
-  avatarStatus,
-  modelCompatible,
-  warnings,
-}: {
-  avatarStatus: PreviewStatus;
-  modelCompatible: boolean | null;
-  warnings: string[];
-}) {
-  const pending = avatarStatus.state !== "ready" || modelCompatible === null;
-  const good = avatarStatus.state === "ready" && modelCompatible === true;
-  return (
-    <div
-      className={cn(
-        "rounded-xl border p-3 text-xs",
-        good
-          ? "border-emerald-300/60 bg-emerald-50/70 dark:bg-emerald-950/25"
-          : "border-amber-300/60 bg-amber-50/70 dark:bg-amber-950/25",
-      )}
-    >
-      <div className="flex items-center gap-2 font-medium">
-        {good ? (
-          <CheckCircle2Icon className="size-4 text-emerald-600" />
-        ) : (
-          <AlertTriangleIcon className="size-4 text-amber-600" />
-        )}
-        {avatarStatus.state !== "ready"
-          ? "Preparing selected Avatar"
-          : pending
-            ? "Checking effect compatibility"
-            : modelCompatible === false
-              ? "Effect is incompatible with this Avatar"
-              : "Compatible with selected Avatar"}
-      </div>
-      {warnings[0] ? (
-        <p className="text-muted-foreground mt-1">{warnings[0]}</p>
-      ) : null}
-    </div>
-  );
-}
-
-function StatusRow({
-  good,
-  warning,
-  label,
-  detail,
-}: {
-  good: boolean;
-  warning?: boolean;
-  label: string;
-  detail: string;
-}) {
-  return (
-    <div className="flex items-start gap-2 rounded-lg border p-2.5 text-xs">
-      {good ? (
-        <CheckCircle2Icon className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-      ) : (
-        <AlertTriangleIcon
-          className={cn(
-            "mt-0.5 size-4 shrink-0",
-            warning ? "text-amber-600" : "text-destructive",
-          )}
-        />
-      )}
-      <div>
-        <div className="font-medium">{label}</div>
-        <div className="text-muted-foreground">{detail}</div>
-      </div>
-    </div>
   );
 }
 

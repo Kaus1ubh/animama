@@ -1,5 +1,7 @@
 "use client";
 
+import { particleVFXValidationMessages } from "./particleVFXValidationMessages";
+
 import { createParticleVFXEditorDraftFromContent } from "@/lib/avatar/particle-vfx/editor/content";
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 import {
@@ -12,7 +14,6 @@ import {
 import { useFrame } from "@react-three/fiber";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import {
-  AlertTriangleIcon,
   CheckIcon,
   ClipboardIcon,
   CopyIcon,
@@ -93,7 +94,6 @@ import {
   type ParticleVFXEditorShapeType,
   type ParticleVFXEditorStartColorDraft,
   type ParticleVFXEditorTurbulenceFieldDraft,
-  type ParticleVFXEditorValidationIssue,
   type ParticleVFXEditorValueBehaviorDraft,
   type ParticleVFXEditorValueGeneratorDraft,
   type ParticleVFXEditorValueRange,
@@ -668,6 +668,14 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             loadState.state === "loading"
           }
           contentHealth={<ContentHealth compact />}
+          validationMessages={Array.from(
+            new Set([
+              ...particleVFXValidationMessages(issues, draft?.emitters ?? []),
+              ...(loadState.state === "error" && loadState.message
+                ? [loadState.message]
+                : []),
+            ]),
+          )}
           typeLabel="Particle FX"
           contentType="particle_effect"
           typeIcon={<SparklesIcon />}
@@ -803,7 +811,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           </section>
 
           <section className="border-border border-b p-3">
-            <h2 className="text-sm font-semibold">Whole-effect settings</h2>
+            <h2 className="text-sm font-semibold">Settings</h2>
             <p className="text-muted-foreground mt-1 text-xs">
               Estimated total: ~{estimatedParticles} particles
             </p>
@@ -840,7 +848,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
 
           <section className="border-border border-b p-3">
             <h2 className="text-xs font-semibold tracking-wide uppercase">
-              Whole-effect transform
+              Transform
             </h2>
             <TransformControls
               transform={
@@ -936,10 +944,6 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
               />
             </div>
           </details>
-
-          <div className="p-3">
-            <IssueList issues={issues} loadState={loadState} />
-          </div>
         </CreatorFloatingPanel>
       }
       canvas={
@@ -2163,7 +2167,16 @@ function EmitterAuthoringTabs({
   return (
     <CreatorFloatingPanel
       title="Inspector"
-      summary={activeEmitter?.name ?? "Select an emitter"}
+      headerActions={
+        <Input
+          aria-label="Emitter name"
+          value={activeEmitter?.name ?? ""}
+          placeholder="Select an emitter"
+          disabled={!activeEmitter}
+          onChange={(event) => onPatch({ name: event.target.value })}
+          className="h-8 min-w-0 flex-1 text-sm"
+        />
+      }
       bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden p-0"
     >
       <div className="border-border border-b p-3">
@@ -2218,11 +2231,17 @@ function EmitterAuthoringTabs({
           Select or add an emitter.
         </div>
       ) : (
-        <Tabs defaultValue="system" className="flex min-h-0 flex-1 flex-col">
+        <Tabs
+          defaultValue="appearance"
+          className="flex min-h-0 flex-1 flex-col"
+        >
           <div className="border-border overflow-x-auto border-b px-3 py-2">
             <TabsList className="grid h-8 w-full grid-cols-5 p-0.5">
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="system">
-                Emitter
+              <TabsTrigger className="h-7 px-1 text-[10px]" value="appearance">
+                Appearance
+              </TabsTrigger>
+              <TabsTrigger className="h-7 px-1 text-[10px]" value="position">
+                Position
               </TabsTrigger>
               <TabsTrigger className="h-7 px-1 text-[10px]" value="emission">
                 Emission
@@ -2233,14 +2252,11 @@ function EmitterAuthoringTabs({
               <TabsTrigger className="h-7 px-1 text-[10px]" value="behavior">
                 Behavior
               </TabsTrigger>
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="appearance">
-                Appearance
-              </TabsTrigger>
             </TabsList>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            <TabsContent value="system" className="mt-0">
+            <TabsContent value="position" className="mt-0">
               <EmitterSystemPanel emitter={activeEmitter} onPatch={onPatch} />
             </TabsContent>
             <TabsContent value="emission" className="mt-0">
@@ -2294,11 +2310,6 @@ function EmitterSystemPanel({
 }) {
   return (
     <div className="space-y-5">
-      <TextField
-        label="Emitter name"
-        value={emitter.name}
-        onChange={(value) => onPatch({ name: value })}
-      />
       <fieldset className="space-y-3">
         <legend className="mb-2 text-xs font-semibold">Cycle</legend>
         <NumberField
@@ -4168,63 +4179,6 @@ function EmitterRendererPanel({
   );
 }
 
-function IssueList({
-  issues,
-  loadState,
-}: {
-  issues: readonly ParticleVFXEditorValidationIssue[];
-  loadState: { state: "loading" | "ready" | "error"; message: string | null };
-}) {
-  if (loadState.state === "loading") {
-    return <p className="text-muted-foreground mt-3 text-sm">Loading...</p>;
-  }
-  if (loadState.state === "error") {
-    return (
-      <div className="text-destructive mt-3 flex gap-2 rounded-md border p-3 text-sm">
-        <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
-        {loadState.message}
-      </div>
-    );
-  }
-  if (issues.length === 0) {
-    return (
-      <div className="flex items-center gap-2 text-xs">
-        <CheckIcon className="text-primary size-4" />
-        Ready to save
-      </div>
-    );
-  }
-  return (
-    <details open>
-      <summary className="cursor-pointer text-xs font-medium">
-        {issues.length} issue{issues.length === 1 ? "" : "s"} to review
-      </summary>
-      <div className="mt-3 space-y-2">
-        {issues.map((issue, index) => (
-          <div
-            key={`${issue.code}:${issue.target}:${index}`}
-            className={cn(
-              "rounded-md border p-3 text-sm",
-              issue.severity === "error"
-                ? "border-destructive/50 text-destructive"
-                : "border-amber-500/40 text-amber-700 dark:text-amber-300",
-            )}
-          >
-            <div className="flex items-center gap-2 font-medium">
-              <AlertTriangleIcon className="size-4" />
-              {issue.code}
-            </div>
-            <p className="mt-1 text-xs opacity-90">{issue.message}</p>
-            <p className="mt-1 font-mono text-[11px] opacity-75">
-              {issue.target}
-            </p>
-          </div>
-        ))}
-      </div>
-    </details>
-  );
-}
-
 function ExportBlock({
   title,
   value,
@@ -4519,34 +4473,6 @@ function CatalogShapeAutoFitControls({
         </div>
       ) : null}
     </div>
-  );
-}
-
-function TextField({
-  label,
-  value,
-  disabled = false,
-  invalid = false,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  disabled?: boolean;
-  invalid?: boolean;
-  onChange: (value: string) => void;
-}) {
-  const id = useId();
-  return (
-    <CreatorField label={label} htmlFor={id} invalid={invalid}>
-      <Input
-        id={id}
-        aria-label={label}
-        value={value}
-        aria-invalid={invalid}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-      />
-    </CreatorField>
   );
 }
 

@@ -93,9 +93,11 @@ The left panel separates emitter selection from whole-effect defaults. Name live
 in the header; internal IDs, resource JSON and clip-event snippets are available
 in the export dialog. Existing descriptions are retained without a main-editor
 field. Preload and performance limits remain available under Advanced settings.
-The compact validation status expands to show issues that need attention.
+The header validation indicator opens issues that need attention and stays hidden
+when there are none.
 
-The Inspector groups Emitter, Emission, Shape, Behavior and Appearance settings.
+The Inspector opens on Appearance, followed by Position, Emission, Shape and
+Behavior. The selected emitter's name is editable in the panel header.
 Emitter cycle duration and looping control each system; Effect playback duration
 and the advanced maximum duration bound the entire instance. Allow emitter looping
 permits authored loops without removing the instance lifetime or particle budget.

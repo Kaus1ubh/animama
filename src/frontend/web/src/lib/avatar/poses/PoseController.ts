@@ -315,8 +315,10 @@ export class PoseController {
           )
         : null;
 
-    const hadActivePose = this._activePoseId !== null;
-    this._clearActivePoseState(true);
+    // An event-only clip does not replace the selected body/expression pose.
+    const hasPoseKeyframes = sanitizedClip.poseKeyframes.length > 0;
+    const hadActivePose = hasPoseKeyframes && this._activePoseId !== null;
+    if (hasPoseKeyframes) this._clearActivePoseState(true);
     this._clearActiveClipState(true, false);
     if (hadActivePose) {
       this._resetHumanoidToRestPose();
@@ -673,6 +675,9 @@ export class PoseController {
   private _applyClipSampleAtTime(timeSec: number): void {
     const clip = this._clipState.clip;
     if (!clip || !this._vrm || this._isDisposed) return;
+    // Fades must not synthesize body samples from the current/default pose for
+    // a clip that only owns effects. Its event clock still advances normally.
+    if (clip.poseKeyframes.length === 0) return;
 
     const sampleResult = sampleAnimaPoseClip(
       clip,
@@ -968,7 +973,7 @@ export class PoseController {
     if (restoreExpressions && this._vrm && !this._isDisposed) {
       this._restoreClipExpressionBaseline();
     }
-    if (resetHumanoid) {
+    if (resetHumanoid && this._clipState.clip?.poseKeyframes.length !== 0) {
       this._resetHumanoidToRestPose();
     }
     this._clipState = createClipRuntimeState();

@@ -75,3 +75,35 @@ No data migration, schema revision, reset or purge. Existing missing anchor meta
 ## Outcomes & Retrospective
 
 Delivered the requested panel cleanup, inherited/overridden emitter anchors through saved packages and live playback, dimensions-only rectangle fitting, and preserved whole-effect defaults on reopen. Existing creator-polish commits and task stack remain intact. Broader timeline consolidation and the separate zero-keyframe clip bug are outside this phase. Exact-candidate merge requires owner approval.
+
+## Phase 2: event-only playback and compact creator status
+
+Authorized follow-up: [issue #68](https://github.com/raymond-van/animama/issues/68), read back 2026-09-23T18:15:36Z. Starting revision: a690edd. Reuse the existing branch, PR #66 and development stack. Phase 1 remains complete; this phase now owns the previously deferred zero-keyframe bug.
+
+1. Reproduce empty pose-track sampling and VFX lifecycle failures with focused regressions across particle, Avatar and Scene events. Repair shared sampling and pose ownership without changing normal pose-bearing clips or the creator's preview base.
+2. Reuse a compact actionable validation indicator across Gesture/Reaction and FX headers. Remove particle Whole-effect wording and Ready to save section, and Avatar Checks tab/healthy rows. Keep blocking save validation and actionable preview diagnostics.
+3. Make particle Appearance first/default, rename Emitter to Position, and move the selected emitter name into the Inspector header.
+4. Verify focused runtime/component tests, web types/lint/build and changed-file formatting; inspect desktop then narrow browser layouts and event-only playback/cleanup. Record limitations separately from automated evidence.
+5. Independent read-only checks and analysis, at most two repair rounds for this new scope, then final integration assessment reusing Phase 1 evidence. Commit as phase 2 and update the same PR. Merge remains owner-gated.
+
+Progress: phase 2 implementation, browser verification, independent review and final checks complete. Owner merge approval remains pending. No schema migration, service reset or data purge required. UI-only label/reordering changes use browser checks; the shared validation interaction and runtime behavior receive regression tests.
+
+### Phase 2 review
+
+Code Review #1 Findings: R68-1 (P2) found that the public Avatar playback wrapper still replaced the pose base despite PoseController's event-only guard. R68-2 (P2) found that compact particle diagnostics lost their emitter targets and merged identical messages.
+
+Code Review #1 Revisions: accepted both. Public Avatar playback now acquires body ownership only for pose-bearing clips, with public-boundary and actual Quarks regressions. Header diagnostics retain emitter names or field targets. Targeted review #2 cleared R68-2 and identified a remaining R68-1 return-to-rest transition branch; repair round 2 fixed that specific case, including finishing a return-to-rest transition without clearing the event clock. Final targeted review #3 passed; both findings are resolved. Two repair rounds used, no remaining findings. Combined integration review reuses completed Phase 1 evidence.
+
+### Phase 2 browser evidence
+
+- Desktop 1280×800: particle Appearance opens first, Position replaces Emitter, and the emitter name is editable in the Inspector header. Settings/Transform omit Whole-effect. Lowering the test particle budget exposed header issues; clicking opened actionable messages. Restored the original budget/name afterward.
+- Avatar FX: Checks tab removed, missing-image validation available from the header with Save disabled, no healthy check rows. The warning popover and particle Inspector fit at 390×844.
+- Removed the test Gesture's workaround pose keyframe. Particle, Avatar and Scene events all played with zero resolved bones and empty diagnostics. Natural completion and explicit Stop both yielded empty effect sets.
+- Saved and reopened the three-event Gesture; it retained no pose keyframes and all events played. Library preview also fired all three events through public Avatar playback, then Stop cleared all three effect lanes without the previous sampler exception.
+- Test fixture Anchor gesture test now contains the saved event-only three-FX clip. No Anima loadout changed. Native Electron, live chat/provider invocation and visual motion fidelity remain unverified; runtime regression tests cover pose/animation ownership and Reaction event lifecycle.
+
+### Phase 2 verification and handoff
+
+Regressions failed before the sampler, creator validator, pose ownership and public Avatar/rest-transition repairs, then passed. The shared toolbar regression also failed before header validation was added. Independent checks after the repairs passed 125 tests across 22 files, web lint, web source types and read-only Prettier for all 16 changed/new frontend files. The production build passed with the existing large-chunk warning. Git diff checks passed. The final candidate appears in PR #66.
+
+Phase commit subject: `fix(vfx)[p2]: preview event-only gestures and simplify creator status`. Existing creator polish is preserved. No new infrastructure or backend changes. The development stack remains at http://animama-vfx-bcbb.localhost:8260 for continued work; ordinary merge requires owner approval of the final candidate.

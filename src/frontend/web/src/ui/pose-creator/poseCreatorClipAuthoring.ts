@@ -502,7 +502,8 @@ export function validatePoseCreatorClipDraft(
     });
   }
 
-  if (localAliases.size === 0) {
+  // Event-only Actions need no synthetic pose; validate their events below.
+  if (localAliases.size === 0 && draft.events.length === 0) {
     issues.push({
       severity: "error",
       code: "empty-poses",
@@ -511,7 +512,7 @@ export function validatePoseCreatorClipDraft(
     });
   }
 
-  if (draft.keyframes.length === 0) {
+  if (draft.keyframes.length === 0 && draft.events.length === 0) {
     issues.push({
       severity: "error",
       code: "empty-keyframes",

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { Avatar } from "@/lib/avatar";
+import type { AnimaPoseClipEvent, Avatar } from "@/lib/avatar";
 import {
   DEFAULT_POSE_CREATOR_BASE_POSE,
   usePoseCreatorStore,
@@ -16,6 +16,41 @@ import {
 } from "./poseCreatorClipAuthoring";
 
 describe("Reaction preview posture", () => {
+  it.each([
+    { id: "particle", kind: "particle_vfx", effectId: "sparkles", time: 0 },
+    { id: "avatar", kind: "avatar_vfx", effectId: "star", time: 0 },
+    {
+      id: "scene",
+      kind: "scene_vfx",
+      sceneKind: "background_layers",
+      presetId: "comic-pop",
+      time: 0,
+    },
+  ] satisfies AnimaPoseClipEvent[])(
+    "previews an event-only $kind without adding pose keyframes",
+    (event) => {
+      const draft = createDefaultPoseCreatorClipDraft("");
+      draft.events = [event];
+      const before = structuredClone(draft);
+      const payload = buildAnimaPoseClipFromPoseCreatorDraft(draft);
+      expect(payload?.events).toEqual([event]);
+      expect(payload?.poseKeyframes).toEqual([]);
+      const applyAnimaPose = vi.fn();
+      const avatar = {
+        vrm: { humanoid: { resetNormalizedPose: vi.fn() }, update: vi.fn() },
+        forgetPose: vi.fn(),
+        applyPose: vi.fn(),
+        applyAnimaPose,
+        clearAllExpressionOverrides: vi.fn(),
+        getAvailableExpressions: () => [],
+      } as unknown as Avatar;
+      expect(applyPoseCreatorClipPreview(avatar, draft).applied).toBe(true);
+      expect(applyAnimaPose).toHaveBeenCalledOnce();
+      expect(applyAnimaPose.mock.calls[0]![0].humanoid).toBeUndefined();
+      expect(draft).toEqual(before);
+    },
+  );
+
   it.each(["expressions", "events", "empty"] as const)(
     "keeps Relaxed Rest for %s without changing the Reaction payload",
     (content) => {

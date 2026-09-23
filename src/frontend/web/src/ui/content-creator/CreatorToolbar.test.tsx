@@ -19,6 +19,26 @@ const props = {
 };
 
 describe("FX document toolbar", () => {
+  it("shows actionable validation beside the name without a healthy checkmark", () => {
+    const html = renderToString(
+      <CreatorToolbar
+        {...props}
+        validationMessages={[
+          "Choose an image.",
+          "Choose an image.",
+          "Fix the anchor.",
+        ]}
+      />,
+    );
+    expect(html).toContain('aria-label="2 validation issues"');
+    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).toContain("text-destructive");
+    const healthy = renderToString(
+      <CreatorToolbar {...props} validationMessages={[]} />,
+    );
+    expect(healthy).not.toContain("validation issues");
+    expect(healthy).not.toContain("lucide-check");
+  });
   it("exposes the inline name and accessible names for icon-only controls", () => {
     const html = renderToString(
       <CreatorToolbar {...props} contentType="avatar_effect" />,

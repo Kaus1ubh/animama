@@ -315,7 +315,9 @@ Important behavior:
   and SFX. Those events store catalog ids, not embedded effect assets. An
   effect-only clip may use empty `poses` and `poseKeyframes` collections as long
   as it contains at least one valid event; the editor does not manufacture a
-  neutral expression landmark merely to carry VFX or sound.
+  neutral expression landmark merely to carry VFX or sound. Event-only Gesture
+  playback, fades and cleanup preserve the selected body/expression pose; only
+  the clip's events own effects until their end or cancellation.
 - Clip `duration` is required when `playback` is absent. When `playback` is
   present, `duration` may be omitted; runtime helpers derive the authored
   timeline extent from pose keyframe times and event trigger times. VFX event

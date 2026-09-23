@@ -33,6 +33,7 @@ import {
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 import { CreatorHeaderDocument } from "./CreatorHeaderDocument";
+import { CreatorValidationIndicator } from "./CreatorValidationIndicator";
 import { CreatorLoadPicker, type CreatorEffectType } from "./CreatorLoadPicker";
 
 export type CreatorDocumentStatus = {
@@ -58,6 +59,7 @@ type CreatorToolbarProps = {
   documentNameDisabled?: boolean;
   documentControl?: ReactNode;
   status: CreatorDocumentStatus;
+  validationMessages?: readonly string[];
   onNew: () => void;
   onImport: () => void;
   onJson: () => void;
@@ -90,6 +92,7 @@ export function CreatorToolbar({
   documentNameDisabled,
   documentControl,
   status,
+  validationMessages = [],
   onNew,
   onImport,
   onJson,
@@ -228,6 +231,7 @@ export function CreatorToolbar({
                 </div>
               ))}
             <CreatorToolbarStatus status={status} />
+            <CreatorValidationIndicator messages={validationMessages} />
             {contentHealth}
           </div>
         </CreatorHeaderDocument>
@@ -342,7 +346,7 @@ function CreatorToolbarStatus({ status }: { status: CreatorDocumentStatus }) {
             className={cn(
               "size-2 rounded-full",
               status.tone === "saved" && "bg-emerald-500",
-              (!status.tone || status.tone === "dirty") && "bg-sky-400",
+              (!status.tone || status.tone === "dirty") && "bg-primary",
               status.tone === "warning" && "bg-amber-500",
               status.tone === "error" && "bg-destructive",
             )}

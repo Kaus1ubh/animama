@@ -77,6 +77,7 @@ import {
   countAnimaPoseClipEventsByKind,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
   getAnimaPoseClipTimelineDuration,
+  parseAnimaPoseClip,
   type AnimaPoseClip,
   type AnimaPoseClipSample,
 } from "./poses/animaPoseClip";
@@ -1028,8 +1029,13 @@ export class Avatar {
     clip: AnimaPoseClip,
     options?: PoseClipPlayOptions,
   ): AvatarPoseClipSnapshot {
+    const parsedClip = parseAnimaPoseClip(clip);
+    // Effect-only clips share the event clock without replacing the pose base.
+    if (parsedClip.poseKeyframes.length === 0) {
+      return this._playAnimaPoseClip(parsedClip, options);
+    }
     return this._replacePoseBase(options, () =>
-      this._playAnimaPoseClip(clip, options),
+      this._playAnimaPoseClip(parsedClip, options),
     );
   }
 
@@ -1037,16 +1043,23 @@ export class Avatar {
     clip: AnimaPoseClip,
     options?: PoseClipPlayOptions,
   ): AvatarPoseClipSnapshot {
-    this._vrmaRestPoseTransition = null;
     const poseController = this.poseController;
     if (!poseController) {
       return this._getUnavailableClipSnapshot(clip.id);
     }
 
+    const replacesPose = clip.poseKeyframes.length > 0;
+    if (!replacesPose && this._poseClipAutomaticPlaybackWasEnabled !== null) {
+      // Finish a previous body clip's ownership before starting an effect-only
+      // replacement, so its suspended automatic animation can resume now.
+      poseController.stopClip({ immediate: true });
+      this._completePoseClipPlaybackReplacingBase({ reapplyDefaultPose: true });
+    }
+    if (replacesPose) this._vrmaRestPoseTransition = null;
     this._poseClipPreserveProceduralOffsets =
-      options?.preserveProceduralOffsets === true;
-    this._poseClipCompletionReapplyDefaultPose = true;
-    this._beginPoseClipPlayback();
+      replacesPose && options?.preserveProceduralOffsets === true;
+    this._poseClipCompletionReapplyDefaultPose = replacesPose;
+    if (replacesPose) this._beginPoseClipPlayback();
     let snapshot: AvatarPoseClipSnapshot;
     try {
       snapshot = poseController.playAnimaPoseClip(clip, {
@@ -2459,7 +2472,10 @@ export class Avatar {
       this._completePoseClipPlayback({ reapplyDefaultPose });
     };
 
-    if (preserveProceduralOffsets) {
+    if (
+      preserveProceduralOffsets &&
+      this._poseClipAutomaticPlaybackWasEnabled !== null
+    ) {
       this._replacePoseBasePreservingProcedural(stopClip);
       return;
     }
@@ -2478,7 +2494,10 @@ export class Avatar {
       this._completePoseClipPlayback({ reapplyDefaultPose });
     };
 
-    if (preserveProceduralOffsets) {
+    if (
+      preserveProceduralOffsets &&
+      this._poseClipAutomaticPlaybackWasEnabled !== null
+    ) {
       this._replacePoseBasePreservingProcedural(completePlayback);
       return;
     }
@@ -2497,7 +2516,7 @@ export class Avatar {
     this._poseClipPreserveProceduralOffsets = false;
     this._poseClipCompletionReapplyDefaultPose = true;
 
-    if (reapplyDefaultPose) {
+    if (reapplyDefaultPose && shouldRestoreAutomaticPlayback !== null) {
       this.poseController?.forgetDefaultPoseOffsets();
       this.poseController?.applyDefaultPoses();
     }
@@ -2581,7 +2600,8 @@ export class Avatar {
   private _updateVrmaRestPoseTransition(deltaSec: number): void {
     const transition = this._vrmaRestPoseTransition;
     if (!transition || !this.vrm) return;
-    if (this.poseController?.isClipActive()) {
+    const clipActive = this.poseController?.isClipActive() ?? false;
+    if (clipActive && this._poseClipAutomaticPlaybackWasEnabled !== null) {
       this._vrmaRestPoseTransition = null;
       return;
     }
@@ -2598,8 +2618,11 @@ export class Avatar {
         : 1;
 
     if (progress >= 1) {
+      // Finish the rest sample without replacing an event-only clip's clock.
+      // Applying a catalog pose through PoseController would clear its effects.
+      if (clipActive) this._applyVrmaRestPoseTransitionSample(1);
       this._vrmaRestPoseTransition = null;
-      this._applyDefaultPoseBase();
+      if (!clipActive) this._applyDefaultPoseBase();
       return;
     }
 
