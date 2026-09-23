@@ -1,23 +1,27 @@
 "use client";
 
+import { particleVFXValidationMessages } from "./particleVFXValidationMessages";
+
+import { createParticleVFXEditorDraftFromContent } from "@/lib/avatar/particle-vfx/editor/content";
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
+import {
+  createParticleVFXEffectContainer,
+  createParticleVFXEmitterAnchorBindings,
+  updateParticleVFXEmitterAnchors,
+  type ParticleVFXEmitterAnchorBindings,
+} from "@/lib/avatar/particle-vfx/emitterAnchors";
 
 import { useFrame } from "@react-three/fiber";
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import {
-  AlertTriangleIcon,
   CheckIcon,
   ClipboardIcon,
   CopyIcon,
   DownloadIcon,
-  FileJsonIcon,
   ImageIcon,
-  PauseIcon,
-  PlayIcon,
   PlusIcon,
   RefreshCwIcon,
   SearchIcon,
-  SquareIcon,
   SparklesIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -87,12 +91,12 @@ import {
   type ParticleVFXEditorShapeType,
   type ParticleVFXEditorStartColorDraft,
   type ParticleVFXEditorTurbulenceFieldDraft,
-  type ParticleVFXEditorValidationIssue,
   type ParticleVFXEditorValueBehaviorDraft,
   type ParticleVFXEditorValueGeneratorDraft,
   type ParticleVFXEditorValueRange,
   type ParticleVFXEmitterDraft,
   type ParticleVFXEmitterPatch,
+  type ParticleVFXAnchor,
   type ParticleVFXPreloadTier,
   type ParticleVFXShapeAutoFit,
   type ParticleVFXTransform,
@@ -113,6 +117,19 @@ import {
   CreatorToolbar,
   CreatorWorkspaceShell,
 } from "@/ui/content-creator";
+import {
+  CreatorTimelineLane,
+  CreatorTimelinePlayhead,
+  CreatorTimelineRuler,
+  CreatorTimelineToolbar,
+  CreatorTimelineTransport,
+} from "@/ui/content-creator/CreatorTimeline";
+import {
+  LANE_HEIGHT_PX,
+  RULER_HEIGHT_PX,
+  TRACK_LABEL_RAIL_PX,
+  TRACK_RIGHT_INSET_PX,
+} from "@/ui/content-creator/creatorTimelineGeometry";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import { Button } from "@/ui/components/button";
 import { Checkbox } from "@/ui/components/checkbox";
@@ -172,9 +189,11 @@ type PreviewEmitter = THREE.Object3D & {
 const PARTICLE_VFX_CREATOR_AVATAR_CAMERA_SETTINGS =
   buildSceneCameraPreset("full-body").settings;
 const PARTICLE_VFX_CREATOR_EMITTER_CAMERA_SETTINGS: SceneCameraSettings = {
-  position: { x: 0, y: 1.05, z: 3.1 },
-  fov: 38,
-  orbitTarget: { x: 0, y: 0.65, z: 0 },
+  // Standalone emitters sit at the origin. Keep the avatar view's angle and
+  // distance while centering that origin instead of looking above it.
+  position: { x: 0, y: 0.2, z: 3.2 },
+  fov: PARTICLE_VFX_CREATOR_AVATAR_CAMERA_SETTINGS.fov,
+  orbitTarget: { x: 0, y: 0, z: 0 },
 };
 const PARTICLE_VFX_TEXTURE_GROUPS = PARTICLE_VFX_EDITOR_TEXTURE_ROLE_ORDER.map(
   (role) => ({
@@ -222,7 +241,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     message: null,
   });
   const [showAvatar, setShowAvatar] = useState(true);
-  const [showEmitterOutline, setShowEmitterOutline] = useState(false);
+  const [showEmitterOutline, setShowEmitterOutline] = useState(true);
   const [selectedModel, setSelectedModel] =
     useState<ContentCreatorModelSource | null>(null);
   const [previewAvatar, setPreviewAvatar] = useState<Avatar | null>(null);
@@ -323,12 +342,10 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
         const payload: unknown = await response.json();
         if (controller.signal.aborted) return;
         load.complete();
-        const loadedDraft = createParticleVFXEditorDraftFromImport(payload, {
-          id: existing.item_id,
-          label: existing.name,
-          description: existing.description ?? "",
-          assetPath: `/effects/vfx/quark/${existing.item_id}.json`,
-        });
+        const loadedDraft = createParticleVFXEditorDraftFromContent(
+          payload,
+          existing,
+        );
         if (existing.origin === "owned") initialDraftRef.current = loadedDraft;
         hydrateDraft(loadedDraft);
       } catch (error) {
@@ -661,10 +678,18 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             loadState.state === "loading"
           }
           contentHealth={<ContentHealth compact />}
+          validationMessages={Array.from(
+            new Set([
+              ...particleVFXValidationMessages(issues, draft?.emitters ?? []),
+              ...(loadState.state === "error" && loadState.message
+                ? [loadState.message]
+                : []),
+            ]),
+          )}
           typeLabel="Particle FX"
           contentType="particle_effect"
           typeIcon={<SparklesIcon />}
-          documentName={draft?.catalog.label ?? "New Particle Effect"}
+          documentName={draft?.catalog.label ?? ""}
           documentNameInputRef={documentNameInputRef}
           documentNameInvalid={contentSave.errorField === "name"}
           documentNameDisabled={!draft || contentSave.isBusy}
@@ -750,8 +775,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                       {emitter.name}
                     </span>
                     <span className="text-muted-foreground block truncate text-xs">
-                      {draft?.catalog.defaultAnchor ?? "root"} · ~
-                      {estimatedParticles} particles
+                      {emitterSummary(emitter)}
                     </span>
                   </span>
                 </button>
@@ -797,17 +821,20 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           </section>
 
           <section className="border-border border-b p-3">
-            <h2 className="text-sm font-semibold">Effect setup</h2>
+            <h2 className="text-sm font-semibold">Settings</h2>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Estimated total: ~{estimatedParticles} particles
+            </p>
             <div className="mt-3 space-y-3">
               <SelectField
-                label="Anchor"
+                label="Default anchor"
                 value={draft?.catalog.defaultAnchor ?? "head"}
                 values={PARTICLE_VFX_ANCHORS}
                 onChange={(value) => patchCatalog({ defaultAnchor: value })}
                 disabled={!draft}
               />
               <NumberField
-                label="Duration"
+                label="Effect playback duration (s)"
                 value={draft?.catalog.defaultDurationSec ?? 0}
                 min={0.05}
                 step={0.05}
@@ -818,65 +845,13 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
               />
               <CatalogShapeAutoFitControls
                 shapeAutoFit={draft?.catalog.shapeAutoFit}
-                hasRectangleEmitter={
-                  draft?.emitters.some(
+                rectangleEmitters={
+                  draft?.emitters.filter(
                     (emitter) => emitter.shape.type === "rectangle",
-                  ) ?? false
+                  ) ?? []
                 }
                 disabled={!draft}
                 onChange={(shapeAutoFit) => patchCatalog({ shapeAutoFit })}
-              />
-            </div>
-          </section>
-
-          <section className="border-border border-b p-3">
-            <h2 className="text-xs font-semibold tracking-wide uppercase">
-              Document
-            </h2>
-            <div className="mt-3 space-y-3">
-              <TextField
-                label="Effect id"
-                value={draft?.catalog.id ?? ""}
-                onChange={(value) =>
-                  patchCatalog({
-                    id: value,
-                    assetPath: `/effects/vfx/quark/${value || "effect"}.json`,
-                  })
-                }
-                disabled={!draft}
-              />
-              <TextField
-                label="Label"
-                value={draft?.catalog.label ?? ""}
-                invalid={contentSave.errorField === "name"}
-                onChange={(value) => {
-                  contentSave.clearSaveErrorField("name");
-                  patchCatalog({ label: value });
-                }}
-                disabled={!draft}
-              />
-              <TextField
-                label="Resource path"
-                value={draft?.catalog.assetPath ?? ""}
-                onChange={(value) => patchCatalog({ assetPath: value })}
-                disabled={!draft}
-              />
-              <LabeledTextarea
-                label="Description"
-                value={draft?.catalog.description ?? ""}
-                onChange={(value) => patchCatalog({ description: value })}
-                disabled={!draft}
-              />
-              <SelectField
-                label="Preload"
-                value={draft?.catalog.preloadTier ?? "none"}
-                values={PARTICLE_VFX_PRELOAD_TIERS}
-                onChange={(value) =>
-                  patchCatalog({
-                    preloadTier: value as ParticleVFXPreloadTier,
-                  })
-                }
-                disabled={!draft}
               />
             </div>
           </section>
@@ -897,13 +872,26 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             />
           </section>
 
-          <section className="border-border border-b p-3">
-            <h2 className="text-xs font-semibold tracking-wide uppercase">
-              Budget
-            </h2>
+          <details className="border-border border-b p-3">
+            <summary className="cursor-pointer text-sm font-semibold">
+              Advanced settings
+            </summary>
             <div className="mt-3 space-y-3">
+              <SelectField
+                label="Preload"
+                value={draft?.catalog.preloadTier ?? "none"}
+                values={PARTICLE_VFX_PRELOAD_TIERS}
+                onChange={(value) =>
+                  patchCatalog({ preloadTier: value as ParticleVFXPreloadTier })
+                }
+                disabled={!draft}
+              />
+              <p className="text-muted-foreground text-xs">
+                Performance limits apply to the whole effect. Enabling looping
+                here permits individual emitters to repeat their cycles.
+              </p>
               <NumberField
-                label="Max duration"
+                label="Maximum playback duration (s)"
                 value={draft?.catalog.performanceBudget.maxDurationSec ?? 0}
                 min={0.05}
                 step={0.05}
@@ -919,7 +907,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 disabled={!draft}
               />
               <NumberField
-                label="Max particles"
+                label="Maximum total particles"
                 value={draft?.catalog.performanceBudget.maxParticles ?? 0}
                 min={1}
                 step={1}
@@ -935,7 +923,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 disabled={!draft}
               />
               <CheckboxField
-                label="Looping allowed"
+                label="Allow emitter looping"
                 checked={
                   draft?.catalog.performanceBudget.loopingAllowed ?? false
                 }
@@ -951,7 +939,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 disabled={!draft}
               />
               <CheckboxField
-                label="Can coexist"
+                label="Allow simultaneous effects"
                 checked={draft?.catalog.performanceBudget.canCoexist ?? true}
                 onChange={(value) =>
                   draft &&
@@ -965,52 +953,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 disabled={!draft}
               />
             </div>
-          </section>
-
-          <section className="border-border border-b p-3">
-            <h2 className="text-xs font-semibold tracking-wide uppercase">
-              Validation
-            </h2>
-            <IssueList issues={issues} loadState={loadState} />
-          </section>
-
-          <section className="space-y-3 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xs font-semibold tracking-wide uppercase">
-                Export
-              </h2>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setJsonViewerOpen(true)}
-                  disabled={!exportBundle}
-                >
-                  <FileJsonIcon />
-                  View JSON
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => exportBundle && downloadJson(exportBundle)}
-                  disabled={!exportBundle}
-                >
-                  <DownloadIcon />
-                  JSON
-                </Button>
-              </div>
-            </div>
-            <ExportBlock
-              title="Clip event"
-              value={exportBundle?.clipEventSnippet ?? ""}
-              copied={copiedTarget === "clip"}
-              onCopy={() =>
-                exportBundle &&
-                void copyText("clip", exportBundle.clipEventSnippet)
-              }
-            />
-          </section>
+          </details>
         </CreatorFloatingPanel>
       }
       canvas={
@@ -1110,7 +1053,8 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
               ) : null}
               {!showAvatar && draft?.catalog.shapeAutoFit ? (
                 <div className="border-border text-muted-foreground mt-2 border-t pt-2">
-                  Auto-fit resolves when an avatar is available.
+                  Rectangle fitting uses avatar bounds when an avatar is
+                  available.
                 </div>
               ) : null}
             </div>
@@ -1221,8 +1165,6 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
               />
             </>
           }
-          restartDisabled={!draft}
-          onRestart={restartPreview}
         />
       }
       previewBar={
@@ -1234,7 +1176,6 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             revision={previewRevision}
             playing={previewPlaying}
             ready={previewStatus.state === "ready"}
-            estimatedParticles={estimatedParticles}
             onSelectEmitter={setActiveEmitterPath}
             onTogglePlayback={togglePreviewPlayback}
             onStop={stopPreview}
@@ -1316,6 +1257,10 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             expandMode={jsonExpandMode}
             resetToken={jsonResetToken}
             onReset={resetJsonTree}
+            bundle={exportBundle}
+            copiedTarget={copiedTarget}
+            onCopy={(target, value) => void copyText(target, value)}
+            onDownload={() => exportBundle && downloadJson(exportBundle)}
           />
           <Dialog
             open={blocker.status === "blocked"}
@@ -1360,7 +1305,6 @@ function ParticleVFXPreviewTimeline({
   revision,
   playing,
   ready,
-  estimatedParticles,
   onSelectEmitter,
   onTogglePlayback,
   onStop,
@@ -1373,7 +1317,6 @@ function ParticleVFXPreviewTimeline({
   revision: number;
   playing: boolean;
   ready: boolean;
-  estimatedParticles: number;
   onSelectEmitter: (path: string) => void;
   onTogglePlayback: () => void;
   onStop: () => void;
@@ -1402,8 +1345,6 @@ function ParticleVFXPreviewTimeline({
     return () => window.clearInterval(interval);
   }, [durationSec, onPlaybackEnded, playing, ready]);
 
-  const progress = Math.min(100, Math.max(0, (timeSec / durationSec) * 100));
-  const ticks = [0, 0.25, 0.5, 0.75, 1];
   const handleTogglePlayback = () => {
     if (!playing && timeSec >= durationSec) {
       onRestart();
@@ -1414,98 +1355,83 @@ function ParticleVFXPreviewTimeline({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="border-border/60 flex min-h-12 flex-wrap items-center gap-2 border-b px-3 py-2">
-        <div className="mr-2 min-w-[128px]">
-          <h2 className="text-sm font-semibold">Preview Timeline</h2>
-          <p className="text-muted-foreground text-[11px]">
-            {emitters.length} emitter{emitters.length === 1 ? "" : "s"} · ~
-            {estimatedParticles} particles
-          </p>
-        </div>
-        <div className="border-border/70 bg-background flex h-9 items-center rounded-lg border px-1 shadow-sm">
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            onClick={handleTogglePlayback}
-            disabled={!ready}
-            aria-label={
-              playing && ready ? "Pause effect preview" : "Play effect preview"
-            }
-          >
-            {playing && ready ? <PauseIcon /> : <PlayIcon />}
-          </Button>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            onClick={onStop}
-            aria-label="Stop effect preview"
-          >
-            <SquareIcon />
-          </Button>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            onClick={onRestart}
-            aria-label="Restart effect preview"
-          >
-            <RefreshCwIcon />
-          </Button>
-        </div>
-        <div className="border-border/70 bg-background ml-auto flex h-9 items-center rounded-lg border px-3 text-sm font-semibold shadow-sm">
-          {timeSec.toFixed(2)}s
-        </div>
-        <span className="text-muted-foreground flex items-center gap-2 px-2 text-xs">
-          <span
-            className={cn(
-              "size-2 rounded-full",
-              playing && ready ? "bg-primary" : "bg-muted-foreground/50",
-            )}
-          />
-          {!ready ? "Loading" : playing ? "Playing" : "Paused"}
-        </span>
-      </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
-        <div className="text-muted-foreground ml-[112px] grid grid-cols-5 text-[10px] tabular-nums">
-          {ticks.map((tick, index) => (
-            <span
-              key={tick}
-              className={index === ticks.length - 1 ? "text-right" : undefined}
-            >
-              {(durationSec * tick).toFixed(2)}s
-            </span>
-          ))}
-        </div>
-        <div className="mt-1 space-y-1">
-          {emitters.map((emitter) => (
-            <button
-              key={emitter.path}
-              type="button"
-              className="group flex h-7 w-full items-center gap-2 text-left"
-              onClick={() => onSelectEmitter(emitter.path)}
-            >
-              <span
-                className={cn(
-                  "w-[104px] truncate text-[11px] font-medium",
-                  emitter.path === activeEmitterPath
-                    ? "text-foreground"
-                    : "text-muted-foreground",
-                )}
+      <div className="border-border/60 border-b px-3 py-2">
+        <CreatorTimelineToolbar
+          leading={
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold">Preview Timeline</h2>
+              <p className="text-muted-foreground text-[11px]">
+                {emitters.length} emitter{emitters.length === 1 ? "" : "s"}
+              </p>
+            </div>
+          }
+          transport={
+            <CreatorTimelineTransport
+              playing={playing && ready}
+              onTogglePlayback={handleTogglePlayback}
+              onStop={onStop}
+              onRestart={onRestart}
+              playDisabled={!ready}
+              label="effect preview"
+            />
+          }
+          trailing={
+            <div className="flex items-center gap-3">
+              <output
+                className="text-sm font-medium tabular-nums"
+                aria-label="Effect preview time"
               >
-                {emitter.name}
-              </span>
-              <span className="bg-muted/70 border-border/60 relative h-5 min-w-0 flex-1 overflow-hidden rounded-md border">
-                <span className="bg-primary/20 absolute inset-y-0 left-0 w-full" />
+                {timeSec.toFixed(2)}s
+              </output>
+              <span className="text-muted-foreground flex items-center gap-2 text-xs">
                 <span
-                  className="bg-primary absolute inset-y-0 w-px"
-                  style={{ left: `${progress}%` }}
+                  className={cn(
+                    "size-2 rounded-full",
+                    playing && ready ? "bg-primary" : "bg-muted-foreground/50",
+                  )}
                 />
+                {!ready ? "Loading" : playing ? "Playing" : "Paused"}
               </span>
-            </button>
+            </div>
+          }
+        />
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          className="relative"
+          style={{
+            minHeight:
+              RULER_HEIGHT_PX +
+              Math.max(1, emitters.length) * LANE_HEIGHT_PX +
+              12,
+          }}
+        >
+          <CreatorTimelineRuler durationSec={durationSec} />
+          {emitters.map((emitter, index) => (
+            <CreatorTimelineLane
+              key={emitter.path}
+              index={index}
+              label={emitter.name}
+              selected={emitter.path === activeEmitterPath}
+              onSelect={() => onSelectEmitter(emitter.path)}
+            >
+              <button
+                type="button"
+                aria-label={`Select emitter ${emitter.name}`}
+                aria-pressed={emitter.path === activeEmitterPath}
+                onClick={() => onSelectEmitter(emitter.path)}
+                className="bg-primary/20 border-primary/25 pointer-events-auto absolute inset-y-1 rounded border"
+                style={{
+                  left: TRACK_LABEL_RAIL_PX,
+                  right: TRACK_RIGHT_INSET_PX,
+                }}
+              />
+            </CreatorTimelineLane>
           ))}
+          <CreatorTimelinePlayhead
+            timeSec={timeSec}
+            durationSec={durationSec}
+          />
         </div>
       </div>
     </div>
@@ -1520,6 +1446,10 @@ function ParticleVFXExportJsonDialog({
   expandMode,
   resetToken,
   onReset,
+  bundle,
+  copiedTarget,
+  onCopy,
+  onDownload,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1528,17 +1458,24 @@ function ParticleVFXExportJsonDialog({
   expandMode: JsonExpandMode;
   resetToken: number;
   onReset: (mode: JsonExpandMode) => void;
+  bundle: ParticleVFXEditorExport | null;
+  copiedTarget: string | null;
+  onCopy: (target: string, value: string) => void;
+  onDownload: () => void;
 }) {
   return (
     <CreatorJsonDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Particle VFX JSON"
+      title="Particle VFX export"
       description={assetPath ?? "Current export payload"}
       contentClassName="max-h-[86vh] max-w-[calc(100vw-2rem)] sm:max-w-[980px]"
       bodyClassName="space-y-3"
     >
       <div className="flex flex-wrap items-center gap-2 pt-1">
+        <Button type="button" size="sm" onClick={onDownload} disabled={!bundle}>
+          <DownloadIcon /> Download JSON
+        </Button>
         <Button
           type="button"
           size="sm"
@@ -1565,6 +1502,27 @@ function ParticleVFXExportJsonDialog({
         </Button>
       </div>
 
+      {bundle ? (
+        <details className="rounded-md border p-3">
+          <summary className="cursor-pointer text-sm font-medium">
+            Catalog settings and clip event
+          </summary>
+          <div className="mt-3 space-y-4">
+            <ExportBlock
+              title="Catalog settings"
+              value={bundle.catalogEntrySnippet}
+              copied={copiedTarget === "catalog"}
+              onCopy={() => onCopy("catalog", bundle.catalogEntrySnippet)}
+            />
+            <ExportBlock
+              title="Clip event"
+              value={bundle.clipEventSnippet}
+              copied={copiedTarget === "clip"}
+              onCopy={() => onCopy("clip", bundle.clipEventSnippet)}
+            />
+          </div>
+        </details>
+      ) : null}
       {payload.error ? (
         <div className="border-destructive/30 text-destructive bg-destructive/10 rounded-md border p-3 text-sm">
           {payload.error}
@@ -1622,6 +1580,16 @@ function ParticleVFXCreatorPreview({
   onAvatarStatusChange: (status: PreviewStatus) => void;
   onStatusChange: (status: PreviewStatus) => void;
 }) {
+  const [previewObject, setPreviewObject] = useState<THREE.Object3D | null>(
+    null,
+  );
+  const selectedPreviewEmitter = useMemo(() => {
+    let object: THREE.Object3D | undefined = previewObject ?? undefined;
+    const indices = activeEmitter?.path.match(/children\/(\d+)/g) ?? [];
+    for (const segment of indices)
+      object = object?.children[Number(segment.split("/")[1])];
+    return object?.type === "ParticleEmitter" ? object : null;
+  }, [activeEmitter?.path, previewObject]);
   const cameraSettings = showAvatar
     ? PARTICLE_VFX_CREATOR_AVATAR_CAMERA_SETTINGS
     : PARTICLE_VFX_CREATOR_EMITTER_CAMERA_SETTINGS;
@@ -1658,14 +1626,13 @@ function ParticleVFXCreatorPreview({
           useAvatarPlacement={showAvatar}
           avatar={showAvatar ? previewAvatar : null}
           onStatusChange={onStatusChange}
+          onObjectChange={setPreviewObject}
         />
       ) : null}
       {showEmitterOutline && activeEmitter ? (
         <ParticleVFXCreatorEmitterShapeOutline
           emitter={activeEmitter}
-          catalog={catalog}
-          useAvatarPlacement={showAvatar}
-          avatar={showAvatar ? previewAvatar : null}
+          runtimeEmitter={selectedPreviewEmitter}
         />
       ) : null}
     </AvatarPreviewSurface>
@@ -1702,6 +1669,7 @@ function QuarksPreviewObject({
   useAvatarPlacement,
   avatar,
   onStatusChange,
+  onObjectChange,
 }: {
   json: Record<string, unknown>;
   catalog: ParticleVFXEditorCatalogDraft | null;
@@ -1710,8 +1678,11 @@ function QuarksPreviewObject({
   useAvatarPlacement: boolean;
   avatar: Avatar | null;
   onStatusChange: (status: PreviewStatus) => void;
+  onObjectChange: (object: THREE.Object3D | null) => void;
 }) {
   const groupRef = useState(() => new THREE.Group())[0];
+  const bindingsRef = useRef<ParticleVFXEmitterAnchorBindings | null>(null);
+  const followRef = useRef(false);
   const [batchRenderer, setBatchRenderer] =
     useState<PreviewBatchRenderer | null>(null);
 
@@ -1721,6 +1692,7 @@ function QuarksPreviewObject({
     let activeBatch: PreviewBatchRenderer | null = null;
     let quarks: ThreeQuarksModule | null = null;
     groupRef.clear();
+    bindingsRef.current = null;
     setBatchRenderer(null);
     onStatusChange({ state: "loading", message: null });
 
@@ -1732,15 +1704,26 @@ function QuarksPreviewObject({
         const batch = new module.BatchedRenderer() as PreviewBatchRenderer;
         batch.name = "ParticleVFXCreatorPreviewBatch";
         const previewJson = JSON.parse(JSON.stringify(json)) as unknown;
-        loader.parse(previewJson, (object) => {
+        loader.parse(previewJson, (parsedObject) => {
+          const object = createParticleVFXEffectContainer(parsedObject);
           if (disposed) {
             disposePreviewObject(module, object, batch);
             return;
           }
           object.name = object.name || "ParticleVFXCreatorPreviewObject";
+          const bindings = createParticleVFXEmitterAnchorBindings(object);
           if (useAvatarPlacement && catalog) {
             applyCreatorPreviewPlacement(object, catalog, avatar);
           }
+          let usesWorldSpace = false;
+          object.traverse((child) => {
+            if (
+              (child as THREE.Object3D & { system?: { worldSpace?: boolean } })
+                .system?.worldSpace
+            )
+              usesWorldSpace = true;
+          });
+          followRef.current = !!catalog?.defaultFollowAnchor && !usesWorldSpace;
           module.QuarksUtil.addToBatchRenderer(object, batch);
           module.QuarksUtil.setAutoDestroy(object, false);
           module.QuarksUtil.play(object);
@@ -1748,6 +1731,15 @@ function QuarksPreviewObject({
           activeBatch = batch;
           groupRef.add(batch);
           groupRef.add(object);
+          bindingsRef.current = bindings;
+          if (useAvatarPlacement && catalog) {
+            updateParticleVFXEmitterAnchors({
+              bindings,
+              avatar,
+              defaultAnchor: catalog.defaultAnchor,
+            });
+          }
+          onObjectChange(parsedObject);
           setBatchRenderer(batch);
           onStatusChange({ state: "ready", message: object.name });
         });
@@ -1765,6 +1757,8 @@ function QuarksPreviewObject({
 
     return () => {
       disposed = true;
+      bindingsRef.current = null;
+      onObjectChange(null);
       setBatchRenderer(null);
       if (quarks && (activeObject || activeBatch)) {
         disposePreviewObject(quarks, activeObject, activeBatch);
@@ -1777,12 +1771,33 @@ function QuarksPreviewObject({
     groupRef,
     json,
     onStatusChange,
+    onObjectChange,
     revision,
     useAvatarPlacement,
   ]);
 
   useFrame((_, delta) => {
-    if (playing) batchRenderer?.update(delta);
+    if (!playing) return;
+    const bindings = bindingsRef.current;
+    if (bindings && useAvatarPlacement && catalog && followRef.current) {
+      const placement = resolveParticleVFXCreatorPreviewPlacement({
+        avatar,
+        anchor: catalog.defaultAnchor,
+        transform: catalog.defaultTransform,
+      });
+      bindings.object.position.set(
+        placement.position.x,
+        placement.position.y,
+        placement.position.z,
+      );
+      bindings.object.updateMatrixWorld(true);
+      updateParticleVFXEmitterAnchors({
+        bindings,
+        avatar,
+        defaultAnchor: catalog.defaultAnchor,
+      });
+    }
+    batchRenderer?.update(delta);
   });
 
   return <primitive object={groupRef} />;
@@ -1824,102 +1839,76 @@ function applyCreatorPreviewPlacement(
 
 function ParticleVFXCreatorEmitterShapeOutline({
   emitter,
-  catalog,
-  useAvatarPlacement,
-  avatar,
+  runtimeEmitter,
 }: {
   emitter: ParticleVFXEmitterDraft;
-  catalog: ParticleVFXEditorCatalogDraft | null;
-  useAvatarPlacement: boolean;
-  avatar: Avatar | null;
+  runtimeEmitter: THREE.Object3D | null;
 }) {
-  const emitterShape = emitter.shape;
-  const placement = useMemo(() => {
-    if (!useAvatarPlacement || !catalog) {
-      return {
-        position: { x: 0, y: 0, z: 0 },
-        rotation: { x: 0, y: 0, z: 0 },
-        scale: { x: 1, y: 1, z: 1 },
-        resolvedAnchor: null,
-        boneName: null,
-        warning: null,
-        autoFit: null,
-      };
-    }
-    return resolveParticleVFXCreatorPreviewPlacement({
-      avatar,
-      anchor: catalog.defaultAnchor,
-      transform: catalog.defaultTransform,
-      shapeAutoFit: catalog.shapeAutoFit,
-    });
-  }, [avatar, catalog, useAvatarPlacement]);
+  const groupRef = useRef<THREE.Group>(null);
   const outlineShape = useMemo(() => {
-    if (emitterShape.type !== "rectangle" || !placement.autoFit) {
-      return emitterShape;
-    }
-    return {
-      ...emitterShape,
-      width: placement.autoFit.width,
-      height: placement.autoFit.height,
-    };
-  }, [emitterShape, placement.autoFit]);
+    const system = (
+      runtimeEmitter as
+        | (THREE.Object3D & {
+            system?: {
+              emitterShape?: { type?: string; width?: number; height?: number };
+            };
+          })
+        | null
+    )?.system;
+    const shape = system?.emitterShape;
+    return emitter.shape.type === "rectangle" && shape?.type === "rectangle"
+      ? {
+          ...emitter.shape,
+          width: shape.width ?? emitter.shape.width,
+          height: shape.height ?? emitter.shape.height,
+        }
+      : emitter.shape;
+  }, [emitter.shape, runtimeEmitter]);
   const shapeGeometry = useMemo(
     () => createEmitterShapeOutlineGeometry(outlineShape),
     [outlineShape],
   );
   const directionGeometry = useMemo(
-    () => createEmitterDirectionGuideGeometry(emitterShape),
-    [emitterShape],
+    () => createEmitterDirectionGuideGeometry(emitter.shape),
+    [emitter.shape],
   );
-
   useEffect(() => () => shapeGeometry.dispose(), [shapeGeometry]);
-  useEffect(
-    () => () => {
-      directionGeometry?.dispose();
-    },
-    [directionGeometry],
-  );
+  useEffect(() => () => directionGeometry?.dispose(), [directionGeometry]);
+
+  // Read the actual emitter transform so pause, world-space safeguards, imported
+  // hierarchies and independent anchors cannot diverge from the visible outline.
+  useFrame(() => {
+    const group = groupRef.current;
+    if (!group || !runtimeEmitter) return;
+    runtimeEmitter.updateWorldMatrix(true, false);
+    group.parent?.updateWorldMatrix(true, false);
+    group.matrix
+      .copy(group.parent?.matrixWorld ?? new THREE.Matrix4())
+      .invert()
+      .multiply(runtimeEmitter.matrixWorld);
+    group.matrixWorldNeedsUpdate = true;
+  });
 
   return (
-    <group
-      position={[
-        placement.position.x,
-        placement.position.y,
-        placement.position.z,
-      ]}
-      rotation={[
-        placement.rotation.x,
-        placement.rotation.y,
-        placement.rotation.z,
-      ]}
-      scale={[placement.scale.x, placement.scale.y, placement.scale.z]}
-    >
-      <group
-        position={[
-          emitter.localPosition.x,
-          emitter.localPosition.y,
-          emitter.localPosition.z,
-        ]}
-      >
-        <lineSegments geometry={shapeGeometry} renderOrder={1000}>
+    <group ref={groupRef} visible={!!runtimeEmitter} matrixAutoUpdate={false}>
+      <lineSegments geometry={shapeGeometry} renderOrder={1000}>
+        <lineBasicMaterial
+          color="#f59e0b"
+          transparent
+          opacity={0.95}
+          depthTest={false}
+        />
+      </lineSegments>
+      {directionGeometry ? (
+        <lineSegments geometry={directionGeometry} renderOrder={1001}>
           <lineBasicMaterial
-            color="#f59e0b"
+            color="#38bdf8"
             transparent
-            opacity={0.95}
+            opacity={0.7}
             depthTest={false}
           />
         </lineSegments>
-        {directionGeometry ? (
-          <lineSegments geometry={directionGeometry} renderOrder={1001}>
-            <lineBasicMaterial
-              color="#38bdf8"
-              transparent
-              opacity={0.7}
-              depthTest={false}
-            />
-          </lineSegments>
-        ) : null}
-      </group>
+      ) : null}
     </group>
   );
 }
@@ -2143,6 +2132,19 @@ function disposePreviewObject(
   batch?.dispose?.();
 }
 
+/** Summarize the selected emitter's own emission, without repeating the effect budget. */
+function emitterSummary(emitter: ParticleVFXEmitterDraft): string {
+  const range = (value: ParticleVFXEditorValueRange | null) =>
+    value
+      ? value.min === value.max
+        ? `${value.min}`
+        : `${value.min}–${value.max}`
+      : "custom";
+  const shape =
+    emitter.shape.type[0].toUpperCase() + emitter.shape.type.slice(1);
+  return `${shape} · ${range(emitter.emissionOverTime)}/s${emitter.burstCount && emitter.burstCount.max > 0 ? ` · burst ${range(emitter.burstCount)}` : ""}`;
+}
+
 function EmitterAuthoringTabs({
   draft,
   activeEmitter,
@@ -2159,9 +2161,19 @@ function EmitterAuthoringTabs({
   return (
     <CreatorFloatingPanel
       title="Inspector"
-      summary={activeEmitter?.name ?? "Select an emitter"}
-      bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden p-0"
       headerActions={
+        <Input
+          aria-label="Emitter name"
+          value={activeEmitter?.name ?? ""}
+          placeholder="Select an emitter"
+          disabled={!activeEmitter}
+          onChange={(event) => onPatch({ name: event.target.value })}
+          className="h-8 min-w-0 flex-1 text-sm"
+        />
+      }
+      bodyClassName="flex min-h-0 flex-1 flex-col overflow-hidden p-0"
+    >
+      <div className="border-border border-b p-3">
         <Select
           onValueChange={(value) =>
             onPatch({
@@ -2170,8 +2182,12 @@ function EmitterAuthoringTabs({
           }
           disabled={!activeEmitter}
         >
-          <SelectTrigger className="w-[140px]" size="sm">
-            <SelectValue placeholder="Template" />
+          <SelectTrigger
+            className="w-full"
+            size="sm"
+            aria-label="Apply emitter preset"
+          >
+            <SelectValue placeholder="Apply emitter preset" />
           </SelectTrigger>
           <SelectContent>
             {PARTICLE_VFX_EDITOR_EMITTER_TEMPLATES.map((template) => (
@@ -2181,8 +2197,10 @@ function EmitterAuthoringTabs({
             ))}
           </SelectContent>
         </Select>
-      }
-    >
+        <p className="text-muted-foreground mt-2 text-xs">
+          Replaces settings on the selected emitter.
+        </p>
+      </div>
       <div className="border-border border-b p-3 lg:hidden">
         <Select
           value={activeEmitterPath ?? undefined}
@@ -2207,11 +2225,17 @@ function EmitterAuthoringTabs({
           Select or add an emitter.
         </div>
       ) : (
-        <Tabs defaultValue="system" className="flex min-h-0 flex-1 flex-col">
+        <Tabs
+          defaultValue="appearance"
+          className="flex min-h-0 flex-1 flex-col"
+        >
           <div className="border-border overflow-x-auto border-b px-3 py-2">
             <TabsList className="grid h-8 w-full grid-cols-5 p-0.5">
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="system">
-                System
+              <TabsTrigger className="h-7 px-1 text-[10px]" value="appearance">
+                Appearance
+              </TabsTrigger>
+              <TabsTrigger className="h-7 px-1 text-[10px]" value="position">
+                Position
               </TabsTrigger>
               <TabsTrigger className="h-7 px-1 text-[10px]" value="emission">
                 Emission
@@ -2222,14 +2246,11 @@ function EmitterAuthoringTabs({
               <TabsTrigger className="h-7 px-1 text-[10px]" value="behavior">
                 Behavior
               </TabsTrigger>
-              <TabsTrigger className="h-7 px-1 text-[10px]" value="appearance">
-                Appearance
-              </TabsTrigger>
             </TabsList>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            <TabsContent value="system" className="mt-0">
+            <TabsContent value="position" className="mt-0">
               <EmitterSystemPanel emitter={activeEmitter} onPatch={onPatch} />
             </TabsContent>
             <TabsContent value="emission" className="mt-0">
@@ -2282,46 +2303,55 @@ function EmitterSystemPanel({
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <TextField
-        label="Emitter name"
-        value={emitter.name}
-        onChange={(value) => onPatch({ name: value })}
-      />
-      <NumberField
-        label="Duration"
-        value={emitter.durationSec ?? 0}
-        min={0.01}
-        step={0.01}
-        onChange={(value) => onPatch({ durationSec: value })}
-      />
-      <CheckboxField
-        label="Looping"
-        checked={emitter.looping}
-        onChange={(value) => onPatch({ looping: value })}
-      />
-      <CheckboxField
-        label="World space"
-        checked={emitter.worldSpace}
-        onChange={(value) => onPatch({ worldSpace: value })}
-      />
-      {(["x", "y", "z"] as const).map((axis) => (
+    <div className="space-y-5">
+      <fieldset className="space-y-3">
+        <legend className="mb-2 text-xs font-semibold">Cycle</legend>
         <NumberField
-          key={axis}
-          label={`Local ${axis.toUpperCase()}`}
-          value={emitter.localPosition[axis]}
-          step={0.05}
-          onChange={(value) => onPatch({ localPosition: { [axis]: value } })}
+          label="Emitter cycle duration (s)"
+          value={emitter.durationSec ?? 0}
+          min={0.01}
+          step={0.01}
+          onChange={(value) => onPatch({ durationSec: value })}
         />
-      ))}
-      <NumberField
-        label="Render order"
-        value={emitter.renderer.renderOrder}
-        step={1}
-        onChange={(value) =>
-          onPatch({ renderer: { renderOrder: Math.round(value) } })
-        }
-      />
+        <CheckboxField
+          label="Loop this emitter"
+          checked={emitter.looping}
+          onChange={(value) => onPatch({ looping: value })}
+        />
+      </fieldset>
+      <fieldset className="space-y-3">
+        <legend className="mb-2 text-xs font-semibold">
+          Anchor and position
+        </legend>
+        <SelectField
+          label="Anchor override"
+          value={emitter.anchor ?? "inherit"}
+          values={["inherit", ...PARTICLE_VFX_ANCHORS]}
+          labels={{ inherit: "Inherit default anchor" }}
+          onChange={(value) =>
+            onPatch({
+              anchor: value === "inherit" ? null : (value as ParticleVFXAnchor),
+            })
+          }
+        />
+        <p className="text-muted-foreground text-xs">
+          Offsets are relative to this emitter’s resolved anchor.
+        </p>
+        {(["x", "y", "z"] as const).map((axis) => (
+          <NumberField
+            key={axis}
+            label={`Position ${axis.toUpperCase()} (m)`}
+            value={emitter.localPosition[axis]}
+            step={0.05}
+            onChange={(value) => onPatch({ localPosition: { [axis]: value } })}
+          />
+        ))}
+        <CheckboxField
+          label="Keep emitted particles in world space"
+          checked={emitter.worldSpace}
+          onChange={(value) => onPatch({ worldSpace: value })}
+        />
+      </fieldset>
     </div>
   );
 }
@@ -2482,81 +2512,92 @@ function EmitterEmissionPanel({
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <ValueRangeField
-        label="Start life"
+        label="Particle lifetime (s)"
         value={emitter.startLife}
         min={0}
         step={0.01}
         onChange={(value) => onPatch({ startLife: value })}
       />
       <ValueRangeField
-        label="Start speed"
+        label="Initial speed (m/s)"
         value={emitter.startSpeed}
         min={0}
         step={0.01}
         onChange={(value) => onPatch({ startSpeed: value })}
       />
       <ValueRangeField
-        label="Start size"
+        label="Initial size (m)"
         value={emitter.startSize}
         min={0}
         step={0.01}
         onChange={(value) => onPatch({ startSize: value })}
       />
       <ValueRangeField
-        label="Start rotation"
+        label="Initial rotation (rad)"
         value={emitter.startRotation}
         step={0.01}
         onChange={(value) => onPatch({ startRotation: value })}
       />
       <ValueRangeField
-        label="Emission/sec"
+        label="Particles per second"
         value={emitter.emissionOverTime}
         min={0}
         step={0.1}
         onChange={(value) => onPatch({ emissionOverTime: value })}
       />
       <ValueRangeField
-        label="Emission/meter"
+        label="Particles per meter"
         value={emitter.emissionOverDistance}
         min={0}
         step={0.1}
         onChange={(value) => onPatch({ emissionOverDistance: value })}
       />
-      <NumberField
-        label="Burst time"
-        value={emitter.burst?.time ?? 0}
-        min={0}
-        step={0.01}
-        onChange={(value) => onPatch({ burst: { time: value } })}
-      />
-      <ValueRangeField
-        label="Burst count"
-        value={emitter.burstCount}
-        min={0}
-        step={1}
-        onChange={(value) => onPatch({ burstCount: value })}
-      />
-      <NumberField
-        label="Burst cycle"
-        value={emitter.burst?.cycle ?? 1}
-        min={1}
-        step={1}
-        onChange={(value) => onPatch({ burst: { cycle: value } })}
-      />
-      <NumberField
-        label="Burst interval"
-        value={emitter.burst?.interval ?? 0.01}
-        min={0}
-        step={0.01}
-        onChange={(value) => onPatch({ burst: { interval: value } })}
-      />
-      <NumberField
-        label="Probability"
-        value={emitter.burst?.probability ?? 1}
-        min={0}
-        step={0.05}
-        onChange={(value) => onPatch({ burst: { probability: value } })}
-      />
+      <fieldset className="border-border space-y-3 border-t pt-3 sm:col-span-2">
+        <legend className="text-xs font-semibold">Burst emission</legend>
+        <ValueRangeField
+          label="Burst count"
+          value={emitter.burstCount}
+          min={0}
+          step={1}
+          onChange={(value) => onPatch({ burstCount: value })}
+        />
+        {(emitter.burstCount?.max ?? 0) > 0 ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <NumberField
+              label="Burst time (s)"
+              value={emitter.burst?.time ?? 0}
+              min={0}
+              step={0.01}
+              onChange={(value) => onPatch({ burst: { time: value } })}
+            />
+            <NumberField
+              label="Burst repetitions"
+              value={emitter.burst?.cycle ?? 1}
+              min={1}
+              step={1}
+              onChange={(value) => onPatch({ burst: { cycle: value } })}
+            />
+            {(emitter.burst?.cycle ?? 1) > 1 ? (
+              <>
+                <NumberField
+                  label="Repeat interval (s)"
+                  value={emitter.burst?.interval ?? 0.01}
+                  min={0}
+                  step={0.01}
+                  onChange={(value) => onPatch({ burst: { interval: value } })}
+                />
+              </>
+            ) : null}
+            <NumberField
+              label="Burst probability (0–1)"
+              value={emitter.burst?.probability ?? 1}
+              min={0}
+              step={0.05}
+              onChange={(value) => onPatch({ burst: { probability: value } })}
+            />{" "}
+          </div>
+        ) : null}
+      </fieldset>
     </div>
   );
 }
@@ -2585,14 +2626,14 @@ function EmitterShapePanel({
           {emitter.shape.type === "rectangle" ? (
             <>
               <NumberField
-                label="Width"
+                label="Width (m)"
                 value={emitter.shape.width}
                 min={0}
                 step={0.01}
                 onChange={(value) => onPatch({ shape: { width: value } })}
               />
               <NumberField
-                label="Height"
+                label="Height (m)"
                 value={emitter.shape.height}
                 min={0}
                 step={0.01}
@@ -2602,14 +2643,14 @@ function EmitterShapePanel({
           ) : (
             <>
               <NumberField
-                label="Radius"
+                label="Radius (m)"
                 value={emitter.shape.radius}
                 min={0}
                 step={0.01}
                 onChange={(value) => onPatch({ shape: { radius: value } })}
               />
               <NumberField
-                label="Arc"
+                label="Arc (rad)"
                 value={emitter.shape.arc}
                 min={0}
                 step={0.01}
@@ -2645,7 +2686,7 @@ function EmitterShapePanel({
       ) : null}
       {emitter.shape.type === "cone" ? (
         <NumberField
-          label="Angle"
+          label="Angle (rad)"
           value={emitter.shape.angle}
           min={0}
           step={0.01}
@@ -2713,18 +2754,22 @@ function EmitterBehaviorPanel({
           onChange={(value) => onPatch({ colorOverLife: value })}
         />
       </div>
-      <div className="grid gap-3">
-        {(["x", "y", "z"] as const).map((axis) => (
-          <ValueRangeField
-            key={axis}
-            label={`Force ${axis.toUpperCase()}`}
-            value={emitter.forceOverLife?.[axis] ?? null}
-            step={0.01}
-            onChange={(value) => onPatch({ forceOverLife: { [axis]: value } })}
-            disabled={!emitter.forceOverLife}
-          />
-        ))}
-      </div>
+      {emitter.forceOverLife ? (
+        <div className="grid gap-3">
+          {(["x", "y", "z"] as const).map((axis) => (
+            <ValueRangeField
+              key={axis}
+              label={`Force ${axis.toUpperCase()}`}
+              value={emitter.forceOverLife?.[axis] ?? null}
+              step={0.01}
+              onChange={(value) =>
+                onPatch({ forceOverLife: { [axis]: value } })
+              }
+              disabled={!emitter.forceOverLife}
+            />
+          ))}
+        </div>
+      ) : null}
       <div className="grid gap-3">
         <ValueBehaviorControls
           title="Speed over life"
@@ -3014,7 +3059,7 @@ function Rotation3DControlsPanel({
             onChange={(axis) => onChange({ ...draft, axis })}
           />
           <ValueGeneratorField
-            label="Angle"
+            label="Angle (rad)"
             value={draft.angle}
             onChange={(angle) => onChange({ ...draft, angle })}
           />
@@ -3994,6 +4039,12 @@ function EmitterRendererPanel({
         label="Render mode"
         value={`${emitter.renderer.renderMode}`}
         values={PARTICLE_VFX_EDITOR_RENDER_MODES.map((mode) => `${mode.value}`)}
+        labels={Object.fromEntries(
+          PARTICLE_VFX_EDITOR_RENDER_MODES.map((mode) => [
+            `${mode.value}`,
+            mode.label,
+          ]),
+        )}
         onChange={(value) =>
           onPatch({
             renderer: {
@@ -4019,42 +4070,67 @@ function EmitterRendererPanel({
         step={0.05}
         onChange={(value) => onPatch({ renderer: { opacity: value } })}
       />
-      <NumberField
-        label="Alpha test"
-        value={emitter.renderer.alphaTest}
-        min={0}
-        step={0.01}
-        onChange={(value) => onPatch({ renderer: { alphaTest: value } })}
-      />
-      <CheckboxField
-        label="Depth write"
-        checked={emitter.renderer.depthWrite}
-        onChange={(value) => onPatch({ renderer: { depthWrite: value } })}
-      />
-      <CheckboxField
-        label="Depth test"
-        checked={emitter.renderer.depthTest}
-        onChange={(value) => onPatch({ renderer: { depthTest: value } })}
-      />
-      <CheckboxField
-        label="Soft particles"
-        checked={emitter.renderer.softParticles}
-        onChange={(value) => onPatch({ renderer: { softParticles: value } })}
-      />
-      <NumberField
-        label="Soft near fade"
-        value={emitter.renderer.softNearFade}
-        min={0}
-        step={0.05}
-        onChange={(value) => onPatch({ renderer: { softNearFade: value } })}
-      />
-      <NumberField
-        label="Soft far fade"
-        value={emitter.renderer.softFarFade}
-        min={0}
-        step={0.05}
-        onChange={(value) => onPatch({ renderer: { softFarFade: value } })}
-      />
+      <details className="sm:col-span-2">
+        <summary className="cursor-pointer text-xs font-semibold">
+          Advanced rendering
+        </summary>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <NumberField
+            label="Render order"
+            value={emitter.renderer.renderOrder}
+            step={1}
+            onChange={(value) =>
+              onPatch({ renderer: { renderOrder: Math.round(value) } })
+            }
+          />
+          <NumberField
+            label="Alpha test"
+            value={emitter.renderer.alphaTest}
+            min={0}
+            step={0.01}
+            onChange={(value) => onPatch({ renderer: { alphaTest: value } })}
+          />
+          <CheckboxField
+            label="Depth write"
+            checked={emitter.renderer.depthWrite}
+            onChange={(value) => onPatch({ renderer: { depthWrite: value } })}
+          />
+          <CheckboxField
+            label="Depth test"
+            checked={emitter.renderer.depthTest}
+            onChange={(value) => onPatch({ renderer: { depthTest: value } })}
+          />
+          <CheckboxField
+            label="Soft particles"
+            checked={emitter.renderer.softParticles}
+            onChange={(value) =>
+              onPatch({ renderer: { softParticles: value } })
+            }
+          />
+          {emitter.renderer.softParticles ? (
+            <>
+              <NumberField
+                label="Near fade distance (m)"
+                value={emitter.renderer.softNearFade}
+                min={0}
+                step={0.05}
+                onChange={(value) =>
+                  onPatch({ renderer: { softNearFade: value } })
+                }
+              />
+              <NumberField
+                label="Far fade distance (m)"
+                value={emitter.renderer.softFarFade}
+                min={0}
+                step={0.05}
+                onChange={(value) =>
+                  onPatch({ renderer: { softFarFade: value } })
+                }
+              />
+            </>
+          ) : null}
+        </div>
+      </details>
       {isStretched ? (
         <>
           <NumberField
@@ -4093,58 +4169,6 @@ function EmitterRendererPanel({
           </div>
         </>
       ) : null}
-    </div>
-  );
-}
-
-function IssueList({
-  issues,
-  loadState,
-}: {
-  issues: readonly ParticleVFXEditorValidationIssue[];
-  loadState: { state: "loading" | "ready" | "error"; message: string | null };
-}) {
-  if (loadState.state === "loading") {
-    return <p className="text-muted-foreground mt-3 text-sm">Loading...</p>;
-  }
-  if (loadState.state === "error") {
-    return (
-      <div className="text-destructive mt-3 flex gap-2 rounded-md border p-3 text-sm">
-        <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
-        {loadState.message}
-      </div>
-    );
-  }
-  if (issues.length === 0) {
-    return (
-      <div className="mt-3 flex items-center gap-2 rounded-md border p-3 text-sm">
-        <CheckIcon className="text-primary size-4" />
-        Valid
-      </div>
-    );
-  }
-  return (
-    <div className="mt-3 space-y-2">
-      {issues.map((issue, index) => (
-        <div
-          key={`${issue.code}:${issue.target}:${index}`}
-          className={cn(
-            "rounded-md border p-3 text-sm",
-            issue.severity === "error"
-              ? "border-destructive/50 text-destructive"
-              : "border-amber-500/40 text-amber-700 dark:text-amber-300",
-          )}
-        >
-          <div className="flex items-center gap-2 font-medium">
-            <AlertTriangleIcon className="size-4" />
-            {issue.code}
-          </div>
-          <p className="mt-1 text-xs opacity-90">{issue.message}</p>
-          <p className="mt-1 font-mono text-[11px] opacity-75">
-            {issue.target}
-          </p>
-        </div>
-      ))}
     </div>
   );
 }
@@ -4212,7 +4236,11 @@ function TransformControls({
       {(["offset", "rotation", "scale"] as const).map((field) => (
         <div key={field}>
           <Label className="text-muted-foreground text-xs capitalize">
-            {field}
+            {field === "offset"
+              ? "Offset (m)"
+              : field === "rotation"
+                ? "Rotation (rad)"
+                : "Scale (multiplier)"}
           </Label>
           <div className="mt-2 grid grid-cols-3 gap-2">
             {(["x", "y", "z"] as const).map((axis) => (
@@ -4231,7 +4259,7 @@ function TransformControls({
         </div>
       ))}
       <NumberField
-        label="Depth offset"
+        label="Depth offset (m)"
         value={transform.depthOffset}
         step={0.05}
         onChange={(value) => onChange({ ...transform, depthOffset: value })}
@@ -4243,15 +4271,16 @@ function TransformControls({
 
 function CatalogShapeAutoFitControls({
   shapeAutoFit,
-  hasRectangleEmitter,
+  rectangleEmitters,
   disabled = false,
   onChange,
 }: {
   shapeAutoFit: ParticleVFXShapeAutoFit | undefined;
-  hasRectangleEmitter: boolean;
+  rectangleEmitters: readonly ParticleVFXEmitterDraft[];
   disabled?: boolean;
   onChange: (shapeAutoFit: ParticleVFXShapeAutoFit | undefined) => void;
 }) {
+  if (rectangleEmitters.length === 0) return null;
   const enabled = shapeAutoFit?.kind === "avatarBoundsRectangle";
   const setEnabled = (nextEnabled: boolean) => {
     onChange(
@@ -4279,7 +4308,9 @@ function CatalogShapeAutoFitControls({
         height: shapeAutoFit?.minSize?.height ?? 0.1,
         ...patch.minSize,
       },
-      maxSize: patch.maxSize ?? shapeAutoFit?.maxSize,
+      maxSize: Object.prototype.hasOwnProperty.call(patch, "maxSize")
+        ? patch.maxSize
+        : shapeAutoFit?.maxSize,
       emitterNames:
         patch.emitterNames !== undefined
           ? patch.emitterNames
@@ -4304,25 +4335,24 @@ function CatalogShapeAutoFitControls({
           htmlFor="particle-vfx-creator-auto-fit"
           className="text-xs font-medium"
         >
-          Auto-fit rectangle
+          Fit rectangle to avatar
         </Label>
         <Switch
           id="particle-vfx-creator-auto-fit"
           checked={enabled}
-          disabled={disabled || (!hasRectangleEmitter && !enabled)}
+          disabled={disabled}
           onCheckedChange={setEnabled}
         />
       </div>
-      {!hasRectangleEmitter ? (
-        <p className="text-muted-foreground mt-2 text-xs">
-          Add or select a rectangle shape to enable auto-fit.
-        </p>
-      ) : null}
+      <p className="text-muted-foreground mt-2 text-xs">
+        Fits emission width and height to avatar bounds, not the camera or
+        canvas. Emitter positions stay relative to their anchors.
+      </p>
       {enabled ? (
         <div className="mt-3 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <NumberField
-              label="Padding W"
+              label="Width padding (m)"
               value={shapeAutoFit?.padding?.width ?? 0}
               min={0}
               step={0.01}
@@ -4338,7 +4368,7 @@ function CatalogShapeAutoFitControls({
               }
             />
             <NumberField
-              label="Padding H"
+              label="Height padding (m)"
               value={shapeAutoFit?.padding?.height ?? 0}
               min={0}
               step={0.01}
@@ -4354,7 +4384,7 @@ function CatalogShapeAutoFitControls({
               }
             />
             <NumberField
-              label="Min W"
+              label="Minimum width (m)"
               value={shapeAutoFit?.minSize?.width ?? 0.1}
               min={0.01}
               step={0.01}
@@ -4370,7 +4400,7 @@ function CatalogShapeAutoFitControls({
               }
             />
             <NumberField
-              label="Min H"
+              label="Minimum height (m)"
               value={shapeAutoFit?.minSize?.height ?? 0.1}
               min={0.01}
               step={0.01}
@@ -4386,7 +4416,7 @@ function CatalogShapeAutoFitControls({
               }
             />
             <NumberField
-              label="Max W"
+              label="Maximum width (m)"
               value={shapeAutoFit?.maxSize?.width ?? 0}
               min={0}
               step={0.01}
@@ -4395,7 +4425,7 @@ function CatalogShapeAutoFitControls({
               onChange={(value) => patchMaxSize("width", value)}
             />
             <NumberField
-              label="Max H"
+              label="Maximum height (m)"
               value={shapeAutoFit?.maxSize?.height ?? 0}
               min={0}
               step={0.01}
@@ -4404,81 +4434,39 @@ function CatalogShapeAutoFitControls({
               onChange={(value) => patchMaxSize("height", value)}
             />
           </div>
-          <TextField
-            label="Emitter names"
-            value={shapeAutoFit?.emitterNames?.join(", ") ?? ""}
-            disabled={disabled}
-            onChange={(value) =>
-              patchAutoFit({
-                emitterNames: parseEmitterNameFilter(value),
-              })
-            }
-          />
+          <p className="text-muted-foreground text-xs">
+            Maximum size: 0 means no limit.
+          </p>
+          <fieldset className="space-y-2">
+            <legend className="mb-2 text-xs font-semibold">
+              Rectangle emitters to fit
+            </legend>
+            {rectangleEmitters.map((emitter) => (
+              <CheckboxField
+                key={emitter.path}
+                label={emitter.name}
+                checked={
+                  !shapeAutoFit?.emitterNames?.length ||
+                  shapeAutoFit.emitterNames.includes(emitter.name)
+                }
+                disabled={disabled}
+                onChange={(checked) => {
+                  const selected = new Set(
+                    shapeAutoFit?.emitterNames?.length
+                      ? shapeAutoFit.emitterNames
+                      : rectangleEmitters.map((item) => item.name),
+                  );
+                  if (checked) selected.add(emitter.name);
+                  else selected.delete(emitter.name);
+                  if (selected.size === 0) setEnabled(false);
+                  else patchAutoFit({ emitterNames: [...selected] });
+                }}
+              />
+            ))}
+          </fieldset>
         </div>
       ) : null}
     </div>
-  );
-}
-
-function parseEmitterNameFilter(value: string): string[] | undefined {
-  const names = value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  return names.length > 0 ? names : undefined;
-}
-
-function TextField({
-  label,
-  value,
-  disabled = false,
-  invalid = false,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  disabled?: boolean;
-  invalid?: boolean;
-  onChange: (value: string) => void;
-}) {
-  const id = useId();
-  return (
-    <CreatorField label={label} htmlFor={id} invalid={invalid}>
-      <Input
-        id={id}
-        aria-label={label}
-        value={value}
-        aria-invalid={invalid}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-      />
-    </CreatorField>
-  );
-}
-
-function LabeledTextarea({
-  label,
-  value,
-  disabled = false,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  disabled?: boolean;
-  onChange: (value: string) => void;
-}) {
-  const id = useId();
-  return (
-    <CreatorField label={label} htmlFor={id}>
-      <Textarea
-        id={id}
-        aria-label={label}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        disabled={disabled}
-        className="min-h-20"
-      />
-    </CreatorField>
   );
 }
 
@@ -4486,12 +4474,14 @@ function SelectField<T extends string>({
   label,
   value,
   values,
+  labels,
   disabled = false,
   onChange,
 }: {
   label: string;
   value: T;
   values: readonly T[];
+  labels?: Partial<Record<T, string>>;
   disabled?: boolean;
   onChange: (value: T) => void;
 }) {
@@ -4509,7 +4499,7 @@ function SelectField<T extends string>({
         <SelectContent>
           {values.map((item) => (
             <SelectItem key={item} value={item}>
-              {item}
+              {labels?.[item] ?? item}
             </SelectItem>
           ))}
         </SelectContent>

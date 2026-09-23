@@ -37,6 +37,7 @@ export type ParticleVFXSaveStage =
 
 type SaveSession = {
   operationId: string;
+  resolvedName?: string;
   contentFingerprint: string;
 };
 
@@ -60,8 +61,11 @@ export function useParticleVFXSave({
   onSavedDraft: (draft: ParticleVFXEditorDraft, savedItemId: string) => void;
 }) {
   const existing = useParticleEffect(itemId ?? null).data;
-  const { target: saveTargetFor, saved: recordSaved } =
-    useContentEditorSaveSource("particle_effect", itemId, existing);
+  const {
+    target: saveTargetFor,
+    saved: recordSaved,
+    resolveName,
+  } = useContentEditorSaveSource("particle_effect", itemId, existing);
   const navigate = useNavigate();
   const userId = useRuntimeOwnerId();
   const source = useMemo(() => (itemId ? { itemId } : null), [itemId]);
@@ -175,8 +179,7 @@ export function useParticleVFXSave({
   const save = useCallback(async (): Promise<boolean> => {
     if (!canSave || !draft || !userId) return false;
     const displayName = draft.catalog.label.trim();
-    const saveTarget = saveTargetFor(displayName);
-    if (!displayName || displayName.length > 120) {
+    if (displayName.length > 120) {
       setStage("error");
       setSaveFailureMessage(
         "Give this Particle VFX a name between 1 and 120 characters.",
@@ -191,8 +194,20 @@ export function useParticleVFXSave({
     const controller = new AbortController();
     controllerRef.current = controller;
     try {
+      const session = sessionRef.current ?? newSaveSession(draft);
+      sessionRef.current = session;
+      const name =
+        displayName ||
+        session.resolvedName ||
+        (await resolveName(displayName, "New Particle FX"));
+      session.resolvedName = name;
+      const saveTarget = saveTargetFor(name);
+      const namedDraft = {
+        ...draft,
+        catalog: { ...draft.catalog, label: name },
+      };
       const packageFiles = await buildParticleVFXContentPackage({
-        draft,
+        draft: namedDraft,
         resources: [],
         signal: controller.signal,
       });
@@ -207,10 +222,9 @@ export function useParticleVFXSave({
         setStage("idle");
         return false;
       }
-      const session = sessionRef.current ?? newSaveSession(draft);
       session.contentFingerprint = fingerprint;
       sessionRef.current = session;
-      await persistRecovery(session, draft, packageFiles);
+      await persistRecovery(session, namedDraft, packageFiles);
 
       setStage("uploading");
       const manifestPath = "particle.json";
@@ -224,7 +238,7 @@ export function useParticleVFXSave({
         schema_version: 1,
         id: saveTarget.logicalKey,
         content_type: "particle_effect",
-        name: displayName,
+        name,
         description: draft.catalog.description.trim() || null,
         runtime_defaults: packageFiles.authoringManifest.runtime_defaults ?? {},
         authoring: packageFiles.authoringManifest,
@@ -239,7 +253,7 @@ export function useParticleVFXSave({
       setStage("validating");
       const item = await saveCatalogItem({
         kind: "particle_effect",
-        entryName: displayName,
+        entryName: name,
         files: [
           packageFiles.manifestFile,
           ...packageFiles.textures.map(({ file }) => file),
@@ -285,6 +299,7 @@ export function useParticleVFXSave({
     draft,
     recordSaved,
     saveTargetFor,
+    resolveName,
     navigate,
     onSavedDraft,
     persistRecovery,

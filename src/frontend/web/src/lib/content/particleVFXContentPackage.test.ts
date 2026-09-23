@@ -15,6 +15,16 @@ import {
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const WEBP = new TextEncoder().encode("RIFF0000WEBP");
 
+/** Packaging receives the name allocated by the save flow. */
+function namedDraft() {
+  return updateParticleVFXEditorCatalogDraft(
+    createParticleVFXEditorDraftFromBlank(),
+    {
+      label: "New Particle FX",
+    },
+  );
+}
+
 function resource(
   logicalReference: string,
   bytes: Uint8Array,
@@ -33,7 +43,7 @@ function resource(
 
 describe("Particle VFX editable content package", () => {
   it("copies one curated texture and never mutates raw editor JSON", async () => {
-    const draft = createParticleVFXEditorDraftFromBlank();
+    const draft = namedDraft();
     const before = JSON.stringify(draft.quarksJson);
     const fetcher = vi.fn(
       async () =>
@@ -63,7 +73,7 @@ describe("Particle VFX editable content package", () => {
   });
 
   it("normalizes canonical WebP names and keeps them stable on re-save", async () => {
-    const draft = createParticleVFXEditorDraftFromBlank();
+    const draft = namedDraft();
     const first = await buildParticleVFXContentPackage({
       draft,
       resources: [resource("textures/soft-dot.png", WEBP, "image/webp")],
@@ -78,7 +88,7 @@ describe("Particle VFX editable content package", () => {
   });
 
   it("deduplicates repeated references and suffixes same-stem output collisions", async () => {
-    const draft = createParticleVFXEditorDraftFromBlank();
+    const draft = namedDraft();
     const images = draft.quarksJson.images as { uuid: string; url: string }[];
     images[0]!.url = "textures/glow.png";
     images.push({ uuid: "second-image", url: "legacy/glow.jpg" });
@@ -107,7 +117,7 @@ describe("Particle VFX editable content package", () => {
   });
 
   it("serializes complete runtime defaults and reports deterministic cap reductions", async () => {
-    const draft = createParticleVFXEditorDraftFromBlank();
+    const draft = namedDraft();
     draft.catalog.defaultFollowAnchor = false;
     draft.catalog.performanceBudget.maxParticles = 900;
     draft.catalog.performanceBudget.maxDurationSec = 45;
@@ -140,7 +150,7 @@ describe("Particle VFX editable content package", () => {
   });
 
   it("round-trips a multi-emitter authoring package with shared texture and runtime metadata", async () => {
-    let draft = createParticleVFXEditorDraftFromBlank();
+    let draft = namedDraft();
     draft = addParticleVFXEditorEmitter(draft);
     draft = addParticleVFXEditorEmitter(draft);
     draft = applyParticleVFXEmitterPatch(draft, draft.emitters[0]!.path, {
@@ -209,13 +219,13 @@ describe("Particle VFX editable content package", () => {
   });
 
   it("rejects unsafe and content-type-mismatched resources before upload", async () => {
-    const unsafe = createParticleVFXEditorDraftFromBlank();
+    const unsafe = namedDraft();
     (unsafe.quarksJson.images as { url: string }[])[0]!.url = "blob:secret";
     await expect(
       buildParticleVFXContentPackage({ draft: unsafe, resources: [] }),
     ).rejects.toBeInstanceOf(ParticleVFXContentPackageError);
 
-    const mismatched = createParticleVFXEditorDraftFromBlank();
+    const mismatched = namedDraft();
     await expect(
       buildParticleVFXContentPackage({
         draft: mismatched,
@@ -223,4 +233,41 @@ describe("Particle VFX editable content package", () => {
       }),
     ).rejects.toThrow("mismatched or unsupported image bytes");
   });
+});
+
+it.each(["", "Existing description"])(
+  "preserves optional description %j and emitter anchors in a saved package",
+  async (description) => {
+    let draft = updateParticleVFXEditorCatalogDraft(namedDraft(), {
+      description,
+    });
+    draft = applyParticleVFXEmitterPatch(draft, draft.emitters[0]!.path, {
+      anchor: "rightHand",
+    });
+    const built = await buildParticleVFXContentPackage({
+      draft,
+      resources: [resource("textures/soft-dot.png", PNG, "image/png")],
+    });
+    expect(built.normalizedDraft.catalog.description).toBe(description);
+    expect(built.normalizedDraft.emitters[0]!.anchor).toBe("rightHand");
+    expect(
+      JSON.parse(await built.manifestFile.text()).object.children[0].userData
+        .animamaParticleAnchor,
+    ).toBe("rightHand");
+  },
+);
+
+it("saves avatar rectangle fitting with no maximum size limit", async () => {
+  const draft = updateParticleVFXEditorCatalogDraft(namedDraft(), {
+    shapeAutoFit: {
+      kind: "avatarBoundsRectangle",
+      padding: { width: 0, height: 0 },
+      minSize: { width: 0.1, height: 0.1 },
+    },
+  });
+  const built = await buildParticleVFXContentPackage({
+    draft,
+    resources: [resource("textures/soft-dot.png", PNG, "image/png")],
+  });
+  expect(built.normalizedDraft.catalog.shapeAutoFit?.maxSize).toBeUndefined();
 });

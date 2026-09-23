@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AlertTriangleIcon,
   ClapperboardIcon,
   Code2Icon,
   CopyIcon,
@@ -61,6 +60,7 @@ import {
 } from "@/ui/components/select";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Textarea } from "@/ui/components/textarea";
+import { CreatorValidationIndicator } from "@/ui/content-creator/CreatorValidationIndicator";
 import { CreatorHeaderDocument } from "@/ui/content-creator/CreatorHeaderDocument";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import {
@@ -615,30 +615,7 @@ function ActionDocumentIndicators({ status }: { status: ActionHeaderStatus }) {
         </TooltipTrigger>
         <TooltipContent side="bottom">{status.label}</TooltipContent>
       </Tooltip>
-      {messages.length ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className="text-destructive flex h-5 items-center gap-1 text-[10px] hover:opacity-80"
-              aria-label={`${messages.length} validation ${messages.length === 1 ? "issue" : "issues"}`}
-            >
-              <span>{messages.length}</span>
-              <AlertTriangleIcon className="size-3" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent
-            side="bottom"
-            align="end"
-            sideOffset={8}
-            className="max-w-sm space-y-1 text-left"
-          >
-            {messages.map((message) => (
-              <p key={message}>{message}</p>
-            ))}
-          </TooltipContent>
-        </Tooltip>
-      ) : null}
+      <CreatorValidationIndicator messages={messages} />
       <ContentHealth compact />
     </div>
   );

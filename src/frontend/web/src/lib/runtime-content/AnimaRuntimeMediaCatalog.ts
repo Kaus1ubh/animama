@@ -1,15 +1,10 @@
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import { runtimeSourceHasFiles } from "@/lib/runtime-content/types";
 import { AVATAR_PARTICLE_VFX_CATALOG } from "@/lib/avatar/particle-vfx/catalog";
-import { createDefaultParticleVFXTransform } from "@/lib/avatar/particle-vfx/catalog";
-import {
-  isParticleVFXAnchor,
-  normalizeParticleVFXTransform,
-} from "@/lib/avatar/particle-vfx/runtime";
+import { parseParticleVFXRuntimeConfig } from "@/lib/avatar/particle-vfx/runtimeConfig";
 import type {
   ParticleVFXCatalogEntry,
   ParticleVFXPreloadTier,
-  ParticleVFXShapeAutoFit,
 } from "@/lib/avatar/particle-vfx/types";
 import {
   AVATAR_VFX_CATALOG,
@@ -456,71 +451,12 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
     const config = entry.config;
     const appEffect = resolveBuiltinParticleVFX(entry);
     if (entry.source.type === "public_url" && !appEffect) return null;
-    const transform = normalizeParticleVFXTransform(
-      recordValue(config.transform)
-        ? {
-            offset: axisValue(config.transform, "offset"),
-            rotation: axisValue(config.transform, "rotation"),
-            scale: axisValue(config.transform, "scale"),
-            depthOffset: finiteNumber(
-              recordValue(config.transform)?.depth_offset,
-            ),
-          }
-        : undefined,
-    );
-    const shapeAutoFit =
-      particleShapeAutoFit(config.shape_auto_fit) ?? appEffect?.shapeAutoFit;
     return {
       id: entry.runtime_id,
       label: entry.display_name,
       description: entry.description ?? "",
       assetPath: appEffect?.assetPath ?? "",
-      defaultAnchor: isParticleVFXAnchor(config.anchor)
-        ? config.anchor
-        : (appEffect?.defaultAnchor ?? "root"),
-      defaultDurationSec:
-        positiveNumber(config.duration_seconds) ??
-        appEffect?.defaultDurationSec ??
-        1,
-      defaultFollowAnchor:
-        typeof config.follow_anchor === "boolean"
-          ? config.follow_anchor
-          : (appEffect?.defaultFollowAnchor ?? true),
-      defaultTransform: recordValue(config.transform)
-        ? transform
-        : (appEffect?.defaultTransform ?? createDefaultParticleVFXTransform()),
-      preloadTier:
-        config.preload_tier === "tier_a"
-          ? "tierA"
-          : config.preload_tier === "tier_b"
-            ? "tierB"
-            : (appEffect?.preloadTier ?? "none"),
-      performanceBudget: {
-        maxDurationSec: Math.min(
-          30,
-          Math.max(
-            positiveNumber(config.max_duration_seconds) ??
-              positiveNumber(config.duration_seconds) ??
-              30,
-            appEffect?.performanceBudget.maxDurationSec ?? 0,
-          ),
-        ),
-        maxParticles: Math.min(
-          512,
-          positiveInteger(config.max_particles) ??
-            appEffect?.performanceBudget.maxParticles ??
-            512,
-        ),
-        loopingAllowed:
-          typeof config.looping_allowed === "boolean"
-            ? config.looping_allowed
-            : (appEffect?.performanceBudget.loopingAllowed ?? true),
-        canCoexist:
-          typeof config.can_coexist === "boolean"
-            ? config.can_coexist
-            : (appEffect?.performanceBudget.canCoexist ?? true),
-      },
-      ...(shapeAutoFit ? { shapeAutoFit } : {}),
+      ...parseParticleVFXRuntimeConfig(config, appEffect ?? undefined),
     };
   }
 
@@ -1107,62 +1043,8 @@ function recordValue(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function axisValue(value: unknown, key: string) {
-  const axis = recordValue(recordValue(value)?.[key]);
-  return axis
-    ? {
-        x: finiteNumber(axis.x),
-        y: finiteNumber(axis.y),
-        z: finiteNumber(axis.z),
-      }
-    : undefined;
-}
-
-function particleShapeAutoFit(
-  value: unknown,
-): ParticleVFXShapeAutoFit | undefined {
-  const raw = recordValue(value);
-  if (raw?.kind !== "avatar_bounds_rectangle") return undefined;
-  const dimensions = (input: unknown) => {
-    const candidate = recordValue(input);
-    if (!candidate) return undefined;
-    const width = finiteNumber(candidate.width);
-    const height = finiteNumber(candidate.height);
-    return width === undefined && height === undefined
-      ? undefined
-      : {
-          ...(width === undefined ? {} : { width }),
-          ...(height === undefined ? {} : { height }),
-        };
-  };
-  const emitterNames = Array.isArray(raw.emitter_names)
-    ? raw.emitter_names.filter(
-        (name): name is string => typeof name === "string" && name.length > 0,
-      )
-    : undefined;
-  return {
-    kind: "avatarBoundsRectangle",
-    ...(dimensions(raw.padding) ? { padding: dimensions(raw.padding) } : {}),
-    ...(dimensions(raw.min_size) ? { minSize: dimensions(raw.min_size) } : {}),
-    ...(dimensions(raw.max_size) ? { maxSize: dimensions(raw.max_size) } : {}),
-    ...(emitterNames?.length ? { emitterNames } : {}),
-  };
-}
-
-function finiteNumber(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : undefined;
-}
-
 function positiveNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? value
-    : null;
-}
-
-function positiveInteger(value: unknown): number | null {
-  return typeof value === "number" && Number.isInteger(value) && value > 0
     ? value
     : null;
 }

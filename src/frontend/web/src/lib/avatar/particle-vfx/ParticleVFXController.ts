@@ -5,8 +5,13 @@ import {
   PARTICLE_VFX_ROOT_OBJECT_NAME,
   applyParticleVFXRectangleShapeAutoFit,
   resolveParticleVFXAvatarBoundsRectangleFit,
-  type ParticleVFXAvatarBoundsRectangleFit,
 } from "./autoFit";
+import {
+  createParticleVFXEffectContainer,
+  createParticleVFXEmitterAnchorBindings,
+  updateParticleVFXEmitterAnchors,
+  type ParticleVFXEmitterAnchorBindings,
+} from "./emitterAnchors";
 import {
   cloneParticleVFXTransform,
   mergeParticleVFXTransform,
@@ -67,6 +72,10 @@ export class ParticleVFXController {
   private readonly _activeInstances = new Map<
     string,
     ParticleVFXRuntimeInstance
+  >();
+  private readonly _emitterAnchors = new Map<
+    string,
+    ParticleVFXEmitterAnchorBindings
   >();
   private readonly _requestVersions = new Map<string, number>();
   private readonly _pendingAppliedIds = new Set<string>();
@@ -289,15 +298,14 @@ export class ParticleVFXController {
       const prefab = await this._loadPrefab(effect.id, effect.assetPath);
       if (!this._isCurrentRequest(appliedId, requestVersion)) return false;
 
-      object = prefab.clone(true);
+      object = createParticleVFXEffectContainer(prefab.clone(true));
       object.name = `ParticleVFX:${effect.id}:${appliedId}`;
       object.frustumCulled = false;
       object.traverse((child) => {
         child.frustumCulled = false;
       });
-      let resolvedAnchor = fallbackResolvedAnchor;
-      let autoFitPlacement: ParticleVFXAvatarBoundsRectangleFit | null =
-        autoFitResult.fit;
+      const resolvedAnchor = fallbackResolvedAnchor;
+      const autoFitPlacement = autoFitResult.fit;
       if (autoFitPlacement) {
         const patchedCount = applyParticleVFXRectangleShapeAutoFit({
           object,
@@ -305,23 +313,22 @@ export class ParticleVFXController {
           width: autoFitPlacement.width,
           height: autoFitPlacement.height,
         });
-        if (patchedCount > 0) {
-          resolvedAnchor = {
-            requestedAnchor: anchor,
-            resolvedAnchor: anchor,
-            boneName: null,
-            position: autoFitPlacement.position,
-            warning: null,
-          };
-        } else {
-          autoFitPlacement = null;
+        if (patchedCount === 0) {
           this._pushWarning(
             `Particle VFX "${effect.id}" requested avatar-bounds rectangle auto-fit, but no matching rectangle emitters were found; using anchor placement.`,
           );
         }
       }
+      const emitterAnchors = createParticleVFXEmitterAnchorBindings(object);
       applyInitialInstanceTransform(object, resolvedAnchor, transform);
       this._root.add(object);
+      for (const warning of updateParticleVFXEmitterAnchors({
+        bindings: emitterAnchors,
+        avatar: this._avatar,
+        defaultAnchor: anchor,
+      })) {
+        this._pushWarning(warning);
+      }
 
       quarks.QuarksUtil.addToBatchRenderer(object, batchRenderer);
       quarks.QuarksUtil.setAutoDestroy(object, false);
@@ -330,8 +337,8 @@ export class ParticleVFXController {
       const usesWorldSpace = this._usesWorldSpaceParticleSystems(object);
       const requestedFollowAnchor =
         request.followAnchor ?? effect.defaultFollowAnchor;
-      const followAnchor =
-        requestedFollowAnchor && !usesWorldSpace && !autoFitPlacement;
+      const followAnchor = requestedFollowAnchor && !usesWorldSpace;
+      this._emitterAnchors.set(appliedId, emitterAnchors);
       this._activeInstances.set(appliedId, {
         appliedId,
         ownerId: request.ownerId ?? null,
@@ -430,6 +437,13 @@ export class ParticleVFXController {
         if (resolvedAnchor) {
           instance.resolvedAnchor = resolvedAnchor;
           applyInstancePosition(instance.object, resolvedAnchor);
+          const bindings = this._emitterAnchors.get(instance.appliedId);
+          if (bindings)
+            updateParticleVFXEmitterAnchors({
+              bindings,
+              avatar: this._avatar,
+              defaultAnchor: instance.anchor,
+            });
         }
       }
       if (
@@ -550,6 +564,7 @@ export class ParticleVFXController {
   }
 
   private _removeInstance(instance: ParticleVFXRuntimeInstance): void {
+    this._emitterAnchors.delete(instance.appliedId);
     this._safeRemoveObject(instance.object);
   }
 

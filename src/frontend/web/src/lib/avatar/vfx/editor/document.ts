@@ -161,11 +161,11 @@ export function validateAvatarEffectDocument(
   options: { imageBytesAvailable: boolean; modelCompatible?: boolean | null },
 ): AvatarEffectValidationIssue[] {
   const issues: AvatarEffectValidationIssue[] = [];
-  if (!document.name.trim() || document.name.trim().length > 120) {
+  if (document.name.trim().length > 120) {
     issues.push({
       field: "name",
       severity: "error",
-      message: "Give the Avatar Effect a name between 1 and 120 characters.",
+      message: "Keep the Avatar Effect name within 120 characters.",
     });
   }
   if (!document.image) {
@@ -305,7 +305,7 @@ export function createAvatarEffectDocumentFromDefinition(args: {
     ...raw,
     id: "avatar-effect-editor-hydration",
     label: args.name,
-    // The runtime parser requires descriptive text; the authored field is optional.
+    // Runtime entries require display copy; the authoring description is optional.
     description: args.description.trim() || args.name,
     assetPath: "blob:avatar-effect-hydration",
   });

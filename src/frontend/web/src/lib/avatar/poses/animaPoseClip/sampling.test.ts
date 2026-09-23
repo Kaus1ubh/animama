@@ -18,7 +18,7 @@ describe("event-only action sampling", () => {
       diagnostics: { missingPoseRefs: [] },
     });
   });
-  it("retains an explicitly selected base pose without synthetic keyframes", () => {
+  it("does not replace the live pose from an unused base without keyframes", () => {
     const result = sampleAnimaPoseClip(
       { ...clip, basePose: "base" },
       0.5,
@@ -29,6 +29,9 @@ describe("event-only action sampling", () => {
         expressions: { happy: 0.5 },
       }),
     );
-    expect(result.sample.expressions).toEqual({ happy: 0.5 });
+    expect(result).toEqual({
+      sample: {},
+      diagnostics: { missingPoseRefs: [] },
+    });
   });
 });

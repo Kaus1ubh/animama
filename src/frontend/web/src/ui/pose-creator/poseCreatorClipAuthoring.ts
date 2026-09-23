@@ -503,7 +503,7 @@ export function validatePoseCreatorClipDraft(
     });
   }
 
-  // Actions may consist entirely of typed VFX/SFX events.
+  // Event-only Actions need no synthetic pose; validate their events below.
   if (localAliases.size === 0 && draft.events.length === 0) {
     issues.push({
       severity: "error",

@@ -1,3 +1,5 @@
+import { listCatalogItems } from "@/lib/content/catalogApi";
+import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
@@ -56,6 +58,21 @@ export function useContentEditorSaveSource(
   const editSession = session;
   const keys = families[kind];
   return {
+    /** Allocate blank names from the full catalog, excluding the edited item. */
+    async resolveName(name: string, fallback: string) {
+      if (name.trim()) return name.trim();
+      const items = await listCatalogItems(kind);
+      return createUniqueContentName(
+        fallback,
+        items
+          .filter(
+            (item) =>
+              editSession.item?.origin !== "owned" ||
+              item.item_id !== editSession.item.item_id,
+          )
+          .map((item) => item.name),
+      );
+    },
     target(name: string) {
       return contentEditorSaveTarget(editSession.item, kind, name);
     },

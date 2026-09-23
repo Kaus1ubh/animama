@@ -117,9 +117,7 @@ describe("particle VFX editor helpers", () => {
       hasColorOverLife: true,
     });
     expect(validateParticleVFXEditorDraft(draft)).toEqual([]);
-    expect(exported.quarksJson).toContain(
-      '"url": "textures/soft-dot.png"',
-    );
+    expect(exported.quarksJson).toContain('"url": "textures/soft-dot.png"');
     expect(exported.quarksJson).not.toContain("blob:");
   });
 
@@ -255,13 +253,15 @@ describe("particle VFX editor helpers", () => {
       endFrame: 18,
     });
     expect(
-      (getFirstEmitterPs(patched).behaviors as Array<Record<string, unknown>>)
-        .find((behavior) => behavior.type === "FrameOverLife"),
+      (
+        getFirstEmitterPs(patched).behaviors as Array<Record<string, unknown>>
+      ).find((behavior) => behavior.type === "FrameOverLife"),
     ).toBeTruthy();
     expect(disabled.emitters[0].frameOverLife.mode).toBe("off");
     expect(
-      (getFirstEmitterPs(disabled).behaviors as Array<Record<string, unknown>>)
-        .some((behavior) => behavior.type === "FrameOverLife"),
+      (
+        getFirstEmitterPs(disabled).behaviors as Array<Record<string, unknown>>
+      ).some((behavior) => behavior.type === "FrameOverLife"),
     ).toBe(false);
   });
 
@@ -303,9 +303,11 @@ describe("particle VFX editor helpers", () => {
 
     expect(imported.emitters[0].frameOverLife.mode).toBe("unsupported");
     expect(
-      (getFirstEmitterPs(durationPatched).behaviors as Array<
-        Record<string, unknown>
-      >).find((behavior) => behavior.type === "FrameOverLife"),
+      (
+        getFirstEmitterPs(durationPatched).behaviors as Array<
+          Record<string, unknown>
+        >
+      ).find((behavior) => behavior.type === "FrameOverLife"),
     ).toEqual(rawFrameOverLife);
     expect(edited.emitters[0].frameOverLife).toEqual({
       mode: "linear",
@@ -445,7 +447,9 @@ describe("particle VFX editor helpers", () => {
   });
 
   it("preserves unsupported imported advanced behavior JSON until edited", () => {
-    const json = structuredClone(createParticleVFXEditorDraftFromBlank().quarksJson);
+    const json = structuredClone(
+      createParticleVFXEditorDraftFromBlank().quarksJson,
+    );
     const ps = getFirstEmitterPs({ quarksJson: json });
     const rawSpeedOverLife = {
       type: "SpeedOverLife",
@@ -479,9 +483,11 @@ describe("particle VFX editor helpers", () => {
       "unsupported",
     );
     expect(
-      (getFirstEmitterPs(durationPatched).behaviors as Array<
-        Record<string, unknown>
-      >).find((behavior) => behavior.type === "SpeedOverLife"),
+      (
+        getFirstEmitterPs(durationPatched).behaviors as Array<
+          Record<string, unknown>
+        >
+      ).find((behavior) => behavior.type === "SpeedOverLife"),
     ).toEqual(rawSpeedOverLife);
     expect(edited.emitters[0].advancedBehaviors.speedOverLife).toMatchObject({
       mode: "enabled",
@@ -568,9 +574,9 @@ describe("particle VFX editor helpers", () => {
       speedFactor: 0.04,
       lengthFactor: 2.2,
     });
-    expect(
-      templated.emitters[0].advancedBehaviors.speedOverLife.mode,
-    ).toBe("enabled");
+    expect(templated.emitters[0].advancedBehaviors.speedOverLife.mode).toBe(
+      "enabled",
+    );
     expect(
       templated.emitters[0].advancedBehaviors.limitSpeedOverLife.mode,
     ).toBe("enabled");
@@ -1115,7 +1121,7 @@ describe("particle VFX editor helpers", () => {
   });
 
   it("resolves avatar-backed creator preview placement from avatar bounds auto-fit", () => {
-    const avatar = createMockAvatar({});
+    const avatar = createMockAvatar({ head: new Vector3(0, 1.5, 0) });
     const avatarMesh = new Mesh(
       new BoxGeometry(0.6, 1.4, 0.2),
       new MeshBasicMaterial(),
@@ -1141,14 +1147,14 @@ describe("particle VFX editor helpers", () => {
     });
 
     expect(placement.resolvedAnchor).toBe("head");
-    expect(placement.boneName).toBeNull();
+    expect(placement.boneName).toBe("head");
     expect(placement.warning).toBeNull();
     expect(placement.autoFit?.kind).toBe("avatarBoundsRectangle");
     expect(placement.autoFit?.width).toBeCloseTo(0.4);
     expect(placement.autoFit?.height).toBeCloseTo(1.5);
-    expect(placement.position.x).toBeCloseTo(0.15);
-    expect(placement.position.y).toBeCloseTo(0.9);
-    expect(placement.position.z).toBeCloseTo(0.68);
+    expect(placement.position.x).toBeCloseTo(0.1);
+    expect(placement.position.y).toBeCloseTo(1.7);
+    expect(placement.position.z).toBeCloseTo(0.7);
   });
 
   it("parses exact export JSON for the viewer without preview path resolution", () => {

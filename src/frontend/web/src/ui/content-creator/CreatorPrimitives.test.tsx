@@ -170,6 +170,55 @@ describe("creator editor primitives", () => {
     expect(html).toContain("Duration");
   });
 
+  it.each(["3 conversation turns", "Sticky · until cleared"])(
+    "shows %s without a fabricated duration or playhead",
+    (indefiniteLabel) => {
+      const html = renderToString(
+        <CreatorPreviewBar
+          subtitle="Effect"
+          playing
+          onPlayingChange={() => undefined}
+          onRestart={() => undefined}
+          duration={{
+            value: null,
+            indefiniteLabel,
+            min: 0.1,
+            max: 30,
+            step: 0.1,
+            onValueChange: () => undefined,
+          }}
+        />,
+      );
+      expect(html).toContain(indefiniteLabel);
+      expect(html).not.toContain('type="number"');
+      expect(html).not.toContain("0.00s");
+      expect(html).not.toContain("Current playhead time");
+      expect(html).toContain('aria-label="Pause preview"');
+    },
+  );
+
+  it("labels a saved lifetime ruler without claiming elapsed playback", () => {
+    const html = renderToString(
+      <CreatorPreviewBar
+        subtitle="Effect"
+        playing
+        onPlayingChange={() => undefined}
+        onRestart={() => undefined}
+        duration={{
+          value: 2,
+          label: "Run-end buffer",
+          min: 0.05,
+          max: 30,
+          step: 0.05,
+          onValueChange: () => undefined,
+        }}
+      />,
+    );
+    expect(html).toContain('aria-label="Run-end buffer in seconds"');
+    expect(html).toContain("2.00s");
+    expect(html).not.toContain("Current playhead time");
+  });
+
   it("accepts a creator-owned preview timeline without changing its content", () => {
     const html = renderToString(
       <CreatorPreviewBar>

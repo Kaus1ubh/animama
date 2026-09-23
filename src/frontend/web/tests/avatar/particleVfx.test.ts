@@ -773,18 +773,31 @@ describe("ParticleVFXController", () => {
       kind: "avatarBoundsRectangle",
       padding: { width: 0.2, height: 0.1 },
       minSize: { width: 0.1, height: 0.1 },
+      emitterNames: ["fitted"],
     };
 
     const controller = new ParticleVFXController(
       avatar,
       TEST_PARTICLE_MEDIA_PROVIDER,
     );
-    quarksMockState.loadQueue.push({
-      kind: "resolve",
-      object: createMockQuarksPrefab({
-        emitterShape: { type: "rectangle", width: 1, height: 1 },
-      }),
+    const prefab = createMockQuarksPrefab({
+      emitterName: "fitted",
+      emitterShape: { type: "rectangle", width: 1, height: 1 },
     });
+    const unrelated = new MockParticleEmitter(createMockParticleSystem(false));
+    unrelated.name = "unrelated";
+    unrelated.position.x = 0.25;
+    unrelated.userData.animamaParticleAnchor = "root";
+    const otherRectangle = new MockParticleEmitter(
+      createMockParticleSystem(false, {
+        type: "rectangle",
+        width: 0.3,
+        height: 0.4,
+      }),
+    );
+    otherRectangle.name = "unselected-rectangle";
+    prefab.add(unrelated, otherRectangle);
+    quarksMockState.loadQueue.push({ kind: "resolve", object: prefab });
 
     try {
       await expect(
@@ -807,16 +820,83 @@ describe("ParticleVFXController", () => {
       const object = root?.children.find((child) =>
         child.name.startsWith("ParticleVFX:hearts:auto-fit-hearts"),
       );
-      expect(object?.position.x).toBeCloseTo(0.1);
-      expect(object?.position.y).toBeCloseTo(1.22);
+      expect(object?.position.x).toBeCloseTo(0);
+      expect(object?.position.y).toBeCloseTo(1.82);
       expect(object?.position.z).toBeCloseTo(0.12);
+      const unselected = object?.getObjectByName(
+        "unselected-rectangle",
+      ) as MockParticleEmitter;
+      expect(unselected.system.emitterShape).toMatchObject({
+        width: 0.3,
+        height: 0.4,
+      });
+      const unrelatedLocal = avatar.scene!.worldToLocal(
+        object!.getObjectByName("unrelated")!.getWorldPosition(new Vector3()),
+      );
+      expect(unrelatedLocal.x).toBeCloseTo(0.25);
+      expect(unrelatedLocal.y).toBeCloseTo(0.32);
       expect(controller.getSnapshot().activeInstances[0]?.followAnchor).toBe(
-        false,
+        true,
       );
     } finally {
       effect.shapeAutoFit = previousShapeAutoFit;
       controller.dispose();
     }
+  });
+
+  it("follows independent emitter anchors in one instance and cleans every system on stop", async () => {
+    const avatar = createMockAvatar({
+      head: new Vector3(0, 1.5, 0),
+      leftHand: new Vector3(0.6, 0.8, 0),
+    }) as Avatar;
+    const prefab = createMockQuarksPrefab();
+    const headEmitter = prefab.children[0]!;
+    headEmitter.name = "head-sparkles";
+    headEmitter.position.y = 0.1;
+    const handEmitter = new MockParticleEmitter(
+      createMockParticleSystem(false),
+    );
+    handEmitter.name = "hand-particles";
+    handEmitter.userData.animamaParticleAnchor = "leftHand";
+    handEmitter.position.x = 0.2;
+    prefab.add(handEmitter);
+    quarksMockState.loadQueue.push({ kind: "resolve", object: prefab });
+    const controller = new ParticleVFXController(
+      avatar,
+      TEST_PARTICLE_MEDIA_PROVIDER,
+    );
+    await expect(
+      controller.playEffect({
+        effectId: "hearts",
+        appliedId: "gesture-event",
+        ownerId: "gesture",
+        anchor: "head",
+      }),
+    ).resolves.toBe(true);
+    const root = avatar.scene!.getObjectByName(PARTICLE_VFX_ROOT_OBJECT_NAME)!;
+    const instance = root.children.find((child) =>
+      child.name.startsWith("ParticleVFX:"),
+    )!;
+    const local = (name: string) =>
+      avatar.scene!.worldToLocal(
+        instance.getObjectByName(name)!.getWorldPosition(new Vector3()),
+      );
+    expect(local("head-sparkles").y).toBeCloseTo(1.92);
+    expect(local("hand-particles").x).toBeCloseTo(0.8);
+    expect(local("hand-particles").y).toBeCloseTo(1.12);
+    avatar.vrm!.humanoid.getNormalizedBoneNode("head")!.position.y = 1.8;
+    avatar.vrm!.humanoid.getNormalizedBoneNode("leftHand")!.position.x = 0.9;
+    controller.update(0.1);
+    expect(local("head-sparkles").y).toBeCloseTo(2.22);
+    expect(local("hand-particles").x).toBeCloseTo(1.1);
+    expect(local("hand-particles").y).toBeCloseTo(1.12);
+    expect(controller.clearEffect("gesture-event")).toBe(true);
+    expect(instance.parent).toBeNull();
+    expect(quarksMockState.lastBatchRenderer?.systems.size).toBe(0);
+    expect(quarksMockState.createdSystems).toHaveLength(2);
+    for (const system of quarksMockState.createdSystems)
+      expect(system.dispose).toHaveBeenCalledOnce();
+    controller.dispose();
   });
 
   it("falls back to anchor placement when auto-fit finds no rectangle emitters", async () => {

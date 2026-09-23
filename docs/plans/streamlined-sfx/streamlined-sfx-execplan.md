@@ -179,6 +179,22 @@ playback, production-mode browser checks, signing/release and paid model calls w
 not performed. Delete safeguards were reviewed and automated rather than executing
 permanent deletion through the browser. Hosted CI is pending publication.
 
+## Current-main integration
+
+After opening PR #74, main advanced to `b7a4046` through the VFX creator work.
+Merged that source into this task branch. Preserve its shared timeline controls
+and event-only no-pose-sampling contract, adding only the accompanying-sound
+indicator and flag behavior. Main independently contained the same blank-description
+hydration fix. Four conflicts were resolved without reverting either feature.
+Targeted overlap review against the new baseline found no issues; 64 affected tests
+passed. Merged `pnpm check`, `pnpm web:lint` and `pnpm build` passed. Full web
+run passed 1,590 tests and exposed one stale incoming source-text assertion about
+transport labels. Updated that assertion to the shared transport boundary; its
+suite plus shared-control render tests passed all 9 tests, with scoped lint/format
+passing. Targeted integration repair review passed. Browser reopened the saved
+Reaction with speaker indicators and the persisted disabled toggle on the shared
+timeline. PR #74 retains exact candidate and actual hosted status.
+
 ## Retained environment and recovery
 
 Application: `http://animama-sfx-e9cf.localhost:8280`; Compose project

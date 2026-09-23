@@ -128,7 +128,7 @@ describe("action creator preview ownership", () => {
     expect(page).not.toContain("actions.preview");
     expect(scene).not.toContain("playContentPreviewMotion");
     expect(actions).not.toContain("const preview = useMutation");
-    expect(timeline).toContain('"Play clip preview"');
-    expect(timeline).toContain('aria-label="Restart clip preview"');
+    // Accessible transport controls are covered by CreatorTimeline.test.tsx.
+    expect(timeline).toContain("<CreatorTimelineTransport");
   });
 });
