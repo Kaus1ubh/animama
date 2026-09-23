@@ -6,7 +6,8 @@ Authorized scope: All three phases and local development stack, authorized by
 the owner on 2026-09-23 through implement. Parent spec: https://github.com/raymond-van/animama/issues/76.
 Starting revision: `98220eae162651207960ffa9657aa54581a80265`.
 Branch: retain `docs/hand-authoring-spec` in the assigned task worktree; one branch
-and one PR for this plan. Parent #76; phases #77, #78 and #79. Phase 1 commit `f8906e7`; Phase 2 commit `343ce0f`; PR pending.
+and one PR for this plan. Parent #76; phases #77, #78 and #79. Phase 1 commit `f8906e7`; Phase 2 commit `343ce0f`; Phase 3 code commit `0e26728`.
+The parent issue records the current PR and hosted checks.
 
 ## Purpose and context
 
@@ -280,7 +281,7 @@ and the owner confirms compact layout and usable bone targets. Missing real-mode
 coverage or owner visual review remains pending; do not silently substitute tests
 or generated mockups. Merge requires separate exact-candidate owner approval.
 
-Evidence: Issue #79; starting SHA `343ce0f`; commit/PR pending. Three initial
+Evidence: Issue #79; starting SHA `343ce0f`; code commit `0e26728`. Three initial
 persistence tests passed; browser save/reopen and pasted-JSON roundtrip preserved
 all 20 authored channels exactly, with no helper keys. Opening/closing the saved
 pose retained Saved status and empty Undo history. A Gesture copy exposed omitted
