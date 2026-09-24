@@ -2,7 +2,8 @@
 
 Source agreement: the 2026-09-24 task discussion and subsequent request for this
 ExecPlan. The owner selected contextual Avatar VFX guides and removal of Scene
-VFX guides; Particle VFX controls remain unchanged.
+VFX guides; Particle VFX controls remain unchanged. A subsequent 2026-09-24
+request authorizes the Phase 3 preview and numeric-entry refinements below.
 
 Authorization: the owner invoked `implement` on 2026-09-24, authorizing both
 phases. The existing instruction to withhold a PR remains in
@@ -79,8 +80,9 @@ boundary. UV-space footprints are authoritative for decals/textures; do not draw
 a flat rectangle on the face that falsely implies exact surface coverage.
 
 The UV view is collapsed initially, accessible beside the Guides control, and
-only offered when relevant data exists. Turning Guides off hides both spatial
-guides and UV content. Use the selected binding's live texture (`map` preferred,
+only offered when relevant data exists. Turning Guides off hides spatial
+guides; the Phase 3 follow-up keeps the UV icon/view available independently. Use
+the selected binding's live texture (`map` preferred,
 otherwise the available supported slot); state the material/slot in the view and
 allow selection when the effect applies to multiple bindings or distinct slots.
 Reuse the current composite image so flattening and artwork match playback.
@@ -112,7 +114,8 @@ redesign. No new runtime or UI dependencies are expected.
 - [x] Phase 1: contextual Avatar placement guides and UV preview (agent gates passed).
 - [x] Phase 2: Scene guide removal and shared-control regression verification.
 - [x] Final independent integration review and local evidence.
-- [ ] Owner visual acceptance of guide clarity.
+- [x] Phase 3: compact preview controls and editable numeric drafts (agent gates passed).
+- [ ] Owner visual acceptance of guide clarity and follow-up layout.
 
 ## Surprises & Discoveries
 
@@ -340,6 +343,122 @@ coordinator's actual Avatar/emitter visibility checks above provide that evidenc
 No implementation repairs required. Repair rounds used: 0/2. Final integration
 reused these checks and reviewed the combined shared-control behavior.
 
+### Phase 3: Compact preview controls and editable numeric drafts
+
+Authority: the owner's 2026-09-24 follow-up after guide delivery. Starting source:
+`dd4b032` on the same assigned branch. This phase supersedes the earlier coupling
+between UV visibility and Guides, and removes Avatar/Scene timeline footers.
+Keep all commits and validation notes local; do not update GitHub issues or open a
+PR. This owner instruction overrides the usual tracker/publication steps.
+
+Accepted behavior:
+
+- Rename Avatar Transform's Offset heading to Position Offset. The UV trigger
+  becomes icon-only with its accessible name/title preserved; it remains available
+  whenever relevant data exists even when spatial Guides are off.
+- Remove Avatar and Scene preview timelines/footers. Reuse Play/Pause, Stop and
+  Restart inside the bottom-center controls, replacing the standalone refresh
+  button. Preserve Scene duration/sticky settings in Setup and Particle timelines.
+- Number fields across the app allow clearing and retyping, including intermediate
+  negative/decimal input. Editing text stays local until it represents a finite
+  number; existing consumers still own value rounding, limits and persistence.
+  Blank/incomplete required fields settle to the accepted numeric value on blur or
+  Enter. Explicit optional-number consumers retain their existing unset behavior.
+  Preserve native spinbuttons, refs, keyboard/form behavior and safe existing
+  text-based numeric editors; do not change numeric storage contracts.
+
+Implementation: make the shared Input own numeric text drafts, audit every native
+number entry and migrate the remaining raw numeric control. Keep UV availability
+independent of spatial guide mounting. Add one shared playback slot to the canvas
+controls and reuse the existing transport with unchanged handlers. No runtime VFX
+placement, backend, schema or content migration changes.
+
+Checks: observe clear/retype failure in a real browser before the numeric fix;
+exercise fractional/negative typing, blank blur recovery, optional empty input,
+external values and clamping. Run affected component/creator tests, web/E2E source
+checks, lint, read-only formatting and production build. Reuse the isolated test
+stack for Avatar/Scene/Particle regression journeys; verify desktop and narrow
+transport reachability, no footer, and UV open while Guides are off. Browser
+checks must exercise actual native-number behavior, not only parsing helpers.
+
+Completion: these behaviors pass local checks and one independent integration
+review, with at most two targeted repair rounds. Commit the verified follow-up
+locally. No new owner approval is needed for the requested changes; visual
+acceptance, native packaging and hosted CI remain separate.
+
+Evidence: numeric clear/retype was observed red on the prior production build
+(`run-0924140550`): clearing X returned `0` across 13 reads rather than staying
+empty. The global adapter now owns transient native-number drafts; all 11 native
+number-input callsites were audited. The remaining raw debug control was migrated,
+and the two intentional-empty consumers opt in explicitly. Existing safe decimal
+text controls were preserved.
+
+Combined focused verification passed 33 files / 169 tests:
+
+```bash
+pnpm --filter animama-web exec vitest run src/ui/components/number-input-draft.test.ts src/ui/content-creator src/ui/avatar-effect-creator src/ui/scene-effect-creator src/ui/pose-creator
+pnpm --filter animama-web run check:source
+pnpm e2e:check:source
+pnpm web:lint
+```
+
+All commands above passed, as did read-only formatting and whitespace checks. The
+isolated production stack rebuilt successfully with the Phase 3 source. Concurrent
+unrelated Action/clip timeline work was later committed as `9f81a7a`; it is excluded
+from this phase's implementation and review boundary. The served production run
+used `dd4b032` plus the unchanged Phase 3 product delta.
+
+Updated four-journey production run `run-0924141156` passed 5/5 including setup:
+Avatar lifecycle (42.9s), numeric editing/authoring invariance (43.0s), Particle
+controls (9.1s), Scene rendering (18.3s). The Avatar journey checks icon-only UV
+remaining open and reopening with Guides off. Avatar/Scene controls live in the
+bottom-center group, have no timeline/footer, work through Stop, keyboard Play
+and Restart, and stay inside a 390px viewport.
+
+Native-number browser checks clear the field, type `-0.251` character by character,
+retain that draft until Enter applies the existing `-0.25` precision, replace the
+value through Undo, and recover from both blank and incomplete exponent input on
+blur. Portable JSON and authoring-state checks remain intact. Manual development
+checks independently confirmed blank editing, negative decimal entry, Enter
+rounding, and live UV while spatial Guides are off. No saved content was changed.
+
+Optional SFX browser run `run-0924141544` passed setup plus the new numeric journey
+(2/2, 21.9s). In a real unsaved Reaction, clearing volume survived blur and removed
+the portable JSON property. A lone minus restored `0.75`; out-of-range `2` and
+`-1` settled to the existing `1` and `0` limits. Native min/max/step were retained,
+mutation/catalog guards passed, and the unresolved test sound was never played.
+The new journey is explicitly included in the existing Chromium allowlist.
+
+```bash
+pnpm e2e:test -- accountless-vfx-layout.spec.ts --project chromium --grep 'avatar effect|vfx guides|scene creator'
+pnpm e2e:test -- accountless-numeric-input.spec.ts --project chromium
+```
+
+Both ran against the isolated production record with mutations enabled only for
+its deterministic setup fixture. Browser artifacts remain under
+`.animama-e2e/runs/run-0924141156/` and `run-0924141544/`. E2E typechecking and
+formatting passed after final test changes. Debug-specific optional entry was not
+separately browser-tested; it shares the verified input implementation.
+
+#### Code Review #1 Findings
+
+Independent code analysis of the Phase 3 delta found no supported implementation
+issues. It checked numeric native props/refs/events, optional clearing, owner
+rounding, UV independence, retained Scene lifetime settings and unchanged Particle
+behavior. Independent checks passed the 169-test run and changed-source formatting.
+Both reviewers required real-browser lifecycle evidence beyond the pure numeric
+publication predicate. The production checks above satisfy that gate, including
+the optional-field case. Final bounded test/config readback passed; there are no
+remaining code or validation blockers in the authorized scope. Concurrent Action
+and clip-authoring edits are excluded and preserved.
+
+#### Code Review #1 Revisions
+
+No implementation repairs required. Repair rounds used: 0/2. Independent Phase 3
+and final integration verdict: pass for agent verification. Owner visual
+acceptance, native packaging and hosted CI remain separate. Phase commit:
+`e48c12b` (`fix(ui)[p3]: simplify previews and improve number entry`).
+
 ## Validation and acceptance
 
 Commands below run from `src/frontend` after locked dependencies are available.
@@ -476,9 +595,11 @@ commands if services need attention; no broad Docker cleanup.
 
 ## Outcomes & Retrospective
 
-Both authorized phases are implemented and committed locally: `a8b3af8` adds
-runtime-derived Avatar guides and a borrowed live UV view; `0471e20` removes Scene
-guides and preserves shared controls. Focused tests, served production journeys
+The original phases are committed locally: `a8b3af8` adds runtime-derived Avatar
+guides and a borrowed live UV view; `0471e20` removes Scene guides and preserves
+shared controls. The authorized Phase 3 follow-up adds independent icon-only UV,
+compact Avatar/Scene transport, and app-wide editable number drafts in `e48c12b`;
+its checks and final independent review passed. Focused tests, served production journeys
 and bounded independent reviews passed. The assigned worktree and branch remain
 available with the development stack on port 8200 and isolated production test
 stack on port 8620; no data was purged. Owner visual acceptance is pending. No PR
