@@ -1342,7 +1342,10 @@ function drawCompositedLayerCanvas(args: {
 
     context.save();
     context.translate(centerX + translateX, centerY + translateY);
-    context.rotate(animationState.rotationRadians);
+    // Texture decals rotate in their 2D surface; spin adds to the authored angle.
+    context.rotate(
+      effect.transform.rotation.z + animationState.rotationRadians,
+    );
     context.scale(
       (placement.mirrorX ? -1 : 1) * staticScaleX * scale,
       staticScaleY * scale,
@@ -3244,6 +3247,15 @@ export class AvatarVFXController {
       animatedGroup.renderOrder = HOVER_RENDER_ORDER;
       animatedGroup.frustumCulled = false;
 
+      // Rotate the image and its backdrop together without animation overwriting it.
+      const staticGroup = new THREE.Group();
+      staticGroup.rotation.set(
+        effect.transform.rotation.x,
+        effect.transform.rotation.y,
+        effect.transform.rotation.z,
+      );
+      animatedGroup.add(staticGroup);
+
       if (hoverSkinBackdropColor && hoverBackdropSourceBinding) {
         const backdropGeometry = new THREE.PlaneGeometry(
           planeSize.width * HOVER_SKIN_BACKDROP_WIDTH_SCALE,
@@ -3267,7 +3279,7 @@ export class AvatarVFXController {
           );
           backdropMesh.renderOrder = HOVER_RENDER_ORDER - 1;
           backdropMesh.frustumCulled = false;
-          animatedGroup.add(backdropMesh);
+          staticGroup.add(backdropMesh);
           runtimeMaterials.push(backdropMaterial);
         }
       }
@@ -3281,7 +3293,7 @@ export class AvatarVFXController {
       );
       mesh.renderOrder = HOVER_RENDER_ORDER;
       mesh.frustumCulled = false;
-      animatedGroup.add(mesh);
+      staticGroup.add(mesh);
       placementRoot.add(animatedGroup);
       group.add(placementRoot);
       instances.push({

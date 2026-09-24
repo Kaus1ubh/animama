@@ -1365,11 +1365,8 @@ function InspectorPanel({
       summary={humanize(document.kind)}
       bodyClassName="overflow-y-auto"
     >
-      <Tabs defaultValue="placement">
-        <TabsList className="grid h-9 w-full grid-cols-3">
-          <TabsTrigger value="placement" className="min-w-0 px-1 text-xs">
-            Placement
-          </TabsTrigger>
+      <Tabs defaultValue="transform">
+        <TabsList className="grid h-9 w-full grid-cols-2">
           <TabsTrigger value="transform" className="min-w-0 px-1 text-xs">
             Transform
           </TabsTrigger>
@@ -1377,7 +1374,7 @@ function InspectorPanel({
             Animation
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="placement" className="mt-3 space-y-3">
+        <TabsContent value="transform" className="mt-3 space-y-3">
           <Field label="Preview Avatar">
             <Select
               value={selectedModel?.key ?? ""}
@@ -1408,36 +1405,43 @@ function InspectorPanel({
               </SelectContent>
             </Select>
           </Field>
-          <AvatarEffectAxisFields
-            labelPrefix="Offset "
-            values={document.transform.offset}
-            step={0.01}
-            onValueChange={(axis, value) =>
-              onPatchTransform("offset", axis, value)
-            }
-          />
-          <AvatarEffectAxisFields
-            labelPrefix="Scale "
-            values={document.transform.scale}
-            step={0.05}
-            onValueChange={(axis, value) =>
-              onPatchTransform("scale", axis, value)
-            }
-          />
-        </TabsContent>
-        <TabsContent value="transform" className="mt-3 space-y-3">
-          {(["offset", "scale", "rotation"] as const).map((group) => (
+          {(["offset", "scale"] as const).map((group) => (
             <div key={group}>
               <Label className="mb-2 block capitalize">{group}</Label>
               <AvatarEffectAxisFields
                 values={document.transform[group]}
-                step={group === "rotation" ? 0.05 : 0.01}
+                step={0.01}
                 onValueChange={(axis, value) =>
                   onPatchTransform(group, axis, value)
                 }
               />
             </div>
           ))}
+          {document.kind === "hover" ? (
+            <div>
+              <Label className="mb-2 block">Rotation (degrees)</Label>
+              <AvatarEffectAxisFields
+                values={{
+                  x: (document.transform.rotation.x * 180) / Math.PI,
+                  y: (document.transform.rotation.y * 180) / Math.PI,
+                  z: (document.transform.rotation.z * 180) / Math.PI,
+                }}
+                step={1}
+                onValueChange={(axis, value) =>
+                  onPatchTransform("rotation", axis, (value * Math.PI) / 180)
+                }
+              />
+            </div>
+          ) : (
+            <NumberField
+              label="Angle (degrees)"
+              value={(document.transform.rotation.z * 180) / Math.PI}
+              step={1}
+              onChange={(value) =>
+                onPatchTransform("rotation", "z", (value * Math.PI) / 180)
+              }
+            />
+          )}
         </TabsContent>
         <TabsContent value="animation" className="mt-3 space-y-3">
           <AvatarEffectAnimationControls
