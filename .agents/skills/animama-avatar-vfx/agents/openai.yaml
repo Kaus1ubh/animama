@@ -1,0 +1,4 @@
+interface:
+  display_name: "Animama Avatar VFX"
+  short_description: "Create and tune Avatar Effects in Animama's creator"
+  default_prompt: "Use $animama-avatar-vfx to create an Avatar Effect from my artwork in Animama, tune it on the intended avatar, and verify the saved content."

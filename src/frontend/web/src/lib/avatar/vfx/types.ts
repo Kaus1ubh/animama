@@ -213,6 +213,12 @@ export type AvatarEyeHoverVFXEntry = AvatarVFXBaseEntry &
   AvatarVFXCanDisableRoles & {
     kind: "hover";
     hoverKind: "eye_hover";
+    /** Close the original eyes while the effect is active; defaults to true. */
+    forceBlink?: boolean;
+    /** Hide eye highlights, lines and lashes in addition to explicit roles; defaults to true. */
+    autoDisableEyeMaterials?: boolean;
+    /** Cover painted eye detail with sampled skin color; defaults to true. */
+    faceCleanup?: boolean;
     side?: AvatarVFXSide;
     requiresMirror?: boolean;
     skinBackdrop?: boolean;
@@ -221,6 +227,8 @@ export type AvatarEyeHoverVFXEntry = AvatarVFXBaseEntry &
 export type AvatarMouthHoverVFXEntry = AvatarVFXBaseEntry & {
   kind: "hover";
   hoverKind: "mouth_hover";
+  /** Cover painted mouth detail with sampled skin color; defaults to true. */
+  faceCleanup?: boolean;
   skinBackdrop?: boolean;
 };
 
@@ -257,6 +265,8 @@ export type AvatarFaceAnchoredSpanDecalVFXEntry =
 
 export type AvatarFaceAnchoredMouthVFXEntry = AvatarFaceAnchoredVFXBaseEntry & {
   anchor: "mouth";
+  /** Cover painted mouth detail with sampled skin color; defaults to true. */
+  faceCleanup?: boolean;
 };
 
 export type AvatarFaceAnchoredVFXEntry =

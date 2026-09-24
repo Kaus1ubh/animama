@@ -20,30 +20,53 @@ export function avatarEffectEditorReducer(
 ): AvatarEffectEditorDocument {
   if (action.type === "replace")
     return cloneAvatarEffectDocument(action.document);
-  if (action.type === "set-kind") {
-    return {
-      ...state,
-      kind: action.kind,
-      region:
-        action.kind === "hover"
-          ? "eyes"
-          : action.kind === "face_anchored"
-            ? "undereye"
-            : "full_face",
-    };
+  if (action.type === "patch") {
+    const next = { ...state, ...action.patch };
+    if (action.patch.region !== undefined) next.regionMode = "custom";
+    if (next.regionMode === "automatic")
+      next.region = suggestedAvatarEffectRegion(next);
+    return next;
   }
-  if (action.type === "patch") return { ...state, ...action.patch };
-  if (action.type === "patch-hover")
-    return { ...state, hover: { ...state.hover, ...action.patch } };
-  if (action.type === "patch-face")
-    return { ...state, face: { ...state.face, ...action.patch } };
-  return { ...state, texture: { ...state.texture, ...action.patch } };
+  const next =
+    action.type === "set-kind"
+      ? { ...state, kind: action.kind }
+      : action.type === "patch-hover"
+        ? { ...state, hover: { ...state.hover, ...action.patch } }
+        : action.type === "patch-face"
+          ? { ...state, face: { ...state.face, ...action.patch } }
+          : { ...state, texture: { ...state.texture, ...action.patch } };
+  // Automatic placement defaults never replace an explicit region choice.
+  if (state.regionMode === "automatic") {
+    next.region = suggestedAvatarEffectRegion(next);
+  }
+  return next;
+}
+
+/** Region controls coexistence, independently of the image's geometric placement. */
+function suggestedAvatarEffectRegion(document: AvatarEffectEditorDocument) {
+  if (document.kind === "hover") {
+    return document.hover.hoverKind === "eye_hover"
+      ? "eyes"
+      : document.hover.hoverKind === "mouth_hover"
+        ? "mouth"
+        : "emote";
+  }
+  if (document.kind === "face_anchored") return document.face.anchor;
+  return document.texture.targetRole === "face_skin" ? "full_face" : "eyes";
 }
 
 export function cloneAvatarEffectDocument(
   document: AvatarEffectEditorDocument,
 ): AvatarEffectEditorDocument {
-  return structuredClone(document);
+  const defaults = createDefaultAvatarEffectDocument();
+  return structuredClone({
+    ...defaults,
+    ...document,
+    regionMode: document.regionMode ?? "custom",
+    hover: { ...defaults.hover, ...document.hover },
+    face: { ...defaults.face, ...document.face },
+    texture: { ...defaults.texture, ...document.texture },
+  });
 }
 
 export function canonicalAvatarEffectImageName(filename: string): string {
@@ -84,10 +107,18 @@ export function avatarEffectDefinition(
         ? { side: settings.side }
         : {}),
       ...(settings.hoverKind === "eye_hover"
-        ? { requiresMirror: settings.requiresMirror }
+        ? {
+            requiresMirror: settings.requiresMirror,
+            forceBlink: settings.forceBlink,
+            autoDisableEyeMaterials: settings.autoDisableEyeMaterials,
+            disableTargetRoles: [...settings.disableTargetRoles],
+          }
         : {}),
       ...(settings.hoverKind !== "box_hover"
-        ? { skinBackdrop: settings.skinBackdrop }
+        ? {
+            skinBackdrop: settings.skinBackdrop,
+            faceCleanup: settings.faceCleanup,
+          }
         : {}),
     };
   }
@@ -97,6 +128,9 @@ export function avatarEffectDefinition(
       ...common,
       anchor: settings.anchor,
       pivot: settings.pivot,
+      ...(settings.anchor === "mouth"
+        ? { faceCleanup: settings.faceCleanup }
+        : {}),
       ...(settings.anchor !== "mouth"
         ? {
             layout: settings.layout,
@@ -114,6 +148,7 @@ export function avatarEffectDefinition(
   return {
     ...common,
     targetRole: settings.targetRole,
+    disableTargetRoles: [...settings.disableTargetRoles],
     assetShape: settings.assetShape,
     applyMode: settings.applyMode,
     ...(settings.side ? { side: settings.side } : {}),
@@ -252,6 +287,7 @@ export function parseAvatarEffectEditorExport(
     ...defaults,
     ...raw,
     schema: AVATAR_EFFECT_EDITOR_SCHEMA,
+    regionMode: raw.regionMode ?? "custom",
     transform: object(raw.transform) as AvatarEffectEditorDocument["transform"],
     hover: { ...defaults.hover, ...object(raw.hover) },
     face: { ...defaults.face, ...object(raw.face) },
@@ -287,6 +323,7 @@ export function createAvatarEffectDocumentFromDefinition(args: {
   document.description = args.description;
   document.kind = parsed.kind;
   document.region = parsed.region;
+  document.regionMode = "custom";
   document.transform = structuredClone(parsed.transform);
   document.animationConfig = parsed.animationConfig
     ? structuredClone(parsed.animationConfig)
@@ -296,6 +333,18 @@ export function createAvatarEffectDocumentFromDefinition(args: {
   document.sound = args.sound;
   if (parsed.kind === "hover") {
     document.hover = {
+      ...document.hover,
+      forceBlink: "forceBlink" in parsed ? (parsed.forceBlink ?? true) : true,
+      autoDisableEyeMaterials:
+        "autoDisableEyeMaterials" in parsed
+          ? (parsed.autoDisableEyeMaterials ?? true)
+          : true,
+      faceCleanup:
+        "faceCleanup" in parsed ? (parsed.faceCleanup ?? true) : true,
+      disableTargetRoles:
+        "disableTargetRoles" in parsed
+          ? [...(parsed.disableTargetRoles ?? [])]
+          : [],
       hoverKind: parsed.hoverKind,
       placement:
         parsed.hoverKind === "box_hover" ? parsed.placement : "forehead-middle",
@@ -307,6 +356,9 @@ export function createAvatarEffectDocumentFromDefinition(args: {
     };
   } else if (parsed.kind === "face_anchored") {
     document.face = {
+      ...document.face,
+      faceCleanup:
+        "faceCleanup" in parsed ? (parsed.faceCleanup ?? true) : true,
       anchor: parsed.anchor,
       layout: parsed.anchor === "mouth" ? "single" : parsed.layout,
       pivot: parsed.pivot ?? "center",
@@ -316,6 +368,8 @@ export function createAvatarEffectDocumentFromDefinition(args: {
     };
   } else {
     document.texture = {
+      ...document.texture,
+      disableTargetRoles: [...(parsed.disableTargetRoles ?? [])],
       targetRole: parsed.targetRole,
       assetShape: parsed.assetShape,
       applyMode: parsed.applyMode,
