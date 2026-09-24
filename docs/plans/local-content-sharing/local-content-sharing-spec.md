@@ -1,12 +1,9 @@
 # Share local content and complete Animas through `.animama` files
 
-Status: Specification used for execution planning; implementation not yet authorized.
-Owner decision: 2026-09-23 discovery established the product decisions below;
-the owner then requested this specification and its execution plan. This is not
-implementation approval.
-Authoritative source: this local draft before publication; no owning issue has
-been identified or created. After agreement and issue publication, the owning
-issue becomes authoritative and this file records its dated snapshot.
+Status: Approved for full implementation on 2026-09-24.
+Authoritative source: [issue #81](https://github.com/raymond-van/animama/issues/81).
+This file retains its local requirements snapshot, published and read back at
+`2026-09-24T13:47:40Z`. The owner approved the ExecPlan and all six phases.
 Source baseline: `98220eae162651207960ffa9657aa54581a80265`.
 
 ## Problem and intended users
@@ -288,10 +285,14 @@ precedence over illustrative details:
   illustrated collision-policy dropdown and parenthesized example.
 - [Export selection](reference-03-export-selection.png): Content/Anima tabs,
   persistent selection across filtering and package summary before review.
+- [Anima export](reference-04-anima-export.png): Anima selector, identity review,
+  included-content summary, privacy notice and export footer. Omit the outdated
+  Music row; the illustrative Edit export copy control does not add an identity
+  editing requirement to this scope.
 
-The ExecPlan must link all three files and verify the missing Anima selection/
-review states. Do not carry Chat Uploads into sharing merely because it appears
-in the surrounding Library screenshot. Styling must use current application
+The ExecPlan must link all four files and verify remaining unillustrated review,
+error and completion states. Do not carry Chat Uploads into sharing merely
+because it appears in the surrounding Library screenshot. Styling must use current application
 components/tokens; incidental mockup backgrounds are not a Library redesign.
 
 ### Current contracts deliberately changed
@@ -348,21 +349,20 @@ conversion may be invented to close a gap.
 
 ## Spec
 
-This document is the local draft authority before publication. On agreement and
-publication through workspace setup, replace this reference with the owning issue
-URL and captured revision/update time. Discovery records are supporting context,
-not independently editable specifications.
+[Issue #81](https://github.com/raymond-van/animama/issues/81) is authoritative.
+This file is the dated snapshot above; discovery records remain supporting history.
 
 ## ExecPlan
 
 The [execution plan](local-content-sharing-execplan.md) defines six phases for
 Idle Styles, safe content retirement, portable export, recoverable import,
-the Library frontend and combined acceptance. It links all three UI mockups as
+the Library frontend and combined acceptance. It links all four UI mockups as
 required frontend references and records conversion, failure/recovery and
 validation gates. Plan authoring does not establish implementation acceptance.
 
 ## Delivery links
 
-No issue or PR created. Read-only title searches found no existing import/export
-or sharing owning issue. This task has changed planning artifacts only; it has
-not implemented product behavior, migrated data, committed, pushed or published.
+Parent [#81](https://github.com/raymond-van/animama/issues/81); phase issues
+[#82–#87](https://github.com/raymond-van/animama/issues/81). Implementation is
+authorized on `feat/local-content-sharing`; PR and validation records will be
+added to the ExecPlan. Merge requires separate exact-candidate approval.

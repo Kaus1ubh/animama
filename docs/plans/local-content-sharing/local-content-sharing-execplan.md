@@ -1,24 +1,32 @@
 # Local content and complete Anima sharing
 
-Status: Proposed execution plan; implementation has not started.
+Status: Approved 2026-09-24 for full implementation; Phase 1 in progress.
 
 Source agreement: [local-content-sharing-spec.md](local-content-sharing-spec.md),
 requirements R1–R9 and its acceptance table, following the owner's 2026-09-23
 instruction to turn that specification into an ExecPlan and explicitly use the UI
 mockups. The spec remains the requirements authority; this plan owns execution.
 
-Authorized scope now: planning only. The proposed implementation covers phases
-1–6 in Animama. An implementation instruction authorizes the requested range;
-do not infer implementation, data conversion, publication or merge approval from
-this document. No product decision is currently blocking the plan.
+Authorized scope: all phases 1–6, approved by the owner on 2026-09-24.
+The implementation instruction includes issues, tests, reviews, phase commits
+and PR handoff. Exact-candidate merge and release/publication remain separate.
+Authoritative specification: [issue #81](https://github.com/raymond-van/animama/issues/81),
+read back at `2026-09-24T13:47:40Z`.
 
 Workspace: reuse the assigned `0c75/animama` worktree and existing
 `feat/local-content-sharing` branch. Planning baseline:
 `98220eae162651207960ffa9657aa54581a80265`. At authoring, only this scope's planning
 directory was untracked; no application code had changed. No stack was started.
-Use one branch and PR for this plan. Workspace setup will publish the agreed spec
-to its owning issue and create/reuse one issue per authorized phase. No issue,
-commit or PR has been created for this delivery.
+Use one branch and PR for this plan. Original planning artifacts were committed
+as `9a3971dcc87bbe3bbc0a1e70cdb1d238936865a8`; the approved follow-up added
+the fourth unchanged Anima-export mockup. Application source remains at the
+planning baseline. Workspace setup verified the primary checkout remains on
+`main`; existing unrelated worktrees and services were preserved.
+
+Phase issues: [P1 / #82](https://github.com/raymond-van/animama/issues/82), [P2 / #83](https://github.com/raymond-van/animama/issues/83), [P3 / #84](https://github.com/raymond-van/animama/issues/84), [P4 / #85](https://github.com/raymond-van/animama/issues/85), [P5 / #86](https://github.com/raymond-van/animama/issues/86), [P6 / #87](https://github.com/raymond-van/animama/issues/87).
+
+Environment: task-local locked Python 3.12.13 and pnpm installations; Docker
+is available for disposable test containers. No application stack started yet.
 
 ## Purpose and context
 
@@ -60,9 +68,9 @@ Paths below are relative to the repository root. `B` means
 - [x] 2026-09-23: inspect spec, repository contracts and relevant implementation;
   preserve the three original mockups beside the plan.
 - [x] 2026-09-23: draft implementation phases, technical choices and evidence gates.
-- [ ] Implementation authorization/workspace setup: owning spec issue, phase
-  issues, exact starting revisions and selected validation environment.
-- [ ] Phase 1: Gesture-based Idle Styles and preservation of existing idle behavior.
+- [x] 2026-09-24: full implementation authorized; owning spec and six linked phase
+  issues published/read back, supplied worktree verified, locked dependencies installed.
+- [ ] Phase 1 in progress: Gesture-based Idle Styles and preservation of existing idle behavior.
 - [ ] Phase 2: retire Music/BGM and standalone Pose Clip availability safely.
 - [ ] Phase 3: portable multi-root and full-Anima export with exact review snapshots.
 - [ ] Phase 4: staged, reviewed import and one recoverable installation operation.
@@ -102,7 +110,7 @@ Paths below are relative to the repository root. `B` means
 | Date / actor | Decision and reason |
 | --- | --- |
 | 2026-09-23 / owner | Local files, whole-package import, automatic non-parenthesized collision suffixes, independent dependencies and the fresh-Anima privacy boundary; details remain in the spec/discovery record. |
-| 2026-09-23 / owner | Use the three saved mockups when implementing frontend components. Their confirmed behavioral corrections take precedence over illustrative copy. |
+| 2026-09-23 / owner | Use the saved mockups when implementing frontend components. Their confirmed behavioral corrections take precedence over illustrative copy. |
 | 2026-09-23 / planning | Implement Idle Styles before removing legacy clip readers. This preserves an executable conversion path rather than deleting a format while it still has consumers. |
 | 2026-09-23 / planning | Write `animama-content-package/3`, with content roots or one portable Anima definition. Keep ZIP and existing typed validators; no `/2` compatibility requirement. |
 | 2026-09-23 / planning | Prepare an immutable export archive before review; download exactly that archive. Stage imports privately, then commit the reviewed plan through the existing mutation authority. |
@@ -400,7 +408,8 @@ audio acceptance separately in Phase 6. No live provider calls are needed.
 Recovery: failed conversion rolls back cooperating files/bindings, retains
 originals and reports the affected source; ambiguous manual edits remain fenced.
 
-Issue / starting SHA / commit / evidence: not started; populate during execution.
+Issue: [#82](https://github.com/raymond-van/animama/issues/82). Starting SHA: `9a3971d` plus approved planning follow-up; code changes in progress.
+Commit / evidence: pending.
 
 #### Code Review #1 Findings
 
@@ -450,7 +459,8 @@ Completion: no active retired-kind references remain in successfully converted
 fixtures; invalid legacy input reports a problem without data loss or scan crashes.
 Recovery follows the transition contract; no profile reset or source-file deletion.
 
-Issue / starting SHA / commit / evidence: not started.
+Issue: [#83](https://github.com/raymond-van/animama/issues/83). Starting SHA: record predecessor commit when phase starts.
+Commit / evidence: pending.
 
 #### Code Review #1 Findings
 
@@ -504,7 +514,8 @@ effects; malformed closure/images/capabilities fail before export/import success
 Record exact new fixture commands. Recovery: failed/cancelled preparation removes
 only its owned temporary cache; later edits never alter an existing review.
 
-Issue / starting SHA / commit / evidence: not started.
+Issue: [#84](https://github.com/raymond-van/animama/issues/84). Starting SHA: record predecessor commit when phase starts.
+Commit / evidence: pending.
 
 #### Code Review #1 Findings
 
@@ -558,7 +569,8 @@ Completion: the API offers truthful review/commit/status/cancellation and one
 coordinated outcome for content-only and Anima imports. A post-commit runtime
 preparation failure can retry preparation without materializing again.
 
-Issue / starting SHA / commit / evidence: not started.
+Issue: [#85](https://github.com/raymond-van/animama/issues/85). Starting SHA: record predecessor commit when phase starts.
+Commit / evidence: pending.
 
 #### Code Review #1 Findings
 
@@ -573,7 +585,7 @@ Not run. Two repair rounds remain.
 Requirements: R1–R5 and the spec's UI references/accessibility constraints.
 Dependencies: stable generated Phase 4 contracts; supported Phase 1–2 content.
 
-**Open all three saved mockups before implementing the frontend components and
+**Open all four saved mockups before implementing the frontend components and
 use them throughout visual review.** Match their modal structure, information
 hierarchy, spacing and selection/review flow using current app components/tokens.
 Do not treat these as optional inspiration or redesign the surrounding Library.
@@ -583,6 +595,7 @@ Do not treat these as optional inspiration or redesign the surrounding Library.
 | [01 — Import / Export entry](reference-01-import-export-entry.png) | `LibraryPage.tsx` header button and a focused `LibrarySharingDialog.tsx` with two entry cards, one-file drop/picker and export navigation. |
 | [02 — Import review](reference-02-review-import.png) | `ContentImportReview.tsx`: package header, selected roots or Anima, required-item disclosure, resolved names and final whole-package action. Replace the illustrative dropdown/parentheses with automatic suffix review. |
 | [03 — Export selection](reference-03-export-selection.png) | `ContentExportSelection.tsx` and Anima selection: Content/Anima tabs, searchable typed rows, persistent multi-selection and package summary before review. |
+| [04 — Anima export](reference-04-anima-export.png) | Anima selector, identity review, included-content summary, privacy notice and filename/size/export footer. Omit Music; Edit export copy is illustrative and does not expand the agreed scope. |
 
 Component names are proposed seams, not a required abstraction hierarchy. Reuse
 Dialog, Button, query hooks and existing catalog presentation. Do not route these
@@ -607,7 +620,8 @@ files through Chat Uploads/Uppy or introduce a second private attachment system.
    Electron save/cancel/error behavior without adding broad filesystem IPC.
    Disable repeated submissions. Closing a pending commit preserves its operation
    recovery path; it must not announce cancellation or silently create a new copy.
-4. Add the states absent from the screenshots: Anima review; export review/save;
+4. Complete the Anima review shown in mockup 04 and add unillustrated states: full
+   configuration/dependency review; export save;
    empty/no selection; invalid/missing dependency; oversized/unsupported file;
    suffix/length errors; expired review; upload failure/retry; long package/identity;
    installed Anima needing runtime preparation; and completion for each package kind.
@@ -623,7 +637,7 @@ pnpm e2e:test -- --project chromium --grep "local content sharing"
 ```
 
 Confirm the first command actually lists the new journey. Compare screenshots to
-all three mockups at a desktop viewport first (for example 1440×900), then a
+all four mockups at a desktop viewport first (for example 1440×900), then a
 narrow viewport (for example 390×844). Verify bounded scrolling, readable long
 names/identity, reachable final actions, tab/checkbox labels, visible focus,
 Escape/back behavior and focus return. Exercise both Vite development and built
@@ -637,11 +651,12 @@ acceptance remains explicit in Phase 6; DOM tests alone cannot close it.
 Recovery: refresh resolves the existing import operation; cancelling an inactive
 stage discards only owned temporary data and keeps prior Library selection/content.
 
-Issue / starting SHA / commit / evidence: not started.
+Issue: [#86](https://github.com/raymond-van/animama/issues/86). Starting SHA: record predecessor commit when phase starts.
+Commit / evidence: pending.
 
 #### Code Review #1 Findings
 
-Not run. Include direct comparison with all three mockups and missing-state checks.
+Not run. Include direct comparison with all four mockups and missing-state checks.
 
 #### Code Review #1 Revisions
 
@@ -684,7 +699,8 @@ Completion: all required evidence is recorded or an explicit owner waiver is
 identified; do not label unavailable browser/native evidence as passed. Exact-
 candidate merge and any publication remain separate owner gates.
 
-Issue / starting SHA / commit / evidence: not started.
+Issue: [#87](https://github.com/raymond-van/animama/issues/87). Starting SHA: record predecessor commit when phase starts.
+Commit / evidence: pending.
 
 #### Code Review #1 Findings
 
@@ -708,7 +724,7 @@ Source inspection and this plan are not passing runtime evidence.
 | Phase 2 | Retired data/receipts, preserved Actions/audio/TTS/Creator JSON, repeatable transition | Not run. |
 | Phase 3 | Multi-root/Anima projection, private-data absence, images, exact export bytes | Not run. |
 | Phase 4 | Whole-package review, multipart limits, independent copies, single outcome under failure/retry/restart | Not run. |
-| Phase 5 | Three mockup comparisons, complete content/Anima flows, keyboard and narrow layouts, both serving modes | Not run. |
+| Phase 5 | Four mockup comparisons, complete content/Anima flows, keyboard and narrow layouts, both serving modes | Not run. |
 | Phase 6 | Independent installations, retained existing data, real audio/avatar and explicit native evidence | Not run. |
 | Hosted CI / release | Actual candidate `Validation` scope; separate release/publication approval | Not requested or run. |
 
@@ -767,8 +783,9 @@ Review the combined diff against the starting baseline and every spec acceptance
 row. Reuse still-valid phase results and test failures fixed at their exact
 revision; rerun affected checks when subsequent changes invalidate them. Check
 that old data compatibility has not accidentally become old-package support or
-retained product Music/standalone Clip behavior. Review all three mockups against
-the implemented screens and explicitly inspect the Anima/error states they omit.
+retained product Music/standalone Clip behavior. Review all four mockups against
+the implemented screens and explicitly inspect full configuration, error and
+completion states they omit.
 
 ### Code Review #1 Findings
 
@@ -799,3 +816,12 @@ rendered and native acceptance, final integration review and exact-candidate mer
 approval. There is no unresolved product interview question. Exact helper/DTO
 names and supported-field/capability enumeration are bounded implementation work
 before dependent APIs ship, not reasons to reopen agreed sharing behavior.
+
+2026-09-23 follow-up: committed the original planning artifacts as `9a3971d`,
+then added the fourth unchanged mockup for Anima export and linked it from the
+spec and Phase 5. The outdated Music row and illustrative identity-edit control
+do not supersede the agreed requirements.
+
+2026-09-24 setup: owner approved the whole plan. Published the spec as #81 and
+linked phases #82–#87 with native parent/dependency relationships. Preserved the
+fourth mockup and prior planning commit. No runtime data was inspected or changed.
