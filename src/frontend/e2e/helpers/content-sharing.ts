@@ -37,8 +37,8 @@ export async function captureSharingState(
         );
       })
       .toBe(true);
-  const finalAction = page.getByRole("button", {
-    name: /^(Choose what to export|Review export|Import (?:Anima|\d+ items?))$/,
+  const finalAction = dialog.getByRole("button", {
+    name: /^(Choose file|Review export|Import (?:Anima|\d+ items?))$/,
   });
   await settledDialog();
   await expect(finalAction).toBeInViewport();

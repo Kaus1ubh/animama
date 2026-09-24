@@ -15,7 +15,7 @@ export type SharingItem = {
 };
 
 export type SharingScreen =
-  | "entry"
+  | "import-selection"
   | "export-selection"
   | "export-review"
   | "import-upload"
@@ -51,6 +51,7 @@ export type LibrarySharingFlow = {
   downloadUrl: string | null;
   setOpen: (open: boolean) => void;
   back: () => void;
+  chooseImport: () => void;
   chooseExport: () => void;
   setMode: (mode: "content" | "anima") => void;
   toggleItem: (id: string) => void;

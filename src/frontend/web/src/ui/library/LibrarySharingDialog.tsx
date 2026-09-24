@@ -1,15 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import {
-  ArrowLeft,
-  ArrowRight,
-  ArrowLeftRight,
-  Download,
-  FileArchive,
-  FolderOpen,
-  Upload,
-  UserRound,
-} from "lucide-react";
+import { ArrowLeft, Download, FileArchive, Upload } from "lucide-react";
 import type { LibrarySharingFlow } from "@/lib/content-sharing/types";
 import { Button } from "@/ui/components/button";
 import {
@@ -27,6 +18,9 @@ import { sharingDropSelection, sharingSize } from "./sharingPresentation";
 
 /** Controlled sharing surface; the hook retains operations even when this closes. */
 export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
+  const importTrigger = useRef<HTMLButtonElement>(null);
+  const exportTrigger = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef<HTMLButtonElement | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [dropError, setDropError] = useState<string | null>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -36,7 +30,7 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
   const fileId = useId();
   const chooseFile = () => fileInput.current?.click();
   const title = {
-    entry: "Import / Export",
+    "import-selection": "Import",
     "export-selection": "Export",
     "export-review": "Review export",
     "import-upload": "Choose file",
@@ -44,19 +38,48 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
     "import-recovery": "Import status",
     complete: "Import complete",
   }[flow.screen];
-  const isEntry = flow.screen === "entry";
+  const isImportSelection = flow.screen === "import-selection";
   const canChooseFile = !flow.busy && !flow.commitPending;
   return (
     <Dialog open={flow.open} onOpenChange={flow.setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <ArrowLeftRight aria-hidden="true" />
-          Import / Export
-        </Button>
-      </DialogTrigger>
+      <div className="flex flex-wrap gap-2">
+        <DialogTrigger asChild>
+          <Button
+            ref={importTrigger}
+            variant="outline"
+            onClick={() => {
+              returnFocus.current = importTrigger.current;
+              setDropError(null);
+              flow.chooseImport();
+            }}
+          >
+            <Download aria-hidden="true" />
+            Import
+          </Button>
+        </DialogTrigger>
+        <DialogTrigger asChild>
+          <Button
+            ref={exportTrigger}
+            variant="outline"
+            onClick={() => {
+              returnFocus.current = exportTrigger.current;
+              setDropError(null);
+              flow.chooseExport();
+            }}
+          >
+            <Upload aria-hidden="true" />
+            Export
+          </Button>
+        </DialogTrigger>
+      </div>
       <DialogContent
         avoidSidebar
-        className={`flex max-h-[calc(100dvh-2rem)] flex-col gap-5 overflow-hidden p-5 sm:p-8 ${isEntry ? "sm:w-[58rem]" : flow.screen === "import-review" || flow.screen === "import-upload" || flow.screen === "import-recovery" ? "sm:w-[48rem]" : "sm:w-[64rem]"}`}
+        onCloseAutoFocus={(event) => {
+          // Both triggers share one dialog; restore the button that opened it.
+          event.preventDefault();
+          returnFocus.current?.focus();
+        }}
+        className={`flex max-h-[calc(100dvh-2rem)] flex-col gap-5 overflow-hidden p-5 sm:p-8 ${isImportSelection ? "sm:w-[36rem]" : flow.screen === "import-review" || flow.screen === "import-upload" || flow.screen === "import-recovery" ? "sm:w-[48rem]" : "sm:w-[64rem]"}`}
       >
         <input
           ref={fileInput}
@@ -78,7 +101,10 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
         />
         <header className="shrink-0 pr-6">
           <div className="flex items-center gap-3">
-            {!isEntry && flow.screen !== "complete" && !flow.commitPending ? (
+            {!isImportSelection &&
+            flow.screen !== "export-selection" &&
+            flow.screen !== "complete" &&
+            !flow.commitPending ? (
               <Button
                 variant="ghost"
                 size="icon-sm"
@@ -119,99 +145,38 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                 {flow.notice}
               </p>
             ) : null}
-            {isEntry ? (
-              <>
-                {flow.hasRecovery ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
-                    <p>An earlier import needs your attention.</p>
-                    <Button
-                      variant="outline"
-                      onClick={flow.recover}
-                      disabled={flow.busy}
-                    >
-                      Check import status
-                    </Button>
-                  </div>
+            {isImportSelection ? (
+              <div
+                className="mt-auto space-y-3 rounded-xl border border-dashed p-5 text-center"
+                onDragOver={(event) => {
+                  event.preventDefault();
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (!canChooseFile) return;
+                  const selection = sharingDropSelection(
+                    event.dataTransfer.files,
+                  );
+                  setDropError(selection.error);
+                  if (selection.file) flow.chooseFile(selection.file);
+                }}
+              >
+                <p className="text-muted-foreground text-sm">
+                  Drop a .zip file here
+                </p>
+                {dropError ? (
+                  <p role="alert" className="text-destructive text-sm">
+                    {dropError}
+                  </p>
                 ) : null}
-                <div className="grid gap-5 md:grid-cols-2">
-                  <section className="flex flex-col gap-4 rounded-2xl border p-5 sm:p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="bg-primary/15 text-foreground flex size-14 shrink-0 items-center justify-center rounded-xl">
-                        <Download aria-hidden="true" className="size-7" />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="text-xl font-semibold">Import</h3>
-                      </div>
-                    </div>
-                    <div
-                      className="mt-auto space-y-3 rounded-xl border border-dashed p-5 text-center"
-                      onDragOver={(event) => {
-                        event.preventDefault();
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault();
-                        if (!canChooseFile) return;
-                        const selection = sharingDropSelection(
-                          event.dataTransfer.files,
-                        );
-                        setDropError(selection.error);
-                        if (selection.file) flow.chooseFile(selection.file);
-                      }}
-                    >
-                      <p className="text-muted-foreground text-sm">
-                        Drop a .zip file here
-                      </p>
-                      {dropError ? (
-                        <p role="alert" className="text-destructive text-sm">
-                          {dropError}
-                        </p>
-                      ) : null}
-                      <Button
-                        className="w-full"
-                        disabled={!canChooseFile}
-                        onClick={chooseFile}
-                      >
-                        Choose file
-                      </Button>
-                    </div>
-                  </section>
-                  <section className="flex flex-col gap-4 rounded-2xl border p-5 sm:p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="bg-secondary text-secondary-foreground flex size-14 shrink-0 items-center justify-center rounded-xl">
-                        <Upload aria-hidden="true" className="size-7" />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="text-xl font-semibold">Export</h3>
-                      </div>
-                    </div>
-                    <div className="space-y-4 py-2">
-                      <p className="flex items-center gap-3">
-                        <UserRound
-                          aria-hidden="true"
-                          className="text-muted-foreground size-5"
-                        />
-                        A complete Anima
-                      </p>
-                      <p className="flex items-center gap-3">
-                        <FolderOpen
-                          aria-hidden="true"
-                          className="text-muted-foreground size-5"
-                        />
-                        One or more content items
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      className="mt-auto w-full"
-                      onClick={flow.chooseExport}
-                      disabled={flow.busy || flow.commitPending}
-                    >
-                      Choose what to export
-                      <ArrowRight aria-hidden="true" />
-                    </Button>
-                  </section>
-                </div>
-              </>
+                <Button
+                  className="w-full"
+                  disabled={!canChooseFile}
+                  onClick={chooseFile}
+                >
+                  Choose file
+                </Button>
+              </div>
             ) : null}
             {flow.screen === "export-selection" ? (
               <ContentExportSelection flow={flow} />

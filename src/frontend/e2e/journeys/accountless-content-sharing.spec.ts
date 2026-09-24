@@ -34,7 +34,7 @@ async function createPose(
   return saveTrackedPose({ page, content, name });
 }
 
-async function openSharing(page: Page) {
+async function openSharing(page: Page, action: "Import" | "Export") {
   const dialog = page.getByRole("dialog");
   if (await dialog.isVisible()) {
     await dialog.getByRole("button", { name: "Close", exact: true }).click();
@@ -42,7 +42,7 @@ async function openSharing(page: Page) {
   }
   await page.goto("/a/library");
   const trigger = page.getByRole("button", {
-    name: "Import / Export",
+    name: action,
     exact: true,
   });
   await trigger.click();
@@ -77,20 +77,23 @@ test("local content sharing single and multiple content export, suffix import an
   const sources = [];
   for (const name of names)
     sources.push(await createPose(page, creatorContent, name));
-  const trigger = await openSharing(page);
+  const trigger = await openSharing(page, "Import");
   await page.keyboard.press("Tab");
   expect(
     await page
       .getByRole("dialog")
       .evaluate((dialog) => dialog.contains(document.activeElement)),
   ).toBe(true);
-  await captureSharingState(page, animamaEvidence, "sharing-01-entry");
+  await captureSharingState(page, animamaEvidence, "sharing-01-import-entry");
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();
   await trigger.press("Enter");
-  await page
-    .getByRole("button", { name: "Choose what to export", exact: true })
-    .click();
+  await expect(
+    page
+      .getByRole("dialog")
+      .getByRole("button", { name: "Choose file", exact: true }),
+  ).toBeVisible();
+  await openSharing(page, "Export");
   const reviewButton = page.getByRole("button", {
     name: "Review export",
     exact: true,
@@ -143,7 +146,7 @@ test("local content sharing single and multiple content export, suffix import an
     page.getByRole("button", { name: "Download package", exact: true }),
   );
 
-  await openSharing(page);
+  await openSharing(page, "Import");
   const singleImport = await uploadSharingPackage(page, singleArchive);
   expect(singleImport.items).toHaveLength(1);
   expect(singleImport.items[0]!.name).toBe(`${names[0]}-2`);
@@ -173,9 +176,7 @@ test("local content sharing single and multiple content export, suffix import an
         `/v1/content/package-operations/${singleImport.operation_id}` &&
       response.ok(),
   );
-  await page
-    .getByRole("button", { name: "Import / Export", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Import", exact: true }).click();
   const recovered = await (await recoveredResponse).json();
   await expect(
     page.getByRole("heading", { name: "Import complete", exact: true }),
@@ -201,10 +202,7 @@ test("local content sharing single and multiple content export, suffix import an
     page.getByRole("article", { name: `${names[0]}-2`, exact: true }),
   ).toBeVisible();
 
-  await openSharing(page);
-  await page
-    .getByRole("button", { name: "Choose what to export", exact: true })
-    .click();
+  await openSharing(page, "Export");
   await search.fill(names[0]!);
   const first = page.getByRole("checkbox", { name: names[0], exact: true });
   if (!(await first.isChecked())) await first.check();
@@ -234,7 +232,7 @@ test("local content sharing single and multiple content export, suffix import an
     testInfo,
     page.getByRole("button", { name: "Download package", exact: true }),
   );
-  await openSharing(page);
+  await openSharing(page, "Import");
   const multipleImport = await uploadSharingPackage(page, multipleArchive);
   expect(multipleImport.items.map((item) => item.name).sort()).toEqual(
     [`${names[0]}-3`, `${names[1]}-2`].sort(),
@@ -271,10 +269,7 @@ test("local content sharing complete Anima export, reviewed install and persiste
   // each original receipt identity within the same bounded journey.
   test.setTimeout(900_000);
   const before = await creatorContent.snapshotLocalCatalog();
-  await openSharing(page);
-  await page
-    .getByRole("button", { name: "Choose what to export", exact: true })
-    .click();
+  await openSharing(page, "Export");
   await page.getByRole("tab", { name: "Anima", exact: true }).click();
   await page
     .getByRole("combobox", { name: "Choose an Anima", exact: true })
@@ -291,7 +286,7 @@ test("local content sharing complete Anima export, reviewed install and persiste
     testInfo,
     page.getByRole("button", { name: "Export Anima", exact: true }),
   );
-  await openSharing(page);
+  await openSharing(page, "Import");
   const reviewed = await uploadSharingPackage(page, archive);
   expect(reviewed.anima).not.toBeNull();
   expect(reviewed.anima!.identity_markdown).toBe(

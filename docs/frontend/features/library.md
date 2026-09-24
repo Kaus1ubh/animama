@@ -145,8 +145,9 @@ files. Static Poses and Creator Clip/project JSON import/export remain available
 
 ## Import / Export
 
-Open **Import / Export** in the Library header. **Choose file** accepts a local
-`.zip` package; **Choose what to export** opens Content and Anima modes.
+The Library header has separate **Import** and **Export** buttons. Import opens
+the ZIP drop/choose screen; Export opens Content and Anima selection directly.
+An unfinished import resumes before either button can start a new operation.
 These are local file operations, with no account, publishing or sync relationship.
 Direct Creator JSON import/export remains a separate editor-document workflow.
 
@@ -183,9 +184,9 @@ server verifies previously received parts as well as new bytes. **Change file**
 discards the old review before preparing a replacement. Browser storage retains
 only operation/recovery identifiers, not package bytes or a second content library.
 
-After submitting an import, use **Check import status** if its result is unknown.
-Closing or reloading cannot cancel an installation already in progress. Recovery
-checks the original operation's durable receipt; it never starts another import
+After submitting an import, reopen **Import** and use **Check import status** if
+its result is unknown. Closing or reloading cannot cancel an installation already
+in progress. Recovery checks the original operation's durable receipt; it never starts another import
 automatically. A completed result remains recoverable after temporary data expires.
 A storage conflict keeps recovery pending until repaired. If the server confirms
 there is no active operation, discard the recovery record before choosing the file

@@ -1579,3 +1579,24 @@ original test sound as `Idle Playback Test-20260924-205329Z.zip`. Back returned 
 selection and released that owned export; no content was installed or changed.
 The prior native/audio waiver remains scoped to this PR; no new native or hosted
 acceptance is claimed by these checks.
+
+### Separate sharing buttons (2026-09-24)
+
+Starting from `118ad0f`, the owner requested separate Import and Export Library
+buttons and removal of the combined chooser. Import now opens its ZIP drop/picker;
+Export opens content/Anima selection. Initial screens have Close without a
+redundant Back; review steps return to their own selection. Both entry points
+resume unresolved imports before starting another operation. Explicit opener
+refs return keyboard focus to the correct button. This supersedes the combined
+entry mockup; other mockup guidance and package behavior remain intact.
+
+Updated the existing component assertions and browser journey selectors. The 32
+component/session tests, web types and scoped lint/format pass; E2E source types,
+offline discovery (setup plus two sharing journeys) and helper formatting pass.
+Desktop browser checks confirmed both direct entry points and Escape focus return;
+390px checks confirmed the header and Import dialog fit. No content was installed
+or changed. Full transfer journeys, builds and native checks were not repeated.
+
+Code Review #1 Findings: independent analysis passed with no actionable findings;
+independent checks review also passed using the scoped evidence and a fresh
+whitespace check. Revisions: none required. Both repair rounds remain unused.

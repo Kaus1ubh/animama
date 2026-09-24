@@ -71,8 +71,8 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
   );
   const [open, setOpenState] = useState(false);
   const [page, setPage] = useState<
-    "entry" | "export-selection" | "export-review" | "import"
-  >("entry");
+    "export-selection" | "export-review" | "import"
+  >("import");
   const [mode, setModeState] = useState<"content" | "anima">("content");
   const [selectedIds, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [animaId, setAnima] = useState<string | null>(null);
@@ -152,10 +152,6 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
   function setOpen(next: boolean) {
     if (next) {
       setOpenState(true);
-      if (imported.hasRecovery) {
-        setPage("import");
-        void session.recover();
-      }
       return;
     }
     if (imported.pending || (imported.busy && page === "import")) {
@@ -171,15 +167,24 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
       }
       await releaseExport();
       setOpenState(false);
-      setPage("entry");
+      setPage("import");
       setNotice(null);
     });
+  }
+  /** Either entry point resumes an unresolved import before starting another operation. */
+  function openFlow(target: "import" | "export-selection") {
+    if (exportLock.current) return;
+    setOpenState(true);
+    setError(null);
+    setNotice(null);
+    setPage(imported.hasRecovery ? "import" : target);
+    if (imported.hasRecovery) void session.recover();
   }
   const screen: SharingScreen =
     page === "import"
       ? (
           {
-            idle: "entry",
+            idle: "import-selection",
             upload: "import-upload",
             review: "import-review",
             recovery: "import-recovery",
@@ -229,21 +234,16 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
       if (!canChange || imported.pending) return;
       void runExport(async () => {
         if (page === "import") {
-          if (await session.discard()) setPage("entry");
+          if (await session.discard()) setPage("import");
         } else if (page === "export-review") {
           await releaseExport();
           setPage("export-selection");
-        } else setPage("entry");
+        } else setPage("import");
         setNotice(null);
       });
     },
-    chooseExport: () => {
-      if (canChange && !imported.hasRecovery) {
-        setPage("export-selection");
-        setError(null);
-        setNotice(null);
-      }
-    },
+    chooseImport: () => openFlow("import"),
+    chooseExport: () => openFlow("export-selection"),
     setMode: (value) => {
       if (canChange) {
         setModeState(value);
@@ -336,7 +336,7 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
     discardImport: () => {
       void session.discard().then((discarded) => {
         if (discarded) {
-          setPage("entry");
+          setPage("import");
           setError(null);
           setNotice(null);
         }

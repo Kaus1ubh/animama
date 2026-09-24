@@ -7,6 +7,7 @@ This file retains its local requirements snapshot, published and read back at
 2026-09-24 amendment: the owner requested ZIP-only import/export and timestamped
 download filenames; this supersedes the original extension shown in the mockups.
 The amendment was published to issue #81 and read back at `2026-09-24T20:59:35Z`.
+The separate-button amendment was published and read back at `2026-09-24T21:05:50Z`.
 Source baseline: `98220eae162651207960ffa9657aa54581a80265`.
 
 ## Problem and intended users
@@ -284,13 +285,20 @@ validation/progress alongside the responsible operation; disable invalid or
 pending final actions. Copy must describe local installation storage accurately,
 including self-hosted use, rather than imply that no local-server transfer occurs.
 
+Library has separate **Import** and **Export** header buttons. Import opens the
+ZIP drop/picker; Export opens Content/Anima selection directly. Remove the combined
+Import / Export chooser. Initial screens use Close; later steps retain header
+Back. Closing returns focus to the button used. Either entry point first resumes
+an unresolved import so its recovery remains accessible.
+
 ### UI references
 
 Use the supplied unchanged mockups as visual guidance; confirmed behavior takes
 precedence over illustrative details:
 
-- [Import / Export entry](reference-01-import-export-entry.png): Library entry,
-  package drop/picker and export navigation.
+- [Original Import / Export entry](reference-01-import-export-entry.png): historical
+  combined chooser. Retain the package drop/picker styling in the dedicated Import
+  dialog; the separate-button amendment supersedes its navigation/layout.
 - [Import review](reference-02-review-import.png): root list, required-item
   disclosure, resolved names and final action. Automatic suffixing replaces the
   illustrated collision-policy dropdown and parenthesized example.

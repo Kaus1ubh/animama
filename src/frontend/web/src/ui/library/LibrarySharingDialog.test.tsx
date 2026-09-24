@@ -61,7 +61,7 @@ vi.mock("@tanstack/react-router", () => ({
 function flow(overrides: Partial<LibrarySharingFlow> = {}): LibrarySharingFlow {
   return {
     open: true,
-    screen: "entry",
+    screen: "import-selection",
     mode: "content",
     items: [],
     animas: [],
@@ -85,6 +85,7 @@ function flow(overrides: Partial<LibrarySharingFlow> = {}): LibrarySharingFlow {
     downloadUrl: null,
     setOpen: vi.fn(),
     back: vi.fn(),
+    chooseImport: vi.fn(),
     chooseExport: vi.fn(),
     setMode: vi.fn(),
     toggleItem: vi.fn(),
@@ -109,16 +110,21 @@ const html = (overrides: Partial<LibrarySharingFlow>) =>
 describe("Library sharing", () => {
   it("offers local file import and content or complete-Anima export", () => {
     const page = html({});
-    expect(page).toContain("Choose what to export");
+    expect(page).not.toContain("Choose what to export");
+    expect(page).not.toContain("Import / Export");
+    expect(page).toContain("Drop a .zip file here");
     expect(page).toContain('accept=".zip"');
-    expect(page).toContain("A complete Anima");
+    expect(buttons.has("Import")).toBe(true);
+    expect(buttons.has("Export")).toBe(true);
     expect(page).toContain("local Animama application");
     expect(page).not.toContain("Files stay on your device");
   });
   it("starts the chosen flow through controlled callbacks", () => {
     const current = flow();
     renderToStaticMarkup(<LibrarySharingDialog flow={current} />);
-    buttons.get("Choose what to export")!.click!();
+    buttons.get("Import")!.click!();
+    expect(current.chooseImport).toHaveBeenCalledOnce();
+    buttons.get("Export")!.click!();
     expect(current.chooseExport).toHaveBeenCalledOnce();
     expect(current.chooseFile).not.toHaveBeenCalled();
   });
