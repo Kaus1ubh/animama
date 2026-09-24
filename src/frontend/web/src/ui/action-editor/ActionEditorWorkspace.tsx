@@ -570,7 +570,14 @@ function ActionEditorWorkspaceContent() {
                   >
                     {clipDraft.selectedEventId ||
                     clipDraft.selectedKeyframeId ? (
-                      <div className="max-h-[50%] min-h-0 shrink-0 overflow-y-auto rounded-xl">
+                      <div
+                        className={cn(
+                          "min-h-0 overflow-y-auto rounded-xl",
+                          expressionsExpanded
+                            ? "shrink-0 basis-[35%]"
+                            : "flex-1",
+                        )}
+                      >
                         <ActionEditorClipInspector
                           section="inspector"
                           allowHumanoid={false}

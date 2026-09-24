@@ -1,17 +1,11 @@
 "use client";
 
-import {
-  CopyIcon,
-  SlidersHorizontalIcon,
-  Trash2Icon,
-  XIcon,
-} from "lucide-react";
+import { SlidersHorizontalIcon, Trash2Icon, XIcon } from "lucide-react";
 
 import {
   isAnimaPoseClipVFXEvent,
   PARTICLE_VFX_ANCHORS,
   type AnimaPoseClipEvent,
-  type AnimaPoseClipSceneVFXKind,
   type ParticleVFXAnchor,
 } from "@/lib/avatar";
 import {
@@ -34,10 +28,7 @@ import {
   isPoseCreatorBaseKeyframe,
   POSE_CREATOR_CLIP_EASING_OPTIONS,
 } from "./poseCreatorClipAuthoring";
-import {
-  accompanyingEventSound,
-  withUnavailableEventOption,
-} from "./poseCreatorEventCatalog";
+import { accompanyingEventSound } from "./poseCreatorEventCatalog";
 import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
 import { usePoseCreatorClipUndoGrouping } from "./usePoseCreatorUndoGrouping";
 
@@ -74,12 +65,6 @@ export function PoseCreatorClipWorkspaceInspector({
   const updateSelectedClipEvent = usePoseCreatorStore(
     (state) => state.updateSelectedClipEvent,
   );
-  const duplicateSelectedClipKeyframe = usePoseCreatorStore(
-    (state) => state.duplicateSelectedClipKeyframe,
-  );
-  const duplicateSelectedClipEvent = usePoseCreatorStore(
-    (state) => state.duplicateSelectedClipEvent,
-  );
   const deleteSelectedClipKeyframe = usePoseCreatorStore(
     (state) => state.deleteSelectedClipKeyframe,
   );
@@ -114,7 +99,6 @@ export function PoseCreatorClipWorkspaceInspector({
             disabled={Boolean(clipInlineEdit)}
             onClose={() => selectClipEvent(null)}
             onUpdate={updateSelectedClipEvent}
-            onDuplicate={duplicateSelectedClipEvent}
             onDelete={deleteSelectedClipEvent}
           />
         ) : selectedKeyframe ? (
@@ -126,7 +110,6 @@ export function PoseCreatorClipWorkspaceInspector({
             disabled={Boolean(clipInlineEdit)}
             onClose={() => selectClipKeyframe(null)}
             onUpdate={updateSelectedClipKeyframe}
-            onDuplicate={duplicateSelectedClipKeyframe}
             onDelete={deleteSelectedClipKeyframe}
           />
         ) : (
@@ -260,7 +243,6 @@ function EventInspector({
   disabled,
   onClose,
   onUpdate,
-  onDuplicate,
   onDelete,
 }: {
   embedded: boolean;
@@ -270,37 +252,22 @@ function EventInspector({
   onUpdate: ReturnType<
     typeof usePoseCreatorStore.getState
   >["updateSelectedClipEvent"];
-  onDuplicate: () => void;
   onDelete: () => void;
 }) {
   const { beginUndoGroup, endUndoGroup } = usePoseCreatorClipUndoGrouping();
   const { eventCatalog } = usePoseCreatorPreview();
   const label = resolveEventLabel(event, eventCatalog);
   const accompanyingSound = accompanyingEventSound(event, eventCatalog);
-  const sceneOptions =
-    event.kind === "scene_vfx" && event.sceneKind === "background_layers"
-      ? eventCatalog.sceneBackground
-      : eventCatalog.sceneFocus;
-
-  const changeParticleEffect = (effectId: string) => {
-    const option = eventCatalog.particleVFX.find(
-      (item) => item.id === effectId,
-    );
-    onUpdate({
-      effectId,
-      ...(option
-        ? {
-            anchor: option.defaultAnchor,
-            duration: option.defaultDurationSec,
-            transform: option.defaultTransform,
-          }
-        : {}),
-    });
-  };
-
   return (
     <WorkspaceCard embedded={embedded}>
-      <InspectorHeading title="Event" subtitle={label} onClose={onClose} />
+      <InspectorHeading
+        title="Event"
+        subtitle={label}
+        onClose={onClose}
+        onDelete={onDelete}
+        deleteLabel="Delete selected event"
+        disabled={disabled}
+      />
       <div className="mt-4 space-y-3">
         <InspectorRow label="Start">
           <DurationInput
@@ -312,8 +279,8 @@ function EventInspector({
         </InspectorRow>
 
         {isAnimaPoseClipVFXEvent(event) ? (
-          <>
-            <InspectorRow label="End">
+          <InspectorRow label="End">
+            <div className="flex w-[176px] min-w-0 items-center gap-2">
               <Select
                 value={event.duration === undefined ? "action" : "duration"}
                 disabled={disabled}
@@ -322,29 +289,28 @@ function EventInspector({
                 }
               >
                 <SelectTrigger
-                  className="h-9 w-[176px]"
+                  className="h-9 min-w-0 flex-1 gap-1 px-2"
                   aria-label="Selected event end"
                 >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="action">With Action</SelectItem>
-                  <SelectItem value="duration">After duration</SelectItem>
+                  <SelectItem value="duration">After</SelectItem>
                 </SelectContent>
               </Select>
-            </InspectorRow>
-            {event.duration !== undefined ? (
-              <InspectorRow label="Duration">
+              {event.duration !== undefined ? (
                 <DurationInput
                   value={event.duration}
                   label="Selected event duration"
                   disabled={disabled}
                   min={0.001}
+                  compact
                   onChange={(duration) => onUpdate({ duration })}
                 />
-              </InspectorRow>
-            ) : null}
-          </>
+              ) : null}
+            </div>
+          </InspectorRow>
         ) : null}
 
         {accompanyingSound &&
@@ -365,84 +331,8 @@ function EventInspector({
             </InspectorRow>
           </>
         ) : null}
-        <InspectorRow label="Type">
-          <ReadOnlyField>{formatEventKind(event)}</ReadOnlyField>
-        </InspectorRow>
-
-        {event.kind === "avatar_vfx" ? (
-          <InspectorRow label="Resource">
-            <ResourceSelect
-              value={event.effectId}
-              label="Avatar Effect"
-              options={withUnavailableEventOption(
-                eventCatalog.avatarVFX,
-                event.effectId,
-              )}
-              disabled={disabled}
-              onValueChange={(effectId) => onUpdate({ effectId })}
-            />
-          </InspectorRow>
-        ) : null}
-
-        {event.kind === "scene_vfx" ? (
-          <>
-            <InspectorRow label="Type">
-              <Select
-                value={event.sceneKind}
-                disabled={disabled}
-                onValueChange={(value) => {
-                  const sceneKind = value as AnimaPoseClipSceneVFXKind;
-                  const options =
-                    sceneKind === "background_layers"
-                      ? eventCatalog.sceneBackground
-                      : eventCatalog.sceneFocus;
-                  onUpdate({
-                    sceneKind,
-                    presetId: options[0]?.id ?? event.presetId,
-                  });
-                }}
-              >
-                <SelectTrigger
-                  className="h-9 w-[176px]"
-                  aria-label="Scene effect type"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="background_layers">Background</SelectItem>
-                  <SelectItem value="focus_lines">Focus lines</SelectItem>
-                </SelectContent>
-              </Select>
-            </InspectorRow>
-            <InspectorRow label="Resource">
-              <ResourceSelect
-                value={event.presetId}
-                label="Scene Effect"
-                options={withUnavailableEventOption(
-                  sceneOptions,
-                  event.presetId,
-                )}
-                disabled={disabled}
-                onValueChange={(presetId) => onUpdate({ presetId })}
-              />
-            </InspectorRow>
-          </>
-        ) : null}
-
         {event.kind === "particle_vfx" ? (
           <>
-            <InspectorRow label="Resource">
-              <ResourceSelect
-                value={event.effectId}
-                label="Particle Effect"
-                options={withUnavailableEventOption(
-                  eventCatalog.particleVFX,
-                  event.effectId,
-                )}
-                disabled={disabled}
-                onValueChange={changeParticleEffect}
-              />
-            </InspectorRow>
             <InspectorRow label="Anchor">
               <Select
                 value={event.anchor ?? "root"}
@@ -479,18 +369,6 @@ function EventInspector({
 
         {event.kind === "sfx" ? (
           <>
-            <InspectorRow label="Resource">
-              <ResourceSelect
-                value={event.cueId}
-                label="Sound Effect"
-                options={withUnavailableEventOption(
-                  eventCatalog.sfx,
-                  event.cueId,
-                )}
-                disabled={disabled}
-                onValueChange={(cueId) => onUpdate({ cueId })}
-              />
-            </InspectorRow>
             <InspectorRow label="Volume">
               <Input
                 type="number"
@@ -516,32 +394,6 @@ function EventInspector({
           </>
         ) : null}
       </div>
-
-      <div className="border-border/70 mt-4 flex items-center justify-between border-t pt-3">
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            onClick={onDuplicate}
-          >
-            <CopyIcon className="size-3.5" />
-            Duplicate
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            className="text-destructive hover:text-destructive"
-            disabled={disabled}
-            onClick={onDelete}
-            aria-label="Delete selected event"
-          >
-            <Trash2Icon className="size-3.5" />
-          </Button>
-        </div>
-      </div>
     </WorkspaceCard>
   );
 }
@@ -554,7 +406,6 @@ function KeyframeInspector({
   disabled,
   onClose,
   onUpdate,
-  onDuplicate,
   onDelete,
 }: {
   embedded: boolean;
@@ -568,7 +419,6 @@ function KeyframeInspector({
   onUpdate: ReturnType<
     typeof usePoseCreatorStore.getState
   >["updateSelectedClipKeyframe"];
-  onDuplicate: () => void;
   onDelete: () => void;
 }) {
   return (
@@ -577,6 +427,9 @@ function KeyframeInspector({
         title={allowHumanoid ? "Keyframe" : "Expression keyframe"}
         subtitle={formatSourceLabel(keyframe.pose)}
         onClose={embedded ? undefined : onClose}
+        onDelete={onDelete}
+        deleteLabel="Delete selected keyframe"
+        disabled={disabled}
       />
       <div className="mt-4 space-y-3">
         <InspectorRow label="Time">
@@ -644,31 +497,6 @@ function KeyframeInspector({
           </Select>
         </InspectorRow>
       </div>
-      <div className="border-border/70 mt-4 flex items-center justify-between border-t pt-3">
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled}
-            onClick={onDuplicate}
-          >
-            <CopyIcon className="size-3.5" />
-            Duplicate
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-sm"
-            className="text-destructive hover:text-destructive"
-            disabled={disabled}
-            onClick={onDelete}
-            aria-label="Delete selected keyframe"
-          >
-            <Trash2Icon className="size-3.5" />
-          </Button>
-        </div>
-      </div>
     </WorkspaceCard>
   );
 }
@@ -697,10 +525,16 @@ function InspectorHeading({
   title,
   subtitle,
   onClose,
+  onDelete,
+  deleteLabel,
+  disabled,
 }: {
   title: string;
   subtitle: string;
   onClose?: () => void;
+  onDelete: () => void;
+  deleteLabel: string;
+  disabled: boolean;
 }) {
   return (
     <div className="flex items-start justify-between gap-3">
@@ -710,18 +544,30 @@ function InspectorHeading({
           {subtitle}
         </p>
       </div>
-      {onClose ? (
+      <div className="-mt-1 -mr-1 flex shrink-0 items-center">
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
-          className="-mt-1 -mr-1"
-          onClick={onClose}
-          aria-label={`Close ${title.toLowerCase()} inspector`}
+          className="text-destructive hover:text-destructive"
+          disabled={disabled}
+          onClick={onDelete}
+          aria-label={deleteLabel}
         >
-          <XIcon className="size-4" />
+          <Trash2Icon className="size-4" />
         </Button>
-      ) : null}
+        {onClose ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onClose}
+            aria-label={`Close ${title.toLowerCase()} inspector`}
+          >
+            <XIcon className="size-4" />
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -746,17 +592,19 @@ function DurationInput({
   label,
   disabled = false,
   min = 0,
+  compact = false,
   onChange,
 }: {
   value: number;
   label: string;
   disabled?: boolean;
   min?: number;
+  compact?: boolean;
   onChange: (value: number) => void;
 }) {
   const { beginUndoGroup, endUndoGroup } = usePoseCreatorClipUndoGrouping();
   return (
-    <div className="relative w-[176px]">
+    <div className={compact ? "relative w-20 shrink-0" : "relative w-[176px]"}>
       <Input
         type="number"
         min={min}
@@ -766,42 +614,17 @@ function DurationInput({
         onChange={(event) => onChange(Number(event.currentTarget.value))}
         onFocus={beginUndoGroup}
         onBlur={endUndoGroup}
-        className="h-9 pr-8"
+        className={
+          compact
+            ? "h-9 [appearance:textfield] pr-5 pl-2 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            : "h-9 pr-8"
+        }
         aria-label={label}
       />
       <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-xs">
         s
       </span>
     </div>
-  );
-}
-
-function ResourceSelect({
-  value,
-  label,
-  options,
-  disabled,
-  onValueChange,
-}: {
-  value: string;
-  label: string;
-  options: ReadonlyArray<{ id: string; label: string }>;
-  disabled: boolean;
-  onValueChange: (value: string) => void;
-}) {
-  return (
-    <Select value={value} disabled={disabled} onValueChange={onValueChange}>
-      <SelectTrigger className="h-9 w-[176px]" aria-label={label}>
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option.id} value={option.id}>
-            {option.label}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
   );
 }
 
@@ -843,13 +666,6 @@ function resolveEventLabel(
     catalog.sfx.find((option) => option.id === event.cueId)?.label ??
     event.cueId
   );
-}
-
-function formatEventKind(event: AnimaPoseClipEvent): string {
-  if (event.kind === "avatar_vfx") return "Avatar VFX";
-  if (event.kind === "scene_vfx") return "Scene VFX";
-  if (event.kind === "particle_vfx") return "Particle VFX";
-  return "SFX";
 }
 
 function formatIdentifier(value: string): string {
