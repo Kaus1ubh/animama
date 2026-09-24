@@ -37,9 +37,10 @@ resize a sprite, remove its background, or split an atlas. If asset preparation 
 needed, preserve the original and prepare a separate derivative within the task's
 scope. Use the provided image-generation workflow when generating or editing art.
 
-The fresh document defaults to Eye hover, mirroring and Skin backdrop enabled,
-unit scale, zero offsets/rotation, no motion, and no sound. Set the requested subtype
-explicitly; a symbol above the head should not inherit eye-hover behavior.
+The fresh document defaults to Eye hover with mirroring, Skin backdrop, Force blink,
+Hide eye details, and Clean up eye area enabled; unit scale, zero offsets/rotation,
+no motion, and no sound. Set the requested subtype explicitly; a symbol above the
+head should not inherit eye-hover behavior.
 
 ## Choose placement
 
@@ -60,6 +61,20 @@ arbitrary body anchors.
 eye**. The mirror label is shorthand: the runtime creates the selected primary
 side and a reflected copy on its opposite side.
 
+Fit eye replacement behavior with these independent controls:
+
+| Control | Enabled behavior |
+| --- | --- |
+| Force blink | Holds the avatar's blink expression at 1 while the effect is active. |
+| Hide eye details | Hides recognized Eye highlight, Eyeline, and Eyelash bindings. |
+| Clean up eye area | Covers painted eye detail on the face texture with sampled skin color. |
+| Additional hidden materials | Hides selected material roles in addition to Hide eye details. |
+
+The first three default to enabled, including when reopening older effects that
+omit their fields. To keep the original eyes visible, disable the relevant
+controls and remove explicit hidden-material selections. Material hiding affects
+recognized bindings rather than only the chosen Side; inspect both eyes.
+
 | Intended artwork | Side | Mirroring |
 | --- | --- | --- |
 | One-eye sprite shown on both eyes | Select the side the drawing was authored for | On |
@@ -71,8 +86,10 @@ sprite. With mirroring on, selecting one side does **not** limit rendering to th
 side. Inspect both eyes before saving.
 
 **Hover type → Mouth hover** uses one central mouth placement and exposes **Skin
-backdrop**. Compare backdrop on/off if the underlying mouth competes with the art.
-Automatic mouth flattening remains separate from this toggle.
+backdrop** and **Clean up mouth area**. Cleanup defaults to enabled and covers
+painted mouth detail on the face texture. Skin backdrop adds a separate backing
+plane; compare the controls independently if the original mouth or a sampled
+skin patch competes with the art.
 
 ### Face decal
 
@@ -81,7 +98,9 @@ Select **Anchor → Under eye**, **Blush**, or **Mouth**.
 For Under eye and Blush, use **Layout → Single side** for a one-side drawing.
 Choose **Side → Left/Right** and enable **Mirror opposite side** if a bilateral
 result is wanted. Use **Span face** only for artwork intentionally drawn as one
-wide image spanning both anchors. Mouth has no bilateral layout control.
+wide image spanning both anchors. Mouth has no bilateral layout control; it offers
+**Clean up mouth area**, enabled by default, to cover the painted mouth beneath
+the decal.
 
 **Image pivot** offers the nine combinations of top/center/bottom and
 left/center/right. Use Center for ordinary cheek stamps; try Top center for a tear
@@ -105,11 +124,12 @@ Start with Overlay when the original appearance should remain. Use Replace when
 the image is intended to supply the replacement texture; inspect transparent
 areas and every affected part of the material.
 
-Some runtime definitions contain additional fields such as `disableTargetRoles`.
-The current creator does not expose or serialize every runtime option. Do not
-invent a corresponding control or promise that opening and saving a template
-preserves fields outside the editor document; inspect the exported definition
-when that behavior matters.
+Use **Hidden materials** to select Face skin, Eye iris, Eye highlight, Eyeline,
+or Eyelash roles to suppress while the effect is active. For a star iris, hiding
+Eye highlight can keep the original highlight from competing with the artwork.
+These selections use `disableTargetRoles` and persist through save/reopen, as do
+Eye hover's Additional hidden materials. Inspect the intended avatar because
+material classification and the geometry each binding covers vary between models.
 
 ## Fit the art
 
@@ -169,32 +189,18 @@ This is distinct from choosing where the art appears. Use the semantic region
 that should govern replacement: `eyes`, `undereye`, `blush`, `mouth`, `emote`, or
 `full_face`. Floating symbols normally use `emote`.
 
-At source baseline `f09d5d7`, choosing a top-level kind sets a default region
-(`eyes` for Hover, `undereye` for Face decal, `full_face` for Texture). Changing
-the Hover subtype, decal anchor, or texture target does not synchronize it, and
-there is no visible Region selector. Thus a new blush can retain `undereye`, and
-a face-box symbol can retain `eyes`.
+Use **Effect region** in the selected type's settings. **Automatic** follows the
+placement: `eyes` for Eye hover and eye-material Texture targets, `mouth` for Mouth hover,
+`emote` for Face box hover, the selected Face decal anchor for decals, and
+`full_face` for a Face skin Texture target.
 
-If that behavior still exists in the running version, use the supported JSON UI:
-
-1. Finish type/subtype selection and open **Portable Avatar Effect JSON** through
-   the toolbar's JSON action. Preserve the full exported editor document.
-2. Change only the exported object's `document.region` to the intended value.
-   For example, a floating anger mark needs `"region": "emote"` inside
-   `document`. Retain the outer `schema: "animama/avatar-effect-editor/1"` wrapper
-   and every unrelated authoring field.
-3. Choose **Import**, paste the complete edited export, and apply it. Its replace
-   prompt concerns the current unsaved document; proceed only with this task's
-   draft and the full export preserved.
-4. Reselect the original image in **Effect image**. Import deliberately drops
-   browser-owned file bytes even though image metadata remains.
-5. Preview again and re-export to confirm the region before saving. Switching
-   top-level kind afterward can reset it again.
-
-This is an existing authoring path, not a requirement to patch the application.
-If a newer UI provides a correct Region control or automatic assignment, use it
-and omit the workaround. Source check: `avatarEffectEditorReducer` and
-`avatarEffectDefinition` in `src/frontend/web/src/lib/avatar/vfx/editor/document.ts`.
+New effects use Automatic, which updates after changes to type, subtype, anchor,
+or texture target. Choosing one of the six regions preserves that manual value
+through subsequent placement changes. Existing saved effects and older imports
+reopen with their region preserved as a manual choice; select Automatic to opt
+into placement-based assignment. Recheck Effect region when combining effects:
+`eyes`, `undereye`, `blush`, and `mouth` replace earlier effects in the same region; `emote` and `full_face` allow
+different instances to coexist. Region does not move the image.
 
 ## Save and use
 
@@ -204,8 +210,9 @@ editing an Included source creates a Local copy. It does not overwrite shipped
 Included files. Choose a distinct name for a new variant.
 
 Wait for a successful save and the stable `/edit` route. Then reopen the saved
-item and check its image, placement, motion, region, and sound selection. Recovery
-of an unsaved draft is not proof of persistence. Browser recovery can preserve
+item and check its image, placement, motion, region, facial cleanup, hidden
+materials, and sound selection. Recovery of an unsaved draft is not proof of
+persistence. Browser recovery can preserve
 work across interruptions, but missing image bytes require reselection. On a save
 failure, use the reported error and existing retry path; avoid repeatedly creating
 new items or discarding preserved work. An uncertain result should be checked in
@@ -255,10 +262,11 @@ to the chosen avatar and the image's actual framing.
 | Blank preview | Confirm avatar and image loaded, Play is active, and diagnostics show a binding. Check scale, placement, depth, and transparency before changing the model. |
 | One centered spiral instead of two eyes | Eye hover with Side Both and mirror off is one centered plane. Enable mirroring for a one-eye sprite on both sides. |
 | Unexpected second eye | Mirroring creates the opposite eye even with an explicit primary side. Disable it for a one-sided effect. |
-| Tears/blush disappear when another effect starts | Inspect both effects' exported regions and the Action timing. Placement alone does not determine coexistence. |
+| Tears/blush disappear when another effect starts | Inspect both effects' Effect region settings and the Action timing. Placement alone does not determine coexistence. |
 | Large image outline but tiny visible art | Transparent margins count toward sizing. Adjust scale or prepare a tighter derivative; do not mistake padding for an anchor error. |
-| Visible skin patch | Compare backdrop on/off, inspect Skin coverage and the sampled color, then examine the model/anchor assumptions. |
+| Visible skin patch | Compare Skin backdrop and Clean up eye/mouth area independently; inspect Skin coverage and the sampled color, then examine the model/anchor assumptions. |
 | Decal looks correct in UV view but wrong on the head | Inspect seams, projection estimates, selected binding, and mesh deformation in 3D. |
+| Original eye detail remains | Check Hide eye details and Additional hidden materials for Eye hover, or Hidden materials for Texture. Confirm the avatar has recognized bindings. |
 | Texture affects unexpected facial areas | Verify the target material and UV layout; consider an anchored decal for localized art. |
 | Drift rapidly leaves the face | Texture drift is measured relative to the whole texture. Reduce it and retest over the intended duration. |
 | JSON imported but Save needs an image | Reselect the actual image; the editor export contains no bytes. |

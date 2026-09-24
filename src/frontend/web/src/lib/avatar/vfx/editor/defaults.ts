@@ -8,6 +8,7 @@ export function createDefaultAvatarEffectDocument(): AvatarEffectEditorDocument 
     description: "",
     kind: "hover",
     region: "eyes",
+    regionMode: "automatic",
     transform: {
       offset: { x: 0, y: 0, z: 0 },
       scale: { x: 1, y: 1, z: 1 },
@@ -23,9 +24,14 @@ export function createDefaultAvatarEffectDocument(): AvatarEffectEditorDocument 
       side: null,
       requiresMirror: true,
       skinBackdrop: true,
+      forceBlink: true,
+      autoDisableEyeMaterials: true,
+      faceCleanup: true,
+      disableTargetRoles: [],
     },
     face: {
       anchor: "undereye",
+      faceCleanup: true,
       layout: "single",
       pivot: "center",
       side: "left",
@@ -33,6 +39,7 @@ export function createDefaultAvatarEffectDocument(): AvatarEffectEditorDocument 
     },
     texture: {
       targetRole: "face_skin",
+      disableTargetRoles: [],
       assetShape: "full_face",
       applyMode: "overlay",
       side: null,

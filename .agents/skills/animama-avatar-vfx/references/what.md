@@ -88,14 +88,24 @@ the plane foreshortens as the head turns.
 - **Face box hover** places a symbol at a named forehead or upper-face position.
   It is the usual choice for emotes floating around the head.
 
-Eye hover automatically forces the blink expression and suppresses classified
-eye-highlight, eyeline, and eyelash bindings. It also triggers **face flattening**:
-soft fills sampled from the face texture cover competing painted eye detail.
-Mouth hover and mouth decals similarly trigger mouth flattening.
+Eye hover defaults to **Force blink**, **Hide eye details**, and **Clean up eye
+area** enabled. Force blink holds the blink expression at 1. Hide eye details
+suppresses classified eye-highlight, eyeline, and eyelash bindings. Clean up eye
+area enables **face flattening**: soft fills sampled from the face texture cover
+competing painted eye detail. Each can be disabled independently. **Additional
+hidden materials** selects explicit material roles to suppress alongside the
+automatic eye-detail roles; disabling Hide eye details leaves these selections in
+force.
+
+Mouth hover and mouth decals default to **Clean up mouth area** enabled, which
+similarly covers painted mouth detail. Disable it when the original texture
+should remain visible. Older definitions without these flags retain the enabled
+behavior.
 
 **Skin backdrop** is an additional backing plane available for eye and mouth hover.
 It uses sampled face color behind the image. Turning it off does not turn off the
-separate automatic flattening pass. Neither operation changes the VRM on disk.
+separate cleanup pass; use the eye/mouth cleanup control for that. Neither
+operation changes the VRM on disk.
 Both need visual review on shaded or unusually textured faces because a sampled
 patch can remain visible.
 
@@ -134,6 +144,11 @@ iris. Their presence in the menu does not imply a specialized UV layout or a usa
 texture slot on every avatar. Inspect the target's UV preview before relying on
 them. For a localized cheek mark, choose Face decal rather than trying to guess
 coordinates in a whole-face atlas.
+
+**Hidden materials** suppresses selected classified roles while the Texture
+effect is active. This is independent of Overlay/Replace; for example, an iris
+effect can hide existing Eye highlight bindings without replacing the iris base.
+Material suppression operates on recognized bindings and can affect both eyes.
 
 General texture effects composite before anchored face decals; later effects
 within the same kind draw above earlier ones. Clearing effects restores runtime

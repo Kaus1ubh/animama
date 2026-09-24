@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import {
   createDefaultAvatarEffectDocument,
+  cloneAvatarEffectDocument,
   avatarEffectDocumentFingerprint,
   avatarEffectEditorReducer,
   type AvatarEffectEditorDocument,
@@ -60,7 +61,10 @@ export function useAvatarEffectHistory() {
       document: AvatarEffectEditorDocument,
       imageResource: AvatarEffectEditorImageResource | null,
     ) => {
-      const next = { document, imageResource };
+      const next = {
+        document: cloneAvatarEffectDocument(document),
+        imageResource,
+      };
       current.current = next;
       reset(next);
     },

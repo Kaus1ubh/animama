@@ -15,7 +15,7 @@ visual acceptance.
   [What an Avatar Effect is](references/what.md).
 - For creating, editing, importing, previewing, or saving content, read
   [How to use the creator](references/how.md). It includes the control reference,
-  recipes, a region-assignment workaround, and troubleshooting.
+  recipes, region assignment, and troubleshooting.
 - For first-time authoring, read both. For a focused adjustment, read the relevant
   section rather than rediscovering the entire subsystem.
 
@@ -48,7 +48,7 @@ guidance when the task includes creating artwork, not merely uploading existing 
 
 ## Verification and currency
 
-The references were checked against Animama source at `f09d5d7` on 2026-09-24.
+The references describe the creator and runtime controls as checked on 2026-09-24.
 Their browser procedures are source-derived, not evidence of an executed UI pilot.
 Use current UI labels and recheck the named source symbols when behavior differs.
 Repository paths in the references are relative to the active Animama checkout;

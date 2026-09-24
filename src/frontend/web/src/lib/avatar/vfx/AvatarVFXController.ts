@@ -389,7 +389,7 @@ function cloneCatalogEffectEntry(
 }
 
 function shouldForceBlink(effect: AvatarVFXCatalogEntry): boolean {
-  return isEyeHoverVFXEntry(effect);
+  return isEyeHoverVFXEntry(effect) && (effect.forceBlink ?? true);
 }
 
 function getAutoDisabledRoles(
@@ -398,7 +398,7 @@ function getAutoDisabledRoles(
   const roles = new Set(
     "disableTargetRoles" in effect ? (effect.disableTargetRoles ?? []) : [],
   );
-  if (isEyeHoverVFXEntry(effect)) {
+  if (isEyeHoverVFXEntry(effect) && (effect.autoDisableEyeMaterials ?? true)) {
     EYE_HOVER_AUTO_DISABLED_ROLES.forEach((role) => roles.add(role));
   }
   return Array.from(roles);
@@ -2652,6 +2652,9 @@ export class AvatarVFXController {
         if (applyMode === "overlay") {
           return binding.textureSlots.some((slot) => slot.canOverlay);
         }
+        if (applyMode === "replace") {
+          return binding.textureSlots.length > 0;
+        }
         return true;
       }) ?? null
     );
@@ -2675,8 +2678,9 @@ export class AvatarVFXController {
 
   private _hasAutoFaceFlattenEyes(): boolean {
     return Array.from(this._bindings.values()).some((binding) =>
-      Array.from(binding.activeEffects.values()).some((activeEffect) =>
-        isEyeHoverVFXEntry(activeEffect.effectEntry),
+      Array.from(binding.activeEffects.values()).some(
+        ({ effectEntry }) =>
+          isEyeHoverVFXEntry(effectEntry) && (effectEntry.faceCleanup ?? true),
       ),
     );
   }
@@ -2684,10 +2688,11 @@ export class AvatarVFXController {
   private _hasAutoFaceFlattenMouth(): boolean {
     return Array.from(this._bindings.values()).some((binding) =>
       Array.from(binding.activeEffects.values()).some(
-        (activeEffect) =>
-          (isFaceAnchoredVFXEntry(activeEffect.effectEntry) &&
-            activeEffect.effectEntry.anchor === "mouth") ||
-          isMouthHoverVFXEntry(activeEffect.effectEntry),
+        ({ effectEntry }) =>
+          ((isFaceAnchoredVFXEntry(effectEntry) &&
+            effectEntry.anchor === "mouth") ||
+            isMouthHoverVFXEntry(effectEntry)) &&
+          (effectEntry.faceCleanup ?? true),
       ),
     );
   }
@@ -2884,9 +2889,6 @@ export class AvatarVFXController {
 
   private _rebuildBindings() {
     const runtimeResult = buildRuntimePrimitiveBindings(this._avatar);
-    const disableTargetRoleSet = new Set<AvatarVFXTargetRole>(
-      this._catalog.flatMap((effect) => getAutoDisabledRoles(effect)),
-    );
     this._warnings = [...runtimeResult.warnings];
     this._cachedFaceFlattenState = null;
     this._bindings.clear();
@@ -2918,14 +2920,8 @@ export class AvatarVFXController {
         .filter((effect) => getAvatarVFXTargetRole(effect) === targetRole)
         .map((effect) => effect.id);
 
-      if (
-        textureSlots.length === 0 &&
-        !disableTargetRoleSet.has(targetRole) &&
-        availableEffectIds.length === 0
-      ) {
-        return;
-      }
-
+      // Creator effects arrive after discovery and may suppress any recognized
+      // role, including untextured lines or lashes absent from the mounted catalog.
       this._bindings.set(entry.bindingKey, {
         bindingKey: entry.bindingKey,
         targetRole,

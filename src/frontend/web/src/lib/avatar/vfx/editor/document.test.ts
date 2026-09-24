@@ -8,6 +8,7 @@ import {
   avatarEffectEditorReducer,
   buildAvatarEffectEditorExport,
   canonicalAvatarEffectImageName,
+  cloneAvatarEffectDocument,
   createAvatarEffectDocumentFromDefinition,
   createDefaultAvatarEffectDocument,
   parseAvatarEffectEditorExport,
@@ -135,6 +136,7 @@ describe("Avatar Effect editor document", () => {
       kind: "face_anchored" as const,
       image,
       face: {
+        ...createDefaultAvatarEffectDocument().face,
         anchor: "blush" as const,
         layout: "span" as const,
         pivot: "bottom-center" as const,
@@ -192,5 +194,156 @@ describe("Avatar Effect editor document", () => {
     expect(canonicalAvatarEffectImageName("../Eye Star.JPEG")).toBe(
       "Eye-Star.jpg",
     );
+  });
+  it.each([
+    {
+      kind: "hover",
+      hoverKind: "eye_hover",
+      region: "eyes",
+      disableTargetRoles: ["eyeline"],
+      forceBlink: false,
+      autoDisableEyeMaterials: false,
+      faceCleanup: false,
+    },
+    {
+      kind: "texture",
+      targetRole: "eye_iris",
+      assetShape: "single_eye",
+      applyMode: "overlay",
+      region: "eyes",
+      disableTargetRoles: ["eye_highlight"],
+    },
+    {
+      kind: "hover",
+      hoverKind: "mouth_hover",
+      region: "mouth",
+      faceCleanup: false,
+    },
+    {
+      kind: "face_anchored",
+      anchor: "mouth",
+      region: "mouth",
+      faceCleanup: false,
+    },
+  ])(
+    "preserves suppression and cleanup through edit, export and save: $kind/$region",
+    (definition) => {
+      const hydrated = createAvatarEffectDocumentFromDefinition({
+        name: "Existing effect",
+        description: "",
+        definition,
+        image,
+        sound: null,
+      });
+      const imported = parseAvatarEffectEditorExport(
+        buildAvatarEffectEditorExport(hydrated),
+      );
+      expect(avatarEffectDefinition(imported)).toMatchObject(definition);
+    },
+  );
+
+  it("suggests regions from placement and preserves custom assignments", () => {
+    let document = createDefaultAvatarEffectDocument();
+    document = avatarEffectEditorReducer(document, {
+      type: "patch-hover",
+      patch: { hoverKind: "box_hover" },
+    });
+    expect(document.region).toBe("emote");
+    document = avatarEffectEditorReducer(document, {
+      type: "patch-hover",
+      patch: { hoverKind: "mouth_hover" },
+    });
+    expect(document.region).toBe("mouth");
+    document = avatarEffectEditorReducer(document, {
+      type: "set-kind",
+      kind: "face_anchored",
+    });
+    expect(document.region).toBe("undereye");
+    document = avatarEffectEditorReducer(document, {
+      type: "patch-face",
+      patch: { anchor: "blush" },
+    });
+    expect(document.region).toBe("blush");
+    document = avatarEffectEditorReducer(document, {
+      type: "set-kind",
+      kind: "texture",
+    });
+    expect(document.region).toBe("full_face");
+    document = avatarEffectEditorReducer(document, {
+      type: "patch-texture",
+      patch: { targetRole: "eye_iris" },
+    });
+    expect(document.region).toBe("eyes");
+    document = avatarEffectEditorReducer(document, {
+      type: "patch",
+      patch: { region: "emote" },
+    });
+    document = avatarEffectEditorReducer(document, {
+      type: "patch-texture",
+      patch: { targetRole: "face_skin" },
+    });
+    expect(document.region).toBe("emote");
+    document = avatarEffectEditorReducer(document, {
+      type: "set-kind",
+      kind: "hover",
+    });
+    expect(document.region).toBe("emote");
+  });
+
+  it("supplies legacy defaults when importing an older editor document", () => {
+    const legacy = buildAvatarEffectEditorExport(
+      createDefaultAvatarEffectDocument(),
+    );
+    for (const key of [
+      "forceBlink",
+      "autoDisableEyeMaterials",
+      "faceCleanup",
+      "disableTargetRoles",
+    ]) {
+      delete (legacy.document.hover as unknown as Record<string, unknown>)[key];
+    }
+    const imported = parseAvatarEffectEditorExport(legacy);
+    expect(avatarEffectDefinition(imported)).toMatchObject({
+      forceBlink: true,
+      autoDisableEyeMaterials: true,
+      faceCleanup: true,
+      disableTargetRoles: [],
+    });
+  });
+  it("keeps explicit regions even when they match the automatic suggestion", () => {
+    let document = createDefaultAvatarEffectDocument();
+    document = avatarEffectEditorReducer(document, {
+      type: "patch",
+      patch: { region: "eyes" },
+    });
+    document = avatarEffectEditorReducer(document, {
+      type: "patch-hover",
+      patch: { hoverKind: "box_hover" },
+    });
+    expect(document.region).toBe("eyes");
+    document = avatarEffectEditorReducer(document, {
+      type: "patch",
+      patch: { regionMode: "automatic" },
+    });
+    expect(document.region).toBe("emote");
+  });
+
+  it("restores older recovery documents without losing their assigned region", () => {
+    const legacy = createDefaultAvatarEffectDocument();
+    delete (legacy as Partial<typeof legacy>).regionMode;
+    delete (legacy.hover as Partial<typeof legacy.hover>).disableTargetRoles;
+    delete (legacy.hover as Partial<typeof legacy.hover>).forceBlink;
+    const recovered = cloneAvatarEffectDocument(legacy);
+    expect(recovered.regionMode).toBe("custom");
+    expect(recovered.hover).toMatchObject({
+      forceBlink: true,
+      disableTargetRoles: [],
+    });
+    expect(
+      avatarEffectEditorReducer(recovered, {
+        type: "patch-hover",
+        patch: { hoverKind: "box_hover" },
+      }).region,
+    ).toBe("eyes");
   });
 });

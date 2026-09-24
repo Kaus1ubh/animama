@@ -49,6 +49,11 @@ import type {
   AvatarVFXCatalogEntry,
   AvatarVFXSnapshot,
   AvatarVFXTransform,
+  AvatarVFXTargetRole,
+} from "@/lib/avatar/vfx/types";
+import {
+  AVATAR_VFX_REGIONS,
+  AVATAR_VFX_TARGET_ROLES,
 } from "@/lib/avatar/vfx/types";
 import {
   contentPreviewPrimaryFile,
@@ -1036,6 +1041,8 @@ function EffectSetupPanel({
           <TextureFields document={document} onDispatch={onDispatch} />
         )}
 
+        <RegionField document={document} onDispatch={onDispatch} />
+
         <Field label="Sound when applied">
           <SoundUploadButton />
           <Select
@@ -1201,6 +1208,51 @@ function HoverFields({ document, onDispatch }: EditorFieldsProps) {
           }
         />
       ) : null}
+      {document.hover.hoverKind === "eye_hover" ? (
+        <>
+          <SwitchRow
+            label="Force blink"
+            description="Close the avatar's eyes behind the artwork."
+            checked={document.hover.forceBlink}
+            onChecked={(forceBlink) =>
+              onDispatch({ type: "patch-hover", patch: { forceBlink } })
+            }
+          />
+          <SwitchRow
+            label="Hide eye details"
+            description="Hide eye highlights, eyelines and eyelashes."
+            checked={document.hover.autoDisableEyeMaterials}
+            onChecked={(autoDisableEyeMaterials) =>
+              onDispatch({
+                type: "patch-hover",
+                patch: { autoDisableEyeMaterials },
+              })
+            }
+          />
+          <HiddenMaterialFields
+            label="Additional hidden materials"
+            roles={document.hover.disableTargetRoles}
+            automaticEyeDetails={document.hover.autoDisableEyeMaterials}
+            onChange={(disableTargetRoles) =>
+              onDispatch({ type: "patch-hover", patch: { disableTargetRoles } })
+            }
+          />
+        </>
+      ) : null}
+      {document.hover.hoverKind !== "box_hover" ? (
+        <SwitchRow
+          label={
+            document.hover.hoverKind === "eye_hover"
+              ? "Clean up eye area"
+              : "Clean up mouth area"
+          }
+          description="Cover painted facial detail with sampled skin color, independently of Skin backdrop."
+          checked={document.hover.faceCleanup}
+          onChecked={(faceCleanup) =>
+            onDispatch({ type: "patch-hover", patch: { faceCleanup } })
+          }
+        />
+      ) : null}
     </>
   );
 }
@@ -1304,6 +1356,16 @@ function FaceFields({ document, onDispatch }: EditorFieldsProps) {
           }
         />
       ) : null}
+      {document.face.anchor === "mouth" ? (
+        <SwitchRow
+          label="Clean up mouth area"
+          description="Cover painted mouth detail with sampled skin color."
+          checked={document.face.faceCleanup}
+          onChecked={(faceCleanup) =>
+            onDispatch({ type: "patch-face", patch: { faceCleanup } })
+          }
+        />
+      ) : null}
     </>
   );
 }
@@ -1395,6 +1457,13 @@ function TextureFields({ document, onDispatch }: EditorFieldsProps) {
           onDispatch({ type: "patch-texture", patch: { requiresMirror } })
         }
       />
+      <HiddenMaterialFields
+        label="Hidden materials"
+        roles={document.texture.disableTargetRoles}
+        onChange={(disableTargetRoles) =>
+          onDispatch({ type: "patch-texture", patch: { disableTargetRoles } })
+        }
+      />
     </>
   );
 }
@@ -1403,6 +1472,98 @@ type EditorFieldsProps = {
   document: AvatarEffectEditorDocument;
   onDispatch: React.Dispatch<Parameters<typeof avatarEffectEditorReducer>[1]>;
 };
+
+/** Keep coexistence editable for every type without coupling it to placement. */
+function RegionField({ document, onDispatch }: EditorFieldsProps) {
+  return (
+    <Field label="Effect region">
+      <Select
+        value={
+          document.regionMode === "automatic" ? "automatic" : document.region
+        }
+        onValueChange={(value) =>
+          onDispatch({
+            type: "patch",
+            patch:
+              value === "automatic"
+                ? { regionMode: "automatic" }
+                : { region: value as AvatarEffectEditorDocument["region"] },
+          })
+        }
+      >
+        <SelectTrigger
+          size="sm"
+          className="w-full text-xs"
+          aria-label="Effect region"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="automatic">
+            Automatic
+            {document.regionMode === "automatic"
+              ? ` (${humanize(document.region)})`
+              : ""}
+          </SelectItem>
+          {AVATAR_VFX_REGIONS.map((region) => (
+            <SelectItem key={region} value={region}>
+              {humanize(region)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-muted-foreground mt-1 text-xs">
+        Eyes, under eye, blush and mouth replace effects in the same region.
+        Emote and full face can coexist.
+      </p>
+    </Field>
+  );
+}
+
+/** Explicit roles add to eye-detail hiding; they remain selected when it is off. */
+function HiddenMaterialFields({
+  label,
+  roles,
+  automaticEyeDetails = false,
+  onChange,
+}: {
+  label: string;
+  roles: AvatarVFXTargetRole[];
+  automaticEyeDetails?: boolean;
+  onChange: (roles: AvatarVFXTargetRole[]) => void;
+}) {
+  return (
+    <details className="space-y-2">
+      <summary className="cursor-pointer text-xs font-medium">
+        {label} ({roles.length})
+      </summary>
+      <p className="text-muted-foreground text-xs">
+        Hide matching material parts while this effect plays. The effect's own
+        target part stays visible.
+      </p>
+      {AVATAR_VFX_TARGET_ROLES.map((role) => (
+        <SwitchRow
+          key={role}
+          label={`Hide ${humanize(role).toLowerCase()}`}
+          description={
+            automaticEyeDetails &&
+            ["eye_highlight", "eyeline", "eyelash"].includes(role)
+              ? "Also hidden by Hide eye details."
+              : undefined
+          }
+          checked={roles.includes(role)}
+          onChecked={(checked) =>
+            onChange(
+              checked
+                ? [...roles, role]
+                : roles.filter((item) => item !== role),
+            )
+          }
+        />
+      ))}
+    </details>
+  );
+}
 
 function InspectorPanel({
   document,

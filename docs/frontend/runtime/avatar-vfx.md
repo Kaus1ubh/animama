@@ -55,6 +55,24 @@ The author chooses the effect kind first:
   mouth UV landmarks.
 - **Texture** overlays or replaces a classified live VRM material role.
 
+Each type exposes **Effect region**, which controls replacement rather than
+placement. Regions `eyes`, `undereye`, `blush`, and `mouth` replace earlier effects
+in that region; `emote` and `full_face` allow different instances to coexist.
+**Automatic** follows changes to type, subtype, decal anchor, or texture target.
+Choosing a region manually preserves it across those changes. New effects default
+to Automatic; existing definitions and older editor documents preserve their
+region as a manual choice. The editor stores this choice in `regionMode`; runtime
+definitions always contain the resolved region.
+
+Eye hover exposes **Force blink**, **Hide eye details**, **Clean up eye area**,
+and **Additional hidden materials**. Mouth hover and mouth decals expose **Clean
+up mouth area**. Texture exposes **Hidden materials**. These settings persist in
+the definition and editor document. The blink, automatic eye-detail hiding, and
+facial cleanup flags default to enabled when omitted by older content. Explicit
+hidden-material roles are additive to automatic eye-detail hiding; turning off
+Hide eye details does not clear those selections. **Skin backdrop** controls a
+separate hover backing plane and does not enable or disable facial cleanup.
+
 The creator accepts exactly one PNG, JPEG, or WebP image. Its serializable
 editor document stores only logical metadata and a digest; the browser-owned
 `File`, preview Blob URL, upload capability, and live `Avatar`/Three objects
@@ -186,11 +204,13 @@ At runtime the controller:
 3. keeps that sampled color in the VFX snapshot's `flatten` state
 4. draws soft elliptical fills into the face-skin composite before normal face-skin VFX layers are drawn
 
-Current auto-activation rules are:
+Auto-activation requires an active effect with `faceCleanup !== false`:
 
-- eyes flatten while any `eye_hover` effect is active
-- mouth flatten while any mouth `face_anchored` decal is active
-- mouth flatten while any `mouth_hover` effect is active
+- `eye_hover` requests eye flattening
+- mouth `face_anchored` decals and `mouth_hover` request mouth flattening
+
+Disabling cleanup on one effect does not cancel another active effect's request.
+Omitting `faceCleanup` preserves automatic cleanup for existing content.
 
 The debug/editor layer can also enable eye or mouth flatten explicitly through `setFaceFlattenPreview({ previewEyes, previewMouth })`.
 
@@ -240,7 +260,8 @@ That means:
 
 The anchor box is only a placement basis for pivoting, offsets, and default scale.
 
-Mouth decals also activate mouth flattening before the decal stack renders.
+Mouth decals activate mouth flattening before the decal stack renders unless
+`faceCleanup` is `false`.
 
 ### Main config fields
 
@@ -249,6 +270,7 @@ Mouth decals also activate mouth flattening before the decal stack renders.
 - `pivot`
 - `side`
 - `requiresMirror`
+- `faceCleanup`: optional mouth cleanup flag, defaults to enabled
 - `transform.offset`
 - `transform.scale`
 
@@ -317,6 +339,12 @@ VFX definitions.
 - `overlay` preserves the original texture and composites the VFX on top
 - `replace` draws only the effect result into the runtime texture slot
 
+Texture effects can also specify `disableTargetRoles` to hide recognized material
+bindings for the duration of the effect, independently of Overlay/Replace. The
+creator's Hidden materials selections round-trip this list; it is not restricted
+to eye highlights. Suppression skips the effect's source binding and depends on
+the model's material classification.
+
 Use full-surface textures only when the artwork matches the original UV layout.
 Localized cheek or mouth art uses anchored decals.
 
@@ -342,7 +370,18 @@ Instead:
 - it builds a face-aligned placement slightly in front of the iris
 - it attaches a small transparent plane there
 
-While an `eye_hover` effect is active, the face flatten system also neutralizes painted eye shading on the resolved `face_skin` binding. This helps stylized 2D eye art sit more cleanly over face textures that already contain eye-region shading but no usable eye geometry.
+Eye hover has three independent flags, all enabled when omitted:
+
+- `forceBlink` holds the blink expression at 1 while an enabled effect is active.
+- `autoDisableEyeMaterials` hides `eye_highlight`, `eyeline`, and `eyelash` bindings.
+- `faceCleanup` neutralizes painted eye shading on the resolved `face_skin`
+  binding through the face-flatten pass.
+
+`disableTargetRoles` adds explicit hidden roles to the automatic set. Disabling
+automatic hiding leaves those explicit roles in effect. These options let art
+replace the eyes or sit over the existing eyes without requiring a different
+rendering kind. Material suppression follows classified bindings rather than
+being limited to the effect's left/right placement.
 
 Good examples:
 
@@ -365,7 +404,9 @@ This is the hover-plane equivalent of a mouth decal.
 
 It is useful when the effect should sit over the mouth area, but should not be painted directly into the face texture.
 
-When a `mouth_hover` effect is active, the runtime also enables mouth flattening on the resolved `face_skin` binding so the authored mouth texture underneath is neutralized before the hover art renders above it.
+A `mouth_hover` effect enables mouth flattening on the resolved `face_skin`
+binding by default, neutralizing the painted mouth before the hover art renders.
+Set `faceCleanup: false` to preserve that painted detail.
 
 `eye_hover` and `mouth_hover` entries can also opt into a runtime-generated `skinBackdrop`.
 
