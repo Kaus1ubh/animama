@@ -96,6 +96,7 @@ export function PoseCreatorClipTimeline({
   playbackPending = false,
   settingsContent,
   transportActions,
+  onHeightChange,
   expanded = true,
   onExpandedChange,
 }: {
@@ -105,6 +106,7 @@ export function PoseCreatorClipTimeline({
   playbackPending?: boolean;
   settingsContent?: React.ReactNode;
   transportActions?: React.ReactNode;
+  onHeightChange?: (height: number) => void;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
 }) {
@@ -200,6 +202,14 @@ export function PoseCreatorClipTimeline({
     1,
     trackRows + (dropPreview && dropRow === trackRows ? 1 : 0),
   );
+  const contentHeight = Math.max(
+    104,
+    RULER_HEIGHT_PX + visibleRows * LANE_HEIGHT_PX + 12,
+  );
+  const viewportHeight = Math.min(178, contentHeight);
+  useEffect(() => {
+    onHeightChange?.(viewportHeight + 66);
+  }, [onHeightChange, viewportHeight]);
   const dropPercent = dropPreview
     ? getTimelinePercent(dropPreview.time, duration)
     : 0;
@@ -594,16 +604,17 @@ export function PoseCreatorClipTimeline({
           {expanded ? (
             <div
               ref={viewportRef}
-              className="h-[178px] w-full overflow-auto overscroll-contain rounded-md"
+              className="w-full shrink-0 overflow-auto overscroll-contain rounded-md"
+              style={{ height: viewportHeight }}
             >
               <div
                 ref={trackRef}
                 className={cn(
-                  "border-border/70 bg-muted/20 relative min-h-[176px] cursor-crosshair rounded-md border",
+                  "border-border/70 bg-muted/20 relative cursor-crosshair rounded-md border",
                   variant === "mobile" && "min-w-[680px] touch-pan-x",
                 )}
                 style={{
-                  height: RULER_HEIGHT_PX + visibleRows * LANE_HEIGHT_PX + 12,
+                  height: contentHeight,
                 }}
                 onPointerDown={handleTrackPointerDown}
                 onPointerMove={handleTrackPointerMove}
@@ -635,6 +646,17 @@ export function PoseCreatorClipTimeline({
                     />
                   )),
                 )}
+
+                {!hasPlayableContent && !dropPreview ? (
+                  <div
+                    className="text-muted-foreground pointer-events-none absolute right-0 bottom-0 left-0 flex items-center justify-center px-3 text-xs"
+                    style={{ top: RULER_HEIGHT_PX + LANE_HEIGHT_PX }}
+                  >
+                    {allowHumanoid
+                      ? "Drag a pose or effect here"
+                      : "Drag an effect here"}
+                  </div>
+                ) : null}
 
                 {clipDraft.keyframes.map((keyframe) => (
                   <KeyframeMarker

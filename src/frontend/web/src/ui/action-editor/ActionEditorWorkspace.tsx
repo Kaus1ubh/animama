@@ -173,6 +173,8 @@ function ActionEditorWorkspaceContent() {
   const [mobileTool, setMobileTool] = useState<MobileTool>("timeline");
   const [componentsExpanded, setComponentsExpanded] = useState(true);
   const [timelineExpanded, setTimelineExpanded] = useState(true);
+  const [timelineHeight, setTimelineHeight] = useState(170);
+  const timelinePanelBottom = timelineExpanded ? timelineHeight + 20 : 80;
   const [bonesExpanded, setBonesExpanded] = useState(true);
   const [expressionsExpanded, setExpressionsExpanded] = useState(true);
   const collapseBones = useCallback(() => setBonesExpanded(false), []);
@@ -382,6 +384,7 @@ function ActionEditorWorkspaceContent() {
       isBusy={workspace.busy}
       playbackPending={workspace.localPreviewPending}
       expanded={timelineExpanded}
+      onHeightChange={setTimelineHeight}
       onExpandedChange={setTimelineExpanded}
     />
   );
@@ -534,12 +537,13 @@ function ActionEditorWorkspaceContent() {
                 <div
                   className={cn(
                     "pointer-events-auto absolute top-4 left-[calc(var(--app-shell-sidebar-inset)+1rem)] z-20 w-[312px] transition-[left,bottom,height] duration-200 motion-reduce:transition-none xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)] xl:w-[360px] 2xl:w-[392px]",
-                    componentsExpanded
-                      ? timelineExpanded
-                        ? "bottom-[264px]"
-                        : "bottom-[80px]"
-                      : "h-16",
+                    !componentsExpanded && "h-16",
                   )}
+                  style={
+                    componentsExpanded
+                      ? { bottom: timelinePanelBottom }
+                      : undefined
+                  }
                 >
                   <EffectsPanel
                     expanded={componentsExpanded}
@@ -552,8 +556,8 @@ function ActionEditorWorkspaceContent() {
                     className={cn(
                       "pointer-events-auto absolute top-4 z-20 w-[248px] overflow-y-auto xl:w-[296px] 2xl:w-[308px]",
                       "right-4 xl:right-8",
-                      timelineExpanded ? "bottom-[264px]" : "bottom-[80px]",
                     )}
+                    style={{ bottom: timelinePanelBottom }}
                   >
                     <ActionEditorClipInspector
                       section="inspector"
@@ -565,8 +569,8 @@ function ActionEditorWorkspaceContent() {
                   <div
                     className={cn(
                       "pointer-events-auto absolute top-4 right-4 z-20 flex w-[min(320px,24vw)] flex-col gap-3 transition-[bottom] duration-200 motion-reduce:transition-none xl:right-8 2xl:w-[360px]",
-                      timelineExpanded ? "bottom-[264px]" : "bottom-[80px]",
                     )}
+                    style={{ bottom: timelinePanelBottom }}
                   >
                     {clipDraft.selectedEventId ||
                     clipDraft.selectedKeyframeId ? (
@@ -598,8 +602,8 @@ function ActionEditorWorkspaceContent() {
                 <div
                   className={cn(
                     "pointer-events-auto absolute right-4 bottom-4 left-[calc(var(--app-shell-sidebar-inset)+1rem)] z-20 flex justify-center transition-[left,height] duration-200 motion-reduce:transition-none xl:right-8 xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)]",
-                    timelineExpanded ? "h-[244px]" : "h-[60px]",
                   )}
+                  style={{ height: timelineExpanded ? timelineHeight : 60 }}
                 >
                   {desktopTimeline}
                 </div>
