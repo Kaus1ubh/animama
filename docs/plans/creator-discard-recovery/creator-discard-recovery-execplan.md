@@ -3,7 +3,11 @@
 Source agreement: the owner's 2026-09-24 report and authorization to reproduce and
 fix discarded Avatar/Scene settings returning on a later edit, and investigate
 other creators. Reuse `feat/vfx-creator-polish` at starting source `82d9c34`.
-Keep commits and validation notes local; do not publish issues, push or open a PR.
+Initial delivery kept commits and notes local. On 2026-09-24 the owner authorized
+issue creation and PR publication; merge approval remains separate.
+
+Spec authority: https://github.com/raymond-van/animama/issues/91, read back at
+2026-09-24T19:28:37Z.
 
 ## Purpose and context
 
@@ -65,8 +69,9 @@ storage contracts are out of scope. Preserve concurrent work in this task branch
 
 ### Phase 1: Correct discard and recovery boundaries
 
-Starting revision `82d9c34`; whole phase authorized. Tracker publication remains
-withheld by owner instruction. No separate product decision is required.
+Starting revision `82d9c34`; whole phase authorized. Tracker publication was
+initially withheld; issue #91 now records the agreed scope. No separate product
+decision is required.
 
 1. Reproduce existing edit/discard/reopen and new/discard/reopen paths through real
    Library navigation. Compare portable documents and canonical catalog data.
@@ -188,7 +193,7 @@ Independent final integration verdict: **PASS for the implemented discard-recove
 scope**. CR-01 and CR-02 are resolved; all applicable local checks and ten product
 browser scenarios pass. No supported code blocker remains. The limits above stay
 explicit. Repair rounds used: 1/2. Deliver as a local phase commit on
-`feat/vfx-creator-polish`; no publication authorized.
+`feat/vfx-creator-polish`; publication is authorized, merge approval is pending.
 
 ## Idempotence and recovery
 
@@ -197,12 +202,30 @@ content, shared storage or stack volumes. Canceling the confirmation preserves t
 draft. A failed deletion keeps the editor visible for retry. Browser reload/crash
 recovery is not an implicit discard. Retry storage work safely; late writes must
 not recreate an explicitly deleted draft. Preserve unrelated Git work and stage
-only this fix's files/hunks. No external tracker writes are authorized.
+only this fix's files/hunks. Issue/PR publication is authorized; do not merge without
+owner approval of the exact candidate.
 
 ## Outcomes & Retrospective
 
 Avatar/Scene and Local Gesture resurrection was reproduced and fixed. The suspected
 New-to-existing cross-key collision was not reproduced. Explicit discard now
 clears the selected recovery record and fences stale work, while reload recovery
-and saved catalog content retain their behavior. Local validation passes; no
-external issues, comments, pushes or PRs were created.
+and saved catalog content retain their behavior. Local validation passes. The
+initial local-only delivery is commit `3ff0296`; issue #91 tracks the authorized PR
+handoff.
+
+## Publication handoff
+
+On 2026-09-24 the owner authorized creating the missing issue and opening the PR.
+Issue #91 now owns this fix; existing #75, #88 and #89 cover earlier branch work.
+The PR must describe the full branch, including timing/layout and numeric-entry
+refinements, and preserve pending guide visual acceptance and timing self-review
+limitations rather than claiming a new whole-branch independent review.
+
+Before publication, the final branch also passed 41 focused backend tests across
+SVG admission, Local/Included scans, catalog mutations, typed save replay and save
+services. Changed Python files pass Ruff lint/read-only formatting; the Python
+import boundary reports zero forbidden edges. Database tests use disposable
+Testcontainers; initial sandbox Docker denial was resolved by rerunning those
+twelve cases with Docker access. These checks supplement the frontend evidence
+above. Hosted CI results and exact-candidate merge approval belong in the PR.

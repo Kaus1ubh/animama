@@ -6,7 +6,9 @@ Implement the accepted 2026-09-24 task: remove avatar creator lifetime controls,
 remove unused standalone avatar VFX lifecycles, and expose selected Reaction events
 and keyframes above Expressions with shared Gesture/Reaction Start and End controls.
 Starting revision: c91069d on feat/vfx-creator-polish. This is local side-conversation
-work: no delegation, remote publication, PR, or changes to other checkouts.
+work: no delegation or changes to other checkouts; remote publication was withheld
+during implementation. The owner authorized branch publication and a PR on
+2026-09-24. The self-review and remaining validation limits below are unchanged.
 
 ## Approach
 

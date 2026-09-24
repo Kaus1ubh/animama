@@ -6,8 +6,9 @@ VFX guides; Particle VFX controls remain unchanged. A subsequent 2026-09-24
 request authorizes the Phase 3 preview and numeric-entry refinements below.
 
 Authorization: the owner invoked `implement` on 2026-09-24, authorizing both
-phases. The existing instruction to withhold a PR remains in
-force; do not push or open a PR as an automatic plan-completion step.
+phases. Initial delivery withheld publication. On 2026-09-24 the owner explicitly
+authorized issue/PR publication for the completed branch. Owner visual acceptance
+and exact-candidate merge approval remain separate.
 
 Spec authority: https://github.com/raymond-van/animama/issues/88, read back at
 2026-09-24T17:01:32Z. Phase 2 is tracked by issue #89. The earlier preview/catalog
@@ -522,8 +523,8 @@ Manual browser acceptance, desktop first (1600×1000), then narrow (390×844):
 
 Keep screenshots/results as concise public-safe evidence summaries with exact
 source and serving mode. Native packaging, provider/audio behavior and hosted CI
-are separate and are not established by these checks. Hosted Validation remains
-unperformed while publication is withheld. Owner visual acceptance of guide
+are separate and are not established by these checks. Hosted Validation was unperformed during local delivery; record its actual status
+in the PR after publication. Owner visual acceptance of guide
 clarity remains pending; exact-candidate merge approval is a separate later gate.
 
 ## Final integration review
