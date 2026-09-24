@@ -5,7 +5,6 @@ import {
   type AnimaAnimationActionDebug,
   type AnimaAnimationPlanDebug,
 } from "@/stores/anima-animation-debug-store";
-import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import {
   useVRMEditorDebugStore,
   type VRMEditorDebugTarget,
@@ -73,7 +72,6 @@ export function attachAvatarDebugRuntime(
       plan: toAnimaAnimationPlanDebug(getPlan()),
       currentAction: activeActions.find((action) => action.isCurrent) ?? null,
       activeActions,
-      runtimeVfx: useAvatarRuntimeStore.getState().runtimeVfx,
     });
   };
   const syncDemand = () => {

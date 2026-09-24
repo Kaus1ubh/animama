@@ -115,23 +115,18 @@ export function addActionComponentEvent(
                 ? "particle_vfx"
                 : "avatar_vfx",
             effectId: dependency.alias,
-            duration: 1,
           };
   const currentDuration =
     typeof next.sequence.duration === "number" &&
     Number.isFinite(next.sequence.duration)
       ? Math.max(0, next.sequence.duration)
       : 0;
-  const eventDuration =
-    "duration" in event && typeof event.duration === "number"
-      ? event.duration
-      : 0;
-  // An effect authored at the terminal boundary otherwise starts on the same
-  // frame that clip completion clears it. Give endpoint VFX their authored
-  // lifetime while leaving intentionally overlapping middle events unchanged.
+  // Give an endpoint effect room to play before Action cleanup, without
+  // assigning the event an independent lifetime.
   const duration =
-    eventDuration > 0 && eventBase.time >= currentDuration - 1e-6
-      ? eventBase.time + eventDuration
+    input.contentType !== "sound_effect" &&
+    eventBase.time >= currentDuration - 1e-6
+      ? eventBase.time + 1
       : currentDuration;
   return {
     ...next,

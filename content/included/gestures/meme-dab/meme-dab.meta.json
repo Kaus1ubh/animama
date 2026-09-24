@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "meme-dab",
   "name": "meme-dab",
-  "ai_description": "Reusable avatar pose clip",
+  "ai_description": "Strike a dab pose for a goofy celebration, meme reference, or deliberately silly victory.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

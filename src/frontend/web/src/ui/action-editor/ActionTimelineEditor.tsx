@@ -266,6 +266,8 @@ export function ActionTimelineEditor({
   isBusy,
   playbackPending = false,
   settingsContent,
+  transportActions,
+  onHeightChange,
   expanded = true,
   onExpandedChange,
   variant = "workspace",
@@ -275,6 +277,8 @@ export function ActionTimelineEditor({
   isBusy: boolean;
   playbackPending?: boolean;
   settingsContent?: React.ReactNode;
+  transportActions?: React.ReactNode;
+  onHeightChange?: (height: number) => void;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
   variant?: "workspace" | "mobile";
@@ -296,6 +300,8 @@ export function ActionTimelineEditor({
         allowHumanoid={!reaction}
         playbackPending={playbackPending}
         settingsContent={settingsContent}
+        transportActions={transportActions}
+        onHeightChange={onHeightChange}
         expanded={expanded}
         onExpandedChange={onExpandedChange}
       />

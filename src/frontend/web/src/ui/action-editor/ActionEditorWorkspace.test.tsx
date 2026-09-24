@@ -64,9 +64,13 @@ vi.mock("./ActionTimelineEditor", () => ({
   ActionTimelineEditor: () => <div data-timeline />,
 }));
 vi.mock("./ActionEditorPrimitives", () => ({
-  ActionEditorBoneSection: ({ variant }: { variant: string }) => (
-    <div data-bones={variant} />
-  ),
+  ActionEditorBoneSection: ({
+    variant,
+    handToggle,
+  }: {
+    variant: string;
+    handToggle?: ReactNode;
+  }) => <div data-bones={variant}>{handToggle}</div>,
   ActionEditorClipInspector: () => null,
   ActionEditorClipPreviewSync: ({
     previewBasePose,
@@ -98,6 +102,24 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Action editor viewport ownership", () => {
+  it.each([true, false])(
+    "offers Hands only in Gesture Pose mode (desktop=%s)",
+    (desktop) => {
+      media.matches = desktop;
+      expect(renderToString(<ActionEditorWorkspace />)).toContain(
+        "Show hand authoring",
+      );
+      harness.mode = "clip";
+      expect(renderToString(<ActionEditorWorkspace />)).not.toContain(
+        "Show hand authoring",
+      );
+      harness.mode = "pose";
+      harness.document = createActionDocument("reaction");
+      expect(renderToString(<ActionEditorWorkspace />)).not.toContain(
+        "Show hand authoring",
+      );
+    },
+  );
   it.each([true, false])(
     "mounts one scene and one pose toolset when desktop is %s",
     (desktop) => {

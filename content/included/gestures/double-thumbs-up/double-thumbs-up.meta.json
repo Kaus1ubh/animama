@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "double-thumbs-up",
   "name": "double-thumbs-up",
-  "ai_description": "Reusable avatar pose clip",
+  "ai_description": "Give two thumbs up to express enthusiastic approval, encouragement, or celebration of success.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

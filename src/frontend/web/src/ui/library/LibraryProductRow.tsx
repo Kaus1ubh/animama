@@ -13,8 +13,15 @@ import {
 } from "lucide-react";
 
 import type { LibraryRowPresentation } from "@/lib/content/libraryPresentation";
+import { ParticleThumbnail } from "./ParticleThumbnail";
+import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/ui/components/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/ui/components/tooltip";
 
 export type LibraryLayout = "list" | "grid";
 
@@ -38,12 +45,16 @@ export function LibraryProductRow({
   actions,
   className,
   portraitUrl,
+  thumbnailUrl,
+  particleThumbnail,
   layout = "grid",
 }: {
   row: LibraryRowPresentation;
   actions: ReactNode;
   className?: string;
   portraitUrl?: string | null;
+  thumbnailUrl?: string | null;
+  particleThumbnail?: PyCatalogViewItem["particle_thumbnail"];
   layout?: LibraryLayout;
 }) {
   const Icon = icons[row.family];
@@ -58,46 +69,76 @@ export function LibraryProductRow({
         className,
       )}
     >
-      <div className="flex min-h-20 min-w-0 flex-1 items-center gap-3 px-4 py-3">
-        <Avatar className="size-10 rounded-lg">
-          {portraitUrl ? (
-            <AvatarImage src={portraitUrl} alt="" className="object-cover" />
-          ) : null}
-          <AvatarFallback className="text-muted-foreground rounded-lg">
-            <Icon className="size-5" aria-hidden="true" />
-          </AvatarFallback>
-        </Avatar>
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className="truncate font-medium">{row.name}</span>
-            {row.family === "pose" && row.origin === "Mine" ? (
-              <span className="bg-muted rounded-full px-2 py-0.5 text-[11px]">
-                Local
+      <Tooltip delayDuration={500}>
+        <TooltipTrigger asChild>
+          <div
+            tabIndex={0}
+            className="focus-visible:ring-ring flex min-h-20 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-3 py-3 outline-none focus-visible:ring-2"
+          >
+            <Avatar className="bg-muted size-10 rounded-lg">
+              {!portraitUrl && thumbnailUrl && particleThumbnail ? (
+                <ParticleThumbnail
+                  src={thumbnailUrl}
+                  source={particleThumbnail}
+                />
+              ) : portraitUrl || thumbnailUrl ? (
+                <AvatarImage
+                  src={portraitUrl || thumbnailUrl || undefined}
+                  alt=""
+                  className={
+                    portraitUrl ? "object-cover" : "object-contain p-1"
+                  }
+                />
+              ) : null}
+              <AvatarFallback className="text-muted-foreground rounded-lg">
+                <Icon className="size-5" aria-hidden="true" />
+              </AvatarFallback>
+            </Avatar>
+            <span className="min-w-0 flex-1">
+              <span className="flex min-w-0 flex-wrap items-center gap-2">
+                <span className="line-clamp-2 w-full text-sm leading-snug font-medium break-words">
+                  {row.name}
+                </span>
+                {row.family === "pose" && row.origin === "Mine" ? (
+                  <span className="bg-muted rounded-full px-2 py-0.5 text-[11px]">
+                    Local
+                  </span>
+                ) : null}
+                {row.updateAvailable ? (
+                  <span className="border-primary/35 bg-primary/10 text-primary rounded-full border px-2 py-0.5 text-[11px] font-medium">
+                    Update available
+                  </span>
+                ) : null}
+                {row.equippedCount ? (
+                  <span className="bg-muted rounded-full px-2 py-0.5 text-[11px]">
+                    Added to {row.equippedCount}
+                  </span>
+                ) : null}
               </span>
-            ) : null}
-            {row.updateAvailable ? (
-              <span className="border-primary/35 bg-primary/10 text-primary rounded-full border px-2 py-0.5 text-[11px] font-medium">
-                Update available
-              </span>
-            ) : null}
-            {row.equippedCount ? (
-              <span className="bg-muted rounded-full px-2 py-0.5 text-[11px]">
-                Added to {row.equippedCount}
-              </span>
-            ) : null}
-          </span>
+              {row.description ? (
+                <span className="text-muted-foreground mt-0.5 block text-sm">
+                  {row.description}
+                </span>
+              ) : null}
+              {row.metadata.length ? (
+                <span className="text-muted-foreground mt-1 block text-xs">
+                  {row.metadata.join(" · ")}
+                </span>
+              ) : null}
+            </span>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent
+          side="top"
+          sideOffset={6}
+          className="max-w-[min(24rem,calc(100vw-2rem))] text-left text-wrap break-words"
+        >
+          <p className="font-medium">{row.name}</p>
           {row.description ? (
-            <span className="text-muted-foreground mt-0.5 block text-sm">
-              {row.description}
-            </span>
+            <p className="mt-1 whitespace-pre-wrap">{row.description}</p>
           ) : null}
-          {row.metadata.length ? (
-            <span className="text-muted-foreground mt-1 block text-xs">
-              {row.metadata.join(" · ")}
-            </span>
-          ) : null}
-        </span>
-      </div>
+        </TooltipContent>
+      </Tooltip>
       <div
         className={cn(
           "flex shrink-0 flex-wrap items-center gap-2 px-4 py-3",

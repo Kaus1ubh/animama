@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import struct
 from pathlib import Path
 
@@ -91,3 +92,32 @@ def test_scan_admits_simple_sidecar_and_descriptor_entries_independently(tmp_pat
     assert by_locator["gestures/bad-id.vrma"].status is ContentStatus.INVALID
     assert by_locator["gestures/bad-id.vrma"].logical_key is None
     assert by_locator["gestures/bad-id.vrma"].diagnostics[0].code == "invalid_logical_key"
+
+
+@pytest.mark.parametrize("source", [ContentSource.INCLUDED, ContentSource.LOCAL])
+def test_avatar_effect_scan_keeps_authored_effects_without_listing_loose_artwork(
+    tmp_path: Path, source: ContentSource
+) -> None:
+    paths = initialize_local_runtime(
+        Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
+    )
+    root = paths.included_root if source is ContentSource.INCLUDED else paths.local_root
+    effect_root = root / "vfx/avatar"
+    effect_root.mkdir(parents=True, exist_ok=True)
+    shipped_eye = Path(__file__).parents[1] / "content/included/vfx/avatar/eye"
+    shutil.copytree(shipped_eye, effect_root / "eye")
+    if source is ContentSource.INCLUDED:
+        shutil.copytree(shipped_eye.parents[2] / "licenses", root / "licenses", dirs_exist_ok=True)
+    for extension in ("png", "jpg", "jpeg", "webp", "svg"):
+        # Artwork is not a playable entry, regardless of its image format.
+        (effect_root / f"loose.{extension}").write_bytes((shipped_eye / "eye_=_r.png").read_bytes())
+
+    entries = FilesystemContentStore(
+        included_root=paths.included_root,
+        local_root=paths.local_root,
+        operations_root=paths.operations_root,
+    ).scan(source)
+
+    assert [entry.relative_locator for entry in entries] == ["vfx/avatar/eye"]
+    assert entries[0].status is ContentStatus.VALID
+    assert all((effect_root / f"loose.{extension}").exists() for extension in ("png", "jpg", "jpeg", "webp", "svg"))

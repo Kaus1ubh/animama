@@ -70,9 +70,6 @@ export function avatarEffectDefinition(
     ...(document.animationConfig
       ? { animationConfig: structuredClone(document.animationConfig) }
       : {}),
-    ...(document.lifetime
-      ? { lifetime: structuredClone(document.lifetime) }
-      : {}),
     ...(document.sound ? { soundAlias: document.sound.alias } : {}),
   };
   if (document.kind === "hover") {
@@ -196,30 +193,6 @@ export function validateAvatarEffectDocument(
           message: `${group} ${axis.toUpperCase()} must be between ${bounds[0]} and ${bounds[1]}.`,
         });
     }
-  }
-  if (
-    document.lifetime?.kind === "duration" &&
-    (!Number.isFinite(document.lifetime.runEndBufferSec) ||
-      document.lifetime.runEndBufferSec < 0 ||
-      document.lifetime.runEndBufferSec > 30)
-  ) {
-    issues.push({
-      field: "lifetime",
-      severity: "error",
-      message: "Duration must be between 0 and 30 seconds.",
-    });
-  }
-  if (
-    document.lifetime?.kind === "turns" &&
-    (!Number.isInteger(document.lifetime.turns) ||
-      document.lifetime.turns < 1 ||
-      document.lifetime.turns > 8)
-  ) {
-    issues.push({
-      field: "lifetime",
-      severity: "error",
-      message: "Conversation lifetime must be between 1 and 8 whole turns.",
-    });
   }
   if (document.sound && !isExactContentSource(document.sound.source)) {
     issues.push({

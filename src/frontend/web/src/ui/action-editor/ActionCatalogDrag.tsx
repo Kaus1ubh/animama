@@ -43,6 +43,7 @@ import {
 
 type DropTarget = {
   track: RefObject<HTMLDivElement | null>;
+  viewport?: RefObject<HTMLDivElement | null>;
   section: RefObject<HTMLElement | null>;
   expanded: boolean;
   onExpandedChange?: (value: boolean) => void;
@@ -101,6 +102,15 @@ export function ActionCatalogDragProvider({
     const current = drag.current;
     const dropTarget = target.current;
     if (!current || !dropTarget?.expanded || !dropTarget.track.current)
+      return null;
+    const viewport = dropTarget.viewport?.current?.getBoundingClientRect();
+    if (
+      viewport &&
+      (current.point.x < viewport.left ||
+        current.point.x > viewport.right ||
+        current.point.y < viewport.top ||
+        current.point.y > viewport.bottom)
+    )
       return null;
     const state = usePoseCreatorStore.getState();
     const time = resolveTimelineDropTime(
@@ -375,10 +385,16 @@ export function CatalogDragHandle({
 export function useCatalogTimelineDrop(target: DropTarget, enabled: boolean) {
   const access = useContext(DragAccessContext);
   const preview = useContext(DropPreviewContext);
-  const { track, section, expanded, onExpandedChange } = target;
+  const { track, viewport, section, expanded, onExpandedChange } = target;
   useEffect(() => {
     if (!enabled || !access?.enabled) return;
-    return access.register({ track, section, expanded, onExpandedChange });
-  }, [access, enabled, track, section, expanded, onExpandedChange]);
+    return access.register({
+      track,
+      viewport,
+      section,
+      expanded,
+      onExpandedChange,
+    });
+  }, [access, enabled, track, viewport, section, expanded, onExpandedChange]);
   return enabled ? preview : null;
 }

@@ -14,7 +14,7 @@ export function createDefaultAvatarEffectDocument(): AvatarEffectEditorDocument 
       rotation: { x: 0, y: 0, z: 0 },
     },
     animationConfig: null,
-    lifetime: { kind: "duration", runEndBufferSec: 2 },
+    lifetime: null,
     image: null,
     sound: null,
     hover: {

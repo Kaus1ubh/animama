@@ -30,7 +30,6 @@ import {
   EMOTION_INTENSITY_MAP,
   type EmotionExpressionComposition,
 } from "@/lib/avatar/emotionExpressionPresets";
-import { getAvatarVFXCatalogEntryById } from "@/lib/avatar/vfx/runtime";
 import {
   EMOTION_GROUPS,
   EMOTION_GROUP_MEMBERS,
@@ -71,7 +70,6 @@ import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import {
   useAnimaAnimationDebugStore,
   type AnimaAnimationActionDebug,
-  type AnimaAnimationDebugSnapshot,
 } from "@/stores/anima-animation-debug-store";
 import {
   useVoiceVadDebugStore,
@@ -99,7 +97,6 @@ type ActionWeightTrend = "increasing" | "decreasing" | "stable";
 
 const ACTION_WEIGHT_TREND_EPS = 0.005;
 const EMPTY_ACTIVE_ACTIONS: AnimaAnimationActionDebug[] = [];
-const EMPTY_RUNTIME_VFX: AnimaAnimationDebugSnapshot["runtimeVfx"] = [];
 const EMPTY_PLANNER_EVENTS: ReturnType<
   typeof useAvatarRuntimeStore.getState
 >["plannerEvents"] = [];
@@ -229,24 +226,6 @@ function areEmotionStateMapsEqual(
   right: EmotionStateMap,
 ): boolean {
   return TRACKED_EMOTIONS.every((emotion) => left[emotion] === right[emotion]);
-}
-
-function formatVfxRegionLabel(region: string): string {
-  return region
-    .split("_")
-    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
-    .join(" ");
-}
-
-function formatVfxLifetimeSummary(
-  snapshot: AnimaAnimationDebugSnapshot["runtimeVfx"][number],
-): string {
-  if (snapshot.lifetime.kind === "duration") {
-    const seconds = snapshot.lifetime.runEndBufferSec;
-    return `${seconds} sec${seconds === 1 ? "" : "s"}`;
-  }
-  const turns = snapshot.lifetime.turns;
-  return `${turns} turn${turns === 1 ? "" : "s"}`;
 }
 
 function formatEmotionPresetComposition(
@@ -402,7 +381,6 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
   const signalsSectionEnabled = isAnimaDebugSectionAvailable("signals");
   const voiceVadSectionEnabled = isAnimaDebugSectionAvailable("voiceVad");
   const emotionSectionEnabled = isAnimaDebugSectionAvailable("emotion");
-  const vfxSectionEnabled = isAnimaDebugSectionAvailable("vfx");
   const activeActionsSectionEnabled =
     isAnimaDebugSectionAvailable("activeActions");
   const mainThreadHealthSectionEnabled =
@@ -417,7 +395,6 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
   const manifestAnimationsSectionEnabled =
     isAnimaDebugSectionAvailable("manifestAnimations");
   const animationSectionOpen = animationSectionEnabled && sectionOpen.animation;
-  const vfxSectionOpen = vfxSectionEnabled && sectionOpen.vfx;
   const activeActionsSectionOpen =
     activeActionsSectionEnabled && sectionOpen.activeActions;
   const mainThreadHealthSectionOpen =
@@ -431,7 +408,7 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
     isAnimaDebugProducerEnabled("systemMetrics");
   const animationSnapshotConsumerEnabled =
     animationSnapshotProducerEnabled &&
-    (animationSectionOpen || vfxSectionOpen || activeActionsSectionOpen);
+    (animationSectionOpen || activeActionsSectionOpen);
   const mainThreadHealthMetricsEnabled =
     systemMetricsProducerEnabled && mainThreadHealthSectionOpen;
   const runtimeCapabilitiesMetricsEnabled =
@@ -640,11 +617,6 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
   const plan = animationSnapshotConsumerEnabled
     ? (snapshot?.plan ?? null)
     : null;
-  const activeRuntimeVfx = animationSnapshotConsumerEnabled
-    ? [...(snapshot?.runtimeVfx ?? EMPTY_RUNTIME_VFX)].sort(
-        (left, right) => left.order - right.order,
-      )
-    : EMPTY_RUNTIME_VFX;
   const resolvedEmotionEditorAnimaId =
     runtime.animaId ?? snapshot?.animaId ?? null;
   const normalizedRuntimeEmotionValues = useMemo(
@@ -1681,58 +1653,6 @@ function AnimaDebugPanelContent({ className }: AnimaDebugPanelProps) {
                 </div>
               ) : null}
             </div>
-          </Section>
-
-          <Section
-            title={`VFX (${activeRuntimeVfx.length})`}
-            isOpen={sectionOpen.vfx}
-            onToggle={() => toggleSection("vfx")}
-            disabled={!isAnimaDebugSectionAvailable("vfx")}
-          >
-            {animationSnapshotConsumerEnabled && !snapshot ? (
-              <div className="border-border/60 text-muted-foreground rounded border px-2 py-1">
-                Waiting for a live avatar snapshot.
-              </div>
-            ) : activeRuntimeVfx.length === 0 ? (
-              <div className="border-border/60 text-muted-foreground rounded border px-2 py-1">
-                No runtime VFX applied
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                {activeRuntimeVfx.map((entry) => {
-                  const catalogEntry = getAvatarVFXCatalogEntryById(
-                    entry.effectId,
-                  );
-                  const effectLabel =
-                    catalogEntry?.label ?? truncateMiddle(entry.effectId, 36);
-                  const effectTitle = catalogEntry
-                    ? `${catalogEntry.label} (${catalogEntry.id})`
-                    : entry.effectId;
-                  return (
-                    <div
-                      key={`${entry.effectId}:${entry.revision}:${entry.order}`}
-                      className="border-border/60 space-y-1 rounded border px-2 py-1 font-mono text-[11px]"
-                    >
-                      <div
-                        className="flex items-center justify-between gap-2"
-                        title={effectTitle}
-                      >
-                        <span className="truncate">{effectLabel}</span>
-                        <span className="text-muted-foreground shrink-0">
-                          {formatVfxRegionLabel(entry.region)}
-                        </span>
-                      </div>
-                      <div className="text-muted-foreground flex items-center justify-between gap-2">
-                        <span className="truncate">{entry.effectId}</span>
-                        <span className="shrink-0">
-                          {formatVfxLifetimeSummary(entry)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </Section>
 
           <Section

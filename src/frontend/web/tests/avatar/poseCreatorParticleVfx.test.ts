@@ -53,7 +53,7 @@ function createReadyClipDraft(
 }
 
 describe("pose creator particle VFX authoring", () => {
-  it("creates particle events from catalog defaults", () => {
+  it("uses catalog placement defaults and ends particle events with the Action", () => {
     const draft = createReadyClipDraft();
     const event = createPoseCreatorClipParticleVFXEventDraft(
       draft,
@@ -67,7 +67,6 @@ describe("pose creator particle VFX authoring", () => {
       kind: "particle_vfx",
       effectId: "hearts",
       anchor: "head",
-      duration: 1.8,
       followAnchor: true,
       transform: {
         offset: { x: 0, y: 0.32, z: 0 },
@@ -76,6 +75,7 @@ describe("pose creator particle VFX authoring", () => {
         scale: { x: 1, y: 1, z: 1 },
       },
     });
+    expect(event.duration).toBeUndefined();
   });
 
   it("patches particle anchor, follow behavior, and transform fields", () => {

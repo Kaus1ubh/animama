@@ -33,7 +33,7 @@ export {
 
 type UseChatSessionArgs = Omit<
   UseProductChatSessionArgs,
-  "runtime" | "effects" | "speech" | "dispatchOptions" | "disableVfx"
+  "runtime" | "effects" | "speech" | "dispatchOptions"
 >;
 
 /** Local composition supplies settings, playback and mounted-content effects to the shared session. */
@@ -63,14 +63,8 @@ export function useChatSession(args: UseChatSessionArgs) {
   const markAvatarSpeechEnded = useAvatarRuntimeStore(
     (state) => state.markSpeechEnded,
   );
-  const completeAvatarTurn = useAvatarRuntimeStore(
-    (state) => state.completeTurn,
-  );
   const finishAvatarRun = useAvatarRuntimeStore((state) => state.finishRun);
   const abortAvatarRun = useAvatarRuntimeStore((state) => state.abortRun);
-  const clearAvatarRuntimeVfx = useAvatarRuntimeStore(
-    (state) => state.clearRuntimeVfx,
-  );
   const applyAvatarEmotionUpdate = useAvatarRuntimeStore(
     (state) => state.applyEmotionUpdate,
   );
@@ -303,10 +297,8 @@ export function useChatSession(args: UseChatSessionArgs) {
     markNonTtsResponseStarted,
     requestNonTtsResponseCompletion,
     markAvatarSpeechEnded,
-    completeAvatarTurn,
     finishAvatarRun,
     abortAvatarRun,
-    clearAvatarRuntimeVfx,
     applyAvatarEmotionUpdate,
     requestAvatarGesture,
     queueAvatarVisemeInputsForRun,
@@ -361,6 +353,5 @@ export function useChatSession(args: UseChatSessionArgs) {
     effects,
     speech,
     dispatchOptions: chatRequestOptions,
-    disableVfx: effectivePreferences.presentation?.disable_vfx === true,
   });
 }

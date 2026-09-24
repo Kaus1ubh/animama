@@ -263,3 +263,27 @@ test("creator guard permits Pose previews but blocks unarmed Pose mutations", as
   await assert.rejects(guard.assertPolicy(evidence()), /1 forbidden mutation/);
   await guard.dispose();
 });
+
+test("creator guard admits batch preview preparation only at the expected origin", async () => {
+  const page = new FakePage();
+  const guard = await CreatorMutationGuard.attach(
+    page as unknown as Page,
+    "http://localhost:8000",
+  );
+  assert.equal(
+    await page.issue(
+      request("POST", "http://localhost:8000/v1/content/previews:prepare"),
+    ),
+    "continued",
+  );
+  await guard.assertPolicy(evidence());
+  for (const [method, url] of [
+    ["POST", "http://untrusted.local/v1/content/previews:prepare"],
+    ["PUT", "http://localhost:8000/v1/content/previews:prepare"],
+    ["POST", "http://localhost:8000/v1/content/items:save"],
+  ]) {
+    assert.equal(await page.issue(request(method, url)), "aborted");
+  }
+  await assert.rejects(guard.assertPolicy(evidence()), /3 forbidden/);
+  await guard.dispose();
+});

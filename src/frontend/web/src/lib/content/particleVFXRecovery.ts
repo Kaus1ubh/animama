@@ -103,18 +103,34 @@ export async function loadParticleVFXRecovery(
   }
 }
 
+/** Explicit Discard awaits the deletion commit and reports unavailable storage. */
 export async function clearParticleVFXRecovery(
   userId: string,
   source: { itemId: string } | null,
+  options: { strict?: boolean } = {},
 ): Promise<void> {
   if (typeof window === "undefined") return;
-  clearLocalFallback(userId, source);
   try {
+    clearLocalFallback(userId, source, options.strict);
+    if (!window.indexedDB) return;
     const database = await openDatabase();
-    await databaseDelete(database, recoveryKey(userId, source));
-    database.close();
-  } catch {
-    // Clearing a missing/unavailable recovery database is already successful.
+    try {
+      await databaseDelete(
+        database,
+        recoveryKey(userId, source),
+        options.strict,
+      );
+    } finally {
+      database.close();
+    }
+  } catch (cause) {
+    if (options.strict) {
+      throw new Error(
+        "Browser recovery could not be discarded. Please retry.",
+        { cause },
+      );
+    }
+    // Save cleanup remains best-effort when browser storage is unavailable.
   }
 }
 
@@ -189,9 +205,16 @@ function databasePut(
   ).then(() => undefined);
 }
 
-function databaseDelete(database: IDBDatabase, key: string): Promise<void> {
-  return databaseRequest(database, "readwrite", (store) =>
-    store.delete(key),
+function databaseDelete(
+  database: IDBDatabase,
+  key: string,
+  waitForCommit = false,
+): Promise<void> {
+  return databaseRequest(
+    database,
+    "readwrite",
+    (store) => store.delete(key),
+    waitForCommit,
   ).then(() => undefined);
 }
 
@@ -199,11 +222,15 @@ function databaseRequest(
   database: IDBDatabase,
   mode: IDBTransactionMode,
   action: (store: IDBObjectStore) => IDBRequest,
+  waitForCommit = false,
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, mode);
     const request = action(transaction.objectStore(STORE_NAME));
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      if (!waitForCommit) resolve(request.result);
+    };
+    if (waitForCommit) transaction.oncomplete = () => resolve(request.result);
     request.onerror = () =>
       reject(request.error ?? new Error("IndexedDB request failed"));
     transaction.onabort = () =>
@@ -221,10 +248,12 @@ function localFallbackKey(
 function clearLocalFallback(
   userId: string,
   source: { itemId: string } | null,
+  strict = false,
 ): void {
   try {
     window.localStorage.removeItem(localFallbackKey(userId, source));
-  } catch {
+  } catch (cause) {
+    if (strict) throw cause;
     // Browser privacy settings may disable localStorage independently of IDB.
   }
 }

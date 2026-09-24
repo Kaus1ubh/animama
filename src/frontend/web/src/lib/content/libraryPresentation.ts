@@ -21,6 +21,8 @@ export type LibraryProductCard = {
     | "sound";
   name: string;
   description: string;
+  thumbnailUrl?: string | null;
+  particleThumbnail?: PyCatalogViewItem["particle_thumbnail"];
   origin: "Built-in" | "Mine";
   sourceLabel: string;
   updateAvailable: boolean;
@@ -187,6 +189,8 @@ export function effectLibraryCard(
     family,
     name: value.name,
     description: value.description?.trim() || "No description",
+    thumbnailUrl: value.thumbnail_url,
+    particleThumbnail: value.particle_thumbnail,
     origin: value.origin === "builtin" ? "Built-in" : "Mine",
     sourceLabel: value.catalog_source === "included" ? "Included" : "Local",
     updateAvailable: false,

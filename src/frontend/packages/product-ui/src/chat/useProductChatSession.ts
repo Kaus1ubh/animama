@@ -103,7 +103,6 @@ export type UseProductChatSessionArgs = {
   effects?: ChatSessionEffects;
   speech?: ChatSpeechPolicy;
   dispatchOptions?: PyAnimaDispatchOptions | null;
-  disableVfx?: boolean;
   animaId: string;
   routeChatId?: string | null;
   getAttachedFileIds?: () => string[];
@@ -192,7 +191,6 @@ export function useProductChatSession({
   effects = textOnlyChatEffects,
   speech = textOnlySpeechPolicy,
   dispatchOptions: chatRequestOptions,
-  disableVfx = false,
   animaId,
   getAttachedFileIds,
   openDraftChatRoute,
@@ -313,10 +311,8 @@ export function useProductChatSession({
     markNonTtsResponseStarted,
     requestNonTtsResponseCompletion,
     markAvatarSpeechEnded,
-    completeAvatarTurn,
     finishAvatarRun,
     abortAvatarRun,
-    clearAvatarRuntimeVfx,
     applyAvatarEmotionUpdate,
     requestAvatarGesture,
     queueAvatarVisemeInputsForRun,
@@ -527,13 +523,6 @@ export function useProductChatSession({
     if (!animaId || anima?.id !== animaId) return;
     setAnimaEmotionSnapshot(anima?.emotional_state ?? null);
   }, [anima?.emotional_state, anima?.id, animaId, setAnimaEmotionSnapshot]);
-
-  useEffect(() => {
-    if (disableVfx !== true) {
-      return;
-    }
-    clearAvatarRuntimeVfx();
-  }, [clearAvatarRuntimeVfx, disableVfx]);
 
   useEffect(() => {
     if (routeChatId && draftChatId === routeChatId) {
@@ -1294,7 +1283,6 @@ export function useProductChatSession({
                 visemeInputsQueued,
               });
             }
-            completeAvatarTurn(completedRunId);
             if (ttsEnabled && !ttsSkippedForRun(completedRunId)) {
               if (voiceStructuredResponseSeen) {
                 if (!voiceTtsCompleted) {
@@ -1450,7 +1438,6 @@ export function useProductChatSession({
       cancelTts,
       clearAvatarVisemeBridgeAll,
       clearAvatarVisemeBridgeRun,
-      completeAvatarTurn,
       completeElevenLabsFinalizedAudio,
       completeTtsRun,
       markNonTtsResponseStarted,

@@ -45,6 +45,7 @@ from .content_file_validation import ContentFileInvalidError
 from .content_gltf import MAX_VRM_SOURCE_BYTES, validate_vrm_stream
 from .content_image import MAX_APPEARANCE_SOURCE_BYTES, validate_appearance_image_stream
 from .content_pose import validate_resolved_pose
+from .content_svg import validate_svg_file
 
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_DOCUMENT_DEPTH = 32
@@ -344,6 +345,8 @@ def validate_standalone_file(
         return (ContentDiagnostic("empty_file", "Content files cannot be empty"),)
     if size > definition.max_file_bytes:
         return (ContentDiagnostic("file_too_large", "File exceeds the supported size limit"),)
+    if suffix == ".svg":
+        return validate_svg_file(path)
     if suffix == ".vrm" or definition.kind is ContentKind.APPEARANCE and suffix in {".png", ".jpg", ".jpeg", ".webp"}:
         try:
             with path.open("rb") as handle:
@@ -1618,7 +1621,8 @@ CONTENT_TYPE_HANDLERS = ContentTypeHandlerRegistry(
             ContentKindDefinition(
                 ContentKind.AVATAR_EFFECT,
                 "vfx/avatar",
-                frozenset({".png", ".jpg", ".jpeg", ".webp", ".svg"}),
+                # Images are effect resources; only authored descriptors define playback.
+                frozenset(),
                 ".json",
                 "avatar_effect",
             )

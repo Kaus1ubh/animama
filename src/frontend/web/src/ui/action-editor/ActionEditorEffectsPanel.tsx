@@ -10,9 +10,9 @@ import {
   SparklesIcon,
   UserRoundIcon,
   Volume2Icon,
-  XIcon,
   type LucideIcon,
 } from "lucide-react";
+import { TimelineIcon } from "@/ui/components/TimelineIcon";
 import { useEffect, useMemo, useState } from "react";
 
 import type {
@@ -90,7 +90,8 @@ type ActionEditorEffectsPanelProps = {
   sections: ActionDependencySection[];
   dependencies: PyContentDependency[];
   onAdd: (item: PyCatalogViewItem, contentType: ActionComponentType) => void;
-  onRemove: (alias: string) => void;
+  timelineEnabled?: boolean;
+  onTimelineEnabledChange?: (enabled: boolean) => void;
   /** Browser-local Pose drafts shown only by the Gesture creator. */
   poses?: PyPose[];
   posesPending?: boolean;
@@ -119,7 +120,8 @@ export function ActionEditorEffectsPanel({
   sections,
   dependencies,
   onAdd,
-  onRemove,
+  timelineEnabled = true,
+  onTimelineEnabledChange,
   poses,
   posesPending = false,
   posesError = null,
@@ -159,15 +161,6 @@ export function ActionEditorEffectsPanel({
   const activeSection = sections.find(
     (section) => section.contentType === activeTab.contentType,
   );
-  const itemsByType = useMemo(
-    () =>
-      new Map(
-        sections.map(
-          (section) => [section.contentType, section.items] as const,
-        ),
-      ),
-    [sections],
-  );
   const filteredPoses = useMemo(() => {
     const normalizedQuery = poseQuery.trim().toLocaleLowerCase();
     if (!normalizedQuery) return poses ?? [];
@@ -200,14 +193,34 @@ export function ActionEditorEffectsPanel({
             </p>
           ) : null}
         </div>
-        {!mobile && onExpandedChange ? (
-          <CreatorPanelCollapseButton
-            label={panelLabel.toLocaleLowerCase()}
-            expanded={expanded}
-            collapseDirection="up"
-            onExpandedChange={onExpandedChange}
-          />
-        ) : null}
+        <div className="flex shrink-0 items-center gap-1">
+          {onTimelineEnabledChange ? (
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="outline"
+              className={cn(
+                "bg-background size-11 shrink-0 rounded-lg shadow-none lg:size-9",
+                timelineEnabled &&
+                  "border-primary/40 bg-primary/8 text-primary",
+              )}
+              aria-label="Show timeline events"
+              aria-pressed={timelineEnabled}
+              title="Show timeline events"
+              onClick={() => onTimelineEnabledChange(!timelineEnabled)}
+            >
+              <TimelineIcon className="size-4" />
+            </Button>
+          ) : null}
+          {!mobile && onExpandedChange ? (
+            <CreatorPanelCollapseButton
+              label={panelLabel.toLocaleLowerCase()}
+              expanded={expanded}
+              collapseDirection="up"
+              onExpandedChange={onExpandedChange}
+            />
+          ) : null}
+        </div>
       </div>
 
       {expanded ? (
@@ -392,24 +405,6 @@ export function ActionEditorEffectsPanel({
                       ? "Loading more…"
                       : `Show more ${activeTab.catalogLabel.toLowerCase()}`}
                   </Button>
-                ) : null}
-
-                {dependencies.length ? (
-                  <div className="border-border/70 mt-4 border-t pt-3">
-                    <p className="text-muted-foreground mb-2 text-[11px] font-semibold tracking-wide uppercase">
-                      Added to timeline · {dependencies.length}
-                    </p>
-                    <div className="space-y-1.5">
-                      {dependencies.map((dependency) => (
-                        <AddedEffectRow
-                          key={dependency.alias}
-                          dependency={dependency}
-                          items={itemsByType.get(dependency.content_type) ?? []}
-                          onRemove={() => onRemove(dependency.alias)}
-                        />
-                      ))}
-                    </div>
-                  </div>
                 ) : null}
               </>
             )}
@@ -616,50 +611,6 @@ function EffectCatalogRow({
   );
 }
 
-function AddedEffectRow({
-  dependency,
-  items,
-  onRemove,
-}: {
-  dependency: PyContentDependency;
-  items: PyCatalogViewItem[];
-  onRemove: () => void;
-}) {
-  const tab =
-    EFFECT_TABS.find(
-      (candidate) => candidate.contentType === dependency.content_type,
-    ) ?? EFFECT_TABS[0];
-  const Icon = tab.icon;
-  const item = items.find(
-    (candidate) =>
-      exactSourceKey(candidate.source) === exactSourceKey(dependency.source),
-  );
-  return (
-    <div className="bg-muted/45 flex min-h-10 items-center gap-2 rounded-lg px-2 py-1.5">
-      <Icon className="text-muted-foreground size-3.5 shrink-0" />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium">
-          {item?.name ?? humanizeAlias(dependency.alias)}
-        </p>
-        <p className="text-muted-foreground truncate text-[10px]">
-          {tab.label}
-        </p>
-      </div>
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className="size-7 rounded-full"
-        onClick={onRemove}
-        aria-label={`Remove ${item?.name ?? dependency.alias} and its timeline events`}
-        title="Remove effect and its timeline events"
-      >
-        <XIcon className="size-3.5" />
-      </Button>
-    </div>
-  );
-}
-
 function dependencyCount(
   dependencies: PyContentDependency[],
   contentType: ActionComponentType,
@@ -681,12 +632,4 @@ function exactSourceKey(source: PyExactContentSource | null | undefined) {
     : source.content_id && source.version != null
       ? `builtin:${source.content_id}@${source.version}`
       : null;
-}
-
-function humanizeAlias(alias: string) {
-  return alias
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 }

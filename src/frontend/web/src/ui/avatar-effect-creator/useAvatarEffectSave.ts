@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import { saveCatalogItem } from "@/lib/content/catalogApi";
+import { ContentRecoveryLifecycle } from "@/lib/content/contentRecoveryLifecycle";
 import {
   AVATAR_EFFECT_RECOVERY_SCHEMA,
   avatarEffectDefinition,
@@ -85,7 +86,13 @@ export function useAvatarEffectSave(args: {
   const [recoveryReady, setRecoveryReady] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const sessionRef = useRef<SaveSession | null>(null);
-  const sessionGenerationRef = useRef(0);
+  const recoveryLifecycle = useMemo(
+    () => new ContentRecoveryLifecycle(),
+    // Each recovery key owns an independent queue, including owner changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [documentKey, userId],
+  );
+  const pendingResetFingerprintRef = useRef<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const busy = ["preparing", "hashing", "uploading", "validating"].includes(
     stage,
@@ -98,8 +105,9 @@ export function useAvatarEffectSave(args: {
     // Let the replacement effect run after React Strict Mode cancels its first
     // setup pass; a persistent "already restored" ref would strand Save.
     let cancelled = false;
+    const generation = recoveryLifecycle.capture();
     void loadAvatarEffectRecovery(userId, documentKey).then((recovery) => {
-      if (cancelled) return;
+      if (cancelled || !recoveryLifecycle.isCurrent(generation)) return;
       if (recovery) {
         sessionRef.current = {
           operationId: recovery.operationId,
@@ -118,7 +126,7 @@ export function useAvatarEffectSave(args: {
     return () => {
       cancelled = true;
     };
-  }, [documentKey, onRestore, userId]);
+  }, [documentKey, onRestore, recoveryLifecycle, userId]);
 
   const persist = useCallback(
     async (
@@ -129,7 +137,9 @@ export function useAvatarEffectSave(args: {
       },
     ) => {
       if (!userId) return;
-      const result = await saveAvatarEffectRecovery({
+      const generation = recoveryLifecycle.capture();
+      if (!recoveryLifecycle.isCurrent(generation)) return;
+      const recovery = {
         schema: AVATAR_EFFECT_RECOVERY_SCHEMA,
         userId,
         documentKey,
@@ -138,17 +148,27 @@ export function useAvatarEffectSave(args: {
         imageResource,
         contentFingerprint: session.contentFingerprint,
         updatedAt: new Date().toISOString(),
-      });
-      setRecoveryWarning(result.warning);
+      };
+      const result = await recoveryLifecycle.write(generation, () =>
+        saveAvatarEffectRecovery(recovery),
+      );
+      if (result && recoveryLifecycle.isCurrent(generation))
+        setRecoveryWarning(result.warning);
     },
-    [document, documentKey, imageResource, userId],
+    [document, documentKey, imageResource, recoveryLifecycle, userId],
   );
 
   useEffect(() => {
     if (!userId || !recoveryReady || !initialized || busy) return;
-    const generation = sessionGenerationRef.current;
+    if (pendingResetFingerprintRef.current !== null) {
+      if (fingerprint !== pendingResetFingerprintRef.current) return;
+      pendingResetFingerprintRef.current = null;
+      recoveryLifecycle.resume();
+    }
+    const generation = recoveryLifecycle.capture();
+    if (!recoveryLifecycle.isCurrent(generation)) return;
     const timeout = window.setTimeout(() => {
-      if (generation !== sessionGenerationRef.current) return;
+      if (!recoveryLifecycle.isCurrent(generation)) return;
       const session = sessionRef.current ?? {
         operationId: crypto.randomUUID(),
         contentFingerprint: fingerprint,
@@ -158,9 +178,18 @@ export function useAvatarEffectSave(args: {
       void persist(session);
     }, 350);
     return () => window.clearTimeout(timeout);
-  }, [busy, fingerprint, initialized, persist, recoveryReady, userId]);
+  }, [
+    busy,
+    fingerprint,
+    initialized,
+    persist,
+    recoveryLifecycle,
+    recoveryReady,
+    userId,
+  ]);
 
   const save = useCallback(async (): Promise<boolean> => {
+    if (!recoveryLifecycle.isCurrent(recoveryLifecycle.capture())) return false;
     if (
       !userId ||
       !recoveryReady ||
@@ -225,7 +254,10 @@ export function useAvatarEffectSave(args: {
         expectedRevision: saveTarget.expectedRevision,
       });
       setUploadProgress(100);
-      await clearAvatarEffectRecovery(userId, documentKey);
+      await recoveryLifecycle.discard(() =>
+        clearAvatarEffectRecovery(userId, documentKey),
+      );
+      recoveryLifecycle.resume();
       sessionRef.current = null;
       setRecovered(false);
       setRecoveryWarning(null);
@@ -270,6 +302,7 @@ export function useAvatarEffectSave(args: {
     navigate,
     onSaved,
     persist,
+    recoveryLifecycle,
     ready,
     recoveryReady,
     setSaveFailureMessage,
@@ -278,7 +311,10 @@ export function useAvatarEffectSave(args: {
 
   const discardRecovery = useCallback(async () => {
     if (!userId || busy) return;
-    await clearAvatarEffectRecovery(userId, documentKey);
+    await recoveryLifecycle.discard(() =>
+      clearAvatarEffectRecovery(userId, documentKey),
+    );
+    recoveryLifecycle.resume();
     sessionRef.current = {
       operationId: crypto.randomUUID(),
       contentFingerprint: fingerprint,
@@ -289,27 +325,54 @@ export function useAvatarEffectSave(args: {
     setStage("idle");
     const nextSession = sessionRef.current;
     await persist(nextSession);
-  }, [busy, clearSaveFailure, documentKey, fingerprint, persist, userId]);
+  }, [
+    busy,
+    clearSaveFailure,
+    documentKey,
+    fingerprint,
+    persist,
+    recoveryLifecycle,
+    userId,
+  ]);
 
-  /** Discard the current browser recovery/session before starting a blank document. */
+  /** Discard this key's recovery without allowing older writes or restores to revive it. */
+  const discardChanges = useCallback(async (): Promise<boolean> => {
+    if (
+      !userId ||
+      busy ||
+      !recoveryLifecycle.isCurrent(recoveryLifecycle.capture())
+    )
+      return false;
+    try {
+      await recoveryLifecycle.discard(() =>
+        clearAvatarEffectRecovery(userId, documentKey, { strict: true }),
+      );
+    } catch (caught) {
+      recoveryLifecycle.resume();
+      throw caught;
+    }
+    sessionRef.current = null;
+    clearSaveFailure();
+    setRecovered(false);
+    setRecoveryWarning(null);
+    setUploadProgress(0);
+    setStage("idle");
+    return true;
+  }, [busy, clearSaveFailure, documentKey, recoveryLifecycle, userId]);
+
+  /** Resume recovery only after the caller replaces the old document with this fingerprint. */
   const resetSession = useCallback(
     async (nextFingerprint: string): Promise<boolean> => {
-      if (!userId || busy) return false;
-      sessionGenerationRef.current += 1;
-      controllerRef.current?.abort();
-      await clearAvatarEffectRecovery(userId, documentKey);
+      if (!(await discardChanges())) return false;
+      pendingResetFingerprintRef.current = nextFingerprint;
       sessionRef.current = {
         operationId: crypto.randomUUID(),
         contentFingerprint: nextFingerprint,
       };
-      clearSaveFailure();
-      setRecovered(false);
-      setRecoveryWarning(null);
-      setUploadProgress(0);
-      setStage("idle");
+      setRecoveryReady(true);
       return true;
     },
-    [busy, clearSaveFailure, documentKey, userId],
+    [discardChanges],
   );
 
   return {
@@ -322,6 +385,7 @@ export function useAvatarEffectSave(args: {
       !busy,
     ),
     discardRecovery,
+    discardChanges,
     error,
     errorField,
     clearSaveErrorField,

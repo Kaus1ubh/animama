@@ -87,6 +87,7 @@ export function useParticleVFXSave({
     useState(false);
   const sessionRef = useRef<SaveSession | null>(null);
   const sessionGenerationRef = useRef(0);
+  const discardingRef = useRef(false);
   const controllerRef = useRef<AbortController | null>(null);
   const restoredKeyRef = useRef<string | null>(null);
   const acknowledgedNoticeFingerprintRef = useRef<string | null>(null);
@@ -177,7 +178,7 @@ export function useParticleVFXSave({
   );
 
   const save = useCallback(async (): Promise<boolean> => {
-    if (!canSave || !draft || !userId) return false;
+    if (!canSave || !draft || !userId || discardingRef.current) return false;
     const displayName = draft.catalog.label.trim();
     if (displayName.length > 120) {
       setStage("error");
@@ -308,24 +309,34 @@ export function useParticleVFXSave({
     userId,
   ]);
 
+  /** Fence asynchronous restoration before discarding only this route's recovery. */
+  const discardBeforeLeave = useCallback(async (): Promise<boolean> => {
+    if (!userId || isBusy || controllerRef.current || discardingRef.current)
+      return false;
+    discardingRef.current = true;
+    try {
+      sessionGenerationRef.current += 1;
+      await clearParticleVFXRecovery(userId, source, { strict: true });
+      sessionRef.current = null;
+      return true;
+    } finally {
+      discardingRef.current = false;
+    }
+  }, [isBusy, source, userId]);
+
   const discardRecovery = useCallback(async () => {
-    if (!userId || isBusy) return;
-    await clearParticleVFXRecovery(userId, source);
-    sessionRef.current = null;
+    if (!(await discardBeforeLeave())) return;
     setRecovered(false);
     setRecoveryWarning(null);
     clearSaveFailure();
     setStage("idle");
     onRestoreDraft(createParticleVFXEditorDraftFromBlank());
-  }, [clearSaveFailure, isBusy, onRestoreDraft, source, userId]);
+  }, [clearSaveFailure, discardBeforeLeave, onRestoreDraft]);
 
   /** Detach browser recovery and server-draft identity before starting over. */
   const resetSession = useCallback(
     async (nextDraft: ParticleVFXEditorDraft): Promise<boolean> => {
-      if (!userId || isBusy) return false;
-      sessionGenerationRef.current += 1;
-      controllerRef.current?.abort();
-      await clearParticleVFXRecovery(userId, source);
+      if (!(await discardBeforeLeave())) return false;
       sessionRef.current = newSaveSession(nextDraft);
       restoredKeyRef.current = documentKey;
       acknowledgedNoticeFingerprintRef.current = null;
@@ -337,12 +348,13 @@ export function useParticleVFXSave({
       setStage("idle");
       return true;
     },
-    [clearSaveFailure, documentKey, isBusy, source, userId],
+    [clearSaveFailure, discardBeforeLeave, documentKey],
   );
 
   return {
     canSave,
     discardRecovery,
+    discardBeforeLeave,
     error,
     errorField,
     clearSaveErrorField,

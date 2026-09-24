@@ -6,10 +6,7 @@ import type {
   AvatarInteractionPhase,
   VoiceTurnState,
 } from "@/lib/types/voice-types";
-import {
-  useAvatarRuntimeStore,
-  type RuntimeAvatarVFXEntry,
-} from "@/stores/avatar-runtime-store";
+import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
 import {
   useSceneVFXStore,
@@ -27,10 +24,7 @@ export type DesktopPipAvatarRuntimeSnapshot = {
   pendingNonTtsResponseCompletionRunId: string | null;
   plannerEvents: AvatarPlannerEvent[];
   emotionalState: EmotionalState;
-  runtimeVfx: RuntimeAvatarVFXEntry[];
   lastEmotionEventId: string | null;
-  lastCompletedTurnRunId: string | null;
-  nextRuntimeVfxOrder: number;
 };
 
 export type DesktopPipStoredLipSyncSegment = VowelVisemeLipSyncSegment & {
@@ -106,10 +100,7 @@ export function captureDesktopPipAvatarRuntimeSnapshot(): DesktopPipAvatarRuntim
       state.pendingNonTtsResponseCompletionRunId,
     plannerEvents: state.plannerEvents,
     emotionalState: state.emotionalState,
-    runtimeVfx: state.runtimeVfx,
     lastEmotionEventId: state.lastEmotionEventId,
-    lastCompletedTurnRunId: state.lastCompletedTurnRunId,
-    nextRuntimeVfxOrder: state.nextRuntimeVfxOrder,
   });
 }
 
@@ -178,10 +169,7 @@ export function applyDesktopPipVisualState(state: DesktopPipVisualState): void {
       state.avatarRuntime.pendingNonTtsResponseCompletionRunId ?? null,
     plannerEvents: state.avatarRuntime.plannerEvents ?? [],
     emotionalState: state.avatarRuntime.emotionalState,
-    runtimeVfx: state.avatarRuntime.runtimeVfx,
     lastEmotionEventId: state.avatarRuntime.lastEmotionEventId,
-    lastCompletedTurnRunId: state.avatarRuntime.lastCompletedTurnRunId,
-    nextRuntimeVfxOrder: state.avatarRuntime.nextRuntimeVfxOrder,
   });
 
   useSceneVFXStore.getState().replaceActiveByKind(state.sceneVfx);

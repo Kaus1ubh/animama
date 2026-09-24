@@ -7,7 +7,6 @@ import type {
   AnimationLoopType,
   AvatarAnimationState,
 } from "@/lib/avatar";
-import type { RuntimeAvatarVFXEntry } from "@/stores/avatar-runtime-store";
 
 export type AnimaAnimationActionDebug = {
   name: string;
@@ -45,7 +44,6 @@ export type AnimaAnimationDebugSnapshot = {
   plan: AnimaAnimationPlanDebug | null;
   currentAction: AnimaAnimationActionDebug | null;
   activeActions: AnimaAnimationActionDebug[];
-  runtimeVfx: RuntimeAvatarVFXEntry[];
 };
 
 type AnimaAnimationDebugStoreState = {

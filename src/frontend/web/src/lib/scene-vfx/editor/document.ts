@@ -22,7 +22,12 @@ import {
 } from "./types";
 
 const COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
-const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+export const SCENE_EFFECT_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/svg+xml",
+]);
 const MAX_SCENE_IMAGE_COUNT = 16;
 const MAX_SCENE_IMAGE_BYTES = 32 * 1024 * 1024;
 
@@ -116,7 +121,7 @@ export function canonicalSceneEffectImageName(filename: string): string {
       .trim()
       .replace(/[^a-zA-Z0-9._-]+/g, "-")
       .replace(/^-+|-+$/g, "") || "scene-item";
-  return `${stem}.webp`;
+  return `${stem}${/\.svg$/i.test(basename) ? ".svg" : ".webp"}`;
 }
 
 export function uniqueSceneEffectImageName(
@@ -324,11 +329,11 @@ function validateBackground(
     resources.map((resource) => [resource.logicalName, resource]),
   );
   for (const image of metadata) {
-    if (!IMAGE_TYPES.has(image.contentType))
+    if (!SCENE_EFFECT_IMAGE_TYPES.has(image.contentType))
       issue(
         issues,
         "images",
-        `${image.originalName} is not PNG, JPEG, or WebP.`,
+        `${image.originalName} is not PNG, JPEG, WebP, or SVG.`,
       );
     if (!resourcesByName.has(image.logicalName))
       issue(

@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "hands-on-hips",
   "name": "hands-on-hips",
-  "ai_description": "Reusable avatar pose clip",
+  "ai_description": "Place both hands on the hips to express confidence, determination, or playful impatience.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

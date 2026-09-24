@@ -98,7 +98,6 @@ describe("ActionEditorEffectsPanel", () => {
         )}
         dependencies={[]}
         onAdd={() => undefined}
-        onRemove={() => undefined}
       />,
     );
     expect(html).toContain(">Upload<");
@@ -115,7 +114,6 @@ describe("ActionEditorEffectsPanel", () => {
         sections={sections}
         dependencies={[]}
         onAdd={() => undefined}
-        onRemove={() => undefined}
         poses={[
           savedPose,
           {
@@ -163,7 +161,6 @@ describe("ActionEditorEffectsPanel", () => {
           },
         ]}
         onAdd={() => undefined}
-        onRemove={() => undefined}
       />,
     );
 
@@ -174,8 +171,7 @@ describe("ActionEditorEffectsPanel", () => {
     expect(html).toContain("SFX");
     expect(html).toContain('placeholder="Search particle effects"');
     expect(html).toContain("Hearts");
-    expect(html).toContain("Added to timeline ·");
-    expect(html).toContain("<!-- -->1");
+    expect(html).not.toContain("Added to timeline ·");
     expect(html).toContain("Added");
     expect(html).toContain('aria-label="Add Hearts at current playhead"');
     expect(html).not.toContain("<img");
@@ -199,7 +195,6 @@ describe("ActionEditorEffectsPanel", () => {
           },
         ]}
         onAdd={() => undefined}
-        onRemove={() => undefined}
       />,
     );
 
@@ -222,7 +217,6 @@ describe("ActionEditorEffectsPanel", () => {
         )}
         dependencies={[]}
         onAdd={() => undefined}
-        onRemove={() => undefined}
       />,
     );
     expect(loading).toContain('placeholder="Search sound effects"');
@@ -243,7 +237,6 @@ describe("ActionEditorEffectsPanel", () => {
         )}
         dependencies={[]}
         onAdd={() => undefined}
-        onRemove={() => undefined}
       />,
     );
     expect(failed).toContain("Could not load");

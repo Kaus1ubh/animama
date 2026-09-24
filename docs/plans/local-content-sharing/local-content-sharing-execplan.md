@@ -1525,3 +1525,17 @@ formatting/whitespace checks pass, and the development browser confirms the
 simplified entry/selection screens and privacy placement. Independent targeted
 analysis passed with no findings; no new behavioral tests were needed for this
 reversible presentation cleanup. Prior native/audio waiver remains unchanged.
+
+### Main integration (2026-09-24)
+
+Merged `origin/main` at `f09d5d7` into the sharing branch. The sole textual
+conflict was Playwright's journey selector: retain content-sharing together with
+numeric-input and both creator-discard suites. Discovery now lists 30 tests in
+nine files. Independent review of the seven automatically merged overlaps found
+both parents' behavior preserved. Shared packages rebuilt successfully; 45
+focused frontend tests and the affected backend capability/retirement/SVG checks
+pass. Web and E2E TypeScript, configuration formatting and whitespace checks also
+pass. Initial frontend checks encountered stale/rebuilding package outputs, and
+four backend fixtures initially lacked Docker permission; refreshed outputs and
+disposable-container access resolved those environment failures. Full suites and
+rendered/native acceptance were not repeated for this merge-only update.

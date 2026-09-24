@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "double-thumbs-down",
   "name": "double-thumbs-down",
-  "ai_description": "Reusable avatar pose clip",
+  "ai_description": "Give two thumbs down to express strong disapproval, rejection, or playful disappointment.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

@@ -167,3 +167,21 @@ def test_only_requested_pose_starters_are_registered_self_contained_content(incl
         assert document["content_id"] == document["pose"]["id"] == entry.logical_key
         assert document["name"] == document["pose"]["name"] == entry.display_name
         assert "parent" not in document["pose"]
+
+
+def test_avatar_effects_require_authored_definitions_and_preserve_support_images(included: Path) -> None:
+    """Raw creator artwork is not a playable library effect."""
+
+    effects = [entry for entry in _scan_included(included) if entry.kind is ContentKind.AVATAR_EFFECT]
+    descriptors = {
+        path.parent.relative_to(included).as_posix()
+        for path in (included / "vfx/avatar").rglob("*.json")
+        if path.name == f"{path.parent.name}.json"
+    }
+
+    assert descriptors
+    assert {entry.relative_locator for entry in effects} == descriptors
+    assert all(entry.status is ContentStatus.VALID and entry.metadata.get("definition") for entry in effects)
+    eye = next(entry for entry in effects if entry.logical_key == "builtin:avatar-effect:eye")
+    assert any(file.role == "image" for file in eye.files)
+    assert (included / "vfx/avatar/face/eyes/eye_=_r.png").is_file()
