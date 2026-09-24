@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "shy-finger-poke-loop",
   "name": "shy-finger-poke-loop",
-  "ai_description": "Reusable avatar pose clip",
+  "ai_description": "Repeatedly tap the index fingers together to sustain a bashful, nervous, or hesitant mood while speaking.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

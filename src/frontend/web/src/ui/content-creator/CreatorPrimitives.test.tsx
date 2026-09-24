@@ -3,6 +3,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import {
+  CreatorCanvasControls,
   CreatorFloatingPanel,
   CreatorField,
   CreatorNumberField,
@@ -13,6 +14,70 @@ import {
 } from ".";
 
 describe("creator editor primitives", () => {
+  it("omits the optional Guides control while preserving Restart", () => {
+    const html = renderToString(
+      <CreatorCanvasControls onRestart={() => undefined} />,
+    );
+    expect(html).not.toContain('role="switch"');
+    expect(html).not.toContain("Guides");
+    expect(html).toContain('aria-label="Restart preview"');
+  });
+
+  it("renders an unchecked Guides control when provided", () => {
+    const html = renderToString(
+      <CreatorCanvasControls guides={false} onGuidesChange={() => undefined} />,
+    );
+    expect(html).toContain('role="switch"');
+    expect(html).toContain('aria-checked="false"');
+    expect(html).toContain('aria-label="Show placement guides"');
+    expect(html).toContain("Guides");
+  });
+
+  it("preserves Particle's custom Avatar visibility control", () => {
+    const html = renderToString(
+      <CreatorCanvasControls
+        guides
+        guidesLabel="Avatar"
+        guidesAriaLabel="Show Avatar"
+        onGuidesChange={() => undefined}
+        domainControl={<span>Outline</span>}
+      />,
+    );
+    expect(html).toContain('aria-checked="true"');
+    expect(html).toContain('aria-label="Show Avatar"');
+    expect(html).toContain("Outline");
+    expect(html).not.toContain("Guides");
+  });
+
+  it.each([
+    [124.99999999999999, 0, "125"],
+    [124.000000001, 0, "124"],
+    [0.30000000000000004, 1, "0.3"],
+    [-0.019999999999999997, 2, "-0.02"],
+    [0.001, 3, "0.001"],
+  ])("formats %s with %s decimal places", (value, decimalPlaces, expected) => {
+    const html = renderToString(
+      <CreatorNumberField
+        label="Value"
+        value={value}
+        decimalPlaces={decimalPlaces}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).toContain(`value="${expected}"`);
+  });
+
+  it("preserves precision for creators that do not request rounding", () => {
+    const html = renderToString(
+      <CreatorNumberField
+        label="Value"
+        value={0.123456789}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).toContain('value="0.123456789"');
+  });
+
   it("keeps the Canvas full bleed while sidebar-aware controls use the inset", () => {
     const html = renderToString(
       <CreatorWorkspaceShell

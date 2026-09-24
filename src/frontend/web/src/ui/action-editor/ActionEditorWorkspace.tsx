@@ -64,6 +64,7 @@ import {
 } from "./actionEditorSavedPose";
 import { ActionCatalogDragProvider } from "./ActionCatalogDrag";
 import { ActionEditorScene } from "./ActionEditorScene";
+import { ActionEventList } from "./ActionEventList";
 import { ActionEditorEffectsPanel } from "./ActionEditorEffectsPanel";
 import { ActionEditorHeader } from "./ActionEditorHeader";
 import {
@@ -153,6 +154,7 @@ const REACTION_TOOLS: ToolOption[] = [
   { id: "timeline", label: "Timeline", icon: Clock3Icon },
   { id: "expressions", label: "Expressions", icon: SmileIcon },
   { id: "components", label: "Effects", icon: LibraryIcon },
+  { id: "inspector", label: "Inspector", icon: SlidersHorizontalIcon },
 ];
 
 const POSE_TOOLS: ToolOption[] = [
@@ -212,7 +214,10 @@ function ActionEditorWorkspaceContent() {
   }, [desktopLayout, handsEnabled]);
   const [mobileTool, setMobileTool] = useState<MobileTool>("timeline");
   const [componentsExpanded, setComponentsExpanded] = useState(true);
+  const [showTimelineEvents, setShowTimelineEvents] = useState(true);
   const [timelineExpanded, setTimelineExpanded] = useState(true);
+  const [timelineHeight, setTimelineHeight] = useState(170);
+  const timelinePanelBottom = timelineExpanded ? timelineHeight + 20 : 80;
   const [bonesExpanded, setBonesExpanded] = useState(true);
   const [expressionsExpanded, setExpressionsExpanded] = useState(true);
   const collapseBones = () => {
@@ -326,10 +331,15 @@ function ActionEditorWorkspaceContent() {
     () => setClipExpressionsAtPlayhead({}),
     [setClipExpressionsAtPlayhead],
   );
-  const ensureExpressionKeyframeAtPlayhead = useCallback(
-    () => setClipExpressionsAtPlayhead(sampledExpressionValues),
-    [sampledExpressionValues, setClipExpressionsAtPlayhead],
-  );
+  const ensureExpressionKeyframeAtPlayhead = useCallback(() => {
+    setClipExpressionsAtPlayhead(sampledExpressionValues);
+    const state = usePoseCreatorStore.getState();
+    const keyframe = findPoseCreatorClipKeyframeAtTime(
+      state.clipDraft.keyframes,
+      state.clipDraft.currentTimeSec,
+    );
+    if (keyframe) state.selectClipKeyframe(keyframe.id);
+  }, [sampledExpressionValues, setClipExpressionsAtPlayhead]);
 
   const beginInlineKeyframeEdit = useCallback(() => {
     const state = usePoseCreatorStore.getState();
@@ -420,9 +430,22 @@ function ActionEditorWorkspaceContent() {
       }),
     );
   };
+  const expressionTimelineAction =
+    workspace.document.intent === "reaction" ? (
+      <Button
+        size="sm"
+        className="h-8 shrink-0"
+        disabled={workspace.busy || Boolean(expressionKeyframeAtPlayhead)}
+        title="Add an expression keyframe at the playhead"
+        onClick={ensureExpressionKeyframeAtPlayhead}
+      >
+        + Expression
+      </Button>
+    ) : null;
   const desktopTimeline = (
     <ActionTimelineEditor
       reaction={workspace.document.intent === "reaction"}
+      transportActions={expressionTimelineAction}
       settingsContent={
         workspace.document.intent === "reaction" ? (
           <ReactionTimelineSettings />
@@ -431,6 +454,7 @@ function ActionEditorWorkspaceContent() {
       isBusy={workspace.busy}
       playbackPending={workspace.localPreviewPending}
       expanded={timelineExpanded}
+      onHeightChange={setTimelineHeight}
       onExpandedChange={setTimelineExpanded}
     />
   );
@@ -438,6 +462,7 @@ function ActionEditorWorkspaceContent() {
     <ActionTimelineEditor
       variant="mobile"
       reaction={workspace.document.intent === "reaction"}
+      transportActions={expressionTimelineAction}
       settingsContent={
         workspace.document.intent === "reaction" ? (
           <ReactionTimelineSettings />
@@ -597,43 +622,75 @@ function ActionEditorWorkspaceContent() {
                 <div
                   className={cn(
                     "pointer-events-auto absolute top-4 left-[calc(var(--app-shell-sidebar-inset)+1rem)] z-20 w-[312px] transition-[left,bottom,height] duration-200 motion-reduce:transition-none xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)] xl:w-[360px] 2xl:w-[392px]",
-                    componentsExpanded
-                      ? timelineExpanded
-                        ? "bottom-[264px]"
-                        : "bottom-[80px]"
-                      : "h-16",
+                    !componentsExpanded && "h-16",
                   )}
+                  style={
+                    componentsExpanded
+                      ? { bottom: timelinePanelBottom }
+                      : undefined
+                  }
                 >
                   <EffectsPanel
                     expanded={componentsExpanded}
+                    timelineEnabled={showTimelineEvents}
+                    onTimelineEnabledChange={setShowTimelineEvents}
                     onExpandedChange={setComponentsExpanded}
                   />
                 </div>
+                {showTimelineEvents &&
+                (clipDraft.events.length > 0 ||
+                  clipDraft.keyframes.length > 0) ? (
+                  <div
+                    className="pointer-events-auto absolute top-4 left-[calc(var(--app-shell-sidebar-inset)+340px)] z-20 w-[180px] xl:left-[calc(var(--app-shell-sidebar-inset)+404px)] xl:w-[220px] 2xl:left-[calc(var(--app-shell-sidebar-inset)+436px)]"
+                    style={{ bottom: timelinePanelBottom }}
+                  >
+                    <ActionEventList />
+                  </div>
+                ) : null}
                 {workspace.document.intent === "gesture" &&
                 (clipDraft.selectedKeyframeId || clipDraft.selectedEventId) ? (
                   <div
                     className={cn(
-                      "pointer-events-auto absolute top-4 right-4 z-20 w-[248px] overflow-y-auto xl:right-8 xl:w-[296px] 2xl:w-[308px]",
-                      timelineExpanded ? "bottom-[264px]" : "bottom-[80px]",
+                      "pointer-events-auto absolute top-4 z-20 w-[248px] overflow-y-auto xl:w-[296px] 2xl:w-[308px]",
+                      "right-4 xl:right-8",
                     )}
+                    style={{ bottom: timelinePanelBottom }}
                   >
-                    <ActionEditorClipInspector section="inspector" />
+                    <ActionEditorClipInspector
+                      section="inspector"
+                      allowHumanoid={capabilities.allowsHumanoid}
+                    />
                   </div>
                 ) : null}
                 {workspace.document.intent === "reaction" ? (
                   <div
                     className={cn(
-                      "pointer-events-auto absolute top-4 right-4 z-20 flex w-[min(320px,24vw)] flex-col transition-[bottom] duration-200 motion-reduce:transition-none xl:right-8 2xl:w-[360px]",
-                      timelineExpanded ? "bottom-[264px]" : "bottom-[80px]",
+                      "pointer-events-auto absolute top-4 right-4 z-20 flex w-[min(320px,24vw)] flex-col gap-3 transition-[bottom] duration-200 motion-reduce:transition-none xl:right-8 2xl:w-[360px]",
                     )}
+                    style={{ bottom: timelinePanelBottom }}
                   >
+                    {clipDraft.selectedEventId ||
+                    clipDraft.selectedKeyframeId ? (
+                      <div
+                        className={cn(
+                          "min-h-0 overflow-y-auto rounded-xl",
+                          expressionsExpanded
+                            ? "max-h-[35%] shrink-0"
+                            : "flex-1",
+                        )}
+                      >
+                        <ActionEditorClipInspector
+                          section="inspector"
+                          allowHumanoid={false}
+                        />
+                      </div>
+                    ) : null}
                     <ReactionExpressionPanel
                       expanded={expressionsExpanded}
                       onExpandedChange={setExpressionsExpanded}
                       currentTimeSec={clipDraft.currentTimeSec}
                       hasKeyframe={Boolean(expressionKeyframeAtPlayhead)}
                       values={sampledExpressionValues}
-                      onEnsureKeyframe={ensureExpressionKeyframeAtPlayhead}
                       onExpressionChange={updateExpressionAtPlayhead}
                       onClear={clearExpressionsAtPlayhead}
                     />
@@ -642,8 +699,8 @@ function ActionEditorWorkspaceContent() {
                 <div
                   className={cn(
                     "pointer-events-auto absolute right-4 bottom-4 left-[calc(var(--app-shell-sidebar-inset)+1rem)] z-20 flex justify-center transition-[left,height] duration-200 motion-reduce:transition-none xl:right-8 xl:left-[calc(var(--app-shell-sidebar-inset)+2rem)]",
-                    timelineExpanded ? "h-[244px]" : "h-[60px]",
                   )}
+                  style={{ height: timelineExpanded ? timelineHeight : 60 }}
                 >
                   {desktopTimeline}
                 </div>
@@ -688,7 +745,6 @@ function ReactionExpressionPanel({
   currentTimeSec,
   hasKeyframe,
   values,
-  onEnsureKeyframe,
   onExpressionChange,
   onClear,
 }: {
@@ -697,7 +753,6 @@ function ReactionExpressionPanel({
   currentTimeSec: number;
   hasKeyframe: boolean;
   values: Record<string, number>;
-  onEnsureKeyframe: () => void;
   onExpressionChange: (expressionName: string, value: number) => void;
   onClear: () => void;
 }) {
@@ -705,7 +760,7 @@ function ReactionExpressionPanel({
     <section
       className={cn(
         "bg-background flex min-h-14 flex-col overflow-hidden rounded-2xl border shadow-xl backdrop-blur-xl",
-        expanded ? "min-h-[220px] flex-1" : "h-auto shrink-0",
+        expanded ? "min-h-0 flex-1" : "h-auto shrink-0",
       )}
     >
       <div
@@ -722,15 +777,6 @@ function ReactionExpressionPanel({
               : `Interpolated at ${currentTimeSec.toFixed(2)}s`}
           </p>
         </div>
-        {!expanded && !hasKeyframe ? (
-          <Button
-            size="sm"
-            className="h-7 px-2 text-[11px]"
-            onClick={onEnsureKeyframe}
-          >
-            + Keyframe
-          </Button>
-        ) : null}
         <CreatorPanelCollapseButton
           label="expressions"
           expanded={expanded}
@@ -740,13 +786,6 @@ function ReactionExpressionPanel({
       </div>
       {expanded ? (
         <div className="flex min-h-0 flex-1 flex-col p-3">
-          {!hasKeyframe ? (
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <Button size="sm" onClick={onEnsureKeyframe}>
-                + Keyframe at playhead
-              </Button>
-            </div>
-          ) : null}
           <div className="min-h-0 flex-1">
             <ActionEditorExpressionSection
               variant="mobile"
@@ -837,11 +876,24 @@ function EffectsPanel({
   mobile = false,
   expanded = true,
   onExpandedChange,
+  onTimelineItemSelect,
+  timelineEnabled: controlledTimelineEnabled,
+  onTimelineEnabledChange,
 }: {
   mobile?: boolean;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
+  onTimelineItemSelect?: () => void;
+  timelineEnabled?: boolean;
+  onTimelineEnabledChange?: (enabled: boolean) => void;
 }) {
+  const [localTimelineEnabled, setLocalTimelineEnabled] = useState(true);
+  const timelineEnabled = controlledTimelineEnabled ?? localTimelineEnabled;
+  const setTimelineEnabled = onTimelineEnabledChange ?? setLocalTimelineEnabled;
+  const hasItems = usePoseCreatorStore(
+    (state) =>
+      state.clipDraft.events.length + state.clipDraft.keyframes.length > 0,
+  );
   const workspace = useActionEditorWorkspace();
   const gesture = workspace.document.intent === "gesture";
   const posesQuery = usePoses({ enabled: gesture });
@@ -861,42 +913,52 @@ function EffectsPanel({
     live.current.document.intent === "gesture" &&
     live.current.mode === workspace.mode;
   return (
-    <ActionEditorEffectsPanel
-      onCreatePose={() => workspace.setMode("pose")}
-      mobile={mobile}
-      expanded={expanded}
-      onExpandedChange={onExpandedChange}
-      query={workspace.dependencyQuery}
-      onQueryChange={workspace.setDependencyQuery}
-      activeType={workspace.activeDependencyType}
-      onActiveTypeChange={workspace.setActiveDependencyType}
-      sections={workspace.dependencySections}
-      dependencies={workspace.document.dependencies}
-      onAdd={workspace.addComponent}
-      onRemove={workspace.removeDependency}
-      poses={gesture ? savedPoses : undefined}
-      posesPending={posesQuery.isPending}
-      posesError={posesQuery.error?.message ?? null}
-      onRetryPoses={() => void posesQuery.refetch()}
-      onEditPose={
-        gesture
-          ? (pose) => {
-              void editActionEditorSavedPose(pose, { isCurrent }).then(
-                (loaded) => {
-                  if (loaded && isCurrent()) workspace.setMode("pose");
-                },
-              );
-            }
-          : undefined
-      }
-      onAddPose={
-        gesture
-          ? (pose) => {
-              void insertActionEditorSavedPose(pose, { isCurrent });
-            }
-          : undefined
-      }
-    />
+    <div className="relative flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1">
+        <ActionEditorEffectsPanel
+          onCreatePose={() => workspace.setMode("pose")}
+          mobile={mobile}
+          expanded={expanded}
+          onExpandedChange={onExpandedChange}
+          query={workspace.dependencyQuery}
+          onQueryChange={workspace.setDependencyQuery}
+          activeType={workspace.activeDependencyType}
+          onActiveTypeChange={workspace.setActiveDependencyType}
+          sections={workspace.dependencySections}
+          dependencies={workspace.document.dependencies}
+          onAdd={workspace.addComponent}
+          timelineEnabled={timelineEnabled}
+          onTimelineEnabledChange={setTimelineEnabled}
+          poses={gesture ? savedPoses : undefined}
+          posesPending={posesQuery.isPending}
+          posesError={posesQuery.error?.message ?? null}
+          onRetryPoses={() => void posesQuery.refetch()}
+          onEditPose={
+            gesture
+              ? (pose) => {
+                  void editActionEditorSavedPose(pose, { isCurrent }).then(
+                    (loaded) => {
+                      if (loaded && isCurrent()) workspace.setMode("pose");
+                    },
+                  );
+                }
+              : undefined
+          }
+          onAddPose={
+            gesture
+              ? (pose) => {
+                  void insertActionEditorSavedPose(pose, { isCurrent });
+                }
+              : undefined
+          }
+        />
+      </div>
+      {mobile && timelineEnabled && hasItems ? (
+        <div className="max-h-[40%] shrink-0 overflow-y-auto p-2">
+          <ActionEventList onSelect={onTimelineItemSelect} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -962,7 +1024,10 @@ function MobileWorkspace({
         {activeTool === "timeline" ? (
           timeline
         ) : activeTool === "components" ? (
-          <EffectsPanel mobile />
+          <EffectsPanel
+            mobile
+            onTimelineItemSelect={() => onToolChange("inspector")}
+          />
         ) : activeTool === "inspector" ? (
           <ActionEditorClipInspector
             variant="mobile"

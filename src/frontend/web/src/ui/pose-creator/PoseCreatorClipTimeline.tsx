@@ -48,6 +48,7 @@ import {
   type PoseCreatorClipKeyframeDraft,
 } from "./poseCreatorClipAuthoring";
 
+import { buildEffectTracks } from "./poseCreatorEffectTracks";
 import { accompanyingEventSound } from "./poseCreatorEventCatalog";
 import { usePoseCreatorPreview } from "./PoseCreatorPreviewProvider";
 import {
@@ -82,29 +83,11 @@ type TimelineDragState =
 
 const TRACK_MARKER_WIDTH_PX = TRACK_LABEL_RAIL_PX + TRACK_RIGHT_INSET_PX;
 const EVENT_MARKER_SIZE_PX = 16;
-const EVENT_CLUSTER_OFFSET_STEP_PX = 8;
 
 type TimelineEventLane = Extract<
   PoseCreatorClipEventDraft["kind"],
   "avatar_vfx" | "scene_vfx" | "particle_vfx" | "sfx"
 >;
-
-type EventMarkerLayout = {
-  event: PoseCreatorClipEventDraft;
-  lane: TimelineEventLane;
-  offsetPx: number;
-};
-
-const TIMELINE_LANES: Array<{
-  id: "pose" | TimelineEventLane;
-  label: string;
-}> = [
-  { id: "pose", label: "Pose" },
-  { id: "avatar_vfx", label: "Avatar" },
-  { id: "scene_vfx", label: "Scene" },
-  { id: "particle_vfx", label: "Particle" },
-  { id: "sfx", label: "SFX" },
-];
 
 export function PoseCreatorClipTimeline({
   variant = "panel",
@@ -112,6 +95,8 @@ export function PoseCreatorClipTimeline({
   allowHumanoid = true,
   playbackPending = false,
   settingsContent,
+  transportActions,
+  onHeightChange,
   expanded = true,
   onExpandedChange,
 }: {
@@ -120,14 +105,23 @@ export function PoseCreatorClipTimeline({
   allowHumanoid?: boolean;
   playbackPending?: boolean;
   settingsContent?: React.ReactNode;
+  transportActions?: React.ReactNode;
+  onHeightChange?: (height: number) => void;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
 }) {
   const { eventCatalog } = usePoseCreatorPreview();
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
   const dropPreview = useCatalogTimelineDrop(
-    { track: trackRef, section: sectionRef, expanded, onExpandedChange },
+    {
+      track: trackRef,
+      viewport: viewportRef,
+      section: sectionRef,
+      expanded,
+      onExpandedChange,
+    },
     variant === "workspace",
   );
   const dragRef = useRef<TimelineDragState | null>(null);
@@ -197,10 +191,25 @@ export function PoseCreatorClipTimeline({
   const hasPlayableContent = hasKeyframes || clipDraft.events.length > 0;
   const canPlayPreview =
     hasPlayableContent && duration > 0 && Boolean(activeAvatar);
-  const eventMarkerLayouts = useMemo(
-    () => buildEventMarkerLayouts(clipDraft.events, duration),
-    [clipDraft.events, duration],
+  const effectTracks = useMemo(
+    () => buildEffectTracks(clipDraft.events, duration, eventCatalog),
+    [clipDraft.events, duration, eventCatalog],
   );
+  const trackRows =
+    1 + effectTracks.reduce((count, track) => count + track.rowCount, 0);
+  const dropRow = dropPreview?.lane === "pose" ? 0 : trackRows;
+  const visibleRows = Math.max(
+    1,
+    trackRows + (dropPreview && dropRow === trackRows ? 1 : 0),
+  );
+  const contentHeight = Math.max(
+    104,
+    RULER_HEIGHT_PX + visibleRows * LANE_HEIGHT_PX + 12,
+  );
+  const viewportHeight = Math.min(178, contentHeight);
+  useEffect(() => {
+    onHeightChange?.(viewportHeight + 66);
+  }, [onHeightChange, viewportHeight]);
   const dropPercent = dropPreview
     ? getTimelinePercent(dropPreview.time, duration)
     : 0;
@@ -478,6 +487,7 @@ export function PoseCreatorClipTimeline({
                     <SkipForwardIcon className="size-4" />
                   </Button>
                 </div>
+                {transportActions}
               </>
             }
             trailing={
@@ -592,29 +602,61 @@ export function PoseCreatorClipTimeline({
           />
 
           {expanded ? (
-            <div className="min-h-[178px] w-full overflow-x-auto overscroll-x-contain rounded-md">
+            <div
+              ref={viewportRef}
+              className="w-full shrink-0 overflow-auto overscroll-contain rounded-md"
+              style={{ height: viewportHeight }}
+            >
               <div
                 ref={trackRef}
                 className={cn(
-                  "border-border/70 bg-muted/20 relative h-[176px] cursor-crosshair overflow-hidden rounded-md border",
+                  "border-border/70 bg-muted/20 relative cursor-crosshair rounded-md border",
                   variant === "mobile" && "min-w-[680px] touch-pan-x",
                 )}
+                style={{
+                  height: contentHeight,
+                }}
                 onPointerDown={handleTrackPointerDown}
                 onPointerMove={handleTrackPointerMove}
                 onPointerUp={handleTrackPointerUp}
                 onPointerCancel={handleTrackPointerUp}
               >
-                <CreatorTimelineRuler
-                  durationSec={duration}
-                  hideTick={overlapsDropLabel}
-                />
-                {TIMELINE_LANES.map((lane, index) => (
-                  <CreatorTimelineLane
-                    key={lane.id}
-                    index={index}
-                    label={lane.id === "pose" ? poseLaneLabel : lane.label}
+                <div className="bg-background sticky top-0 z-40 h-8">
+                  <CreatorTimelineRuler
+                    durationSec={duration}
+                    hideTick={overlapsDropLabel}
                   />
-                ))}
+                  <CreatorTimelinePlayhead
+                    timeSec={clipDraft.currentTimeSec}
+                    durationSec={duration}
+                    hideLabel={overlapsDropLabel(clipDraft.currentTimeSec)}
+                  />
+                </div>
+                <CreatorTimelineLane index={0} label={poseLaneLabel} />
+                {effectTracks.flatMap((track) =>
+                  Array.from({ length: track.rowCount }, (_, offset) => (
+                    <CreatorTimelineLane
+                      key={`${track.id}:${offset}`}
+                      index={track.firstRow + offset}
+                      label={
+                        offset === 0
+                          ? track.label
+                          : `${track.label} (${offset + 1})`
+                      }
+                    />
+                  )),
+                )}
+
+                {!hasPlayableContent && !dropPreview ? (
+                  <div
+                    className="text-muted-foreground pointer-events-none absolute right-0 bottom-0 left-0 flex items-center justify-center px-3 text-xs"
+                    style={{ top: RULER_HEIGHT_PX + LANE_HEIGHT_PX }}
+                  >
+                    {allowHumanoid
+                      ? "Drag a pose or effect here"
+                      : "Drag an effect here"}
+                  </div>
+                ) : null}
 
                 {clipDraft.keyframes.map((keyframe) => (
                   <KeyframeMarker
@@ -630,25 +672,29 @@ export function PoseCreatorClipTimeline({
                   />
                 ))}
 
-                {eventMarkerLayouts.map((layout) => (
-                  <EventMarker
-                    key={layout.event.id}
-                    duration={duration}
-                    event={layout.event}
-                    accompanyingSound={
-                      accompanyingEventSound(layout.event, eventCatalog)?.label
-                    }
-                    lane={layout.lane}
-                    offsetPx={layout.offsetPx}
-                    selected={layout.event.id === clipDraft.selectedEventId}
-                    onFocus={() => selectClipEvent(layout.event.id)}
-                    onPointerDown={handleEventPointerDown}
-                    onPointerMove={handleEventPointerMove}
-                    onPointerUp={handleEventPointerUp}
-                    onKeyDown={handleEventKeyDown}
-                    mobile={variant === "mobile"}
-                  />
-                ))}
+                {effectTracks.flatMap((track) =>
+                  track.entries.map((layout) => (
+                    <EventMarker
+                      key={layout.event.id}
+                      duration={duration}
+                      event={layout.event}
+                      accompanyingSound={
+                        accompanyingEventSound(layout.event, eventCatalog)
+                          ?.label
+                      }
+                      row={layout.row}
+                      end={layout.end}
+                      label={track.label}
+                      selected={layout.event.id === clipDraft.selectedEventId}
+                      onFocus={() => selectClipEvent(layout.event.id)}
+                      onPointerDown={handleEventPointerDown}
+                      onPointerMove={handleEventPointerMove}
+                      onPointerUp={handleEventPointerUp}
+                      onKeyDown={handleEventKeyDown}
+                      mobile={variant === "mobile"}
+                    />
+                  )),
+                )}
 
                 {dropPreview ? (
                   <div
@@ -680,10 +726,7 @@ export function PoseCreatorClipTimeline({
                       style={{
                         top:
                           RULER_HEIGHT_PX +
-                          TIMELINE_LANES.findIndex(
-                            (lane) => lane.id === dropPreview.lane,
-                          ) *
-                            LANE_HEIGHT_PX +
+                          dropRow * LANE_HEIGHT_PX +
                           LANE_HEIGHT_PX / 2,
                       }}
                     />
@@ -693,7 +736,7 @@ export function PoseCreatorClipTimeline({
                 <CreatorTimelinePlayhead
                   timeSec={clipDraft.currentTimeSec}
                   durationSec={duration}
-                  hideLabel={overlapsDropLabel(clipDraft.currentTimeSec)}
+                  hideLabel
                 />
               </div>
             </div>
@@ -740,8 +783,7 @@ function KeyframeMarker({
       )}
       style={{
         top:
-          getTimelineLaneCenterPx("pose") -
-          (mobile ? 20 : EVENT_MARKER_SIZE_PX) / 2,
+          getKeyframeLaneCenterPx() - (mobile ? 20 : EVENT_MARKER_SIZE_PX) / 2,
         left: getTimelineLeftStyle(percent),
       }}
       aria-label={`${keyframe.pose} keyframe at ${formatTimelineTime(
@@ -765,8 +807,9 @@ function EventMarker({
   event,
   accompanyingSound,
   duration,
-  lane,
-  offsetPx,
+  row,
+  end,
+  label,
   selected,
   onFocus,
   onPointerDown,
@@ -778,8 +821,9 @@ function EventMarker({
   event: PoseCreatorClipEventDraft;
   accompanyingSound?: string;
   duration: number;
-  lane: TimelineEventLane;
-  offsetPx: number;
+  row: number;
+  end: number;
+  label: string;
   selected: boolean;
   onFocus: () => void;
   onPointerDown: (
@@ -795,7 +839,10 @@ function EventMarker({
   mobile: boolean;
 }) {
   const percent = getTimelinePercent(event.time, duration);
-  const title = formatEventMarkerTitle(event);
+  const title = `${label} / ${formatEventMarkerTitle(event)}`;
+  const hasDuration = isAnimaPoseClipVFXEvent(event);
+  const untilAction = hasDuration && event.duration === undefined;
+  const endPercent = getTimelinePercent(end, duration);
 
   return (
     <button
@@ -804,13 +851,24 @@ function EventMarker({
         "focus-visible:ring-ring absolute z-10 -translate-x-1/2 border text-[0px] shadow-sm transition-[background-color,border-color,box-shadow] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
         selected ? "ring-ring ring-offset-background ring-2 ring-offset-2" : "",
         mobile && "min-h-5 min-w-5",
-        getEventMarkerClassName(event.kind),
+        hasDuration
+          ? cn(
+              "h-5 min-w-2 translate-x-0 overflow-hidden rounded border px-1 text-left text-[10px]",
+              getEventBarClassName(event.kind),
+              untilAction && "border-r-dashed border-r-2",
+            )
+          : getEventMarkerClassName(event.kind),
       )}
       style={{
         top:
-          getTimelineLaneCenterPx(lane) -
-          (mobile ? 20 : EVENT_MARKER_SIZE_PX) / 2,
-        left: getTimelineLeftStyle(percent, offsetPx),
+          RULER_HEIGHT_PX +
+          row * LANE_HEIGHT_PX +
+          LANE_HEIGHT_PX / 2 -
+          (hasDuration || mobile ? 20 : EVENT_MARKER_SIZE_PX) / 2,
+        left: getTimelineLeftStyle(percent),
+        width: hasDuration
+          ? `calc((100% - ${TRACK_MARKER_WIDTH_PX}px) * ${Math.max(0, endPercent - percent) / 100})`
+          : undefined,
       }}
       aria-label={title}
       title={title}
@@ -821,10 +879,20 @@ function EventMarker({
       onPointerCancel={onPointerUp}
       onKeyDown={(keyboardEvent) => onKeyDown(keyboardEvent, event)}
     >
-      {event.id}
+      {hasDuration ? (
+        <span className="block truncate">
+          {label}
+          {untilAction ? " →" : ""}
+        </span>
+      ) : (
+        event.id
+      )}
       {accompanyingSound ? (
         <span
-          className="bg-background absolute -top-2 -right-2 rounded-full p-0.5"
+          className={cn(
+            "bg-background absolute rounded-full p-0.5",
+            hasDuration ? "top-0.5 right-0.5" : "-top-2 -right-2",
+          )}
           aria-label={`Accompanying sound: ${accompanyingSound}`}
         >
           {(event.kind === "avatar_vfx" || event.kind === "scene_vfx") &&
@@ -839,69 +907,18 @@ function EventMarker({
   );
 }
 
-function buildEventMarkerLayouts(
-  events: readonly PoseCreatorClipEventDraft[],
-  duration: number,
-): EventMarkerLayout[] {
-  const lanes = new Map<TimelineEventLane, PoseCreatorClipEventDraft[]>();
-  for (const event of events) {
-    const lane = getEventLane(event);
-    lanes.set(lane, [...(lanes.get(lane) ?? []), event]);
-  }
-
-  return Array.from(lanes.entries()).flatMap(([lane, laneEvents]) => {
-    const groups = new Map<string, PoseCreatorClipEventDraft[]>();
-    for (const event of laneEvents) {
-      const groupKey = `${lane}:${event.time.toFixed(3)}`;
-      groups.set(groupKey, [...(groups.get(groupKey) ?? []), event]);
-    }
-
-    return Array.from(groups.values()).flatMap((group) =>
-      group.map((event, index) => ({
-        event,
-        lane,
-        offsetPx: getEventClusterOffsetPx(
-          index,
-          group.length,
-          event.time,
-          duration,
-        ),
-      })),
-    );
-  });
+function getKeyframeLaneCenterPx(): number {
+  return RULER_HEIGHT_PX + LANE_HEIGHT_PX / 2;
 }
 
-function getEventClusterOffsetPx(
-  index: number,
-  count: number,
-  time: number,
-  duration: number,
-): number {
-  if (count <= 1) return 0;
-  if (duration <= 0) return index * EVENT_CLUSTER_OFFSET_STEP_PX;
-
-  const ratio = Math.min(1, Math.max(0, time / duration));
-  if (ratio <= 0.02) return index * EVENT_CLUSTER_OFFSET_STEP_PX;
-  if (ratio >= 0.98) return (index - count + 1) * EVENT_CLUSTER_OFFSET_STEP_PX;
-  return (index - (count - 1) / 2) * EVENT_CLUSTER_OFFSET_STEP_PX;
-}
-
-function getEventLane(event: PoseCreatorClipEventDraft): TimelineEventLane {
-  if (event.kind === "avatar_vfx") return "avatar_vfx";
-  if (event.kind === "scene_vfx") return "scene_vfx";
-  if (event.kind === "particle_vfx") return "particle_vfx";
-  return "sfx";
-}
-
-function getTimelineLaneCenterPx(lane: "pose" | TimelineEventLane): number {
-  const laneIndex = TIMELINE_LANES.findIndex((candidate) => {
-    return candidate.id === lane;
-  });
-  return (
-    RULER_HEIGHT_PX +
-    Math.max(0, laneIndex) * LANE_HEIGHT_PX +
-    LANE_HEIGHT_PX / 2
-  );
+function getEventBarClassName(kind: TimelineEventLane): string {
+  if (kind === "avatar_vfx")
+    return "border-emerald-500 bg-emerald-500/25 text-foreground";
+  if (kind === "scene_vfx")
+    return "border-amber-500 bg-amber-500/25 text-foreground";
+  if (kind === "particle_vfx")
+    return "border-violet-500 bg-violet-500/25 text-foreground";
+  return "border-sky-500 bg-sky-500/25 text-foreground";
 }
 
 /** Share each effect marker's shape/color with its catalog drop preview. */
@@ -945,6 +962,8 @@ function formatEventMarkerTitle(event: PoseCreatorClipEventDraft): string {
   ];
   if (isAnimaPoseClipVFXEvent(event) && event.duration !== undefined) {
     parts.push(`duration ${formatTimelineTime(event.duration)}`);
+  } else if (isAnimaPoseClipVFXEvent(event)) {
+    parts.push("until Action ends");
   }
   return parts.join(" / ");
 }

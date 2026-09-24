@@ -191,11 +191,15 @@ export function CreatorTimelineLane({
           )}
           style={{ width: TRACK_LABEL_RAIL_PX }}
         >
-          <span className="truncate">{label}</span>
+          <span className="pointer-events-auto truncate" title={label}>
+            {label}
+          </span>
         </button>
       ) : (
         <div className={labelClassName} style={{ width: TRACK_LABEL_RAIL_PX }}>
-          <span className="truncate">{label}</span>
+          <span className="pointer-events-auto truncate" title={label}>
+            {label}
+          </span>
         </div>
       )}
       <div

@@ -5,7 +5,6 @@ export const DEBUG_SECTION_KEYS = [
   "signals",
   "voiceVad",
   "emotion",
-  "vfx",
   "activeActions",
   "mainThreadHealth",
   "runtimeCapabilities",
@@ -32,7 +31,6 @@ export const ANIMAMA_DEBUG_PANEL_SECTIONS = {
   signals: true,
   voiceVad: true,
   emotion: true,
-  vfx: true,
   activeActions: true,
   mainThreadHealth: true,
   runtimeCapabilities: true,
@@ -48,7 +46,6 @@ const SECTION_PRODUCER_BY_KEY: Partial<
 > = {
   animation: "animationSnapshot",
   voiceVad: "voiceVad",
-  vfx: "animationSnapshot",
   activeActions: "animationSnapshot",
   mainThreadHealth: "systemMetrics",
   runtimeCapabilities: "systemMetrics",

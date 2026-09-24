@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { Input } from "@/ui/components/input";
 
 export function Panel({
   title,
@@ -180,8 +181,9 @@ export function NumberInputControl({
   disabled?: boolean;
 }) {
   return (
-    <input
+    <Input
       type="number"
+      allowEmptyNumber
       value={typeof value === "number" ? value : ""}
       disabled={disabled}
       onChange={(event) => {

@@ -137,7 +137,11 @@ Routes:
 - `/a/scene-effects/:sceneEffectId/edit`
 
 Background Layers combines Solid, Pattern and Marquee layers. Marquee items can
-be reordered and use allowlisted Twemoji or private PNG/JPEG/WebP sources.
+be reordered and use allowlisted Twemoji or private PNG/JPEG/WebP/SVG sources.
+SVG images must be UTF-8, self-contained static artwork: shapes, groups,
+gradients, clips, masks and local fragment references. Scripts, event handlers,
+CSS styles, animation, embedded images and external references are rejected on
+Save. Included SVG artwork can be saved unchanged into a Local Scene Effect.
 Focus Lines exposes render placement, procedural geometry, Avatar-face or
 normalized manual-box targeting, flicker animation and style controls.
 Selecting a built-in template updates the editable draft.
@@ -155,8 +159,9 @@ the catalog; there is no server draft or immutable-release finalization step.
 Recovery stores the document, operation identity, and bounded image Blobs in
 IndexedDB. A metadata-only localStorage fallback keeps the authored document
 and save identity but surfaces a repair state requiring the user to reselect
-private images. Retries preserve the operation identity, and a successful Save
-clears the recovery record.
+private images. Retries preserve the operation identity. Reloads retain recovery;
+a successful Save or explicit discard clears it. Discarding never changes the
+saved Library item.
 
 The preview reuses the production pure scene renderers and an editor-owned
 Avatar/viewport context. Backgrounds render below the Avatar; Focus Lines honor

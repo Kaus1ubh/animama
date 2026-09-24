@@ -1,5 +1,7 @@
 "use client";
 
+import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
+
 import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
 
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
@@ -45,6 +47,7 @@ import {
   sceneEffectEditorReducer,
   sceneEffectImageMetadata,
   sceneEffectRuntimeEntry,
+  SCENE_EFFECT_IMAGE_TYPES,
   uniqueSceneEffectImageName,
   validateSceneEffectDocument,
   type SceneEffectEditorDocument,
@@ -77,7 +80,6 @@ import {
   CreatorImportDialog,
   CreatorJsonDialog,
   CreatorNumberField as NumberField,
-  CreatorPreviewBar,
   CreatorSaveNotice,
   CreatorToggleRow as ToggleRow,
   CreatorToolbar,
@@ -111,13 +113,11 @@ import { Textarea } from "@/ui/components/textarea";
 import {
   createSceneEffectObjectUrlLease,
   sceneEffectCreatorKeyboardAction,
-  SCENE_EFFECT_PREVIEW_MOTION_CLASS,
   shouldBlockSceneEffectNavigation,
 } from "./sceneEffectCreatorBehavior";
 import { useSceneEffectSave } from "./useSceneEffectSave";
 import { useSceneEffectHistory } from "./useSceneEffectHistory";
 
-const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_SCENE_IMAGE_BYTES = 32 * 1024 * 1024;
 type PreviewStatus = {
   state: "idle" | "loading" | "ready" | "error";
@@ -152,7 +152,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     message: null,
   });
   const [playing, setPlaying] = useState(true);
-  const [showGuides, setShowGuides] = useState(true);
   const [cameraProfile, setCameraProfile] = useState<"full-body" | "portrait">(
     "full-body",
   );
@@ -162,6 +161,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     message: null,
   });
   const [imageBusy, setImageBusy] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -277,6 +277,34 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     enableBeforeUnload: () => isDirty || contentSave.isBusy,
     withResolver: true,
   });
+
+  const discardCurrentDraft = useCallback(async () => {
+    try {
+      return await contentSave.discardChanges();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The draft could not be discarded.",
+      );
+      return false;
+    }
+  }, [contentSave]);
+
+  // Explicit discard ends browser recovery too; ordinary unload still preserves it.
+  const leaveCreator = async () => {
+    if (discarding) return;
+    if (contentSave.isBusy) {
+      blocker.proceed?.();
+      return;
+    }
+    setDiscarding(true);
+    try {
+      if (await discardCurrentDraft()) blocker.proceed?.();
+    } finally {
+      setDiscarding(false);
+    }
+  };
 
   useEffect(() => {
     if (
@@ -402,8 +430,8 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
   const choosePrivateImage = useCallback(
     async (source: File) => {
       setImageError(null);
-      if (!IMAGE_TYPES.has(source.type)) {
-        setImageError("Choose a PNG, JPEG, or WebP image.");
+      if (!SCENE_EFFECT_IMAGE_TYPES.has(source.type)) {
+        setImageError("Choose a PNG, JPEG, WebP, or static SVG image.");
         return;
       }
       if (source.size > MAX_SCENE_IMAGE_BYTES) {
@@ -434,7 +462,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
               ),
             );
         const sourceExtension =
-          source.name.match(/\.(png|jpe?g|webp)$/i)?.[0] ?? ".webp";
+          source.name.match(/\.(png|jpe?g|webp|svg)$/i)?.[0] ?? ".webp";
         const uploadName = logicalName.replace(
           /\.webp$/i,
           sourceExtension.toLowerCase(),
@@ -532,34 +560,45 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     )
       return;
 
-    if (itemId) {
-      if (userId) await clearSceneEffectRecovery(userId, "new");
-      await navigate({
-        to: "/a/scene-effects/new",
-        replace: true,
-        ignoreBlocker: true,
-      });
-      return;
-    }
+    try {
+      if (itemId) {
+        if (userId)
+          await clearSceneEffectRecovery(userId, "new", { strict: true });
+        if (!(await discardCurrentDraft())) return;
+        await navigate({
+          to: "/a/scene-effects/new",
+          replace: true,
+          ignoreBlocker: true,
+        });
+        return;
+      }
 
-    const nextDocument = createDefaultSceneEffectDocument();
-    const nextFingerprint = sceneSaveFingerprint(nextDocument, []);
-    if (!(await contentSave.resetSession(nextFingerprint))) return;
-    resetDocument(nextDocument, []);
-    setSelectedLayer("marquee");
-    setImageBusy(false);
-    setImageError(null);
-    setPlaying(true);
-    setJsonOpen(false);
-    setImportOpen(false);
-    setImportText("");
-    setImportError(null);
-    setSoundPreview(null);
-    initialFingerprintRef.current = nextFingerprint;
-    setHydration({ state: "ready", message: null });
-    setPreviewRevision((value) => value + 1);
+      const nextDocument = createDefaultSceneEffectDocument();
+      const nextFingerprint = sceneSaveFingerprint(nextDocument, []);
+      if (!(await contentSave.resetSession(nextFingerprint))) return;
+      resetDocument(nextDocument, []);
+      setSelectedLayer("marquee");
+      setImageBusy(false);
+      setImageError(null);
+      setPlaying(true);
+      setJsonOpen(false);
+      setImportOpen(false);
+      setImportText("");
+      setImportError(null);
+      setSoundPreview(null);
+      initialFingerprintRef.current = nextFingerprint;
+      setHydration({ state: "ready", message: null });
+      setPreviewRevision((value) => value + 1);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The draft could not be discarded.",
+      );
+    }
   }, [
     contentSave,
+    discardCurrentDraft,
     imageBusy,
     isDirty,
     itemId,
@@ -587,7 +626,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     <CreatorWorkspaceShell
       leftPanelWidth={330}
       rightPanelWidth={370}
-      bottomChromeHeight={144}
       busy={contentSave.isBusy}
       canvas={
         <div
@@ -604,11 +642,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             sceneVFX={sceneVFX}
             sceneBackgroundScope="viewport"
             showSceneVFX
-            overlay={
-              showGuides ? (
-                <ScenePreviewGuides document={document} />
-              ) : undefined
-            }
           >
             {modelPreview.modelEntry && modelPreview.modelEntryKey ? (
               <ScenePreviewActor
@@ -772,33 +805,15 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
               setCameraProfile(value as typeof cameraProfile),
             triggerClassName: "w-[110px]",
           }}
-          guides={showGuides}
-          onGuidesChange={setShowGuides}
-          onRestart={restartPreviewWithSound}
-        />
-      }
-      previewBar={
-        <CreatorPreviewBar
-          title="Scene FX"
-          subtitle={`${humanize(document.kind)} · ${document.durationMs === null ? "Sticky" : `${(document.durationMs / 1000).toFixed(1)}s`}`}
-          playing={playing}
-          onPlayingChange={setPreviewPlaying}
-          onRestart={restartPreviewWithSound}
-          progressClassName={SCENE_EFFECT_PREVIEW_MOTION_CLASS}
-          duration={{
-            value:
-              document.durationMs === null ? null : document.durationMs / 1000,
-            label: "Effect duration",
-            indefiniteLabel: "Sticky · until cleared",
-            min: 0.1,
-            max: 30,
-            step: 0.1,
-            onValueChange: (seconds) =>
-              dispatch({
-                type: "patch",
-                patch: { durationMs: Math.round(seconds * 1000) },
-              }),
-          }}
+          playbackControl={
+            <CreatorTimelineTransport
+              label="preview"
+              playing={playing}
+              onTogglePlayback={() => setPreviewPlaying(!playing)}
+              onStop={() => setPreviewPlaying(false)}
+              onRestart={restartPreviewWithSound}
+            />
+          }
         />
       }
       overlays={
@@ -874,10 +889,12 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             busy={contentSave.isBusy}
             open={blocker.status === "blocked"}
             onOpenChange={(open) => {
-              if (!open && blocker.status === "blocked") blocker.reset?.();
+              if (!open && !discarding && blocker.status === "blocked")
+                blocker.reset?.();
             }}
             onStay={() => blocker.reset?.()}
-            onLeave={() => blocker.proceed?.()}
+            discarding={discarding}
+            onLeave={() => void leaveCreator()}
           />
         </>
       }
@@ -1375,7 +1392,7 @@ function MarqueeInspector({
           <input
             className="sr-only"
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept={[...SCENE_EFFECT_IMAGE_TYPES].join(",")}
             aria-invalid={saveErrorField === "files"}
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -2010,52 +2027,16 @@ function ScenePreviewActor({
   return sceneObject ? <primitive object={sceneObject} dispose={null} /> : null;
 }
 
-function ScenePreviewGuides({
-  document,
-}: {
-  document: SceneEffectEditorDocument;
-}) {
-  if (
-    document.kind === "focus_lines" &&
-    document.focus.target.kind === "manual_box"
-  ) {
-    const rect = document.focus.target.rect;
-    return (
-      <div
-        className="pointer-events-none absolute inset-0 z-30"
-        aria-hidden="true"
-      >
-        <div
-          className="absolute border border-dashed border-sky-400 bg-sky-200/10"
-          style={{
-            left: `${rect.x * 100}%`,
-            top: `${rect.y * 100}%`,
-            width: `${rect.width * 100}%`,
-            height: `${rect.height * 100}%`,
-          }}
-        />
-      </div>
-    );
-  }
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 z-30"
-      aria-hidden="true"
-    >
-      <div className="absolute top-1/2 right-[25%] left-[25%] border-t border-dashed border-sky-300/55" />
-      <div className="absolute top-[12%] bottom-[12%] left-1/2 border-l border-dashed border-sky-300/55" />
-    </div>
-  );
-}
-
 function LeaveDialog({
   busy,
+  discarding,
   open,
   onOpenChange,
   onStay,
   onLeave,
 }: {
   busy: boolean;
+  discarding: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStay: () => void;
@@ -2073,14 +2054,20 @@ function LeaveDialog({
           <DialogDescription>
             {busy
               ? "This Scene Effect is still being saved. Local recovery remains available when you return."
-              : "This Scene Effect has local authoring changes. Leaving will discard them from the active workspace. Local recovery remains available when you return."}
+              : "This Scene Effect has local authoring changes. Discarding removes these changes and their browser recovery draft. Saved content is unchanged."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={onStay}>
+          <Button variant="outline" disabled={discarding} onClick={onStay}>
             Stay
           </Button>
-          <Button onClick={onLeave}>Discard and continue</Button>
+          <Button disabled={discarding} onClick={onLeave}>
+            {discarding
+              ? "Discarding…"
+              : busy
+                ? "Leave and keep recovery"
+                : "Discard and continue"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

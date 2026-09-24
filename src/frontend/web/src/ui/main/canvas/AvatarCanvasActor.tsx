@@ -14,7 +14,6 @@ import {
 } from "@/lib/avatar";
 import { buildAnimationPreloadPlan } from "@/lib/avatar/animationPreloadPlan";
 import { useOptionalSoundController } from "@/hooks/use-sound-controller";
-import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 import type { SceneVFXKind } from "@/lib/scene-vfx/types";
 import { createLogger } from "@/lib/logger";
 import { runtimeContentEntryLoadKey } from "@/lib/runtime-content/animaRuntimeSnapshot";
@@ -141,10 +140,6 @@ export function AvatarCanvasActor({
   runtimeCatalogRef.current = mountedRuntimeContent.catalog;
   const consumePlannerEvents = useAvatarRuntimeStore(
     (state) => state.consumePlannerEvents,
-  );
-  const runtimeVfx = useAvatarRuntimeStore((state) => state.runtimeVfx);
-  const pruneExpiredRuntimeVfx = useAvatarRuntimeStore(
-    (state) => state.pruneExpiredRuntimeVfx,
   );
   const soundController = useOptionalSoundController();
   const playSfxCue = playRuntimeVfxSounds
@@ -280,21 +275,6 @@ export function AvatarCanvasActor({
     loadKey: avatarLoadKey,
     requestedAvatarPath,
   };
-  const runtimeManagedVfxRef = useRef<Map<string, number>>(new Map());
-  const runtimeVfxReconcileTokenRef = useRef(0);
-  const nextRuntimeVfxExpiryAtMs = runtimeVfx.reduce<number | null>(
-    (nearestExpiryAtMs, entry) => {
-      if (entry.lifetime.kind !== "duration" || entry.expiresAtMs === null) {
-        return nearestExpiryAtMs;
-      }
-      if (nearestExpiryAtMs === null || entry.expiresAtMs < nearestExpiryAtMs) {
-        return entry.expiresAtMs;
-      }
-      return nearestExpiryAtMs;
-    },
-    null,
-  );
-
   useEffect(() => {
     playSfxCueRef.current = playSfxCue;
   }, [playSfxCue]);
@@ -521,7 +501,6 @@ export function AvatarCanvasActor({
         return;
       }
 
-      runtimeManagedVfxRef.current = new Map();
       avatar.setPoseClipExternalEventSink(poseClipEventSink);
       avatar.setReactionClipExternalEventSink(reactionClipEventSink);
       avatarRef.current = avatar;
@@ -578,7 +557,6 @@ export function AvatarCanvasActor({
         avatarRef.current = null;
       }
       avatar.setSpringBonePhysicsHelperHost(null);
-      runtimeManagedVfxRef.current = new Map();
       disposeDebug?.();
       latestPlannerOutputRef.current = null;
       setSceneObject(null);
@@ -612,108 +590,6 @@ export function AvatarCanvasActor({
     runtimeAvatarEntry,
     motionCatalog,
   ]);
-
-  useEffect(() => {
-    const avatar = avatarRef.current;
-    const controller = avatar?.vfxController ?? null;
-    if (!avatar?.isReady || !controller) {
-      return;
-    }
-
-    let isCancelled = false;
-    const reconcileToken = runtimeVfxReconcileTokenRef.current + 1;
-    runtimeVfxReconcileTokenRef.current = reconcileToken;
-    const desiredRuntimeVfx = runtimeVfx
-      .slice()
-      .sort((left, right) => left.order - right.order);
-    const desiredRevisionByEffectId = new Map(
-      desiredRuntimeVfx.map((entry) => [entry.effectId, entry.revision]),
-    );
-    const runtimeManagedVfx = runtimeManagedVfxRef.current;
-    const isStaleReconcile = () =>
-      isCancelled ||
-      runtimeVfxReconcileTokenRef.current !== reconcileToken ||
-      avatarRef.current !== avatar ||
-      avatar.isDisposed;
-
-    for (const effectId of Array.from(runtimeManagedVfx.keys())) {
-      if (desiredRevisionByEffectId.has(effectId)) {
-        continue;
-      }
-      controller.removeEffect(effectId);
-      runtimeManagedVfx.delete(effectId);
-    }
-
-    const reconcileRuntimeVfx = async () => {
-      for (const entry of desiredRuntimeVfx) {
-        if (isStaleReconcile()) {
-          return;
-        }
-
-        const appliedRevision = runtimeManagedVfx.get(entry.effectId);
-        if (appliedRevision === entry.revision) {
-          continue;
-        }
-        const shouldPlayApplySound = appliedRevision === undefined;
-        if (appliedRevision !== undefined) {
-          controller.removeEffect(entry.effectId);
-        }
-
-        const effect =
-          (await motionCatalog?.loadAvatarVFX(entry.effectId)) ?? null;
-        if (isStaleReconcile()) return;
-        const didApply = await applyAvatarVFXEffectById({
-          avatar,
-          effectId: entry.effectId,
-          effectEntry: effect,
-        });
-        if (isStaleReconcile()) {
-          if (didApply) {
-            controller.removeEffect(entry.effectId);
-          }
-          return;
-        }
-
-        if (didApply) {
-          runtimeManagedVfx.set(entry.effectId, entry.revision);
-          if (shouldPlayApplySound) {
-            const soundCueId = effect?.sound?.onApply ?? null;
-            if (soundCueId) {
-              void playSfxCue?.(soundCueId);
-            }
-          }
-        } else {
-          runtimeManagedVfx.delete(entry.effectId);
-        }
-      }
-    };
-
-    void reconcileRuntimeVfx();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [motionCatalog, playSfxCue, runtimeVfx, sceneObject]);
-
-  useEffect(() => {
-    if (nextRuntimeVfxExpiryAtMs === null) {
-      return;
-    }
-
-    const nowMs = Date.now();
-    if (nextRuntimeVfxExpiryAtMs <= nowMs) {
-      pruneExpiredRuntimeVfx(nowMs);
-      return;
-    }
-
-    const timerId = window.setTimeout(() => {
-      pruneExpiredRuntimeVfx(Date.now());
-    }, nextRuntimeVfxExpiryAtMs - nowMs);
-
-    return () => {
-      window.clearTimeout(timerId);
-    };
-  }, [nextRuntimeVfxExpiryAtMs, pruneExpiredRuntimeVfx]);
 
   useFrame((_state, delta) => {
     const avatar = avatarRef.current;

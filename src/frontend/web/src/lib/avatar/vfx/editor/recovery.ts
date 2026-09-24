@@ -97,20 +97,36 @@ export async function loadAvatarEffectRecovery(
   }
 }
 
+/** Strict deletion is for explicit Discard: report failures and await durable commit. */
 export async function clearAvatarEffectRecovery(
   userId: string,
   documentKey: string,
+  options: { strict?: boolean } = {},
 ): Promise<void> {
   if (typeof window === "undefined") return;
-  clearFallback(userId, documentKey);
   try {
+    clearFallback(userId, documentKey, options.strict);
+    // Without IndexedDB, recovery only uses localStorage metadata.
+    if (!window.indexedDB) return;
     const database = await openDatabase();
-    await request(database, "readwrite", (store) =>
-      store.delete(recoveryKey(userId, documentKey)),
-    );
-    database.close();
-  } catch {
-    // Clearing an unavailable recovery store is already the desired outcome.
+    try {
+      await request(
+        database,
+        "readwrite",
+        (store) => store.delete(recoveryKey(userId, documentKey)),
+        options.strict,
+      );
+    } finally {
+      database.close();
+    }
+  } catch (cause) {
+    if (options.strict) {
+      throw new Error(
+        "Browser recovery could not be discarded. Please retry.",
+        { cause },
+      );
+    }
+    // Save cleanup remains best-effort when browser storage is unavailable.
   }
 }
 
@@ -190,11 +206,15 @@ function request(
   database: IDBDatabase,
   mode: IDBTransactionMode,
   action: (store: IDBObjectStore) => IDBRequest,
+  waitForCommit = false,
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const transaction = database.transaction(STORE_NAME, mode);
     const operation = action(transaction.objectStore(STORE_NAME));
-    operation.onsuccess = () => resolve(operation.result);
+    operation.onsuccess = () => {
+      if (!waitForCommit) resolve(operation.result);
+    };
+    if (waitForCommit) transaction.oncomplete = () => resolve(operation.result);
     operation.onerror = () =>
       reject(operation.error ?? new Error("IndexedDB request failed"));
     transaction.onabort = () =>
@@ -210,10 +230,15 @@ function fallbackKey(userId: string, documentKey: string): string {
   return `anima.avatarEffectCreator.recovery.v1:${recoveryKey(userId, documentKey)}`;
 }
 
-function clearFallback(userId: string, documentKey: string): void {
+function clearFallback(
+  userId: string,
+  documentKey: string,
+  strict = false,
+): void {
   try {
     window.localStorage.removeItem(fallbackKey(userId, documentKey));
-  } catch {
+  } catch (cause) {
+    if (strict) throw cause;
     // Browser privacy settings may disable localStorage independently.
   }
 }

@@ -8,10 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select";
-import {
-  InspectorRow,
-  PoseCreatorClipWorkspaceInspector,
-} from "@/ui/pose-creator/PoseCreatorClipWorkspaceInspector";
+import { InspectorRow } from "@/ui/pose-creator/PoseCreatorClipWorkspaceInspector";
 import { useActionEditorWorkspace } from "./ActionEditorWorkspaceContext";
 
 const NO_SUGGESTION = "__none__";
@@ -20,11 +17,6 @@ const NO_SUGGESTION = "__none__";
 export function ReactionTimelineSettings() {
   return (
     <>
-      <PoseCreatorClipWorkspaceInspector
-        section="inspector"
-        allowHumanoid={false}
-        embedded
-      />
       <ReactionEmotionSettings />
     </>
   );
