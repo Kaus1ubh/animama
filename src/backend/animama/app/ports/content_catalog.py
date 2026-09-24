@@ -83,6 +83,11 @@ class ContentCatalog(Protocol):
     async def list_visible(self, *, user_id: str) -> list[CatalogContentEntry]:
         raise NotImplementedError
 
+    async def record_transition_failure(self, *, user_id: str, item_id: str, expected_revision: str, code: str) -> None:
+        """Retain a safe repair diagnostic until the next authoritative rescan."""
+
+        raise NotImplementedError
+
     async def get_visible_item(
         self,
         *,

@@ -186,10 +186,9 @@ function typedMetadata(item: TypedCatalogTransport): Record<string, unknown> {
     case "idle_style":
       return {
         ...common,
-        animations: item.animations,
+        schema_version: item.schema_version,
         default_pool: item.default_pool,
-        emotion_pools: item.emotion_pools,
-        cross_fade_seconds: item.cross_fade_seconds,
+        cells: item.cells,
         compatibility: item.compatibility,
       };
     case "music_track":

@@ -42,11 +42,13 @@ starters remain canonical documents under `content/included/poses`. Referenced
 Gesture exports require the matching application catalog; inserted user poses
 continue to be copied as self-contained values.
 
-Idle Styles add an emotion-aware idle lane. A mounted runtime uses the exact
-selected style (or an intentionally empty
-lane), including authorized private VRMA memberships. The runtime selects the dominant emotion's pool or the non-empty Default pool,
-then samples uniformly with previous-clip avoidance. The planner schedules
-intermittent stints. Style changes take effect on the next route mount.
+Idle Styles add a separate Gesture-backed idle lane. A mount freezes the selected
+Style, its Gesture dependencies and exact finite playback facts. Neutral uses
+Default; the dominant emotion/intensity selects its cell, inheriting Default
+when omitted and staying procedural-only when explicitly disabled. Selection is
+uniform with previous-Gesture avoidance when alternatives exist. Style changes
+apply on the next mount; emotion changes affect the next selection. Idle-only
+members are absent from the AI-invocable Gesture list.
 
 ## 1) High-level architecture
 

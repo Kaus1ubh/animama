@@ -25,6 +25,7 @@ from animama.domain.anima_loadout import (
     CatalogLoadoutSource,
     GestureBinding,
     IdleAnimationSummary,
+    IdleGestureSummary,
     IdleStyleBinding,
     LoadoutCommitResult,
     LoadoutDiagnostic,
@@ -38,6 +39,7 @@ from animama.domain.content_documents import (
     AvatarDocumentV1,
     GestureDocumentV1,
     IdleStyleDocumentV1,
+    IdleStyleDocumentV2,
     MusicTrackDocumentV1,
     ReactionDocumentV1,
     VoiceDocumentV1,
@@ -299,10 +301,12 @@ class AnimaLoadoutService:
         idle_row = rows_by_slot.get("idle-style")
         idle_value = selected(idle_row, ContentKind.IDLE_STYLE) if idle_row is not None else None
         idle_state: Literal["starter", "custom", "empty"]
-        if idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV1):
+        if idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV1 | IdleStyleDocumentV2):
             idle_state = "custom"
             idle_config = dict(idle_row.config) if idle_row is not None else {}
-        elif root.idle_style_empty:
+        elif root.idle_style_empty or idle_row is not None:
+            # An unavailable explicit selection is omitted, matching runtime
+            # admission. It must not appear silently replaced by a starter.
             idle_state = "empty"
             idle_value = None
             idle_config = {}
@@ -310,7 +314,24 @@ class AnimaLoadoutService:
             idle_state = "starter"
             idle_value = by_logical.get("builtin:idle-style:starter")
             idle_config = {}
-        if idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV1):
+        if idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV2):
+            idle_style = IdleStyleBinding(
+                state=idle_state,
+                name=idle_value.document.name,
+                description=idle_value.document.description,
+                source=_source(idle_value),
+                schema_version=2,
+                default_pool=idle_value.document.default_pool,
+                cells=idle_value.document.cells,
+                gestures=tuple(
+                    IdleGestureSummary(
+                        value.item.id, value.item.logical_key, value.document.name, value.document.description
+                    )
+                    for item_id in idle_value.item.dependency_item_ids
+                    if (value := parsed.get(item_id)) is not None and isinstance(value.document, GestureDocumentV1)
+                ),
+            )
+        elif idle_value is not None and isinstance(idle_value.document, IdleStyleDocumentV1):
             idle_document = idle_value.document
             raw_overrides = idle_config.get("pool_overrides", {})
             if not isinstance(raw_overrides, dict):
@@ -325,6 +346,7 @@ class AnimaLoadoutService:
             effective_emotions.update({key: value for key, value in overrides.items() if key != "default"})
             idle_style = IdleStyleBinding(
                 state=idle_state,
+                schema_version=1,
                 name=idle_document.name,
                 description=idle_document.description,
                 source=_source(idle_value),
@@ -517,16 +539,10 @@ class AnimaLoadoutService:
             current = next((row for row in rows if row.slot_key == slot), None)
             if operation in {"set", "update", "reconfigure"}:
                 target = await self._target(user_id=user_id, source=intent.get("source"), expected_kind=expected_kind)
-                idle_document = cast(IdleStyleDocumentV1, target.document)
-                overrides = intent.get("pool_overrides", {})
-                if not isinstance(overrides, dict):
-                    raise AnimaLoadoutError("idle_pool_overrides_invalid")
-                animation_ids = {animation.animation_id for animation in idle_document.animations}
-                for key, values in overrides.items():
-                    if key != "default" and key not in TRACKED_EMOTIONS:
-                        raise AnimaLoadoutError("idle_pool_overrides_invalid")
-                    if not isinstance(values, list) or not values or not set(values).issubset(animation_ids):
-                        raise AnimaLoadoutError("idle_pool_overrides_invalid")
+                if not isinstance(target.document, IdleStyleDocumentV2):
+                    raise AnimaLoadoutError("idle_style_conversion_required")
+                if intent.get("pool_overrides"):
+                    raise AnimaLoadoutError("idle_pool_overrides_retired")
                 action = "update" if current else "add"
             elif operation == "revert":
                 action = "revert"
@@ -873,7 +889,7 @@ class AnimaLoadoutService:
                         slot=slot,
                         kind=ContentKind.IDLE_STYLE,
                         target=target,
-                        config={"pool_overrides": dict(intent.get("pool_overrides") or {})},
+                        config={},
                         current=current,
                     )
                     root.idle_style_empty = False

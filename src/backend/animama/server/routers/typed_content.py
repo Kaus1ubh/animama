@@ -19,6 +19,7 @@ from animama.app.services.typed_content_service import TypedContentService
 from animama.domain.content_catalog import ContentKind
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.deps import get_async_session, get_current_principal
+from animama.server.schemas.idle_style import PyIdlePlayback
 from animama.server.schemas.typed_content import (
     PyAppearance,
     PyAppearancePage,
@@ -142,6 +143,23 @@ async def prepare_content_previews(
                 user_id=user.id,
             )
         return PyContentPreviewsPrepareResponse.from_domain(result, preview)
+    except Exception as exc:
+        _raise_content_mutation(exc)
+
+
+@router.get(
+    "/v1/gestures/{item_id}/idle-playback", response_model=PyIdlePlayback, operation_id="get_gesture_idle_playback"
+)
+async def get_gesture_idle_playback(
+    item_id: str,
+    request: Request,
+    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    session: Annotated[AsyncSession, Depends(get_async_session)],
+) -> PyIdlePlayback:
+    """Return finite Idle eligibility for this exact current Gesture revision."""
+    try:
+        value = await _typed_service(request, session).gesture_idle_playback(user_id=user.id, item_id=item_id)
+        return PyIdlePlayback.model_validate(value)
     except Exception as exc:
         _raise_content_mutation(exc)
 

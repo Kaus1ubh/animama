@@ -92,6 +92,11 @@ export type AnimaRuntimeCatalogSnapshot = {
   app_catalog_version: number;
   avatar_model: RuntimeCatalogEntry | null;
   idle_animations: RuntimeCatalogEntry[];
+  /** Missing cells inherit Default; an explicit empty cell suppresses idle motion. */
+  idle_style_pools?: {
+    default: string[];
+    cells: Record<string, Record<string, string[]>>;
+  };
   gestures: RuntimeCatalogEntry[];
   poses: RuntimeCatalogEntry[];
   reactions: RuntimeCatalogEntry[];
@@ -112,7 +117,7 @@ export type AnimaRuntimeCatalogSnapshot = {
 
 export const RUNTIME_SLOT_COMPATIBLE_KINDS = {
   primary_model: ["avatar_model"],
-  idle_animation: ["animation"],
+  idle_animation: ["animation", "anima_pose_clip"],
   gesture: ["animation", "anima_pose_clip"],
   pose: ["anima_pose_clip"],
   reaction: ["anima_pose_clip"],

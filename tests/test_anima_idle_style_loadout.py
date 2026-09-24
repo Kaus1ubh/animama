@@ -13,7 +13,7 @@ from tests.typed_loadout_support import (
 
 
 @pytest.mark.asyncio
-async def test_idle_style_selection_and_pool_overrides_remain_typed(async_session) -> None:  # noqa: ANN001
+async def test_idle_style_selection_uses_style_cells_and_rejects_anima_overrides(async_session) -> None:  # noqa: ANN001
     fixture = await create_loadout_fixture(async_session)
     idle = await add_typed_item(
         async_session,
@@ -21,27 +21,9 @@ async def test_idle_style_selection_and_pool_overrides_remain_typed(async_sessio
         kind="idle_style",
         name="Calm Idle",
         metadata={
-            "animations": [
-                {
-                    "animation_id": "calm",
-                    "name": "Calm",
-                    "file_ref": "calm.vrma",
-                    "playback": {"loop_type": "repeat"},
-                },
-                {
-                    "animation_id": "sway",
-                    "name": "Sway",
-                    "file_ref": "sway.vrma",
-                    "playback": {"loop_type": "pingpong"},
-                },
-            ],
-            "files": [
-                {"path": "calm.vrma", "role": "animation"},
-                {"path": "sway.vrma", "role": "animation"},
-            ],
-            "default_pool": ["calm"],
-            "emotion_pools": {"joy": ["sway"]},
-            "cross_fade_seconds": 0.4,
+            "schema_version": 2,
+            "default_pool": [],
+            "cells": {"joy": {"2": {"mode": "none"}}},
             "compatibility": {},
         },
     )
@@ -49,7 +31,6 @@ async def test_idle_style_selection_and_pool_overrides_remain_typed(async_sessio
     intent = {
         "operation": "set",
         "source": catalog_source(idle),
-        "pool_overrides": {"default": ["sway"], "joy": ["calm"]},
     }
     try:
         plan = await service.plan(
@@ -73,10 +54,11 @@ async def test_idle_style_selection_and_pool_overrides_remain_typed(async_sessio
             anima_id=fixture.anima_id,
         )
         assert loadout.idle_style.state == "custom"
-        assert loadout.idle_style.effective_default_pool == ("sway",)
-        assert loadout.idle_style.effective_emotion_pools["joy"] == ("calm",)
+        assert loadout.idle_style.schema_version == 2
+        assert loadout.idle_style.default_pool == ()
+        assert loadout.idle_style.cells["joy"]["2"].mode == "none"
 
-        with pytest.raises(AnimaLoadoutError, match="idle_pool_overrides_invalid"):
+        with pytest.raises(AnimaLoadoutError, match="idle_pool_overrides_retired"):
             await service.plan(
                 user_id=fixture.user_id,
                 anima_id=fixture.anima_id,
@@ -88,5 +70,17 @@ async def test_idle_style_selection_and_pool_overrides_remain_typed(async_sessio
                     "pool_overrides": {"default": ["missing"]},
                 },
             )
+        await add_typed_item(
+            async_session,
+            fixture,
+            kind="idle_style",
+            name="Starter",
+            metadata={"schema_version": 2, "content_id": "builtin:idle-style:starter", "default_pool": []},
+        )
+        idle.status = "invalid"
+        await async_session.commit()
+        unavailable = await service.read_model(user_id=fixture.user_id, anima_id=fixture.anima_id)
+        assert unavailable.idle_style.state == "empty"
+        assert any(warning.code == "loadout_source_unavailable" for warning in unavailable.warnings)
     finally:
         await cleanup_loadout_fixture(async_session, fixture)

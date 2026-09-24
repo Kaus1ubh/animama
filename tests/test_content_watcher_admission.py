@@ -21,6 +21,7 @@ from tests.migration_database_helpers import (
     migrated_database as migrated_database,
     migration_postgres as migration_postgres,
 )
+from tests.test_content_gltf import _fixture_document, _glb_source
 
 OWNER = "package-owner"
 
@@ -153,7 +154,20 @@ async def test_external_or_unknown_change_still_fences_saved_scene(
 @pytest.mark.parametrize("change", ["changed_target", "duplicate_target"])
 async def test_dependency_changes_fence_unchanged_dependents(services, change: str) -> None:  # noqa: ANN001
     paths, catalog, content, saves, _ = services
-    target = (await save_wave(saves)).item
+    gltf, binary = _fixture_document(buffer_uri=None)
+    target = (
+        await saves.save_standalone(
+            user_id=OWNER,
+            kind=ContentKind.GESTURE,
+            entry_name="Finite wave",
+            filename="wave.vrma",
+            payload=_glb_source(gltf, binary),
+            metadata_sidecar=json.dumps({"schema_version": 1, "id": "local:gesture:wave", "name": "Wave"}).encode(),
+            operation_id="finite-wave",
+            catalog_item_id=None,
+            expected_revision=None,
+        )
+    ).item
     dependent = (
         await saves.save_descriptor(
             user_id=OWNER,
@@ -161,13 +175,12 @@ async def test_dependency_changes_fence_unchanged_dependents(services, change: s
             entry_name="Dependent",
             descriptor=json.dumps(
                 {
-                    "schema_version": 1,
+                    "schema_version": 2,
                     "content_type": "idle_style",
                     "id": "local:idle-style:dependent",
                     "name": "Dependent",
                     "dependencies": [{"ref": target.logical_key, "content_type": "gesture"}],
-                    "animations": [{"animation_id": "wave", "name": "Wave", "dependency_ref": target.logical_key}],
-                    "default_pool": ["wave"],
+                    "default_pool": [target.logical_key],
                     "files": [],
                 }
             ).encode(),

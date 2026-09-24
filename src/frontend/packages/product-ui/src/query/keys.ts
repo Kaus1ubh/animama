@@ -85,6 +85,13 @@ export const queryKeys = {
     save: (userId: string) => [...queryKeys.poses.all(userId), "save"] as const,
   },
   gestures: {
+    idlePlayback: (userId: string, itemId: string, revision: string) =>
+      [
+        ...queryKeys.gestures.all(userId),
+        "idle-playback",
+        itemId,
+        revision,
+      ] as const,
     all: (userId: string) => ["gestures", userId] as const,
     detail: (userId: string, itemId: string) =>
       [...queryKeys.gestures.all(userId), "detail", itemId] as const,

@@ -264,9 +264,14 @@ export function SoundProvider({ children }: { children: ReactNode }) {
   const playSfxCue = useCallback(
     async (runtimeId: string, options?: PlaySfxOptions) => {
       const mounted = mountedAudioRef.current;
-      if (!mounted) return null;
+      if (!mounted || options?.signal?.aborted) return null;
       const resolved = await mounted.catalog.resolveAudio("sfx", runtimeId);
-      if (!resolved || mountedAudioRef.current !== mounted) return null;
+      if (
+        !resolved ||
+        mountedAudioRef.current !== mounted ||
+        options?.signal?.aborted
+      )
+        return null;
       return controller.playSfx(resolved.url, {
         ...options,
         loop: false,

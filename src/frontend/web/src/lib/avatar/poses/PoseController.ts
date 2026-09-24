@@ -64,7 +64,11 @@ export type PoseControllerOptions = {
   motionCatalog?: AvatarMotionCatalog;
 };
 
+export type FinitePoseClipPlayback = { timeScale: number; repetitions: number };
+
 export type PoseControllerPlayClipOptions = {
+  /** Finite idle occurrences use an authored clock and own cancellable events. */
+  finitePlayback?: FinitePoseClipPlayback;
   fadeInDurationSec?: number | null;
 };
 
@@ -80,6 +84,7 @@ export type AnimaPoseClipEventContext = {
   playbackTime: number;
   clipTime: number;
   occurrenceIndex: number;
+  signal?: AbortSignal;
 };
 
 export type AnimaPoseClipEventSink = {
@@ -137,6 +142,8 @@ type ClipPlaybackPhase = "fadeIn" | "playing" | "fadeOut";
 type ClipRuntimeState = {
   clip: AnimaPoseClip | null;
   playbackId: number;
+  finitePlayback: FinitePoseClipPlayback | null;
+  eventAbort: AbortController | null;
   elapsedSec: number;
   fadeElapsedSec: number;
   phase: ClipPlaybackPhase;
@@ -303,7 +310,30 @@ export class PoseController {
     clip: AnimaPoseClip,
     options?: PoseControllerPlayClipOptions,
   ): AvatarPoseClipSnapshot {
-    const sanitizedClip = parseAnimaPoseClip(clip);
+    const finite = options?.finitePlayback;
+    // Admission combines the raw clip and Gesture config; these repetitions
+    // therefore override the raw loop flag for this idle occurrence only.
+    const sanitizedClip = parseAnimaPoseClip(
+      finite ? { ...clip, loop: finite.repetitions > 1 } : clip,
+    );
+    if (
+      finite &&
+      (!Number.isFinite(finite.timeScale) ||
+        finite.timeScale <= 0 ||
+        !Number.isSafeInteger(finite.repetitions) ||
+        finite.repetitions <= 0 ||
+        !Number.isFinite(
+          (getAnimaPoseClipTimelineDuration(sanitizedClip) *
+            finite.repetitions) /
+            finite.timeScale,
+        ) ||
+        getAnimaPoseClipTimelineDuration(sanitizedClip) <= 0 ||
+        sanitizedClip.playback)
+    ) {
+      throw new Error(
+        "Finite clip playback requires positive duration, speed and repetition count.",
+      );
+    }
     const fadeInDurationSec = resolveClipFadeDuration(
       sanitizedClip.fadeIn,
       options?.fadeInDurationSec,
@@ -327,6 +357,8 @@ export class PoseController {
       ...createClipRuntimeState(),
       clip: sanitizedClip,
       playbackId: this._nextClipPlaybackId,
+      finitePlayback: finite ?? null,
+      eventAbort: finite ? new AbortController() : null,
       phase: fadeInDurationSec > 0 ? "fadeIn" : "playing",
       fadeInSourceSample,
       fadeInDurationSec,
@@ -343,6 +375,10 @@ export class PoseController {
   }
 
   stopClip(options?: PoseControllerStopClipOptions): boolean {
+    if (this._clipState.eventAbort) {
+      this._clipState.eventAbort.abort();
+      this._clearAllClipEventEffects();
+    }
     if (
       options?.immediate !== true &&
       this._beginClipFadeOutIfAvailable({
@@ -364,7 +400,14 @@ export class PoseController {
 
     const delta = Number.isFinite(deltaSec) ? Math.max(0, deltaSec) : 0;
     const previousElapsedSec = this._clipState.elapsedSec;
-    const nextElapsedSec = this._clipState.elapsedSec + delta;
+    const finite = this._clipState.finitePlayback;
+    const horizon = finite
+      ? getAnimaPoseClipTimelineDuration(clip) * finite.repetitions
+      : Infinity;
+    const nextElapsedSec = Math.min(
+      horizon,
+      this._clipState.elapsedSec + delta * (finite?.timeScale ?? 1),
+    );
     this._clipState.elapsedSec = nextElapsedSec;
     if (this._clipState.phase !== "playing") {
       this._clipState.fadeElapsedSec += delta;
@@ -392,6 +435,10 @@ export class PoseController {
       this._clipState.fadeInSourceSample = null;
     }
 
+    if (finite && nextElapsedSec >= horizon) {
+      this.stopClip({ immediate: true });
+      return;
+    }
     if (shouldAnimaPoseClipAutoComplete(clip, nextElapsedSec)) {
       if (!this._beginClipFadeOutIfAvailable()) {
         this.stopClip({ immediate: true });
@@ -468,6 +515,11 @@ export class PoseController {
     );
 
     for (const dueEvent of dueEvents) {
+      if (
+        this._clipState.finitePlayback &&
+        dueEvent.occurrenceIndex >= this._clipState.finitePlayback.repetitions
+      )
+        continue;
       const eventKey = getDueEventKey(dueEvent);
       if (this._clipState.firedEventKeys.has(eventKey)) continue;
       this._clipState.firedEventKeys.add(eventKey);
@@ -484,7 +536,13 @@ export class PoseController {
     const context: AnimaPoseClipEventContext = {
       clipId: clip.id,
       eventId: event.id,
-      appliedId: getClipEventAppliedId(clip.id, event.id),
+      appliedId: getClipEventAppliedId(
+        this._clipState.eventAbort
+          ? `${clip.id}:${this._clipState.playbackId}`
+          : clip.id,
+        event.id,
+      ),
+      signal: this._clipState.eventAbort?.signal,
       playbackTime: dueEvent.playbackTime,
       clipTime: dueEvent.clipTime,
       occurrenceIndex: dueEvent.occurrenceIndex,
@@ -679,9 +737,12 @@ export class PoseController {
     // a clip that only owns effects. Its event clock still advances normally.
     if (clip.poseKeyframes.length === 0) return;
 
+    const finite = this._clipState.finitePlayback;
+    const cycle = finite ? getAnimaPoseClipTimelineDuration(clip) : 0;
+    const atFiniteEnd = finite && timeSec >= cycle * finite.repetitions;
     const sampleResult = sampleAnimaPoseClip(
-      clip,
-      timeSec,
+      atFiniteEnd ? { ...clip, loop: false } : clip,
+      atFiniteEnd ? cycle : timeSec,
       this._resolveClipPoseRef,
     );
     const result = this._applyClipSample(
@@ -969,6 +1030,7 @@ export class PoseController {
     restoreExpressions: boolean,
     resetHumanoid: boolean,
   ): void {
+    this._clipState.eventAbort?.abort();
     this._clearAllClipEventEffects();
     if (restoreExpressions && this._vrm && !this._isDisposed) {
       this._restoreClipExpressionBaseline();
@@ -1163,6 +1225,8 @@ function createClipRuntimeState(): ClipRuntimeState {
   return {
     clip: null,
     playbackId: 0,
+    finitePlayback: null,
+    eventAbort: null,
     elapsedSec: 0,
     fadeElapsedSec: 0,
     phase: "playing",

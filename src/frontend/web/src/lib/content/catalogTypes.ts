@@ -8,6 +8,7 @@ export * from "@animama/runtime-contracts/api-types";
 
 import type {
   PyGesture as PyTransportGesture,
+  PyIdlePlayback,
   PyIdleStyle as PyTransportIdleStyle,
   PyMusicTrack as PyTransportMusicTrack,
   PyAvatarEffect as PyTransportAvatarEffect,
@@ -124,10 +125,16 @@ export type PyParticleEffect = PyCatalogViewItem;
 export type PyAvatarEffect = PyCatalogViewItem;
 export type PySceneEffect = PyCatalogViewItem;
 export type PySoundEffect = PyCatalogViewItem;
-export type PyIdleStyle = TypedCatalogView<PyTransportIdleStyle>;
+export type PyIdleStyle = Omit<
+  TypedCatalogView<PyTransportIdleStyle>,
+  "dependencies"
+> &
+  Pick<Partial<PyTransportIdleStyle>, "dependencies">;
 export type PyMusicTrack = TypedCatalogView<PyTransportMusicTrack>;
 
-export type PyContentPage<T extends PyCatalogViewItem = PyCatalogViewItem> = {
+export type PyContentPage<
+  T extends Omit<PyCatalogViewItem, "dependencies"> = PyCatalogViewItem,
+> = {
   items: T[];
   next_cursor: string | null;
   query: Record<string, unknown>;
@@ -140,9 +147,10 @@ export type PyMusicTrackPage = PyContentPage<PyMusicTrack>;
 export type PyActionPreview = PyContentPreview & {
   closure: Record<string, unknown>;
 };
-export type PyIdleStylePreview = PyContentPreview & {
-  selected_animation_id: string | null;
-  selected_animation_name: string | null;
+export type PyIdleStylePreview = PyActionPreview & {
+  idle_playback: PyIdlePlayback;
+  selected_gesture_ref: string;
+  selected_gesture_name: string;
 };
 export type PyMusicTrackPreview = PyContentPreview & {
   duration_seconds: number;

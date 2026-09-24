@@ -1,6 +1,6 @@
 # Local content and complete Anima sharing
 
-Status: Approved 2026-09-24 for full implementation; Phase 1 in progress.
+Status: Approved 2026-09-24 for full implementation; Phase 1 complete, Phase 2 next.
 
 Source agreement: [local-content-sharing-spec.md](local-content-sharing-spec.md),
 requirements R1–R9 and its acceptance table, following the owner's 2026-09-23
@@ -19,14 +19,21 @@ Workspace: reuse the assigned `0c75/animama` worktree and existing
 directory was untracked; no application code had changed. No stack was started.
 Use one branch and PR for this plan. Original planning artifacts were committed
 as `9a3971dcc87bbe3bbc0a1e70cdb1d238936865a8`; the approved follow-up added
-the fourth unchanged Anima-export mockup. Application source remains at the
-planning baseline. Workspace setup verified the primary checkout remains on
+the fourth unchanged Anima-export mockup. Application implementation starts from that
+planning baseline; setup authorization is committed as `e6be498`. Workspace setup verified the primary checkout remains on
 `main`; existing unrelated worktrees and services were preserved.
 
 Phase issues: [P1 / #82](https://github.com/raymond-van/animama/issues/82), [P2 / #83](https://github.com/raymond-van/animama/issues/83), [P3 / #84](https://github.com/raymond-van/animama/issues/84), [P4 / #85](https://github.com/raymond-van/animama/issues/85), [P5 / #86](https://github.com/raymond-van/animama/issues/86), [P6 / #87](https://github.com/raymond-van/animama/issues/87).
 
 Environment: task-local locked Python 3.12.13 and pnpm installations; Docker
-is available for disposable test containers. No application stack started yet.
+is available for disposable test containers. Task stack `animama-local-sharing-0c75`
+serves this worktree in development mode at
+`http://animama-local-sharing-0c75.localhost:8460`; only Vite is published on
+loopback, with PostgreSQL and FastAPI private. No optional profiles are enabled.
+Its generated record is `.animama-stack.env`; task-only Local/private data is
+beneath `.animama-stacks/animama-local-sharing-0c75/`. Model paths passed offline
+verification before startup. Preserve this stack and the unrelated hand-authoring
+stack during subsequent work.
 
 ## Purpose and context
 
@@ -70,7 +77,7 @@ Paths below are relative to the repository root. `B` means
 - [x] 2026-09-23: draft implementation phases, technical choices and evidence gates.
 - [x] 2026-09-24: full implementation authorized; owning spec and six linked phase
   issues published/read back, supplied worktree verified, locked dependencies installed.
-- [ ] Phase 1 in progress: Gesture-based Idle Styles and preservation of existing idle behavior.
+- [x] Phase 1: Gesture-based Idle Styles and preservation of existing idle behavior.
 - [ ] Phase 2: retire Music/BGM and standalone Pose Clip availability safely.
 - [ ] Phase 3: portable multi-root and full-Anima export with exact review snapshots.
 - [ ] Phase 4: staged, reviewed import and one recoverable installation operation.
@@ -408,16 +415,144 @@ audio acceptance separately in Phase 6. No live provider calls are needed.
 Recovery: failed conversion rolls back cooperating files/bindings, retains
 originals and reports the affected source; ambiguous manual edits remain fenced.
 
-Issue: [#82](https://github.com/raymond-van/animama/issues/82). Starting SHA: `9a3971d` plus approved planning follow-up; code changes in progress.
-Commit / evidence: pending.
+Issue: [#82](https://github.com/raymond-van/animama/issues/82). Starting SHA:
+`e6be498a596aad1e9e9824527593ad6c10f20d3a`. Verified phase commit follows this record.
+
+Implementation evidence:
+
+- Conversion observed red (schema stayed v1), then green; startup override fixture
+  observed red (binding override remained), then green after startup/rescan wiring.
+  `uv run --no-sync pytest -q tests/test_content_idle_transition.py`: 10 passed.
+  Recovery/destination batch: 12 passed, including rollback after a real SQL
+  binding write and fresh-service retry. Destination guard reproduced an overwrite
+  before the fix; its focused test now passes.
+- Adjacent backend batch: 142 passed. Focused runtime batch: 204 tests across 25
+  files passed. Editor/preview batch: 31 passed after a real-clock clip completion
+  regression. Mixamo acquisition: 7 passed. These batches overlap; counts are
+  not a unique-test total.
+- SDK regenerated offline; `pnpm packages:build`, `pnpm build`,
+  `pnpm desktop:check`, `pnpm web:lint`, `pnpm packages:check`, typed-content audit
+  and Python import-boundary check passed. Full mypy: 521 source files passed
+  after test-only annotations. Formatting/lint initially found one newly expanded
+  import; independent targeted recheck passed after repair. Changed repair paths
+  will be checked again before the phase commit.
+- Rendered at 1440 × 1000 on the isolated task stack: actual starter Avatar
+  performs the six-second VRMA head turn and returns to Ready; clip head motion,
+  expression, eye and particle events render and clean up at completion. A stuck
+  Playing label was reproduced and fixed with the Avatar's actual completion
+  callback, then browser status was observed Ready. Setting Joy intensity 3 to
+  No idle and saving showed “Idle Style saved”; reload retained it. Equipping
+  that Style through the reviewed Loadout change displayed the saved cell states,
+  while both fixture Gestures still showed Equip in AI equipment. Fixtures are
+  original task-only content; no provider call or arbitrary community-motion fidelity claim.
+- Native audio acceptance and the real 180-second quiet journey remain Phase 6
+  gates. No hosted CI or native release validation is claimed.
+
+Source finding: the old Style `cross_fade_seconds` was projected but never
+consumed by the planner. Preserve the existing VRMA/clip fades; do not introduce
+new Style fade behavior while converting authored duration, speed and loops.
 
 #### Code Review #1 Findings
 
-Not run. Record reviewed source, checks and actionable findings here.
+Initial independent review of all tracked/untracked Phase 1 changes against
+`e6be498`, partitioned into backend and frontend analysis plus read-only checks.
+Both analysis partitions and delegated checks are complete. Required findings:
+
+- **P1-B1:** admitted locator references such as `gestures/breathe` disappear
+  from mounted pools because projection resolves logical keys/suffixes again.
+  Compiler admits one root with finite facts but projection returns an empty pool.
+- **P1-B2:** finite admission accepts clip structure rejected by the actual
+  player, including a keyframe beyond the explicit duration. Eligibility/Save
+  must not promise playback for those bytes.
+- **P1-F1:** editor pool-member previews bypass finite idle facts, so clip loops,
+  speed and VRMA repetition settings diverge from actual idle playback.
+- **P1-F2:** clip idles require literal `idle`, while existing VRMA scheduling
+  retains idle behavior during `user_typing`; clips fail to start or interrupt.
+- **P1-F3:** the preview event bridge drops occurrence cancellation, allowing
+  pending or active preview audio to outlive completion.
 
 #### Code Review #1 Revisions
 
-Not run. Two repair rounds remain; record dispositions and verification here.
+All five findings accepted after source inspection and reviewer reproductions.
+Repair round 1 is in progress: resolve admitted dependency identities, validate
+playable clip structure against shared fixtures, supply exact candidate-preview
+facts, unify typing scheduling and propagate owned preview audio cancellation.
+P1-B1's locator regression was observed red, then green; its adjacent runtime/API
+batch passed 10 tests. End-boundary dispatch followed by immediate owned-resource
+cleanup is consistent with the completion contract; effects do not extend idle. One additional repair round
+will remain after targeted Review #2; do not restart comprehensive review.
+Check finding C1 (test import lint/format) is resolved; full mypy now passes.
+
+#### Code Review #2 Findings
+
+Targeted independent recheck after the first repairs:
+
+- Backend P1-B1/P1-B2 pass; exact dependency identities and parser-aligned clip
+  admission resolve the reproductions without a demonstrated repair regression.
+- Frontend P1-F2/P1-F3 pass; typing uses the shared base-state predicate and
+  preview cancellation now covers pending/active direct and accompanying audio.
+- P1-F1 and related locator propagation pass frontend recheck. Candidate facts
+  remain tied to the same exact preview; editor root/nested lookups use admitted
+  IDs and preserve authored refs with the frozen draft baseline.
+- **P1-B3 (required repair regression):** the new dependency DTO publishes raw
+  stored target IDs even when only the root is caller-visible. The independent
+  service/DTO reproduction exposed a hidden target UUID, without a byte-access
+  bypass. Keep optional IDs null unless visible/admitted in the response.
+
+Verification during repairs:
+
+```bash
+uv run --no-sync pytest -q --disable-warnings --tb=short
+# 1833 passed, 14 failed, 7 skipped. All failures used legacy v1 Idle Style
+# setup in two test fixtures, which no longer represents supported new authoring.
+uv run --no-sync pytest -q tests/test_anima_materializer.py tests/test_anima_creation.py tests/test_content_watcher_admission.py --disable-warnings --tb=short
+# After updating those fixtures: 78 passed, with original behavioral assertions retained.
+uv run --no-sync pytest -q tests/test_content_mutation_workflows.py
+# 17 passed: finite candidate preview facts and ordinary ineligible preview behavior.
+pnpm --dir src/frontend --filter animama-web exec vitest run src/lib/content-preview/effects.soundOwnership.test.ts src/lib/content-preview/effects.test.ts src/lib/content-preview/playback.test.ts src/lib/avatar/poses/PoseController.playbackObservation.test.ts src/ui/create-anima/CreateAnimaPreviewSession.test.ts src/ui/content-preview/ContentPreviewSession.test.ts tests/avatar/AvatarPlannerMotion.test.ts
+# 82 passed across 7 files; actual PoseController drives cancellation tests.
+```
+
+Shared exact-byte clip fixtures pass 53 backend and 53 actual frontend parser/
+player tests. Backend mypy passes 522 files after the validator addition; runtime
+locator regression batch passes 6 tests. Final schema regeneration/checks follow
+once preview dependency identity propagation is stable.
+
+#### Code Review #2 Revisions
+
+P1-B3 accepted after confirming the serializer consumes persisted IDs without
+caller visibility. The second and final repair round is in progress: carry only
+visible/admitted dependency identities in typed responses, leaving raw receipt
+projection independent of current source reads. No ownership redesign is needed.
+Targeted Review #3 must pass; no repair rounds remain afterward. All frontend
+findings are closed, with 279 files / 1692 tests passing in the final full suite.
+An earlier concurrent package-build test run was discarded and rerun sequentially;
+no failed result is represented as passing. Full backend rerun after fixture
+correction: 1847 passed, 7 skipped. That broad run predates the narrow B3 repair;
+its affected API/preview/receipt checks must be refreshed. `pnpm build`,
+`pnpm check`, `pnpm web:lint` and `pnpm openapi-ts:check` pass on the final frontend
+source. `make format-check lint mypy` passes (522 files); rerun affected backend
+static checks after B3. The existing large-bundle build warning remains informational.
+
+#### Code Review #3 Findings
+
+Final targeted independent backend recheck passes. P1-B3 reproduction now returns
+null for a hidden dependency, retains the correct visible locator target through
+list/get/preview, and omits optional IDs during raw receipt parsing without any
+current-byte query. P1-B1/B2 remain resolved; frontend Review #2 passed F1–F3 and
+locator propagation. No remaining actionable findings; no repair rounds remain.
+
+#### Code Review #3 Revisions
+
+No further code changes requested. Final B3 evidence: 12 typed API/replay tests,
+19 preview/batch/mutation tests and 8 final typed API assertions pass. Final
+`make format-check lint mypy` passes all 522 files; typed-content and shared Python
+import-boundary audits pass. The loadout UI was reloaded after visibility repair
+and still resolves the equipped Style and all saved cell settings.
+
+Phase 1 passes its checks, independent review and rendered VRMA/clip gates.
+Native audio and the full quiet-period journey remain explicit Phase 6 gates.
+No hosted CI, release or physical-audio acceptance is claimed by this phase.
 
 ### Phase 2: Retire unsupported content without losing Actions or audio files
 

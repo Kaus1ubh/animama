@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from animama.app.services.content_kind_registry import idle_cells_projection
 from animama.domain.anima_loadout import (
     AnimaLoadout,
     AppearanceBinding,
@@ -19,6 +20,7 @@ from animama.domain.anima_loadout import (
     ReactionCell,
 )
 from animama.domain.emotions import TRACKED_EMOTIONS
+from animama.server.schemas.idle_style import PyIdleCell
 
 
 class PyCatalogLoadoutSource(BaseModel):
@@ -107,14 +109,13 @@ class PyIdleStyleIntent(BaseModel):
 
     operation: Literal["set", "update", "reconfigure", "revert", "leave_empty"]
     source: PyCatalogLoadoutSource | None = None
-    pool_overrides: dict[str, list[str]] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_source(self) -> PyIdleStyleIntent:
         if self.operation in {"set", "update", "reconfigure"} and self.source is None:
             raise ValueError("source is required")
-        if self.operation in {"revert", "leave_empty"} and (self.source is not None or self.pool_overrides):
-            raise ValueError("revert and leave_empty do not accept source or overrides")
+        if self.operation in {"revert", "leave_empty"} and self.source is not None:
+            raise ValueError("revert and leave_empty do not accept a source")
         return self
 
 
@@ -335,6 +336,14 @@ class PyIdleAnimationSummary(BaseModel):
     description: str | None = None
 
 
+class PyIdleGestureSummary(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    item_id: str
+    logical_key: str | None = None
+    name: str
+    description: str | None = None
+
+
 class PyAnimaIdleStyle(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -342,6 +351,10 @@ class PyAnimaIdleStyle(BaseModel):
     name: str | None = None
     description: str | None = None
     source: PyCatalogLoadoutSource | None = None
+    schema_version: Literal[1, 2] = 2
+    default_pool: list[str] = Field(default_factory=list)
+    cells: dict[str, dict[str, PyIdleCell]] = Field(default_factory=dict)
+    gestures: list[PyIdleGestureSummary] = Field(default_factory=list)
     animations: list[PyIdleAnimationSummary] = Field(default_factory=list)
     document_default_pool: list[str] = Field(default_factory=list)
     document_emotion_pools: dict[str, list[str]] = Field(default_factory=dict)
@@ -354,6 +367,15 @@ class PyAnimaIdleStyle(BaseModel):
     def from_domain(cls, value: IdleStyleBinding) -> PyAnimaIdleStyle:
         return cls(
             state=value.state,
+            schema_version=value.schema_version,
+            default_pool=list(value.default_pool),
+            cells=idle_cells_projection(value.cells),
+            gestures=[
+                PyIdleGestureSummary(
+                    item_id=item.item_id, logical_key=item.logical_key, name=item.name, description=item.description
+                )
+                for item in value.gestures
+            ],
             name=value.name,
             description=value.description,
             source=PyCatalogLoadoutSource.from_domain(value.source) if value.source else None,

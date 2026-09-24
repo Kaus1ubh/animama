@@ -29,7 +29,12 @@ from animama.domain.content_catalog import (
     ContentSource,
     ContentStatus,
 )
-from animama.domain.content_documents import GestureDocumentV1, IdleStyleDocumentV1, ReactionDocumentV1
+from animama.domain.content_documents import (
+    GestureDocumentV1,
+    IdleStyleDocumentV1,
+    IdleStyleDocumentV2,
+    ReactionDocumentV1,
+)
 from animama.domain.emotions import TRACKED_EMOTIONS
 from animama.domain.runtime_content_descriptor import RuntimeContentRootSelection
 
@@ -325,7 +330,7 @@ class AnimaCreationSources:
                 if typed.item.kind is ContentKind.AVATAR:
                     avatar_version = facts["vrm_spec"]
         for typed in typed_items.values():
-            if isinstance(typed.document, IdleStyleDocumentV1):
+            if isinstance(typed.document, IdleStyleDocumentV1 | IdleStyleDocumentV2):
                 versions = typed.document.compatibility.get("vrm_versions", ["0.x", "1.0"])
                 if (
                     not isinstance(versions, list)

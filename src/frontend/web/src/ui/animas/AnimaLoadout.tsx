@@ -422,23 +422,14 @@ export function AnimaLoadout({
     void planIdleStyle({
       operation: "set",
       source,
-      pool_overrides: {},
     });
   };
 
-  const previewIdle = async (
-    emotion = "default",
-    poolOverrides?: Record<string, string[]>,
-  ) => {
+  const previewIdle = async (gestureRef?: string) => {
     if (!loadout?.idle_style.source || !runtimeQuery.data) return;
+    const selectedRef = gestureRef ?? loadout.idle_style.default_pool?.[0];
+    if (!selectedRef) return;
     try {
-      const pools = poolOverrides ?? loadout.idle_style.pool_overrides ?? {};
-      const animationId =
-        pools[emotion]?.[0] ??
-        (emotion === "default"
-          ? loadout.idle_style.effective_default_pool?.[0]
-          : loadout.idle_style.effective_emotion_pools?.[emotion]?.[0]) ??
-        loadout.idle_style.effective_default_pool?.[0];
       const result = (
         await previewIdleStyle({
           path: { item_id: loadout.idle_style.source.catalog_item_id },
@@ -448,7 +439,7 @@ export function AnimaLoadout({
       ).data;
       onStagePreview(
         idleStylePreviewTarget(
-          typedIdleStylePreview(result, animationId),
+          typedIdleStylePreview(result, selectedRef),
           loadout.idle_style.name ?? "Idle Style",
           animaId,
           runtimeQuery.data,
@@ -457,29 +448,6 @@ export function AnimaLoadout({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Preview failed.");
     }
-  };
-
-  const updateIdlePool = (emotion: string, animationIds: string[]) => {
-    if (!loadout?.idle_style.source || !animationIds.length) return;
-    void planIdleStyle({
-      operation: "reconfigure",
-      source: loadout.idle_style.source,
-      pool_overrides: {
-        ...(loadout.idle_style.pool_overrides ?? {}),
-        [emotion]: animationIds,
-      },
-    });
-  };
-
-  const restoreIdlePool = (emotion: string) => {
-    if (!loadout?.idle_style.source) return;
-    const overrides = { ...(loadout.idle_style.pool_overrides ?? {}) };
-    delete overrides[emotion];
-    void planIdleStyle({
-      operation: "reconfigure",
-      source: loadout.idle_style.source,
-      pool_overrides: overrides,
-    });
   };
 
   const confirm = async () => {
@@ -654,26 +622,17 @@ export function AnimaLoadout({
           Boolean(hasNextIdleStylesPage && !idleStylesNextPageError)
         }
         disabled={mutationsDisabled}
-        onPreview={() => void previewIdle("default")}
-        onPreviewAnimation={(emotion, animationId) =>
-          void previewIdle(emotion, {
-            ...(loadout.idle_style.pool_overrides ?? {}),
-            [emotion]: [animationId],
-          })
-        }
+        onPreview={() => void previewIdle()}
+        onPreviewGesture={(gestureRef) => void previewIdle(gestureRef)}
         onSelect={selectIdleStyle}
-        onUpdatePool={updateIdlePool}
-        onRestorePool={restoreIdlePool}
         onRevert={() =>
           void planIdleStyle({
             operation: "revert",
-            pool_overrides: {},
           })
         }
         onLeaveEmpty={() =>
           void planIdleStyle({
             operation: "leave_empty",
-            pool_overrides: {},
           })
         }
       />

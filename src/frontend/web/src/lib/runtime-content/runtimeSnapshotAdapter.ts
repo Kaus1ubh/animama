@@ -222,6 +222,62 @@ export function adaptRuntimeSnapshot(
     append(runtime, entry);
   }
   const idleStyle = object(typed.idle_style);
+  if (
+    Array.isArray(idleStyle.gestures) &&
+    (idleStyle.schema_version === 2 || idleStyle.gestures.length > 0)
+  ) {
+    const runtimeIds = new Map<string, string>();
+    for (const raw of idleStyle.gestures) {
+      const gesture = object(raw);
+      const itemId = String(object(gesture.source).item_id ?? "");
+      const runtimeId = String(gesture.binding_id ?? `idle:${itemId}`);
+      const playback = object(gesture.idle_playback);
+      if (!itemId || playback.eligible !== true) continue;
+      runtimeIds.set(itemId, runtimeId);
+      const entry = privateEntry(
+        {
+          ...gesture,
+          runtime_root_id: idleStyle.runtime_root_id,
+          config: {
+            ...object(gesture.config),
+            idle_playback: playback,
+            duration_seconds: playback.cycle_seconds,
+            loop_type: playback.loop_type,
+            loop_count: playback.repetitions,
+            time_scale: playback.time_scale,
+            preload_tier: "tier_a",
+          },
+        },
+        "idle_animation",
+        runtimeId,
+        object(gesture.implementation).kind === "vrma"
+          ? "animation"
+          : "anima_pose_clip",
+        typed.effective_revision,
+      );
+      append(runtime, entry);
+    }
+    const ids = (value: unknown): string[] =>
+      Array.isArray(value)
+        ? value
+            .map((id) => runtimeIds.get(String(id)))
+            .filter((id): id is string => !!id)
+        : [];
+    runtime.idle_style_pools = {
+      default: ids(idleStyle.default_pool),
+      cells: Object.fromEntries(
+        Object.entries(object(idleStyle.cells)).map(([emotion, levels]) => [
+          emotion,
+          Object.fromEntries(
+            Object.entries(object(levels)).map(([level, raw]) => [
+              level,
+              object(raw).mode === "none" ? [] : ids(object(raw).gestures),
+            ]),
+          ),
+        ]),
+      ),
+    };
+  }
   const defaultPool = new Set(
     Array.isArray(idleStyle.default_pool)
       ? idleStyle.default_pool.map(String)

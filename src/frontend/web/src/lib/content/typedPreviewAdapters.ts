@@ -23,10 +23,26 @@ function targetForDependency(
   if (!dependency) return null;
   const suffix = dependency.ref.split(":").at(-1);
   const candidates = [preview.item, ...(preview.supports ?? [])];
+  if (dependency.item_id)
+    return (
+      candidates.find((item) => item.item_id === dependency.item_id) ?? null
+    );
   return (
     candidates.find((item) => item.logical_key === dependency.ref) ??
     candidates.find((item) => item.logical_key?.split(":").at(-1) === suffix) ??
     null
+  );
+}
+
+function exactDependencyTarget(
+  preview: PyTypedContentPreview,
+  dependency: PyTypedDependency | undefined,
+): PreviewItem | undefined {
+  if (!dependency) return undefined;
+  return [preview.item, ...(preview.supports ?? [])].find((item) =>
+    dependency.item_id
+      ? item.item_id === dependency.item_id
+      : item.logical_key === dependency.ref,
   );
 }
 
@@ -239,60 +255,60 @@ export function typedActionPreview(
   } as PyActionPreview;
 }
 
-/** Select one exact typed Idle animation for the existing stage preview. */
+function idleGesturePreview(
+  preview: PyTypedContentPreview,
+  selectedRef: string,
+): PyIdleStylePreview {
+  return {
+    ...typedActionPreview(preview),
+    idle_playback: preview.idle_playback?.[selectedRef] ?? {
+      eligible: false,
+      reason: "idle_playback_unavailable",
+    },
+    selected_gesture_ref: selectedRef,
+    selected_gesture_name: preview.item.name,
+  };
+}
+
+/** Preview a Style member or draft candidate with its exact finite Gesture facts. */
 export function typedIdleStylePreview(
   preview: PyTypedContentPreview,
-  animationId?: string,
+  gestureRef?: string,
 ): PyIdleStylePreview {
-  const item = preview.item;
-  if (item.kind !== "idle_style") {
-    throw new Error("The preview is not an Idle Style.");
+  const style = preview.item;
+  if (style.kind === "gesture") {
+    const selectedRef = style.logical_key;
+    if (!selectedRef || (gestureRef && gestureRef !== selectedRef))
+      throw new Error("The selected idle Gesture is unavailable.");
+    return idleGesturePreview(preview, selectedRef);
   }
-  const selectedId =
-    animationId ?? item.default_pool[0] ?? item.animations[0]?.animation_id;
-  const animations = item.animations.map((animation) => {
-    const direct = (item.files ?? []).find(
-      (file) => file.file_ref === animation.file_ref,
-    );
-    const dependency = (item.dependencies ?? []).find(
-      (candidate) => candidate.ref === animation.dependency_ref,
-    );
-    const target = targetForDependency(preview, dependency);
-    const file = direct
-      ? preview.files.find(
-          (candidate) => candidate.file_ref === direct.file_ref,
-        )
-      : target
-        ? filesForItem(preview, target)[0]
-        : undefined;
-    return {
-      animation_id: animation.animation_id,
-      name: animation.name,
-      description: animation.description,
-      playback: animation.playback,
-      file: file?.filename,
-      ordinal: file?.ordinal,
-    };
-  });
-  return {
-    preview_id: preview.preview_id,
-    revision: preview.revision_sha256,
-    revision_sha256: preview.revision_sha256,
-    expires_at: preview.expires_at,
-    files: previewFiles(preview),
-    metadata: {
-      style: {
-        animations,
-        default_pool: item.default_pool,
-        emotion_pools: item.emotion_pools,
-        cross_fade_seconds: item.cross_fade_seconds,
-      },
-    },
-    selected_animation_id: selectedId ?? null,
-    selected_animation_name:
-      animations.find((animation) => animation.animation_id === selectedId)
-        ?.name ?? null,
-  } as PyIdleStylePreview;
+  if (style.kind !== "idle_style")
+    throw new Error("The preview is not an Idle Style.");
+  const selectedRef = gestureRef ?? style.default_pool[0];
+  if (!selectedRef) throw new Error("No scheduled idle Gesture in this pool.");
+  const selectedDependency = (style.dependencies ?? []).find(
+    (dependency) =>
+      dependency.kind === "gesture" && dependency.ref === selectedRef,
+  );
+  const gesture = exactDependencyTarget(preview, selectedDependency);
+  if (!gesture || gesture.kind !== "gesture")
+    throw new Error("The selected idle Gesture is unavailable.");
+  const supports: PreviewItem[] = [];
+  const seen = new Set([gesture.item_id]);
+  const pending = [...(gesture.dependencies ?? [])];
+  while (pending.length) {
+    const dependency = pending.shift()!;
+    const support = exactDependencyTarget(preview, dependency);
+    if (!support) throw new Error("An idle Gesture dependency is unavailable.");
+    if (seen.has(support.item_id)) continue;
+    seen.add(support.item_id);
+    supports.push(support);
+    pending.push(...(support.dependencies ?? []));
+  }
+  return idleGesturePreview(
+    { ...preview, item: gesture, supports },
+    selectedRef,
+  );
 }
 
 /** Preserve the existing audio-preview control while consuming typed fields. */

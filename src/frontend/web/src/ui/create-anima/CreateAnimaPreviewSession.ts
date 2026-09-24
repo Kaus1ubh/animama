@@ -101,8 +101,8 @@ export class CreateAnimaPreviewSession {
     this.bridge = createContentPreviewClipEventBridge({
       catalog: this.catalog,
       onSceneVFXChange: onScene,
-      playSfx: (id) => {
-        if (!this.muted) return this.audio.play(this.catalog, id);
+      playSfx: (id, signal) => {
+        if (!this.muted) return this.audio.play(this.catalog, id, signal);
       },
     });
   }

@@ -668,6 +668,27 @@ class SQLAlchemyContentCatalog(ContentCatalog):
         )
         return direct is not None or binding is not None
 
+    async def record_transition_failure(self, *, user_id: str, item_id: str, expected_revision: str, code: str) -> None:
+        """Keep an unconvertible source unavailable without losing its originals."""
+        async with self.mutation_transaction():
+            entry = await self.get_visible_item(item_id=item_id, user_id=user_id, for_update=True)
+            if entry is None or entry.revision_sha256 != expected_revision:
+                raise ContentConflictError("content_transition_source_changed")
+            row = await self._session.get(ORMContentCatalogItem, item_id)
+            assert row is not None
+            row.status = ContentStatus.INVALID.value
+            row.diagnostics = [
+                *list(row.diagnostics or []),
+                {
+                    "code": code,
+                    "message": (
+                        "This legacy Idle Style could not be converted. Original files are preserved; "
+                        "repair its motion or pool references and rescan."
+                    ),
+                },
+            ]
+            await self._session.flush()
+
     async def list_visible(self, *, user_id: str) -> list[CatalogContentEntry]:
         result = await self._session.execute(
             select(ORMContentCatalogItem)

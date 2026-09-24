@@ -30,6 +30,8 @@ export type ManifestAnimationEntry = {
   loop_count?: number;
   time_scale?: number;
   weight?: number;
+  /** Admitted finite Gesture playback, separate from the AI Gesture loadout. */
+  idle_playback?: boolean;
 };
 
 export type ManifestAnimation = ManifestAnimationEntry;
@@ -438,7 +440,10 @@ function evaluateManifestIdleEntry(
   if (entry.disabled === true) {
     return { ...base, eligible: false, weight: 0, exclusionReason: "disabled" };
   }
-  if (entry.type !== "vrma") {
+  if (
+    entry.type !== "vrma" &&
+    !(entry.type === "animaPoseClip" && entry.idle_playback)
+  ) {
     return { ...base, eligible: false, weight: 0, exclusionReason: "nonVrma" };
   }
   if (!entry.name || !entry.file) {

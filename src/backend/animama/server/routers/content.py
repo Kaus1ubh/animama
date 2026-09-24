@@ -15,11 +15,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.adapters.repositories.sqlalchemy.content_transition_repo import SQLAlchemyContentTransitionBindings
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_file_validation import ContentFileInvalidError
 from animama.app.services.content_kind_registry import MAX_JSON_BYTES, definition_for_kind
 from animama.app.services.content_package_service import MAX_PACKAGE_BYTES, ContentPackageService
 from animama.app.services.content_save_service import ContentSaveService
+from animama.app.services.content_transition_service import ContentTransitionService
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentConflictError,
@@ -32,6 +34,7 @@ from animama.domain.content_catalog import (
     SavedContent,
     VerifiedContentFile,
 )
+from animama.domain.content_documents import ContentDocumentError
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.config import settings
 from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
@@ -139,7 +142,9 @@ async def rescan_content_catalog(
 ) -> PyContentRescan:
     """Perform the authoritative scan; this never equips newly admitted content."""
 
-    result = await _service(request, session).rescan(user_id=user.id)
+    result = await ContentTransitionService(
+        content=_service(request, session), bindings=SQLAlchemyContentTransitionBindings(session)
+    ).convert_idle_styles(user_id=user.id)
     items = list(result.items)
     return PyContentRescan(
         summaries=[PyContentScanSummary.from_domain(summary) for summary in result.summaries],
@@ -168,6 +173,8 @@ async def _bounded_upload(upload: UploadFile, *, limit: int) -> tuple[BinaryIO, 
 
 
 def _raise_content_mutation(exc: Exception) -> NoReturn:
+    if isinstance(exc, ContentDocumentError):
+        raise HTTPException(status_code=422, detail={"code": "content_invalid", "reason": exc.code}) from exc
     if isinstance(exc, ContentFileInvalidError):
         raise HTTPException(
             status_code=422, detail={"code": "content_invalid", "reason": exc.reason, "field": exc.field}

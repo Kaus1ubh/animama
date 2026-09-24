@@ -37,6 +37,32 @@ text chat available. `chat:sse` requires the issued revision. Save, filesystem
 edits, Rescan, and Equip therefore take effect on the next mount rather than
 mid-conversation.
 
+## Idle Styles
+
+Canonical Idle Styles use `schema_version: 2`. `default_pool` lists Gesture
+dependency references; `cells[emotion][intensity]` is either
+`{mode: "pool", gestures: [...]}` or `{mode: "none"}`. Omitted cells inherit
+Default. Default may be empty; an explicit pool is nonempty with unique members.
+The Style declares exactly the Gesture dependencies used by its pools. It owns
+no motion files and permits no per-Anima pool overrides. Idle membership alone
+does not add a Gesture to the AI-invocable equipment list.
+
+Save, Preview and runtime validate finite playback against registered VRMA/clip
+bytes. Duration overrides cannot repair unknown timelines. Repeat playback needs
+an explicit positive finite count; clips with phase/state/run lifetimes are not
+idle-eligible. Each Style preview carries finite facts from the same frozen
+closure as its protected bytes.
+
+Startup and explicit Rescan convert legacy Style-owned lanes into Gesture-owned
+content and materialize distinct effective Anima overrides as Styles. Local
+Style identity is retained where possible; Included sources remain unchanged and
+produce Local copies. Source bytes and prior binding facts are retained under
+private `internal/operations/transitions/`, separately from short-lived mutation
+journals. Files, bindings and the success receipt share one recoverable mutation.
+A repeated scan does not overwrite later edits or produce more copies. Invalid
+or unbounded legacy motion retains its originals with a Content Health repair
+diagnostic; fix the source and Rescan rather than resetting the installation.
+
 ## Live Anima definition
 
 An Anima owns its stable `display_name`, positive `aggregate_revision`, and

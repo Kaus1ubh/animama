@@ -64,6 +64,25 @@ describe("SoundController", () => {
     globalThis.Audio = originalAudio;
   });
 
+  it("stops only sound owned by the cancelled occurrence and refuses late playback", () => {
+    const controller = new SoundController();
+    const occurrence = new AbortController();
+    controller.playSfx("blob:unrelated");
+    controller.playSfx("blob:owned", { signal: occurrence.signal });
+    occurrence.abort();
+    expect(
+      MockAudio.instances.find((audio) => audio.src === "blob:owned")?.paused,
+    ).toBe(true);
+    expect(
+      MockAudio.instances.find((audio) => audio.src === "blob:unrelated")
+        ?.paused,
+    ).toBe(false);
+    expect(
+      controller.playSfx("blob:late", { signal: occurrence.signal }),
+    ).toBeNull();
+    controller.dispose();
+  });
+
   it("does not let a stale play completion interrupt a newer BGM source", async () => {
     const first = deferredPlay();
     const second = deferredPlay();

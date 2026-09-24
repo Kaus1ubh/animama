@@ -156,6 +156,24 @@ class IdleStyleDocumentV1(ContentDocumentV1):
 
 
 @dataclass(frozen=True, slots=True)
+class IdleStyleCellV2:
+    """An explicit cell; an omitted cell inherits the Style's Default pool."""
+
+    mode: Literal["none", "pool"]
+    gestures: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class IdleStyleDocumentV2(ContentDocumentV1):
+    """Style-owned pools of complete Gesture dependencies, with no Anima overrides."""
+
+    schema_version: int = 2
+    default_pool: tuple[str, ...] = ()
+    cells: dict[str, dict[str, IdleStyleCellV2]] = field(default_factory=dict)
+    compatibility: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
 class MusicTrackDocumentV1(ContentDocumentV1):
     """Background track metadata and safe default playback controls."""
 
@@ -204,6 +222,7 @@ type TypedContentDocument = (
     | SceneEffectDocumentV1
     | SoundEffectDocumentV1
     | IdleStyleDocumentV1
+    | IdleStyleDocumentV2
     | MusicTrackDocumentV1
     | AvatarDocumentV1
     | AppearanceDocumentV1
@@ -220,6 +239,8 @@ class ContentDocumentError(ValueError):
 
 
 __all__ = [
+    "IdleStyleCellV2",
+    "IdleStyleDocumentV2",
     "ActionImplementationV1",
     "AppearanceDocumentV1",
     "AvatarDocumentV1",

@@ -69,14 +69,17 @@ Action to the clicked cell regardless of that suggested placement. Adding,
 updating, replacing, removing, reverting, or leaving a Reaction empty uses the
 same review boundary. Replacing a cell names the current occupant.
 
-An Idle Style owns named VRMA animation files and defines a Default pool plus
-optional pools for canonical emotions. The loadout presents those assignments
-as one continuous set of independently expandable emotion pools. Each pool can
-preview, add, and remove animations inline; its final animation cannot be
-removed because pools must remain non-empty. The filter can reveal emotions
-that inherit Default, and an override can restore the Included mapping. The
-active style selector can return to Starter or intentionally disable idle
-motion.
+An Idle Style owns pools of existing Gestures. Its Default pool can be empty;
+each emotion/intensity cell inherits Default, explicitly disables idle, or uses
+its own nonempty pool. Neutral uses Default. Choosing a Gesture for a Style
+does not equip it for AI invocation. Both VRMA and `animaPoseClip` Gestures need
+finite authored playback to be eligible.
+
+The loadout chooses, previews, edits or duplicates one Style, or leaves idle
+empty. Pool edits belong to the Style editor. Editing a shared Local Style
+affects its users on their next mount; duplicate it first for independent pools.
+Customizing Included content creates a Local copy. The editor preserves its
+loaded revision when saving or recovering an interrupted Save.
 
 Music supports several enabled built-in or private tracks. Per-track loop and
 gain are persisted; at most one enabled track autoplays. Playback position,

@@ -1262,9 +1262,25 @@ export type PyAnimaIdleStyle = {
      */
     animations?: Array<PyIdleAnimationSummary>;
     /**
+     * Cells
+     */
+    cells?: {
+        [key: string]: {
+            [key: string]: ({
+                mode: 'none';
+            } & PyIdleNoneCell) | ({
+                mode: 'pool';
+            } & PyIdlePoolCell);
+        };
+    };
+    /**
      * Cross Fade Seconds
      */
     cross_fade_seconds?: number;
+    /**
+     * Default Pool
+     */
+    default_pool?: Array<string>;
     /**
      * Description
      */
@@ -1290,6 +1306,10 @@ export type PyAnimaIdleStyle = {
         [key: string]: Array<string>;
     };
     /**
+     * Gestures
+     */
+    gestures?: Array<PyIdleGestureSummary>;
+    /**
      * Name
      */
     name?: string | null;
@@ -1299,6 +1319,10 @@ export type PyAnimaIdleStyle = {
     pool_overrides?: {
         [key: string]: Array<string>;
     };
+    /**
+     * Schema Version
+     */
+    schema_version?: 1 | 2;
     source?: PyCatalogLoadoutSource | null;
     /**
      * State
@@ -3785,13 +3809,107 @@ export type PyIdleAnimationSummary = {
 };
 
 /**
+ * PyIdleGestureSummary
+ */
+export type PyIdleGestureSummary = {
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Item Id
+     */
+    item_id: string;
+    /**
+     * Logical Key
+     */
+    logical_key?: string | null;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * PyIdleNoneCell
+ */
+export type PyIdleNoneCell = {
+    /**
+     * Mode
+     */
+    mode?: 'none';
+};
+
+/**
+ * PyIdlePlayback
+ *
+ * An ineligible candidate has a safe reason; admitted occurrences have all facts.
+ */
+export type PyIdlePlayback = {
+    /**
+     * Cycle Seconds
+     */
+    cycle_seconds?: number | null;
+    /**
+     * Duration Seconds
+     */
+    duration_seconds?: number | null;
+    /**
+     * Eligible
+     */
+    eligible: boolean;
+    /**
+     * Loop Type
+     */
+    loop_type?: 'once' | 'repeat' | 'pingpong' | null;
+    /**
+     * Reason
+     */
+    reason?: string | null;
+    /**
+     * Repetitions
+     */
+    repetitions?: number | null;
+    /**
+     * Time Scale
+     */
+    time_scale?: number | null;
+};
+
+/**
+ * PyIdlePoolCell
+ */
+export type PyIdlePoolCell = {
+    /**
+     * Gestures
+     */
+    gestures: Array<string>;
+    /**
+     * Mode
+     */
+    mode?: 'pool';
+};
+
+/**
  * PyIdleStyle
  */
 export type PyIdleStyle = {
     /**
      * Animations
      */
-    animations: Array<PyIdleAnimation>;
+    animations?: Array<PyIdleAnimation>;
+    /**
+     * Cells
+     */
+    cells?: {
+        [key: string]: {
+            [key: string]: ({
+                mode: 'none';
+            } & PyIdleNoneCell) | ({
+                mode: 'pool';
+            } & PyIdlePoolCell);
+        };
+    };
     /**
      * Compatibility
      */
@@ -3801,7 +3919,7 @@ export type PyIdleStyle = {
     /**
      * Cross Fade Seconds
      */
-    cross_fade_seconds: number;
+    cross_fade_seconds?: number;
     /**
      * Default Pool
      */
@@ -3821,7 +3939,7 @@ export type PyIdleStyle = {
     /**
      * Emotion Pools
      */
-    emotion_pools: {
+    emotion_pools?: {
         [key: string]: Array<string>;
     };
     /**
@@ -3848,6 +3966,10 @@ export type PyIdleStyle = {
      * Revision Sha256
      */
     revision_sha256: string;
+    /**
+     * Schema Version
+     */
+    schema_version?: 1 | 2;
     /**
      * Source
      */
@@ -3881,12 +4003,6 @@ export type PyIdleStyleIntent = {
      * Operation
      */
     operation: 'set' | 'update' | 'reconfigure' | 'revert' | 'leave_empty';
-    /**
-     * Pool Overrides
-     */
-    pool_overrides?: {
-        [key: string]: Array<string>;
-    };
     source?: PyCatalogLoadoutSource | null;
 };
 
@@ -5928,17 +6044,88 @@ export type PyRuntimeIdleAnimation = {
 };
 
 /**
+ * PyRuntimeIdleGesture
+ *
+ * A complete Action admitted for idle use, never an AI-selectable Gesture.
+ */
+export type PyRuntimeIdleGesture = {
+    /**
+     * Binding Id
+     */
+    binding_id: string;
+    /**
+     * Config
+     */
+    config?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Content Type
+     */
+    content_type?: 'gesture';
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Emotion
+     */
+    emotion?: string | null;
+    /**
+     * Files
+     */
+    files?: Array<PyRuntimeFile>;
+    idle_playback: PyIdlePlayback;
+    implementation: PyRuntimeActionImplementation;
+    /**
+     * Intensity
+     */
+    intensity?: number | null;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Reference Map
+     */
+    reference_map?: {
+        [key: string]: string;
+    };
+    /**
+     * Runtime Root Id
+     */
+    runtime_root_id?: string | null;
+    /**
+     * Semantic Key
+     */
+    semantic_key?: string | null;
+    source: PyRuntimeCatalogItemSource;
+};
+
+/**
  * PyRuntimeIdleStyle
  */
 export type PyRuntimeIdleStyle = {
     /**
      * Animations
      */
-    animations: Array<PyRuntimeIdleAnimation>;
+    animations?: Array<PyRuntimeIdleAnimation>;
+    /**
+     * Cells
+     */
+    cells?: {
+        [key: string]: {
+            [key: string]: ({
+                mode: 'none';
+            } & PyIdleNoneCell) | ({
+                mode: 'pool';
+            } & PyIdlePoolCell);
+        };
+    };
     /**
      * Cross Fade Seconds
      */
-    cross_fade_seconds: number;
+    cross_fade_seconds?: number;
     /**
      * Default Pool
      */
@@ -5950,9 +6137,13 @@ export type PyRuntimeIdleStyle = {
     /**
      * Emotion Pools
      */
-    emotion_pools: {
+    emotion_pools?: {
         [key: string]: Array<string>;
     };
+    /**
+     * Gestures
+     */
+    gestures?: Array<PyRuntimeIdleGesture>;
     /**
      * Name
      */
@@ -5965,6 +6156,10 @@ export type PyRuntimeIdleStyle = {
      * Runtime Root Id
      */
     runtime_root_id?: string | null;
+    /**
+     * Schema Version
+     */
+    schema_version?: 1 | 2;
     source: PyRuntimeCatalogItemSource;
 };
 
@@ -6513,6 +6708,12 @@ export type PyTypedContentPreview = {
      */
     files: Array<PyTypedPreviewFile>;
     /**
+     * Idle Playback
+     */
+    idle_playback?: {
+        [key: string]: PyIdlePlayback;
+    };
+    /**
      * Item
      */
     item: ({
@@ -6596,6 +6797,10 @@ export type PyTypedDependency = {
     config?: {
         [key: string]: unknown;
     };
+    /**
+     * Item Id
+     */
+    item_id?: string | null;
     /**
      * Kind
      */
@@ -10175,6 +10380,36 @@ export type GetGestureResponses = {
 };
 
 export type GetGestureResponse = GetGestureResponses[keyof GetGestureResponses];
+
+export type GetGestureIdlePlaybackData = {
+    body?: never;
+    path: {
+        /**
+         * Item Id
+         */
+        item_id: string;
+    };
+    query?: never;
+    url: '/v1/gestures/{item_id}/idle-playback';
+};
+
+export type GetGestureIdlePlaybackErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetGestureIdlePlaybackError = GetGestureIdlePlaybackErrors[keyof GetGestureIdlePlaybackErrors];
+
+export type GetGestureIdlePlaybackResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyIdlePlayback;
+};
+
+export type GetGestureIdlePlaybackResponse = GetGestureIdlePlaybackResponses[keyof GetGestureIdlePlaybackResponses];
 
 export type PreviewGestureData = {
     body?: never;

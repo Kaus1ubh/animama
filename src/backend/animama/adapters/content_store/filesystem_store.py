@@ -728,6 +728,91 @@ class FilesystemContentStore(ContentStore):
             return True
         raise ContentConflictError("operation_incomplete")
 
+    def retain_transition_originals(
+        self, *, operation_id: str, entry: CatalogContentEntry, binding_facts: list[dict[str, Any]]
+    ) -> None:
+        """Retain immutable pre-transition bytes even after successful journal cleanup.
+
+        A partial backup can be resumed, but an existing byte or manifest mismatch
+        is a preservation conflict. No original or operator edit is overwritten.
+        """
+
+        if self._mutation is None:
+            raise ContentConflictError("content_transition_requires_mutation")
+        operation_id = self._validated_operation_id(operation_id)
+        manifest_path = safe_path(
+            self._operations_root, f"transitions/{operation_id}/manifest.json", create_parents=True
+        )
+        inventory = []
+        for index, file in enumerate(entry.files):
+            name = f"{index:04d}.original"
+            destination = safe_path(manifest_path.parent, name)
+            facts = {
+                "backup": name,
+                "relative_path": file.relative_path,
+                "role": file.role,
+                "size_bytes": file.size_bytes,
+                "sha256": file.sha256,
+            }
+            inventory.append(facts)
+            if destination.exists() or destination.is_symlink():
+                self._assert_regular_file(destination)
+                if destination.stat().st_size != file.size_bytes or _sha256_file(destination) != file.sha256:
+                    raise ContentConflictError("content_transition_original_conflict")
+                continue
+            source = self.open_verified_file(
+                source=file.source,
+                relative_path=file.relative_path,
+                expected_size_bytes=file.size_bytes,
+                expected_sha256=file.sha256,
+                media_type=file.media_type,
+                source_mount_id=file.source_mount_id,
+            )
+            temporary = destination.with_name(f".{name}.{uuid.uuid4().hex}.tmp")
+            try:
+                with source.handle, temporary.open("xb") as target:
+                    os.fchmod(target.fileno(), 0o600)
+                    while chunk := source.handle.read(1024 * 1024):
+                        target.write(chunk)
+                    target.flush()
+                    os.fsync(target.fileno())
+                if temporary.stat().st_size != file.size_bytes or _sha256_file(temporary) != file.sha256:
+                    raise ContentIntegrityError("content transition original changed while retaining it")
+                os.replace(temporary, destination)
+                sync_directory(destination.parent)
+            finally:
+                source.handle.close()
+                temporary.unlink(missing_ok=True)
+        payload = json.dumps(
+            {
+                "schema": "animama-content-transition-originals/1",
+                "source_item_id": entry.id,
+                "source": entry.source.value,
+                "source_mount_id": entry.source_mount_id,
+                "source_revision": entry.revision_sha256,
+                "bindings": binding_facts,
+                "files": inventory,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+        if manifest_path.exists() or manifest_path.is_symlink():
+            self._assert_regular_file(manifest_path)
+            if manifest_path.read_bytes() != payload:
+                raise ContentConflictError("content_transition_original_conflict")
+            return
+        temporary = manifest_path.with_name(f".manifest.{uuid.uuid4().hex}.tmp")
+        try:
+            with temporary.open("xb") as target:
+                os.fchmod(target.fileno(), 0o600)
+                target.write(payload)
+                target.flush()
+                os.fsync(target.fileno())
+            os.replace(temporary, manifest_path)
+            sync_directory(manifest_path.parent)
+        finally:
+            temporary.unlink(missing_ok=True)
+
     def begin_mutation(self, *, operation_id: str, user_id: str, request_digest: str) -> str:
         """Install one request-owned journal after recovery and Local lock acquisition."""
 
@@ -1493,6 +1578,7 @@ class FilesystemContentStore(ContentStore):
         descriptor: bytes,
         companion_files: Mapping[str, bytes],
         operation_id: str | None = None,
+        require_new: bool = False,
     ) -> str:
         """Compatibility wrapper for callers that already hold bounded bytes."""
 
@@ -1502,6 +1588,7 @@ class FilesystemContentStore(ContentStore):
             descriptor=descriptor,
             companion_files={name: (BytesIO(payload), len(payload)) for name, payload in companion_files.items()},
             operation_id=operation_id,
+            require_new=require_new,
         )
 
     def save_descriptor_entry_streams(
@@ -1512,6 +1599,7 @@ class FilesystemContentStore(ContentStore):
         descriptor: bytes,
         companion_files: Mapping[str, tuple[BinaryIO, int]],
         operation_id: str | None = None,
+        require_new: bool = False,
     ) -> str:
         """Stage streamed files, replace companions, and publish the descriptor last."""
 
@@ -1530,6 +1618,11 @@ class FilesystemContentStore(ContentStore):
             raise ContentValidationError("descriptor entry exceeds the supported byte limit")
 
         entry_root = self._local_destination(relative_locator, directory=True)
+        if require_new and any(entry_root.iterdir()):
+            # A rolled-back attempt may leave an empty folder. Existing files,
+            # including manual edits and hidden entries, must never be replaced
+            # by a conversion claiming to create a fresh editable item.
+            raise ContentConflictError("content_destination_exists")
         descriptor_name = descriptor_filename(definition, entry_root.name)
         descriptor_destination = entry_root / descriptor_name
         operation_marker = entry_root / ".animama-operation"

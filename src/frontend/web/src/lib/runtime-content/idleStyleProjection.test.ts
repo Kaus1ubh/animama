@@ -157,6 +157,77 @@ describe("typed Idle Style projection", () => {
     ).toBe("angry");
   });
 
+  it("selects exact cells and finite idle Gestures without equipping them", () => {
+    const gesture = (id: string, kind: string) => ({
+      binding_id: `idle:${id}`,
+      source: { item_id: id },
+      name: id,
+      implementation: { kind },
+      config: {},
+      reference_map: {},
+      idle_playback: {
+        eligible: true,
+        cycle_seconds: 0.5,
+        time_scale: 2,
+        repetitions: 2,
+        duration_seconds: 0.5,
+        loop_type: "repeat",
+      },
+      files: [
+        {
+          file_ref: id,
+          role: kind === "vrma" ? "animation" : "sequence",
+          ordinal: 1,
+          filename: `${id}.json`,
+          media_type: "application/json",
+          size_bytes: 10,
+          sha256: "a".repeat(64),
+          url: `/v1/content/files/${id}`,
+        },
+      ],
+    });
+    const typed = {
+      catalog_version: 1,
+      loadout_revision: 1,
+      effective_revision: "v2",
+      content_descriptor: descriptor(),
+      avatar: avatar(),
+      gestures: [],
+      reactions: [],
+      idle_style: {
+        name: "Cells",
+        runtime_root_id: "style-root",
+        default_pool: ["sway"],
+        cells: {
+          joy: {
+            "1": { mode: "none" },
+            "2": { mode: "pool", gestures: ["wave"] },
+          },
+        },
+        gestures: [gesture("sway", "vrma"), gesture("wave", "animaPoseClip")],
+      },
+    } as unknown as PyAnimaRuntime;
+    const runtime = adaptRuntimeSnapshot(typed);
+    const catalog = new AnimaRuntimeCatalog(runtime);
+    const candidates = (joy: number) => {
+      const values = createEmptyEmotionStateMap();
+      values.joy = joy;
+      return catalog.evaluateIdleAnimations(buildEmotionRuntimeState(values))
+        .eligibleCandidates;
+    };
+    expect(candidates(0).map((row) => row.entry.id)).toEqual(["idle:sway"]);
+    expect(candidates(10)).toEqual([]);
+    expect(candidates(20).map((row) => row.entry.id)).toEqual(["idle:wave"]);
+    expect(candidates(20)[0]?.effectiveDurationSec).toBe(0.5);
+    expect(candidates(30).map((row) => row.entry.id)).toEqual(["idle:sway"]);
+    expect(runtime.gestures).toEqual([]);
+    expect(catalog.getGesture("idle:wave")).toBeNull();
+    expect(catalog.getGesture("wave")).toBeNull();
+    expect(catalog.listPoseClips().map((clip) => clip.runtimeId)).toContain(
+      "idle:wave",
+    );
+  });
+
   it("honors an intentionally empty style", () => {
     const runtime = adaptRuntimeSnapshot({
       catalog_version: 1,

@@ -18,6 +18,7 @@ const logger = createLogger("SoundController");
 type ActiveSfxPlayback = {
   audio: HTMLAudioElement;
   baseVolume: number;
+  cleanup?: () => void;
 };
 
 function clampVolume(value: number): number {
@@ -242,6 +243,7 @@ export class SoundController {
     if (
       this.isDisposed ||
       !assetPath ||
+      options.signal?.aborted ||
       !canUseAudioElement() ||
       this.snapshot.sfxMuted ||
       this.activeSfx.size >= MAX_ACTIVE_SFX
@@ -267,12 +269,15 @@ export class SoundController {
     this.applySfxMix(playback);
 
     const cleanup = () => {
+      options.signal?.removeEventListener("abort", cleanup);
       audio.onended = null;
       audio.onerror = null;
       audio.pause();
       this.activeSfx.delete(playbackId);
     };
 
+    playback.cleanup = cleanup;
+    options.signal?.addEventListener("abort", cleanup, { once: true });
     audio.onended = cleanup;
     audio.onerror = () => {
       logger.warn("Playback", "SFX playback failed", {
@@ -294,13 +299,12 @@ export class SoundController {
   stopSfx(playbackId: SoundPlaybackId) {
     const playback = this.activeSfx.get(playbackId);
     if (!playback) return;
-    playback.audio.pause();
-    this.activeSfx.delete(playbackId);
+    playback.cleanup?.();
   }
 
   stopAllSfx() {
     for (const playback of this.activeSfx.values()) {
-      playback.audio.pause();
+      playback.cleanup?.();
     }
     this.activeSfx.clear();
   }

@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 from animama.app.services.content_kind_registry import RuntimeProjectionInput, handler_for_kind
 from animama.domain.content_catalog import CatalogContentEntry, ContentKind
-from animama.domain.content_documents import ContentDocumentError, TypedContentDocument
+from animama.domain.content_documents import (
+    ContentDocumentError,
+    GestureDocumentV1,
+    IdleStyleDocumentV2,
+    TypedContentDocument,
+)
 from animama.domain.runtime_content_descriptor import (
     RuntimeContentDescriptor,
     RuntimeContentEntry,
@@ -130,29 +136,34 @@ def project_typed_runtime_catalog(
     def closure_entries(root: RuntimeContentRoot) -> list[RuntimeContentEntry]:
         return [entries[item_id] for item_id in root.entry_ids if item_id in entries]
 
-    def resolve_reference(root: RuntimeContentRoot, reference: str) -> RuntimeContentEntry | None:
-        candidates = closure_entries(root)
-        exact = [entry for entry in candidates if entry.logical_key == reference]
-        if len(exact) == 1:
-            return exact[0]
-        suffix = reference.rsplit(":", 1)[-1]
-        matches = [
-            entry for entry in candidates if entry.logical_key and entry.logical_key.rsplit(":", 1)[-1] == suffix
-        ]
-        return matches[0] if len(matches) == 1 else None
+    def resolve_reference(root: RuntimeContentRoot, owner_id: str, reference: str) -> RuntimeContentEntry | None:
+        """Use the admitted edge identity, including locator-based declarations.
 
-    def dependency_files(root: RuntimeContentRoot, document: TypedContentDocument) -> dict[str, list[dict[str, Any]]]:
+        Resolving names again can drop valid locator refs or choose a different
+        peer with a matching suffix. Catalog dependency IDs own this mapping.
+        """
+
+        owner = visible_by_id.get(owner_id)
+        if owner is None:
+            return None
+        targets = dict(zip(owner.dependencies, owner.dependency_item_ids, strict=True))
+        target_id = targets.get(reference)
+        return entries.get(target_id) if target_id in root.entry_ids else None
+
+    def dependency_files(
+        root: RuntimeContentRoot, owner_id: str, document: TypedContentDocument
+    ) -> dict[str, list[dict[str, Any]]]:
         result: dict[str, list[dict[str, Any]]] = {}
         for dependency in document.dependencies:
-            target = resolve_reference(root, dependency.ref)
+            target = resolve_reference(root, owner_id, dependency.ref)
             if target is not None:
                 result[dependency.ref] = entry_files(target.item_id)
         return result
 
-    def reference_map(root: RuntimeContentRoot, document: TypedContentDocument) -> dict[str, str]:
+    def reference_map(root: RuntimeContentRoot, owner_id: str, document: TypedContentDocument) -> dict[str, str]:
         result: dict[str, str] = {}
         for dependency in document.dependencies:
-            target = resolve_reference(root, dependency.ref)
+            target = resolve_reference(root, owner_id, dependency.ref)
             if dependency.alias and target is not None:
                 result[dependency.alias] = _runtime_id(target)
         return result
@@ -174,8 +185,8 @@ def project_typed_runtime_catalog(
             context=context,
             files=entry_files(entry.item_id),
             logical_files=logical_files(entry.item_id),
-            dependency_files=dependency_files(root, document),
-            reference_map=reference_map(root, document),
+            dependency_files=dependency_files(root, entry.item_id, document),
+            reference_map=reference_map(root, entry.item_id, document),
         )
 
     lanes: dict[str, list[dict[str, Any]]] = {
@@ -188,6 +199,7 @@ def project_typed_runtime_catalog(
     idle_style: dict[str, Any] | None = None
     avatar: dict[str, Any] | None = None
     supports: dict[str, dict[str, Any]] = {}
+    idle_scopes: list[tuple[RuntimeContentRoot, RuntimeContentEntry, GestureDocumentV1, dict[str, Any]]] = []
 
     for root in descriptor.roots:
         root_entry = entries.get(root.item_id)
@@ -207,6 +219,52 @@ def project_typed_runtime_catalog(
         if projected.payload is not None:
             if projected.lane == "idle_style":
                 idle_style = projected.payload
+                if isinstance(document, IdleStyleDocumentV2):
+                    by_ref: dict[str, str] = {}
+                    gestures: list[dict[str, Any]] = []
+                    for dependency in document.dependencies:
+                        target = resolve_reference(root, root_entry.item_id, dependency.ref)
+                        gesture = documents.get(target.item_id) if target is not None else None
+                        if target is None or not isinstance(gesture, GestureDocumentV1):
+                            continue
+                        facts = root.idle_playback.get(target.item_id)
+                        if facts is None:
+                            continue
+                        action = (
+                            handler_for_kind(ContentKind.GESTURE)
+                            .project_runtime(
+                                gesture,
+                                projection_input(
+                                    root=root,
+                                    entry=target,
+                                    document=gesture,
+                                    slot_key=f"idle:{target.item_id}",
+                                    context={"binding_id": f"idle:{target.item_id}"},
+                                ),
+                            )
+                            .payload
+                        )
+                        if action is not None:
+                            by_ref[dependency.ref] = target.item_id
+                            action["idle_playback"] = facts
+                            gestures.append(action)
+                            idle_scopes.append((root, target, gesture, action))
+                    idle_style["gestures"] = gestures
+                    idle_style["default_pool"] = [by_ref[ref] for ref in document.default_pool if ref in by_ref]
+                    idle_style["cells"] = {
+                        emotion: {
+                            intensity: {
+                                "mode": cell.mode,
+                                **(
+                                    {"gestures": [by_ref[ref] for ref in cell.gestures if ref in by_ref]}
+                                    if cell.mode == "pool"
+                                    else {}
+                                ),
+                            }
+                            for intensity, cell in levels.items()
+                        }
+                        for emotion, levels in document.cells.items()
+                    }
             elif projected.lane == "avatar":
                 avatar = projected.payload
             elif projected.lane in lanes:
@@ -225,7 +283,7 @@ def project_typed_runtime_catalog(
                 continue
             dependency_context: dict[str, Any] = {}
             for dependency in document.dependencies:
-                target = resolve_reference(root, dependency.ref)
+                target = resolve_reference(root, root_entry.item_id, dependency.ref)
                 if target is not None and target.item_id == support_entry.item_id:
                     dependency_context = {"config": dependency.config}
                     break
@@ -267,6 +325,80 @@ def project_typed_runtime_catalog(
             payload["_logical_resource_refs"] = {name: file["file_ref"] for name, file in logical_resources.items()}
             payload["logical_resource_urls"] = {}
             supports[support_entry.item_id] = payload
+
+    # Idle Gestures may author different edge overrides for the same support.
+    # Give those instances private identities while sharing verified file bytes.
+    for idle_root, gesture_entry, gesture_document, action in idle_scopes:
+
+        def scoped_references(
+            owner_document: TypedContentDocument,
+            owner_id: str,
+            path: tuple[str, ...],
+            idle_root: RuntimeContentRoot = idle_root,
+            gesture_entry: RuntimeContentEntry = gesture_entry,
+        ) -> dict[str, str]:
+            result: dict[str, str] = {}
+            for edge in owner_document.dependencies:
+                target = resolve_reference(idle_root, owner_id, edge.ref)
+                child = documents.get(target.item_id) if target is not None else None
+                if target is None or child is None:
+                    continue
+                next_path = (*path, edge.ref)
+                children = scoped_references(child, target.item_id, next_path)
+                if target.kind not in _SUPPORT_KINDS:
+                    result.update(children)
+                    continue
+                identity = "|".join((idle_root.root_id, gesture_entry.item_id, *next_path))
+                runtime_id = f"idle-support-{hashlib.sha256(identity.encode()).hexdigest()[:32]}"
+                payload = (
+                    handler_for_kind(target.kind)
+                    .project_runtime(
+                        child,
+                        projection_input(
+                            root=idle_root,
+                            entry=target,
+                            document=child,
+                            slot_key=f"support:{runtime_id}",
+                            context={"config": edge.config},
+                        ),
+                    )
+                    .payload
+                )
+                if payload is None:
+                    continue
+                template = supports.get(target.item_id, {})
+                payload.update(
+                    {
+                        "runtime_id": runtime_id,
+                        "runtime_root_ids": [idle_root.root_id],
+                        "reference_map": children,
+                        **{
+                            key: template[key]
+                            for key in ("logical_resource_files", "_logical_resource_refs", "logical_resource_urls")
+                            if key in template
+                        },
+                    }
+                )
+                supports[runtime_id] = payload
+                # Existing clips can name a dependency by its catalog runtime ID
+                # without declaring an alias. Preserve those references too.
+                result[_runtime_id(target)] = runtime_id
+                result[edge.ref] = runtime_id
+                if edge.alias:
+                    result[edge.alias] = runtime_id
+            return result
+
+        action["reference_map"] = scoped_references(gesture_document, gesture_entry.item_id, ())
+
+    idle_root_ids = {root.root_id for root, _, _, _ in idle_scopes}
+    for key, support in tuple(supports.items()):
+        if key.startswith("idle-support-"):
+            continue
+        support["runtime_root_ids"] = [
+            root_id for root_id in support["runtime_root_ids"] if root_id not in idle_root_ids
+        ]
+        if not support["runtime_root_ids"]:
+            del supports[key]
 
     by_type: dict[str, list[dict[str, Any]]] = {
         "particle_effect": [],

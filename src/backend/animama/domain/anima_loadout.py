@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal
 
 from .content_catalog import ContentSource
+from .content_documents import IdleStyleCellV2
 from .runtime_content_slot import RuntimeContentSlot
 
 
@@ -68,11 +69,25 @@ class IdleAnimationSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class IdleGestureSummary:
+    """A Style pool member; selection does not equip it for AI invocation."""
+
+    item_id: str
+    logical_key: str | None
+    name: str
+    description: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class IdleStyleBinding:
     state: Literal["starter", "custom", "empty"]
     name: str | None = None
     description: str | None = None
     source: CatalogLoadoutSource | None = None
+    schema_version: int = 2
+    default_pool: tuple[str, ...] = ()
+    cells: dict[str, dict[str, IdleStyleCellV2]] = field(default_factory=dict)
+    gestures: tuple[IdleGestureSummary, ...] = ()
     animations: tuple[IdleAnimationSummary, ...] = ()
     document_default_pool: tuple[str, ...] = ()
     document_emotion_pools: dict[str, tuple[str, ...]] = field(default_factory=dict)

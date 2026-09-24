@@ -149,8 +149,12 @@ loadout mutation flow.
 ## Component and media previews
 
 Particle, Avatar, Scene, and Sound previews use their concrete typed source
-union. Idle Style preview selects an animation from the typed item's named
-pools. Music preview uses the exact registered audio and its loop/gain
+union. Idle Style preview selects a Gesture from the chosen pool and carries its full
+support closure plus finite playback facts from the same saved preview snapshot.
+An empty pool has no preview occurrence. Editor candidate previews use the same
+finite playback contract. VRMA and clip previews honor authored
+speed and finite repetitions, retain sound/effect events and stop only their owned
+resources. Music preview uses the exact registered audio and its loop/gain
 defaults. Avatar and Appearance preview targets carry the exact revisioned
 model or image reference.
 

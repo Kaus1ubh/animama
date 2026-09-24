@@ -96,7 +96,7 @@ export type AvatarPlannerIdleStintDebugSnapshot = {
 };
 
 export type AvatarPlannerPoseClipStatus = "pending" | "active";
-export type AvatarPlannerPoseClipSource = "thinking" | "gesture";
+export type AvatarPlannerPoseClipSource = "thinking" | "gesture" | "idle";
 
 export type AvatarPlannerPoseClip = {
   ownerId: string;
@@ -104,6 +104,11 @@ export type AvatarPlannerPoseClip = {
   runId: string;
   clipId: AvatarThinkingPoseClipId | string;
   source: AvatarPlannerPoseClipSource;
+  finitePlayback?: {
+    timeScale: number;
+    repetitions: number;
+    durationSec: number;
+  };
   manifestGestureId: string | null;
   manifestGestureType: ManifestGestureType | null;
   gestureResolutionSource: AvatarPlannerGestureResolutionSource | null;
@@ -293,6 +298,8 @@ type AvatarPlannerMotionInput = {
   activeVrmaActions: readonly ActiveAnimationInfo[];
   activePlannerPoseClip: AvatarPlannerPoseClip | null;
   manualPoseClipActive: boolean;
+  /** Manual automatic-playback suspension also prevents idle clip admission. */
+  idlePlaybackBlocked?: boolean;
   plannerPoseClipRuntimeActive?: boolean;
   activePlannerProceduralLayerIds: readonly ProceduralAnimationLayerId[];
   manualProceduralLayerIds: readonly ProceduralAnimationLayerId[];
@@ -934,6 +941,8 @@ function planAvatarMotion(
     input,
     pendingEvents: vrma.pendingEvents,
     gesturePoseClip: vrma.gesturePoseClip,
+    idlePoseClip: vrma.idlePoseClip,
+    interruptIdle: !!vrma.activeGestureVrma || !!vrma.gesturePoseClip,
     phaseEnteredAtMs,
     nextRandomRoll: random.next,
     consumedPlannerEventIds,
@@ -1279,6 +1288,7 @@ function planVrma(args: {
   activeBaseVrma: AvatarPlannerVrma | null;
   activeGestureVrma: AvatarPlannerVrma | null;
   gesturePoseClip: AvatarPlannerPoseClip | null;
+  idlePoseClip?: AvatarPlannerPoseClip;
   idleStint: AvatarPlannerIdleStintState;
   idleStintDebug: AvatarPlannerIdleStintDebugSnapshot;
   talkingMotionArbitration: AvatarPlannerTalkingMotionArbitration;
@@ -1446,6 +1456,13 @@ function planVrma(args: {
   if (args.baseState === "idle") {
     const idlePlan = buildIdleStintPlan({
       previousBase: args.previous.activeBaseVrma,
+      previousPoseClip:
+        args.input.activePlannerPoseClip ?? args.previous.activePlannerPoseClip,
+      poseClipRuntimeActive: args.input.plannerPoseClipRuntimeActive,
+      blocked:
+        args.input.manualPoseClipActive ||
+        poseGestureStillActive ||
+        args.input.idlePlaybackBlocked === true,
       previousIdleStint: args.previous.idleStint,
       emotionalState: args.input.emotionalState,
       emotionKey: args.emotionKey,
@@ -1462,6 +1479,7 @@ function planVrma(args: {
       activeBaseVrma: idlePlan.activeBaseVrma,
       activeGestureVrma: null,
       gesturePoseClip: null,
+      idlePoseClip: idlePlan.idlePoseClip,
       idleStint: idlePlan.idleStint,
       idleStintDebug: idlePlan.idleStintDebug,
       talkingMotionArbitration: gestureEventRead.talkingMotionArbitration,
@@ -1914,6 +1932,9 @@ function createGesturePoseClip(args: {
 
 function buildIdleStintPlan(args: {
   previousBase: AvatarPlannerVrma | null;
+  previousPoseClip: AvatarPlannerPoseClip | null;
+  poseClipRuntimeActive?: boolean;
+  blocked: boolean;
   previousIdleStint: AvatarPlannerIdleStintState;
   emotionalState: EmotionalState;
   emotionKey: string;
@@ -1925,11 +1946,45 @@ function buildIdleStintPlan(args: {
   motionCatalog: AvatarMotionCatalog;
 }): {
   activeBaseVrma: AvatarPlannerVrma | null;
+  idlePoseClip?: AvatarPlannerPoseClip;
   idleStint: AvatarPlannerIdleStintState;
   idleStintDebug: AvatarPlannerIdleStintDebugSnapshot;
   actions: AvatarPlannerMotionAction[];
 } {
   const actions: AvatarPlannerMotionAction[] = [];
+  const previousClip =
+    args.previousPoseClip?.source === "idle" ? args.previousPoseClip : null;
+  if (
+    args.blocked ||
+    (args.previousIdleStint.phase === "active" && previousClip)
+  ) {
+    const continuing =
+      !args.blocked &&
+      previousClip &&
+      (previousClip.status === "pending" ||
+        args.poseClipRuntimeActive !== false);
+    const idleStint = continuing
+      ? args.previousIdleStint
+      : createQuietIdleStintState({
+          quietStartedAtMs: args.nowMs,
+          quietIntervalSec: args.quietIntervalSec,
+          lastSelectedFile: args.previousIdleStint.lastSelectedFile,
+        });
+    return {
+      activeBaseVrma: null,
+      idleStint,
+      actions,
+      idleStintDebug: buildIdleStintDebug({
+        idleStint,
+        quietIntervalSec: args.quietIntervalSec,
+        nowMs: args.nowMs,
+        selectedCandidate: null,
+        evaluation: args.motionCatalog.evaluateIdleAnimations(
+          args.emotionalState,
+        ),
+      }),
+    };
+  }
   const previousIdlePlan =
     args.previousBase?.state === "idle" ? args.previousBase : null;
 
@@ -2068,6 +2123,55 @@ function buildIdleStintPlan(args: {
   }
 
   const selected = selection.selected;
+  if (selected.entry.type === "animaPoseClip") {
+    const ownerId = `idle:${selected.entry.id ?? selected.file}:${args.nowMs}`;
+    const idlePoseClip: AvatarPlannerPoseClip = {
+      ownerId,
+      requestId: ownerId,
+      runId: "",
+      clipId: selected.file,
+      source: "idle",
+      manifestGestureId: selected.entry.id ?? null,
+      manifestGestureType: "animaPoseClip",
+      gestureResolutionSource: null,
+      sourceMotionEventId: null,
+      sourceEmotionEventId: null,
+      status: "pending",
+      requestedAtMs: args.nowMs,
+      eligibleAtMs: args.nowMs,
+      startedAtMs: null,
+      expiresAtMs: null,
+      priority: 0,
+      finitePlayback: {
+        timeScale: selected.timeScale,
+        repetitions: selected.loopCount ?? 1,
+        durationSec: selected.effectiveDurationSec,
+      },
+      enterPolicy: { mode: "fadeIn", durationSec: 0.35 },
+      exitPolicy: { mode: "fadeOut", durationSec: 0.35 },
+    };
+    const idleStint: AvatarPlannerIdleStintState = {
+      phase: "active",
+      quietStartedAtMs: null,
+      activeStartedAtMs: null,
+      activePlanKey: ownerId,
+      lastSelectedFile: selected.file,
+      nextDueAtMs: null,
+    };
+    return {
+      activeBaseVrma: null,
+      idlePoseClip,
+      idleStint,
+      actions,
+      idleStintDebug: buildIdleStintDebug({
+        idleStint,
+        quietIntervalSec: args.quietIntervalSec,
+        nowMs: args.nowMs,
+        selectedCandidate: selected,
+        evaluation: selection,
+      }),
+    };
+  }
   const plan = buildVrmaPlan({
     ownerId: "state:idle:stint",
     lane: "baseVrma",
@@ -2088,13 +2192,18 @@ function buildIdleStintPlan(args: {
   const activePlan = {
     ...plan,
     effectiveDurationSec,
-    nextEvalMs: effectiveDurationSec * 1000,
-    expiresAtMs: args.nowMs + effectiveDurationSec * 1000,
+    key: selected.entry.idle_playback ? `${plan.key}:${args.nowMs}` : plan.key,
+    nextEvalMs: selected.entry.idle_playback
+      ? null
+      : effectiveDurationSec * 1000,
+    expiresAtMs: selected.entry.idle_playback
+      ? null
+      : args.nowMs + effectiveDurationSec * 1000,
   };
   const idleStint: AvatarPlannerIdleStintState = {
     phase: "active",
     quietStartedAtMs: null,
-    activeStartedAtMs: args.nowMs,
+    activeStartedAtMs: selected.entry.idle_playback ? null : args.nowMs,
     activePlanKey: activePlan.key,
     lastSelectedFile: selected.file,
     nextDueAtMs: activePlan.expiresAtMs,
@@ -2230,6 +2339,8 @@ function planPoseClip(args: {
   input: AvatarPlannerMotionInput;
   pendingEvents: readonly AvatarPlannerMotionEvent[];
   gesturePoseClip: AvatarPlannerPoseClip | null;
+  idlePoseClip?: AvatarPlannerPoseClip;
+  interruptIdle: boolean;
   phaseEnteredAtMs: number;
   nextRandomRoll: () => number;
   consumedPlannerEventIds: string[];
@@ -2245,6 +2356,56 @@ function planPoseClip(args: {
   let activeClip =
     args.input.activePlannerPoseClip ?? args.previous.activePlannerPoseClip;
   let lastCancellationReason = args.previous.lastCancellationReason;
+
+  if (activeClip?.source === "idle") {
+    const interrupted =
+      resolveBaseState(args.input.interactionPhase) !== "idle" ||
+      args.input.manualPoseClipActive ||
+      args.input.idlePlaybackBlocked === true ||
+      args.interruptIdle;
+    if (
+      interrupted ||
+      (activeClip.status === "active" &&
+        args.input.plannerPoseClipRuntimeActive === false)
+    ) {
+      actions.push(
+        ...maybeStopPoseClip(
+          activeClip,
+          interrupted ? "idleInterrupted" : "idleCompleted",
+        ),
+      );
+      activeClip = null;
+    } else {
+      return {
+        activePlannerPoseClip: activeClip,
+        pendingEvents: [...args.pendingEvents],
+        actions,
+        lastCancellationReason,
+      };
+    }
+  }
+  if (
+    args.idlePoseClip &&
+    !args.input.manualPoseClipActive &&
+    resolveBaseState(args.input.interactionPhase) === "idle"
+  ) {
+    activeClip = args.idlePoseClip;
+    actions.push({
+      type: "playPoseClip",
+      ownerId: activeClip.ownerId,
+      lane: "poseClip",
+      runId: "",
+      clipId: activeClip.clipId,
+      poseClip: activeClip,
+      transition: activeClip.enterPolicy,
+    });
+    return {
+      activePlannerPoseClip: activeClip,
+      pendingEvents: [...args.pendingEvents],
+      actions,
+      lastCancellationReason: null,
+    };
+  }
 
   for (const event of args.pendingEvents) {
     if (event.type !== "runStarted") {
@@ -2488,7 +2649,7 @@ function maybeStopPoseClip(
   reason: string,
   transition: AvatarPlannerExitPolicy = { mode: "fadeOut", durationSec: 0.35 },
 ): AvatarPlannerMotionAction[] {
-  if (poseClip.status !== "active") {
+  if (poseClip.status !== "active" && poseClip.source !== "idle") {
     return [];
   }
   return [

@@ -215,6 +215,19 @@ references. Unknown fields and mismatched kinds are rejected. Avatar and Scene
 definitions contain bounded renderer settings and registered logical resource
 names; external/data/Blob URLs, scripts, shaders, and host paths are rejected.
 
+Idle Style authoring accepts `schema_version: 2` Gesture pools, separate
+emotion/intensity cells and explicit No idle/inheritance. It has no companion
+motion upload or per-Anima pool override. `GET /v1/gestures/{item_id}/idle-playback`
+returns exact-media finite eligibility or a safe reason for ineligibility.
+Style Preview includes an `idle_playback` map keyed by its declared Gesture
+reference, validated against the same frozen bytes. Gesture Preview includes
+eligible finite facts for the Idle editor's candidate playback; an ordinary
+ineligible Gesture can still be previewed outside idle use. Legacy Styles remain readable
+only for local conversion/recovery, not supported typed selection or authoring.
+Dependency `item_id` values identify caller-visible targets. Clients resolve
+locator references through those identities; they must not guess a logical-key
+suffix. Raw Save receipt responses may omit this optional resolution metadata.
+
 The Pose family returns `PyPose` metadata; registered preview bytes carry the
 resolved pose values. Pose Save uses the loaded catalog revision and an operation
 ID, preserving the same request for ambiguous retries. Included items are read-only;

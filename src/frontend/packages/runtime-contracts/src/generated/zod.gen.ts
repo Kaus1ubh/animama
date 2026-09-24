@@ -1906,11 +1906,88 @@ export const zPyIdleAnimationSummary = z.object({
 });
 
 /**
+ * PyIdleGestureSummary
+ */
+export const zPyIdleGestureSummary = z.object({
+    description: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    item_id: z.string(),
+    logical_key: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    name: z.string()
+});
+
+/**
+ * PyIdleNoneCell
+ */
+export const zPyIdleNoneCell = z.object({
+    mode: z.optional(z.literal('none')).default('none')
+});
+
+/**
+ * PyIdlePlayback
+ *
+ * An ineligible candidate has a safe reason; admitted occurrences have all facts.
+ */
+export const zPyIdlePlayback = z.object({
+    cycle_seconds: z.optional(z.union([
+        z.number().gt(0),
+        z.null()
+    ])),
+    duration_seconds: z.optional(z.union([
+        z.number().gt(0),
+        z.null()
+    ])),
+    eligible: z.boolean(),
+    loop_type: z.optional(z.union([
+        z.enum([
+            'once',
+            'repeat',
+            'pingpong'
+        ]),
+        z.null()
+    ])),
+    reason: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    repetitions: z.optional(z.union([
+        z.int().gt(0),
+        z.null()
+    ])),
+    time_scale: z.optional(z.union([
+        z.number().gt(0),
+        z.null()
+    ]))
+});
+
+/**
+ * PyIdlePoolCell
+ */
+export const zPyIdlePoolCell = z.object({
+    gestures: z.array(z.string()).min(1),
+    mode: z.optional(z.literal('pool')).default('pool')
+});
+
+/**
  * PyAnimaIdleStyle
  */
 export const zPyAnimaIdleStyle = z.object({
     animations: z.optional(z.array(zPyIdleAnimationSummary)),
+    cells: z.optional(z.record(z.string(), z.record(z.string(), z.union([
+        z.object({
+            mode: z.literal('none')
+        }).and(zPyIdleNoneCell),
+        z.object({
+            mode: z.literal('pool')
+        }).and(zPyIdlePoolCell)
+    ])))),
     cross_fade_seconds: z.optional(z.number()).default(0.35),
+    default_pool: z.optional(z.array(z.string())),
     description: z.optional(z.union([
         z.string(),
         z.null()
@@ -1919,11 +1996,13 @@ export const zPyAnimaIdleStyle = z.object({
     document_emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
     effective_default_pool: z.optional(z.array(z.string())),
     effective_emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
+    gestures: z.optional(z.array(zPyIdleGestureSummary)),
     name: z.optional(z.union([
         z.string(),
         z.null()
     ])),
     pool_overrides: z.optional(z.record(z.string(), z.array(z.string()))),
+    schema_version: z.optional(z.union([z.literal(1), z.literal(2)])),
     source: z.optional(z.union([
         zPyCatalogLoadoutSource,
         z.null()
@@ -1946,7 +2025,6 @@ export const zPyIdleStyleIntent = z.object({
         'revert',
         'leave_empty'
     ]),
-    pool_overrides: z.optional(z.record(z.string(), z.array(z.string()))),
     source: z.optional(z.union([
         zPyCatalogLoadoutSource,
         z.null()
@@ -3097,23 +3175,70 @@ export const zPyRuntimeIdleAnimation = z.object({
 });
 
 /**
+ * PyRuntimeIdleGesture
+ *
+ * A complete Action admitted for idle use, never an AI-selectable Gesture.
+ */
+export const zPyRuntimeIdleGesture = z.object({
+    binding_id: z.string(),
+    config: z.optional(z.record(z.string(), z.unknown())),
+    content_type: z.optional(z.literal('gesture')).default('gesture'),
+    description: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    emotion: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    files: z.optional(z.array(zPyRuntimeFile)),
+    idle_playback: zPyIdlePlayback,
+    implementation: zPyRuntimeActionImplementation,
+    intensity: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    name: z.string(),
+    reference_map: z.optional(z.record(z.string(), z.string())),
+    runtime_root_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    semantic_key: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    source: zPyRuntimeCatalogItemSource
+});
+
+/**
  * PyRuntimeIdleStyle
  */
 export const zPyRuntimeIdleStyle = z.object({
-    animations: z.array(zPyRuntimeIdleAnimation),
-    cross_fade_seconds: z.number(),
+    animations: z.optional(z.array(zPyRuntimeIdleAnimation)),
+    cells: z.optional(z.record(z.string(), z.record(z.string(), z.union([
+        z.object({
+            mode: z.literal('none')
+        }).and(zPyIdleNoneCell),
+        z.object({
+            mode: z.literal('pool')
+        }).and(zPyIdlePoolCell)
+    ])))),
+    cross_fade_seconds: z.optional(z.number()).default(0.35),
     default_pool: z.array(z.string()),
     description: z.optional(z.union([
         z.string(),
         z.null()
     ])),
-    emotion_pools: z.record(z.string(), z.array(z.string())),
+    emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
+    gestures: z.optional(z.array(zPyRuntimeIdleGesture)),
     name: z.string(),
     revision: z.string(),
     runtime_root_id: z.optional(z.union([
         z.string(),
         z.null()
     ])),
+    schema_version: z.optional(z.union([z.literal(1), z.literal(2)])),
     source: zPyRuntimeCatalogItemSource
 });
 
@@ -3432,6 +3557,10 @@ export const zPyTypedDependency = z.object({
         z.null()
     ])),
     config: z.optional(z.record(z.string(), z.unknown())),
+    item_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
     kind: z.enum([
         'avatar',
         'gesture',
@@ -3597,9 +3726,17 @@ export const zPyGesturePage = z.object({
  * PyIdleStyle
  */
 export const zPyIdleStyle = z.object({
-    animations: z.array(zPyIdleAnimation),
+    animations: z.optional(z.array(zPyIdleAnimation)),
+    cells: z.optional(z.record(z.string(), z.record(z.string(), z.union([
+        z.object({
+            mode: z.literal('none')
+        }).and(zPyIdleNoneCell),
+        z.object({
+            mode: z.literal('pool')
+        }).and(zPyIdlePoolCell)
+    ])))),
     compatibility: z.optional(z.record(z.string(), z.unknown())),
-    cross_fade_seconds: z.number().gte(0).lte(10),
+    cross_fade_seconds: z.optional(z.number().gte(0).lte(10)).default(0.35),
     default_pool: z.array(z.string()),
     dependencies: z.optional(z.array(zPyTypedDependency)),
     description: z.optional(z.union([
@@ -3607,7 +3744,7 @@ export const zPyIdleStyle = z.object({
         z.null()
     ])),
     editable: z.boolean(),
-    emotion_pools: z.record(z.string(), z.array(z.string())),
+    emotion_pools: z.optional(z.record(z.string(), z.array(z.string()))),
     files: z.optional(z.array(zPyTypedContentFile)),
     item_id: z.string(),
     kind: z.optional(z.literal('idle_style')).default('idle_style'),
@@ -3617,6 +3754,7 @@ export const zPyIdleStyle = z.object({
     ])),
     name: z.string(),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
+    schema_version: z.optional(z.union([z.literal(1), z.literal(2)])),
     source: z.enum(['included', 'local'])
 });
 
@@ -4507,6 +4645,7 @@ export const zPyTypedContentPreview = z.object({
     expected_source_revisions: z.optional(z.record(z.string(), zSourceRevision)),
     expires_at: z.iso.datetime(),
     files: z.array(zPyTypedPreviewFile),
+    idle_playback: z.optional(z.record(z.string(), zPyIdlePlayback)),
     item: z.union([
         z.object({
             kind: z.literal('gesture')
@@ -5975,6 +6114,19 @@ export const zGetGestureData = z.object({
  * Successful Response
  */
 export const zGetGestureResponse = zPyGesture;
+
+export const zGetGestureIdlePlaybackData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        item_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetGestureIdlePlaybackResponse = zPyIdlePlayback;
 
 export const zPreviewGestureData = z.object({
     body: z.optional(z.never()),

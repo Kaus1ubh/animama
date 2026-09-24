@@ -172,6 +172,7 @@ export function AvatarCanvasActor({
         if (
           poseClipSceneLoadRef.current.get(event.sceneKind) !==
             context.appliedId ||
+          context.signal?.aborted ||
           !clipVfxEnabledRef.current
         ) {
           return;
@@ -181,7 +182,9 @@ export function AvatarCanvasActor({
           resolvePreset: () => preset,
         });
         if (event.playAccompanyingSound !== false && preset?.sound?.onApply)
-          await playSfxCueRef.current?.(preset.sound.onApply);
+          await playSfxCueRef.current?.(preset.sound.onApply, {
+            signal: context.signal,
+          });
       },
       clearSceneVFX: (event, context) => {
         if (
@@ -192,8 +195,9 @@ export function AvatarCanvasActor({
         }
         clearClipOwnedSceneVFX(poseClipSceneVfxRef.current, event, context);
       },
-      playSfx: (event) => {
-        playSfxCueRef.current?.(event.cueId, {
+      playSfx: async (event, context) => {
+        await playSfxCueRef.current?.(event.cueId, {
+          signal: context.signal,
           ...(event.volume !== undefined ? { volume: event.volume } : {}),
         });
       },

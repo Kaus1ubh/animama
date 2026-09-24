@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from animama.server.schemas.idle_style import PyIdleCell, PyIdlePlayback
+
 
 class PyRuntimeFile(BaseModel):
     """One exact byte member prepared by the browser for this mount."""
@@ -94,6 +96,13 @@ class PyRuntimeIdleAnimation(BaseModel):
     files: list[PyRuntimeFile] = Field(default_factory=list)
 
 
+class PyRuntimeIdleGesture(PyRuntimeAction):
+    """A complete Action admitted for idle use, never an AI-selectable Gesture."""
+
+    content_type: Literal["gesture"] = "gesture"
+    idle_playback: PyIdlePlayback
+
+
 class PyRuntimeIdleStyle(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -102,10 +111,13 @@ class PyRuntimeIdleStyle(BaseModel):
     description: str | None = None
     source: PyRuntimeSource
     revision: str
-    animations: list[PyRuntimeIdleAnimation]
+    schema_version: Literal[1, 2] = 1
+    gestures: list[PyRuntimeIdleGesture] = Field(default_factory=list)
+    cells: dict[str, dict[str, PyIdleCell]] = Field(default_factory=dict)
+    animations: list[PyRuntimeIdleAnimation] = Field(default_factory=list)
     default_pool: list[str]
-    emotion_pools: dict[str, list[str]]
-    cross_fade_seconds: float
+    emotion_pools: dict[str, list[str]] = Field(default_factory=dict)
+    cross_fade_seconds: float = 0.35
 
 
 class PyRuntimeMusicTrack(BaseModel):

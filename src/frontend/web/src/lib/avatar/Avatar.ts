@@ -51,6 +51,7 @@ import {
   type AnimaPoseClipEventSink,
   type AnimaPoseClipEventContext,
   type PoseControllerApplyOptions,
+  type FinitePoseClipPlayback,
 } from "./poses/PoseController";
 import { RELAXED_REST_POSE_ID } from "./poses/catalog";
 import { preparedModelUrlResolver } from "./preparedModelResources";
@@ -166,6 +167,9 @@ export type PoseBaseReplacementOptions = {
 };
 
 export type PoseClipPlayOptions = PoseBaseReplacementOptions & {
+  /** Called once after natural clip completion; stopping or replacing cancels it. */
+  onFinished?: () => void;
+  finitePlayback?: FinitePoseClipPlayback;
   transition?: AvatarPlannerEnterPolicy;
 };
 
@@ -375,6 +379,7 @@ export class Avatar {
   private _poseClipAutomaticPlaybackWasEnabled: boolean | null = null;
   private _poseClipPreserveProceduralOffsets: boolean = false;
   private _poseClipCompletionReapplyDefaultPose: boolean = true;
+  private _poseClipOnFinished: (() => void) | null = null;
   private _pendingPlannerPoseClipOwnerId: string | null = null;
   private _poseClipExternalEventSink: AnimaPoseClipEventSink | null = null;
   private _reactionClipExternalEventSink: AnimaPoseClipEventSink | null = null;
@@ -502,6 +507,7 @@ export class Avatar {
    * Unload the current VRM and dispose resources.
    */
   unload(): void {
+    this._poseClipOnFinished = null;
     this.springBonePhysicsController?.dispose();
     this.springBonePhysicsController = null;
 
@@ -669,7 +675,10 @@ export class Avatar {
     // 4. Apply sampled PoseController clips on top of the mixer pose.
     const poseClipWasActive = this.poseController?.isClipActive() ?? false;
     this.poseController?.update(delta);
+    let poseClipFinished: (() => void) | null = null;
     if (poseClipWasActive && !this.poseController?.isClipActive()) {
+      poseClipFinished = this._poseClipOnFinished;
+      this._poseClipOnFinished = null;
       this._completePoseClipPlaybackReplacingBase({
         reapplyDefaultPose: this._poseClipCompletionReapplyDefaultPose,
       });
@@ -708,6 +717,8 @@ export class Avatar {
     // 12. Update optional debug helpers after spring-bone simulation.
     if (__ANIMAMA_DEV_BUILD__ && DEBUG_ENABLED)
       this.springBonePhysicsController?.updateHelpers();
+    // Notify after the final rendered pose and occurrence effects have settled.
+    poseClipFinished?.();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -1048,6 +1059,7 @@ export class Avatar {
       return this._getUnavailableClipSnapshot(clip.id);
     }
 
+    this._poseClipOnFinished = null;
     const replacesPose = clip.poseKeyframes.length > 0;
     if (!replacesPose && this._poseClipAutomaticPlaybackWasEnabled !== null) {
       // Finish a previous body clip's ownership before starting an effect-only
@@ -1063,6 +1075,7 @@ export class Avatar {
     let snapshot: AvatarPoseClipSnapshot;
     try {
       snapshot = poseController.playAnimaPoseClip(clip, {
+        finitePlayback: options?.finitePlayback,
         fadeInDurationSec: getAvatarPlannerEnterPolicyDuration(
           options?.transition,
         ),
@@ -1073,6 +1086,8 @@ export class Avatar {
     }
     if (!snapshot.playing) {
       this._completePoseClipPlayback({ reapplyDefaultPose: true });
+    } else {
+      this._poseClipOnFinished = options?.onFinished ?? null;
     }
     return snapshot;
   }
@@ -1497,6 +1512,9 @@ export class Avatar {
         context.activeVrmaActions ?? this.getActiveAnimations(),
       activePlannerPoseClip,
       manualPoseClipActive,
+      idlePlaybackBlocked:
+        !this._automaticAnimationPlaybackEnabled &&
+        this._poseClipAutomaticPlaybackWasEnabled === null,
       plannerPoseClipRuntimeActive,
       activePlannerProceduralLayerIds:
         context.activePlannerProceduralLayerIds ??
@@ -1769,7 +1787,22 @@ export class Avatar {
       const snapshot = this.playAnimaPoseClip(clip, {
         preserveProceduralOffsets: true,
         transition: action.transition,
+        finitePlayback: current.finitePlayback,
       });
+      if (snapshot.playing && current.source === "idle") {
+        const nowMs = Date.now();
+        this._avatarPlannerState.activePlannerPoseClip = {
+          ...current,
+          status: "active",
+          startedAtMs: nowMs,
+          expiresAtMs: nowMs + current.finitePlayback!.durationSec * 1000,
+        };
+        this._avatarPlannerState.idleStint = {
+          ...this._avatarPlannerState.idleStint,
+          activeStartedAtMs: nowMs,
+          nextDueAtMs: nowMs + current.finitePlayback!.durationSec * 1000,
+        };
+      }
       logger.info("AvatarPlanner", "Playing pose clip", {
         status: "playing",
         clipId: action.clipId,
@@ -1967,14 +2000,43 @@ export class Avatar {
       });
     }
     this._lastAnimationPromise = playPromise;
-    void playPromise.catch((error) => {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      logger.warn("Animation", "Animation playback failed", {
-        clipUrl: plan.clipUrl,
-        clipName: plan.clipName,
-        error,
+    void playPromise
+      .then(() => {
+        const current = this._avatarPlannerState.activeBaseVrma;
+        if (
+          plan.clip?.idle_playback &&
+          current?.key === plan.key &&
+          !this._isDisposed
+        ) {
+          const nowMs = Date.now();
+          const expiresAtMs = nowMs + (plan.effectiveDurationSec ?? 0) * 1000;
+          this._avatarPlannerState.activeBaseVrma = {
+            ...current,
+            startedAtMs: nowMs,
+            expiresAtMs,
+          };
+          this._avatarPlannerState.idleStint = {
+            ...this._avatarPlannerState.idleStint,
+            activeStartedAtMs: nowMs,
+            nextDueAtMs: expiresAtMs,
+          };
+        }
+      })
+      .catch((error) => {
+        if (
+          plan.clip?.idle_playback &&
+          this._avatarPlannerState.activeBaseVrma?.key === plan.key
+        ) {
+          this._avatarPlannerState.activeBaseVrma = null;
+        }
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
+        logger.warn("Animation", "Animation playback failed", {
+          clipUrl: plan.clipUrl,
+          clipName: plan.clipName,
+          error,
+        });
       });
-    });
     this._lastPlanKey = plan.key;
   }
 
@@ -2310,7 +2372,7 @@ export class Avatar {
     context: AnimaPoseClipEventContext,
     soundSink: AnimaPoseClipEventSink | null,
   ): Promise<void> {
-    if (!this._clipVFXEnabled) return;
+    if (!this._clipVFXEnabled || context.signal?.aborted) return;
     if (!this.isReady || !this.vfxController) {
       throw new Error("Avatar VFX controller is unavailable.");
     }
@@ -2322,6 +2384,13 @@ export class Avatar {
     let soundCueId: string | undefined;
     try {
       const effect = await this._mediaCatalog.loadAvatarVFX(event.effectId);
+      if (
+        context.signal?.aborted ||
+        this._wasClipOwnedAvatarVFXCancelled(context.appliedId)
+      ) {
+        this._clipOwnedAvatarVFXIds.delete(context.appliedId);
+        return;
+      }
       soundCueId = effect?.sound?.onApply;
       didApply = await applyAvatarVFXEffectById({
         avatar: this,
@@ -2347,7 +2416,10 @@ export class Avatar {
       throw new Error(`Avatar VFX "${event.effectId}" could not be applied.`);
     }
 
-    if (this._wasClipOwnedAvatarVFXCancelled(context.appliedId)) {
+    if (
+      context.signal?.aborted ||
+      this._wasClipOwnedAvatarVFXCancelled(context.appliedId)
+    ) {
       this.vfxController?.removeEffect(context.appliedId);
       this._clipOwnedAvatarVFXIds.delete(context.appliedId);
       return;
@@ -2374,7 +2446,7 @@ export class Avatar {
     context: AnimaPoseClipEventContext,
     source: string,
   ): Promise<void> {
-    if (!this._clipVFXEnabled) return;
+    if (!this._clipVFXEnabled || context.signal?.aborted) return;
     if (!this.isReady || !this.particleVFXController) {
       throw new Error("Particle VFX controller is unavailable.");
     }
@@ -2386,6 +2458,7 @@ export class Avatar {
     try {
       didApply = await this.particleVFXController.playEffect({
         effectId: event.effectId,
+        signal: context.signal,
         appliedId: context.appliedId,
         ownerId: source,
         ...(event.anchor ? { anchor: event.anchor } : {}),
@@ -2398,24 +2471,27 @@ export class Avatar {
           : {}),
       });
     } catch (error) {
-      const wasCancelled = this._wasClipOwnedParticleVFXCancelled(
-        context.appliedId,
-      );
+      const wasCancelled =
+        context.signal?.aborted ||
+        this._wasClipOwnedParticleVFXCancelled(context.appliedId);
       this._clipOwnedParticleVFXIds.delete(context.appliedId);
       if (wasCancelled) return;
       throw error;
     }
 
     if (!didApply) {
-      const wasCancelled = this._wasClipOwnedParticleVFXCancelled(
-        context.appliedId,
-      );
+      const wasCancelled =
+        context.signal?.aborted ||
+        this._wasClipOwnedParticleVFXCancelled(context.appliedId);
       this._clipOwnedParticleVFXIds.delete(context.appliedId);
       if (wasCancelled) return;
       throw new Error(`Particle VFX "${event.effectId}" could not be applied.`);
     }
 
-    if (this._wasClipOwnedParticleVFXCancelled(context.appliedId)) {
+    if (
+      context.signal?.aborted ||
+      this._wasClipOwnedParticleVFXCancelled(context.appliedId)
+    ) {
       this.particleVFXController?.clearEffect(context.appliedId);
       this._clipOwnedParticleVFXIds.delete(context.appliedId);
     }
@@ -2475,6 +2551,8 @@ export class Avatar {
     preserveProceduralOffsets: boolean;
     transition?: AvatarPlannerExitPolicy;
   }): void {
+    // A requested stop (including a fade) is cancellation, not natural finish.
+    this._poseClipOnFinished = null;
     const poseController = this.poseController;
     const hasCoordinatedClip =
       this._poseClipAutomaticPlaybackWasEnabled !== null ||

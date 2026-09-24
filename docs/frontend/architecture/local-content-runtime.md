@@ -44,9 +44,10 @@ registered files. Rescan validates manual host edits and never equips them.
 Creator Save writes through the matching typed product route. Gesture and
 Reaction Actions use one readable folder: `<stem>.meta.json` is control data
 and `<stem>.json` or `<stem>.vrma` is the playable payload. Action-owned Pose
-Clips and Idle Style animations stay with their owning product; reusable
-effects, sounds, and intentionally shared Pose Clips remain separate catalog
-dependencies. The same closed kind handler validates Save, Rescan, Preview,
+Clips stay with their owning Action. Idle Styles reference whole Gestures as
+normal dependencies; reusable effects and sounds follow those Actions. Legacy
+Style-owned lanes are converted to Gesture content during startup/rescan, with
+originals retained privately for recovery. The same closed kind handler validates Save, Rescan, Preview,
 runtime projection, and package rewriting. Save does not create a release or
 Apply step.
 Library/creator health surfaces expose valid, scan-required, invalid, and

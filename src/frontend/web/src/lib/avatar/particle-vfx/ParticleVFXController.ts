@@ -171,11 +171,12 @@ export class ParticleVFXController {
   }
 
   async playEffect(request: ParticleVFXPlayRequest): Promise<boolean> {
-    if (this._isDisposed) return false;
+    if (this._isDisposed || request.signal?.aborted) return false;
 
     const effect = await this._catalogProvider.resolveParticleVFX(
       request.effectId,
     );
+    if (this._isDisposed || request.signal?.aborted) return false;
     if (!effect) {
       this._pushWarning(`Unknown particle VFX effect "${request.effectId}".`);
       return false;
@@ -290,13 +291,18 @@ export class ParticleVFXController {
       const batchRenderer = this._batchRenderer;
       if (
         !batchRenderer ||
+        request.signal?.aborted ||
         !this._isCurrentRequest(appliedId, requestVersion)
       ) {
         return false;
       }
 
       const prefab = await this._loadPrefab(effect.id, effect.assetPath);
-      if (!this._isCurrentRequest(appliedId, requestVersion)) return false;
+      if (
+        request.signal?.aborted ||
+        !this._isCurrentRequest(appliedId, requestVersion)
+      )
+        return false;
 
       object = createParticleVFXEffectContainer(prefab.clone(true));
       object.name = `ParticleVFX:${effect.id}:${appliedId}`;
@@ -381,7 +387,11 @@ export class ParticleVFXController {
       if (object) {
         this._safeRemoveObject(object);
       }
-      if (!this._isCurrentRequest(appliedId, requestVersion)) return false;
+      if (
+        request.signal?.aborted ||
+        !this._isCurrentRequest(appliedId, requestVersion)
+      )
+        return false;
       this._lastError = error instanceof Error ? error.message : String(error);
       this._pushWarning(
         `Particle VFX "${effect.id}" failed to play: ${this._lastError}`,

@@ -29,6 +29,8 @@ export type SoundControllerSnapshot = {
 };
 
 export type PlaySfxOptions = {
+  /** Cancels only audio owned by this occurrence, including pending delivery. */
+  signal?: AbortSignal;
   loop?: boolean;
   volume?: number;
 };

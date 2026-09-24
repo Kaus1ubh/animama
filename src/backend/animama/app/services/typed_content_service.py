@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 from animama.app.ports.content_catalog import ContentCatalog
+from animama.app.ports.content_store import ContentStore
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import handler_for_kind
-from animama.app.services.runtime_budget_policy import MAX_RUNTIME_BYTES, MAX_RUNTIME_ENTRIES
+from animama.app.services.idle_playback import IdlePlaybackFacts, read_gesture_idle_playback
+from animama.app.services.runtime_budget_policy import MAX_RUNTIME_BYTES, MAX_RUNTIME_CONFIG_BYTES, MAX_RUNTIME_ENTRIES
 from animama.domain.content_catalog import (
     CatalogContentEntry,
     ContentKind,
@@ -16,7 +19,13 @@ from animama.domain.content_catalog import (
     ContentPreview,
     ContentStatus,
 )
-from animama.domain.content_documents import ContentDocumentError, TypedContentDocument
+from animama.domain.content_documents import (
+    ContentDocumentError,
+    GestureDocumentV1,
+    IdleStyleDocumentV1,
+    IdleStyleDocumentV2,
+    TypedContentDocument,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +34,8 @@ class TypedCatalogItem:
 
     item: CatalogContentEntry
     document: TypedContentDocument
+    # Only the caller-visible resolution context may expose dependency identities.
+    dependency_ids: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +45,7 @@ class TypedContentPreview:
     preview: ContentPreview
     item: TypedCatalogItem
     supports: tuple[TypedCatalogItem, ...] = ()
+    idle_playback: dict[str, IdlePlaybackFacts] = field(default_factory=dict)
 
 
 class TypedContentAdmissionError(ContentNotFoundError):
@@ -71,7 +83,26 @@ class TypedContentResolutionContext:
 
         cached = self._parsed.get(item.id)
         if cached is None:
-            cached = TypedContentService.parse(item)
+            parsed = TypedContentService.parse(item)
+            dependencies = parsed.document.dependencies
+            dependency_ids: dict[str, str] = {}
+            if (
+                item.id in self.visible
+                and tuple(dependency.ref for dependency in dependencies) == item.dependencies
+                and len(dependencies) == len(item.dependency_item_ids)
+            ):
+                for dependency, target_id in zip(dependencies, item.dependency_item_ids, strict=True):
+                    target = self.visible.get(target_id)
+                    candidates = self.logical_index.get(dependency.ref) or self.locator_index.get(dependency.ref) or ()
+                    if (
+                        target is not None
+                        and target.status is ContentStatus.VALID
+                        and target.revision_sha256 is not None
+                        and target.kind is dependency.kind
+                        and candidates == (target_id,)
+                    ):
+                        dependency_ids[dependency.ref] = target_id
+            cached = replace(parsed, dependency_ids=dependency_ids)
             self._parsed[item.id] = cached
         return cached
 
@@ -190,12 +221,16 @@ class TypedContentService:
         """List only usable items of one exact product family."""
 
         items = await self._catalog.list_visible(user_id=user_id)
+        context = TypedContentResolutionContext({item.id: item for item in items})
         result: list[TypedCatalogItem] = []
         for item in items:
             if item.kind is not kind or item.status is not ContentStatus.VALID:
                 continue
             try:
-                result.append(self.parse(item))
+                parsed = context.parse(item)
+                if isinstance(parsed.document, IdleStyleDocumentV1):
+                    continue
+                result.append(parsed)
             except ContentNotFoundError:
                 # Generic Content Health remains the place to inspect a bad
                 # item; one malformed peer never breaks a typed family list.
@@ -203,10 +238,35 @@ class TypedContentService:
         return tuple(result)
 
     async def get(self, *, user_id: str, kind: ContentKind, item_id: str) -> TypedCatalogItem:
-        item = await self._catalog.get_visible_item(item_id=item_id, user_id=user_id)
+        visible = {item.id: item for item in await self._catalog.list_visible(user_id=user_id)}
+        item = visible.get(item_id)
         if item is None or item.kind is not kind or item.status is not ContentStatus.VALID:
             raise ContentNotFoundError("typed catalog item was not found")
-        return self.parse(item)
+        parsed = TypedContentResolutionContext(visible).parse(item)
+        if isinstance(parsed.document, IdleStyleDocumentV1):
+            raise ContentNotFoundError("Idle Style requires local conversion")
+        return parsed
+
+    async def gesture_idle_playback(self, *, user_id: str, item_id: str) -> dict[str, object]:
+        """Inspect one candidate lazily, without loading every listed Gesture's media."""
+
+        visible = {entry.id: entry for entry in await self._catalog.list_visible(user_id=user_id)}
+        item = visible.get(item_id)
+        if item is None or item.kind is not ContentKind.GESTURE:
+            raise ContentNotFoundError("typed catalog item was not found")
+        try:
+            ordered = TypedContentResolutionContext(visible).resolve(item_id)
+            gesture = ordered[-1]
+            assert isinstance(gesture.document, GestureDocumentV1)
+            facts = await read_gesture_idle_playback(
+                document=gesture.document,
+                item=gesture.item,
+                dependency_items=visible,
+                store=self._content.mutations.store,
+            )
+        except (ContentDocumentError, TypedContentAdmissionError) as exc:
+            return {"eligible": False, "reason": exc.code}
+        return asdict(facts)
 
     async def preview(
         self,
@@ -221,6 +281,31 @@ class TypedContentService:
             raise ContentNotFoundError("typed catalog item was not found")
         ordered = TypedContentResolutionContext(visible).resolve(item_id)
         item = ordered[-1]
+        if isinstance(item.document, IdleStyleDocumentV1):
+            raise ContentNotFoundError("Idle Style requires local conversion")
+        idle_playback: dict[str, IdlePlaybackFacts] = {}
+        if isinstance(item.document, IdleStyleDocumentV2):
+            facts = await validate_idle_style(
+                document=item.document, visible=visible, store=self._content.mutations.store
+            )
+            idle_playback = {
+                reference: facts[dependency_id]
+                for reference, dependency_id in zip(item.item.dependencies, item.item.dependency_item_ids, strict=True)
+            }
+        elif isinstance(item.document, GestureDocumentV1) and item.item.logical_key is not None:
+            try:
+                gesture_facts = await read_gesture_idle_playback(
+                    document=item.document,
+                    item=item.item,
+                    dependency_items=visible,
+                    store=self._content.mutations.store,
+                )
+            except ContentDocumentError:
+                # Idle consumers require these exact-preview facts. Ordinary Action
+                # previews still permit authored playback that is unsuitable for idle.
+                pass
+            else:
+                idle_playback[item.item.logical_key] = gesture_facts
         if len(ordered) > MAX_RUNTIME_ENTRIES:
             raise ContentNotFoundError("typed preview dependency budget exceeded")
         if sum(file.size_bytes for entry in ordered for file in entry.item.files) > MAX_RUNTIME_BYTES:
@@ -231,10 +316,61 @@ class TypedContentService:
             entries=tuple(value.item for value in ordered),
             user_id=user_id,
         )
-        return TypedContentPreview(preview=preview, item=item, supports=supports)
+        return TypedContentPreview(preview=preview, item=item, supports=supports, idle_playback=idle_playback)
+
+
+async def validate_idle_style(
+    *,
+    document: IdleStyleDocumentV2,
+    visible: dict[str, CatalogContentEntry],
+    store: ContentStore,
+) -> dict[str, IdlePlaybackFacts]:
+    """Resolve each complete Gesture closure and derive immutable finite playback facts.
+
+    This also serves a prospective Save document before it has a catalog row.
+    Resolution never guesses a suffix or substitutes an unavailable dependency.
+    """
+
+    context = TypedContentResolutionContext(visible)
+    result: dict[str, IdlePlaybackFacts] = {}
+    gestures: list[TypedCatalogItem] = []
+    admitted: dict[str, CatalogContentEntry] = {}
+    if len(document.dependencies) >= MAX_RUNTIME_ENTRIES:
+        raise ContentDocumentError("runtime_entry_budget", "Idle Style dependency budget exceeded")
+    for dependency in document.dependencies:
+        ids = context.logical_index.get(dependency.ref) or context.locator_index.get(dependency.ref) or ()
+        if len(ids) != 1:
+            raise ContentDocumentError("idle_gesture_unavailable", "Idle Gesture dependency is missing or ambiguous")
+        try:
+            closure = context.resolve(ids[0])
+        except TypedContentAdmissionError as exc:
+            raise ContentDocumentError(exc.code, "Idle Gesture dependency closure is unavailable") from exc
+        gesture = closure[-1]
+        if not isinstance(gesture.document, GestureDocumentV1):
+            raise ContentDocumentError("idle_gesture_required", "Idle pools require Gesture content")
+        admitted.update((value.item.id, value.item) for value in closure)
+        if len(admitted) >= MAX_RUNTIME_ENTRIES:
+            raise ContentDocumentError("runtime_entry_budget", "Idle Style dependency budget exceeded")
+        gestures.append(gesture)
+    # Validate the union before opening media. A set of individually valid
+    # Gesture closures must not bypass the existing whole-root runtime limits.
+    if sum(file.size_bytes for item in admitted.values() for file in item.files) > MAX_RUNTIME_BYTES:
+        raise ContentDocumentError("runtime_byte_budget", "Idle Style byte budget exceeded")
+    if sum(len(json.dumps(item.metadata).encode()) for item in admitted.values()) > MAX_RUNTIME_CONFIG_BYTES:
+        raise ContentDocumentError("runtime_config_budget", "Idle Style metadata budget exceeded")
+    for gesture in gestures:
+        assert isinstance(gesture.document, GestureDocumentV1)
+        result[gesture.item.id] = await read_gesture_idle_playback(
+            document=gesture.document,
+            item=gesture.item,
+            dependency_items=visible,
+            store=store,
+        )
+    return result
 
 
 __all__ = [
+    "validate_idle_style",
     "TypedCatalogItem",
     "TypedContentAdmissionError",
     "TypedContentPreview",

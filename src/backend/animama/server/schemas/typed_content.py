@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import PurePosixPath
 from typing import Annotated, Literal
@@ -16,6 +17,7 @@ from animama.app.anima_creation_contract import (
     SourceRevision,
     StrictCreationModel,
 )
+from animama.app.services.content_kind_registry import idle_cells_projection
 from animama.app.services.runtime_budget_policy import MAX_RUNTIME_ENTRIES
 from animama.app.services.typed_content_batch_service import (
     BuiltinTypedRoot,
@@ -32,6 +34,7 @@ from animama.domain.content_documents import (
     AvatarEffectDocumentV1,
     GestureDocumentV1,
     IdleStyleDocumentV1,
+    IdleStyleDocumentV2,
     MusicTrackDocumentV1,
     ParticleEffectDocumentV1,
     PoseClipDocumentV1,
@@ -41,12 +44,14 @@ from animama.domain.content_documents import (
     SoundEffectDocumentV1,
     VoiceDocumentV1,
 )
+from animama.server.schemas.idle_style import PyIdleCell, PyIdlePlayback
 
 
 class PyTypedDependency(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ref: str
+    item_id: str | None = None
     kind: Literal[
         "avatar",
         "gesture",
@@ -210,10 +215,12 @@ class PyIdleAnimation(BaseModel):
 
 class PyIdleStyle(PyTypedContentBase):
     kind: Literal["idle_style"] = "idle_style"
-    animations: list[PyIdleAnimation]
+    schema_version: Literal[1, 2] = 1
+    cells: dict[str, dict[str, PyIdleCell]] = Field(default_factory=dict)
+    animations: list[PyIdleAnimation] = Field(default_factory=list)
     default_pool: list[str]
-    emotion_pools: dict[str, list[str]]
-    cross_fade_seconds: float = Field(ge=0, le=10)
+    emotion_pools: dict[str, list[str]] = Field(default_factory=dict)
+    cross_fade_seconds: float = Field(default=0.35, ge=0, le=10)
     compatibility: dict[str, object] = Field(default_factory=dict)
 
 
@@ -281,6 +288,7 @@ def _base(value: TypedCatalogItem) -> dict[str, object]:
         "dependencies": [
             PyTypedDependency(
                 ref=dependency.ref,
+                item_id=value.dependency_ids.get(dependency.ref),
                 kind=dependency.kind.value,
                 alias=dependency.alias,
                 config=dependency.config,
@@ -361,6 +369,14 @@ def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
             duration_seconds=document.duration_seconds,
             codec=document.codec,
             defaults=document.defaults,
+        )
+    if isinstance(document, IdleStyleDocumentV2):
+        return PyIdleStyle(
+            **base,
+            schema_version=2,
+            default_pool=list(document.default_pool),
+            cells=idle_cells_projection(document.cells),
+            compatibility=document.compatibility,
         )
     if isinstance(document, IdleStyleDocumentV1):
         entry_root = _entry_root(value)
@@ -511,6 +527,7 @@ class PyTypedContentPreview(BaseModel):
     supports: list[PyTypedContent] = Field(default_factory=list)
     files: list[PyTypedPreviewFile]
     expected_source_revisions: dict[str, SourceRevision] = Field(default_factory=dict)
+    idle_playback: dict[str, PyIdlePlayback] = Field(default_factory=dict)
 
     @classmethod
     def from_domain(cls, value: TypedContentPreview) -> PyTypedContentPreview:
@@ -528,6 +545,9 @@ class PyTypedContentPreview(BaseModel):
             item=typed_content_response(value.item),
             supports=[typed_content_response(item) for item in value.supports],
             expected_source_revisions=_source_revisions(typed_items),
+            idle_playback={
+                ref: PyIdlePlayback.model_validate(asdict(facts)) for ref, facts in value.idle_playback.items()
+            },
             files=[
                 PyTypedPreviewFile(
                     file_ref=file.file_ref,
