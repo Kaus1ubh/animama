@@ -13,6 +13,35 @@ import {
 } from ".";
 
 describe("creator editor primitives", () => {
+  it.each([
+    [124.99999999999999, 0, "125"],
+    [124.000000001, 0, "124"],
+    [0.30000000000000004, 1, "0.3"],
+    [-0.019999999999999997, 2, "-0.02"],
+    [0.001, 3, "0.001"],
+  ])("formats %s with %s decimal places", (value, decimalPlaces, expected) => {
+    const html = renderToString(
+      <CreatorNumberField
+        label="Value"
+        value={value}
+        decimalPlaces={decimalPlaces}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).toContain(`value="${expected}"`);
+  });
+
+  it("preserves precision for creators that do not request rounding", () => {
+    const html = renderToString(
+      <CreatorNumberField
+        label="Value"
+        value={0.123456789}
+        onChange={() => {}}
+      />,
+    );
+    expect(html).toContain('value="0.123456789"');
+  });
+
   it("keeps the Canvas full bleed while sidebar-aware controls use the inset", () => {
     const html = renderToString(
       <CreatorWorkspaceShell

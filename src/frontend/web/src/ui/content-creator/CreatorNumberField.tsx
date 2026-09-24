@@ -10,6 +10,7 @@ export function CreatorNumberField({
   value,
   onChange,
   step = 0.01,
+  decimalPlaces,
   min,
   max,
   disabled = false,
@@ -20,6 +21,8 @@ export function CreatorNumberField({
   value: number;
   onChange: (value: number) => void;
   step?: number;
+  /** Optional display and input precision; stored values are untouched until edited. */
+  decimalPlaces?: number;
   min?: number;
   max?: number;
   disabled?: boolean;
@@ -27,6 +30,10 @@ export function CreatorNumberField({
   className?: string;
 }) {
   const id = useId();
+  const round = (number: number) =>
+    decimalPlaces === undefined
+      ? number
+      : Number(number.toFixed(decimalPlaces));
   return (
     <CreatorField
       label={label}
@@ -39,14 +46,14 @@ export function CreatorNumberField({
         id={id}
         aria-label={label}
         type="number"
-        value={Number.isFinite(value) ? value : 0}
+        value={Number.isFinite(value) ? round(value) : 0}
         step={step}
         min={min}
         max={max}
         disabled={disabled}
         onChange={(event) => {
           const next = event.target.valueAsNumber;
-          if (Number.isFinite(next)) onChange(next);
+          if (Number.isFinite(next)) onChange(round(next));
         }}
       />
     </CreatorField>

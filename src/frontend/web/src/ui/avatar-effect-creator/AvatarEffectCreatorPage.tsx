@@ -142,6 +142,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     message: null,
   });
   const [imageBusy, setImageBusy] = useState(false);
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -167,6 +168,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       recoveredDocument: AvatarEffectEditorDocument,
       recoveredImage: AvatarEffectEditorImageResource | null,
     ) => {
+      setHasAttemptedSave(false);
       resetDocument(recoveredDocument, recoveredImage);
       setHydration({ state: "ready", message: "Recovered local draft" });
       setPreviewRevision((value) => value + 1);
@@ -295,6 +297,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       .then(({ document: loadedDocument, image }) => {
         if (controller.signal.aborted) return;
         load.complete();
+        setHasAttemptedSave(false);
         resetDocument(loadedDocument, image);
         initialFingerprintRef.current =
           item.origin === "builtin"
@@ -325,8 +328,21 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     resetDocument,
   ]);
 
-  const canSaveFromKeyboard = contentSave.canSave;
-  const saveFromKeyboard = contentSave.save;
+  // Allow an incomplete document to be submitted for validation, without saving it.
+  const canAttemptSave = Boolean(
+    userId &&
+    contentSave.recoveryReady &&
+    !contentSave.isBusy &&
+    !imageBusy &&
+    hydration.state === "ready" &&
+    (!itemId || existingQuery.data),
+  );
+  const saveDocument = contentSave.save;
+  const attemptSave = useCallback(async () => {
+    if (!canAttemptSave) return;
+    setHasAttemptedSave(true);
+    if (!hasBlockingIssues) await saveDocument();
+  }, [canAttemptSave, hasBlockingIssues, saveDocument]);
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -343,7 +359,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       });
       if (action === "save") {
         event.preventDefault();
-        if (canSaveFromKeyboard) void saveFromKeyboard();
+        if (canAttemptSave) void attemptSave();
         return;
       }
       if (action === "toggle-preview") {
@@ -353,7 +369,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [canSaveFromKeyboard, saveFromKeyboard]);
+  }, [canAttemptSave, attemptSave]);
 
   const restartPreview = useCallback(() => {
     setPlaying(true);
@@ -467,6 +483,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     const nextDocument = createDefaultAvatarEffectDocument();
     const nextFingerprint = `${avatarEffectDocumentFingerprint(nextDocument)}:missing`;
     if (!(await contentSave.resetSession(nextFingerprint))) return;
+    setHasAttemptedSave(false);
     resetDocument(nextDocument, null);
     setImageError(null);
     setImageBusy(false);
@@ -591,7 +608,9 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
         <CreatorToolbar
           contentHealth={<ContentHealth compact />}
           validationMessages={[
-            ...validation.map((issue) => issue.message),
+            ...(hasAttemptedSave
+              ? validation.map((issue) => issue.message)
+              : []),
             ...(vfxSnapshot?.warnings ?? []),
             ...[
               modelPreview.animaError,
@@ -643,8 +662,8 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
             setImportOpen(true);
           }}
           onJson={() => setJsonOpen(true)}
-          onSave={() => void contentSave.save()}
-          saveDisabled={!contentSave.canSave}
+          onSave={() => void attemptSave()}
+          saveDisabled={!canAttemptSave}
           saveBusy={contentSave.isBusy}
           saveLabel={
             contentSave.stage === "uploading"
@@ -690,8 +709,6 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
       rightPanel={
         <InspectorPanel
           document={document}
-          modelPreview={modelPreview}
-          selectedModel={selectedModel}
           onDispatch={(action) => {
             dispatch(action);
             restartPreview();
@@ -742,7 +759,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
           onRestart={restartPreviewWithSound}
           progressClassName={AVATAR_EFFECT_PREVIEW_MOTION_CLASS}
           duration={{
-            value: duration,
+            value: duration === null ? null : Number(duration.toFixed(2)),
             label: "Run-end buffer",
             indefiniteLabel:
               document.lifetime?.kind === "turns"
@@ -751,13 +768,18 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
             min: 0.05,
             max: 30,
             step: 0.05,
-            onValueChange: (seconds) =>
+            onValueChange: (seconds) => {
+              if (!Number.isFinite(seconds)) return;
               dispatch({
                 type: "patch",
                 patch: {
-                  lifetime: { kind: "duration", runEndBufferSec: seconds },
+                  lifetime: {
+                    kind: "duration",
+                    runEndBufferSec: Number(seconds.toFixed(2)),
+                  },
                 },
-              }),
+              });
+            },
           }}
         />
       }
@@ -902,20 +924,6 @@ function EffectSetupPanel({
       </Tabs>
 
       <div className="mt-3 space-y-3">
-        <Field label="Description">
-          <Textarea
-            className="min-h-16 text-xs"
-            rows={2}
-            value={document.description}
-            onChange={(event) =>
-              onDispatch({
-                type: "patch",
-                patch: { description: event.target.value },
-              })
-            }
-          />
-        </Field>
-
         <Field label="Effect image" invalid={saveErrorField === "files"}>
           <label
             className={cn(
@@ -1043,6 +1051,19 @@ function EffectSetupPanel({
               )}
             </SelectContent>
           </Select>
+        </Field>
+        <Field label="Description">
+          <Textarea
+            className="min-h-16 text-xs"
+            rows={2}
+            value={document.description}
+            onChange={(event) =>
+              onDispatch({
+                type: "patch",
+                patch: { description: event.target.value },
+              })
+            }
+          />
         </Field>
       </div>
     </FloatingPanel>
@@ -1344,14 +1365,10 @@ type EditorFieldsProps = {
 
 function InspectorPanel({
   document,
-  modelPreview,
-  selectedModel,
   onDispatch,
   onPatchTransform,
 }: {
   document: AvatarEffectEditorDocument;
-  modelPreview: ReturnType<typeof useContentCreatorModelPreview>;
-  selectedModel: ContentCreatorModelSource | null;
   onDispatch: React.Dispatch<Parameters<typeof avatarEffectEditorReducer>[1]>;
   onPatchTransform: (
     group: keyof AvatarVFXTransform,
@@ -1375,42 +1392,13 @@ function InspectorPanel({
           </TabsTrigger>
         </TabsList>
         <TabsContent value="transform" className="mt-3 space-y-3">
-          <Field label="Preview Avatar">
-            <Select
-              value={selectedModel?.key ?? ""}
-              onValueChange={(key) => {
-                const source = modelPreview.modelOptions.find(
-                  (option) => option.key === key,
-                );
-                if (source) modelPreview.selectModel(source);
-              }}
-            >
-              <SelectTrigger size="sm" className="w-full text-xs">
-                <SelectValue placeholder="Select Avatar" />
-              </SelectTrigger>
-              <SelectContent>
-                {selectedModel &&
-                !modelPreview.modelOptions.some(
-                  (option) => option.key === selectedModel.key,
-                ) ? (
-                  <SelectItem value={selectedModel.key}>
-                    {selectedModel.displayName}
-                  </SelectItem>
-                ) : null}
-                {modelPreview.modelOptions.map((source) => (
-                  <SelectItem key={source.key} value={source.key}>
-                    {source.displayName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
           {(["offset", "scale"] as const).map((group) => (
             <div key={group}>
               <Label className="mb-2 block capitalize">{group}</Label>
               <AvatarEffectAxisFields
                 values={document.transform[group]}
                 step={0.01}
+                decimalPlaces={group === "scale" ? 3 : 2}
                 onValueChange={(axis, value) =>
                   onPatchTransform(group, axis, value)
                 }
@@ -1437,6 +1425,7 @@ function InspectorPanel({
               label="Angle (degrees)"
               value={(document.transform.rotation.z * 180) / Math.PI}
               step={1}
+              decimalPlaces={0}
               onChange={(value) =>
                 onPatchTransform("rotation", "z", (value * Math.PI) / 180)
               }
@@ -1480,6 +1469,7 @@ function InspectorPanel({
               value={document.lifetime.turns}
               min={1}
               step={1}
+              decimalPlaces={0}
               onChange={(turns) =>
                 onDispatch({
                   type: "patch",
@@ -1639,11 +1629,13 @@ function AvatarEffectAxisFields({
   values,
   labelPrefix = "",
   step,
+  decimalPlaces = step === 1 ? 0 : 2,
   onValueChange,
 }: {
   values: Record<"x" | "y" | "z", number>;
   labelPrefix?: string;
   step: number;
+  decimalPlaces?: number;
   onValueChange: (axis: "x" | "y" | "z", value: number) => void;
 }) {
   return (
@@ -1654,6 +1646,7 @@ function AvatarEffectAxisFields({
           label={`${labelPrefix}${axis.toUpperCase()}`}
           value={values[axis]}
           step={step}
+          decimalPlaces={decimalPlaces}
           onChange={(value) => onValueChange(axis, value)}
         />
       ))}

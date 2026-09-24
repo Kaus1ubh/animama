@@ -41,6 +41,7 @@ export function AvatarEffectAnimationControls({
             value={resolved.pulseScaleMin}
             min={0.001}
             step={0.05}
+            decimalPlaces={3}
             onChange={(value) =>
               patch({
                 pulseScaleMin: Math.max(
@@ -55,6 +56,7 @@ export function AvatarEffectAnimationControls({
             value={resolved.pulseScaleMax}
             min={resolved.pulseScaleMin}
             step={0.05}
+            decimalPlaces={3}
             onChange={(value) =>
               patch({ pulseScaleMax: Math.max(resolved.pulseScaleMin, value) })
             }
@@ -64,6 +66,7 @@ export function AvatarEffectAnimationControls({
             value={resolved.pulseCyclesPerSecond}
             min={0}
             step={0.1}
+            decimalPlaces={1}
             onChange={(value) =>
               patch({ pulseCyclesPerSecond: Math.max(0, value) })
             }
@@ -82,11 +85,10 @@ export function AvatarEffectAnimationControls({
           <div className="grid grid-cols-2 gap-3">
             <NumberField
               label="Spin speed (turns/s)"
-              value={Number(
-                (resolved.rotationRadiansPerSecond / (2 * Math.PI)).toFixed(3),
-              )}
+              value={resolved.rotationRadiansPerSecond / (2 * Math.PI)}
               min={0}
               step={0.05}
+              decimalPlaces={2}
               onChange={(value) =>
                 patch({
                   rotationRadiansPerSecond: Math.max(0, value) * 2 * Math.PI,
@@ -99,6 +101,7 @@ export function AvatarEffectAnimationControls({
               min={0}
               max={1}
               step={0.05}
+              decimalPlaces={2}
               onChange={(value) =>
                 patch({ rotationAmountTurns: Math.min(1, Math.max(0, value)) })
               }
@@ -144,6 +147,7 @@ export function AvatarEffectAnimationControls({
               label="Drift X per second"
               value={resolved.driftPerSecond.x}
               step={0.01}
+              decimalPlaces={2}
               onChange={(value) =>
                 patch({
                   driftPerSecond: { ...resolved.driftPerSecond, x: value },
@@ -154,6 +158,7 @@ export function AvatarEffectAnimationControls({
               label="Drift Y per second"
               value={resolved.driftPerSecond.y}
               step={0.01}
+              decimalPlaces={2}
               onChange={(value) =>
                 patch({
                   driftPerSecond: { ...resolved.driftPerSecond, y: value },
