@@ -1,0 +1,567 @@
+"""Review and atomically install one complete, independently copied portable package."""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import json
+import re
+import unicodedata
+from pathlib import PurePosixPath
+from typing import Any
+from uuid import uuid4
+
+from animama.app.contracts.content_package_import import (
+    ImportedPackageItem,
+    LegacyImportedPackageItem,
+    LegacyPackageImportResult,
+    PackageImportResult,
+    PackageOperationStatus,
+    PlannedImportItem,
+    ReviewedImportItem,
+    ReviewedImportPlan,
+    ReviewedPackageImport,
+)
+from animama.app.ports.anima_aggregate_port import AnimaAggregateUnitOfWork
+from animama.app.services.anima_aggregate_materializer import AnimaAggregateMaterializer
+from animama.app.services.content_catalog_service import ContentCatalogService
+from animama.app.services.content_kind_registry import definition_for_kind, descriptor_filename, handler_for_kind
+from animama.app.services.content_package_archive import ContentPackageArchive, InspectedPackage
+from animama.app.services.content_package_export import portable_json
+from animama.app.services.content_package_staging import PackageStageService, StageLease
+from animama.app.services.local_content_mutations import LocalContentMutations, _finish_owned_work, mutation_digest
+from animama.app.services.portable_anima_service import resolve_portable_anima, validate_package_anima_runtime
+from animama.app.services.typed_content_service import TypedContentService
+from animama.domain.anima_definition import ANIMA_IDENTITY_MAX_BYTES, normalize_identity
+from animama.domain.content_catalog import (
+    CatalogContentEntry,
+    ContentConflictError,
+    ContentKind,
+    ContentStatus,
+    PreparedPackageEntry,
+    PreparedPackageFile,
+)
+
+
+def import_request_digest(review_digest: str) -> str:
+    """The submitted immutable review identifies retries without opening stage bytes."""
+    return mutation_digest({"command": "import_package_v3", "review_digest": review_digest})
+
+
+def _plan_digest(plan: ReviewedImportPlan) -> str:
+    value = json.dumps(plan.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(value.encode()).hexdigest()
+
+
+def _name_key(name: str) -> str:
+    return unicodedata.normalize("NFC", name).casefold()
+
+
+def _numbered_name(name: str, number: int, limit: int = 120) -> str:
+    suffix = f"-{number}" if number > 1 else ""
+    return name[: limit - len(suffix)].rstrip() + suffix
+
+
+def _path_name(name: str) -> str:
+    """Names are display text; ASCII filenames do not constrain valid Unicode names."""
+    segment = re.sub(r"[^A-Za-z0-9_-]+", "-", unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode())
+    segment = segment.strip("-.").lower()[:100] or "content"
+    if re.fullmatch(r"(?i)(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?", segment):
+        segment = f"content-{segment}"
+    return segment
+
+
+class ContentPackageImportService:
+    """The stage owns reviewed bytes; one Local mutation owns files, SQL and receipt.
+
+    The optional Anima unit of work must use the catalog's database session. It
+    never commits independently; content-only callers do not need an aggregate.
+    """
+
+    def __init__(
+        self,
+        *,
+        mutations: LocalContentMutations,
+        content: ContentCatalogService,
+        stages: PackageStageService,
+        uow: AnimaAggregateUnitOfWork | None = None,
+        default_model_provider_id: str | None = None,
+        max_identity_bytes: int = ANIMA_IDENTITY_MAX_BYTES,
+    ) -> None:
+        self._mutations, self._content, self._stages = mutations, content, stages
+        self._catalog, self._store = mutations.catalog, mutations.store
+        self._uow, self._default_model = uow, default_model_provider_id
+        self._max_identity_bytes = min(max_identity_bytes, ANIMA_IDENTITY_MAX_BYTES)
+        self._archive = ContentPackageArchive(store=self._store)
+
+    async def review(self, *, user_id: str, stage_id: str) -> ReviewedPackageImport:
+        """Validate all archive bytes and freeze a complete proposal without installing."""
+        return await _finish_owned_work(self._review(user_id=user_id, stage_id=stage_id))
+
+    async def _review(self, *, user_id: str, stage_id: str) -> ReviewedPackageImport:
+        with self._stages.acquire(user_id, stage_id) as lease:
+            record = lease.record
+            if record.review is not None:
+                await asyncio.to_thread(lease.verify_archive)
+                assert record.review_digest is not None
+                renewed = lease.renew_review(record.review_digest)
+                return ReviewedPackageImport.model_validate(record.review["public"]).model_copy(
+                    update={"expires_at": renewed.expires_at}
+                )
+            if record.operation_id is None:
+                raise ContentConflictError("package_import_operation_missing")
+            if await self._catalog.get_mutation_receipt(user_id=user_id, operation_id=record.operation_id):
+                raise ContentConflictError("operation_id_reused")
+            size, digest = await asyncio.to_thread(lease.seal_archive)
+            with lease.expansion() as directory:
+                inspected = await asyncio.to_thread(self._archive.inspect, lease.archive_path, destination=directory)
+
+                async def plan_current() -> ReviewedImportPlan:
+                    await self._content.rescan(user_id=user_id)
+                    return await self._plan(user_id=user_id, lease=lease, inspected=inspected, size=size, digest=digest)
+
+                plan = await self._mutations.reconcile(plan_current)
+            review_digest = _plan_digest(plan)
+            public = ReviewedPackageImport(
+                stage_id=stage_id,
+                operation_id=record.operation_id,
+                filename=record.filename,
+                package_sha256=digest,
+                size_bytes=size,
+                expires_at=record.expires_at,
+                kind=plan.manifest.kind,
+                selected_count=sum(item.selected for item in plan.items),
+                required_count=sum(not item.selected for item in plan.items),
+                items=tuple(
+                    ReviewedImportItem.model_validate(item.model_dump(include=set(ReviewedImportItem.model_fields)))
+                    for item in plan.items
+                ),
+                anima=plan.anima,
+                review_digest=review_digest,
+            )
+            published = lease.publish_review(
+                {"plan": plan.model_dump(mode="json"), "public": public.model_dump(mode="json")}, review_digest
+            )
+            return public.model_copy(update={"expires_at": published.expires_at})
+
+    async def _plan(
+        self, *, user_id: str, lease: StageLease, inspected: InspectedPackage, size: int, digest: str
+    ) -> ReviewedImportPlan:
+        visible = await self._catalog.list_visible(user_id=user_id)
+        names = {(item.kind, _name_key(item.display_name)) for item in visible}
+        locators = {_name_key(item.relative_locator) for item in visible}
+        items: list[PlannedImportItem] = []
+        selected = set(inspected.manifest.root_entry_ids)
+        if inspected.manifest.anima is not None:
+            selected.update(entry_id for entry_id, _ in inspected.manifest.anima.entry_references())
+        for entry in inspected.manifest.entries:
+            descriptor = any(member.role == "descriptor" for member in entry.files)
+            suffix = (
+                ""
+                if descriptor
+                else PurePosixPath(inspected.entries[entry.package_entry_id].scanned.relative_locator).suffix
+            )
+            number = 1
+            while True:
+                name = _numbered_name(entry.display_name, number)
+                filename = _numbered_name(_path_name(entry.display_name), number)
+                locator = f"{definition_for_kind(entry.kind).directory}/{filename}{suffix}"
+                if (
+                    (entry.kind, _name_key(name)) not in names
+                    and _name_key(locator) not in locators
+                    and not self._store.package_destination_exists(relative_locator=locator)
+                ):
+                    break
+                number += 1
+                if number > 100_000:
+                    raise ContentConflictError("package_name_exhausted")
+            names.add((entry.kind, _name_key(name)))
+            locators.add(_name_key(locator))
+            items.append(
+                PlannedImportItem(
+                    entry_id=entry.package_entry_id,
+                    kind=entry.kind,
+                    original_name=entry.display_name,
+                    name=name,
+                    selected=entry.package_entry_id in selected,
+                    item_id=str(uuid4()),
+                    logical_key=f"local:{entry.kind.value}:{uuid4().hex}",
+                    relative_locator=locator,
+                )
+            )
+        anima = inspected.manifest.anima
+        if anima is not None:
+            await self._validate_prerequisite(anima.identity_markdown)
+            assert self._uow is not None
+            anima_names = {
+                _name_key(item.display_name)
+                for item in await self._uow.animas.list()
+                if item.user_id in {None, user_id}
+            }
+            number = 1
+            while _name_key(_numbered_name(anima.display_name, number, 40)) in anima_names:
+                number += 1
+            anima = anima.model_copy(update={"display_name": _numbered_name(anima.display_name, number, 40)})
+        assert lease.record.operation_id is not None
+        return ReviewedImportPlan(
+            stage_id=lease.record.stage_id,
+            operation_id=lease.record.operation_id,
+            package_sha256=digest,
+            size_bytes=size,
+            manifest=inspected.manifest,
+            items=tuple(items),
+            anima=anima,
+            default_model_provider_id=self._default_model if anima is not None else None,
+        )
+
+    async def _validate_prerequisite(self, identity: str, *, lock: bool = False) -> None:
+        if self._uow is None or self._default_model is None:
+            raise ContentConflictError("package_anima_import_unavailable")
+        normalize_identity(identity, max_bytes=self._max_identity_bytes)
+        provider = await self._uow.model_providers.get(self._default_model, for_update=lock)
+        if provider is None or not provider.active:
+            raise ContentConflictError("anima_model_provider_unavailable")
+
+    async def commit(
+        self, *, user_id: str, stage_id: str, operation_id: str, review_digest: str
+    ) -> PackageImportResult:
+        """Replay first, then commit the exact reviewed whole package under its stage lock."""
+        return await _finish_owned_work(
+            self._commit(user_id=user_id, stage_id=stage_id, operation_id=operation_id, review_digest=review_digest)
+        )
+
+    async def _completed(self, *, user_id: str, operation_id: str, review_digest: str) -> PackageImportResult | None:
+        receipt = await self._catalog.get_mutation_receipt(user_id=user_id, operation_id=operation_id)
+        if receipt is None:
+            return None
+        if receipt["request_digest"] != import_request_digest(review_digest):
+            raise ContentConflictError("operation_id_reused")
+        return PackageImportResult.model_validate(receipt["result"]["value"])
+
+    def _release_completed_stage(self, *, user_id: str, operation_id: str) -> None:
+        """A receipt can release stale protected quota, but never depends on stage availability."""
+        try:
+            stage = self._stages.find_import(user_id, operation_id)
+            if stage is not None:
+                with self._stages.acquire(user_id, stage.stage_id, allow_expired=True) as lease:
+                    lease.set_state("completed")
+        except (ContentConflictError, OSError):
+            pass
+
+    async def _commit(
+        self, *, user_id: str, stage_id: str, operation_id: str, review_digest: str
+    ) -> PackageImportResult:
+        completed = await self._completed(user_id=user_id, operation_id=operation_id, review_digest=review_digest)
+        if completed is not None:
+            self._release_completed_stage(user_id=user_id, operation_id=operation_id)
+            return completed
+        with self._stages.acquire(user_id, stage_id) as lease:
+            record = lease.record
+            if record.operation_id != operation_id or record.review_digest != review_digest or record.review is None:
+                raise ContentConflictError("package_review_mismatch")
+            plan = ReviewedImportPlan.model_validate_json(json.dumps(record.review["plan"]))
+            if _plan_digest(plan) != review_digest or plan.operation_id != operation_id or plan.stage_id != stage_id:
+                raise ContentConflictError("package_review_mismatch")
+            size, digest = await asyncio.to_thread(lease.verify_archive)
+            if (size, digest) != (plan.size_bytes, plan.package_sha256):
+                raise ContentConflictError("package_archive_changed")
+            lease.set_state("committing")
+            try:
+                with lease.expansion() as directory:
+                    inspected = await asyncio.to_thread(
+                        self._archive.inspect, lease.archive_path, destination=directory
+                    )
+                    if inspected.manifest != plan.manifest:
+                        raise ContentConflictError("package_review_mismatch")
+
+                    async def install() -> PackageImportResult:
+                        return await self._install(
+                            user_id=user_id, plan=plan, inspected=inspected, review_digest=review_digest
+                        )
+
+                    result = await self._mutations.run(
+                        user_id=user_id,
+                        operation_id=operation_id,
+                        request_digest=import_request_digest(review_digest),
+                        result_type=PackageImportResult,
+                        action=install,
+                    )
+            except BaseException:
+                completed = await self._completed(
+                    user_id=user_id, operation_id=operation_id, review_digest=review_digest
+                )
+                if completed is not None:
+                    try:
+                        lease.set_state("completed")
+                    except OSError:
+                        pass
+                    return completed
+                pending = self._store.pending_mutations()
+                lease.set_state(
+                    "recovery_needed"
+                    if any(item.user_id == user_id and item.operation_id == operation_id for item in pending)
+                    else "failed"
+                )
+                raise
+            # SQL is the completion authority. A lost stage update cannot turn a
+            # committed import into a new installation on retry or status lookup.
+            try:
+                lease.set_state("completed")
+            except OSError:
+                pass
+            return result
+
+    async def _install(
+        self, *, user_id: str, plan: ReviewedImportPlan, inspected: InspectedPackage, review_digest: str
+    ) -> PackageImportResult:
+        await self._content.rescan(user_id=user_id)
+        visible = await self._catalog.list_visible(user_id=user_id)
+        occupied_names = {(item.kind, _name_key(item.display_name)) for item in visible}
+        occupied_locators = {_name_key(item.relative_locator) for item in visible}
+        for item in plan.items:
+            if (
+                (item.kind, _name_key(item.name)) in occupied_names
+                or _name_key(item.relative_locator) in occupied_locators
+                or self._store.package_destination_exists(relative_locator=item.relative_locator)
+            ):
+                raise ContentConflictError("package_destination_changed")
+        if plan.anima is not None:
+            if plan.default_model_provider_id != self._default_model:
+                raise ContentConflictError("package_prerequisite_changed")
+            await self._validate_prerequisite(plan.anima.identity_markdown, lock=True)
+            assert self._uow is not None
+            if any(
+                _name_key(item.display_name) == _name_key(plan.anima.display_name)
+                for item in await self._uow.animas.list()
+                if item.user_id in {None, user_id}
+            ):
+                raise ContentConflictError("package_destination_changed")
+        prepared = await asyncio.to_thread(self._prepare, plan, inspected)
+        await asyncio.to_thread(
+            self._store.install_package_atomic, entries=prepared, operation_id=plan.operation_id, require_new=True
+        )
+        await self._content.rescan(
+            user_id=user_id,
+            include_included=False,
+            planned_item_ids={item.relative_locator: item.item_id for item in plan.items},
+        )
+        installed: dict[str, CatalogContentEntry] = {}
+        for item in plan.items:
+            current = await self._catalog.get_visible_item(item_id=item.item_id, user_id=user_id)
+            if (
+                current is None
+                or current.status is not ContentStatus.VALID
+                or current.logical_key != item.logical_key
+                or current.revision_sha256 is None
+            ):
+                raise ContentConflictError("package_catalog_admission_failed")
+            TypedContentService.parse(current)
+            installed[item.entry_id] = await self._catalog.record_import_provenance(
+                item_id=item.item_id,
+                user_id=user_id,
+                provenance={
+                    **current.provenance,
+                    "import": {
+                        "package_schema": plan.manifest.schema_,
+                        "package_sha256": plan.package_sha256,
+                        "entry_id": item.entry_id,
+                    },
+                },
+            )
+        for entry in plan.manifest.entries:
+            expected = {installed[dependency.ref].id for dependency in entry.dependencies}
+            if set(installed[entry.package_entry_id].dependency_item_ids) != expected:
+                raise ContentConflictError("package_dependency_admission_failed")
+        anima_id = None
+        if plan.anima is not None:
+            assert self._uow is not None and self._default_model is not None
+            validate_package_anima_runtime(plan.anima, installed, max_identity_bytes=self._max_identity_bytes)
+            spec = resolve_portable_anima(plan.anima, installed, max_identity_bytes=self._max_identity_bytes)
+            anima = await AnimaAggregateMaterializer(
+                default_model_provider_id=self._default_model, max_identity_bytes=self._max_identity_bytes
+            ).materialize(user_id=user_id, spec=spec, uow=self._uow)
+            anima_id = anima.id
+        return PackageImportResult(
+            operation_id=plan.operation_id,
+            review_digest=review_digest,
+            package_sha256=plan.package_sha256,
+            items=tuple(
+                ImportedPackageItem(
+                    entry_id=item.entry_id,
+                    kind=item.kind,
+                    item_id=item.item_id,
+                    revision_sha256=installed[item.entry_id].revision_sha256 or "",
+                    logical_key=item.logical_key,
+                    name=item.name,
+                    selected=item.selected,
+                )
+                for item in plan.items
+            ),
+            anima_id=anima_id,
+        )
+
+    @staticmethod
+    def _prepare(plan: ReviewedImportPlan, inspected: InspectedPackage) -> tuple[PreparedPackageEntry, ...]:
+        """Rewrite bounded JSON on disk; payloads stay closed until store consumption."""
+        references = {item.entry_id: item.logical_key for item in plan.items}
+        catalog_ids = {item.entry_id: item.item_id for item in plan.items}
+        portraits = {
+            association.appearance_entry_id: catalog_ids[association.avatar_entry_id]
+            for association in plan.manifest.avatar_portraits
+        }
+        manifest_entries = {entry.package_entry_id: entry for entry in plan.manifest.entries}
+        result = []
+        for item in plan.items:
+            source = inspected.entries[item.entry_id]
+            entry = manifest_entries[item.entry_id]
+            locator = PurePosixPath(item.relative_locator)
+            descriptor = not locator.suffix
+            document = handler_for_kind(item.kind).catalog_projection(source.document)
+            aliases = frozenset(dependency.alias for dependency in source.document.dependencies if dependency.alias)
+            document = portable_json(document, references, aliases=aliases)
+            document["content_id"], document["name"] = item.logical_key, item.name
+            if entry.license is not None:
+                document["provenance"] = entry.license.model_dump(exclude_none=True)
+            if item.kind is ContentKind.POSE:
+                document["pose"] = {**document["pose"], "id": item.logical_key, "name": item.name}
+            if item.kind is ContentKind.APPEARANCE:
+                document.pop("avatar_model", None)
+                document["presentation"] = (
+                    {"avatar_item_id": portraits[item.entry_id]} if item.entry_id in portraits else {}
+                )
+            prepared: list[PreparedPackageFile] = []
+            original_stem = PurePosixPath(source.scanned.relative_locator).name
+            filenames = {
+                member.relative_path: (
+                    locator.name + member.relative_path[len(original_stem) :]
+                    if descriptor and member.relative_path.startswith(original_stem + ".")
+                    else member.relative_path
+                    if descriptor
+                    else locator.name
+                )
+                for member in entry.files
+                if member.role not in {"metadata", "descriptor"}
+            }
+            document["files"] = [
+                {**value, "path": filenames.get(value["path"], value["path"])} for value in document.get("files", [])
+            ]
+            for member in entry.files:
+                path = source.files[member.relative_path]
+                relative = member.relative_path
+                if member.role in {"descriptor", "metadata"}:
+                    relative = (
+                        descriptor_filename(definition_for_kind(item.kind), locator.name)
+                        if descriptor
+                        else locator.with_suffix(".meta.json").name
+                    )
+                    rewritten = document
+                    path.write_text(
+                        json.dumps(
+                            rewritten, sort_keys=True, ensure_ascii=False, allow_nan=False, separators=(",", ":")
+                        )
+                        + "\n",
+                        encoding="utf-8",
+                    )
+                else:
+                    relative = filenames[member.relative_path]
+                    if path.suffix.lower() == ".json":
+                        rewritten = portable_json(json.loads(path.read_bytes()), references, aliases=aliases)
+                        path.write_text(
+                            json.dumps(
+                                rewritten, sort_keys=True, ensure_ascii=False, allow_nan=False, separators=(",", ":")
+                            )
+                            + "\n",
+                            encoding="utf-8",
+                        )
+                prepared.append(
+                    PreparedPackageFile(
+                        relative_path=relative, handle=None, size_bytes=path.stat().st_size, source_path=path
+                    )
+                )
+            # Standalone entries may legitimately omit metadata. Add an explicit
+            # sidecar so the fresh identity and reviewed name survive a rescan.
+            if not descriptor and not any(member.role == "metadata" for member in entry.files):
+                path = source.root / "import-metadata.json"
+                document["files"] = [{**value, "path": locator.name} for value in document.get("files", [])]
+                path.write_text(
+                    json.dumps(document, sort_keys=True, ensure_ascii=False, allow_nan=False) + "\n", encoding="utf-8"
+                )
+                prepared.append(
+                    PreparedPackageFile(
+                        relative_path=locator.with_suffix(".meta.json").name,
+                        handle=None,
+                        size_bytes=path.stat().st_size,
+                        source_path=path,
+                    )
+                )
+            result.append(
+                PreparedPackageEntry(kind=item.kind, relative_locator=item.relative_locator, files=tuple(prepared))
+            )
+        return tuple(result)
+
+    async def operation_status(self, *, user_id: str, operation_id: str) -> PackageOperationStatus:
+        """A durable receipt outranks missing stages, deleted results and cleanup state."""
+        receipt = await self._catalog.get_mutation_receipt(user_id=user_id, operation_id=operation_id)
+        if receipt is not None:
+            value = receipt["result"]["value"]
+            if value.get("schema_version") == 1:
+                completed = PackageImportResult.model_validate(value)
+                self._release_completed_stage(user_id=user_id, operation_id=operation_id)
+                return PackageOperationStatus(
+                    operation_id=operation_id,
+                    state="completed",
+                    review_digest=completed.review_digest,
+                    result=completed,
+                )
+            if "skipped_existing_item_ids" in value:
+                result = LegacyPackageImportResult(
+                    operation_id=operation_id,
+                    items=tuple(
+                        LegacyImportedPackageItem(
+                            entry_id=item["id"],
+                            kind=item["kind"],
+                            item_id=item["id"],
+                            logical_key=item.get("logical_key"),
+                            name=item["display_name"],
+                            selected=False,
+                        )
+                        for item in value["items"]
+                    ),
+                    skipped_existing_item_ids=tuple(value["skipped_existing_item_ids"]),
+                )
+                self._release_completed_stage(user_id=user_id, operation_id=operation_id)
+                return PackageOperationStatus(operation_id=operation_id, state="completed", result=result)
+            raise ContentConflictError("operation_id_reused")
+        stage = self._stages.find_import(user_id, operation_id)
+        if stage is None:
+            if any(
+                journal.user_id == user_id and journal.operation_id == operation_id
+                for journal in self._store.pending_mutations()
+            ):
+                return PackageOperationStatus(operation_id=operation_id, state="recovery_needed")
+            return PackageOperationStatus(operation_id=operation_id, state="not_found")
+        _, active = self._stages.status(user_id, stage.stage_id)
+        if not active and stage.state in {"committing", "recovery_needed"}:
+            try:
+                with self._stages.acquire(user_id, stage.stage_id, allow_expired=True) as lease:
+
+                    async def recovered() -> dict[str, Any] | None:
+                        return await self._catalog.get_mutation_receipt(user_id=user_id, operation_id=operation_id)
+
+                    receipt = await self._mutations.reconcile(recovered)
+                    if receipt is not None:
+                        lease.set_state("completed")
+                        return await self.operation_status(user_id=user_id, operation_id=operation_id)
+                    lease.set_state("failed")
+                    stage = lease.record
+            except (ContentConflictError, OSError):
+                return PackageOperationStatus(
+                    operation_id=operation_id,
+                    state="recovery_needed",
+                    stage_id=stage.stage_id,
+                    review_digest=stage.review_digest,
+                )
+        state = "pending" if active or stage.state not in {"committing", "recovery_needed"} else "recovery_needed"
+        return PackageOperationStatus(
+            operation_id=operation_id, state=state, stage_id=stage.stage_id, review_digest=stage.review_digest
+        )

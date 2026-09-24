@@ -11,6 +11,7 @@ import stat
 import unicodedata
 import uuid
 from collections.abc import Mapping
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import replace
 from datetime import UTC, datetime
 from io import BytesIO
@@ -874,11 +875,11 @@ class FilesystemContentStore(ContentStore):
             self.finalize_mutation(journal_id=journal.journal_id, commit=journal.journal_id in committed_journal_ids)
         self.recover_package_installs()
 
-    def _replace_local(self, staged: Path, destination: Path) -> None:
+    def _replace_local(self, staged: Path, destination: Path, *, require_new: bool = False) -> None:
         """Use recoverable promotion when an outer mutation owns the write."""
 
         if self._mutation is not None:
-            self._mutation.replace(staged, destination)
+            self._mutation.replace(staged, destination, require_new=require_new)
         else:
             os.replace(staged, destination)
 
@@ -890,11 +891,15 @@ class FilesystemContentStore(ContentStore):
         else:
             destination.unlink()
 
-    def _promote_mutation_package(self, *, stage_root: Path, targets: list[_PackageTarget]) -> None:
+    def _promote_mutation_package(
+        self, *, stage_root: Path, targets: list[_PackageTarget], require_new: bool = False
+    ) -> None:
         """Promote validated package files individually so every replace remains atomic."""
 
         local_root = self._roots[ContentSource.LOCAL]
         for target in targets:
+            if require_new and self.package_destination_exists(relative_locator=target["locator"]):
+                raise ContentConflictError("package_destination_changed")
             old_files: set[Path] = set()
             new_files: list[tuple[Path, Path]] = []
             for relative in target["paths"]:
@@ -913,8 +918,11 @@ class FilesystemContentStore(ContentStore):
                 else:
                     new_files.append((staged, local_root / relative))
             intended = {destination for _, destination in new_files}
+            if require_new and target["directory"]:
+                assert self._mutation is not None
+                self._mutation.create_directory(safe_path(local_root, target["locator"]))
             for staged, destination in new_files:
-                self._replace_local(staged, destination)
+                self._replace_local(staged, destination, require_new=require_new)
             for destination in sorted(old_files - intended):
                 self._delete_local(destination)
 
@@ -1081,6 +1089,7 @@ class FilesystemContentStore(ContentStore):
         *,
         entries: tuple[PreparedPackageEntry, ...],
         operation_id: str,
+        require_new: bool = False,
     ) -> None:
         """Stage, scan, and compensate one complete package closure."""
 
@@ -1162,9 +1171,19 @@ class FilesystemContentStore(ContentStore):
                         raise ContentConflictError("package_destination_collision")
                     target_path.parent.mkdir(parents=True, exist_ok=True)
                     written = 0
-                    member.handle.seek(0)
-                    with target_path.open("xb") as handle:
-                        while chunk := member.handle.read(1024 * 1024):
+                    if (member.handle is None) == (member.source_path is None):
+                        raise ContentValidationError("package member requires exactly one byte source")
+                    source_context: AbstractContextManager[BinaryIO]
+                    if member.source_path is not None:
+                        if not stat.S_ISREG(member.source_path.lstat().st_mode):
+                            raise ContentPathError("package member is not a regular private file")
+                        source_context = os.fdopen(os.open(member.source_path, os.O_RDONLY | os.O_NOFOLLOW), "rb")
+                    else:
+                        assert member.handle is not None
+                        source_context = nullcontext(member.handle)
+                    with source_context as source, target_path.open("xb") as handle:
+                        source.seek(0)
+                        while chunk := source.read(1024 * 1024):
                             written += len(chunk)
                             if written > member.size_bytes:
                                 raise ContentValidationError("package member exceeds its verified size")
@@ -1212,8 +1231,10 @@ class FilesystemContentStore(ContentStore):
                     reason = scanned_entry.diagnostics[0].message if scanned_entry.diagnostics else "entry is invalid"
                     raise ContentValidationError(f"staged package entry is invalid: {reason}")
 
+            if require_new and any(self.package_destination_exists(relative_locator=locator) for locator in locators):
+                raise ContentConflictError("package_destination_changed")
             if self._mutation is not None:
-                self._promote_mutation_package(stage_root=stage_root, targets=targets)
+                self._promote_mutation_package(stage_root=stage_root, targets=targets, require_new=require_new)
                 self._remove_private_tree(stage_root)
                 self._remove_private_tree(backup_root)
                 return
@@ -1282,6 +1303,23 @@ class FilesystemContentStore(ContentStore):
             self._receipt(receipt_id, receipt)
             self._recover_package_payload(operation_id, receipt)
             raise
+
+    def package_destination_exists(self, *, relative_locator: str) -> bool:
+        """Include sidecars, empty directories, and case aliases in fresh-path admission."""
+        locator = _validate_relative_path(
+            relative_locator, allow_directory=PurePosixPath(relative_locator).suffix == ""
+        )
+        destination = safe_path(self._roots[ContentSource.LOCAL], locator.as_posix())
+        names = {unicodedata.normalize("NFC", destination.name).casefold()}
+        if locator.suffix:
+            names.add(unicodedata.normalize("NFC", destination.with_suffix(".meta.json").name).casefold())
+        if destination.exists() or destination.is_symlink():
+            return True
+        if destination.parent.exists():
+            return any(
+                unicodedata.normalize("NFC", child.name).casefold() in names for child in destination.parent.iterdir()
+            )
+        return False
 
     def finalize_package_install(self, *, operation_id: str, commit: bool) -> None:
         """Keep promoted bytes only after their catalog transaction succeeds."""

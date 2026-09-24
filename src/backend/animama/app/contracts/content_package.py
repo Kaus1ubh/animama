@@ -10,7 +10,16 @@ from collections.abc import Mapping, Sequence
 from pathlib import PurePosixPath
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StrictStr,
+    WithJsonSchema,
+    field_validator,
+    model_validator,
+)
 
 from animama.app.contracts.portable_anima import PortableAnima
 from animama.domain.content_catalog import ContentKind
@@ -35,6 +44,13 @@ PACKAGE_ROOT_KINDS = frozenset(
     }
 )
 PACKAGE_ENTRY_KINDS = PACKAGE_ROOT_KINDS | {ContentKind.APPEARANCE}
+# The private storage enum still decodes retired receipt history. Public package
+# schemas advertise only kinds accepted by the strict current package contract.
+PackageContentKind = Annotated[
+    ContentKind,
+    Field(strict=False),
+    WithJsonSchema({"type": "string", "enum": sorted(kind.value for kind in PACKAGE_ENTRY_KINDS)}),
+]
 PortableId = Annotated[StrictStr, Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")]
 Sha256 = Annotated[StrictStr, Field(pattern=r"^[0-9a-f]{64}$")]
 LicenseText = Annotated[StrictStr, Field(min_length=1, max_length=2_048)]
@@ -96,7 +112,7 @@ class PackageFile(_PackageModel):
 
 class PackageDependency(_PackageModel):
     ref: PortableId
-    content_type: ContentKind = Field(strict=False)
+    content_type: PackageContentKind
 
     @field_validator("content_type")
     @classmethod
@@ -114,7 +130,7 @@ def portable_revision(files: Sequence[PackageFile | Mapping[str, object]]) -> st
 
 class PackageEntry(_PackageModel):
     package_entry_id: PortableId
-    kind: ContentKind = Field(strict=False)
+    kind: PackageContentKind
     logical_key: PortableId
     display_name: Annotated[StrictStr, Field(min_length=1, max_length=120)]
     portable_revision_sha256: Sha256

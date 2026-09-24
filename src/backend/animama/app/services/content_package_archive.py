@@ -8,6 +8,8 @@ import shutil
 import stat
 import struct
 import unicodedata
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -95,24 +97,48 @@ class ContentPackageArchive:
     def __init__(self, *, store: ContentStore) -> None:
         self._store = store
 
+    @classmethod
+    @contextmanager
+    def _open_bounded(cls, archive_path: Path) -> Iterator[tuple[ZipFile, dict[str, ZipInfo], PackageManifest]]:
+        """Share parser budgets and declared-member checks before any extraction."""
+        try:
+            if not stat.S_ISREG(archive_path.lstat().st_mode) or archive_path.stat().st_size > MAX_PACKAGE_BYTES:
+                raise ContentConflictError("package_archive_size_invalid")
+            cls._directory_budget(archive_path)
+            with ZipFile(archive_path) as archive:
+                indexed = cls._index(archive)
+                manifest = cls._manifest(archive, indexed)
+                from animama.app.services.content_package_capabilities import validate_declared_capabilities
+
+                validate_declared_capabilities(manifest.capabilities)
+                declared = {member.archive_path: member for entry in manifest.entries for member in entry.files}
+                if set(indexed) != declared.keys() | {"package.json"}:
+                    raise ContentConflictError("package_members_mismatch")
+                if any(indexed[path].file_size != member.size_bytes for path, member in declared.items()):
+                    raise ContentConflictError("package_member_size_mismatch")
+                yield archive, indexed, manifest
+        except ContentDocumentError as exc:
+            raise ContentConflictError(exc.code) from exc
+        except (OSError, ValueError, BadZipFile, RuntimeError, RecursionError, struct.error, EOFError) as exc:
+            raise ContentConflictError("package_archive_invalid") from exc
+
+    @classmethod
+    def expanded_size(cls, archive_path: Path) -> int:
+        """Return the bounded expanded byte requirement, including the manifest.
+
+        This is a disk-space preflight, not admission: inspection still verifies
+        every streamed byte, digest, typed document and runtime dependency.
+        """
+        with cls._open_bounded(archive_path) as (_, indexed, _manifest):
+            return sum(info.file_size for info in indexed.values())
+
     def inspect(self, archive_path: Path, *, destination: Path) -> InspectedPackage:
         """Return an owned private tree; caller removes it after review or publication."""
         if destination.exists() or destination.is_symlink():
             raise ContentConflictError("package_inspection_destination_exists")
         created = False
         try:
-            if not stat.S_ISREG(archive_path.lstat().st_mode) or archive_path.stat().st_size > MAX_PACKAGE_BYTES:
-                raise ContentConflictError("package_archive_size_invalid")
-            self._directory_budget(archive_path)
-            with ZipFile(archive_path) as archive:
-                indexed = self._index(archive)
-                manifest = self._manifest(archive, indexed)
-                from animama.app.services.content_package_capabilities import validate_declared_capabilities
-
-                validate_declared_capabilities(manifest.capabilities)
-                declared = {member.archive_path for entry in manifest.entries for member in entry.files}
-                if set(indexed) != declared | {"package.json"}:
-                    raise ContentConflictError("package_members_mismatch")
+            with self._open_bounded(archive_path) as (archive, indexed, manifest):
                 destination.mkdir(mode=0o700)
                 created = True
                 inspected: dict[str, InspectedPackageEntry] = {}

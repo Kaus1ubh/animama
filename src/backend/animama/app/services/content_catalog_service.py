@@ -48,18 +48,31 @@ class ContentCatalogService:
         self.mutations = LocalContentMutations(store=store, catalog=catalog)
 
     async def rescan(
-        self, *, user_id: str, include_included: bool = True, creator_claim_locator: str | None = None
+        self,
+        *,
+        user_id: str,
+        include_included: bool = True,
+        creator_claim_locator: str | None = None,
+        planned_item_ids: dict[str, str] | None = None,
     ) -> ContentRescanResult:
         """Recover unfinished mutations before admitting a complete source scan."""
 
         return await self.mutations.reconcile(
             lambda: self._rescan(
-                user_id=user_id, include_included=include_included, creator_claim_locator=creator_claim_locator
+                user_id=user_id,
+                include_included=include_included,
+                creator_claim_locator=creator_claim_locator,
+                planned_item_ids=planned_item_ids,
             )
         )
 
     async def _rescan(
-        self, *, user_id: str, include_included: bool, creator_claim_locator: str | None
+        self,
+        *,
+        user_id: str,
+        include_included: bool,
+        creator_claim_locator: str | None,
+        planned_item_ids: dict[str, str] | None = None,
     ) -> ContentRescanResult:
         """Scan registered roots; a bad entry never prevents reconciliation of peers."""
 
@@ -87,6 +100,7 @@ class ContentCatalogService:
                 creator_claim=(creator_claim_locator, user_id)
                 if source is ContentSource.LOCAL and creator_claim_locator
                 else None,
+                planned_item_ids=planned_item_ids if source is ContentSource.LOCAL else None,
                 **(
                     {"active_included_mount_ids": included_mount_ids}
                     if source is ContentSource.INCLUDED and included_mount_ids is not None

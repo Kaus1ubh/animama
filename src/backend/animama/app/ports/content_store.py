@@ -142,8 +142,14 @@ class ContentStore(Protocol):
         *,
         entries: tuple[PreparedPackageEntry, ...],
         operation_id: str,
+        require_new: bool = False,
     ) -> None:
         """Validate and promote a complete package closure or expose none of it."""
+
+        raise NotImplementedError
+
+    def package_destination_exists(self, *, relative_locator: str) -> bool:
+        """Check a proposed fresh Local entry, including unregistered host files."""
 
         raise NotImplementedError
 

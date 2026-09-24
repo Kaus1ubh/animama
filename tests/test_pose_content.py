@@ -18,7 +18,7 @@ from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.server.app import app
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import content, typed_content
-from tests.content_package_helpers import package_services
+from tests.content_package_helpers import package_services, reviewed_export, reviewed_import
 from tests.local_http_client import local_client
 
 
@@ -147,7 +147,7 @@ async def test_pose_save_conflict_retry_and_invalid_update_preserve_saved_values
 
 
 async def test_pose_package_copy_rewrites_identity_and_remains_independent(pose_api) -> None:  # noqa: ANN001
-    _client, (paths, _catalog, service, saves, packages), _principal = pose_api
+    _client, (paths, catalog, service, saves, packages), _principal = pose_api
     saved = await saves.save_descriptor(
         user_id="package-owner",
         kind=ContentKind("pose"),
@@ -158,19 +158,18 @@ async def test_pose_package_copy_rewrites_identity_and_remains_independent(pose_
         catalog_item_id=None,
         expected_revision=None,
     )
-    exported = await packages.export_item(
+    exported = await reviewed_export(
+        packages,
         user_id="package-owner",
         root_item_id=saved.item.id,
-        operation_id="export-pose",
     )
-    imported = await packages.import_package(
-        user_id="package-owner",
-        archive_path=exported.path,
-        operation_id="import-copy",
-        collision="keep_both",
+    command = await reviewed_import(
+        packages, user_id="package-owner", archive_path=exported.path, operation_id="import-copy"
     )
+    imported = await packages.imports.commit(**command)
     assert len(imported.items) == 1
-    copy = imported.items[0]
+    copy = await catalog.get_visible_item(item_id=imported.items[0].item_id, user_id="package-owner")
+    assert copy is not None
     assert copy.id != saved.item.id and copy.logical_key != saved.item.logical_key
     copied_file = next((paths.local_root / copy.relative_locator).glob("*.json"))
     document = json.loads(copied_file.read_text())

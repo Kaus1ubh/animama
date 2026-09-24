@@ -104,10 +104,13 @@ must target the same recorded origin/project and owned Local root. Use
 `pnpm e2e:cleanup -- RUN_ID` to inspect unresolved items, then
 `pnpm e2e:cleanup -- RUN_ID --confirm RUN_ID` with the exact generated ID to
 perform recovery. The same isolated-stack environment and consent are required.
+Package imports record their operation and review before commit. After a lost
+reply, cleanup binds only the matching completed receipt's original item and
+revision; pending outcomes or later edits retain the ledger and block deletion.
 
-Browser coverage uses the existing creator JSON import UI. Portable `.animama /2`
-package import/export is covered separately by migration-backed backend tests;
-this suite does not claim a package-import browser screen exists. Chat cancellation
+Browser coverage uses the creator JSON import UI. The Pose round trip exercises
+the reviewed `.animama /3` package API without claiming a package-import screen.
+Chat cancellation
 uses a controlled pending browser request, followed by actual deterministic backend
 chat. Real provider cancellation is tested separately over Uvicorn. Neither is
 live provider, audio, physical keyboard or packaged desktop acceptance.

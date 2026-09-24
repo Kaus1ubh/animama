@@ -146,6 +146,26 @@ export async function createLocalCatalogClient({
       return body;
     },
 
+    async getPackageOperation(operationId) {
+      if (
+        typeof operationId !== "string" ||
+        !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(operationId)
+      ) {
+        throw new Error(
+          "Package receipt lookup requires one exact operation ID.",
+        );
+      }
+      const response = await apiContext.get(
+        `/v1/content/package-operations/${encodeURIComponent(operationId)}`,
+        { failOnStatusCode: false },
+      );
+      if (!response.ok())
+        throw new Error(
+          `Package operation read returned HTTP ${response.status()}.`,
+        );
+      return response.json();
+    },
+
     async deleteItem(itemId, revisionSha256) {
       const exact = exactItemId(itemId);
       const revision = exactRevision(revisionSha256);

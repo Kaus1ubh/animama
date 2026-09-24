@@ -13,6 +13,7 @@ from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlc
 from animama.adapters.repositories.sqlalchemy.content_transition_repo import SQLAlchemyContentTransitionBindings
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.app.services.content_catalog_service import ContentCatalogService
+from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.content_transition_service import ContentTransitionService
 from animama.logging_config import get_logger
 from animama.server.deps import get_async_session_factory
@@ -60,6 +61,11 @@ async def start_content_runtime(
 
     paths: LocalRuntimePaths = app.state.local_runtime_paths
     try:
+        # Package stages are private transient work, separate from Local mutation
+        # recovery. Their OS leases protect active requests across processes.
+        await asyncio.to_thread(
+            PackageStageService(paths.imports_staging_root, paths.exports_staging_root).sweep_expired
+        )
         # Bootstrap and explicit scans recover Local journals under the catalog
         # source fence. Never restore files independently after bootstrap scans.
         session_factory = get_async_session_factory(app)

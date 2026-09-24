@@ -77,6 +77,7 @@ class ContentCatalog(Protocol):
         new_item_owner_user_id: str | None,
         creator_claim: tuple[str, str] | None = None,
         active_included_mount_ids: tuple[str, ...] | None = None,
+        planned_item_ids: dict[str, str] | None = None,
     ) -> list[CatalogContentEntry]:
         raise NotImplementedError
 

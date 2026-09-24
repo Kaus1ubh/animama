@@ -1,9 +1,11 @@
 import {
   appendContentLedgerEvent,
   readContentLedger,
+  summarizeContentLedger,
   unresolvedOwnedContent,
 } from "./content-ledger.mjs";
 import { verifyLocalItemDirectoryAbsent } from "./local-content-verifier.mjs";
+import { resolvePackageImportOwnership } from "./package-import-ownership.mjs";
 
 function commonFromOwned(owned) {
   return {
@@ -34,9 +36,29 @@ export async function cleanupOwnedContent({
   actor,
 }) {
   const initialEvents = await readContentLedger(ledgerPath);
-  const unresolved = unresolvedOwnedContent(initialEvents);
   const results = [];
   const failures = [];
+  const imports = summarizeContentLedger(initialEvents).filter(
+    (state) => state.planned?.event === "import_planned" && !state.owned,
+  );
+  for (const state of imports) {
+    try {
+      await resolvePackageImportOwnership({
+        ledgerPath,
+        catalogClient,
+        journeyKey: state.planned.journeyKey,
+      });
+    } catch (error) {
+      failures.push({
+        journeyKey: state.planned.journeyKey,
+        code: "import_outcome_unconfirmed",
+        message: cleanupMessage(error, localRoot, repositoryRoot),
+      });
+    }
+  }
+  const unresolved = unresolvedOwnedContent(
+    await readContentLedger(ledgerPath),
+  );
 
   for (const state of unresolved) {
     const owned = state.owned;
@@ -146,7 +168,11 @@ export async function cleanupOwnedContent({
   }
 
   const summary = {
-    attempted: unresolved.length,
+    attempted:
+      unresolved.length +
+      failures.filter(
+        (failure) => failure.code === "import_outcome_unconfirmed",
+      ).length,
     deleted: results.length,
     failed: failures.length,
     results,

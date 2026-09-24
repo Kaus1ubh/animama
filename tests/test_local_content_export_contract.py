@@ -6,9 +6,9 @@ from zipfile import ZipFile
 
 from sqlalchemy import delete
 
-from animama.app.services.content_package_service import PACKAGE_SCHEMA
+from animama.app.contracts.content_package import PACKAGE_SCHEMA
 from animama.orm.content_catalog import ORMContentCatalogItem
-from tests.content_package_helpers import package_services, save_wave
+from tests.content_package_helpers import package_services, reviewed_export, save_wave
 
 
 async def test_export_generates_a_self_contained_boundary_manifest_without_changing_local(
@@ -23,10 +23,10 @@ async def test_export_generates_a_self_contained_boundary_manifest_without_chang
             if path.is_file()
         }
 
-        exported = await packages.export_item(
+        exported = await reviewed_export(
+            packages,
             user_id="package-owner",
             root_item_id=saved.item.id,
-            operation_id="export-wave-1",
         )
 
         assert exported.filename == "friendly-wave.animama"
@@ -35,10 +35,10 @@ async def test_export_generates_a_self_contained_boundary_manifest_without_chang
         with ZipFile(exported.path) as archive:
             manifest = json.loads(archive.read("package.json"))
             assert manifest["schema"] == PACKAGE_SCHEMA
-            assert manifest["root_entry_id"] == "local:gesture:friendly-wave"
+            assert manifest["root_entry_ids"] == ["entry-0001"]
             entry = manifest["entries"][0]
-            assert entry["logical_key"] == "local:gesture:friendly-wave"
-            assert entry["license"] == {
+            assert entry["logical_key"] == "entry-0001"
+            assert {key: value for key, value in entry["license"].items() if value is not None} == {
                 "creator": "Animama test suite",
                 "license": "fixture-only",
             }
@@ -57,10 +57,10 @@ async def test_export_generates_a_self_contained_boundary_manifest_without_chang
             ]
             assert all(member.date_time == (1980, 1, 1, 0, 0, 0) for member in archive.infolist())
 
-        repeated = await packages.export_item(
+        repeated = await reviewed_export(
+            packages,
             user_id="package-owner",
             root_item_id=saved.item.id,
-            operation_id="export-wave-2",
         )
         assert repeated.package_sha256 == exported.package_sha256
         assert repeated.path.read_bytes() == exported.path.read_bytes()

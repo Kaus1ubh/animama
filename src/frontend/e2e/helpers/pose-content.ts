@@ -116,7 +116,7 @@ export async function readPoseJson(
   return json;
 }
 
-/** Exercise the package HTTP surface (the Library has no package import UI). */
+/** Exercise whole-package review/commit with receipt-backed exact cleanup ownership. */
 export async function roundTripPosePackage(
   page: Page,
   content: CreatorContentFixture,
@@ -128,51 +128,133 @@ export async function roundTripPosePackage(
     "Sec-Fetch-Site": "same-origin",
     "X-Animama-CSRF": "1",
   };
-  const exported = await page.request.post(
-    `/v1/content/items/${source.itemId}:export?operation_id=export-${source.itemId}`,
-    { headers },
+  const summaryResponse = await page.request.post(
+    "/v1/content/package-exports:summary",
+    {
+      headers,
+      data: { item_ids: [source.itemId] },
+    },
   );
-  expect(exported.ok()).toBe(true);
-  const archive = await exported.body();
+  expect(summaryResponse.ok()).toBe(true);
+  const summary = await summaryResponse.json();
+  const preparedResponse = await page.request.post(
+    "/v1/content/package-exports",
+    {
+      headers,
+      data: { item_ids: [source.itemId], expected_digest: summary.digest },
+    },
+  );
+  expect(preparedResponse.ok()).toBe(true);
+  const prepared = await preparedResponse.json();
+  let archive: Buffer;
+  try {
+    const exported = await page.request.get(
+      `/v1/content/package-exports/${prepared.export_id}/file`,
+      { headers },
+    );
+    expect(exported.ok()).toBe(true);
+    archive = await exported.body();
+    expect(archive.length).toBe(prepared.size_bytes);
+  } finally {
+    const discarded = await page.request.delete(
+      `/v1/content/package-exports/${prepared.export_id}`,
+      { headers },
+    );
+    expect(discarded.status()).toBe(204);
+  }
   await content.cleanupOwnedContent();
   await content.assertDeletedContent(source.plan, source);
-  await content.preflightContentAbsence({
-    logicalKey: source.plan.logicalKey,
-    expectedRelativePath: `poses/${source.plan.entryName}`,
-  });
-  const plan = await content.planContent({
-    journeyKey: `pose-package-${source.plan.entryName}`,
-    kind: "pose",
-    entryName: source.plan.entryName,
-    logicalKey: source.plan.logicalKey,
-  });
-  const response = await page.request.post("/v1/content/packages:import", {
+  const operationId = `import-${source.itemId}`;
+  const allocated = await page.request.post("/v1/content/package-imports", {
     headers,
-    multipart: {
-      operation_id: `import-${source.itemId}`,
-      collision: "cancel",
-      package: {
-        name: "pose.animama",
-        mimeType: "application/vnd.animama.content+zip",
-        buffer: archive,
-      },
+    data: {
+      operation_id: operationId,
+      filename: "pose.animama",
+      expected_size_bytes: archive.length,
     },
   });
-  expect(
-    response.ok(),
-    `Package import returned ${response.status()}: ${await response.text()}`,
-  ).toBe(true);
-  const imported = (await response.json()) as {
-    items: Array<{ item_id: string; revision_sha256: string }>;
-  };
-  expect(imported.items).toHaveLength(1);
-  const item = imported.items[0]!;
-  const owned = {
-    plan,
-    itemId: item.item_id,
-    revisionSha256: item.revision_sha256,
-  };
-  await content.recordOwnedContent(plan, owned);
-  await content.verifyOwnedContent(plan, owned);
-  return owned;
+  expect(allocated.ok()).toBe(true);
+  const stage = await allocated.json();
+  let commitDispatched = false;
+  let completed = false;
+  try {
+    expect(stage.part_size_bytes).toBeGreaterThan(0);
+    for (
+      let offset = 0, index = 0;
+      offset < archive.length;
+      offset += stage.part_size_bytes, index += 1
+    ) {
+      const part = await page.request.put(
+        `/v1/content/package-imports/${stage.stage_id}/parts/${index}`,
+        {
+          headers: { ...headers, "Content-Type": "application/octet-stream" },
+          data: archive.subarray(offset, offset + stage.part_size_bytes),
+        },
+      );
+      expect(part.ok(), await part.text()).toBe(true);
+    }
+    const inspected = await page.request.post(
+      `/v1/content/package-imports/${stage.stage_id}/review`,
+      { headers },
+    );
+    expect(inspected.ok(), await inspected.text()).toBe(true);
+    const review = await inspected.json();
+    expect(review.kind).toBe("content");
+    expect(review.items).toHaveLength(1);
+    const item = review.items[0];
+    expect(item.kind).toBe("pose");
+    const plan = await content.planPackageImport({
+      journeyKey: `pose-package-${source.plan.entryName}`,
+      kind: "pose",
+      entryName: item.name,
+      operationId,
+      stageId: stage.stage_id,
+      reviewDigest: review.review_digest,
+      entryId: item.entry_id,
+    });
+    // The fsynced operation plan precedes dispatch. A lost reply is resolved by
+    // its receipt, including the original revision, never by a generated name.
+    commitDispatched = true;
+    let commitProblem = "";
+    try {
+      const committed = await page.request.post(
+        `/v1/content/package-imports/${stage.stage_id}/commit`,
+        {
+          headers,
+          data: {
+            operation_id: operationId,
+            review_digest: review.review_digest,
+          },
+        },
+      );
+      if (!committed.ok()) commitProblem = `Commit HTTP ${committed.status()}`;
+    } catch (error) {
+      commitProblem = String(error);
+    }
+    const statusResponse = await page.request.get(
+      `/v1/content/package-operations/${encodeURIComponent(operationId)}`,
+      { headers },
+    );
+    expect(statusResponse.ok(), commitProblem).toBe(true);
+    const status = await statusResponse.json();
+    expect(
+      status.state,
+      commitProblem || "The import outcome must be confirmed by its receipt",
+    ).toBe("completed");
+    expect(status.review_digest).toBe(review.review_digest);
+    const owned = await content.resolvePackageImport(plan);
+    expect(owned.itemId).not.toBe(source.itemId);
+    expect(owned.plan.logicalKey).not.toBe(source.plan.logicalKey);
+    await content.verifyOwnedContent(owned.plan, owned);
+    completed = true;
+    return owned;
+  } finally {
+    if (!commitDispatched || completed) {
+      const discarded = await page.request.delete(
+        `/v1/content/package-imports/${stage.stage_id}`,
+        { headers },
+      );
+      expect(discarded.status()).toBe(204);
+    }
+  }
 }

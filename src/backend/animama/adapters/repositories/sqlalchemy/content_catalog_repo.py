@@ -259,6 +259,7 @@ class SQLAlchemyContentCatalog(ContentCatalog):
         new_item_owner_user_id: str | None,
         creator_claim: tuple[str, str] | None = None,
         active_included_mount_ids: tuple[str, ...] | None = None,
+        planned_item_ids: dict[str, str] | None = None,
     ) -> list[CatalogContentEntry]:
         """Reconcile each mount's identities, and atomically withdraw unmounted packs."""
 
@@ -276,6 +277,24 @@ class SQLAlchemyContentCatalog(ContentCatalog):
             .with_for_update()
         )
         existing = list(result.scalars())
+        # An import is an independent copy, even if its bytes equal a missing
+        # item. Only explicitly planned, unused Local locations bypass ordinary
+        # rename recovery; subsequent scans use the normal matching rules.
+        planned = planned_item_ids or {}
+        if planned:
+            if source is not ContentSource.LOCAL or len(set(planned.values())) != len(planned):
+                raise ContentConflictError("package_destination_changed")
+            scanned_locations = [entry.relative_locator for entry in entries]
+            if any(scanned_locations.count(locator) != 1 for locator in planned):
+                raise ContentConflictError("package_destination_changed")
+            if any(row.relative_locator in planned for row in existing):
+                raise ContentConflictError("package_destination_changed")
+            occupied = await self._session.scalar(
+                select(ORMContentCatalogItem.id).where(ORMContentCatalogItem.id.in_(planned.values())).limit(1)
+            )
+            if occupied is not None:
+                raise ContentConflictError("package_destination_changed")
+        fresh_indexes = {index for index, entry in enumerate(entries) if entry.relative_locator in planned}
         if source is ContentSource.INCLUDED and active_included_mount_ids is not None:
             active_sources = {mount.split("@", 1)[0] for mount in active_included_mount_ids}
             withdrawn = [
@@ -304,12 +323,14 @@ class SQLAlchemyContentCatalog(ContentCatalog):
         matched: dict[int, ORMContentCatalogItem] = {}
         claimed_ids: set[str] = set()
         for index, entry in enumerate(entries):
+            if index in fresh_indexes:
+                continue
             existing_row = by_locator.get((_mount_source(entry.source_mount_id), entry.relative_locator))
             if existing_row is not None:
                 matched[index] = existing_row
                 claimed_ids.add(existing_row.id)
         for index, entry in enumerate(entries):
-            if index in matched or not entry.logical_key:
+            if index in fresh_indexes or index in matched or not entry.logical_key:
                 continue
             logical_candidates = [
                 candidate
@@ -326,7 +347,7 @@ class SQLAlchemyContentCatalog(ContentCatalog):
             if row.id not in claimed_ids and row.revision_sha256:
                 unmatched_existing[(_mount_source(row.source_mount_id), row.kind, row.revision_sha256)].append(row)
         for index, entry in enumerate(entries):
-            if index not in matched and entry.revision_sha256:
+            if index not in fresh_indexes and index not in matched and entry.revision_sha256:
                 unmatched_scanned[
                     (_mount_source(entry.source_mount_id), entry.kind.value, entry.revision_sha256)
                 ].append(index)
@@ -354,7 +375,7 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                 unmatched_existing_files[(_mount_source(row.source_mount_id), row.kind, file_identity)].append(row)
         for index, entry in enumerate(entries):
             file_identity = _scanned_file_identity(entry)
-            if index not in matched and entry.revision_sha256 and file_identity:
+            if index not in fresh_indexes and index not in matched and entry.revision_sha256 and file_identity:
                 unmatched_scanned_files[(_mount_source(entry.source_mount_id), entry.kind.value, file_identity)].append(
                     index
                 )
@@ -369,7 +390,7 @@ class SQLAlchemyContentCatalog(ContentCatalog):
             matched_row = matched.get(index)
             if matched_row is None:
                 catalog_row = ORMContentCatalogItem(
-                    id=self._new_item_id(entry),
+                    id=planned.get(entry.relative_locator) or self._new_item_id(entry),
                     source=source.value,
                     scope=new_item_scope.value,
                     owner_user_id=new_item_owner_user_id,

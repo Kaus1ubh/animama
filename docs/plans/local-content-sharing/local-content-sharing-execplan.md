@@ -1,6 +1,6 @@
 # Local content and complete Anima sharing
 
-Status: Approved 2026-09-24 for full implementation; Phases 1–3 complete, Phase 4 next.
+Status: Approved 2026-09-24 for full implementation; Phases 1–4 complete; Phase 5 is next.
 
 Source agreement: [local-content-sharing-spec.md](local-content-sharing-spec.md),
 requirements R1–R9 and its acceptance table, following the owner's 2026-09-23
@@ -80,7 +80,7 @@ Paths below are relative to the repository root. `B` means
 - [x] Phase 1: Gesture-based Idle Styles and preservation of existing idle behavior.
 - [x] Phase 2: retire Music/BGM and standalone Pose Clip availability safely.
 - [x] Phase 3: portable multi-root and full-Anima export with exact review snapshots.
-- [ ] Phase 4: staged, reviewed import and one recoverable installation operation.
+- [x] Phase 4: staged, reviewed import and one recoverable installation operation.
 - [ ] Phase 5: Library frontend using the supplied UI mockups.
 - [ ] Phase 6: combined acceptance, current documentation and final review.
 
@@ -754,7 +754,8 @@ Record exact new fixture commands. Recovery: failed/cancelled preparation remove
 only its owned temporary cache; later edits never alter an existing review.
 
 Issue: [#84](https://github.com/raymond-van/animama/issues/84). Starting SHA:
-`08e31f2bc57b19111caa8c1456f6ea322c910369`. Commit: pending.
+`08e31f2bc57b19111caa8c1456f6ea322c910369`. Commit:
+`05728e42167f0e0e4465262d276758ad0876e28a`.
 
 Implemented and verified: strict `/3` archive inspection, saved-authority
 Anima projection/configuration, closed playback capabilities and exact export
@@ -905,16 +906,109 @@ Completion: the API offers truthful review/commit/status/cancellation and one
 coordinated outcome for content-only and Anima imports. A post-commit runtime
 preparation failure can retry preparation without materializing again.
 
-Issue: [#85](https://github.com/raymond-van/animama/issues/85). Starting SHA: record predecessor commit when phase starts.
-Commit / evidence: pending.
+Issue: [#85](https://github.com/raymond-van/animama/issues/85). Starting SHA:
+`05728e42167f0e0e4465262d276758ad0876e28a`. Commit: pending.
+
+Implementation underway in three bounded areas: private filesystem stages/export
+leases; reviewed import planning plus shared-session publication/materialization;
+and HTTP/facade/caller cutover. Optional preallocated catalog identities let the
+review fix Avatar portrait associations before one atomic admission, without
+reserving selectable catalog items or adding a SQL staging table.
+
+Pre-review evidence (implementation still in progress):
+
+- Private staging/export slice: 32 focused tests passed, including the actual
+  136 MiB HTTP upload in 17 sequential parts, quota/expiry/process-death locks,
+  export download lifetime and Pose package copying. Only bounded part buffers
+  were retained; the normal request-size limit was unchanged.
+- Parent HTTP and mutation/admission batch: 88 passed (23 warnings). The reviewed
+  HTTP round trip proves owner isolation, no admission during review, unchanged
+  exact download SHA, automatic names, whole-package commit and receipt replay
+  after stage cleanup and later item deletion. The existing 43 other adapted
+  migration/retirement/Pose/workflow tests passed before the final HTTP response
+  mapping fix. Final combined validation is recorded below when frozen.
+- Offline SDK generation, public package build/check, web source type-check and
+  backend format/Ruff/mypy (557 sources) passed. Boundary audit reports zero
+  forbidden edges, 225 reachable project modules and 169 shared modules.
+- New evidence during caller cutover found a static Pose export identity mismatch
+  and missing portable license metadata on import; both are corrected. Journal
+  rollback now removes only matching empty directories created by that operation,
+  allowing an exact multi-entry retry while preserving preexisting/manual files.
+- The active Pose browser helper is being moved off the removed immediate routes.
+  Import receipts retain the original revision so exact test cleanup cannot adopt
+  and delete a later manual edit. Receipt-backed operation journaling owns this
+  caller update; Phase 5 still owns the new sharing UI and journey.
 
 #### Code Review #1 Findings
 
-Not run. Include concurrency, cleanup quotas, crash boundaries and owner admission.
+Blocked on two required findings against the frozen Phase 4 working tree based
+on `05728e4`. Independent backend analysis and separate caller/SDK analysis were
+read-only. The caller review passed without findings; its reviewer independently
+ran 25 utility tests, three Pose helper tests, E2E source type-check and scoped
+format/diff checks. The final baseline full backend suite passed: **2,134 passed,
+7 skipped, 416 warnings in 338.81 seconds**. Format/Ruff/mypy passed across 557
+sources. SDK freshness (17 generated files), runtime-contract type-check,
+package build/check/tests (17), web source type-check and desktop type-check passed.
+These checks do not cover the newly reproduced crash windows below.
+
+- **P4-B1 — Fresh publication has two crash gaps.** Stopping after `os.link`
+  but before unlinking its private staging name leaves two links; the ordinary
+  recovery fingerprint rejects that state even without a manual edit. Stopping
+  after destination `mkdir` but before journaling its device/inode leaves an
+  empty directory which rollback cannot prove it owns; it nevertheless deletes
+  the journal, and the exact reviewed retry then conflicts. Both violate R5's
+  restart recovery and exact retry requirement. Retain durable ownership proof
+  before publication and test recreated journal/service lifetimes at both points,
+  while preserving manual files and unowned hard links.
+- **P4-B2 — The expansion ceiling becomes a minimum free-space requirement.**
+  `StageLease.expansion` requires 4 GiB free for every archive. A valid 1,370-byte
+  Sound package with 152 payload bytes fails with 64 MiB available although the
+  ordinary reader accepts it. Preflight that archive's bounded expansion need;
+  retain the 4 GiB ceiling and checks on actual extraction.
 
 #### Code Review #1 Revisions
 
-Not run. Two repair rounds remain.
+Both findings accepted after source verification. Repair round 1 is frozen:
+
+- **P4-B1:** one exclusive-rename helper replaces the transient hard-link and raw
+  destination-mkdir publication paths. Private staging identities are journaled
+  before atomic publication. macOS uses `renamex_np(RENAME_EXCL)` and Linux uses
+  `renameat2(RENAME_NOREPLACE)`; Windows delegates to its exclusive `os.rename`.
+  Unsupported primitives/filesystems fail closed. Ordinary Save replacement and
+  legacy journal decoding retain their contracts. Recovery also refuses a later
+  same-byte file replacement when its inode is not the published one.
+  Both original interruptions failed before the repair. Twelve new restart,
+  manual-write and native exclusion cases plus existing store/import/Anima tests
+  passed: **46 tests**. Actual macOS journal recovery was exercised; an isolated
+  Linux container ran the exact helper extracted from current source and proved
+  native file/directory exclusion and inode preservation. This is not full Linux
+  journal or Windows execution evidence.
+- **P4-B2:** stage expansion asks the same bounded archive reader for the specific
+  expanded size, including manifest accounting, before checking available disk.
+  Both real import/export reviews failed with 64 MiB free before the repair and
+  pass afterward. The **89-test** stage/archive/contract/export batch also covers
+  insufficient actual disk, the configured expanded ceiling and existing hostile
+  archive limits. No public model or SDK changes were needed.
+
+Scoped format/Ruff/mypy and diff checks passed for both repairs. Final full backend
+regression: **2,149 passed, 7 skipped, 416 warnings in 236.98 seconds**. Final
+format/Ruff/mypy passed across 558 sources; boundary checks report zero forbidden
+edges, 225 reachable project modules and 169 shared modules. Unchanged SDK and
+frontend caller evidence above remains valid; neither repair changed the API.
+
+#### Code Review #2 Findings
+
+Pass. Independent targeted recheck resolved P4-B1/P4-B2 without new findings.
+Thirteen targeted tests, both original crash reproductions, the original low-disk
+reproduction and diff checks passed. The reviewer confirmed restart recovery,
+exclusive publication, manual replacement preservation and bounded disk admission.
+Final full-suite/static evidence above completes the Phase 4 gate.
+
+#### Code Review #2 Revisions
+
+No further revisions required. One repair round remains unused. Phase 4 is ready
+for `feat(content)[p4]: install reviewed packages with durable recovery`; record
+the resulting SHA at Phase 5 startup. Browser/native acceptance remains separate.
 
 ### Phase 5: Implement the Library frontend from the UI mockups
 
@@ -1059,7 +1153,7 @@ Source inspection and this plan are not passing runtime evidence.
 | Phase 1 | Cell resolution, finite clocks/events, both players, isolated AI equipment, old idle conversion | Passed and committed `8e2a68e`; full local backend/frontend checks and rendered gates recorded above. |
 | Phase 2 | Retired data/receipts, preserved Actions/audio/TTS/Creator JSON, repeatable transition | Passed and committed `08e31f2`; full local backend and targeted repair/static/rendered evidence above. Review #3 passed. |
 | Phase 3 | Multi-root/Anima projection, private-data absence, images, exact export bytes | Passed; initial full backend 2025 passed/7 skipped, final affected batch 199 passed, static and Review #3 passed. |
-| Phase 4 | Whole-package review, multipart limits, independent copies, single outcome under failure/retry/restart | Not run. |
+| Phase 4 | Whole-package review, multipart limits, independent copies, single outcome under failure/retry/restart | Passed; final full backend 2149 passed/7 skipped, static 558 sources, caller/SDK checks and independent Review #2 passed. |
 | Phase 5 | Four mockup comparisons, complete content/Anima flows, keyboard and narrow layouts, both serving modes | Not run. |
 | Phase 6 | Independent installations, retained existing data, real audio/avatar and explicit native evidence | Not run. |
 | Hosted CI / release | Actual candidate `Validation` scope; separate release/publication approval | Not requested or run. |

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import threading
 import wave
 from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
+from types import SimpleNamespace
 from zipfile import ZipFile
 
 import pytest
@@ -19,12 +22,49 @@ from animama.app.services.anima_package_source_service import AnimaPackageSource
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_export import ContentPackageExportService
 from animama.app.services.content_package_service import ContentPackageService
+from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.typed_content_service import TypedContentAdmissionError
 from animama.domain.content_catalog import ContentConflictError
 from animama.orm.anima import ORMAnima
 from animama.orm.content_catalog import ORMContentCatalogItem
 from tests.anima_creation_service_support import anima_creation_fixture, image_bytes, vrm, write_file, write_json
 from tests.content_package_helpers import package_services, save_wave, vrma
+from tests.test_content_package_v3_archive import sound_package, write_package
+
+
+@pytest.mark.parametrize("direction", ["import", "export"])
+async def test_small_package_review_uses_its_actual_expansion_on_low_disk(
+    async_session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, direction: str
+) -> None:  # noqa: ANN001
+    paths, _catalog, _content, saves, packages = package_services(async_session, tmp_path)
+    monkeypatch.setattr(
+        "animama.app.services.content_package_staging.shutil.disk_usage",
+        lambda _: SimpleNamespace(free=64 * 1024**2),
+    )
+    try:
+        if direction == "export":
+            saved = await save_wave(saves)
+            summary = await packages.summarize(user_id="package-owner", item_ids=(saved.item.id,))
+            review = await packages.prepare_export(
+                user_id="package-owner", item_ids=(saved.item.id,), expected_digest=summary.digest
+            )
+        else:
+            archive = tmp_path / "tiny.animama"
+            manifest, payloads = sound_package()
+            write_package(archive, manifest, payloads)
+            stage = packages.stages.create_import(
+                "package-owner", "low-disk-import", archive.name, archive.stat().st_size
+            )
+            with archive.open("rb") as source:
+                packages.stages.append_part("package-owner", stage.stage_id, 0, source)
+            review = await packages.imports.review(user_id="package-owner", stage_id=stage.stage_id)
+        assert review.size_bytes < 64 * 1024**2
+        assert not list(paths.imports_staging_root.rglob("inspection"))
+        assert not list(paths.exports_staging_root.rglob("inspection"))
+    finally:
+        await async_session.rollback()
+        await async_session.execute(delete(ORMContentCatalogItem))
+        await async_session.commit()
 
 
 async def test_export_summary_and_review_freeze_portable_bytes(async_session, tmp_path: Path) -> None:  # noqa: ANN001
@@ -83,7 +123,7 @@ async def test_cached_download_never_regenerates_an_expired_or_changed_archive(
         )
         cache = await packages.get_export(user_id="package-owner", export_id=review.export_id)
         if change == "expired":
-            record = cache.path.with_name("review.json")
+            record = cache.path.with_name("record.json")
             value = json.loads(record.read_bytes())
             value["expires_at"] = (datetime.now(UTC) - timedelta(seconds=1)).isoformat()
             record.write_text(json.dumps(value))
@@ -361,7 +401,85 @@ async def test_drift_during_capture_rejects_review_and_removes_its_cache(
                 user_id="package-owner", item_ids=(avatar.id,), expected_digest=summary.digest
             )
         assert not list(paths.exports_staging_root.rglob("*.animama"))
-        assert not list(paths.exports_staging_root.rglob("review.json"))
+        assert not list(paths.exports_staging_root.rglob("record.json"))
     finally:
+        await async_session.execute(delete(ORMContentCatalogItem))
+        await async_session.commit()
+
+
+async def test_export_reserves_real_zip_growth_and_download_excludes_expiry_cleanup(
+    async_session, tmp_path: Path
+) -> None:  # noqa: ANN001
+    paths, _catalog, content, saves, _packages = package_services(async_session, tmp_path)
+    now = datetime(2026, 9, 24, tzinfo=UTC)
+    stages = PackageStageService(paths.imports_staging_root, paths.exports_staging_root, clock=lambda: now)
+    exports = ContentPackageExportService(content=content, exports_root=paths.exports_staging_root, stages=stages)
+    try:
+        saved = await save_wave(saves)
+        stages.create_import("package-owner", "pending-import", "pending.animama", 10)
+        summary = await exports.summarize(user_id="package-owner", item_ids=(saved.item.id,))
+        review = await exports.prepare(
+            user_id="package-owner", item_ids=(saved.item.id,), expected_digest=summary.digest
+        )
+        record, active = stages.status("package-owner", review.export_id, "export")
+        assert not active
+        assert record.reserved_bytes >= review.size_bytes > summary.estimated_size_bytes
+        with pytest.raises(ContentConflictError, match="package_stage_limit"):
+            await exports.prepare(user_id="package-owner", item_ids=(saved.item.id,), expected_digest=summary.digest)
+        download = await exports.download(user_id="package-owner", export_id=review.export_id)
+        try:
+            now += timedelta(minutes=31)
+            stages.sweep_expired()
+            assert stages.status("package-owner", review.export_id, "export")[1]
+            assert len(download.handle.read()) == review.size_bytes
+            with pytest.raises(ContentConflictError, match="package_stage_active"):
+                stages.discard("package-owner", review.export_id, "export")
+        finally:
+            download.close()
+        stages.sweep_expired()
+        with pytest.raises(ContentConflictError, match="package_export_unavailable"):
+            await exports.download(user_id="package-owner", export_id=review.export_id)
+    finally:
+        await async_session.execute(delete(ORMContentCatalogItem))
+        await async_session.commit()
+
+
+async def test_cancelled_download_open_closes_completed_handle_and_releases_stage(
+    async_session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:  # noqa: ANN001
+    paths, _catalog, content, saves, _packages = package_services(async_session, tmp_path)
+    stages = PackageStageService(paths.imports_staging_root, paths.exports_staging_root)
+    exports = ContentPackageExportService(content=content, exports_root=paths.exports_staging_root, stages=stages)
+    started, release = threading.Event(), threading.Event()
+    held = []
+    try:
+        saved = await save_wave(saves)
+        summary = await exports.summarize(user_id="package-owner", item_ids=(saved.item.id,))
+        review = await exports.prepare(
+            user_id="package-owner", item_ids=(saved.item.id,), expected_digest=summary.digest
+        )
+        original = exports._open_download
+
+        def delayed_open(user_id: str, export_id: str):  # noqa: ANN202
+            result = original(user_id, export_id)
+            held.append(result)
+            started.set()
+            assert release.wait(10)
+            return result
+
+        monkeypatch.setattr(exports, "_open_download", delayed_open)
+        pending = asyncio.create_task(exports.download(user_id="package-owner", export_id=review.export_id))
+        assert await asyncio.to_thread(started.wait, 10)
+        pending.cancel()
+        await asyncio.sleep(0)
+        pending.cancel()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await pending
+        assert held[0].handle.closed
+        stages.discard("package-owner", review.export_id, "export")
+        assert not list(paths.exports_staging_root.rglob("package.animama"))
+    finally:
+        release.set()
         await async_session.execute(delete(ORMContentCatalogItem))
         await async_session.commit()

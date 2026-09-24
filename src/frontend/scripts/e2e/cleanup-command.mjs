@@ -1,4 +1,4 @@
-import { unresolvedOwnedContent } from "./content-ledger.mjs";
+import { unresolvedContentWork } from "./content-ledger.mjs";
 
 /** Accept only a named run and an optional identical confirmation token. */
 export function parseCleanupArguments(argumentsList) {
@@ -18,13 +18,23 @@ export function parseCleanupArguments(argumentsList) {
   return { runId, confirmed: args.length === 3 };
 }
 
-/** Present exact logical identities without relative locators or host paths. */
+/** Present exact owned identities or unresolved operations, without names or host paths. */
 export function cleanupDryRunEntries(events) {
-  return unresolvedOwnedContent(events).map(({ owned }) => ({
-    journeyKey: owned.journeyKey,
-    kind: owned.kind,
-    logicalKey: owned.logicalKey,
-    itemId: owned.itemId,
-    revisionSha256: owned.revisionSha256,
-  }));
+  return unresolvedContentWork(events).map(({ owned, planned }) =>
+    owned
+      ? {
+          journeyKey: owned.journeyKey,
+          kind: owned.kind,
+          logicalKey: owned.logicalKey,
+          itemId: owned.itemId,
+          revisionSha256: owned.revisionSha256,
+        }
+      : {
+          journeyKey: planned.journeyKey,
+          kind: planned.kind,
+          operationId: planned.operationId,
+          reviewDigest: planned.reviewDigest,
+          state: "import_outcome_unconfirmed",
+        },
+  );
 }

@@ -132,10 +132,11 @@ async def test_old_import_receipt_does_not_revalidate_retired_package(async_sess
             ),
             result={"value": TypeAdapter(ImportedContentPackage).dump_python(original, mode="json")},
         )
-    replay = await packages.import_package(
-        user_id="owner", archive_path=archive, operation_id="old-import", collision="keep_both"
-    )
-    assert replay == original
+    status = await packages.imports.operation_status(user_id="owner", operation_id="old-import")
+    assert status.state == "completed" and status.result is not None
+    assert status.result.schema_version == 0
+    assert status.result.items[0].item_id == original.items[0].id
+    assert status.result.items[0].kind == kind.value
     assert not any(path.is_file() for path in paths.local_root.rglob("*"))
 
 

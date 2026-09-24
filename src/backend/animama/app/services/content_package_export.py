@@ -7,11 +7,9 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import stat
-import uuid
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryFile
 from typing import Any, BinaryIO, cast
@@ -38,6 +36,7 @@ from animama.app.contracts.portable_anima import PortableAnima
 from animama.app.services.anima_package_source_service import AnimaPackageSnapshot, AnimaPackageSourceService
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import MAX_JSON_BYTES, handler_for_kind
+from animama.app.services.content_package_staging import PackageStageService, StageLease
 from animama.app.services.local_content_mutations import _finish_owned_work, mutation_digest
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentResolutionContext
 from animama.domain.content_catalog import (
@@ -48,9 +47,8 @@ from animama.domain.content_catalog import (
     ContentPathError,
     ContentSource,
 )
-from animama.domain.content_documents import AppearanceDocumentV1
+from animama.domain.content_documents import AppearanceDocumentV1, PoseDocumentV1
 
-_EXPORT_ID = re.compile(r"^[0-9a-f]{32}$")
 _PRIVATE_FIELDS = frozenset(
     {
         "catalog_item_id",
@@ -213,6 +211,35 @@ class CachedExport:
     review: ExportReview
 
 
+@dataclass
+class DownloadLease:
+    """The response owns both verified bytes and the stage lock until its finally block."""
+
+    handle: BinaryIO
+    review: ExportReview
+    _lease: StageLease
+
+    def close(self) -> None:
+        try:
+            self.handle.close()
+        finally:
+            self._lease.close()
+
+
+class _ReservedWriter:
+    """Apply quota checks to ZIP headers and directory bytes as well as payload chunks."""
+
+    def __init__(self, handle: BinaryIO, lease: StageLease) -> None:
+        self._handle, self._lease = handle, lease
+
+    def write(self, payload: bytes) -> int:
+        self._lease.ensure_capacity(self._handle.tell() + len(payload))
+        return self._handle.write(payload)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._handle, name)
+
+
 @dataclass(frozen=True, slots=True)
 class _Selection:
     summary: ExportSummary
@@ -257,11 +284,12 @@ class ContentPackageExportService:
         content: ContentCatalogService,
         exports_root: Path,
         anima_sources: AnimaPackageSourceService | None = None,
+        stages: PackageStageService | None = None,
     ) -> None:
         self._content = content
         self._catalog = content.mutations.catalog
         self._store = content.mutations.store
-        self._root = exports_root
+        self._stages = stages or PackageStageService(exports_root.parent / "imports", exports_root)
         self._animas = anima_sources
 
     async def _selection(self, *, user_id: str, item_ids: tuple[str, ...], anima_id: str | None) -> _Selection:
@@ -362,19 +390,27 @@ class ContentPackageExportService:
         selected = await self._selection(user_id=user_id, item_ids=item_ids, anima_id=anima_id)
         if selected.summary.digest != expected_digest:
             raise ContentConflictError("package_export_source_changed")
-        export_id = uuid.uuid4().hex
-        directory = self._owner_root(user_id) / export_id
-        directory.mkdir(parents=True, mode=0o700)
-        archive_path = directory / "package.animama"
+        label = (
+            selected.summary.anima.display_name
+            if selected.summary.anima
+            else (
+                next(item.name for item in selected.summary.items if item.selected)
+                if len(item_ids) == 1
+                else "Library content"
+            )
+        )
+        filename = _download_filename(label)
+        lease = self._stages.reserve_export(user_id, filename, max(1, selected.summary.estimated_size_bytes))
+        record = lease.record
         try:
-            manifest = await asyncio.to_thread(self._write, selected, archive_path)
+            manifest = await asyncio.to_thread(self._write_reserved, selected, lease)
             # Inspect exactly the produced bytes through the import boundary.
             from animama.app.services.content_package_archive import ContentPackageArchive
 
-            await asyncio.to_thread(
-                ContentPackageArchive(store=self._store).inspect, archive_path, destination=directory / "inspection"
-            )
-            await asyncio.to_thread(shutil.rmtree, directory / "inspection")
+            with lease.expansion() as destination:
+                await asyncio.to_thread(
+                    ContentPackageArchive(store=self._store).inspect, lease.archive_path, destination=destination
+                )
             await asyncio.to_thread(self._verify_sources, selected)
             await self._content.rescan(user_id=user_id)
             if selected.anima_snapshot is not None:
@@ -383,60 +419,85 @@ class ContentPackageExportService:
             after = await self._selection(user_id=user_id, item_ids=item_ids, anima_id=anima_id)
             if after.summary.digest != selected.summary.digest:
                 raise ContentConflictError("package_export_source_changed")
-            size, digest = await asyncio.to_thread(self._hash, archive_path)
-            label = (
-                selected.summary.anima.display_name
-                if selected.summary.anima
-                else (
-                    next(item.name for item in selected.summary.items if item.selected)
-                    if len(item_ids) == 1
-                    else "Library content"
-                )
-            )
+            size, digest = await asyncio.to_thread(lease.seal_archive)
             review = ExportReview(
-                export_id=export_id,
+                export_id=record.stage_id,
                 digest=mutation_digest({"schema": PACKAGE_SCHEMA, "sha256": digest}),
-                filename=_download_filename(label),
+                filename=filename,
                 size_bytes=size,
                 package_sha256=digest,
-                expires_at=datetime.now(UTC) + timedelta(minutes=30),
+                expires_at=lease.record.expires_at,
                 selected_count=selected.summary.selected_count,
                 required_count=selected.summary.required_count,
                 manifest=manifest,
             )
-            self._write_record(directory / "review.json", review.model_dump_json().encode())
+            published = lease.publish_review(review.model_dump(mode="json"), review.digest)
+            review.expires_at = published.expires_at
             return review
         except BaseException as exc:
-            await asyncio.to_thread(shutil.rmtree, directory)
+            await asyncio.to_thread(lease.discard)
             if isinstance(exc, ContentIntegrityError | ContentPathError):
                 raise ContentConflictError("package_export_source_changed") from exc
             raise
+        finally:
+            lease.close()
 
-    def _owner_root(self, user_id: str) -> Path:
-        return self._root / hashlib.sha256(user_id.encode()).hexdigest()
+    def _write_reserved(self, selected: _Selection, lease: StageLease) -> PackageManifest:
+        with lease.archive_path.open("xb") as handle:
+            os.chmod(lease.archive_path, 0o600)
+            return self._write(selected, cast(BinaryIO, _ReservedWriter(handle, lease)))
 
     async def cached(self, *, user_id: str, export_id: str) -> CachedExport:
-        """Return sealed review bytes; never regenerate an expired or altered review."""
-        if not _EXPORT_ID.fullmatch(export_id):
-            raise ContentConflictError("package_export_unavailable")
-        directory = self._owner_root(user_id) / export_id
+        """Compatibility helper for service callers; HTTP must keep a download lease."""
+        download = await self.download(user_id=user_id, export_id=export_id)
         try:
-            review = ExportReview.model_validate_json((directory / "review.json").read_bytes())
-            if review.expires_at <= datetime.now(UTC):
-                raise ContentConflictError("package_export_expired")
-            size, digest = await asyncio.to_thread(self._hash, directory / "package.animama")
-            if size != review.size_bytes or digest != review.package_sha256:
-                raise ContentConflictError("package_export_changed")
-            return CachedExport(directory / "package.animama", review)
-        except (OSError, ValueError) as exc:
-            raise ContentConflictError("package_export_unavailable") from exc
+            return CachedExport(download._lease.archive_path, download.review)
+        finally:
+            download.close()
 
-    @staticmethod
-    def _write_record(path: Path, payload: bytes) -> None:
-        with path.open("xb") as handle:
-            handle.write(payload)
-            handle.flush()
-            os.fsync(handle.fileno())
+    async def download(self, *, user_id: str, export_id: str) -> DownloadLease:
+        """Open the exact sealed archive while retaining its cleanup exclusion lease."""
+        opened: list[DownloadLease] = []
+
+        async def own_open() -> DownloadLease:
+            result = await asyncio.to_thread(self._open_download, user_id, export_id)
+            opened.append(result)
+            return result
+
+        try:
+            return await _finish_owned_work(own_open())
+        except BaseException:
+            # Shielding finishes the open before propagating a disconnect; if no
+            # response takes ownership, the completed handle still needs closing.
+            for result in opened:
+                result.close()
+            raise
+
+    def _open_download(self, user_id: str, export_id: str) -> DownloadLease:
+        lease: StageLease | None = None
+        try:
+            lease = self._stages.acquire(user_id, export_id, "export")
+            if lease.record.state != "reviewed" or lease.record.review is None:
+                raise ContentConflictError("package_export_unavailable")
+            review = ExportReview.model_validate(lease.record.review)
+            size, digest = lease.verify_archive()
+            if review.size_bytes != size or review.package_sha256 != digest:
+                raise ContentConflictError("package_export_changed")
+            review.expires_at = lease.record.expires_at
+            return DownloadLease(lease.archive_path.open("rb"), review, lease)
+        except BaseException as exc:
+            if lease is not None:
+                lease.close()
+            if isinstance(exc, ContentConflictError):
+                code = {
+                    "package_stage_expired": "package_export_expired",
+                    "package_stage_unavailable": "package_export_unavailable",
+                    "package_archive_changed": "package_export_changed",
+                }.get(exc.code, exc.code)
+                raise ContentConflictError(code) from exc
+            if isinstance(exc, OSError | ValueError):
+                raise ContentConflictError("package_export_unavailable") from exc
+            raise
 
     @staticmethod
     def _hash(path: Path) -> tuple[int, str]:
@@ -462,7 +523,7 @@ class ContentPackageExportService:
                 )
                 opened.handle.close()
 
-    def _write(self, selected: _Selection, destination: Path) -> PackageManifest:
+    def _write(self, selected: _Selection, destination: BinaryIO) -> PackageManifest:
         from animama.app.services.content_package_capabilities import (
             derive_document_capabilities,
             derive_file_capabilities,
@@ -491,6 +552,10 @@ class ContentPackageExportService:
                 projection = handler.catalog_projection(document)
                 projection["content_id"] = identities[entry.id]
                 projection["provenance"] = portable_license(entry.provenance)
+                if isinstance(document, PoseDocumentV1):
+                    # A static Pose repeats its own descriptor identity. Embedded
+                    # clip pose maps remain authored local keys, never graph refs.
+                    projection["pose"] = {**document.pose, "id": identities[entry.id], "name": document.name}
                 if isinstance(document, AppearanceDocumentV1):
                     projection["avatar_model"], projection["presentation"] = None, {}
                 aliases = frozenset(edge.alias for edge in document.dependencies if edge.alias)
@@ -628,6 +693,6 @@ class ContentPackageExportService:
             info = ZipInfo("package.json", date_time=(1980, 1, 1, 0, 0, 0))
             info.external_attr = (stat.S_IFREG | 0o600) << 16
             archive.writestr(info, payload)
-        with destination.open("rb") as handle:
-            os.fsync(handle.fileno())
+        destination.flush()
+        os.fsync(destination.fileno())
         return manifest

@@ -190,6 +190,9 @@ def test_reduced_resource_limits_include_manifest(tmp_path: Path, monkeypatch: p
         monkeypatch.setattr(reader, "MAX_PACKAGE_METADATA_BYTES", 1)
     else:
         monkeypatch.setattr(reader, "MAX_COMPRESSION_RATIO", 0)
+    if limit != "metadata":
+        with pytest.raises(ContentConflictError):
+            ContentPackageArchive.expanded_size(archive)
     with pytest.raises(ContentConflictError):
         inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
     assert not (tmp_path / "inspection").exists()
@@ -494,6 +497,8 @@ def test_zip64_limits_are_checked_before_zipfile_allocation_without_classic_sent
 
     monkeypatch.setattr(reader, "ZipFile", parser_must_not_run)
     with pytest.raises(ContentConflictError, match="package_zip_directory_budget"):
+        ContentPackageArchive.expanded_size(archive)
+    with pytest.raises(ContentConflictError, match="package_zip_directory_budget"):
         inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
     assert not (tmp_path / "inspection").exists()
 
@@ -504,6 +509,9 @@ def test_supported_zip64_directory_inspects_normally(tmp_path: Path, sentinels: 
     archive = tmp_path / "zip64.animama"
     write_package(archive, manifest, payloads)
     with_zip64_directory(archive, classic_sentinels=sentinels)
+    assert ContentPackageArchive.expanded_size(archive) == len(json.dumps(manifest).encode()) + sum(
+        map(len, payloads.values())
+    )
     assert set(inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection").entries) == {"sound"}
 
 

@@ -133,20 +133,39 @@ Changed registered bytes return `409 content_file_changed_rescan_required`.
 Unknown, unavailable, guessed, or cross-owner references all return `404
 content_file_not_found`.
 
-Package operations are:
+Package sharing uses local `.animama` files with the strict
+`animama-content-package/3` manifest. All routes below are under `/v1/content`:
 
-- `POST /v1/content/items/{item_id}:export?operation_id=...`, which validates
-  the current exact typed closure, canonicalizes descriptors, rewrites every
-  installation-local reference, and streams a deterministic temporary
-  `animama-content-package/2` archive;
-- `POST /v1/content/packages:import`, which validates an untrusted archive and
-  complete dependency graph in private staging, then promotes ordinary
-  editable Local items through one journaled, recoverable operation using
-  `cancel`, `keep_both`, or explicit `replace` collision behavior. Destination
-  drift and late failure expose no partial catalog selection.
+| Method and path | Behavior |
+| --- | --- |
+| `POST /package-exports:summary` | Resolve selected content or one Anima and all required content; return counts, size estimate and saved-source digest. |
+| `POST /package-exports` | Require that digest, prepare and validate exact immutable archive bytes, then return the review and export ID. |
+| `GET /package-exports/{export_id}/file` | Stream those reviewed bytes with attachment filename and SHA-256; hold the cache lease through response completion. |
+| `DELETE /package-exports/{export_id}` | Discard an inactive owned cache. |
+| `POST /package-imports` | Allocate a private stage with operation ID, filename and total byte length. |
+| `PUT /package-imports/{stage_id}/parts/{index}` | Send sequential 8 MiB binary parts (the final part may be shorter); exact retries return the original acknowledgement. |
+| `POST /package-imports/{stage_id}/review` | Seal and validate the whole archive; freeze fresh content identities, dependency copies and automatic `-2`/`-3` collision names. |
+| `GET /package-imports/{stage_id}` | Read received-byte progress and the public review; no private paths or install plan are exposed. |
+| `POST /package-imports/{stage_id}/commit` | Submit the operation ID and review digest to install the whole package through one recoverable content/Anima transaction. |
+| `GET /package-operations/{operation_id}` | Resolve the durable result or report pending/recovery state before another submission. |
+| `DELETE /package-imports/{stage_id}` | Discard inactive temporary data; refuse an active or unresolved committing stage. |
 
-Save and Import bind an owner-scoped `operation_id` to the complete
-request and its original successful response. An identical retry returns that
+Selection accepts `item_ids` or one `anima_id`. Export preparation adds
+`expected_digest`; import allocation accepts `expected_size_bytes` and
+`operation_id`. Import dependencies become independent editable Local copies.
+Sharing an Anima creates a fresh companion with its reviewed identity and
+configuration, without private conversations, memories or provider credentials.
+
+Private stages expire after 30 inactive minutes. One owner may hold two import
+and export stages combined, reserving at most 8 GiB of archive space; each
+archive and its expanded inspection are limited to 4 GiB. Parts stay below the
+unchanged 128 MiB request limit. Active upload, inspection, commit and download
+leases prevent cleanup. Expiry never deletes mutation journals or receipts.
+The old immediate export/import routes and previous package formats are not
+admitted.
+
+Save binds an owner-scoped `operation_id` to its complete request; Import binds
+it to the immutable submitted review digest. Both retain their original successful response. An identical retry returns that
 response before current-item or revision validation and never writes again,
 including after subsequent edits or deletion. A changed request under the same
 ID returns `409 operation_id_reused`; use a new ID for new work. An original

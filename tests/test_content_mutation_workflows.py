@@ -7,7 +7,7 @@ import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, TypedDict
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -23,14 +23,7 @@ from animama.domain.content_catalog import CatalogContentEntry, ContentConflictE
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.orm.content_mutation import ORMContentMutationReceipt
 from animama.server.local_runtime import LocalRuntimePaths
-from tests.content_package_helpers import package_services, vrma
-
-
-class _ImportCommand(TypedDict):
-    user_id: str
-    archive_path: Path
-    operation_id: str
-    collision: Literal["cancel", "keep_both", "replace"]
+from tests.content_package_helpers import package_services, reviewed_export, reviewed_import, vrma
 
 
 @dataclass
@@ -150,18 +143,14 @@ async def test_import_replays_its_original_result_without_installing_again(
     workflow: _Workflow, later_change: str
 ) -> None:
     saved = await workflow.saves.save_standalone(**workflow.wave_command())
-    exported = await workflow.packages.export_item(
-        user_id=workflow.owner, root_item_id=saved.item.id, operation_id="export-replay"
+    exported = await reviewed_export(workflow.packages, user_id=workflow.owner, root_item_id=saved.item.id)
+    command = await reviewed_import(
+        workflow.packages, user_id=workflow.owner, archive_path=exported.path, operation_id="import-replay"
     )
-    command: _ImportCommand = {
-        "user_id": workflow.owner,
-        "archive_path": exported.path,
-        "operation_id": "import-replay",
-        "collision": "keep_both",
-    }
-    imported = await workflow.packages.import_package(**command)
+    imported = await workflow.packages.imports.commit(**command)
     assert len(imported.items) == 1
-    item = imported.items[0]
+    item = await workflow.catalog.get_visible_item(item_id=imported.items[0].item_id, user_id=workflow.owner)
+    assert item is not None
     destination = workflow.paths.local_root / item.relative_locator
     if later_change == "edited":
         destination.write_bytes(vrma("manual edit after import"))
@@ -173,7 +162,7 @@ async def test_import_replays_its_original_result_without_installing_again(
         )
     before_retry = workflow.local_files()
 
-    replayed = await workflow.packages.import_package(**command)
+    replayed = await workflow.packages.imports.commit(**command)
 
     assert replayed == imported
     assert workflow.local_files() == before_retry
@@ -213,9 +202,7 @@ async def _export_two_entry_package(workflow: _Workflow) -> Path:
         catalog_item_id=None,
         expected_revision=None,
     )
-    exported = await workflow.packages.export_item(
-        user_id=workflow.owner, root_item_id=idle.item.id, operation_id="export-two-entries"
-    )
+    exported = await reviewed_export(workflow.packages, user_id=workflow.owner, root_item_id=idle.item.id)
     assert exported.item_count == 2
     for item in (idle.item, wave.item):
         assert item.revision_sha256 is not None
@@ -373,14 +360,11 @@ async def test_multi_entry_import_rolls_back_prior_provenance_and_all_files_afte
         return item
 
     monkeypatch.setattr(workflow.catalog, "record_import_provenance", fail_second_provenance)
-    command: _ImportCommand = {
-        "user_id": workflow.owner,
-        "archive_path": package_path,
-        "operation_id": "two-entry-import",
-        "collision": "cancel",
-    }
+    command = await reviewed_import(
+        workflow.packages, user_id=workflow.owner, archive_path=package_path, operation_id="two-entry-import"
+    )
     with pytest.raises(RuntimeError, match="second entry provenance failed"):
-        await workflow.packages.import_package(**command)
+        await workflow.packages.imports.commit(**command)
 
     assert len(admitted_ids) == 2
     assert workflow.local_files() == before
@@ -390,9 +374,11 @@ async def test_multi_entry_import_rolls_back_prior_provenance_and_all_files_afte
 
     # A compensated failure leaves the exact command available for a successful retry.
     monkeypatch.setattr(workflow.catalog, "record_import_provenance", record_provenance)
-    retried = await workflow.packages.import_package(**command)
+    retried = await workflow.packages.imports.commit(**command)
     assert len(retried.items) == 2
-    assert all(item.owner_user_id == workflow.owner and "import" in item.provenance for item in retried.items)
+    for result in retried.items:
+        item = await workflow.catalog.get_visible_item(item_id=result.item_id, user_id=workflow.owner)
+        assert item is not None and item.owner_user_id == workflow.owner and "import" in item.provenance
 
 
 async def test_delete_catalog_failure_restores_original_files_and_registration(
