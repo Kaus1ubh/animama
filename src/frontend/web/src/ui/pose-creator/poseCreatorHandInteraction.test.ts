@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Object3D, Quaternion, Vector3 } from "three";
 import type { Avatar } from "@/lib/avatar";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
-import { HAND_SEGMENTS, resolveHandBones } from "./poseCreatorHandAuthoring";
+import {
+  HAND_PRESETS,
+  HAND_SEGMENTS,
+  resolveHandBones,
+} from "./poseCreatorHandAuthoring";
 import { createHandInteractionController } from "./poseCreatorHandInteraction";
 function fixture() {
   const nodes = new Map<string, Object3D>();
@@ -246,7 +250,7 @@ describe("hand interactions", () => {
       });
     }
     const original = usePoseCreatorStore.getState().boneDrafts;
-    for (const preset of ["fist", "open-together", "open-spread"] as const) {
+    for (const { id: preset } of HAND_PRESETS) {
       expect(controller.preset("both", preset)).toBe(true);
       for (const side of ["left", "right"]) {
         expect(
@@ -272,12 +276,20 @@ describe("hand interactions", () => {
         usePoseCreatorStore.getState().boneDrafts[`${side}ThumbMetacarpal`],
       ).toEqual(original[`${side}ThumbMetacarpal`]);
   });
-  it("presets are one idempotent undoable action", () => {
+  it.each([
+    "relaxed",
+    "fist",
+    "open-spread",
+    "open-together",
+    "point",
+    "peace",
+    "thumbs-up",
+  ] as const)("%s is one idempotent undoable action", (preset) => {
     fixture();
-    expect(controller.preset("left", "fist")).toBe(true);
+    expect(controller.preset("left", preset)).toBe(true);
     const first = usePoseCreatorStore.getState().boneDrafts;
     expect(Object.keys(first)).toHaveLength(14);
-    expect(controller.preset("left", "fist")).toBe(true);
+    expect(controller.preset("left", preset)).toBe(true);
     expect(usePoseCreatorStore.getState().boneDrafts).toBe(first);
     expect(usePoseCreatorStore.getState().poseUndoHistory).toHaveLength(1);
   });

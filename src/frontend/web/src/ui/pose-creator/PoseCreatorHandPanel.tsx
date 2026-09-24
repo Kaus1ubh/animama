@@ -1,10 +1,17 @@
 "use client";
 
-import { HandIcon, HandFistIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useEffect, useId } from "react";
 import { cn } from "@/lib/utils";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/ui/components/dropdown-menu";
+import {
   HAND_ADJUSTMENT_LIMITS,
+  HAND_PRESETS,
   HAND_SEGMENTS,
   type HandAdjustment,
   type HandSegment,
@@ -173,36 +180,30 @@ export function PoseCreatorHandPanel({
           </button>
         ))}
       </div>
-      <div
-        className="grid grid-cols-3 gap-1.5"
-        role="group"
-        aria-label="Whole-hand presets"
-      >
-        {(
-          [
-            { id: "fist", name: "Fist" },
-            { id: "open-spread", name: "Open · spread" },
-            { id: "open-together", name: "Open · together" },
-          ] as const
-        ).map((preset) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
           <button
-            key={preset.id}
             type="button"
             disabled={!hands.canEdit || hands.available.length === 0}
-            title={`Replace all available finger rotations on ${hands.target === "both" ? "both hands" : `the ${hands.target} hand`}.`}
-            aria-label={`${preset.name}: whole ${hands.target === "both" ? "hands" : `${hands.target} hand`}`}
-            onClick={() => hands.preset(preset.id)}
-            className="border-border hover:bg-muted/60 focus-visible:ring-ring flex min-w-0 flex-col items-center gap-1 rounded-lg border px-1 py-2 focus-visible:ring-2 disabled:opacity-40"
+            aria-label="Hand presets"
+            title={`Replace available finger rotations on ${hands.target === "both" ? "both hands" : `the ${hands.target} hand`}.`}
+            className="border-border hover:bg-muted/60 focus-visible:ring-ring flex w-full items-center justify-between rounded-lg border px-3 py-2 text-xs focus-visible:ring-2 disabled:opacity-40"
           >
-            {preset.id === "fist" ? (
-              <HandFistIcon className="size-5" aria-hidden="true" />
-            ) : (
-              <HandIcon className="size-5" aria-hidden="true" />
-            )}
-            <span className="text-[10px] leading-tight">{preset.name}</span>
+            Hand presets
+            <ChevronDownIcon className="size-4" aria-hidden="true" />
           </button>
-        ))}
-      </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56">
+          {HAND_PRESETS.map((preset) => (
+            <DropdownMenuItem
+              key={preset.id}
+              onSelect={() => hands.preset(preset.id)}
+            >
+              {preset.name}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
       <div className="border-border/70 border-t pt-2">
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-xs font-medium">Select bones</span>

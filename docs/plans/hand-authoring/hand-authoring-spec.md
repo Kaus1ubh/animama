@@ -22,7 +22,7 @@ retaining fine control over individual finger segments and existing poses.
 ## Goals, scope and non-goals
 
 Add a Hands panel to the Pose tab of the Gesture new/edit routes under
-`/a/gestures/`. Support left, right and both hands, three presets, individual
+`/a/gestures/`. Support left, right and both hands, seven presets, individual
 bone multi-selection and live named rotation adjustments.
 
 This specification covers that Pose-tab surface, including an inline clip pose
@@ -48,8 +48,8 @@ immediately to the right of Bones, matching the existing panel surfaces,
 typography and active accents. Provide a close button. Opening or closing the
 panel changes neither rotations nor document dirty state.
 
-Use the accepted mockup's order: Hands title; Left/Right/Both selector; three
-compact preset tiles; selectable hand diagram and selection summary; named
+Use the accepted mockup's order: Hands title; Left/Right/Both selector; a compact
+preset dropdown; selectable hand diagram and selection summary; named
 adjustments. Omit the live-edit footer. Reduce section gaps, preset padding and
 diagram height relative to the mockup. Preserve legibility and distinct bone hit
 targets rather than uniformly shrinking the interface. Avoid unnecessary section
@@ -86,7 +86,13 @@ focus; selection cannot rely on color alone.
 
 ### R3 — Hand presets
 
-Provide Fist, Open · spread and Open · together. A preset replaces the eligible finger
+Provide Relaxed, Fist, Open · spread, Open · together, Point, Peace and Thumbs up
+in an action dropdown. Selecting an item applies it immediately; the trigger
+keeps the label Hand presets rather than implying a persistent preset mode.
+Relaxed copies the existing Relaxed Rest pose's editable finger rotations.
+Point extends the index with other fingers folded; Peace extends and separates
+index/middle with ring/little folded; Thumbs up extends the thumb with fingers
+folded. All preserve thumb metacarpals. A preset replaces the eligible finger
 rotations of the selected hand(s), regardless of diagram selection. Make that
 whole-hand scope apparent through a concise tooltip or accessible description.
 Preserve thumb metacarpals, wrists, arms, other body bones, bone positions and expressions.
@@ -206,7 +212,7 @@ The generated mockup is design direction, not functional or native-release evide
 
 ## Open questions and decisions
 
-Agreed direction: optional hand panel, Left/Right/Both, three named presets,
+Agreed direction: optional hand panel, Left/Right/Both, seven named presets,
 fine-grained individual bone multi-selection, no selection shortcuts, and a more
 compact version of the reviewed mockup, live relative named controls and no
 Hands-panel Apply button.

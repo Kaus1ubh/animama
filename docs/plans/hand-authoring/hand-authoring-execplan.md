@@ -456,3 +456,27 @@ adjustment, core tests, web typecheck, scoped lint/format and build were refresh
 Build retains its existing chunk-size advisory. No full-suite rerun was needed
 for this isolated geometry adjustment; prior full-suite evidence remains recorded
 above. Hosted CI and representative VRM0 visual verification remain unverified.
+
+## Additional hand presets — 2026-09-24
+
+Owner authorized Relaxed, Point, Peace and Thumbs up, with all seven presets in
+a dropdown. Starting revision `d69bca2`. Relaxed reuses Relaxed Rest catalog
+rotations for the 14 eligible joints per hand; metacarpals remain unchanged.
+Dropdown entries are repeatable actions, not an inferred classification of the
+current pose. No schema or history semantics change.
+
+### Code Review #1 Findings and Revisions
+
+Independent analysis found no actionable issues in the seven-file change against
+`d69bca2`; no repair rounds used. Exact Relaxed Rest values, intended extended
+fingers, version/side mappings, metacarpal preservation and repeatable atomic
+Undo behavior are covered. The existing Radix action-menu pattern is reused.
+
+Six focused hand/VRM suites pass (64 tests), along with `pnpm web:check`,
+`pnpm web:lint`, scoped Prettier and `git diff --check`. Browser checks on bundled
+VRM1 verified all four new presets on Both, the seven dropdown entries, compact
+desktop placement and keyboard opening/dismissal. Relaxed uses catalog values;
+Thumbs up preserves wrist orientation rather than forcing world-up. Remaining
+representative VRM0 and owner acceptance gates are unchanged. `pnpm build`
+passed with the existing chunk-size advisory. Hosted CI remains separate from
+these local checks.

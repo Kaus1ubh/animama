@@ -1,5 +1,9 @@
 import { MathUtils, Quaternion, Vector3 } from "three";
 import type { Avatar } from "@/lib/avatar";
+import {
+  AVATAR_POSE_CATALOG,
+  RELAXED_REST_POSE_ID,
+} from "@/lib/avatar/poses/catalog";
 import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
 import { getPoseCreatorNormalizedBoneNode } from "./poseCreatorAuthoring";
 
@@ -7,7 +11,16 @@ export type HandTarget = "left" | "right" | "both";
 export type HandSide = Exclude<HandTarget, "both">;
 export type HandDigit = "thumb" | "index" | "middle" | "ring" | "little";
 export type HandAdjustment = "curl" | "spread";
-export type HandPreset = "fist" | "open-spread" | "open-together";
+export const HAND_PRESETS = [
+  { id: "fist", name: "Fist" },
+  { id: "open-spread", name: "Open · spread" },
+  { id: "open-together", name: "Open · together" },
+  { id: "relaxed", name: "Relaxed" },
+  { id: "point", name: "Point" },
+  { id: "peace", name: "Peace" },
+  { id: "thumbs-up", name: "Thumbs up" },
+] as const;
+export type HandPreset = (typeof HAND_PRESETS)[number]["id"];
 export type HandSegment = {
   id: string;
   digit: HandDigit;
@@ -115,6 +128,34 @@ export function handPresetQuaternion(
   preset: HandPreset,
   avatar?: Avatar | null,
 ): Quaternion {
+  if (preset === "relaxed") {
+    const rotation = Object.entries(
+      AVATAR_POSE_CATALOG[RELAXED_REST_POSE_ID].humanoid ?? {},
+    ).find(([name]) => name === bone.boneName)?.[1]?.rotation;
+    if (!rotation)
+      throw new Error(`Missing Relaxed Rest finger rotation: ${bone.boneName}`);
+    return new Quaternion(...rotation);
+  }
+  if (preset === "point" || preset === "peace") {
+    if (
+      bone.segment.digit === "index" ||
+      (preset === "peace" && bone.segment.digit === "middle")
+    ) {
+      if (preset === "peace" && bone.segment.segment === "proximal") {
+        const angle =
+          (bone.side === "left" ? 1 : -1) *
+          (bone.segment.digit === "index" ? -15 : 15);
+        return new Quaternion().setFromAxisAngle(
+          new Vector3(0, 1, 0),
+          MathUtils.degToRad(angle),
+        );
+      }
+      return new Quaternion();
+    }
+    return handPresetQuaternion(bone, "fist", avatar);
+  }
+  if (preset === "thumbs-up" && bone.segment.digit !== "thumb")
+    return handPresetQuaternion(bone, "fist", avatar);
   if (bone.segment.digit === "thumb") {
     if (bone.segment.segment === "proximal" && avatar) {
       const fitted = fitThumbPreset(avatar, bone.side, preset);
@@ -131,7 +172,9 @@ export function handPresetQuaternion(
           : 15
         : bone.segment.segment === "proximal" && preset === "open-together"
           ? 38
-          : 0,
+          : bone.segment.segment === "proximal" && preset === "thumbs-up"
+            ? -50
+            : 0,
     );
   }
   let result = new Quaternion();
@@ -176,7 +219,7 @@ function fitThumbPreset(
     !distal ||
     !index?.parent ||
     !indexMiddle ||
-    (preset === "open-spread" && !little)
+    ((preset === "open-spread" || preset === "thumbs-up") && !little)
   )
     return null;
   const restDirection = distal.position.clone();
@@ -184,11 +227,12 @@ function fitThumbPreset(
   const parentRotation = proximal.parent.getWorldQuaternion(new Quaternion());
   const handRotation = index.parent.getWorldQuaternion(new Quaternion());
   let targetDirection: Vector3;
-  if (preset === "open-spread") {
+  if (preset === "open-spread" || preset === "thumbs-up") {
     const forward = indexMiddle.position.clone().normalize();
     const outward = index.position.clone().sub(little!.position).normalize();
     targetDirection = forward
-      .addScaledVector(outward, 0.85)
+      .multiplyScalar(preset === "thumbs-up" ? 0.15 : 1)
+      .addScaledVector(outward, preset === "thumbs-up" ? 1 : 0.85)
       .normalize()
       .applyQuaternion(handRotation);
   } else {

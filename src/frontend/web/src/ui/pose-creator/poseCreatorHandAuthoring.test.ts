@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { Object3D, Quaternion, Vector3 } from "three";
 import type { Avatar } from "@/lib/avatar";
+import {
+  AVATAR_POSE_CATALOG,
+  RELAXED_REST_POSE_ID,
+} from "@/lib/avatar/poses/catalog";
 import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
 import {
   HAND_SEGMENTS,
@@ -252,6 +256,130 @@ describe("calibrated hand directions", () => {
       expect(
         handPresetQuaternion(bone, preset, avatar).angleTo(result),
       ).toBeCloseTo(0);
+    },
+  );
+});
+
+describe("additional hand presets", () => {
+  it.each(["left", "right"] as const)(
+    "copies exact Relaxed Rest finger rotations on %s",
+    (side) => {
+      for (const segment of HAND_SEGMENTS) {
+        const boneName = `${side}${segment.id[0].toUpperCase()}${segment.id.slice(1)}`;
+        const expected = Object.entries(
+          AVATAR_POSE_CATALOG[RELAXED_REST_POSE_ID].humanoid!,
+        ).find(([name]) => name === boneName)![1].rotation;
+        expect(
+          handPresetQuaternion(
+            { side, boneName, segment },
+            "relaxed",
+          ).toArray(),
+        ).toEqual(expected);
+      }
+    },
+  );
+  it.each(["left", "right"] as const)(
+    "extends the requested digits and folds the remaining %s fingers",
+    (side) => {
+      for (const segment of HAND_SEGMENTS) {
+        const bone = {
+          side,
+          boneName: `${side}${segment.id[0].toUpperCase()}${segment.id.slice(1)}`,
+          segment,
+        };
+        for (const preset of ["point", "peace", "thumbs-up"] as const) {
+          const actual = handPresetQuaternion(bone, preset);
+          const extended =
+            preset === "thumbs-up"
+              ? segment.digit === "thumb"
+              : segment.digit === "index" ||
+                (preset === "peace" && segment.digit === "middle");
+          if (!extended)
+            expect(actual.toArray()).toEqual(
+              handPresetQuaternion(bone, "fist").toArray(),
+            );
+          else if (
+            !(preset === "peace" && segment.segment === "proximal") &&
+            !(preset === "thumbs-up" && segment.segment === "proximal")
+          )
+            expect(actual.angleTo(new Quaternion())).toBeCloseTo(0);
+          if (
+            preset === "peace" &&
+            extended &&
+            segment.segment === "proximal"
+          ) {
+            expect(actual.angleTo(new Quaternion())).toBeCloseTo(Math.PI / 12);
+            expect(Math.sign(actual.y)).toBe(
+              (side === "left" ? 1 : -1) * (segment.digit === "index" ? -1 : 1),
+            );
+          }
+          expect(handPresetQuaternion(bone, preset).toArray()).toEqual(
+            actual.toArray(),
+          );
+        }
+      }
+    },
+  );
+  it.each(["left", "right"] as const)(
+    "extends the %s thumb away from the folded fingers without changing its metacarpal",
+    (side) => {
+      const sign = side === "left" ? 1 : -1;
+      const hand = new Object3D();
+      const meta = new Object3D();
+      hand.add(meta);
+      meta.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), 0.56 * sign);
+      const proximal = new Object3D();
+      meta.add(proximal);
+      const distal = new Object3D();
+      distal.position.set(0.01873 * sign, -0.00081, 0.01474);
+      proximal.add(distal);
+      const index = new Object3D();
+      index.position.set(0.05437 * sign, 0.00616, 0.01642);
+      hand.add(index);
+      const middle = new Object3D();
+      middle.position.set(0.02762 * sign, 0, -0.00054);
+      index.add(middle);
+      const little = new Object3D();
+      little.position.set(0.05073 * sign, 0.00616, -0.02437);
+      hand.add(little);
+      const nodes = Object.fromEntries(
+        [
+          ["ThumbProximal", proximal],
+          ["ThumbDistal", distal],
+          ["IndexProximal", index],
+          ["IndexIntermediate", middle],
+          ["LittleProximal", little],
+        ].map(([name, node]) => [`${side}${name}`, node]),
+      );
+      const avatar = {
+        vrm: {
+          meta: { metaVersion: "1" },
+          humanoid: {
+            getNormalizedBoneNode: (name: string) => nodes[name] ?? null,
+          },
+        },
+      } as unknown as Avatar;
+      const bone = {
+        side,
+        boneName: `${side}ThumbProximal`,
+        segment: HAND_SEGMENTS.find(
+          (segment) => segment.id === "thumbProximal",
+        )!,
+      };
+      const before = meta.quaternion.clone();
+      const result = handPresetQuaternion(bone, "thumbs-up", avatar);
+      const direction = distal.position
+        .clone()
+        .applyQuaternion(result)
+        .applyQuaternion(meta.quaternion)
+        .normalize();
+      const outward = index.position.clone().sub(little.position).normalize();
+      expect(direction.dot(outward)).toBeGreaterThan(0.97);
+      proximal.quaternion.copy(result);
+      expect(
+        handPresetQuaternion(bone, "thumbs-up", avatar).angleTo(result),
+      ).toBeCloseTo(0);
+      expect(meta.quaternion.toArray()).toEqual(before.toArray());
     },
   );
 });

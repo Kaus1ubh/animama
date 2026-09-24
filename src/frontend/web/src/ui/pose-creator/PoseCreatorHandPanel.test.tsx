@@ -47,6 +47,19 @@ function model(): PoseCreatorHands {
   };
 }
 describe("Hands panel", () => {
+  it("offers an action dropdown and disables it when editing is unavailable", () => {
+    const hands = model();
+    const render = () =>
+      renderToStaticMarkup(
+        <PoseCreatorHandPanel hands={hands} onClose={() => {}} />,
+      );
+    expect(render()).toContain('aria-label="Hand presets"');
+    expect(render()).toContain('aria-haspopup="menu"');
+    hands.canEdit = false;
+    expect(render()).toMatch(
+      /<button[^>]*disabled=""[^>]*aria-label="Hand presets"/,
+    );
+  });
   it("exposes 14 segment buttons without the thumb metacarpal or shortcuts", () => {
     const html = renderToStaticMarkup(
       <PoseCreatorHandPanel hands={model()} onClose={() => {}} />,
