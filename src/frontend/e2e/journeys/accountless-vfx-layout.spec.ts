@@ -18,6 +18,48 @@ const viewport = { width: 1600, height: 1000 };
 
 test.use({ viewport });
 
+/** Avatar and Scene share compact transport without a separate timeline footer. */
+async function expectCompactTransport(page: Page): Promise<void> {
+  const controls = page.getByRole("group", {
+    name: "Preview controls",
+    exact: true,
+  });
+  await expect(controls).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^(Collapse|Expand) preview$/i }),
+  ).toHaveCount(0);
+  await expect(page.getByTitle("Restart preview", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(
+    controls.getByRole("button", { name: "Restart preview", exact: true }),
+  ).toHaveCount(1);
+  const desktopBounds = await controls.boundingBox();
+  expect(desktopBounds!.y).toBeGreaterThan(viewport.height / 2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("tab", { name: "Preview", exact: true }).click();
+  await controls.scrollIntoViewIfNeeded();
+  const narrowBounds = await controls.boundingBox();
+  expect(narrowBounds!.x).toBeGreaterThanOrEqual(0);
+  expect(narrowBounds!.x + narrowBounds!.width).toBeLessThanOrEqual(390);
+  await controls
+    .getByRole("button", { name: "Stop preview", exact: true })
+    .click();
+  const play = controls.getByRole("button", {
+    name: "Play preview",
+    exact: true,
+  });
+  await play.focus();
+  await page.keyboard.press("Enter");
+  await expect(
+    controls.getByRole("button", { name: "Pause preview", exact: true }),
+  ).toBeVisible();
+  await controls
+    .getByRole("button", { name: "Restart preview", exact: true })
+    .click();
+  await page.setViewportSize(viewport);
+}
+
 test("accountless avatar effect vfx guides keep Eye = playing through creator rerenders", async ({
   page,
   animamaEvidence,
@@ -98,8 +140,13 @@ test("accountless avatar effect vfx guides keep Eye = playing through creator re
         await guidesToggle.click();
         await expect(guidesToggle).not.toBeChecked();
         await expect(guides).toBeHidden();
+        await expect(uvPanel).toBeVisible();
+        await expect(uvButton).toBeVisible();
+        await page.keyboard.press("Escape");
         await expect(uvPanel).toBeHidden();
-        await expect(uvButton).toBeHidden();
+        await uvButton.click();
+        await expect(uvPanel.getByRole("img")).toBeVisible();
+        await page.keyboard.press("Escape");
       } else if (phase === "guides-on") {
         await guidesToggle.click();
         await expect(guidesToggle).toBeChecked();
@@ -160,6 +207,7 @@ test("accountless avatar effect vfx guides keep Eye = playing through creator re
         expect(observation.diagnostics, phase).toEqual([]);
       }
     }
+    await expectCompactTransport(page);
   } finally {
     await animamaEvidence.attachJson(
       "avatar-effect-editor-stable-playback",
@@ -231,6 +279,38 @@ test("accountless vfx guides preserve authored JSON with replacement artwork and
     await expect(
       page.getByText("guide-check-32x16.png", { exact: true }),
     ).toBeVisible();
+    const positionX = page
+      .getByText("Position Offset", { exact: true })
+      .locator("..")
+      .getByRole("spinbutton", { name: "X", exact: true });
+    await positionX.fill("");
+    await expect(positionX).toHaveValue("");
+    await positionX.pressSequentially("-0.25");
+    await expect(positionX).toHaveValue("-0.25");
+    await positionX.press("Enter");
+    const positioned = JSON.parse(await readPortableJson());
+    expect(positioned.document.transform.offset.x).toBe(-0.25);
+    await positionX.fill("");
+    await expect(positionX).toHaveValue("");
+    await positionX.blur();
+    await expect(positionX).toHaveValue("-0.25");
+    expect(
+      JSON.parse(await readPortableJson()).document.transform.offset.x,
+    ).toBe(-0.25);
+    await positionX.fill("-0.251");
+    await expect(positionX).toHaveValue("-0.251");
+    await positionX.press("Enter");
+    await expect(positionX).toHaveValue("-0.25");
+    await positionX.fill("0.4");
+    await positionX.blur();
+    await page.getByRole("button", { name: /^Undo ·/ }).click();
+    await expect(positionX).toHaveValue("-0.25");
+    await positionX.fill("");
+    await positionX.pressSequentially("-0.25e");
+    // Native number inputs expose incomplete exponents as an empty value.
+    await expect(positionX).toHaveValue("");
+    await positionX.blur();
+    await expect(positionX).toHaveValue("-0.25");
     await page.getByRole("tab", { name: "Animation", exact: true }).click();
     for (const name of ["Pulse", "Spin", "Drift"]) {
       await page.getByRole("switch", { name, exact: true }).check();
@@ -474,7 +554,9 @@ test("accountless scene creator fills the viewport without moving the avatar can
       ).toBeVisible();
     }
     await expect(
-      page.getByTitle("Restart preview", { exact: true }),
+      page
+        .getByRole("group", { name: "Preview controls", exact: true })
+        .getByRole("button", { name: "Restart preview", exact: true }),
     ).toBeEnabled();
     const canvas = surface.locator("canvas");
     await expect(canvas).toHaveCount(1);
@@ -584,6 +666,7 @@ test("accountless scene creator fills the viewport without moving the avatar can
     await expect(
       page.getByRole("switch", { name: "Show placement guides", exact: true }),
     ).toHaveCount(0);
+    await expectCompactTransport(page);
     await guard.assertNoMutations(animamaEvidence);
     await creatorContent.assertLocalCatalogUnchanged(
       catalogBefore,

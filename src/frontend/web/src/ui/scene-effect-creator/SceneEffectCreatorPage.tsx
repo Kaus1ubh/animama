@@ -1,5 +1,7 @@
 "use client";
 
+import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
+
 import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
 
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
@@ -78,7 +80,6 @@ import {
   CreatorImportDialog,
   CreatorJsonDialog,
   CreatorNumberField as NumberField,
-  CreatorPreviewBar,
   CreatorSaveNotice,
   CreatorToggleRow as ToggleRow,
   CreatorToolbar,
@@ -112,7 +113,6 @@ import { Textarea } from "@/ui/components/textarea";
 import {
   createSceneEffectObjectUrlLease,
   sceneEffectCreatorKeyboardAction,
-  SCENE_EFFECT_PREVIEW_MOTION_CLASS,
   shouldBlockSceneEffectNavigation,
 } from "./sceneEffectCreatorBehavior";
 import { useSceneEffectSave } from "./useSceneEffectSave";
@@ -586,7 +586,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     <CreatorWorkspaceShell
       leftPanelWidth={330}
       rightPanelWidth={370}
-      bottomChromeHeight={144}
       busy={contentSave.isBusy}
       canvas={
         <div
@@ -766,31 +765,15 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
               setCameraProfile(value as typeof cameraProfile),
             triggerClassName: "w-[110px]",
           }}
-          onRestart={restartPreviewWithSound}
-        />
-      }
-      previewBar={
-        <CreatorPreviewBar
-          title="Scene FX"
-          subtitle={`${humanize(document.kind)} · ${document.durationMs === null ? "Sticky" : `${(document.durationMs / 1000).toFixed(1)}s`}`}
-          playing={playing}
-          onPlayingChange={setPreviewPlaying}
-          onRestart={restartPreviewWithSound}
-          progressClassName={SCENE_EFFECT_PREVIEW_MOTION_CLASS}
-          duration={{
-            value:
-              document.durationMs === null ? null : document.durationMs / 1000,
-            label: "Effect duration",
-            indefiniteLabel: "Sticky · until cleared",
-            min: 0.1,
-            max: 30,
-            step: 0.1,
-            onValueChange: (seconds) =>
-              dispatch({
-                type: "patch",
-                patch: { durationMs: Math.round(seconds * 1000) },
-              }),
-          }}
+          playbackControl={
+            <CreatorTimelineTransport
+              label="preview"
+              playing={playing}
+              onTogglePlayback={() => setPreviewPlaying(!playing)}
+              onStop={() => setPreviewPlaying(false)}
+              onRestart={restartPreviewWithSound}
+            />
+          }
         />
       }
       overlays={

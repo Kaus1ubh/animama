@@ -32,7 +32,7 @@ type CreatorGuidesControl =
   | { guides: boolean; onGuidesChange: (checked: boolean) => void }
   | { guides?: never; onGuidesChange?: never };
 
-/** Shared Model/View/Restart chrome with optional Guides and one domain slot. */
+/** Shared preview chrome with optional Guides, domain tools and playback controls. */
 export function CreatorCanvasControls({
   model,
   view,
@@ -42,6 +42,7 @@ export function CreatorCanvasControls({
   guidesDisabled,
   onGuidesChange,
   domainControl,
+  playbackControl,
   restartDisabled,
   onRestart,
   className,
@@ -52,12 +53,16 @@ export function CreatorCanvasControls({
   guidesAriaLabel?: string;
   guidesDisabled?: boolean;
   domainControl?: ReactNode;
+  /** Full transport replaces the standalone Restart button when supplied. */
+  playbackControl?: ReactNode;
   restartDisabled?: boolean;
   onRestart?: () => void;
   className?: string;
 } & CreatorGuidesControl) {
   return (
     <div
+      role="group"
+      aria-label="Preview controls"
       className={cn(
         "bg-background border-border/70 flex max-w-full flex-wrap items-center gap-2 rounded-xl border p-2 shadow-sm",
         className,
@@ -80,19 +85,20 @@ export function CreatorCanvasControls({
         </label>
       ) : null}
       {domainControl}
-      {onRestart ? (
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="ghost"
-          disabled={restartDisabled}
-          onClick={onRestart}
-          aria-label="Restart preview"
-          title="Restart preview"
-        >
-          <RefreshCwIcon />
-        </Button>
-      ) : null}
+      {playbackControl ??
+        (onRestart ? (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            disabled={restartDisabled}
+            onClick={onRestart}
+            aria-label="Restart preview"
+            title="Restart preview"
+          >
+            <RefreshCwIcon />
+          </Button>
+        ) : null)}
     </div>
   );
 }

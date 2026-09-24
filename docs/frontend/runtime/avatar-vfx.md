@@ -97,7 +97,8 @@ refer to the Avatar's sides. Eye/mouth hover guides follow their anchors; face-b
 hover also shows the face bounds and selected placement. Decals show only the
 selected under-eye, blush or mouth anchors. Estimated anchors are labeled.
 
-**UV preview** shows the selected material's live texture and effect footprint.
+The **UV preview** icon opens the selected material's live texture and effect
+footprint independently of the Guides toggle.
 Choose a material/texture slot when more than one applies. Dashed reference boxes
 are placement bases, not clipping boundaries; the solid artwork outline includes
 pivot, offset, scale, rotation and animation. **Skin coverage** reveals relevant
@@ -130,24 +131,24 @@ This is all owned by `AvatarVFXController`, which is created by `Avatar` after a
 The VFX flow is:
 
 1. `Avatar` loads the VRM and creates:
-   - `AvatarFaceLandmarks`
-   - `AvatarFaceTextureAnchors`
-   - `AvatarVFXController`
+    - `AvatarFaceLandmarks`
+    - `AvatarFaceTextureAnchors`
+    - `AvatarVFXController`
 2. `AvatarVFXController` scans live primitive bindings from the rendered avatar scene.
 3. Material-name heuristics and per-model profile rules classify bindings into roles such as:
-   - `face_skin`
-   - `eye_iris`
-   - `eyeline`
-   - `eyelash`
+    - `face_skin`
+    - `eye_iris`
+    - `eyeline`
+    - `eyelash`
 4. The mounted provider resolves the entry. Built-ins are immediate; private
    entries are loaded asynchronously and stale results are discarded.
 5. The resolved entry is applied through one of the controller's kind-specific APIs:
-   - `applyTextureVFX(...)`
-   - `applyFaceAnchoredVFX(...)`
-   - `applyHoverVFX(...)`
+    - `applyTextureVFX(...)`
+    - `applyFaceAnchoredVFX(...)`
+    - `applyHoverVFX(...)`
 6. The controller either:
-   - contributes texture-backed layers to a binding-level composite texture
-   - or creates head-attached hover planes
+    - contributes texture-backed layers to a binding-level composite texture
+    - or creates head-attached hover planes
 7. Active effects are animated at the controller's VFX tick rate when their `animationConfig` enables pulse, spin, or drift.
 
 A binding can hold multiple active effects at once.
@@ -466,11 +467,11 @@ Each of those currently has `x`, `y`, and `z`.
 Current practical usage:
 
 - `texture`
-  - `offset.x/y` shift the effect in UV space
-  - `scale.x/y` change the effect rect size
+    - `offset.x/y` shift the effect in UV space
+    - `scale.x/y` change the effect rect size
 - `hover_plane`
-  - `offset.x/y/z` move the plane in head-local space
-  - `scale.x/y` change the plane size
+    - `offset.x/y/z` move the plane in head-local space
+    - `scale.x/y` change the plane size
 
 Not every axis is equally meaningful for every render mode.
 

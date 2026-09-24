@@ -33,18 +33,16 @@ type AvatarEffectUvPreviewProps = {
   avatar: Avatar | null;
   effect: AvatarVFXCatalogEntry | null;
   appliedId: string;
-  enabled: boolean;
 };
 
-/** Contextual, read-only view of the live composite texture; hiding Guides tears down all UV work. */
+/** Independent, read-only texture view; live drawing runs only while the popover is open. */
 export function AvatarEffectUvPreview({
   avatar,
   effect,
   appliedId,
-  enabled,
 }: AvatarEffectUvPreviewProps) {
   const controller = avatar?.vfxController;
-  if (!enabled || !controller || !effect) return null;
+  if (!controller || !effect) return null;
   return (
     <AvailableUvPreview
       controller={controller}
@@ -107,12 +105,12 @@ function AvailableUvPreview({
       <PopoverTrigger asChild>
         <Button
           type="button"
-          size="sm"
+          size="icon-sm"
           variant="ghost"
-          className="h-8 gap-1.5 px-2 text-xs"
+          aria-label="UV preview"
+          title="UV preview"
         >
           <ScanFaceIcon className="size-3.5" />
-          UV preview
         </Button>
       </PopoverTrigger>
       <PopoverContent

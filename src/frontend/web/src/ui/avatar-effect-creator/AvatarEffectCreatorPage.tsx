@@ -70,7 +70,6 @@ import {
   CreatorImportDialog,
   CreatorJsonDialog,
   CreatorNumberField as NumberField,
-  CreatorPreviewBar,
   CreatorSaveNotice,
   CreatorToggleRow as SwitchRow,
   CreatorToolbar,
@@ -544,7 +543,6 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
 
   return (
     <CreatorWorkspaceShell
-      bottomChromeHeight={72}
       canvas={
         <div
           className="relative size-full"
@@ -771,18 +769,9 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
               avatar={previewAvatar}
               effect={guideEffect}
               appliedId={guideEffect?.id ?? ""}
-              enabled={showGuides}
             />
           }
-          onRestart={restartPreviewWithSound}
-        />
-      }
-      previewBar={
-        <CreatorPreviewBar>
-          <div className="flex h-full items-center justify-between gap-3">
-            <span className="truncate text-sm">
-              {document.name || "Avatar FX preview"}
-            </span>
+          playbackControl={
             <CreatorTimelineTransport
               label="preview"
               playing={playing}
@@ -790,8 +779,8 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
               onStop={() => setPreviewPlaying(false)}
               onRestart={restartPreviewWithSound}
             />
-          </div>
-        </CreatorPreviewBar>
+          }
+        />
       }
       overlays={
         <>
@@ -1404,7 +1393,9 @@ function InspectorPanel({
         <TabsContent value="transform" className="mt-3 space-y-3">
           {(["offset", "scale"] as const).map((group) => (
             <div key={group}>
-              <Label className="mb-2 block capitalize">{group}</Label>
+              <Label className="mb-2 block">
+                {group === "offset" ? "Position Offset" : "Scale"}
+              </Label>
               <AvatarEffectAxisFields
                 values={document.transform[group]}
                 step={0.01}

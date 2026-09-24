@@ -372,6 +372,7 @@ function EventInspector({
             <InspectorRow label="Volume">
               <Input
                 type="number"
+                allowEmptyNumber
                 min={0}
                 max={1}
                 step={0.05}
