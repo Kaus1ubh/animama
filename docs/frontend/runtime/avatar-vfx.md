@@ -88,6 +88,23 @@ Local item exists, the creator offers optional Gesture and Reaction handoffs
 containing only the stable catalog item ID and `avatar_effect` token. The
 action creator then resolves its current exact catalog revision.
 
+### Placement guides
+
+The creator's **Guides** toggle follows the selected effect and Avatar. Open
+circles and faint reference lines mark the placement basis; solid pink outlines
+show the current image rectangle, including transparent padding. Left and right
+refer to the Avatar's sides. Eye/mouth hover guides follow their anchors; face-box
+hover also shows the face bounds and selected placement. Decals show only the
+selected under-eye, blush or mouth anchors. Estimated anchors are labeled.
+
+**UV preview** shows the selected material's live texture and effect footprint.
+Choose a material/texture slot when more than one applies. Dashed reference boxes
+are placement bases, not clipping boundaries; the solid artwork outline includes
+pivot, offset, scale, rotation and animation. **Skin coverage** reveals relevant
+flattening regions and the sampled skin patch. Guides and UV controls affect only
+the preview, never the saved effect. Stopped effects retain available reference
+markers but have no live artwork outline.
+
 ## 2) High-level model
 
 The runtime models VFX as a discriminated catalog union:

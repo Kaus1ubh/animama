@@ -3,6 +3,15 @@
 import * as THREE from "three";
 
 import { loadEffectImage } from "./effect-image";
+import {
+  rectangleGuidePoints,
+  resolveTexturePlacementTransform,
+  transformTexturePlacementPoint,
+} from "./placement-transform";
+import type {
+  AvatarVFXPlacementGuides,
+  AvatarVFXUvGuide,
+} from "./placement-guide-types";
 
 import type { Avatar } from "../Avatar";
 import type {
@@ -186,6 +195,8 @@ type StaticCompositeSegmentState = {
 };
 
 type HoverPlaneInstanceState = {
+  label: string;
+  mesh: THREE.Mesh;
   animatedGroup: THREE.Group;
   planeWidth: number;
   planeHeight: number;
@@ -1320,36 +1331,20 @@ function drawCompositedLayerCanvas(args: {
   animationState: AvatarVFXAnimationState;
 }) {
   const { context, layerState, effect, size, animationState } = args;
-  const isAnchoredTextureEffect = isAnchoredFaceTextureEffect(effect);
-  const staticOffsetX = isAnchoredTextureEffect ? 0 : effect.transform.offset.x;
-  const staticOffsetY = isAnchoredTextureEffect ? 0 : effect.transform.offset.y;
-  const staticScaleX = isAnchoredTextureEffect
-    ? 1
-    : resolveStaticScaleComponent(effect.transform.scale.x);
-  const staticScaleY = isAnchoredTextureEffect
-    ? 1
-    : resolveStaticScaleComponent(effect.transform.scale.y);
-  const scale = Math.max(0.0001, animationState.scale);
-  const translateX =
-    (staticOffsetX + animationState.driftX) * Math.max(1, size.width);
-  const translateY =
-    (staticOffsetY + animationState.driftY) * Math.max(1, size.height);
-
   context.save();
   layerState.placements.forEach((placement) => {
-    const centerX = placement.rect.x + placement.rect.width * 0.5;
-    const centerY = placement.rect.y + placement.rect.height * 0.5;
+    const transform = resolveTexturePlacementTransform(
+      placement,
+      effect,
+      size,
+      animationState,
+    );
 
     context.save();
-    context.translate(centerX + translateX, centerY + translateY);
+    context.translate(transform.x, transform.y);
     // Texture decals rotate in their 2D surface; spin adds to the authored angle.
-    context.rotate(
-      effect.transform.rotation.z + animationState.rotationRadians,
-    );
-    context.scale(
-      (placement.mirrorX ? -1 : 1) * staticScaleX * scale,
-      staticScaleY * scale,
-    );
+    context.rotate(transform.rotation);
+    context.scale(transform.scaleX, transform.scaleY);
     context.drawImage(
       layerState.image,
       -placement.rect.width * 0.5,
@@ -1620,6 +1615,27 @@ function hasHoverSkinBackdrop(
   );
 }
 
+/** Name guide instances in authoring terms; side labels always use the avatar's perspective. */
+function placementGuideLabel(
+  effect: AvatarVFXCatalogEntry,
+  label: string,
+): string {
+  if (isEyeHoverVFXEntry(effect)) return `Eye ${label}`;
+  if (
+    isMouthHoverVFXEntry(effect) ||
+    (isFaceAnchoredVFXEntry(effect) && effect.anchor === "mouth")
+  )
+    return "Mouth";
+  if (isFaceAnchoredVFXEntry(effect)) {
+    const name = effect.anchor === "undereye" ? "Under-eye" : "Blush";
+    return `${name} ${effect.layout === "span" ? "span" : label}`;
+  }
+  if (isTextureVFXEntry(effect))
+    return effect.targetRole === "eye_iris" ? `Iris ${label}` : "Face";
+  const name = label.replaceAll("-", " ");
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 export class AvatarVFXController {
   private readonly _avatar: Avatar;
   private readonly _sourceUrl: string | null;
@@ -1666,6 +1682,358 @@ export class AvatarVFXController {
   /** Return only the stable fields needed to observe active playback. */
   getObservationSnapshot(): AvatarVFXObservationSnapshot {
     return this._observationSnapshot;
+  }
+
+  /**
+   * Read a creator's selected placement without applying effects or loading images.
+   * Borrowed anchors/surfaces belong to the Avatar. Call while guides are visible;
+   * artwork comes from the rendered mesh or the compositor's current animation state.
+   */
+  getPlacementGuides(
+    effect: AvatarVFXCatalogEntry,
+    appliedId: string,
+  ): AvatarVFXPlacementGuides {
+    const result: AvatarVFXPlacementGuides = {
+      anchor: null,
+      faceBounds: null,
+      spatial: [],
+      surfaces: [],
+      messages: [],
+      active: false,
+    };
+    if (this._isDisposed) return result;
+
+    const landmarks = this._avatar.getFaceLandmarksSnapshot();
+    const anchors = this._avatar.getFaceTextureAnchorsSnapshot();
+    result.anchor = this._avatar.faceLandmarks?.getAnchorObject() ?? null;
+    const activeBindings = Array.from(this._bindings.values()).filter(
+      (binding) => binding.activeEffects.has(appliedId),
+    );
+    result.active = activeBindings.length > 0;
+    const selected = activeBindings.length
+      ? activeBindings
+      : [this._resolveAutoBindingForEffect(effect)].filter(
+          (binding): binding is BindingState => binding !== null,
+        );
+    if (!selected.length)
+      result.messages.push(
+        "No compatible material target is available on this avatar.",
+      );
+    else if (isTextureVFXEntry(effect)) {
+      const targets = Array.from(
+        new Set(
+          selected.map(
+            (binding) => binding.materialName ?? "Selected material",
+          ),
+        ),
+      );
+      result.messages.push(`Target: ${targets.join(", ")}.`);
+    }
+
+    const referenceUv: AvatarVFXUvGuide[] = [];
+    if (isHoverVFXEntry(effect)) {
+      if (!result.anchor || landmarks?.status !== "ready") {
+        result.messages.push("Face landmarks are unavailable on this avatar.");
+      } else {
+        const references = resolveHoverPlacementInstances({
+          effect: {
+            ...effect,
+            transform: { ...effect.transform, offset: { x: 0, y: 0, z: 0 } },
+          },
+          faceLandmarks: landmarks,
+          faceTextureAnchors: anchors,
+        });
+        if (!references?.length)
+          result.messages.push(
+            "The selected hover anchor is unavailable on this avatar.",
+          );
+        if (isBoxHoverVFXEntry(effect))
+          result.faceBounds = landmarks.faceBoundsLocal;
+        result.anchor.updateWorldMatrix(true, false);
+        const inverseAnchor = result.anchor.matrixWorld.clone().invert();
+        for (const reference of references ?? []) {
+          const instance = activeBindings
+            .flatMap(
+              (binding) =>
+                binding.activeEffects.get(appliedId)?.hoverInstances ?? [],
+            )
+            .find((candidate) => candidate.label === reference.label);
+          const artwork: AvatarFaceLandmarkVector[] = [];
+          if (instance) {
+            // Use the real mesh vertices through its authored, animated and facing transforms.
+            instance.mesh.updateWorldMatrix(true, false);
+            const matrix = inverseAnchor
+              .clone()
+              .multiply(instance.mesh.matrixWorld);
+            const positions = instance.mesh.geometry.getAttribute("position");
+            for (const index of [0, 1, 3, 2]) {
+              const point = new THREE.Vector3()
+                .fromBufferAttribute(positions, index)
+                .applyMatrix4(matrix);
+              artwork.push({ x: point.x, y: point.y, z: point.z });
+            }
+          }
+          // Mouth placement adds hover clearance; retain the original anchor so
+          // the reference-to-artwork connector also explains that depth.
+          const referencePoint = isMouthHoverVFXEntry(effect)
+            ? (anchors?.anchors.mouth.center?.localPoint ?? reference.position)
+            : reference.position;
+          result.spatial.push({
+            label: placementGuideLabel(effect, reference.label),
+            reference: {
+              x: referencePoint.x,
+              y: referencePoint.y,
+              z: referencePoint.z,
+            },
+            source: isMouthHoverVFXEntry(effect)
+              ? (anchors?.anchors.mouth.center?.source ?? "fallback")
+              : "geometric",
+            artwork,
+          });
+        }
+      }
+    } else if (isFaceAnchoredVFXEntry(effect)) {
+      if (anchors?.status !== "ready") {
+        result.messages.push(
+          "Face texture anchors are unavailable on this avatar.",
+        );
+      } else {
+        const resolved = resolveAnchoredTexturePlacementInstances({
+          effect,
+          faceTextureAnchors: anchors,
+          imageSize: null,
+        });
+        if (resolved.warning) result.messages.push(resolved.warning);
+        for (const placement of resolved.instances) {
+          let reference: AvatarFaceTextureAnchorSnapshot | null;
+          if (effect.anchor === "mouth") {
+            reference = anchors.anchors.mouth.center;
+          } else if (effect.layout === "span") {
+            const left = getBilateralTextureAnchor(
+              anchors,
+              effect.anchor,
+              "left",
+            );
+            const right = getBilateralTextureAnchor(
+              anchors,
+              effect.anchor,
+              "right",
+            );
+            reference =
+              left && right
+                ? {
+                    ...left,
+                    side: null,
+                    source:
+                      left.source === "fallback" || right.source === "fallback"
+                        ? "fallback"
+                        : left.source,
+                    localPoint: {
+                      x: (left.localPoint.x + right.localPoint.x) / 2,
+                      y: (left.localPoint.y + right.localPoint.y) / 2,
+                      z: (left.localPoint.z + right.localPoint.z) / 2,
+                    },
+                    uv: {
+                      u: (left.uv.u + right.uv.u) / 2,
+                      v: (left.uv.v + right.uv.v) / 2,
+                    },
+                    referenceSizeUv: {
+                      width:
+                        Math.abs(left.uv.u - right.uv.u) +
+                        (left.referenceSizeUv.width +
+                          right.referenceSizeUv.width) /
+                          2,
+                      height: Math.max(
+                        left.referenceSizeUv.height,
+                        right.referenceSizeUv.height,
+                      ),
+                    },
+                  }
+                : null;
+          } else {
+            reference = getBilateralTextureAnchor(
+              anchors,
+              effect.anchor,
+              placement.label as AvatarVFXSide,
+            );
+          }
+          if (!reference) continue;
+          result.spatial.push({
+            label: placementGuideLabel(effect, placement.label),
+            reference: reference.localPoint,
+            source: reference.source,
+            artwork: [],
+          });
+          referenceUv.push({
+            label: placementGuideLabel(effect, placement.label),
+            kind: "reference",
+            shape: "polygon",
+            source: reference.source,
+            pivot: { x: reference.uv.u, y: reference.uv.v },
+            points: rectangleGuidePoints({
+              x: reference.uv.u - reference.referenceSizeUv.width / 2,
+              y: reference.uv.v - reference.referenceSizeUv.height / 2,
+              ...reference.referenceSizeUv,
+            }),
+          });
+        }
+      }
+    }
+
+    if (result.spatial.some((reference) => reference.source === "fallback")) {
+      result.messages.push(
+        "This placement uses an estimated anchor for this avatar.",
+      );
+    }
+    if (result.spatial.length && !result.anchor) {
+      result.messages.push(
+        "The avatar's live face anchor is unavailable for spatial guides.",
+      );
+    }
+    if (isBoxHoverVFXEntry(effect)) return result;
+
+    // Hover artwork lives in 3D; only its related face-flatten coverage has a UV view.
+    const uvBindings = isHoverVFXEntry(effect)
+      ? [this._resolveFaceFlattenBinding()].filter(
+          (binding): binding is BindingState => binding !== null,
+        )
+      : selected;
+    for (const binding of uvBindings) {
+      const active = binding.activeEffects.get(appliedId);
+      for (const slot of binding.textureSlots) {
+        const composite = binding.textureComposite?.slotStates.get(slot.slot);
+        const surface =
+          composite?.canvas ?? getTextureImageSource(slot.texture);
+        if (!surface) continue;
+        const guides = [...referenceUv];
+        if (active) {
+          const layer = active.layerCanvases.get(slot.slot);
+          for (const placement of layer?.placements ?? []) {
+            const transform = resolveTexturePlacementTransform(
+              placement,
+              active.effectEntry,
+              slot,
+              active.animationState,
+            );
+            const width = placement.rect.width;
+            const height = placement.rect.height;
+            const pivot = isFaceAnchoredVFXEntry(active.effectEntry)
+              ? resolvePivotFactors(active.effectEntry.pivot)
+              : { x: 0.5, y: 0.5 };
+            guides.push({
+              label: placementGuideLabel(active.effectEntry, placement.label),
+              kind: "artwork",
+              shape: "polygon",
+              points: rectangleGuidePoints({
+                x: -width / 2,
+                y: -height / 2,
+                width,
+                height,
+              }).map((point) =>
+                transformTexturePlacementPoint(point, transform, slot),
+              ),
+              pivot: transformTexturePlacementPoint(
+                { x: (pivot.x - 0.5) * width, y: (pivot.y - 0.5) * height },
+                transform,
+                slot,
+              ),
+            });
+          }
+        }
+        if (isTextureVFXEntry(effect)) {
+          const references = resolveTextureEffectPlacements({
+            image: surface,
+            effect,
+            size: slot,
+            profile: this._profile,
+            faceTextureAnchors: anchors,
+          });
+          for (const placement of references.placements) {
+            guides.push({
+              label: placementGuideLabel(effect, placement.label),
+              kind: "reference",
+              shape: "polygon",
+              points: rectangleGuidePoints(placement.rect).map((point) => ({
+                x: point.x / slot.width,
+                y: point.y / slot.height,
+              })),
+            });
+          }
+        }
+
+        const flatten = this._cachedFaceFlattenState;
+        const hasFlatten =
+          flatten?.faceBindingKey === binding.bindingKey &&
+          Boolean(flatten.sampledColorsBySlot[slot.slot]) &&
+          result.active;
+        const regions: AvatarFaceTextureFlattenRegionSnapshot[] = [];
+        if (
+          hasFlatten &&
+          isEyeHoverVFXEntry(effect) &&
+          flatten.shouldRenderEyes
+        ) {
+          regions.push(...flatten.eyeRegions);
+        }
+        if (
+          hasFlatten &&
+          (isMouthHoverVFXEntry(effect) ||
+            (isFaceAnchoredVFXEntry(effect) && effect.anchor === "mouth")) &&
+          flatten.shouldRenderMouth &&
+          flatten.mouthRegion
+        ) {
+          regions.push(flatten.mouthRegion);
+        }
+        if (regions.length && anchors?.flatten.sample.center)
+          regions.push(anchors.flatten.sample.center);
+        for (const region of regions) {
+          guides.push({
+            label:
+              region.region === "sample"
+                ? "Skin sample"
+                : `Flatten ${region.region}${region.side ? ` ${region.side}` : ""}`,
+            kind: region.region === "sample" ? "sample" : "flatten",
+            shape: region.region === "sample" ? "polygon" : "ellipse",
+            source: region.source,
+            points: rectangleGuidePoints({
+              x: region.uv.u - region.referenceSizeUv.width / 2,
+              y: region.uv.v - region.referenceSizeUv.height / 2,
+              ...region.referenceSizeUv,
+            }),
+          });
+        }
+        if (isHoverVFXEntry(effect) && !guides.length) continue;
+        result.surfaces.push({
+          key: `${binding.bindingKey}:${slot.slot}`,
+          materialName: binding.materialName ?? "Selected material",
+          slot: slot.slot,
+          image: surface,
+          width: slot.width,
+          height: slot.height,
+          guides,
+        });
+      }
+    }
+    result.surfaces.sort(
+      (a, b) => Number(b.slot === "map") - Number(a.slot === "map"),
+    );
+    if (
+      result.surfaces.some((surface) =>
+        surface.guides.some(
+          (guide) =>
+            (guide.kind === "flatten" || guide.kind === "sample") &&
+            guide.source === "fallback",
+        ),
+      )
+    ) {
+      result.messages.push(
+        "Flatten coverage uses an estimated region for this avatar.",
+      );
+    }
+    if (!isHoverVFXEntry(effect) && !result.surfaces.length)
+      result.messages.push(
+        "The selected material has no readable texture surface.",
+      );
+    return result;
   }
 
   setFaceFlattenPreview(args: {
@@ -3297,6 +3665,8 @@ export class AvatarVFXController {
       placementRoot.add(animatedGroup);
       group.add(placementRoot);
       instances.push({
+        label: placement.label,
+        mesh,
         animatedGroup,
         planeWidth: planeSize.width * staticScaleX,
         planeHeight: planeSize.height * staticScaleY,

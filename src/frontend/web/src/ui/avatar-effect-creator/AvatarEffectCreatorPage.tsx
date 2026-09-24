@@ -3,6 +3,8 @@
 import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
 
 import { AvatarEffectAnimationControls } from "./AvatarEffectAnimationControls";
+import { AvatarEffectGuideRenderer } from "./AvatarEffectGuideRenderer";
+import { AvatarEffectUvPreview } from "./AvatarEffectUvPreview";
 
 import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
 
@@ -106,7 +108,6 @@ import { useAvatarEffectHistory } from "./useAvatarEffectHistory";
 
 const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_IMAGE_BYTES = 16 * 1024 * 1024;
-const PREVIEW_EFFECT_ID = "avatar-effect-creator-live-preview";
 
 type PreviewStatus = {
   state: "idle" | "loading" | "ready" | "error";
@@ -135,6 +136,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   const [previewRevision, setPreviewRevision] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [showGuides, setShowGuides] = useState(true);
+  const guideCanvasRef = useRef<HTMLCanvasElement>(null);
   const [cameraProfile, setCameraProfile] = useState<
     "portrait" | "portrait-close"
   >("portrait-close");
@@ -155,6 +157,11 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
   const previewEffect = useMemo(
     () => (imageUrl ? safeRuntimeEntry(document, imageUrl) : null),
     [document, imageUrl],
+  );
+  // Reference guides are available before upload; this entry is never applied.
+  const guideEffect = useMemo(
+    () => previewEffect ?? safeRuntimeEntry(document, "effect.webp"),
+    [document, previewEffect],
   );
   const [soundPreview, setSoundPreview] = useState<PyContentPreview | null>(
     null,
@@ -554,7 +561,15 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
             overlay={
               <>
                 <div className="pointer-events-none absolute inset-0 z-20 bg-[radial-gradient(circle_at_center,transparent_20%,hsl(var(--background)/0.18)_72%,hsl(var(--background)/0.5)_100%)]" />
-                {showGuides ? <PreviewGuides /> : null}
+                {showGuides ? (
+                  <canvas
+                    ref={guideCanvasRef}
+                    className="pointer-events-none absolute inset-0 z-30 size-full"
+                    role="img"
+                    aria-label="Placement guides"
+                    data-testid="avatar-effect-placement-guides"
+                  />
+                ) : null}
               </>
             }
           >
@@ -569,6 +584,14 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
                 onStatusChange={setAvatarStatus}
                 onSnapshot={setVfxSnapshot}
                 onCompatibilityChange={setModelCompatible}
+              />
+            ) : null}
+            {showGuides ? (
+              <AvatarEffectGuideRenderer
+                avatar={previewAvatar}
+                effect={guideEffect}
+                appliedId={guideEffect?.id ?? ""}
+                canvasRef={guideCanvasRef}
               />
             ) : null}
           </AvatarPreviewSurface>
@@ -743,6 +766,14 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
           }}
           guides={showGuides}
           onGuidesChange={setShowGuides}
+          domainControl={
+            <AvatarEffectUvPreview
+              avatar={previewAvatar}
+              effect={guideEffect}
+              appliedId={guideEffect?.id ?? ""}
+              enabled={showGuides}
+            />
+          }
           onRestart={restartPreviewWithSound}
         />
       }
@@ -1487,16 +1518,16 @@ function AvatarEffectPreviewActor({
     const apply =
       effect.kind === "hover"
         ? controller.applyHoverVFX({
-            effectId: PREVIEW_EFFECT_ID,
+            effectId: effect.id,
             effectEntry: effect,
           })
         : effect.kind === "face_anchored"
           ? controller.applyFaceAnchoredVFX({
-              effectId: PREVIEW_EFFECT_ID,
+              effectId: effect.id,
               effectEntry: effect,
             })
           : controller.applyTextureVFX({
-              effectId: PREVIEW_EFFECT_ID,
+              effectId: effect.id,
               effectEntry: effect,
               applyMode: effect.applyMode,
             });
@@ -1507,7 +1538,7 @@ function AvatarEffectPreviewActor({
     return () => {
       cancelled = true;
       unsubscribe();
-      controller.removeEffect(PREVIEW_EFFECT_ID);
+      controller.removeEffect(effect.id);
     };
   }, [
     controller,
@@ -1520,19 +1551,6 @@ function AvatarEffectPreviewActor({
 
   if (!sceneObject) return null;
   return <primitive object={sceneObject} dispose={null} />;
-}
-
-function PreviewGuides() {
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 z-30"
-      aria-hidden="true"
-    >
-      <div className="absolute top-1/2 right-[25%] left-[25%] border-t border-dashed border-sky-300/65" />
-      <div className="absolute top-[12%] bottom-[12%] left-1/2 border-l border-dashed border-sky-300/65" />
-      <div className="absolute top-1/2 left-1/2 size-4 -translate-1/2 rounded-full border border-sky-400 bg-white/45" />
-    </div>
-  );
 }
 
 function SideField({
