@@ -152,7 +152,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     message: null,
   });
   const [playing, setPlaying] = useState(true);
-  const [showGuides, setShowGuides] = useState(true);
   const [cameraProfile, setCameraProfile] = useState<"full-body" | "portrait">(
     "full-body",
   );
@@ -604,11 +603,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             sceneVFX={sceneVFX}
             sceneBackgroundScope="viewport"
             showSceneVFX
-            overlay={
-              showGuides ? (
-                <ScenePreviewGuides document={document} />
-              ) : undefined
-            }
           >
             {modelPreview.modelEntry && modelPreview.modelEntryKey ? (
               <ScenePreviewActor
@@ -772,8 +766,6 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
               setCameraProfile(value as typeof cameraProfile),
             triggerClassName: "w-[110px]",
           }}
-          guides={showGuides}
-          onGuidesChange={setShowGuides}
           onRestart={restartPreviewWithSound}
         />
       }
@@ -2008,44 +2000,6 @@ function ScenePreviewActor({
     onStatusChange,
   });
   return sceneObject ? <primitive object={sceneObject} dispose={null} /> : null;
-}
-
-function ScenePreviewGuides({
-  document,
-}: {
-  document: SceneEffectEditorDocument;
-}) {
-  if (
-    document.kind === "focus_lines" &&
-    document.focus.target.kind === "manual_box"
-  ) {
-    const rect = document.focus.target.rect;
-    return (
-      <div
-        className="pointer-events-none absolute inset-0 z-30"
-        aria-hidden="true"
-      >
-        <div
-          className="absolute border border-dashed border-sky-400 bg-sky-200/10"
-          style={{
-            left: `${rect.x * 100}%`,
-            top: `${rect.y * 100}%`,
-            width: `${rect.width * 100}%`,
-            height: `${rect.height * 100}%`,
-          }}
-        />
-      </div>
-    );
-  }
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 z-30"
-      aria-hidden="true"
-    >
-      <div className="absolute top-1/2 right-[25%] left-[25%] border-t border-dashed border-sky-300/55" />
-      <div className="absolute top-[12%] bottom-[12%] left-1/2 border-l border-dashed border-sky-300/55" />
-    </div>
-  );
 }
 
 function LeaveDialog({

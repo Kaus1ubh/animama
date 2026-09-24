@@ -183,6 +183,7 @@ test("accountless vfx guides preserve authored JSON with replacement artwork and
   animamaEvidence,
   creatorContent,
 }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const catalogBefore = await creatorContent.snapshotLocalCatalog();
   const guard = new ReadOnlyJourneyGuard(page);
   const readPortableJson = async () => {
@@ -240,6 +241,12 @@ test("accountless vfx guides preserve authored JSON with replacement artwork and
     const before = await readPortableJson();
     const guides = page.getByTestId("avatar-effect-placement-guides");
     await expect(guides).toHaveAttribute("data-artwork-count", "2");
+    expect(
+      await guides.evaluate((canvas) => ({
+        reducedMotion: matchMedia("(prefers-reduced-motion: reduce)").matches,
+        animations: canvas.getAnimations({ subtree: true }).length,
+      })),
+    ).toEqual({ reducedMotion: true, animations: 0 });
     const first = await readPlaybackObservation(surface);
     const firstGuideImage = await guides.evaluate((canvas: HTMLCanvasElement) =>
       canvas.toDataURL(),
@@ -287,6 +294,67 @@ test("accountless vfx guides preserve authored JSON with replacement artwork and
         catalogBefore,
         animamaEvidence,
         "vfx-guides-authored-state",
+      );
+    } finally {
+      await guard.dispose();
+    }
+  }
+});
+
+test("accountless vfx guides retain Particle Avatar and Outline controls", async ({
+  page,
+  animamaEvidence,
+  creatorContent,
+}) => {
+  const catalogBefore = await creatorContent.snapshotLocalCatalog();
+  const guard = new ReadOnlyJourneyGuard(page);
+  try {
+    const { surface } = await openCreatorStage({
+      creator: "Particle VFX",
+      page,
+    });
+    const avatar = page.getByRole("switch", {
+      name: "Show Avatar",
+      exact: true,
+    });
+    const outline = page.getByRole("switch", {
+      name: "Show emitter shape outline",
+      exact: true,
+    });
+    await expect(avatar).toBeChecked();
+    await expect(outline).toBeChecked();
+    await avatar.uncheck();
+    await expect(avatar).not.toBeChecked();
+    await expect(outline).toBeChecked();
+    await outline.uncheck();
+    await expect(outline).not.toBeChecked();
+    await expect(avatar).not.toBeChecked();
+    await avatar.check();
+    await expect(avatar).toBeChecked();
+    await expect(outline).not.toBeChecked();
+    await outline.check();
+    await expect(outline).toBeChecked();
+    // The Particle timeline ends naturally while controls are exercised.
+    await page
+      .getByRole("button", { name: "Restart effect preview", exact: true })
+      .click();
+    await expect
+      .poll(
+        async () => (await readPlaybackObservation(surface)).target.status,
+        { timeout: 30_000 },
+      )
+      .toBe("playing");
+    await animamaEvidence.attachJson(
+      "particle-retained-preview-controls",
+      await readPlaybackObservation(surface),
+    );
+  } finally {
+    try {
+      await guard.assertNoMutations(animamaEvidence);
+      await creatorContent.assertLocalCatalogUnchanged(
+        catalogBefore,
+        animamaEvidence,
+        "particle-retained-preview-controls",
       );
     } finally {
       await guard.dispose();
@@ -397,6 +465,17 @@ test("accountless scene creator fills the viewport without moving the avatar can
   const guard = new ReadOnlyJourneyGuard(page);
   try {
     const { surface } = await openCreatorStage({ creator: "Scene VFX", page });
+    await expect(
+      page.getByRole("switch", { name: "Show placement guides", exact: true }),
+    ).toHaveCount(0);
+    for (const name of ["Preview model", "Preview view"]) {
+      await expect(
+        page.getByRole("combobox", { name, exact: true }),
+      ).toBeVisible();
+    }
+    await expect(
+      page.getByTitle("Restart preview", { exact: true }),
+    ).toBeEnabled();
     const canvas = surface.locator("canvas");
     await expect(canvas).toHaveCount(1);
     const originalCanvas = await canvas.boundingBox();
@@ -414,7 +493,7 @@ test("accountless scene creator fills the viewport without moving the avatar can
     document.document.durationMs = 60000;
     document.document.background.solid.color = "#e5f5fa";
     await input.fill(JSON.stringify(document));
-    page.once("dialog", (confirmation) => confirmation.accept());
+    page.on("dialog", (confirmation) => confirmation.accept());
     await dialog
       .getByRole("button", { name: "Import document", exact: true })
       .click();
@@ -448,6 +527,63 @@ test("accountless scene creator fills the viewport without moving the avatar can
       playingCanvas: await canvas.boundingBox(),
       observation: await readPlaybackObservation(surface),
     });
+    await page
+      .locator('input[type="file"][accept*="image/svg+xml"]')
+      .setInputFiles({
+        name: "static-guide-check.svg",
+        mimeType: "image/svg+xml",
+        buffer: Buffer.from(
+          '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20" viewBox="0 0 40 20"><rect width="40" height="20" fill="#e65599"/><circle cx="20" cy="10" r="7" fill="#ffffff"/></svg>',
+        ),
+      });
+    const svgCell = page
+      .locator(
+        '[data-scene-vfx-kind="background_layers"] [data-scene-vfx-item-id^="private-"]',
+      )
+      .first();
+    await expect(svgCell).toBeVisible();
+    // Scene images render as CSS backgrounds. Decode that displayed resource
+    // to prove the uploaded SVG is usable, rather than just a listed filename.
+    const svgDimensions = await svgCell.evaluate(async (cell) => {
+      const background = getComputedStyle(cell).backgroundImage;
+      const source = /^url\("?(.*?)"?\)$/.exec(background)?.[1];
+      if (!source)
+        throw new Error("Uploaded SVG has no rendered background image.");
+      const image = new Image();
+      image.src = source;
+      await image.decode();
+      return { width: image.naturalWidth, height: image.naturalHeight };
+    });
+    expect(svgDimensions).toEqual({ width: 40, height: 20 });
+    await expect(
+      page.getByRole("switch", { name: "Show placement guides", exact: true }),
+    ).toHaveCount(0);
+    // Import through the supported editor surface, then exercise the actual
+    // coordinate input and rendered polygons rather than deleted guide boxes.
+    document.document.kind = "focus_lines";
+    document.document.focus.target = {
+      kind: "manual_box",
+      rect: { x: 0.25, y: 0.2, width: 0.3, height: 0.4 },
+    };
+    await page
+      .getByRole("button", { name: "Import", exact: true })
+      .first()
+      .click();
+    await dialog.getByLabel("Creator JSON").fill(JSON.stringify(document));
+    await dialog
+      .getByRole("button", { name: "Import document", exact: true })
+      .click();
+    await expect(dialog).toBeHidden();
+    const polygon = page
+      .locator('[data-scene-vfx-kind="focus_lines"] polygon')
+      .first();
+    await expect(polygon).toBeVisible();
+    const originalPoints = await polygon.getAttribute("points");
+    await page.getByRole("spinbutton", { name: "X", exact: true }).fill("0.5");
+    await expect(polygon).not.toHaveAttribute("points", originalPoints!);
+    await expect(
+      page.getByRole("switch", { name: "Show placement guides", exact: true }),
+    ).toHaveCount(0);
     await guard.assertNoMutations(animamaEvidence);
     await creatorContent.assertLocalCatalogUnchanged(
       catalogBefore,

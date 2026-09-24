@@ -27,7 +27,12 @@ export type CreatorCanvasSelect = {
   disabled?: boolean;
 };
 
-/** Shared Model/View/Guides/Restart chrome with one bounded domain slot. */
+/** Value and callback are either both present or both omitted. */
+type CreatorGuidesControl =
+  | { guides: boolean; onGuidesChange: (checked: boolean) => void }
+  | { guides?: never; onGuidesChange?: never };
+
+/** Shared Model/View/Restart chrome with optional Guides and one domain slot. */
 export function CreatorCanvasControls({
   model,
   view,
@@ -43,16 +48,14 @@ export function CreatorCanvasControls({
 }: {
   model?: CreatorCanvasSelect;
   view?: CreatorCanvasSelect;
-  guides: boolean;
   guidesLabel?: string;
   guidesAriaLabel?: string;
   guidesDisabled?: boolean;
-  onGuidesChange: (checked: boolean) => void;
   domainControl?: ReactNode;
   restartDisabled?: boolean;
   onRestart?: () => void;
   className?: string;
-}) {
+} & CreatorGuidesControl) {
   return (
     <div
       className={cn(
@@ -63,17 +66,19 @@ export function CreatorCanvasControls({
       {model ? <CreatorCanvasSelectControl control={model} /> : null}
       {model && view ? <span className="bg-border h-5 w-px shrink-0" /> : null}
       {view ? <CreatorCanvasSelectControl control={view} /> : null}
-      <label className="flex shrink-0 items-center gap-2 text-xs">
-        <Switch
-          checked={guides}
-          disabled={guidesDisabled}
-          onCheckedChange={onGuidesChange}
-          aria-label={guidesAriaLabel}
-        />
-        <span className="text-muted-foreground shrink-0 text-xs">
-          {guidesLabel}
-        </span>
-      </label>
+      {guides !== undefined ? (
+        <label className="flex shrink-0 items-center gap-2 text-xs">
+          <Switch
+            checked={guides}
+            disabled={guidesDisabled}
+            onCheckedChange={onGuidesChange}
+            aria-label={guidesAriaLabel}
+          />
+          <span className="text-muted-foreground shrink-0 text-xs">
+            {guidesLabel}
+          </span>
+        </label>
+      ) : null}
       {domainControl}
       {onRestart ? (
         <Button

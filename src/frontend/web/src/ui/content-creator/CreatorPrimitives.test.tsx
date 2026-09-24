@@ -3,6 +3,7 @@ import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import {
+  CreatorCanvasControls,
   CreatorFloatingPanel,
   CreatorField,
   CreatorNumberField,
@@ -13,6 +14,41 @@ import {
 } from ".";
 
 describe("creator editor primitives", () => {
+  it("omits the optional Guides control while preserving Restart", () => {
+    const html = renderToString(
+      <CreatorCanvasControls onRestart={() => undefined} />,
+    );
+    expect(html).not.toContain('role="switch"');
+    expect(html).not.toContain("Guides");
+    expect(html).toContain('aria-label="Restart preview"');
+  });
+
+  it("renders an unchecked Guides control when provided", () => {
+    const html = renderToString(
+      <CreatorCanvasControls guides={false} onGuidesChange={() => undefined} />,
+    );
+    expect(html).toContain('role="switch"');
+    expect(html).toContain('aria-checked="false"');
+    expect(html).toContain('aria-label="Show placement guides"');
+    expect(html).toContain("Guides");
+  });
+
+  it("preserves Particle's custom Avatar visibility control", () => {
+    const html = renderToString(
+      <CreatorCanvasControls
+        guides
+        guidesLabel="Avatar"
+        guidesAriaLabel="Show Avatar"
+        onGuidesChange={() => undefined}
+        domainControl={<span>Outline</span>}
+      />,
+    );
+    expect(html).toContain('aria-checked="true"');
+    expect(html).toContain('aria-label="Show Avatar"');
+    expect(html).toContain("Outline");
+    expect(html).not.toContain("Guides");
+  });
+
   it.each([
     [124.99999999999999, 0, "125"],
     [124.000000001, 0, "124"],
