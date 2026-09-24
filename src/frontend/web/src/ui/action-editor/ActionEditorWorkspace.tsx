@@ -574,7 +574,7 @@ function ActionEditorWorkspaceContent() {
                         className={cn(
                           "min-h-0 overflow-y-auto rounded-xl",
                           expressionsExpanded
-                            ? "shrink-0 basis-[35%]"
+                            ? "max-h-[35%] shrink-0"
                             : "flex-1",
                         )}
                       >
