@@ -32,10 +32,8 @@ export type ChatSessionEffects = {
   markNonTtsResponseStarted: (runId: string) => void;
   requestNonTtsResponseCompletion: (runId: string) => void;
   markAvatarSpeechEnded: (runId: string) => void;
-  completeAvatarTurn: (runId?: string | null) => void;
   finishAvatarRun: (runId?: string | null) => void;
   abortAvatarRun: (runId?: string | null) => void;
-  clearAvatarRuntimeVfx: () => void;
   applyAvatarEmotionUpdate: (update: {
     eventId?: string | null;
     runId?: string | null;
@@ -109,10 +107,8 @@ export const textOnlyChatEffects: ChatSessionEffects = {
   markNonTtsResponseStarted: ignore,
   requestNonTtsResponseCompletion: ignore,
   markAvatarSpeechEnded: ignore,
-  completeAvatarTurn: ignore,
   finishAvatarRun: ignore,
   abortAvatarRun: ignore,
-  clearAvatarRuntimeVfx: ignore,
   applyAvatarEmotionUpdate: ignore,
   requestAvatarGesture: ignore,
   queueAvatarVisemeInputsForRun: ignore,

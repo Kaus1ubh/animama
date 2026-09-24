@@ -74,9 +74,13 @@ direct Save succeeds.
 The live preview calls the production `AvatarVFXController` against the
 selected Anima's exact Avatar model. Diagnostics distinguish a malformed
 definition (blocks Save) from a model-specific missing binding or landmark
-(warning only). Play, stop, restart, duration, camera framing, placement guides,
-keyboard shortcuts, and reduced-motion behavior are preview-only and never
-change the portable document unless their corresponding authoring field changes.
+(warning only). Play, stop, restart, camera framing, and placement guides are
+preview controls. Transform and animation settings define the reusable effect;
+its Gesture or Reaction event owns Start and End (with the Action, or after a
+specified duration). Selecting an event exposes these settings in the Action
+inspector; Reactions place that inspector above Expressions. Legacy avatar
+lifetime metadata is accepted when reading content but is not authored or used
+for conversation-turn/run-end expiry.
 
 The common Library previews Local and Included Avatar Effects through the typed
 preview route and links owned rows back to the stable edit route. After a ready

@@ -302,14 +302,50 @@ function EventInspector({
     <WorkspaceCard embedded={embedded}>
       <InspectorHeading title="Event" subtitle={label} onClose={onClose} />
       <div className="mt-4 space-y-3">
-        <InspectorRow label="Time">
+        <InspectorRow label="Start">
           <DurationInput
             value={event.time}
-            label="Selected event time"
+            label="Selected event start"
             disabled={disabled}
             onChange={(time) => onUpdate({ time })}
           />
         </InspectorRow>
+
+        {isAnimaPoseClipVFXEvent(event) ? (
+          <>
+            <InspectorRow label="End">
+              <Select
+                value={event.duration === undefined ? "action" : "duration"}
+                disabled={disabled}
+                onValueChange={(value) =>
+                  onUpdate({ duration: value === "action" ? null : 1 })
+                }
+              >
+                <SelectTrigger
+                  className="h-9 w-[176px]"
+                  aria-label="Selected event end"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="action">With Action</SelectItem>
+                  <SelectItem value="duration">After duration</SelectItem>
+                </SelectContent>
+              </Select>
+            </InspectorRow>
+            {event.duration !== undefined ? (
+              <InspectorRow label="Duration">
+                <DurationInput
+                  value={event.duration}
+                  label="Selected event duration"
+                  disabled={disabled}
+                  min={0.001}
+                  onChange={(duration) => onUpdate({ duration })}
+                />
+              </InspectorRow>
+            ) : null}
+          </>
+        ) : null}
 
         {accompanyingSound &&
         (event.kind === "avatar_vfx" || event.kind === "scene_vfx") ? (
@@ -478,18 +514,6 @@ function EventInspector({
               />
             </InspectorRow>
           </>
-        ) : null}
-
-        {isAnimaPoseClipVFXEvent(event) ? (
-          <InspectorRow label="Duration">
-            <DurationInput
-              value={event.duration ?? 0}
-              label="Selected event duration"
-              disabled={disabled}
-              min={0.001}
-              onChange={(duration) => onUpdate({ duration })}
-            />
-          </InspectorRow>
         ) : null}
       </div>
 

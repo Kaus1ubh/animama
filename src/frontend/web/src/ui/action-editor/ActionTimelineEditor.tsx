@@ -266,6 +266,7 @@ export function ActionTimelineEditor({
   isBusy,
   playbackPending = false,
   settingsContent,
+  transportActions,
   expanded = true,
   onExpandedChange,
   variant = "workspace",
@@ -275,6 +276,7 @@ export function ActionTimelineEditor({
   isBusy: boolean;
   playbackPending?: boolean;
   settingsContent?: React.ReactNode;
+  transportActions?: React.ReactNode;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
   variant?: "workspace" | "mobile";
@@ -296,6 +298,7 @@ export function ActionTimelineEditor({
         allowHumanoid={!reaction}
         playbackPending={playbackPending}
         settingsContent={settingsContent}
+        transportActions={transportActions}
         expanded={expanded}
         onExpandedChange={onExpandedChange}
       />

@@ -259,10 +259,15 @@ function ActionEditorWorkspaceContent() {
     () => setClipExpressionsAtPlayhead({}),
     [setClipExpressionsAtPlayhead],
   );
-  const ensureExpressionKeyframeAtPlayhead = useCallback(
-    () => setClipExpressionsAtPlayhead(sampledExpressionValues),
-    [sampledExpressionValues, setClipExpressionsAtPlayhead],
-  );
+  const ensureExpressionKeyframeAtPlayhead = useCallback(() => {
+    setClipExpressionsAtPlayhead(sampledExpressionValues);
+    const state = usePoseCreatorStore.getState();
+    const keyframe = findPoseCreatorClipKeyframeAtTime(
+      state.clipDraft.keyframes,
+      state.clipDraft.currentTimeSec,
+    );
+    if (keyframe) state.selectClipKeyframe(keyframe.id);
+  }, [sampledExpressionValues, setClipExpressionsAtPlayhead]);
 
   const beginInlineKeyframeEdit = useCallback(() => {
     const state = usePoseCreatorStore.getState();
@@ -353,9 +358,22 @@ function ActionEditorWorkspaceContent() {
       }),
     );
   };
+  const expressionTimelineAction =
+    workspace.document.intent === "reaction" ? (
+      <Button
+        size="sm"
+        className="h-8 shrink-0"
+        disabled={workspace.busy || Boolean(expressionKeyframeAtPlayhead)}
+        title="Add an expression keyframe at the playhead"
+        onClick={ensureExpressionKeyframeAtPlayhead}
+      >
+        + Expression
+      </Button>
+    ) : null;
   const desktopTimeline = (
     <ActionTimelineEditor
       reaction={workspace.document.intent === "reaction"}
+      transportActions={expressionTimelineAction}
       settingsContent={
         workspace.document.intent === "reaction" ? (
           <ReactionTimelineSettings />
@@ -371,6 +389,7 @@ function ActionEditorWorkspaceContent() {
     <ActionTimelineEditor
       variant="mobile"
       reaction={workspace.document.intent === "reaction"}
+      transportActions={expressionTimelineAction}
       settingsContent={
         workspace.document.intent === "reaction" ? (
           <ReactionTimelineSettings />
@@ -531,27 +550,39 @@ function ActionEditorWorkspaceContent() {
                 (clipDraft.selectedKeyframeId || clipDraft.selectedEventId) ? (
                   <div
                     className={cn(
-                      "pointer-events-auto absolute top-4 right-4 z-20 w-[248px] overflow-y-auto xl:right-8 xl:w-[296px] 2xl:w-[308px]",
+                      "pointer-events-auto absolute top-4 z-20 w-[248px] overflow-y-auto xl:w-[296px] 2xl:w-[308px]",
+                      "right-4 xl:right-8",
                       timelineExpanded ? "bottom-[264px]" : "bottom-[80px]",
                     )}
                   >
-                    <ActionEditorClipInspector section="inspector" />
+                    <ActionEditorClipInspector
+                      section="inspector"
+                      allowHumanoid={capabilities.allowsHumanoid}
+                    />
                   </div>
                 ) : null}
                 {workspace.document.intent === "reaction" ? (
                   <div
                     className={cn(
-                      "pointer-events-auto absolute top-4 right-4 z-20 flex w-[min(320px,24vw)] flex-col transition-[bottom] duration-200 motion-reduce:transition-none xl:right-8 2xl:w-[360px]",
+                      "pointer-events-auto absolute top-4 right-4 z-20 flex w-[min(320px,24vw)] flex-col gap-3 transition-[bottom] duration-200 motion-reduce:transition-none xl:right-8 2xl:w-[360px]",
                       timelineExpanded ? "bottom-[264px]" : "bottom-[80px]",
                     )}
                   >
+                    {clipDraft.selectedEventId ||
+                    clipDraft.selectedKeyframeId ? (
+                      <div className="max-h-[50%] min-h-0 shrink-0 overflow-y-auto rounded-xl">
+                        <ActionEditorClipInspector
+                          section="inspector"
+                          allowHumanoid={false}
+                        />
+                      </div>
+                    ) : null}
                     <ReactionExpressionPanel
                       expanded={expressionsExpanded}
                       onExpandedChange={setExpressionsExpanded}
                       currentTimeSec={clipDraft.currentTimeSec}
                       hasKeyframe={Boolean(expressionKeyframeAtPlayhead)}
                       values={sampledExpressionValues}
-                      onEnsureKeyframe={ensureExpressionKeyframeAtPlayhead}
                       onExpressionChange={updateExpressionAtPlayhead}
                       onClear={clearExpressionsAtPlayhead}
                     />
@@ -600,7 +631,6 @@ function ReactionExpressionPanel({
   currentTimeSec,
   hasKeyframe,
   values,
-  onEnsureKeyframe,
   onExpressionChange,
   onClear,
 }: {
@@ -609,7 +639,6 @@ function ReactionExpressionPanel({
   currentTimeSec: number;
   hasKeyframe: boolean;
   values: Record<string, number>;
-  onEnsureKeyframe: () => void;
   onExpressionChange: (expressionName: string, value: number) => void;
   onClear: () => void;
 }) {
@@ -617,7 +646,7 @@ function ReactionExpressionPanel({
     <section
       className={cn(
         "bg-background flex min-h-14 flex-col overflow-hidden rounded-2xl border shadow-xl backdrop-blur-xl",
-        expanded ? "min-h-[220px] flex-1" : "h-auto shrink-0",
+        expanded ? "min-h-0 flex-1" : "h-auto shrink-0",
       )}
     >
       <div
@@ -634,15 +663,6 @@ function ReactionExpressionPanel({
               : `Interpolated at ${currentTimeSec.toFixed(2)}s`}
           </p>
         </div>
-        {!expanded && !hasKeyframe ? (
-          <Button
-            size="sm"
-            className="h-7 px-2 text-[11px]"
-            onClick={onEnsureKeyframe}
-          >
-            + Keyframe
-          </Button>
-        ) : null}
         <CreatorPanelCollapseButton
           label="expressions"
           expanded={expanded}
@@ -652,13 +672,6 @@ function ReactionExpressionPanel({
       </div>
       {expanded ? (
         <div className="flex min-h-0 flex-1 flex-col p-3">
-          {!hasKeyframe ? (
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <Button size="sm" onClick={onEnsureKeyframe}>
-                + Keyframe at playhead
-              </Button>
-            </div>
-          ) : null}
           <div className="min-h-0 flex-1">
             <ActionEditorExpressionSection
               variant="mobile"

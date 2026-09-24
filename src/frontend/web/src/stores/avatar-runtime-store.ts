@@ -2,12 +2,7 @@
 
 import { create } from "zustand";
 
-import type {
-  AvatarPlannerEvent,
-  AvatarVFXLifetime,
-  AvatarVFXRegion,
-  EmotionalState,
-} from "@/lib/avatar";
+import type { AvatarPlannerEvent, EmotionalState } from "@/lib/avatar";
 import {
   buildEmotionRuntimeState,
   createEmptyEmotionStateMap,
@@ -45,19 +40,6 @@ type StartAvatarRunOptions = {
   thinkingPoseDwellMs?: number | null;
 };
 
-export type RuntimeAvatarVFXEntry = {
-  effectId: string;
-  region: AvatarVFXRegion;
-  lifetime: AvatarVFXLifetime;
-  sourceRunId: string | null;
-  sourceEventId: string | null;
-  waitingForRunEnd: boolean;
-  expiresAtMs: number | null;
-  turnsRemaining: number | null;
-  order: number;
-  revision: number;
-};
-
 type AvatarRuntimeStoreState = {
   animaId: string | null;
   activeRunId: string | null;
@@ -67,10 +49,7 @@ type AvatarRuntimeStoreState = {
   pendingNonTtsResponseCompletionRunId: string | null;
   plannerEvents: AvatarPlannerEvent[];
   emotionalState: EmotionalState;
-  runtimeVfx: RuntimeAvatarVFXEntry[];
   lastEmotionEventId: string | null;
-  lastCompletedTurnRunId: string | null;
-  nextRuntimeVfxOrder: number;
   resetForAnima: (animaId: string | null) => void;
   setAnimaEmotionSnapshot: (snapshot: unknown) => void;
   setInteractionPhase: (phase: AvatarInteractionPhase) => void;
@@ -86,11 +65,8 @@ type AvatarRuntimeStoreState = {
   ) => void;
   markSpeechStarted: (runId: string) => void;
   markSpeechEnded: (runId: string) => void;
-  completeTurn: (runId?: string | null) => void;
   finishRun: (runId?: string | null) => void;
   abortRun: (runId?: string | null) => void;
-  clearRuntimeVfx: () => void;
-  pruneExpiredRuntimeVfx: (nowMs?: number) => void;
   applyEmotionUpdate: (update: AvatarEmotionUpdate) => void;
   requestGesture: (request: AvatarGestureRequest) => void;
   consumePlannerEvents: (eventIds: readonly string[]) => void;
@@ -217,92 +193,6 @@ function isListeningPhase(phase: AvatarInteractionPhase): boolean {
   );
 }
 
-function beginDurationExpiryForRun(args: {
-  runtimeVfx: RuntimeAvatarVFXEntry[];
-  runId: string | null;
-  nowMs: number;
-}): RuntimeAvatarVFXEntry[] {
-  if (!args.runId) {
-    return args.runtimeVfx;
-  }
-
-  let didChange = false;
-  const nextRuntimeVfx: RuntimeAvatarVFXEntry[] = [];
-
-  for (const entry of args.runtimeVfx) {
-    if (
-      entry.lifetime.kind !== "duration" ||
-      entry.sourceRunId !== args.runId ||
-      !entry.waitingForRunEnd
-    ) {
-      nextRuntimeVfx.push(entry);
-      continue;
-    }
-
-    didChange = true;
-    if (entry.lifetime.runEndBufferSec <= 0) {
-      continue;
-    }
-
-    nextRuntimeVfx.push({
-      ...entry,
-      waitingForRunEnd: false,
-      expiresAtMs: args.nowMs + entry.lifetime.runEndBufferSec * 1000,
-    });
-  }
-
-  return didChange ? nextRuntimeVfx : args.runtimeVfx;
-}
-
-function decrementTurnBasedRuntimeVfx(
-  runtimeVfx: RuntimeAvatarVFXEntry[],
-): RuntimeAvatarVFXEntry[] {
-  let didChange = false;
-  const nextRuntimeVfx: RuntimeAvatarVFXEntry[] = [];
-
-  for (const entry of runtimeVfx) {
-    if (entry.lifetime.kind !== "turns") {
-      nextRuntimeVfx.push(entry);
-      continue;
-    }
-
-    didChange = true;
-    const turnsRemaining = (entry.turnsRemaining ?? entry.lifetime.turns) - 1;
-    if (turnsRemaining <= 0) {
-      continue;
-    }
-
-    nextRuntimeVfx.push({
-      ...entry,
-      turnsRemaining,
-    });
-  }
-
-  return didChange ? nextRuntimeVfx : runtimeVfx;
-}
-
-function pruneExpiredRuntimeVfxEntries(
-  runtimeVfx: RuntimeAvatarVFXEntry[],
-  nowMs: number,
-): RuntimeAvatarVFXEntry[] {
-  let didChange = false;
-  const nextRuntimeVfx = runtimeVfx.filter((entry) => {
-    if (entry.lifetime.kind !== "duration") {
-      return true;
-    }
-    if (entry.waitingForRunEnd || entry.expiresAtMs === null) {
-      return true;
-    }
-    if (entry.expiresAtMs > nowMs) {
-      return true;
-    }
-    didChange = true;
-    return false;
-  });
-
-  return didChange ? nextRuntimeVfx : runtimeVfx;
-}
-
 const logger = createLogger("AvatarRuntimeStore");
 
 export const useAvatarRuntimeStore = create<AvatarRuntimeStoreState>((set) => ({
@@ -314,10 +204,7 @@ export const useAvatarRuntimeStore = create<AvatarRuntimeStoreState>((set) => ({
   pendingNonTtsResponseCompletionRunId: null,
   plannerEvents: [],
   emotionalState: createDefaultEmotionalState(),
-  runtimeVfx: [],
   lastEmotionEventId: null,
-  lastCompletedTurnRunId: null,
-  nextRuntimeVfxOrder: 0,
 
   resetForAnima: (animaId) => {
     logger.info("Anima", "Reset runtime store for anima", { animaId });
@@ -330,10 +217,7 @@ export const useAvatarRuntimeStore = create<AvatarRuntimeStoreState>((set) => ({
       pendingNonTtsResponseCompletionRunId: null,
       plannerEvents: [],
       emotionalState: createDefaultEmotionalState(),
-      runtimeVfx: [],
       lastEmotionEventId: null,
-      lastCompletedTurnRunId: null,
-      nextRuntimeVfxOrder: 0,
     });
   },
 
@@ -591,12 +475,6 @@ export const useAvatarRuntimeStore = create<AvatarRuntimeStoreState>((set) => ({
         return state;
       }
 
-      const nextRuntimeVfx = beginDurationExpiryForRun({
-        runtimeVfx: state.runtimeVfx,
-        runId,
-        nowMs: Date.now(),
-      });
-
       logger.info(
         "NonTtsResponse",
         "Finished non-TTS response after planner drained",
@@ -611,7 +489,6 @@ export const useAvatarRuntimeStore = create<AvatarRuntimeStoreState>((set) => ({
         activeVoiceTurn: null,
         pendingNonTtsResponseCompletionRunId: null,
         plannerEvents: [],
-        runtimeVfx: nextRuntimeVfx,
       };
     }),
 
@@ -674,41 +551,10 @@ export const useAvatarRuntimeStore = create<AvatarRuntimeStoreState>((set) => ({
       };
     }),
 
-  completeTurn: (runId) =>
-    set((state) => {
-      if (!runId) {
-        logger.warn("Run", "Ignored completeTurn with empty run id");
-        return state;
-      }
-      if (state.lastCompletedTurnRunId === runId) {
-        logger.info("Run", "Ignored duplicate completed turn", {
-          runId,
-        });
-        return state;
-      }
-
-      const nextRuntimeVfx = decrementTurnBasedRuntimeVfx(state.runtimeVfx);
-      logger.info("VFX", "Completed assistant turn", {
-        runId,
-        previousRuntimeVfxCount: state.runtimeVfx.length,
-        nextRuntimeVfxCount: nextRuntimeVfx.length,
-      });
-
-      return {
-        runtimeVfx: nextRuntimeVfx,
-        lastCompletedTurnRunId: runId,
-      };
-    }),
-
   finishRun: (runId) =>
     set((state) => {
       const targetRunId =
         runId ?? state.activeRunId ?? state.activeSpeechRunId ?? null;
-      const nextRuntimeVfx = beginDurationExpiryForRun({
-        runtimeVfx: state.runtimeVfx,
-        runId: targetRunId,
-        nowMs: Date.now(),
-      });
 
       if (!state.activeRunId) {
         logger.info(
@@ -724,7 +570,6 @@ export const useAvatarRuntimeStore = create<AvatarRuntimeStoreState>((set) => ({
           activeVoiceTurn: null,
           pendingNonTtsResponseCompletionRunId: null,
           plannerEvents: [],
-          runtimeVfx: nextRuntimeVfx,
         };
       }
       if (runId && runId !== state.activeRunId) {
@@ -744,7 +589,6 @@ export const useAvatarRuntimeStore = create<AvatarRuntimeStoreState>((set) => ({
         activeVoiceTurn: null,
         pendingNonTtsResponseCompletionRunId: null,
         plannerEvents: [],
-        runtimeVfx: nextRuntimeVfx,
       };
     }),
 
@@ -767,42 +611,6 @@ export const useAvatarRuntimeStore = create<AvatarRuntimeStoreState>((set) => ({
         activeVoiceTurn: null,
         pendingNonTtsResponseCompletionRunId: null,
         plannerEvents: [],
-        runtimeVfx: [],
-        lastCompletedTurnRunId: null,
-        nextRuntimeVfxOrder: 0,
-      };
-    }),
-
-  clearRuntimeVfx: () =>
-    set((state) => {
-      if (state.runtimeVfx.length === 0) {
-        return state;
-      }
-      logger.info("VFX", "Cleared runtime VFX", {
-        previousRuntimeVfxCount: state.runtimeVfx.length,
-      });
-      return {
-        runtimeVfx: [],
-        nextRuntimeVfxOrder: 0,
-      };
-    }),
-
-  pruneExpiredRuntimeVfx: (nowMs = Date.now()) =>
-    set((state) => {
-      const nextRuntimeVfx = pruneExpiredRuntimeVfxEntries(
-        state.runtimeVfx,
-        nowMs,
-      );
-      if (nextRuntimeVfx === state.runtimeVfx) {
-        return state;
-      }
-      logger.info("VFX", "Pruned expired runtime VFX", {
-        nowMs,
-        previousRuntimeVfxCount: state.runtimeVfx.length,
-        nextRuntimeVfxCount: nextRuntimeVfx.length,
-      });
-      return {
-        runtimeVfx: nextRuntimeVfx,
       };
     }),
 

@@ -191,3 +191,24 @@ describe("event-only authoring", () => {
     ).toBeNull();
   });
 });
+
+describe("VFX event end ownership", () => {
+  it("preserves Start while switching between a duration and Action-owned end", () => {
+    const timed = patchPoseCreatorClipEventDraft(
+      {
+        id: "effect",
+        time: 0.5,
+        kind: "avatar_vfx",
+        effectId: "eyes",
+        duration: 1,
+      },
+      { duration: null },
+      3,
+    );
+    expect(timed).toMatchObject({ time: 0.5 });
+    expect(timed).not.toHaveProperty("duration");
+    expect(
+      patchPoseCreatorClipEventDraft(timed, { duration: 0.75 }, 3),
+    ).toMatchObject({ time: 0.5, duration: 0.75 });
+  });
+});

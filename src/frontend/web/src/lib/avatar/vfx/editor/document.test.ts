@@ -23,6 +23,16 @@ const image = {
 };
 
 describe("Avatar Effect editor document", () => {
+  it("authors effects without conversation lifetime while accepting legacy metadata", () => {
+    const document = { ...createDefaultAvatarEffectDocument(), image };
+    expect(document.lifetime).toBeNull();
+    document.lifetime = { kind: "duration", runEndBufferSec: 5 };
+    expect(avatarEffectDefinition(document)).not.toHaveProperty("lifetime");
+    expect(
+      validateAvatarEffectDocument(document, { imageBytesAvailable: true }),
+    ).toEqual([]);
+  });
+
   it.each([
     ["hover", "hoverKind", "eye_hover"],
     ["face_anchored", "anchor", "undereye"],

@@ -112,6 +112,7 @@ export function PoseCreatorClipTimeline({
   allowHumanoid = true,
   playbackPending = false,
   settingsContent,
+  transportActions,
   expanded = true,
   onExpandedChange,
 }: {
@@ -120,6 +121,7 @@ export function PoseCreatorClipTimeline({
   allowHumanoid?: boolean;
   playbackPending?: boolean;
   settingsContent?: React.ReactNode;
+  transportActions?: React.ReactNode;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
 }) {
@@ -478,6 +480,7 @@ export function PoseCreatorClipTimeline({
                     <SkipForwardIcon className="size-4" />
                   </Button>
                 </div>
+                {transportActions}
               </>
             }
             trailing={

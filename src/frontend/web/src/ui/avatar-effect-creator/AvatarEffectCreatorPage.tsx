@@ -1,5 +1,7 @@
 "use client";
 
+import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
+
 import { AvatarEffectAnimationControls } from "./AvatarEffectAnimationControls";
 
 import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
@@ -94,7 +96,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Textarea } from "@/ui/components/textarea";
 import { cn } from "@/lib/utils";
 import {
-  AVATAR_EFFECT_PREVIEW_MOTION_CLASS,
   avatarEffectCreatorKeyboardAction,
   avatarEffectPreviewCompatibility,
   createAvatarEffectObjectUrlLease,
@@ -534,14 +535,9 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     );
   }
 
-  const duration =
-    document.lifetime?.kind === "duration"
-      ? document.lifetime.runEndBufferSec
-      : null;
-
   return (
     <CreatorWorkspaceShell
-      bottomChromeHeight={144}
+      bottomChromeHeight={72}
       canvas={
         <div
           className="relative size-full"
@@ -751,37 +747,20 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
         />
       }
       previewBar={
-        <CreatorPreviewBar
-          title="Avatar FX"
-          subtitle={document.name || "New Avatar FX"}
-          playing={playing}
-          onPlayingChange={setPreviewPlaying}
-          onRestart={restartPreviewWithSound}
-          progressClassName={AVATAR_EFFECT_PREVIEW_MOTION_CLASS}
-          duration={{
-            value: duration === null ? null : Number(duration.toFixed(2)),
-            label: "Run-end buffer",
-            indefiniteLabel:
-              document.lifetime?.kind === "turns"
-                ? `${document.lifetime.turns} conversation turn${document.lifetime.turns === 1 ? "" : "s"}`
-                : "Until stopped",
-            min: 0.05,
-            max: 30,
-            step: 0.05,
-            onValueChange: (seconds) => {
-              if (!Number.isFinite(seconds)) return;
-              dispatch({
-                type: "patch",
-                patch: {
-                  lifetime: {
-                    kind: "duration",
-                    runEndBufferSec: Number(seconds.toFixed(2)),
-                  },
-                },
-              });
-            },
-          }}
-        />
+        <CreatorPreviewBar>
+          <div className="flex h-full items-center justify-between gap-3">
+            <span className="truncate text-sm">
+              {document.name || "Avatar FX preview"}
+            </span>
+            <CreatorTimelineTransport
+              label="preview"
+              playing={playing}
+              onTogglePlayback={() => setPreviewPlaying(!playing)}
+              onStop={() => setPreviewPlaying(false)}
+              onRestart={restartPreviewWithSound}
+            />
+          </div>
+        </CreatorPreviewBar>
       }
       overlays={
         <>
@@ -1439,45 +1418,6 @@ function InspectorPanel({
               onDispatch({ type: "patch", patch: { animationConfig } })
             }
           />
-          <Field label="Lifetime mode">
-            <Select
-              value={document.lifetime?.kind ?? "duration"}
-              onValueChange={(kind) =>
-                onDispatch({
-                  type: "patch",
-                  patch: {
-                    lifetime:
-                      kind === "turns"
-                        ? { kind: "turns", turns: 1 }
-                        : { kind: "duration", runEndBufferSec: 2 },
-                  },
-                })
-              }
-            >
-              <SelectTrigger size="sm" className="w-full text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="duration">Seconds</SelectItem>
-                <SelectItem value="turns">Conversation turns</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
-          {document.lifetime?.kind === "turns" ? (
-            <NumberField
-              label="Turns"
-              value={document.lifetime.turns}
-              min={1}
-              step={1}
-              decimalPlaces={0}
-              onChange={(turns) =>
-                onDispatch({
-                  type: "patch",
-                  patch: { lifetime: { kind: "turns", turns } },
-                })
-              }
-            />
-          ) : null}
         </TabsContent>
       </Tabs>
     </FloatingPanel>
