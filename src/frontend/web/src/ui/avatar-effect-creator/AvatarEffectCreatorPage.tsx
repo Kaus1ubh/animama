@@ -1,5 +1,7 @@
 "use client";
 
+import { AvatarEffectAnimationControls } from "./AvatarEffectAnimationControls";
+
 import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
 
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
@@ -25,7 +27,6 @@ import type {
 } from "@/lib/content/catalogTypes";
 import { Avatar } from "@/lib/avatar";
 import {
-  animationConfigForPreset,
   avatarEffectDocumentFingerprint,
   avatarEffectEditorReducer,
   avatarEffectRuntimeEntry,
@@ -41,7 +42,6 @@ import {
 } from "@/lib/avatar/vfx/editor";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import type {
-  AvatarVFXAnimationPreset,
   AvatarVFXCatalogEntry,
   AvatarVFXSnapshot,
   AvatarVFXTransform,
@@ -1440,32 +1440,12 @@ function InspectorPanel({
           ))}
         </TabsContent>
         <TabsContent value="animation" className="mt-3 space-y-3">
-          <Field label="Animation preset">
-            <Select
-              value={animationPreset(document)}
-              onValueChange={(preset) =>
-                onDispatch({
-                  type: "patch",
-                  patch: {
-                    animationConfig: animationConfigForPreset(
-                      preset as AvatarVFXAnimationPreset,
-                    ),
-                  },
-                })
-              }
-            >
-              <SelectTrigger size="sm" className="w-full text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                <SelectItem value="pulse">Pulse</SelectItem>
-                <SelectItem value="spin">Spin</SelectItem>
-                <SelectItem value="drift">Drift</SelectItem>
-                <SelectItem value="pulse_spin">Pulse + spin</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+          <AvatarEffectAnimationControls
+            config={document.animationConfig}
+            onChange={(animationConfig) =>
+              onDispatch({ type: "patch", patch: { animationConfig } })
+            }
+          />
           <Field label="Lifetime mode">
             <Select
               value={document.lifetime?.kind ?? "duration"}
@@ -1827,20 +1807,6 @@ function soundSourceKey(source: PyExactContentSource | null): string {
   return source.type === "builtin"
     ? `builtin:${source.content_id ?? ""}:${source.version ?? ""}`
     : `catalog:${source.catalog_item_id}`;
-}
-
-function animationPreset(
-  document: AvatarEffectEditorDocument,
-): AvatarVFXAnimationPreset {
-  const config = document.animationConfig;
-  if (!config) return "none";
-  const pulse = typeof config.pulseCyclesPerSecond === "number";
-  const spin = typeof config.rotationRadiansPerSecond === "number";
-  if (pulse && spin) return "pulse_spin";
-  if (pulse) return "pulse";
-  if (spin) return "spin";
-  if (config.driftPerSecond) return "drift";
-  return "none";
 }
 
 function humanize(value: string): string {
