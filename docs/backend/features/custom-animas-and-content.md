@@ -79,13 +79,15 @@ chat profile, and exact typed selections through `AnimaLoadoutService.initialize
 Aggregate, identity, and loadout revisions start at 1. It never commits,
 contacts a provider, writes files, or issues runtime. The configured active
 model row is checked locally; default ElevenLabs voice is `gJx1vCzNCD1EQHT212Ls`.
-Idle starts empty, emotion is neutral, and there is
-no typed Voice binding, archive, chat, greeting, or relationship memory.
-An explicit validated internal voice choice can replace that default.
+Emotion starts neutral, with no typed Voice binding, archive, chat, greeting,
+or relationship memory. Direct creation and starter provisioning leave Idle
+empty; package import retains the reviewed nullable Idle Style selection.
+An explicit validated internal voice choice can replace the default voice.
 
 Direct creation and backend starter provisioning use this materializer through
-the strict creation service below. `/a/animas/new` uses the four-step live
-creator and submits the complete reviewed spec through `POST /v1/animas`.
+the strict creation service below. Whole-Anima package import uses it inside the
+same transaction as its newly copied content. `/a/animas/new` uses the four-step
+live creator and submits the complete reviewed spec through `POST /v1/animas`.
 
 New creation materializes the selected identity into the Anima's own memory
 entry. Missing or blank identity requires explicit repair before chat can invoke
@@ -169,7 +171,7 @@ Existing ready/deleted starter receipts are preserved. Automatic adoption uses
 the historical `avt_chibi_2` identifier only to recognize existing data.
 
 Desktop staging excludes Chibi 2, `AvatarSample_R2`, their derived portraits,
-downloaded voice samples, Tokyo backgrounds/thumbnails, and BGM examples.
+downloaded voice samples, and Tokyo backgrounds/thumbnails.
 Existing Animas bound to excluded content need explicit replacement before
 moving to a bundle without those bytes; staging never rewrites owner data.
 
@@ -207,8 +209,11 @@ creation calls a provider.
 
 ## Local creation boundary
 
-Create Anima creates a live companion with editable dependencies. Live Animas
-cannot be packaged; typed `.animama` import/export handles catalog content only.
+Create Anima creates a private live companion with editable dependencies.
+Separately, [Library sharing](typed-content-and-marketplace.md#local-package-boundary)
+can export its saved definition and content as a reviewed `.animama` package.
+Import creates a new companion without copying conversations, other memories,
+provider settings or a synchronization relationship to the source Anima.
 
 The Library Avatar catalog omits retired shipped model defaults, including rows
 retained for historical Anima references. Repeatable database seeding includes

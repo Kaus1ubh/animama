@@ -25,7 +25,9 @@ Tests use explicit fixture bootstrap and dependency overrides.
 - `server/routers/settings.py`: user settings and per-anima settings.
 - `server/routers/user_profiles.py`: private local display-name reads and edits.
 - `server/routers/content.py`: neutral Included/Local catalog health, Rescan,
-  delete, package import/export, and registered-byte delivery.
+  delete and registered-byte delivery.
+- `server/routers/content_packages.py`: reviewed package import/export,
+  bounded transfer and durable operation status.
 - `server/routers/typed_content.py`: typed product List/Get/Save/Preview routes
   over the shared catalog.
 - `server/routers/anima_loadouts.py`: typed Anima loadout read plus optimistic,
@@ -133,6 +135,8 @@ Changed registered bytes return `409 content_file_changed_rescan_required`.
 Unknown, unavailable, guessed, or cross-owner references all return `404
 content_file_not_found`.
 
+### Package sharing
+
 Package sharing uses local `.animama` files with the strict
 `animama-content-package/3` manifest. All routes below are under `/v1/content`:
 
@@ -154,15 +158,29 @@ Selection accepts `item_ids` or one `anima_id`. Export preparation adds
 `expected_digest`; import allocation accepts `expected_size_bytes` and
 `operation_id`. Import dependencies become independent editable Local copies.
 Sharing an Anima creates a fresh companion with its reviewed identity and
-configuration, without private conversations, memories or provider credentials.
+configuration, without conversations, other memories or provider credentials.
+The [portable definition](../features/typed-content-and-marketplace.md#local-package-boundary)
+allowlists saved selections and supported configuration; receiver defaults supply
+model and voice settings.
 
 Private stages expire after 30 inactive minutes. One owner may hold two import
 and export stages combined, reserving at most 8 GiB of archive space; each
-archive and its expanded inspection are limited to 4 GiB. Parts stay below the
-unchanged 128 MiB request limit. Active upload, inspection, commit and download
-leases prevent cleanup. Expiry never deletes mutation journals or receipts.
-The old immediate export/import routes and previous package formats are not
-admitted.
+archive and its expanded inspection are limited to 4 GiB. Packages allow at most
+2,048 content files, a 4 MiB manifest, 16 MiB of aggregate parsed metadata and a
+maximum per-file compression ratio of 200. Available disk space is checked against
+the actual archive's bounded expansion before inspection. Parts stay below the unchanged
+128 MiB request limit. Unknown required capabilities, undeclared files, unsafe
+paths, hash mismatches and invalid typed closures fail review.
+
+Active upload, inspection, commit and download leases prevent cleanup. After a
+completed or cancelled HTTP download attempt, the cache remains retryable until
+expiry, explicit discard, or quota pressure reclaims it while inactive. Ending
+the HTTP response does not prove the user saved the file.
+The Library completion action discards an acknowledged import's temporary stage.
+Expiry and discard never delete mutation journals or durable receipts. The old
+immediate export/import routes and previous package formats are not admitted.
+
+### Mutation receipts and recovery
 
 Save binds an owner-scoped `operation_id` to its complete request; Import binds
 it to the immutable submitted review digest. Both retain their original successful response. An identical retry returns that

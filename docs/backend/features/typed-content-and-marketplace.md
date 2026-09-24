@@ -56,8 +56,6 @@ GET    /v1/content/catalog
 GET    /v1/content/items/{item_id}
 POST   /v1/content:rescan
 DELETE /v1/content/items/{item_id}
-POST   /v1/content/items/{item_id}:export
-POST   /v1/content/packages:import
 GET    /v1/content/files/{file_ref}
 ```
 
@@ -118,14 +116,38 @@ adopted only after remount.
 
 ## Local package boundary
 
-Export validates the current exact root and closure, canonicalizes typed
-documents through their handlers, rewrites installation-local references, and
-generates a deterministic version-2 package only at that boundary. Import
-validates every member and dependency before reserving destinations and
-promoting the closure as one journaled, recoverable operation. A collision
-drift or late failure exposes no partial Local item. Package manifests do not
-clutter everyday Local folders.
+Packages use the strict `animama-content-package/3` manifest in local `.animama`
+files. Content export accepts one or more Avatars, Gestures, Reactions, Idle
+Styles, static Poses, effects or Sounds and includes their complete required
+closure. Avatar portraits and selected Anima profile/background images travel
+as associated Appearance content; Appearance is not a standalone export root.
+Voice content, Music and standalone catalog Clips are not package types.
 
-Packages use `animama-content-package/2` in `.animama` files. Import/export runs
-locally and supports catalog content only;
-[live Animas](custom-animas-and-content.md#strict-private-creation) cannot be packaged.
+An Anima export reads the saved name, full identity, Avatar, effective Gesture
+selections and semantic keys, all 72 Reaction cells (including empty cells),
+nullable Idle Style, and profile/background images with framing. Supported
+binding configuration and effective starter choices are preserved. Missing
+selected content or unsupported configuration fails export rather than silently
+changing the definition. Conversations, identity history, other memories,
+private uploads, model/provider settings and voice preferences are excluded.
+Import creates a new private Anima using the receiver's defaults for those settings.
+
+Export summary resolves source revisions and saved facts; preparation requires
+the returned digest and rechecks them before sealing the reviewed archive.
+The writer and reader share strict manifest, capability, typed-content and
+runtime-budget validation. Portable entry references carry no owner, catalog,
+file-delivery or host-path authority.
+
+Import reviews the whole package and allocates fresh identities for every entry,
+including dependencies already present with identical bytes. Names use automatic
+`-2`, `-3` suffixes when needed, including collisions with Included content.
+Commit rechecks the sealed bytes, destinations and receiver prerequisites,
+then installs all files, catalog rows and any Anima aggregate in one recoverable
+operation. A changed destination requires a fresh review; import never replaces
+an existing item or installs only part of the package. License and provenance
+facts accompany the independent editable copies.
+
+See the [package HTTP contract](../architecture/http-api.md#package-sharing) for
+routes, limits and receipt recovery, and [Library sharing](../../frontend/features/library.md#import--export)
+for the user workflow. Package manifests exist only at the sharing boundary,
+not in everyday Local folders.

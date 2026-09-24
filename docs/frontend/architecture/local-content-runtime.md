@@ -18,8 +18,6 @@ GET    /v1/content/catalog
 GET    /v1/content/items/{item_id}
 POST   /v1/content:rescan
 DELETE /v1/content/items/{item_id}
-POST   /v1/content/items/{item_id}:export
-POST   /v1/content/packages:import
 GET    /v1/content/files/{file_ref}
 GET    /v1/content/previews/{preview_id}/revisions/{revision}/files/{file_ref}
 
@@ -237,12 +235,15 @@ remounting is the boundary that adopts a new catalog revision.
 
 ## Packages and Electron
 
-Export downloads a deterministic backend-generated temporary package. Import
-uploads a chosen package to private staging; the backend validates and rewrites
-the complete typed closure, reserves every destination, and publishes ordinary
-editable Local catalog items atomically. A late failure exposes no partial
-item. The browser never treats selected files, File System Access handles, or
-browser storage as canonical content.
+[Library sharing](../features/library.md#import--export) uses the reviewed
+[package HTTP protocol](../../backend/architecture/http-api.md#package-sharing)
+for selected content or a saved Anima. Export downloads sealed backend-generated
+bytes. Import uploads sequential bounded parts, reviews the complete package,
+and installs fresh Local copies plus any Anima in one recoverable transaction.
+The frontend persists operation/review identifiers before commit and resolves
+unknown outcomes by operation status; navigation or request cancellation never
+implies rollback. It never stores package bytes, selected files or File System
+Access handles as a canonical browser content library.
 
 Packaged Electron supervises PostgreSQL and FastAPI. FastAPI serves
 the production React build at one saved loopback origin. There is no Vite server

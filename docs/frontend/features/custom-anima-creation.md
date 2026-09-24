@@ -180,5 +180,6 @@ available test scripts do not establish that a journey was performed.
 
 Create Anima never creates a Blueprint, package, publication or synchronization
 relationship. There is no “Save as Blueprint” action. Discover and hosted
-publication/acquisition are discontinued. Existing typed `.animama` package
-import/export does not introduce live Anima export.
+publication/acquisition are discontinued. Separately,
+[Library Import / Export](library.md#import--export) shares a reviewed saved Anima definition and its required content. Import creates
+a new independent companion; it does not restore conversations or other private memory.

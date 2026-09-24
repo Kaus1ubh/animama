@@ -243,8 +243,6 @@ GET    /v1/content/catalog
 GET    /v1/content/items/{item_id}
 POST   /v1/content:rescan
 DELETE /v1/content/items/{item_id}?expected_revision=...
-POST   /v1/content/items/{item_id}:export
-POST   /v1/content/packages:import
 POST   /v1/content/evidence:resolve
 POST   /v1/content/previews:prepare
 GET    /v1/content/files/{file_ref}
@@ -348,25 +346,29 @@ persistent Cache Storage, IndexedDB, or OPFS library.
 
 ## Package boundary
 
-`POST /v1/content/items/{item_id}:export` validates the current exact typed
-closure and generates a deterministic `animama-content-package/2` archive
-under `data/staging/exports`. Handlers canonicalize descriptors and rewrite
-installation-local catalog, file, user, runtime, preview, URL, and host-locator
-references. The manifest never appears in the everyday Local folder.
+The [local package contract](../features/typed-content-and-marketplace.md#local-package-boundary)
+uses `animama-content-package/3`. Export resolves saved authority and exact source
+revisions, canonicalizes descriptors and writes immutable reviewed bytes under
+`data/staging/exports`. Installation-local references are rewritten to opaque
+package entry IDs. The manifest never appears in everyday Local folders.
 
-`POST /v1/content/packages:import` treats the archive as untrusted, validates
-paths, archive/file/byte limits, manifests, hashes, licenses, handler-owned
-types, dependency kinds, reachability, cycles, budgets, rewritten references,
-and final collisions in private staging. It reserves every destination and
-then promotes the closure behind the same mutation journal and catalog
-visibility fence used by Save and Delete. A stale replace decision or late
-failure compensates the whole install; no partial package member becomes
-selectable. Collision modes
-are `cancel`, `keep_both`, and explicit `replace`. Imported provenance and
-license facts remain catalog metadata and commit with the complete result.
-Startup deterministically recovers or compensates unfinished operations before
-catalog admission; conflicting manual edits require repair with both copies
-preserved.
+Import receives sequential bounded parts directly into one private archive under
+`data/staging/imports`. Review seals its hash, validates the complete typed graph
+and freezes fresh IDs, collision suffixes, destinations, associations and any
+Anima definition. Commit verifies that same archive and plan before publishing
+new files without overwriting existing destinations. All catalog rows, provenance,
+license facts and the optional Anima aggregate commit in one SQL unit of work,
+behind the mutation journal and catalog visibility fence. No partial member
+becomes selectable; changed destinations require a fresh review.
+
+Stages and export caches have bounded quotas and leases; see the
+[HTTP limits](http-api.md#package-sharing). Temporary-byte expiry or discard never
+removes durable operation receipts. Commit and operation-status lookup consult
+receipts before requiring a stage, so a lost response can recover the original
+result even after expiry, restart, later edits or deletion. Startup recovers or
+compensates unfinished mutations before catalog admission. Conflicting manual
+edits preserve current files and original backups for operator repair; journals
+are not disposable staging data.
 
 ## Private data
 

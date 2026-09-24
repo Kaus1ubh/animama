@@ -49,9 +49,9 @@ Runtime guides:
 
 Testing guides:
 
-- `testing/browser-journeys.md`: main-stack Playwright setup, authentication
-  safety, serial execution, playback/creator journeys, exact Local-content
-  cleanup, and retained evidence.
+- `testing/browser-journeys.md`: isolated accountless Playwright setup,
+  playback/creator/sharing journeys, exact receipt-based cleanup, and retained
+  evidence; separate guidance covers manual main-stack checks.
 
 For repository ownership, see [Repository boundaries](../architecture/repository-boundaries.md).
 

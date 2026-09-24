@@ -1,6 +1,8 @@
 # Local content and complete Anima sharing
 
-Status: Approved 2026-09-24 for full implementation; Phases 1–5 complete, Phase 6 next.
+Status: All six authorized phases and final integration review complete 2026-09-24.
+Remaining native/audio acceptance is explicitly waived for this PR; hosted CI and
+exact-candidate merge acceptance remain separate.
 
 Source agreement: [local-content-sharing-spec.md](local-content-sharing-spec.md),
 requirements R1–R9 and its acceptance table, following the owner's 2026-09-23
@@ -82,7 +84,8 @@ Paths below are relative to the repository root. `B` means
 - [x] Phase 3: portable multi-root and full-Anima export with exact review snapshots.
 - [x] Phase 4: staged, reviewed import and one recoverable installation operation.
 - [x] Phase 5: Library frontend using the supplied UI mockups.
-- [ ] Phase 6: combined acceptance, current documentation and final review.
+- [x] Phase 6: combined acceptance, current documentation and final review;
+  remaining native/audio checks explicitly waived by the owner for this PR.
 
 ## Surprises & Discoveries
 
@@ -1088,7 +1091,7 @@ bounded upload/recovery, direct download, focused tests and active browser journ
 All four mockups were opened before implementation. Parent owns flow/recovery and
 UI integration evidence; delegated UI work owns controlled presentation and Idle
 Style inventory integration. No backend schema changes are planned.
-Verified phase changes ready to commit; record the resulting SHA at Phase 6 startup.
+Verified phase commit: `35251bb` (`feat(library)[p5]: add reviewed local import and export flows`).
 
 - The controlled UI now mounts from Library and includes Idle Styles in inventory,
   filters, preview and export selection. Typed family endpoints supply complete
@@ -1282,16 +1285,89 @@ Completion: all required evidence is recorded or an explicit owner waiver is
 identified; do not label unavailable browser/native evidence as passed. Exact-
 candidate merge and any publication remain separate owner gates.
 
-Issue: [#87](https://github.com/raymond-van/animama/issues/87). Starting SHA: record predecessor commit when phase starts.
-Commit / evidence: pending.
+Issue: [#87](https://github.com/raymond-van/animama/issues/87). Starting SHA: `35251bb`.
+Boundary: cross-installation acceptance tests, useful maintained documentation,
+real playback/native evidence and final integration review. Phases 1–5 are
+committed; their passing reviews and unchanged evidence remain valid.
+Commit / evidence: Phase 6 Review #2 and final integration Review #1 passed.
+Native and physical audio checks are explicitly waived for this PR, not passed.
+
+- The normal companion was opened on the isolated development stack at about
+  18:39:37 UTC. Without changing the 180-second quiet setting, the actual Avatar
+  was observed at rest, performing the finite head turn at 18:42:40, and back at
+  rest after 18:42:46. This is a real-time rendered observation, not an exact
+  scheduler-latency measurement. Phase 1's VRMA/clip and effect observations and
+  deterministic interruption/repetition tests remain valid.
+- An original six-second PCM tone, clip Gesture and Idle Style were saved through
+  the ordinary typed APIs in the task stack. The first fixture incorrectly used
+  a VFX duration field on a sound event and was rejected by idle admission; its
+  exact revision was corrected without changing application code. Preview
+  reports Playing and explicit Stop returns Ready. Physical sound and concurrent
+  TTS/SFX acceptance was subsequently waived for this PR. The seven-entry local playback package,
+  exact identities and manual checks are linked from
+  [the acceptance handoff](p6-manual-acceptance.md).
+- `pnpm desktop:mac:build` passed on macOS 26.6.2 arm64 from product commit
+  `35251bb5f963072a7282d569b3360fd34825a62a`. Build ID
+  `f5610d6ade3425c03c6c2b5357872eefa7e6751239d24bbb1fb9c4840770a7a8`;
+  5,335 audited files, zero missing/unexpected, matching staged/packaged manifests,
+  and native PostgreSQL/pgvector plus backup/restore probes passed. The unsigned
+  app is `src/frontend/desktop/release/mac/Animama.app` (982,314,074 installed
+  bytes); its report is `desktop/release/development-package-report.json` beneath
+  the frontend workspace. No packaged launch, personal-profile change, signing
+  or publication was performed. This build does not satisfy native UI acceptance.
+- The enabled computer-use surface supports browsers but disables native app
+  control, and no physical audio observation is available. After receiving the
+  concrete app, original playback package and checklist, the owner explicitly
+  waived the remaining Electron file-dialog/recovery and audible playback checks
+  for this PR on 2026-09-24. Record them as waived, not passed; this grants no
+  signed-release or publication acceptance.
+- Fresh `pnpm check` passed after the unsigned build. The full backend and
+  browser evidence recorded under Phase 5 still covers unchanged product source.
+- `tests/test_content_package_cross_installation.py`: six passing cases use
+  separate actual databases, installation owners and Local roots. Four content
+  transfers and fresh/existing-recipient Anima transfers prove dependency closure,
+  three distinct image byte hashes and framing, empty cells/configuration,
+  independent editable copies, sound-edit isolation, no automatic Gesture
+  equipment and automatic collision names. Existing-recipient tests preserve
+  actual chats/messages, identity versions, settings, attachments and a historical
+  retired-kind receipt. Lost finalization is replayed in a fresh session/store;
+  provider, TTS and runtime fail-on-call guards remain untouched. Focused pytest,
+  Ruff, format and scoped mypy passed; fixture sequencing errors were corrected
+  without product changes.
+- Fifteen maintained documentation files now describe `/3` reviewed packages,
+  saved-Anima privacy, independent copies, recovery and limits, Gesture-based Idle
+  Styles, the retired kinds and active browser journeys. Existing accurate
+  TTS/SFX and detailed idle guidance was retained. Twelve documentation-consumer
+  tests, 95 local links/anchors, focused discovery of three sharing tests and
+  whitespace checks passed. Historical Discover remains discontinued context.
 
 #### Code Review #1 Findings
 
-Not run. Review cross-installation acceptance and preservation evidence.
+Independent Phase 6 review confirmed meaningful cross-installation/privacy,
+image/copy-isolation and restart coverage, and accurate separation of browser,
+unsigned-build and waived native/audio evidence. Required finding **P6-B1**
+(checks reviewer **P6-DOC1**): Library's introduction, canonical Action filter
+values and Actions inventory omitted the new Idle Styles. Root also verified
+**P6-B2**: the backend HTTP router map still assigned package operations to
+`content.py` after their move to `content_packages.py`.
 
 #### Code Review #1 Revisions
 
-Not run. Two repair rounds remain.
+Accepted both source-verified documentation findings. Repair round 1 updates
+those existing inventory/query descriptions and the owning router map; no product
+or test behavior changes. Whitespace and affected link checks pass.
+
+#### Code Review #2 Findings
+
+Both independent targeted reviews pass P6-B1/DOC1 and P6-B2. Library's inventory,
+filter values and Preview/Edit controls match the source, and package operations
+point to their actual router. No product/test changes invalidate the six-case
+cross-installation evidence. Native and audible checks remain waived, not passed.
+
+#### Code Review #2 Revisions
+
+No further changes requested. Phase 6 checks and review pass with one repair
+round unused. The separate final integration review below also passes.
 
 ## Validation and acceptance
 
@@ -1308,8 +1384,8 @@ Source inspection and this plan are not passing runtime evidence.
 | Phase 3 | Multi-root/Anima projection, private-data absence, images, exact export bytes | Passed; initial full backend 2025 passed/7 skipped, final affected batch 199 passed, static and Review #3 passed. |
 | Phase 4 | Whole-package review, multipart limits, independent copies, single outcome under failure/retry/restart | Passed; final full backend 2149 passed/7 skipped, static 558 sources, caller/SDK checks and independent Review #2 passed. |
 | Phase 5 | Four mockup comparisons, complete content/Anima flows, keyboard and narrow layouts, both serving modes | Passed targeted Review #2, eight visual comparisons and both complete journeys in both serving modes; exact cleanup and final backend checks pass. |
-| Phase 6 | Independent installations, retained existing data, real audio/avatar and explicit native evidence | Not run. |
-| Hosted CI / release | Actual candidate `Validation` scope; separate release/publication approval | Not requested or run. |
+| Phase 6 | Independent installations, retained existing data, real audio/avatar and explicit native evidence | Six cross-installation cases, documentation checks, targeted Review #2 and final integration Review #1 pass; real quiet idle observed, unsigned macOS build/audit pass. Remaining native UI and audible checks explicitly waived by owner for this PR. |
+| Hosted CI / release | Actual candidate `Validation` scope; separate release/publication approval | GitHub reports Portable product validation disabled_manually; no hosted Validation run or substitute owner-reviewed receipt. The native/audio waiver does not waive CI. No signed release/publication acceptance. |
 
 Before pushing the implementation candidate, run applicable offline checks from
 the repository root:
@@ -1372,14 +1448,34 @@ completion states they omit.
 
 ### Code Review #1 Findings
 
-Not run. Record final source/base, requirement mapping, independent reviewers,
-checks, evidence and stable findings. Local/browser/native/hosted results stay
-separate. No review count is consumed by authoring this document.
+PASS. Independent analysis and checks cover baseline `98220ea` through product
+HEAD `35251bb` plus all Phase 6 tracked/untracked changes. No actionable findings.
+Reviewers reused completed phase reviews without reopening their repair budgets.
+
+- R1–R4: portable closure, saved-Anima authority and privacy, receiving identities,
+  image associations, independent copies and complete review disclosures align.
+- R5: exact reviewed bytes, destination fences and unified file/catalog/Anima
+  receipts preserve one outcome across retries/recovery and retain later edits.
+- R6–R9: imported idle dependencies remain separate from AI equipment; finite
+  playback wiring and retirement compatibility preserve the agreed boundaries.
+- The checks reviewer independently reran the six cross-installation tests:
+  six passed in 14.17 seconds against disposable PostgreSQL. Scoped Ruff
+  format/lint, mypy and whitespace checks pass. Retained full backend, frontend,
+  SDK, browser, eight visual comparisons and unsigned macOS build evidence remain
+  valid for unchanged product source. All 12 aggregate formatter failures were
+  independently byte-compared to the starting baseline and remain unchanged.
+- Native UI/physical audio is owner-waived, not passed. Hosted CI and release
+  acceptance remain unestablished. The current-main merge preflight passes;
+  concurrent hand-authoring changes share no product files, and its additive
+  avatar-animation guidance must remain alongside this plan's documentation.
+  This is not validation of a future merged candidate.
 
 ### Code Review #1 Revisions
 
-Not run. Two repair rounds remain. Record each verified disposition, correction,
-affected recheck and remaining blocker; append numbered repair records as needed.
+No repair requested. Final integration passes with both repair rounds unused.
+Only execution/evidence records changed after the frozen review. Proceed with
+the authorized phase commit and single-PR handoff; do not merge without separate
+exact-candidate owner approval and resolution of the applicable CI gate.
 
 ## Outcomes & Retrospective
 
@@ -1408,3 +1504,11 @@ do not supersede the agreed requirements.
 2026-09-24 setup: owner approved the whole plan. Published the spec as #81 and
 linked phases #82–#87 with native parent/dependency relationships. Preserved the
 fourth mockup and prior planning commit. No runtime data was inspected or changed.
+
+2026-09-24 completion: all six phases and final integration review pass within
+their recorded bounds, with the explicit task-specific native/audio waiver.
+Library sharing, safe content retirement and Gesture-based Idle Styles are
+implemented. Development and built task stacks, exact fixture ledgers and the
+unsigned macOS app remain available for review; unrelated services and user data
+were preserved. Hosted validation is disabled in GitHub and has no passing
+result. Merge and signed release/publication remain separate owner decisions.

@@ -216,9 +216,10 @@ File: `src/frontend/web/src/lib/avatar/poses/PoseController.ts`
 
 Responsibilities:
 
-- Own the built-in JSON-backed `animaPose/1.0` catalog for loaded VRM models.
-- Own the built-in JSON-backed `animaPoseClip/1.0` catalog and active clip
-  playback state for loaded VRM models.
+- Resolve `animaPose/1.0` poses and Action-owned `animaPoseClip/1.0` sequences
+  through the injected motion catalog for the loaded VRM model.
+- Own active clip playback state; the app catalog remains the fallback for
+  authoring/debug surfaces outside an Anima runtime.
 - Apply the app default `relaxedRest` catalog pose after load and after avatar
   resets.
 - Invoke catalog poses as absolute normalized humanoid poses, not offsets from

@@ -17,8 +17,8 @@ Routes:
 The [live creation journey](custom-anima-creation.md) uses stable live
 name/identity authority, atomic creation, and durable idempotency receipts.
 Installation bootstrap/repair uses backend starter specifications and preserves existing
-customization and deletion. The management Loadout has four sections; creation produces a private live
-Anima.
+customization and deletion. [Library sharing](library.md#import--export) can copy
+a reviewed saved definition to a new independent Anima.
 
 ## Identity
 
