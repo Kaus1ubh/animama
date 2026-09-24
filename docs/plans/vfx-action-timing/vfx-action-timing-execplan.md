@@ -60,3 +60,21 @@ clip-owned cleanup in ReactionClipPlayer. Legacy effect metadata can remain read
 Self-review only: side-conversation rules prohibit subagents. Independent review,
 hosted CI and native PiP validation remain unperformed. Record final local evidence
 above. No remote publication was performed.
+
+## Follow-up: named effect tracks
+
+The accepted timeline design gives each referenced effect its own named track in
+Gesture and Reaction creators. VFX events render spans from Start to their finite
+end or the Action boundary; Action-owned ends have a dashed edge and arrow.
+Repeated references share a track, with overlapping intervals stacked into rows.
+Independent copied dependencies keep separate identities and names. Sound cues
+remain point events because they have no authored duration. Track labels expose
+full names on hover. The timeline scrolls vertically with a sticky time ruler;
+catalog drop hit testing is limited to the visible timeline viewport.
+
+Validation: 28 focused tests passed on the host (effect-track layout, timeline
+editor, catalog drag/drop, and shared timeline). TypeScript and scoped ESLint
+passed. Browser checks covered multiple named particle tracks, event selection,
+Start/duration changes, Action-owned ends, vertical scrolling and narrow layout.
+The container test runner lacked its native Rolldown binding; host tests supplied
+the local automated evidence. No hosted CI or native desktop checks were run.
