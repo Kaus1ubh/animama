@@ -148,7 +148,6 @@ const DEFAULT_CLIP_DURATION = 2;
 const KEYFRAME_TIME_EPSILON = 0.0005;
 const QUATERNION_ZERO_EPSILON = 0.000001;
 const QUATERNION_NORMALIZED_EPSILON = 0.001;
-const DEFAULT_POSE_CREATOR_CLIP_VFX_EVENT_DURATION_SEC = 1;
 const MIN_POSE_CREATOR_CLIP_EVENT_DURATION_SEC = 0.001;
 export const DEFAULT_POSE_CREATOR_CLIP_SNAP_INTERVAL_SEC = 0.05;
 export const POSE_CREATOR_CLIP_SNAP_INTERVAL_OPTIONS = [
@@ -1462,7 +1461,6 @@ export function createPoseCreatorClipAvatarVFXEventDraft(
     time: clampPoseCreatorClipTime(time, draft.duration),
     kind: "avatar_vfx",
     effectId,
-    duration: DEFAULT_POSE_CREATOR_CLIP_VFX_EVENT_DURATION_SEC,
   };
 }
 
@@ -1478,7 +1476,6 @@ export function createPoseCreatorClipSceneVFXEventDraft(
     kind: "scene_vfx",
     sceneKind,
     presetId,
-    duration: DEFAULT_POSE_CREATOR_CLIP_VFX_EVENT_DURATION_SEC,
   };
 }
 
@@ -1499,10 +1496,9 @@ export function createPoseCreatorClipParticleVFXEventDraft(
     ...(catalogEntry
       ? {
           anchor: catalogEntry.defaultAnchor,
-          duration: catalogEntry.defaultDurationSec,
           transform: cloneParticleVFXTransform(catalogEntry.defaultTransform),
         }
-      : { duration: DEFAULT_POSE_CREATOR_CLIP_VFX_EVENT_DURATION_SEC }),
+      : {}),
     followAnchor: true,
   };
 }

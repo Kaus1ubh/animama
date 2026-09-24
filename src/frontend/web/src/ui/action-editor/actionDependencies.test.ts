@@ -181,11 +181,13 @@ describe("actionDependencies", () => {
     });
 
     expect(next.sequence.duration).toBe(duration + 1);
+    expect(
+      (next.sequence.events as Record<string, unknown>[])[0],
+    ).not.toHaveProperty("duration");
     expect(next.sequence.events).toEqual([
       expect.objectContaining({
         time: duration,
         kind: "particle_vfx",
-        duration: 1,
       }),
     ]);
   });

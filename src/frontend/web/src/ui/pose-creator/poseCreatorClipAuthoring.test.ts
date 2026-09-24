@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   createDefaultPoseCreatorClipDraft,
+  createPoseCreatorClipAvatarVFXEventDraft,
+  createPoseCreatorClipSceneVFXEventDraft,
+  createPoseCreatorClipParticleVFXEventDraft,
   createPoseCreatorClipDraftFromAnimaPoseClip,
   buildPoseCreatorClipForExport,
   createUniquePoseCreatorClipName,
@@ -211,4 +214,24 @@ describe("VFX event end ownership", () => {
       patchPoseCreatorClipEventDraft(timed, { duration: 0.75 }, 3),
     ).toMatchObject({ time: 0.5, duration: 0.75 });
   });
+});
+
+it("defaults every new VFX event to ending with its Action", () => {
+  const draft = createDefaultPoseCreatorClipDraft("relaxedRest");
+  const events = [
+    createPoseCreatorClipAvatarVFXEventDraft(draft, "eyes", 0),
+    createPoseCreatorClipSceneVFXEventDraft(draft, "focus_lines", "focus", 0),
+    createPoseCreatorClipParticleVFXEventDraft(draft, "hearts", 0),
+    createPoseCreatorClipParticleVFXEventDraft(draft, "hearts", 0, {
+      defaultAnchor: "head",
+      defaultDurationSec: 5,
+      defaultTransform: {
+        offset: { x: 0, y: 0, z: 0 },
+        depthOffset: 0,
+        rotation: { x: 0, y: 0, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+      },
+    }),
+  ];
+  for (const event of events) expect(event).not.toHaveProperty("duration");
 });
