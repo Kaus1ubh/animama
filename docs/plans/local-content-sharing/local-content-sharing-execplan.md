@@ -1286,6 +1286,7 @@ identified; do not label unavailable browser/native evidence as passed. Exact-
 candidate merge and any publication remain separate owner gates.
 
 Issue: [#87](https://github.com/raymond-van/animama/issues/87). Starting SHA: `35251bb`.
+Verified phase commit: `91318358a8acb0f5e5e11f0b2961b30c92c7e14a`.
 Boundary: cross-installation acceptance tests, useful maintained documentation,
 real playback/native evidence and final integration review. Phases 1–5 are
 committed; their passing reviews and unchanged evidence remain valid.
