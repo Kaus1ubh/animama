@@ -1604,6 +1604,22 @@ class FilesystemContentStore(ContentStore):
             self._delete_local(destination)
 
         cursor = local_root.joinpath(*descriptor_root.parts)
+        # Visit only ancestors of the catalog-frozen files. Walking the entry
+        # tree would grant authority over unrelated empty directories or links.
+        nested_parents: set[Path] = set()
+        for destination in destinations:
+            for parent in destination.parents:
+                if parent == cursor or not parent.is_relative_to(cursor):
+                    break
+                nested_parents.add(parent)
+        for directory in sorted(nested_parents, key=lambda path: len(path.parts), reverse=True):
+            checked = self._safe_path(ContentSource.LOCAL, directory.relative_to(local_root).as_posix())
+            try:
+                checked.rmdir()
+            except OSError:
+                # A remaining unregistered file, directory, or link is kept.
+                continue
+
         if locator.suffix:
             cursor = cursor.parent
         while cursor != local_root and cursor.is_relative_to(local_root):

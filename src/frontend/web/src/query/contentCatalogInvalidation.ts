@@ -20,6 +20,14 @@ export async function refreshContentCatalogViews(
   next: PyContentCatalog,
 ) {
   if (previous && catalogVersion(previous) === catalogVersion(next)) return;
+  await invalidateContentCatalogViews(client, owner);
+}
+
+/** Refresh typed family lists after an atomic import without fabricating a catalog snapshot. */
+export async function invalidateContentCatalogViews(
+  client: QueryClient,
+  owner: string,
+) {
   await Promise.all(
     [
       queryKeys.avatarCatalog.all(owner),

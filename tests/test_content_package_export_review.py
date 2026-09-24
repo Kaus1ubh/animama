@@ -444,6 +444,28 @@ async def test_export_reserves_real_zip_growth_and_download_excludes_expiry_clea
         await async_session.commit()
 
 
+async def test_interrupted_response_keeps_the_same_download_retryable(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+    _paths, _catalog, _content, saves, packages = package_services(async_session, tmp_path)
+    try:
+        saved = await save_wave(saves)
+        summary = await packages.summarize(user_id="package-owner", item_ids=(saved.item.id,))
+        review = await packages.prepare_export(
+            user_id="package-owner", item_ids=(saved.item.id,), expected_digest=summary.digest
+        )
+        partial = await packages.exports.download(user_id="package-owner", export_id=review.export_id)
+        assert partial.handle.read(1)
+        partial.close(reclaimable=True)
+        retried = await packages.exports.download(user_id="package-owner", export_id=review.export_id)
+        try:
+            assert len(retried.handle.read()) == review.size_bytes
+            assert retried.review.package_sha256 == review.package_sha256
+        finally:
+            retried.close(reclaimable=True)
+    finally:
+        await async_session.execute(delete(ORMContentCatalogItem))
+        await async_session.commit()
+
+
 async def test_cancelled_download_open_closes_completed_handle_and_releases_stage(
     async_session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:  # noqa: ANN001

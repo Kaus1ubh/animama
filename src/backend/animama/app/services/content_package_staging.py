@@ -268,7 +268,16 @@ class PackageStageService:
                         if old.filename != filename or old.expected_bytes != expected_bytes:
                             raise ContentConflictError("package_operation_conflict")
                         return old, None
-            self._admit(records, expected_bytes)
+            try:
+                self._admit(records, expected_bytes)
+            except ContentConflictError as exc:
+                if exc.code not in {"package_stage_limit", "package_stage_quota"}:
+                    raise
+                # A browser cannot confirm a completed save. Reuse quota from
+                # finished download attempts only when another operation needs it;
+                # the stage lock still protects active responses and retries.
+                self._sweep_owner(owner, reclaim_downloads=True)
+                self._admit(self._records(owner), expected_bytes)
             self._check_disk(self._roots[kind], expected_bytes)
             now = self._clock()
             record = StageRecord(
@@ -340,16 +349,21 @@ class PackageStageService:
         with self.acquire(user_id, stage_id, kind, allow_expired=True) as lease:
             lease.discard()
 
-    def _sweep_owner(self, owner: str, *, exclude: str | None = None) -> None:
+    def _sweep_owner(self, owner: str, *, exclude: str | None = None, reclaim_downloads: bool = False) -> None:
+        def eligible(record: StageRecord) -> bool:
+            expired = record.expires_at <= self._clock()
+            finished_download = reclaim_downloads and record.kind == "export" and record.state == "completed"
+            return record.state not in _PROTECTED and (expired or finished_download)
+
         for directory, record in self._records(owner):
-            if record.stage_id == exclude or record.expires_at > self._clock() or record.state in _PROTECTED:
+            if record.stage_id == exclude or not eligible(record):
                 continue
             try:
                 with self._stage_lock(owner, record.stage_id, record.kind):
                     # A finishing worker may have renewed or protected the stage
                     # after our quota snapshot but before releasing this lock.
                     current = self._read(directory)
-                    if current.expires_at <= self._clock() and current.state not in _PROTECTED:
+                    if eligible(current):
                         shutil.rmtree(directory)
                         _fsync_directory(directory.parent)
             except ContentConflictError as exc:

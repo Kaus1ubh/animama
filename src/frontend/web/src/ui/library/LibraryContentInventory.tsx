@@ -25,7 +25,10 @@ import {
   previewCatalogItem,
   previewTypedCatalogItem,
 } from "@/lib/content/catalogApi";
-import { typedActionPreview } from "@/lib/content/typedPreviewAdapters";
+import {
+  typedActionPreview,
+  typedIdleStylePreview,
+} from "@/lib/content/typedPreviewAdapters";
 import { avatarPreviewTarget } from "@/lib/content/avatarPreviewTarget";
 import { componentPreviewTarget } from "@/lib/content/componentPreviewTarget";
 import {
@@ -40,11 +43,14 @@ import {
   libraryRowPresentation,
   actionLibraryCard,
   poseLibraryCard,
+  idleStyleLibraryCard,
   type LibraryProductCard,
 } from "@/lib/content/libraryPresentation";
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
 import { actionPreviewTarget } from "@/lib/content-preview/actionPreviewTarget";
 import { posePreviewTarget } from "@/lib/content-preview/posePreviewTarget";
+import { idleStylePreviewTarget } from "@/lib/content-preview/idleStylePreviewTarget";
+import { useIdleStyles } from "@/query/hooks/useIdleStyles";
 import { usePoses } from "@/query/hooks/usePoses";
 import { useAvatarCatalog } from "@/query/hooks/useAvatarCatalog";
 import { useEffects } from "@/query/hooks/useEffects";
@@ -209,6 +215,7 @@ function ProductRow({
           : "sound_effect";
   const editPaths = {
     pose: "/a/poses",
+    "idle-style": "/a/idle-styles",
     gesture: "/a/gestures",
     reaction: "/a/reactions",
     particle: "/a/particle-effects",
@@ -355,6 +362,11 @@ export function LibraryContentInventory({
         : search.gestureMotion,
     enabled: includes("gestures"),
   });
+  const idleStyles = useIdleStyles({
+    query: search.query,
+    origin,
+    sort: search.sort,
+  });
   const poses = usePoses({
     query: search.query,
     origin,
@@ -442,6 +454,22 @@ export function LibraryContentInventory({
     soundPreview.stop();
     openPreview(posePreviewTarget(item));
   };
+  const previewIdleStyle = async (card: LibraryProductCard) => {
+    soundPreview.stop();
+    setPreviewError(null);
+    try {
+      const preview = await previewTypedCatalogItem("idle_style", card.itemId);
+      openPreview(
+        idleStylePreviewTarget(typedIdleStylePreview(preview), card.name),
+      );
+    } catch (cause) {
+      setPreviewError(
+        cause instanceof Error
+          ? cause.message
+          : "This Idle Style could not be previewed.",
+      );
+    }
+  };
   const previewAction = async (card: LibraryProductCard) => {
     if (!card.source) return;
     soundPreview.stop();
@@ -522,9 +550,11 @@ export function LibraryContentInventory({
         onPreview={() =>
           void (card.family === "pose"
             ? previewPose(card)
-            : card.family === "gesture" || card.family === "reaction"
-              ? previewAction(card)
-              : previewEffect(card))
+            : card.family === "idle-style"
+              ? previewIdleStyle(card)
+              : card.family === "gesture" || card.family === "reaction"
+                ? previewAction(card)
+                : previewEffect(card))
         }
         onManage={
           card.family === "gesture" || card.family === "reaction"
@@ -560,6 +590,14 @@ export function LibraryContentInventory({
       title: "Poses",
       cards: (poses.data?.items ?? []).map(poseLibraryCard),
       query: poses,
+    },
+    {
+      id: "idle-styles",
+      title: "Idle Styles",
+      cards: (idleStyles.data?.pages.flatMap((page) => page.items) ?? []).map(
+        idleStyleLibraryCard,
+      ),
+      query: idleStyles as typeof gestures,
     },
     {
       id: "particle",

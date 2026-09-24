@@ -212,7 +212,9 @@ class _PackageDownloadResponse(StreamingResponse):
         try:
             await super().__call__(scope, receive, send)
         finally:
-            self._download.close()
+            # Completion/cancellation ends the response lease, not proof of a
+            # successful user save. Preserve retry bytes until quota needs them.
+            self._download.close(reclaimable=True)
 
 
 @router.get("/package-exports/{export_id}/file")

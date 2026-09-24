@@ -219,11 +219,16 @@ class DownloadLease:
     review: ExportReview
     _lease: StageLease
 
-    def close(self) -> None:
+    def close(self, *, reclaimable: bool = False) -> None:
+        """Keep retry bytes, but allow quota pressure to reclaim a finished HTTP attempt."""
         try:
-            self.handle.close()
+            if reclaimable and not self.handle.closed:
+                self._lease.set_state("completed")
         finally:
-            self._lease.close()
+            try:
+                self.handle.close()
+            finally:
+                self._lease.close()
 
 
 class _ReservedWriter:
@@ -477,7 +482,7 @@ class ContentPackageExportService:
         lease: StageLease | None = None
         try:
             lease = self._stages.acquire(user_id, export_id, "export")
-            if lease.record.state != "reviewed" or lease.record.review is None:
+            if lease.record.state not in {"reviewed", "completed"} or lease.record.review is None:
                 raise ContentConflictError("package_export_unavailable")
             review = ExportReview.model_validate(lease.record.review)
             size, digest = lease.verify_archive()

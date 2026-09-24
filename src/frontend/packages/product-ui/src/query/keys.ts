@@ -176,6 +176,10 @@ export const queryKeys = {
       [...queryKeys.userFiles.all(userId), "list"] as const,
   },
   content: {
+    sharingInventory: (owner: string) =>
+      [...queryKeys.content.all(owner), "sharing-inventory"] as const,
+    sharingSummary: (owner: string, selection: string) =>
+      [...queryKeys.content.all(owner), "sharing-summary", selection] as const,
     all: (userId: string) => ["content", userId] as const,
     catalog: (userId: string) =>
       [...queryKeys.content.all(userId), "catalog"] as const,

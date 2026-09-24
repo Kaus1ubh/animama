@@ -50,6 +50,24 @@ async def test_http_export_reviews_then_streams_the_same_package(async_session: 
             assert hashlib.sha256(downloaded.content).hexdigest() == reviewed["package_sha256"]
             assert downloaded.headers["cache-control"] == "private, no-store"
             assert "attachment;" in downloaded.headers["content-disposition"]
+            record, active = _packages.stages.status("package-owner", reviewed["export_id"], "export")
+            assert record.state == "completed" and not active
+            retry = await client.get(f"/v1/content/package-exports/{reviewed['export_id']}/file")
+            assert retry.content == downloaded.content
+            # A finished response remains retryable, but cannot block later normal
+            # exports forever. A second, never-downloaded review stays protected.
+            second = await client.post(
+                "/v1/content/package-exports",
+                json={"item_ids": [saved.item.id], "expected_digest": summary.json()["digest"]},
+            )
+            assert second.status_code == 200, second.text
+            third = await client.post(
+                "/v1/content/package-exports",
+                json={"item_ids": [saved.item.id], "expected_digest": summary.json()["digest"]},
+            )
+            assert third.status_code == 200, third.text
+            removed = await client.delete(f"/v1/content/package-exports/{third.json()['export_id']}")
+            assert removed.status_code == 204
             assert "/v1/content/packages:import" not in app.openapi()["paths"]
             assert "/v1/content/items/{item_id}:export" not in app.openapi()["paths"]
             allocated = await client.post(
@@ -118,7 +136,7 @@ async def test_http_export_reviews_then_streams_the_same_package(async_session: 
                 "/v1/content/package-imports", json={"filename": "PRIVATE-TEXT", "expected_size_bytes": -1}
             )
             assert bad.status_code == 422 and "PRIVATE-TEXT" not in bad.text
-            discarded = await client.delete(f"/v1/content/package-exports/{reviewed['export_id']}")
+            discarded = await client.delete(f"/v1/content/package-exports/{second.json()['export_id']}")
             assert discarded.status_code == 204
             assert len(await catalog.list_visible(user_id="package-owner")) == 1
     finally:

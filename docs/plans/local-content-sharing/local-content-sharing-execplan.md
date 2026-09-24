@@ -1,6 +1,6 @@
 # Local content and complete Anima sharing
 
-Status: Approved 2026-09-24 for full implementation; Phases 1–4 complete; Phase 5 is next.
+Status: Approved 2026-09-24 for full implementation; Phases 1–5 complete, Phase 6 next.
 
 Source agreement: [local-content-sharing-spec.md](local-content-sharing-spec.md),
 requirements R1–R9 and its acceptance table, following the owner's 2026-09-23
@@ -81,7 +81,7 @@ Paths below are relative to the repository root. `B` means
 - [x] Phase 2: retire Music/BGM and standalone Pose Clip availability safely.
 - [x] Phase 3: portable multi-root and full-Anima export with exact review snapshots.
 - [x] Phase 4: staged, reviewed import and one recoverable installation operation.
-- [ ] Phase 5: Library frontend using the supplied UI mockups.
+- [x] Phase 5: Library frontend using the supplied UI mockups.
 - [ ] Phase 6: combined acceptance, current documentation and final review.
 
 ## Surprises & Discoveries
@@ -1081,16 +1081,169 @@ acceptance remains explicit in Phase 6; DOM tests alone cannot close it.
 Recovery: refresh resolves the existing import operation; cancelling an inactive
 stage discards only owned temporary data and keeps prior Library selection/content.
 
-Issue: [#86](https://github.com/raymond-van/animama/issues/86). Starting SHA: record predecessor commit when phase starts.
-Commit / evidence: pending.
+Issue: [#86](https://github.com/raymond-van/animama/issues/86). Starting SHA:
+`0d29a3348f3b3c738bd65cba974a7c162d4838aa` (verified Phase 4 commit).
+Boundary: Library inventory and mockup-based sharing dialogs, generated API flow,
+bounded upload/recovery, direct download, focused tests and active browser journey.
+All four mockups were opened before implementation. Parent owns flow/recovery and
+UI integration evidence; delegated UI work owns controlled presentation and Idle
+Style inventory integration. No backend schema changes are planned.
+Verified phase changes ready to commit; record the resulting SHA at Phase 6 startup.
+
+- The controlled UI now mounts from Library and includes Idle Styles in inventory,
+  filters, preview and export selection. Typed family endpoints supply complete
+  sharing inventories without using the older Avatar cursor adapter.
+- Import state tests observed three behavioral failures before implementation;
+  all twelve current session/storage tests pass. They cover bounded sequential
+  slices, re-verification of acknowledged parts, lost review/commit replies,
+  repeated commit suppression, unavailable storage, corrupt recovery, another
+  window's operation and format/size rejection. Only nonsensitive identifiers
+  and the commit-uncertainty flag persist; files/reviews/identity remain in memory.
+- Initial UI tests observed missing inventory/sharing/tab associations before
+  implementation. The delegated focused suite passed 61 tests; root flow lint,
+  type-check and package build passed before subsequent visual refinements.
+- Development browser inspection verified Gesture summary/preparation and full
+  Anima identity/equipment reads. It found sidebar overlap and entry-card layout
+  differences; the UI now uses the existing sidebar-aware dialog, original
+  icon/header arrangement and a fixed header with bounded body/sticky footer.
+  Responsive/focus/import evidence is still pending; these observations do not
+  constitute completed visual acceptance.
+- The container's isolated package outputs initially lacked the new SDK methods.
+  Its pinned pnpm build passed after explicitly supplying its corepack PATH.
+  The task stack was restarted with deterministic model clients for the
+  authorized active browser journey. No other stack or user data was reset.
+
+- `pnpm check`, `pnpm web:lint`, `pnpm build` and `pnpm packages:test` passed
+  (19 package tests; Chromium fixtures required sandbox escalation). The full web
+  suite passed 1,712 tests and hit 17 listener-permission failures in three files;
+  rerunning those three files with loopback permission passed all 36 tests.
+  Later affected UI tests passed 63 cases. The task-owned frontend formatter
+  check passed 37 files. Aggregate formatter checks report 12 files byte-unchanged
+  from the original task baseline (10 web, two desktop); those unrelated files
+  remain untouched and the aggregate check is not represented as passing.
+- A browser-injected lost-response path exposed an absent SDK `Response`
+  dereference. Two regression cases failed before the transport wrapper was
+  corrected; all 15 transport/session/storage cases now pass, as do affected lint
+  and actual web app TypeScript checks. The recovery operation remains intact.
+- The same worktree now also has a separate built stack,
+  `animama-local-sharing-built-0c75`, at
+  `http://animama-local-sharing-built-0c75.localhost:8520`, recorded in
+  `.animama-stacks/local-sharing-built.env`. FastAPI alone publishes loopback port 8520;
+  PostgreSQL is private, no Node web service or optional profile is enabled,
+  and deterministic model clients were verified. Its production build includes
+  the transport repair. Preserve both task records and data roots.
+- Desktop and settled narrow Anima selection were visually checked against
+  mockup 04: identity and included counts split into columns on desktop and stack
+  on narrow screens; identity scrolls and the final action remains visible.
+  The first active journey attempts exposed test-only branch-name, selector,
+  same-origin fault-injection and response-timeout assumptions. Their failed
+  evidence and exact operation ledgers are retained; successful complete journeys
+  and reviewed screenshot references remain pending.
 
 #### Code Review #1 Findings
 
-Not run. Include direct comparison with all four mockups and missing-state checks.
+Independent Review #1 is blocked by four required findings over the frozen Phase
+5 working tree based on `0d29a334`. The checks reviewer independently reviewed
+root flow and E2E ownership (excluding its own UI authorship); the second reviewer
+covered the complete Phase 5 boundary and all four mockups. Browser gates remain
+pending. Canonical IDs below consolidate the checks review's FLOW1/FLOW2 aliases.
+
+- **P5-B1 (FLOW2):** acknowledging a completed import cleared recovery IDs without
+  discarding its server stage. Downloaded export caches likewise occupied the
+  shared two-stage quota until expiry. Confirmed absence during export cleanup
+  also trapped Back/Close on a stale review. Active response leases must survive
+  cleanup; durable receipts remain completion authority.
+- **P5-B2 (FLOW1):** destination/prerequisite-stale imports restored their obsolete
+  immutable review as actionable. Refresh called the same endpoint and could not
+  renew a failed stage; the same digest could be submitted again.
+- **P5-B3:** Anima export showed kind totals and directly equipped names but no
+  inspectable names for transitive dependencies in selection or final review.
+- **P5-B4:** exact deletion of imported Particle Effects removed catalog rows/files
+  but left empty nested texture directories. These remained occupied destinations
+  for fresh-path admission. The browser ownership ledger retained the failure.
 
 #### Code Review #1 Revisions
 
-Not run. Two repair rounds remain.
+All four findings are verified and accepted. Repair round 1:
+
+- B1: completed imports discard their exact terminal stage before forgetting the
+  recovery pointer; unknown cleanup failures retain the result/pointer, while
+  confirmed absence is idempotent success. Export cleanup similarly tolerates
+  absence. HTTP download finalization marks the cache reclaimable while holding
+  its lease; another allocation reclaims inactive finished attempts only under
+  quota pressure. Retry bytes remain available beforehand, and active responses
+  and never-downloaded reviews remain protected. No browser save completion is
+  inferred. Stage tests observed two failures before the fix; HTTP tests cover
+  retries and subsequent normal allocations.
+- B2: a failed stage retains a blocking fresh-review message. Explicit refresh
+  resolves/discards the old operation and re-uploads the retained File under a
+  fresh operation for review; after reload it asks for the file again. It never
+  auto-commits or replaces an uncertain/completed operation. Four session cases
+  failed before repair; all 13 session tests now pass, including terminal cleanup.
+- B3: both Anima export screens reuse the complete required-items disclosure,
+  including indirect effects, sounds and portrait names. Two missing-name cases
+  failed before repair; 15 focused rendering tests now pass, including preserved
+  single disclosure on import and the existing identity/configuration layout.
+- B4: deletion prunes only empty nested ancestors of verified registered file
+  paths, deepest first. Five cases failed before repair; 47 affected filesystem
+  tests pass, including unknown file/directory/symlink preservation and restart
+  rollback restoration. The six earlier fixture residues were independently
+  verified as receipt-owned empty directories, removed with bottom-up `rmdir`,
+  and checked by the existing exact-run cleanup. All 141 owned identities from
+  that failed run are deleted; its denied precommit operation remains an honest
+  failed-run record with no installed result or owned residue.
+- E2E helpers now observe real dialog Close between operations and no longer
+  delete normal downloaded caches themselves. An explicit test-owned missing
+  cache checks Back/selection recovery. Capture waits for dialog bounds inside
+  the viewport, records focus/final actions, and disables screenshot animations.
+
+Final repair checks: 70 focused frontend tests, 56 affected package backend tests,
+47 filesystem tests, backend format/lint/mypy over 558 sources, actual web app
+TypeScript and generated SDK freshness (17 files) passed. Both task stacks were
+refreshed with the same repaired source and deterministic model clients.
+
+#### Code Review #2 Findings
+
+Targeted independent review passed B1–B4 and their introduced regressions. The
+primary reviewer independently ran 26 frontend and nine backend tests and
+reproduced missing-cache Back/Close recovery while confirming that active-stage
+and transport errors retain the review. The checks reviewer independently ran
+five session reproductions, including protected active/unknown outcomes, and
+passed FLOW1/FLOW2; it excluded its own B3 UI authorship.
+
+No additional required findings. Source repairs pass. Independent visual review
+also passed all eight final development screenshots, including header/Close
+visibility, bounded scrolling and final actions. The
+[retained comparisons](p5-library-visual-evidence.md) cover all four mockups at
+1440×900 and 390×844. Browser completion below remains a separate gate.
+
+#### Code Review #2 Revisions
+
+No product revisions required. One repair round remains. Development run
+`run-0924142007` passed all three tests: setup, complete content sharing and
+complete Anima sharing. This covers single/multiple export, automatic suffixes,
+lost completed response/reload recovery, missing-cache Back, opening the new
+Anima after reload, all 138 copied file manifests and exact cleanup. The ledger
+has no unresolved content/import operations and Local snapshots are unchanged.
+
+Built run `run-0924142854` passed the complete Anima journey and exact cleanup.
+Its content test deliberately reloaded too early after clicking View in Library,
+aborting the actual stage acknowledgment DELETE. The retained completed recovery
+correctly reappeared. The normal persistence check now waits for that real DELETE
+and the closed dialog before reloading; deliberate lost-commit recovery remains
+unchanged. Affected content reruns passed: development `run-0924143303` (two tests,
+1.1 minutes) and built `run-0924143458` (two tests, 36.8 seconds). The failed mixed
+run is retained and is not relabeled a pass. Unchanged Anima evidence from both
+modes remains valid. Every final ledger reports zero remaining work; respectively
+144, five, 140 and five owned identities were deleted across the four runs.
+Root also checked representative production desktop and narrow screenshots.
+
+Final `UV_NO_SYNC=1 UV_CACHE_DIR=/tmp/animama-p1-checks-uv-cache make check-test`
+passed typed-content audit, format/lint/mypy over 558 sources and 2,158 tests
+(seven skipped). The Python import-boundary check reported zero forbidden edges.
+`pnpm e2e:check`, `pnpm web:lint`, `pnpm openapi-ts:check` (17 files current) and
+`git diff --check` passed. These checks use
+the repaired source; no provider or native acceptance is inferred.
 
 ### Phase 6: Prove combined sharing, preservation and desktop behavior
 
@@ -1154,7 +1307,7 @@ Source inspection and this plan are not passing runtime evidence.
 | Phase 2 | Retired data/receipts, preserved Actions/audio/TTS/Creator JSON, repeatable transition | Passed and committed `08e31f2`; full local backend and targeted repair/static/rendered evidence above. Review #3 passed. |
 | Phase 3 | Multi-root/Anima projection, private-data absence, images, exact export bytes | Passed; initial full backend 2025 passed/7 skipped, final affected batch 199 passed, static and Review #3 passed. |
 | Phase 4 | Whole-package review, multipart limits, independent copies, single outcome under failure/retry/restart | Passed; final full backend 2149 passed/7 skipped, static 558 sources, caller/SDK checks and independent Review #2 passed. |
-| Phase 5 | Four mockup comparisons, complete content/Anima flows, keyboard and narrow layouts, both serving modes | Not run. |
+| Phase 5 | Four mockup comparisons, complete content/Anima flows, keyboard and narrow layouts, both serving modes | Passed targeted Review #2, eight visual comparisons and both complete journeys in both serving modes; exact cleanup and final backend checks pass. |
 | Phase 6 | Independent installations, retained existing data, real audio/avatar and explicit native evidence | Not run. |
 | Hosted CI / release | Actual candidate `Validation` scope; separate release/publication approval | Not requested or run. |
 

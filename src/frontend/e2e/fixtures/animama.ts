@@ -1,5 +1,9 @@
 import path from "node:path";
 import { open } from "node:fs/promises";
+import type {
+  PortableAnima,
+  ReviewedPackageImport,
+} from "@animama/runtime-contracts/api-types";
 
 import {
   expect,
@@ -53,10 +57,18 @@ export type CreatorContentKind =
   | "avatar_effect"
   | "scene_effect";
 
+type PackageContentKind =
+  | CreatorContentKind
+  | "avatar"
+  | "appearance"
+  | "idle_style"
+  | "sound_effect"
+  | "anima";
+
 export type CreatorContentPlan = {
   runId: string;
   journeyKey: string;
-  kind: CreatorContentKind;
+  kind: PackageContentKind;
   entryName: string;
   logicalKey: string;
 };
@@ -69,6 +81,13 @@ export type CreatorPackageImportPlan = Omit<
   stageId: string;
   reviewDigest: string;
   entryId: string;
+  packageEntries?: Array<{
+    entryId: string;
+    kind: string;
+    name: string;
+    selected: boolean;
+  }>;
+  packageAnima?: PortableAnima | null;
 };
 
 export type LocalCatalogSnapshot = {
@@ -119,6 +138,10 @@ export type CreatorContentFixture = {
   planPackageImport(
     input: Omit<CreatorPackageImportPlan, "runId">,
   ): Promise<CreatorPackageImportPlan>;
+  planWholePackageImport(
+    review: ReviewedPackageImport,
+    journeyKey: string,
+  ): Promise<CreatorPackageImportPlan[]>;
   resolvePackageImport(plan: CreatorPackageImportPlan): Promise<{
     plan: CreatorContentPlan;
     itemId: string;
@@ -365,6 +388,47 @@ export const test = base.extend<AnimamaFixtures>({
           event: "import_planned",
         });
         return plan;
+      },
+      async planWholePackageImport(review, journeyKey) {
+        const packageEntries = review.items.map((item) => ({
+          entryId: item.entry_id,
+          kind: item.kind,
+          name: item.name,
+          selected: item.selected,
+        }));
+        const choices = [
+          ...review.items.map((item) => ({
+            entryId: item.entry_id,
+            kind: item.kind as PackageContentKind,
+            name: item.name,
+          })),
+          ...(review.anima
+            ? [
+                {
+                  entryId: "anima",
+                  kind: "anima" as const,
+                  name: review.anima.display_name,
+                },
+              ]
+            : []),
+        ];
+        const plans = [];
+        for (const [index, item] of choices.entries()) {
+          plans.push(
+            await fixture.planPackageImport({
+              journeyKey: `${journeyKey}-${index}`,
+              kind: item.kind,
+              entryName: item.name,
+              operationId: review.operation_id,
+              stageId: review.stage_id,
+              reviewDigest: review.review_digest,
+              entryId: item.entryId,
+              packageEntries,
+              packageAnima: review.anima,
+            }),
+          );
+        }
+        return plans;
       },
       async resolvePackageImport(input) {
         if (input.runId !== runId)

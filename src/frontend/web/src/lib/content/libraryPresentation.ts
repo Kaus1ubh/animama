@@ -2,6 +2,7 @@ import type { PyPose } from "@animama/runtime-contracts/api-types";
 import type {
   PyCatalogViewItem,
   PyGesture,
+  PyIdleStyle,
   PyReaction,
 } from "@/lib/content/catalogTypes";
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
@@ -13,6 +14,7 @@ export type LibraryProductCard = {
     | "gesture"
     | "reaction"
     | "pose"
+    | "idle-style"
     | "particle"
     | "avatar-effect"
     | "scene"
@@ -76,7 +78,8 @@ export function libraryProductActionPolicy(
   card: LibraryProductCard,
 ): LibraryProductActionPolicy {
   const action = card.family === "gesture" || card.family === "reaction";
-  const reusableEffect = !action && card.family !== "pose";
+  const reusableEffect =
+    !action && card.family !== "pose" && card.family !== "idle-style";
   return {
     preview: Boolean(card.source),
     manage: action && Boolean(card.source),
@@ -211,5 +214,22 @@ export function poseLibraryCard(item: PyPose): LibraryProductCard {
       catalog_item_id: item.item_id,
       logical_key: item.logical_key ?? item.pose_id,
     },
+  };
+}
+
+/** Idle Styles are reusable schedules, not directly invokable Actions or FX. */
+export function idleStyleLibraryCard(item: PyIdleStyle): LibraryProductCard {
+  return {
+    key: `idle-style:${item.item_id}`,
+    itemId: item.item_id,
+    family: "idle-style",
+    name: item.name,
+    description: item.description ?? "",
+    origin: item.origin === "builtin" ? "Built-in" : "Mine",
+    sourceLabel: item.catalog_source === "included" ? "Included" : "Local",
+    updateAvailable: false,
+    equippedCount: 0,
+    includedCount: 0,
+    source: item.source,
   };
 }

@@ -28,6 +28,42 @@ def test_import_and_export_share_two_stage_limit_across_service_instances(tmp_pa
     assert second.create_export("other-owner", "independent.animama", 20)
 
 
+def test_quota_pressure_reclaims_only_inactive_finished_downloads(tmp_path: Path) -> None:
+    service = stages(tmp_path)
+    exported = service.create_export("owner", "shared.animama", 10)
+    with service.acquire("owner", exported.stage_id, "export") as lease:
+        lease.set_state("completed")
+    pending = service.create_import("owner", "one", "one.animama", 10)
+    # A finished cache remains available for retry while no new slot is needed.
+    service.sweep_expired("owner")
+    with service.acquire("owner", exported.stage_id, "export"):
+        with pytest.raises(ContentConflictError, match="package_stage_limit"):
+            service.create_import("owner", "two", "two.animama", 10)
+    fresh = stages(tmp_path).create_import("owner", "two", "two.animama", 10)
+    assert fresh.stage_id != exported.stage_id
+    assert service.status("owner", pending.stage_id)[0].operation_id == "one"
+    with pytest.raises(ContentConflictError, match="package_stage_unavailable"):
+        service.status("owner", exported.stage_id, "export")
+
+
+def test_finished_download_reclamation_also_releases_byte_quota(tmp_path: Path) -> None:
+    service = stages(tmp_path, max_total_bytes=20)
+    exported = service.create_export("owner", "shared.animama", 12)
+    with service.acquire("owner", exported.stage_id, "export") as lease:
+        lease.set_state("completed")
+    assert service.create_import("owner", "next", "next.animama", 15)
+
+
+def test_completed_imports_are_not_reclaimed_without_acknowledgment(tmp_path: Path) -> None:
+    service = stages(tmp_path)
+    for index in range(2):
+        record = service.create_import("owner", str(index), f"{index}.animama", 10)
+        with service.acquire("owner", record.stage_id) as lease:
+            lease.set_state("completed")
+    with pytest.raises(ContentConflictError, match="package_stage_limit"):
+        service.create_import("owner", "next", "next.animama", 10)
+
+
 def test_aggregate_archive_reservation_is_checked_before_creation(tmp_path: Path) -> None:
     service = stages(tmp_path, max_total_bytes=20)
     service.create_import("owner", "operation", "one.animama", 12)

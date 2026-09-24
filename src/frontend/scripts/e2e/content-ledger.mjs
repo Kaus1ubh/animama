@@ -23,6 +23,11 @@ const CONTENT_KINDS = new Set([
   "particle_effect",
   "avatar_effect",
   "scene_effect",
+  "avatar",
+  "appearance",
+  "idle_style",
+  "sound_effect",
+  "anima",
 ]);
 const COMMON_KEYS = new Set([
   "schemaVersion",
@@ -41,6 +46,8 @@ const EVENT_KEYS = {
     "stageId",
     "reviewDigest",
     "entryId",
+    "packageEntries",
+    "packageAnima",
   ]),
   import_owned: new Set([
     "operationId",
@@ -50,6 +57,11 @@ const EVENT_KEYS = {
     "itemId",
     "revisionSha256",
     "relativeLocator",
+    "packageEntries",
+    "packageAnima",
+    "animaDefinition",
+    "relatedAvatarId",
+    "relatedAvatarSha256",
   ]),
   owned: new Set(["itemId", "revisionSha256", "relativeLocator"]),
   updated: new Set([
@@ -126,6 +138,56 @@ function validateCommon(event) {
       );
     }
     requiredString(event.entryId, "entryId", 128);
+    if (event.packageEntries !== undefined) {
+      if (
+        !Array.isArray(event.packageEntries) ||
+        !event.packageEntries.length ||
+        event.packageEntries.length > 512
+      )
+        throw new Error(
+          "Package ownership requires a bounded complete entry list.",
+        );
+      const ids = new Set();
+      for (const entry of event.packageEntries) {
+        if (
+          !entry ||
+          Object.keys(entry).sort().join() !== "entryId,kind,name,selected" ||
+          !CONTENT_KINDS.has(entry.kind) ||
+          entry.kind === "anima" ||
+          typeof entry.selected !== "boolean"
+        )
+          throw new Error(
+            "Package ownership contains an invalid reviewed entry.",
+          );
+        requiredString(entry.entryId, "package entry ID", 128);
+        requiredString(entry.name, "package entry name", 160);
+        if (ids.has(entry.entryId))
+          throw new Error("Package ownership repeats an entry ID.");
+        ids.add(entry.entryId);
+      }
+      if (event.kind === "anima") {
+        if (
+          event.entryId !== "anima" ||
+          !event.packageAnima ||
+          typeof event.packageAnima !== "object"
+        )
+          throw new Error(
+            "Anima ownership requires its reviewed portable definition.",
+          );
+      } else if (
+        !event.packageEntries.some(
+          (entry) =>
+            entry.entryId === event.entryId &&
+            entry.kind === event.kind &&
+            entry.name === event.entryName,
+        )
+      )
+        throw new Error(
+          "Package plan is outside its complete reviewed entry list.",
+        );
+    } else if (event.kind === "anima" || event.packageAnima !== undefined) {
+      throw new Error("Anima ownership requires a whole-package plan.");
+    }
   }
 
   const allowed = new Set([...COMMON_KEYS, ...EVENT_KEYS[event.event]]);
@@ -152,7 +214,18 @@ function validateIdentityFields(event) {
     );
   }
   if (["owned", "import_owned", "updated"].includes(event.event)) {
-    requiredString(event.relativeLocator, "relativeLocator", 512);
+    if (event.kind !== "anima")
+      requiredString(event.relativeLocator, "relativeLocator", 512);
+    else if (
+      !event.animaDefinition ||
+      typeof event.animaDefinition !== "object" ||
+      typeof event.relatedAvatarId !== "string" ||
+      !event.relatedAvatarId ||
+      !/^[0-9a-f]{64}$/.test(event.relatedAvatarSha256 ?? "")
+    )
+      throw new Error(
+        "Anima ownership requires its expected saved definition.",
+      );
   } else if (event.event === "verified") {
     if (!Number.isSafeInteger(event.fileCount) || event.fileCount < 1) {
       throw new Error("Content ledger verified.fileCount must be positive.");
@@ -284,9 +357,26 @@ function validateContentLedgerTransition(events, candidate) {
     if (events.some((value) => value.runId !== event.runId)) {
       throw new Error("Content ledger cannot mix run IDs.");
     }
+    const operationPlans = event.operationId
+      ? events.filter(
+          (value) =>
+            value.event === "import_planned" &&
+            value.operationId === event.operationId,
+        )
+      : [];
+    const first = operationPlans[0];
+    // Earlier lines already passed this same check. Compare complete shared
+    // facts once, while still checking every entry ID for duplication.
     if (
-      event.operationId &&
-      events.some((value) => value.operationId === event.operationId)
+      first &&
+      (!event.packageEntries ||
+        operationPlans.some((value) => value.entryId === event.entryId) ||
+        first.stageId !== event.stageId ||
+        first.reviewDigest !== event.reviewDigest ||
+        JSON.stringify(first.packageEntries) !==
+          JSON.stringify(event.packageEntries) ||
+        JSON.stringify(first.packageAnima) !==
+          JSON.stringify(event.packageAnima))
     ) {
       throw new Error(
         "Package ownership cannot reuse an operation ID across journeys.",
@@ -297,8 +387,15 @@ function validateContentLedgerTransition(events, candidate) {
 
   assertSharedIdentity(previous, event);
   if (previous.event === "import_planned" && event.event === "import_owned") {
-    for (const key of ["operationId", "stageId", "reviewDigest", "entryId"]) {
-      if (previous[key] !== event[key])
+    for (const key of [
+      "operationId",
+      "stageId",
+      "reviewDigest",
+      "entryId",
+      "packageEntries",
+      "packageAnima",
+    ]) {
+      if (JSON.stringify(previous[key]) !== JSON.stringify(event[key]))
         throw new Error(`Content ledger transition changed ${key}.`);
     }
   }
