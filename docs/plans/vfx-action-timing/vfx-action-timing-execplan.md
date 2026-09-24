@@ -78,3 +78,17 @@ passed. Browser checks covered multiple named particle tracks, event selection,
 Start/duration changes, Action-owned ends, vertical scrolling and narrow layout.
 The container test runner lacked its native Rolldown binding; host tests supplied
 the local automated evidence. No hosted CI or native desktop checks were run.
+
+## Follow-up: selectable timeline list
+
+The Effects / Poses & Effects header now has an enabled-by-default timeline toggle,
+styled like the Pose bone-helper toggle. A separate chronological list appears to
+its right when enabled and nonempty; narrow layouts place it below the catalog.
+Each keyframe and event is independently selectable using the existing timeline
+selection actions, which seek the playhead and expose the matching inspector.
+The former dependency-level Added to timeline section is removed. The Lucide
+Timeline icon is backported from the official SVG with its license notice because
+the installed icon package predates it.
+
+Browser checks covered default/empty state, toggle visibility, event and expression
+selection in Reactions, pose selection in Gestures, and narrow-layout selection.

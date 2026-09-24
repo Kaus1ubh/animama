@@ -59,6 +59,7 @@ import {
 } from "./actionEditorSavedPose";
 import { ActionCatalogDragProvider } from "./ActionCatalogDrag";
 import { ActionEditorScene } from "./ActionEditorScene";
+import { ActionEventList } from "./ActionEventList";
 import { ActionEditorEffectsPanel } from "./ActionEditorEffectsPanel";
 import { ActionEditorHeader } from "./ActionEditorHeader";
 import {
@@ -148,6 +149,7 @@ const REACTION_TOOLS: ToolOption[] = [
   { id: "timeline", label: "Timeline", icon: Clock3Icon },
   { id: "expressions", label: "Expressions", icon: SmileIcon },
   { id: "components", label: "Effects", icon: LibraryIcon },
+  { id: "inspector", label: "Inspector", icon: SlidersHorizontalIcon },
 ];
 
 const POSE_TOOLS: ToolOption[] = [
@@ -172,6 +174,7 @@ function ActionEditorWorkspaceContent() {
   const desktopLayout = useActionEditorDesktopLayout();
   const [mobileTool, setMobileTool] = useState<MobileTool>("timeline");
   const [componentsExpanded, setComponentsExpanded] = useState(true);
+  const [showTimelineEvents, setShowTimelineEvents] = useState(true);
   const [timelineExpanded, setTimelineExpanded] = useState(true);
   const [timelineHeight, setTimelineHeight] = useState(170);
   const timelinePanelBottom = timelineExpanded ? timelineHeight + 20 : 80;
@@ -547,9 +550,21 @@ function ActionEditorWorkspaceContent() {
                 >
                   <EffectsPanel
                     expanded={componentsExpanded}
+                    timelineEnabled={showTimelineEvents}
+                    onTimelineEnabledChange={setShowTimelineEvents}
                     onExpandedChange={setComponentsExpanded}
                   />
                 </div>
+                {showTimelineEvents &&
+                (clipDraft.events.length > 0 ||
+                  clipDraft.keyframes.length > 0) ? (
+                  <div
+                    className="pointer-events-auto absolute top-4 left-[calc(var(--app-shell-sidebar-inset)+340px)] z-20 w-[180px] xl:left-[calc(var(--app-shell-sidebar-inset)+404px)] xl:w-[220px] 2xl:left-[calc(var(--app-shell-sidebar-inset)+436px)]"
+                    style={{ bottom: timelinePanelBottom }}
+                  >
+                    <ActionEventList />
+                  </div>
+                ) : null}
                 {workspace.document.intent === "gesture" &&
                 (clipDraft.selectedKeyframeId || clipDraft.selectedEventId) ? (
                   <div
@@ -773,11 +788,24 @@ function EffectsPanel({
   mobile = false,
   expanded = true,
   onExpandedChange,
+  onTimelineItemSelect,
+  timelineEnabled: controlledTimelineEnabled,
+  onTimelineEnabledChange,
 }: {
   mobile?: boolean;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
+  onTimelineItemSelect?: () => void;
+  timelineEnabled?: boolean;
+  onTimelineEnabledChange?: (enabled: boolean) => void;
 }) {
+  const [localTimelineEnabled, setLocalTimelineEnabled] = useState(true);
+  const timelineEnabled = controlledTimelineEnabled ?? localTimelineEnabled;
+  const setTimelineEnabled = onTimelineEnabledChange ?? setLocalTimelineEnabled;
+  const hasItems = usePoseCreatorStore(
+    (state) =>
+      state.clipDraft.events.length + state.clipDraft.keyframes.length > 0,
+  );
   const workspace = useActionEditorWorkspace();
   const gesture = workspace.document.intent === "gesture";
   const posesQuery = usePoses({ enabled: gesture });
@@ -797,42 +825,52 @@ function EffectsPanel({
     live.current.document.intent === "gesture" &&
     live.current.mode === workspace.mode;
   return (
-    <ActionEditorEffectsPanel
-      onCreatePose={() => workspace.setMode("pose")}
-      mobile={mobile}
-      expanded={expanded}
-      onExpandedChange={onExpandedChange}
-      query={workspace.dependencyQuery}
-      onQueryChange={workspace.setDependencyQuery}
-      activeType={workspace.activeDependencyType}
-      onActiveTypeChange={workspace.setActiveDependencyType}
-      sections={workspace.dependencySections}
-      dependencies={workspace.document.dependencies}
-      onAdd={workspace.addComponent}
-      onRemove={workspace.removeDependency}
-      poses={gesture ? savedPoses : undefined}
-      posesPending={posesQuery.isPending}
-      posesError={posesQuery.error?.message ?? null}
-      onRetryPoses={() => void posesQuery.refetch()}
-      onEditPose={
-        gesture
-          ? (pose) => {
-              void editActionEditorSavedPose(pose, { isCurrent }).then(
-                (loaded) => {
-                  if (loaded && isCurrent()) workspace.setMode("pose");
-                },
-              );
-            }
-          : undefined
-      }
-      onAddPose={
-        gesture
-          ? (pose) => {
-              void insertActionEditorSavedPose(pose, { isCurrent });
-            }
-          : undefined
-      }
-    />
+    <div className="relative flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1">
+        <ActionEditorEffectsPanel
+          onCreatePose={() => workspace.setMode("pose")}
+          mobile={mobile}
+          expanded={expanded}
+          onExpandedChange={onExpandedChange}
+          query={workspace.dependencyQuery}
+          onQueryChange={workspace.setDependencyQuery}
+          activeType={workspace.activeDependencyType}
+          onActiveTypeChange={workspace.setActiveDependencyType}
+          sections={workspace.dependencySections}
+          dependencies={workspace.document.dependencies}
+          onAdd={workspace.addComponent}
+          timelineEnabled={timelineEnabled}
+          onTimelineEnabledChange={setTimelineEnabled}
+          poses={gesture ? savedPoses : undefined}
+          posesPending={posesQuery.isPending}
+          posesError={posesQuery.error?.message ?? null}
+          onRetryPoses={() => void posesQuery.refetch()}
+          onEditPose={
+            gesture
+              ? (pose) => {
+                  void editActionEditorSavedPose(pose, { isCurrent }).then(
+                    (loaded) => {
+                      if (loaded && isCurrent()) workspace.setMode("pose");
+                    },
+                  );
+                }
+              : undefined
+          }
+          onAddPose={
+            gesture
+              ? (pose) => {
+                  void insertActionEditorSavedPose(pose, { isCurrent });
+                }
+              : undefined
+          }
+        />
+      </div>
+      {mobile && timelineEnabled && hasItems ? (
+        <div className="max-h-[40%] shrink-0 overflow-y-auto p-2">
+          <ActionEventList onSelect={onTimelineItemSelect} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -894,7 +932,10 @@ function MobileWorkspace({
         {activeTool === "timeline" ? (
           timeline
         ) : activeTool === "components" ? (
-          <EffectsPanel mobile />
+          <EffectsPanel
+            mobile
+            onTimelineItemSelect={() => onToolChange("inspector")}
+          />
         ) : activeTool === "inspector" ? (
           <ActionEditorClipInspector
             variant="mobile"
