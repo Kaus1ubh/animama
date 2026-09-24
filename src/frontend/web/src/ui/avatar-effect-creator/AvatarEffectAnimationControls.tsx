@@ -1,12 +1,5 @@
-import {
-  deriveAvatarVFXAnimationPreset,
-  resolveAvatarVFXAnimationConfig,
-} from "@/lib/avatar/vfx/animation";
-import { animationConfigForPreset } from "@/lib/avatar/vfx/editor";
-import type {
-  AvatarVFXAnimationConfig,
-  AvatarVFXAnimationPreset,
-} from "@/lib/avatar/vfx/types";
+import { resolveAvatarVFXAnimationConfig } from "@/lib/avatar/vfx/animation";
+import type { AvatarVFXAnimationConfig } from "@/lib/avatar/vfx/types";
 import {
   CreatorField as Field,
   CreatorNumberField as NumberField,
@@ -34,33 +27,6 @@ export function AvatarEffectAnimationControls({
     onChange({ ...config, ...values });
   return (
     <>
-      <Field label="Animation preset">
-        <Select
-          value={deriveAvatarVFXAnimationPreset(config) ?? "custom"}
-          onValueChange={(value) =>
-            onChange(
-              animationConfigForPreset(value as AvatarVFXAnimationPreset),
-            )
-          }
-        >
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            <SelectItem value="pulse">Pulse</SelectItem>
-            <SelectItem value="spin">Spin</SelectItem>
-            <SelectItem value="drift">Drift</SelectItem>
-            <SelectItem value="pulse_spin">Pulse + spin</SelectItem>
-            <SelectItem value="custom" disabled>
-              Custom combination
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        <p className="text-muted-foreground text-xs">
-          Choosing a preset resets motion settings.
-        </p>
-      </Field>
       <Toggle
         label="Pulse"
         checked={resolved.pulseEnabled}
