@@ -930,8 +930,8 @@ class AnimaLoadoutService:
             {"operation": "set" if spec.idle_style is not None else "leave_empty"},
             spec.idle_style,
         )
-        for source in spec.gestures:
-            await apply("gesture", {"operation": "add"}, source)
+        for selection in spec.gestures:
+            await apply("gesture", {"operation": "add", "config_overrides": selection.config}, selection.source)
         for cell in spec.reactions:
             if cell.source is None:
                 # The complete matrix was validated above. Empty cells need
@@ -944,6 +944,7 @@ class AnimaLoadoutService:
                     "operation": "replace",
                     "emotion": cell.emotion,
                     "intensity": cell.intensity,
+                    "config_overrides": cell.config,
                 },
                 cell.source,
             )

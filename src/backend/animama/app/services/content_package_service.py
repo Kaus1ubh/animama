@@ -14,6 +14,7 @@ from tempfile import SpooledTemporaryFile
 from typing import BinaryIO, Literal, TypedDict, cast
 from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile, ZipInfo
 
+from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import (
     RETIRED_CONTENT_KINDS,
@@ -21,6 +22,7 @@ from animama.app.services.content_kind_registry import (
     descriptor_filename,
     handler_for_kind,
 )
+from animama.app.services.content_package_export import ContentPackageExportService, ExportReview, ExportSummary
 from animama.app.services.content_save_service import readable_entry_name
 from animama.app.services.local_content_mutations import mutation_digest
 from animama.domain.content_catalog import (
@@ -165,11 +167,40 @@ class ContentPackageService:
         *,
         content: ContentCatalogService,
         exports_root: Path,
+        anima_sources: AnimaPackageSourceService | None = None,
     ) -> None:
         self._catalog = content.mutations.catalog
         self._store = content.mutations.store
         self._content = content
         self._exports_root = exports_root
+        self._exports = ContentPackageExportService(
+            content=content, exports_root=exports_root, anima_sources=anima_sources
+        )
+
+    async def summarize(
+        self, *, user_id: str, item_ids: tuple[str, ...] = (), anima_id: str | None = None
+    ) -> ExportSummary:
+        """Resolve portable selected/required content without producing an archive."""
+        return await self._exports.summarize(user_id=user_id, item_ids=item_ids, anima_id=anima_id)
+
+    async def prepare_export(
+        self, *, user_id: str, expected_digest: str, item_ids: tuple[str, ...] = (), anima_id: str | None = None
+    ) -> ExportReview:
+        """Seal exact version-three bytes before returning their review."""
+        return await self._exports.prepare(
+            user_id=user_id, expected_digest=expected_digest, item_ids=item_ids, anima_id=anima_id
+        )
+
+    async def get_export(self, *, user_id: str, export_id: str) -> ExportedContentPackage:
+        """Retrieve the already reviewed cache independently of current content."""
+        cached = await self._exports.cached(user_id=user_id, export_id=export_id)
+        return ExportedContentPackage(
+            path=cached.path,
+            filename=cached.review.filename,
+            package_sha256=cached.review.package_sha256,
+            size_bytes=cached.review.size_bytes,
+            item_count=len(cached.review.manifest.entries),
+        )
 
     async def _visible_closure(self, *, user_id: str, root_item_id: str) -> list[CatalogContentEntry]:
         visible = {item.id: item for item in await self._catalog.list_visible(user_id=user_id)}

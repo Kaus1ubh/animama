@@ -634,6 +634,11 @@ class FilesystemContentStore(ContentStore):
                 )
         return entries
 
+    def inspect_package_tree(self, root: Path) -> list[ScannedContentEntry]:
+        """Reuse the canonical scanner with private roots and no publication or journals."""
+        inspector = FilesystemContentStore(included_root=root, local_root=root, operations_root=root / ".unused")
+        return inspector.scan(ContentSource.LOCAL)
+
     def open_verified_file(
         self,
         *,

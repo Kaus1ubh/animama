@@ -14,7 +14,12 @@ from typing import Any, cast
 from animama.app.anima_creation_contract import AnimaSpec, ItemRevisionRef
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
-from animama.domain.anima_creation import ResolvedAnimaSpec, ResolvedAppearanceSelection, ResolvedReactionSelection
+from animama.domain.anima_creation import (
+    ResolvedAnimaSpec,
+    ResolvedAppearanceSelection,
+    ResolvedGestureSelection,
+    ResolvedReactionSelection,
+)
 from animama.domain.anima_creation_error import AnimaCreationError, AnimaCreationIssue, bounded_issues
 from animama.domain.anima_definition import (
     ANIMA_DISPLAY_NAME_MAX_CHARACTERS,
@@ -378,7 +383,9 @@ class AnimaCreationSources:
                 identity=spec.identity_markdown,
                 avatar=typed_items[spec.avatar.item_id].item,
                 idle_style=None,
-                gestures=tuple(typed_items[choice.source.item_id].item for choice in spec.gestures),
+                gestures=tuple(
+                    ResolvedGestureSelection(typed_items[choice.source.item_id].item) for choice in spec.gestures
+                ),
                 reactions=tuple(
                     ResolvedReactionSelection(emotion, int(level), typed_items[source.item_id].item if source else None)
                     for emotion, cells in spec.reactions.items()

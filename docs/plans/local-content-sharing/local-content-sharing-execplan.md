@@ -1,6 +1,6 @@
 # Local content and complete Anima sharing
 
-Status: Approved 2026-09-24 for full implementation; Phases 1–2 complete, Phase 3 underway.
+Status: Approved 2026-09-24 for full implementation; Phases 1–3 complete, Phase 4 next.
 
 Source agreement: [local-content-sharing-spec.md](local-content-sharing-spec.md),
 requirements R1–R9 and its acceptance table, following the owner's 2026-09-23
@@ -79,7 +79,7 @@ Paths below are relative to the repository root. `B` means
   issues published/read back, supplied worktree verified, locked dependencies installed.
 - [x] Phase 1: Gesture-based Idle Styles and preservation of existing idle behavior.
 - [x] Phase 2: retire Music/BGM and standalone Pose Clip availability safely.
-- [ ] Phase 3: portable multi-root and full-Anima export with exact review snapshots.
+- [x] Phase 3: portable multi-root and full-Anima export with exact review snapshots.
 - [ ] Phase 4: staged, reviewed import and one recoverable installation operation.
 - [ ] Phase 5: Library frontend using the supplied UI mockups.
 - [ ] Phase 6: combined acceptance, current documentation and final review.
@@ -597,7 +597,7 @@ Recovery follows the transition contract; no profile reset or source-file deleti
 
 Issue: [#83](https://github.com/raymond-van/animama/issues/83). Starting SHA:
 `8e2a68ef5fa4751f52103139492212386ece6bec`.
-Verified phase commit: recorded below after creation.
+Verified phase commit: `08e31f2bc57b19111caa8c1456f6ea322c910369`.
 
 Implementation evidence (2026-09-24):
 
@@ -753,16 +753,113 @@ effects; malformed closure/images/capabilities fail before export/import success
 Record exact new fixture commands. Recovery: failed/cancelled preparation removes
 only its owned temporary cache; later edits never alter an existing review.
 
-Issue: [#84](https://github.com/raymond-van/animama/issues/84). Starting SHA: record predecessor commit when phase starts.
-Commit / evidence: pending.
+Issue: [#84](https://github.com/raymond-van/animama/issues/84). Starting SHA:
+`08e31f2bc57b19111caa8c1456f6ea322c910369`. Commit: pending.
+
+Implemented and verified: strict `/3` archive inspection, saved-authority
+Anima projection/configuration, closed playback capabilities and exact export
+review are integrated. All 158 maintained Included descriptors/resources pass
+the closed capability admission check. Selection-summary regression first
+failed because the service had no summary/review API. The new writer uses stored
+ZIP members so highly repetitive valid JSON/media cannot produce a package above
+the reader's compression-ratio ceiling. Payloads still stream with bounded buffers.
+Keep explicit null Anima cells/appearance choices when serializing the manifest.
+
+The old immediate package API is cut over together with its callers in Phase 4,
+as that phase explicitly requires; `/3` inspection/export review is implemented
+as an independently checked service first. No legacy-package support is added.
+
+Validation before review: the integrated package/export/PortableAnima batch passed
+127 tests; subsequent archive-only additions passed 49 tests. The writer has
+byte-level complete-Anima privacy checks, independent shared image roles, stale
+source/portrait fences, overlapping-root deduplication and immutable-cache tests.
+Observed behavior failures covered missing summary, bare-media identity metadata,
+reference rewriting that altered matching names, invalid Action motion and finite
+VRMA default-role detection. Scoped static/type/import-boundary checks passed.
+The frozen full backend suite passed **2025 tests, 7 skipped** (416 warnings,
+197.40 seconds; `/tmp/animama-p3-pytest.log`). Independent
+`UV_NO_SYNC=1 UV_CACHE_DIR=/tmp/animama-p1-checks-uv-cache make audit-typed-content check`
+passed formatting, Ruff and mypy over 544 Python files; import-boundary check
+found zero forbidden edges. These results precede Review #1 repairs.
+The frontend compatibility file has 8 passing tests in the independent rerun;
+this observed result supersedes the earlier unverified 17-test count.
 
 #### Code Review #1 Findings
 
-Not run. Include privacy allowlists, exact closure and image rewriting.
+Blocked against the complete tracked/untracked Phase 3 diff from `08e31f2`.
+Independent full-inspector reproductions confirmed three required findings:
+
+- **P3-B1:** ZIP64 records without classic EOCD sentinels bypassed the pre-parser
+  central-directory allocation limit. A 198-byte directory passed a 1-byte cap.
+- **P3-B2:** Action sound/effect event selectors could name missing dependencies;
+  a sender-only Sound Effect reference with zero bundled dependencies passed.
+- **P3-B3:** An inferred sequence role omitted from descriptor `files` bypassed
+  clip/capability validation; a JSON object without the Clip schema passed.
+
+No further blocker was found in saved-authority privacy, configuration mapping or
+exact export rechecks. Phase 4 still owns endpoint cutover and staging.
 
 #### Code Review #1 Revisions
 
-Not run. Two repair rounds remain.
+All three findings accepted after verifying the reported code paths. Repair
+round 1 aligns ZIP64 preflight with the actual ZIP parser and counts central
+records before allocation; resolves Action events against exactly one dependency
+of the correct kind; and passes actual registered roles to payload validation.
+ZIP64 and inferred-role regressions each showed two failures before repair; event
+closure regressions showed 20 failures, including full archive inspection.
+All 158 maintained Included capability cases remain supported.
+
+The repaired integrated batch passed **168 tests** (16 warnings, 9.98 seconds):
+`UV_CACHE_DIR=/tmp/animama-p1-checks-uv-cache uv run --no-sync pytest -q tests/test_content_package_export_review.py tests/test_content_package_v3_archive.py tests/test_content_package_v3_contract.py tests/test_content_package_capabilities.py tests/test_content_package_event_dependencies.py tests/test_portable_anima.py --disable-warnings --tb=short`.
+The full static refresh passed: typed-content audit, Ruff format/lint and mypy
+over 545 files (`/tmp/animama-p3-repair-static.log`). The earlier complete
+backend pass remains valid outside this repaired boundary.
+
+During filename checking, an additional public-contract regression reproduced:
+a valid Unicode/punctuation Anima name failed export because the download reused
+Local filename constraints (one failing case). A bounded download filename now
+preserves the complete definition name and removes unsafe filename characters;
+all nine export tests pass. This narrow correction is included in Review #2.
+
+#### Code Review #2 Findings
+
+Blocked only on the remaining scope of **P3-B2**. Full-inspector reproductions
+confirmed that an event requesting a background-layer Scene Effect could target
+a bundled focus-line effect, which the runtime rejects. The new dependency check
+also rejected a padded selector such as ` tone ` that the frontend trims.
+P3-B1, P3-B3 and the filename correction passed targeted independent rechecks.
+
+#### Code Review #2 Revisions
+
+Both remaining B2 cases accepted. Final repair round 2 compares resolved Scene
+Effect variants using the complete typed-document map and matches ECMAScript
+selector trimming, including BOM, in validation and portable-reference rewriting.
+Scene variant tokens themselves retain the renderer's strict untrimmed contract.
+Thirteen additional behavior failures preceded this repair. Actual exports with
+padded direct references and aliases now pass without altering Action names.
+All 11 export tests and 56 archive/contract tests pass; affected static checks pass.
+All 158 Included descriptors remain supported with their complete target graph.
+No broad review is reopened.
+
+#### Code Review #3 Findings
+
+Passed final targeted independent recheck. Both Scene Effect variant mismatches
+reject and clean their private tree; matching variants accept padded aliases and
+direct references. Export normalizes only selectors and preserves names. B1/B3
+and the filename correction remain resolved; no actionable repair regression.
+The complete affected Phase 3 batch now passes **199 tests** (16 warnings,
+16.40 seconds; `/tmp/animama-p3-repair2-tests.log`). The same six-file command
+recorded above was used after both repairs. Full typed-content audit, Ruff
+format/lint and mypy (545 files) pass (`/tmp/animama-p3-repair2-static.log`);
+import-boundary validation again reports zero forbidden edges. This reuses the
+initial full-suite result for unchanged behavior and the eight unchanged frontend
+compatibility tests.
+
+#### Code Review #3 Revisions
+
+No further changes required. Review #3 passed with zero repair rounds remaining.
+Phase 3 is complete; the initial full backend pass plus final affected/static
+checks satisfy its gate. API staging and route cutover remain Phase 4 work.
 
 ### Phase 4: Review and install one complete recoverable operation
 
@@ -960,8 +1057,8 @@ Source inspection and this plan are not passing runtime evidence.
 | --- | --- | --- |
 | Planning | Spec/plan/mockup links, source paths, whitespace and consistency | 2026-09-23: 17 local links, all listed existing test/source paths, six phases, three PNGs and Markdown whitespace checked; independent planning findings addressed. No code tests run. |
 | Phase 1 | Cell resolution, finite clocks/events, both players, isolated AI equipment, old idle conversion | Passed and committed `8e2a68e`; full local backend/frontend checks and rendered gates recorded above. |
-| Phase 2 | Retired data/receipts, preserved Actions/audio/TTS/Creator JSON, repeatable transition | Implemented; focused/static/rendered evidence above. Initial independent review and full backend check in progress. |
-| Phase 3 | Multi-root/Anima projection, private-data absence, images, exact export bytes | Not run. |
+| Phase 2 | Retired data/receipts, preserved Actions/audio/TTS/Creator JSON, repeatable transition | Passed and committed `08e31f2`; full local backend and targeted repair/static/rendered evidence above. Review #3 passed. |
+| Phase 3 | Multi-root/Anima projection, private-data absence, images, exact export bytes | Passed; initial full backend 2025 passed/7 skipped, final affected batch 199 passed, static and Review #3 passed. |
 | Phase 4 | Whole-package review, multipart limits, independent copies, single outcome under failure/retry/restart | Not run. |
 | Phase 5 | Four mockup comparisons, complete content/Anima flows, keyboard and narrow layouts, both serving modes | Not run. |
 | Phase 6 | Independent installations, retained existing data, real audio/avatar and explicit native evidence | Not run. |

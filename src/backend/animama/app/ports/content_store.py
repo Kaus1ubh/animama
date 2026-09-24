@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, BinaryIO, Protocol
 
 from animama.domain.content_catalog import (
@@ -57,6 +58,11 @@ class ContentStore(Protocol):
         raise NotImplementedError
 
     def scan(self, source: ContentSource) -> list[ScannedContentEntry]:
+        raise NotImplementedError
+
+    def inspect_package_tree(self, root: Path) -> list[ScannedContentEntry]:
+        """Validate an isolated private tree without scanning or mutating installed roots."""
+
         raise NotImplementedError
 
     def open_verified_file(
