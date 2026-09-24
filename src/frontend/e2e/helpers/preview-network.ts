@@ -320,7 +320,8 @@ function isSafeCreatorRequest(request: Request, apiOrigin: string): boolean {
   return (
     request.method() === "POST" &&
     hasExpectedApiOrigin(request, apiOrigin) &&
-    PREVIEW_PATH.test(new URL(request.url()).pathname)
+    (PREVIEW_PATH.test(new URL(request.url()).pathname) ||
+      new URL(request.url()).pathname === "/v1/content/previews:prepare")
   );
 }
 

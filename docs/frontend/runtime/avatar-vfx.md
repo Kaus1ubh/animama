@@ -68,8 +68,9 @@ hydrates the current Local descriptor, exact Sound source, and authorized image
 bytes into a new editor session. Save validates through the Avatar Effect
 handler and directly replaces the editable Local entry through
 `PUT /v1/avatar-effects/{entry_name}`; it creates no draft release or finalize
-step. Browser recovery remains authoring state only and is cleared after the
-direct Save succeeds.
+step. Browser recovery remains authoring state only. It survives reloads and
+interrupted work, but is cleared after a successful Save or explicit discard.
+Discarding never changes the saved Library item.
 
 The live preview calls the production `AvatarVFXController` against the
 selected Anima's exact Avatar model. Diagnostics distinguish a malformed

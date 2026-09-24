@@ -161,6 +161,7 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     message: null,
   });
   const [imageBusy, setImageBusy] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -276,6 +277,34 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     enableBeforeUnload: () => isDirty || contentSave.isBusy,
     withResolver: true,
   });
+
+  const discardCurrentDraft = useCallback(async () => {
+    try {
+      return await contentSave.discardChanges();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The draft could not be discarded.",
+      );
+      return false;
+    }
+  }, [contentSave]);
+
+  // Explicit discard ends browser recovery too; ordinary unload still preserves it.
+  const leaveCreator = async () => {
+    if (discarding) return;
+    if (contentSave.isBusy) {
+      blocker.proceed?.();
+      return;
+    }
+    setDiscarding(true);
+    try {
+      if (await discardCurrentDraft()) blocker.proceed?.();
+    } finally {
+      setDiscarding(false);
+    }
+  };
 
   useEffect(() => {
     if (
@@ -531,34 +560,45 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
     )
       return;
 
-    if (itemId) {
-      if (userId) await clearSceneEffectRecovery(userId, "new");
-      await navigate({
-        to: "/a/scene-effects/new",
-        replace: true,
-        ignoreBlocker: true,
-      });
-      return;
-    }
+    try {
+      if (itemId) {
+        if (userId)
+          await clearSceneEffectRecovery(userId, "new", { strict: true });
+        if (!(await discardCurrentDraft())) return;
+        await navigate({
+          to: "/a/scene-effects/new",
+          replace: true,
+          ignoreBlocker: true,
+        });
+        return;
+      }
 
-    const nextDocument = createDefaultSceneEffectDocument();
-    const nextFingerprint = sceneSaveFingerprint(nextDocument, []);
-    if (!(await contentSave.resetSession(nextFingerprint))) return;
-    resetDocument(nextDocument, []);
-    setSelectedLayer("marquee");
-    setImageBusy(false);
-    setImageError(null);
-    setPlaying(true);
-    setJsonOpen(false);
-    setImportOpen(false);
-    setImportText("");
-    setImportError(null);
-    setSoundPreview(null);
-    initialFingerprintRef.current = nextFingerprint;
-    setHydration({ state: "ready", message: null });
-    setPreviewRevision((value) => value + 1);
+      const nextDocument = createDefaultSceneEffectDocument();
+      const nextFingerprint = sceneSaveFingerprint(nextDocument, []);
+      if (!(await contentSave.resetSession(nextFingerprint))) return;
+      resetDocument(nextDocument, []);
+      setSelectedLayer("marquee");
+      setImageBusy(false);
+      setImageError(null);
+      setPlaying(true);
+      setJsonOpen(false);
+      setImportOpen(false);
+      setImportText("");
+      setImportError(null);
+      setSoundPreview(null);
+      initialFingerprintRef.current = nextFingerprint;
+      setHydration({ state: "ready", message: null });
+      setPreviewRevision((value) => value + 1);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The draft could not be discarded.",
+      );
+    }
   }, [
     contentSave,
+    discardCurrentDraft,
     imageBusy,
     isDirty,
     itemId,
@@ -849,10 +889,12 @@ export function SceneEffectCreatorPage({ itemId }: { itemId?: string }) {
             busy={contentSave.isBusy}
             open={blocker.status === "blocked"}
             onOpenChange={(open) => {
-              if (!open && blocker.status === "blocked") blocker.reset?.();
+              if (!open && !discarding && blocker.status === "blocked")
+                blocker.reset?.();
             }}
             onStay={() => blocker.reset?.()}
-            onLeave={() => blocker.proceed?.()}
+            discarding={discarding}
+            onLeave={() => void leaveCreator()}
           />
         </>
       }
@@ -1987,12 +2029,14 @@ function ScenePreviewActor({
 
 function LeaveDialog({
   busy,
+  discarding,
   open,
   onOpenChange,
   onStay,
   onLeave,
 }: {
   busy: boolean;
+  discarding: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStay: () => void;
@@ -2010,14 +2054,20 @@ function LeaveDialog({
           <DialogDescription>
             {busy
               ? "This Scene Effect is still being saved. Local recovery remains available when you return."
-              : "This Scene Effect has local authoring changes. Leaving will discard them from the active workspace. Local recovery remains available when you return."}
+              : "This Scene Effect has local authoring changes. Discarding removes these changes and their browser recovery draft. Saved content is unchanged."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={onStay}>
+          <Button variant="outline" disabled={discarding} onClick={onStay}>
             Stay
           </Button>
-          <Button onClick={onLeave}>Discard and continue</Button>
+          <Button disabled={discarding} onClick={onLeave}>
+            {discarding
+              ? "Discarding…"
+              : busy
+                ? "Leave and keep recovery"
+                : "Discard and continue"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

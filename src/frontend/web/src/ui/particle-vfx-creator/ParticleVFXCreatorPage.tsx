@@ -33,6 +33,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { toast } from "sonner";
 import * as THREE from "three";
 
 import { previewCatalogItem } from "@/lib/content/catalogApi";
@@ -257,6 +258,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   const [jsonResetToken, setJsonResetToken] = useState(0);
   const [copiedTarget, setCopiedTarget] = useState<string | null>(null);
   const [previewPlaying, setPreviewPlaying] = useState(true);
+  const [discarding, setDiscarding] = useState(false);
   const saveStatusRef = useRef<HTMLElement | null>(null);
 
   const restartPreview = useCallback(() => {
@@ -520,6 +522,37 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     withResolver: true,
   });
 
+  /** Keep the draft visible and retryable if its browser recovery cannot be deleted. */
+  const runDiscard = useCallback(
+    async (discard: () => Promise<void | boolean>) => {
+      if (discarding) return false;
+      setDiscarding(true);
+      try {
+        return (await discard()) !== false;
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "The draft could not be discarded.",
+        );
+        return false;
+      } finally {
+        setDiscarding(false);
+      }
+    },
+    [discarding],
+  );
+
+  const leaveCreator = async () => {
+    if (discarding) return;
+    if (
+      contentSave.isBusy ||
+      (await runDiscard(contentSave.discardBeforeLeave))
+    ) {
+      blocker.proceed?.();
+    }
+  };
+
   const patchCatalog = useCallback(
     (patch: Parameters<typeof updateParticleVFXEditorCatalogDraft>[1]) => {
       updateDraft((current) =>
@@ -604,7 +637,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   };
 
   const handleNewDocument = useCallback(async () => {
-    if (contentSave.isBusy) return;
+    if (contentSave.isBusy || discarding) return;
     if (
       isDirty &&
       !window.confirm(
@@ -614,28 +647,41 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       return;
     }
 
-    if (itemId) {
-      if (userId) await clearParticleVFXRecovery(userId, null);
-      await navigate({
-        to: "/a/particle-effects/new",
-        replace: true,
-        ignoreBlocker: true,
-      });
-      return;
-    }
+    await runDiscard(async () => {
+      if (itemId) {
+        if (!(await contentSave.discardBeforeLeave())) return false;
+        if (userId)
+          await clearParticleVFXRecovery(userId, null, { strict: true });
+        await navigate({
+          to: "/a/particle-effects/new",
+          replace: true,
+          ignoreBlocker: true,
+        });
+        return;
+      }
 
-    const nextDraft = createParticleVFXEditorDraftFromBlank();
-    if (!(await contentSave.resetSession(nextDraft))) return;
-    initialDraftRef.current = nextDraft;
-    hydrateDraft(nextDraft);
-    setEmitterQuery("");
-    setPreviewPlaying(true);
-    setJsonViewerOpen(false);
-    setImportDialogOpen(false);
-    setJsonExpandMode("smart");
-    setJsonResetToken((value) => value + 1);
-    setCopiedTarget(null);
-  }, [contentSave, hydrateDraft, isDirty, itemId, navigate, userId]);
+      const nextDraft = createParticleVFXEditorDraftFromBlank();
+      if (!(await contentSave.resetSession(nextDraft))) return false;
+      initialDraftRef.current = nextDraft;
+      hydrateDraft(nextDraft);
+      setEmitterQuery("");
+      setPreviewPlaying(true);
+      setJsonViewerOpen(false);
+      setImportDialogOpen(false);
+      setJsonExpandMode("smart");
+      setJsonResetToken((value) => value + 1);
+      setCopiedTarget(null);
+    });
+  }, [
+    contentSave,
+    discarding,
+    hydrateDraft,
+    isDirty,
+    itemId,
+    navigate,
+    runDiscard,
+    userId,
+  ]);
 
   const copyText = async (target: string, value: string) => {
     await navigator.clipboard.writeText(value);
@@ -663,7 +709,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   }, []);
   return (
     <CreatorWorkspaceShell
-      busy={contentSave.isBusy}
+      busy={contentSave.isBusy || discarding}
       leftPanelLabel="Emitters"
       rightPanelLabel="Inspector"
       leftPanelWidth={340}
@@ -674,6 +720,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           history={history}
           historyDisabled={
             contentSave.isBusy ||
+            discarding ||
             !contentSave.recoveryReady ||
             loadState.state === "loading"
           }
@@ -692,7 +739,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           documentName={draft?.catalog.label ?? ""}
           documentNameInputRef={documentNameInputRef}
           documentNameInvalid={contentSave.errorField === "name"}
-          documentNameDisabled={!draft || contentSave.isBusy}
+          documentNameDisabled={!draft || contentSave.isBusy || discarding}
           onDocumentNameChange={(label) => {
             contentSave.clearSaveErrorField("name");
             patchCatalog({ label });
@@ -713,10 +760,10 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           onImport={() => setImportDialogOpen(true)}
           onJson={() => setJsonViewerOpen(true)}
           onSave={() => void contentSave.save()}
-          newDisabled={contentSave.isBusy}
-          importDisabled={contentSave.isBusy}
+          newDisabled={contentSave.isBusy || discarding}
+          importDisabled={contentSave.isBusy || discarding}
           jsonDisabled={!exportBundle}
-          saveDisabled={!contentSave.canSave}
+          saveDisabled={!contentSave.canSave || discarding}
           saveBusy={contentSave.isBusy}
           saveLabel={
             contentSave.isBusy
@@ -1218,6 +1265,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                       <Button
                         type="button"
                         size="sm"
+                        disabled={discarding}
                         onClick={() => void contentSave.save()}
                       >
                         Retry Save
@@ -1227,7 +1275,10 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => void contentSave.discardRecovery()}
+                      disabled={discarding}
+                      onClick={() =>
+                        void runDiscard(contentSave.discardRecovery)
+                      }
                     >
                       Discard recovery
                     </Button>
@@ -1264,7 +1315,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           />
           <Dialog
             open={blocker.status === "blocked"}
-            onOpenChange={(open) => !open && blocker.reset?.()}
+            onOpenChange={(open) => !open && !discarding && blocker.reset?.()}
           >
             <DialogContent>
               <DialogHeader>
@@ -1276,17 +1327,26 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 <DialogDescription>
                   {contentSave.isBusy
                     ? "Leaving now pauses the active upload. Recovery keeps its creator-owned draft so Retry Save can continue later."
-                    : "This document has local changes. Leaving or opening another Particle VFX will discard them once the next document loads."}
+                    : "Leaving clears this editor's unsaved changes and browser recovery."}
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
-                <Button variant="outline" onClick={() => blocker.reset?.()}>
+                <Button
+                  variant="outline"
+                  disabled={discarding}
+                  onClick={() => blocker.reset?.()}
+                >
                   Stay
                 </Button>
-                <Button onClick={() => blocker.proceed?.()}>
-                  {contentSave.isBusy
-                    ? "Leave and pause Save"
-                    : "Discard and continue"}
+                <Button
+                  disabled={discarding}
+                  onClick={() => void leaveCreator()}
+                >
+                  {discarding
+                    ? "Discarding…"
+                    : contentSave.isBusy
+                      ? "Leave and keep recovery"
+                      : "Discard and continue"}
                 </Button>
               </DialogFooter>
             </DialogContent>

@@ -159,8 +159,9 @@ the catalog; there is no server draft or immutable-release finalization step.
 Recovery stores the document, operation identity, and bounded image Blobs in
 IndexedDB. A metadata-only localStorage fallback keeps the authored document
 and save identity but surfaces a repair state requiring the user to reselect
-private images. Retries preserve the operation identity, and a successful Save
-clears the recovery record.
+private images. Retries preserve the operation identity. Reloads retain recovery;
+a successful Save or explicit discard clears it. Discarding never changes the
+saved Library item.
 
 The preview reuses the production pure scene renderers and an editor-owned
 Avatar/viewport context. Backgrounds render below the Avatar; Focus Lines honor

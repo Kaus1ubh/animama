@@ -191,6 +191,8 @@ export function ActionEditorPage({
   const hydrating = useRef(false);
   const [hydrationReady, setHydrationReady] = useState(false);
   const finalized = useRef(false);
+  const recoveryDiscarded = useRef(false);
+  const recoveryGeneration = useRef(0);
   const internalNavigation = useRef(false);
   const initialComponentApplied = useRef(false);
   const actions = useActionEditorActions(intent);
@@ -370,6 +372,7 @@ export function ActionEditorPage({
         replaceLoadedDocument(next, item.origin === "owned");
         setMode(loadedActionEditorMode(intent, next.implementation));
         if (discardCurrentRecovery && userId) {
+          recoveryGeneration.current += 1;
           clearActionRecovery(
             window.localStorage,
             userId,
@@ -498,13 +501,25 @@ export function ActionEditorPage({
   useEffect(() => {
     // Recovery belongs to exact edit routes. `/new` intentionally stays blank
     // across navigation and refresh instead of reviving a prior action.
-    if (!userId || finalized.current || itemId === undefined || !hydrationReady)
+    if (
+      !userId ||
+      finalized.current ||
+      recoveryDiscarded.current ||
+      itemId === undefined ||
+      !hydrationReady
+    )
       return;
     if (!dirty) {
       clearActionRecovery(window.localStorage, userId, intent, itemId);
       return;
     }
+    const generation = recoveryGeneration.current;
     const timer = window.setTimeout(() => {
+      if (
+        recoveryDiscarded.current ||
+        generation !== recoveryGeneration.current
+      )
+        return;
       saveActionRecovery(
         window.localStorage,
         {
@@ -834,6 +849,7 @@ export function ActionEditorPage({
     [identity, intent],
   );
   const startNew = useCallback(async () => {
+    recoveryGeneration.current += 1;
     const next = createDocument();
     finalized.current = false;
     setActiveItemId(null);
@@ -1060,8 +1076,31 @@ export function ActionEditorPage({
             <Button variant="outline" onClick={() => blocker.reset?.()}>
               Stay
             </Button>
-            <Button onClick={() => blocker.proceed?.()}>
-              Discard and continue
+            <Button
+              onClick={() => {
+                if (!busy && userId) {
+                  // Fence pending autosave callbacks before removing this route's recovery.
+                  recoveryDiscarded.current = true;
+                  recoveryGeneration.current += 1;
+                  try {
+                    clearActionRecovery(
+                      window.localStorage,
+                      userId,
+                      intent,
+                      itemId ?? null,
+                    );
+                  } catch {
+                    recoveryDiscarded.current = false;
+                    toast.error(
+                      "Browser recovery could not be discarded. Please retry.",
+                    );
+                    return;
+                  }
+                }
+                blocker.proceed?.();
+              }}
+            >
+              {busy ? "Leave and keep recovery" : "Discard and continue"}
             </Button>
           </DialogFooter>
         </DialogContent>

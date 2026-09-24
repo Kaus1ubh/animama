@@ -144,6 +144,7 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     message: null,
   });
   const [imageBusy, setImageBusy] = useState(false);
+  const [discarding, setDiscarding] = useState(false);
   const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
@@ -225,6 +226,34 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     enableBeforeUnload: () => isDirty || contentSave.isBusy,
     withResolver: true,
   });
+
+  const discardCurrentDraft = useCallback(async () => {
+    try {
+      return await contentSave.discardChanges();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The draft could not be discarded.",
+      );
+      return false;
+    }
+  }, [contentSave]);
+
+  // Explicit discard ends browser recovery too; ordinary unload still preserves it.
+  const leaveCreator = async () => {
+    if (discarding) return;
+    if (contentSave.isBusy) {
+      blocker.proceed?.();
+      return;
+    }
+    setDiscarding(true);
+    try {
+      if (await discardCurrentDraft()) blocker.proceed?.();
+    } finally {
+      setDiscarding(false);
+    }
+  };
 
   const modelPreview = useContentCreatorModelPreview({
     ownerKey: `avatar-effect-creator:${itemId ?? "new"}`,
@@ -477,35 +506,46 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
     )
       return;
 
-    if (itemId) {
-      if (userId) await clearAvatarEffectRecovery(userId, "new");
-      await navigate({
-        to: "/a/avatar-effects/new",
-        replace: true,
-        ignoreBlocker: true,
-      });
-      return;
-    }
+    try {
+      if (itemId) {
+        if (userId)
+          await clearAvatarEffectRecovery(userId, "new", { strict: true });
+        if (!(await discardCurrentDraft())) return;
+        await navigate({
+          to: "/a/avatar-effects/new",
+          replace: true,
+          ignoreBlocker: true,
+        });
+        return;
+      }
 
-    const nextDocument = createDefaultAvatarEffectDocument();
-    const nextFingerprint = `${avatarEffectDocumentFingerprint(nextDocument)}:missing`;
-    if (!(await contentSave.resetSession(nextFingerprint))) return;
-    setHasAttemptedSave(false);
-    resetDocument(nextDocument, null);
-    setImageError(null);
-    setImageBusy(false);
-    setVfxSnapshot(null);
-    setModelCompatible(null);
-    setPlaying(true);
-    setJsonOpen(false);
-    setImportOpen(false);
-    setImportText("");
-    setImportError(null);
-    initialFingerprintRef.current = nextFingerprint;
-    setHydration({ state: "ready", message: null });
-    setPreviewRevision((value) => value + 1);
+      const nextDocument = createDefaultAvatarEffectDocument();
+      const nextFingerprint = `${avatarEffectDocumentFingerprint(nextDocument)}:missing`;
+      if (!(await contentSave.resetSession(nextFingerprint))) return;
+      setHasAttemptedSave(false);
+      resetDocument(nextDocument, null);
+      setImageError(null);
+      setImageBusy(false);
+      setVfxSnapshot(null);
+      setModelCompatible(null);
+      setPlaying(true);
+      setJsonOpen(false);
+      setImportOpen(false);
+      setImportText("");
+      setImportError(null);
+      initialFingerprintRef.current = nextFingerprint;
+      setHydration({ state: "ready", message: null });
+      setPreviewRevision((value) => value + 1);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "The draft could not be discarded.",
+      );
+    }
   }, [
     contentSave,
+    discardCurrentDraft,
     imageBusy,
     isDirty,
     itemId,
@@ -855,11 +895,13 @@ export function AvatarEffectCreatorPage({ itemId }: { itemId?: string }) {
           <AvatarEffectLeaveDialog
             open={blocker.status === "blocked"}
             onOpenChange={(open) => {
-              if (!open && blocker.status === "blocked") blocker.reset?.();
+              if (!open && !discarding && blocker.status === "blocked")
+                blocker.reset?.();
             }}
             busy={contentSave.isBusy}
             onStay={() => blocker.reset?.()}
-            onLeave={() => blocker.proceed?.()}
+            discarding={discarding}
+            onLeave={() => void leaveCreator()}
           />
         </>
       }
@@ -1607,12 +1649,14 @@ function AvatarEffectLeaveDialog({
   open,
   onOpenChange,
   busy,
+  discarding,
   onStay,
   onLeave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   busy: boolean;
+  discarding: boolean;
   onStay: () => void;
   onLeave: () => void;
 }) {
@@ -1628,14 +1672,20 @@ function AvatarEffectLeaveDialog({
           <DialogDescription>
             {busy
               ? "This Avatar Effect is still being saved. Local recovery remains available when you return."
-              : "This Avatar Effect has local authoring changes. Leaving will discard them from the active workspace. Local recovery remains available when you return."}
+              : "This Avatar Effect has local authoring changes. Discarding removes these changes and their browser recovery draft. Saved content is unchanged."}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <Button variant="outline" onClick={onStay}>
+          <Button variant="outline" disabled={discarding} onClick={onStay}>
             Stay
           </Button>
-          <Button onClick={onLeave}>Discard and continue</Button>
+          <Button disabled={discarding} onClick={onLeave}>
+            {discarding
+              ? "Discarding…"
+              : busy
+                ? "Leave and keep recovery"
+                : "Discard and continue"}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

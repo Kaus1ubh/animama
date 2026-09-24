@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import { saveCatalogItem } from "@/lib/content/catalogApi";
+import { ContentRecoveryLifecycle } from "@/lib/content/contentRecoveryLifecycle";
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
 import {
   SCENE_EFFECT_RECOVERY_SCHEMA,
@@ -86,7 +87,13 @@ export function useSceneEffectSave(args: {
   const [recoveryReady, setRecoveryReady] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const sessionRef = useRef<SaveSession | null>(null);
-  const sessionGenerationRef = useRef(0);
+  const recoveryLifecycle = useMemo(
+    () => new ContentRecoveryLifecycle(),
+    // Each recovery key owns an independent queue, including owner changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [documentKey, userId],
+  );
+  const pendingResetFingerprintRef = useRef<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const busy = ["preparing", "uploading", "validating"].includes(stage);
 
@@ -97,9 +104,9 @@ export function useSceneEffectSave(args: {
     // Let the replacement effect run after React Strict Mode cancels its first
     // setup pass; a persistent "already restored" ref would strand Save.
     let cancelled = false;
-    const generation = sessionGenerationRef.current;
+    const generation = recoveryLifecycle.capture();
     void loadSceneEffectRecovery(userId, documentKey).then((recovery) => {
-      if (cancelled || generation !== sessionGenerationRef.current) return;
+      if (cancelled || !recoveryLifecycle.isCurrent(generation)) return;
       if (recovery) {
         sessionRef.current = {
           operationId: recovery.operationId,
@@ -120,7 +127,7 @@ export function useSceneEffectSave(args: {
     return () => {
       cancelled = true;
     };
-  }, [documentKey, onRestore, userId]);
+  }, [documentKey, onRestore, recoveryLifecycle, userId]);
 
   const persist = useCallback(
     async (
@@ -131,7 +138,9 @@ export function useSceneEffectSave(args: {
       },
     ) => {
       if (!userId) return;
-      const result = await saveSceneEffectRecovery({
+      const generation = recoveryLifecycle.capture();
+      if (!recoveryLifecycle.isCurrent(generation)) return;
+      const recovery = {
         schema: SCENE_EFFECT_RECOVERY_SCHEMA,
         userId,
         documentKey,
@@ -140,17 +149,27 @@ export function useSceneEffectSave(args: {
         imageResources,
         contentFingerprint: session.contentFingerprint,
         updatedAt: new Date().toISOString(),
-      });
-      setRecoveryWarning(result.warning);
+      };
+      const result = await recoveryLifecycle.write(generation, () =>
+        saveSceneEffectRecovery(recovery),
+      );
+      if (result && recoveryLifecycle.isCurrent(generation))
+        setRecoveryWarning(result.warning);
     },
-    [document, documentKey, imageResources, userId],
+    [document, documentKey, imageResources, recoveryLifecycle, userId],
   );
 
   useEffect(() => {
     if (!userId || !recoveryReady || !initialized || busy) return;
-    const generation = sessionGenerationRef.current;
+    if (pendingResetFingerprintRef.current !== null) {
+      if (fingerprint !== pendingResetFingerprintRef.current) return;
+      pendingResetFingerprintRef.current = null;
+      recoveryLifecycle.resume();
+    }
+    const generation = recoveryLifecycle.capture();
+    if (!recoveryLifecycle.isCurrent(generation)) return;
     const timeout = window.setTimeout(() => {
-      if (generation !== sessionGenerationRef.current) return;
+      if (!recoveryLifecycle.isCurrent(generation)) return;
       const session = sessionRef.current ?? {
         operationId: crypto.randomUUID(),
         contentFingerprint: fingerprint,
@@ -160,9 +179,18 @@ export function useSceneEffectSave(args: {
       void persist(session);
     }, 350);
     return () => window.clearTimeout(timeout);
-  }, [busy, fingerprint, initialized, persist, recoveryReady, userId]);
+  }, [
+    busy,
+    fingerprint,
+    initialized,
+    persist,
+    recoveryLifecycle,
+    recoveryReady,
+    userId,
+  ]);
 
   const save = useCallback(async (): Promise<boolean> => {
+    if (!recoveryLifecycle.isCurrent(recoveryLifecycle.capture())) return false;
     if (!userId || !recoveryReady || !ready || (itemId && !existing) || busy)
       return false;
     setStage("preparing");
@@ -246,7 +274,10 @@ export function useSceneEffectSave(args: {
         expectedRevision: saveTarget.expectedRevision,
       });
       setUploadProgress(100);
-      await clearSceneEffectRecovery(userId, documentKey);
+      await recoveryLifecycle.discard(() =>
+        clearSceneEffectRecovery(userId, documentKey),
+      );
+      recoveryLifecycle.resume();
       sessionRef.current = null;
       setRecovered(false);
       setRecoveryWarning(null);
@@ -291,6 +322,7 @@ export function useSceneEffectSave(args: {
     navigate,
     onSaved,
     persist,
+    recoveryLifecycle,
     ready,
     recoveryReady,
     setSaveFailureMessage,
@@ -299,7 +331,10 @@ export function useSceneEffectSave(args: {
 
   const discardRecovery = useCallback(async () => {
     if (!userId || busy) return;
-    await clearSceneEffectRecovery(userId, documentKey);
+    await recoveryLifecycle.discard(() =>
+      clearSceneEffectRecovery(userId, documentKey),
+    );
+    recoveryLifecycle.resume();
     sessionRef.current = {
       operationId: crypto.randomUUID(),
       contentFingerprint: fingerprint,
@@ -309,27 +344,54 @@ export function useSceneEffectSave(args: {
     setRecoveryWarning(null);
     setStage("idle");
     await persist(sessionRef.current);
-  }, [busy, clearSaveFailure, documentKey, fingerprint, persist, userId]);
+  }, [
+    busy,
+    clearSaveFailure,
+    documentKey,
+    fingerprint,
+    persist,
+    recoveryLifecycle,
+    userId,
+  ]);
 
-  /** Discard recovery and server-draft identity before starting a blank effect. */
+  /** Discard this key's recovery without allowing older writes or restores to revive it. */
+  const discardChanges = useCallback(async (): Promise<boolean> => {
+    if (
+      !userId ||
+      busy ||
+      !recoveryLifecycle.isCurrent(recoveryLifecycle.capture())
+    )
+      return false;
+    try {
+      await recoveryLifecycle.discard(() =>
+        clearSceneEffectRecovery(userId, documentKey, { strict: true }),
+      );
+    } catch (caught) {
+      recoveryLifecycle.resume();
+      throw caught;
+    }
+    sessionRef.current = null;
+    clearSaveFailure();
+    setRecovered(false);
+    setRecoveryWarning(null);
+    setUploadProgress(0);
+    setStage("idle");
+    return true;
+  }, [busy, clearSaveFailure, documentKey, recoveryLifecycle, userId]);
+
+  /** Resume recovery only after the caller replaces the old document with this fingerprint. */
   const resetSession = useCallback(
     async (nextFingerprint: string): Promise<boolean> => {
-      if (!userId || busy) return false;
-      sessionGenerationRef.current += 1;
-      controllerRef.current?.abort();
-      await clearSceneEffectRecovery(userId, documentKey);
+      if (!(await discardChanges())) return false;
+      pendingResetFingerprintRef.current = nextFingerprint;
       sessionRef.current = {
         operationId: crypto.randomUUID(),
         contentFingerprint: nextFingerprint,
       };
-      clearSaveFailure();
-      setRecovered(false);
-      setRecoveryWarning(null);
-      setUploadProgress(0);
-      setStage("idle");
+      setRecoveryReady(true);
       return true;
     },
-    [busy, clearSaveFailure, documentKey, userId],
+    [discardChanges],
   );
 
   return {
@@ -337,6 +399,7 @@ export function useSceneEffectSave(args: {
       userId && recoveryReady && ready && (!itemId || existing) && !busy,
     ),
     discardRecovery,
+    discardChanges,
     error,
     errorField,
     clearSaveErrorField,
