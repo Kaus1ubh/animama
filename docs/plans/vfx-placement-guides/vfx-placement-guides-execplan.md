@@ -64,13 +64,13 @@ make the distinction understandable without color alone. Left/right means the
 avatar's left/right. Guides follow the model and camera, and never intercept
 camera controls or edit the authored document.
 
-| Effect | Live Avatar guide | Expandable UV preview |
-| --- | --- | --- |
-| Eye hover | Selected eye anchor(s), reference-to-placement offset, actual image-plane bounds | Relevant eye-flatten coverage and skin sample when available |
-| Mouth hover | Mouth anchor, hover depth and image-plane bounds | Relevant mouth-flatten coverage and skin sample when available |
-| Face box hover | Face box, selected forehead/top/edge point and image-plane bounds | Not shown |
-| Face decal | Selected under-eye, blush or mouth point(s), with reference/pivot information | Selected reference area, pivot and transformed artwork footprint; mouth flatten when active |
-| Texture | Identify the selected material target without unrelated face markers | Actual selected material texture and transformed artwork footprint |
+| Effect         | Live Avatar guide                                                                | Expandable UV preview                                                                       |
+| -------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Eye hover      | Selected eye anchor(s), reference-to-placement offset, actual image-plane bounds | Relevant eye-flatten coverage and skin sample when available                                |
+| Mouth hover    | Mouth anchor, hover depth and image-plane bounds                                 | Relevant mouth-flatten coverage and skin sample when available                              |
+| Face box hover | Face box, selected forehead/top/edge point and image-plane bounds                | Not shown                                                                                   |
+| Face decal     | Selected under-eye, blush or mouth point(s), with reference/pivot information    | Selected reference area, pivot and transformed artwork footprint; mouth flatten when active |
+| Texture        | Identify the selected material target without unrelated face markers             | Actual selected material texture and transformed artwork footprint                          |
 
 Side, mirroring and Single/Span selection determine the visible instances.
 Image bounds mean the image rectangle, including transparent padding, not an
@@ -110,8 +110,9 @@ redesign. No new runtime or UI dependencies are expected.
 - [x] Record scope, ownership boundaries and validation strategy.
 - [x] Owner authorized both phases; published/read back #88 and created #89.
 - [x] Phase 1: contextual Avatar placement guides and UV preview (agent gates passed).
-- [ ] Phase 2: Scene guide removal and shared-control regression verification.
-- [ ] Final integration review and owner visual acceptance.
+- [x] Phase 2: Scene guide removal and shared-control regression verification.
+- [x] Final independent integration review and local evidence.
+- [ ] Owner visual acceptance of guide clarity.
 
 ## Surprises & Discoveries
 
@@ -197,7 +198,7 @@ with rendered effects; guide toggles leave playback and authoring state unchange
 production-build verification confirms no debug dependency. Agent validation and
 review gate Phase 2. Owner visual acceptance is retained for final acceptance.
 
-Evidence record: phase issue #88; implementation commit pending. Host packages
+Evidence record: phase issue #88; implementation commit `a8b3af8`. Host packages
 build, web source typecheck, E2E source typecheck, full web lint, changed-file
 Prettier and whitespace checks passed. Focused VFX/creator run passed 63 tests in
 12 files before review; repair adds one mouth-depth test (64 total). Tests were observed
@@ -268,7 +269,8 @@ passed. Owner visual acceptance remains pending; it does not gate Phase 2.
 
 Scope: Scene toggle and both overlays only, plus the minimal shared-control API
 change. Dependency: Phase 1 checks/review passed. Issue: #89.
-Starting source: record Phase 1 commit and current concurrent changes.
+Starting source: Phase 1 commit `a8b3af8`. Concurrent creator cleanup was committed
+separately as `fd34ac1` and `8181a82`; it is outside this plan's change boundary.
 
 1. Make the shared Guides control genuinely optional, with its value/callback
    supplied together. Omitted controls render no switch or empty label. Keep
@@ -288,17 +290,55 @@ Starting source: record Phase 1 commit and current concurrent changes.
 Completion: no Scene guide UI/geometry remains; Scene authoring/rendering and the
 other creators' controls pass verification. Then perform final integration review.
 
-Evidence record: phase issue pending; implementation commit pending; exact tested
-source/commands/results pending; browser artifacts and limitations pending.
+Evidence record: phase issue #89; implementation commit `0471e20`. The shared-control
+contract test failed before implementation (1 failed / 19 passed), then passed
+with the optional value/callback pair. The affected creator/Scene suite passed
+4 files / 32 tests:
+
+```bash
+pnpm --filter animama-web exec vitest run src/ui/content-creator/CreatorPrimitives.test.tsx src/ui/scene-effect-creator
+pnpm --filter animama-web run check:source
+pnpm e2e:check:source
+```
+
+Source checks, changed-file ESLint/Prettier and `git diff --check` passed. The
+owned production Compose image rebuilt and restarted successfully with the Phase 2
+source. No Scene guide usage documentation needed correction.
+
+Production Scene regression was observed red on the prior build: the removed
+switch assertion expected zero and found one (`run-0924133032`). Scene passed
+on the rebuilt source in `run-0924133719` (10.0s), and Particle passed in
+`run-0924133632` (9.3s). Scene retained Model/View/Restart, viewport background
+bounds and manual X edits that changed actual focus-line polygon points. Particle
+retained independent Avatar/Outline switches and playback after restart. Mutation
+guards and Local catalog comparisons passed. Test-only assumptions about duplicate
+Restart labels, finite Particle playback and import confirmation handling were
+corrected before those passes.
+
+Manual development checks confirmed that changing manual focus X moves Scene's
+rendered convergence without a guide rectangle. Particle Avatar off removes the
+model while Outline remains; Outline off then removes the emitter sphere. Both
+were restored. Scene and Particle controls remained reachable at 390×844. The
+original development stack and isolated production test stack are retained.
+
+The broad initial browser filter also selected an unrelated existing
+`accountless-journeys.spec.ts` ContentHealth/Save test, which failed because its
+ContentHealth locator was absent after earlier creator cleanup. It remains
+unchanged and is not counted as a passing full suite. Subsequent runs selected
+this plan's VFX file explicitly.
 
 #### Code Review #1 Findings
 
-Not performed. Record source, stable findings and evidence. One initial review
-and at most two targeted repair rounds are available.
+Independent analysis reviewed the four-file Phase 2 delta against `a8b3af8` and
+found no actionable issues. Independent checks passed E2E source typechecking and
+whitespace checks, reusing still-valid unit/type/lint evidence. The reviewer noted
+that switch-state E2E alone does not establish visible Particle behavior; the
+coordinator's actual Avatar/emitter visibility checks above provide that evidence.
 
 #### Code Review #1 Revisions
 
-None yet. Record dispositions, fixes and affected checks. Repair rounds used: 0/2.
+No implementation repairs required. Repair rounds used: 0/2. Final integration
+reused these checks and reviewed the combined shared-control behavior.
 
 ## Validation and acceptance
 
@@ -324,8 +364,8 @@ separately; do not silently treat an unsuccessful command as a pass.
 Extend the selected `accountless-vfx-layout.spec.ts`, then confirm discovery:
 
 ```bash
-pnpm e2e:list -- --project chromium --grep 'avatar effect|scene creator|vfx guides'
-pnpm e2e:test -- --project chromium --grep 'avatar effect|scene creator|vfx guides'
+pnpm e2e:list -- accountless-vfx-layout.spec.ts --project chromium --grep 'avatar effect|vfx guides|scene creator'
+pnpm e2e:test -- accountless-vfx-layout.spec.ts --project chromium --grep 'avatar effect|vfx guides|scene creator'
 ```
 
 Name new cases with `vfx guides`; the filter also retains existing Avatar and
@@ -377,12 +417,47 @@ repair rounds focused on accepted fixes and their regressions.
 
 ### Code Review #1 Findings
 
-Not performed. Record exact source, acceptance evidence, stable finding IDs and
-remaining owner gates.
+Independent analysis reviewed Phase 1 (`1ae0214` to `a8b3af8`) and Phase 2's owned
+delta, now committed as `0471e20`. Concurrent creator commits `fd34ac1` and
+`8181a82` were excluded. No new actionable findings; P1-G01/G02 remain resolved.
+Avatar runtime/guide implementation is unchanged since its reviewed commit.
+Shared-control integration preserves Avatar/Particle callers and removes only
+Scene's switch and overlays. Final test additions received a bounded readback.
+
+Independent combined regression check passed 15 files / 79 tests:
+
+```bash
+pnpm --filter animama-web exec vitest run src/lib/avatar/vfx src/ui/avatar-effect-creator src/ui/content-creator/CreatorPrimitives.test.tsx src/ui/scene-effect-creator
+```
+
+Final production browser run `run-0924133912` passed all four guide journeys plus
+setup (5/5), against the Phase 2 production source later committed unchanged as
+`0471e20`. From `src/frontend`, source the isolated test stack record, set
+`ANIMAMA_E2E_ALLOW_MUTATIONS=1`, and run the explicit-file command above. Results:
+
+- Eye = remained active across UV, Guides off/on and stop/replay (34.0s).
+- Replacement artwork with Pulse/Spin/Drift preserved exact authored JSON and
+  Unsaved state through guide controls (20.3s). Reduced-motion emulation was active;
+  the guide overlay had no CSS/Web Animations while following authored playback.
+  This does not establish broader vestibular or visual acceptance.
+- Particle retained independent Avatar/Outline controls and playback (8.6s).
+- Scene retained Background, uploaded 40×20 Static SVG and manual-target Focus
+  Lines rendering without Guides (11.5s). The displayed SVG resource decoded to
+  its expected dimensions; manual X changed rendered polygon points.
+
+Mutation guards and Local catalog comparisons passed. Final E2E source typecheck,
+read-only formatting and whitespace checks passed. Local browser artifacts are
+under `.animama-e2e/runs/run-0924133912/`, including
+`playwright/html-report/index.html` and `playwright/results.json`. Earlier valid
+lint, web source checks and production builds were reused. The separate broader
+ContentHealth test failure remains explicitly outside this passing scope.
 
 ### Code Review #1 Revisions
 
-None yet. Repair rounds used: 0/2. No supported blocker may be marked complete.
+No integration repairs required. Repair rounds used: 0/2. Agent implementation,
+checks and independent review are complete. Owner visual acceptance remains
+pending; no hosted CI, native packaging, audio/provider validation, publication
+or merge acceptance is claimed.
 
 ## Idempotence and recovery
 
@@ -401,10 +476,13 @@ commands if services need attention; no broad Docker cleanup.
 
 ## Outcomes & Retrospective
 
-Phase 1 implements runtime-derived spatial guides and a borrowed live UV view.
-Agent checks and bounded independent review passed; phase commit and Scene removal
-are next. Final visual acceptance belongs to the owner. No PR or push is authorized;
-all implementation and evidence will remain on the task branch until requested.
+Both authorized phases are implemented and committed locally: `a8b3af8` adds
+runtime-derived Avatar guides and a borrowed live UV view; `0471e20` removes Scene
+guides and preserves shared controls. Focused tests, served production journeys
+and bounded independent reviews passed. The assigned worktree and branch remain
+available with the development stack on port 8200 and isolated production test
+stack on port 8620; no data was purged. Owner visual acceptance is pending. No PR
+was opened and nothing was pushed, per the owner's instruction.
 
 2026-09-24 plan validation: all 14 explicit repository paths resolve; required
 sections, review records, privacy and whitespace checks pass. Independent
