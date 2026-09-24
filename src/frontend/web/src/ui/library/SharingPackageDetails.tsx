@@ -80,7 +80,7 @@ export function SharingRequiredItems({
       <summary className="cursor-pointer px-4 py-3 font-medium">
         Required items{" "}
         <span className="text-muted-foreground font-normal">
-          ({items.length}) · included automatically
+          ({items.length})
         </span>
       </summary>
       <div className="divide-y border-t">
@@ -115,12 +115,7 @@ function Configuration({
 }: {
   value: Record<string, unknown> | undefined;
 }) {
-  if (!value || !Object.keys(value).length)
-    return (
-      <span className="text-muted-foreground text-xs">
-        Default configuration
-      </span>
-    );
+  if (!value || !Object.keys(value).length) return null;
   return (
     <dl className="mt-2 grid gap-1 text-xs">
       {Object.entries(value).map(([key, entry]) => (
@@ -143,9 +138,11 @@ function Configuration({
 export function SharingAnimaDetails({
   anima,
   items,
+  showPrivacyNote = true,
 }: {
   anima: PortableAnima;
   items: PackageDisplayItem[];
+  showPrivacyNote?: boolean;
 }) {
   const name = (id: string | null) =>
     id === null ? "None" : (items.find((item) => item.id === id)?.name ?? id);
@@ -157,9 +154,6 @@ export function SharingAnimaDetails({
       <div className="grid gap-6 md:grid-cols-[1.2fr_1fr]">
         <section className="min-w-0 space-y-3">
           <h3 className="font-semibold">Identity</h3>
-          <p className="text-muted-foreground text-sm">
-            This complete identity will be included in the package.
-          </p>
           <div className="rounded-xl border p-4">
             <p className="mb-3 font-semibold break-words">
               {anima.display_name}
@@ -258,7 +252,7 @@ export function SharingAnimaDetails({
           </section>
         </div>
       </details>
-      <SharingPrivacyNote />
+      {showPrivacyNote ? <SharingPrivacyNote /> : null}
     </div>
   );
 }

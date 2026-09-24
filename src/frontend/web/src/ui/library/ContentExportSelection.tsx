@@ -7,6 +7,7 @@ import { Checkbox } from "@/ui/components/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import {
   SharingAnimaDetails,
+  SharingPrivacyNote,
   SharingItemIcon,
   SharingItemRow,
   SharingRequiredItems,
@@ -73,6 +74,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
         </div>
       ) : null}
       <TabsContent value="anima" className="space-y-5">
+        <SharingPrivacyNote />
         <label className="grid gap-2 font-medium">
           Choose an Anima
           <select
@@ -100,15 +102,16 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
         ) : null}
         {summary?.anima ? (
           <>
-            <SharingAnimaDetails anima={summary.anima} items={packageItems} />
+            <SharingAnimaDetails
+              anima={summary.anima}
+              items={packageItems}
+              showPrivacyNote={false}
+            />
             <SharingRequiredItems items={packageItems} />
           </>
         ) : null}
       </TabsContent>
       <TabsContent value="content" className="space-y-4">
-        <p className="text-muted-foreground">
-          Select the items you want to share.
-        </p>
         <div className="grid min-h-60 gap-6 md:grid-cols-[1.5fr_1fr]">
           <section
             className="min-w-0 space-y-3 md:border-r md:pr-6"
@@ -182,11 +185,14 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
             </p>
             {summary ? (
               <>
-                <p>+ {summary.required_count} required items</p>
-                <p className="text-muted-foreground text-sm">
-                  Required content is included automatically so everything works
-                  when imported.
-                </p>
+                {summary.required_count > 0 ? (
+                  <p>
+                    + {summary.required_count} required{" "}
+                    {summary.required_count === 1
+                      ? "dependency"
+                      : "dependencies"}
+                  </p>
+                ) : null}
                 <div className="max-h-56 overflow-y-auto">
                   {summary.items
                     .filter((item) => !item.selected)
@@ -227,10 +233,7 @@ export function ContentExportSelection({ flow }: { flow: LibrarySharingFlow }) {
           Refresh selection
         </Button>
       ) : null}
-      <footer className="bg-popover sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-3 border-t py-4">
-        <Button variant="outline" onClick={flow.back} disabled={flow.busy}>
-          Back
-        </Button>
+      <footer className="bg-popover sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-3 border-t py-4">
         <div className="flex flex-wrap items-center gap-4">
           <span className="text-muted-foreground text-sm">
             {flow.mode === "anima"

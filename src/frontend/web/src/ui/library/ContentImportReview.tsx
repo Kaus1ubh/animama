@@ -43,7 +43,9 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
           <p className="font-medium break-words">{review.filename}</p>
           <p className="text-muted-foreground mt-1 text-sm">
             {sharingSize(review.size_bytes)} · {review.selected_count} selected
-            · {review.required_count} required
+            {review.required_count > 0
+              ? ` · ${review.required_count} required ${review.required_count === 1 ? "dependency" : "dependencies"}`
+              : null}
           </p>
         </div>
         {!flow.commitPending ? (
@@ -105,13 +107,6 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
             </Button>
           ) : (
             <>
-              <Button
-                variant="outline"
-                onClick={flow.back}
-                disabled={flow.busy}
-              >
-                Back
-              </Button>
               <Button
                 onClick={flow.commitImport}
                 disabled={flow.busy || Boolean(flow.error)}

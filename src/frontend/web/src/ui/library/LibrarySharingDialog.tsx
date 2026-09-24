@@ -97,10 +97,8 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
               {title}
             </DialogTitle>
           </div>
-          <DialogDescription className={isEntry ? "mt-2" : "sr-only"}>
-            {isEntry
-              ? "Bring content in, or package something to share."
-              : "Review the content shared through your local Animama application."}
+          <DialogDescription className="sr-only">
+            Review the content shared through your local Animama application.
           </DialogDescription>
         </header>
         <div key={flow.screen} className="min-h-0 overflow-y-auto">
@@ -143,9 +141,6 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                       </div>
                       <div className="min-w-0">
                         <h3 className="text-xl font-semibold">Import</h3>
-                        <p className="text-muted-foreground mt-2">
-                          Add an Anima or content someone shared with you.
-                        </p>
                       </div>
                     </div>
                     <div
@@ -187,9 +182,6 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                       </div>
                       <div className="min-w-0">
                         <h3 className="text-xl font-semibold">Export</h3>
-                        <p className="text-muted-foreground mt-2">
-                          Package an Anima or content to share with someone.
-                        </p>
                       </div>
                     </div>
                     <div className="space-y-4 py-2">
@@ -219,10 +211,6 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                     </Button>
                   </section>
                 </div>
-                <p className="text-muted-foreground border-t pt-5 text-center text-sm">
-                  Files are processed by your local Animama application. You
-                  choose how to share the exported file.
-                </p>
               </>
             ) : null}
             {flow.screen === "export-selection" ? (

@@ -153,7 +153,7 @@ describe("Library sharing", () => {
     });
     expect(page).toContain("Calm");
     expect(page).toContain("Idle Style");
-    expect(page).toContain("2 required items");
+    expect(page).toContain("2 required dependencies");
     expect(buttons.get("Review export")?.disabled).toBe(false);
     expect(page).toContain("Wave");
     const pending = html({

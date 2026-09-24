@@ -1513,3 +1513,15 @@ implemented. Development and built task stacks, exact fixture ledgers and the
 unsigned macOS app remain available for review; unrelated services and user data
 were preserved. Hosted validation is disabled in GitHub and has no passing
 result. Merge and signed release/publication remain separate owner decisions.
+
+### Post-PR UI cleanup (2026-09-24)
+
+Applied the owner's requested copy removals, removed duplicate footer Back
+buttons, hid zero dependency counts and used dependency/dependencies for nonzero
+counts. Anima export selection now places its privacy notice above the chooser.
+The header Back button, actual equipment configuration and review operations
+remain intact. Existing dialog tests pass (13), scoped ESLint/TypeScript and
+formatting/whitespace checks pass, and the development browser confirms the
+simplified entry/selection screens and privacy placement. Independent targeted
+analysis passed with no findings; no new behavioral tests were needed for this
+reversible presentation cleanup. Prior native/audio waiver remains unchanged.

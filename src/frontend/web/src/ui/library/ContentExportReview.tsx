@@ -30,8 +30,10 @@ export function ContentExportReview({ flow }: { flow: LibrarySharingFlow }) {
           <h3 className="text-lg font-semibold">Your package</h3>
           <p className="text-muted-foreground">
             {review.selected_count} selected{" "}
-            {review.selected_count === 1 ? "item" : "items"} ·{" "}
-            {review.required_count} required items
+            {review.selected_count === 1 ? "item" : "items"}
+            {review.required_count > 0
+              ? ` · ${review.required_count} required ${review.required_count === 1 ? "dependency" : "dependencies"}`
+              : null}
           </p>
           <div className="divide-y rounded-xl border">
             {items
@@ -70,9 +72,6 @@ export function ContentExportReview({ flow }: { flow: LibrarySharingFlow }) {
           </span>
         </p>
         <div className="flex gap-2">
-          <Button variant="outline" disabled={flow.busy} onClick={flow.back}>
-            Back
-          </Button>
           <Button
             disabled={flow.busy || Boolean(flow.error)}
             onClick={flow.download}
