@@ -97,9 +97,10 @@ export function AvatarEffectAnimationControls({
               label="Rotation range (turns)"
               value={resolved.rotationAmountTurns}
               min={0}
+              max={1}
               step={0.05}
               onChange={(value) =>
-                patch({ rotationAmountTurns: Math.max(0, value) })
+                patch({ rotationAmountTurns: Math.min(1, Math.max(0, value)) })
               }
             />
           </div>
@@ -124,8 +125,8 @@ export function AvatarEffectAnimationControls({
             </Select>
           </Field>
           <p className="text-muted-foreground text-xs">
-            Below one turn, rotation rocks back and forth. One turn or more
-            repeats.
+            Below one turn, rotation rocks back and forth. One turn spins
+            continuously.
           </p>
         </div>
       )}
