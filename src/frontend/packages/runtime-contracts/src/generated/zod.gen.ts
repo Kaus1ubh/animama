@@ -300,35 +300,6 @@ export const zBodySaveIdleStyle = z.object({
 });
 
 /**
- * Body_save_music_track
- */
-export const zBodySaveMusicTrack = z.object({
-    catalog_item_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    companion_paths_json: z.optional(z.string()).default('[]'),
-    creation_context: z.optional(z.boolean()).default(false),
-    descriptor_json: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    expected_revision: z.optional(z.union([
-        z.string().regex(/^[0-9a-f]{64}$/),
-        z.null()
-    ])),
-    files: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    metadata_json: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    operation_id: z.string().min(1).max(128)
-});
-
-/**
  * Body_save_particle_effect
  */
 export const zBodySaveParticleEffect = z.object({
@@ -361,35 +332,6 @@ export const zBodySaveParticleEffect = z.object({
  * Body_save_pose
  */
 export const zBodySavePose = z.object({
-    catalog_item_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    companion_paths_json: z.optional(z.string()).default('[]'),
-    creation_context: z.optional(z.boolean()).default(false),
-    descriptor_json: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    expected_revision: z.optional(z.union([
-        z.string().regex(/^[0-9a-f]{64}$/),
-        z.null()
-    ])),
-    files: z.optional(z.union([
-        z.array(z.string()),
-        z.null()
-    ])),
-    metadata_json: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    operation_id: z.string().min(1).max(128)
-});
-
-/**
- * Body_save_pose_clip
- */
-export const zBodySavePoseClip = z.object({
     catalog_item_id: z.optional(z.union([
         z.string(),
         z.null()
@@ -620,6 +562,16 @@ export const zAnimaAppearanceOutput = z.object({
 export const zGestureSelection = z.object({
     semantic_key: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,127}$/),
     source: zItemRevisionRef
+});
+
+/**
+ * LegacySourceRevision
+ *
+ * Private receipt input retained for exact pre-retirement retries.
+ */
+export const zLegacySourceRevision = z.object({
+    kind: z.literal('pose_clip'),
+    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/)
 });
 
 /**
@@ -1189,34 +1141,6 @@ export const zPyAnimaAppearance = z.object({
 });
 
 /**
- * PyAnimaMusicTrack
- */
-export const zPyAnimaMusicTrack = z.object({
-    autoplay: z.boolean(),
-    binding_id: z.string(),
-    codec: z.string(),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    duration_seconds: z.number().gte(0),
-    effective_gain: z.number().gte(0).lte(2),
-    effective_loop: z.boolean(),
-    enabled: z.boolean(),
-    gain_override: z.optional(z.union([
-        z.number().gte(0).lte(2),
-        z.null()
-    ])),
-    item_id: z.string(),
-    loop_override: z.optional(z.union([
-        z.boolean(),
-        z.null()
-    ])),
-    name: z.string(),
-    source: zPyCatalogLoadoutSource
-});
-
-/**
  * PyAppearanceIntent
  */
 export const zPyAppearanceIntent = z.object({
@@ -1358,7 +1282,6 @@ export const zPyContentEvidenceRootRequest = z.object({
         'reaction',
         'idle_style',
         'pose',
-        'pose_clip',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
@@ -1400,7 +1323,6 @@ export const zPyContentPreviewRootRequest = z.object({
         'reaction',
         'idle_style',
         'pose',
-        'pose_clip',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
@@ -2774,54 +2696,6 @@ export const zPyModelProviderCatalogItem = z.object({
 });
 
 /**
- * PyMusicTrackIntent
- */
-export const zPyMusicTrackIntent = z.object({
-    autoplay: z.optional(z.boolean()).default(false),
-    binding_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    enabled: z.optional(z.boolean()).default(true),
-    gain: z.optional(z.union([
-        z.number().gte(0).lte(2),
-        z.null()
-    ])),
-    loop: z.optional(z.union([
-        z.boolean(),
-        z.null()
-    ])),
-    operation: z.enum([
-        'add',
-        'update',
-        'reconfigure',
-        'remove'
-    ]),
-    source: z.optional(z.union([
-        zPyCatalogLoadoutSource,
-        z.null()
-    ]))
-});
-
-/**
- * PyMusicTrackCommitRequest
- */
-export const zPyMusicTrackCommitRequest = z.object({
-    expected_revision: z.int().gte(1),
-    idempotency_key: z.string().min(1).max(128),
-    intent: zPyMusicTrackIntent,
-    plan_digest: z.string().regex(/^[0-9a-f]{64}$/)
-});
-
-/**
- * PyMusicTrackPlanRequest
- */
-export const zPyMusicTrackPlanRequest = z.object({
-    expected_revision: z.int().gte(1),
-    intent: zPyMusicTrackIntent
-});
-
-/**
  * PyOnboardingCompleteRequest
  */
 export const zPyOnboardingCompleteRequest = z.object({
@@ -2841,7 +2715,6 @@ export const zPyPreparedPreviewRoot = z.object({
         'reaction',
         'idle_style',
         'pose',
-        'pose_clip',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
@@ -2906,7 +2779,6 @@ export const zPyAnimaLoadout = z.object({
     disabled_starter_gestures: z.array(z.string()),
     gestures: z.array(zPyGestureBinding),
     idle_style: zPyAnimaIdleStyle,
-    music_tracks: z.optional(z.array(zPyAnimaMusicTrack)),
     reactions: z.array(zPyReactionCell),
     revision: z.int().gte(1),
     starter_gesture_implementation_kinds: z.optional(z.record(z.string(), z.enum(['anima_clip', 'vrma']))),
@@ -3096,11 +2968,7 @@ export const zPyRuntimeFile = z.object({
 export const zPyRuntimeAction = z.object({
     binding_id: z.string(),
     config: z.optional(z.record(z.string(), z.unknown())),
-    content_type: z.enum([
-        'gesture',
-        'reaction',
-        'pose_clip'
-    ]),
+    content_type: z.enum(['gesture', 'reaction']),
     description: z.optional(z.union([
         z.string(),
         z.null()
@@ -3363,29 +3231,6 @@ export const zPyRuntimeLease = z.object({
 });
 
 /**
- * PyRuntimeMusicTrack
- */
-export const zPyRuntimeMusicTrack = z.object({
-    binding_id: z.string(),
-    codec: z.string(),
-    config: z.record(z.string(), z.unknown()),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    duration_seconds: z.number(),
-    files: z.optional(z.array(zPyRuntimeFile)),
-    name: z.string(),
-    revision: z.string(),
-    runtime_id: z.string(),
-    runtime_root_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    source: zPyRuntimeCatalogItemSource
-});
-
-/**
  * PyRuntimeSupport
  */
 export const zPyRuntimeSupport = z.object({
@@ -3447,7 +3292,6 @@ export const zPyAnimaRuntime = z.object({
     ])),
     lease_expires_at: z.iso.datetime(),
     loadout_revision: z.int(),
-    music_tracks: z.optional(z.array(zPyRuntimeMusicTrack)),
     particle_effects: z.optional(z.array(zPyRuntimeSupport)),
     poses: z.optional(z.array(zPyRuntimeAction)),
     reactions: z.optional(z.array(zPyRuntimeAction)),
@@ -3565,14 +3409,12 @@ export const zPyTypedDependency = z.object({
         'avatar',
         'gesture',
         'pose',
-        'pose_clip',
         'reaction',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
         'sound_effect',
         'idle_style',
-        'music_track',
         'appearance',
         'voice'
     ]),
@@ -3766,40 +3608,6 @@ export const zPyIdleStylePage = z.object({
 });
 
 /**
- * PyMusicTrack
- */
-export const zPyMusicTrack = z.object({
-    autoplay: z.boolean(),
-    codec: z.string(),
-    dependencies: z.optional(z.array(zPyTypedDependency)),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    duration_seconds: z.number().gte(0),
-    editable: z.boolean(),
-    files: z.optional(z.array(zPyTypedContentFile)),
-    gain: z.number().gte(0).lte(2),
-    item_id: z.string(),
-    kind: z.optional(z.literal('music_track')).default('music_track'),
-    logical_key: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    loop: z.boolean(),
-    name: z.string(),
-    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    source: z.enum(['included', 'local'])
-});
-
-/**
- * PyMusicTrackPage
- */
-export const zPyMusicTrackPage = z.object({
-    items: z.array(zPyMusicTrack)
-});
-
-/**
  * PyParticleEffect
  */
 export const zPyParticleEffect = z.object({
@@ -3856,41 +3664,6 @@ export const zPyPose = z.object({
     pose_id: z.string(),
     revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
     source: z.enum(['included', 'local'])
-});
-
-/**
- * PyPoseClip
- */
-export const zPyPoseClip = z.object({
-    clip_id: z.string(),
-    dependencies: z.optional(z.array(zPyTypedDependency)),
-    description: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    editable: z.boolean(),
-    files: z.optional(z.array(zPyTypedContentFile)),
-    item_id: z.string(),
-    kind: z.optional(z.literal('pose_clip')).default('pose_clip'),
-    logical_key: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    name: z.string(),
-    playback: z.optional(z.record(z.string(), z.unknown())),
-    revision_sha256: z.string().regex(/^[0-9a-f]{64}$/),
-    role: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    source: z.enum(['included', 'local'])
-});
-
-/**
- * PyPoseClipPage
- */
-export const zPyPoseClipPage = z.object({
-    items: z.array(zPyPoseClip)
 });
 
 /**
@@ -4518,9 +4291,6 @@ export const zPyContentPreviewsPrepareResponse = z.object({
             kind: z.literal('pose')
         }).and(zPyPose),
         z.object({
-            kind: z.literal('pose_clip')
-        }).and(zPyPoseClip),
-        z.object({
             kind: z.literal('particle_effect')
         }).and(zPyParticleEffect),
         z.object({
@@ -4535,9 +4305,6 @@ export const zPyContentPreviewsPrepareResponse = z.object({
         z.object({
             kind: z.literal('idle_style')
         }).and(zPyIdleStyle),
-        z.object({
-            kind: z.literal('music_track')
-        }).and(zPyMusicTrack),
         z.object({
             kind: z.literal('avatar')
         }).and(zPyAvatarContent),
@@ -4585,7 +4352,6 @@ export const zSourceRevision = z.object({
         'reaction',
         'idle_style',
         'pose',
-        'pose_clip',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
@@ -4617,7 +4383,6 @@ export const zPyContentEvidenceRoot = z.object({
         'reaction',
         'idle_style',
         'pose',
-        'pose_clip',
         'particle_effect',
         'avatar_effect',
         'scene_effect',
@@ -4657,9 +4422,6 @@ export const zPyTypedContentPreview = z.object({
             kind: z.literal('pose')
         }).and(zPyPose),
         z.object({
-            kind: z.literal('pose_clip')
-        }).and(zPyPoseClip),
-        z.object({
             kind: z.literal('particle_effect')
         }).and(zPyParticleEffect),
         z.object({
@@ -4674,9 +4436,6 @@ export const zPyTypedContentPreview = z.object({
         z.object({
             kind: z.literal('idle_style')
         }).and(zPyIdleStyle),
-        z.object({
-            kind: z.literal('music_track')
-        }).and(zPyMusicTrack),
         z.object({
             kind: z.literal('avatar')
         }).and(zPyAvatarContent),
@@ -4700,9 +4459,6 @@ export const zPyTypedContentPreview = z.object({
             kind: z.literal('pose')
         }).and(zPyPose),
         z.object({
-            kind: z.literal('pose_clip')
-        }).and(zPyPoseClip),
-        z.object({
             kind: z.literal('particle_effect')
         }).and(zPyParticleEffect),
         z.object({
@@ -4717,9 +4473,6 @@ export const zPyTypedContentPreview = z.object({
         z.object({
             kind: z.literal('idle_style')
         }).and(zPyIdleStyle),
-        z.object({
-            kind: z.literal('music_track')
-        }).and(zPyMusicTrack),
         z.object({
             kind: z.literal('avatar')
         }).and(zPyAvatarContent),
@@ -4758,7 +4511,7 @@ export const zAnimaCreationOptions = z.object({
 /**
  * AnimaSpec
  *
- * Every choice is explicit; neither omitted fields nor URLs seed defaults.
+ * New creation commands can reference only currently supported content.
  */
 export const zAnimaSpecInput = z.object({
     appearance: zAnimaAppearanceInput,
@@ -4778,7 +4531,7 @@ export const zAnimaSpecInput = z.object({
 /**
  * AnimaSpec
  *
- * Every choice is explicit; neither omitted fields nor URLs seed defaults.
+ * New creation commands can reference only currently supported content.
  */
 export const zAnimaSpecOutput = z.object({
     appearance: zAnimaAppearanceOutput,
@@ -4808,6 +4561,25 @@ export const zAnimaValidationResult = z.object({
  * CreateAnimaRequest
  */
 export const zCreateAnimaRequest = z.object({
+    appearance: zAnimaAppearanceInput,
+    avatar: zItemRevisionRef,
+    display_name: z.string().min(1).max(40),
+    expected_source_revisions: z.record(z.string(), z.unknown()),
+    gestures: z.array(zGestureSelection).max(500),
+    idempotency_key: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/),
+    identity_markdown: z.string(),
+    reactions: z.record(z.string(), z.record(z.string(), z.union([
+        zItemRevisionRef,
+        z.null()
+    ]))),
+    schema_version: z.literal(1),
+    starter_pack: zStarterPackIdentity
+});
+
+/**
+ * LegacyCreateAnimaRequest
+ */
+export const zLegacyCreateAnimaRequest = z.object({
     appearance: zAnimaAppearanceInput,
     avatar: zItemRevisionRef,
     display_name: z.string().min(1).max(40),
@@ -5260,32 +5032,6 @@ export const zGetAnimaLoadoutV1AnimasAnimaIdLoadoutGetData = z.object({
  * Successful Response
  */
 export const zGetAnimaLoadoutV1AnimasAnimaIdLoadoutGetResponse = zPyAnimaLoadout;
-
-export const zCommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostData = z.object({
-    body: zPyMusicTrackCommitRequest,
-    path: z.object({
-        anima_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zCommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostResponse = zPyLoadoutCommitResult;
-
-export const zPlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostData = z.object({
-    body: zPyMusicTrackPlanRequest,
-    path: z.object({
-        anima_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zPlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostResponse = zPyLoadoutPlan;
 
 export const zCommitReactionV1AnimasAnimaIdReactionsCommitPostData = z.object({
     body: zPyReactionCommitRequest,
@@ -6473,56 +6219,6 @@ export const zListModelProvidersV1ModelProvidersGetData = z.object({
  */
 export const zListModelProvidersV1ModelProvidersGetResponse = z.array(zPyModelProviderCatalogItem);
 
-export const zListMusicTracksData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zListMusicTracksResponse = zPyMusicTrackPage;
-
-export const zSaveMusicTrackData = z.object({
-    body: zBodySaveMusicTrack,
-    path: z.object({
-        entry_name: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zSaveMusicTrackResponse = zPyMusicTrack;
-
-export const zGetMusicTrackData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        item_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zGetMusicTrackResponse = zPyMusicTrack;
-
-export const zPreviewMusicTrackData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        item_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zPreviewMusicTrackResponse = zPyTypedContentPreview;
-
 export const zListParticleEffectsData = z.object({
     body: z.optional(z.never()),
     path: z.optional(z.never()),
@@ -6572,56 +6268,6 @@ export const zPreviewParticleEffectData = z.object({
  * Successful Response
  */
 export const zPreviewParticleEffectResponse = zPyTypedContentPreview;
-
-export const zListPoseClipsData = z.object({
-    body: z.optional(z.never()),
-    path: z.optional(z.never()),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zListPoseClipsResponse = zPyPoseClipPage;
-
-export const zSavePoseClipData = z.object({
-    body: zBodySavePoseClip,
-    path: z.object({
-        entry_name: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zSavePoseClipResponse = zPyPoseClip;
-
-export const zGetPoseClipData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        item_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zGetPoseClipResponse = zPyPoseClip;
-
-export const zPreviewPoseClipData = z.object({
-    body: z.optional(z.never()),
-    path: z.object({
-        item_id: z.string()
-    }),
-    query: z.optional(z.never())
-});
-
-/**
- * Successful Response
- */
-export const zPreviewPoseClipResponse = zPyTypedContentPreview;
 
 export const zListPosesData = z.object({
     body: z.optional(z.never()),

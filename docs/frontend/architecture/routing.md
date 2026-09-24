@@ -43,10 +43,6 @@ Typed creators use stable product routes such as `/a/particle-effects/new`,
   Idle Style authoring. Select existing finite Gestures for Default and separate
   emotion/intensity cells, with inherit and No idle choices. Preview uses the
   current saved revision; Save edits Local content or creates an Included copy.
-- `a/music-tracks.new.tsx` and `a/music-tracks.$musicTrackId.edit.tsx`: direct
-  Music Track authoring. Creators upload one long-form audio file, configure
-  loop/gain/autoplay defaults, preview the exact registered audio, and save it
-  directly without creating a generic Audio product row.
 - `a/gestures.new.tsx` and `a/gestures.$gestureId.edit.tsx`: Gesture creation
   and stable-item editing with VRMA or Pose Clip motion.
 - `a/reactions.new.tsx` and `a/reactions.$reactionId.edit.tsx`: Reaction

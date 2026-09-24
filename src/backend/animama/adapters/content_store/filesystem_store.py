@@ -729,7 +729,7 @@ class FilesystemContentStore(ContentStore):
         raise ContentConflictError("operation_incomplete")
 
     def retain_transition_originals(
-        self, *, operation_id: str, entry: CatalogContentEntry, binding_facts: list[dict[str, Any]]
+        self, *, operation_id: str, entry: CatalogContentEntry | None, binding_facts: list[dict[str, Any]]
     ) -> None:
         """Retain immutable pre-transition bytes even after successful journal cleanup.
 
@@ -744,7 +744,7 @@ class FilesystemContentStore(ContentStore):
             self._operations_root, f"transitions/{operation_id}/manifest.json", create_parents=True
         )
         inventory = []
-        for index, file in enumerate(entry.files):
+        for index, file in enumerate(entry.files if entry is not None else ()):
             name = f"{index:04d}.original"
             destination = safe_path(manifest_path.parent, name)
             facts = {
@@ -786,10 +786,10 @@ class FilesystemContentStore(ContentStore):
         payload = json.dumps(
             {
                 "schema": "animama-content-transition-originals/1",
-                "source_item_id": entry.id,
-                "source": entry.source.value,
-                "source_mount_id": entry.source_mount_id,
-                "source_revision": entry.revision_sha256,
+                "source_item_id": entry.id if entry is not None else None,
+                "source": entry.source.value if entry is not None else None,
+                "source_mount_id": entry.source_mount_id if entry is not None else None,
+                "source_revision": entry.revision_sha256 if entry is not None else None,
                 "bindings": binding_facts,
                 "files": inventory,
             },

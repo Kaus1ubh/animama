@@ -33,7 +33,6 @@ export async function refreshContentCatalogViews(
       queryKeys.soundEffects.all(owner),
       queryKeys.appearanceImages.all(owner),
       queryKeys.idleStyles.all(owner),
-      queryKeys.musicTracks.all(owner),
     ].map((queryKey) => client.invalidateQueries({ queryKey })),
   );
 }

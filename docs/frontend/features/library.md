@@ -144,3 +144,7 @@ then promotes ordinary editable Local items through one recoverable operation
 using explicit `cancel`, `keep_both`, or reviewed `replace` collision behavior.
 Destination drift or late failure exposes no partial Library row. Browser
 storage is never the canonical package or content library.
+
+Music and standalone Pose Clips are not supported Library items. Existing Action
+clip references are converted to Action-owned sequences while preserving original
+files. Static Poses and Creator Clip/project JSON import/export remain available.

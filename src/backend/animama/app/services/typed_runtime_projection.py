@@ -193,7 +193,6 @@ def project_typed_runtime_catalog(
         "gesture": [],
         "pose": [],
         "reaction": [],
-        "music_track": [],
         "appearance": [],
     }
     idle_style: dict[str, Any] | None = None
@@ -469,7 +468,6 @@ def project_typed_runtime_catalog(
         "poses": lanes["pose"],
         "reactions": lanes["reaction"],
         "idle_style": idle_style,
-        "music_tracks": lanes["music_track"],
         "avatar": avatar,
         "appearances": lanes["appearance"],
         "particle_effects": by_type["particle_effect"],

@@ -240,7 +240,7 @@ export type AnimaCreationResult = {
 /**
  * AnimaSpec
  *
- * Every choice is explicit; neither omitted fields nor URLs seed defaults.
+ * New creation commands can reference only currently supported content.
  */
 export type AnimaSpecInput = {
     appearance: AnimaAppearanceInput;
@@ -281,7 +281,7 @@ export type AnimaSpecInput = {
 /**
  * AnimaSpec
  *
- * Every choice is explicit; neither omitted fields nor URLs seed defaults.
+ * New creation commands can reference only currently supported content.
  */
 export type AnimaSpecOutput = {
     appearance: AnimaAppearanceOutput;
@@ -635,44 +635,6 @@ export type BodySaveIdleStyle = {
 };
 
 /**
- * Body_save_music_track
- */
-export type BodySaveMusicTrack = {
-    /**
-     * Catalog Item Id
-     */
-    catalog_item_id?: string | null;
-    /**
-     * Companion Paths Json
-     */
-    companion_paths_json?: string;
-    /**
-     * Creation Context
-     */
-    creation_context?: boolean;
-    /**
-     * Descriptor Json
-     */
-    descriptor_json?: string | null;
-    /**
-     * Expected Revision
-     */
-    expected_revision?: string | null;
-    /**
-     * Files
-     */
-    files?: Array<Blob | File> | null;
-    /**
-     * Metadata Json
-     */
-    metadata_json?: string | null;
-    /**
-     * Operation Id
-     */
-    operation_id: string;
-};
-
-/**
  * Body_save_particle_effect
  */
 export type BodySaveParticleEffect = {
@@ -714,44 +676,6 @@ export type BodySaveParticleEffect = {
  * Body_save_pose
  */
 export type BodySavePose = {
-    /**
-     * Catalog Item Id
-     */
-    catalog_item_id?: string | null;
-    /**
-     * Companion Paths Json
-     */
-    companion_paths_json?: string;
-    /**
-     * Creation Context
-     */
-    creation_context?: boolean;
-    /**
-     * Descriptor Json
-     */
-    descriptor_json?: string | null;
-    /**
-     * Expected Revision
-     */
-    expected_revision?: string | null;
-    /**
-     * Files
-     */
-    files?: Array<Blob | File> | null;
-    /**
-     * Metadata Json
-     */
-    metadata_json?: string | null;
-    /**
-     * Operation Id
-     */
-    operation_id: string;
-};
-
-/**
- * Body_save_pose_clip
- */
-export type BodySavePoseClip = {
     /**
      * Catalog Item Id
      */
@@ -1082,6 +1006,65 @@ export type ItemRevisionRef = {
      * Item Id
      */
     item_id: string;
+    /**
+     * Revision Sha256
+     */
+    revision_sha256: string;
+};
+
+/**
+ * LegacyCreateAnimaRequest
+ */
+export type LegacyCreateAnimaRequest = {
+    appearance: AnimaAppearanceInput;
+    avatar: ItemRevisionRef;
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Expected Source Revisions
+     */
+    expected_source_revisions: {
+        [key: string]: unknown | SourceRevision | LegacySourceRevision;
+    };
+    /**
+     * Gestures
+     */
+    gestures: Array<GestureSelection>;
+    /**
+     * Idempotency Key
+     */
+    idempotency_key: string;
+    /**
+     * Identity Markdown
+     */
+    identity_markdown: string;
+    /**
+     * Reactions
+     */
+    reactions: {
+        [key: string]: {
+            [key: string]: ItemRevisionRef | null;
+        };
+    };
+    /**
+     * Schema Version
+     */
+    schema_version: 1;
+    starter_pack: StarterPackIdentity;
+};
+
+/**
+ * LegacySourceRevision
+ *
+ * Private receipt input retained for exact pre-retirement retries.
+ */
+export type LegacySourceRevision = {
+    /**
+     * Kind
+     */
+    kind: 'pose_clip';
     /**
      * Revision Sha256
      */
@@ -1423,10 +1406,6 @@ export type PyAnimaLoadout = {
     gestures: Array<PyGestureBinding>;
     idle_style: PyAnimaIdleStyle;
     /**
-     * Music Tracks
-     */
-    music_tracks?: Array<PyAnimaMusicTrack>;
-    /**
      * Reactions
      */
     reactions: Array<PyReactionCell>;
@@ -1449,61 +1428,6 @@ export type PyAnimaLoadout = {
      * Warnings
      */
     warnings?: Array<PyLoadoutDiagnostic>;
-};
-
-/**
- * PyAnimaMusicTrack
- */
-export type PyAnimaMusicTrack = {
-    /**
-     * Autoplay
-     */
-    autoplay: boolean;
-    /**
-     * Binding Id
-     */
-    binding_id: string;
-    /**
-     * Codec
-     */
-    codec: string;
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Duration Seconds
-     */
-    duration_seconds: number;
-    /**
-     * Effective Gain
-     */
-    effective_gain: number;
-    /**
-     * Effective Loop
-     */
-    effective_loop: boolean;
-    /**
-     * Enabled
-     */
-    enabled: boolean;
-    /**
-     * Gain Override
-     */
-    gain_override?: number | null;
-    /**
-     * Item Id
-     */
-    item_id: string;
-    /**
-     * Loop Override
-     */
-    loop_override?: boolean | null;
-    /**
-     * Name
-     */
-    name: string;
-    source: PyCatalogLoadoutSource;
 };
 
 /**
@@ -1632,10 +1556,6 @@ export type PyAnimaRuntime = {
      * Loadout Revision
      */
     loadout_revision: number;
-    /**
-     * Music Tracks
-     */
-    music_tracks?: Array<PyRuntimeMusicTrack>;
     /**
      * Particle Effects
      */
@@ -3029,7 +2949,7 @@ export type PyContentEvidenceRoot = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -3044,7 +2964,7 @@ export type PyContentEvidenceRootRequest = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     source: ItemRevisionRef;
 };
 
@@ -3204,7 +3124,7 @@ export type PyContentPreviewRootRequest = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Source
      */
@@ -3251,8 +3171,6 @@ export type PyContentPreviewsPrepareResponse = {
     } & PyReaction) | ({
         kind: 'pose';
     } & PyPose) | ({
-        kind: 'pose_clip';
-    } & PyPoseClip) | ({
         kind: 'particle_effect';
     } & PyParticleEffect) | ({
         kind: 'avatar_effect';
@@ -3263,8 +3181,6 @@ export type PyContentPreviewsPrepareResponse = {
     } & PySoundEffect) | ({
         kind: 'idle_style';
     } & PyIdleStyle) | ({
-        kind: 'music_track';
-    } & PyMusicTrack) | ({
         kind: 'avatar';
     } & PyAvatarContent) | ({
         kind: 'appearance';
@@ -5058,143 +4974,6 @@ export type PyModelProviderCatalogItem = {
 };
 
 /**
- * PyMusicTrack
- */
-export type PyMusicTrack = {
-    /**
-     * Autoplay
-     */
-    autoplay: boolean;
-    /**
-     * Codec
-     */
-    codec: string;
-    /**
-     * Dependencies
-     */
-    dependencies?: Array<PyTypedDependency>;
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Duration Seconds
-     */
-    duration_seconds: number;
-    /**
-     * Editable
-     */
-    editable: boolean;
-    /**
-     * Files
-     */
-    files?: Array<PyTypedContentFile>;
-    /**
-     * Gain
-     */
-    gain: number;
-    /**
-     * Item Id
-     */
-    item_id: string;
-    /**
-     * Kind
-     */
-    kind?: 'music_track';
-    /**
-     * Logical Key
-     */
-    logical_key?: string | null;
-    /**
-     * Loop
-     */
-    loop: boolean;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Revision Sha256
-     */
-    revision_sha256: string;
-    /**
-     * Source
-     */
-    source: 'included' | 'local';
-};
-
-/**
- * PyMusicTrackCommitRequest
- */
-export type PyMusicTrackCommitRequest = {
-    /**
-     * Expected Revision
-     */
-    expected_revision: number;
-    /**
-     * Idempotency Key
-     */
-    idempotency_key: string;
-    intent: PyMusicTrackIntent;
-    /**
-     * Plan Digest
-     */
-    plan_digest: string;
-};
-
-/**
- * PyMusicTrackIntent
- */
-export type PyMusicTrackIntent = {
-    /**
-     * Autoplay
-     */
-    autoplay?: boolean;
-    /**
-     * Binding Id
-     */
-    binding_id?: string | null;
-    /**
-     * Enabled
-     */
-    enabled?: boolean;
-    /**
-     * Gain
-     */
-    gain?: number | null;
-    /**
-     * Loop
-     */
-    loop?: boolean | null;
-    /**
-     * Operation
-     */
-    operation: 'add' | 'update' | 'reconfigure' | 'remove';
-    source?: PyCatalogLoadoutSource | null;
-};
-
-/**
- * PyMusicTrackPage
- */
-export type PyMusicTrackPage = {
-    /**
-     * Items
-     */
-    items: Array<PyMusicTrack>;
-};
-
-/**
- * PyMusicTrackPlanRequest
- */
-export type PyMusicTrackPlanRequest = {
-    /**
-     * Expected Revision
-     */
-    expected_revision: number;
-    intent: PyMusicTrackIntent;
-};
-
-/**
  * PyOnboardingCompleteRequest
  */
 export type PyOnboardingCompleteRequest = {
@@ -5325,76 +5104,6 @@ export type PyPose = {
 };
 
 /**
- * PyPoseClip
- */
-export type PyPoseClip = {
-    /**
-     * Clip Id
-     */
-    clip_id: string;
-    /**
-     * Dependencies
-     */
-    dependencies?: Array<PyTypedDependency>;
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Editable
-     */
-    editable: boolean;
-    /**
-     * Files
-     */
-    files?: Array<PyTypedContentFile>;
-    /**
-     * Item Id
-     */
-    item_id: string;
-    /**
-     * Kind
-     */
-    kind?: 'pose_clip';
-    /**
-     * Logical Key
-     */
-    logical_key?: string | null;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Playback
-     */
-    playback?: {
-        [key: string]: unknown;
-    };
-    /**
-     * Revision Sha256
-     */
-    revision_sha256: string;
-    /**
-     * Role
-     */
-    role?: string | null;
-    /**
-     * Source
-     */
-    source: 'included' | 'local';
-};
-
-/**
- * PyPoseClipPage
- */
-export type PyPoseClipPage = {
-    /**
-     * Items
-     */
-    items: Array<PyPoseClip>;
-};
-
-/**
  * PyPosePage
  */
 export type PyPosePage = {
@@ -5441,7 +5150,7 @@ export type PyPreparedPreviewRoot = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Root Key
      */
@@ -5636,7 +5345,7 @@ export type PyRuntimeAction = {
     /**
      * Content Type
      */
-    content_type: 'gesture' | 'reaction' | 'pose_clip';
+    content_type: 'gesture' | 'reaction';
     /**
      * Description
      */
@@ -6259,55 +5968,6 @@ export type PyRuntimeLease = {
 };
 
 /**
- * PyRuntimeMusicTrack
- */
-export type PyRuntimeMusicTrack = {
-    /**
-     * Binding Id
-     */
-    binding_id: string;
-    /**
-     * Codec
-     */
-    codec: string;
-    /**
-     * Config
-     */
-    config: {
-        [key: string]: unknown;
-    };
-    /**
-     * Description
-     */
-    description?: string | null;
-    /**
-     * Duration Seconds
-     */
-    duration_seconds: number;
-    /**
-     * Files
-     */
-    files?: Array<PyRuntimeFile>;
-    /**
-     * Name
-     */
-    name: string;
-    /**
-     * Revision
-     */
-    revision: string;
-    /**
-     * Runtime Id
-     */
-    runtime_id: string;
-    /**
-     * Runtime Root Id
-     */
-    runtime_root_id?: string | null;
-    source: PyRuntimeCatalogItemSource;
-};
-
-/**
  * PyRuntimeSupport
  */
 export type PyRuntimeSupport = {
@@ -6723,8 +6383,6 @@ export type PyTypedContentPreview = {
     } & PyReaction) | ({
         kind: 'pose';
     } & PyPose) | ({
-        kind: 'pose_clip';
-    } & PyPoseClip) | ({
         kind: 'particle_effect';
     } & PyParticleEffect) | ({
         kind: 'avatar_effect';
@@ -6735,8 +6393,6 @@ export type PyTypedContentPreview = {
     } & PySoundEffect) | ({
         kind: 'idle_style';
     } & PyIdleStyle) | ({
-        kind: 'music_track';
-    } & PyMusicTrack) | ({
         kind: 'avatar';
     } & PyAvatarContent) | ({
         kind: 'appearance';
@@ -6761,8 +6417,6 @@ export type PyTypedContentPreview = {
     } & PyReaction) | ({
         kind: 'pose';
     } & PyPose) | ({
-        kind: 'pose_clip';
-    } & PyPoseClip) | ({
         kind: 'particle_effect';
     } & PyParticleEffect) | ({
         kind: 'avatar_effect';
@@ -6773,8 +6427,6 @@ export type PyTypedContentPreview = {
     } & PySoundEffect) | ({
         kind: 'idle_style';
     } & PyIdleStyle) | ({
-        kind: 'music_track';
-    } & PyMusicTrack) | ({
         kind: 'avatar';
     } & PyAvatarContent) | ({
         kind: 'appearance';
@@ -6804,7 +6456,7 @@ export type PyTypedDependency = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'gesture' | 'pose' | 'pose_clip' | 'reaction' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect' | 'idle_style' | 'music_track' | 'appearance' | 'voice';
+    kind: 'avatar' | 'gesture' | 'pose' | 'reaction' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect' | 'idle_style' | 'appearance' | 'voice';
     /**
      * Ref
      */
@@ -7417,7 +7069,7 @@ export type SourceRevision = {
     /**
      * Kind
      */
-    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'pose_clip' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
+    kind: 'avatar' | 'appearance' | 'gesture' | 'reaction' | 'idle_style' | 'pose' | 'particle_effect' | 'avatar_effect' | 'scene_effect' | 'sound_effect';
     /**
      * Revision Sha256
      */
@@ -8438,66 +8090,6 @@ export type GetAnimaLoadoutV1AnimasAnimaIdLoadoutGetResponses = {
 };
 
 export type GetAnimaLoadoutV1AnimasAnimaIdLoadoutGetResponse = GetAnimaLoadoutV1AnimasAnimaIdLoadoutGetResponses[keyof GetAnimaLoadoutV1AnimasAnimaIdLoadoutGetResponses];
-
-export type CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostData = {
-    body: PyMusicTrackCommitRequest;
-    path: {
-        /**
-         * Anima Id
-         */
-        anima_id: string;
-    };
-    query?: never;
-    url: '/v1/animas/{anima_id}/music-tracks:commit';
-};
-
-export type CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostError = CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostErrors[keyof CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostErrors];
-
-export type CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyLoadoutCommitResult;
-};
-
-export type CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostResponse = CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostResponses[keyof CommitMusicTrackV1AnimasAnimaIdMusicTracksCommitPostResponses];
-
-export type PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostData = {
-    body: PyMusicTrackPlanRequest;
-    path: {
-        /**
-         * Anima Id
-         */
-        anima_id: string;
-    };
-    query?: never;
-    url: '/v1/animas/{anima_id}/music-tracks:plan';
-};
-
-export type PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostError = PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostErrors[keyof PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostErrors];
-
-export type PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyLoadoutPlan;
-};
-
-export type PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostResponse = PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostResponses[keyof PlanMusicTrackV1AnimasAnimaIdMusicTracksPlanPostResponses];
 
 export type CommitReactionV1AnimasAnimaIdReactionsCommitPostData = {
     body: PyReactionCommitRequest;
@@ -11145,112 +10737,6 @@ export type ListModelProvidersV1ModelProvidersGetResponses = {
 
 export type ListModelProvidersV1ModelProvidersGetResponse = ListModelProvidersV1ModelProvidersGetResponses[keyof ListModelProvidersV1ModelProvidersGetResponses];
 
-export type ListMusicTracksData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/music-tracks';
-};
-
-export type ListMusicTracksResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyMusicTrackPage;
-};
-
-export type ListMusicTracksResponse = ListMusicTracksResponses[keyof ListMusicTracksResponses];
-
-export type SaveMusicTrackData = {
-    body: BodySaveMusicTrack;
-    path: {
-        /**
-         * Entry Name
-         */
-        entry_name: string;
-    };
-    query?: never;
-    url: '/v1/music-tracks/{entry_name}';
-};
-
-export type SaveMusicTrackErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type SaveMusicTrackError = SaveMusicTrackErrors[keyof SaveMusicTrackErrors];
-
-export type SaveMusicTrackResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyMusicTrack;
-};
-
-export type SaveMusicTrackResponse = SaveMusicTrackResponses[keyof SaveMusicTrackResponses];
-
-export type GetMusicTrackData = {
-    body?: never;
-    path: {
-        /**
-         * Item Id
-         */
-        item_id: string;
-    };
-    query?: never;
-    url: '/v1/music-tracks/{item_id}';
-};
-
-export type GetMusicTrackErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetMusicTrackError = GetMusicTrackErrors[keyof GetMusicTrackErrors];
-
-export type GetMusicTrackResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyMusicTrack;
-};
-
-export type GetMusicTrackResponse = GetMusicTrackResponses[keyof GetMusicTrackResponses];
-
-export type PreviewMusicTrackData = {
-    body?: never;
-    path: {
-        /**
-         * Item Id
-         */
-        item_id: string;
-    };
-    query?: never;
-    url: '/v1/music-tracks/{item_id}:preview';
-};
-
-export type PreviewMusicTrackErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type PreviewMusicTrackError = PreviewMusicTrackErrors[keyof PreviewMusicTrackErrors];
-
-export type PreviewMusicTrackResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyTypedContentPreview;
-};
-
-export type PreviewMusicTrackResponse = PreviewMusicTrackResponses[keyof PreviewMusicTrackResponses];
-
 export type ListParticleEffectsData = {
     body?: never;
     path?: never;
@@ -11356,112 +10842,6 @@ export type PreviewParticleEffectResponses = {
 };
 
 export type PreviewParticleEffectResponse = PreviewParticleEffectResponses[keyof PreviewParticleEffectResponses];
-
-export type ListPoseClipsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/v1/pose-clips';
-};
-
-export type ListPoseClipsResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyPoseClipPage;
-};
-
-export type ListPoseClipsResponse = ListPoseClipsResponses[keyof ListPoseClipsResponses];
-
-export type SavePoseClipData = {
-    body: BodySavePoseClip;
-    path: {
-        /**
-         * Entry Name
-         */
-        entry_name: string;
-    };
-    query?: never;
-    url: '/v1/pose-clips/{entry_name}';
-};
-
-export type SavePoseClipErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type SavePoseClipError = SavePoseClipErrors[keyof SavePoseClipErrors];
-
-export type SavePoseClipResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyPoseClip;
-};
-
-export type SavePoseClipResponse = SavePoseClipResponses[keyof SavePoseClipResponses];
-
-export type GetPoseClipData = {
-    body?: never;
-    path: {
-        /**
-         * Item Id
-         */
-        item_id: string;
-    };
-    query?: never;
-    url: '/v1/pose-clips/{item_id}';
-};
-
-export type GetPoseClipErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetPoseClipError = GetPoseClipErrors[keyof GetPoseClipErrors];
-
-export type GetPoseClipResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyPoseClip;
-};
-
-export type GetPoseClipResponse = GetPoseClipResponses[keyof GetPoseClipResponses];
-
-export type PreviewPoseClipData = {
-    body?: never;
-    path: {
-        /**
-         * Item Id
-         */
-        item_id: string;
-    };
-    query?: never;
-    url: '/v1/pose-clips/{item_id}:preview';
-};
-
-export type PreviewPoseClipErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type PreviewPoseClipError = PreviewPoseClipErrors[keyof PreviewPoseClipErrors];
-
-export type PreviewPoseClipResponses = {
-    /**
-     * Successful Response
-     */
-    200: PyTypedContentPreview;
-};
-
-export type PreviewPoseClipResponse = PreviewPoseClipResponses[keyof PreviewPoseClipResponses];
 
 export type ListPosesData = {
     body?: never;

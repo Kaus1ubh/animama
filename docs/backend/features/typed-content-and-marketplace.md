@@ -2,7 +2,7 @@
 
 Animama models runtime media as concrete product types: Avatars, Gestures,
 Reactions, Particle Effects, Avatar Effects, Scene Effects, Sound Effects, Idle
-Styles, Music Tracks, Appearance Images, voices, Poses, and Pose Clips. All types
+Styles, Appearance Images, voices, and static Poses. All types
 share one neutral Content Catalog while keeping strict versioned documents,
 handlers, APIs, and runtime projectors. The `anima` catalog kind is
 reserved and rejecting; live Animas are private application aggregates, not
@@ -20,8 +20,7 @@ Simple leaf entries may stand alone, such as `.vrm`, audio, or self-describing
 JSON. Gesture and Reaction creator output always uses an Action folder:
 `<entry>.meta.json` is the typed product document and `<entry>.json` or
 `<entry>.vrma` is the playable Pose Clip or animation. Action-owned Pose Clips
-are files, not separate catalog dependencies. Only intentionally reusable Pose
-Clips remain under `pose-clips/`. Action documents can declare exact logical
+are files, not separate catalog dependencies. Action documents can declare exact logical
 dependencies on independently reusable Particle, Avatar, and Scene Effects
 plus Sounds. The runtime compiler resolves the complete closure and rejects
 missing, wrong-kind, ambiguous, cyclic, or over-budget roots.
@@ -39,6 +38,14 @@ bytes. Browser-engine/application resources remain outside typed content where
 appropriate. When an application update removes an Included item, reconciliation
 retains an internal missing tombstone for stable identity but does not expose it
 as a user-repairable Library item or content-health issue.
+
+Music and standalone catalog Pose Clips are retained only for local recovery.
+Startup and Rescan convert referenced clips into Action-owned files and remove
+active Music bindings, retaining source originals and prior binding evidence
+under private operation storage. Retired rows cannot be selected, previewed,
+newly saved, packaged or admitted to runtime. Exact completed Save/import and Music equipment-commit retries
+replay their stored result; no legacy package migration is supported. Static
+Poses, Action clip JSON and TTS/SFX remain supported.
 
 ## Product APIs
 
@@ -65,8 +72,8 @@ POST   /v1/{typed-family}/{item_id}:preview
 ```
 
 The family response is a generated discriminated contract such as
-`PyGesture`, `PyReaction`, `PyPose`, `PyParticleEffect`, `PyIdleStyle`, or
-`PyMusicTrack`, not a semantic `metadata` dictionary. Typed routers delegate
+`PyGesture`, `PyReaction`, `PyPose`, `PyParticleEffect`, or `PyIdleStyle`,
+not a semantic `metadata` dictionary. Typed routers delegate
 safe paths, optimistic catalog revisions, atomic replacement, reconciliation,
 and preview freezing to shared catalog services; they do not own parallel
 release/upload persistence. Browser history and request bodies never carry
@@ -97,10 +104,8 @@ any cell. A Reaction descriptor may omit `placement_hint`; when present, it must
 supply both a tracked emotion and intensity 1, 2, or 3. This is only a suggested
 default: saving, previewing and packaging do not require it, while equipping
 still requires a canonical cell. Unplaced typed responses have null `emotion`
-and `intensity`. Idle
-Style is singular with bounded pools, Music has no duplicate item and at most
-one autoplay track, and Avatar, Appearance, and voice keep focused selection
-rules. Effects, Sounds, and Pose Clips remain
+and `intensity`. Idle Style is singular with bounded pools; Avatar, Appearance,
+and voice keep focused selection rules. Effects and Sounds remain
 compiler-managed dependencies rather than independent Anima equipment.
 
 `GET /v1/animas/{anima_id}/runtime` compiles current selections into an exact

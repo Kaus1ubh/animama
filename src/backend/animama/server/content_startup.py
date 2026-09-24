@@ -47,7 +47,7 @@ async def rescan_content_once(
         )
         await ContentTransitionService(
             content=service, bindings=SQLAlchemyContentTransitionBindings(session)
-        ).convert_idle_styles(user_id=owner_id, include_included=include_included)
+        ).transition(user_id=owner_id, include_included=include_included)
 
 
 async def start_content_runtime(

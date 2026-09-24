@@ -682,8 +682,8 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                 {
                     "code": code,
                     "message": (
-                        "This legacy Idle Style could not be converted. Original files are preserved; "
-                        "repair its motion or pool references and rescan."
+                        "This legacy content could not be converted. Original files are preserved; "
+                        "repair its Action, motion or pool references and rescan."
                     ),
                 },
             ]

@@ -18,7 +18,7 @@ from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlc
 from animama.adapters.repositories.sqlalchemy.content_transition_repo import SQLAlchemyContentTransitionBindings
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_file_validation import ContentFileInvalidError
-from animama.app.services.content_kind_registry import MAX_JSON_BYTES, definition_for_kind
+from animama.app.services.content_kind_registry import MAX_JSON_BYTES, RETIRED_CONTENT_KINDS, definition_for_kind
 from animama.app.services.content_package_service import MAX_PACKAGE_BYTES, ContentPackageService
 from animama.app.services.content_save_service import ContentSaveService
 from animama.app.services.content_transition_service import ContentTransitionService
@@ -129,7 +129,7 @@ async def get_content_item(
     """Return one visible neutral catalog item by its opaque identity."""
 
     item = await SQLAlchemyContentCatalog(session).get_visible_item(item_id=item_id, user_id=user.id)
-    if item is None:
+    if item is None or item.kind in RETIRED_CONTENT_KINDS:
         raise HTTPException(status_code=404, detail={"code": "content_not_found"})
     return PyContentItem.from_domain(item)
 
@@ -144,7 +144,7 @@ async def rescan_content_catalog(
 
     result = await ContentTransitionService(
         content=_service(request, session), bindings=SQLAlchemyContentTransitionBindings(session)
-    ).convert_idle_styles(user_id=user.id)
+    ).transition(user_id=user.id)
     items = list(result.items)
     return PyContentRescan(
         summaries=[PyContentScanSummary.from_domain(summary) for summary in result.summaries],

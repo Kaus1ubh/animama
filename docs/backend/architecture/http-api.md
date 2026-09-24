@@ -194,7 +194,7 @@ Local profiles provide private display-name personalization. See
 Avatar metadata joined to valid Content Catalog models and registered
 portraits. It returns Included or Local origin without exposing paths.
 
-Gestures, Reactions, Poses, Pose Clips, effects, Sounds, Idle Styles, Music Tracks,
+Gestures, Reactions, Poses, effects, Sounds, Idle Styles,
 Avatar content, Appearance, and portable voice content expose generated typed
 contracts over the neutral catalog. Each family supports List/Get/Save/Preview
 under its own `/v1/{typed-family}` prefix; for example:
@@ -206,9 +206,9 @@ PUT    /v1/gestures/{entry_name}
 POST   /v1/gestures/{item_id}:preview
 ```
 
-Equivalent families are `reactions`, `poses`, `pose-clips`, `particle-effects`,
+Equivalent families are `reactions`, `poses`, `particle-effects`,
 `avatar-effects`, `scene-effects`, `sound-effects`, `idle-styles`,
-`music-tracks`, `avatar-content`, `appearance-content`, and `voice-content`.
+`avatar-content`, `appearance-content`, and `voice-content`.
 The closed handler for the selected kind validates the schema-versioned
 document, files, dependencies, roles, runtime projection, and portable package
 references. Unknown fields and mismatched kinds are rejected. Avatar and Scene
@@ -262,15 +262,14 @@ The owner-scoped loadout endpoints are:
 - `POST /v1/animas/{anima_id}/gestures:plan|commit`;
 - `POST /v1/animas/{anima_id}/reactions:plan|commit`;
 - `POST /v1/animas/{anima_id}/idle-style:plan|commit`;
-- `POST /v1/animas/{anima_id}/music-tracks:plan|commit`;
 - `POST /v1/animas/{anima_id}/avatar:plan|commit`;
 - `POST /v1/animas/{anima_id}/appearance:plan|commit`;
 - `POST /v1/animas/{anima_id}/voice:plan|commit`.
 
 Plan requests carry the expected loadout revision and a typed family intent.
 Commit repeats that intent with the reviewed plan digest and an idempotency
-key. Selections store logical catalog items; Pose Clips, Particle, Avatar, and
-Scene Effects plus Sounds remain compiler-managed support dependencies of
+key. Selections store logical catalog items; Particle, Avatar, and Scene
+Effects plus Sounds remain compiler-managed support dependencies of
 Gesture/Reaction roots and cannot be equipped directly.
 
 `GET /v1/animas/{anima_id}/runtime` independently compiles selected roots and

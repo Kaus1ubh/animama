@@ -137,19 +137,6 @@ export const queryKeys = {
         sort,
       ] as const,
   },
-  musicTracks: {
-    all: (userId: string) => ["music-tracks", userId] as const,
-    detail: (userId: string, itemId: string) =>
-      [...queryKeys.musicTracks.all(userId), "detail", itemId] as const,
-    list: (userId: string, query: string, origin: string, sort = "name") =>
-      [
-        ...queryKeys.musicTracks.all(userId),
-        "list",
-        query,
-        origin,
-        sort,
-      ] as const,
-  },
   appearanceImages: {
     all: (userId: string) => ["appearance-images", userId] as const,
     list: (userId: string) =>

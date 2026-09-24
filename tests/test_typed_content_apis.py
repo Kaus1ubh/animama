@@ -39,7 +39,6 @@ def test_creator_families_expose_typed_list_get_save_and_preview_contracts() -> 
         "/v1/scene-effects": "PySceneEffect",
         "/v1/sound-effects": "PySoundEffect",
         "/v1/idle-styles": "PyIdleStyle",
-        "/v1/music-tracks": "PyMusicTrack",
     }
 
     for family, model in families.items():

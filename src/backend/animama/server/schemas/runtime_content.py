@@ -50,7 +50,7 @@ class PyRuntimeAction(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     binding_id: str
-    content_type: Literal["gesture", "reaction", "pose_clip"]
+    content_type: Literal["gesture", "reaction"]
     runtime_root_id: str | None = None
     source: PyRuntimeSource
     name: str
@@ -118,22 +118,6 @@ class PyRuntimeIdleStyle(BaseModel):
     default_pool: list[str]
     emotion_pools: dict[str, list[str]] = Field(default_factory=dict)
     cross_fade_seconds: float = 0.35
-
-
-class PyRuntimeMusicTrack(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    binding_id: str
-    runtime_root_id: str | None = None
-    runtime_id: str
-    name: str
-    description: str | None = None
-    source: PyRuntimeSource
-    revision: str
-    duration_seconds: float
-    codec: str
-    config: dict[str, Any]
-    files: list[PyRuntimeFile] = Field(default_factory=list)
 
 
 class PyRuntimeAvatar(BaseModel):
@@ -254,7 +238,6 @@ class PyAnimaRuntime(BaseModel):
     poses: list[PyRuntimeAction] = Field(default_factory=list)
     reactions: list[PyRuntimeAction] = Field(default_factory=list)
     idle_style: PyRuntimeIdleStyle | None = None
-    music_tracks: list[PyRuntimeMusicTrack] = Field(default_factory=list)
     avatar: PyRuntimeAvatar | None = None
     appearances: list[PyRuntimeAppearance] = Field(default_factory=list)
     particle_effects: list[PyRuntimeSupport] = Field(default_factory=list)

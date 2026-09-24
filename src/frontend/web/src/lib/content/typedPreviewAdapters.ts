@@ -6,7 +6,6 @@ import type {
   PyActionPreview,
   PyContentPreviewFile,
   PyIdleStylePreview,
-  PyMusicTrackPreview,
 } from "@/lib/content/catalogTypes";
 import { typedLogicalResourceFiles } from "@/lib/content/typedLogicalResources";
 
@@ -309,26 +308,4 @@ export function typedIdleStylePreview(
     { ...preview, item: gesture, supports },
     selectedRef,
   );
-}
-
-/** Preserve the existing audio-preview control while consuming typed fields. */
-export function typedMusicTrackPreview(
-  preview: PyTypedContentPreview,
-): PyMusicTrackPreview {
-  const item = preview.item;
-  if (item.kind !== "music_track") {
-    throw new Error("The preview is not a Music Track.");
-  }
-  return {
-    preview_id: preview.preview_id,
-    revision: preview.revision_sha256,
-    revision_sha256: preview.revision_sha256,
-    expires_at: preview.expires_at,
-    files: previewFiles(preview),
-    metadata: {},
-    duration_seconds: item.duration_seconds,
-    codec: item.codec,
-    loop: item.loop,
-    gain: item.gain,
-  } as PyMusicTrackPreview;
 }

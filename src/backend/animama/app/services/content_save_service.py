@@ -20,7 +20,7 @@ from animama.app.services.content_image import (
     canonicalize_image_stream,
     validate_appearance_image_stream,
 )
-from animama.app.services.content_kind_registry import definition_for_kind, handler_for_kind
+from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS, definition_for_kind, handler_for_kind
 from animama.app.services.local_content_mutations import mutation_digest
 from animama.app.services.typed_content_service import TypedContentService, validate_idle_style
 from animama.domain.content_catalog import (
@@ -193,6 +193,18 @@ class ContentSaveService:
 
         async def apply() -> SavedContent:
             nonlocal payload_stream, payload_size_bytes, metadata_sidecar
+
+            if kind in RETIRED_CONTENT_KINDS:
+                raise ContentConflictError("content_kind_retired")
+
+            if metadata_sidecar is not None:
+                document = (
+                    handler_for_kind(kind)
+                    .parse_document(json.loads(metadata_sidecar), fallback_path=Path(filename), descriptor_backed=False)
+                    .document
+                )
+                if any(dependency.kind in RETIRED_CONTENT_KINDS for dependency in document.dependencies):
+                    raise ContentConflictError("content_dependency_retired")
 
             if portrait_source is not None:
                 if kind is not ContentKind.APPEARANCE:
@@ -375,6 +387,16 @@ class ContentSaveService:
 
         async def apply() -> SavedContent:
             nonlocal descriptor, companion_files
+
+            if kind in RETIRED_CONTENT_KINDS:
+                raise ContentConflictError("content_kind_retired")
+            document = (
+                handler_for_kind(kind)
+                .parse_document(json.loads(descriptor), fallback_path=Path(entry_name), descriptor_backed=True)
+                .document
+            )
+            if any(dependency.kind in RETIRED_CONTENT_KINDS for dependency in document.dependencies):
+                raise ContentConflictError("content_dependency_retired")
 
             definition = definition_for_kind(kind)
             if definition.descriptor_suffix is None:

@@ -92,7 +92,6 @@ function runtimeContent(
     background_image: null,
     profile_image: null,
     sfx: [],
-    bgm: [],
     warnings: [],
     ...overrides,
   };

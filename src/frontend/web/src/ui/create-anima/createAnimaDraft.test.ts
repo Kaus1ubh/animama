@@ -36,6 +36,33 @@ describe("CreateAnimaDraft", () => {
     ).toBe(false);
   });
 
+  it("reads retired clip evidence only from saved drafts and frozen requests", () => {
+    const draft = readyDraft();
+    const legacyEvidence = {
+      old_clip: { kind: "pose_clip", revision_sha256: "a".repeat(64) },
+    };
+    const request = {
+      ...buildAnimaSpec(draft),
+      idempotency_key: "old-retry",
+      expected_source_revisions: legacyEvidence,
+    };
+    const restored = createAnimaDraftSchema.parse({
+      ...draft,
+      seed_revisions: legacyEvidence,
+      submission: { state: "unknown", request },
+    });
+    expect(restored.submission?.request).toEqual(request);
+    expect(restored.seed_revisions).toEqual(legacyEvidence);
+    expect(sourceMapSchema.safeParse(legacyEvidence).success).toBe(false);
+    expect(creationRequestSchema.safeParse(request).success).toBe(false);
+    expect(() =>
+      buildAnimaSpec({
+        ...draft,
+        idle_revisions: legacyEvidence,
+      } as typeof draft),
+    ).toThrow();
+  });
+
   it("constructs schema v2 with the exact editable identity seed and 72 null cells", () => {
     const draft = newCreateAnimaDraft();
     expect(draft.schema_version).toBe(2);

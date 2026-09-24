@@ -244,7 +244,6 @@ function readyProjection(
     "gestures",
     "poses",
     "reactions",
-    "music_tracks",
     "appearances",
     "particle_effects",
     "avatar_effects",

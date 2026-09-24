@@ -1273,23 +1273,6 @@ class ContentTypeHandler:
             payload["emotion"] = emotion if emotion in TRACKED_EMOTION_SET else document.emotion
             payload["intensity"] = intensity if intensity in {1, 2, 3} else document.intensity
             return RuntimeProjection("reaction", payload)
-        if isinstance(document, PoseClipDocumentV1):
-            return RuntimeProjection(
-                "pose",
-                {
-                    "runtime_root_id": projection.runtime_root_id,
-                    "binding_id": str(projection.context.get("binding_id") or projection.runtime_root_id),
-                    "content_type": "pose_clip",
-                    "source": projection.source,
-                    "name": name,
-                    "description": description,
-                    "semantic_key": document.clip_id,
-                    "implementation": {"kind": "anima_clip", "file_role": "sequence"},
-                    "config": _mapping(projection.context.get("config")),
-                    "reference_map": projection.reference_map,
-                    "files": projection.files,
-                },
-            )
         if isinstance(document, IdleStyleDocumentV2):
             return RuntimeProjection(
                 "idle_style",
@@ -1345,26 +1328,6 @@ class ContentTypeHandler:
                     "default_pool": default_pool,
                     "emotion_pools": pools,
                     "cross_fade_seconds": document.cross_fade_seconds,
-                },
-            )
-        if isinstance(document, MusicTrackDocumentV1):
-            loop = projection.context.get("loop", document.loop)
-            gain = projection.context.get("gain", document.gain)
-            autoplay = projection.context.get("autoplay", document.autoplay)
-            return RuntimeProjection(
-                "music_track",
-                {
-                    "runtime_root_id": projection.runtime_root_id,
-                    "binding_id": str(projection.context.get("binding_id") or projection.runtime_root_id),
-                    "runtime_id": projection.slot_key.split(":", 1)[-1],
-                    "name": name,
-                    "description": description,
-                    "source": projection.source,
-                    "revision": projection.revision,
-                    "duration_seconds": document.duration_seconds,
-                    "codec": document.codec,
-                    "config": {"loop": bool(loop), "volume": float(gain), "autoplay": bool(autoplay)},
-                    "files": projection.files,
                 },
             )
         if isinstance(document, AvatarDocumentV1):
@@ -1596,6 +1559,11 @@ def _valid_dependency_reference(value: str) -> bool:
         return False
     relative = PurePosixPath(value)
     return not relative.is_absolute() and all(part not in {"", ".", ".."} for part in relative.parts)
+
+
+# Persisted rows and receipts retain their original kind. Public admission must
+# exclude these kinds while conversion can still use their exact old handlers.
+RETIRED_CONTENT_KINDS = frozenset({ContentKind.POSE_CLIP, ContentKind.MUSIC_TRACK})
 
 
 CONTENT_TYPE_HANDLERS = ContentTypeHandlerRegistry(
@@ -1831,6 +1799,7 @@ def is_descriptor_path(definition: ContentKindDefinition, path: Path, type_root:
 
 __all__ = [
     "CONTENT_KIND_REGISTRY",
+    "RETIRED_CONTENT_KINDS",
     "CONTENT_TYPE_HANDLERS",
     "ContentKindDefinition",
     "ContentTypeHandler",

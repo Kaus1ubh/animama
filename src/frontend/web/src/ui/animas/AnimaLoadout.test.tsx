@@ -14,7 +14,6 @@ const fixtures = vi.hoisted(() => ({
     gestures: [],
     reactions: [],
     idle_style: { state: "empty" as const },
-    music_tracks: [],
   },
 }));
 
@@ -71,19 +70,6 @@ vi.mock("@/query/hooks/useIdleStyles", () => ({
   }),
 }));
 
-vi.mock("@/query/hooks/useMusicTracks", () => ({
-  useMusicTracks: () => ({
-    data: { pages: [{ items: [] }] },
-    isPending: false,
-    isError: false,
-    hasNextPage: false,
-    isFetchingNextPage: false,
-    isFetchNextPageError: false,
-    fetchNextPage: vi.fn(),
-    refetch: vi.fn(),
-  }),
-}));
-
 vi.mock("@/query/mutations/useAnimaLoadoutMutations", () => ({
   useAnimaLoadoutMutations: () => ({
     planGesture: { mutateAsync: vi.fn() },
@@ -92,13 +78,11 @@ vi.mock("@/query/mutations/useAnimaLoadoutMutations", () => ({
     commitReaction: { mutateAsync: vi.fn(), isPending: false },
     planIdleStyle: { mutateAsync: vi.fn() },
     commitIdleStyle: { mutateAsync: vi.fn(), isPending: false },
-    planMusicTrack: { mutateAsync: vi.fn() },
-    commitMusicTrack: { mutateAsync: vi.fn(), isPending: false },
   }),
 }));
 
 describe("Anima Loadout", () => {
-  it("keeps exactly the four typed product sections behind accessible disclosures", () => {
+  it("keeps the three supported product sections behind accessible disclosures", () => {
     const html = renderToString(
       <AnimaLoadout animaId="anima-1" onStagePreview={() => undefined} />,
     );
@@ -106,12 +90,12 @@ describe("Anima Loadout", () => {
     expect(html).toContain(">Gestures<");
     expect(html).toContain(">Reactions<");
     expect(html).toContain(">Idle Style<");
-    expect(html).toContain(">Music<");
-    expect(html.match(/aria-expanded="false"/g)).toHaveLength(4);
+    expect(html).not.toContain(">Music<");
+    expect(html.match(/aria-expanded="false"/g)).toHaveLength(3);
     expect(html).toContain('aria-controls="gesture-loadout-content"');
     expect(html).toContain('aria-controls="reaction-loadout-content"');
     expect(html).toContain('aria-controls="idle-style-content"');
-    expect(html).toContain('aria-controls="music-content"');
+    expect(html).not.toContain('aria-controls="music-content"');
 
     expect(html).not.toContain("Avatar Release");
     expect(html).not.toContain("Pose Clip");

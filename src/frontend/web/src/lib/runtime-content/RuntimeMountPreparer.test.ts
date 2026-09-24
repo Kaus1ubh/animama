@@ -81,7 +81,6 @@ function runtime(payloads: Uint8Array[]): PyAnimaRuntime {
     poses: [],
     reactions: [],
     idle_style: null,
-    music_tracks: [],
     appearances: [],
     particle_effects:
       members.length > 1
@@ -702,7 +701,7 @@ describe("RuntimeMountPreparer", () => {
     runtimeValue.poses = [
       {
         binding_id: "dependent-pose",
-        content_type: "pose_clip",
+        content_type: "gesture",
         runtime_root_id: "root-1",
         source: {
           type: "catalog_item",

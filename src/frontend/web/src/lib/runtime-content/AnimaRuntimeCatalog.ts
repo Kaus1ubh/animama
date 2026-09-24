@@ -184,7 +184,6 @@ export class AnimaRuntimeCatalog
         options.preparation.issued.scene_background_vfx,
         options.preparation.issued.scene_focus_vfx,
         options.preparation.issued.sfx,
-        options.preparation.issued.bgm,
       ]) {
         for (const entry of entries)
           this.issuedRoots.set(
@@ -291,7 +290,6 @@ export class AnimaRuntimeCatalog
       sceneBackgroundVfx: runtime.scene_background_vfx,
       sceneFocusVfx: runtime.scene_focus_vfx,
       sfx: runtime.sfx,
-      bgm: runtime.bgm,
     };
   }
 
@@ -601,12 +599,12 @@ export class AnimaRuntimeCatalog
     return this.mediaCatalog.loadSceneVFX(kind, runtimeId);
   }
 
-  listAudio(kind: "sfx" | "bgm"): readonly RuntimeAudioDescriptor[] {
+  listAudio(kind: "sfx"): readonly RuntimeAudioDescriptor[] {
     return this.mediaCatalog.listAudio(kind);
   }
 
   resolveAudio(
-    kind: "sfx" | "bgm",
+    kind: "sfx",
     runtimeId: string,
   ): Promise<ResolvedRuntimeAudio | null> {
     if (this.pending(kind, runtimeId)) return Promise.resolve(null);

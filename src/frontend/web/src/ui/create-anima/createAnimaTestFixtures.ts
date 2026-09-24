@@ -52,12 +52,12 @@ export function creationOptions(): AnimaCreationOptions {
       source: ref("idle"),
       expected_source_revisions: {
         idle: revision("idle_style"),
-        idle_pose: revision("pose_clip"),
+        idle_pose: revision("gesture"),
       },
     },
     expected_source_revisions: {
       idle: revision("idle_style"),
-      idle_pose: revision("pose_clip"),
+      idle_pose: revision("gesture"),
     },
     diagnostics: [],
   };

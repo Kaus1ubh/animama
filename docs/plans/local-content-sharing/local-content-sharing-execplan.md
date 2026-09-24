@@ -1,6 +1,6 @@
 # Local content and complete Anima sharing
 
-Status: Approved 2026-09-24 for full implementation; Phase 1 complete, Phase 2 next.
+Status: Approved 2026-09-24 for full implementation; Phases 1–2 complete, Phase 3 underway.
 
 Source agreement: [local-content-sharing-spec.md](local-content-sharing-spec.md),
 requirements R1–R9 and its acceptance table, following the owner's 2026-09-23
@@ -78,7 +78,7 @@ Paths below are relative to the repository root. `B` means
 - [x] 2026-09-24: full implementation authorized; owning spec and six linked phase
   issues published/read back, supplied worktree verified, locked dependencies installed.
 - [x] Phase 1: Gesture-based Idle Styles and preservation of existing idle behavior.
-- [ ] Phase 2: retire Music/BGM and standalone Pose Clip availability safely.
+- [x] Phase 2: retire Music/BGM and standalone Pose Clip availability safely.
 - [ ] Phase 3: portable multi-root and full-Anima export with exact review snapshots.
 - [ ] Phase 4: staged, reviewed import and one recoverable installation operation.
 - [ ] Phase 5: Library frontend using the supplied UI mockups.
@@ -416,7 +416,8 @@ Recovery: failed conversion rolls back cooperating files/bindings, retains
 originals and reports the affected source; ambiguous manual edits remain fenced.
 
 Issue: [#82](https://github.com/raymond-van/animama/issues/82). Starting SHA:
-`e6be498a596aad1e9e9824527593ad6c10f20d3a`. Verified phase commit follows this record.
+`e6be498a596aad1e9e9824527593ad6c10f20d3a`. Verified phase commit:
+`8e2a68ef5fa4751f52103139492212386ece6bec`.
 
 Implementation evidence:
 
@@ -594,16 +595,119 @@ Completion: no active retired-kind references remain in successfully converted
 fixtures; invalid legacy input reports a problem without data loss or scan crashes.
 Recovery follows the transition contract; no profile reset or source-file deletion.
 
-Issue: [#83](https://github.com/raymond-van/animama/issues/83). Starting SHA: record predecessor commit when phase starts.
-Commit / evidence: pending.
+Issue: [#83](https://github.com/raymond-van/animama/issues/83). Starting SHA:
+`8e2a68ef5fa4751f52103139492212386ece6bec`.
+Verified phase commit: recorded below after creation.
+
+Implementation evidence (2026-09-24):
+
+- The shared standalone clip fixture first retained its old `technical_source`
+  reference (red), then became two owned Action sequences with the same Action
+  IDs, selectors, placement and playback configuration. Originals stay in place
+  and in private recovery storage. Alias collisions rewrite only owned event
+  selectors. Interrupted publication rolls back; a fresh service completes once
+  and subsequent runs preserve later edits. Unsafe support-setting conflicts
+  preserve the source and show a repair diagnostic.
+- Music retirement first left two bindings in place (red), then removed the set
+  with one Anima/loadout revision update. Eight SQL/store tests cover missing
+  tracks, untouched original audio, unrelated equipment/identity, exact source
+  fences, rollback, committed-journal recovery and receipt-first replay.
+  Combined Action/Idle/Music/startup preservation batch: 27 passed.
+- Backend admission/replay batch: 118 passed; one malformed historical Clip test
+  fixture was corrected, then all six Save replay tests passed. New operations
+  reject retired kinds; hidden receipt-only Save routes and private creation
+  request decoding preserve historical successful retries without restoring
+  public typed availability. Existing storage enums/constraints remain readable.
+- Frontend retirement tests observed five intended failures before correction.
+  Legacy draft admission and Included owned-sequence reopening also went red to
+  green. Relevant frontend batch: 82 files / 528 tests; affected rechecks: 77
+  tests and seven sound tests (overlapping counts). SDK/router regenerated with
+  their generators. SDK drift, package build/check, web type/lint, desktop type
+  check and production web build passed; only existing large-chunk warnings.
+- `make format-check lint mypy`: 527 source files passed. Typed-content audit
+  and Python import boundary passed (zero forbidden edges, 213 reachable project
+  modules / 157 shared modules). Independent full offline backend suite passed:
+  1,873 passed, seven skipped, 415 warnings in 188.73 seconds.
+- Rendered at 1440 × 1000 on the isolated task stack: Loadout contains Gestures,
+  Reactions and Idle Style; App Settings contains master mute, TTS and SFX, with
+  no BGM transport or volume. No audible/native acceptance is inferred from this.
 
 #### Code Review #1 Findings
 
-Not run. Include preservation and private legacy-decoder boundaries in review.
+Initial independent review against `8e2a68e` includes tracked and untracked
+Phase 2 changes. Independent frontend analysis passed with no actionable findings;
+independent backend suite/audit/boundary checks passed. Backend analysis reported
+four required findings; no further broad review is authorized for this phase.
+
+- **P2-B1 (required):** the Action converter rejects every Included legacy Action
+  solely because its source is immutable. The reviewer admitted a valid Included
+  clip/Gesture closure, then observed no mutation and disappearance from typed
+  Gesture availability. This violates the explicit Local-copy/consumer-remapping
+  transition contract. Originals must remain immutable while converted Local
+  Actions, affected Styles and consumed equipment are published atomically.
+- **P2-B2 (required):** deleting the Music commit route makes a successful
+  historical retry return 404 despite its intact receipt. Keep a private,
+  receipt-only compatibility route; new Music equipment remains rejected.
+- **P2-B3 (required):** alias rewriting assumes every legacy event is an object.
+  A valid old catalog closure with a malformed event raises `AttributeError`
+  and aborts rescan. Report the affected item safely and preserve originals.
+- **P2-B4 (required):** adding an owned sequence while retaining an older unused
+  file's `sequence` role creates two active candidates. The frontend can select
+  the stale one. Preserve the old bytes with a non-active role.
 
 #### Code Review #1 Revisions
 
-Not run. Two repair rounds remain.
+All four findings accepted and reproduced. Repair #1:
+
+- B1 copies Included Actions and affected Included Styles to Local, rewrites
+  affected Local Style references in place, and remaps exact explicit/implicit
+  consumers in one existing mutation/SQL commit. Per-source checkpoints share
+  that commit so subsequent source additions cannot overwrite later Local edits.
+  Original attribution, bytes and full prior binding facts are retained. Old
+  immutable definitions whose closure still contains retired content are not
+  selectable through typed APIs. Included conversion/rollback fixtures went red
+  to green; grouped-consumer/Music/Idle batch: 31 passed.
+- B2 restores only a hidden commit retry route with exact historical request
+  normalization. Two HTTP reproductions went from 404 to passing; 11 admission/
+  replay tests passed. New keys reject before revision/source checks, changed
+  input conflicts, and no Music equipment is recreated. SDK drift check passed.
+- B3/B4 reproduced uncaught event errors and two active sequences. Converted
+  clips validate rewrite shapes, and old unused sequence files retain their
+  bytes under `legacy_sequence`. Six Action tests passed. The shared failure
+  diagnostic now describes legacy content/Actions instead of only Idle Styles.
+- Affected backend batch: 50 passed. Full format/lint/mypy passed for 530 files;
+  final Included-addition and consumer checks: 15 passed. Independent full backend
+  suite after repair #1: 1,892 passed, seven skipped, 415 warnings in 223.20 seconds.
+
+#### Code Review #2 Findings
+
+Targeted independent recheck resolves B2–B4. B1's grouped initial conversion,
+fences and rollback pass, but completed Action checkpoints skip discovery of
+newly added or repaired Styles referencing the immutable original. Reproduction
+returned zero mutations and left both valid Local and Included Styles hidden.
+
+#### Code Review #2 Revisions
+
+B1 follow-up accepted. Final repair round reuses completed Action/Style mappings
+for newly discovered consumers, retaining edited Local copies and their revision
+fences. Deleted copies stay deleted; affected consumers receive safe diagnostics.
+No broad review was repeated. Two added scenarios and the full Included conversion
+test file pass (four tests); scoped Ruff, formatting and mypy pass. The broad
+1,892-test result predates this narrow repair; affected checks were refreshed.
+
+#### Code Review #3 Findings
+
+Final targeted independent review passes B1: new/repaired Local and Included
+Styles reuse the edited checkpointed Action and become available. A deleted
+copy is not recreated; affected Styles get missing-result diagnostics without
+publication or checkpoint writes. Binding/restart regressions pass. B2–B4 remain
+resolved and unchanged. No actionable findings and zero repair rounds remain.
+
+#### Code Review #3 Revisions
+
+No further code changes requested. Phase 2 passes its applicable checks and
+independent reviews. TTS/SFX and Creator preservation use the unchanged frontend
+review/check evidence above; physical audio/native acceptance remains Phase 6.
 
 ### Phase 3: Export portable content and complete Anima definitions
 
@@ -855,8 +959,8 @@ Source inspection and this plan are not passing runtime evidence.
 | Evidence | Required boundary | Current result |
 | --- | --- | --- |
 | Planning | Spec/plan/mockup links, source paths, whitespace and consistency | 2026-09-23: 17 local links, all listed existing test/source paths, six phases, three PNGs and Markdown whitespace checked; independent planning findings addressed. No code tests run. |
-| Phase 1 | Cell resolution, finite clocks/events, both players, isolated AI equipment, old idle conversion | Not run. |
-| Phase 2 | Retired data/receipts, preserved Actions/audio/TTS/Creator JSON, repeatable transition | Not run. |
+| Phase 1 | Cell resolution, finite clocks/events, both players, isolated AI equipment, old idle conversion | Passed and committed `8e2a68e`; full local backend/frontend checks and rendered gates recorded above. |
+| Phase 2 | Retired data/receipts, preserved Actions/audio/TTS/Creator JSON, repeatable transition | Implemented; focused/static/rendered evidence above. Initial independent review and full backend check in progress. |
 | Phase 3 | Multi-root/Anima projection, private-data absence, images, exact export bytes | Not run. |
 | Phase 4 | Whole-package review, multipart limits, independent copies, single outcome under failure/retry/restart | Not run. |
 | Phase 5 | Four mockup comparisons, complete content/Anima flows, keyboard and narrow layouts, both serving modes | Not run. |

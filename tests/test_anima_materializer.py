@@ -175,7 +175,7 @@ async def test_materializer_owns_no_commit_provider_or_runtime_and_seeds_exact_d
     assert loadout.revision == loadout.aggregate_revision == 1
     assert loadout.gestures == () and len(loadout.reactions) == 72
     assert all(cell.state == "empty" for cell in loadout.reactions)
-    assert loadout.music_tracks == () and loadout.voice_source is None
+    assert loadout.voice_source is None
     assert _required(loadout.idle_style.source).catalog_item_id == spec.idle_style.id
     assert {entry.use for entry in loadout.appearances} == {"profile", "background"}
     assert (

@@ -50,7 +50,7 @@ class ContentStore(Protocol):
         raise NotImplementedError
 
     def retain_transition_originals(
-        self, *, operation_id: str, entry: CatalogContentEntry, binding_facts: list[dict[str, Any]]
+        self, *, operation_id: str, entry: CatalogContentEntry | None, binding_facts: list[dict[str, Any]]
     ) -> None:
         """Keep verified originals outside scanned roots, independently of journal cleanup."""
 

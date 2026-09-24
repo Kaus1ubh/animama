@@ -9,7 +9,7 @@ from pathlib import Path
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
 from animama.app.services.content_catalog_service import ContentCatalogService
-from animama.app.services.content_kind_registry import handler_for_kind
+from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS, handler_for_kind
 from animama.app.services.idle_playback import IdlePlaybackFacts, read_gesture_idle_playback
 from animama.app.services.runtime_budget_policy import MAX_RUNTIME_BYTES, MAX_RUNTIME_CONFIG_BYTES, MAX_RUNTIME_ENTRIES
 from animama.domain.content_catalog import (
@@ -65,8 +65,23 @@ class TypedContentResolutionContext:
     to the unique visible graph instead of the number of selected roots.
     """
 
-    def __init__(self, visible: dict[str, CatalogContentEntry]) -> None:
+    def __init__(self, visible: dict[str, CatalogContentEntry], *, allow_retired: bool = False) -> None:
         self.visible = visible
+        self._allow_retired = allow_retired
+        # Immutable old Styles can still point through old Actions after their
+        # consumers move to Local copies. Keep such source definitions out of
+        # supported typed selection without rewriting or hiding Health evidence.
+        self._retired_closure = {item.id for item in visible.values() if item.kind in RETIRED_CONTENT_KINDS}
+        parents: dict[str, list[str]] = {}
+        for item in visible.values():
+            for child in item.dependency_item_ids:
+                parents.setdefault(child, []).append(item.id)
+        pending = list(self._retired_closure)
+        while pending:
+            for parent in parents.get(pending.pop(), []):
+                if parent not in self._retired_closure:
+                    self._retired_closure.add(parent)
+                    pending.append(parent)
         self._parsed: dict[str, TypedCatalogItem] = {}
         self._closures: dict[str, tuple[TypedCatalogItem, ...]] = {}
         logical: dict[str, list[str]] = {}
@@ -81,10 +96,16 @@ class TypedContentResolutionContext:
     def parse(self, item: CatalogContentEntry) -> TypedCatalogItem:
         """Parse each visible catalog projection at most once."""
 
+        if not self._allow_retired and item.kind in RETIRED_CONTENT_KINDS:
+            raise TypedContentAdmissionError("content_kind_retired", item.id)
+        if not self._allow_retired and item.id in self._retired_closure:
+            raise TypedContentAdmissionError("content_dependency_retired", item.id)
         cached = self._parsed.get(item.id)
         if cached is None:
             parsed = TypedContentService.parse(item)
             dependencies = parsed.document.dependencies
+            if not self._allow_retired and any(value.kind in RETIRED_CONTENT_KINDS for value in dependencies):
+                raise TypedContentAdmissionError("content_dependency_retired", item.id)
             dependency_ids: dict[str, str] = {}
             if (
                 item.id in self.visible
@@ -220,6 +241,8 @@ class TypedContentService:
     async def list_kind(self, *, user_id: str, kind: ContentKind) -> tuple[TypedCatalogItem, ...]:
         """List only usable items of one exact product family."""
 
+        if kind in RETIRED_CONTENT_KINDS:
+            return ()
         items = await self._catalog.list_visible(user_id=user_id)
         context = TypedContentResolutionContext({item.id: item for item in items})
         result: list[TypedCatalogItem] = []
@@ -238,6 +261,8 @@ class TypedContentService:
         return tuple(result)
 
     async def get(self, *, user_id: str, kind: ContentKind, item_id: str) -> TypedCatalogItem:
+        if kind in RETIRED_CONTENT_KINDS:
+            raise ContentNotFoundError("typed catalog item was not found")
         visible = {item.id: item for item in await self._catalog.list_visible(user_id=user_id)}
         item = visible.get(item_id)
         if item is None or item.kind is not kind or item.status is not ContentStatus.VALID:

@@ -10,10 +10,8 @@ import {
   previewAvatarEffect,
   previewGesture,
   previewIdleStyle,
-  previewMusicTrack,
   previewParticleEffect,
   previewPose,
-  previewPoseClip,
   previewReaction,
   previewSceneEffect,
   previewSoundEffect,
@@ -22,10 +20,8 @@ import {
   saveAvatarContent,
   saveGesture,
   saveIdleStyle,
-  saveMusicTrack,
   saveParticleEffect,
   savePose,
-  savePoseClip,
   saveReaction,
   saveSceneEffect,
   saveSoundEffect,
@@ -38,10 +34,8 @@ import type {
   PyContentItem,
   PyGesture,
   PyIdleStyle,
-  PyMusicTrack,
   PyParticleEffect,
   PyPose,
-  PyPoseClip,
   PyReaction,
   PySceneEffect,
   PySoundEffect,
@@ -57,13 +51,11 @@ type TypedCatalogTransport =
   | (PyGesture & { kind: "gesture" })
   | (PyReaction & { kind: "reaction" })
   | (PyPose & { kind: "pose" })
-  | (PyPoseClip & { kind: "pose_clip" })
   | (PyParticleEffect & { kind: "particle_effect" })
   | (PyAvatarEffect & { kind: "avatar_effect" })
   | (PySceneEffect & { kind: "scene_effect" })
   | (PySoundEffect & { kind: "sound_effect" })
   | (PyIdleStyle & { kind: "idle_style" })
-  | (PyMusicTrack & { kind: "music_track" })
   | (PyAvatarContent & { kind: "avatar" })
   | (PyAppearance & { kind: "appearance" })
   | (PyVoiceContent & { kind: "voice" });
@@ -155,13 +147,6 @@ function typedMetadata(item: TypedCatalogTransport): Record<string, unknown> {
       };
     case "pose":
       return { ...common, id: item.pose_id };
-    case "pose_clip":
-      return {
-        ...common,
-        id: item.clip_id,
-        role: item.role,
-        playback: item.playback,
-      };
     case "particle_effect":
       return {
         ...common,
@@ -190,17 +175,6 @@ function typedMetadata(item: TypedCatalogTransport): Record<string, unknown> {
         default_pool: item.default_pool,
         cells: item.cells,
         compatibility: item.compatibility,
-      };
-    case "music_track":
-      return {
-        ...common,
-        duration_seconds: item.duration_seconds,
-        codec: item.codec,
-        defaults: {
-          loop: item.loop,
-          gain: item.gain,
-          autoplay: item.autoplay,
-        },
       };
     case "avatar":
       return { ...common, compatibility: item.compatibility };
@@ -307,12 +281,6 @@ export async function saveCatalogItem(
         kind: "pose",
       };
       break;
-    case "pose_clip":
-      item = {
-        ...(await contentSaveData(savePoseClip(typedOptions))),
-        kind: "pose_clip",
-      };
-      break;
     case "particle_effect":
       item = {
         ...(await contentSaveData(saveParticleEffect(typedOptions))),
@@ -341,12 +309,6 @@ export async function saveCatalogItem(
       item = {
         ...(await contentSaveData(saveIdleStyle(typedOptions))),
         kind: "idle_style",
-      };
-      break;
-    case "music_track":
-      item = {
-        ...(await contentSaveData(saveMusicTrack(typedOptions))),
-        kind: "music_track",
       };
       break;
     case "avatar":
@@ -394,8 +356,6 @@ export async function previewTypedCatalogItem(
       return (await previewReaction(options)).data;
     case "pose":
       return (await previewPose(options)).data;
-    case "pose_clip":
-      return (await previewPoseClip(options)).data;
     case "particle_effect":
       return (await previewParticleEffect(options)).data;
     case "avatar_effect":
@@ -406,8 +366,6 @@ export async function previewTypedCatalogItem(
       return (await previewSoundEffect(options)).data;
     case "idle_style":
       return (await previewIdleStyle(options)).data;
-    case "music_track":
-      return (await previewMusicTrack(options)).data;
     case "avatar":
       return (await previewAvatarContent(options)).data;
     case "appearance":

@@ -915,7 +915,6 @@ export function ApplicationSettingsModal({
               </div>
               <AudioVolumePanel
                 disabled={isAudioBusy}
-                showBgmDetail
                 volumeCardClassName="px-4 py-3"
               />
             </section>

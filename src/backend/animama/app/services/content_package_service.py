@@ -16,6 +16,7 @@ from zipfile import ZIP_DEFLATED, BadZipFile, ZipFile, ZipInfo
 
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import (
+    RETIRED_CONTENT_KINDS,
     definition_for_kind,
     descriptor_filename,
     handler_for_kind,
@@ -184,6 +185,8 @@ class ContentPackageService:
                 raise ContentConflictError("package_dependency_cycle")
             if item.id in visited:
                 return
+            if item.kind in RETIRED_CONTENT_KINDS:
+                raise ContentConflictError("content_kind_retired")
             visiting.add(item.id)
             if item.kind is ContentKind.ANIMA:
                 raise ContentConflictError("anima_package_reserved")
@@ -540,6 +543,8 @@ class ContentPackageService:
                     kind = ContentKind(str(raw["kind"]))
                 except (KeyError, ValueError) as exc:
                     raise ContentConflictError("package_kind_invalid") from exc
+                if kind in RETIRED_CONTENT_KINDS:
+                    raise ContentConflictError("content_kind_retired")
                 if kind is ContentKind.ANIMA:
                     raise ContentConflictError("anima_package_reserved")
                 license_facts = _validate_package_license(raw.get("license"))
@@ -557,6 +562,8 @@ class ContentPackageService:
                         dependency_kind = ContentKind(str(dependency.get("content_type")))
                     except ValueError as exc:
                         raise ContentConflictError("package_dependency_invalid") from exc
+                    if dependency_kind in RETIRED_CONTENT_KINDS:
+                        raise ContentConflictError("content_dependency_retired")
                     if not isinstance(reference, str) or not reference:
                         raise ContentConflictError("package_dependency_invalid")
                     manifest_dependencies.append((reference, dependency_kind))

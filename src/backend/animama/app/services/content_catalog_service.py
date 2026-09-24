@@ -10,6 +10,7 @@ from uuid import uuid4
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
 from animama.app.services.content_access_policy import ContentAccessPolicy
+from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.local_content_mutations import LocalContentMutations, mutation_digest
 from animama.domain.content_catalog import (
     CatalogContentEntry,
@@ -101,11 +102,38 @@ class ContentCatalogService:
                     missing=sum(item.status is ContentStatus.MISSING for item in reconciled),
                 )
             )
-        visible = await self._catalog.list_visible(user_id=user_id)
-        return ContentRescanResult(tuple(summaries), tuple(visible))
+        return await self.visible_scan_result(tuple(summaries), user_id=user_id)
 
     async def list_visible(self, *, user_id: str) -> list[CatalogContentEntry]:
-        return await self._catalog.list_visible(user_id=user_id)
+        """List supported content; raw retired rows remain private transition evidence."""
+        return [
+            item for item in await self._catalog.list_visible(user_id=user_id) if item.kind not in RETIRED_CONTENT_KINDS
+        ]
+
+    async def visible_scan_result(
+        self, summaries: tuple[ContentScanSummary, ...], *, user_id: str
+    ) -> ContentRescanResult:
+        """Report current supported rows after preserving conversions have finished."""
+        items = tuple(await self.list_visible(user_id=user_id))
+        return ContentRescanResult(
+            tuple(
+                ContentScanSummary(
+                    source=summary.source,
+                    scanned=sum(
+                        item.source is summary.source and item.status is not ContentStatus.MISSING for item in items
+                    ),
+                    valid=sum(item.source is summary.source and item.status is ContentStatus.VALID for item in items),
+                    invalid=sum(
+                        item.source is summary.source and item.status is ContentStatus.INVALID for item in items
+                    ),
+                    missing=sum(
+                        item.source is summary.source and item.status is ContentStatus.MISSING for item in items
+                    ),
+                )
+                for summary in summaries
+            ),
+            items,
+        )
 
     async def delete_item(
         self,

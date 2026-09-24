@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from animama.app.anima_creation_contract import AnimaSpec, CreateAnimaRequest, canonical_spec_hash
+from animama.app.anima_creation_contract import (
+    AnimaSpec,
+    CreateAnimaRequest,
+    LegacyAnimaSpec,
+    LegacyCreateAnimaRequest,
+    canonical_spec_hash,
+)
 from animama.app.ports.anima_aggregate_port import AnimaAggregateUnitOfWork
 from animama.app.ports.anima_creation_port import AnimaCreationRepository, CreationReceipt
 from animama.domain.anima_creation_error import AnimaCreationError, AnimaCreationIssue
@@ -54,7 +60,7 @@ class AnimaCreationService:
             raise self._definition_error(exc) from exc
         return {"schema_version": 1, "spec": spec.model_dump(mode="json"), "warnings": resolved.warnings}
 
-    async def create(self, *, user_id: str, request: CreateAnimaRequest) -> dict[str, Any]:
+    async def create(self, *, user_id: str, request: CreateAnimaRequest | LegacyCreateAnimaRequest) -> dict[str, Any]:
         """Commit one complete aggregate/receipt, or release the key on failure."""
 
         try:
@@ -65,7 +71,7 @@ class AnimaCreationService:
             await self.uow.rollback()
             raise
 
-    async def create_in_uow(self, *, user_id: str, spec: AnimaSpec, key: str) -> dict[str, Any]:
+    async def create_in_uow(self, *, user_id: str, spec: AnimaSpec | LegacyAnimaSpec, key: str) -> dict[str, Any]:
         """Share the private command with starter receipt transactions; do not commit."""
 
         digest = canonical_spec_hash(spec)
@@ -85,6 +91,18 @@ class AnimaCreationService:
                     "creation_result_deleted", status=410, message="The original Anima was deleted."
                 )
             return {**receipt.result, "idempotent_replay": True}
+        if isinstance(spec, LegacyAnimaSpec):
+            raise AnimaCreationError(
+                "anima_creation_invalid",
+                status=422,
+                issues=[
+                    AnimaCreationIssue(
+                        "content_kind_retired",
+                        "A retired source can only replay a completed creation.",
+                        "/expected_source_revisions",
+                    )
+                ],
+            )
         # Lock the submitted set before materializing. An incomplete/extra map
         # fails validation; it never broadens the admitted selection.
         await self.sources.catalog.lock_items(user_id=user_id, item_ids=tuple(sorted(spec.expected_source_revisions)))

@@ -16,7 +16,6 @@ from animama.domain.anima_loadout import (
     LoadoutCommitResult,
     LoadoutDiagnostic,
     LoadoutPlan,
-    MusicTrackBinding,
     ReactionCell,
 )
 from animama.domain.emotions import TRACKED_EMOTIONS
@@ -119,7 +118,9 @@ class PyIdleStyleIntent(BaseModel):
         return self
 
 
-class PyMusicTrackIntent(BaseModel):
+class LegacyMusicTrackIntent(BaseModel):
+    """Decode the original Music command solely for committed-receipt replay."""
+
     model_config = ConfigDict(extra="forbid")
 
     operation: Literal["add", "update", "reconfigure", "remove"]
@@ -131,7 +132,7 @@ class PyMusicTrackIntent(BaseModel):
     gain: float | None = Field(default=None, ge=0, le=2)
 
     @model_validator(mode="after")
-    def validate_target(self) -> PyMusicTrackIntent:
+    def validate_target(self) -> LegacyMusicTrackIntent:
         if self.operation in {"update", "reconfigure", "remove"} and not self.binding_id:
             raise ValueError("binding_id is required")
         if self.operation != "remove" and self.source is None:
@@ -141,6 +142,17 @@ class PyMusicTrackIntent(BaseModel):
         if self.autoplay and not self.enabled:
             raise ValueError("autoplay requires an enabled track")
         return self
+
+
+class LegacyMusicTrackCommitRequest(BaseModel):
+    """Keep historical defaults and null omission stable for the original digest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expected_revision: int = Field(ge=1)
+    intent: LegacyMusicTrackIntent
+    plan_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    idempotency_key: str = Field(min_length=1, max_length=128)
 
 
 class PySingleSelectionIntent(BaseModel):
@@ -181,12 +193,6 @@ class PyIdleStylePlanRequest(BaseModel):
     intent: PyIdleStyleIntent
 
 
-class PyMusicTrackPlanRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    expected_revision: int = Field(ge=1)
-    intent: PyMusicTrackIntent
-
-
 class PySingleSelectionPlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     expected_revision: int = Field(ge=1)
@@ -210,11 +216,6 @@ class PyReactionCommitRequest(PyReactionPlanRequest):
 
 
 class PyIdleStyleCommitRequest(PyIdleStylePlanRequest):
-    plan_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
-    idempotency_key: str = Field(min_length=1, max_length=128)
-
-
-class PyMusicTrackCommitRequest(PyMusicTrackPlanRequest):
     plan_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
     idempotency_key: str = Field(min_length=1, max_length=128)
 
@@ -396,42 +397,6 @@ class PyAnimaIdleStyle(BaseModel):
         )
 
 
-class PyAnimaMusicTrack(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    binding_id: str
-    item_id: str
-    name: str
-    description: str | None = None
-    source: PyCatalogLoadoutSource
-    enabled: bool
-    autoplay: bool
-    effective_loop: bool
-    effective_gain: float = Field(ge=0, le=2)
-    loop_override: bool | None = None
-    gain_override: float | None = Field(default=None, ge=0, le=2)
-    duration_seconds: float = Field(ge=0)
-    codec: str
-
-    @classmethod
-    def from_domain(cls, value: MusicTrackBinding) -> PyAnimaMusicTrack:
-        return cls(
-            binding_id=value.binding_id,
-            item_id=value.item_id,
-            name=value.name,
-            description=value.description,
-            source=PyCatalogLoadoutSource.from_domain(value.source),
-            enabled=value.enabled,
-            autoplay=value.autoplay,
-            effective_loop=value.effective_loop,
-            effective_gain=value.effective_gain,
-            loop_override=value.loop_override,
-            gain_override=value.gain_override,
-            duration_seconds=value.duration_seconds,
-            codec=value.codec,
-        )
-
-
 class PyAnimaAppearance(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -470,7 +435,6 @@ class PyAnimaLoadout(BaseModel):
     starter_gesture_implementation_kinds: dict[str, Literal["anima_clip", "vrma"]] = Field(default_factory=dict)
     reactions: list[PyReactionCell]
     idle_style: PyAnimaIdleStyle
-    music_tracks: list[PyAnimaMusicTrack] = Field(default_factory=list)
     avatar_source: PyCatalogLoadoutSource | None = None
     appearances: list[PyAnimaAppearance] = Field(default_factory=list)
     voice_source: PyCatalogLoadoutSource | None = None
@@ -493,7 +457,6 @@ class PyAnimaLoadout(BaseModel):
             starter_gesture_implementation_kinds=starter_implementation_kinds or {},
             reactions=[PyReactionCell.from_domain(item) for item in value.reactions],
             idle_style=PyAnimaIdleStyle.from_domain(value.idle_style),
-            music_tracks=[PyAnimaMusicTrack.from_domain(item) for item in value.music_tracks],
             avatar_source=(PyCatalogLoadoutSource.from_domain(value.avatar_source) if value.avatar_source else None),
             appearances=[PyAnimaAppearance.from_domain(item) for item in value.appearances],
             voice_source=(PyCatalogLoadoutSource.from_domain(value.voice_source) if value.voice_source else None),

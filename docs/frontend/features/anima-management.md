@@ -42,7 +42,6 @@ Profile and Background images, framing and Avatar portrait fallback.
 - a short active Gesture list;
 - a canonical emotion-by-intensity Reaction grid;
 - one emotion-aware Idle Style;
-- zero or more enabled Music Tracks with at most one autoplay track;
 - one Avatar content selection; and
 - typed profile/background Appearance Images with fit, focal point, and zoom.
 
@@ -50,7 +49,7 @@ Gestures and Reactions are complete actions. Their Particle, Avatar, and
 Scene Effects and Sound Effects are compiler-managed dependencies, so those
 ingredients never appear as separate loadout checkboxes.
 
-The Loadout panel contains Gestures, Reactions, Idle Style and Music. Avatar,
+The Loadout panel contains Gestures, Reactions and Idle Style. Avatar,
 Appearance and voice use their own focused controls.
 
 The unified Gesture list keeps ready user-created Gestures first and optionally
@@ -80,10 +79,6 @@ empty. Pool edits belong to the Style editor. Editing a shared Local Style
 affects its users on their next mount; duplicate it first for independent pools.
 Customizing Included content creates a Local copy. The editor preserves its
 loaded revision when saving or recovering an interrupted Save.
-
-Music supports several enabled built-in or private tracks. Per-track loop and
-gain are persisted; at most one enabled track autoplays. Playback position,
-temporary mute, and current manual selection remain local browser state.
 
 Appearance choices are separate typed images rather than generic files. A
 custom profile image wins over the selected Avatar content portrait; otherwise

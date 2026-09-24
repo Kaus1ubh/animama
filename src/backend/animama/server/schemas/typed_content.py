@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime
 from pathlib import PurePosixPath
 from typing import Annotated, Literal
@@ -56,14 +56,12 @@ class PyTypedDependency(BaseModel):
         "avatar",
         "gesture",
         "pose",
-        "pose_clip",
         "reaction",
         "particle_effect",
         "avatar_effect",
         "scene_effect",
         "sound_effect",
         "idle_style",
-        "music_track",
         "appearance",
         "voice",
     ]
@@ -168,7 +166,7 @@ class PyPose(PyTypedContentBase):
     pose_id: str
 
 
-class PyPoseClip(PyTypedContentBase):
+class _LegacyPoseClip(PyTypedContentBase):
     kind: Literal["pose_clip"] = "pose_clip"
     clip_id: str
     role: str | None = None
@@ -224,7 +222,7 @@ class PyIdleStyle(PyTypedContentBase):
     compatibility: dict[str, object] = Field(default_factory=dict)
 
 
-class PyMusicTrack(PyTypedContentBase):
+class _LegacyMusicTrack(PyTypedContentBase):
     kind: Literal["music_track"] = "music_track"
     duration_seconds: float = Field(ge=0)
     codec: str
@@ -259,13 +257,11 @@ PyTypedContent = Annotated[
     PyGesture
     | PyReaction
     | PyPose
-    | PyPoseClip
     | PyParticleEffect
     | PyAvatarEffect
     | PySceneEffect
     | PySoundEffect
     | PyIdleStyle
-    | PyMusicTrack
     | PyAvatarContent
     | PyAppearance
     | PyVoiceContent,
@@ -306,6 +302,40 @@ def _base(value: TypedCatalogItem) -> dict[str, object]:
     }
 
 
+def legacy_saved_content_response(value: TypedCatalogItem) -> dict[str, object]:
+    """Project a stored Save snapshot without re-admitting historical dependencies."""
+
+    document = value.document
+    clean = replace(value, document=replace(document, dependencies=()))
+    base = _base(clean)
+    if isinstance(document, PoseClipDocumentV1):
+        result = _LegacyPoseClip(
+            **base, clip_id=document.clip_id, role=document.role, playback=document.playback
+        ).model_dump(mode="json")
+    elif isinstance(document, MusicTrackDocumentV1):
+        result = _LegacyMusicTrack(
+            **base,
+            duration_seconds=document.duration_seconds,
+            codec=document.codec,
+            loop=document.loop,
+            gain=document.gain,
+            autoplay=document.autoplay,
+        ).model_dump(mode="json")
+    else:
+        result = typed_content_response(clean).model_dump(mode="json")
+    result["dependencies"] = [
+        {
+            "ref": dependency.ref,
+            "item_id": None,
+            "kind": dependency.kind.value,
+            "alias": dependency.alias,
+            "config": dependency.config,
+        }
+        for dependency in document.dependencies
+    ]
+    return result
+
+
 def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
     """Map a strict domain document to its generated discriminated contract."""
 
@@ -336,13 +366,6 @@ def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
         )
     if isinstance(document, PoseDocumentV1):
         return PyPose(**base, pose_id=document.pose["id"])
-    if isinstance(document, PoseClipDocumentV1):
-        return PyPoseClip(
-            **base,
-            clip_id=document.clip_id,
-            role=document.role,
-            playback=document.playback,
-        )
     if isinstance(document, ParticleEffectDocumentV1):
         return PyParticleEffect(
             **base,
@@ -405,15 +428,6 @@ def typed_content_response(value: TypedCatalogItem) -> PyTypedContent:
             cross_fade_seconds=document.cross_fade_seconds,
             compatibility=document.compatibility,
         )
-    if isinstance(document, MusicTrackDocumentV1):
-        return PyMusicTrack(
-            **base,
-            duration_seconds=document.duration_seconds,
-            codec=document.codec,
-            loop=document.loop,
-            gain=document.gain,
-            autoplay=document.autoplay,
-        )
     if isinstance(document, AvatarDocumentV1):
         return PyAvatarContent(**base, compatibility=document.compatibility)
     if isinstance(document, AppearanceDocumentV1):
@@ -453,12 +467,6 @@ class PyPosePage(BaseModel):
     items: list[PyPose]
 
 
-class PyPoseClipPage(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    items: list[PyPoseClip]
-
-
 class PyParticleEffectPage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -487,12 +495,6 @@ class PyIdleStylePage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[PyIdleStyle]
-
-
-class PyMusicTrackPage(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    items: list[PyMusicTrack]
 
 
 class PyAvatarContentPage(BaseModel):

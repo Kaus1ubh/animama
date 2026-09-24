@@ -71,6 +71,18 @@ async def test_old_idle_lanes_become_owned_gestures_without_losing_originals(asy
         async def replace_idle(self, **kwargs):  # noqa: ANN003, ANN202
             raise AssertionError("An unbound Style must not equip an Anima")
 
+        async def music_consumers(self, **kwargs):  # noqa: ANN003, ANN202
+            return ()
+
+        async def remove_music(self, **kwargs):  # noqa: ANN003, ANN202
+            raise AssertionError("An unbound Style must not retire Music")
+
+        async def content_consumers(self, **kwargs):  # noqa: ANN003, ANN202
+            return ()
+
+        async def replace_content(self, **kwargs):  # noqa: ANN003, ANN202
+            raise AssertionError("An unbound Style must not remap equipment")
+
     service = ContentTransitionService(content=content, bindings=NoBindings())
     await service.convert_idle_styles(user_id="transition-owner")
     converted = await catalog.get_visible_item(item_id=before.id, user_id="transition-owner")

@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import {
   previewGesture,
   previewIdleStyle,
-  previewMusicTrack,
   previewReaction,
 } from "@animama/runtime-contracts/sdk";
 import type {
@@ -14,16 +13,12 @@ import type {
   PyGestureIntent,
   PyIdleStyleIntent,
   PyLoadoutPlan,
-  PyAnimaMusicTrack,
-  PyMusicTrackIntent,
   PyReactionIntent,
 } from "@animama/runtime-contracts/api-types";
 import type {
   PyExactContentSource,
   PyGesture,
   PyIdleStyle,
-  PyMusicTrack,
-  PyMusicTrackPreview,
   PyReaction,
 } from "@/lib/content/catalogTypes";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
@@ -33,7 +28,6 @@ import { idleStylePreviewTarget } from "@/lib/content-preview/idleStylePreviewTa
 import {
   typedActionPreview,
   typedIdleStylePreview,
-  typedMusicTrackPreview,
 } from "@/lib/content/typedPreviewAdapters";
 import {
   presentCustomGestureCatalog,
@@ -43,13 +37,11 @@ import { buildReactionLoadoutGrid } from "@/lib/loadout/reactionLoadoutGrid";
 import { adaptRuntimeSnapshot } from "@/lib/runtime-content/runtimeSnapshotAdapter";
 import { useAnimaLoadout as useLoadout } from "@/query/hooks/useAnimaLoadout";
 import { useIdleStyles } from "@/query/hooks/useIdleStyles";
-import { useMusicTracks } from "@/query/hooks/useMusicTracks";
 import { useGestures, useReactions } from "@/query/hooks/useActions";
 import { useAnimaRuntimeCatalog } from "@/query/hooks/useAnimaRuntimeCatalog";
 import { useAnimaLoadoutMutations } from "@/query/mutations/useAnimaLoadoutMutations";
 import { GestureLoadoutSection } from "@/ui/animas/GestureLoadoutSection";
 import { IdleStyleLoadoutSection } from "@/ui/animas/IdleStyleLoadoutSection";
-import { MusicTrackLoadoutSection } from "@/ui/animas/MusicTrackLoadoutSection";
 import { ReactionLoadoutGrid } from "@/ui/animas/ReactionLoadoutGrid";
 import { Button } from "@/ui/components/button";
 import {
@@ -77,12 +69,6 @@ type ReviewedChange =
   | {
       family: "idle_style";
       intent: PyIdleStyleIntent;
-      plan: PyLoadoutPlan;
-      idempotencyKey: string;
-    }
-  | {
-      family: "music_track";
-      intent: PyMusicTrackIntent;
       plan: PyLoadoutPlan;
       idempotencyKey: string;
     };
@@ -123,7 +109,6 @@ export function AnimaLoadout({
   );
   const runtimeQuery = { ...runtimeSnapshotQuery, data: runtimeData };
   const idleStylesQuery = useIdleStyles({ sort: "name" });
-  const musicTracksQuery = useMusicTracks({ sort: "name" });
   const customGesturesQuery = useGestures({ origin: "owned", sort: "name" });
   const builtinGesturesQuery = useGestures({
     origin: "builtin",
@@ -157,14 +142,6 @@ export function AnimaLoadout({
   const mutations = useAnimaLoadoutMutations(animaId);
   const [reviewed, setReviewed] = useState<ReviewedChange | null>(null);
   const [reviewing, setReviewing] = useState(false);
-  const [editingMusic, setEditingMusic] = useState<PyAnimaMusicTrack | null>(
-    null,
-  );
-  const [musicLoop, setMusicLoop] = useState(true);
-  const [musicGain, setMusicGain] = useState(1);
-  const [musicPreview, setMusicPreview] = useState<PyMusicTrackPreview | null>(
-    null,
-  );
   const loadout = query.data;
 
   useEffect(() => {
@@ -259,8 +236,6 @@ export function AnimaLoadout({
   );
   const availableIdleStyles =
     idleStylesQuery.data?.pages.flatMap((page) => page.items) ?? [];
-  const availableMusicTracks =
-    musicTracksQuery.data?.pages.flatMap((page) => page.items) ?? [];
 
   const preview = async (
     family: "gesture" | "reaction",
@@ -362,60 +337,6 @@ export function AnimaLoadout({
     }
   };
 
-  const planMusicTrack = async (intent: PyMusicTrackIntent) => {
-    if (!loadout) return;
-    setReviewing(true);
-    try {
-      const plan = await mutations.planMusicTrack.mutateAsync({
-        expected_revision: loadout.revision,
-        intent,
-      });
-      setReviewed({
-        family: "music_track",
-        intent,
-        plan,
-        idempotencyKey: crypto.randomUUID(),
-      });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Review failed.");
-    } finally {
-      setReviewing(false);
-    }
-  };
-
-  const musicIntent = (
-    track: PyAnimaMusicTrack,
-    changes: Partial<
-      Pick<PyMusicTrackIntent, "enabled" | "autoplay" | "loop" | "gain">
-    >,
-  ): PyMusicTrackIntent => ({
-    operation: "reconfigure",
-    binding_id: track.binding_id,
-    source: track.source,
-    enabled: changes.enabled ?? track.enabled,
-    autoplay: changes.autoplay ?? track.autoplay,
-    loop: changes.loop ?? track.loop_override,
-    gain: changes.gain ?? track.gain_override,
-  });
-
-  const previewMusic = async (track: PyAnimaMusicTrack) => {
-    try {
-      setMusicPreview(
-        typedMusicTrackPreview(
-          (
-            await previewMusicTrack({
-              path: { item_id: track.source.catalog_item_id },
-              responseValidator: undefined,
-              throwOnError: true,
-            })
-          ).data,
-        ),
-      );
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Preview failed.");
-    }
-  };
-
   const selectIdleStyle = (style: PyIdleStyle) => {
     const source = intentSource(style.source);
     if (!source) return;
@@ -474,13 +395,6 @@ export function AnimaLoadout({
           plan_digest: reviewed.plan.plan_digest,
           idempotency_key: reviewed.idempotencyKey,
         });
-      else
-        await mutations.commitMusicTrack.mutateAsync({
-          expected_revision: loadout.revision,
-          intent: reviewed.intent,
-          plan_digest: reviewed.plan.plan_digest,
-          idempotency_key: reviewed.idempotencyKey,
-        });
       toast.success("Loadout updated. Changes apply to the next chat mount.");
       setReviewed(null);
     } catch (error) {
@@ -509,8 +423,7 @@ export function AnimaLoadout({
   const committing =
     mutations.commitGesture.isPending ||
     mutations.commitReaction.isPending ||
-    mutations.commitIdleStyle.isPending ||
-    mutations.commitMusicTrack.isPending;
+    mutations.commitIdleStyle.isPending;
 
   return (
     <div className="space-y-8 pt-5 md:pt-6">
@@ -636,98 +549,6 @@ export function AnimaLoadout({
           })
         }
       />
-      <MusicTrackLoadoutSection
-        tracks={loadout.music_tracks ?? []}
-        available={availableMusicTracks}
-        preview={musicPreview}
-        disabled={mutationsDisabled}
-        onPreview={(track) => void previewMusic(track)}
-        onAdd={(track: PyMusicTrack) => {
-          const source = intentSource(track.source);
-          if (!source) return;
-          void planMusicTrack({
-            operation: "add",
-            source,
-            enabled: true,
-            autoplay: false,
-          });
-        }}
-        onToggle={(track) =>
-          void planMusicTrack(
-            musicIntent(track, {
-              enabled: !track.enabled,
-              autoplay: track.enabled ? false : track.autoplay,
-            }),
-          )
-        }
-        onAutoplay={(track) =>
-          void planMusicTrack(musicIntent(track, { autoplay: !track.autoplay }))
-        }
-        onConfigure={(track) => {
-          setEditingMusic(track);
-          setMusicLoop(track.effective_loop);
-          setMusicGain(track.effective_gain);
-        }}
-        onRemove={(track) =>
-          void planMusicTrack({
-            operation: "remove",
-            binding_id: track.binding_id,
-          })
-        }
-      />
-
-      <Dialog
-        open={Boolean(editingMusic)}
-        onOpenChange={(open) => !open && setEditingMusic(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Configure Music Track</DialogTitle>
-            <DialogDescription>
-              These loop and gain choices persist in this Anima&apos;s Loadout.
-              Temporary mute and playback position remain local to the player.
-            </DialogDescription>
-          </DialogHeader>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={musicLoop}
-              onChange={(event) => setMusicLoop(event.target.checked)}
-            />
-            Loop this track
-          </label>
-          <label className="grid gap-2 text-sm font-medium">
-            Gain: {Math.round(musicGain * 100)}%
-            <input
-              type="range"
-              min="0"
-              max="2"
-              step="0.05"
-              value={musicGain}
-              onChange={(event) => setMusicGain(Number(event.target.value))}
-            />
-          </label>
-          <DialogFooter>
-            <Button
-              onClick={() => {
-                if (!editingMusic) return;
-                const intent = musicIntent(editingMusic, {
-                  loop: musicLoop,
-                  gain: musicGain,
-                });
-                setEditingMusic(null);
-                void planMusicTrack(intent);
-              }}
-            >
-              Review configuration
-            </Button>
-            <Button variant="outline" onClick={() => setEditingMusic(null)}>
-              Cancel
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={Boolean(reviewed)} onOpenChange={() => setReviewed(null)}>
         <DialogContent>
           <DialogHeader>

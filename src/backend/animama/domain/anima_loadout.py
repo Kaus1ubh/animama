@@ -98,23 +98,6 @@ class IdleStyleBinding:
 
 
 @dataclass(frozen=True, slots=True)
-class MusicTrackBinding:
-    binding_id: str
-    item_id: str
-    name: str
-    source: CatalogLoadoutSource
-    enabled: bool
-    autoplay: bool
-    effective_loop: bool
-    effective_gain: float
-    description: str | None = None
-    loop_override: bool | None = None
-    gain_override: float | None = None
-    duration_seconds: float = 0
-    codec: str = "unknown"
-
-
-@dataclass(frozen=True, slots=True)
 class AppearanceBinding:
     binding_id: str
     use: Literal["profile", "background"]
@@ -137,7 +120,6 @@ class AnimaLoadout:
     disabled_starter_gestures: tuple[str, ...]
     reactions: tuple[ReactionCell, ...]
     idle_style: IdleStyleBinding
-    music_tracks: tuple[MusicTrackBinding, ...] = ()
     avatar_source: CatalogLoadoutSource | None = None
     appearances: tuple[AppearanceBinding, ...] = ()
     voice_source: CatalogLoadoutSource | None = None
@@ -186,7 +168,6 @@ __all__ = [
     "LoadoutCommitResult",
     "LoadoutDiagnostic",
     "LoadoutPlan",
-    "MusicTrackBinding",
     "ReactionCell",
     "StarterEntryIdentity",
 ]

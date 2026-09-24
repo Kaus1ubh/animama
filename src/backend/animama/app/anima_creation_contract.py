@@ -30,7 +30,6 @@ SourceKind = Literal[
     "reaction",
     "idle_style",
     "pose",
-    "pose_clip",
     "particle_effect",
     "avatar_effect",
     "scene_effect",
@@ -119,7 +118,7 @@ ReactionCells = dict[Literal["1", "2", "3"], ItemRevisionRef | None]
 ReactionMatrix = dict[Emotion, ReactionCells]
 
 
-class AnimaSpec(StrictCreationModel):
+class _AnimaSpecFields(StrictCreationModel):
     """Every choice is explicit; neither omitted fields nor URLs seed defaults."""
 
     schema_version: Literal[1]
@@ -130,7 +129,6 @@ class AnimaSpec(StrictCreationModel):
     gestures: list[GestureSelection] = Field(max_length=500)
     reactions: ReactionMatrix
     starter_pack: StarterPackIdentity
-    expected_source_revisions: dict[ItemId, SourceRevision] = Field(max_length=500)
 
     @field_validator("display_name", mode="before")
     @classmethod
@@ -157,6 +155,34 @@ class AnimaSpec(StrictCreationModel):
         return value
 
 
+class AnimaSpec(_AnimaSpecFields):
+    """New creation commands can reference only currently supported content."""
+
+    expected_source_revisions: dict[ItemId, SourceRevision] = Field(max_length=500)
+
+
+class LegacySourceRevision(StrictCreationModel):
+    """Private receipt input retained for exact pre-retirement retries."""
+
+    kind: Literal["pose_clip"]
+    revision_sha256: RevisionSha256
+
+
+class LegacyAnimaSpec(_AnimaSpecFields):
+    """Decode old source maps without admitting them as new creation commands."""
+
+    expected_source_revisions: dict[ItemId, SourceRevision | LegacySourceRevision] = Field(max_length=500)
+
+
+class LegacyCreateAnimaRequest(LegacyAnimaSpec):
+    idempotency_key: IdempotencyKey
+
+    def spec(self) -> LegacyAnimaSpec:
+        """Preserve the exact normalized legacy digest before checking a receipt."""
+
+        return LegacyAnimaSpec.model_validate(self.model_dump(exclude={"idempotency_key"}))
+
+
 class CreateAnimaRequest(AnimaSpec):
     idempotency_key: IdempotencyKey
 
@@ -166,7 +192,7 @@ class CreateAnimaRequest(AnimaSpec):
         return AnimaSpec.model_validate(self.model_dump(exclude={"idempotency_key"}))
 
 
-def canonical_spec_hash(spec: AnimaSpec) -> str:
+def canonical_spec_hash(spec: AnimaSpec | LegacyAnimaSpec) -> str:
     """Hash normalized input, independent of key, owner and live source state."""
 
     def normalize_numbers(value: Any) -> Any:

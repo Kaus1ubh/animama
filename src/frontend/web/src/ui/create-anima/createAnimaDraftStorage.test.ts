@@ -56,6 +56,38 @@ function legacyRecord(options: { image?: boolean; locked?: boolean } = {}) {
   };
 }
 
+describe("retired clip draft recovery", () => {
+  it.each([1, 2])(
+    "retains exact frozen legacy sources from storage schema %s",
+    (version) => {
+      const draft = readyDraft();
+      const oldEvidence = {
+        clip: { kind: "pose_clip", revision_sha256: "a".repeat(64) },
+      };
+      const request = {
+        ...buildAnimaSpec(draft),
+        idempotency_key: "exact-old-request",
+        expected_source_revisions: oldEvidence,
+      };
+      const old = legacyRecord({ locked: true });
+      const record = {
+        ...old,
+        schema_version: version,
+        draft: {
+          ...(version === 1 ? old.draft : draft),
+          seed_revisions: oldEvidence,
+          submission: { state: "unknown", request },
+        },
+      };
+      const recovered = migrateCreationRecord(JSON.stringify(record));
+      expect(recovered.kind).toBe("draft");
+      if (recovered.kind !== "draft") throw new Error("Expected saved draft");
+      expect(recovered.draft.submission?.request).toEqual(request);
+      expect(recovered.draft.seed_revisions).toEqual(oldEvidence);
+    },
+  );
+});
+
 function memoryStorage() {
   const data = new Map<string, string>();
   return {

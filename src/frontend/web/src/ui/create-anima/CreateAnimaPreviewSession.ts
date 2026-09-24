@@ -46,7 +46,6 @@ function emptyCatalog(): AnimaRuntimeCatalog {
     background_image: null,
     profile_image: null,
     sfx: [],
-    bgm: [],
     warnings: [],
   });
 }

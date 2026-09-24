@@ -11,10 +11,13 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from animama.app.ports.content_transition import ContentTransitionBindings, IdleTransitionBinding
+from animama.app.services.action_clip_transition import ActionClipTransitionService
 from animama.app.services.content_catalog_service import ContentCatalogService, ContentRescanResult
 from animama.app.services.content_kind_registry import handler_for_kind
 from animama.app.services.idle_playback import derive_idle_playback, read_gesture_idle_playback
+from animama.app.services.included_action_transition import IncludedActionTransitionService
 from animama.app.services.local_content_mutations import mutation_digest
+from animama.app.services.music_retirement_service import MusicRetirementService
 from animama.app.services.typed_content_service import (
     TypedContentAdmissionError,
     TypedContentResolutionContext,
@@ -61,6 +64,30 @@ class ContentTransitionService:
         self._content = content
         self._bindings = bindings
 
+    async def transition(self, *, user_id: str, include_included: bool = True) -> ContentRescanResult:
+        """Preserve existing content before exposing the supported product catalog."""
+        scanned = await self.convert_idle_styles(user_id=user_id, include_included=include_included)
+        # Action conversions rescan Local. Reapply already diagnosed source
+        # failures afterward so a successful peer cannot erase a repair result.
+        failures = [
+            (item, item.diagnostics[0].code)
+            for item in scanned.items
+            if item.status is ContentStatus.INVALID and item.diagnostics
+        ]
+        failures.extend(await ActionClipTransitionService(content=self._content).convert(user_id=user_id))
+        failures.extend(
+            await IncludedActionTransitionService(content=self._content, bindings=self._bindings).convert(
+                user_id=user_id
+            )
+        )
+        await MusicRetirementService(content=self._content, bindings=self._bindings).retire(user_id=user_id)
+        catalog = self._content.mutations.catalog
+        for item, code in failures:
+            await catalog.record_transition_failure(
+                user_id=user_id, item_id=item.id, expected_revision=item.revision_sha256 or "", code=code
+            )
+        return await self._content.visible_scan_result(scanned.summaries, user_id=user_id)
+
     async def convert_idle_styles(self, *, user_id: str, include_included: bool = True) -> ContentRescanResult:
         """Preserve each legacy Style and its consumers before new runtime admission."""
         scanned = await self._content.rescan(user_id=user_id, include_included=include_included)
@@ -94,7 +121,7 @@ class ContentTransitionService:
                 if current is None or current.revision_sha256 != source.revision_sha256:
                     raise ContentConflictError("content_transition_source_changed")
                 visible = {value.id: value for value in await catalog.list_visible(user_id=user_id)}
-                TypedContentResolutionContext(visible).resolve(source.id)
+                TypedContentResolutionContext(visible, allow_retired=True).resolve(source.id)
                 await asyncio.to_thread(
                     self._content.mutations.store.retain_transition_originals,
                     operation_id=originals_id,

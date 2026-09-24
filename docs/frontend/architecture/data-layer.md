@@ -25,7 +25,7 @@ The generated client exposes infrastructure-only Content Catalog operations,
 typed product List/Get/Save/Preview methods, package import/export,
 registered-file delivery, typed Anima loadout commands/runtime closures,
 Avatars, appearances, and the rest of the product API. Gesture, Reaction, Pose,
-effect, sound, idle, music, Avatar, Appearance, and voice hooks consume their
+effect, sound, idle, Avatar, Appearance, and voice hooks consume their
 generated discriminated contracts while retaining the one catalog item
 identity underneath.
 
@@ -35,7 +35,9 @@ backend starter ensure/repair, and Avatar portrait Save contracts. Direct
 must reuse the complete frozen spec and body idempotency key; replay resolves
 before revalidating current sources. Typed preview responses expose the complete
 creation-compatible `expected_source_revisions` map, including supports; it is
-revision evidence, not a preview or runtime pin.
+revision evidence, not a preview or runtime pin. Saved drafts retain retired clip
+revision evidence for recovery. New commands reject it; an exact frozen legacy
+request can only replay a recorded result through the private compatibility decoder.
 
 The generated SDK includes `resolveContentEvidence` and `prepareContentPreviews`
 methods. The former is a metadata-only batch read; the latter creates one
@@ -62,12 +64,12 @@ expiry.
 ## Typed loadout queries
 
 `useAnimaLoadout` owns the server-composed typed loadout read model.
-`useAnimaLoadoutMutations` exposes Gesture, Reaction, Idle Style, Music Track,
+`useAnimaLoadoutMutations` exposes Gesture, Reaction, Idle Style,
 Avatar, Appearance, and voice plan/commit commands. A plan carries the current
 optimistic revision and typed intent; commit repeats it with the reviewed plan
 digest and idempotency key. Successful mutations narrowly invalidate the
-affected Anima's loadout and next runtime mount. Pose Clips, VFX, and SFX have
-no direct equipment mutation.
+affected Anima's loadout and next runtime mount. VFX and SFX have no direct equipment mutation. Standalone Pose Clips are not
+supported catalog products; clip data belongs to its Gesture or Reaction.
 
 `useAnimaRuntimeCatalog` loads one exact closure descriptor.
 `AnimaRouteProviders` prepares every admitted byte once, verifies size/digest,
@@ -225,7 +227,7 @@ and exposes `search_uploaded_files` only for attached searchable uploads.
 ## Library source composition
 
 The `/a/library` route presents family-specific views over the one catalog.
-Gesture, Reaction, Pose, typed effect/sound, Idle Style, Music Track, and Avatar
+Gesture, Reaction, Pose, typed effect/sound, Idle Style, and Avatar
 hooks use their typed product responses while sharing stable catalog
 identities.
 

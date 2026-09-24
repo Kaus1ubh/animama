@@ -36,8 +36,6 @@ const sound: ResolvedRuntimeAudio = {
   kind: "sfx",
   url: "/tap.wav",
   volume: 0.5,
-  loop: false,
-  autoplay: false,
   sizeBytes: null,
 };
 

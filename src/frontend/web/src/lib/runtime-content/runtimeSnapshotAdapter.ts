@@ -114,7 +114,6 @@ function append(
     background_image: "background_image",
     profile_image: "profile_image",
     sfx: "sfx",
-    bgm: "bgm",
   };
   const lane = laneBySlot[entry.slot];
   if (!lane) return;
@@ -171,7 +170,6 @@ export function adaptRuntimeSnapshot(
     background_image: null,
     profile_image: null,
     sfx: [],
-    bgm: [],
     warnings: [],
   } as unknown as AnimaRuntimeCatalogSnapshot;
   const avatar = object(typed.avatar);
@@ -388,30 +386,6 @@ export function adaptRuntimeSnapshot(
     );
     if (entry) append(runtime, entry);
   }
-  for (const rawTrack of typed.music_tracks ?? []) {
-    const track = object(rawTrack);
-    const runtimeId = String(track.runtime_id ?? track.binding_id ?? "");
-    if (!runtimeId) continue;
-    const files = Array.isArray(track.files) ? track.files : [];
-    if (files.length) {
-      append(
-        runtime,
-        privateEntry(
-          track,
-          "bgm",
-          runtimeId,
-          "audio",
-          typed.effective_revision,
-        ),
-      );
-      continue;
-    }
-    runtime.warnings.push({
-      code: "music_files_unavailable",
-      slot: "bgm",
-      runtime_id: runtimeId,
-    });
-  }
   runtime.effective_revision = typed.effective_revision;
   runtime.loadout_revision = typed.loadout_revision;
   // Availability grows within one frozen revision. Retain entry identity so
@@ -434,7 +408,6 @@ export function adaptRuntimeSnapshot(
       "scene_background_vfx",
       "scene_focus_vfx",
       "sfx",
-      "bgm",
     ] as const) {
       const entries = new Map(
         previous[key].map((entry) => [entry.runtime_id, entry]),

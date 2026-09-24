@@ -10,6 +10,7 @@ from typing import Any
 
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
+from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS
 from animama.app.services.runtime_budget_policy import (
     MAX_RUNTIME_BYTES,
     MAX_RUNTIME_CONFIG_BYTES,
@@ -159,7 +160,11 @@ class RuntimeContentClosureCompiler:
                 if item.id in _visiting:
                     unavailable = item
                     return False
-                if item.status is not ContentStatus.VALID or item.revision_sha256 is None:
+                if (
+                    item.kind in RETIRED_CONTENT_KINDS
+                    or item.status is not ContentStatus.VALID
+                    or item.revision_sha256 is None
+                ):
                     unavailable = item
                     return False
                 _visiting.add(item.id)

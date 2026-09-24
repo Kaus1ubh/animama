@@ -10,7 +10,6 @@ import type {
   PyGesture as PyTransportGesture,
   PyIdlePlayback,
   PyIdleStyle as PyTransportIdleStyle,
-  PyMusicTrack as PyTransportMusicTrack,
   PyAvatarEffect as PyTransportAvatarEffect,
   PyParticleEffect as PyTransportParticleEffect,
   PyReaction as PyTransportReaction,
@@ -25,14 +24,12 @@ export type ContentKind =
   | "avatar"
   | "gesture"
   | "pose"
-  | "pose_clip"
   | "reaction"
   | "particle_effect"
   | "avatar_effect"
   | "scene_effect"
   | "sound_effect"
   | "idle_style"
-  | "music_track"
   | "appearance"
   | "voice"
   | "anima";
@@ -130,7 +127,6 @@ export type PyIdleStyle = Omit<
   "dependencies"
 > &
   Pick<Partial<PyTransportIdleStyle>, "dependencies">;
-export type PyMusicTrack = TypedCatalogView<PyTransportMusicTrack>;
 
 export type PyContentPage<
   T extends Omit<PyCatalogViewItem, "dependencies"> = PyCatalogViewItem,
@@ -142,7 +138,6 @@ export type PyContentPage<
 export type PyGesturePage = PyContentPage<PyGesture>;
 export type PyReactionPage = PyContentPage<PyReaction>;
 export type PyIdleStylePage = PyContentPage<PyIdleStyle>;
-export type PyMusicTrackPage = PyContentPage<PyMusicTrack>;
 
 export type PyActionPreview = PyContentPreview & {
   closure: Record<string, unknown>;
@@ -152,13 +147,6 @@ export type PyIdleStylePreview = PyActionPreview & {
   selected_gesture_ref: string;
   selected_gesture_name: string;
 };
-export type PyMusicTrackPreview = PyContentPreview & {
-  duration_seconds: number;
-  codec: string;
-  loop: boolean;
-  gain: number;
-};
-
 export type PyGestureBinding = {
   binding_id: string;
   name: string;
@@ -204,23 +192,6 @@ export type PyAnimaIdleStyle = {
   cross_fade_seconds?: number;
 };
 
-export type PyAnimaMusicTrack = {
-  binding_id: string;
-  item_id: string;
-  name: string;
-  description?: string | null;
-  source: PyExactContentSource;
-  enabled: boolean;
-  autoplay: boolean;
-  release_defaults?: Record<string, unknown>;
-  effective_loop: boolean;
-  effective_gain: number;
-  loop_override?: boolean | null;
-  gain_override?: number | null;
-  duration_seconds: number;
-  codec: string;
-};
-
 export type PyAppearanceConfig = {
   fit?: "cover" | "contain";
   focal_x?: number;
@@ -247,7 +218,6 @@ export type PyAnimaLoadout = {
   starter_gesture_implementation_kinds?: Record<string, "anima_clip" | "vrma">;
   reactions: PyReactionCell[];
   idle_style: PyAnimaIdleStyle;
-  music_tracks?: PyAnimaMusicTrack[];
   avatar_source?: Record<string, unknown> | null;
   appearances?: PyAnimaAppearance[];
   blockers?: PyLoadoutDiagnostic[];
@@ -286,9 +256,6 @@ export type PyReactionIntent = PyGestureIntent;
 export type PyIdleStyleIntent = PyGestureIntent & {
   pool_overrides?: Record<string, string[]>;
 };
-export type PyMusicTrackIntent = PyGestureIntent & {
-  binding_id?: string | null;
-};
 export type PyAppearanceIntent = PyGestureIntent & {
   use?: "profile" | "background";
 };
@@ -305,10 +272,6 @@ export type PyIdleStylePlanRequest = {
   expected_revision: number;
   intent: PyIdleStyleIntent;
 };
-export type PyMusicTrackPlanRequest = {
-  expected_revision: number;
-  intent: PyMusicTrackIntent;
-};
 export type PyAppearancePlanRequest = {
   expected_revision: number;
   intent: PyAppearanceIntent;
@@ -319,7 +282,6 @@ export type PyGestureCommitRequest = PyGesturePlanRequest & {
 };
 export type PyReactionCommitRequest = PyGestureCommitRequest;
 export type PyIdleStyleCommitRequest = PyGestureCommitRequest;
-export type PyMusicTrackCommitRequest = PyGestureCommitRequest;
 export type PyAppearanceCommitRequest = PyGestureCommitRequest;
 /** Convert one transport item into the stable UI view used by creators. */
 export function catalogViewItem(
@@ -349,11 +311,7 @@ export function catalogViewItem(
 
 /** Adapt a generated typed product response without re-reading semantic metadata. */
 export function typedCatalogViewItem<
-  T extends
-    | PyTransportGesture
-    | PyTransportReaction
-    | PyTransportIdleStyle
-    | PyTransportMusicTrack,
+  T extends PyTransportGesture | PyTransportReaction | PyTransportIdleStyle,
 >(item: T): TypedCatalogView<T> {
   const source: PyCatalogSource = {
     type: "catalog",

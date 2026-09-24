@@ -2,7 +2,7 @@
 
 An Anima combines private identity/chat state with logical selections from the
 neutral Content Catalog. Its loadout may select an Avatar, Gestures, Reactions,
-an emotion-aware Idle Style, Music, and Appearance. Gesture and Reaction roots
+an emotion-aware Idle Style, and Appearance. Gesture and Reaction roots
 bring their required VFX and Sound dependencies with them; users do not equip
 those supports independently.
 
@@ -22,8 +22,8 @@ the dependency-complete current revision without changing an Anima.
 Loadout mutation is a reviewed, family-specific command. The client posts an
 intent and expected revision to `/v1/animas/{anima_id}/{family}:plan`, then
 commits that exact plan digest with an idempotency key to the matching
-`:commit` endpoint. Direct Pose Clip, VFX, and SFX equipment is invalid; those
-items remain catalog content reached through a Gesture or Reaction.
+`:commit` endpoint. VFX and SFX remain dependencies reached through an Action;
+clip sequences are files owned by that Action.
 The digest includes the Anima's aggregate revision as well as the loadout and
 source revisions: a concurrent name or identity edit invalidates a reviewed
 equipment plan. Each successful equipment edit advances aggregate and loadout
@@ -80,7 +80,7 @@ Aggregate, identity, and loadout revisions start at 1. It never commits,
 contacts a provider, writes files, or issues runtime. The configured active
 model row is checked locally; default ElevenLabs voice is `gJx1vCzNCD1EQHT212Ls`.
 Idle starts empty, emotion is neutral, and there is
-no Music/typed Voice binding, archive, chat, greeting, or relationship memory.
+no typed Voice binding, archive, chat, greeting, or relationship memory.
 An explicit validated internal voice choice can replace that default.
 
 Direct creation and backend starter provisioning use this materializer through

@@ -102,7 +102,7 @@ not participate in the active stream. See [Data layer](../architecture/data-laye
 
 ### Canvas controls
 
-The main scene settings popover controls display mode, camera, volume and music.
+The main scene settings popover controls display mode, camera, and TTS/SFX volume.
 Camera presets and Fine-tune camera are session-only; numeric edits select Custom,
 and choosing a preset or Reset restores a named preset. These controls are
 available outside PiP while the main scene is visible.
