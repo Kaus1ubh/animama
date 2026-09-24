@@ -36,7 +36,7 @@ async def test_real_file_larger_than_128_mib_uploads_as_bounded_http_parts(
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             response = await client.post(
                 "/v1/content/package-imports",
-                json={"operation_id": "large-http", "filename": "large.animama", "expected_size_bytes": size},
+                json={"operation_id": "large-http", "filename": "large.zip", "expected_size_bytes": size},
             )
             assert response.status_code == 201, response.text
             stage_id = response.json()["stage_id"]
@@ -58,6 +58,6 @@ async def test_real_file_larger_than_128_mib_uploads_as_bounded_http_parts(
                 assert lease.seal_archive() == (size, expected.hexdigest())
             discarded = await client.delete(f"/v1/content/package-imports/{stage_id}")
             assert discarded.status_code == 204
-            assert not list(paths.imports_staging_root.rglob("package.animama"))
+            assert not list(paths.imports_staging_root.rglob("package.zip"))
     finally:
         await async_session.rollback()

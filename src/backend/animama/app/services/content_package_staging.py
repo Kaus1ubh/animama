@@ -256,7 +256,11 @@ class PackageStageService:
     ) -> tuple[StageRecord, _Lock | None]:
         if not 0 < expected_bytes <= self.limits.max_archive_bytes:
             raise ContentConflictError("package_size_invalid")
-        if not filename or len(filename) > 255 or (operation_id is not None and not 0 < len(operation_id) <= 256):
+        if (
+            not filename.lower().endswith(".zip")
+            or len(filename) > 255
+            or (operation_id is not None and not 0 < len(operation_id) <= 256)
+        ):
             raise ContentConflictError("package_stage_input_invalid")
         owner = self._owner(user_id)
         with self._owner_lock(owner):
@@ -392,7 +396,7 @@ class StageLease:
 
     def __init__(self, service: PackageStageService, directory: Path, record: StageRecord, lock: _Lock) -> None:
         self._service, self.directory, self._record, self._lock = service, directory, record, lock
-        self.archive_path = directory / "package.animama"
+        self.archive_path = directory / "package.zip"
         self.inspection_path = directory / "inspection"
         self._expanding = False
 

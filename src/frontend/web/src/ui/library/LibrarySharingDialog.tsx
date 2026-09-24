@@ -62,10 +62,10 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
           ref={fileInput}
           id={fileId}
           type="file"
-          accept=".animama"
+          accept=".zip"
           className="sr-only"
           tabIndex={-1}
-          aria-label="Choose .animama file"
+          aria-label="Choose .zip file"
           disabled={!canChooseFile}
           onChange={(event) => {
             const file = event.target.files?.[0];
@@ -159,7 +159,7 @@ export function LibrarySharingDialog({ flow }: { flow: LibrarySharingFlow }) {
                       }}
                     >
                       <p className="text-muted-foreground text-sm">
-                        Drop a .animama file here
+                        Drop a .zip file here
                       </p>
                       {dropError ? (
                         <p role="alert" className="text-destructive text-sm">

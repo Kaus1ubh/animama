@@ -114,8 +114,8 @@ outcomes or changed items retain the ledger and block deletion. Names never gran
 cleanup authority.
 
 Creator coverage uses the editor JSON import UI. The Pose round trip uses the
-reviewed `.animama /3` API; the separate sharing journey below uses the real
-Library package dialogs. Chat cancellation
+reviewed package API with `.zip` files and the `/3` manifest; the separate sharing
+journey below uses the real Library package dialogs. Chat cancellation
 uses a controlled pending browser request, followed by actual deterministic backend
 chat. Real provider cancellation is tested separately over Uvicorn. Neither is
 live provider, audio, physical keyboard or packaged desktop acceptance.

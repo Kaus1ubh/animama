@@ -71,7 +71,7 @@ does not equip its Gestures for AI invocation.
 
 ## Portable package
 
-A local `.animama` file containing selected content and its required dependencies,
+A local `.zip` file containing selected content and its required dependencies,
 or one saved Anima definition and its content. An Anima package includes the
 reviewed identity and selections, not conversations or other private memory.
 Import creates independent Local content and, for an Anima package, a new companion.

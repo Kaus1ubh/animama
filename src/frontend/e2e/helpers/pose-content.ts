@@ -169,7 +169,7 @@ export async function roundTripPosePackage(
     headers,
     data: {
       operation_id: operationId,
-      filename: "pose.animama",
+      filename: "pose.zip",
       expected_size_bytes: archive.length,
     },
   });

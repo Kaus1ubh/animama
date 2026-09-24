@@ -108,7 +108,7 @@ def test_rejects_unverified_members_and_removes_private_tree(tmp_path: Path, cas
         mode = stat.S_IFCHR | 0o600
     else:
         payloads["folder/"] = b""
-    archive = tmp_path / "hostile.animama"
+    archive = tmp_path / "hostile.zip"
     write_package(archive, manifest, payloads, mode=mode)
     destination = tmp_path / "inspection"
     with pytest.raises(ContentConflictError):
@@ -120,7 +120,7 @@ def test_rejects_unverified_members_and_removes_private_tree(tmp_path: Path, cas
 
 def test_valid_inspection_returns_verified_paths_without_touching_library(tmp_path: Path) -> None:
     manifest, payloads = sound_package()
-    archive = tmp_path / "tone.animama"
+    archive = tmp_path / "tone.zip"
     write_package(archive, manifest, payloads)
     result = inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
     entry = result.entries["sound"]
@@ -155,7 +155,7 @@ def test_consistent_hashes_do_not_bypass_typed_metadata_validation(tmp_path: Pat
         entry["files"][1]["size_bytes"] = len(payload)
         entry["files"][1]["sha256"] = hashlib.sha256(payload).hexdigest()
     entry["portable_revision_sha256"] = portable_revision(entry["files"])
-    archive = tmp_path / "invalid.animama"
+    archive = tmp_path / "invalid.zip"
     write_package(archive, manifest, payloads)
     with pytest.raises(ContentConflictError):
         inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
@@ -167,7 +167,7 @@ def test_reduced_resource_limits_include_manifest(tmp_path: Path, monkeypatch: p
     from animama.app.services import content_package_archive as reader
 
     manifest, payloads = sound_package()
-    archive = tmp_path / "bounded.animama"
+    archive = tmp_path / "bounded.zip"
     write_package(archive, manifest, payloads)
     if limit == "files":
         monkeypatch.setattr(reader, "MAX_PACKAGE_FILES", 1)
@@ -200,7 +200,7 @@ def test_reduced_resource_limits_include_manifest(tmp_path: Path, monkeypatch: p
 
 def test_existing_destination_is_preserved(tmp_path: Path) -> None:
     manifest, payloads = sound_package()
-    archive = tmp_path / "valid.animama"
+    archive = tmp_path / "valid.zip"
     write_package(archive, manifest, payloads)
     destination = tmp_path / "inspection"
     destination.mkdir()
@@ -215,7 +215,7 @@ def test_zip_structure_cannot_bypass_inspection(tmp_path: Path, monkeypatch: pyt
     from animama.app.services import content_package_archive as reader
 
     manifest, payloads = sound_package()
-    archive = tmp_path / "bad-zip.animama"
+    archive = tmp_path / "bad-zip.zip"
     write_package(archive, manifest, payloads)
     if case in {"duplicate", "traversal", "backslash"}:
         name = {"duplicate": "entries/0000/tone.wav", "traversal": "../outside", "backslash": "..\\outside"}[case]
@@ -238,7 +238,7 @@ def test_zip_structure_cannot_bypass_inspection(tmp_path: Path, monkeypatch: pyt
 
 def test_disk_failure_removes_only_its_private_staging(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     manifest, payloads = sound_package()
-    archive = tmp_path / "valid.animama"
+    archive = tmp_path / "valid.zip"
     write_package(archive, manifest, payloads)
     open_path = Path.open
 
@@ -273,7 +273,7 @@ def test_large_member_is_streamed_in_bounded_reads(tmp_path: Path, monkeypatch: 
     member["size_bytes"] = payload_path.stat().st_size
     member["sha256"] = digest.hexdigest()
     manifest["entries"][0]["portable_revision_sha256"] = portable_revision(manifest["entries"][0]["files"])
-    archive = tmp_path / "large.animama"
+    archive = tmp_path / "large.zip"
     with ZipFile(archive, "w", compression=ZIP_STORED) as package:
         package.writestr("package.json", json.dumps(manifest))
         package.write(payload_path, "entries/0000/tone.wav")
@@ -382,7 +382,7 @@ def test_idle_style_requires_its_actual_owned_motion_to_finish(
                 "files": files,
             }
         )
-    archive = tmp_path / "idle.animama"
+    archive = tmp_path / "idle.zip"
     write_package(archive, manifest, payloads)
     if accepted:
         assert set(inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection").entries) == {
@@ -447,7 +447,7 @@ def test_ordinary_gesture_requires_one_registered_implementation_motion(
         "avatar_portraits": [],
         "capabilities": ["VRMC_vrm_animation/1.0"] if motion_count else [],
     }
-    archive = tmp_path / "ambiguous.animama"
+    archive = tmp_path / "ambiguous.zip"
     write_package(archive, manifest, payloads)
     with pytest.raises(ContentConflictError):
         inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
@@ -484,7 +484,7 @@ def test_zip64_limits_are_checked_before_zipfile_allocation_without_classic_sent
     from animama.app.services import content_package_archive as reader
 
     manifest, payloads = sound_package()
-    archive = tmp_path / "zip64.animama"
+    archive = tmp_path / "zip64.zip"
     write_package(archive, manifest, payloads)
     directory_size = with_zip64_directory(archive)
     if limit == "directory":
@@ -506,7 +506,7 @@ def test_zip64_limits_are_checked_before_zipfile_allocation_without_classic_sent
 @pytest.mark.parametrize("sentinels", [False, True])
 def test_supported_zip64_directory_inspects_normally(tmp_path: Path, sentinels: bool) -> None:
     manifest, payloads = sound_package()
-    archive = tmp_path / "zip64.animama"
+    archive = tmp_path / "zip64.zip"
     write_package(archive, manifest, payloads)
     with_zip64_directory(archive, classic_sentinels=sentinels)
     assert ContentPackageArchive.expanded_size(archive) == len(json.dumps(manifest).encode()) + sum(
@@ -521,7 +521,7 @@ def test_actual_central_record_count_is_bounded_before_parser_allocation(
     from animama.app.services import content_package_archive as reader
 
     manifest, payloads = sound_package()
-    archive = tmp_path / "false-count.animama"
+    archive = tmp_path / "false-count.zip"
     write_package(archive, manifest, payloads)
     raw = bytearray(archive.read_bytes())
     end = raw.rindex(b"PK\x05\x06")
@@ -596,7 +596,7 @@ def test_inferred_sequence_role_still_requires_real_clip_validation(tmp_path: Pa
         "avatar_portraits": [],
         "capabilities": ["animaPose/1.0", "animaPoseClip/1.0"] if valid_motion else [],
     }
-    archive = tmp_path / "inferred.animama"
+    archive = tmp_path / "inferred.zip"
     write_package(archive, manifest, payloads)
     if valid_motion:
         assert set(inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection").entries) == {"motion"}

@@ -122,7 +122,7 @@ async def test_import_copy_preserves_action_control_and_payload_names(async_sess
 
 
 def test_import_rejects_archive_traversal_before_writing_local(tmp_path: Path) -> None:
-    archive_path = tmp_path / "unsafe.animama"
+    archive_path = tmp_path / "unsafe.zip"
     with ZipFile(archive_path, "w", compression=ZIP_DEFLATED) as archive:
         archive.writestr("../escape.vrma", b"unsafe")
         archive.writestr("package.json", b'{"schema":"animama-content-package/1"}')

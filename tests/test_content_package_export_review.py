@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import threading
 import wave
 from datetime import UTC, datetime, timedelta
@@ -20,7 +21,7 @@ from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlc
 from animama.app.anima_creation_contract import CreateAnimaRequest
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.content_catalog_service import ContentCatalogService
-from animama.app.services.content_package_export import ContentPackageExportService
+from animama.app.services.content_package_export import ContentPackageExportService, _download_filename
 from animama.app.services.content_package_service import ContentPackageService
 from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.typed_content_service import TypedContentAdmissionError
@@ -30,6 +31,23 @@ from animama.orm.content_catalog import ORMContentCatalogItem
 from tests.anima_creation_service_support import anima_creation_fixture, image_bytes, vrm, write_file, write_json
 from tests.content_package_helpers import package_services, save_wave, vrma
 from tests.test_content_package_v3_archive import sound_package, write_package
+
+
+@pytest.mark.parametrize(
+    ("label", "expected"),
+    [
+        ("Test Companion", "Test Companion-20260924-235958Z.zip"),
+        ("旅の友 / A", "旅の友 - A-20260924-235958Z.zip"),
+        ("Élodie Ray", "Élodie Ray-20260924-235958Z.zip"),
+        (" ", "content-20260924-235958Z.zip"),
+    ],
+)
+def test_download_filename_preserves_safe_names_with_a_utc_zip_timestamp(
+    monkeypatch: pytest.MonkeyPatch, label: str, expected: str
+) -> None:
+    now = datetime(2026, 9, 24, 23, 59, 58, tzinfo=UTC)
+    monkeypatch.setattr("animama.app.services.content_package_export.datetime", SimpleNamespace(now=lambda _: now))
+    assert _download_filename(label) == expected
 
 
 @pytest.mark.parametrize("direction", ["import", "export"])
@@ -49,7 +67,7 @@ async def test_small_package_review_uses_its_actual_expansion_on_low_disk(
                 user_id="package-owner", item_ids=(saved.item.id,), expected_digest=summary.digest
             )
         else:
-            archive = tmp_path / "tiny.animama"
+            archive = tmp_path / "tiny.zip"
             manifest, payloads = sound_package()
             write_package(archive, manifest, payloads)
             stage = packages.stages.create_import(
@@ -79,11 +97,12 @@ async def test_export_summary_and_review_freeze_portable_bytes(async_session, tm
         summary = await packages.summarize(user_id="package-owner", item_ids=(saved.item.id,))
         assert summary.selected_count == 1
         assert summary.required_count == 0
-        assert not list(paths.exports_staging_root.rglob("*.animama"))
+        assert not list(paths.exports_staging_root.rglob("*.zip"))
 
         review = await packages.prepare_export(
             user_id="package-owner", item_ids=(saved.item.id,), expected_digest=summary.digest
         )
+        assert re.fullmatch(r"content-\d{8}-\d{6}Z\.zip", review.filename)
         cached = await packages.get_export(user_id="package-owner", export_id=review.export_id)
         before = cached.path.read_bytes()
         with ZipFile(cached.path) as archive:
@@ -99,6 +118,7 @@ async def test_export_summary_and_review_freeze_portable_bytes(async_session, tm
         await content.rescan(user_id="package-owner", include_included=False)
         retained = await packages.get_export(user_id="package-owner", export_id=review.export_id)
         assert retained.path.read_bytes() == before
+        assert retained.filename == review.filename
         with pytest.raises(ContentConflictError, match="package_export_source_changed"):
             await packages.prepare_export(
                 user_id="package-owner", item_ids=(saved.item.id,), expected_digest=summary.digest
@@ -133,7 +153,7 @@ async def test_cached_download_never_regenerates_an_expired_or_changed_archive(
         with pytest.raises(ContentConflictError, match=f"package_export_{change}"):
             await packages.get_export(user_id="package-owner", export_id=review.export_id)
         assert cache.path.read_bytes() == before
-        assert len(list(paths.exports_staging_root.rglob("*.animama"))) == 1
+        assert len(list(paths.exports_staging_root.rglob("*.zip"))) == 1
     finally:
         await async_session.execute(delete(ORMContentCatalogItem))
         await async_session.commit()
@@ -348,6 +368,8 @@ async def test_complete_anima_export_keeps_explicit_empties_and_independent_shar
             definition = manifest["anima"]
             assert definition["display_name"] == display_name
             assert "/" not in review.filename and "\\" not in review.filename
+            expected_name = display_name.replace("/", "-")
+            assert re.fullmatch(rf"{re.escape(expected_name)}-\d{{8}}-\d{{6}}Z\.zip", review.filename)
             assert manifest["kind"] == "anima" and manifest["root_entry_ids"] == []
             assert len(manifest["entries"]) == 2  # One model, one image shared by both independent roles.
             assert definition["idle_style"] is None and definition["gestures"] == []
@@ -400,7 +422,7 @@ async def test_drift_during_capture_rejects_review_and_removes_its_cache(
             await packages.prepare_export(
                 user_id="package-owner", item_ids=(avatar.id,), expected_digest=summary.digest
             )
-        assert not list(paths.exports_staging_root.rglob("*.animama"))
+        assert not list(paths.exports_staging_root.rglob("*.zip"))
         assert not list(paths.exports_staging_root.rglob("record.json"))
     finally:
         await async_session.execute(delete(ORMContentCatalogItem))
@@ -416,7 +438,7 @@ async def test_export_reserves_real_zip_growth_and_download_excludes_expiry_clea
     exports = ContentPackageExportService(content=content, exports_root=paths.exports_staging_root, stages=stages)
     try:
         saved = await save_wave(saves)
-        stages.create_import("package-owner", "pending-import", "pending.animama", 10)
+        stages.create_import("package-owner", "pending-import", "pending.zip", 10)
         summary = await exports.summarize(user_id="package-owner", item_ids=(saved.item.id,))
         review = await exports.prepare(
             user_id="package-owner", item_ids=(saved.item.id,), expected_digest=summary.digest
@@ -500,7 +522,7 @@ async def test_cancelled_download_open_closes_completed_handle_and_releases_stag
             await pending
         assert held[0].handle.closed
         stages.discard("package-owner", review.export_id, "export")
-        assert not list(paths.exports_staging_root.rglob("package.animama"))
+        assert not list(paths.exports_staging_root.rglob("package.zip"))
     finally:
         release.set()
         await async_session.execute(delete(ORMContentCatalogItem))

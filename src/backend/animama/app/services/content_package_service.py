@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from animama.app.ports.anima_aggregate_port import AnimaAggregateUnitOfWork
+from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_export import ContentPackageExportService, ExportReview, ExportSummary
@@ -44,6 +45,7 @@ class ContentPackageService:
         exports_root: Path,
         imports_root: Path | None = None,
         anima_sources: AnimaPackageSourceService | None = None,
+        profiles: UserProfileRepository | None = None,
         uow: AnimaAggregateUnitOfWork | None = None,
         default_model_provider_id: str | None = None,
         max_identity_bytes: int = ANIMA_IDENTITY_MAX_BYTES,
@@ -53,7 +55,11 @@ class ContentPackageService:
             exports_root=exports_root,
         )
         self.exports = ContentPackageExportService(
-            content=content, exports_root=exports_root, anima_sources=anima_sources, stages=self.stages
+            content=content,
+            exports_root=exports_root,
+            anima_sources=anima_sources,
+            stages=self.stages,
+            profiles=profiles,
         )
         self.imports = ContentPackageImportService(
             content=content,

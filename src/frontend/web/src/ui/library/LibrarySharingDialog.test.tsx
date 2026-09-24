@@ -110,7 +110,7 @@ describe("Library sharing", () => {
   it("offers local file import and content or complete-Anima export", () => {
     const page = html({});
     expect(page).toContain("Choose what to export");
-    expect(page).toContain('accept=".animama"');
+    expect(page).toContain('accept=".zip"');
     expect(page).toContain("A complete Anima");
     expect(page).toContain("local Animama application");
     expect(page).not.toContain("Files stay on your device");
@@ -186,7 +186,7 @@ describe("Library sharing", () => {
       importReview: {
         anima: null,
         expires_at: "2030-01-01",
-        filename: "hello.animama",
+        filename: "hello.zip",
         items: [
           {
             entry_id: "one",
@@ -345,7 +345,7 @@ describe("complete package review", () => {
           digest: "d",
           expires_at: "2030-01-01",
           export_id: "e",
-          filename: "Luna.animama",
+          filename: "Luna.zip",
           manifest: completeManifest,
           package_sha256: "s",
           required_count: completeManifest.entries.length,
@@ -367,7 +367,7 @@ describe("complete package review", () => {
       importReview: {
         anima,
         expires_at: "2030-01-01",
-        filename: "Luna.animama",
+        filename: "Luna.zip",
         items: completeManifest.entries.map((entry) => ({
           entry_id: entry.package_entry_id,
           kind: entry.kind,
@@ -397,7 +397,7 @@ describe("complete package review", () => {
         digest: "d",
         expires_at: "2030-01-01",
         export_id: "e",
-        filename: "Luna.animama",
+        filename: "Luna.zip",
         manifest,
         package_sha256: "s",
         required_count: 2,
@@ -424,7 +424,7 @@ describe("complete package review", () => {
         digest: "d",
         expires_at: "2030-01-01",
         export_id: "e",
-        filename: "hello.animama",
+        filename: "hello.zip",
         manifest: {
           ...manifest,
           kind: "content",

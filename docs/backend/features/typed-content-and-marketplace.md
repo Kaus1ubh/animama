@@ -116,7 +116,7 @@ adopted only after remount.
 
 ## Local package boundary
 
-Packages use the strict `animama-content-package/3` manifest in local `.animama`
+Packages use the strict `animama-content-package/3` manifest in local `.zip`
 files. Content export accepts one or more Avatars, Gestures, Reactions, Idle
 Styles, static Poses, effects or Sounds and includes their complete required
 closure. Avatar portraits and selected Anima profile/background images travel

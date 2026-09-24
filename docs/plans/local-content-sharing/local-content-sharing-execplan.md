@@ -1,6 +1,8 @@
 # Local content and complete Anima sharing
 
 Status: All six authorized phases and final integration review complete 2026-09-24.
+Current sharing uses `.zip` only with timestamped display-name filenames, as
+authorized in the ZIP amendment below. Original mockups retain historical labels.
 Remaining native/audio acceptance is explicitly waived for this PR; hosted CI and
 exact-candidate merge acceptance remain separate.
 
@@ -1539,3 +1541,41 @@ pass. Initial frontend checks encountered stale/rebuilding package outputs, and
 four backend fixtures initially lacked Docker permission; refreshed outputs and
 disposable-container access resolved those environment failures. Full suites and
 rendered/native acceptance were not repeated for this merge-only update.
+
+### ZIP-only sharing amendment (2026-09-24)
+
+The owner replaced the custom extension with `.zip` for import and export, with
+no `.animama` compatibility requirement. Complete Anima downloads use the saved
+Anima display name; content downloads use the installation profile display name,
+falling back to `content`. Both append `-YYYYMMDD-HHMMSSZ.zip` using UTC. Names
+retain safe capitalization/Unicode; the existing immutable export review retains
+its filename even if the profile subsequently changes. Profile naming does not
+add profile data to the manifest. Downloads use `application/zip`.
+
+The browser picker, import session, server staging, temporary archive filename,
+UI errors and active test helpers use ZIP. The strict `/3` manifest, hashes,
+dependency closure, bounds and recoverable installation remain unchanged.
+Malformed or unrelated ZIPs reject before content/Anima admission. This amendment
+supersedes the original extension in historical mockups and phase evidence.
+
+ZIP admission tests observed the old behavior failing before implementation:
+14 frontend failures and three server filename-admission failures. Four export
+filename cases also failed before repair. The frontend fixture was corrected to
+echo the selected filename for uppercase/different-name cases; invalid-ZIP HTTP
+assertions were corrected to the existing safe 409 response, without changing
+validation. Current passing evidence: 34 frontend tests, 126 archive/staging/event
+tests, 20 export and three HTTP tests, three browser-helper tests, frontend and
+E2E types, scoped lint/format, backend scoped types/import boundary, 12 documentation
+consumer tests and 40 links/anchors. The independent integrated backend batch
+passed 67 cases and exposed ZIP-C1: one contract test still expected the old
+unstamped filename. Accepted and corrected that assertion to the timestamped
+`content` fallback; the targeted rerun passed (one case). Checks Review #2 passed,
+using one of two repair rounds. Independent full-diff analysis Review #1 passed
+with no actionable findings, including separate Unicode, length, reserved-name
+and unsafe-character filename probes. No required findings remain.
+
+The development browser displayed the ZIP-only picker and prepared an existing
+original test sound as `Idle Playback Test-20260924-205329Z.zip`. Back returned to
+selection and released that owned export; no content was installed or changed.
+The prior native/audio waiver remains scoped to this PR; no new native or hosted
+acceptance is claimed by these checks.

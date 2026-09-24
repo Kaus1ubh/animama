@@ -2,7 +2,7 @@
 
 Discover and local-to-hosted account connection are discontinued. The local
 application has no Discover navigation, publishing service or acquisition flow.
-Local content remains editable and supports local `.animama`
+Local content remains editable and supports local `.zip`
 [package sharing](../backend/features/typed-content-and-marketplace.md#local-package-boundary).
 
 The unpublished `@animama/discover-client` package remains in the public artifact

@@ -15,7 +15,7 @@ const messages: Record<string, string> = {
   package_transport_unavailable:
     "Animama could not be reached. Check the local app and retry.",
   package_invalid:
-    "This file is not a supported .animama package. Ask its creator to export it again.",
+    "This ZIP does not contain a supported Animama package. Choose a ZIP exported from Animama.",
   package_request_invalid:
     "This package request is invalid. Review your selection and try again.",
   package_stage_expired:

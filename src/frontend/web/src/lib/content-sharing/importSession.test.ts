@@ -15,7 +15,7 @@ const digest = "a".repeat(64);
 const stage: PackageStageStatus = {
   stage_id: "stage",
   operation_id: "op",
-  filename: "one.animama",
+  filename: "one.zip",
   state: "uploading",
   active: false,
   expected_size_bytes: 10,
@@ -28,7 +28,7 @@ const stage: PackageStageStatus = {
 const review: ReviewedPackageImport = {
   stage_id: "stage",
   operation_id: "op",
-  filename: "one.animama",
+  filename: "one.zip",
   package_sha256: digest,
   size_bytes: 10,
   expires_at: "2099-01-01",
@@ -50,6 +50,7 @@ const result: PackageImportResult = {
 function fixture(saved: ImportRecovery | null = null) {
   let record = saved;
   let operationId = saved?.operation_id ?? "op";
+  let filename = stage.filename;
   const storage: RecoveryStore = {
     read: () => record,
     write: (value) => {
@@ -57,11 +58,16 @@ function fixture(saved: ImportRecovery | null = null) {
     },
   };
   const api: ImportApi = {
-    allocate: vi.fn(async (_file, id) => {
+    allocate: vi.fn(async (file, id) => {
       operationId = id;
-      return { ...stage, operation_id: id };
+      filename = file.name;
+      return { ...stage, filename, operation_id: id };
     }),
-    status: vi.fn(async () => ({ ...stage, operation_id: operationId })),
+    status: vi.fn(async () => ({
+      ...stage,
+      filename,
+      operation_id: operationId,
+    })),
     part: vi.fn(async (_s, i, b) => ({
       stage_id: "stage",
       index: i,
@@ -71,7 +77,11 @@ function fixture(saved: ImportRecovery | null = null) {
       next_part_index: i + 1,
       received_bytes: Math.min(10, i * 4 + b.size),
     })),
-    review: vi.fn(async () => ({ ...review, operation_id: operationId })),
+    review: vi.fn(async () => ({
+      ...review,
+      filename,
+      operation_id: operationId,
+    })),
     commit: vi.fn(async () => ({ ...result, operation_id: operationId })),
     operation: vi.fn(async () => ({
       operation_id: "op",
@@ -83,9 +93,40 @@ function fixture(saved: ImportRecovery | null = null) {
   return { session, api, storage, getRecord: () => record };
 }
 describe("reviewed package import", () => {
+  it.each(["one.zip", "one.ZIP"])(
+    "accepts %s for server package validation",
+    async (filename) => {
+      const { session, api } = fixture();
+      await session.upload(new File([new Uint8Array(10)], filename));
+      expect(api.allocate).toHaveBeenCalledOnce();
+      expect(api.review).toHaveBeenCalledOnce();
+      expect(session.getSnapshot().phase).toBe("review");
+    },
+  );
+  it.each(["one.animama", "one.txt", "one.zip.exe"])(
+    "rejects %s before allocating an upload",
+    async (filename) => {
+      const { session, api } = fixture();
+      await session.upload(new File([new Uint8Array(10)], filename));
+      expect(api.allocate).not.toHaveBeenCalled();
+      expect(session.getSnapshot().error).toContain(".zip");
+    },
+  );
+  it("does not make an unrelated ZIP actionable when server validation rejects it", async () => {
+    const { session, api } = fixture();
+    vi.mocked(api.review).mockRejectedValue(
+      new SharingError("package_invalid", 422),
+    );
+    await session.upload(new File([new Uint8Array(10)], "unrelated.zip"));
+    expect(api.review).toHaveBeenCalledOnce();
+    expect(session.getSnapshot().review).toBeNull();
+    expect(session.getSnapshot().error).toContain("supported Animama package");
+    await session.commit();
+    expect(api.commit).not.toHaveBeenCalled();
+  });
   it("releases a completed stage before forgetting its recovery identifiers", async () => {
     const { session, api, getRecord } = fixture();
-    await session.upload(new File([new Uint8Array(10)], "one.animama"));
+    await session.upload(new File([new Uint8Array(10)], "one.zip"));
     await session.commit();
     vi.mocked(api.discard).mockImplementation(async (id) => {
       expect(id).toBe("stage");
@@ -97,7 +138,7 @@ describe("reviewed package import", () => {
   });
   it("preserves a completed result when cleanup fails, but acknowledges confirmed absence", async () => {
     const { session, api, getRecord } = fixture();
-    await session.upload(new File([new Uint8Array(10)], "one.animama"));
+    await session.upload(new File([new Uint8Array(10)], "one.zip"));
     await session.commit();
     const completed = session.getSnapshot().result;
     vi.mocked(api.discard).mockRejectedValueOnce(new Error("Offline"));
@@ -112,7 +153,7 @@ describe("reviewed package import", () => {
   });
   it("keeps a failed review blocked and prepares a fresh operation after safe discard", async () => {
     const { session, api, getRecord } = fixture();
-    await session.upload(new File([new Uint8Array(10)], "one.animama"));
+    await session.upload(new File([new Uint8Array(10)], "one.zip"));
     const old = getRecord()!;
     const oldReview = session.getSnapshot().review!;
     vi.mocked(api.commit).mockRejectedValue(
@@ -176,13 +217,13 @@ describe("reviewed package import", () => {
     expect(getRecord()).toBeNull();
     expect(session.getSnapshot()).toMatchObject({
       phase: "idle",
-      error: expect.stringContaining("Choose the .animama file again"),
+      error: expect.stringContaining("Choose the .zip file again"),
     });
     expect(api.allocate).not.toHaveBeenCalled();
   });
   it("sends bounded sequential slices and reviews only after all acknowledgements", async () => {
     const { session, api } = fixture();
-    const file = new File([new Uint8Array(10)], "one.animama");
+    const file = new File([new Uint8Array(10)], "one.zip");
     await session.upload(file);
     expect(
       vi.mocked(api.part).mock.calls.map(([, i, b]) => [i, b.size]),
@@ -208,7 +249,7 @@ describe("reviewed package import", () => {
       next_part_index: 1,
       received_bytes: 4,
     });
-    await session.upload(new File([new Uint8Array(10)], "one.animama"));
+    await session.upload(new File([new Uint8Array(10)], "one.zip"));
     expect(api.allocate).not.toHaveBeenCalled();
     expect(vi.mocked(api.part).mock.calls.map(([, i]) => i)).toEqual([0, 1, 2]);
   });
@@ -232,7 +273,7 @@ describe("reviewed package import", () => {
   });
   it("persists the operation before commit and suppresses repeated submissions while its outcome is unknown", async () => {
     const { session, api, getRecord } = fixture();
-    await session.upload(new File([new Uint8Array(10)], "one.animama"));
+    await session.upload(new File([new Uint8Array(10)], "one.zip"));
     let finish!: () => void;
     vi.mocked(api.commit).mockImplementation(async () => {
       expect(getRecord()?.commit_requested).toBe(true);
@@ -255,7 +296,7 @@ describe("reviewed package import", () => {
   });
   it("does not send a commit when recovery identifiers cannot be persisted", async () => {
     const { session, api, storage } = fixture();
-    await session.upload(new File([new Uint8Array(10)], "one.animama"));
+    await session.upload(new File([new Uint8Array(10)], "one.zip"));
     storage.write = () => {
       throw new Error("Storage unavailable");
     };
@@ -303,7 +344,7 @@ describe("reviewed package import", () => {
       phase: "recovery",
       pending: true,
     });
-    await session.upload(new File([new Uint8Array(10)], "one.animama"));
+    await session.upload(new File([new Uint8Array(10)], "one.zip"));
     expect(api.allocate).not.toHaveBeenCalled();
     expect(api.commit).not.toHaveBeenCalled();
     expect(getRecord()?.commit_requested).toBe(true);
@@ -311,7 +352,7 @@ describe("reviewed package import", () => {
   it("rejects unsupported and oversized files before allocation", async () => {
     const { session, api } = fixture();
     await session.upload(new File(["abc"], "image.png"));
-    const huge = new File(["abc"], "big.animama");
+    const huge = new File(["abc"], "big.zip");
     Object.defineProperty(huge, "size", { value: 4 * 1024 ** 3 + 1 });
     await session.upload(huge);
     expect(api.allocate).not.toHaveBeenCalled();

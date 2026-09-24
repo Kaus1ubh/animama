@@ -132,14 +132,14 @@ export class PackageImportSession {
       return;
     }
     if (
-      !/\.animama$/i.test(file.name) ||
+      !/\.zip$/i.test(file.name) ||
       file.size <= 0 ||
       file.size > 4 * 1024 ** 3 ||
       file.name.length > 255
     ) {
       this.update({
         error:
-          "Choose a nonempty .animama file no larger than 4 GiB, with a filename of 255 characters or fewer.",
+          "Choose a nonempty .zip file no larger than 4 GiB, with a filename of 255 characters or fewer.",
       });
       return;
     }
@@ -255,7 +255,7 @@ export class PackageImportSession {
     if (this.file) await this.upload(this.file);
     else
       this.update({
-        error: "Choose the same .animama file to resume this upload.",
+        error: "Choose the same .zip file to resume this upload.",
       });
   };
   private async reviewCurrent() {
@@ -288,7 +288,7 @@ export class PackageImportSession {
     if (file) await this.upload(file);
     else
       this.update({
-        error: "Choose the .animama file again to prepare a fresh review.",
+        error: "Choose the .zip file again to prepare a fresh review.",
       });
   }
   async commit(): Promise<void> {

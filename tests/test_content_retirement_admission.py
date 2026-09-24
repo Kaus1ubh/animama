@@ -119,7 +119,7 @@ async def test_old_import_receipt_does_not_revalidate_retired_package(async_sess
     from tests.content_package_helpers import package_services
 
     paths, catalog, _, _, packages = package_services(async_session, tmp_path)
-    archive = tmp_path / "historical.animama"
+    archive = tmp_path / "historical.zip"
     original_bytes = b"old package need not satisfy the current manifest validator"
     archive.write_bytes(original_bytes)
     original = ImportedContentPackage((retired_item(kind),), ())

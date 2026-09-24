@@ -137,8 +137,10 @@ content_file_not_found`.
 
 ### Package sharing
 
-Package sharing uses local `.animama` files with the strict
-`animama-content-package/3` manifest. All routes below are under `/v1/content`:
+Package sharing accepts only `.zip` files with the strict
+`animama-content-package/3` manifest. The extension does not bypass integrity or
+typed-content validation; unrelated ZIP archives are rejected. All routes below
+are under `/v1/content`:
 
 | Method and path | Behavior |
 | --- | --- |
@@ -162,6 +164,11 @@ configuration, without conversations, other memories or provider credentials.
 The [portable definition](../features/typed-content-and-marketplace.md#local-package-boundary)
 allowlists saved selections and supported configuration; receiver defaults supply
 model and voice settings.
+
+Export filenames combine a display name with a UTC timestamp and `.zip`.
+Anima exports use the Anima's display name; content exports use the installation
+owner's display name, falling back to `content` when that name is missing.
+The filename is a download label and carries no import ownership or identity.
 
 Private stages expire after 30 inactive minutes. One owner may hold two import
 and export stages combined, reserving at most 8 GiB of archive space; each

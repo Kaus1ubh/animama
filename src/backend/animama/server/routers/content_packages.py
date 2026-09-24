@@ -19,6 +19,7 @@ from starlette.types import Receive, Scope, Send
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import SQLAlchemyAnimaPackageSourceRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
 from animama.app.contracts.content_package_import import (
     PackageImportResult,
     PackageOperationStatus,
@@ -127,6 +128,7 @@ def _exports(request: Request, session: AsyncSession) -> ContentPackageExportSer
         content=content,
         exports_root=_paths(request).exports_staging_root,
         stages=_stages(request),
+        profiles=SQLAlchemyUserProfileRepository(session),
         anima_sources=AnimaPackageSourceService(
             catalog=content.mutations.catalog,
             sources=SQLAlchemyAnimaPackageSourceRepository(session),
@@ -198,7 +200,7 @@ class _PackageDownloadResponse(StreamingResponse):
         review = download.review
         super().__init__(
             chunks(),
-            media_type="application/vnd.animama.content+zip",
+            media_type="application/zip",
             headers={
                 "Content-Disposition": f"attachment; filename*=utf-8''{quote(review.filename, safe='')}",
                 "Content-Length": str(review.size_bytes),

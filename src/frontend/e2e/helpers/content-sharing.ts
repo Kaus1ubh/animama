@@ -80,7 +80,7 @@ export async function downloadSharingPackage(
   const pending = page.waitForEvent("download");
   await button.click();
   const download = await pending;
-  expect(download.suggestedFilename()).toMatch(/\.animama$/);
+  expect(download.suggestedFilename()).toMatch(/\.zip$/);
   const destination = testInfo.outputPath(download.suggestedFilename());
   await download.saveAs(destination);
   expect(await download.failure()).toBeNull();
@@ -115,7 +115,7 @@ export async function uploadSharingPackage(
       ),
   );
   await page
-    .getByLabel("Choose .animama file", { exact: true })
+    .getByLabel("Choose .zip file", { exact: true })
     .setInputFiles(file);
   const response = await pending;
   expect(response.ok(), await response.text()).toBe(true);

@@ -9,7 +9,7 @@ import os
 import re
 import stat
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from tempfile import TemporaryFile
 from typing import Any, BinaryIO, cast
@@ -33,6 +33,7 @@ from animama.app.contracts.content_package import (
     portable_revision,
 )
 from animama.app.contracts.portable_anima import PortableAnima
+from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.services.anima_package_source_service import AnimaPackageSnapshot, AnimaPackageSourceService
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import MAX_JSON_BYTES, handler_for_kind
@@ -123,15 +124,16 @@ def _json_bytes(value: Any) -> bytes:
 
 
 def _download_filename(label: str) -> str:
-    """Keep valid Anima names shareable without using them as filesystem paths."""
-    name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "-", label.strip().lower())
-    name = re.sub(r"[\s_]+", "-", name).strip("- .")[:120]
+    """Keep display names readable in a safe, UTC-stamped ZIP download name."""
+    name = re.sub(r'[\\/:*?"<>|\x00-\x1f\x7f]', "-", label.strip())
+    name = " ".join(name.split()).strip("- .")[:120]
     while len(name.encode("utf-8")) > 180:
         name = name[:-1]
-    name = name.rstrip(". ") or "animama"
+    name = name.rstrip(". ") or "content"
     if re.fullmatch(r"(?i)(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?", name):
-        name = f"animama-{name}"
-    return f"{name}.animama"
+        name = f"content-{name}"
+    timestamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%SZ")
+    return f"{name}-{timestamp}.zip"
 
 
 def _json_stream(value: Any) -> BinaryIO:
@@ -290,12 +292,14 @@ class ContentPackageExportService:
         exports_root: Path,
         anima_sources: AnimaPackageSourceService | None = None,
         stages: PackageStageService | None = None,
+        profiles: UserProfileRepository | None = None,
     ) -> None:
         self._content = content
         self._catalog = content.mutations.catalog
         self._store = content.mutations.store
         self._stages = stages or PackageStageService(exports_root.parent / "imports", exports_root)
         self._animas = anima_sources
+        self._profiles = profiles
 
     async def _selection(self, *, user_id: str, item_ids: tuple[str, ...], anima_id: str | None) -> _Selection:
         if bool(item_ids) == bool(anima_id) or len(item_ids) != len(set(item_ids)):
@@ -395,15 +399,12 @@ class ContentPackageExportService:
         selected = await self._selection(user_id=user_id, item_ids=item_ids, anima_id=anima_id)
         if selected.summary.digest != expected_digest:
             raise ContentConflictError("package_export_source_changed")
-        label = (
-            selected.summary.anima.display_name
-            if selected.summary.anima
-            else (
-                next(item.name for item in selected.summary.items if item.selected)
-                if len(item_ids) == 1
-                else "Library content"
-            )
-        )
+        if selected.summary.anima is not None:
+            label = selected.summary.anima.display_name
+        else:
+            # Personalization names only the download; it is never portable content.
+            profile = await self._profiles.get_profile(user_id) if self._profiles is not None else None
+            label = (profile.display_name if profile is not None else None) or "content"
         filename = _download_filename(label)
         lease = self._stages.reserve_export(user_id, filename, max(1, selected.summary.estimated_size_bytes))
         record = lease.record

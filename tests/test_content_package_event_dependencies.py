@@ -178,7 +178,7 @@ def _event_package(case: str) -> tuple[dict[str, Any], dict[str, bytes]]:
 @pytest.mark.parametrize("case", ["missing", "wrong-kind"])
 def test_full_inspection_rejects_unresolved_event_and_discards_private_tree(tmp_path: Path, case: str) -> None:
     manifest, payloads = _event_package(case)
-    archive = tmp_path / "unresolved.animama"
+    archive = tmp_path / "unresolved.zip"
     write_package(archive, manifest, payloads)
     destination = tmp_path / "inspection"
     with pytest.raises(ContentConflictError, match="package_definition_invalid"):
@@ -190,7 +190,7 @@ def test_full_inspection_rejects_unresolved_event_and_discards_private_tree(tmp_
 @pytest.mark.parametrize("case", ["alias", "ref", "padded-alias", "padded-ref"])
 def test_full_inspection_accepts_event_with_matching_bundled_dependency(tmp_path: Path, case: str) -> None:
     manifest, payloads = _event_package(case)
-    archive = tmp_path / "complete.animama"
+    archive = tmp_path / "complete.zip"
     write_package(archive, manifest, payloads)
     assert set(inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection").entries) == {"sound", "action"}
 
@@ -283,7 +283,7 @@ def test_full_inspection_rejects_scene_selector_for_wrong_actual_primitive(
     tmp_path: Path, target_kind: str, requested_kind: str
 ) -> None:
     manifest, payloads = _scene_package(target_kind, requested_kind)
-    archive = tmp_path / "wrong-scene.animama"
+    archive = tmp_path / "wrong-scene.zip"
     write_package(archive, manifest, payloads)
     with pytest.raises(ContentConflictError, match="package_definition_invalid"):
         inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
@@ -296,7 +296,7 @@ def test_full_inspection_checks_actual_scene_primitive_after_selector_normalizat
     tmp_path: Path, kind: str, selector: str
 ) -> None:
     manifest, payloads = _scene_package(kind, kind, selector)
-    archive = tmp_path / "scene.animama"
+    archive = tmp_path / "scene.zip"
     write_package(archive, manifest, payloads)
     assert set(inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection").entries) == {
         "action",

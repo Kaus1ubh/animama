@@ -19,27 +19,39 @@ def stages(tmp_path: Path, **limits: int) -> PackageStageService:
     return PackageStageService(tmp_path / "imports", tmp_path / "exports", limits=StageLimits(**limits))
 
 
+@pytest.mark.parametrize("filename", ["one.animama", "one.txt", "one.zip.exe"])
+def test_stage_rejects_non_zip_filenames_before_allocation(tmp_path: Path, filename: str) -> None:
+    service = stages(tmp_path)
+    with pytest.raises(ContentConflictError, match="package_stage_input_invalid"):
+        service.create_import("owner", "operation", filename, 10)
+    assert not list(tmp_path.rglob("record.json"))
+
+
+def test_stage_accepts_uppercase_zip_filename(tmp_path: Path) -> None:
+    assert stages(tmp_path).create_import("owner", "operation", "one.ZIP", 10).filename == "one.ZIP"
+
+
 def test_import_and_export_share_two_stage_limit_across_service_instances(tmp_path: Path) -> None:
     first, second = stages(tmp_path), stages(tmp_path)
-    first.create_import("owner", "operation", "one.animama", 10)
-    second.create_export("owner", "two.animama", 20)
+    first.create_import("owner", "operation", "one.zip", 10)
+    second.create_export("owner", "two.zip", 20)
     with pytest.raises(ContentConflictError, match="package_stage_limit"):
-        first.create_import("owner", "third", "three.animama", 30)
-    assert second.create_export("other-owner", "independent.animama", 20)
+        first.create_import("owner", "third", "three.zip", 30)
+    assert second.create_export("other-owner", "independent.zip", 20)
 
 
 def test_quota_pressure_reclaims_only_inactive_finished_downloads(tmp_path: Path) -> None:
     service = stages(tmp_path)
-    exported = service.create_export("owner", "shared.animama", 10)
+    exported = service.create_export("owner", "shared.zip", 10)
     with service.acquire("owner", exported.stage_id, "export") as lease:
         lease.set_state("completed")
-    pending = service.create_import("owner", "one", "one.animama", 10)
+    pending = service.create_import("owner", "one", "one.zip", 10)
     # A finished cache remains available for retry while no new slot is needed.
     service.sweep_expired("owner")
     with service.acquire("owner", exported.stage_id, "export"):
         with pytest.raises(ContentConflictError, match="package_stage_limit"):
-            service.create_import("owner", "two", "two.animama", 10)
-    fresh = stages(tmp_path).create_import("owner", "two", "two.animama", 10)
+            service.create_import("owner", "two", "two.zip", 10)
+    fresh = stages(tmp_path).create_import("owner", "two", "two.zip", 10)
     assert fresh.stage_id != exported.stage_id
     assert service.status("owner", pending.stage_id)[0].operation_id == "one"
     with pytest.raises(ContentConflictError, match="package_stage_unavailable"):
@@ -48,55 +60,55 @@ def test_quota_pressure_reclaims_only_inactive_finished_downloads(tmp_path: Path
 
 def test_finished_download_reclamation_also_releases_byte_quota(tmp_path: Path) -> None:
     service = stages(tmp_path, max_total_bytes=20)
-    exported = service.create_export("owner", "shared.animama", 12)
+    exported = service.create_export("owner", "shared.zip", 12)
     with service.acquire("owner", exported.stage_id, "export") as lease:
         lease.set_state("completed")
-    assert service.create_import("owner", "next", "next.animama", 15)
+    assert service.create_import("owner", "next", "next.zip", 15)
 
 
 def test_completed_imports_are_not_reclaimed_without_acknowledgment(tmp_path: Path) -> None:
     service = stages(tmp_path)
     for index in range(2):
-        record = service.create_import("owner", str(index), f"{index}.animama", 10)
+        record = service.create_import("owner", str(index), f"{index}.zip", 10)
         with service.acquire("owner", record.stage_id) as lease:
             lease.set_state("completed")
     with pytest.raises(ContentConflictError, match="package_stage_limit"):
-        service.create_import("owner", "next", "next.animama", 10)
+        service.create_import("owner", "next", "next.zip", 10)
 
 
 def test_aggregate_archive_reservation_is_checked_before_creation(tmp_path: Path) -> None:
     service = stages(tmp_path, max_total_bytes=20)
-    service.create_import("owner", "operation", "one.animama", 12)
+    service.create_import("owner", "operation", "one.zip", 12)
     with pytest.raises(ContentConflictError, match="package_stage_quota"):
-        service.create_export("owner", "two.animama", 9)
+        service.create_export("owner", "two.zip", 9)
     assert len(list((tmp_path / "exports").rglob("record.json"))) == 0
 
 
 def test_allocation_retry_retains_random_identity_and_rejects_changed_input(tmp_path: Path) -> None:
     service = stages(tmp_path)
-    first = service.create_import("owner", "../../operation", "one.animama", 10)
-    assert service.create_import("owner", "../../operation", "one.animama", 10) == first
+    first = service.create_import("owner", "../../operation", "one.zip", 10)
+    assert service.create_import("owner", "../../operation", "one.zip", 10) == first
     assert "operation" not in first.stage_id
     with pytest.raises(ContentConflictError, match="package_operation_conflict"):
-        service.create_import("owner", "../../operation", "changed.animama", 10)
+        service.create_import("owner", "../../operation", "changed.zip", 10)
 
 
 def test_restart_reclaims_interrupted_initial_record_before_another_allocation(tmp_path: Path) -> None:
     service = stages(tmp_path)
-    first = service.create_import("owner", "one", "one.animama", 4)
+    first = service.create_import("owner", "one", "one.zip", 4)
     with service.acquire("owner", first.stage_id) as lease:
         orphan = lease.directory.parent / uuid4().hex
         orphan.mkdir()
         (orphan / f".record-{uuid4().hex}.tmp").write_bytes(b"interrupted initial record")
     restarted = stages(tmp_path)
-    second = restarted.create_import("owner", "two", "two.animama", 4)
+    second = restarted.create_import("owner", "two", "two.zip", 4)
     assert second.stage_id != first.stage_id
     assert not orphan.exists()
 
 
 def test_active_stage_cannot_be_deleted_or_acquired_by_another_service(tmp_path: Path) -> None:
     first, second = stages(tmp_path), stages(tmp_path)
-    record = first.create_import("owner", "operation", "one.animama", 10)
+    record = first.create_import("owner", "operation", "one.zip", 10)
     with first.acquire("owner", record.stage_id):
         assert second.status("owner", record.stage_id)[1] is True
         with pytest.raises(ContentConflictError, match="package_stage_active"):
@@ -106,7 +118,7 @@ def test_active_stage_cannot_be_deleted_or_acquired_by_another_service(tmp_path:
 
 def test_sequential_parts_retry_and_changed_or_out_of_order_conflicts(tmp_path: Path) -> None:
     service = stages(tmp_path, part_bytes=4)
-    record = service.create_import("owner", "operation", "one.animama", 6)
+    record = service.create_import("owner", "operation", "one.zip", 6)
     first = service.append_part("owner", record.stage_id, 0, BytesIO(b"abcd"))
     assert (first.received_bytes, first.next_part_index, first.complete) == (4, 1, False)
     assert service.append_part("owner", record.stage_id, 0, BytesIO(b"abcd")) == first
@@ -124,7 +136,7 @@ def test_sequential_parts_retry_and_changed_or_out_of_order_conflicts(tmp_path: 
 @pytest.mark.parametrize("payload", [b"abc", b"abcde"])
 def test_bad_part_length_leaves_no_acknowledged_bytes(tmp_path: Path, payload: bytes) -> None:
     service = stages(tmp_path, part_bytes=4)
-    record = service.create_import("owner", "operation", "one.animama", 8)
+    record = service.create_import("owner", "operation", "one.zip", 8)
     with pytest.raises(ContentConflictError, match="package_part_size_invalid"):
         service.append_part("owner", record.stage_id, 0, BytesIO(payload))
     with service.acquire("owner", record.stage_id) as lease:
@@ -134,7 +146,7 @@ def test_bad_part_length_leaves_no_acknowledged_bytes(tmp_path: Path, payload: b
 
 def test_restart_removes_unacknowledged_tail_before_sealing_completed_upload(tmp_path: Path) -> None:
     service = stages(tmp_path, part_bytes=4)
-    record = service.create_import("owner", "operation", "one.animama", 4)
+    record = service.create_import("owner", "operation", "one.zip", 4)
     service.append_part("owner", record.stage_id, 0, BytesIO(b"abcd"))
     with service.acquire("owner", record.stage_id) as lease:
         with lease.archive_path.open("ab") as archive:
@@ -151,7 +163,7 @@ def test_record_failure_rolls_back_part_but_post_replace_failure_keeps_ack(
     from animama.app.services import content_package_staging as module
 
     service = stages(tmp_path, part_bytes=4)
-    record = service.create_import("owner", "operation", "one.animama", 8)
+    record = service.create_import("owner", "operation", "one.zip", 8)
     original = module._write_record
 
     def fail_before_replace(*_: Any) -> None:
@@ -177,7 +189,7 @@ def test_record_failure_rolls_back_part_but_post_replace_failure_keeps_ack(
 
 def test_sealed_review_is_immutable_and_tampered_archive_rejects(tmp_path: Path) -> None:
     service = stages(tmp_path, part_bytes=4)
-    record = service.create_import("owner", "operation", "one.animama", 4)
+    record = service.create_import("owner", "operation", "one.zip", 4)
     service.append_part("owner", record.stage_id, 0, BytesIO(b"abcd"))
     with service.acquire("owner", record.stage_id) as lease:
         lease.seal_archive()
@@ -200,8 +212,8 @@ def test_sealed_review_is_immutable_and_tampered_archive_rejects(tmp_path: Path)
 def test_sweep_preserves_active_and_unresolved_commit_then_reclaims_inactive(tmp_path: Path) -> None:
     now = datetime(2026, 9, 24, tzinfo=UTC)
     service = PackageStageService(tmp_path / "imports", tmp_path / "exports", clock=lambda: now)
-    first = service.create_import("owner", "one", "one.animama", 4)
-    second = service.create_import("owner", "two", "two.animama", 4)
+    first = service.create_import("owner", "one", "one.zip", 4)
+    second = service.create_import("owner", "two", "two.zip", 4)
     with service.acquire("owner", second.stage_id) as lease:
         lease.set_state("recovery_needed")
     with service.acquire("owner", first.stage_id) as lease:
@@ -221,7 +233,7 @@ def test_sweep_rechecks_recovery_state_after_obtaining_stage_lock(
 ) -> None:
     now = datetime(2026, 9, 24, tzinfo=UTC)
     service = PackageStageService(tmp_path / "imports", tmp_path / "exports", clock=lambda: now)
-    record = service.create_import("owner", "one", "one.animama", 4)
+    record = service.create_import("owner", "one", "one.zip", 4)
     lease = service.acquire("owner", record.stage_id)
     now += timedelta(minutes=31)
     original = service._records
@@ -240,8 +252,8 @@ def test_sweep_rechecks_recovery_state_after_obtaining_stage_lock(
 
 def test_export_growth_reserves_before_write_and_competes_with_import(tmp_path: Path) -> None:
     service = stages(tmp_path, max_total_bytes=12)
-    service.create_import("owner", "one", "one.animama", 4)
-    export = service.create_export("owner", "two.animama", 4)
+    service.create_import("owner", "one", "one.zip", 4)
+    export = service.create_export("owner", "two.zip", 4)
     with service.acquire("owner", export.stage_id, "export") as lease:
         lease.ensure_capacity(8)
         with pytest.raises(ContentConflictError, match="package_stage_quota"):
@@ -251,7 +263,7 @@ def test_export_growth_reserves_before_write_and_competes_with_import(tmp_path: 
 
 def test_expansion_drops_stale_tree_and_rejects_second_live_tree(tmp_path: Path) -> None:
     service = stages(tmp_path, max_expanded_bytes=4096)
-    record = service.create_import("owner", "one", "one.animama", 4)
+    record = service.create_import("owner", "one", "one.zip", 4)
     with service.acquire("owner", record.stage_id) as lease:
         write_package(lease.archive_path, *sound_package())
         lease.inspection_path.mkdir()
@@ -276,7 +288,7 @@ def _hold_stage(root: str, stage_id: str, ready: Any) -> None:
 
 def test_os_lease_excludes_another_process_and_releases_after_process_death(tmp_path: Path) -> None:
     service = stages(tmp_path)
-    record = service.create_import("owner", "one", "one.animama", 4)
+    record = service.create_import("owner", "one", "one.zip", 4)
     context = multiprocessing.get_context("spawn")
     reader, writer = context.Pipe()
     child = context.Process(target=_hold_stage, args=(str(tmp_path), record.stage_id, writer))
@@ -303,12 +315,12 @@ def test_disk_shortage_rejects_reservation_and_expansion_without_leaking_tree(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     service = stages(tmp_path)
-    record = service.create_import("owner", "one", "one.animama", 4)
+    record = service.create_import("owner", "one", "one.zip", 4)
     monkeypatch.setattr(
         "animama.app.services.content_package_staging.shutil.disk_usage", lambda _: SimpleNamespace(free=0)
     )
     with pytest.raises(ContentConflictError, match="package_stage_disk_full"):
-        service.create_export("owner", "two.animama", 4)
+        service.create_export("owner", "two.zip", 4)
     assert not list((tmp_path / "exports").rglob("record.json"))
     with service.acquire("owner", record.stage_id) as lease:
         write_package(lease.archive_path, *sound_package())
@@ -324,7 +336,7 @@ def test_particular_archive_expansion_still_rejects_insufficient_disk_and_config
     from animama.app.services.content_package_archive import ContentPackageArchive
 
     service = stages(tmp_path, max_expanded_bytes=4096)
-    record = service.create_import("owner", "bounded", "bounded.animama", 4)
+    record = service.create_import("owner", "bounded", "bounded.zip", 4)
     with service.acquire("owner", record.stage_id) as lease:
         write_package(lease.archive_path, *sound_package())
         required = ContentPackageArchive.expanded_size(lease.archive_path)

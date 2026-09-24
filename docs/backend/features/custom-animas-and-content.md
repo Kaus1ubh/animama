@@ -211,7 +211,7 @@ creation calls a provider.
 
 Create Anima creates a private live companion with editable dependencies.
 Separately, [Library sharing](typed-content-and-marketplace.md#local-package-boundary)
-can export its saved definition and content as a reviewed `.animama` package.
+can export its saved definition and content as a reviewed `.zip` package.
 Import creates a new companion without copying conversations, other memories,
 provider settings or a synchronization relationship to the source Anima.
 

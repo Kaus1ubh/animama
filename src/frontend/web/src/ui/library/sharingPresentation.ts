@@ -40,6 +40,6 @@ export function sharingDropSelection(files: ArrayLike<File>): {
   error: string | null;
 } {
   if (files.length > 1)
-    return { file: null, error: "Choose one .animama file at a time" };
+    return { file: null, error: "Choose one .zip file at a time" };
   return { file: files[0] ?? null, error: null };
 }

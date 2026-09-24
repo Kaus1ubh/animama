@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -29,7 +30,7 @@ async def test_export_generates_a_self_contained_boundary_manifest_without_chang
             root_item_id=saved.item.id,
         )
 
-        assert exported.filename == "friendly-wave.animama"
+        assert re.fullmatch(r"content-\d{8}-\d{6}Z\.zip", exported.filename)
         assert exported.item_count == 1
         assert exported.path.is_file()
         with ZipFile(exported.path) as archive:

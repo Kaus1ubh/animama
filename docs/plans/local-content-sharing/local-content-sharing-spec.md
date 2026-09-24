@@ -1,9 +1,12 @@
-# Share local content and complete Animas through `.animama` files
+# Share local content and complete Animas through `.zip` files
 
 Status: Approved for full implementation on 2026-09-24.
 Authoritative source: [issue #81](https://github.com/raymond-van/animama/issues/81).
 This file retains its local requirements snapshot, published and read back at
 `2026-09-24T13:47:40Z`. The owner approved the ExecPlan and all six phases.
+2026-09-24 amendment: the owner requested ZIP-only import/export and timestamped
+download filenames; this supersedes the original extension shown in the mockups.
+The amendment was published to issue #81 and read back at `2026-09-24T20:59:35Z`.
 Source baseline: `98220eae162651207960ffa9657aa54581a80265`.
 
 ## Problem and intended users
@@ -16,7 +19,7 @@ be packaged. Sharing files manually loses dependencies and installation-specific
 relationships.
 
 Provide a reviewed local Import / Export workflow that produces portable
-`.animama` files and installs ordinary editable Local content. A complete Anima
+`.zip` files and installs ordinary editable Local content. A complete Anima
 package creates a fresh companion from its definition and equipment, without
 transferring the sender's private interactions or installation configuration.
 
@@ -40,11 +43,19 @@ are required. There are no old packages requiring backward compatibility.
 
 ### R1. Local package boundary and ownership
 
-Export writes a user-saveable `.animama` file. Import accepts such a file through
+Export writes a user-saveable `.zip` file. Import accepts such a file through
 the installation's admitted local application boundary, without contacting a
 content hosting/publishing service. Sharing the resulting file is the user's
 choice outside Animama. The package is a transport artifact, not an additional
 editable Library item, live Anima record, or desktop feature pack.
+
+Accept `.zip` only (case-insensitive), and reject invalid or unrelated ZIPs through
+the existing strict package validation. Complete-Anima exports use the Anima
+display name plus a UTC timestamp; content exports use the installation user
+display name plus the timestamp, falling back to `content` when unset. Preserve
+readable names while sanitizing unsafe filename characters. The internal manifest
+remains `animama-content-package/3`; this is an extension/naming change, not a
+loose-file archive importer.
 
 Imported content receives fresh installation-local identities and the receiving
 installation owner. Included sources remain immutable. Package-supplied owner

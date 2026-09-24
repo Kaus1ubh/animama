@@ -146,7 +146,7 @@ files. Static Poses and Creator Clip/project JSON import/export remain available
 ## Import / Export
 
 Open **Import / Export** in the Library header. **Choose file** accepts a local
-`.animama` package; **Choose what to export** opens Content and Anima modes.
+`.zip` package; **Choose what to export** opens Content and Anima modes.
 These are local file operations, with no account, publishing or sync relationship.
 Direct Creator JSON import/export remains a separate editor-document workflow.
 
@@ -155,6 +155,8 @@ existing selections. Required content is included automatically and shown
 separately from selected items in the count and size summary. Review the exact
 package before **Download package**. Missing or changed sources require another
 review; an expired export can be prepared again from the retained selection.
+Downloaded filenames use the installation owner's display name (or `content`
+when unavailable), followed by a UTC timestamp.
 
 In Anima mode, choose a saved companion and review its full identity and selected
 content before **Export Anima**. The package includes its name, identity, Avatar,
@@ -163,6 +165,7 @@ profile/background images with framing. It preserves supported Action settings
 and effective starter choices. It excludes conversations, identity history, other
 memories, private chat uploads, provider/model settings and voice preferences.
 The receiving installation supplies its own defaults for those settings.
+Anima downloads use the companion's display name and a UTC timestamp.
 
 Import first uploads and validates the file, then shows the complete package and
 its destination names. **Import N items** or **Import Anima** installs the whole
@@ -188,8 +191,9 @@ A storage conflict keeps recovery pending until repaired. If the server confirms
 there is no active operation, discard the recovery record before choosing the file
 again. Keep an unresolved recovery record rather than clearing browser storage.
 
-Only current `animama-content-package/3` archives are accepted. A file may be at
-most 4 GiB; two import/export stages share a temporary quota and expire after
+Only `.zip` files containing a valid `animama-content-package/3` archive are
+accepted; unrelated ZIPs fail validation. A file may be at most 4 GiB. Two
+import/export stages share a temporary quota and expire after
 30 inactive minutes. Active transfers and commits are protected. Finished export
 caches may be reclaimed when space is needed; a new export creates another download.
 See the [package contract and full limits](../../backend/architecture/http-api.md#package-sharing)
