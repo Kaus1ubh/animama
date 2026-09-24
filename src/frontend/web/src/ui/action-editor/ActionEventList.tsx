@@ -1,3 +1,4 @@
+import { Trash2Icon } from "lucide-react";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { cn } from "@/lib/utils";
 import { useActionEditorWorkspace } from "./ActionEditorWorkspaceContext";
@@ -10,6 +11,13 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
     (state) => state.selectClipKeyframe,
   );
   const selectEvent = usePoseCreatorStore((state) => state.selectClipEvent);
+  const deleteKeyframe = usePoseCreatorStore(
+    (state) => state.deleteSelectedClipKeyframe,
+  );
+  const deleteEvent = usePoseCreatorStore(
+    (state) => state.deleteSelectedClipEvent,
+  );
+  const editing = usePoseCreatorStore((state) => Boolean(state.clipInlineEdit));
   const labelFor = (alias: string) => {
     const dependency = workspace.document.dependencies.find(
       (item) => item.alias === alias,
@@ -44,7 +52,10 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
         workspace.document.intent === "reaction"
           ? "Expression"
           : labelFor(frame.pose),
-      kind: "Keyframe",
+      remove: () => {
+        selectKeyframe(frame.id);
+        deleteKeyframe();
+      },
       selected: draft.selectedKeyframeId === frame.id,
       select: () => selectKeyframe(frame.id),
     })),
@@ -58,12 +69,10 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
             ? event.cueId
             : event.effectId,
       ),
-      kind: {
-        avatar_vfx: "Avatar FX",
-        scene_vfx: "Scene FX",
-        particle_vfx: "Particle FX",
-        sfx: "SFX",
-      }[event.kind],
+      remove: () => {
+        selectEvent(event.id);
+        deleteEvent();
+      },
       selected: draft.selectedEventId === event.id,
       select: () => selectEvent(event.id),
     })),
@@ -77,7 +86,13 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
       <h2 className="mb-3 text-sm font-semibold">Timeline</h2>
       <ol className="min-h-0 space-y-1 overflow-y-auto">
         {items.map((item) => (
-          <li key={item.id}>
+          <li
+            key={item.id}
+            className={cn(
+              "hover:bg-accent flex items-center rounded-lg",
+              item.selected && "bg-accent",
+            )}
+          >
             <button
               type="button"
               aria-pressed={item.selected}
@@ -85,12 +100,9 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
                 item.select();
                 onSelect?.();
               }}
-              className={cn(
-                "hover:bg-accent focus-visible:ring-ring flex w-full items-start gap-2 rounded-lg p-2 text-left focus-visible:ring-2",
-                item.selected && "bg-accent",
-              )}
+              className="focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left focus-visible:ring-2"
             >
-              <span className="text-muted-foreground mt-0.5 text-[10px] tabular-nums">
+              <span className="text-muted-foreground shrink-0 text-[10px] tabular-nums">
                 {item.time.toFixed(2)}s
               </span>
               <span className="min-w-0">
@@ -100,10 +112,17 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
                 >
                   {item.label}
                 </span>
-                <span className="text-muted-foreground text-[10px]">
-                  {item.kind}
-                </span>
               </span>
+            </button>
+            <button
+              type="button"
+              disabled={editing}
+              onClick={item.remove}
+              aria-label={`Delete ${item.label} at ${item.time.toFixed(2)}s`}
+              title="Delete timeline item"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mr-1 flex size-7 shrink-0 items-center justify-center rounded-md focus-visible:ring-2 disabled:opacity-50"
+            >
+              <Trash2Icon className="size-3.5" />
             </button>
           </li>
         ))}

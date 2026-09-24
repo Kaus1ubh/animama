@@ -43,7 +43,10 @@ it("lists individual events and keyframes in chronological order with selection"
   const html = renderToString(<ActionEventList />).replace(/<!--.*?-->/g, "");
   expect(html.indexOf("0.00s")).toBeLessThan(html.indexOf("0.50s"));
   expect(html.indexOf("0.50s")).toBeLessThan(html.indexOf("1.00s"));
-  expect(html.match(/<li>/g)).toHaveLength(3);
+  expect(html.match(/<li /g)).toHaveLength(3);
   expect(html).toContain('aria-pressed="true"');
   expect(html).toContain("Expression");
+  expect(html).not.toContain(">Keyframe<");
+  expect(html).not.toContain("Avatar FX");
+  expect(html).toContain('aria-label="Delete Expression at 0.50s"');
 });
