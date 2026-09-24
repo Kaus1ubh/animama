@@ -67,6 +67,20 @@ beforeEach(() => {
 });
 
 describe("Bone browser and live rotation controls", () => {
+  it.each(["workspace", "mobile"] as const)(
+    "renders the optional hand tool in %s without enabling it for other callers",
+    (variant) => {
+      const toggle = <button>Hand test toggle</button>;
+      expect(
+        renderToString(
+          <PoseCreatorBoneSection variant={variant} handToggle={toggle} />,
+        ),
+      ).toContain("Hand test toggle");
+      expect(
+        renderToString(<PoseCreatorBoneSection variant={variant} />),
+      ).not.toContain("Hand test toggle");
+    },
+  );
   it("resets the latest bones even when the cached browser has not rendered again", () => {
     usePoseCreatorStore.getState().setBoneDraft("head", {
       baseQuaternion: [0, 0, 0, 1],

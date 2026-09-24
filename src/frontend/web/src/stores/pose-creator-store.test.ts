@@ -1231,3 +1231,38 @@ describe("durable pose copy boundaries", () => {
     );
   });
 });
+
+describe("atomic bone draft batches", () => {
+  beforeEach(() => usePoseCreatorStore.getState().resetWorkspace());
+  it("writes multiple bones in one undo entry and rejects an invalid batch entirely", () => {
+    const store = usePoseCreatorStore.getState();
+    const draft = {
+      baseQuaternion: [0, 0, 0, 1] as [number, number, number, number],
+      rotationDegrees: { x: 0, y: 0, z: 30 },
+    };
+    expect(
+      store.setBoneDraftBatch({
+        leftIndexProximal: draft,
+        rightIndexProximal: draft,
+      }),
+    ).toBe(true);
+    expect(usePoseCreatorStore.getState().poseUndoHistory).toHaveLength(1);
+    const before = usePoseCreatorStore.getState();
+    expect(
+      store.setBoneDraftBatch({
+        leftIndexProximal: null,
+        rightIndexProximal: {
+          ...draft,
+          rotationDegrees: { x: NaN, y: 0, z: 0 },
+        },
+      }),
+    ).toBe(false);
+    expect(usePoseCreatorStore.getState()).toBe(before);
+    store.undoPose();
+    expect(usePoseCreatorStore.getState().boneDrafts).toEqual({});
+    store.redoPose();
+    expect(Object.keys(usePoseCreatorStore.getState().boneDrafts)).toHaveLength(
+      2,
+    );
+  });
+});

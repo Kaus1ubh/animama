@@ -12,7 +12,15 @@ import {
   SearchIcon,
   XIcon,
 } from "lucide-react";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { cn } from "@/lib/utils";
 import type {
@@ -294,11 +302,14 @@ export function PoseCreatorBoneSection({
   variant = "panel",
   onCollapse,
   browserExpanded = true,
+  handToggle,
 }: {
   variant?: "panel" | "workspace" | "mobile";
   onCollapse?: () => void;
   /** Keep the authoring controls mounted while compacting the bone browser. */
   browserExpanded?: boolean;
+  /** Supplied only by Gesture Pose mode; other shared editors keep their tools. */
+  handToggle?: ReactNode;
 }) {
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
   const basePose = usePoseCreatorStore((state) => state.basePose);
@@ -640,6 +651,7 @@ export function PoseCreatorBoneSection({
             checked={boneHelperNodesVisible}
             onCheckedChange={setBoneHelperNodesVisible}
           />
+          {handToggle}
         </div>
         {filteredBoneTree.length > 0 ? (
           <BoneTree
@@ -672,6 +684,7 @@ export function PoseCreatorBoneSection({
     handleToggleBone,
     hasDraftedBones,
     hasSelectedRow,
+    handToggle,
     onCollapse,
     searchExpandedBoneNames,
     selectedBone,
@@ -700,6 +713,15 @@ export function PoseCreatorBoneSection({
                 : "absolute top-4 right-4 w-[248px] rounded-2xl shadow-xl shadow-black/8 xl:right-8 xl:w-[296px] 2xl:w-[308px]",
             )}
           >
+            {variant === "mobile" && handToggle ? (
+              <div className="mb-3 flex justify-end gap-2">
+                <PoseCreatorHelpersToggle
+                  checked={boneHelperNodesVisible}
+                  onCheckedChange={setBoneHelperNodesVisible}
+                />
+                {handToggle}
+              </div>
+            ) : null}
             <div
               className={cn(
                 "flex items-start justify-between gap-3",

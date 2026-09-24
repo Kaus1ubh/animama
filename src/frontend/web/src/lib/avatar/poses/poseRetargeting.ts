@@ -1,4 +1,5 @@
 import type { VRM, VRMPose, VRMPoseTransform } from "@pixiv/three-vrm";
+import { Quaternion } from "three";
 
 import {
   cloneVRMPoseTransform,
@@ -11,6 +12,22 @@ type QuaternionTuple = NonNullable<VRMPoseTransform["rotation"]>;
 
 export function isVrm0(vrm: VRM | null | undefined): boolean {
   return vrm?.meta?.metaVersion === "0";
+}
+
+/**
+ * Convert between canonical authored rotations and a model's normalized basis.
+ * The VRM0 conjugation is its own inverse; use at both read and write boundaries,
+ * never on serialized drafts (which remain canonical).
+ */
+export function convertPoseQuaternionBasis(
+  vrm: VRM | null | undefined,
+  rotation: Quaternion,
+): Quaternion {
+  return isVrm0(vrm)
+    ? new Quaternion(
+        ...retargetVrm1AuthoredQuaternionToVrm0(rotation.toArray()),
+      )
+    : rotation.clone();
 }
 
 export function retargetPoseForVrm0(pose: AnimaPose): AnimaPose {

@@ -1,8 +1,9 @@
 "use client";
 
-import type { VRMHumanBoneName } from "@pixiv/three-vrm";
-import { Euler, MathUtils } from "three";
+import { VRMHumanBoneList, type VRMHumanBoneName } from "@pixiv/three-vrm";
+import { Euler, MathUtils, Quaternion } from "three";
 import { create } from "zustand";
+import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
 
 import {
   parseAnimaPoseClip,
@@ -287,6 +288,8 @@ type PoseCreatorStoreState = {
   inlinePoseUndoHistory: PoseCreatorInlinePoseUndoSnapshot[];
   inlinePoseRedoHistory: PoseCreatorInlinePoseUndoSnapshot[];
   undoGroup: PoseCreatorUndoGroup | null;
+  /** Synchronous notification lets live tools finish before history navigation. */
+  historyRequestRevision: number;
   setAuthoringMode: (mode: PoseCreatorAuthoringMode) => void;
   beginPoseUndoGroup: () => void;
   endPoseUndoGroup: () => void;
@@ -404,6 +407,9 @@ type PoseCreatorStoreState = {
   focusBone: (boneName: string) => void;
   setBoneHelperNodesVisible: (visible: boolean) => void;
   setMirrorOppositeBone: (enabled: boolean) => void;
+  setBoneDraftBatch: (
+    updates: Record<string, PoseCreatorBoneDraft | null>,
+  ) => boolean;
   setBoneDraft: (boneName: string, draft: PoseCreatorBoneDraft) => void;
   removeBoneDraft: (boneName: string) => void;
   clearBoneDrafts: () => void;
@@ -650,17 +656,27 @@ function reapplyPoseUndoSnapshotToAvatar(
   for (const [boneName, draft] of Object.entries(state.boneDrafts)) {
     vrm.humanoid
       .getNormalizedBoneNode(boneName as VRMHumanBoneName)
-      ?.quaternion.fromArray(draft.baseQuaternion);
+      ?.quaternion.copy(
+        convertPoseQuaternionBasis(
+          vrm,
+          new Quaternion(...draft.baseQuaternion),
+        ),
+      );
   }
   for (const [boneName, draft] of Object.entries(snapshot.boneDrafts)) {
     vrm.humanoid
       .getNormalizedBoneNode(boneName as VRMHumanBoneName)
-      ?.quaternion.setFromEuler(
-        new Euler(
-          MathUtils.degToRad(draft.rotationDegrees.x),
-          MathUtils.degToRad(draft.rotationDegrees.y),
-          MathUtils.degToRad(draft.rotationDegrees.z),
-          "XYZ",
+      ?.quaternion.copy(
+        convertPoseQuaternionBasis(
+          vrm,
+          new Quaternion().setFromEuler(
+            new Euler(
+              MathUtils.degToRad(draft.rotationDegrees.x),
+              MathUtils.degToRad(draft.rotationDegrees.y),
+              MathUtils.degToRad(draft.rotationDegrees.z),
+              "XYZ",
+            ),
+          ),
         ),
       );
   }
@@ -1354,6 +1370,7 @@ function duplicateSelectedClipPoseAliasForEdit(
 export const usePoseCreatorStore = create<PoseCreatorStoreState>(
   (set, get) => ({
     ...resetTransientStateForSource(null),
+    historyRequestRevision: 0,
     authoringMode: "pose",
     basePose: DEFAULT_POSE_CREATOR_BASE_POSE,
     boneHelperNodesVisible: true,
@@ -1399,7 +1416,7 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         return {
           undoGroup: null,
           ...(arePoseUndoSnapshotsEqual(group.snapshot, current)
-            ? {}
+            ? { isDirty: group.snapshot.isDirty }
             : {
                 poseUndoHistory: appendUndoSnapshot(
                   state.poseUndoHistory,
@@ -1448,7 +1465,14 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
           return {
             undoGroup: null,
             ...(areInlinePoseUndoSnapshotsEqual(group.snapshot, current)
-              ? {}
+              ? {
+                  clipInlineEdit: state.clipInlineEdit
+                    ? {
+                        ...state.clipInlineEdit,
+                        isDirty: group.snapshot.isDirty,
+                      }
+                    : null,
+                }
               : {
                   inlinePoseUndoHistory: appendUndoSnapshot(
                     state.inlinePoseUndoHistory,
@@ -1473,6 +1497,9 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
         };
       }),
     undoPose: () => {
+      set((state) => ({
+        historyRequestRevision: state.historyRequestRevision + 1,
+      }));
       const state = get();
       if (state.undoGroup || state.poseUndoHistory.length === 0) return;
       const snapshot = state.poseUndoHistory.at(-1)!;
@@ -1491,6 +1518,9 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
       });
     },
     redoPose: () => {
+      set((state) => ({
+        historyRequestRevision: state.historyRequestRevision + 1,
+      }));
       const state = get();
       if (state.undoGroup || state.poseRedoHistory.length === 0) return;
       const snapshot = state.poseRedoHistory.at(-1)!;
@@ -1509,6 +1539,9 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
       });
     },
     undoClip: () => {
+      set((state) => ({
+        historyRequestRevision: state.historyRequestRevision + 1,
+      }));
       const state = get();
       if (state.undoGroup) return;
       if (state.clipInlineEdit) {
@@ -1549,6 +1582,9 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
       });
     },
     redoClip: () => {
+      set((state) => ({
+        historyRequestRevision: state.historyRequestRevision + 1,
+      }));
       const state = get();
       if (state.undoGroup) return;
       if (state.clipInlineEdit) {
@@ -2868,6 +2904,54 @@ export const usePoseCreatorStore = create<PoseCreatorStoreState>(
     setBoneHelperNodesVisible: (boneHelperNodesVisible) =>
       set({ boneHelperNodesVisible }),
     setMirrorOppositeBone: (mirrorOppositeBone) => set({ mirrorOppositeBone }),
+    /** Validate the whole operation before publishing one draft/history transition. */
+    setBoneDraftBatch: (updates) => {
+      for (const [name, draft] of Object.entries(updates)) {
+        if (!(VRMHumanBoneList as string[]).includes(name)) return false;
+        if (!draft) continue;
+        if (
+          draft.baseQuaternion.length !== 4 ||
+          !draft.baseQuaternion.every(Number.isFinite) ||
+          draft.baseQuaternion.reduce((sum, value) => sum + value * value, 0) <
+            1e-12 ||
+          ![
+            draft.rotationDegrees.x,
+            draft.rotationDegrees.y,
+            draft.rotationDegrees.z,
+          ].every(Number.isFinite) ||
+          (draft.position &&
+            (draft.position.length !== 3 ||
+              !draft.position.every(Number.isFinite)))
+        )
+          return false;
+      }
+      set((state) => {
+        const boneDrafts = { ...state.boneDrafts };
+        for (const [name, draft] of Object.entries(updates)) {
+          if (draft)
+            boneDrafts[name] = clonePoseCreatorBoneDrafts({ [name]: draft })[
+              name
+            ];
+          else delete boneDrafts[name];
+        }
+        if (JSON.stringify(boneDrafts) === JSON.stringify(state.boneDrafts))
+          return state;
+        return {
+          ...recordPoseDraftUndo(state, boneDrafts, state.expressionDrafts),
+          boneDrafts,
+          clipInlineEdit: markClipInlineEditDirty(state.clipInlineEdit),
+          clipPlaybackPlaying: false,
+          isDirty: state.clipInlineEdit
+            ? state.isDirty
+            : getDirtyStateAfterDraftMutation(
+                state,
+                boneDrafts,
+                state.expressionDrafts,
+              ),
+        };
+      });
+      return true;
+    },
     setBoneDraft: (boneName, draft) =>
       set((state) => {
         const boneDrafts = {
