@@ -90,7 +90,10 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 5. Bundles Electron main/preload with esbuild and copies only the native input
    hook's runtime closure. No other JavaScript package may resolve from a
    developer's `node_modules` at runtime.
-6. Produces normalized file inventories, license notices, pack inputs, app-matched
+6. Bootstraps a disposable database in a temporary directory with the staged
+   PostgreSQL and frozen backend, then records its normalized schema digest as
+   the manifest's `database_schema_sha256`. The directory is removed afterwards.
+7. Produces normalized file inventories, license notices, pack inputs, app-matched
    catalog entries for approved inputs, a non-secret `update-policy.json`, and exact
    byte reports. The compressed feasibility archive is **not** a signed DMG or
    update ZIP. Their overhead is measured by the signed-release producer.
