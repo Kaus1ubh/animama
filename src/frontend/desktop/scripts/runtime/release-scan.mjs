@@ -23,6 +23,7 @@ import { pipeline } from "node:stream/promises";
 import { createZstdDecompress } from "node:zlib";
 import { extractAll } from "@electron/asar";
 import {
+  assertPrivatePythonInstallDir,
   buildPython,
   pythonEnvironment,
   readJson,
@@ -248,6 +249,14 @@ async function expandArchive(kind, file, into, work) {
       throw new ScanError(
         "A PyInstaller archive needs the staged build interpreter; run desktop:runtime:stage first",
       );
+    // The scan runs that interpreter; refuse one another account could have planted.
+    try {
+      assertPrivatePythonInstallDir();
+    } catch {
+      throw new ScanError(
+        "The staged build interpreter's directory is not private to this user; fix it before scanning",
+      );
+    }
     tool(
       work,
       buildPython(),

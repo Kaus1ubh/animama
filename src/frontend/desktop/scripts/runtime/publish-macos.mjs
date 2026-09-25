@@ -1,24 +1,20 @@
-import { createReadStream, copyFileSync, lstatSync } from "node:fs";
+import { copyFileSync } from "node:fs";
 import path from "node:path";
 import { desktopRoot, readJson, sha256, writeJson } from "./common.mjs";
-import {
-  isPublicReleaseRepository,
-  loadReleasePolicy,
-} from "./release-policy.mjs";
+import { loadReleasePolicy } from "./release-policy.mjs";
 import {
   candidateDistribution,
   verifyArtifactIndex,
   writeArtifactIndex,
   previewAssets,
-  mayResumeRelease,
 } from "./release-artifacts.mjs";
+import { PublicationError, verifyScanReceipt } from "./publication.mjs";
+import { preflightGithub, publishGithub } from "./publish-github.mjs";
+import { preflightR2, publishR2, r2Credentials } from "./publish-r2.mjs";
 import {
   acceptsRequiredNameSmoke,
   validateManualAcceptance,
 } from "./smoke-policy.mjs";
-
-/** Only deliberately bounded messages may reach CI logs. */
-class PublicationError extends Error {}
 
 /** Promotion is a separate, explicitly authorized operation; builds never upload themselves. */
 async function publish() {
@@ -46,19 +42,15 @@ async function publish() {
     throw new PublicationError(
       "The candidate was built for a different distribution than ANIMAMA_RELEASE_DISTRIBUTION selects, or records none; publish with the selection used to build it",
     );
-  if (built.kind !== "github")
-    throw new PublicationError(
-      "This candidate targets R2, and R2 publication is not available yet; only GitHub-distribution candidates can be published",
-    );
-  // Run before preparing promotion reports, reading a token or mutating GitHub.
-  // A local candidate build deliberately performs no repository-visibility check.
-  if (!(await isPublicReleaseRepository(release.distribution)))
-    throw new PublicationError(
-      "Publication requires an anonymously readable public release repository",
-    );
+  // Anonymous checks run before preparing promotion reports or reading
+  // credentials. A local candidate build deliberately contacts neither host.
+  if (built.kind === "r2")
+    await preflightR2({ distribution: built, version: release.version });
+  else await preflightGithub(release.distribution);
   const index = verifyArtifactIndex(directory);
   if (index.app_version !== release.version)
     throw new PublicationError("Release version mismatch");
+  verifyScanReceipt(directory, index.files);
   const dmg = `Animama-${release.version}-arm64.dmg`;
   const dmgSha256 = sha256(path.join(directory, dmg));
   const receipt = preview
@@ -100,58 +92,6 @@ async function publish() {
         smoke_verified: true,
         manual_verified: true,
       });
-  const token = process.env.ANIMAMA_RELEASE_TOKEN;
-  if (!token)
-    throw new PublicationError(
-      "A scoped release-repository token is required for publication; it is never packaged",
-    );
-  const repo = `${release.distribution.owner}/${release.distribution.repo}`;
-  const api = async (suffix, method = "GET", body) => {
-    const response = await fetch(
-      `https://api.github.com/repos/${repo}${suffix}`,
-      {
-        method,
-        redirect: "error",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2026-03-10",
-          ...(body ? { "Content-Type": "application/json" } : {}),
-        },
-        body: body ? JSON.stringify(body) : undefined,
-        signal: AbortSignal.timeout(30_000),
-      },
-    );
-    if (response.status === 404 && method === "GET") return null;
-    if (!response.ok)
-      throw new PublicationError(
-        `GitHub release operation failed (${response.status}); inspect the draft or preview without replacing existing assets`,
-      );
-    return response.json();
-  };
-  const repository = await api("");
-  if (!repository || repository.private !== false)
-    throw new PublicationError(
-      "Public anonymous installer/update downloads are required",
-    );
-  let remote = await api(`/releases/tags/v${release.version}`);
-  if (remote && !mayResumeRelease(remote, release.version))
-    throw new PublicationError(
-      "Only this version's draft or testing prerelease may advance. Never replace a stable release; use a new version",
-    );
-  remote ??= await api("/releases", "POST", {
-    tag_name: `v${release.version}`,
-    name: `Animama ${release.version}`,
-    draft: true,
-    prerelease: preview,
-    body: releaseBody,
-  });
-  if (!mayResumeRelease(remote, release.version))
-    throw new PublicationError("Invalid GitHub release response");
-  // Resume only byte-identical assets in the same draft/preview. Never delete or overwrite one.
-  const existing = await api(`/releases/${remote.id}/assets?per_page=100`);
-  if (!Array.isArray(existing) || existing.length > 64)
-    throw new PublicationError("Unexpected release assets");
   const files = preview
     ? previewAssets(final)
     : [
@@ -161,66 +101,29 @@ async function publish() {
           sha256: sha256(path.join(directory, name)),
         })),
       ];
-  if (existing.some((asset) => !files.some((file) => file.name === asset.name)))
-    throw new PublicationError(
-      "Release contains unexpected assets; review it manually",
-    );
-  for (const file of files) {
-    const found = existing.find((asset) => asset.name === file.name);
-    if (found) {
-      if (
-        found.state !== "uploaded" ||
-        found.digest !== `sha256:${file.sha256}`
-      )
-        throw new PublicationError(
-          "Existing release asset differs or is incomplete; review it manually before retrying",
-        );
-      continue;
-    }
-    const response = await fetch(
-      `https://uploads.github.com/repos/${repo}/releases/${remote.id}/assets?name=${encodeURIComponent(file.name)}`,
-      {
-        method: "POST",
-        redirect: "error",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/octet-stream",
-          "Content-Length": String(
-            lstatSync(path.join(directory, file.name)).size,
-          ),
-          "X-GitHub-Api-Version": "2026-03-10",
-        },
-        body: createReadStream(path.join(directory, file.name)),
-        duplex: "half",
-        signal: AbortSignal.timeout(20 * 60_000),
-      },
-    );
-    if (
-      !response.ok ||
-      (await response.json()).digest !== `sha256:${file.sha256}`
-    )
-      throw new PublicationError(
-        "Release asset upload was not verified; stable promotion did not occur",
-      );
-  }
-  const published = await api(`/releases/${remote.id}`, "PATCH", {
-    draft: false,
-    prerelease: preview,
-    make_latest: preview ? "false" : "true",
-    body: releaseBody,
-  });
-  if (
-    published.draft !== false ||
-    published.prerelease !== preview ||
-    published.tag_name !== `v${release.version}`
-  )
-    throw new PublicationError(
-      "Publication outcome is uncertain. Inspect this release before retrying",
-    );
+  if (built.kind === "r2")
+    await publishR2({
+      distribution: built,
+      bucket: release.distribution.bucket,
+      version: release.version,
+      directory,
+      files,
+      preview,
+      credentials: r2Credentials(),
+    });
+  else
+    await publishGithub({
+      distribution: release.distribution,
+      version: release.version,
+      directory,
+      files,
+      preview,
+      releaseBody,
+    });
   console.log(
     preview
       ? `Published Animama ${release.version} for testing only. Stable feed and promotion remain gated on native acceptance.`
-      : `Published verified Animama ${release.version} to the configured public release repository.`,
+      : `Published verified Animama ${release.version} to the configured ${built.kind === "r2" ? "R2 distribution" : "public release repository"}.`,
   );
 }
 

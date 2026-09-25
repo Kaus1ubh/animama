@@ -76,17 +76,18 @@ token or upload assets. A local signed build does not approve public
 distribution; notarization still submits binaries to Apple. Neither path infers
 a destination from the source remote or embeds a token in the app.
 
-The publisher currently supports only GitHub-distribution candidates and refuses
-R2 candidates. For GitHub, preview/stable publication checks anonymous public
-repository access before preparing promotion reports or making authenticated
-API calls, then rechecks visibility through the authenticated API before
-uploading. The destinations supply pinned future URLs, not a private download
+The publisher uses the candidate's recorded distribution. Before preparing
+promotion reports or reading credentials, it checks the destination anonymously:
+for GitHub, public repository access (rechecked through the authenticated API
+before uploading); for R2, that the custom domain answers and the public feed
+does not already name this or a newer version. If the feed already names this
+version, the release is complete; verify it instead of publishing again. The destinations supply pinned future URLs, not a private download
 feed. `feature-pack-releases.json` records pack policy and exact inventory
 receipts; `release-policy.json` records the core inventory receipt. A source or
 notice change requires fresh matching review rather than reuse of an older hash.
 
-The manual GitHub publisher uses the GitHub Releases API without a local distribution
-checkout. Release assets are uploaded separately from source commits. Neither
+Both publishers work without a local distribution checkout: GitHub through the
+Releases API, R2 through its S3 API with a bucket-scoped token. Release assets are uploaded separately from source commits. Neither
 source commits nor candidate builds publish a release. The checked-in workflow
 is manually dispatched, with publishing disabled by default and separate gates.
 Changing the eventual source/history or distribution arrangement requires an
@@ -347,12 +348,12 @@ The standalone commands are the manual mechanism; credentials and authorization
 for public distribution remain separate. Do not change visibility or billing,
 or create unprotected environments, to bypass an approval gate.
 
-| Environment                 | Secrets and purpose                                                                                                                                                                       |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `desktop-macos-signing`     | `ANIMAMA_MACOS_CERTIFICATE_BASE64` (P12), `ANIMAMA_MACOS_CERTIFICATE_PASSWORD`, `ANIMAMA_APPLE_ID`, `ANIMAMA_APPLE_APP_PASSWORD`                                                          |
-| `desktop-macos-smoke`       | `ANIMAMA_SMOKE_OPENAI_KEY` for the explicitly requested real API smoke                                                                                                                    |
-| `desktop-macos-preview`     | Scoped `ANIMAMA_RELEASE_TOKEN`; require separate approval to expose test binaries/packs publicly, without a stable feed                                                                   |
-| `desktop-macos-publication` | Scoped `ANIMAMA_RELEASE_TOKEN` for the public distribution repo and exact human `ANIMAMA_MACOS_ACCEPTANCE` JSON; require separate `raymond-van` approval under the sole-maintainer policy |
+| Environment                 | Secrets and purpose                                                                                                                                                                                                          |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `desktop-macos-signing`     | `ANIMAMA_MACOS_CERTIFICATE_BASE64` (P12), `ANIMAMA_MACOS_CERTIFICATE_PASSWORD`, `ANIMAMA_APPLE_ID`, `ANIMAMA_APPLE_APP_PASSWORD`                                                                                             |
+| `desktop-macos-smoke`       | `ANIMAMA_SMOKE_OPENAI_KEY` for the explicitly requested real API smoke                                                                                                                                                       |
+| `desktop-macos-preview`     | Scoped `ANIMAMA_RELEASE_TOKEN` (GitHub) or `ANIMAMA_R2_ACCOUNT_ID`, `ANIMAMA_R2_ACCESS_KEY_ID`, `ANIMAMA_R2_SECRET_ACCESS_KEY` (R2); require separate approval to expose test binaries/packs publicly, without a stable feed |
+| `desktop-macos-publication` | The same distribution credentials and the exact human `ANIMAMA_MACOS_ACCEPTANCE` JSON; require separate `raymond-van` approval under the sole-maintainer policy                                                              |
 
 The signing helper creates a temporary CI Keychain, imports credentials without
 printing them, stores the notary profile, and restores/deletes its Keychain in an
@@ -375,8 +376,14 @@ review its private Actions artifact, then update the release workflow to import
 that exact approved run before marking the pack active. Never reuse a helper by
 filename or rebuild it after its inventory approval.
 
-The standalone publisher requires all candidate/smoke directories above, the
-scoped token and an explicit command for the requested stage. Preview requires
+The `distribution` workflow input (default `r2`) sets
+`ANIMAMA_RELEASE_DISTRIBUTION` for every job. The workflow does not yet run the
+release scan, so its publish jobs refuse candidates until a reviewed scan
+receipt is part of the CI candidate.
+
+The standalone publisher requires all candidate/smoke directories above, a
+passing `release-scan.json` covering every candidate file, the selected
+distribution's credentials and an explicit command for the requested stage. Preview requires
 the passing required-name setup smoke and explicit public-distribution approval; it does not
 manufacture native acceptance:
 
@@ -390,14 +397,36 @@ After manual acceptance, supply its JSON and promote the same bytes:
 node desktop/scripts/runtime/publish-macos.mjs --confirm-publication
 ```
 
-It verifies local checksums, smoke hashes and manual acceptance, creates/resumes
-only a draft or testing prerelease of the exact version, uploads a fixed artifact
-list, and verifies GitHub's asset digests before promotion. Stable publication
-adds the feed, checksum index and acceptance reports without replacing preview
-payloads. Interrupted uploads leave a draft or preview without stable promotion.
-Retry accepts only byte-identical completed assets; conflicts need inspection.
-An already stable release is never replaced. If promotion's result is uncertain,
-inspect the remote state before retrying. Use a new version for corrections.
+It verifies local checksums, smoke hashes, manual acceptance and scan coverage,
+then uploads a fixed artifact list:
+
+- **GitHub:** creates or resumes only a draft or testing prerelease of the exact
+  version and verifies GitHub's asset digests before promotion.
+- **R2:** uploads each file create-only (`If-None-Match: *`) to
+  `<base>/v<version>/<name>`, signed with its SHA-256 so R2 rejects altered
+  bytes, with `Cache-Control: public, max-age=31536000, immutable`. It then
+  downloads every object through the public domain and compares SHA-256. A
+  preview stops there. Stable promotion rechecks the feed and writes
+  `<base>/latest-mac.yml` last (`Cache-Control: no-cache`), then reads it back.
+
+Stable publication adds the feed, checksum index and acceptance reports without
+replacing preview payloads. Interrupted uploads leave the previous stable feed in
+place. Retry accepts only byte-identical existing objects; a differing object
+stops publication for inspection. An already stable release is never replaced. If
+promotion's result is uncertain, inspect the remote state before retrying. Use a
+new version for corrections.
+
+### R2 operator setup
+
+- Connect the custom domain `downloads.animama.ai` to the `animama-releases`
+  bucket and keep the `r2.dev` public URL disabled.
+- Add a bucket lock rule with indefinite retention on the prefix `desktop/v`, so
+  published versions cannot be deleted or overwritten. The feed
+  `desktop/latest-mac.yml` stays outside the rule.
+- Create an R2 API token with **Object Read & Write** on `animama-releases` only.
+  Pass its account ID, access key ID and secret as `ANIMAMA_R2_ACCOUNT_ID`,
+  `ANIMAMA_R2_ACCESS_KEY_ID` and `ANIMAMA_R2_SECRET_ACCESS_KEY` for the publish
+  command only; never commit, print or package them.
 
 The canonical generated evidence is the fixed set in `desktop/release/publish`,
 with `SHA256SUMS.txt` and `signing-report.json`. See the [evidence map](release-process.md#evidence-and-actual-artifact-names)
