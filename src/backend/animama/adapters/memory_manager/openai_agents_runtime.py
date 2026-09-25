@@ -71,7 +71,6 @@ class OpenAIAgentsMemoryManagerRuntime:
         self._memory_entries = memory_entries
         self._memory_episodes = memory_episodes
         self._animas = animas
-        self._user_memory_reads = UserMemoryReadToolService(memory_entries=memory_entries)
         self._api_key = (api_key or "").strip()
         self._base_url = (base_url or "").strip().rstrip("/") or None
         self._model = model.strip() or "gpt-5.4-mini"
@@ -88,7 +87,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         """Run the live memory manager for a new user message."""
 
         self._require_api_key()
-        workspace = MemoryManagerVirtualWorkspace(user_id=self._user_id, memory_entries=self._memory_entries)
+        workspace = self._workspace_for_run(run)
         client = self._client()
         try:
             agent, run_config = await self._build_agent(
@@ -148,7 +147,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             )
 
         self._require_api_key()
-        workspace = MemoryManagerVirtualWorkspace(user_id=self._user_id, memory_entries=self._memory_entries)
+        workspace = self._workspace_for_run(run)
         client = self._client()
         try:
             editor = _committed_approval_patch_editor(approval=approval if decision == "approve" else None)
@@ -211,6 +210,13 @@ class OpenAIAgentsMemoryManagerRuntime:
         finally:
             await client.close()
 
+    def _workspace_for_run(self, run: MemoryManagerRun) -> MemoryManagerVirtualWorkspace:
+        return MemoryManagerVirtualWorkspace(
+            user_id=self._user_id,
+            memory_entries=self._memory_entries,
+            allow_anima_identities=_allows_anima_identities(run),
+        )
+
     def _require_api_key(self) -> None:
         if not self._api_key:
             raise MemoryManagerRuntimeConfigurationError("OPENAI_API_KEY is required for the memory manager")
@@ -234,19 +240,23 @@ class OpenAIAgentsMemoryManagerRuntime:
     ) -> tuple[Agent[Any], RunConfig]:
         from agents import Agent, ApplyPatchTool, ModelSettings, OpenAIResponsesModel, RunConfig, function_tool
 
-        memory_map = await self._user_memory_reads.render_memory_map(user_id=self._user_id)
+        user_memory_reads = UserMemoryReadToolService(
+            memory_entries=self._memory_entries,
+            include_anima_identities=_allows_anima_identities(run),
+        )
+        memory_map = await user_memory_reads.render_memory_map(user_id=self._user_id)
 
         @function_tool(name_override=MEMORY_TOOL_LIST_FILES)
         async def memory_list_files() -> dict[str, Any]:
             """List user memory files."""
 
-            return await self._user_memory_reads.list_files(user_id=self._user_id)
+            return await user_memory_reads.list_files(user_id=self._user_id)
 
         @function_tool(name_override=MEMORY_TOOL_READ_FILES)
         async def memory_read_files(paths: str | list[str]) -> dict[str, Any]:
             """Read patchable user memory documents by relative markdown path."""
 
-            return await self._user_memory_reads.read_files(
+            return await user_memory_reads.read_files(
                 user_id=self._user_id,
                 paths=paths,
                 native_patch_mode=True,
@@ -262,7 +272,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             Episode logs may optionally be excluded.
             """
 
-            return await self._user_memory_reads.search_files(
+            return await user_memory_reads.search_files(
                 user_id=self._user_id,
                 query=query,
                 include_episodic_memory=include_episodic_memory,
@@ -303,7 +313,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         return agent, run_config
 
     async def _instructions_for_run(self, *, run: MemoryManagerRun, memory_map: str) -> str:
-        general = _instructions(memory_map=memory_map)
+        general = _instructions(memory_map=memory_map, anima_identities=_allows_anima_identities(run))
         if run.kind != MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING:
             return general
         try:
@@ -505,7 +515,8 @@ def _committed_approval_patch_editor(*, approval: MemoryManagerApproval | None) 
                 return ApplyPatchResult(status="failed", output=f"Patch for `{operation.path}` was not approved.")
             metadata = dict(self._approval.operation_metadata or {})
             if (
-                operation.path == self._approval.target_path
+                # Stored paths compare case-insensitively; identity targets are canonicalized.
+                operation.path.casefold() == self._approval.target_path.casefold()
                 and operation.type == metadata.get("sdk_operation_type")
                 and operation.diff == metadata.get("v4a_diff")
             ):
@@ -529,7 +540,24 @@ def _context_for_run(run: MemoryManagerRun) -> dict[str, Any]:
     }
 
 
-def _instructions(*, memory_map: str) -> str:
+def _allows_anima_identities(run: MemoryManagerRun) -> bool:
+    """Only general runs may see or change Anima identities; episode processing may not."""
+
+    return run.kind != MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING
+
+
+_ANIMA_IDENTITY_INSTRUCTIONS = (
+    "Entries whose path is animas/<anima_id>/IDENTITY.md are each Anima's required identity; the map's "
+    "anima field names that Anima. Entries are in Anima creation order; when names repeat, the workspace "
+    "labels the second and later ones Name (2), Name (3), and so on. Read them when the user asks about an "
+    "Anima. Propose an update_file change "
+    "to an identity only when the user's request is about that Anima's identity or personality. Never create, "
+    "delete or empty an identity, and never add other files under animas/.\n"
+)
+
+
+def _instructions(*, memory_map: str, anima_identities: bool = False) -> str:
+    identity_guidance = _ANIMA_IDENTITY_INSTRUCTIONS if anima_identities else ""
     return (
         "You are Animama's user memory manager. Help the user maintain durable markdown memory files.\n"
         "You work only in the virtual user memory workspace. Do not ask for or assume shell access.\n"
@@ -553,6 +581,7 @@ def _instructions(*, memory_map: str) -> str:
         "When proposing a memory edit, use apply_patch with exactly one create_file or update_file operation. "
         "Never request delete_file. Only use relative POSIX paths ending in .md.\n"
         "The user must approve apply_patch changes before they become durable.\n"
+        f"{identity_guidance}"
         f"\n{memory_map}"
     )
 

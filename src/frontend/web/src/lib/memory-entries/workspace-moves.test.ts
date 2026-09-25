@@ -65,6 +65,20 @@ describe("memory workspace moves", () => {
     expect(canMoveMemoryEntry(entries[7]!)).toBe(false);
   });
 
+  it("rejects moves into a pre-existing reserved animas directory", () => {
+    const reserved = entry("reserved", "Animas", "directory");
+    expect(
+      validateMemoryMoveDestination({
+        source: entries[4]!,
+        destination: reserved,
+        entries: [...entries, reserved],
+      }),
+    ).toEqual({
+      valid: false,
+      reason: "The animas path is reserved for Anima identities.",
+    });
+  });
+
   it("collects a directory subtree from stable parent IDs", () => {
     expect(memoryEntrySubtree(entries, "notes").map((item) => item.id)).toEqual(
       ["notes", "project", "draft"],

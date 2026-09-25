@@ -18,6 +18,7 @@ import { MemoryMarkdownPreview } from "@/ui/memory/MemoryMarkdownPreview";
 /** Renders caller-provided draft or persisted Markdown in the shared preview. */
 export function MemoryWorkspacePreview({
   entry,
+  displayPath,
   value,
   description,
   isLoading,
@@ -27,6 +28,8 @@ export function MemoryWorkspacePreview({
   onOpenVersions,
 }: {
   entry: PyMemoryEntryResponse | null;
+  /** Owner-facing path, such as an identity's `Animas/<name>/IDENTITY.md`. */
+  displayPath?: string;
   value: string;
   description: string;
   isLoading: boolean;
@@ -77,9 +80,9 @@ export function MemoryWorkspacePreview({
           <div className="min-w-0">
             <h3
               className="text-foreground truncate text-sm font-semibold"
-              title={entry.path}
+              title={displayPath ?? entry.path}
             >
-              {entry.path}
+              {displayPath ?? entry.path}
             </h3>
             <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">
               {description || "No description"}

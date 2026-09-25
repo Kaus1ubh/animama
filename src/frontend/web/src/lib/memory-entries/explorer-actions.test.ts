@@ -38,6 +38,14 @@ describe("memory explorer row actions", () => {
     ]);
   });
 
+  it("lets a pre-existing reserved animas directory move out but not gain children", () => {
+    expect(
+      memoryExplorerRowActions(entry("animas", "directory")).map(
+        (action) => action.id,
+      ),
+    ).toEqual(["rename", "move", "delete"]);
+  });
+
   it("adds child creation actions to ordinary directories", () => {
     expect(
       memoryExplorerRowActions(entry("projects", "directory")).map(

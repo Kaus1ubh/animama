@@ -105,10 +105,14 @@ services can still refresh them when source-of-truth episode rows change.
 
 ## Memory Manager API
 
-The Memory Manager is a separate user-invoked workflow over user-scope memory.
-It proposes create/update patches for approval and keeps episode logs read-only.
-Approvals use optimistic versions; rejection leaves memory unchanged, and Undo
-is available only while the target still matches the approved version.
+The Memory Manager is a separate user-invoked workflow over user-scope memory
+and, in general runs, owned Anima identities. It proposes create/update patches
+for approval and keeps episode logs read-only. Approvals use optimistic
+versions; rejection leaves memory unchanged, and Undo is available only while
+the target still matches the approved version. Identity approvals, Auto approve
+and Undo use the trusted current-revision path described below, so an Anima
+rename does not block them; a deleted Anima's pending approval returns `409`
+and can still be rejected.
 
 The live runtime uses `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, and
 `ANIMAMA_MEMORY_MANAGER_AGENT_MODEL` (default `gpt-5.4-mini`). A nonempty
@@ -138,9 +142,10 @@ The request-local memory map is still injected into the prompt, and
 `memory_list_files` gives the model an explicit way to refresh that navigation
 context during a tool loop. Its output is a compact `files` array containing
 only user-scope paths and descriptions. Generated episode logs are omitted from
-this list. The same canonical navigation projection is injected into the normal
-Anima prompt and the Memory Manager prompt, so directories, episode logs, and
-anima identity files are absent from both surfaces.
+this list. The same navigation projection is injected into the normal Anima
+prompt, so directories, episode logs, and anima identity files are absent there;
+general Memory Manager runs additionally list identities (see
+[Memory Manager and episodic memory](memory-manager-and-episodic-memory.md)).
 
 When memory updates are enabled and the turn is not incognito, direct chat uses
 one write transport selected from the persisted model capability:
@@ -411,6 +416,10 @@ The backend exposes authenticated CRUD routes under `/v1/memory/entries`:
 - `DELETE /v1/memory/entries/{entry_id}?expected_version=N&recursive=false`:
   soft-delete one entry. Non-recursive directory deletes return `409 Conflict`
   when live children exist; `recursive=true` soft-deletes descendants too.
+- `GET /v1/memory/anima-identities`: list every owned Anima in creation order
+  with `display_name`, `aggregate_revision`, `identity_status` and its
+  content-free `IDENTITY.md` header, or `entry: null` when the identity needs
+  repair. The Memory workspace uses it for the virtual Animas directory.
 
 A move that supplies `parent_id` runs through `MemoryEntryService` in one unit
 of work. The moved row receives its new parent and cached path, and every live
@@ -432,6 +441,13 @@ create, patch, move/rename, metadata edit, and delete operations against
 `episodes/**` entries or entries with `kind = "episode_log"` return `403
 Forbidden`. Internal episodic-memory services pass a system-managed write flag
 when regenerating those files from `memory_episode_items`.
+
+User scope also reserves `animas` and `animas/**` (case-insensitively) for the
+Memory workspace's virtual Anima identity directory. Creating, moving or
+renaming a user entry to those paths returns `403 Forbidden`. An entry that
+already exists there stays readable and can be moved, renamed out or deleted,
+but content, description and Revert edits return `403` until it is moved.
+Anima-scoped paths are unaffected.
 
 All entry routes are scoped by the admitted installation request principal. When `anima_id` is non-null, the API
 validates that the anima belongs to that owner. Unit tests replace the FastAPI
@@ -458,8 +474,21 @@ The Anima-scoped root `IDENTITY.md` must be a file with kind `anima_identity`.
 New/edited identity is nonblank UTF-8 Markdown, rejects NUL, normalizes CRLF/CR
 to LF, and preserves other Markdown whitespace. Its byte limit is the smaller
 of 32 KiB and `ANIMAMA_MEMORY_FILE_MAX_BYTES`. Generic API paths cannot bypass
-these rules by changing kind, moving/renaming/deleting the file, or applying an
-AI Undo. Ordinary user memory retains its existing version-only behavior.
+these rules by changing kind or moving/renaming/deleting the file. Ordinary
+user memory retains its existing version-only behavior.
+
+Trusted internal service callers (Memory Manager approval and Undo) omit the
+aggregate revision by passing `use_current_aggregate_revision` to
+`MemoryEntryService`; the public API does not expose it. They lock the Anima at its current revision, so a
+concurrent rename does not invalidate an already-reviewed identity change,
+while the memory `expected_version` still rejects newer identity content. These
+writes keep the nonblank rule and record a definition revision like explicit edits.
+
+Deleting an Anima (`DELETE /v1/animas/{anima_id}`) permanently removes all of
+its Anima-scoped memory entries and their versions, including `IDENTITY.md`, in
+the same transaction as the Anima row. Memory Manager approvals and messages
+that quoted the identity remain as run history, so a pending proposal can still
+be rejected.
 A legacy directory obstructing the reserved path is not an identity file:
 the owner may explicitly move it, then create the missing identity with the
 current aggregate revision. Nothing moves or overwrites it automatically.

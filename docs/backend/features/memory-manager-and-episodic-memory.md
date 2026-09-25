@@ -128,7 +128,8 @@ The preview contains:
 
 - `operation`: `create`, `update`, or `delete` in the domain schema. Runtime
   validation rejects delete proposals.
-- `path`: target user-scope markdown path.
+- `path`: target user-scope markdown path, or `animas/<anima_id>/IDENTITY.md`
+  for an identity update in a general run.
 - `old_content` and `new_content`.
 - `old_description` and `new_description`, shown separately from body diffs.
 - `unified_diff`.
@@ -356,8 +357,8 @@ the raw user ID, manager run ID, messages, paths, or memory content in the key.
 
 The live runtime tools are:
 
-- `memory_list_files`: lists the same navigable path-and-description references
-  shown to normal Anima chat.
+- `memory_list_files`: lists the navigable path-and-description references shown
+  to normal Anima chat, plus owned identities in general runs.
 - `memory_read_files(paths)`: reads one path string or an ordered batch of up to
   10 user-scope markdown paths with partial success. Its `content` value is the
   native synthetic description-plus-body patch document in this runtime.
@@ -367,9 +368,19 @@ The live runtime tools are:
   result limit.
 - `apply_patch`: SDK patch tool requiring approval.
 
-The manager instructions end with the canonical `# List of memory files` map
-used by normal Anima chat. Each item contains only `path` and `description`.
-Directories, generated episode logs, and anima identity entries are not shown.
+The manager instructions end with the `# List of memory files` map used by
+normal Anima chat. Each item contains `path` and `description`. Directories and
+generated episode logs are not shown.
+
+General runs (not episode processing) also list each owned Anima's identity at
+`animas/<anima_id>/IDENTITY.md` with an extra `anima` name field, can read it
+through `memory_read_files`, and may propose `update_file` changes to it. The
+stable Anima ID keeps a proposal bound to that Anima across renames and
+duplicate names. Instructions limit identity edits to requests about that
+Anima. Identities cannot be created, deleted or blanked, and no other file may
+live under `animas/`. Search remains user-scope only. Episode-processing runs
+keep the user-only map and tools, and the service rejects any identity approval
+in such a run.
 Exact reads and search retain normal-chat parity, so a known episode path can be
 read and episode content can appear in search results.
 
@@ -411,7 +422,9 @@ When `ANIMAMA_LLM_SKIP=1`, the router uses
 no-model development.
 
 For ordinary ad hoc memory edits, it looks for a markdown path in the user
-message and creates a predictable approval preview. New general files receive a
+message and creates a predictable approval preview. In general runs that path
+may be `animas/<anima_id>/IDENTITY.md`, which appends a draft line to that
+identity; episode-processing runs reject identity paths. New general files receive a
 description derived from the path subject, while updates preserve an existing
 description. A newly created episodic-curation file is described as curated
 reviewed memory.
@@ -431,6 +444,7 @@ workspace built on `MemoryEntryService`.
 Readable paths:
 
 - user-scope markdown files;
+- owned Anima identities at `animas/<anima_id>/IDENTITY.md` in general runs;
 - generated episode logs by exact path;
 - searchable generated episode log content.
 
@@ -439,7 +453,8 @@ Rejected paths or operations:
 - absolute paths;
 - traversal paths such as `..`;
 - non-markdown paths;
-- `animas/**`;
+- `animas/**`, except updates to an existing `animas/<anima_id>/IDENTITY.md`
+  in general runs;
 - generated `episodes/**` paths for edits;
 - entries with `kind = "episode_log"` for edits;
 - delete operations;

@@ -1,21 +1,25 @@
 "use client";
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 import {
   getMemoryEntryByPathV1MemoryEntriesByPathGet,
   getMemoryEntryV1MemoryEntriesEntryIdGet,
   getMemoryEntryVersionV1MemoryEntriesEntryIdVersionsVersionGet,
+  listAnimaIdentitiesV1MemoryAnimaIdentitiesGet,
   listMemoryEntriesV1MemoryEntriesGet,
   listMemoryEntryVersionsV1MemoryEntriesEntryIdVersionsGet,
 } from "@animama/runtime-contracts/sdk";
 import type {
+  PyAnimaIdentityListResponse,
   PyMemoryEntryListResponse,
   PyMemoryEntryResponse,
   PyMemoryEntryVersionDetail,
   PyMemoryEntryVersionListResponse,
 } from "@/lib/content/catalogTypes";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { buildMemoryAnimaFolders } from "@/lib/memory-entries/anima-folders";
 import { queryKeys } from "@/query/keys";
 
 export type UseMemoryEntriesOptions = {
@@ -44,6 +48,34 @@ export function useMemoryEntries(opts?: UseMemoryEntriesOptions) {
           parent_id: opts?.parentId ?? undefined,
           recursive: opts?.recursive ?? false,
         },
+        responseValidator: undefined,
+        throwOnError: true,
+      });
+      return data;
+    },
+  });
+}
+
+/** Labels each owned Anima's identity folder for display. */
+export function useMemoryAnimaFolders() {
+  const identities = useAnimaIdentities();
+  return useMemo(
+    () => buildMemoryAnimaFolders(identities.data?.identities ?? []),
+    [identities.data],
+  );
+}
+
+/** Lists every owned Anima in creation order with its identity header. */
+export function useAnimaIdentities(opts?: { enabled?: boolean }) {
+  const userId = useRuntimeOwnerId();
+  const userKey = userId ?? "__anon__";
+  const enabled = (opts?.enabled ?? true) && Boolean(userId);
+
+  return useQuery<PyAnimaIdentityListResponse>({
+    queryKey: queryKeys.memoryEntries.animaIdentities(userKey),
+    enabled,
+    queryFn: async () => {
+      const { data } = await listAnimaIdentitiesV1MemoryAnimaIdentitiesGet({
         responseValidator: undefined,
         throwOnError: true,
       });
