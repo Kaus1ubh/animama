@@ -335,7 +335,9 @@ def _requested_paths(paths: object) -> tuple[list[str], dict[str, Any] | None]:
 def _normalize_read_path(path: str) -> tuple[str, str]:
     clean_path, normalized_path = normalize_memory_file_path(path)
     if is_reserved_user_memory_path(clean_path):
-        raise MemoryEntryValidationError("Memory tools may only access current user-root files")
+        raise MemoryEntryValidationError(
+            "Memory tools may only access current user-root files; animas/ is reserved for Anima identities"
+        )
     return clean_path, normalized_path
 
 

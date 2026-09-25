@@ -548,7 +548,9 @@ def _allows_anima_identities(run: MemoryManagerRun) -> bool:
 
 _ANIMA_IDENTITY_INSTRUCTIONS = (
     "Entries whose path is animas/<anima_id>/IDENTITY.md are each Anima's required identity; the map's "
-    "anima field names that Anima. Read them when the user asks about an Anima. Propose an update_file change "
+    "anima field names that Anima. Entries are in Anima creation order; when names repeat, the workspace "
+    "labels the second and later ones Name (2), Name (3), and so on. Read them when the user asks about an "
+    "Anima. Propose an update_file change "
     "to an identity only when the user's request is about that Anima's identity or personality. Never create, "
     "delete or empty an identity, and never add other files under animas/.\n"
 )

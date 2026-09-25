@@ -1,6 +1,6 @@
 # Anima identities in the Memory workspace
 
-Status: Agreed
+Status: Implemented locally; PR review and owner merge approval pending
 Owner decision: 2026-09-25 intent discovery established the outcome; the owner
 accepted the remaining proposals the same day, added identity deletion with an
 Anima, and invoked execution planning.

@@ -47,7 +47,8 @@ offline with `pnpm openapi-ts`; never hand-edit generated output.
       commit `cba8f2d`).
 - [x] Phase 2: workspace `Animas` root and Manual identity editing (review #2 pass).
 - [x] Phase 3: Memory Manager identity diffs end to end (review #2 pass).
-- [ ] Final integration review and manual acceptance.
+- [x] Final integration review and manual acceptance (review #1 pass after
+      record and evidence repairs; commit recorded in PR).
 - [ ] Regular PR and hosted Validation.
 - [ ] Exact-candidate owner merge approval.
 
@@ -296,9 +297,9 @@ Requirements: R1, R2, R2a (frontend), R5 (frontend flag). Depends on Phase 1.
 6. Route state. Resolve `entryId` first. A `path` beginning with the Animas label
    resolves through the current label map and is then rewritten to `entryId`;
    selecting an identity writes `entryId`. Renames keep the selection.
-7. Deleted Anima (R2a). When a selected or drafted identity disappears from the
-   listing, remove it from the tree, keep but block its draft from saving, and
-   explain that the Anima was deleted; the draft can only be discarded.
+7. Deleted Anima (R2a). When an identity disappears from the listing, remove it
+   from the tree and drop its drafts; a dirty draft raises a warning that its
+   unsaved text could not be saved (see Decision Log).
 8. Reserved conflict (R5). Flag a user-scope `animas` entry in place, block
    Manual edits, and keep rename, move and delete available.
 9. Update `docs/frontend/features/anima-memory.md` for the new explorer and
@@ -509,6 +510,43 @@ None required. Repair budget used: one of two.
 Review the combined branch against every spec acceptance criterion, reusing
 still-valid phase evidence. One full review and at most two repair rounds.
 
+#### Code Review #1 Findings
+
+Reviewed `28061ef` against baseline `c612e9d` (sdlc-reviewer, final
+integration). No code, security or boundary defects; cross-phase guards,
+deletion, reservation, chat boundary and docs verified.
+
+- FI-R1-F1 (required): manual acceptance lacked workspace Revert, completing
+  Save over latest, rename before approve, and a deleted Anima's pending proposal.
+- FI-R1-F2 (required): plan step 7 and the recovery note contradicted the
+  shipped draft-dropping behavior and the absent approval column.
+- FI-R1-F3: `docs/frontend/architecture/data-layer.md` still described the
+  page as user-scope only.
+- FI-R1-F4: the manager had no rule mapping duplicate-name workspace labels.
+- FI-R1-F5: docs did not say manager history keeps deleted identity text.
+- FI-R1-F6: two model-facing rejections did not mention the reservation.
+
+#### Code Review #1 Revisions
+
+All accepted.
+
+- F1: performed on the task stack at 1440×900. Versions → Revert to Version 2
+  created Version 6 (`revert`) with Version 2 content. A dirty description edit,
+  an API rename and Save produced the conflict banner; Save over latest saved
+  Version 7 labeled `Animas/Annie B/IDENTITY.md`. A Memory Manager identity
+  proposal, an API rename, then Approve applied it (Version 8, Undo offered).
+  With a pending proposal, `DELETE /v1/animas/{id}` (204) then Approve showed
+  "This Anima no longer exists; reject the proposal" and stayed pending; Reject
+  succeeded and the explorer showed "No Animas yet." Episode processing with
+  identities was not run manually; three backend tests cover it.
+- F2: step 7 and the recovery note corrected. The PR states that deleted-Anima
+  drafts are discarded automatically with a warning.
+- F3: data-layer doc updated.
+- F4: manager instructions state creation order and the `Name (2)` labels.
+- F5: `memory.md` notes that approvals and messages keep run history.
+- F6: planner and read-tool rejections mention the reservation.
+- Checks: ruff and format pass; 122 affected backend tests pass.
+
 ## Validation and acceptance
 
 Backend, from the repository root:
@@ -556,8 +594,18 @@ key; record it as not performed if skipped.
 - Schema changes edit the baseline; resetting the task stack's database applies
   them. Do not purge the main stack.
 - Code changes are ordinary commits; revert a phase commit to back it out. The
-  new endpoint and approval column are additive.
+  new endpoint is additive; no schema change was needed.
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered spec R1–R6 in three phases (`cba8f2d`, `c5a612f`, `28061ef`) plus
+final integration repairs. The Memory workspace shows each Anima's identity
+under a virtual `Animas` root with full Manual editing; Memory Manager can
+read and propose identity updates in general runs with Auto approve and Undo;
+Anima deletion now removes its memory; `animas` is reserved in user memory.
+
+Remaining limitations: no Anima deletion UI (separate task); live OpenAI Memory
+Manager and a pre-existing reserved `animas` entry were not exercised manually;
+deleted-Anima identity drafts are discarded with a warning rather than kept.
+Lessons: keep the worktree venv on CI's Python for generated clients; label
+paths are for display, stable IDs for binding.

@@ -165,7 +165,7 @@ def _validate_editable_file_path(path: str) -> str:
     except MemoryEntryValidationError as exc:
         raise MemoryPatchPlanError(exc.detail) from exc
     if is_reserved_user_memory_path(clean_path):
-        raise MemoryPatchPlanError("Anima-scoped identity files are not editable here")
+        raise MemoryPatchPlanError("The animas path is reserved for Anima identities")
     if is_protected_memory_path(clean_path):
         raise MemoryPatchPlanError("Generated episode logs are read-only")
     return clean_path

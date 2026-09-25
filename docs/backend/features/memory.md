@@ -486,7 +486,9 @@ writes keep the nonblank rule and record a definition revision like explicit edi
 
 Deleting an Anima (`DELETE /v1/animas/{anima_id}`) permanently removes all of
 its Anima-scoped memory entries and their versions, including `IDENTITY.md`, in
-the same transaction as the Anima row.
+the same transaction as the Anima row. Memory Manager approvals and messages
+that quoted the identity remain as run history, so a pending proposal can still
+be rejected.
 A legacy directory obstructing the reserved path is not an identity file:
 the owner may explicitly move it, then create the missing identity with the
 current aggregate revision. Nothing moves or overwrites it automatically.
