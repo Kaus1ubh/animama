@@ -1,6 +1,7 @@
 import { lstatSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
+  assertPrivatePythonInstallDir,
   cacheRoot,
   desktopRoot,
   copyTree,
@@ -57,6 +58,7 @@ const bundle = path.join(root, "Animama Document Worker.app");
 const executableRoot = path.join(bundle, "Contents/Resources/document-worker");
 const launcher = path.join(bundle, "Contents/MacOS/animama-document-worker");
 mkdirSync(work, { recursive: true });
+assertPrivatePythonInstallDir();
 run(
   "uv",
   [

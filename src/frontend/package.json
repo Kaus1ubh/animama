@@ -54,6 +54,7 @@
     "desktop:runtime:packs": "pnpm --filter animama-desktop runtime:packs",
     "desktop:runtime:document-worker": "pnpm --filter animama-desktop runtime:document-worker",
     "desktop:dist:mac": "pnpm --filter animama-desktop release:mac",
+    "desktop:release:scan": "pnpm --filter animama-desktop release:scan",
     "desktop:dist:windows": "pnpm --filter animama-desktop release:windows",
     "desktop:smoke:mac": "pnpm --filter animama-desktop smoke:mac",
     "desktop:smoke:windows": "pnpm --filter animama-desktop smoke:windows",

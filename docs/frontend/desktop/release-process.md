@@ -74,6 +74,39 @@ survives restart. If its sanitized report asks for manual cleanup, remove that
 test-account copy before continuing; do not clear the maintainer's normal vault
 or change the original provider key.
 
+Scan the exact candidate for secrets and private text before any upload. Use
+the Gitleaks binary pinned in `scripts/repository-boundary/scanner-pins.json`,
+verified against its archive digest; the command never downloads a scanner:
+
+```sh
+ANIMAMA_GITLEAKS=<verified-gitleaks> pnpm desktop:release:scan
+```
+
+Run it on the staged build machine: expanding the frozen backend uses the build
+interpreter from `desktop:runtime:stage`. The scan mounts the DMG and expands the
+update ZIP and feature packs, then every nested archive named `.zip`, `.whl`,
+`.jar`, `.tar.gz`, `.tgz`, `.tar.zst` or `.asar`, and any PyInstaller executable.
+Other compressed formats are scanned only as raw strings. Gitleaks must first
+detect a generated canary token. It then scans every expanded file under a
+neutral numbered name and header line, so its built-in path and file-type
+exclusions (such as `node_modules/`, `*.dist-info` and SQLite or PDF headers) do
+not apply; binaries are scanned as their printable strings. ONNX model weights
+are excluded from Gitleaks because quantized tensors produce chance token
+matches; the receipt counts them. Every expanded file, including ONNX, is also
+byte-searched for this machine's home directory, the Git author email and any
+extra values in `ANIMAMA_SCAN_PRIVATE_TEXT` (one per line; keep them out of
+source and shell history). A symlink fails the scan when its target is absolute
+or escapes its artifact, except an installer's `/Applications` link.
+
+`release-scan.json` records the scanned file hashes, coverage counts, rule IDs
+and locations, never matched values. Errors print only fixed messages; set
+`ANIMAMA_SCAN_DEBUG=1` to see the underlying error locally. Do not publish a
+candidate whose scan fails. Review each finding; add an accepted false positive
+to `desktop/runtime/release-scan.gitleaks.toml` only as an exact placeholder
+value or a known non-secret field. The receipt records that file's hash. The
+home-directory search only catches the scanning machine's paths: scan on the
+machine that built the candidate.
+
 After distinct preview approval, run:
 
 ```sh

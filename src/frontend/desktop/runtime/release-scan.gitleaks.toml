@@ -1,0 +1,37 @@
+# Reviewed exceptions for `pnpm desktop:release:scan`. Keep each entry narrow:
+# an exact placeholder value or a known non-secret field. The scanner presents
+# files under numbered names, so path-based entries would match nothing.
+title = "Animama release candidate"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Placeholder credentials in bundled third-party documentation and examples (litellm and others)"
+regexTarget = "secret"
+regexes = [
+  '''^(?i:your-api-key|your_token|your_api_key_here)$''',
+  '''^(?:sk-abc123def456|sk-1234|Bearersk-1234|sk-test-example-key-123|sk-Fn8Ej39NxjAXrvpUGKghGw|LITELLM_VIRTUAL_KEY)$''',
+  '''^hooks\.slack\.com/services/T0+/B0+/X+$''',
+]
+
+[[allowlists]]
+description = "Published examples and code fragments in third-party libraries: the PyJWT README token, a Hugging Face truncated token, a Gemini page token and litellm variable assignments"
+regexTarget = "secret"
+regexes = [
+  '''^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJzb21lIjoicGF5bG9hZCJ9\.4twFt5NiznN84AWoo1d7KO1T_yoc0Z6XOpOVswacPZg$''',
+  '''^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.\.\.$''',
+  '''^AMEw9yO5jnsGnZJLHSKDFHJJu$''',
+  '''^existing_key_row=existing_key_row$''',
+  '''^existing_spend_obj=r$''',
+]
+
+[[allowlists]]
+description = "PEM markers in key-parsing code, as source literals or compiled constants. Exempt only when no base64 run of 40+ characters appears, so any real key body is still reported"
+regexTarget = "secret"
+regexes = ['''^-----BEGIN [A-Z ]*PRIVATE KEY-----(?:[^A-Za-z0-9+/]|[A-Za-z0-9+/]{1,39}(?:[^A-Za-z0-9+/]|$))*$''']
+
+[[allowlists]]
+description = "Content identifiers in included-content inventories and metadata"
+regexTarget = "match"
+regexes = ['''^(?:logical|semantic)_key"\s*:\s*"[a-z0-9]+(?:[-_][a-z0-9]+)*"$''']

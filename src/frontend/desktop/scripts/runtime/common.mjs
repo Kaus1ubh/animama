@@ -195,9 +195,37 @@ export function run(
   return result.stdout ?? "";
 }
 
+// The frozen runtime embeds the interpreter's sysconfig paths. uv's default
+// install directory is inside the builder's home, so pin a neutral one.
+const PYTHON_INSTALL_DIR = "/Users/Shared/animama-build/uv-python";
+
+/**
+ * /Users/Shared is writable by every account. uv would run, and the build would
+ * freeze, an interpreter another account planted there, so require private
+ * ownership before any command installs or uses it.
+ */
+export function assertPrivatePythonInstallDir() {
+  for (const directory of [
+    path.dirname(PYTHON_INSTALL_DIR),
+    PYTHON_INSTALL_DIR,
+  ]) {
+    mkdirSync(directory, { recursive: true, mode: 0o755 });
+    const stat = lstatSync(directory);
+    if (
+      !stat.isDirectory() ||
+      stat.uid !== process.getuid() ||
+      stat.mode & 0o022
+    )
+      throw new Error(
+        `${directory} must be a directory owned by this user and not writable by others`,
+      );
+  }
+}
+
 export function pythonEnvironment() {
   return {
     UV_CACHE_DIR: process.env.UV_CACHE_DIR || "/private/tmp/animama-uv-cache",
+    UV_PYTHON_INSTALL_DIR: PYTHON_INSTALL_DIR,
     UV_PROJECT_ENVIRONMENT: path.join(cacheRoot, "build-venv", "darwin-arm64"),
     PYTHONHASHSEED: "0",
     SOURCE_DATE_EPOCH: String(normalizedTime.getTime() / 1000),
