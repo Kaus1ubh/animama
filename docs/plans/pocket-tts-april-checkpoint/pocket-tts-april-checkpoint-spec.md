@@ -126,8 +126,9 @@ graphs before any product change.
 
 ## Spec
 
-This document until publication. After publication, the owning issue is
-authoritative and this file is a snapshot.
+Published to [raymond-van/animama#130](https://github.com/raymond-van/animama/issues/130)
+on 2026-09-25. The issue is authoritative; this file is its snapshot at
+publication.
 
 ## ExecPlan
 
@@ -135,4 +136,6 @@ authoritative and this file is a snapshot.
 
 ## Delivery links
 
-Pending workspace setup.
+- Phase 1: [raymond-van/animama#131](https://github.com/raymond-van/animama/issues/131)
+- Phase 2: [raymond-van/animama#132](https://github.com/raymond-van/animama/issues/132)
+- Phase 3: [raymond-van/animama#133](https://github.com/raymond-van/animama/issues/133)

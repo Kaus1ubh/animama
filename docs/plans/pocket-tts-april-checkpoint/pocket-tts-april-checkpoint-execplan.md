@@ -1,7 +1,9 @@
 # PocketTTS April 2026 checkpoint with mixed precision
 
-Source agreement: [pocket-tts-april-checkpoint-spec.md](pocket-tts-april-checkpoint-spec.md)
-(proposal drafted 2026-09-25 from the owner's direction of the same date).
+Source agreement: [raymond-van/animama#130](https://github.com/raymond-van/animama/issues/130)
+as published on 2026-09-25 (snapshot: [spec](pocket-tts-april-checkpoint-spec.md)).
+Phase issues: #131 (p1), #132 (p2), #133 (p3). Branch
+`feat/pocket-tts-april-checkpoint` from `5630ad8`.
 Authorized scope: the owner approved the plan and Phases 1–3 with the
 recommended defaults on 2026-09-25.
 
@@ -88,12 +90,27 @@ Commands run from the repository root unless stated.
 
 ## Progress
 
-- [ ] Phase 1: Offline parity spike. Not started.
+- [x] Phase 1: Offline parity spike. Complete 2026-09-25 (#131); mixed profile
+      accepted, voice states compatible. Results below.
 - [ ] Phase 2: Assets and worker switch. Not started.
 - [ ] Phase 3: Browser and desktop verification, docs, owner listening gate.
       Not started.
 
 ## Surprises & Discoveries
+
+- 2026-09-25, Phase 1: the `current_end` state inputs must stay empty float32
+  `[0]`. The graph rejects any other length, and voice states do not include
+  them.
+- 2026-09-25, Phase 1: zero-filled initial state gave bit-identical output to
+  the manifest fills (NaN cache, true Mimi `first` flags). The worker still
+  initializes from the manifest so it follows the bundle contract.
+- 2026-09-25, Phase 1: April reads raw digits correctly. The worker's existing
+  text normalization (numbers, abbreviations, whitespace, trailing period,
+  capitalization) is a superset of the April text preparation, so text
+  preparation is unchanged.
+- 2026-09-25, Phase 1: the reference runtime stops before generating the
+  latent at the stop step. The worker now stops at `eosStep + N - 1`, which
+  keeps the same number of frames and guarantees a final decode.
 
 - 2026-09-25: Uploaded Anima catalogs never reach the worker in practice.
   `PyAnimaResponse.pocket_voice_catalog_url` is never set by the backend. The
@@ -146,6 +163,56 @@ Steps:
    BOS prepended, and confirm that cloning works.
 4. Transcribe each output with Parakeet (or a CPU ASR run by the same script)
    and record word error, duration and real-time factor per profile.
+
+#### Phase 1 results (2026-09-25)
+
+Environment: Apple M5, native onnxruntime 1.30 CPU, one intra-op thread.
+Browser WASM is slower, so read the speed numbers as ratios. All 13 downloads
+matched the Hugging Face sizes and SHA-256 (the `bundle.json` git blob ID).
+
+The text set was the six prompts below, each voiced by `cosette`, `jean` and
+`fantine`:
+
+- "Hi there!"
+- "Okay, sounds good."
+- a weather sentence
+- a three-sentence paragraph
+- "It costs 42 dollars and 50 cents."
+- "Can you remind me at 7:30 tomorrow morning?"
+
+Parakeet TDT 0.6B v2 transcribed each output. "Lenient" WER normalizes number
+formats on both sides.
+
+| Profile | Temp | Strict WER | Lenient WER | Mean RTF | First audio |
+| --- | --- | --- | --- | --- | --- |
+| A: April all-INT8 | 0.3 | 0.145 | 0.026 | 0.130 | 40 ms |
+| A: April all-INT8 | 0.7 | 0.216 | 0.074 | | |
+| B: April mixed (planned) | 0.3 | 0.130 | 0.012 | 0.138 | 43 ms |
+| B: April mixed (planned) | 0.7 | 0.162 | 0.020 | | |
+| C: January (current) | 0.7 | 0.182 | 0.050 | 0.131 | 41 ms |
+
+- **Profile B** had no real errors. Its remaining misses are transcription
+  artefacts ("to morrow", "730", "cost"). Profile A at 0.7 turned "Hi there!"
+  into "Hide it." (`jean`), and January produced "Hey there." and "to day".
+- **All profiles:** nothing ran to the frame limit, and there was no silence or
+  garbling.
+- **Speed:** B is about 6% slower per frame than January. A precomputed voice
+  state loads in about 10 ms; January's voice-conditioning pass took about
+  31 ms.
+- **Voice states:** compatible with the pinned graphs. Each file holds a
+  per-layer `cache` `[2,1,T,16,64]` and an `offset` of T (126 for `cosette` and
+  `jean`, 133 for `fantine`). That is the January prompt length plus one BOS
+  row, so BOS is already included. A `fantine` state recomputed from Kyutai's
+  VCTK source with our FP32 encoder, BOS and INT8 main graph matched the pinned
+  state (cosine ≥ 0.9987, 1.2–5.1% relative error per layer).
+- **Cloning:** a 10 s clip encodes to `[1,125,1024]` in 0.66 s, and both test
+  texts transcribe perfectly. Without the BOS row the same clip produces
+  unintelligible audio, so BOS is mandatory.
+- **Leading silence:** April `jean` has 0.56–0.6 s before the weather sentence.
+  `fantine` has about 0.3 s in every profile.
+
+Scratch harness, WAVs and the paired January/April listening index were kept
+outside the repository for the Phase 3 owner gate.
 
 Completion: the mixed profile is intelligible for all voices. It is not worse
 than all-INT8 on word error. The voice-state revision is confirmed compatible,
