@@ -164,3 +164,6 @@ content/included/**/.DS_Store
 
 # Local brand-generation notes.
 /docs/frontend/brand-assets.md
+
+# Claude Code personal overrides (shared settings live in .claude/settings.json)
+.claude/settings.local.json
