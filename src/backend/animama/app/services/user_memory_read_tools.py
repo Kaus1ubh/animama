@@ -13,12 +13,18 @@ from animama.domain.memory_entry import (
     MemoryEntrySearchResult,
 )
 
+from .anima_identity_memory import (
+    anima_identity_manager_path,
+    get_anima_identity_or_none,
+    parse_anima_identity_manager_path,
+)
 from .memory_entry_service import (
     MemoryEntryError,
     MemoryEntryNotFoundError,
     MemoryEntryService,
     MemoryEntryValidationError,
     is_protected_memory_entry,
+    is_reserved_user_memory_path,
     normalize_memory_file_path,
 )
 from .memory_patch_document import render_memory_patch_document
@@ -35,11 +41,16 @@ class UserMemoryFileReference:
 
     path: str
     description: str | None
+    # Set only for Anima identities listed to Memory Manager.
+    anima_name: str | None = None
 
     def to_payload(self) -> dict[str, str | None]:
         """Return the stable JSON-safe representation exposed to models."""
 
-        return {"path": self.path, "description": self.description}
+        payload: dict[str, str | None] = {"path": self.path, "description": self.description}
+        if self.anima_name is not None:
+            payload["anima_name"] = self.anima_name
+        return payload
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,7 +88,13 @@ def select_user_memory_file_references(
 def render_user_memory_file_map(entries: Iterable[MemoryEntry | MemoryEntryHeader]) -> str:
     """Render the canonical request-local, content-free user memory map."""
 
-    references = select_user_memory_file_references(entries)
+    return render_memory_file_references(select_user_memory_file_references(entries))
+
+
+def render_memory_file_references(references: Iterable[UserMemoryFileReference]) -> str:
+    """Render content-free file references as the model-facing memory map."""
+
+    references = tuple(references)
     lines = ["# List of memory files", ""]
     if not references:
         lines.append("files: []")
@@ -90,6 +107,8 @@ def render_user_memory_file_map(entries: Iterable[MemoryEntry | MemoryEntryHeade
                 f"    description: {_description_yaml_value(reference.description)}",
             )
         )
+        if reference.anima_name is not None:
+            lines.append(f"    anima: {_description_yaml_value(reference.anima_name)}")
     return "\n".join(lines)
 
 
@@ -116,10 +135,16 @@ async def search_user_memory_files(
 
 
 class UserMemoryReadToolService:
-    """Serve one shared list/read/search contract to every model runtime."""
+    """Serve one shared list/read/search contract to every model runtime.
 
-    def __init__(self, *, memory_entries: MemoryEntryService) -> None:
+    ``include_anima_identities`` is reserved for general Memory Manager runs: it
+    adds each owned Anima's identity at ``animas/<anima_id>/IDENTITY.md`` to the
+    list, map and reads. Normal chat keeps the user-only contract.
+    """
+
+    def __init__(self, *, memory_entries: MemoryEntryService, include_anima_identities: bool = False) -> None:
         self._memory_entries = memory_entries
+        self._include_anima_identities = include_anima_identities
 
     async def list_files(self, *, user_id: str) -> dict[str, Any]:
         """List deterministic navigable user memory file references."""
@@ -133,12 +158,7 @@ class UserMemoryReadToolService:
     async def render_memory_map(self, *, user_id: str) -> str:
         """Render the same navigation projection used by ``list_files``."""
 
-        listing = await self._memory_entries.list_entry_headers(
-            user_id=user_id,
-            anima_id=None,
-            recursive=True,
-        )
-        return render_user_memory_file_map(listing.entries)
+        return render_memory_file_references(await self._list_file_references(user_id=user_id))
 
     async def read_files(
         self,
@@ -160,7 +180,7 @@ class UserMemoryReadToolService:
         seen_normalized_paths: set[str] = set()
         for requested_path in requested:
             try:
-                clean_path, normalized_path = _normalize_read_path(requested_path)
+                clean_path, normalized_path, anima_id = self._resolve_read_path(requested_path)
             except MemoryEntryValidationError as exc:
                 errors.append(_path_error(requested_path, "invalid_path", exc.detail, retryable=False))
                 continue
@@ -180,12 +200,7 @@ class UserMemoryReadToolService:
                 continue
 
             try:
-                entry = await self._memory_entries.get_entry_by_path(
-                    user_id=user_id,
-                    anima_id=None,
-                    path=clean_path,
-                    type=MEMORY_ENTRY_TYPE_FILE,
-                )
+                entry = await self._read_entry(user_id=user_id, clean_path=clean_path, anima_id=anima_id)
             except MemoryEntryNotFoundError:
                 errors.append(
                     _path_error(
@@ -222,7 +237,7 @@ class UserMemoryReadToolService:
             returned_content_bytes += content_bytes
             files.append(
                 {
-                    "path": entry.path,
+                    "path": clean_path if anima_id is not None else entry.path,
                     "description": entry.description,
                     "content": (
                         render_memory_patch_document(
@@ -265,7 +280,43 @@ class UserMemoryReadToolService:
             anima_id=None,
             recursive=True,
         )
-        return select_user_memory_file_references(listing.entries)
+        references = select_user_memory_file_references(listing.entries)
+        if not self._include_anima_identities:
+            return references
+        summaries = await self._memory_entries.list_anima_identities(user_id=user_id)
+        return references + tuple(
+            UserMemoryFileReference(
+                path=anima_identity_manager_path(summary.anima_id),
+                description=summary.identity.description,
+                anima_name=summary.display_name,
+            )
+            for summary in summaries
+            if summary.identity is not None
+        )
+
+    def _resolve_read_path(self, path: str) -> tuple[str, str, str | None]:
+        """Normalize a read path; identity paths resolve only when enabled."""
+
+        if self._include_anima_identities:
+            anima_id = parse_anima_identity_manager_path(path)
+            if anima_id is not None:
+                clean_path = anima_identity_manager_path(anima_id)
+                return clean_path, clean_path.casefold(), anima_id
+        clean_path, normalized_path = _normalize_read_path(path)
+        return clean_path, normalized_path, None
+
+    async def _read_entry(self, *, user_id: str, clean_path: str, anima_id: str | None) -> MemoryEntry:
+        if anima_id is None:
+            return await self._memory_entries.get_entry_by_path(
+                user_id=user_id,
+                anima_id=None,
+                path=clean_path,
+                type=MEMORY_ENTRY_TYPE_FILE,
+            )
+        identity = await get_anima_identity_or_none(self._memory_entries, user_id=user_id, anima_id=anima_id)
+        if identity is None:
+            raise MemoryEntryNotFoundError("Anima identity not found")
+        return identity
 
 
 def _requested_paths(paths: object) -> tuple[list[str], dict[str, Any] | None]:
@@ -283,8 +334,7 @@ def _requested_paths(paths: object) -> tuple[list[str], dict[str, Any] | None]:
 
 def _normalize_read_path(path: str) -> tuple[str, str]:
     clean_path, normalized_path = normalize_memory_file_path(path)
-    first_segment = normalized_path.split("/", 1)[0]
-    if first_segment == "animas":
+    if is_reserved_user_memory_path(clean_path):
         raise MemoryEntryValidationError("Memory tools may only access current user-root files")
     return clean_path, normalized_path
 
@@ -336,6 +386,7 @@ __all__ = [
     "UserMemoryFileReference",
     "UserMemoryReadToolService",
     "UserMemorySearchResult",
+    "render_memory_file_references",
     "render_user_memory_file_map",
     "search_user_memory_files",
     "select_user_memory_file_references",

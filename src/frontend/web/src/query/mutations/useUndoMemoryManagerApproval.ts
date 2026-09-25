@@ -10,7 +10,10 @@ import type {
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
-import { publishMemoryManagerApproval } from "@/query/mutations/memoryManagerMutationCache";
+import {
+  invalidateApprovedIdentityDefinitions,
+  publishMemoryManagerApproval,
+} from "@/query/mutations/memoryManagerMutationCache";
 
 export type UndoMemoryManagerApprovalArgs = {
   approval: PyMemoryManagerApproval;
@@ -44,6 +47,9 @@ export function useUndoMemoryManagerApproval() {
     onSuccess: (result) => {
       if (!userId) return;
       publishMemoryManagerApproval(queryClient, userKey, result.approval);
+      void invalidateApprovedIdentityDefinitions(queryClient, userKey, [
+        result.approval,
+      ]);
       void queryClient.invalidateQueries({
         queryKey: queryKeys.memoryManager.run(userKey, result.approval.run_id),
       });

@@ -46,7 +46,7 @@ offline with `pnpm openapi-ts`; never hand-edit generated output.
 - [x] Phase 1: backend identity access, reservation and deletion (review #2 pass,
       commit `cba8f2d`).
 - [x] Phase 2: workspace `Animas` root and Manual identity editing (review #2 pass).
-- [ ] Phase 3: Memory Manager identity diffs end to end.
+- [x] Phase 3: Memory Manager identity diffs end to end (review #2 pass).
 - [ ] Final integration review and manual acceptance.
 - [ ] Regular PR and hosted Validation.
 - [ ] Exact-candidate owner merge approval.
@@ -131,6 +131,9 @@ offline with `pnpm openapi-ts`; never hand-edit generated output.
 - 2026-09-25, implementation: selecting an identity writes `entryId`, and a
   label-path URL is rewritten to `entryId` once resolved, rather than writing
   label paths (plan Phase 2 step 6); labels change on rename, IDs do not.
+- 2026-09-25, implementation: Memory Manager identity approvals need no new
+  approval column; `target_path` plus `target_entry_id` identify the Anima and
+  entry, and the commit verifies both before writing.
 - 2026-09-25, plan design: three phases on one branch and one PR. Implementation
   details may be refined with evidence within the agreed spec.
 
@@ -432,15 +435,74 @@ full backend and frontend command sets listed in Validation.
 
 Completion: checks pass; review has no unresolved blockers.
 
-Phase record: issue #104; commits —; evidence —.
+Phase record: issue #104; starting source `c5a612f`. Implementation notes: no
+`target_anima_id` column was needed; the approval's `target_path`
+(`animas/<anima_id>/IDENTITY.md`) and `target_entry_id` already bind it, and the
+frontend parses the path for labels. The deferred P1-R1-F4 consolidation routes the
+read-tool and planner checks through `is_reserved_user_memory_path`, the
+approval check through `parse_anima_identity_manager_path`, and the chat tool
+check through the shared `MEMORY_ENTRY_ANIMAS_ROOT_PATH` constant. Local evidence: `tests/test_memory_manager_identities.py`
+(6 tests) plus the memory suites (223 passed); ruff, format, mypy and the import
+boundary check pass; `pnpm web:test` 1777 tests and `pnpm check` pass. Browser
+(task stack, deterministic runtime): an identity request produced a card labeled
+`Update Animas/Annie/IDENTITY.md`; Approve applied it (identity Version 3,
+Anima revision 5) and Undo restored it (Version 4, revision 6, card
+`Approved · Undone`); Auto approve applied a second request (Version 5), and the
+Manual view showed Version 5 without a stale conflict. Rename-before-approve,
+stale, deleted-Anima and episode-processing cases are covered by backend tests.
+Live OpenAI Memory Manager: not run (requires the owner's API key). After
+review repairs: `pnpm web:test` 297 files / 1779 tests, `pnpm check` and
+`pnpm build` pass; mypy and `ruff format --check` pass; `uv run pytest -q`
+1792 passed, 7 skipped.
 
 #### Code Review #1 Findings
 
-Not started.
+Reviewed working tree on `c5a612f` (sdlc-reviewer, full initial review).
+Binding, stale/rename fencing, blank and create rejection, deleted-Anima
+conflict, episode guard, chat boundary, ownership, path safety and lock order
+verified.
+
+- P3-R1-F1 (blocking): approval summaries and unified-diff file lines still
+  showed `animas/<anima_id>/IDENTITY.md`, contradicting the Decision Log and doc.
+- P3-R1-F2 (blocking): the deterministic runtime used the identity-enabled
+  workspace for episode lookups (a Request-changes path could raise a 500) and
+  selected it by task state, so processed episode runs could propose identities.
+- P3-R1-F3: no test covered the live runtime's per-run-kind identity access.
+- P3-R1-F4: several backend doc lines still described user-only manager paths.
+- P3-R1-F5: unreachable reserved-path branch; plan record overstated the chat
+  consolidation.
+- P3-R1-F6: the committed-approval editor compared paths case-sensitively.
+- P3-R1-F7: Auto approve invalidates every approved identity in the snapshot.
+- P3-R1-F8: cards for a deleted Anima fall back to the raw path.
 
 #### Code Review #1 Revisions
 
-Not started.
+- F1 accepted: `previewWithDisplayPath` relabels header, summary and diff file
+  lines; unit tests added.
+- F2 accepted: the deterministic runtime selects its workspace by run kind like
+  the live runtime; draft lookups treat rejected targets as absent so planning
+  returns a blocked result; test added for a processed episode run.
+- F3 accepted: tests for `_allows_anima_identities` and identity instructions.
+- F4 accepted: doc lines corrected.
+- F5 accepted: branch removed with a comment; record corrected.
+- F6 accepted: case-insensitive comparison.
+- F7 rejected: over-invalidation of a few Anima views is harmless and keeps the
+  snapshot-based helper simple.
+- F8 deferred: labeling while the identity list loads would briefly misreport
+  live Animas as deleted; the raw path remains accurate.
+- Checks: 8 identity tests pass; ruff clean; frontend tsc, eslint and
+  `lib/memory-manager` tests (32) pass.
+
+#### Code Review #2 Findings
+
+Targeted recheck: F1–F6 resolved; F7 rejection and F8 deferral reasoning
+upheld; no actionable findings. Notes: relabeling also rewrites the raw path
+inside identity text (cosmetic); a malformed path in episode reject feedback can
+still raise in the pre-existing `_episode_candidate_content` lookup.
+
+#### Code Review #2 Revisions
+
+None required. Repair budget used: one of two.
 
 ## Final integration review
 

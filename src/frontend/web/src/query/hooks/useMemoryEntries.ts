@@ -1,6 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 import {
   getMemoryEntryByPathV1MemoryEntriesByPathGet,
@@ -18,6 +19,7 @@ import type {
   PyMemoryEntryVersionListResponse,
 } from "@/lib/content/catalogTypes";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { buildMemoryAnimaFolders } from "@/lib/memory-entries/anima-folders";
 import { queryKeys } from "@/query/keys";
 
 export type UseMemoryEntriesOptions = {
@@ -52,6 +54,15 @@ export function useMemoryEntries(opts?: UseMemoryEntriesOptions) {
       return data;
     },
   });
+}
+
+/** Labels each owned Anima's identity folder for display. */
+export function useMemoryAnimaFolders() {
+  const identities = useAnimaIdentities();
+  return useMemo(
+    () => buildMemoryAnimaFolders(identities.data?.identities ?? []),
+    [identities.data],
+  );
 }
 
 /** Lists every owned Anima in creation order with its identity header. */

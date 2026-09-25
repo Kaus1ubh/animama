@@ -105,10 +105,14 @@ services can still refresh them when source-of-truth episode rows change.
 
 ## Memory Manager API
 
-The Memory Manager is a separate user-invoked workflow over user-scope memory.
-It proposes create/update patches for approval and keeps episode logs read-only.
-Approvals use optimistic versions; rejection leaves memory unchanged, and Undo
-is available only while the target still matches the approved version.
+The Memory Manager is a separate user-invoked workflow over user-scope memory
+and, in general runs, owned Anima identities. It proposes create/update patches
+for approval and keeps episode logs read-only. Approvals use optimistic
+versions; rejection leaves memory unchanged, and Undo is available only while
+the target still matches the approved version. Identity approvals, Auto approve
+and Undo use the trusted current-revision path described below, so an Anima
+rename does not block them; a deleted Anima's pending approval returns `409`
+and can still be rejected.
 
 The live runtime uses `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, and
 `ANIMAMA_MEMORY_MANAGER_AGENT_MODEL` (default `gpt-5.4-mini`). A nonempty
@@ -138,9 +142,10 @@ The request-local memory map is still injected into the prompt, and
 `memory_list_files` gives the model an explicit way to refresh that navigation
 context during a tool loop. Its output is a compact `files` array containing
 only user-scope paths and descriptions. Generated episode logs are omitted from
-this list. The same canonical navigation projection is injected into the normal
-Anima prompt and the Memory Manager prompt, so directories, episode logs, and
-anima identity files are absent from both surfaces.
+this list. The same navigation projection is injected into the normal Anima
+prompt, so directories, episode logs, and anima identity files are absent there;
+general Memory Manager runs additionally list identities (see
+[Memory Manager and episodic memory](memory-manager-and-episodic-memory.md)).
 
 When memory updates are enabled and the turn is not incognito, direct chat uses
 one write transport selected from the persisted model capability:
@@ -472,9 +477,9 @@ of 32 KiB and `ANIMAMA_MEMORY_FILE_MAX_BYTES`. Generic API paths cannot bypass
 these rules by changing kind or moving/renaming/deleting the file. Ordinary
 user memory retains its existing version-only behavior.
 
-Trusted internal service callers may omit the aggregate revision by passing
-`use_current_aggregate_revision` to `MemoryEntryService`; the public API does
-not expose it. They lock the Anima at its current revision, so a
+Trusted internal service callers (Memory Manager approval and Undo) omit the
+aggregate revision by passing `use_current_aggregate_revision` to
+`MemoryEntryService`; the public API does not expose it. They lock the Anima at its current revision, so a
 concurrent rename does not invalidate an already-reviewed identity change,
 while the memory `expected_version` still rejects newer identity content. These
 writes keep the nonblank rule and record a definition revision like explicit edits.

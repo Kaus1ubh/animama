@@ -149,3 +149,20 @@ export function removedIdentityDrafts({
   }
   return { drafts: next, notices };
 }
+
+const MANAGER_IDENTITY_PATH = /^animas\/([^/]+)\/identity\.md$/i;
+
+/**
+ * Returns the Anima ID in a Memory Manager identity path
+ * (`animas/<anima_id>/IDENTITY.md`), or null for user memory.
+ */
+export function animaIdForManagerPath(path: string) {
+  return MANAGER_IDENTITY_PATH.exec(path)?.[1] ?? null;
+}
+
+/** Shows a Memory Manager target by its owner-facing workspace path. */
+export function managerPathLabel(path: string, folders: MemoryAnimaFolder[]) {
+  const animaId = animaIdForManagerPath(path);
+  if (!animaId) return path;
+  return folders.find((folder) => folder.animaId === animaId)?.path ?? path;
+}

@@ -9,6 +9,8 @@ import {
   buildMemoryAnimaFolders,
   isAnimaWorkspacePath,
   isReservedUserMemoryEntry,
+  animaIdForManagerPath,
+  managerPathLabel,
   removedIdentityDrafts,
   resolveWorkspaceSelection,
 } from "./anima-folders";
@@ -235,5 +237,28 @@ describe("removed identity drafts", () => {
       removedIdentityDrafts({ previous: folders, current: folders, drafts })
         .drafts,
     ).toBe(drafts);
+  });
+});
+
+describe("Memory Manager identity paths", () => {
+  it("reads the Anima ID from identity manager paths only", () => {
+    expect(animaIdForManagerPath("animas/anima-1/IDENTITY.md")).toBe("anima-1");
+    expect(animaIdForManagerPath("animas/anima-1/identity.md")).toBe("anima-1");
+    expect(animaIdForManagerPath("animas/anima-1/notes.md")).toBeNull();
+    expect(animaIdForManagerPath("PROFILE.md")).toBeNull();
+  });
+
+  it("labels identity targets with their current folder path", () => {
+    const folders = buildMemoryAnimaFolders([
+      identity("anima-1", "Annie"),
+      identity("anima-2", "Annie"),
+    ]);
+    expect(managerPathLabel("animas/anima-2/IDENTITY.md", folders)).toBe(
+      "Animas/Annie (2)/IDENTITY.md",
+    );
+    expect(managerPathLabel("animas/gone/IDENTITY.md", folders)).toBe(
+      "animas/gone/IDENTITY.md",
+    );
+    expect(managerPathLabel("notes/a.md", folders)).toBe("notes/a.md");
   });
 });

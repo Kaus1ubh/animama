@@ -266,6 +266,13 @@ when resuming; decided cards display persisted feedback for audit. Rejection
 does not itself imply that an episode is unworthy of memory, and the specialized
 run may propose a revised diff or complete the review without writing.
 
+General Memory Manager runs can propose changes to an Anima's identity when the
+request is about that Anima. Approval cards label such targets with the current
+workspace path (`Animas/<name>/IDENTITY.md`) instead of the model-facing
+`animas/<anima_id>/IDENTITY.md`. Approving, auto-approving or undoing an
+identity change refreshes that Anima's definition views. Episode processing
+never proposes identity changes.
+
 Approval previews show Markdown content changes and description changes as two
 separate channels. The Description section appears only when the value changes
 and labels exact Before/After values, including “No description” for set and
@@ -307,7 +314,7 @@ their original guards for explicit resolution. Revert sends both current
 guards and creates a new identity version rather than replacing history.
 
 The backend enforces nonblank identity and prevents renaming, moving, deleting,
-kind changes, or AI Undo for the required identity file, including untyped
+or kind changes for the required identity file, including untyped
 legacy `IDENTITY.md` entries. Chat never uses a mutable Avatar fallback for a
 missing identity. Legacy repair state requires explicit owner repair; a
 directory obstructing the reserved path can be explicitly moved first.
