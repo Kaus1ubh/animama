@@ -21,6 +21,8 @@
  * timers and can be tested deterministically.
  */
 
+import type { ClientParakeetBackend } from "./worker-protocol";
+
 export type ParakeetPreviewConfig = {
   sampleRateHz: number;
   /** Audio retained from before a window opens, matching MicVAD's pre-speech pad. */
@@ -55,7 +57,9 @@ export const DEFAULT_PARAKEET_PREVIEW_CONFIG: Omit<
  * 2 s before the budget stopped it (see the parakeet-live-partials ExecPlan), so
  * only WebGPU qualifies; WASM stays final-only.
  */
-export function shouldEnableParakeetPreviews(backend: string): boolean {
+export function shouldEnableParakeetPreviews(
+  backend: ClientParakeetBackend,
+): boolean {
   return backend === "webgpu";
 }
 

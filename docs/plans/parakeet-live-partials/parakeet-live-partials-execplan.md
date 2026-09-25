@@ -129,9 +129,10 @@ The Parakeet model comes from the shared developer model store. Check it with
   - Commit `68cdf0e` (`feat(voice)[p2]`).
 - [x] Final integration review for Phases 1–2 passed (one repair round). PR
       #111 is open from this branch.
-- [ ] Phase 2 amendment: previews only on the WebGPU backend. Review passed;
-      commit pending.
-- [ ] Phase 3: experimental WebGPU toggle (issue #113).
+- [x] Phase 2 amendment: previews only on the WebGPU backend. Commit
+      `e091c69`.
+- [x] Phase 3: experimental WebGPU toggle (issue #113). Review passed after
+      one repair round; the commit is recorded in the Phase 3 section.
 - [ ] Final integration review of the full scope after Phase 3.
 - [ ] Owner manual acceptance on the task stack.
 
@@ -922,7 +923,7 @@ Checks: `pnpm check`, `pnpm web:lint`, `pnpm web:test`. Then a targeted review.
 ### Phase 3: experimental WebGPU toggle
 
 Source: the owner's G1 decision and the Phase 3 scope approval on 2026-09-25.
-Issue: _to be created_. Depends on: the Phase 2 amendment.
+Issue: #113. Depends on: the Phase 2 amendment (`e091c69`).
 
 Outcome:
 
@@ -959,8 +960,9 @@ Steps:
      tests in `tests/`, following `tests/test_browser_model_store.py`.
 2. **Serving (development).**
    - `reset.sh` resolves the optional variant offline. If it is present, it
-     records `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`. Otherwise it points that
-     variable at an empty stack-local directory, so Compose never fails.
+     records `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`. Otherwise it records an
+     empty value, and development Compose falls back to the tracked notices
+     directory, so Compose never fails.
    - `docker-compose.development.yml` mounts it read-only for `web`.
    - The Vite plugin serves it at `/__client-parakeet-webgpu-models`, with an
      optional directory (no startup failure).
@@ -1012,6 +1014,174 @@ Follow-ups (not in this plan):
 
 - serving the GPU model in built self-host and in a desktop pack;
 - desktop WASM threads (declined for now on 2026-09-25).
+
+#### Phase 3 results (2026-09-25)
+
+**Source:** `e091c69` plus the Phase 3 working tree, on the task stack after
+running `reset.sh` again. The optional set was imported offline from the
+Phase 1 spike file, verified at
+`<store>/parakeet-tdt-0.6b-v2-webgpu/b62312c6…`.
+
+**Manual checks** (agent-run, Chrome 153 test profile with the fake microphone,
+Apple M5):
+
+- **Settings UI:** App Settings → Experimental shows the toggle off and the
+  status "Available on this device…". Clicking it saved
+  `speech.stt_parakeet_webgpu: true` and kept the other speech keys.
+- **WebGPU dictation, 15.9 s clip:**
+  - load 8.6 s, including the uncached 1.24 GB encoder;
+  - previews every ~0.6 s through the whole utterance, decoding in 110–430 ms,
+    with no budget stop;
+  - final transcript 0.6 s after speech end, against ~5.9 s on WASM.
+- **Warm-up (added after one run hit a budget stop, consistent with a cold
+  first decode):** three fresh loads each had a first preview of 150–170 ms
+  and no budget stops.
+- **Electron 39 `desktop:dev`:** WebGPU loaded, and previews ran through a
+  17 s window (decodes 150–445 ms, no budget stop), followed by the final.
+- **In-session switch:** turning the toggle off terminated the WebGPU worker
+  and loaded WASM (`backendReason: setting_off`), with no previews.
+- **Fallback:** Chrome was started with `--disable-gpu`, and `navigator.gpu`
+  was stubbed on the main thread only, so the probe said `available` but the
+  worker had no WebGPU.
+  - The WebGPU load failed. In this run ORT threw `std::bad_alloc` while
+    building the FP16 session on WASM, before the device check was reached.
+  - The client logged the fallback, loaded WASM, and final transcripts
+    continued.
+  - The second start in the same page (the `load_failed` no-retry path) was not
+    observed, because the automation's stop/start clicks raced the WASM load.
+- **Serving:**
+  - `HEAD /__client-parakeet-webgpu-models/encoder-model.fp16.onnx` returns
+    200;
+  - missing files return 404;
+  - a stack without the set falls back to the tracked notices directory
+    (Compose test).
+
+**Not performed:**
+
+- a real microphone;
+- `model_missing` on a live stack (covered by unit and Compose tests);
+- WebGPU on non-Apple GPUs;
+- memory measurement.
+
+**Checks** (on the working tree before the Code Review #1 fixes; rerun after
+the fixes under Final integration):
+
+- `pnpm check`, `web:lint`, `web:test` (298 files, 1,791 tests), `build` and
+  `desktop:check`: all exit 0;
+- `uv run pytest` model-store, Compose and state-script tests: 208 passed, 6
+  skipped;
+- `ruff check`, `bash -n reset.sh`, and both `docker compose ... config
+--quiet` commands: OK.
+
+#### Code Review #1 Findings
+
+Reviewer: independent `sdlc-reviewer` subagent. Source: `e091c69` plus the
+Phase 3 working tree. Round: initial.
+
+- **P3-R1-1 (required):** in `webgpu-hybrid` mode, ORT drops a WebGPU provider
+  that fails to start and runs on WASM without throwing. The worker would
+  then report `webgpu` and never fall back: the FP16 encoder runs on WASM,
+  previews are enabled, and the panel says "Active".
+- **P3-R1-2 (required):** the manifest validator accepted non-canonical
+  SHA-256 strings (uppercase, `0x`, `_`, whitespace), unlike its sibling
+  scripts.
+- **P3-R1-3 (required):** the preference-default test was missing.
+- **Optional:**
+  - **P3-R1-4:** a persistent WebGPU failure was retried at every start, each
+    time discarding a warm WASM worker;
+  - **P3-R1-5:** a `stt_parakeet_webgpu: false` default in
+    `DEFAULT_ANIMAMA_PREFERENCES` could let Anima preferences override the
+    app toggle;
+  - **P3-R1-6:** tests for serving and the build-time define;
+  - **P3-R1-7:** two inaccurate `voice.md` statements;
+  - **minor:**
+    - `reset.sh` treats a corrupt optional set like a missing one;
+    - the CI `SHARED_TESTS` list lacks the new test;
+    - the plan's "empty stack-local directory" text;
+    - the panel's status is read during render;
+    - a placeholder `status` in `client.ts`.
+- **Verified without findings:**
+  - the worker lifecycle and its guard;
+  - the encoder URL versioning and same-origin check;
+  - status caching;
+  - Vite route 404/traversal handling and HEAD support;
+  - `reset.sh` under `set -eo pipefail`;
+  - the Compose mount;
+  - the pack inventory is untouched, and no new production artifact is added
+    (the JSEP WASM was already emitted);
+  - the warm-up has no cache side effects;
+  - preference merging;
+  - UI accessibility and error handling;
+  - boundaries.
+
+#### Code Review #1 Revisions
+
+- **P3-R1-1: accepted and fixed.**
+  - After loading `webgpu`, the worker requires ORT's own
+    `env.webgpu.device` value property, which ORT defines only after WebGPU
+    initializes. If it is missing, the worker releases the model and throws,
+    so the client falls back.
+  - Verified manually as above: the fallback runs and final transcripts
+    continue.
+- **P3-R1-2: accepted.** `re.fullmatch(r"[0-9a-f]{64}")` is now used, and
+  uppercase and `0x` cases are added to the test (13 passed).
+- **P3-R1-3 and P3-R1-5: accepted.**
+  - The default entry is removed.
+  - A new `isParakeetWebgpuPreferred()` helper is used by both the hook and
+    the panel.
+  - A test covers absent, default, string and `true` values.
+- **P3-R1-4: accepted.**
+  - A per-page `webgpuLoadFailed` flag sends later starts straight to WASM
+    with reason `load_failed`.
+  - The panel's status refresh clears the flag.
+  - The fallback log now reports the actual reason.
+- **P3-R1-6: accepted.** Added tests for a null model root answering 404, the
+  optional resolver returning `null`, and `null` WebGPU defines in production
+  and embedded-desktop builds.
+- **P3-R1-7: accepted.** The `voice.md` status table and the load-failure
+  behavior are corrected.
+- **Minor items, accepted:**
+  - `reset.sh` warns when the optional set fails verification (non-2 exit);
+  - `test_webgpu_model_store.py` is added to CI `SHARED_TESTS`;
+  - the plan text is corrected.
+  - Kept as is: the render-time status read (it updates on reopen), and the
+    pending-request edge on a mid-final toggle.
+- **Accidental change caught and reverted:** a broad `prettier --write`
+  reformatted 11 unrelated files. They were restored from HEAD before the
+  checks.
+- **Next:** targeted recheck #2.
+
+#### Code Review #2 Findings (repair round 1)
+
+- **All code revisions verified:** P3-R1-1 to P3-R1-7, the minor items, and
+  that no unrelated files were changed.
+- **P3-R2-1 (required, evidence):** the WebGPU success path had not been run
+  since the P3-R1-1 device check was added. If that check wrongly failed,
+  WebGPU would silently fall back every time.
+- **Optional:**
+  - the `load_failed` no-retry path has no test;
+  - the `reset.sh` warning should pass `--root`.
+
+#### Code Review #2 Revisions
+
+- **P3-R2-1: accepted and verified** on the revised source (working tree over
+  `e091c69`, served by the task stack through Vite), in the Chrome test
+  profile with the 15.9 s clip:
+  - the load was requested as `backend: "webgpu"`, with no failure or fallback
+    log;
+  - previews ran every ~0.6 s through the 17 s window (decodes 115–494 ms, no
+    budget stop), which the Phase 2 amendment gate allows only on WebGPU;
+  - the final transcript landed 0.56 s after speech end.
+- **`reset.sh` hint: accepted.** The warning now suggests
+  `verify --root "$ANIMAMA_MODEL_ROOT"`.
+- **`load_failed` test: deferred.** `client.ts` has no worker test harness; the
+  code path was reviewed and reads correctly.
+- **Budget:** one repair round remains. Phase 3 passes review.
+- **Checks after the revisions:**
+  - `pnpm check`, `web:lint`, `web:test` (298 files, 1,794 tests), `build` and
+    `desktop:check`: exit 0;
+  - pytest model, Compose, state and CI policy tests: 305 passed, 6 skipped;
+  - `ruff check` and `bash -n reset.sh`: OK.
 
 ## Final integration review
 

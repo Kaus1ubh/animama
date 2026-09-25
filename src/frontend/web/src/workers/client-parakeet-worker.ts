@@ -1,6 +1,8 @@
 /// <reference lib="webworker" />
 
 import * as ort from "onnxruntime-web";
+import ortJsepMjsUrl from "onnxruntime-web/ort-wasm-simd-threaded.jsep.mjs?url";
+import ortJsepWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.jsep.wasm?url";
 import ortWasmMjsUrl from "onnxruntime-web/ort-wasm-simd-threaded.mjs?url";
 import ortWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url";
 
@@ -9,6 +11,7 @@ import { fromUrls } from "parakeet.js";
 
 import { createLogger } from "@/lib/logger";
 import type {
+  ClientParakeetBackend,
   ClientParakeetDisposeRequest,
   ClientParakeetErrorResponse,
   ClientParakeetLoadRequest,
@@ -47,11 +50,18 @@ const ortWasmPaths = {
   mjs: ortWasmMjsUrl,
   wasm: ortWasmUrl,
 };
+// The WebGPU execution provider ships only in ORT's JSEP build.
+const ortJsepPaths = {
+  mjs: ortJsepMjsUrl,
+  wasm: ortJsepWasmUrl,
+};
 
 let model: ParakeetModel | null = null;
 let loadedModelUrls: ClientParakeetModelUrls | null = null;
 let loadedSampleRateHz: number | null = null;
-let loadedBackend: "wasm" | null = null;
+let loadedBackend: ClientParakeetBackend | null = null;
+/** ORT loads one WASM build per worker; the client recreates the worker to switch. */
+let ortBackend: ClientParakeetBackend | null = null;
 let queue: Promise<void> = Promise.resolve();
 
 function postResponse(response: ClientParakeetWorkerResponse): void {
@@ -105,8 +115,14 @@ function ensureModel(): ParakeetModel {
   return model;
 }
 
-function configureOrt(): void {
-  ort.env.wasm.wasmPaths = ortWasmPaths;
+function configureOrt(backend: ClientParakeetBackend): void {
+  if (ortBackend && ortBackend !== backend) {
+    throw new Error(
+      `Client Parakeet worker already initialized ORT for ${ortBackend}; create a new worker to load ${backend}.`,
+    );
+  }
+  ortBackend = backend;
+  ort.env.wasm.wasmPaths = backend === "webgpu" ? ortJsepPaths : ortWasmPaths;
   ort.env.wasm.numThreads = 1;
   ort.env.wasm.simd = true;
   ort.env.logLevel = "warning";
@@ -173,10 +189,11 @@ async function handleLoad(request: ClientParakeetLoadRequest): Promise<void> {
   loadedSampleRateHz = null;
   loadedBackend = null;
 
-  configureOrt();
+  configureOrt(request.backend);
   const startedAtMs = performance.now();
   model = await fromUrls({
-    backend: request.backend,
+    // Hybrid keeps the INT8 decoder/joint on WASM while the encoder uses WebGPU.
+    backend: request.backend === "webgpu" ? "webgpu-hybrid" : "wasm",
     cpuThreads: 1,
     decoderUrl: request.modelUrls.decoderUrl,
     enableProfiling: false,
@@ -187,6 +204,33 @@ async function handleLoad(request: ClientParakeetLoadRequest): Promise<void> {
     tokenizerUrl: request.modelUrls.tokenizerUrl,
     verbose: false,
   });
+
+  if (request.backend === "webgpu") {
+    // ORT silently drops a WebGPU provider that fails to start and runs the
+    // session on WASM; only an initialized backend defines this own property.
+    const device = Object.getOwnPropertyDescriptor(ort.env.webgpu, "device");
+    if (!device || !("value" in device) || !device.value) {
+      await releaseModel(model);
+      model = null;
+      throw new Error(
+        "WebGPU did not initialize in the Parakeet worker; ONNX Runtime fell back to WASM.",
+      );
+    }
+    // The first WebGPU inference compiles shaders and can take about a second.
+    // Pay that during load so the first preview does not look over budget.
+    const warmupStartedAtMs = performance.now();
+    await model.transcribe(
+      new Float32Array(TARGET_SAMPLE_RATE),
+      TARGET_SAMPLE_RATE,
+      {
+        returnConfidences: false,
+        returnTimestamps: false,
+      },
+    );
+    logger.info("Load", "Warmed up WebGPU Parakeet runtime", {
+      warmupMs: Math.round(performance.now() - warmupStartedAtMs),
+    });
+  }
 
   loadedModelUrls = request.modelUrls;
   loadedSampleRateHz = request.sampleRateHz;

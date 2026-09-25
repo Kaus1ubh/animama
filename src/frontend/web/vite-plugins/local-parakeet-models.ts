@@ -27,6 +27,32 @@ export function resolveLocalParakeetModelDir(): string {
   }).trim();
 }
 
+/**
+ * Resolve the optional WebGPU encoder set. Unlike the base set it never blocks
+ * startup: `null` makes its route answer 404, which the client reports as
+ * "GPU model not installed".
+ */
+export function resolveLocalParakeetWebgpuModelDir(): string | null {
+  const mounted = process.env.VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR?.trim();
+  if (mounted) {
+    return path.isAbsolute(mounted) &&
+      statSync(mounted, { throwIfNoEntry: false })?.isDirectory()
+      ? mounted
+      : null;
+  }
+  const script = fileURLToPath(
+    new URL("../../../../scripts/models/parakeet_webgpu.py", import.meta.url),
+  );
+  try {
+    return execFileSync("python3", [script, "path"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
 export type LocalFileAsset = {
   filePath: string;
   size: number;
@@ -78,7 +104,7 @@ function serveLocalFileFromRoute({
 }: {
   requestUrl: string | undefined;
   routeBaseUrl: string;
-  rootDir: string;
+  rootDir: string | null;
 }): LocalFileAsset | null {
   const pathname = requestUrl?.split("?")[0] ?? "";
   const normalizedRouteBaseUrl = routeBaseUrl.replace(/\/$/, "");
@@ -99,6 +125,9 @@ function serveLocalFileFromRoute({
     throw httpError("Invalid URL encoding", 400);
   }
 
+  if (rootDir === null) {
+    throw httpError("Not found", 404);
+  }
   const root = path.resolve(rootDir);
   const filePath = path.resolve(root, relativePath);
   const pathFromRoot = path.relative(root, filePath);
@@ -209,11 +238,11 @@ export function localParakeetModelPlugin({
   modelDir,
   routeBaseUrl,
 }: {
-  modelDir: string | (() => string);
+  modelDir: string | null | (() => string | null);
   routeBaseUrl: string;
 }): Plugin {
   return {
-    name: "anima-local-parakeet-models",
+    name: `anima-local-parakeet-models:${routeBaseUrl}`,
     configureServer(server) {
       const rootDir = typeof modelDir === "function" ? modelDir() : modelDir;
       installLocalAssetMiddleware(server, (requestUrl) =>

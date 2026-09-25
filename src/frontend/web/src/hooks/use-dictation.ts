@@ -25,6 +25,7 @@ import {
   type ParakeetPreview,
   type ParakeetPreviewController,
 } from "@/lib/speech/client-parakeet/preview-controller";
+import type { ClientParakeetBackend } from "@/lib/speech/client-parakeet/worker-protocol";
 import {
   type BrowserRecognitionStopReason,
   appendTranscript,
@@ -38,6 +39,7 @@ import {
 import { useVoiceEndTurnCoordinator } from "@/hooks/voice/use-voice-end-turn-coordinator";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { useSettings } from "@/ui/settings/SettingsProvider";
+import { isParakeetWebgpuPreferred } from "@/lib/settings/preferences";
 import {
   startAcousticTurn,
   type AcousticTurnGateState,
@@ -241,6 +243,10 @@ export function useDictation(options: UseDictationOptions = {}) {
   const [error, setError] = useState<Error | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const { effectivePreferences } = useSettings();
+  // Read at each Parakeet start so a settings change applies to the next session.
+  const parakeetWebgpuPreferredRef = useRef(false);
+  parakeetWebgpuPreferredRef.current =
+    isParakeetWebgpuPreferred(effectivePreferences);
   const platform = useRuntimePlatform();
 
   const runIdRef = useRef<string | null>(null);
@@ -1647,7 +1653,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       sessionId: number;
       runId: string;
       mode: DictationMode;
-      backend: string;
+      backend: ClientParakeetBackend;
     }): ParakeetPreviewController | null => {
       parakeetPreviewControllerRef.current?.reset();
       parakeetPreviewControllerRef.current = null;
@@ -1877,7 +1883,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           turnIdRef.current === turnId;
 
         const parakeetLoadPromise = loadClientParakeetWorker({
-          backend: "wasm",
+          preferWebgpu: parakeetWebgpuPreferredRef.current,
           sampleRateHz: DEFAULT_SAMPLE_RATE,
         });
 

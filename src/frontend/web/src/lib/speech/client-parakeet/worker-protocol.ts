@@ -1,6 +1,10 @@
 import type { TranscribeResult } from "parakeet.js";
 
-export type ClientParakeetBackend = "wasm";
+/**
+ * `wasm`: INT8 encoder and decoder on single-thread WASM (default).
+ * `webgpu`: experimental; FP16 encoder on WebGPU, INT8 decoder on WASM.
+ */
+export type ClientParakeetBackend = "wasm" | "webgpu";
 
 export type ClientParakeetModelUrls = {
   encoderUrl: string;

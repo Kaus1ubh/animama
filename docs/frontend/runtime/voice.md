@@ -225,7 +225,8 @@ backend, display-only previews show interim text while a window is open; see
 Parakeet STT is local client-side STT:
 
 - the browser worker loads `parakeet.js` from local v2 int8 assets with
-  `backend: "wasm"`
+  `backend: "wasm"`, or with the experimental WebGPU backend (see
+  [Experimental WebGPU backend](#experimental-webgpu-backend))
 - MicVAD owns speech-window segmentation and stop/start decisions
 - accepted MicVAD windows are sent to the worker for final-window transcription
 - on the WebGPU backend, open windows are re-decoded for display-only previews (see
@@ -243,9 +244,50 @@ acoustic gate.
 
 The Parakeet worker is loaded with:
 
-- `loadClientParakeetWorker({ backend: "wasm", sampleRateHz: 16000 })`
+- `loadClientParakeetWorker({ preferWebgpu, sampleRateHz: 16000 })`. Here
+  `preferWebgpu` is the `speech.stt_parakeet_webgpu` preference, read at each
+  start.
 - local model URLs from `CLIENT_PARAKEET_MODEL_ASSET_PATHS`
-- ORT WASM URLs bundled through Vite `?url` imports
+- ORT WASM URLs bundled through Vite `?url` imports: the plain build for WASM,
+  and the JSEP build for WebGPU
+
+#### Experimental WebGPU backend
+
+App Settings → **Experimental** → "GPU-accelerated offline speech (WebGPU)" sets
+`speech.stt_parakeet_webgpu`, which is off by default.
+
+When the setting is on, `loadClientParakeetWorker` probes
+(`getParakeetWebgpuStatus`) for two things:
+
+- a WebGPU adapter;
+- a `HEAD` response for the optional FP16 encoder
+  (`CLIENT_PARAKEET_WEBGPU_ENCODER_URL`).
+
+`resolveParakeetBackend` then picks one of these backends:
+
+| Result                 | Backend                                                | Status line                    |
+| ---------------------- | ------------------------------------------------------ | ------------------------------ |
+| `available`            | `webgpu`: FP16 encoder on WebGPU, INT8 decoder on WASM | Available; Active once loaded  |
+| `unsupported`          | `wasm`                                                 | WebGPU not available           |
+| `model_missing`        | `wasm`                                                 | GPU speech model not installed |
+| `unavailable_in_build` | `wasm`                                                 | Not available in this build    |
+
+Loading behavior:
+
+- **Switching backend.** ORT keeps one WASM build per worker, so switching
+  backend terminates and recreates the worker.
+- **Load failure.** The worker checks that ORT actually initialized a WebGPU
+  device, because ORT otherwise drops the WebGPU provider silently and runs on
+  WASM. If the check fails, or the load throws, the client falls back to WASM
+  and reports "fell back to CPU". For the rest of the page it uses WASM
+  directly (`load_failed`), until the settings panel refreshes the status.
+- **Warm-up.** The worker warms WebGPU with one second of silence during load,
+  so shader compilation does not make the first preview look over budget.
+
+Only Vite development stacks, including `desktop:dev`, serve the encoder, at
+`/__client-parakeet-webgpu-models/`. Built self-host and packaged desktop
+builds report `unavailable_in_build`. See
+[model setup](../../backend/operations/model-assets.md#optional-parakeet-webgpu-encoder).
 
 The worker serializes all requests through a promise queue so load,
 transcription, and dispose operations cannot use the model concurrently. If the
@@ -328,10 +370,9 @@ whatever preview is visible in the input.
 #### Live Parakeet previews
 
 Previews run only when the loaded Parakeet backend is WebGPU
-(`shouldEnableParakeetPreviews`). Parakeet currently loads only the
-single-thread WASM backend, so previews stay inactive until a WebGPU backend is
-available. On WASM a preview covered only about 2 s of a window before the
-decode budget stopped it.
+(`shouldEnableParakeetPreviews`), which the experimental setting enables. The
+default single-thread WASM backend is final-only, because a preview there
+covered only about 2 s of a window before the decode budget stopped it.
 
 While a MicVAD window is open on WebGPU, `createParakeetPreviewController(...)`
 (`lib/speech/client-parakeet/preview-controller.ts`) re-decodes the growing

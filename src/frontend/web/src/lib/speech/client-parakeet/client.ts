@@ -1,6 +1,15 @@
 import { createLogger } from "@/lib/logger";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
-import { CLIENT_PARAKEET_MODEL_ASSET_PATHS } from "@/lib/speech/client-parakeet/assets";
+import {
+  CLIENT_PARAKEET_MODEL_ASSET_PATHS,
+  CLIENT_PARAKEET_WEBGPU_ENCODER_URL,
+} from "@/lib/speech/client-parakeet/assets";
+import {
+  probeParakeetWebgpu,
+  resolveParakeetBackend,
+  type ParakeetBackendReason,
+  type ParakeetWebgpuStatus,
+} from "@/lib/speech/client-parakeet/webgpu";
 import type {
   ClientParakeetBackend,
   ClientParakeetDisposeRequest,
@@ -24,7 +33,8 @@ type PendingRequest<T> = {
 };
 
 type LoadClientParakeetWorkerArgs = {
-  backend?: ClientParakeetBackend;
+  /** The experimental WebGPU setting; WebGPU is used only when also available. */
+  preferWebgpu?: boolean;
   sampleRateHz?: number;
   modelUrls?: Partial<ClientParakeetModelUrls>;
 };
@@ -43,6 +53,53 @@ const DEFAULT_SAMPLE_RATE_HZ = 16000;
 const CLIENT_PARAKEET_IDLE_DISPOSE_MS = 300000;
 
 let workerInstance: Worker | null = null;
+/** The ORT build the current worker initialized; switching needs a new worker. */
+let workerBackend: ClientParakeetBackend | null = null;
+let webgpuStatusPromise: Promise<ParakeetWebgpuStatus> | null = null;
+/**
+ * Set when WebGPU passed the probe but failed to load; later starts go straight
+ * to WASM instead of discarding a warm worker to retry. A status refresh clears it.
+ */
+let webgpuLoadFailed = false;
+
+export type ClientParakeetBackendState = {
+  backend: ClientParakeetBackend;
+  reason: ParakeetBackendReason;
+  /** WebGPU was selected but failed to load, so WASM is in use. */
+  fellBackFromWebgpu: boolean;
+};
+
+let lastBackendState: ClientParakeetBackendState | null = null;
+
+/** The backend chosen by the most recent load in this page, if any. */
+export function getLastClientParakeetBackendState(): ClientParakeetBackendState | null {
+  return lastBackendState;
+}
+
+/**
+ * Probe WebGPU support and whether this build serves the optional encoder.
+ * Cached per page; pass `refresh` after the user changes the environment.
+ */
+export function getParakeetWebgpuStatus(options?: {
+  refresh?: boolean;
+}): Promise<ParakeetWebgpuStatus> {
+  if (!webgpuStatusPromise || options?.refresh) {
+    webgpuLoadFailed = false;
+    webgpuStatusPromise = probeParakeetWebgpu({
+      encoderUrl: CLIENT_PARAKEET_WEBGPU_ENCODER_URL,
+      gpu:
+        typeof navigator === "undefined"
+          ? undefined
+          : (
+              navigator as Navigator & {
+                gpu?: { requestAdapter: () => Promise<unknown> };
+              }
+            ).gpu,
+      fetch: (url, init) => globalThis.fetch(url, init),
+    });
+  }
+  return webgpuStatusPromise;
+}
 let requestCounter = 0;
 const pending = new Map<string, PendingRequest<unknown>>();
 let idleDisposeTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
@@ -103,6 +160,7 @@ function terminateFailedWorker(
   if (workerInstance === worker) {
     worker.terminate();
     workerInstance = null;
+    workerBackend = null;
     logger.warn("Worker", "Terminated failed client Parakeet worker", {
       reason,
       error: error.message,
@@ -329,7 +387,7 @@ function postRequest<T>(
 }
 
 export async function loadClientParakeetWorker({
-  backend = "wasm",
+  preferWebgpu = false,
   sampleRateHz = DEFAULT_SAMPLE_RATE_HZ,
   modelUrls,
 }: LoadClientParakeetWorkerArgs = {}): Promise<ClientParakeetLoadResult> {
@@ -341,26 +399,67 @@ export async function loadClientParakeetWorker({
   }
   await cancelClientParakeetIdleDispose("load");
 
-  const resolvedModelUrls = buildModelUrls(
-    modelUrls,
-    capabilities.offline_speech_asset_version,
-  );
-  const request: ClientParakeetLoadRequest = {
-    type: "client_parakeet/load",
-    requestId: nextRequestId("client-parakeet-load"),
-    backend,
-    sampleRateHz,
-    modelUrls: resolvedModelUrls,
+  const plan: ReturnType<typeof resolveParakeetBackend> = !preferWebgpu
+    ? { backend: "wasm", reason: "setting_off" }
+    : webgpuLoadFailed
+      ? { backend: "wasm", reason: "load_failed" }
+      : resolveParakeetBackend({
+          preferWebgpu,
+          status: await getParakeetWebgpuStatus(),
+        });
+
+  const load = async (
+    backend: ClientParakeetBackend,
+    reason: ParakeetBackendReason,
+  ) => {
+    if (workerInstance && workerBackend !== null && workerBackend !== backend) {
+      // ORT keeps the WASM build it first loaded, so switching needs a new worker.
+      await disposeClientParakeetWorker();
+    }
+    const resolvedModelUrls = buildModelUrls(
+      backend === "webgpu" && CLIENT_PARAKEET_WEBGPU_ENCODER_URL
+        ? { ...modelUrls, encoderUrl: CLIENT_PARAKEET_WEBGPU_ENCODER_URL }
+        : modelUrls,
+      capabilities.offline_speech_asset_version,
+    );
+    const request: ClientParakeetLoadRequest = {
+      type: "client_parakeet/load",
+      requestId: nextRequestId("client-parakeet-load"),
+      backend,
+      sampleRateHz,
+      modelUrls: resolvedModelUrls,
+    };
+    logger.info("Worker", "Dispatching client Parakeet load request", {
+      requestId: request.requestId,
+      backend,
+      backendReason: reason,
+      sampleRateHz,
+      modelUrls: resolvedModelUrls,
+    });
+    workerBackend = backend;
+    return await postRequest<ClientParakeetLoadResult>(request);
   };
 
-  logger.info("Worker", "Dispatching client Parakeet load request", {
-    requestId: request.requestId,
-    backend,
-    sampleRateHz,
-    modelUrls: resolvedModelUrls,
-  });
-
-  return await postRequest<ClientParakeetLoadResult>(request);
+  let fellBackFromWebgpu = false;
+  let result: ClientParakeetLoadResult;
+  try {
+    result = await load(plan.backend, plan.reason);
+  } catch (error) {
+    if (plan.backend !== "webgpu") throw error;
+    logger.warn("Worker", "WebGPU Parakeet load failed; falling back to WASM", {
+      error: toErrorMessage(error),
+    });
+    await disposeClientParakeetWorker();
+    webgpuLoadFailed = true;
+    fellBackFromWebgpu = true;
+    result = await load("wasm", "load_failed");
+  }
+  lastBackendState = {
+    backend: result.backend,
+    reason: fellBackFromWebgpu ? "load_failed" : plan.reason,
+    fellBackFromWebgpu: fellBackFromWebgpu || plan.reason === "load_failed",
+  };
+  return result;
 }
 
 export async function transcribeClientParakeetWindow({
@@ -433,6 +532,7 @@ export async function disposeClientParakeetWorker(): Promise<ClientParakeetDispo
     if (workerInstance) {
       workerInstance.terminate();
       workerInstance = null;
+      workerBackend = null;
       logger.info("Worker", "Terminated client Parakeet worker instance");
     }
   }
