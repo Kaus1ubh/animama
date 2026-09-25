@@ -209,4 +209,4 @@ identity-protection rule. See
 
 ## Delivery links
 
-Phase issues #102, #103, #104; PR pending.
+Phase issues #102, #103, #104; PR https://github.com/raymond-van/animama/pull/110.

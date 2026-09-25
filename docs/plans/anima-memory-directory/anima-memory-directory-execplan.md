@@ -49,7 +49,8 @@ offline with `pnpm openapi-ts`; never hand-edit generated output.
 - [x] Phase 3: Memory Manager identity diffs end to end (review #2 pass).
 - [x] Final integration review and manual acceptance (review #1 pass after
       record and evidence repairs; commit recorded in PR).
-- [ ] Regular PR and hosted Validation.
+- [ ] Regular PR https://github.com/raymond-van/animama/pull/110 opened
+      (validated revision `3802e03`); hosted Validation pending.
 - [ ] Exact-candidate owner merge approval.
 
 ## Surprises & Discoveries
