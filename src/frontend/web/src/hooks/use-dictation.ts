@@ -30,6 +30,13 @@ import {
 } from "@/hooks/voice/browser-recognition-runtime";
 import { useVoiceEndTurnCoordinator } from "@/hooks/voice/use-voice-end-turn-coordinator";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
+import {
+  microphoneAudioConstraints,
+  openSelectedMicrophone,
+  readSelectedMicrophoneId,
+  vadThresholdsForSensitivity,
+  type VadThresholds,
+} from "@/lib/voice/microphone-preferences";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import {
   startAcousticTurn,
@@ -137,11 +144,10 @@ const SMART_TURN_SAMPLE_RATE = 16000;
 const SMART_TURN_MODEL_WINDOW_SAMPLES = SMART_TURN_SAMPLE_RATE * 8;
 const SMART_TURN_SHORT_UTTERANCE_MAX_MS = 2000;
 
-const MICVAD_POSITIVE_SPEECH_THRESHOLD = 0.3; // determines the threshold over which a probability is considered to indicate the presence of speech. default: 0.3
-const MICVAD_NEGATIVE_SPEECH_THRESHOLD = 0.25; // determines the threshold under which a probability is considered to indicate the absence of speech. default: 0.25
+// Positive/negative speech thresholds and minimum speech length come from the
+// microphone sensitivity preference (see lib/voice/microphone-preferences.ts).
 const MICVAD_REDEMPTION_MS = 1400; // number of milliseconds of speech-negative frames to wait before ending a speech segment. default: 1400, 200 recommended when paired with smart-turn
 const MICVAD_PRESPEECH_PAD_MS = 200; // number of milliseconds of audio to prepend to a speech segment. default: 800
-const MICVAD_MINSPEECH_MS = 180; // minimum duration in milliseconds for a speech segment. default: 400
 
 // We stream raw PCM16 over WS to keep latency low and avoid codec overhead.
 // The mic provides Float32 frames, so we must convert to PCM16 continuously.
@@ -235,6 +241,14 @@ export function useDictation(options: UseDictationOptions = {}) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const { effectivePreferences } = useSettings();
   const platform = useRuntimePlatform();
+  // Read at VAD start so a sensitivity change applies to the next session.
+  const micVadThresholdsRef = useRef<VadThresholds>(
+    vadThresholdsForSensitivity(undefined),
+  );
+  const micSensitivity = effectivePreferences?.speech?.mic_sensitivity;
+  useEffect(() => {
+    micVadThresholdsRef.current = vadThresholdsForSensitivity(micSensitivity);
+  }, [micSensitivity]);
 
   const runIdRef = useRef<string | null>(null);
   const runIdTimerRef = useRef<number | null>(null);
@@ -1586,13 +1600,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         return;
       }
       try {
-        const visualizerStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        });
+        const visualizerStream = await openSelectedMicrophone();
 
         if (
           activeParakeetSessionIdRef.current !== sessionId ||
@@ -1968,11 +1976,14 @@ export function useDictation(options: UseDictationOptions = {}) {
         const vad = await createAndStartMicVad({
           baseAssetPath: VAD_BASE_ASSET_PATH,
           onnxWasmBasePath: VAD_ONNX_WASM_BASE_PATH,
-          positiveSpeechThreshold: MICVAD_POSITIVE_SPEECH_THRESHOLD,
-          negativeSpeechThreshold: MICVAD_NEGATIVE_SPEECH_THRESHOLD,
+          ...micVadThresholdsRef.current,
           redemptionMs: MICVAD_REDEMPTION_MS,
           preSpeechPadMs: MICVAD_PRESPEECH_PAD_MS,
-          minSpeechMs: MICVAD_MINSPEECH_MS,
+          // Only override vad-web's own stream when a device was chosen
+          // (Parakeet; browser recognition cannot target a device).
+          ...(readSelectedMicrophoneId()
+            ? { getStream: openSelectedMicrophone }
+            : {}),
           ...micVadCallbacks,
         });
 
@@ -2108,11 +2119,9 @@ export function useDictation(options: UseDictationOptions = {}) {
       }
       try {
         const visualizerStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
+          // Browser speech recognition always listens on the system default
+          // microphone, so its visualizer and VAD must use the same input.
+          audio: microphoneAudioConstraints(null),
         });
 
         const isStillCurrentRecognition =
@@ -2296,11 +2305,9 @@ export function useDictation(options: UseDictationOptions = {}) {
         const vad = await createAndStartMicVad({
           baseAssetPath: VAD_BASE_ASSET_PATH,
           onnxWasmBasePath: VAD_ONNX_WASM_BASE_PATH,
-          positiveSpeechThreshold: MICVAD_POSITIVE_SPEECH_THRESHOLD, // determines the threshold over which a probability is considered to indicate the presence of speech. default: 0.3
-          negativeSpeechThreshold: MICVAD_NEGATIVE_SPEECH_THRESHOLD, // determines the threshold under which a probability is considered to indicate the absence of speech. default: 0.25
-          redemptionMs: MICVAD_REDEMPTION_MS, // number of milliseconds of speech-negative frames to wait before ending a speech segment. default: 1400, 200 recommended when paired with smart-turn
-          preSpeechPadMs: MICVAD_PRESPEECH_PAD_MS, // number of milliseconds of audio to prepend to a speech segment. default: 800
-          minSpeechMs: MICVAD_MINSPEECH_MS, // minimum duration in milliseconds for a speech segment. default: 400
+          ...micVadThresholdsRef.current,
+          redemptionMs: MICVAD_REDEMPTION_MS,
+          preSpeechPadMs: MICVAD_PRESPEECH_PAD_MS,
           ...micVadCallbacks,
         });
         vadRef.current = vad;

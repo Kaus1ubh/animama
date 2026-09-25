@@ -53,6 +53,11 @@ import {
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
 import { APPEARANCE_COLOR_KEYS } from "@/lib/theme/appearance-overrides";
 import {
+  MicrophoneDeviceSetting,
+  MicrophoneSensitivitySetting,
+  MicrophoneTestSetting,
+} from "@/ui/settings/MicrophoneSettings";
+import {
   APPEARANCE_COLOR_LABELS,
   AppearanceColorSetting,
   AppearanceModeSetting,
@@ -1149,6 +1154,37 @@ export function ApplicationSettingsModal({
         render: () => <AppearanceColorSetting colorKey={colorKey} />,
       }),
     ),
+    {
+      id: "microphone-device",
+      section: "Voice",
+      group: "Microphone",
+      label: "Microphone input device",
+      keywords: ["mic", "microphone", "input", "device", "headset", "usb"],
+      render: () => (
+        <MicrophoneDeviceSetting
+          usesSystemRecognizer={
+            selectedSttProvider === "browser_external" ||
+            selectedSttProvider === "browser_local"
+          }
+        />
+      ),
+    },
+    {
+      id: "microphone-sensitivity",
+      section: "Voice",
+      group: "Microphone",
+      label: "Microphone sensitivity",
+      keywords: ["mic", "voice detection", "vad", "noise", "quiet"],
+      render: () => <MicrophoneSensitivitySetting disabled={isBusy} />,
+    },
+    {
+      id: "microphone-test",
+      section: "Voice",
+      group: "Microphone",
+      label: "Test microphone",
+      keywords: ["mic", "level", "meter", "input level"],
+      render: () => <MicrophoneTestSetting />,
+    },
     {
       id: "stt-provider",
       section: "Voice",

@@ -86,7 +86,7 @@ Boundaries:
 - [x] Phase 1 (#115): R1–R2 plus section scaffolding. Reviewed (#1, #2 pass);
       committed as `feat(settings)[p1]`.
 - [x] Phase 2 (#116): R3 Appearance. Visual QA gate evidence recorded; reviews #1–#3 (pass).
-- [ ] Phase 3: R4 Microphone. Owner hardware gate.
+- [x] Phase 3 (#117): R4 Microphone implemented and reviewed (#1, #2 pass). **Owner hardware acceptance pending.**
 - [ ] Phase 4: R5 General defaults.
 - [ ] Phase 5: R6–R8 inheritance, Markdown persistence, reset.
 - [ ] Phase 6: R9 About & diagnostics.
@@ -440,13 +440,79 @@ the modal closes; unplugging the device falls back to the system default. Until
 the owner confirms, the phase is recorded as "implemented, hardware acceptance
 pending", and later phases may proceed.
 
+Results:
+
+- **Delivered:**
+  - `lib/voice/microphone-preferences.ts`:
+    - the device choice is stored per machine in local storage, with change
+      notifications;
+    - a remembered device is requested as `ideal`, so a missing device falls
+      back to the system default;
+    - Low/Normal/High sensitivity maps to VAD thresholds. Normal keeps the
+      previous 0.3 / 0.25 / 180 ms.
+  - Parakeet dictation and Voice Mode (visualizer and VAD via vad-web
+    `getStream`) use the selected device.
+  - **Discovery:** Browser speech recognition cannot target a device, so the
+    browser path deliberately keeps its visualizer and VAD on the system
+    default, matching the recognizer. The settings row says so.
+  - Sensitivity is read at VAD start.
+  - Voice → Microphone group:
+    - device picker with a permission request and a not-connected note;
+    - sensitivity select;
+    - opt-in level meter that releases the microphone on stop, device change
+      or unmount.
+  - **Constraint change:** the visualizers now also request `channelCount: 1`,
+    matching vad-web's defaults.
+  - **Low/High values** (0.5/0.35/250 ms and 0.2/0.15/120 ms) are initial
+    values; tuning is part of the hardware gate.
+- **Local checks (`src/frontend`):**
+  - `pnpm check` pass;
+  - `pnpm web:lint` pass;
+  - `pnpm web:test` 298 files / 1,786 tests pass;
+  - after repairs: `tsc -b`, scoped eslint, and voice and hooks tests (26)
+    pass.
+- **Browser:**
+  - the group renders first in Voice;
+  - High sensitivity persists to preferences;
+  - the browser pane blocks capture (NotAllowedError), so the
+    permission-request state shows.
+- **Owner hardware gate: pending.** Needs a non-default microphone for Parakeet
+  dictation and Voice Mode; the meter responding; the indicator turning off
+  after close; unplug fallback; and Low/High tuning.
+
 #### Code Review #1 Findings
 
-Pending.
+- **P3-1 (blocking).** With browser recognition and a remembered device, VAD
+  and the visualizer would capture from a different microphone than the
+  recognizer.
+- **P3-2.** A "not connected" note flashes before enumeration finishes.
+- **P3-3.** Device names were not refreshed after the test granted
+  permission.
+- **P3-4.** `channelCount` constraint change.
+- **P3-5.** Meter accessible name.
+- **P3-6.** Sensitivity timing copy.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P3-1: accepted.** The browser path uses default constraints and no
+  `getStream`.
+- **P3-2: accepted.** A `loaded` flag.
+- **P3-3: accepted.** The meter emits an access event and the row
+  re-enumerates.
+- **P3-4: accepted and documented.**
+- **P3-5: accepted.** `role="img"` wrapper.
+- **P3-6: accepted.** Copy updated.
+
+#### Code Review #2 Findings (repair round 1)
+
+Pass.
+
+- **Optional:** redundant `aria-pressed` alongside the changing label.
+
+#### Code Review #2 Revisions
+
+- **`aria-pressed`: removed.** The label alone conveys state.
+- One repair round remains.
 
 ### Phase 4: General defaults
 

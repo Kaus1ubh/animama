@@ -1,3 +1,4 @@
+import type { MicSensitivity } from "@/lib/voice/microphone-preferences";
 import type { AppearanceOverrides } from "@/lib/theme/appearance-overrides";
 import {
   DEFAULT_DESKTOP_SHORTCUTS,
@@ -105,6 +106,8 @@ export type SpeechPreferences = {
   tts_pocket_anima_voice?: string;
   tts_pocket_custom_voice_available?: boolean;
   tts_pocket_anima_custom_voice_available?: boolean;
+  /** Voice-detection sensitivity; see `lib/voice/microphone-preferences.ts`. */
+  mic_sensitivity?: MicSensitivity;
   [key: string]: unknown;
 };
 
