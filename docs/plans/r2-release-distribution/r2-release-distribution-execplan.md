@@ -70,7 +70,7 @@ Commands run from `src/frontend` unless stated. Relevant code:
 - [x] Phase 2: Distribution policy and build-time selection. Merged with Phase 3 in [#124](https://github.com/raymond-van/animama/pull/124) (merge `74a5615`) on 2026-09-25.
 - [x] Phase 3: Installed-app transport for R2. Merged with Phase 2 in #124.
 - [x] Phase 4: R2 publisher and release workflow. Merged in [#126](https://github.com/raymond-van/animama/pull/126) (merge `5630ad8`) on 2026-09-25.
-- [ ] Phase 5: Cloudflare configuration, live bucket exercise and docs. Live exercise passed on 2026-09-25. Awaiting the owner's deletion of `test/` and the lock rule.
+- [x] Phase 5: Cloudflare configuration, live bucket exercise and docs. The live exercise passed. The owner deleted `test/` and added the `desktop/v` indefinite lock rule on 2026-09-25.
 - [ ] Final integration review. Not started.
 
 ## Surprises & Discoveries
@@ -807,10 +807,13 @@ Docs: operator setup and publication landed in Phase 4. Here, migration is
 documented as unsupported, and `src/frontend/AGENTS.md` now describes the
 distribution selection and the scan gate.
 
-Owner gates still open:
+Owner gates, completed 2026-09-25:
 
-- Delete the synthetic `test/` objects.
-- Add the bucket lock rule (prefix `desktop/v`, indefinite retention).
+- The owner deleted the synthetic `test/` objects; they return 404 from R2.
+- The owner added the bucket lock rule: prefix `desktop/v`, indefinite retention.
+- Discovery: the deleted zip was still served from Cloudflare's edge cache
+  (`HIT`, one-year max-age). The operator docs now say to purge the exact URLs
+  when deleting an object.
 
 #### Code Review #1 Findings
 

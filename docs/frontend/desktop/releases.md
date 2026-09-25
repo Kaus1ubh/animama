@@ -426,6 +426,9 @@ new version for corrections.
   Pass its account ID, access key ID and secret as `ANIMAMA_R2_ACCOUNT_ID`,
   `ANIMAMA_R2_ACCESS_KEY_ID` and `ANIMAMA_R2_SECRET_ACCESS_KEY` for the publish
   command only; never commit, print or package them.
+- Versioned objects are cached at Cloudflare's edge for up to a year. Deleting
+  an object from the bucket does not remove cached copies; purge the exact URLs
+  (Caching → Configuration → Custom Purge) as well. The feed is never cached.
 
 The canonical generated evidence is the fixed set in `desktop/release/publish`,
 with `SHA256SUMS.txt` and `signing-report.json`. See the [evidence map](release-process.md#evidence-and-actual-artifact-names)
