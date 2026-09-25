@@ -349,7 +349,6 @@ chunks.
   been measured yet in that capture session, that window gets no previews.
   - On single-thread WASM this limits previews to roughly the first 2 s of each
     window.
-  - Faster backends preview whole utterances.
   - `maxPreviewDecodeMs: 0` in `DEFAULT_PARAKEET_PREVIEW_CONFIG` disables
     previews. It is an internal constant, not a user setting.
 - Previews are display-only. They are published through
@@ -608,8 +607,8 @@ Matching source priority:
 2. current turn buffered `interimText`
 
 For browser STT, the match can come from final or interim recognition text. For
-Parakeet STT, the match comes from final text only because Parakeet has no
-interim path.
+Parakeet STT, the match comes from final text only, because Parakeet previews
+are display-only and never enter the per-turn buffers.
 
 ## Chat and Avatar Runtime Integration
 
@@ -622,7 +621,8 @@ interim path.
   - `dictationCommittedRef` (final dictation text)
   - `dictationInterimRef` (live interim dictation preview)
 - merges display text as `base + (committed + interim)`
-- updates interim preview from `onTranscriptPreview` (browser STT buffer updates)
+- updates interim preview from `onTranscriptPreview` (browser STT buffer updates
+  and Parakeet previews)
 - starts:
   - `startDictation("dictation")`
   - `startDictation("voice")`

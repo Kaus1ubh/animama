@@ -11,8 +11,13 @@ Source agreement: the owner's task instructions on 2026-09-25.
 There is no separate spec: this plan and its phase issues carry the acceptance
 criteria.
 
-Authorized scope: Phases 1 and 2 once this plan is approved. Phase 3 needs the
-Gate G1 decision.
+Authorized scope:
+
+- Phases 1 and 2: authorized and delivered.
+- G1 (2026-09-25): the owner chose WebGPU behind an "Experimental" settings
+  toggle.
+- Phase 3 is being revised to match that decision and needs owner approval
+  before implementation.
 
 ## Purpose and context
 
@@ -82,7 +87,7 @@ Browser speech recognition behavior does not change.
 ### Test environment
 
 Use a named task stack from this worktree. Keep the main stack
-(`animama-server` on `127.0.0.1:3000`) running and unchanged.
+(`animama-server` on its usual local port) running and unchanged.
 
 ```bash
 ./reset.sh --name stt --base-port 8200
@@ -119,9 +124,10 @@ The Parakeet model comes from the shared developer model store. Check it with
 - [x] Phase 2: live Parakeet partial transcripts.
   - Review passed after two repair rounds and one extra recheck authorized by
     the owner.
-  - The commit is recorded in the Phase 2 section.
+  - Commit `68cdf0e` (`feat(voice)[p2]`).
 - [ ] Phase 3: WebGPU as an experimental setting (plan revision pending).
-- [ ] Final integration review and PR.
+- [x] Final integration review passed (one repair round). The PR is opened
+      from this branch; see the PR for hosted `Validation`.
 - [ ] Owner manual acceptance on the task stack.
 
 ## Surprises & Discoveries
@@ -197,7 +203,7 @@ commands from `src/frontend`.
 
 ### Phase 1: WebGPU encoder spike and baseline measurements
 
-Issue: _to be created at workspace setup_. Depends on: the task stack.
+Issue: #99. Depends on: the task stack.
 
 Outcome: reproducible numbers for deciding whether WebGPU is worth larger model
 files, plus the re-decode cost budget for Phase 2. No user-facing behavior
@@ -496,8 +502,7 @@ optional items are resolved, and no code regressions were found.
 
 ### Phase 2: live Parakeet partial transcripts
 
-Issue: _to be created_. Depends on: the Phase 1 re-decode cost estimate, not on
-G1.
+Issue: #100. Depends on: the Phase 1 re-decode cost estimate, not on G1.
 
 Outcome: interim Parakeet text appears during speech and is replaced by the final
 text. Final text, Smart Turn, auto-submit and stale-result handling keep their
@@ -584,12 +589,12 @@ and review passes.
 
 #### Phase 2 results (2026-09-25)
 
-Issue #100. The work started from `f5591c1`.
+Issue #100. The work started from `f5591c1`; the phase commit is `68cdf0e`.
 
 **What was built**
 
 - `lib/speech/client-parakeet/preview-controller.ts`: the frame-driven preview
-  controller, with 18 behaviour tests.
+  controller, with 20 behaviour tests.
 - `mic-vad-runtime.ts` now forwards MicVAD frames through `onVadFrame`, with 2
   tests.
 - The worker protocol gained `kind: "preview" | "final"`.
@@ -647,7 +652,15 @@ Issue #100. The work started from `f5591c1`.
 - a deliberate VAD misfire;
 - Electron Voice Mode;
 - avatar frame-rate measurement;
-- a WebGPU backend, which is Phase 3.
+- a WebGPU backend, which is Phase 3;
+- a before/after final-latency A/B against the old build. The latency evidence
+  instead shows no preview in flight at any speech end;
+- an automated Voice Mode `use-dictation` test. No hook test pattern exists for
+  it, so the manual Voice Mode check covers it.
+
+The manual runs above used the tree before the P2-R2-1 and P2-R3-1 fixes.
+Those fixes only change held-back first previews (Voice Mode during an
+assistant run), which the runs did not exercise, so they were not repeated.
 
 **Disclosed limitation (R1 on WASM):** previews cover roughly the first 2 s of
 each window. Longer utterances show the frozen preview until the final lands:
@@ -658,8 +671,8 @@ backend (G1).
 **Deviation:** diagnostics use the logger only (`debug` for results, `info`
 for budget stops and failures). They do not use the voice debug sink.
 
-**Checks** (from `src/frontend`, after the Code Review #1 fixes): see
-[Final integration review](#final-integration-review).
+**Checks:** see [Final integration review](#final-integration-review) for the
+full suite on the Phase 2 commit.
 
 #### Code Review #1 Findings
 
@@ -853,7 +866,12 @@ None required. Phase 2 passes review.
 
 ### Phase 3 (only if G1 = a): adopt the WebGPU encoder
 
-Issue: _created only after G1 = a_.
+> **Superseded by the G1 decision (2026-09-25).** WebGPU becomes an opt-in
+> "Experimental" setting rather than automatic capability-based selection. The
+> steps below are the original draft and are pending revision and owner
+> approval. Do not implement them as written.
+
+Issue: _created only after the revision is approved_.
 
 Outcome: when WebGPU is available, Parakeet runs the fp16 encoder on WebGPU and
 the int8 decoder on WASM. If WebGPU is unavailable, or the model load or first
@@ -886,6 +904,76 @@ evidence. It confirms that:
 
 Findings and revisions are recorded here. Budget: one full review plus at most
 two repair rounds.
+
+**Checks on `68cdf0e`** (2026-09-25, from `src/frontend`, with only
+plan/doc edits uncommitted):
+
+| Command              | Result                             |
+| -------------------- | ---------------------------------- |
+| `pnpm check`         | exit 0 (web and desktop typecheck) |
+| `pnpm web:lint`      | exit 0                             |
+| `pnpm web:test`      | exit 0, 297 files, 1,780 tests     |
+| `pnpm build`         | exit 0                             |
+| `pnpm desktop:check` | exit 0                             |
+
+The production `dist` contains only `index.html`. A search for
+`parakeet-bench`, `ParakeetBench` and `__parakeetBenchResult` finds nothing.
+Backend code is unchanged, so no backend checks were run. Hosted `Validation`
+is recorded in the PR.
+
+#### Code Review #1 Findings (final integration)
+
+Reviewer: independent `sdlc-reviewer` subagent. Source: `c612e9d..68cdf0e`
+plus the uncommitted plan edit recording `68cdf0e`. Round: initial.
+
+- **FI-R1-1 (required):** the plan had no recorded Phase 2 run of `check`,
+  `lint`, `build` or `desktop:check`, and the latest build predated the
+  P2-R3-1 fix.
+- **FI-R1-2 (required):** `voice.md`'s short-utterance override section still
+  said "Parakeet has no interim path".
+- **Optional:**
+  - **FI-R1-3:** the "faster backends preview whole utterances" line describes
+    a backend that doesn't exist yet;
+  - **FI-R1-4:** the `onTranscriptPreview` description omits Parakeet;
+  - **FI-R1-5:** plan hygiene: test count, stale issue placeholders, the
+    authorized-scope header, marking the Phase 3 draft as superseded, missing
+    "not performed" items, which source tree the manual runs used, and a
+    machine-specific port.
+- **Verified without findings:**
+  - preview isolation from the final, Smart Turn and submission;
+  - the benchmark is excluded from production;
+  - phase compatibility (shared ORT via Vite `dedupe`; the product worker
+    still uses the non-JSEP WASM);
+  - the MicVAD frame signature;
+  - plan record consistency;
+  - commit conventions;
+  - no private paths.
+
+#### Code Review #1 Revisions (final integration)
+
+- **FI-R1-1: accepted.** The full suite was rerun on `68cdf0e` and recorded in
+  the table above.
+- **FI-R1-2: accepted.** The reason now says Parakeet previews are
+  display-only and never enter the per-turn buffers.
+- **FI-R1-3, FI-R1-4, FI-R1-5: accepted and fixed:**
+  - the line was removed;
+  - the `onTranscriptPreview` description now includes Parakeet previews;
+  - the test count is corrected, issues #99 and #100 are linked, the scope
+    header is updated, the Phase 3 draft is marked as superseded by G1, the
+    "not performed" items and the manual-run source note are added, and the
+    port is now a placeholder.
+- **Next:** targeted recheck #2.
+
+#### Code Review #2 Findings (final integration, repair round 1)
+
+- **Result: pass.** FI-R1-1 to FI-R1-5 are resolved, with no regressions.
+- The reviewer independently checked the raw check log and re-verified that
+  `dist` excludes the benchmark.
+
+#### Code Review #2 Revisions (final integration)
+
+None required. The final integration review passed with one repair round
+used.
 
 ## Validation and acceptance
 
