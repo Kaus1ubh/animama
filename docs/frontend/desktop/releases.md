@@ -14,8 +14,7 @@ the tooling reference. CI publication remains unconfigured.
 
 ## What people see
 
-A signed, configured app checks the public GitHub release feed 15 seconds after
-startup. Offline checks time out without blocking the application. Settings →
+A signed, configured app checks its release feed 15 seconds after startup. Offline checks time out without blocking the application. Settings →
 General also offers **Check for updates**. A notice offers **Download update**;
 the separate **Restart to install** action asks for confirmation before stopping
 local services. Closing the notice or quitting normally does not install a
@@ -24,9 +23,12 @@ downloaded update. Unpackaged or unconfigured builds do not offer updates.
 Only the registered main window can check, download, or restart. Renderer IPC
 accepts no release URL, version, token, executable, or filesystem path. It returns
 bounded status, byte counts, progress, and safe error categories. The updater
-uses a separate Electron network session restricted to the configured public
-GitHub repository and its asset CDN. No Animama account or GitHub token is
-required for the installed application.
+uses a separate Electron network session restricted to the build's sealed
+distribution (see [Distribution selection](#distribution-selection)): for R2,
+only `<base_url>/latest-mac.yml` and `<base_url>/v<version>/` files; for GitHub,
+only the configured repository's releases and asset CDN. Pack downloads follow
+the same rule, and R2 builds follow no redirects. No Animama account or token
+is required for the installed application.
 
 The pinned `electron-updater` 6.8.9 adapter sets `autoDownload=false` and
 `autoInstallOnAppQuit=false`, permits stable forward arm64 updates only, and
@@ -42,36 +44,60 @@ strand referenced expanded content is blocked. The required free space is two
 download archives, two installed app copies, twice the current PGDATA byte count,
 and a 256 MiB reserve. Existing data or packs are never assumed reclaimable.
 
+## Distribution selection
+
+`release-policy.json` records two reviewed destinations: Cloudflare R2 served at
+`https://downloads.animama.ai/desktop` (bucket `animama-releases`), and the GitHub
+repository `raymond-van/animama-releases`. Staging and every release command
+select one with `ANIMAMA_RELEASE_DISTRIBUTION=r2|github`; unset means `r2`, and
+any other value fails. The choice is sealed into the staged
+`runtime/update-policy.json` and every pack URL, and `desktop:dist:mac` refuses
+a selection that differs from the one used for staging. Installed apps never read
+this variable and have no runtime override.
+
+| Distribution | Update feed                   | Installers, notices and packs                                     |
+| ------------ | ----------------------------- | ----------------------------------------------------------------- |
+| `r2`         | `<base_url>/latest-mac.yml`   | `<base_url>/v<version>/<asset>`                                   |
+| `github`     | The repository's release feed | `https://github.com/<owner>/<repo>/releases/download/v<version>/` |
+
+An app only ever updates from the distribution it was built for, and it accepts
+only a feed in that distribution's format. The current tooling cannot yet
+produce a migration release that moves installed users to the other
+distribution: it would need a feed in the old distribution's format that
+points at a build sealed for the new one. `signing-report.json` records the
+distribution sealed into the candidate, and the publisher refuses a candidate
+whose recorded distribution differs from the current selection.
+
 ## Release inputs and permissions
 
-Keep source and the distribution repository private. A signed candidate builder
-uses explicitly configured repository coordinates to pin future installer/update
-and pack URLs, but does not query GitHub, require a GitHub token or upload assets.
-Only preview/stable publication checks anonymous public repository access, before
-preparing promotion reports or making authenticated API calls. It then rechecks
-visibility through the authenticated API before uploading. A local signed build
-does not approve public distribution; notarization still submits binaries to Apple.
-Neither path infers the repository from the source remote or embeds a token in the app.
+Keep source private. A signed candidate builder uses the selected distribution
+to pin future installer/update and pack URLs, but does not contact it, require a
+token or upload assets. A local signed build does not approve public
+distribution; notarization still submits binaries to Apple. Neither path infers
+a destination from the source remote or embeds a token in the app.
 
-The configured distribution repository is `raymond-van/animama-releases`.
-It supplies pinned future URLs, not an available private download feed.
-`feature-pack-releases.json` records pack policy and exact inventory receipts;
-`release-policy.json` records the core inventory receipt. A source or notice
-change requires fresh matching review rather than reuse of an older hash.
+The publisher currently supports only GitHub-distribution candidates and refuses
+R2 candidates. For GitHub, preview/stable publication checks anonymous public
+repository access before preparing promotion reports or making authenticated
+API calls, then rechecks visibility through the authenticated API before
+uploading. The destinations supply pinned future URLs, not a private download
+feed. `feature-pack-releases.json` records pack policy and exact inventory
+receipts; `release-policy.json` records the core inventory receipt. A source or
+notice change requires fresh matching review rather than reuse of an older hash.
 
-The manual publisher uses the GitHub Releases API without a local distribution
+The manual GitHub publisher uses the GitHub Releases API without a local distribution
 checkout. Release assets are uploaded separately from source commits. Neither
 source commits nor candidate builds publish a release. The checked-in workflow
 is manually dispatched, with publishing disabled by default and separate gates.
 Changing the eventual source/history or distribution arrangement requires an
 explicit publication decision; these commands do not select one.
 
-| Input                                           | Required operator decision                                                                                                                                                                           |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `desktop/runtime/release-policy.json`           | Intended GitHub `owner`/`repo` (may remain private while building), stable channel, human redistribution receipt                                                                                     |
-| `desktop/runtime/feature-pack-releases.json`    | The same repository and exact `v<app-version>` release URL, approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity, document-helper designated requirement |
-| `desktop/runtime/macos-acceptance.example.json` | Template only; a reviewer must supply the actual DMG hash, date, identity, prior signed version, and completed checks                                                                                |
-| `desktop/runtime/size-baseline.json`            | Update only from a successfully released artifact, never a partial stage or estimate                                                                                                                 |
+| Input                                           | Required operator decision                                                                                                                                                                                     |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `desktop/runtime/release-policy.json`           | Both distributions (R2 public base URL and bucket; GitHub `owner`/`repo`), stable channel, human redistribution receipt                                                                                        |
+| `desktop/runtime/feature-pack-releases.json`    | Approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity, document-helper designated requirement. Pack URLs are derived from the selected distribution, never set here |
+| `desktop/runtime/macos-acceptance.example.json` | Template only; a reviewer must supply the actual DMG hash, date, identity, prior signed version, and completed checks                                                                                          |
+| `desktop/runtime/size-baseline.json`            | Update only from a successfully released artifact, never a partial stage or estimate                                                                                                                           |
 
 Review the [current content gate](runtime-staging.md#current-content-gate),
 third-party inputs and required notices. `NOASSERTION` and a generated inventory
@@ -244,9 +270,9 @@ Test migration failure/recovery with a disposable profile, preserving its dump.
 Record the exact candidate DMG hash and an **older** signed test version in the
 acceptance receipt. Never downgrade a profile already opened by the new app.
 
-With the current embedded catalog, pack installation needs anonymous public URLs
-before native download acceptance can finish. Keeping the repository private
-does not add private download support; failures must remain recoverable and must
+With the current embedded catalog, pack installation needs the selected
+distribution to serve anonymous public URLs before native download acceptance
+can finish. A private destination does not add private download support; failures must remain recoverable and must
 not block the core app. No token, feed override or unsigned-worker bypass is allowed.
 Public preview and QA feeds are currently not authorized. A different private
 testing transport would require separate design/approval, not a build flag.

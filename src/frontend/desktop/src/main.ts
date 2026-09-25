@@ -141,6 +141,7 @@ else {
       });
       updates = new DesktopUpdateController({
         version: app.getVersion(),
+        distribution: policy.distribution,
         adapter,
         disk: () => supervisor!.updateDisk(),
         preflight: (candidate) => supervisor!.preflightUpdate(candidate),

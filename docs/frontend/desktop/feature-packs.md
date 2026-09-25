@@ -3,8 +3,10 @@
 Feature packs add optional local capabilities. The installation owner remains
 the same when a pack is installed, removed or reinstalled. No online Animama
 account is required. **No production pack release is available.** The producer emits catalog entries
-only for active, approved exact inputs. Configured private GitHub URLs cannot
-serve anonymous installed-app downloads.
+only for active, approved exact inputs, with URLs in the release folder of the
+distribution selected at build time (see [Distribution selection](releases.md#distribution-selection)).
+The app downloads only from that distribution; a destination that is not yet
+publicly served cannot deliver packs.
 
 ## What each pack adds
 

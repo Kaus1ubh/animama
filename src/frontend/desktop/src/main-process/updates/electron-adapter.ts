@@ -43,12 +43,17 @@ export function createMacUpdateAdapter(
   currentVersion: string,
   permitQuit: () => void,
 ): UpdateAdapter {
-  const updater = new MacUpdater({
-    provider: "github",
-    owner: policy.github.owner,
-    repo: policy.github.repo,
-    private: false,
-  });
+  const { distribution } = policy;
+  const updater = new MacUpdater(
+    distribution.kind === "r2"
+      ? { provider: "generic", url: distribution.base_url }
+      : {
+          provider: "github",
+          owner: distribution.owner,
+          repo: distribution.repo,
+          private: false,
+        },
+  );
   updater.logger = null; // Library logs contain paths, signed redirect URLs and Squirrel capabilities.
   updater.autoDownload = false;
   updater.autoInstallOnAppQuit = false;
@@ -113,7 +118,11 @@ export function createMacUpdateAdapter(
       if (
         !checked?.isUpdateAvailable ||
         JSON.stringify(
-          validateUpdateCandidate(checked.updateInfo, currentVersion),
+          validateUpdateCandidate(
+            checked.updateInfo,
+            currentVersion,
+            distribution,
+          ),
         ) !== JSON.stringify(expected)
       ) {
         throw new RuntimeError("update_changed_check_again");

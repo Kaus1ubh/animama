@@ -3,34 +3,89 @@ import { desktopRoot, readJson, sha256, sourceRoot } from "./common.mjs";
 
 const HASH = /^[a-f0-9]{64}$/u;
 const PART = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/u;
+const BUCKET = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/u;
 const releasePolicyPath = path.join(sourceRoot, "release-policy.json");
+const DISTRIBUTIONS = ["r2", "github"];
+
+/**
+ * The build-time transport choice. It is sealed into the signed app's update
+ * policy and pack catalog; installed apps never read this variable.
+ */
+export function selectedDistribution(env = process.env) {
+  const name = env.ANIMAMA_RELEASE_DISTRIBUTION || "r2";
+  if (!DISTRIBUTIONS.includes(name))
+    throw new Error("ANIMAMA_RELEASE_DISTRIBUTION must be r2 or github");
+  return name;
+}
+
+/** A public HTTPS origin and path prefix that cannot carry credentials or overrides. */
+function isPublicBaseUrl(value) {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !url.port &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      !url.pathname.endsWith("/") &&
+      url.href === value
+    );
+  } catch {
+    return false;
+  }
+}
+
+function validDistributions(value) {
+  const { r2, github } = value ?? {};
+  return (
+    Object.keys(value ?? {})
+      .sort()
+      .join(",") === "github,r2" &&
+    Object.keys(r2 ?? {})
+      .sort()
+      .join(",") === "base_url,bucket" &&
+    isPublicBaseUrl(r2.base_url) &&
+    BUCKET.test(r2.bucket ?? "") &&
+    Object.keys(github ?? {})
+      .sort()
+      .join(",") === "owner,repo" &&
+    PART.test(github.owner ?? "") &&
+    PART.test(github.repo ?? "")
+  );
+}
+
+/** The public folder holding one release's immutable assets. */
+export function releaseTagBase(distribution, tag) {
+  return distribution.name === "r2"
+    ? `${distribution.base_url}/${tag}`
+    : `https://github.com/${distribution.owner}/${distribution.repo}/releases/download/${tag}`;
+}
 
 /** Pin candidate URLs and publisher inputs offline; visibility is checked only at publication. */
 export function validateReleasePolicy(
   policy,
   packs,
   version,
-  { requireReview = true } = {},
+  { requireReview = true, distribution = selectedDistribution() } = {},
 ) {
+  if (!DISTRIBUTIONS.includes(distribution))
+    throw new Error("ANIMAMA_RELEASE_DISTRIBUTION must be r2 or github");
   if (
-    policy?.schema !== "animama-release-policy/1" ||
+    policy?.schema !== "animama-release-policy/2" ||
     policy.channel !== "stable" ||
     Object.keys(policy).sort().join(",") !==
-      "channel,distribution_basis,github,redistribution_review,schema" ||
+      "channel,distribution_basis,distributions,redistribution_review,schema" ||
     !policy.distribution_basis ||
     Object.keys(policy.distribution_basis).sort().join(",") !==
       "commercial,pocket_tts_onnx_license" ||
     policy.distribution_basis.commercial !== false ||
     policy.distribution_basis.pocket_tts_onnx_license !== "CC-BY-NC-4.0" ||
-    !policy.github ||
-    Object.keys(policy.github).sort().join(",") !== "owner,repo" ||
-    typeof policy.github.owner !== "string" ||
-    typeof policy.github.repo !== "string" ||
-    !PART.test(policy.github.owner) ||
-    !PART.test(policy.github.repo)
+    !validDistributions(policy.distributions)
   )
     throw new Error(
-      "Set the intended installer/update repository and noncommercial installer/update policy in runtime/release-policy.json; the current PocketTTS exports require CC-BY-NC-4.0 treatment, candidates may remain private, and embedded GitHub tokens are not supported.",
+      "Set the intended installer/update destinations (an R2 public HTTPS base URL and bucket, and a GitHub repository) and the noncommercial installer/update policy in runtime/release-policy.json; the current PocketTTS exports require CC-BY-NC-4.0 treatment, candidates may remain private, and embedded tokens are not supported.",
     );
   const publisher = packs?.macos;
   if (
@@ -43,14 +98,17 @@ export function validateReleasePolicy(
     throw new Error(
       "Configure the reviewed macOS publisher in runtime/feature-pack-releases.json; ad-hoc signing is not a release.",
     );
-  if (
-    !/^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})$/u.test(version) ||
-    packs.release_base_url !==
-      `https://github.com/${policy.github.owner}/${policy.github.repo}/releases/download/v${version}`
-  )
+  if (!/^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})$/u.test(version))
+    throw new Error("Release version must be an exact stable version.");
+  // Pack URLs share the core update destination, so they are never configured separately.
+  if (packs && "release_base_url" in packs)
     throw new Error(
-      "Core updates and feature packs must use the same intended repository and exact stable release tag.",
+      "Remove release_base_url from runtime/feature-pack-releases.json; pack URLs are derived from the selected distribution.",
     );
+  const selected = {
+    name: distribution,
+    ...policy.distributions[distribution],
+  };
   if (requireReview) {
     const review = policy.redistribution_review;
     if (
@@ -86,9 +144,14 @@ export function validateReleasePolicy(
     activePackIds: Object.keys(packReleases)
       .filter((id) => packReleases[id].release_status === "active")
       .sort(),
+    distribution: selected,
+    packReleaseBase: releaseTagBase(selected, `v${version}`),
     updatePolicy: {
-      schema: "animama-update-policy/1",
-      github: policy.github,
+      schema: "animama-update-policy/2",
+      distribution:
+        selected.name === "r2"
+          ? { kind: "r2", base_url: selected.base_url }
+          : { kind: "github", owner: selected.owner, repo: selected.repo },
       channel: "stable",
       team_id: publisher.team_id,
     },
@@ -122,17 +185,34 @@ export async function isPublicReleaseRepository({ owner, repo }) {
   }
 }
 
-/** A safe, inert policy keeps unsigned development stages usable without enabling production updates. */
+/** Staging seals the selected distribution; it needs no redistribution review yet. */
 export function stagedUpdatePolicy() {
-  const policy = readJson(releasePolicyPath);
-  if (policy.github === null)
-    return {
-      schema: "animama-update-policy/1",
-      github: null,
-      channel: "stable",
-      team_id: null,
-    };
   return loadReleasePolicy({ requireReview: false }).updatePolicy;
+}
+
+/**
+ * Pack URLs are pinned in the staged catalog: the derived release folder and
+ * the distribution the runtime will check them against.
+ */
+export function stagedPackRelease() {
+  const release = loadReleasePolicy({ requireReview: false });
+  return {
+    release_base_url: release.packReleaseBase,
+    distribution: release.updatePolicy.distribution,
+  };
+}
+
+/**
+ * The distribution sealed into a staged or signed runtime. Reports record this
+ * rather than the current environment, which may differ from the build's.
+ */
+export function sealedDistribution(runtime) {
+  const distribution = readJson(
+    path.join(runtime, "update-policy.json"),
+  )?.distribution;
+  if (!["r2", "github"].includes(distribution?.kind))
+    throw new Error("The runtime has no sealed release distribution");
+  return distribution;
 }
 
 export function verifyRedistributionReview(runtime, release) {

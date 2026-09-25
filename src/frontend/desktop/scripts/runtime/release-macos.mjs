@@ -20,6 +20,8 @@ import { assertInventory, inventoryId } from "./inventory.mjs";
 import { componentInventory } from "./inventory.mjs";
 import {
   loadReleasePolicy,
+  releaseTagBase,
+  sealedDistribution,
   verifyRedistributionReview,
 } from "./release-policy.mjs";
 import {
@@ -62,13 +64,22 @@ export function macBuilderOptions({ app, icon, release }) {
     config: {
       extends: path.join(desktopRoot, "electron-builder.yml"),
       forceCodeSigning: true,
+      // Writes the app-update.yml electron-builder embeds; the updater itself
+      // takes its transport from the staged update policy.
       publish: [
-        {
-          provider: "github",
-          ...release.policy.github,
-          private: false,
-          releaseType: "release",
-        },
+        release.distribution.name === "r2"
+          ? {
+              provider: "generic",
+              url: release.distribution.base_url,
+              channel: "latest",
+            }
+          : {
+              provider: "github",
+              owner: release.distribution.owner,
+              repo: release.distribution.repo,
+              private: false,
+              releaseType: "release",
+            },
       ],
       mac: {
         icon,
@@ -128,6 +139,7 @@ function finishResumedApp(app, target, release, submissionId) {
     schema: "animama-macos-signing/1",
     app_version: release.version,
     team_id: release.publisher.team_id,
+    distribution: sealedDistribution(runtime),
     stage_build_id: readJson(path.join(target.runtime, "manifest.json"))
       .build_id,
     runtime_build_id: manifest.build_id,
@@ -188,7 +200,7 @@ export async function releaseMac(args = []) {
     ) !== JSON.stringify(release.updatePolicy)
   )
     throw new Error(
-      "Release policy changed after staging; stage and audit again",
+      "The release policy or ANIMAMA_RELEASE_DISTRIBUTION differs from the one used for staging; stage and audit again with the same selection",
     );
   // Repository coordinates pin future pack/update URLs, not present visibility.
   // Do not query GitHub or request a token merely to build a local candidate.
@@ -275,7 +287,13 @@ export async function releaseMac(args = []) {
   // JSON is a YAML subset supported by electron-updater's js-yaml parser.
   json(
     "latest-mac.yml",
-    await updateFeed(directory, manifest, sizes.installed_bytes, catalog),
+    await updateFeed(
+      directory,
+      manifest,
+      sizes.installed_bytes,
+      catalog,
+      release.updatePolicy.distribution,
+    ),
   );
   json("size-report.json", sizes);
   copy(path.join(runtime, "manifest.json"), "runtime-manifest.json");
@@ -304,9 +322,7 @@ export async function releaseMac(args = []) {
       release.packReleases[pack.id]?.release_tag ?? `v${release.version}`;
     if (
       sha256(file) !== pack.archive_sha256 ||
-      !pack.url.startsWith(
-        `https://github.com/${release.policy.github.owner}/${release.policy.github.repo}/releases/download/${tag}/`,
-      )
+      !pack.url.startsWith(`${releaseTagBase(release.distribution, tag)}/`)
     )
       throw new Error(
         "Feature pack does not match the signed app's release catalog",
@@ -323,7 +339,7 @@ export async function releaseMac(args = []) {
   });
   writeFileSync(
     path.join(directory, "RELEASE-NEXT-STEPS.txt"),
-    "Local signed candidate only; the release repository may remain private. Follow docs/frontend/desktop/release-process.md for fresh-account required-name smoke and native acceptance. Private GitHub pack/update URLs will not work in the app; never embed a token or bypass runtime checks. Public preview/stable publication requires separate explicit approval and anonymous repository access. Nothing was uploaded to GitHub by this build; notarization submits binaries to Apple.\n",
+    "Local signed candidate only; the release repository may remain private. Follow docs/frontend/desktop/release-process.md for fresh-account required-name smoke and native acceptance. Pack and update URLs work only once the selected distribution serves them publicly; never embed a token or bypass runtime checks. Public preview/stable publication requires separate explicit approval. Nothing was uploaded by this build; notarization submits binaries to Apple.\n",
   );
   console.log(
     "Signed candidate built and size-checked. Publication remains gated on clean-machine smoke and explicit manual acceptance.",

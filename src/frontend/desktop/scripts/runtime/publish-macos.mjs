@@ -6,6 +6,7 @@ import {
   loadReleasePolicy,
 } from "./release-policy.mjs";
 import {
+  candidateDistribution,
   verifyArtifactIndex,
   writeArtifactIndex,
   previewAssets,
@@ -35,13 +36,26 @@ async function publish() {
     ? "Public testing preview for macOS arm64. Native acceptance is NOT complete; this is not a stable update. Back up test data and see the attached notices and size reports."
     : "Self-contained macOS arm64 application (macOS 15+). See the attached notices, checksums, size, and acceptance reports. Local data stays on your computer.";
   const release = loadReleasePolicy();
+  const directory = path.join(desktopRoot, "release/publish");
+  // The candidate's sealed feed and pack URLs decide where it may be published.
+  const built = candidateDistribution(directory);
+  if (
+    !built ||
+    JSON.stringify(built) !== JSON.stringify(release.updatePolicy.distribution)
+  )
+    throw new PublicationError(
+      "The candidate was built for a different distribution than ANIMAMA_RELEASE_DISTRIBUTION selects, or records none; publish with the selection used to build it",
+    );
+  if (built.kind !== "github")
+    throw new PublicationError(
+      "This candidate targets R2, and R2 publication is not available yet; only GitHub-distribution candidates can be published",
+    );
   // Run before preparing promotion reports, reading a token or mutating GitHub.
   // A local candidate build deliberately performs no repository-visibility check.
-  if (!(await isPublicReleaseRepository(release.policy.github)))
+  if (!(await isPublicReleaseRepository(release.distribution)))
     throw new PublicationError(
       "Publication requires an anonymously readable public release repository",
     );
-  const directory = path.join(desktopRoot, "release/publish");
   const index = verifyArtifactIndex(directory);
   if (index.app_version !== release.version)
     throw new PublicationError("Release version mismatch");
@@ -91,7 +105,7 @@ async function publish() {
     throw new PublicationError(
       "A scoped release-repository token is required for publication; it is never packaged",
     );
-  const repo = `${release.policy.github.owner}/${release.policy.github.repo}`;
+  const repo = `${release.distribution.owner}/${release.distribution.repo}`;
   const api = async (suffix, method = "GET", body) => {
     const response = await fetch(
       `https://api.github.com/repos/${repo}${suffix}`,

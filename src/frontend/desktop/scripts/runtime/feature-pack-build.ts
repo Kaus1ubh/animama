@@ -15,6 +15,7 @@ import {
   type PackFile,
   type PackManifest,
 } from "../../src/main-process/feature-packs/catalog.js";
+import type { ReleaseDistribution } from "../../src/main-process/updates/policy.js";
 import {
   hashFile,
   realDirectory,
@@ -22,8 +23,32 @@ import {
 import { extractPack } from "../../src/main-process/feature-packs/extract.js";
 import { verifyExecutablePack } from "../../src/main-process/feature-packs/signature.js";
 
+/**
+ * A public HTTPS release folder (GitHub release download path or R2 version
+ * folder) whose last path segment is the release tag.
+ */
+function isReleaseFolder(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !url.port &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      url.href === value &&
+      /\/[^/]+$/u.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 type ReleaseInputs = {
+  /** Derived from the selected distribution at staging; never committed. */
   release_base_url: string;
+  distribution?: ReleaseDistribution | null;
   macos: { team_id: string | null; designated_requirement: string | null };
   packs: Record<
     FeaturePackId,
@@ -117,6 +142,8 @@ export async function buildPackArchive(options: {
   >;
   writeTar(source: string, files: PackFile[], output: string): Promise<void>;
   development?: boolean;
+  /** The selected transport; the manifest URL must belong to it. */
+  distribution?: ReleaseDistribution | null;
 }): Promise<PackManifest> {
   const tar = `${options.output}.tar.partial`;
   const compressed = `${options.output}.partial`;
@@ -136,6 +163,7 @@ export async function buildPackArchive(options: {
         minimum_peak_free_bytes: 1,
       },
       options.development,
+      options.distribution ?? null,
     );
     manifest.minimum_peak_free_bytes = requiredFreeBytes(manifest);
     await extractPack(
@@ -171,9 +199,7 @@ export async function buildFeaturePacks(options: {
   const versionPattern = /^\d{1,5}\.\d{1,5}\.\d{1,5}$/u;
   if (
     !versionPattern.test(options.appVersion) ||
-    !/^https:\/\/github\.com\/[^/?#]+\/[^/?#]+\/releases\/download\/[^/?#]+$/u.test(
-      options.release.release_base_url,
-    )
+    !isReleaseFolder(options.release.release_base_url)
   )
     throw new Error("Invalid fixed pack release configuration");
   for (const id of featurePackIds) {
@@ -250,6 +276,7 @@ export async function buildFeaturePacks(options: {
       root,
       output: path.join(options.output, filename),
       writeTar: options.writeTar,
+      distribution: options.release.distribution ?? null,
       manifest: {
         schema: "animama-feature-pack/1",
         id,

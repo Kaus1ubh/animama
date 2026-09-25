@@ -1,6 +1,7 @@
 import { rmSync } from "node:fs";
 import path from "node:path";
 import { importBundledTool } from "./bundled-tool.mjs";
+import { stagedPackRelease } from "./release-policy.mjs";
 import {
   cacheRoot,
   desktopRoot,
@@ -22,7 +23,10 @@ await module[action === "export" ? "exportWorkerInput" : "importWorkerInput"]({
   root: path.join(cacheRoot, "document-worker", target.target, "signed-input"),
   exchange: path.join(desktopRoot, "release/worker-input"),
   appVersion: readJson(path.join(desktopRoot, "package.json")).version,
-  release: readJson(path.join(sourceRoot, "feature-pack-releases.json")),
+  release: {
+    ...readJson(path.join(sourceRoot, "feature-pack-releases.json")),
+    ...stagedPackRelease(),
+  },
   writeTar: async (source, files, output) => {
     const inventory = `${output}.inventory.json`;
     writeJson(inventory, files);
