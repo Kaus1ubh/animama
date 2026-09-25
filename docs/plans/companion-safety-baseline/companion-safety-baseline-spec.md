@@ -1,6 +1,6 @@
 # Companion safety baseline
 
-Status: Agreed — awaiting publication by `workspace-setup`
+Status: Agreed — published; implementation in progress
 Owner decision: 2026-09-25 intent discovery settled age policy, legal target,
 self-host overrides, detector strategy, crisis-turn memory, referral counting,
 AI-notice cadence and placement, crisis-resource source and protocol location.
@@ -12,8 +12,9 @@ a single global environment switch for the safety features (R8). Later that day
 the owner added an app-settings Safety section (R8). On implementation the owner
 dropped the operator-gated in-app toggles; the global environment switch is the
 single way to turn the safety features off.
-Authoritative source: this draft until `workspace-setup` publishes it as the
-parent issue.
+Authoritative source: https://github.com/raymond-van/animama/issues/134 (this
+file is a snapshot).
+Snapshot captured: 2026-09-25, published from revision `73ffb93`.
 Source baseline: `76d4472`.
 
 ## Problem and intended users
@@ -539,7 +540,7 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
 
 ## Spec
 
-This document (draft). After publication, the parent issue URL.
+https://github.com/raymond-van/animama/issues/134 (this file is a snapshot).
 
 ## ExecPlan
 
@@ -549,4 +550,4 @@ uncertain detector tuning. See
 
 ## Delivery links
 
-None yet.
+Phase issues #139 (p1), #135 (p2), #136 (p3), #137 (p4), #138 (p5).

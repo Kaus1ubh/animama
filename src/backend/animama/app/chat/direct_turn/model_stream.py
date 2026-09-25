@@ -21,6 +21,7 @@ from animama.app.model_clients import (
 )
 from animama.app.model_clients.event_summary import ModelClientStreamEventObserver
 from animama.app.model_clients.prompt import copy_direct_chat_prompt, prompt_messages
+from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain.chat import ChatMessage
 from animama.domain.usage import Usage
 from animama.logging import get_logger
@@ -799,7 +800,12 @@ def _model_request_forced_final_without_tools(
     """Build a follow-up request that asks for a final answer without tools."""
 
     prompt = model_request.prompt
-    final_instruction = {"role": "developer", "content": MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION}
+    # Restate the Companion Guardrails after the limit instruction so they remain the
+    # final instruction text on every request (ADR 0008).
+    final_instruction = {
+        "role": "developer",
+        "content": f"{MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION}\n\n{COMPANION_GUARDRAILS.strip()}",
+    }
     return ModelClientRequest(
         model_provider=model_request.model_provider,
         prompt=copy_direct_chat_prompt(

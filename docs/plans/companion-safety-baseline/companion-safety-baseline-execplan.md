@@ -57,9 +57,12 @@ Two further rules apply:
       repository investigation. Decisions are recorded in the spec.
 - [x] Spec drafted and accepted (2026-09-25).
 - [x] Plan drafted (2026-09-25).
-- [ ] The owner accepts the plan and authorizes a phase range.
-- [ ] Workspace setup publishes the parent issue and phase issues.
-- [ ] Phase 1: guardrail and memory guidance.
+- [x] Owner authorized all phases via `/implement` (2026-09-25).
+- [x] Workspace setup (2026-09-25): branch fast-forwarded to `main` `5630ad8`;
+      spec and plan committed `73ffb93` and pushed; parent #134 with sub-issues
+      #139 (p1), #135 (p2), #136 (p3), #137 (p4), #138 (p5), chained blocked-by.
+- [x] Phase 1: guardrail and memory guidance (review #2 pass; commit recorded
+      below). DB-backed tests to rerun when Docker responds.
 - [ ] Phase 2: backend safety core (config, detector, resources, notice state,
       age status).
 - [ ] Phase 3: chat-turn integration (care note, SSE events, moderation).
@@ -308,7 +311,8 @@ Requirements: R1, R9 (guidance), and R10 (prompt copy). No dependencies beyond
 authorization. Output: prompt changes that later phases build on.
 
 1. **Guardrail text.** Add the guardrail as a constant in
-   `app/safety/guardrail.py`, headed `# Companion Guardrails`.
+   `app/safety/prompts.py` (with the other safety prompt text), headed
+   `# Companion Guardrails`.
    - It must be short, in second person and able to be voiced in character.
    - It covers R1 a)–g), including the fiction carve-out and "no disclaimers
      for ordinary sadness, venting or dark humor".
@@ -352,16 +356,79 @@ Checks: focused pytest, then `uv run pytest -q`, `uv run ruff check`, and
 Completion: the tests above pass and review leaves no unresolved blockers. The
 guardrail copy is flagged for gate G1.
 
-Phase record: issue, starting source, commits and evidence are recorded here
-during implementation.
+Phase record: issue #139; starting source `73ffb93`.
+
+Evidence:
+
+- `make check-test` on the pre-review tree: 1808 passed, 7 skipped; format,
+  lint and mypy pass.
+- After the review repairs: focused guardrail, executor, model-client and
+  Memory Manager tests pass; `ruff check`, `ruff format --check` and mypy pass.
+
+Implementation notes:
+
+- The trailing request context, any care note and the guardrail form one final
+  `developer` message, which is always present.
+- Without developer-role support, the assembler folds every developer message,
+  in order, into the system message and re-indexes the Responses assistant
+  phases.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewed the working tree on `73ffb93` (`sdlc-reviewer`, full initial review).
+
+- **P1-R1-F1 (blocking):** the forced-final request at the memory-tool round
+  limit appended its developer instruction after the guardrail, breaking R1's
+  "final text on every turn" in a reachable path.
+- **P1-R1-F2 (optional):** no test covered phase re-indexing when folding
+  developer messages.
+- **P1-R1-F3 (optional):** the fold exists in both the assembler and the Chat
+  Completions adapter. Acceptable; the adapter fold is still needed for
+  endpoint families.
+- **P1-R1-F4 (optional):** the plan named `guardrail.py`; the code uses
+  `prompts.py`.
+- **P1-R1-F5 (owner-visible):** the new memory rule dropped "raw sensitive data"
+  and made credentials absolute. The explicit-request exception is also
+  ambiguous in episode processing.
+- **P1-R1-F6 (docs):** `memory-manager-and-episodic-memory.md`, `chat.md`,
+  `http-api.md` and `memory.md` describe the old rule and the old position of
+  the request context.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** The forced-final developer instruction now restates the
+  guardrail after the limit text. The executor test asserts that the
+  instructions end with the guardrail.
+- **F2 accepted.** Added `test_fold_without_developer_role_reindexes_assistant_phases`.
+- **F3 rejected.** Both folds are needed. The assembler guarantees guardrail
+  order independently of the adapter.
+- **F4 accepted.** Plan step updated.
+- **F5 accepted.** The rule restores "secrets, credentials or other raw
+  sensitive data" under the original explicit-request exception and adds the
+  health and crisis clause. Episode processing adds that a note counts as an
+  explicit request only when it says so.
+- **F6 deferred to Phase 5.** Those four docs are added to the Phase 5 docs
+  list.
+
+#### Code Review #2 Findings
+
+Targeted recheck of F1, F2 and F5: all resolved, and no blockers.
+
+- **P1-R2-F1 (optional):** at the round limit the guardrail now appears twice.
+  This is harmless and only happens on that rare request.
+
+Checks:
+
+- Focused guardrail, executor and model-client tests pass.
+- `ruff check` and `ruff format --check` pass.
+- Memory Manager DB tests errored because the Docker daemon timed out
+  (environment only). Rerun them once Docker responds.
+
+#### Code Review #2 Revisions
+
+- **P1-R2-F1 rejected:** restating the guardrail keeps the invariant with the
+  least code.
+- Repair budget used: one of two. Phase 1 review: pass.
 
 ### Phase 2 — Backend safety core
 
@@ -622,7 +689,11 @@ on Phase 4.
    - `docs/backend/runtime/model-client-providers.md`: moderation;
    - `docs/frontend/features/anima-memory.md`: the sensitive-data rule;
    - the frontend runtime chat doc and the frontend docs README feature list;
-   - `docs/backend/operations/development.md`: the variables.
+   - `docs/backend/operations/development.md`: the variables;
+   - `docs/backend/features/memory-manager-and-episodic-memory.md`,
+     `docs/backend/architecture/http-api.md` and `docs/backend/features/memory.md`:
+     the sensitive-data rule and the trailing developer message (review
+     P1-R1-F6).
 3. **ADR and glossary.** Finalize ADR 0008 with status Accepted, pending the
    owner's review in gate G1. Add the glossary entries *AI notice*,
    *continuing interaction* and *companion guardrail*.
