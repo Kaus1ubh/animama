@@ -1,7 +1,7 @@
 /**
- * Real provider keys and runtime tokens are 32+ characters. A shorter registered
- * value cannot be a real secret, and substring-replacing it would garble ordinary
- * log words, so it is redacted only where it stands as a whole token.
+ * Real provider keys and runtime tokens are 32+ characters. A registered value
+ * under 16 characters cannot be a real secret, and substring-replacing it would
+ * garble ordinary log words, so it is redacted only as a whole token.
  */
 const SUBSTRING_REDACTION_MIN_LENGTH = 16;
 const TOKEN_CHARACTER = String.raw`[\p{L}\p{N}_-]`;
