@@ -31,6 +31,15 @@ pnpm desktop:runtime:audit -- --platform darwin --arch arm64
 pnpm desktop:test -- runtime-packaging
 ```
 
+Staging installs its pinned Python interpreter under
+`/Users/Shared/animama-build/uv-python`, not in your home directory, because
+the frozen backend records the interpreter's install paths. The native
+PostgreSQL build likewise uses the neutral prefix `/opt/animama`. Neither
+location needs to exist on the user's Mac. Staging refuses to run if
+`/Users/Shared/animama-build` or its `uv-python` directory is owned by another
+account or writable by others; remove or fix that directory rather than
+bypassing the check.
+
 The strict target parser rejects cross-builds and unsupported combinations before
 deleting outputs or downloading dependencies. Windows native staging is unsupported. `desktop:dist:mac` and `desktop:smoke:mac` use the
 [signed-release gates](releases.md), including explicit Apple, inventory and

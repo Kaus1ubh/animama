@@ -36,18 +36,18 @@ After this work:
 
 Commands run from `src/frontend` unless stated. Relevant code:
 
-| Area | Files |
-| --- | --- |
-| Release inputs | `desktop/runtime/release-policy.json`, `desktop/runtime/feature-pack-releases.json`, `desktop/runtime/feature-pack.schema.json` |
-| Build-time policy | `desktop/scripts/runtime/release-policy.mjs` (`validateReleasePolicy`, `stagedUpdatePolicy`, `isPublicReleaseRepository`) |
-| Candidate build | `desktop/scripts/runtime/release-macos.mjs` (electron-builder `publish` config, pack URL prefix check), `desktop/scripts/runtime/release-artifacts.mjs` (`updateFeed`, artifact index, `previewAssets`) |
-| Pack producer | `desktop/scripts/runtime/feature-pack-build.ts`, `desktop/scripts/runtime/worker-input.ts` (both read `release_base_url`) |
-| Installed app | `desktop/src/main-process/updates/policy.ts` (`validateUpdatePolicy`, `validateUpdateCandidate`, `allowedUpdateUrl`), `desktop/src/main-process/updates/electron-adapter.ts` (`MacUpdater` provider), `desktop/src/main-process/feature-packs/catalog.ts` (pack URL validation) |
-| Publisher | `desktop/scripts/runtime/publish-macos.mjs` |
-| CI | `.github/workflows/release-desktop-macos.yml` (manual; publication unconfigured) |
-| Tests | `desktop/tests/desktop-updates.test.ts`, `desktop-updater-adapter.test.ts`, `feature-packs.test.ts`, `runtime-packaging.test.mjs`, `optional-inputs.test.mjs` |
-| Docs | `docs/frontend/desktop/releases.md`, `release-process.md`, `feature-packs.md` |
-| Scanners | `scripts/repository-boundary/scanner-pins.json` (pinned Gitleaks 8.30.1 with canary procedure) |
+| Area              | Files                                                                                                                                                                                                                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Release inputs    | `desktop/runtime/release-policy.json`, `desktop/runtime/feature-pack-releases.json`, `desktop/runtime/feature-pack.schema.json`                                                                                                                                                 |
+| Build-time policy | `desktop/scripts/runtime/release-policy.mjs` (`validateReleasePolicy`, `stagedUpdatePolicy`, `isPublicReleaseRepository`)                                                                                                                                                       |
+| Candidate build   | `desktop/scripts/runtime/release-macos.mjs` (electron-builder `publish` config, pack URL prefix check), `desktop/scripts/runtime/release-artifacts.mjs` (`updateFeed`, artifact index, `previewAssets`)                                                                         |
+| Pack producer     | `desktop/scripts/runtime/feature-pack-build.ts`, `desktop/scripts/runtime/worker-input.ts` (both read `release_base_url`)                                                                                                                                                       |
+| Installed app     | `desktop/src/main-process/updates/policy.ts` (`validateUpdatePolicy`, `validateUpdateCandidate`, `allowedUpdateUrl`), `desktop/src/main-process/updates/electron-adapter.ts` (`MacUpdater` provider), `desktop/src/main-process/feature-packs/catalog.ts` (pack URL validation) |
+| Publisher         | `desktop/scripts/runtime/publish-macos.mjs`                                                                                                                                                                                                                                     |
+| CI                | `.github/workflows/release-desktop-macos.yml` (manual; publication unconfigured)                                                                                                                                                                                                |
+| Tests             | `desktop/tests/desktop-updates.test.ts`, `desktop-updater-adapter.test.ts`, `feature-packs.test.ts`, `runtime-packaging.test.mjs`, `optional-inputs.test.mjs`                                                                                                                   |
+| Docs              | `docs/frontend/desktop/releases.md`, `release-process.md`, `feature-packs.md`                                                                                                                                                                                                   |
+| Scanners          | `scripts/repository-boundary/scanner-pins.json` (pinned Gitleaks 8.30.1 with canary procedure)                                                                                                                                                                                  |
 
 ### Boundaries
 
@@ -66,7 +66,7 @@ Commands run from `src/frontend` unless stated. Relevant code:
 
 ## Progress
 
-- [ ] Phase 1: Security audit and repeatable candidate scan. Not started. Owner gate: scanner download approval; owner disposition of findings.
+- [ ] Phase 1: Security audit and repeatable candidate scan. Implemented; reviews #1–#3 complete (pass after 2 repair rounds). Awaiting owner acceptance of finding dispositions (scanner download approved 2026-09-25).
 - [ ] Phase 2: Distribution policy and build-time selection. Not started.
 - [ ] Phase 3: Installed-app transport for R2. Not started.
 - [ ] Phase 4: R2 publisher and release workflow. Not started.
@@ -93,6 +93,23 @@ Commands run from `src/frontend` unless stated. Relevant code:
   only the Git tree.
 - 2026-09-25: The Developer ID name and Team ID in `feature-pack-releases.json`
   are public in every signed binary's code signature. They are not a leak.
+- 2026-09-25 (Phase 1): The bundled PostgreSQL binaries embedded the build
+  machine's home and checkout path through the configure `--prefix`, and
+  pgvector embedded installed-header paths through `__FILE__`. This also made
+  runtime inventory bytes depend on the checkout location. PostgreSQL records
+  both its configure and make-time `CFLAGS`, so a `-ffile-prefix-map` flag must
+  not be passed to the PostgreSQL build itself.
+- 2026-09-25 (Phase 1): The Parakeet encoder's quantized ONNX weights are about
+  42 MB of printable bytes, so Gitleaks finds token-shaped runs by chance.
+- 2026-09-25 (Phase 1): Stable promotion rewrites `release-artifacts.json`, so
+  the scan receipt lists every scanned file's SHA-256 in addition to the index
+  digest. Phase 4 should check per-file coverage rather than only the index hash.
+- 2026-09-25 (Phase 1): uv installs managed interpreters under the home
+  directory by default, and PyInstaller freezes that interpreter's sysconfig
+  paths into the backend. Found only after the scanner expanded the PYZ.
+- 2026-09-25 (Phase 1): The shared `/private/tmp/animama-uv-cache` was partially
+  purged by the OS, breaking `uv` builds. Setting `UV_CACHE_DIR` to a fresh
+  directory worked around it without touching the shared cache.
 
 ## Decision Log
 
@@ -144,17 +161,17 @@ Steps:
    LFS-hydrated files. Write JSON reports to private evidence storage, never
    under the checkout.
 3. Targeted checks that Gitleaks does not cover:
-   - Absolute local paths (`/Users/`, `/home/`, `C:\\Users`), personal email
-     addresses, private hostnames and internal URLs in tracked files, release
-     inputs and docs.
-   - Committed `.env*`, `*.p12`, `*.pem`, `*.key`, keychain and notary files,
-     and `.gitignore` coverage for `desktop/release/`, stack records and
-     evidence directories.
-   - Workflows: secrets only reach the jobs that need them; no `echo`/`set -x`
-     of secret values; artifacts uploaded from CI exclude credential material.
-   - Scripts that log errors or reports: confirm redaction of URLs,
-     credentials and host paths (`publish-macos.mjs`, `ci-keychain.mjs`,
-     `smoke-policy.mjs`, pack and signing reports).
+    - Absolute local paths (`/Users/`, `/home/`, `C:\\Users`), personal email
+      addresses, private hostnames and internal URLs in tracked files, release
+      inputs and docs.
+    - Committed `.env*`, `*.p12`, `*.pem`, `*.key`, keychain and notary files,
+      and `.gitignore` coverage for `desktop/release/`, stack records and
+      evidence directories.
+    - Workflows: secrets only reach the jobs that need them; no `echo`/`set -x`
+      of secret values; artifacts uploaded from CI exclude credential material.
+    - Scripts that log errors or reports: confirm redaction of URLs,
+      credentials and host paths (`publish-macos.mjs`, `ci-keychain.mjs`,
+      `smoke-policy.mjs`, pack and signing reports).
 4. Built-artifact scan: stage an unsigned runtime
    (`pnpm desktop:runtime:stage -- --platform darwin --arch arm64`) and scan the
    staged runtime, the packaged app resources (`app.asar` extracted), the pack
@@ -183,15 +200,176 @@ summary (counts and categories only).
 Owner gate: disposition of findings. Phase 5's live upload cannot start until
 this gate passes.
 
-Results: _pending_
+Results (2026-09-25, issue [#109](https://github.com/raymond-van/animama/issues/109)):
+
+Scanner: Gitleaks 8.30.1 darwin_arm64 archive matched the pinned SHA-256
+`b40ab0ae…aeb6a5`; the binary reported `8.30.1`; a generated `github-pat` canary
+was detected before any empty report was accepted. Reports stayed in private
+storage outside the checkout.
+
+| Scope                                                                                                                                      | Result                                                                                                    | Disposition                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Git history, all refs (starts at the repository-split commit)                                                                              | 10 `generic-api-key` hits                                                                                 | False positives: a fake test key, content `semantic_key` values, SHA-256 provenance hashes, RFC 6455 sample WebSocket nonces                                      |
+| Tracked working tree                                                                                                                       | 4 hits, subset of the above                                                                               | Same false positives                                                                                                                                              |
+| Personal paths/emails in tracked files                                                                                                     | Two committed plans contained the maintainer's local home paths                                           | Fixed: replaced with placeholders                                                                                                                                 |
+| Other emails                                                                                                                               | Third-party notice authors, `example.invalid` fixtures, pgAdmin dev default, test URLs with fake userinfo | Not private                                                                                                                                                       |
+| Key/cert/env files                                                                                                                         | None tracked; `.env.local`/`.env.production` variants were not ignored                                    | Fixed: ignore `**/.env.*` (except `.env.example`), `*.p12`, `*.p8`                                                                                                |
+| Workflows                                                                                                                                  | Secrets injected per step into only the jobs needing them; no echo/trace of secrets                       | No change                                                                                                                                                         |
+| Log/report redaction (`publish-macos`, `ci-keychain`, `smoke-policy`)                                                                      | Bounded messages; categorical reports                                                                     | No change                                                                                                                                                         |
+| Bundled PostgreSQL                                                                                                                         | Build-machine home/checkout path in 9 binaries (configure prefix, header `__FILE__`)                      | Fixed in `native.mjs`                                                                                                                                             |
+| Frozen backend (PyInstaller PYZ)                                                                                                           | Home path in `_sysconfigdata__darwin_darwin` from uv's interpreter under the home directory               | Fixed: `UV_PYTHON_INSTALL_DIR` pinned to `/Users/Shared/animama-build/uv-python`                                                                                  |
+| Full candidate, final (DMG, ZIP, Parakeet pack, catalog, reports, notices; 31,035 files incl. 12 nested archives and PyInstaller contents) | Before allowlisting: 42 Gitleaks hits in third-party libraries; 0 private-text or symlink findings        | All verified as documentation placeholders, published examples, code fragments or PEM markers with no key material; allowlisted by exact value. Final scan passes |
+| ONNX weights (17 files)                                                                                                                    | Chance token matches in quantized tensors                                                                 | Excluded from Gitleaks only, counted in the receipt; still byte-searched for private text                                                                         |
+
+Changes:
+
+- `scripts/runtime/release-scan.mjs`, `scan-release-candidate.mjs` and
+  `pnpm desktop:release:scan`: verifies the artifact index and pinned scanner
+  version and requires the canary. It mounts the DMG and expands ZIP, tar.gz,
+  `.tar.zst`, ASAR and PyInstaller archives (nested up to four levels). Gitleaks
+  scans a numbered view of every file (binaries as printable strings) so its
+  built-in path exclusions cannot skip content. Every file and symlink target is
+  byte-searched for the home directory, Git author email and
+  `ANIMAMA_SCAN_PRIVATE_TEXT` values. `release-scan.json` records file hashes,
+  coverage counts, rule IDs and locations only. Errors print fixed messages.
+- `src/backend/packaging/desktop/extract_pyinstaller.py`: expands the frozen
+  backend's CArchive and PYZ with the staged build interpreter.
+- `runtime/release-scan.gitleaks.toml`: reviewed exact-value exceptions.
+- `scripts/runtime/native.mjs`: PostgreSQL is configured with the neutral prefix
+  `/opt/animama` and installed through `DESTDIR`; pgvector alone receives
+  `-ffile-prefix-map`.
+- `scripts/runtime/common.mjs`: neutral `UV_PYTHON_INSTALL_DIR`.
+- `@electron/asar` 3.4.1 (already in the lockfile) became a pinned desktop dev
+  dependency.
+- Docs: scan step, coverage, exclusions and allowlist policy in
+  `release-process.md`; interpreter and PostgreSQL build locations in
+  `runtime-staging.md`.
+
+Validation (local, macOS arm64, after Review #1 revisions): stage, audit (which
+runs the bundled PostgreSQL), unsigned package and Parakeet pack build passed on
+the neutral interpreter; the full candidate scan passed. `pnpm desktop:test`
+14 files / 279 tests passed; `pnpm check` passed; knip reports nothing for the
+changed files; Prettier passes for all changed files; `ruff check` and
+`ruff format --check` pass for the new Python helper; `git diff --check` clean.
+`pnpm prettier:check` fails only on pre-existing files outside this change. Unit
+tests use a stand-in scanner; real-scanner behavior was verified on the local
+candidate. Not run: a signed/notarized candidate scan (no signed build in this
+phase) and document-worker pack scanning (pack deferred).
+
+Owner gate: the dispositions above need owner acceptance.
 
 #### Code Review #1 Findings
 
-_pending_
+Reviewed source: uncommitted working tree on `build/r2-release-distribution`
+over `f4d2950`; independent analysis and read-only checks by separate reviewers.
+Checks: all passed (`pnpm desktop:test` 276, `pnpm check`, `desktop:check`,
+knip, Prettier, `git diff --check`, lockfile and `.gitignore` inspection).
+
+- **P1-R1-F1 (blocking):** Gitleaks' built-in allowlist skips `node_modules/`,
+  `*.dist-info`, images/fonts/PDF and all binaries, and nested ZIP/tar.gz and the
+  PyInstaller PYZ were not expanded, yet the receipt reported a pass and the docs
+  claimed full coverage. Reproduced with planted tokens.
+- **P1-R1-F2 (blocking, R8):** CLI errors printed stack traces with host paths;
+  Gitleaks fatal errors exit 1 like "leaks found", surfacing as a raw ENOENT;
+  extraction tools' stderr passed through.
+- **P1-R1-F3:** the global `.onnx` path allowlist was broader than its
+  "digest-pinned" justification.
+- **P1-R1-F4:** symlink targets were never inspected.
+- **P1-R1-F5:** the DMG mount point sat inside the scanned tree, and a failed
+  detach could mask the original error.
+- **P1-R1-F6:** tests did not bind the receipt to the index digest or cover
+  scanner failure, version mismatch or ASAR expansion.
+- **P1-R1-F7:** `searchNeedles` threw with an empty needle list.
+- Notes: the home-directory needle only reflects the scanning machine (CI
+  builders use `/Users/runner/`); `native.mjs` would silently skip the prefix map
+  if the pgvector lock lost its `CFLAGS=` entry.
 
 #### Code Review #1 Revisions
 
-_pending_
+- **F1 accepted, fixed.** Verified with planted tokens. The scanner now expands
+  nested archives and PyInstaller contents and scans a numbered view (binaries
+  as strings). Doing so found a real leak (interpreter home path in the frozen
+  backend), fixed in `common.mjs`. Coverage counts are in the receipt; docs
+  updated. New tests cover nested tar.gz, ASAR, a binary under `node_modules/`.
+- **F2 accepted, fixed.** `ScanError` for bounded messages, a CLI catch with a
+  generic fallback (`ANIMAMA_SCAN_DEBUG=1` for local detail), `--exit-code 2`
+  plus a report-existence check, and tool output logged to the work directory.
+  Verified: missing scanner, missing index, bad config and wrong binary each
+  print one fixed line.
+- **F3 accepted, fixed.** Path allowlist removed; ONNX files are excluded in
+  code, counted in the receipt and still byte-searched. Test added.
+- **F4 accepted, fixed.** Absolute or private-text symlink targets are findings,
+  except an installer's `/Applications` link. Test added.
+- **F5 accepted, fixed.** Mount under the work directory, outside the scanned
+  tree; `detach -force` fallback.
+- **F6 accepted, fixed.** Tests bind the index and file digests and cover canary
+  miss, version mismatch and scanner failure.
+- **F7 accepted, fixed.** Overlap clamps at zero; covered by a test.
+- Notes: `native.mjs` now fails if no `CFLAGS=` entry receives the prefix map.
+  The CI-builder needle limitation is documented ("scan on the machine that
+  built the candidate") and carried to Phase 4.
+- Repair rounds used: 1 of 2.
+
+#### Code Review #2 Findings
+
+Targeted recheck of Review #1 fixes. F1 mostly resolved (a probe over all 5,599
+app files found the canary in 5,597); F2–F7 and the `native.mjs` note resolved.
+
+- **P1-R2-F1 (blocking):** Gitleaks silently skips view files whose first bytes
+  look like PDF, RTF, PostScript, SQLite, ZIP, gzip or `ar`; two SQLite
+  `lexicon.db` files in the app were counted as scanned but skipped.
+- **P1-R2-F2 (blocking):** the PEM allowlist (`BEGIN … KEY-----` followed by a
+  quote) hid real keys written as JS or Python string concatenations,
+  reproduced with fresh `openssl genrsa` keys.
+- **P1-R2-F3:** `/Users/Shared` is writable by every account; a planted
+  interpreter under the fixed install directory would be run and frozen.
+- **P1-R2-F4:** docs overstated archive detection (by extension) and symlink
+  containment (only absolute targets were checked).
+
+#### Code Review #2 Revisions
+
+- **F1 accepted, fixed.** Every view file starts with a fixed header line (line
+  numbers adjusted); text files are copied rather than linked. The test's fake
+  scanner now skips SQLite-prefixed files like Gitleaks, and a SQLite fixture
+  fails without the header and passes with it.
+- **F2 accepted, fixed.** The PEM entry now exempts only matches with no base64
+  run of 40+ characters. Verified: fresh keys as a PEM file, JS concatenation and
+  Python implicit concatenation are all reported; the reviewed third-party
+  fragments (source and compiled) and the canary behave as before.
+- **F3 accepted, fixed.** `assertPrivatePythonInstallDir()` runs before `uv sync`
+  in staging and the document-worker build and refuses a directory owned by
+  another account or writable by group/others. Documented in
+  `runtime-staging.md`.
+- **F4 accepted, fixed.** Relative symlinks escaping their artifact are findings
+  (`symlink-outside-artifact`, tested); docs list the expanded archive names and
+  state that other compressed formats are scanned only as strings.
+- Evidence: full candidate scan passes (31,035 files; the two lexicons now
+  scanned); `pnpm desktop:test` 279 passed; `pnpm check` exit 0; knip clean for
+  changed files; Prettier clean for changed files; ruff passes; `git diff
+--check` clean.
+- Repair rounds used: 2 of 2.
+
+#### Code Review #3 Findings
+
+Final targeted recheck: P1-R2-F1..F4 resolved, with no blocking findings or
+regressions. The reviewer confirmed that all seven previously skipped file-type
+prefixes are now scanned, and that fresh keys in five layouts are reported.
+
+- **P1-R3-F1 (non-blocking):** a PEM body split into string chunks of 39 or
+  fewer characters, none containing `+` or `/`, still passes the PEM exemption.
+  This layout is contrived and has not been seen in practice.
+- **P1-R3-F2 (non-blocking):** PyInstaller expansion runs the staged build
+  interpreter without repeating `assertPrivatePythonInstallDir()`. Staging
+  already ran that check.
+
+#### Code Review #3 Revisions
+
+- **F1 deferred as a documented residual limit.** No code changes were made
+  after the final review.
+- **F2 deferred to Phase 4.** It will be added alongside the publisher's scan
+  gate, which reuses the scanner.
+- Result: **pass**. Phase 1 is agent-ready. The owner gate on finding
+  dispositions remains.
 
 ### Phase 2: Distribution policy and build-time selection
 
@@ -204,22 +382,23 @@ Intended changes:
 1. `release-policy.json` becomes `animama-release-policy/2`, replacing `github`
    with:
 
-   ```json
-   "distributions": {
-     "r2": { "base_url": "https://downloads.animama.ai/desktop" },
-     "github": { "owner": "raymond-van", "repo": "animama-releases" }
-   }
-   ```
+    ```json
+    "distributions": {
+      "r2": { "base_url": "https://downloads.animama.ai/desktop" },
+      "github": { "owner": "raymond-van", "repo": "animama-releases" }
+    }
+    ```
 
-   `validateReleasePolicy` requires both entries. The R2 URL must be HTTPS with
-   no port, credentials, query or fragment, and no trailing slash.
+    `validateReleasePolicy` requires both entries. The R2 URL must be HTTPS with
+    no port, credentials, query or fragment, and no trailing slash.
+
 2. `loadReleasePolicy` reads `ANIMAMA_RELEASE_DISTRIBUTION`: unset means `r2`;
    `r2` or `github` select; any other value fails with a clear error. It returns
    the selected distribution and derives:
-   - the pack release base (`<base_url>/v<version>` for R2,
-     `https://github.com/<owner>/<repo>/releases/download/v<version>` for
-     GitHub),
-   - the embedded update policy (Phase 3 schema).
+    - the pack release base (`<base_url>/v<version>` for R2,
+      `https://github.com/<owner>/<repo>/releases/download/v<version>` for
+      GitHub),
+    - the embedded update policy (Phase 3 schema).
 3. Remove `release_base_url` from `feature-pack-releases.json` and its schema.
    `feature-pack-build.ts` and `worker-input.ts` receive the derived base.
    Retained packs (`release_tag`) swap the version folder the same way on both
@@ -321,10 +500,15 @@ Intended changes:
    `Cache-Control: no-cache`, and verify the anonymous read-back.
 8. Error output uses bounded messages only: no credentials, signed headers,
    object URLs with query strings, or host paths.
-9. Workflow: preview and publication jobs pass the R2 secrets or the GitHub
-   token depending on the recorded distribution. The environment/secret table
-   in `releases.md` gains the R2 entries. Publication stays unconfigured by
-   default.
+9. Scan gate (also call `assertPrivatePythonInstallDir()` before PyInstaller
+   expansion; P1-R3-F2): require a passing `release-scan.json` whose `files` cover every
+   uploaded file by SHA-256 (stable promotion rewrites the index). The home-path
+   needle only reflects the scanning machine, so scan where the candidate was
+   built; a CI-built candidate needs a CI-side scan with runner paths reviewed.
+10. Workflow: preview and publication jobs pass the R2 secrets or the GitHub
+    token depending on the recorded distribution. The environment/secret table
+    in `releases.md` gains the R2 entries. Publication stays unconfigured by
+    default.
 
 Checks: publisher unit tests with an injected fake `fetch` cover create-only
 conflicts, checksum mismatch, resume with identical and different bytes,
