@@ -274,8 +274,9 @@ or migration behavior.
   `../../docs/frontend/desktop/releases.md` before using those commands.
   Never auto-fill approval receipts, embed a token or R2 credential, run smoke
   against an existing user profile or publish as part of an ordinary build.
-  `ANIMAMA_RELEASE_DISTRIBUTION` (default `r2`) is read at build time only and
-  sealed into the app; never add a runtime override. Signed candidate builds do
+  `ANIMAMA_RELEASE_DISTRIBUTION` (default `r2`) is read only by build and
+  release tooling and sealed into the app; the installed app never reads it, so
+  never add a runtime override. Signed candidate builds do
   not contact the distribution. Preview/stable publication requires a passing
   `pnpm desktop:release:scan` receipt, anonymous destination checks and explicit
   approval. A destination that is not publicly served cannot deliver packs or
