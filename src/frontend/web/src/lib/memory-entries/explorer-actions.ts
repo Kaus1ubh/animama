@@ -1,4 +1,5 @@
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
+import { isReservedUserMemoryEntry } from "@/lib/memory-entries/anima-folders";
 import {
   canDeleteMemoryEntry,
   isEpisodeLogEntry,
@@ -55,7 +56,9 @@ export function memoryExplorerProtectedRowActions(
 export function memoryExplorerRowActions(entry: PyMemoryEntryHeader) {
   const actions: MemoryExplorerAction[] = [];
   const canCreateChildren =
-    entry.type === "directory" && !isEpisodeLogEntry(entry);
+    entry.type === "directory" &&
+    !isEpisodeLogEntry(entry) &&
+    !isReservedUserMemoryEntry(entry);
   const canRelocate = canMoveMemoryEntry(entry);
 
   if (!canRelocate && !canDeleteMemoryEntry(entry)) {

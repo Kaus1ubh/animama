@@ -14,6 +14,7 @@ import { lazy, Suspense, useState } from "react";
 import type { PyMemoryEntryResponse } from "@/lib/content/catalogTypes";
 import type { MemoryEntryDraft } from "@/lib/memory-entries/workspace-drafts";
 import { isMemoryEntryDraftDirty } from "@/lib/memory-entries/workspace-drafts";
+import { isReservedUserMemoryEntry } from "@/lib/memory-entries/anima-folders";
 import {
   canDeleteMemoryEntry,
   canEditMemoryEntry,
@@ -99,10 +100,14 @@ export function MemoryManualPanel({
           <p className="text-foreground text-sm font-medium">
             {isEpisodeLogEntry(entry)
               ? "Generated episode"
-              : "Read-only memory"}
+              : isReservedUserMemoryEntry(entry)
+                ? "Reserved path"
+                : "Read-only memory"}
           </p>
           <p className="mt-1 max-w-sm text-xs">
-            This file can be previewed but cannot be changed manually.
+            {isReservedUserMemoryEntry(entry)
+              ? "The animas path is reserved for Anima identities. Rename or move this file out of it before editing."
+              : "This file can be previewed but cannot be changed manually."}
           </p>
         </div>
         <Button type="button" variant="outline" onClick={onOpenManager}>

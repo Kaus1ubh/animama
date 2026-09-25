@@ -6,10 +6,12 @@ import {
   getMemoryEntryByPathV1MemoryEntriesByPathGet,
   getMemoryEntryV1MemoryEntriesEntryIdGet,
   getMemoryEntryVersionV1MemoryEntriesEntryIdVersionsVersionGet,
+  listAnimaIdentitiesV1MemoryAnimaIdentitiesGet,
   listMemoryEntriesV1MemoryEntriesGet,
   listMemoryEntryVersionsV1MemoryEntriesEntryIdVersionsGet,
 } from "@animama/runtime-contracts/sdk";
 import type {
+  PyAnimaIdentityListResponse,
   PyMemoryEntryListResponse,
   PyMemoryEntryResponse,
   PyMemoryEntryVersionDetail,
@@ -44,6 +46,25 @@ export function useMemoryEntries(opts?: UseMemoryEntriesOptions) {
           parent_id: opts?.parentId ?? undefined,
           recursive: opts?.recursive ?? false,
         },
+        responseValidator: undefined,
+        throwOnError: true,
+      });
+      return data;
+    },
+  });
+}
+
+/** Lists every owned Anima in creation order with its identity header. */
+export function useAnimaIdentities(opts?: { enabled?: boolean }) {
+  const userId = useRuntimeOwnerId();
+  const userKey = userId ?? "__anon__";
+  const enabled = (opts?.enabled ?? true) && Boolean(userId);
+
+  return useQuery<PyAnimaIdentityListResponse>({
+    queryKey: queryKeys.memoryEntries.animaIdentities(userKey),
+    enabled,
+    queryFn: async () => {
+      const { data } = await listAnimaIdentitiesV1MemoryAnimaIdentitiesGet({
         responseValidator: undefined,
         throwOnError: true,
       });

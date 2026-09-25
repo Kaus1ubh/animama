@@ -1,4 +1,5 @@
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
+import { isReservedUserMemoryEntry } from "@/lib/memory-entries/anima-folders";
 import {
   isEpisodeLogEntry,
   isRequiredMemoryEntry,
@@ -82,6 +83,12 @@ export function validateMemoryMoveDestination({
   }
   if (destination.type !== "directory" || isEpisodeLogEntry(destination)) {
     return { valid: false, reason: "Choose an ordinary memory directory." };
+  }
+  if (isReservedUserMemoryEntry(destination)) {
+    return {
+      valid: false,
+      reason: "The animas path is reserved for Anima identities.",
+    };
   }
   if ((destination.anima_id ?? null) !== (source.anima_id ?? null)) {
     return {

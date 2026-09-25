@@ -38,11 +38,14 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  UserRound,
+  Users,
 } from "lucide-react";
 import { Fragment, useCallback, useMemo, useState } from "react";
 
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
 import { useElementSize } from "@/hooks/useElementSize";
+import { isReservedUserMemoryEntry } from "@/lib/memory-entries/anima-folders";
 import {
   memoryExplorerProtectedRowActions,
   memoryExplorerRowActions,
@@ -204,6 +207,16 @@ function NodeIcon({
   node: MemoryWorkspaceTreeNode;
   expanded: boolean;
 }) {
+  if (node.kind === "anima-root") {
+    return (
+      <Users className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
+    );
+  }
+  if (node.kind === "anima-directory") {
+    return (
+      <UserRound className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
+    );
+  }
   if (node.kind === "episode-root") {
     return (
       <CalendarDays className="size-4 shrink-0 text-violet-600 dark:text-violet-400" />
@@ -274,12 +287,22 @@ function ExplorerRow({
   const selected = isFile && entry?.id === selectedEntryId;
   const focused = node.id === focusedNodeId;
   const dirty = entry ? dirtyEntryIds.has(entry.id) : false;
-  const path = entry?.path ?? node.label;
+  const path =
+    (node.kind === "file" ? node.displayPath : undefined) ??
+    entry?.path ??
+    node.label;
+  // Flag the pre-existing root entry occupying the reserved `animas` name.
+  const reservedConflict = Boolean(
+    entry && !entry.parent_id && isReservedUserMemoryEntry(entry),
+  );
   const moveable = Boolean(entry && canMoveMemoryEntry(entry));
   const actions = (
     entry
       ? memoryExplorerRowActions(entry)
-      : node.kind === "episode-root" || node.kind === "episode-month"
+      : node.kind === "episode-root" ||
+          node.kind === "episode-month" ||
+          node.kind === "anima-root" ||
+          node.kind === "anima-directory"
         ? memoryExplorerProtectedRowActions("directory")
         : []
   ).filter((action) => {
@@ -401,6 +424,18 @@ function ExplorerRow({
                 title="Unsaved changes"
               />
             ) : null}
+            {reservedConflict ? (
+              <span
+                className="shrink-0"
+                title="This name is reserved for Anima identities. Rename it, or move its contents out, to edit them."
+              >
+                <AlertTriangle
+                  aria-hidden
+                  className="size-3.5 text-amber-600 dark:text-amber-400"
+                />
+                <span className="sr-only">Reserved name</span>
+              </span>
+            ) : null}
           </span>
           {node.kind === "episode-file" ? (
             <span className="text-muted-foreground block truncate text-[10px] leading-3">
@@ -492,9 +527,16 @@ function ExplorerRow({
             />
           ))}
         </ul>
-      ) : expanded && node.kind === "episode-root" ? (
+      ) : expanded &&
+        (node.kind === "episode-root" ||
+          node.kind === "anima-root" ||
+          node.kind === "anima-directory") ? (
         <p className="text-muted-foreground border-border/60 ml-3 border-l px-3 py-2 text-xs">
-          No episodes yet.
+          {node.kind === "episode-root"
+            ? "No episodes yet."
+            : node.kind === "anima-root"
+              ? "No Animas yet."
+              : "This Anima's identity is missing and needs repair."}
         </p>
       ) : null}
     </li>

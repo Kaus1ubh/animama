@@ -43,8 +43,9 @@ offline with `pnpm openapi-ts`; never hand-edit generated output.
 - [x] Workspace setup published https://github.com/raymond-van/animama/issues/101
       (read back 2026-09-25T16:59:56Z) with native sub-issues #102, #103, #104
       and blocked-by dependencies.
-- [x] Phase 1: backend identity access, reservation and deletion (review #2 pass).
-- [ ] Phase 2: workspace `Animas` root and Manual identity editing.
+- [x] Phase 1: backend identity access, reservation and deletion (review #2 pass,
+      commit `cba8f2d`).
+- [x] Phase 2: workspace `Animas` root and Manual identity editing (review #2 pass).
 - [ ] Phase 3: Memory Manager identity diffs end to end.
 - [ ] Final integration review and manual acceptance.
 - [ ] Regular PR and hosted Validation.
@@ -123,6 +124,13 @@ offline with `pnpm openapi-ts`; never hand-edit generated output.
   workspace derives a reserved-path conflict from `anima_id == null` and a
   normalized path equal to `animas` or starting with `animas/`, mirroring the
   backend `is_reserved_user_memory_path` rule.
+- 2026-09-25, implementation: when an Anima disappears from the identity
+  listing, its identity drafts are dropped and a dirty draft raises a warning
+  toast, instead of keeping an unsaveable draft. Nothing can accept that text
+  once the Anima is deleted; this satisfies spec R2a's "cannot be saved; told why".
+- 2026-09-25, implementation: selecting an identity writes `entryId`, and a
+  label-path URL is rewritten to `entryId` once resolved, rather than writing
+  label paths (plan Phase 2 step 6); labels change on rename, IDs do not.
 - 2026-09-25, plan design: three phases on one branch and one PR. Implementation
   details may be refined with evidence within the agreed spec.
 
@@ -283,8 +291,8 @@ Requirements: R1, R2, R2a (frontend), R5 (frontend flag). Depends on Phase 1.
    `MemoryEntryEditorModal`. Saves invalidate the Anima definition, so the
    `/a/animas/:animaId` page shows the new content.
 6. Route state. Resolve `entryId` first. A `path` beginning with the Animas label
-   resolves through the current label map; selecting an identity writes its label
-   path. Renames keep the selection via `entryId`.
+   resolves through the current label map and is then rewritten to `entryId`;
+   selecting an identity writes `entryId`. Renames keep the selection.
 7. Deleted Anima (R2a). When a selected or drafted identity disappears from the
    listing, remove it from the tree, keep but block its draft from saving, and
    explain that the Anima was deleted; the draft can only be discarded.
@@ -303,15 +311,84 @@ disabled actions, then a narrow-layout regression check.
 Completion: checks pass; browser evidence recorded without personal memory
 content; review has no unresolved blockers.
 
-Phase record: issue #103; commits —; evidence —.
+Phase record: issue #103; starting source `cba8f2d`. Task stack
+`animama-anima-memdir` at `http://localhost:8740` (development mode,
+`ANIMAMA_LLM_SKIP=1`, only `web` published). Local evidence: `pnpm check`,
+`pnpm web:lint` and `pnpm web:test` (296 files, 1768 tests) pass; changed files
+pass Prettier (13 unrelated baseline files already fail `pnpm prettier:check`).
+Browser evidence at 1440×900 with starter fixtures: Animas root first with
+Annie and Caitlyn, Episodes second, PROFILE.md initially selected; identity
+opens in Manual with `Animas/<name>/IDENTITY.md` in Preview and Delete disabled;
+save created Version 2 and the Anima page rendered the new line; blank save
+rejected with the draft kept; renaming the Anima through the API to a duplicate
+name relabeled folders by creation order (`Caitlyn`, `Caitlyn (2)`), kept the
+selection and showed the conflict banner with Use latest / Save over latest;
+deleting the other Anima through `DELETE /v1/animas/{id}` with a dirty identity
+draft removed its folder and showed the discard warning; identity row menu
+items are all disabled; filtering `caitlyn/ident` finds the identity; 375×812
+layout renders the Files pane correctly. Not browser-tested: a pre-existing
+reserved `animas` user entry (the API now refuses to create one); unit tests
+cover it.
 
 #### Code Review #1 Findings
 
-Not started.
+Reviewed working tree on `cba8f2d` (sdlc-reviewer, full initial review).
+
+- P2-R1-F1 (blocking): a `path` URL for an identity stayed label-bound; a
+  rename or duplicate-label shift lost or retargeted the selection.
+- P2-R1-F2 (blocking): label-path resolution and deleted-identity draft handling
+  were inline in the page and untested.
+- P2-R1-F3 (blocking): `pnpm build` was neither run nor recorded.
+- P2-R1-F4: the deleted-Anima toast ran inside a `setDrafts` updater (duplicated
+  under StrictMode); repair-required identities were reported as deleted.
+- P2-R1-F5: toolbar creation stayed enabled on a pre-existing reserved entry.
+- P2-R1-F6: Anima definition changes did not invalidate identity detail queries,
+  so a later workspace save could hit a spurious revision conflict.
+- P2-R1-F7: the `workspaceQuery` facade hid identity refresh failures and let an
+  identity-listing failure hide all user memory.
+- P2-R1-F8: suffixing only avoided earlier Animas' real names.
+- P2-R1-F9: a reserved root file got no explorer flag; comment inaccurate.
+- P2-R1-F10: the missing-identity empty state pointed to a nonexistent repair UI.
+- P2-R1-F11: plan step 6 said selection writes the label path; blank-check
+  logic was duplicated.
 
 #### Code Review #1 Revisions
 
-Not started.
+All accepted.
+
+- F1/F2: new pure helpers `resolveWorkspaceSelection` and
+  `removedIdentityDrafts` in `anima-folders.ts` with unit tests (label path,
+  rename, label shift, stored-path isolation, deleted vs unavailable, clean
+  drafts). The page pins identity label-path URLs to `entryId`. Browser:
+  `?path=Animas/Caitlyn/IDENTITY.md` became `entryId=…`; renaming the Anima
+  and refreshing kept the selection with the new label.
+- F3: `pnpm build` exits 0 (existing chunk-size warning only).
+- F4: toasts are emitted outside state updaters with stable IDs; repair-required
+  identities say "identity is unavailable".
+- F5: `memoryCreationTarget` disables reserved entries; unit test added.
+- F6: new `memoryEntries.details` prefix key; `invalidateAnimaDefinition`
+  invalidates identity detail queries for that Anima; test extended.
+- F7: replaced the facade with `workspaceLoaded`, `workspaceFetching` and
+  `refreshWorkspace`; explorer errors reflect user memory only; an identity
+  listing failure raises a toast and leaves user memory usable.
+- F8: labels avoid every Anima's real name (`Annie`, `Annie`, `Annie (2)` →
+  `Annie`, `Annie (3)`, `Annie (2)`); test updated.
+- F9/F10: reserved flag covers any root reserved entry; copy corrected.
+- F11: Decision Log records entry-ID selection; shared
+  `isBlankAnimaIdentityDraft` and message used by the workspace and modal.
+- Checks after revisions: tsc, eslint and Prettier on changed files pass;
+  `pnpm web:test` 296 files / 1774 tests pass; `pnpm build` exit 0.
+
+#### Code Review #2 Findings
+
+Targeted recheck: all eleven fixes hold (74 focused tests, `tsc -b`, eslint and
+Prettier pass). P2-R2-F1: the feature doc still said the missing-identity folder
+points to the Anima page. Notes: plan step 6 wording; reserved-entry toast copy.
+
+#### Code Review #2 Revisions
+
+Fixed the doc sentence, plan step 6 and the reserved-entry creation toast;
+tsc and eslint pass. Repair budget used: one of two.
 
 ### Phase 3 — Memory Manager identity diffs
 
