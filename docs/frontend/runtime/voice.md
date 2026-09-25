@@ -153,6 +153,24 @@ Provider helpers:
 
 - `src/frontend/web/src/lib/speech/stt-provider.ts`
 
+### Microphone input and sensitivity
+
+App Settings → Voice → Microphone chooses the input device, voice-detection
+sensitivity and offers an opt-in level meter
+(`web/src/lib/voice/microphone-preferences.ts`, `web/src/ui/settings/MicrophoneSettings.tsx`).
+
+- The device ID is stored per machine in local storage and requested with an
+  `ideal` constraint, so an unplugged device falls back to the system default.
+  Parakeet dictation and Voice Mode pass it to MicVAD through `getStream` and
+  to the visualizer. Browser speech recognition cannot target a device, so the
+  browser path keeps its visualizer and MicVAD on the system default to match
+  the recognizer.
+- `speech.mic_sensitivity` (`low`/`normal`/`high`) selects MicVAD positive and
+  negative speech thresholds and minimum speech length at session start;
+  `normal` is 0.3 / 0.25 / 180 ms.
+- The level meter opens its own stream only while testing and releases it on
+  stop, device change or unmount.
+
 ### Voice mode provider flows
 
 Voice mode has two STT provider implementations. Both share the same MicVAD,

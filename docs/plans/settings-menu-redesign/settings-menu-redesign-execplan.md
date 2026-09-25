@@ -90,7 +90,7 @@ Boundaries:
 - [x] Phase 4 (#118): R5 General defaults. Reviewed (#1, #2 pass).
 - [x] Phase 5 (#119): R6–R8 inheritance, Markdown persistence, reset. Reviewed (#1, #2 pass).
 - [x] Phase 6 (#120): R9 About & diagnostics. Reviewed (#1–#3, pass). **Owner desktop check pending** (About/logs/copy).
-- [ ] Phase 7: documentation, glossary, final integration review, PR handoff.
+- [x] Phase 7 (#121): documentation, glossary and final integration review (pass after revisions). PR handoff.
 
 ## Surprises & Discoveries
 
@@ -864,8 +864,56 @@ Steps:
 
 ## Final integration review
 
-Pending. Covers combined acceptance across R1–R9 and reuses still-valid phase
-evidence.
+Source: `de7d4b8` plus the phase 7 docs; baseline `d987d24`.
+
+Full validation on this source:
+
+- `pnpm check` 0;
+- `pnpm web:lint` 0;
+- `pnpm web:test` 302 files / 1,800 tests pass;
+- `pnpm build` 0;
+- `pnpm desktop:check` 0;
+- `uv run ruff check` 0;
+- `make format-check` 0;
+- `uv run pytest -q` 1,790 passed, 7 skipped.
+
+#### Code Review #1 Findings (final integration)
+
+- **F-1 (blocking).** `user-profiles.md` and `routing.md` still described
+  last-opened-only launch.
+- **F-2 (blocking).** The acceptance record needed R3 override coverage and
+  the R5 rendered checks recorded, with R4 and R9 marked owner-pending.
+- **F-3.** The memory docs omitted the forced updates-off rule.
+- **F-4.** The glossary label did not match the UI ("App default").
+- **F-5.** Concurrent preference saves can lose an update, because each PATCH
+  replaces the whole object.
+- **F-6.** Reset relied on the stored-theme sync; a leaked echo count could
+  swallow it.
+- **F-7.** Reset cleared `has_sent_chat_message`.
+
+#### Code Review #1 Revisions
+
+- **F-1: accepted.** Both docs are updated, and the browser journey is
+  qualified.
+- **F-2: accepted.**
+  - Dark plus sample-override screenshots were added for the Anima page,
+    Memory and the Gesture creator. Chat, Library and App Settings were
+    already captured. The only remaining caveat is the known built-in
+    accent/secondary colours.
+  - The R5 deleted-pin fallback and new-Anima default model are recorded as
+    covered by unit and backend tests, and not rendered.
+  - R4 and R9 are recorded as owner-pending.
+- **F-3: accepted.** One sentence added to `docs/backend/features/memory.md`.
+- **F-4: accepted.** The glossary now uses "App default".
+- **F-5: deferred.** It needs two saves in flight within one round trip on
+  loopback; this is the existing full-object preference pattern, and the
+  setting can be re-selected. Candidate follow-up: serialise or optimistically
+  merge preference writes in `SettingsProvider`.
+- **F-6: accepted.** Reset also calls `setTheme("light")` locally.
+- **F-7: accepted.** Reset preserves `has_sent_chat_message`.
+
+After the fixes, `tsc -b` and eslint pass. The remaining full-suite results
+are unchanged by these edits, which touch only docs and one reset handler.
 
 ## Validation and acceptance
 
@@ -908,4 +956,40 @@ or not performed.
 
 ## Outcomes & Retrospective
 
-Pending.
+Delivered R1–R9 in seven phases on one branch:
+
+- searchable, flat App Settings with section icons;
+- Appearance modes and per-mode colour overrides;
+- microphone device, sensitivity and meter;
+- default Anima and default chat model;
+- memory/emotion App defaults with Anima inheritance;
+- persisted Markdown setting;
+- settings reset;
+- About and diagnostics.
+
+**Owner-pending acceptance:**
+
+- **R4 hardware microphone:** a non-default microphone used by Parakeet
+  dictation and Voice Mode; meter; release on close; unplug fallback; Low/High
+  tuning.
+- **R9 desktop shell:** About version and platform; Open logs; clipboard
+  contents of Copy summary.
+
+**Known limitations:**
+
+- Browser speech recognition always uses the system default microphone.
+- `--accent`, `--secondary` and `--sidebar-accent` are not derived from
+  overrides.
+- Concurrent preference saves can lose an update (F-5).
+- A theme echo count can leak after rapid re-clicks (R2-1).
+- Credentials and feature-pack entries stay searchable when they render
+  nothing, in unpackaged or external desktop only.
+
+**Lessons:**
+
+- A portalled Popover inside a Radix modal Dialog breaks typing; render in
+  place.
+- TanStack Query notifies after mutation promises settle, so echo tracking
+  must count submissions rather than rely on timing.
+- The desktop permission handler allows only media, which affects the async
+  Clipboard API.

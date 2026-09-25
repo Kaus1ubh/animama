@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 
 import {
@@ -99,14 +100,24 @@ export function ResetAppSettingsSetting({
   /** Called after a successful reset, e.g. to close App Settings so every control reloads. */
   onReset?: () => void;
 }) {
-  const { updateUserSettings } = useSettings();
+  const { updateUserSettings, userPreferences } = useSettings();
+  const { setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
 
   const reset = async () => {
     setResetting(true);
     try {
-      await updateUserSettings({ preferences: {}, theme: "light" });
+      await updateUserSettings({
+        // First-message suggestion state is product history, not a setting.
+        preferences: userPreferences?.has_sent_chat_message
+          ? { has_sent_chat_message: true }
+          : {},
+        theme: "light",
+      });
+      // Apply locally too, so the stored-theme sync cannot mistake the reset
+      // for an echo of an earlier save.
+      setTheme("light");
       // The microphone choice is stored on this machine, not in preferences.
       writeSelectedMicrophoneId(null);
       setOpen(false);

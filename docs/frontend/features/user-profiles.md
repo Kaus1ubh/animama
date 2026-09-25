@@ -15,8 +15,10 @@ remain optional. Completion is idempotent and controlled by backend runtime
 context rather than browser storage. The bootstrap placeholder may be null
 before setup. An earlier skipped setup reopens for a name without resetting data.
 
-After setup and on future root launches, `/a` opens `/a/$animaId` for the last
-visited owned Anima, or the first in creation order (Annie on a fresh install).
+After setup and on future root launches, `/a` opens `/a/$animaId` for the
+Default Anima pinned in App Settings → General when it is still owned,
+otherwise the last visited owned Anima, or the first in creation order (Annie
+on a fresh install).
 Saved settings and the owned list must load before selecting a fallback. A
 deleted selection falls back to the first remaining Anima; an empty list opens
 creation. Explicit deep links are preserved.

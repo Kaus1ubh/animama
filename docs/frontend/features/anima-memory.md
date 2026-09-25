@@ -169,8 +169,10 @@ restored so the proposed change cannot be stranded. Inline diff approval cards
 refresh the explorer and persisted preview after approved changes. Selecting a
 file remains visual context and does not change manager requests.
 
-App Settings includes a Memory section with a Memory Manager model
-selector. Its choices come from the existing model catalog and are limited to
+App Settings → Memory & Emotion sets installation-wide defaults for memory,
+memory updates and emotion updates. Each Anima's settings offer "App default",
+On or Off; turning memory off also stops memory updates. The same section has a
+Memory Manager model selector. Its choices come from the existing model catalog and are limited to
 the OpenAI Responses provider. The choice is installation-wide and applies to new
 request-local manager runtime instances; System default clears the override and
 uses `ANIMAMA_MEMORY_MANAGER_AGENT_MODEL` from the backend environment.
