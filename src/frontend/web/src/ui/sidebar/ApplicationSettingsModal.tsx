@@ -52,6 +52,12 @@ import {
 } from "@/lib/settings/desktop-shortcuts";
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
 import { APPEARANCE_COLOR_KEYS } from "@/lib/theme/appearance-overrides";
+import { BEHAVIOR_FLAGS } from "@/lib/settings/behavior-defaults";
+import {
+  AppBehaviorSetting,
+  behaviorLabel,
+  ResetAppSettingsSetting,
+} from "@/ui/settings/BehaviorDataSettings";
 import {
   DefaultAnimaSetting,
   DefaultChatModelSetting,
@@ -214,6 +220,8 @@ const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
 const REVEAL_HIGHLIGHT_MS = 1600;
 
 const GROUP_DESCRIPTIONS: Record<string, string> = {
+  "Defaults for Animas":
+    "Animas follow these unless they set their own value in Anima settings.",
   "Visual style":
     "Override colours for the mode in effect. Light and Dark keep separate colours.",
   "Desktop shortcuts": "Press to talk also supports a mouse button.",
@@ -1468,6 +1476,16 @@ export function ApplicationSettingsModal({
         ),
       }),
     ),
+    ...BEHAVIOR_FLAGS.map(
+      (flag): SettingEntry => ({
+        id: `behavior-${flag}`,
+        section: "Memory & Emotion",
+        group: "Defaults for Animas",
+        label: behaviorLabel(flag),
+        keywords: ["memory", "emotion", "default", "inherit", "anima settings"],
+        render: () => <AppBehaviorSetting flag={flag} disabled={isBusy} />,
+      }),
+    ),
     {
       id: "memory-manager-model",
       section: "Memory & Emotion",
@@ -1518,6 +1536,17 @@ export function ApplicationSettingsModal({
             </p>
           ) : null}
         </SettingsRow>
+      ),
+    },
+    {
+      id: "reset-app-settings",
+      section: "Data",
+      group: "App data",
+      label: "Reset app settings",
+      keywords: ["reset", "defaults", "restore", "clear"],
+      // Close so controls holding local copies reload the restored values.
+      render: () => (
+        <ResetAppSettingsSetting onReset={() => onOpenChange(false)} />
       ),
     },
     {

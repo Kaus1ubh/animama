@@ -10,6 +10,14 @@ import {
 import { toast } from "sonner";
 
 import { usePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
+import {
+  animaBehaviorOverride,
+  appBehaviorEnabled,
+  behaviorPatch,
+  effectiveBehaviorEnabled,
+  type BehaviorFlag,
+  type BehaviorOverride,
+} from "@/lib/settings/behavior-defaults";
 import { toTtsProvider } from "@/lib/speech/tts-provider";
 import {
   POCKET_TTS_CUSTOM_VOICE,
@@ -27,7 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select";
-import { Switch } from "@/ui/components/switch";
 import {
   Tooltip,
   TooltipContent,
@@ -35,25 +42,32 @@ import {
 } from "@/ui/components/tooltip";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 
-type SettingRowProps = {
+type InheritableSettingRowProps = {
   label: string;
   description: string;
   tooltip: string;
-  checked: boolean;
+  value: BehaviorOverride;
+  /** The App Settings value shown for "Use app default". */
+  appEnabled: boolean;
   disabled?: boolean;
-  onChange: (checked: boolean) => void;
+  onChange: (value: BehaviorOverride) => void;
 };
 
 const ANIMAMA_DEFAULT_VOICE_VALUE = "__anima_default__";
 
-function SettingRow({
+/**
+ * A memory/emotion behaviour that follows App Settings unless this Anima sets
+ * its own value.
+ */
+function InheritableSettingRow({
   label,
   description,
   tooltip,
-  checked,
+  value,
+  appEnabled,
   disabled,
   onChange,
-}: SettingRowProps) {
+}: InheritableSettingRowProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -67,11 +81,22 @@ function SettingRow({
             <p className="text-foreground text-sm font-medium">{label}</p>
             <p className="text-muted-foreground text-xs">{description}</p>
           </div>
-          <Switch
-            checked={checked}
+          <Select
+            value={value}
             disabled={disabled}
-            onCheckedChange={onChange}
-          />
+            onValueChange={(next) => onChange(next as BehaviorOverride)}
+          >
+            <SelectTrigger className="w-48 shrink-0" aria-label={label}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="inherit">
+                App default ({appEnabled ? "On" : "Off"})
+              </SelectItem>
+              <SelectItem value="on">On</SelectItem>
+              <SelectItem value="off">Off</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </TooltipTrigger>
       <TooltipContent sideOffset={6}>{tooltip}</TooltipContent>
@@ -82,6 +107,7 @@ function SettingRow({
 export function AnimaSettingsModal() {
   const {
     effectivePreferences,
+    userPreferences,
     animaPreferences,
     updateAnimaPreferences,
     isLoading,
@@ -104,9 +130,11 @@ export function AnimaSettingsModal() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isBusy = isLoading || isUpdating;
 
-  const emotionUpdatesEnabled = !effectivePreferences.emotion?.disable_updates;
-  const memoryEnabled = !effectivePreferences.memory?.disable_influence;
-  const memoryUpdatesEnabled = !effectivePreferences.memory?.disable_updates;
+  const memoryEnabled = effectiveBehaviorEnabled(
+    userPreferences,
+    animaPreferences,
+    "memory_influence",
+  );
 
   const activeProvider = toTtsProvider(
     effectivePreferences.speech?.tts_provider,
@@ -137,42 +165,18 @@ export function AnimaSettingsModal() {
     });
   }, [pocketProviderEnabled, warmupPocket]);
 
-  const handleEmotionUpdates = useCallback(
-    (checked: boolean) => {
+  const handleBehaviorChange = useCallback(
+    (flag: BehaviorFlag, choice: BehaviorOverride) => {
       if (isBusy) return;
-      void updateAnimaPreferences({
-        emotion: { disable_updates: !checked },
-      }).catch(() => toast("Failed to update emotion settings."));
+      void updateAnimaPreferences(behaviorPatch(flag, choice)).catch(() =>
+        toast(
+          flag === "emotion_updates"
+            ? "Failed to update emotion settings."
+            : "Failed to update memory settings.",
+        ),
+      );
     },
     [isBusy, updateAnimaPreferences],
-  );
-
-  const handleMemoryEnabled = useCallback(
-    (checked: boolean) => {
-      if (isBusy) return;
-      const disableUpdates = !checked;
-      void updateAnimaPreferences({
-        memory: {
-          disable_influence: !checked,
-          ...(disableUpdates ? { disable_updates: true } : {}),
-        },
-      }).catch(() => toast("Failed to update memory settings."));
-    },
-    [isBusy, updateAnimaPreferences],
-  );
-
-  const handleMemoryUpdates = useCallback(
-    (checked: boolean) => {
-      if (isBusy) return;
-      if (!memoryEnabled && checked) {
-        toast("Enable memory first to allow updates.");
-        return;
-      }
-      void updateAnimaPreferences({
-        memory: { disable_updates: !checked },
-      }).catch(() => toast("Failed to update memory settings."));
-    },
-    [isBusy, memoryEnabled, updateAnimaPreferences],
   );
 
   const persistAnimaPocketVoice = useCallback(
@@ -306,13 +310,16 @@ export function AnimaSettingsModal() {
           Emotion
         </p>
         <div className="mt-3 grid gap-3">
-          <SettingRow
-            label="Enable emotion updates"
+          <InheritableSettingRow
+            label="Emotion updates"
             description="Update emotional state during chat. When off, new emotion reactions stop; gestures still play."
             tooltip="When off, the existing mood is preserved and gestures still play."
-            checked={emotionUpdatesEnabled}
+            value={animaBehaviorOverride(animaPreferences, "emotion_updates")}
+            appEnabled={appBehaviorEnabled(userPreferences, "emotion_updates")}
             disabled={isBusy}
-            onChange={handleEmotionUpdates}
+            onChange={(choice) =>
+              handleBehaviorChange("emotion_updates", choice)
+            }
           />
         </div>
       </div>
@@ -322,21 +329,31 @@ export function AnimaSettingsModal() {
           Memory
         </p>
         <div className="mt-3 grid gap-3">
-          <SettingRow
-            label="Enable memory"
+          <InheritableSettingRow
+            label="Memory"
             description="Read saved memories during chat. IDENTITY.md and conversation history remain active when off."
-            tooltip="Turning this off also disables memory updates; existing memories are not deleted."
-            checked={memoryEnabled}
+            tooltip="Turning this off also turns memory updates off; existing memories are not deleted."
+            value={animaBehaviorOverride(animaPreferences, "memory_influence")}
+            appEnabled={appBehaviorEnabled(userPreferences, "memory_influence")}
             disabled={isBusy}
-            onChange={handleMemoryEnabled}
+            onChange={(choice) =>
+              handleBehaviorChange("memory_influence", choice)
+            }
           />
-          <SettingRow
-            label="Enable memory updates"
-            description="Save new memories during chat. Turning this off does not stop chat history from being saved."
-            tooltip="Existing memories remain readable while memory is enabled."
-            checked={memoryUpdatesEnabled}
+          <InheritableSettingRow
+            label="Memory updates"
+            description={
+              memoryEnabled
+                ? "Save new memories during chat. Turning this off does not stop chat history from being saved."
+                : "Off while memory is off for this Anima."
+            }
+            tooltip="Memory updates require memory to be on."
+            value={animaBehaviorOverride(animaPreferences, "memory_updates")}
+            appEnabled={appBehaviorEnabled(userPreferences, "memory_updates")}
             disabled={!memoryEnabled || isBusy}
-            onChange={handleMemoryUpdates}
+            onChange={(choice) =>
+              handleBehaviorChange("memory_updates", choice)
+            }
           />
         </div>
       </div>

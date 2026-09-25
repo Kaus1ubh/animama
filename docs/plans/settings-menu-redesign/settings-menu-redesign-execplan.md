@@ -88,7 +88,7 @@ Boundaries:
 - [x] Phase 2 (#116): R3 Appearance. Visual QA gate evidence recorded; reviews #1–#3 (pass).
 - [x] Phase 3 (#117): R4 Microphone implemented and reviewed (#1, #2 pass). **Owner hardware acceptance pending.**
 - [x] Phase 4 (#118): R5 General defaults. Reviewed (#1, #2 pass).
-- [ ] Phase 5: R6–R8 inheritance, Markdown persistence, reset.
+- [x] Phase 5 (#119): R6–R8 inheritance, Markdown persistence, reset. Reviewed (#1, #2 pass).
 - [ ] Phase 6: R9 About & diagnostics.
 - [ ] Phase 7: documentation, glossary, final integration review, PR handoff.
 
@@ -660,13 +660,73 @@ Checks:
   Markdown survives reload; reset restores defaults and leaves an Anima override,
   chats and memories intact; cancel makes no change.
 
+Results:
+
+- **Delivered:**
+  - **Inheritance:** `default_anima_preferences()` no longer writes
+    memory/emotion flags, so new Animas inherit.
+  - **Resolution** (`merge_chat_request_options`): request, then Anima, then
+    owner, then enabled. Memory updates are forced off whenever memory
+    influence resolves off, including across levels.
+  - **Web helpers:** `lib/settings/behavior-defaults.ts` provides tri-state
+    overrides and a patch that removes the key for "App default";
+    `updateAnimaPreferences` no longer copies default preferences into Anima
+    rows.
+  - **Anima settings:** "App default (On/Off) / On / Off" selects.
+  - **App Settings → Memory & Emotion:** a "Defaults for Animas" group.
+  - **Markdown:** stored in `presentation.render_markdown` (default on).
+  - **Data → Reset app settings:** a shared-dialog confirmation PATCHes
+    `{preferences: {}, theme: "light"}`, clears the per-machine microphone
+    device and closes App Settings so controls reload. The last opened Anima,
+    locale, display name, Anima settings, chats and memories are kept.
+- **Local checks:**
+  - `pnpm check` pass;
+  - `pnpm web:lint` pass;
+  - `pnpm web:test` 299 files / 1,793 tests pass;
+  - ruff check and format pass;
+  - backend inheritance, settings, materializer and structured-response tests
+    76 pass;
+  - chat SSE and executor regression 152 pass (reviewer);
+  - after repairs: `tsc -b` and eslint pass.
+- **Browser:**
+  - App memory-updates Off made an inheriting Anima show "App default (Off)";
+  - choosing On stored only `memory.disable_updates:false`;
+  - reset Cancel is a no-op;
+  - reset clears preferences, sets the light theme, keeps the last opened
+    Anima and keeps the Anima override, and closes both dialogs;
+  - the Markdown toggle persisted.
+
 #### Code Review #1 Findings
 
-Pending.
+- **P5-1 (blocking).** The influence-off → updates-off rule was lost across
+  inheritance levels.
+- **P5-2 (blocking).** App Settings showed stale local values after a reset.
+- **P5-3.** Hand-built dialog.
+- **P5-4.** Duplicated labels.
+- **P5-5.** Explicit updates Off survives when memory returns to "App
+  default".
+- **P5-6.** Docs pending.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P5-1: accepted.** Enforced in backend resolution, with a test; the UI
+  note explains it.
+- **P5-2: accepted.** App Settings closes after a successful reset.
+- **P5-3 and P5-4: accepted.**
+- **P5-5: acknowledged.** Harmless after the P5-1 fix.
+- **P5-6: phase 7.**
+
+#### Code Review #2 Findings (repair round 1)
+
+Pass.
+
+- **Optional:** a disabled explicit "On" is still displayed while memory is
+  off; the description clarifies it.
+
+#### Code Review #2 Revisions
+
+- No change.
+- One repair round remains.
 
 ### Phase 6: About & diagnostics
 

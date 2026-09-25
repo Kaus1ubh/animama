@@ -99,13 +99,17 @@ def merge_chat_request_options(
     user_emotion = _get_pref_section(user_prefs, "emotion")
     anima_emotion = _get_pref_section(anima_prefs, "emotion")
 
+    disable_memory_influence = _pick_bool(
+        req.get("disable_memory_influence"),
+        anima_memory.get("disable_influence"),
+        user_memory.get("disable_influence"),
+    )
     return DirectChatOptions(
-        disable_memory_influence=_pick_bool(
-            req.get("disable_memory_influence"),
-            anima_memory.get("disable_influence"),
-            user_memory.get("disable_influence"),
-        ),
-        disable_memory_updates=_pick_bool(
+        disable_memory_influence=disable_memory_influence,
+        # Memory is never written while it is not read, even when the two
+        # flags resolve from different levels (e.g. App off, Anima updates on).
+        disable_memory_updates=disable_memory_influence
+        or _pick_bool(
             req.get("disable_memory_updates"),
             anima_memory.get("disable_updates"),
             user_memory.get("disable_updates"),

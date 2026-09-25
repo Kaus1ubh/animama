@@ -13,6 +13,7 @@ import {
   type SetStateAction,
 } from "react";
 import { useTheme } from "next-themes";
+import { toast } from "sonner";
 import { createThemeEchoTracker } from "@/lib/theme/theme-echo-tracker";
 import {
   applyAppearanceOverrideCss,
@@ -29,7 +30,6 @@ import type {
 } from "@/lib/content/catalogTypes";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import {
-  DEFAULT_ANIMAMA_PREFERENCES,
   mergePreferences,
   normalizeThemeSetting,
   resolvePreferences,
@@ -68,7 +68,8 @@ export type SettingsContextValue = {
     SetStateAction<Partial<PyAnimaDispatchOptions>>
   >;
   chatMarkdownEnabled: boolean;
-  setChatMarkdownEnabled: Dispatch<SetStateAction<boolean>>;
+  /** Saves `presentation.render_markdown` in app preferences. */
+  setChatMarkdownEnabled: (enabled: boolean) => void;
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -178,7 +179,9 @@ export function SettingsProvider({
 
   const updateAnimaPreferences = useCallback(
     async (patch: SettingsPreferences) => {
-      const base = animaPreferences ?? DEFAULT_ANIMAMA_PREFERENCES;
+      // Base on stored Anima values only; copying app defaults into the Anima
+      // row would turn inherited settings into explicit overrides.
+      const base = animaPreferences ?? {};
       const merged = mergePreferences(base, patch);
       logger.info("Preferences", "Updating anima preferences", {
         userId,
@@ -193,7 +196,20 @@ export function SettingsProvider({
   const [chatRequestOverrides, setChatRequestOverrides] = useState<
     Partial<PyAnimaDispatchOptions>
   >({});
-  const [chatMarkdownEnabled, setChatMarkdownEnabled] = useState(true);
+  // Persisted app preference; rendering Markdown stays on unless turned off.
+  const chatMarkdownEnabled =
+    userPreferences?.presentation?.render_markdown !== false;
+  const setChatMarkdownEnabled = useCallback(
+    (enabled: boolean) => {
+      void updateUserPreferences({
+        presentation: { render_markdown: enabled },
+      }).catch((error) => {
+        logger.error("Preferences", "Markdown preference update failed", error);
+        toast.error("Failed to update Markdown rendering.");
+      });
+    },
+    [logger, updateUserPreferences],
+  );
 
   const chatRequestOptions = useMemo(() => {
     const entries: Array<[string, boolean | string | string[]]> = [];
@@ -308,6 +324,7 @@ export function SettingsProvider({
     [
       chatRequestOptions,
       chatMarkdownEnabled,
+      setChatMarkdownEnabled,
       effectivePreferences,
       animaPreferences,
       animaSettings,
