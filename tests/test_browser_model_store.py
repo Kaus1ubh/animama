@@ -53,12 +53,22 @@ def test_pinned_sources_flat_store_and_offline_reuse(inventory):
     result = store.acquire(i.manifest, i.root, transport=i.transport)
     assert result == i.root / "browser-speech" / i.manifest["digest"]
     assert {p.name for p in result.iterdir()} == set(i.content)
-    assert len(i.calls) == 8
+    assert len(i.calls) == 12
     for entry, url in zip(i.manifest["files"], i.calls, strict=True):
         source = entry["source"]
         assert url == f"https://huggingface.co/{source['repository']}/resolve/{source['revision']}/{source['path']}"
     assert store.acquire(i.manifest, i.root, offline=True, transport=lambda _: pytest.fail("network")) == result
     assert store.verify(i.manifest, i.root) == result
+
+
+def test_pinned_april_bundle_and_voice_states(inventory):
+    targets = {entry["path"]: entry["target"] for entry in inventory.manifest["files"]}
+    assert targets["flow_lm_flow.onnx"] == "models/pocket-tts/flow_lm_flow.onnx"
+    assert targets["mimi_decoder.onnx"] == "models/pocket-tts/mimi_decoder.onnx"
+    assert targets["bundle.json"] == "models/pocket-tts/bundle.json"
+    for voice in ("cosette", "jean", "fantine"):
+        assert targets[f"{voice}.safetensors"] == f"models/pocket-tts/voices/{voice}.safetensors"
+    assert "voices.bin" not in targets
 
 
 def test_nested_legacy_import_preserves_files(inventory, tmp_path):
@@ -80,7 +90,7 @@ def test_versions_coexist_and_concurrent_acquisition_downloads_once(inventory):
         jobs = [pool.submit(store.acquire, i.manifest, i.root, transport=i.transport) for _ in range(2)]
     original = jobs[0].result()
     assert original == jobs[1].result()
-    assert len(i.calls) == 8
+    assert len(i.calls) == 12
     i.path.write_text(i.path.read_text() + "\n")
     changed = browser.load_manifest(i.path)
     next_version = store.acquire(changed, i.root, transport=i.transport)
@@ -163,7 +173,7 @@ def test_interrupted_staging_is_removed_and_existing_corruption_is_not_repaired(
         store.acquire(i.manifest, i.root, transport=interrupted)
     assert not list((i.root / "browser-speech").glob("*.partial-*"))
     result = store.acquire(i.manifest, i.root, transport=i.transport)
-    corrupt = result / "voices.bin"
+    corrupt = result / "bundle.json"
     corrupt.chmod(0o644)
     corrupt.write_bytes(b"bad")
     with pytest.raises(store.ModelStoreError, match="not changed"):

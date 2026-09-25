@@ -22,6 +22,10 @@ const defaultManifest = path.join(
   repositoryRoot,
   "models/browser-runtime/manifest.json",
 );
+// Reviewed inventory sizes: 12 acquired model files (Pocket TTS english_2026-04
+// bundle, three voice states, Smart Turn) plus 11 pinned package files.
+const RUNTIME_FILE_COUNT = 23;
+const MODEL_FILE_COUNT = 12;
 const packageSources = new Map([
   ["onnxruntime-web-assets", ["onnxruntime-web", "1.24.2"]],
   ["@ricky0123/vad-web", ["@ricky0123/vad-web", "0.0.30"]],
@@ -89,7 +93,7 @@ export function readBrowserRuntimeManifest(manifestPath = defaultManifest) {
   if (
     manifest.schema_version !== 1 ||
     !Array.isArray(manifest.files) ||
-    manifest.files.length !== 19 ||
+    manifest.files.length !== RUNTIME_FILE_COUNT ||
     manifest.model_manifest !== "models/browser-speech/manifest.json"
   )
     throw new Error("Invalid browser runtime manifest");
@@ -222,8 +226,8 @@ export function resolveBrowserRuntimeAssets({
     (entry) => entry.source.kind === "model-store",
   );
   if (
-    modelManifest.files?.length !== 8 ||
-    modelEntries.length !== 8 ||
+    modelManifest.files?.length !== MODEL_FILE_COUNT ||
+    modelEntries.length !== MODEL_FILE_COUNT ||
     modelEntries.some(
       (entry) =>
         !modelManifest.files.some(

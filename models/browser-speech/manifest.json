@@ -3,63 +3,63 @@
   "model_id": "browser-speech",
   "files": [
     {
-      "path": "flow_lm_flow_int8.onnx",
-      "target": "models/pocket-tts/flow_lm_flow_int8.onnx",
-      "size": 9962530,
-      "sha256": "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529",
-      "license": "CC-BY-NC-4.0",
-      "source": {
-        "repository": "spaces/codexxx/pocket-tts-web",
-        "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950",
-        "path": "onnx/flow_lm_flow_int8.onnx"
-      }
-    },
-    {
       "path": "flow_lm_main_int8.onnx",
       "target": "models/pocket-tts/flow_lm_main_int8.onnx",
-      "size": 76341627,
-      "sha256": "fd5cdd7f7ab05f638af0011b9561fe95f3d86bae7be7504e921ae3d2874b5da5",
-      "license": "CC-BY-NC-4.0",
+      "size": 76341079,
+      "sha256": "f9bd8106b79a0192c1c43399ab938fb24900a95c1c599870d75a884e99000116",
+      "license": "CC-BY-4.0",
       "source": {
-        "repository": "spaces/codexxx/pocket-tts-web",
-        "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950",
-        "path": "onnx/flow_lm_main_int8.onnx"
+        "repository": "KevinAHM/pocket-tts-onnx",
+        "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c",
+        "path": "onnx/english_2026-04/flow_lm_main_int8.onnx"
       }
     },
     {
-      "path": "mimi_decoder_int8.onnx",
-      "target": "models/pocket-tts/mimi_decoder_int8.onnx",
-      "size": 22684077,
-      "sha256": "501e16f51cf3fb91bd2928ee2a10c96d3461544eff329aafca10489e990b450c",
-      "license": "CC-BY-NC-4.0",
+      "path": "flow_lm_flow.onnx",
+      "target": "models/pocket-tts/flow_lm_flow.onnx",
+      "size": 39097095,
+      "sha256": "085d239f68897e28fb06e95c743738ad8b8c092ee6dc55f5491313e81ff08062",
+      "license": "CC-BY-4.0",
       "source": {
-        "repository": "spaces/codexxx/pocket-tts-web",
-        "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950",
-        "path": "onnx/mimi_decoder_int8.onnx"
+        "repository": "KevinAHM/pocket-tts-onnx",
+        "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c",
+        "path": "onnx/english_2026-04/flow_lm_flow.onnx"
+      }
+    },
+    {
+      "path": "mimi_decoder.onnx",
+      "target": "models/pocket-tts/mimi_decoder.onnx",
+      "size": 41471926,
+      "sha256": "86f038caa02a96a0ff9c25526a0ff43a4906c418197ed72d3e30f720ac7ce802",
+      "license": "CC-BY-4.0",
+      "source": {
+        "repository": "KevinAHM/pocket-tts-onnx",
+        "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c",
+        "path": "onnx/english_2026-04/mimi_decoder.onnx"
       }
     },
     {
       "path": "mimi_encoder.onnx",
       "target": "models/pocket-tts/mimi_encoder.onnx",
-      "size": 73165554,
-      "sha256": "360f050cd0b1e1c9e92e25584391a2214cb7574ba16c67ac5f471f9dce8588e4",
-      "license": "CC-BY-NC-4.0",
+      "size": 39768446,
+      "sha256": "853e2ca623b8782d94c3745ec6133bfdff7ce33d9b11128bd29ea03f28d76e3d",
+      "license": "CC-BY-4.0",
       "source": {
-        "repository": "spaces/codexxx/pocket-tts-web",
-        "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950",
-        "path": "onnx/mimi_encoder.onnx"
+        "repository": "KevinAHM/pocket-tts-onnx",
+        "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c",
+        "path": "onnx/english_2026-04/mimi_encoder.onnx"
       }
     },
     {
       "path": "text_conditioner.onnx",
       "target": "models/pocket-tts/text_conditioner.onnx",
-      "size": 16388363,
-      "sha256": "80ea69f46d8153a9bd42373723cedae4c88ccbde0e052c2a96e9e8f19445adf1",
-      "license": "CC-BY-NC-4.0",
+      "size": 16388344,
+      "sha256": "4ecee995fb69f85c7a7493d11f7b5ee15d9950facc7ab3f5c9c49ef1e03847bb",
+      "license": "CC-BY-4.0",
       "source": {
-        "repository": "spaces/codexxx/pocket-tts-web",
-        "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950",
-        "path": "onnx/text_conditioner.onnx"
+        "repository": "KevinAHM/pocket-tts-onnx",
+        "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c",
+        "path": "onnx/english_2026-04/text_conditioner.onnx"
       }
     },
     {
@@ -67,23 +67,71 @@
       "target": "models/pocket-tts/tokenizer.model",
       "size": 59339,
       "sha256": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6",
-      "license": "CC-BY-NC-4.0",
+      "license": "CC-BY-4.0",
       "source": {
-        "repository": "spaces/KevinAHM/pocket-tts-web",
-        "revision": "3cf6daa623e2b09992c972cab32568ee8679a154",
-        "path": "tokenizer.model"
+        "repository": "KevinAHM/pocket-tts-onnx",
+        "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c",
+        "path": "onnx/english_2026-04/tokenizer.model"
       }
     },
     {
-      "path": "voices.bin",
-      "target": "models/pocket-tts/voices.bin",
-      "size": 1564796,
-      "sha256": "a499039e88043ff86cb39705f487cc761406d55f1e73ad19a3c055b16e86b062",
+      "path": "bos_before_voice.npy",
+      "target": "models/pocket-tts/bos_before_voice.npy",
+      "size": 4224,
+      "sha256": "f46edf4f7007b7ba4ea58831f49d003e59e167b4641c44bb3addfe9231a780b1",
+      "license": "CC-BY-4.0",
+      "source": {
+        "repository": "KevinAHM/pocket-tts-onnx",
+        "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c",
+        "path": "onnx/english_2026-04/bos_before_voice.npy"
+      }
+    },
+    {
+      "path": "bundle.json",
+      "target": "models/pocket-tts/bundle.json",
+      "size": 24381,
+      "sha256": "bab643150f437f37df080a710520ff39ed9ebd9a339f8ebdc739f7eddfc28b3f",
+      "license": "CC-BY-4.0",
+      "source": {
+        "repository": "KevinAHM/pocket-tts-onnx",
+        "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c",
+        "path": "onnx/english_2026-04/bundle.json"
+      }
+    },
+    {
+      "path": "cosette.safetensors",
+      "target": "models/pocket-tts/voices/cosette.safetensors",
+      "size": 6194424,
+      "sha256": "c4fdc15f5a3a20c44dd0064a37e87d15d25562936e8dbad7e07b9832015a545d",
       "license": "CC-BY-NC-4.0",
       "source": {
-        "repository": "spaces/KevinAHM/pocket-tts-web",
-        "revision": "3cf6daa623e2b09992c972cab32568ee8679a154",
-        "path": "voices.bin"
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/cosette.safetensors"
+      }
+    },
+    {
+      "path": "jean.safetensors",
+      "target": "models/pocket-tts/voices/jean.safetensors",
+      "size": 6194424,
+      "sha256": "90be4b8f50bb4d2dbe27e3fb4e31417cf6a57928931f0a60426a1748821a3d12",
+      "license": "CC-BY-NC-4.0",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/jean.safetensors"
+      }
+    },
+    {
+      "path": "fantine.safetensors",
+      "target": "models/pocket-tts/voices/fantine.safetensors",
+      "size": 6538488,
+      "sha256": "51a8a4355d7f912d4959e4b1918314fda85ad47eba0a33a1d78a4a505d3465f5",
+      "license": "CC-BY-4.0",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/fantine.safetensors"
       }
     },
     {
@@ -102,13 +150,13 @@
   "notices": [
     {
       "path": "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
-      "size": 1880,
-      "sha256": "b4856a9a31eaad1438c76c1914d448aedb0d7fec21a2053870b02165571be44a"
+      "size": 3537,
+      "sha256": "a5428791de0961a1ddb18f2747f62a4dcdd05501a4f2df7d635f7dadcdf02abc"
     },
     {
       "path": "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt",
-      "size": 19910,
-      "sha256": "80da26ae6d430dc149fcfcf02ca2cd37f9a4d3704f186a754d18177568dd4529"
+      "size": 19335,
+      "sha256": "fc53888062b3dde7353c6348c03804f3554ad9da1d08d244122ec894d776a28b"
     },
     {
       "path": "src/frontend/desktop/runtime/notices/smart-turn-bsd-2-clause.txt",

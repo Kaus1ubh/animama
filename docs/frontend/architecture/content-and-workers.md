@@ -25,8 +25,8 @@ git lfs pull
 ```
 
 Speech engine payloads use a separate verified input path. The tracked
-`models/browser-runtime/manifest.json` records all 19 same-origin `/onnx/` assets:
-eight Pocket TTS/Smart Turn files acquired into the shared model store, nine
+`models/browser-runtime/manifest.json` records all 23 same-origin `/onnx/` assets:
+twelve Pocket TTS/Smart Turn files acquired into the shared model store, nine
 ORT 1.24.2 files resolved from the exact dependency alias, and two VAD 0.0.30
 files resolved from its pinned package. Vite verifies their sizes and SHA-256
 hashes before serving or building; it does not fetch model inputs implicitly.
@@ -45,7 +45,7 @@ Legacy operator-supplied catalogs at
 inputs under `web/public`, using letters, digits, `_` or `-` for the ID. Vite
 serves only existing regular files at those paths and preserves their build
 copies; missing catalogs return 404. They are not hash-approved engine assets
-or members of the 19-file manifest. Normal uploaded catalog URLs are unaffected.
+or members of the 23-file manifest. Normal uploaded catalog URLs are unaffected.
 
 Do not add public aliases for an Avatar, Gesture, Reaction, effect,
 sound, music track, Appearance, or other catalog item. All playable Included

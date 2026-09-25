@@ -202,15 +202,7 @@ export class PocketTTSCore extends EventEmitter {
     await this._sendWorkerMessage(
       "load",
       {
-        models: {
-          mimi_encoder: "/onnx/models/pocket-tts/mimi_encoder.onnx",
-          text_conditioner: "/onnx/models/pocket-tts/text_conditioner.onnx",
-          flow_lm_main: "/onnx/models/pocket-tts/flow_lm_main_int8.onnx",
-          flow_lm_flow: "/onnx/models/pocket-tts/flow_lm_flow_int8.onnx",
-          mimi_decoder: "/onnx/models/pocket-tts/mimi_decoder_int8.onnx",
-          tokenizer: "/onnx/models/pocket-tts/tokenizer.model",
-          voices: "/onnx/models/pocket-tts/voices.bin",
-        },
+        // Model URLs default to the worker's reviewed bundle layout.
         runtime: {
           ortModuleUrl: this.options.ortModuleUrl,
           ortWasmBaseUrl: this.options.ortWasmBaseUrl,

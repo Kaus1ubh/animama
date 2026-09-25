@@ -3,36 +3,36 @@
   "model_manifest": "models/browser-speech/manifest.json",
   "files": [
     {
-      "path": "models/pocket-tts/flow_lm_flow_int8.onnx",
-      "size": 9962530,
-      "sha256": "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529",
-      "source": {
-        "kind": "model-store",
-        "path": "flow_lm_flow_int8.onnx"
-      }
-    },
-    {
       "path": "models/pocket-tts/flow_lm_main_int8.onnx",
-      "size": 76341627,
-      "sha256": "fd5cdd7f7ab05f638af0011b9561fe95f3d86bae7be7504e921ae3d2874b5da5",
+      "size": 76341079,
+      "sha256": "f9bd8106b79a0192c1c43399ab938fb24900a95c1c599870d75a884e99000116",
       "source": {
         "kind": "model-store",
         "path": "flow_lm_main_int8.onnx"
       }
     },
     {
-      "path": "models/pocket-tts/mimi_decoder_int8.onnx",
-      "size": 22684077,
-      "sha256": "501e16f51cf3fb91bd2928ee2a10c96d3461544eff329aafca10489e990b450c",
+      "path": "models/pocket-tts/flow_lm_flow.onnx",
+      "size": 39097095,
+      "sha256": "085d239f68897e28fb06e95c743738ad8b8c092ee6dc55f5491313e81ff08062",
       "source": {
         "kind": "model-store",
-        "path": "mimi_decoder_int8.onnx"
+        "path": "flow_lm_flow.onnx"
+      }
+    },
+    {
+      "path": "models/pocket-tts/mimi_decoder.onnx",
+      "size": 41471926,
+      "sha256": "86f038caa02a96a0ff9c25526a0ff43a4906c418197ed72d3e30f720ac7ce802",
+      "source": {
+        "kind": "model-store",
+        "path": "mimi_decoder.onnx"
       }
     },
     {
       "path": "models/pocket-tts/mimi_encoder.onnx",
-      "size": 73165554,
-      "sha256": "360f050cd0b1e1c9e92e25584391a2214cb7574ba16c67ac5f471f9dce8588e4",
+      "size": 39768446,
+      "sha256": "853e2ca623b8782d94c3745ec6133bfdff7ce33d9b11128bd29ea03f28d76e3d",
       "source": {
         "kind": "model-store",
         "path": "mimi_encoder.onnx"
@@ -40,8 +40,8 @@
     },
     {
       "path": "models/pocket-tts/text_conditioner.onnx",
-      "size": 16388363,
-      "sha256": "80ea69f46d8153a9bd42373723cedae4c88ccbde0e052c2a96e9e8f19445adf1",
+      "size": 16388344,
+      "sha256": "4ecee995fb69f85c7a7493d11f7b5ee15d9950facc7ab3f5c9c49ef1e03847bb",
       "source": {
         "kind": "model-store",
         "path": "text_conditioner.onnx"
@@ -57,12 +57,48 @@
       }
     },
     {
-      "path": "models/pocket-tts/voices.bin",
-      "size": 1564796,
-      "sha256": "a499039e88043ff86cb39705f487cc761406d55f1e73ad19a3c055b16e86b062",
+      "path": "models/pocket-tts/bos_before_voice.npy",
+      "size": 4224,
+      "sha256": "f46edf4f7007b7ba4ea58831f49d003e59e167b4641c44bb3addfe9231a780b1",
       "source": {
         "kind": "model-store",
-        "path": "voices.bin"
+        "path": "bos_before_voice.npy"
+      }
+    },
+    {
+      "path": "models/pocket-tts/bundle.json",
+      "size": 24381,
+      "sha256": "bab643150f437f37df080a710520ff39ed9ebd9a339f8ebdc739f7eddfc28b3f",
+      "source": {
+        "kind": "model-store",
+        "path": "bundle.json"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/cosette.safetensors",
+      "size": 6194424,
+      "sha256": "c4fdc15f5a3a20c44dd0064a37e87d15d25562936e8dbad7e07b9832015a545d",
+      "source": {
+        "kind": "model-store",
+        "path": "cosette.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/jean.safetensors",
+      "size": 6194424,
+      "sha256": "90be4b8f50bb4d2dbe27e3fb4e31417cf6a57928931f0a60426a1748821a3d12",
+      "source": {
+        "kind": "model-store",
+        "path": "jean.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/fantine.safetensors",
+      "size": 6538488,
+      "sha256": "51a8a4355d7f912d4959e4b1918314fda85ad47eba0a33a1d78a4a505d3465f5",
+      "source": {
+        "kind": "model-store",
+        "path": "fantine.safetensors"
       }
     },
     {

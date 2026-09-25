@@ -20,8 +20,8 @@ All recorded dispositions are preparation evidence. Public-source acceptance
 and signed binary distribution are separately gated. Raymond confirmed the
 retained model identities and authorized correcting their use/redistribution
 metadata; their derived portraits retain the corresponding model terms. Retained
-PocketTTS assets use the owner's stricter noncommercial election despite the
-upstream README/license conflict. They are not relicensed as AGPL.
+PocketTTS assets use the owner's noncommercial election because two built-in
+voices derive from CC BY-NC 4.0 recordings. They are not relicensed as AGPL.
 
 Imported skills, removed artwork and Mixamo clips are excluded from the source
 candidate. Private ignored files and old Git/LFS history are not publication

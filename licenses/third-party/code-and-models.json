@@ -18,11 +18,15 @@
         },
         {
           "path": "src/frontend/web/public/tts/workers/inference-worker.js",
-          "sha256": "ee6061289e51740934e6436d5b09fa6e606ff19c9a97f008bb499ba9e74ff319"
+          "sha256": "3b6a74843f68c2c0617a9c18d3a4b92a004481e5bd57abe8ed0b8f7b6985a126"
         },
         {
           "path": "src/frontend/web/public/tts/workers/ort-debug-reporter.js",
           "sha256": "491ead9c8a38836d141524ca8834bf64d76bf3f1e8c3c9f51e8d287d52963c48"
+        },
+        {
+          "path": "src/frontend/web/public/tts/workers/pocket-runtime.js",
+          "sha256": "79066db431cc363c173b409a235fa46a524339cbde609625cd79c943fed3284f"
         },
         {
           "path": "src/frontend/web/src/lib/speech/pocket/audio/PCMPlayerWorklet.js",
@@ -38,7 +42,7 @@
         },
         {
           "path": "src/frontend/web/src/lib/speech/pocket/core/PocketTTSCore.js",
-          "sha256": "e2a79142abdfc08f836b1c5cabccc013b90a64fdc4443a8fed42c44bfad3aea3"
+          "sha256": "c6122d6e8fa87ae6c0b297e23a9f052e37db50018c8613584851a13e3dcfd534"
         },
         {
           "path": "src/frontend/web/src/lib/speech/pocket/core/PocketTTSDebugSupport.js",
@@ -68,57 +72,73 @@
         "src/frontend/desktop/runtime/notices/sentencepiece-esaxx-license.txt",
         "src/frontend/desktop/runtime/notices/sentencepiece-protobuf-lite-license.txt"
       ],
-      "modifications": "Adapted worker/controller/event/audio integration and shared PCM playback; added project debug/integration modules. SentencePiece copied exactly at intake, then removed unused embedded example tokenizer models; its processor and compiled WASM retained.",
+      "modifications": "Adapted worker/controller/event/audio integration and shared PCM playback; added project debug/integration modules. pocket-runtime.js ports the state, voice-state and generation-limit rules of the Apache-2.0 reference runtime pocket_tts_onnx.py from https://huggingface.co/KevinAHM/pocket-tts-onnx revision 58a6d00cf13d239b6748cb0769f35c580a8f606c into dependency-free JavaScript. SentencePiece copied exactly at intake, then removed unused embedded example tokenizer models; its processor and compiled WASM retained.",
       "status": "evidence-and-notices-prepared",
       "remaining_conditions": [
         "Exact original Emscripten compiler version is unrecorded; reviewed npm 1.3.3 compiled WASM bytes match. Preserve dependency notices. Final speech runtime acceptance remains separate."
       ],
-      "copyright": "KevinAHM Pocket browser implementation; wrapper authors devilyouwei, Jan Kaul, Ronan Le Meillat; Google SentencePiece and named dependency authors; Microsoft Corporation; Raymond Van local adaptations"
+      "copyright": "KevinAHM Pocket browser implementation and ONNX reference runtime; wrapper authors devilyouwei, Jan Kaul, Ronan Le Meillat; Google SentencePiece and named dependency authors; Microsoft Corporation; Raymond Van local adaptations"
     },
     {
       "id": "browser-pocket",
-      "license": "CC-BY-NC-4.0 (conservative owner election for all seven model/tokenizer/voice assets)",
-      "source": "https://huggingface.co/spaces/codexxx/pocket-tts-web",
-      "revision": "6fbae64699d94f60dde9c3975984b383a6a3d950 (five ONNX); KevinAHM 3cf6daa623e2b09992c972cab32568ee8679a154 (tokenizer/voices)",
+      "license": "CC-BY-NC-4.0 distribution basis for the Pocket asset set (cosette and jean voice sources are CC-BY-NC-4.0); ONNX export, tokenizer, metadata and fantine voice are CC-BY-4.0",
+      "source": "https://huggingface.co/KevinAHM/pocket-tts-onnx",
+      "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c (onnx/english_2026-04 export, tokenizer and metadata); kyutai/pocket-tts-without-voice-cloning 4e1e0a3e611c51c0b4ed8174fc10f32a54644303 (voice states)",
       "paths": [],
       "notice_files": [
         "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
         "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt"
       ],
-      "modifications": "No model byte changes. Phase 3 changes storage only: exact model/dependency bytes are verified before serving and retained in built artifacts. Existing licenses and notices are unchanged.",
+      "modifications": "No model byte changes. The eight export files and three Kyutai voice states are redistributed as published; exact bytes are verified before serving and retained in built artifacts.",
       "status": "evidence-and-notices-prepared",
       "remaining_conditions": [
-        "Noncommercial use only under the elected stricter terms. README CC BY and ONNX-LICENSE CC BY-NC conflict remains disclosed. Replace assets or obtain appropriate permission before commercial use; do not relicense these assets as AGPL."
+        "Noncommercial use only under the retained owner election, because the cosette (Expresso) and jean (EARS) voice sources are CC-BY-NC-4.0. Remove those voices or obtain appropriate permission before commercial use; do not relicense these assets as AGPL."
       ],
-      "copyright": "Kyutai Pocket TTS; KevinAHM and codexxx web export sources",
+      "copyright": "Kyutai Pocket TTS and voice states; KevinAHM ONNX export; Expresso (Meta AI), EARS (Richter et al.) and CSTR VCTK Corpus (University of Edinburgh) source recordings",
       "external_files": [
         {
-          "path": "models/pocket-tts/flow_lm_flow_int8.onnx",
-          "sha256": "8d627d235c44a597da908e1085ebe241cbbe358964c502c5a5063d18851a5529"
-        },
-        {
           "path": "models/pocket-tts/flow_lm_main_int8.onnx",
-          "sha256": "fd5cdd7f7ab05f638af0011b9561fe95f3d86bae7be7504e921ae3d2874b5da5"
+          "sha256": "f9bd8106b79a0192c1c43399ab938fb24900a95c1c599870d75a884e99000116"
         },
         {
-          "path": "models/pocket-tts/mimi_decoder_int8.onnx",
-          "sha256": "501e16f51cf3fb91bd2928ee2a10c96d3461544eff329aafca10489e990b450c"
+          "path": "models/pocket-tts/flow_lm_flow.onnx",
+          "sha256": "085d239f68897e28fb06e95c743738ad8b8c092ee6dc55f5491313e81ff08062"
+        },
+        {
+          "path": "models/pocket-tts/mimi_decoder.onnx",
+          "sha256": "86f038caa02a96a0ff9c25526a0ff43a4906c418197ed72d3e30f720ac7ce802"
         },
         {
           "path": "models/pocket-tts/mimi_encoder.onnx",
-          "sha256": "360f050cd0b1e1c9e92e25584391a2214cb7574ba16c67ac5f471f9dce8588e4"
+          "sha256": "853e2ca623b8782d94c3745ec6133bfdff7ce33d9b11128bd29ea03f28d76e3d"
         },
         {
           "path": "models/pocket-tts/text_conditioner.onnx",
-          "sha256": "80ea69f46d8153a9bd42373723cedae4c88ccbde0e052c2a96e9e8f19445adf1"
+          "sha256": "4ecee995fb69f85c7a7493d11f7b5ee15d9950facc7ab3f5c9c49ef1e03847bb"
         },
         {
           "path": "models/pocket-tts/tokenizer.model",
           "sha256": "d461765ae179566678c93091c5fa6f2984c31bbe990bf1aa62d92c64d91bc3f6"
         },
         {
-          "path": "models/pocket-tts/voices.bin",
-          "sha256": "a499039e88043ff86cb39705f487cc761406d55f1e73ad19a3c055b16e86b062"
+          "path": "models/pocket-tts/bos_before_voice.npy",
+          "sha256": "f46edf4f7007b7ba4ea58831f49d003e59e167b4641c44bb3addfe9231a780b1"
+        },
+        {
+          "path": "models/pocket-tts/bundle.json",
+          "sha256": "bab643150f437f37df080a710520ff39ed9ebd9a339f8ebdc739f7eddfc28b3f"
+        },
+        {
+          "path": "models/pocket-tts/voices/cosette.safetensors",
+          "sha256": "c4fdc15f5a3a20c44dd0064a37e87d15d25562936e8dbad7e07b9832015a545d"
+        },
+        {
+          "path": "models/pocket-tts/voices/jean.safetensors",
+          "sha256": "90be4b8f50bb4d2dbe27e3fb4e31417cf6a57928931f0a60426a1748821a3d12"
+        },
+        {
+          "path": "models/pocket-tts/voices/fantine.safetensors",
+          "sha256": "51a8a4355d7f912d4959e4b1918314fda85ad47eba0a33a1d78a4a505d3465f5"
         }
       ],
       "runtime_manifest": "models/browser-runtime/manifest.json"

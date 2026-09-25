@@ -92,7 +92,8 @@ Commands run from the repository root unless stated.
 
 - [x] Phase 1: Offline parity spike. Complete 2026-09-25 (#131); mixed profile
       accepted, voice states compatible. Results below.
-- [ ] Phase 2: Assets and worker switch. Not started.
+- [x] Phase 2: Assets and worker switch. Complete 2026-09-25 (#132); Review #2
+      passed after one repair round.
 - [ ] Phase 3: Browser and desktop verification, docs, owner listening gate.
       Not started.
 
@@ -246,8 +247,8 @@ set.
      These states replace the voice-conditioning pass for built-in voices.
    - Prepend the BOS row to encoded custom voices before conditioning. The
      Anima catalog paths are out of scope and stay unchanged.
-   - Apply the April text preparation and stopping rules, and temperature 0.3
-     (or the owner's choice).
+   - Apply the April stopping rules and temperature 0.3. Text preparation is
+     unchanged; see Surprises & Discoveries.
    - Keep the public message protocol (`load`, `generate`, `encode_voice`,
      `set_voice`, `voices_loaded`) and the voice names unchanged.
    - Update the model URLs in `PocketTTSCore.js`.
@@ -281,6 +282,144 @@ set.
 
 Recovery: the new content-addressed store directory leaves the January store
 intact, so reverting the commit restores January behavior after `acquire`.
+
+#### Phase 2 results (2026-09-25)
+
+Changes:
+
+- **Acquisition:** twelve pinned files in `models/browser-speech/manifest.json`
+  and `scripts/models/browser_speech.py`, with per-file licenses. The runtime
+  inventory is 23 files. `.dockerignore` lists the new public paths.
+- **Worker:**
+  - The new `pocket-runtime.js` module holds the pure helpers:
+    manifest state, safetensors voice states, BOS, `.npy` parsing and
+    generation limits.
+  - `inference-worker.js` reads `bundle.json` and checks that its manifests
+    match the sessions' state inputs.
+  - It loads built-in voices as precomputed states and prepends BOS for
+    embedding voices.
+  - It uses temperature 0.3, frames after EOS of 5 or 3, and a per-chunk
+    `ceil((tokens/3+2)*12.5)` frame bound. It flushes pending audio when that
+    bound is reached without EOS.
+  - `PocketTTSCore.js` no longer duplicates the worker's model URLs.
+- **Licensing:**
+  - Rewrote the Pocket attribution and ONNX license notices (pinned CC BY 4.0
+    text) and updated the manifest notice hashes.
+  - Updated `license-sources.json`, `code-and-models.{json,md}`, the browser
+    code attribution for `pocket-runtime.js`, `licenses/README.md` and
+    `redistribution-review.md`.
+  - The noncommercial basis now rests on the `cosette` and `jean` source
+    voices.
+  - Kept the release-policy field `pocket_tts_onnx_license: "CC-BY-NC-4.0"`.
+    Its value still holds, and renaming it would change the release-policy
+    schema. `licenses/source-review.json` is refreshed at release review.
+- **Docs:** file counts and the Pocket asset description in `model-assets.md`,
+  `voice.md`, `content-and-workers.md` and `src/frontend/AGENTS.md`.
+
+Local validation:
+
+| Check | Result |
+| --- | --- |
+| `python3 scripts/models/browser_speech.py acquire` (real downloads) | Passed; all hashes verified |
+| `python3 scripts/models/browser_speech.py verify` | Passed |
+| `uv run pytest -q tests/test_browser_model_store.py` | 18 passed |
+| `uv run ruff check`; `ruff format --check` on the changed Python | Clean |
+| `pnpm check`; `pnpm web:lint` | Passed |
+| `pnpm web:test` | 298 files, 1788 tests passed, including 9 new `pocketRuntime` tests |
+| `pnpm verify:tts-assets` | 23 files, 324,742,733 bytes |
+| `pnpm build` | Passed |
+| `pnpm desktop:check`; `pnpm desktop:test` | 303 tests passed |
+| `python3 -m unittest discover -s scripts/public-release -p 'test_*.py'` | 12 OK |
+| Prettier on the changed web files | Clean |
+
+The repository-wide `prettier:check` still flags 11 files that this change does
+not touch.
+
+Browser smoke test: Chromium browser pane, `vite preview` of the build, direct
+worker, single-threaded WASM because the page is not cross-origin isolated.
+
+| Measure | Result |
+| --- | --- |
+| Model and voice load | 1.1 s |
+| Real-time speed factor | 1.37–1.88× (RTF 0.53–0.73) |
+| Time to first audio | 213–333 ms |
+| NaNs and errors | None |
+| Leading silence | `jean` 0.35 s, `fantine` 0.33 s |
+
+The run covered all three voices, a two-word prompt and a three-sentence
+paragraph (10 s of audio).
+
+#### Code Review #1 Findings
+
+Independent reviewer (`sdlc-reviewer`), initial round. Reviewed source: the
+staged Phase 2 index on top of `d21db6f`.
+
+- **R1-F1 (required):** `docs/frontend/desktop/runtime-staging.md:87,130`
+  still said 19 runtime assets and eight model files.
+- **R1-F2 (optional, performance):** the worker expanded all three built-in
+  voices into full 1000-slot states at load. That keeps about 147 MB resident
+  (49 MB each) and bypasses the two-entry conditioned-state LRU.
+- **R1-F3 (optional, fail-clearly):** `stateArraysFromVoiceState` accepted a
+  missing `cache`, a missing `offset`, or an `offset` that does not match the
+  cached positions. `parseSafetensors` did not check byte length against the
+  declared shape.
+- **R1-N1 (optional):** loading zero built-in voices still reported ready.
+- **R1-N2 (optional):** `.dockerignore` dropped the January payload names, so
+  legacy copies in an older checkout would enter the build context and fail the
+  built-inventory check.
+
+The reviewer verified the remaining areas without defects:
+
+- safetensors, cache-copy, `.npy` and BOS math against the real files;
+- the stop logic, including the final `isLast` flush;
+- ORT tensor reuse under the `wasm` execution provider;
+- manifest validation, voice message paths, hashes, licensing and boundaries.
+
+#### Code Review #1 Revisions
+
+All five findings were accepted:
+
+- **R1-F1:** updated both counts to 23 and twelve.
+- **R1-F2:** built-in voices keep their parsed compact tensors (about 6 MB
+  each). They expand into full state on first use through the existing LRU,
+  keyed `legacy:<voice>`.
+- **R1-F3:** `stateArraysFromVoiceState` now requires `cache`, and `offset`
+  equal to the cached positions. `parseSafetensors` rejects shape and byte
+  mismatches. Four new Vitest cases, written first and seen failing, now pass
+  (13 in the file).
+- **R1-N1:** the load now fails with "No built-in Pocket voices could be
+  loaded".
+- **R1-N2:** the January names are ignored again, under a comment.
+
+`code-and-models.json` hashes were refreshed for the two changed worker files.
+
+Verification:
+
+- `pnpm exec vitest run tests/speech tests/browserRuntimeAssets.test.ts`: 30
+  passed.
+- `pnpm build`: passed.
+- Browser re-smoke:
+  - worker load 0.75 s;
+  - `cosette` and `fantine` at 1.9–2.2× real time, first audio 181–222 ms,
+    final `isLast` set;
+  - custom voice encoded to `[1,125,1024]` and spoke 3.5 s with BOS.
+
+Repair rounds used: 1 of 2.
+
+#### Code Review #2 Findings
+
+Targeted recheck of the Review #1 revisions by the same reviewer. Result:
+**pass**.
+
+- R1-F1, R1-F2, R1-F3, R1-N1 and R1-N2 are fixed.
+- The inventory hashes match the working files.
+- The real pinned voice files pass the stricter validation.
+- Tests: 26 passed in `pocketRuntime` and `browserRuntimeAssets`.
+
+- **R2-N1 (optional):** voice-state shape and offset mismatches now surface
+  on the voice's first generation, as a clear generation error, rather than at
+  load. Deferred: the inputs are hash-pinned and verified before serving, so
+  earlier validation would add load-time cost for no practical benefit.
 
 ### Phase 3: Browser and desktop verification, docs, owner gate
 
