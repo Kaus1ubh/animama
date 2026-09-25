@@ -49,6 +49,16 @@ export const DEFAULT_PARAKEET_PREVIEW_CONFIG: Omit<
   maxPreviewAudioMs: 20_000,
 };
 
+/**
+ * Previews re-decode the whole growing window, so they need a backend fast
+ * enough to keep up for full utterances. Single-thread WASM covered only about
+ * 2 s before the budget stopped it (see the parakeet-live-partials ExecPlan), so
+ * only WebGPU qualifies; WASM stays final-only.
+ */
+export function shouldEnableParakeetPreviews(backend: string): boolean {
+  return backend === "webgpu";
+}
+
 export type ParakeetPreviewRequest = {
   turnId: string;
   windowId: string;

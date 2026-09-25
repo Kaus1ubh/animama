@@ -4,6 +4,7 @@ import {
   type ParakeetPreviewConfig,
   type ParakeetPreviewEvent,
   createParakeetPreviewController,
+  shouldEnableParakeetPreviews,
 } from "./preview-controller";
 
 const SAMPLE_RATE = 16000;
@@ -320,5 +321,12 @@ describe("createParakeetPreviewController", () => {
     pushFrames(10);
     await requests[0].resolve("   ", 50);
     expect(previews).toHaveLength(0);
+  });
+});
+
+describe("shouldEnableParakeetPreviews", () => {
+  it("enables previews only on the WebGPU backend", () => {
+    expect(shouldEnableParakeetPreviews("webgpu")).toBe(true);
+    expect(shouldEnableParakeetPreviews("wasm")).toBe(false);
   });
 });

@@ -16,8 +16,8 @@ Authorized scope:
 - Phases 1 and 2: authorized and delivered.
 - G1 (2026-09-25): the owner chose WebGPU behind an "Experimental" settings
   toggle.
-- Phase 3 is being revised to match that decision and needs owner approval
-  before implementation.
+- Phase 2 amendment and Phase 3 (experimental WebGPU toggle): authorized on
+  2026-09-25.
 
 ## Purpose and context
 
@@ -30,8 +30,10 @@ decodes that window once.
 
 When this plan is done:
 
-- While the user speaks, Parakeet shows interim text in the chat input about once
-  a second, in both dictation and Voice Mode.
+- On the WebGPU backend (an experimental setting, off by default), Parakeet
+  shows interim text in the chat input about once a second while the user
+  speaks, in both dictation and Voice Mode. The default WASM backend stays
+  final-only.
   - It uses the same interim preview surface the browser provider already uses.
   - The final text, Smart Turn end-of-turn detection and Voice Mode auto-submit
     are unchanged.
@@ -120,14 +122,17 @@ The Parakeet model comes from the shared developer model store. Check it with
 - [x] Gate G1 (2026-09-25): the owner chose a modified (a).
   - Adopt WebGPU, but behind an enable/disable toggle in a new "Experimental"
     section of the app settings, in case some users lack support.
-  - The Phase 3 details need a plan revision and owner approval.
+  - Phase 3 was revised and authorized on 2026-09-25.
 - [x] Phase 2: live Parakeet partial transcripts.
   - Review passed after two repair rounds and one extra recheck authorized by
     the owner.
   - Commit `68cdf0e` (`feat(voice)[p2]`).
-- [ ] Phase 3: WebGPU as an experimental setting (plan revision pending).
-- [x] Final integration review passed (one repair round). The PR is opened
-      from this branch; see the PR for hosted `Validation`.
+- [x] Final integration review for Phases 1–2 passed (one repair round). PR
+      #111 is open from this branch.
+- [ ] Phase 2 amendment: previews only on the WebGPU backend. Review passed;
+      commit pending.
+- [ ] Phase 3: experimental WebGPU toggle (issue #113).
+- [ ] Final integration review of the full scope after Phase 3.
 - [ ] Owner manual acceptance on the task stack.
 
 ## Surprises & Discoveries
@@ -166,6 +171,11 @@ The Parakeet model comes from the shared developer model store. Check it with
 - **2026-09-25, owner, G1:** put WebGPU under an "Experimental" app-settings
   toggle that users can enable or disable. It is not an automatic default, in
   case some users don't have WebGPU support.
+- **2026-09-25, owner, scope:**
+  - Disable previews on the CPU backend rather than keep the 2 s preview.
+  - Add Phase 3 as the Experimental WebGPU toggle.
+  - Desktop WASM threads were discussed and deferred. They are acceptable
+    later only if configured automatically; no Phase 4 in this plan.
 - **2026-09-25, owner, review limit:** authorized one extra targeted recheck
   of P2-R3-1 after the bounded budget was spent. The recheck passed.
 
@@ -864,34 +874,144 @@ Limited to P2-R3-1 and regressions from its fix.
 
 None required. Phase 2 passes review.
 
-### Phase 3 (only if G1 = a): adopt the WebGPU encoder
+### Phase 2 amendment: previews only on the WebGPU backend
 
-> **Superseded by the G1 decision (2026-09-25).** WebGPU becomes an opt-in
-> "Experimental" setting rather than automatic capability-based selection. The
-> steps below are the original draft and are pending revision and owner
-> approval. Do not implement them as written.
+Source: owner instruction on 2026-09-25, after the Phase 2 evidence. On
+single-thread WASM a preview covers only about 2 s and then freezes, which
+looks like a stall.
 
-Issue: _created only after the revision is approved_.
+Issue: #100 (amendment). Depends on: nothing.
 
-Outcome: when WebGPU is available, Parakeet runs the fp16 encoder on WebGPU and
-the int8 decoder on WASM. If WebGPU is unavailable, or the model load or first
-decode fails, it falls back to WASM int8.
+Outcome: live previews run only when the loaded Parakeet backend is WebGPU.
+The CPU (WASM) backend produces final-only transcripts again, as before this
+plan. The controller, its budget and the stale-result handling stay as the
+WebGPU safety net.
 
-1. **Backend selection.** Widen `ClientParakeetBackend` to `"wasm" | "webgpu"`.
-   The client selects it from capability detection and logs the backend chosen.
-2. **Model files.**
-   - Add the fp16 encoder to `models/parakeet-tdt-0.6b-v2/manifest.json`, pinned
-     with its size and SHA-256.
-   - Update verification in `scripts/models/parakeet.py`,
-     `CLIENT_PARAKEET_MODEL_ASSET_PATHS`, and the FastAPI and Vite model-serving
-     paths.
-3. **Documentation.** Update `voice.md` and
-   `docs/backend/operations/model-assets.md`.
-4. **Pack follow-up.** Record the effect on the desktop pack (inventory, size
-   budgets, approval) as a separate follow-up; do not change pack inputs here.
+Steps:
 
-Tests: unit tests for backend selection and fallback; round-trip the manifest
-through `python3 scripts/models/parakeet.py verify`; all Phase 2 checks.
+1. **Gate.** `use-dictation` creates a preview controller only when the
+   worker's load result reports `backend: "webgpu"`. Until Phase 3 exists,
+   the result is always `"wasm"`, so no controller is created.
+2. **Docs.** `voice.md` states that previews require the WebGPU backend.
+3. **Tests.** Add a pure `shouldEnableParakeetPreviews(backend)` helper with a
+   unit test. The rest is already covered by the controller tests.
+
+Checks: `pnpm check`, `pnpm web:lint`, `pnpm web:test`. Then a targeted review.
+
+**Results (2026-09-25):**
+
+- `pnpm web:test`: 297 files, 1,781 tests.
+- `pnpm web:lint` and `pnpm check`: exit 0.
+
+**Code Review #1 (independent):** pass.
+
+- All requirements were verified:
+  - no controller or preview request on WASM;
+  - callbacks are null-safe;
+  - mute, stop and resume behave;
+  - the final path is unchanged.
+- Optional items, accepted:
+  - clarify that WASM is the only backend until Phase 3;
+  - replace the plan-phase wording in `voice.md` with the hardware context;
+  - three stale plan statements, now updated.
+- Optional item deferred to Phase 3: narrowing `backend: string` to
+  `ClientParakeetBackend` once the union widens.
+- The hook wiring has no automated test, because `use-dictation` has no hook
+  test harness; it was verified by reading the code.
+
+### Phase 3: experimental WebGPU toggle
+
+Source: the owner's G1 decision and the Phase 3 scope approval on 2026-09-25.
+Issue: _to be created_. Depends on: the Phase 2 amendment.
+
+Outcome:
+
+- App Settings gains an **Experimental** section with a "GPU-accelerated
+  offline speech (WebGPU)" toggle, off by default.
+- When it is on and available, Parakeet loads the fp16 encoder on WebGPU and
+  the int8 decoder on WASM, and live previews run. Otherwise, or if the WebGPU
+  load fails, Parakeet uses the existing WASM int8 backend with final-only
+  transcripts.
+
+Decisions (owner-approved direction, agent-proposed details):
+
+- **Setting:** `speech.stt_parakeet_webgpu: boolean`, default `false`. There
+  is no automatic enablement.
+- **Model files:** the fp16 encoder is a **separate optional model set**,
+  `parakeet-tdt-0.6b-v2-webgpu`, pinned to
+  `ysdede/parakeet-tdt-0.6b-v2-onnx@db4a768f…`. It is acquired with a new
+  `scripts/models/parakeet_webgpu.py` that reuses the `parakeet.py` store
+  helpers, as `browser_speech.py` does. The approved seven-file Parakeet
+  inventory and the desktop pack stay unchanged.
+- **Availability:** development stacks served by Vite, including
+  `desktop:dev`. The built self-host and packaged desktop apps report the GPU
+  model as not installed; serving it there is a follow-up that belongs with
+  pack planning.
+- **Missing model or no WebGPU:** the toggle stays visible, but a status line
+  explains why it is inactive. The worker falls back to WASM.
+
+Steps:
+
+1. **Model set.**
+   - Add `models/parakeet-tdt-0.6b-v2-webgpu/manifest.json`, with the fp16
+     encoder (size and SHA-256) plus `README.md` and `ATTRIBUTION.md`.
+   - Add `scripts/models/parakeet_webgpu.py` (`acquire|verify|path`) with
+     tests in `tests/`, following `tests/test_browser_model_store.py`.
+2. **Serving (development).**
+   - `reset.sh` resolves the optional variant offline. If it is present, it
+     records `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`. Otherwise it points that
+     variable at an empty stack-local directory, so Compose never fails.
+   - `docker-compose.development.yml` mounts it read-only for `web`.
+   - The Vite plugin serves it at `/__client-parakeet-webgpu-models`, with an
+     optional directory (no startup failure).
+   - Existing stack/compose tests are updated.
+3. **Client.**
+   - `ClientParakeetBackend = "wasm" | "webgpu"`.
+   - Asset URLs for the fp16 encoder.
+   - A capability probe: `navigator.gpu` plus an adapter, and a `HEAD` request
+     for the fp16 encoder.
+   - Backend resolution: the preference must be on and both probes must pass.
+4. **Worker.**
+   - The WebGPU load uses the JSEP ORT build (`webgpu-hybrid`, fp16 encoder,
+     int8 decoder).
+   - ORT's WASM build cannot switch within one worker, so the client
+     terminates and recreates the worker when the backend changes.
+   - On a WebGPU load failure, the client falls back to WASM and logs the
+     reason.
+5. **Settings UI.** Add the Experimental section with the toggle and a status
+   line: active, not supported on this device, GPU model not installed, or
+   fell back to CPU.
+6. **Previews.** The Phase 2 amendment gate enables them automatically on
+   WebGPU.
+7. **Docs.**
+   - `voice.md`: backends, the toggle and previews.
+   - `docs/backend/operations/model-assets.md` and `scripts/models/README.md`:
+     the optional variant.
+   - The settings documentation, if it exists.
+
+Tests: the model-store script (Python); backend resolution and fallback
+selection (pure TypeScript); the preference default; the settings toggle,
+if existing UI test patterns allow.
+
+Manual checks (task stack, Chrome and `desktop:dev`):
+
+- the toggle is off by default;
+- the toggle on without the model shows "not installed" and the app still
+  works;
+- after acquiring the model, the toggle on activates WebGPU, and previews
+  update through a 15.9 s clip;
+- toggling off returns to WASM with final-only transcripts;
+- fallback when WebGPU is unavailable (simulated).
+
+Checks: `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build`,
+`pnpm desktop:check`, the relevant `uv run pytest -q` model and stack tests,
+`bash -n reset.sh`, and the Compose `config --quiet` commands from
+`AGENTS.md`.
+
+Follow-ups (not in this plan):
+
+- serving the GPU model in built self-host and in a desktop pack;
+- desktop WASM threads (declined for now on 2026-09-25).
 
 ## Final integration review
 

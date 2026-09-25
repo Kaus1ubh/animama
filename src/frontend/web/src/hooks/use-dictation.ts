@@ -21,6 +21,7 @@ import {
 import {
   DEFAULT_PARAKEET_PREVIEW_CONFIG,
   createParakeetPreviewController,
+  shouldEnableParakeetPreviews,
   type ParakeetPreview,
   type ParakeetPreviewController,
 } from "@/lib/speech/client-parakeet/preview-controller";
@@ -1642,9 +1643,16 @@ export function useDictation(options: UseDictationOptions = {}) {
    * has moved on, or an assistant run owns the Voice Mode floor.
    */
   const createParakeetPreviewSession = useCallback(
-    (args: { sessionId: number; runId: string; mode: DictationMode }) => {
+    (args: {
+      sessionId: number;
+      runId: string;
+      mode: DictationMode;
+      backend: string;
+    }): ParakeetPreviewController | null => {
       parakeetPreviewControllerRef.current?.reset();
+      parakeetPreviewControllerRef.current = null;
       clearParakeetPreview({ windowId: null, mode: args.mode });
+      if (!shouldEnableParakeetPreviews(args.backend)) return null;
 
       const isCurrentSession = (turnId: string) =>
         activeParakeetSessionIdRef.current === args.sessionId &&
@@ -2058,6 +2066,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           sessionId,
           runId,
           mode,
+          backend: loadResult.backend,
         });
         const micVadCallbacks = createMicVadCallbacks({
           provider: "parakeet",
@@ -2075,16 +2084,16 @@ export function useDictation(options: UseDictationOptions = {}) {
           syncGateDebugStats,
           setAvatarPhaseFromVad,
           armVoiceSilenceResetTimer,
-          onVadFrame: (frame) => previewController.pushFrame(frame),
+          onVadFrame: (frame) => previewController?.pushFrame(frame),
           onSpeechWindowStarted: ({ turnId: speechTurnId, windowId }) =>
-            previewController.startWindow({ turnId: speechTurnId, windowId }),
+            previewController?.startWindow({ turnId: speechTurnId, windowId }),
           onSpeechWindowInvalidated: ({ windowId }) => {
-            previewController.endWindow(windowId);
+            previewController?.endWindow(windowId);
             clearParakeetPreview({ windowId, mode });
           },
           onAcceptedSpeechEnd: ({ audio, turnId: speechTurnId, windowId }) => {
             // The final decode below replaces this window's preview when it lands.
-            previewController.endWindow(windowId);
+            previewController?.endWindow(windowId);
             const currentTurnId = turnIdRef.current;
             if (
               activeParakeetSessionIdRef.current !== sessionId ||

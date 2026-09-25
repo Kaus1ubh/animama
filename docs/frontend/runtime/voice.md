@@ -17,11 +17,11 @@ VAD. Output uses browser speech, PocketTTS or ElevenLabs. See
 
 ### STT provider matrix
 
-| Provider           | Source                               | Where used        | Notes                                                              |
-| ------------------ | ------------------------------------ | ----------------- | ------------------------------------------------------------------ |
-| `browser_external` | Web Speech API                       | dictation + voice | default browser path                                               |
-| `browser_local`    | Web Speech API with `processLocally` | dictation + voice | strict capability check; en-US fallback on unsupported locale      |
-| `parakeet`         | local Parakeet ONNX worker           | dictation + voice | MicVAD windows transcribed locally; live previews, then final text |
+| Provider           | Source                               | Where used        | Notes                                                            |
+| ------------------ | ------------------------------------ | ----------------- | ---------------------------------------------------------------- |
+| `browser_external` | Web Speech API                       | dictation + voice | default browser path                                             |
+| `browser_local`    | Web Speech API with `processLocally` | dictation + voice | strict capability check; en-US fallback on unsupported locale    |
+| `parakeet`         | local Parakeet ONNX worker           | dictation + voice | MicVAD windows transcribed locally; live previews on WebGPU only |
 
 In the Animama Electron desktop shell, browser Web Speech providers are treated
 as unavailable even if Chromium exposes `SpeechRecognition` or
@@ -194,8 +194,8 @@ API exposes interim transcript events.
 
 MicVAD supplies accepted mono 16 kHz windows to `client_parakeet/transcribe`.
 Parakeet commits final text before smart-turn runs on the accepted audio, so the
-end-turn coordinator normally has text ready immediately. While a window is
-still open, display-only previews show interim text; see
+end-turn coordinator normally has text ready immediately. On the WebGPU
+backend, display-only previews show interim text while a window is open; see
 [Live Parakeet previews](#live-parakeet-previews).
 
 #### Shared voice-mode behavior
@@ -228,7 +228,7 @@ Parakeet STT is local client-side STT:
   `backend: "wasm"`
 - MicVAD owns speech-window segmentation and stop/start decisions
 - accepted MicVAD windows are sent to the worker for final-window transcription
-- open windows are re-decoded for display-only previews (see
+- on the WebGPU backend, open windows are re-decoded for display-only previews (see
   [Live Parakeet previews](#live-parakeet-previews))
 - the model stays warm for the current app session; mic/VAD/audio resources are
   stopped on every stop
@@ -327,7 +327,13 @@ whatever preview is visible in the input.
 
 #### Live Parakeet previews
 
-While a MicVAD window is open, `createParakeetPreviewController(...)`
+Previews run only when the loaded Parakeet backend is WebGPU
+(`shouldEnableParakeetPreviews`). Parakeet currently loads only the
+single-thread WASM backend, so previews stay inactive until a WebGPU backend is
+available. On WASM a preview covered only about 2 s of a window before the
+decode budget stopped it.
+
+While a MicVAD window is open on WebGPU, `createParakeetPreviewController(...)`
 (`lib/speech/client-parakeet/preview-controller.ts`) re-decodes the growing
 window buffer and shows the result as interim text. Parakeet TDT is a
 full-context model, so previews re-run the whole buffer instead of stitching
@@ -347,8 +353,9 @@ chunks.
   after a slow spell such as a cold first decode. A first preview held back
   while an assistant run is active is predicted like any other. If no rate has
   been measured yet in that capture session, that window gets no previews.
-  - On single-thread WASM this limits previews to roughly the first 2 s of each
-    window.
+  - Measured on Apple Silicon (Metal), WebGPU keeps previews within budget
+    for about 15–18 s of window audio in Electron, and up to the 20 s cap in
+    Chrome.
   - `maxPreviewDecodeMs: 0` in `DEFAULT_PARAKEET_PREVIEW_CONFIG` disables
     previews. It is an internal constant, not a user setting.
 - Previews are display-only. They are published through
