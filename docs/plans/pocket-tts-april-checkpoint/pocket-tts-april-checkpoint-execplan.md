@@ -27,6 +27,7 @@ Acquisition and packaging verify the new pinned file set.
 
 ### Orientation
 
+The table below records the baseline (`5630ad8`) line numbers and counts.
 Commands run from the repository root unless stated.
 
 | Area | Files |
@@ -119,9 +120,10 @@ Commands run from the repository root unless stated.
   catalog builder has no callers, and no legacy
   `/onnx/models/pocket-tts/animas/*` catalogs are tracked. Custom cloned voices
   are memory-only. Voice migration is therefore limited to the built-in voices.
-- 2026-09-25: The worker initializes Mimi `first` flags to false and the KV
-  caches to zeros. The April reference initializes them to true and NaN. This
-  must be corrected as part of the switch.
+- 2026-09-25: The worker initialized Mimi `first` flags to false and the KV
+  caches to zeros, whereas the April reference uses true and NaN. Phase 1
+  found the outputs bit-identical either way. Phase 2 resolved it by
+  initializing from the `bundle.json` manifests.
 
 ## Decision Log
 
@@ -323,7 +325,7 @@ Local validation:
 | --- | --- |
 | `python3 scripts/models/browser_speech.py acquire` (real downloads) | Passed; all hashes verified |
 | `python3 scripts/models/browser_speech.py verify` | Passed |
-| `uv run pytest -q tests/test_browser_model_store.py` | 18 passed |
+| `uv run pytest -q tests/test_browser_model_store.py` | 18 passed (21 together with `tests/test_pocket_voice_catalog.py`, per the final review) |
 | `uv run ruff check`; `ruff format --check` on the changed Python | Clean |
 | `pnpm check`; `pnpm web:lint` | Passed |
 | `pnpm web:test` | 298 files, 1788 tests passed, including 9 new `pocketRuntime` tests |
@@ -518,12 +520,76 @@ PocketTTS and two replies were sent to Annie (model `gpt-5.6-luna`). A
 
 ## Final integration review
 
-Pending.
+**Final Integration Review #1** (independent `sdlc-reviewer`). Source:
+`01d6222` against baseline `5630ad8`. It reused the Phase 2 review evidence.
+
+Findings:
+
+- **F1 (required):** the acceptance criteria were not mapped to evidence,
+  and the `fantine` ASR sample had no disposition.
+- **F2 (optional):** the release-policy error text still attributed
+  noncommercial treatment to the ONNX exports.
+- **F3 (optional):** a resolved discovery read as open work, and the
+  Orientation table did not say it records the baseline.
+- **F4 (optional):** the catalog pytest count was missing.
+- **F5 (informational):** consistent; no action.
+
+Checks rerun by the reviewer:
+
+- 21 pytest and 26 Vitest tests passed;
+- `browser_speech.py verify` passed;
+- the stale-reference sweep was clean.
+
+Revisions: F1–F4 accepted.
+
+- **F1:** added the acceptance table and the `fantine` disposition.
+- **F2:** the error text in `release-policy.mjs` now says "PocketTTS voice
+  assets". The message text is not asserted by tests.
+- **F3:** the discovery is marked resolved, and the Orientation table is
+  labelled as the baseline.
+- **F4:** the count is recorded.
+
+Repair rounds used: 1 of 2.
+
+**Final Integration Review #2** (targeted recheck): **pass**.
+
+- F1–F4 are resolved, the table numbers match the recorded evidence, and no
+  regressions were found.
+- Optional wording notes N1 and N2 were applied.
+- N3 (Prettier style of plan tables and the baseline `license-sources.json`)
+  predates this change and is outside the enforced scope.
 
 ## Validation and acceptance
 
-See the spec's acceptance criteria. Record the exact commands, results and the
-machine. Keep local, browser and desktop evidence separate.
+Status of each spec acceptance criterion (#130) at `01d6222` and later:
+
+| Criterion | Status | Evidence |
+| --- | --- | --- |
+| Clean acquisition verifies the new set; Python and frontend asset tests pass with the new counts and hashes | Passed | Phase 2 results and Review #1 revisions: real `acquire`, `verify`, 18/21 pytest, 30 Vitest, `verify:tts-assets` 23 files |
+| Each built-in voice speaks short, medium and multi-sentence text; the Parakeet transcript matches within punctuation, case and one word per sentence | Passed, with one ASR artifact flagged for the listening gate | See the note below |
+| A custom voice encoded from a 10 s clip is intelligible | Passed by ASR in Phase 1; browser path exercised in Phase 3 | Phase 1: native April mixed with BOS, both texts transcribed perfectly. Phase 3: browser encode `[1,125,1024]` and 3.5 s of generated speech, left to the owner's listening check rather than ASR |
+| RTF below 1.0 and time to first audio within +25% of January | Passed | Phase 3: 2.25× real time (RTF about 0.44) vs 2.28×; first audio 177 ms vs about 170 ms (+4%); first prompt per voice 163 ms vs 488–588 ms |
+| Packaged desktop audit passes and PocketTTS speaks in the packaged app | Audit passed; speech outstanding | Stage, audit and `desktop:mac` inventory passed. Launching the packaged app requires a disposable profile or a separate macOS account (owner gate) |
+| Owner listening gate: January vs April accepted and temperature confirmed | Outstanding (owner gate) | Paired clips on the local listening page |
+
+**ASR round-trip note.** The per-voice runs used the production build
+(`vite preview`) and drove the worker directly. The development web app was
+exercised through the in-app chat with `cosette`. Both serve the same worker
+and assets.
+
+Every April sample meets the criterion except one. The `fantine` sample for
+"Can you remind me at 7:30 tomorrow morning?" transcribes as "seven thirty to
+morrow":
+
+- "seven thirty" is a number-format difference, which lenient normalization
+  accepts.
+- "to morrow" is Parakeet splitting "tomorrow" into two tokens, which scores
+  as two errors.
+
+January produces the identical transcript from different audio, so it is
+treated
+as a transcription artefact rather than a synthesis error. The owner's
+listening check confirms it.
 
 ## Idempotence and recovery
 
@@ -535,4 +601,16 @@ machine. Keep local, browser and desktop evidence separate.
 
 ## Outcomes & Retrospective
 
-Pending.
+- **Delivered (agent scope):**
+  - PocketTTS runs the April 2026 English checkpoint in mixed precision, with
+    precomputed voice states and the April runtime contract.
+  - Speed matches January.
+  - Time to first audio on a voice's first use is lower.
+  - Accuracy (Parakeet WER) matches or improves on January.
+- **Outstanding owner gates:**
+  - listening acceptance and temperature confirmation;
+  - packaged-app speech on a disposable profile.
+- **Follow-ups:** multi-threaded WASM (#128). A newer `english_2026-09`
+  checkpoint exists without a published ONNX export.
+- **Lesson:** background browser panes throttle WASM workers several-fold, so
+  timing comparisons must run under the same visibility conditions.
