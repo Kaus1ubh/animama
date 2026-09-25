@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
+import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 
 const failureAdvice: Record<string, string> = {
@@ -18,7 +19,13 @@ const failureAdvice: Record<string, string> = {
 };
 
 /** Both the startup notice and Settings use the same explicit download/restart controls. */
-export function DesktopUpdatesPanel({ notice = false }: { notice?: boolean }) {
+export function DesktopUpdatesPanel({
+  notice = false,
+  className,
+}: {
+  notice?: boolean;
+  className?: string;
+}) {
   const { status, pending, error, run } = useDesktopUpdates();
   const [dismissed, setDismissed] = useState<string | null>(null);
   const [confirmRestart, setConfirmRestart] = useState(false);
@@ -51,11 +58,12 @@ export function DesktopUpdatesPanel({ notice = false }: { notice?: boolean }) {
   return (
     <section
       aria-label="Desktop updates"
-      className={
+      className={cn(
         notice
           ? "border-border bg-background fixed right-4 bottom-4 z-50 w-[min(26rem,calc(100vw-2rem))] space-y-3 rounded-xl border p-5 shadow-lg"
-          : "border-border/60 bg-muted/10 space-y-3 rounded-xl border p-5"
-      }
+          : "border-border/60 bg-muted/10 space-y-3 rounded-xl border p-5",
+        className,
+      )}
     >
       <h3 className="text-base font-semibold">
         {version ? `Animama ${version}` : "Desktop updates"}

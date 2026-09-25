@@ -6,6 +6,7 @@ import {
   type CredentialStatus,
 } from "../../../../shared/desktop-runtime";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { cn } from "@/lib/utils";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { queryKeys } from "@/query/keys";
 import { Button } from "@/ui/components/button";
@@ -43,8 +44,10 @@ export function DesktopCredentialFailures({
 /** Optional desktop settings use status-only IPC, never the database or browser storage. */
 export function DesktopCredentialsPanel({
   onBusyChange,
+  className,
 }: {
   onBusyChange?: (busy: boolean) => void;
+  className?: string;
 }) {
   const [available, setAvailable] = useState(false);
   const [statuses, setStatuses] = useState<CredentialStatus[]>([]);
@@ -137,7 +140,10 @@ export function DesktopCredentialsPanel({
 
   return (
     <section
-      className="border-border/60 bg-muted/10 space-y-4 rounded-xl border p-5"
+      className={cn(
+        "border-border/60 bg-muted/10 space-y-4 rounded-xl border p-5",
+        className,
+      )}
       aria-busy={busy}
     >
       <div className="space-y-2">
