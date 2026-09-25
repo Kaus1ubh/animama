@@ -437,6 +437,32 @@ describe("owned processes and secret-safe logs", () => {
       expect(safe).not.toContain(value);
   });
 
+  it("keeps ordinary words readable when an implausibly short value is registered", () => {
+    const redactor = new SecretRedactor();
+    redactor.add("a", "key/1", "x.y");
+    expect(redactor.redact("Runtime starting: migrations")).toBe(
+      "Runtime starting: migrations",
+    );
+    expect(redactor.redact("value=a id:key/1 path=monkey/12")).toBe(
+      "value=[REDACTED] id:[REDACTED] path=monkey/12",
+    );
+    expect(redactor.redact("wildcard=xzy literal=x.y")).toBe(
+      "wildcard=xzy literal=[REDACTED]",
+    );
+    expect(redactor.redact("encoded=key%2F1&next=a")).toBe(
+      "encoded=[REDACTED]&next=[REDACTED]",
+    );
+  });
+
+  it("still redacts real-length keys embedded in other text", () => {
+    const redactor = new SecretRedactor();
+    const key = "sk-proj-0123456789abcdefghijklmn";
+    redactor.add(key);
+    expect(redactor.redact(`prefix${key}suffix a`)).toBe(
+      "prefix[REDACTED]suffix a",
+    );
+  });
+
   it("never adopts or signals a live process from an earlier record", () => {
     const file = path.join(fixture(), "processes.json");
     atomicWrite(
