@@ -70,7 +70,8 @@ Explicit identity edits/reverts require both the memory version and aggregate
 revision. Name edits advance the aggregate only; Avatar/Appearance/loadout
 edits advance aggregate and loadout once. Chat, emotion, relationship memory,
 model selection, and unrelated settings do not advance the definition.
-Required identity files cannot be renamed, moved, deleted, or AI-undone.
+Required identity files cannot be renamed, moved or deleted; deleting the Anima
+permanently removes its identity and other Anima-scoped memory.
 Avatar, Appearance, and support content with live bindings/dependency references
 cannot be deleted through the content API; confirmed My Content is not deleted
 when an Anima is removed. External file changes may break the next runtime

@@ -2106,6 +2106,33 @@ export const zPyMemoryEntryHeader = z.object({
 });
 
 /**
+ * PyAnimaIdentityItem
+ *
+ * One owned Anima and its content-free identity header, in creation order.
+ */
+export const zPyAnimaIdentityItem = z.object({
+    aggregate_revision: z.int().gte(1),
+    anima_id: z.string(),
+    created_at: z.optional(z.union([
+        z.iso.datetime(),
+        z.null()
+    ])),
+    display_name: z.string(),
+    entry: z.optional(z.union([
+        zPyMemoryEntryHeader,
+        z.null()
+    ])),
+    identity_status: z.enum(['ready', 'repair_required'])
+});
+
+/**
+ * PyAnimaIdentityListResponse
+ */
+export const zPyAnimaIdentityListResponse = z.object({
+    identities: z.optional(z.array(zPyAnimaIdentityItem))
+});
+
+/**
  * PyMemoryEntryListResponse
  */
 export const zPyMemoryEntryListResponse = z.object({
@@ -6038,6 +6065,17 @@ export const zPreviewIdleStyleData = z.object({
  * Successful Response
  */
 export const zPreviewIdleStyleResponse = zPyTypedContentPreview;
+
+export const zListAnimaIdentitiesV1MemoryAnimaIdentitiesGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponse = zPyAnimaIdentityListResponse;
 
 export const zDebugSearchMemoryFilesV1MemoryDebugSearchMemoryFilesPostData = z.object({
     body: zPySearchMemoryFilesDebugRequest,

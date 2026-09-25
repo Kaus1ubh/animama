@@ -1254,6 +1254,48 @@ export type PyAnimaDispatchOptions = {
 };
 
 /**
+ * PyAnimaIdentityItem
+ *
+ * One owned Anima and its content-free identity header, in creation order.
+ */
+export type PyAnimaIdentityItem = {
+    /**
+     * Aggregate Revision
+     */
+    aggregate_revision: number;
+    /**
+     * Anima Id
+     */
+    anima_id: string;
+    /**
+     * Created At
+     */
+    created_at?: string | null;
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Live IDENTITY.md header, or null when the identity needs explicit repair.
+     */
+    entry?: PyMemoryEntryHeader | null;
+    /**
+     * Identity Status
+     */
+    identity_status: 'ready' | 'repair_required';
+};
+
+/**
+ * PyAnimaIdentityListResponse
+ */
+export type PyAnimaIdentityListResponse = {
+    /**
+     * Identities
+     */
+    identities?: Array<PyAnimaIdentityItem>;
+};
+
+/**
  * PyAnimaIdleStyle
  */
 export type PyAnimaIdleStyle = {
@@ -10311,6 +10353,22 @@ export type PreviewIdleStyleResponses = {
 };
 
 export type PreviewIdleStyleResponse = PreviewIdleStyleResponses[keyof PreviewIdleStyleResponses];
+
+export type ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/memory/anima-identities';
+};
+
+export type ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyAnimaIdentityListResponse;
+};
+
+export type ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponse = ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses[keyof ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses];
 
 export type DebugSearchMemoryFilesV1MemoryDebugSearchMemoryFilesPostData = {
     body: PySearchMemoryFilesDebugRequest;

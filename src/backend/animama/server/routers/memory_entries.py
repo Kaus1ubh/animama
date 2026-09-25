@@ -32,6 +32,8 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.server.config import settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.schemas.memory_entry import (
+    PyAnimaIdentityItem,
+    PyAnimaIdentityListResponse,
     PyMemoryEntryCreateRequest,
     PyMemoryEntryHeader,
     PyMemoryEntryListResponse,
@@ -203,6 +205,30 @@ async def list_memory_entries(
     except (MemoryEntryValidationError, MemoryEntryNotFoundError) as exc:
         _raise_http_error(exc)
     return _to_list_response(listing)
+
+
+@router.get(
+    "/v1/memory/anima-identities",
+    response_model=PyAnimaIdentityListResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def list_anima_identities(session: SessionDep, user: UserDep) -> PyAnimaIdentityListResponse:
+    """List every owned Anima in creation order with its identity header."""
+
+    summaries = await _service(session).list_anima_identities(user_id=user.id)
+    return PyAnimaIdentityListResponse(
+        identities=[
+            PyAnimaIdentityItem(
+                anima_id=summary.anima_id,
+                display_name=summary.display_name,
+                aggregate_revision=summary.aggregate_revision,
+                identity_status=summary.identity_status,
+                created_at=summary.created_at,
+                entry=_to_header(summary.identity) if summary.identity is not None else None,
+            )
+            for summary in summaries
+        ]
+    )
 
 
 @router.get(

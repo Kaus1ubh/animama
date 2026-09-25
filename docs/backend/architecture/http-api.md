@@ -565,6 +565,7 @@ restore and send-gating behavior without a DeepSeek-specific frontend rule.
 Memory APIs expose a scoped Markdown entry tree:
 
 - `GET /v1/memory/entries?anima_id=&parent_id=&recursive=false`
+- `GET /v1/memory/anima-identities`
 - `GET /v1/memory/entries/by-path?anima_id=&path=...&type=file`
 - `GET /v1/memory/entries/{entry_id}`
 - `GET /v1/memory/entries/{entry_id}/versions?before_version=&limit=50`
@@ -635,8 +636,8 @@ Missing/stale aggregate guards return `409`. Each successful write appends one
 memory version and definition audit revision in the same transaction. The
 identity must be nonblank UTF-8 Markdown, with CRLF/CR normalized to LF while
 preserving meaningful whitespace, and at most the smaller of 32 KiB and
-`ANIMAMA_MEMORY_FILE_MAX_BYTES`. Moving, renaming, deleting, changing its kind,
-or AI-undoing a required identity file is forbidden. A missing/blank identity
+`ANIMAMA_MEMORY_FILE_MAX_BYTES`. Moving, renaming, deleting or changing the kind
+of a required identity file is forbidden; deleting the Anima removes it. A missing/blank identity
 blocks chat until explicit repair; there is no current-Avatar fallback.
 
 `POST /v1/memory/debug/search-memory-files` is a read-only authenticated debug

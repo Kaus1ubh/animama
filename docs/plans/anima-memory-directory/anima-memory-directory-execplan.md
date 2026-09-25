@@ -43,7 +43,7 @@ offline with `pnpm openapi-ts`; never hand-edit generated output.
 - [x] Workspace setup published https://github.com/raymond-van/animama/issues/101
       (read back 2026-09-25T16:59:56Z) with native sub-issues #102, #103, #104
       and blocked-by dependencies.
-- [ ] Phase 1: backend identity access, reservation and deletion.
+- [x] Phase 1: backend identity access, reservation and deletion (review #2 pass).
 - [ ] Phase 2: workspace `Animas` root and Manual identity editing.
 - [ ] Phase 3: Memory Manager identity diffs end to end.
 - [ ] Final integration review and manual acceptance.
@@ -85,6 +85,11 @@ offline with `pnpm openapi-ts`; never hand-edit generated output.
 - Frontend protection already recognizes anima identity as required
   (`lib/memory-entries/protection.ts`), and drafts already carry
   `baseAggregateRevision`, so Manual editing mostly reuses existing guards.
+- Anima-scoped non-identity memory writes check ownership without locking the
+  Anima, so a create committing during Anima deletion could leave an orphan row.
+  Accepted as a known single-owner limitation (review P1-R1-F5).
+- The worktree venv was created with Python 3.14; OpenAPI export wording differs
+  from CI's 3.12.13. Keep the venv on 3.12.13 before regenerating clients.
 - No component tests exist for the memory workspace; coverage is unit tests for
   `lib/memory-entries/*` plus manual browser checks.
 
@@ -114,6 +119,10 @@ offline with `pnpm openapi-ts`; never hand-edit generated output.
   hard delete. Pending approvals targeting them fail with a clear not-found conflict
   and can still be rejected.
 - 2026-09-25, plan design: episode-processing runs neither see nor write identities.
+- 2026-09-25, implementation: no `reserved_path_conflict` header field. The
+  workspace derives a reserved-path conflict from `anima_id == null` and a
+  normalized path equal to `animas` or starting with `animas/`, mirroring the
+  backend `is_reserved_user_memory_path` rule.
 - 2026-09-25, plan design: three phases on one branch and one PR. Implementation
   details may be refined with evidence within the agreed spec.
 
@@ -201,15 +210,53 @@ after regeneration.
 
 Completion: tests above pass; review has no unresolved blockers.
 
-Phase record: issue #102; commits —; evidence —.
+Phase record: issue #102; starting source `e7929ff`; commit recorded in
+Progress. Evidence (Python 3.12.13 venv): `uv run pytest -q` 1784 passed,
+7 skipped; `ruff check`, `ruff format --check`, mypy and
+`make audit-typed-content` pass; `pnpm check` and `pnpm openapi-ts:check` pass.
+Full `make check-test` equals these steps. Browser checks: not applicable.
 
 #### Code Review #1 Findings
 
-Not started.
+Reviewed working tree on `e7929ff` (sdlc-reviewer, full initial review).
+
+- P1-R1-F1 (blocking): regenerated SDK changed four unrelated 422 descriptions
+  (`Unprocessable Entity` → `Content`) because the worktree venv was Python
+  3.14.4; CI exports OpenAPI under 3.12.13, so `sdk-freshness` would fail.
+- P1-R1-F2 (optional): `http-api.md` still forbade AI Undo of identity, and
+  `memory.md` described Memory Manager as already using the trusted path.
+- P1-R1-F3 (optional): the plan's `reserved_path_conflict` header field was
+  not implemented; record the decision.
+- P1-R1-F4 (optional): hard-coded `"animas"` checks in chat tools, read tools,
+  Memory Manager and the patch planner duplicate the new reservation helper.
+- P1-R1-F5 (optional): a non-identity Anima-scoped create racing an Anima
+  delete can leave an orphan row (no foreign key; non-locking ownership check).
+- P1-R1-F6 (optional): tests lacked deletion/Revert of a pre-existing reserved
+  entry, moving into it by `parent_id`, and untrusted identity undo.
 
 #### Code Review #1 Revisions
 
-Not started.
+- F1 accepted: recreated the worktree venv with Python 3.12.13 and reran
+  `pnpm openapi-ts`; the generated diff now only adds identity-listing types.
+- F2 accepted: `http-api.md` and `memory.md` now describe only Phase 1
+  behavior; Phase 3 documents Memory Manager use.
+- F3 accepted: Decision Log records that the frontend derives the conflict
+  from user scope plus a `animas`/`animas/` normalized path, mirroring
+  `is_reserved_user_memory_path`.
+- F4 deferred to Phase 3, which edits those call sites.
+- F5 deferred: recorded in Surprises & Discoveries; single-owner local use
+  makes the race unlikely and fixing it needs an Anima lock on every scoped write.
+- F6 accepted: added the three assertions; 7 tests pass.
+
+#### Code Review #2 Findings
+
+Targeted recheck of F1, F2, F3 and F6 on the repaired working tree: all
+resolved, no actionable findings. Non-blocking notes: the `patch_entry`
+docstring and `memory.md` endpoint note anticipate Phases 2–3 in the same PR.
+
+#### Code Review #2 Revisions
+
+None required. Repair budget used: one of two.
 
 ### Phase 2 — Workspace `Animas` root and Manual identity editing
 

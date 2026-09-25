@@ -411,6 +411,10 @@ The backend exposes authenticated CRUD routes under `/v1/memory/entries`:
 - `DELETE /v1/memory/entries/{entry_id}?expected_version=N&recursive=false`:
   soft-delete one entry. Non-recursive directory deletes return `409 Conflict`
   when live children exist; `recursive=true` soft-deletes descendants too.
+- `GET /v1/memory/anima-identities`: list every owned Anima in creation order
+  with `display_name`, `aggregate_revision`, `identity_status` and its
+  content-free `IDENTITY.md` header, or `entry: null` when the identity needs
+  repair. The Memory workspace uses it for the virtual Animas directory.
 
 A move that supplies `parent_id` runs through `MemoryEntryService` in one unit
 of work. The moved row receives its new parent and cached path, and every live
@@ -432,6 +436,13 @@ create, patch, move/rename, metadata edit, and delete operations against
 `episodes/**` entries or entries with `kind = "episode_log"` return `403
 Forbidden`. Internal episodic-memory services pass a system-managed write flag
 when regenerating those files from `memory_episode_items`.
+
+User scope also reserves `animas` and `animas/**` (case-insensitively) for the
+Memory workspace's virtual Anima identity directory. Creating, moving or
+renaming a user entry to those paths returns `403 Forbidden`. An entry that
+already exists there stays readable and can be moved, renamed out or deleted,
+but content, description and Revert edits return `403` until it is moved.
+Anima-scoped paths are unaffected.
 
 All entry routes are scoped by the admitted installation request principal. When `anima_id` is non-null, the API
 validates that the anima belongs to that owner. Unit tests replace the FastAPI
@@ -458,8 +469,19 @@ The Anima-scoped root `IDENTITY.md` must be a file with kind `anima_identity`.
 New/edited identity is nonblank UTF-8 Markdown, rejects NUL, normalizes CRLF/CR
 to LF, and preserves other Markdown whitespace. Its byte limit is the smaller
 of 32 KiB and `ANIMAMA_MEMORY_FILE_MAX_BYTES`. Generic API paths cannot bypass
-these rules by changing kind, moving/renaming/deleting the file, or applying an
-AI Undo. Ordinary user memory retains its existing version-only behavior.
+these rules by changing kind or moving/renaming/deleting the file. Ordinary
+user memory retains its existing version-only behavior.
+
+Trusted internal service callers may omit the aggregate revision by passing
+`use_current_aggregate_revision` to `MemoryEntryService`; the public API does
+not expose it. They lock the Anima at its current revision, so a
+concurrent rename does not invalidate an already-reviewed identity change,
+while the memory `expected_version` still rejects newer identity content. These
+writes keep the nonblank rule and record a definition revision like explicit edits.
+
+Deleting an Anima (`DELETE /v1/animas/{anima_id}`) permanently removes all of
+its Anima-scoped memory entries and their versions, including `IDENTITY.md`, in
+the same transaction as the Anima row.
 A legacy directory obstructing the reserved path is not an identity file:
 the owner may explicitly move it, then create the missing identity with the
 current aggregate revision. Nothing moves or overwrites it automatically.
