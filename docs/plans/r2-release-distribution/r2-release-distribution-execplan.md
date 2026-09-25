@@ -3,7 +3,7 @@
 Source agreement: [raymond-van/animama#108](https://github.com/raymond-van/animama/issues/108)
 as published on 2026-09-25, plus the owner decisions dated 2026-09-25 in the
 [Decision Log](#decision-log).
-Authorized scope: plan approved by the owner on 2026-09-25; Phases 1–3 authorized.
+Authorized scope: plan approved by the owner on 2026-09-25; Phases 1–4 authorized.
 Later phases need separate authorization. Nothing in this plan authorizes
 publishing a release.
 
@@ -67,9 +67,9 @@ Commands run from `src/frontend` unless stated. Relevant code:
 ## Progress
 
 - [x] Phase 1: Security audit and repeatable candidate scan. Owner accepted the finding dispositions and merged [#112](https://github.com/raymond-van/animama/pull/112) (merge `76d4472`) on 2026-09-25.
-- [ ] Phase 2: Distribution policy and build-time selection. Implemented with Phase 3 on `build/r2-release-selection`; reviews #1–#2 pass; awaiting merge approval.
-- [ ] Phase 3: Installed-app transport for R2. Implemented with Phase 2; reviews #1–#2 pass; awaiting merge approval.
-- [ ] Phase 4: R2 publisher and release workflow. Not started.
+- [x] Phase 2: Distribution policy and build-time selection. Merged with Phase 3 in [#124](https://github.com/raymond-van/animama/pull/124) (merge `74a5615`) on 2026-09-25.
+- [x] Phase 3: Installed-app transport for R2. Merged with Phase 2 in #124.
+- [ ] Phase 4: R2 publisher and release workflow. Implemented on `build/r2-release-publisher` ([#125](https://github.com/raymond-van/animama/issues/125)); reviews #1–#2 pass; awaiting merge approval. Live R2 signing is first exercised in Phase 5.
 - [ ] Phase 5: Cloudflare configuration, live bucket exercise and docs. Not started. Owner gate: dashboard settings; approval before any test upload.
 - [ ] Final integration review. Not started.
 
@@ -121,6 +121,11 @@ Commands run from `src/frontend` unless stated. Relevant code:
   there. No supervisor or `main.ts` plumbing is needed for pack URLs.
 
 ## Decision Log
+
+- 2026-09-25, owner: approved merging #124 and starting Phase 4.
+- 2026-09-25, agent proposal (pending owner review): transport migration is not
+  supported for now. No release exists yet. If the distribution ever changes,
+  existing installs would need a manual download of the new build.
 
 - 2026-09-25, owner: accepted the Phase 1 finding dispositions and approved
   merging #112. Hosted Validation did not run: GitHub Actions has produced no
@@ -636,15 +641,114 @@ scan receipt, and redacted errors. `pnpm desktop:test`, `pnpm desktop:check`,
 
 Completion: the tests pass, and both transports share one gating path.
 
-Results: _pending_
+Results (2026-09-25, issue #125):
+
+Implemented as planned, with these adjustments:
+
+- The publisher is now three modules:
+    - `publish-macos.mjs` handles the shared gating: the distribution match, the
+      artifact index, the scan receipt, smoke, acceptance and the promotion
+      reports.
+    - `publish-github.mjs` contains the GitHub code, moved unchanged.
+    - `publish-r2.mjs` is the new R2 transport.
+- R2 upload integrity uses a signed `X-Amz-Content-Sha256` payload hash, not
+  `x-amz-checksum-sha256`. R2's S3 compatibility table does not list full-object
+  SHA-256 checksums for single PUTs, and every object is verified by an
+  anonymous download and hash anyway. `aws4fetch` 1.0.20 (MIT, no dependencies)
+  is a pinned desktop dev dependency, loaded only for R2.
+- Stable detection uses the public feed version, not the presence of
+  `release-artifacts.json`. An interrupted promotion can then resume with
+  identical objects, and the feed is written last.
+- The scan gate (`verifyScanReceipt`) applies to both transports. It checks the
+  candidate's original index files against the receipt's per-file SHA-256. The
+  post-scan files it exempts are the smoke copies, the acceptance receipt and
+  the regenerated index. The scanner runs `assertPrivatePythonInstallDir()`
+  before expanding the frozen backend.
+- The workflow gains a `distribution` input exported as
+  `ANIMAMA_RELEASE_DISTRIBUTION`, R2 secrets on the preview and publication
+  jobs, and dependency installation there. The workflow does not produce a scan
+  receipt yet, so CI publication still refuses.
+
+Evidence: `pnpm desktop:test` 15 files / 299 tests passed (new `publish-r2`
+tests cover create-only, resume, differing objects, feed-last, downgrade and
+equal-version refusal, an unreachable domain, credentials and bounded errors);
+`pnpm desktop:check` clean; knip reports nothing new; the workflow YAML parses.
+Not run: a live R2 upload. SigV4 compatibility with R2 is first exercised in
+Phase 5.
 
 #### Code Review #1 Findings
 
-_pending_
+Independent analysis and read-only checks over the uncommitted tree on `74a5615`.
+All checks passed: 299 tests, `pnpm check`, Prettier, knip, `git diff --check`,
+a lockfile that adds only `aws4fetch`, the workflow YAML, and `aws4fetch`
+loaded only dynamically.
+
+The reviewer confirmed offline:
+
+- The SigV4 canonical request is correct: signed `if-none-match` and
+  `x-amz-content-sha256`, scope `auto/s3`, and path-style keys.
+- Node's streamed PUT sends an exact `Content-Length`.
+- No path overwrites a versioned object.
+
+Findings:
+
+- **P4-R1-F1 (blocking):** the stable feed's anonymous read-back was
+  version-checked only, not hash-checked, so it was the one uploaded object not
+  verified against the candidate.
+- **P4-R1-F2:** both publish jobs always received every distribution's secrets.
+- **P4-R1-F3:** a full `pnpm install` with scripts ran in the credential-bearing
+  jobs.
+- **P4-R1-F4:** the scan gate did not bind the receipt to the committed Gitleaks
+  config, so a scan with a weakened `--config` could pass.
+- **P4-R1-F5:** these were untested: the signature scope and signed headers, an
+  upload rejection, a 404 retry, the feed advancing mid-run, and a failed feed
+  read-back.
+- **P4-R1-F6:** a rerun after a completed promotion reported "use a new
+  version".
+- **P4-R1-F7:** doc inaccuracies about what the preflight proves and the feed
+  object.
+- **P4-R1-F8:** the transport-migration proposal contradicts Phase 5 step 3 and
+  needs an owner decision.
+- Minor: duplicated version helpers, and unconsumed 404 bodies.
 
 #### Code Review #1 Revisions
 
-_pending_
+- **F1 accepted, fixed.** After the feed PUT, the anonymous read-back is hashed
+  and compared with the uploaded feed. Test added.
+- **F2 accepted, fixed.** Each secret is passed only when `inputs.distribution`
+  selects its transport.
+- **F3 accepted, fixed.** `pnpm install --frozen-lockfile --ignore-scripts` in
+  the publish jobs.
+- **F4 accepted, fixed.** `verifyScanReceipt` requires
+  `scanner.config_sha256` to match the committed
+  `runtime/release-scan.gitleaks.toml`. Test added.
+- **F5 accepted, fixed.**
+    - The fake R2 checks the credential scope and the signed headers.
+    - Tests cover a 403 rejection, a 404 retry, the feed advancing mid-run and a
+      stale feed read-back.
+    - A rejected or failed PUT now also closes its file stream.
+- **F6 accepted, fixed.** An equal feed version reports that the release is
+  complete and should be verified. A newer version still says to use a new
+  version.
+- **F7 accepted, fixed.** `releases.md` and `release-process.md` corrected.
+- **F8 recorded for the owner.** See the Decision Log proposal; Phase 5 step 3
+  follows the owner's answer.
+- Minor items deferred: the version helpers stay local to avoid coupling the
+  publisher to the policy module.
+- Evidence: `pnpm desktop:test` 303 passed; `pnpm desktop:check` clean;
+  Prettier clean for the changed files; the workflow YAML parses.
+- Repair rounds used: 1 of 2.
+
+#### Code Review #2 Findings
+
+Targeted recheck: P4-R1-F1 through F7 resolved, and F8 recorded for the owner.
+No regressions. One optional cosmetic note, P4-R2-N1: some edited doc
+paragraphs are not reflowed.
+
+#### Code Review #2 Revisions
+
+- N1 deferred. Reflowing would rewrap unrelated text, and Prettier preserves
+  prose wrapping. Result: **pass**.
 
 ### Phase 5: Cloudflare configuration, live bucket exercise and docs
 

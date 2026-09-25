@@ -20,6 +20,7 @@ import {
   inventoryTree,
 } from "../scripts/runtime/inventory.mjs";
 import {
+  desktopRoot,
   parseTarget,
   removeFinderMetadata,
   sha256,
@@ -37,6 +38,7 @@ import {
   selectedDistribution,
   validateReleasePolicy,
 } from "../scripts/runtime/release-policy.mjs";
+import { verifyScanReceipt } from "../scripts/runtime/publication.mjs";
 import {
   candidateDistribution,
   updateFeed,
@@ -1051,12 +1053,6 @@ Load command 4
 
   it.each([
     [
-      "an R2 candidate until R2 publication exists",
-      "r2",
-      "r2",
-      "R2 publication is not available yet",
-    ],
-    [
       "a candidate built for another distribution",
       "github",
       "r2",
@@ -1112,6 +1108,112 @@ Load command 4
       }
     },
   );
+
+  it("checks an R2 candidate's public feed anonymously before any credential or report", async () => {
+    const r2 = {
+      kind: "r2",
+      base_url: "https://downloads.example.test/desktop",
+    };
+    const request = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", request);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const verifyIndex = vi.fn();
+    const previousArgs = process.argv;
+    const previousExitCode = process.exitCode;
+    process.argv = [
+      process.execPath,
+      "publish-macos.mjs",
+      "--confirm-preview-publication",
+    ];
+    vi.resetModules();
+    vi.doMock("../scripts/runtime/release-policy.mjs", () => ({
+      isPublicReleaseRepository,
+      loadReleasePolicy: () => ({
+        version: "0.2.0",
+        distribution: { name: "r2", ...r2, bucket: "example-releases" },
+        updatePolicy: { distribution: r2 },
+      }),
+    }));
+    vi.doMock("../scripts/runtime/release-artifacts.mjs", async () => ({
+      ...(await vi.importActual("../scripts/runtime/release-artifacts.mjs")),
+      candidateDistribution: () => r2,
+      verifyArtifactIndex: verifyIndex,
+    }));
+    try {
+      await import("../scripts/runtime/publish-macos.mjs");
+      expect(process.exitCode).toBe(1);
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining("public R2 domain"),
+      );
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(String(request.mock.calls[0][0])).toMatch(
+        /^https:\/\/downloads\.example\.test\/desktop\/latest-mac\.yml\?noCache=/u,
+      );
+      expect(request.mock.calls[0][1]).not.toHaveProperty("headers");
+      expect(verifyIndex).not.toHaveBeenCalled();
+    } finally {
+      process.argv = previousArgs;
+      process.exitCode = previousExitCode;
+      log.mockRestore();
+      vi.doUnmock("../scripts/runtime/release-policy.mjs");
+      vi.doUnmock("../scripts/runtime/release-artifacts.mjs");
+      vi.resetModules();
+    }
+  });
+
+  it("publishes only artifacts covered by a passing pinned release scan", () => {
+    const root = fixture();
+    const files = [
+      { name: "Animama-0.1.0-arm64.dmg", sha256: "a".repeat(64) },
+      { name: "manual-acceptance.json", sha256: "b".repeat(64) },
+    ];
+    const receipt = {
+      schema: "animama-release-scan/1",
+      result: "pass",
+      scanner: {
+        name: "gitleaks",
+        version: "8.30.1",
+        canary: "detected",
+        config_sha256: sha256(
+          path.join(desktopRoot, "runtime/release-scan.gitleaks.toml"),
+        ),
+      },
+      files: [{ name: "Animama-0.1.0-arm64.dmg", sha256: "a".repeat(64) }],
+    };
+    const write = (value) =>
+      writeFileSync(
+        path.join(root, "release-scan.json"),
+        JSON.stringify(value),
+      );
+    expect(() => verifyScanReceipt(root, files)).toThrow(
+      "passing release scan",
+    );
+    write(receipt);
+    // Post-scan files (acceptance, smoke copies, regenerated index) are exempt.
+    expect(() => verifyScanReceipt(root, files)).not.toThrow();
+    write({ ...receipt, result: "fail" });
+    expect(() => verifyScanReceipt(root, files)).toThrow(
+      "passing release scan",
+    );
+    write({ ...receipt, scanner: { ...receipt.scanner, version: "8.0.0" } });
+    expect(() => verifyScanReceipt(root, files)).toThrow(
+      "passing release scan",
+    );
+    // A receipt produced with a different (possibly weakened) config is refused.
+    write({
+      ...receipt,
+      scanner: { ...receipt.scanner, config_sha256: "d".repeat(64) },
+    });
+    expect(() => verifyScanReceipt(root, files)).toThrow(
+      "passing release scan",
+    );
+    write(receipt);
+    expect(() =>
+      verifyScanReceipt(root, [{ ...files[0], sha256: "c".repeat(64) }]),
+    ).toThrow("does not cover these exact artifacts");
+  });
 
   it("reads the distribution a runtime and a candidate were sealed for", () => {
     const root = fixture();
