@@ -95,7 +95,8 @@ Commands run from the repository root unless stated.
 - [x] Phase 2: Assets and worker switch. Complete 2026-09-25 (#132); Review #2
       passed after one repair round.
 - [ ] Phase 3: Browser and desktop verification, docs, owner listening gate.
-      Not started.
+      Agent verification complete 2026-09-25 (#133). The owner listening gate
+      and packaged-app speech remain outstanding.
 
 ## Surprises & Discoveries
 
@@ -440,6 +441,80 @@ Targeted recheck of the Review #1 revisions by the same reviewer. Result:
 6. **Owner listening gate.** Provide paired January and April samples for the
    same texts and voices (from Phase 1), at temperatures 0.3 and 0.7. The owner
    accepts quality and confirms the temperature before the PR is marked ready.
+
+#### Phase 3 results (2026-09-25)
+
+Source: `899bdcd`, with this plan update. Stack `animama-ptts` (development
+mode, base port 8400) serves the application at `http://localhost:8400`. Only
+`web` publishes a port; PostgreSQL and the server stay private.
+
+**Browser ASR round trip.** The browser pane previewed the build at
+`127.0.0.1:4199`, and the January baseline (the same build with the
+`d21db6f` worker and January store files swapped in) was served at `:4198`.
+Each ran the 6 × 3 Phase 1 text and voice set through the worker directly.
+Audio was posted to a local receiver and transcribed with Parakeet TDT 0.6B v2.
+
+- **April passes:** every sample stays within one word error per sentence,
+  with one exception. `fantine` "7:30 tomorrow" transcribes as "seven thirty
+  to morrow". That is a transcription split of "tomorrow" (two tokens), and
+  January produces the identical transcript.
+- **Remaining April misses:**
+  - `cosette` "Hi there!" → "Okay there." (January identical);
+  - `cosette` "costs" → "cost";
+  - `jean` "today" → "to day" (January identical).
+- **No regression:** April matches or improves on January for every clip.
+
+**Speed.** Both runs used single-threaded WASM without throttling:
+
+| | January | April |
+| --- | --- | --- |
+| Mean real-time factor | 2.28× (every clip at least 1.9×) | 2.25× (every clip at least 1.93×) |
+| Time to first audio, excluding the first prompt | about 170 ms | 177 ms mean |
+| Time to first audio, first prompt per voice | 488–588 ms | 163 ms mean |
+
+- **Budget:** met. Speed is well below RTF 1.0, and first audio is within +25%
+  of January.
+- **First prompt:** January pays for voice conditioning on each voice's first
+  use. April's precomputed states avoid that.
+- **Hidden pane:** repeated runs while the browser pane was hidden slowed
+  both profiles equally (0.35–0.43×), so they are excluded as environmental.
+
+**Custom voice.** A 10 s clip encoded to `[1,125,1024]`, and generation with
+BOS produced 3.5 s of speech. Phase 1 showed that cloned audio without BOS is
+unintelligible.
+
+**In-app chat.** In the `animama-ptts` app, the TTS provider was set to
+PocketTTS and two replies were sent to Annie (model `gpt-5.6-luna`). A
+`Worker.prototype.postMessage` tap on the second reply recorded:
+
+- `set_voice cosette`, then `generate` of the reply text;
+- first audio chunk 330 ms after `generate`;
+- 3-frame then 12-frame audio chunks, and a final chunk with `isLast`;
+- `generation_finished` with 5.92 s of audio at 2.0× real time;
+- `build_viseme_assets_from_raw` requests for lip-sync;
+- a speaking avatar in the screenshot, and no errors.
+
+**Desktop packaging:**
+
+| Step | Result |
+| --- | --- |
+| `pnpm desktop:runtime:stage -- --platform darwin --arch arm64` | Passed; run with a task-owned `UV_CACHE_DIR` because the shared `/private/tmp/animama-uv-cache` had a partially deleted `pluggy` wheel |
+| `pnpm desktop:runtime:audit -- --platform darwin --arch arm64` | OK: 5,344 files, none missing or unexpected; core download 430,329,452 of 786,432,000 bytes; installed 1,029,281,251 of 1,610,612,736 bytes; native backup restore preserved |
+| `pnpm desktop:mac` | Built the unsigned `release/mac/Animama.app`; runtime inventory OK; contains the eleven April Pocket files |
+
+**Not performed:**
+
+- **Speech in the packaged app.** Launching the packaged app would use the
+  owner's real Application Support profile, and native acceptance calls for a
+  separate macOS account.
+- **Multi-threaded WASM:** tracked in #128.
+
+**Owner gates outstanding:**
+
+1. Listening acceptance and temperature confirmation. Paired January, April
+   0.3 and April 0.7 clips, plus cloned samples, are on a local listening page
+   (scratch, outside the repository).
+2. PocketTTS speech in the packaged app on a disposable profile.
 
 ## Final integration review
 
