@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_creation_repo import SQLAlchemyAnimaCreationRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
 from animama.app.anima_creation_contract import AnimaSpec, CreateAnimaRequest, EnsureAnimaStartersRequest
 from animama.app.services.anima_creation_service import AnimaCreationService
 from animama.app.services.anima_creation_sources import AnimaCreationSources
@@ -94,6 +95,20 @@ router = APIRouter(
 )
 
 
+def preferred_default_model_reader(session: AsyncSession) -> Callable[[str], Awaitable[str | None]]:
+    """Read ``preferences.chat.default_model_provider_id`` from the owner's App Settings."""
+
+    repository = SQLAlchemyUserSettingsRepository(session)
+
+    async def read(user_id: str) -> str | None:
+        stored = await repository.get(user_id)
+        chat = (stored.preferences if stored else {}).get("chat")
+        value = chat.get("default_model_provider_id") if isinstance(chat, dict) else None
+        return value.strip() or None if isinstance(value, str) else None
+
+    return read
+
+
 def creation_service(request: Request, session: AsyncSession) -> AnimaCreationService:
     """All repositories share this HTTP request's one caller-owned session."""
 
@@ -106,6 +121,7 @@ def creation_service(request: Request, session: AsyncSession) -> AnimaCreationSe
             max_identity_bytes=settings.anima_memory_file_max_bytes,
         ),
         default_model_provider_id=settings.anima_default_model_provider_id,
+        preferred_model_provider_id=preferred_default_model_reader(session),
     )
 
 

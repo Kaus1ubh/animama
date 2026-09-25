@@ -53,6 +53,10 @@ import {
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
 import { APPEARANCE_COLOR_KEYS } from "@/lib/theme/appearance-overrides";
 import {
+  DefaultAnimaSetting,
+  DefaultChatModelSetting,
+} from "@/ui/settings/GeneralDefaultsSettings";
+import {
   MicrophoneDeviceSetting,
   MicrophoneSensitivitySetting,
   MicrophoneTestSetting,
@@ -1067,6 +1071,22 @@ export function ApplicationSettingsModal({
           className={cn(FLAT_SETTINGS_PANEL_CLASS_NAME, "py-3")}
         />
       ),
+    },
+    {
+      id: "default-anima",
+      section: "General",
+      group: "Defaults",
+      label: "Default Anima",
+      keywords: ["startup", "open", "pinned", "last opened"],
+      render: () => <DefaultAnimaSetting disabled={isBusy} />,
+    },
+    {
+      id: "default-chat-model",
+      section: "General",
+      group: "Defaults",
+      label: "Default chat model",
+      keywords: ["model", "llm", "new anima", "openai", "provider"],
+      render: () => <DefaultChatModelSetting disabled={isBusy} />,
     },
     {
       id: "volume",

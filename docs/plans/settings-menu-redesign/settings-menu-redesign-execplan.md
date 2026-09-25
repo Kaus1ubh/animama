@@ -87,7 +87,7 @@ Boundaries:
       committed as `feat(settings)[p1]`.
 - [x] Phase 2 (#116): R3 Appearance. Visual QA gate evidence recorded; reviews #1–#3 (pass).
 - [x] Phase 3 (#117): R4 Microphone implemented and reviewed (#1, #2 pass). **Owner hardware acceptance pending.**
-- [ ] Phase 4: R5 General defaults.
+- [x] Phase 4 (#118): R5 General defaults. Reviewed (#1, #2 pass).
 - [ ] Phase 5: R6–R8 inheritance, Markdown persistence, reset.
 - [ ] Phase 6: R9 About & diagnostics.
 - [ ] Phase 7: documentation, glossary, final integration review, PR handoff.
@@ -547,13 +547,74 @@ Checks:
   fallback works; create a new Anima and it uses the default model while an
   existing Anima keeps its model.
 
+Results:
+
+- **Delivered:**
+  - **Backend:** `AnimaCreationService` uses the owner's
+    `preferences.chat.default_model_provider_id` when the model exists, is
+    active and is supported by direct chat. Otherwise it falls back to the
+    configured default. The materializer accepts a per-call model. The router
+    wires in `preferred_default_model_reader`. Installation bootstrap keeps the
+    configured default. Idempotent replay is unchanged, because the spec hash
+    excludes the model and the stored result is replayed.
+  - **Web:**
+    - `resolveStartupAnimaId` opens the pinned Anima when it is still owned,
+      otherwise the last active one, otherwise the first; `/a` uses it.
+    - General "Defaults" group: Default Anima ("Last opened" plus owned
+      Animas, with a note when the pinned Anima was deleted) and Default chat
+      model (System default plus chat-capable catalog rows, with a note when
+      the saved model is unavailable).
+  - **Docs:** the backend model catalog and frontend data-layer docs are
+    updated.
+- **Local checks:**
+  - `pnpm check` pass;
+  - `pnpm web:lint` pass;
+  - `pnpm web:test` 298 files / 1,789 tests pass;
+  - `uv run ruff check` pass;
+  - ruff format pass;
+  - `uv run pytest -q tests/test_anima_creation.py` 39 pass, including
+    preferred, inactive, non-chat, unknown and unset models;
+  - after repairs: `tsc -b`, eslint, and vitest settings and animas tests (34)
+    pass;
+  - import-boundary check reports 0 forbidden edges (reviewer).
+- **Browser:** pinning Caitlyn persisted `startup.default_anima_id`, and `/a`
+  opened Caitlyn although Annie was last active.
+- **Not performed:**
+  - a rendered deleted-pin check (covered by unit tests);
+  - rendered creation of a new Anima with the default model (covered by the
+    backend test).
+
 #### Code Review #1 Findings
 
-Pending.
+- **P4-1 (blocking).** The model list and backend accepted models that direct
+  chat rejects.
+- **P4-2 (blocking).** Two docs described the old behaviour.
+- **P4-3 to P4-8 and P4-11.** Replay, starter path, locking, session reads,
+  tests, route and complexity were verified; no change needed.
+- **P4-9.** The model select showed its placeholder while the catalog loaded.
+- **P4-10.** Trim inconsistency.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P4-1: accepted.**
+  - The backend requires `chat_api_standard_for_provider`.
+  - The frontend filters with `chatModelSendGate`.
+  - A `no_chat` test case was added.
+- **P4-2: accepted.** Both docs updated.
+- **P4-9: accepted.** The select is disabled until the catalog loads.
+- **P4-10: accepted.**
+- **Others:** acknowledged.
+
+#### Code Review #2 Findings (repair round 1)
+
+Pass.
+
+- **Optional:** JSON re-indent churn in the docs.
+
+#### Code Review #2 Revisions
+
+- **JSON re-indent: reverted.**
+- One repair round remains.
 
 ### Phase 5: Inheritance, Markdown persistence and reset
 

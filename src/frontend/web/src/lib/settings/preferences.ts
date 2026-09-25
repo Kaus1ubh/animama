@@ -130,6 +130,9 @@ export type PresentationPreferences = {
 export type SettingsPreferences = {
   /** Keeps first-message suggestions dismissed across chats and deleted history. */
   has_sent_chat_message?: boolean;
+  /** App-wide startup and model defaults chosen in App Settings → General. */
+  startup?: { default_anima_id?: string | null };
+  chat?: { default_model_provider_id?: string | null };
   /** Per-mode colour overrides; see `lib/theme/appearance-overrides.ts`. */
   appearance?: AppearanceOverrides;
   memory?: MemoryPreferences;
@@ -204,6 +207,10 @@ export function mergePreferences(
   const presentation = mergeSection(baseObj, patchObj, "presentation");
   const speech = mergeSection(baseObj, patchObj, "speech");
   const appearance = mergeSection(baseObj, patchObj, "appearance");
+  const startup = mergeSection(baseObj, patchObj, "startup");
+  const chat = mergeSection(baseObj, patchObj, "chat");
+  if (startup) merged.startup = startup as SettingsPreferences["startup"];
+  if (chat) merged.chat = chat as SettingsPreferences["chat"];
 
   if (memory) merged.memory = memory as PreferenceToggleSection;
   if (emotion) merged.emotion = emotion as PreferenceToggleSection;
@@ -246,6 +253,20 @@ export function mergePreferences(
   }
 
   return merged;
+}
+
+/** The pinned startup Anima ID, or null for "Last opened". */
+export function readDefaultAnimaId(preferences: unknown): string | null {
+  if (!isRecord(preferences) || !isRecord(preferences.startup)) return null;
+  const value = preferences.startup.default_anima_id;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** The owner's default chat model for new Animas, or null for the system default. */
+export function readDefaultChatModelId(preferences: unknown): string | null {
+  if (!isRecord(preferences) || !isRecord(preferences.chat)) return null;
+  const value = preferences.chat.default_model_provider_id;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 export function resolvePreferences(
