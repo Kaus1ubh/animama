@@ -90,11 +90,11 @@ For example, `fix/chat-reconnect` pairs with PR title `fix: restore chat after r
 and commit subject `fix(chat): restore chat after reconnect`.
 Use `fix` for bugs; classify cleanup as `chore` or `refactor` according to intent.
 Do not add an agent-name prefix or rename an existing shared branch just to
-match this convention. When a tool starts an unpushed task on a generated
-branch such as `claude/<name>`, rename it to `<type>/<task>` before the first
-commit, choosing the type from the task. Matching PR labels are optional, not a
-prerequisite. This naming policy grants no additional push, merge or remote-configuration
-authority. See [worktree cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks)
+match this convention. When a tool starts a task on a generated branch such as
+`claude/<name>`, rename it to `<type>/<short-kebab-case-task>` before pushing,
+choosing the type from the task. Matching PR labels are optional, not a
+prerequisite. This naming policy grants no additional push, merge or
+remote-configuration authority. See [worktree cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks)
 for the data-preserving handoff workflow.
 
 Use the default [pull request template](.github/pull_request_template.md).
