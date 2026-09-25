@@ -17,11 +17,11 @@ VAD. Output uses browser speech, PocketTTS or ElevenLabs. See
 
 ### STT provider matrix
 
-| Provider           | Source                               | Where used        | Notes                                                                 |
-| ------------------ | ------------------------------------ | ----------------- | --------------------------------------------------------------------- |
-| `browser_external` | Web Speech API                       | dictation + voice | default browser path                                                  |
-| `browser_local`    | Web Speech API with `processLocally` | dictation + voice | strict capability check; en-US fallback on unsupported locale         |
-| `parakeet`         | local Parakeet ONNX worker           | dictation + voice | MicVAD speech windows are transcribed locally with final results only |
+| Provider           | Source                               | Where used        | Notes                                                              |
+| ------------------ | ------------------------------------ | ----------------- | ------------------------------------------------------------------ |
+| `browser_external` | Web Speech API                       | dictation + voice | default browser path                                               |
+| `browser_local`    | Web Speech API with `processLocally` | dictation + voice | strict capability check; en-US fallback on unsupported locale      |
+| `parakeet`         | local Parakeet ONNX worker           | dictation + voice | MicVAD windows transcribed locally; live previews, then final text |
 
 In the Animama Electron desktop shell, browser Web Speech providers are treated
 as unavailable even if Chromium exposes `SpeechRecognition` or
@@ -194,8 +194,9 @@ API exposes interim transcript events.
 
 MicVAD supplies accepted mono 16 kHz windows to `client_parakeet/transcribe`.
 Parakeet commits final text before smart-turn runs on the accepted audio, so the
-end-turn coordinator normally has text ready immediately. There is no interim
-preview. See [Final-window Parakeet path](#final-window-parakeet-path).
+end-turn coordinator normally has text ready immediately. While a window is
+still open, display-only previews show interim text; see
+[Live Parakeet previews](#live-parakeet-previews).
 
 #### Shared voice-mode behavior
 
@@ -227,6 +228,8 @@ Parakeet STT is local client-side STT:
   `backend: "wasm"`
 - MicVAD owns speech-window segmentation and stop/start decisions
 - accepted MicVAD windows are sent to the worker for final-window transcription
+- open windows are re-decoded for display-only previews (see
+  [Live Parakeet previews](#live-parakeet-previews))
 - the model stays warm for the current app session; mic/VAD/audio resources are
   stopped on every stop
 
@@ -318,9 +321,53 @@ voice-mode auto-submit timeout unchanged: when smart-turn returns `end_turn`,
 the committed Parakeet transcript is already available to the end-turn
 coordinator.
 
-This path has no interim transcript preview. The first text visible to the user
-arrives after MicVAD accepts the speech window and the worker finishes the final
-`transcribe(...)` call.
+This final decode is the only source of committed Parakeet text and of Voice
+Mode auto-submission. As with browser interim text, a manual send includes
+whatever preview is visible in the input.
+
+#### Live Parakeet previews
+
+While a MicVAD window is open, `createParakeetPreviewController(...)`
+(`lib/speech/client-parakeet/preview-controller.ts`) re-decodes the growing
+window buffer and shows the result as interim text. Parakeet TDT is a
+full-context model, so previews re-run the whole buffer instead of stitching
+chunks.
+
+- MicVAD frames reach the controller through `onVadFrame`. The window buffer
+  starts with the same 200 ms pre-speech pad MicVAD prepends.
+- The first preview is sent after 600 ms of window audio. Later previews wait
+  `max(600 ms, 1.5 × last preview decode)`, and at most one is in flight. The
+  controller sends them to the same worker with `kind: "preview"`. Previews
+  are not profiled, which keeps `parakeet.js` console output down.
+- A preview in flight delays the final decode that follows it. The controller
+  therefore predicts each decode from the measured rate. It stops previewing a
+  window once the prediction exceeds 800 ms, and it decodes and keeps at most
+  the last 20 s of audio. A window's first preview is not predicted when it is
+  sent on time (within about 1.4 s of window audio), which re-measures the rate
+  after a slow spell such as a cold first decode. A first preview held back
+  while an assistant run is active is predicted like any other. If no rate has
+  been measured yet in that capture session, that window gets no previews.
+  - On single-thread WASM this limits previews to roughly the first 2 s of each
+    window.
+  - Faster backends preview whole utterances.
+  - `maxPreviewDecodeMs: 0` in `DEFAULT_PARAKEET_PREVIEW_CONFIG` disables
+    previews. It is an internal constant, not a user setting.
+- Previews are display-only. They are published through
+  `publishTranscriptPreview(...)` as `interimText` but never written to gate
+  state, speech buffers, Smart Turn audio or `onSegment(...)`. Voice Mode
+  cannot submit preview text.
+- Previews are skipped, and late results dropped, when the window ends or when
+  the session, mode, run or turn changes. In Voice Mode they are also skipped
+  while an assistant run or its speech is active.
+- Muting Voice Mode resets the controller.
+  - A plain mute discards the open window, so its preview is cleared.
+  - A push-to-talk flush keeps the preview until that window's final replaces
+    it.
+- A window's preview stays visible until its final result replaces it, or until
+  the window is rejected or fails. Preview failures only stop previews for that
+  window.
+- Worker preview logs use `debug`. Budget stops and preview failures are logged
+  at `info` under `ClientParakeet`.
 
 ### Browser recognition details
 
@@ -419,7 +466,8 @@ Display model:
 
 - Chat input preview is rendered as `finalText + interimText`.
 - Interim text is shown as a lighter overlay in `ChatInputTextArea`.
-- Parakeet writes final text only; its interim text remains empty.
+- Parakeet previews use the same `interimText` display channel but are kept
+  outside the per-turn buffers, so fallback submission never uses them.
 
 Interim clearing rules:
 

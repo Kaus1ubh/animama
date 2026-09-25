@@ -8,6 +8,7 @@ import type {
   ClientParakeetLoadRequest,
   ClientParakeetLoadResult,
   ClientParakeetModelUrls,
+  ClientParakeetTranscribeKind,
   ClientParakeetTranscribeRequest,
   ClientParakeetTranscribeResult,
   ClientParakeetWorkerRequest,
@@ -29,6 +30,7 @@ type LoadClientParakeetWorkerArgs = {
 };
 
 type TranscribeClientParakeetWindowArgs = {
+  kind?: ClientParakeetTranscribeKind;
   jobId: string;
   runId: string;
   turnId: string;
@@ -362,6 +364,7 @@ export async function loadClientParakeetWorker({
 }
 
 export async function transcribeClientParakeetWindow({
+  kind = "final",
   jobId,
   runId,
   turnId,
@@ -374,6 +377,7 @@ export async function transcribeClientParakeetWindow({
   const request: ClientParakeetTranscribeRequest = {
     type: "client_parakeet/transcribe",
     requestId,
+    kind,
     jobId,
     runId,
     turnId,
@@ -382,7 +386,9 @@ export async function transcribeClientParakeetWindow({
     sampleRateHz,
   };
 
-  logger.info("Worker", "Dispatching client Parakeet transcribe request", {
+  const log = kind === "preview" ? logger.debug : logger.info;
+  log("Worker", "Dispatching client Parakeet transcribe request", {
+    kind,
     requestId,
     jobId,
     runId,

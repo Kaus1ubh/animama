@@ -108,11 +108,19 @@ The Parakeet model comes from the shared developer model store. Check it with
   - Issues: parent #98, phase 1 #99, phase 2 #100.
   - Stack `animama-stt` at `http://animama-stt.localhost:8200`, development
     mode, created with `--base-port 8200`.
-- [ ] Phase 1: WebGPU encoder spike and baseline measurements. Measurements are
-  recorded; review is pending.
-- [ ] Gate G1: owner decides whether to adopt WebGPU.
-- [ ] Phase 2: live Parakeet partial transcripts.
-- [ ] Phase 3: conditional WebGPU adoption (blocked on G1).
+- [x] Phase 1: WebGPU encoder spike and baseline measurements.
+  - Commit `f5591c1` (`test(voice)[p1]`).
+  - Review passed after one repair round.
+  - Results and the recommendation are under Phase 1.
+- [x] Gate G1 (2026-09-25): the owner chose a modified (a).
+  - Adopt WebGPU, but behind an enable/disable toggle in a new "Experimental"
+    section of the app settings, in case some users lack support.
+  - The Phase 3 details need a plan revision and owner approval.
+- [x] Phase 2: live Parakeet partial transcripts.
+  - Review passed after two repair rounds and one extra recheck authorized by
+    the owner.
+  - The commit is recorded in the Phase 2 section.
+- [ ] Phase 3: WebGPU as an experimental setting (plan revision pending).
 - [ ] Final integration review and PR.
 - [ ] Owner manual acceptance on the task stack.
 
@@ -148,6 +156,12 @@ The Parakeet model comes from the shared developer model store. Check it with
   long utterances already take seconds. See the Phase 1 results.
 
 ## Decision Log
+
+- **2026-09-25, owner, G1:** put WebGPU under an "Experimental" app-settings
+  toggle that users can enable or disable. It is not an automatic default, in
+  case some users don't have WebGPU support.
+- **2026-09-25, owner, review limit:** authorized one extra targeted recheck
+  of P2-R3-1 after the bounded budget was spent. The recheck passed.
 
 - **2026-09-25, owner:**
   - Keep Parakeet v2 and add growing-buffer partials plus a WebGPU spike.
@@ -214,6 +228,7 @@ changes.
 
    Also measure the WASM int8 re-decode cost for growing buffers of 1, 3, 6 and
    12 s. This sets the Phase 2 budget.
+
 5. **Results.** Add a results table to this plan, including hardware and OS, and
    a recommendation.
 
@@ -270,13 +285,13 @@ Create the clips with the macOS `say -v Samantha` voice. Convert each with
 `afconvert -f WAVE -d LEI16@16000 -c 1` to 16 kHz mono 16-bit, and list
 `{ id, text, url }` in `clips.json`. Keep audio out of Git.
 
-| Id  | Seconds | Text                                                                                                                                                                                                                                                      |
-| --- | ------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| c1  |     3.1 | Hey, can you remind me what we talked about yesterday?                                                                                                                                                                                                    |
-| c2  |     4.6 | I think the avatar should wave when I say hello, and maybe smile a little bit more.                                                                                                                                                                       |
-| c3  |     9.0 | Let's plan a quick trip to the mountains next weekend. I want to leave early on Saturday morning, stop for coffee somewhere scenic, and be back by Sunday night.                                                                                          |
+| Id  | Seconds | Text                                                                                                                                                                                                                                                                                                               |
+| --- | ------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| c1  |     3.1 | Hey, can you remind me what we talked about yesterday?                                                                                                                                                                                                                                                             |
+| c2  |     4.6 | I think the avatar should wave when I say hello, and maybe smile a little bit more.                                                                                                                                                                                                                                |
+| c3  |     9.0 | Let's plan a quick trip to the mountains next weekend. I want to leave early on Saturday morning, stop for coffee somewhere scenic, and be back by Sunday night.                                                                                                                                                   |
 | c4  |    15.9 | Okay so here's the thing. I've been working on this project for about three months now and I keep getting stuck on the same problem. Every time I think I've solved it, something else breaks, and honestly I'm starting to wonder whether I should just rewrite the whole thing from scratch or keep patching it. |
-| c5  |     1.1 | What's the weather like?                                                                                                                                                                                                                                  |
+| c5  |     1.1 | What's the weather like?                                                                                                                                                                                                                                                                                           |
 
 Link or copy `$SPIKE_DIR/encoder-model.fp16.onnx` to
 `spike/encoder-model.fp16.onnx` inside the clips directory, then serve that
@@ -298,13 +313,13 @@ JSON and are available as `window.__parakeetBenchResult`.
 **Clips:** warm decode in milliseconds, median of 3, with each clip's first
 decode in brackets. `×` is audio duration divided by warm decode time.
 
-| Clip (s) | Chrome WASM int8 | Chrome WebGPU fp16 | Electron WASM int8 | Electron WebGPU fp16 |
-| -------: | ---------------: | -----------------: | -----------------: | -------------------: |
-|      1.1 |   452 (478) 2.4× |       82 (86) 13× |     416 (415) 2.6× |       185 (193) 5.9× |
-|      3.1 | 2,897 (1,235) 1.1× |   129 (1,022) 24× | 2,619 (3,838) 1.2× |       201 (254) 16× |
-|      4.6 | 1,536 (1,830) 3.0× |      118 (194) 39× | 3,460 (5,091) 1.3× |       223 (244) 21× |
-|      9.0 | 2,984 (2,948) 3.0× |      186 (275) 48× | 2,879 (2,906) 3.1× |     438 (1,116) 20× |
-|     15.9 | 5,229 (5,248) 3.0× |      300 (302) 53× | 5,063 (5,101) 3.1× |       682 (443) 23× |
+| Clip (s) |   Chrome WASM int8 | Chrome WebGPU fp16 | Electron WASM int8 | Electron WebGPU fp16 |
+| -------: | -----------------: | -----------------: | -----------------: | -------------------: |
+|      1.1 |     452 (478) 2.4× |        82 (86) 13× |     416 (415) 2.6× |       185 (193) 5.9× |
+|      3.1 | 2,897 (1,235) 1.1× |    129 (1,022) 24× | 2,619 (3,838) 1.2× |        201 (254) 16× |
+|      4.6 | 1,536 (1,830) 3.0× |      118 (194) 39× | 3,460 (5,091) 1.3× |        223 (244) 21× |
+|      9.0 | 2,984 (2,948) 3.0× |      186 (275) 48× | 2,879 (2,906) 3.1× |      438 (1,116) 20× |
+|     15.9 | 5,229 (5,248) 3.0× |      300 (302) 53× | 5,063 (5,101) 3.1× |        682 (443) 23× |
 
 Clips run in the order c1–c5, so c1's first decode is the cold first inference
 after load.
@@ -314,12 +329,12 @@ in milliseconds (median of 3), with the encoder / decoder-loop split in
 brackets. Incremental is a second decode of the same buffer after priming
 `parakeet.js`' decoder-state and mel caches at the previous length.
 
-| Buffer | Chrome WASM         | Chrome WebGPU   | Electron WASM       | Electron WebGPU  | Electron WebGPU incremental |
-| -----: | ------------------- | --------------- | ------------------- | ---------------- | --------------------------: |
-|    1 s | 430 (417 / 11)      | 81 (69 / 11)    | 392 (382 / 9)       | 194 (154 / 39)   |                           — |
-|    3 s | 1,126 (1,102 / 23)  | 100 (75 / 24)   | 1,022 (996 / 23)    | 245 (151 / 89)   |            356 (254 / 90)\* |
-|    6 s | 2,079 (2,032 / 43)  | 139 (92 / 45)   | 1,930 (1,881 / 40)  | 346 (172 / 158)  |              258 (166 / 83) |
-|   12 s | 3,945 (3,849 / 78)  | 232 (136 / 90)  | 3,820 (3,734 / 76)  | 515 (198 / 289)  |             393 (197 / 178) |
+| Buffer | Chrome WASM        | Chrome WebGPU  | Electron WASM      | Electron WebGPU | Electron WebGPU incremental |
+| -----: | ------------------ | -------------- | ------------------ | --------------- | --------------------------: |
+|    1 s | 430 (417 / 11)     | 81 (69 / 11)   | 392 (382 / 9)      | 194 (154 / 39)  |                           — |
+|    3 s | 1,126 (1,102 / 23) | 100 (75 / 24)  | 1,022 (996 / 23)   | 245 (151 / 89)  |            356 (254 / 90)\* |
+|    6 s | 2,079 (2,032 / 43) | 139 (92 / 45)  | 1,930 (1,881 / 40) | 346 (172 / 158) |              258 (166 / 83) |
+|   12 s | 3,945 (3,849 / 78) | 232 (136 / 90) | 3,820 (3,734 / 76) | 515 (198 / 289) |             393 (197 / 178) |
 
 \* A single run. The encoder time is noisy.
 
@@ -479,7 +494,6 @@ optional items are resolved, and no code regressions were found.
 - **Budget:** one repair round remains. No blocking findings remain, so Phase 1
   passes review.
 
-
 ### Phase 2: live Parakeet partial transcripts
 
 Issue: _to be created_. Depends on: the Phase 1 re-decode cost estimate, not on
@@ -568,13 +582,274 @@ Checks: `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build` and
 Completion: tests and checks pass, manual results are recorded, docs are updated,
 and review passes.
 
+#### Phase 2 results (2026-09-25)
+
+Issue #100. The work started from `f5591c1`.
+
+**What was built**
+
+- `lib/speech/client-parakeet/preview-controller.ts`: the frame-driven preview
+  controller, with 18 behaviour tests.
+- `mic-vad-runtime.ts` now forwards MicVAD frames through `onVadFrame`, with 2
+  tests.
+- The worker protocol gained `kind: "preview" | "final"`.
+- `use-dictation.ts` wiring:
+  - a preview session per Parakeet start;
+  - window start, end and invalidation handling;
+  - clearing of display-only previews on final, error, mute, stop and restart.
+- `docs/frontend/runtime/voice.md` was updated.
+
+**How the manual evidence was gathered**
+
+- Agent-run on the task stack with synthetic speech.
+- Chrome 153 and Electron 39 `desktop:dev` were started with
+  `--use-fake-device-for-media-stream`,
+  `--use-file-for-fake-audio-capture=<wav>` and
+  `--disable-features=AudioServiceOutOfProcess,AudioServiceSandbox`. Without the
+  last flag, macOS delivers silence.
+- Inputs: 2 s of silence, then the Phase 1 clips.
+- The STT provider was set to Parakeet through the stack's settings API, from
+  inside the page.
+- Chat submission (`chat:sse`) was intercepted in the page and answered with
+  503, so no provider call was made.
+- Backend: WASM int8, one thread.
+
+**Results**
+
+- **Dictation, Chrome and Electron, 15.9 s clip:**
+  - previews appeared about 1.0 s after speech start ("Okay, so here's") and
+    about 1.8 s after ("Okay so here's the thing.");
+  - the per-window budget then stopped previews at about 2.3 s of window audio;
+  - the final replaced the preview 5.8–5.9 s after speech end.
+- **Voice Mode, Chrome:**
+  - the previews were the same;
+  - auto-submit fired only after the final and Smart Turn;
+  - the intercepted `body.message` equalled the full final transcript.
+- **Multiple windows, Chrome dictation (clips c1, c5, c2 in sequence):**
+  - each window previewed, then committed;
+  - a later window's preview was appended after the earlier final text.
+- **Final latency on short utterances (1.1–4.6 s clips, 6 windows):**
+  - the final request was dispatched in the same millisecond as speech end
+    every time, and was ready 0.9–2.0 s later;
+  - no preview was in flight, because the budget cutoff (about 2.2 s) always
+    came before VAD's 1.4 s redemption period ended;
+  - so previews added no final latency in these runs. No separate A/B against
+    the old build was run.
+- **Voice Mode mute (after Code Review #1 fixes):** the preview cleared within
+  about 0.1 s of muting, and nothing late arrived.
+- **Stop and restart (dictation):** the preview cleared on stop, nothing stale
+  appeared in the next 4 s, and restart began clean.
+
+**Not performed**
+
+- real-microphone checks, which are part of owner acceptance;
+- push-to-talk (a desktop global shortcut);
+- a deliberate VAD misfire;
+- Electron Voice Mode;
+- avatar frame-rate measurement;
+- a WebGPU backend, which is Phase 3.
+
+**Disclosed limitation (R1 on WASM):** previews cover roughly the first 2 s of
+each window. Longer utterances show the frozen preview until the final lands:
+about 14 s without updates for the 15.9 s clip, followed by about 6 s of final
+decode. Meeting "updates about once a second" throughout needs a faster
+backend (G1).
+
+**Deviation:** diagnostics use the logger only (`debug` for results, `info`
+for budget stops and failures). They do not use the voice debug sink.
+
+**Checks** (from `src/frontend`, after the Code Review #1 fixes): see
+[Final integration review](#final-integration-review).
+
 #### Code Review #1 Findings
 
-_Pending._
+Reviewer: independent `sdlc-reviewer` subagent. Source: `0b83b16` plus the
+uncommitted Phase 2 files. Round: initial.
+
+- **P2-R1-1 (required):**
+  - `decodeRate` was shared across the whole session, and every dispatch was
+    checked against it.
+  - After one slow preview (for example a cold first decode running slower than
+    real time), each later window's first preview was also predicted over
+    budget, so previews never ran again for the session.
+  - The reviewer reproduced this with the controller bundled under Node.
+- **P2-R1-2 (required):**
+  - Muting Voice Mode without a flush pauses MicVAD without firing any window
+    callback.
+  - The Parakeet preview therefore stayed in the input, and an in-flight
+    preview could still be published. A manual send while muted would include
+    that text.
+  - The resume path could also drop the preview reference without clearing the
+    display.
+- **P2-R1-3 (required):** the plan's recovery step ("a slow-decode ceiling of 0
+  disables previews") did not work, because a session's first preview ignored
+  the budget. The "internal constant or debug override" decision was also not
+  recorded.
+- **Optional:**
+  - disclose the R1 limitation on WASM;
+  - gate dispatch rather than results during assistant runs and after turn
+    changes;
+  - previews continue through the VAD redemption period;
+  - `speechSamples` counts window audio, not speech;
+  - trim `window.frames` to the cap;
+  - add tests: interval multiplier branch, recovery, `endWindow(null)`;
+  - the diagnostics deviation;
+  - `parakeet.js` prints profiling `console.log` output on every preview;
+  - clarify manual send;
+  - `voice.md` table alignment;
+  - `reset()` lets a second decode queue behind an old one;
+  - list the manual checks that were not performed.
+- **Verified without findings:**
+  - previews are display-only, with no path into gate state, speech buffers,
+    Smart Turn or `onSegment`;
+  - the final path clears the preview in the right order;
+  - the Voice Mode commit keeps a later window's preview;
+  - previews do not share decoder state with the final;
+  - the pre-speech pad matches MicVAD;
+  - `transcribeClientParakeetWindow` has no other callers, and nothing reads
+    `isFinal`;
+  - no cross-boundary changes.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **P2-R1-1: accepted and fixed.** Each window's first preview always runs,
+  which re-measures the rate; the prediction applies only to later previews in
+  the same window. New test: "previews a new window again after a slow decode
+  stopped the previous one".
+- **P2-R1-2: accepted and fixed.**
+  - On Parakeet mute, `muteVoiceMic` resets the controller, which drops
+    in-flight results.
+  - It clears the preview unless the mute is a push-to-talk flush, where the
+    queued final replaces it.
+  - `createParakeetPreviewSession` clears any leftover preview display.
+  - The preview helpers moved above `muteVoiceMic` so its dependency list is
+    valid.
+  - Manual check above: mute clears the preview.
+- **P2-R1-3: accepted and fixed.**
+  - `maxPreviewDecodeMs <= 0` disables previews in the controller. New test:
+    "never previews when the decode budget is zero".
+  - Decision: this stays an internal constant in
+    `DEFAULT_PARAKEET_PREVIEW_CONFIG`, with no debug override or user setting.
+  - The recovery section was corrected.
+- **Optional items:**
+  - **accepted:**
+    - the R1 disclosure (above, and in the PR);
+    - dispatch gating through a new `shouldPreview` option, used for session
+      staleness and assistant runs, with a test;
+    - frames are trimmed to the 20 s cap;
+    - tests for the interval multiplier, `endWindow(null)` and the capped tail;
+    - previews run without profiling (`enableProfiling` only for finals);
+    - `voice.md` now says "600 ms of window audio", clarifies manual sends and
+      realigns the table;
+    - the deviation and the checks that were not performed are recorded above.
+  - **deferred to Phase 3:**
+    - redemption-period decodes;
+    - the `reset()` double-queue. Its cost is bounded, and only fast backends
+      could make it matter.
+  - **note:** no Prettier check covers `docs/`. The root `.prettierignore`
+    ignores everything, and the web-package invocation (root `.prettierrc`,
+    `tabWidth: 4`) also flags the unchanged baseline. The `voice.md` diff is
+    limited to the intended sections, and the provider table is aligned to
+    Prettier's default widths.
+- **Verification:**
+  - 20 controller and runtime tests pass;
+  - `tsc -b` and `eslint` pass on the touched files;
+  - manual mute and stop/restart checks as above.
+- **Next:** targeted recheck #2.
+
+#### Code Review #2 Findings (repair round 1)
+
+The same reviewer ran a targeted recheck. P2-R1-1 to P2-R1-3 and the accepted
+optional items are verified.
+
+- **P2-R2-1 (required, regression from the revisions):**
+  - A window's first preview skipped the prediction. When `shouldPreview`
+    held that preview back (for example during an assistant run in Voice
+    Mode), it could later decode the whole buffered window, up to the 20 s
+    cap, with no budget check.
+  - The worker is serial, so the next final could then wait well past
+    800 ms.
+  - The reviewer's probe: 9.6 s of audio held back, a 3.85 s predicted
+    decode, and no `budget_exceeded` event.
+- **Optional:**
+  - the "capped tail" test passes without the trimming, so it does not prove
+    memory is trimmed;
+  - the plan's claim that root Prettier passes is vacuous, because the root
+    `.prettierignore` ignores everything;
+  - table padding.
+
+#### Code Review #2 Revisions
+
+- **P2-R2-1: accepted and fixed.**
+  - A first preview is exempt from prediction only while it is on time, with
+    window audio no longer than pad + `firstPreviewMs` + `minIntervalMs`
+    (about 1.4 s by default). Longer first previews are predicted like any
+    other.
+  - New test: "budget-checks a first preview that was held back until the
+    window grew long". The `voice.md` bullet and the controller header are
+    updated.
+- **Optional items, accepted:**
+  - the test is renamed to "never decodes more than the capped audio tail";
+  - the Prettier note is corrected (above);
+  - the table is aligned to Prettier's default widths.
+- **Verification:**
+  - 19 controller tests pass;
+  - `tsc -b` and `eslint` pass.
+- **Budget:** one repair round remains. The next step is final targeted
+  recheck #3, the last allowed.
+
+#### Code Review #3 Findings (repair round 2, final)
+
+The same reviewer checked P2-R2-1 again.
+
+- **P2-R2-1:** fixed when a decode rate is already known.
+- **P2-R3-1 (required):**
+  - Every Parakeet start and every Voice Mode unmute (including each desktop
+    push-to-talk press) creates a new controller with no measured rate.
+  - If that controller's first preview is held back (assistant still running
+    or speaking), it can still be sent unchecked with the whole window.
+  - That decode can take up to about 6.4 s on WASM, and the window's final
+    queues behind it.
+  - The reviewer's probe: 9.6 s held back on a new controller, with no
+    `budget_exceeded` event.
+- **Accepted round-2 optional items:** verified.
+- **Result:** blocked, with both repair rounds used.
+
+#### Code Review #3 Revisions
+
+- **P2-R3-1: accepted and fixed after the review budget was exhausted.**
+  - A first preview that is not on time is treated as over budget when no rate
+    has been measured. The window stops previewing and emits `budget_exceeded`
+    with `predictedDecodeMs: null`; the event type now allows `null`.
+  - New test: "does not send a late first preview before any decode rate is
+    known".
+  - The `voice.md` bullet is updated.
+  - Verification:
+    - the 22 controller and runtime tests pass;
+    - `tsc -b` and `eslint` pass;
+    - the full `pnpm web:test` run passes (297 files, 1,780 tests).
+- **Budget:** the bounded review budget was spent at this point. The owner
+  chose to authorize one extra targeted recheck (below) rather than accept the
+  fix without review.
+
+#### Code Review #4 Findings (owner-authorized extra recheck, 2026-09-25)
+
+Limited to P2-R3-1 and regressions from its fix.
+
+- **Result: pass.**
+- **P2-R3-1:** fixed. The reviewer's probe of a new controller held back for
+  9.6 s now sends no request and emits `budget_exceeded`.
+- **No regressions:**
+  - a later preview can't run without a measured rate;
+  - the normal flow on a new controller, the slow-decode recovery, the zero
+    budget and the rate-known held-back cases all behave as before;
+  - the null-rate stop applies to one window only;
+  - the only event consumer spreads the payload, so `null` is safe.
+- **Non-blocking:** record this review here (done).
+
+#### Code Review #4 Revisions
+
+None required. Phase 2 passes review.
 
 ### Phase 3 (only if G1 = a): adopt the WebGPU encoder
 
@@ -631,13 +906,14 @@ release readiness.
 
 ## Idempotence and recovery
 
-- **Spike files:** the benchmark and the extra encoder files live in the
-  developer model store and can be deleted and fetched again safely.
+- **Spike files:** the benchmark inputs and the extra encoder file live in a
+  developer cache outside the verified model store. They can be deleted and
+  fetched again safely.
 - **Reverting partials:** partials are client-only. Reverting the Phase 2 commit
   restores final-only behavior and changes no stored data.
-- **Disabling previews:** setting the slow-decode ceiling to 0 turns previews off.
-  During implementation, decide whether that is an internal constant or a debug
-  override. Do not add a user setting.
+- **Disabling previews:** set `maxPreviewDecodeMs: 0` in
+  `DEFAULT_PARAKEET_PREVIEW_CONFIG` (`preview-controller.ts`) to turn previews
+  off. It is an internal constant only, with no debug override or user setting.
 - **Task stack:** it uses its own Compose project (`animama-stt`). Stop it with
   project-scoped commands per the
   [cleanup guide](../../backend/operations/development.md#cleaning-up-worktree-stacks).

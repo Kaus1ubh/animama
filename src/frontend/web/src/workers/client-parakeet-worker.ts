@@ -230,7 +230,8 @@ async function handleTranscribe(
     request.audio,
     request.sampleRateHz,
     {
-      enableProfiling: true,
+      // parakeet.js logs to the console when profiling; skip it for frequent previews.
+      enableProfiling: request.kind === "final",
       returnConfidences: false,
       returnTimestamps: false,
     },
@@ -238,7 +239,10 @@ async function handleTranscribe(
   const transcribeMs = Math.round(performance.now() - startedAtMs);
   const text = result.utterance_text.trim();
 
-  logger.info("Transcribe", "Client Parakeet speech window transcribed", {
+  // Previews repeat roughly every second while speaking; keep them out of info logs.
+  const log = request.kind === "preview" ? logger.debug : logger.info;
+  log("Transcribe", "Client Parakeet speech window transcribed", {
+    kind: request.kind,
     jobId: request.jobId,
     runId: request.runId,
     turnId: request.turnId,
@@ -259,7 +263,7 @@ async function handleTranscribe(
       turnId: request.turnId,
       windowId: request.windowId,
       text,
-      isFinal: true,
+      isFinal: request.kind === "final",
       sampleRateHz: request.sampleRateHz,
       audioSamples: request.audio.length,
       audioDurationMs: Math.round(

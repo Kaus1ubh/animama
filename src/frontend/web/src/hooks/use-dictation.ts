@@ -19,6 +19,12 @@ import {
   transcribeClientParakeetWindow,
 } from "@/lib/speech/client-parakeet/client";
 import {
+  DEFAULT_PARAKEET_PREVIEW_CONFIG,
+  createParakeetPreviewController,
+  type ParakeetPreview,
+  type ParakeetPreviewController,
+} from "@/lib/speech/client-parakeet/preview-controller";
+import {
   type BrowserRecognitionStopReason,
   appendTranscript,
   clearBrowserSpeechInterimText,
@@ -275,6 +281,11 @@ export function useDictation(options: UseDictationOptions = {}) {
   const parakeetSessionCounterRef = useRef(0);
   const activeParakeetSessionIdRef = useRef<number | null>(null);
   const parakeetJobCounterRef = useRef(0);
+  const parakeetPreviewControllerRef = useRef<ParakeetPreviewController | null>(
+    null,
+  );
+  /** Display-only interim text; never written to gate state or speech buffers. */
+  const parakeetPreviewRef = useRef<ParakeetPreview | null>(null);
   const pendingFlushSmartTurnOverrideRef =
     useRef<PendingFlushSmartTurnOverride | null>(null);
 
@@ -469,6 +480,36 @@ export function useDictation(options: UseDictationOptions = {}) {
       });
     },
     [publishTranscriptPreview],
+  );
+
+  const publishParakeetPreview = useCallback(
+    (args: { turnId: string; mode: DictationMode; interimText: string }) => {
+      const buffers = browserSpeechTextBuffersRef.current;
+      publishTranscriptPreview({
+        provider: "parakeet",
+        mode: args.mode,
+        turnId: args.turnId,
+        finalText: buffers?.turnId === args.turnId ? buffers.finalText : "",
+        interimText: args.interimText,
+      });
+    },
+    [publishTranscriptPreview],
+  );
+
+  /** Remove the interim preview for a window once its final result or rejection arrives. */
+  const clearParakeetPreview = useCallback(
+    (args: { windowId: string | null; mode: DictationMode }) => {
+      const preview = parakeetPreviewRef.current;
+      if (!preview) return;
+      if (args.windowId !== null && preview.windowId !== args.windowId) return;
+      parakeetPreviewRef.current = null;
+      publishParakeetPreview({
+        turnId: preview.turnId,
+        mode: args.mode,
+        interimText: "",
+      });
+    },
+    [publishParakeetPreview],
   );
 
   const clearBrowserInterimPreview = useCallback(
@@ -1244,6 +1285,9 @@ export function useDictation(options: UseDictationOptions = {}) {
     if (provider === "parakeet") {
       const runId = runIdRef.current;
       activeParakeetSessionIdRef.current = null;
+      parakeetPreviewControllerRef.current?.reset();
+      parakeetPreviewControllerRef.current = null;
+      parakeetPreviewRef.current = null;
       setIsDictationPreparing(false);
       setRunId(null);
       teardownBrowserVisualizerStream();
@@ -1310,6 +1354,14 @@ export function useDictation(options: UseDictationOptions = {}) {
           provider,
           mode: "voice",
         });
+      } else {
+        // Pausing MicVAD without a flush discards the open window without any
+        // VAD callback, so previews must end here. A flushed window keeps its
+        // preview until the final that `onSpeechEnd` queues replaces it.
+        parakeetPreviewControllerRef.current?.reset();
+        if (options?.flushPendingSpeech !== true) {
+          clearParakeetPreview({ windowId: null, mode: "voice" });
+        }
       }
       clearVoiceSilenceResetTimer();
       lastAcceptedSpeechAtRef.current = null;
@@ -1333,6 +1385,7 @@ export function useDictation(options: UseDictationOptions = {}) {
     },
     [
       clearBrowserInterimPreview,
+      clearParakeetPreview,
       clearVoiceSilenceResetTimer,
       isVoiceMicMuted,
       logger,
@@ -1398,12 +1451,14 @@ export function useDictation(options: UseDictationOptions = {}) {
         interimSegments: [],
       });
       browserSpeechTextBuffersRef.current = nextBuffers;
+      // A later window may already be previewing while this final lands.
+      const preview = parakeetPreviewRef.current;
       publishTranscriptPreview({
         provider: "parakeet",
         mode: "voice",
         turnId: args.turnId,
         finalText: nextBuffers.finalText,
-        interimText: nextBuffers.interimText,
+        interimText: preview?.turnId === args.turnId ? preview.text : "",
       });
     },
     [publishTranscriptPreview, syncGateDebugStats],
@@ -1465,6 +1520,8 @@ export function useDictation(options: UseDictationOptions = {}) {
           );
           return;
         }
+
+        clearParakeetPreview({ windowId: args.windowId, mode: args.mode });
 
         logger.info("ClientParakeet", "Speech window transcription ready", {
           jobId,
@@ -1553,6 +1610,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         ) {
           return;
         }
+        clearParakeetPreview({ windowId: args.windowId, mode: args.mode });
         const errorObj =
           err instanceof Error
             ? err
@@ -1570,11 +1628,88 @@ export function useDictation(options: UseDictationOptions = {}) {
     [
       appendSmartTurnAudioSegment,
       armVoiceSilenceResetTimer,
+      clearParakeetPreview,
       commitParakeetVoiceTranscript,
       logger,
       runSmartTurnSemanticCheck,
       submitPendingVoiceEndTurn,
     ],
+  );
+
+  /**
+   * Create the live-preview controller for one Parakeet capture session. Preview
+   * text is display-only and is dropped whenever the session, mode, run or turn
+   * has moved on, or an assistant run owns the Voice Mode floor.
+   */
+  const createParakeetPreviewSession = useCallback(
+    (args: { sessionId: number; runId: string; mode: DictationMode }) => {
+      parakeetPreviewControllerRef.current?.reset();
+      clearParakeetPreview({ windowId: null, mode: args.mode });
+
+      const isCurrentSession = (turnId: string) =>
+        activeParakeetSessionIdRef.current === args.sessionId &&
+        activeProviderRef.current === "parakeet" &&
+        modeRef.current === args.mode &&
+        runIdRef.current === args.runId &&
+        turnIdRef.current === turnId &&
+        isDictatingRef.current;
+      // Voice Mode yields to the assistant's run and speech, like final text.
+      const canShowPreview = (turnId: string) => {
+        if (!isCurrentSession(turnId)) return false;
+        if (args.mode !== "voice") return true;
+        const runtimeState = useAvatarRuntimeStore.getState();
+        return !runtimeState.activeRunId && !runtimeState.activeSpeechRunId;
+      };
+
+      const controller = createParakeetPreviewController({
+        config: {
+          ...DEFAULT_PARAKEET_PREVIEW_CONFIG,
+          sampleRateHz: DEFAULT_SAMPLE_RATE,
+          preSpeechPadMs: MICVAD_PRESPEECH_PAD_MS,
+        },
+        now: () => performance.now(),
+        transcribe: async ({ turnId, windowId, audio }) => {
+          const result = await transcribeClientParakeetWindow({
+            kind: "preview",
+            jobId: createJobId(),
+            runId: args.runId,
+            turnId,
+            windowId,
+            audio,
+            sampleRateHz: DEFAULT_SAMPLE_RATE,
+          });
+          return { text: result.text, decodeMs: result.transcribeMs };
+        },
+        shouldPreview: canShowPreview,
+        onPreview: (preview) => {
+          if (!canShowPreview(preview.turnId)) return;
+          parakeetPreviewRef.current = preview;
+          publishParakeetPreview({
+            turnId: preview.turnId,
+            mode: args.mode,
+            interimText: preview.text,
+          });
+        },
+        onEvent: (event) => {
+          if (event.type === "preview_ready") {
+            logger.debug("ClientParakeet", "Preview transcription ready", {
+              ...event,
+            });
+            return;
+          }
+          logger.info(
+            "ClientParakeet",
+            event.type === "budget_exceeded"
+              ? "Stopped previews for a speech window over the decode budget"
+              : "Preview transcription failed; stopped previews for the window",
+            { ...event },
+          );
+        },
+      });
+      parakeetPreviewControllerRef.current = controller;
+      return controller;
+    },
+    [clearParakeetPreview, logger, publishParakeetPreview],
   );
 
   const startParakeetVisualizerStream = useCallback(
@@ -1919,6 +2054,11 @@ export function useDictation(options: UseDictationOptions = {}) {
 
         const { createAndStartMicVad, createMicVadCallbacks } =
           await import("@/hooks/voice/mic-vad-runtime");
+        const previewController = createParakeetPreviewSession({
+          sessionId,
+          runId,
+          mode,
+        });
         const micVadCallbacks = createMicVadCallbacks({
           provider: "parakeet",
           logger,
@@ -1935,7 +2075,16 @@ export function useDictation(options: UseDictationOptions = {}) {
           syncGateDebugStats,
           setAvatarPhaseFromVad,
           armVoiceSilenceResetTimer,
+          onVadFrame: (frame) => previewController.pushFrame(frame),
+          onSpeechWindowStarted: ({ turnId: speechTurnId, windowId }) =>
+            previewController.startWindow({ turnId: speechTurnId, windowId }),
+          onSpeechWindowInvalidated: ({ windowId }) => {
+            previewController.endWindow(windowId);
+            clearParakeetPreview({ windowId, mode });
+          },
           onAcceptedSpeechEnd: ({ audio, turnId: speechTurnId, windowId }) => {
+            // The final decode below replaces this window's preview when it lands.
+            previewController.endWindow(windowId);
             const currentTurnId = turnIdRef.current;
             if (
               activeParakeetSessionIdRef.current !== sessionId ||
@@ -2077,8 +2226,10 @@ export function useDictation(options: UseDictationOptions = {}) {
     },
     [
       armVoiceSilenceResetTimer,
+      clearParakeetPreview,
       clearTranscriptPreview,
       clearVoiceSilenceResetTimer,
+      createParakeetPreviewSession,
       logger,
       runSmartTurnSemanticCheck,
       setAvatarPhaseFromVad,
