@@ -40,7 +40,9 @@ offline with `pnpm openapi-ts`; never hand-edit generated output.
 - [x] Read agreed spec, lifecycle guides and affected backend/frontend contracts.
 - [x] Prepare phases, recovery steps and acceptance evidence.
 - [x] Owner accepts plan and authorizes all three phases (2026-09-25).
-- [ ] Workspace setup publishes the spec and creates parent/phase issues.
+- [x] Workspace setup published https://github.com/raymond-van/animama/issues/101
+      (read back 2026-09-25T16:59:56Z) with native sub-issues #102, #103, #104
+      and blocked-by dependencies.
 - [ ] Phase 1: backend identity access, reservation and deletion.
 - [ ] Phase 2: workspace `Animas` root and Manual identity editing.
 - [ ] Phase 3: Memory Manager identity diffs end to end.
@@ -199,7 +201,7 @@ after regeneration.
 
 Completion: tests above pass; review has no unresolved blockers.
 
-Phase record: issue —; commits —; evidence —.
+Phase record: issue #102; commits —; evidence —.
 
 #### Code Review #1 Findings
 
@@ -254,7 +256,7 @@ disabled actions, then a narrow-layout regression check.
 Completion: checks pass; browser evidence recorded without personal memory
 content; review has no unresolved blockers.
 
-Phase record: issue —; commits —; evidence —.
+Phase record: issue #103; commits —; evidence —.
 
 #### Code Review #1 Findings
 
@@ -306,7 +308,7 @@ full backend and frontend command sets listed in Validation.
 
 Completion: checks pass; review has no unresolved blockers.
 
-Phase record: issue —; commits —; evidence —.
+Phase record: issue #104; commits —; evidence —.
 
 #### Code Review #1 Findings
 

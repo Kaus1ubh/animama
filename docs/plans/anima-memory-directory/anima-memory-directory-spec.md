@@ -4,7 +4,8 @@ Status: Agreed
 Owner decision: 2026-09-25 intent discovery established the outcome; the owner
 accepted the remaining proposals the same day, added identity deletion with an
 Anima, and invoked execution planning.
-Authoritative source: this document until published to its owning issue.
+Authoritative source: https://github.com/raymond-van/animama/issues/101
+Snapshot captured: 2026-09-25T16:59:56Z.
 Source baseline: `c612e9d790b014fb6342aa67824c5ccfb43fb2a3`.
 
 ## Problem and intended users
@@ -198,7 +199,7 @@ bound to the correct Anima across renames and duplicate names.
 
 ## Spec
 
-This document before publication.
+https://github.com/raymond-van/animama/issues/101 (this file is a snapshot).
 
 ## ExecPlan
 
@@ -208,4 +209,4 @@ identity-protection rule. See
 
 ## Delivery links
 
-None yet.
+Phase issues #102, #103, #104; PR pending.
