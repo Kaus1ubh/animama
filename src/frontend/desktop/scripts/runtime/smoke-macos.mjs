@@ -334,12 +334,9 @@ export async function smokeMac(args) {
     await page
       .getByLabel("Display name", { exact: true })
       .fill("Desktop smoke");
-    await page
-      .getByRole("button", {
-        name: "Continue",
-        exact: true,
-      })
-      .click();
+    evidence("adult_confirmation_required", await continueButton.isDisabled());
+    await page.getByLabel("I am 18 or older", { exact: true }).check();
+    await continueButton.click();
     await page.waitForURL(/\/a(?:\/|$)/u, { timeout: 60_000 });
     const context = await request(page, "/v1/runtime-context");
     evidence(

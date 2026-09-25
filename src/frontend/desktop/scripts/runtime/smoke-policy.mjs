@@ -60,6 +60,7 @@ export function acceptsRequiredNameSmoke(
     smoke.checks?.required_private_name === true &&
     smoke.checks?.empty_name_rejected === true &&
     smoke.checks?.blank_name_rejected === true &&
+    smoke.checks?.adult_confirmation_required === true &&
     smoke.checks?.first_anima_chat === true &&
     smoke.checks?.temporary_provider_removed === true &&
     smoke.checks?.temporary_provider_removal_persists === true &&

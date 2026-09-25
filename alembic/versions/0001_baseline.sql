@@ -365,6 +365,23 @@ CREATE TABLE chats (
 
 -- animama-statement --
 
+CREATE TABLE companion_safety_state (
+    user_id character varying NOT NULL,
+    age_status character varying DEFAULT 'unknown'::character varying NOT NULL,
+    age_status_source character varying,
+    age_status_recorded_at timestamp with time zone,
+    last_notice_at timestamp with time zone,
+    last_notice_local_date date,
+    interaction_started_at timestamp with time zone,
+    last_turn_started_at timestamp with time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_companion_safety_state_age_status CHECK (((age_status)::text = ANY ((ARRAY['unknown'::character varying, 'adult'::character varying, 'minor'::character varying])::text[]))),
+    CONSTRAINT ck_companion_safety_state_age_status_source CHECK (((age_status_source IS NULL) OR ((age_status_source)::text = 'self_attestation'::text)))
+);
+
+-- animama-statement --
+
 CREATE TABLE content_catalog_dependencies (
     item_id character varying NOT NULL,
     ordinal integer NOT NULL,
@@ -943,6 +960,11 @@ ALTER TABLE ONLY chat_messages
 
 ALTER TABLE ONLY chats
     ADD CONSTRAINT pk_chats PRIMARY KEY (id);
+
+-- animama-statement --
+
+ALTER TABLE ONLY companion_safety_state
+    ADD CONSTRAINT pk_companion_safety_state PRIMARY KEY (user_id);
 
 -- animama-statement --
 

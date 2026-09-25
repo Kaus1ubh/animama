@@ -16,7 +16,7 @@ Deliver spec R1–R11:
 
 - a non-overridable companion guardrail at the end of the provider instructions;
 - an app-rendered AI notice at the New York cadence;
-- local crisis detection with opt-in OpenAI moderation, a deterministic crisis
+- local crisis detection with OpenAI Responses inline moderation, a deterministic crisis
   card with localized resources, and an in-character care note;
 - an 18+ first-run step with an age-status seam;
 - a crisis protocol document and an in-app Safety page;
@@ -63,7 +63,8 @@ Two further rules apply:
       #139 (p1), #135 (p2), #136 (p3), #137 (p4), #138 (p5), chained blocked-by.
 - [x] Phase 1: guardrail and memory guidance (review #2 pass; commit recorded
       below). DB-backed tests to rerun when Docker responds.
-- [ ] Phase 2: backend safety core (config, detector, resources, notice state,
+- [x] Phase 2: backend safety core. Unblocked by the owner-authorized
+      detector pass, which passed with documented limitations. Scope: (config, detector, resources, notice state,
       age status).
 - [ ] Phase 3: chat-turn integration (care note, SSE events, moderation).
 - [ ] Phase 4: frontend (notice, crisis card, first run, settings, Safety page).
@@ -145,7 +146,6 @@ Two further rules apply:
   | `ANIMAMA_AI_NOTICE_REMINDER_HOURS` | `3` | Reminder interval; must be a positive number, and values above 3 relax the cadence |
   | `ANIMAMA_CRISIS_DETECTION_ENABLED` | `true` | Local detector, moderation and card together |
   | `ANIMAMA_CRISIS_RESOURCES_PATH` | unset | Operator's replacement resource table |
-  | `ANIMAMA_CRISIS_MODERATION_DEFAULT` | `false` | Moderation state when the owner has never set it |
 
   Any value that weakens a default logs one startup warning naming the
   variable. Names may be refined in Phase 2 if an existing convention argues
@@ -161,6 +161,29 @@ Two further rules apply:
   the operator's. Packaged desktop builds construct the backend environment
   explicitly (`desktop/src/main-process/runtime/supervisor.ts` `environment()`),
   so they set no safety variable; a desktop test locks this in.
+- **2026-09-25, owner, detector blocker at the review limit.**
+  - The owner authorized one bounded pass against a held-out corpus.
+  - An independent agent, without access to the detector source, writes about
+    150 crisis and 250 ordinary labelled messages.
+  - The detector is tuned on the tune half only. Precision and recall are
+    reported on the hidden half, rather than chasing zero errors on probe
+    lists.
+  - One implementation pass and one review.
+- **2026-09-25, owner, moderation strategy (after the detector pass review).**
+  - Fix P2-X-F1 to F3.
+  - For OpenAI Responses models, use the Responses API's built-in moderation
+    (`moderation={"model": "omni-moderation-latest"}`) on the chat request
+    itself.
+  - Ignore other providers for now; they are currently unsupported.
+  - This supersedes the separate moderation call, its Settings toggle,
+    `ANIMAMA_CRISIS_MODERATION_DEFAULT` and the capability field.
+  - Moderation is on whenever crisis detection is on. The global switch still
+    turns it off.
+  - OpenAI docs checked on 2026-09-25: GA and report-only (no blocking). Scores
+    cover input and output and arrive on the completed response after the
+    output text. The openai-python 2.41 SDK types it.
+  - Open questions for gate G2 (live check): whether `input` covers the whole
+    chain when `previous_response_id` is set, and the cost.
 - **2026-09-25, plan design, safety state storage.** A new table
   `companion_safety_state` is keyed by the owner principal's user id, with one
   row per owner. It holds:
@@ -192,7 +215,6 @@ Two further rules apply:
 - **2026-09-25, plan design, owner preferences.** Owner preferences live in
   `user_settings.preferences.safety`:
   - `crisis_resource_region`: a region code or `null` for automatic;
-  - `moderation_enabled`: a boolean;
   - `reminder_hours`: a positive number or `null`, applied only when it is
     shorter than the operator's interval.
 
@@ -201,12 +223,10 @@ Two further rules apply:
 - **2026-09-25, plan design, capabilities.** `/v1/runtime-capabilities` gains a
   `companion_safety` block:
   - `enabled`, `ai_notice_enabled` and `crisis_detection_enabled`;
-  - `moderation_available`: true only when the global switch and crisis
-    detection are on and `settings.openai_api_key` is set;
   - `operator_reminder_hours`.
 
-  The Settings toggle is shown only when `moderation_available` is true.
-- **2026-09-25, plan design, moderation.**
+- **2026-09-25, plan design, moderation (superseded the same day by the owner's
+  moderation-strategy decision above; kept for history).**
   - Model `omni-moderation-latest`, called through a new moderation adapter. It
     builds its own `AsyncOpenAI` from the same key and base-URL resolution as
     `server/model_clients.py`, factored into a shared helper.
@@ -251,7 +271,6 @@ New backend code:
 
 - `app/safety/` for the guardrail text, crisis detector, resource table model
   and loader, notice cadence and age status;
-- `adapters/moderation/` for the OpenAI moderation adapter;
 - `resources/crisis-resources.v1.json` for the bundled table.
 
 Frontend (`src/frontend/`):
@@ -278,7 +297,7 @@ Tests:
   `tests/test_crisis_detector.py` (fixtures in
   `tests/fixtures/safety/crisis_detection.json`),
   `tests/test_crisis_resources.py`, `tests/test_ai_notice_cadence.py` and
-  `tests/test_crisis_moderation.py`.
+  `tests/test_crisis_moderation.py` (inline Responses moderation).
 - Backend, existing files to extend: `test_direct_chat_turn_executor.py`,
   `test_anima_chat_sse.py`, `test_anima_sse_events.py`,
   `test_installation_personalization.py`, `test_settings_service.py`.
@@ -505,15 +524,262 @@ config overrides), then the full backend chain. From `src/frontend`, run
 Completion: every fixture passes; cadence and onboarding tests pass; an invalid
 table fails at import with a clear message; review leaves no blockers.
 
-Phase record: to be filled in during implementation.
+Phase record: issue #135; starting source `502529f`.
+
+Implementation notes:
+
+- The first-run 18+ UI step moved here from Phase 4, because the required
+  `adult_confirmed` contract would otherwise break the frontend build. The
+  Safety page link on that screen is added in Phase 4.
+- `companion_safety_state` has no foreign key: there is no users table, and
+  `user_settings` has none either.
+- `GET /v1/safety/crisis-resources` takes `locale` rather than `region`. The
+  owner's region preference comes from settings, so the client only supplies
+  its locale.
+- `AgeStatusProvider` is the seam. The local composition reads the repository
+  directly.
+- Existing development installs reopen `/setup` until the age confirmation is
+  recorded. That is accepted: there are no existing users.
+
+Evidence (the Docker/OrbStack API hung for this session, so DB-backed tests are
+pending):
+
+- Detector: 45 positive and 65 negative fixtures pass. It takes 4.9–5.0 ms on
+  20,000-character worst-case text and about 8 µs on a typical turn.
+- Cadence, resource, config and guardrail tests pass.
+- `ruff check`, `ruff format --check` and mypy pass.
+- `pnpm openapi-ts:check` passes.
+- `pnpm check` passes.
+- Focused setup and runtime-provider vitest passes, 21 tests.
+- Desktop vitest passes, 303 tests, plus `runtime-packaging.test.mjs` with 66
+  tests.
+- `docker compose config --quiet` passes.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewed the working tree on `502529f` (`sdlc-reviewer`, full initial review).
+
+- **P2-R1-F1 (blocking):** `scripts/verify-accountless-journey.ts` and the
+  macOS smoke script still completed first run without `adult_confirmed`.
+- **P2-R1-F2 (blocking):** the detector matched common benign phrases: idioms
+  ("cutting myself some slack", "kill myself laughing", "overdose on sugar"),
+  noun compounds ("suicide prevention"), games ("best way to die in Elden
+  Ring"), place qualifiers ("don't want to live anymore in this city") and
+  reported speech.
+- **P2-R1-F3 (blocking):** the detector missed explicit statements: "planning
+  my suicide", "want to be dead", "ready to die", modal phrasing ("should I just
+  kill myself"), "end things", "lethal dose", "how many pills would kill me",
+  past attempts, and hyperbole overridden by "no seriously".
+- **P2-R1-F4 (blocking):** reminder hours were unbounded. A value of `1e20` or
+  `inf` raised `OverflowError` in resolution or settings.
+- **Non-blocking:**
+  - detector timing and the 50,000-character window;
+  - stale docs: `http-api.md`, `user-profiles-and-usernames.md`,
+    `data-layer.md` and `data-model.md`;
+  - a missing `crisis-protocol.md` link target;
+  - plan deviations not yet recorded;
+  - `lock()` lacked `populate_existing`;
+  - take `now` after the lock in Phase 3;
+  - missing tests: relaxed interval, notice disabled, warning hook, the desktop
+    environment test;
+  - the unnamed float parse error.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.**
+  - The journey sends `adult_confirmed`, with 422 cases for a missing or false
+    value.
+  - The macOS smoke records `adult_confirmation_required` and ticks the box.
+  - `smoke-policy.mjs` and its test now require that check.
+- **F2 and F3 accepted.**
+  - Every probe became a fixture: 16 positive and 23 negative added.
+  - The detector gained idiom and compound lookaheads, sentence-level
+    exclusions for self-harm accidents and games, a reported-speech guard,
+    modal and past-attempt patterns, "end things", lethal-dose and
+    kill-me patterns, and an earnest override for hyperbole.
+  - All 110 fixtures pass.
+- **F4 accepted.**
+  - `valid_reminder_hours` bounds both the operator and owner values to a
+    finite (0, 168] range. Invalid owner values are ignored; invalid operator
+    values fail settings with a named error.
+  - `_env_float` names the variable on a parse error.
+- **Non-blocking accepted:**
+  - The window is now the first and last 10,000 characters of a longer
+    message, with worst-case timing tests.
+  - `lock()` uses `populate_existing`.
+  - Added tests for a huge owner interval and for the notice disabled.
+  - Deviations are recorded above.
+  - The stale docs join the Phase 5 list.
+  - Phase 3 takes `now` after the lock.
+  - The desktop environment test stays in Phase 4.
+
+#### Code Review #2 Findings
+
+Targeted recheck. F1, the 20,000-character window and `populate_existing` were
+resolved. Blocking findings:
+
+- **P2-R2-F1:** the sentence-wide exclusions and the reported-speech guard hid
+  genuine statements.
+- **P2-R2-F2:** the new patterns matched benign phrases: modal idioms,
+  "caffeine will kill me", "how many people have to die", "end things on a good
+  note" and "dead tired".
+- **P2-R2-F3:** a 400-digit integer preference still overflowed.
+
+Evidence: DB tests pass, 36 tests, with Docker responding again. The full
+`make check-test` before this round passed: 1978 passed, 7 skipped.
+
+#### Code Review #2 Revisions
+
+- **F1 and F2 accepted.**
+  - The exclusions are now tied to the text right after the match.
+  - The game context is the only sentence-level exclusion.
+  - Reported speech skips the speaker "i".
+  - Kill-me and lethal-dose now require a medication noun.
+  - The guards were extended.
+  - All probes became fixtures: 62 positive and 85 negative, all passing.
+- **F3 accepted.** `valid_reminder_hours` catches `OverflowError` and bounds to
+  [0.25, 168] hours.
+
+#### Code Review #3 Findings
+
+Final targeted recheck (repair budget exhausted). P2-R2-F3 is resolved, but
+blocked by:
+
+- **P2-R3-F1:** the new guards hide genuine statements:
+  - "kill myself at midnight" and "kill myself for what I did";
+  - "end things now" and "end things for good";
+  - "cutting myself on the arms" and "hurting myself out of anger";
+  - "I just said I want to kill myself".
+- **P2-R3-F2:** the new patterns match benign phrases:
+  - "tired of living paycheck to paycheck";
+  - "can't stop cutting carbs";
+  - "cut my wrist on a broken glass";
+  - "jump off the cliff into the lake";
+  - "take all my meds with breakfast".
+- Worst-case timing is 7.4 ms on repeated `"i "` text (the test bound is
+  50 ms).
+
+The reviewer observed that each round of stop-list guards fixes the probed
+phrases and opens neighboring gaps.
+
+#### Code Review #3 Revisions
+
+Stopped at the repair limit, per SDLC bounded review. Phase 2 is not committed
+and awaits an owner decision: accept the documented gaps, or authorize a further
+bounded pass against a broader, pre-agreed corpus.
+
+#### Owner-authorized detector pass (after Code Review #3)
+
+- **Corpus.** An independent agent, without access to the detector source,
+  wrote `tests/fixtures/safety/crisis_corpus.json`:
+  - 150 crisis and 270 ordinary messages, split in half into tune and holdout;
+  - hard cases in both directions.
+- **Baseline.** The pattern detector measured:
+  - tune: precision 0.97, recall 0.44;
+  - holdout: precision 0.955, recall 0.28.
+
+  Enumerated phrases do not generalize.
+- **Redesign.** The detector is now a weighted-signal scorer:
+  - It adds up weights for first-person death and self-injury, plan and means,
+    method-seeking, and intent and immediacy cues. A window crosses the
+    threshold at a score of 3 with at least one strong signal.
+  - A window is each sentence and each adjacent pair of sentences.
+  - Impersonal method questions ("quickest way to die", lethal dose of a
+    medication) do not need a first-person subject.
+  - Benign context cancels a match: games and fiction, third-party subjects,
+    reported speech, negation, recovery, academic or "how do I talk to" framing,
+    and hyperbole without an earnest marker.
+  - The scan window is the first and last 4,000 characters.
+- **Result.** Tuned on the tune split and the existing fixtures only:
+  - tune: precision 1.00, recall 1.00;
+  - existing fixtures: all pass. The category assertion was dropped because
+    the category only labels the strongest signal, and the card is identical
+    for every category;
+  - holdout, measured once after tuning: precision 0.833, recall 0.533.
+- **Regression floors.** The tests enforce the holdout values as floors:
+  precision ≥ 0.83 and recall ≥ 0.53.
+- **Timing.** Worst case 3.1–4.9 ms on 100,000-character input; about 15 µs on
+  a typical turn.
+- **Interpretation.** The tune/holdout gap shows the ceiling of a local pattern
+  scorer. It misses about half of unseen crisis phrasings, and about 6% of
+  unseen ordinary messages trigger it. OpenAI Responses inline moderation and the
+  guardrail's in-character crisis behavior remain the complementary layers.
+
+#### Detector pass review findings
+
+Independent review of the detector pass. Holdout integrity is plausible and the
+metrics reproduce. Blocking findings:
+
+- **P2-X-F1:** window-wide benign cancellations suppress explicit first-person
+  intent that has unrelated context in the same sentence ("He broke up with me
+  and I want to kill myself", "I used to be happy but now I want to kill
+  myself"). The corpus does not measure this class.
+- **P2-X-F2:** the medication meal/prescription guard never fires because the
+  optional group backtracks.
+- **P2-X-F3:** plan-context signals with no death or injury anchor plus a
+  common cue reach the threshold ("set a date for the wedding. I'm planning
+  everything").
+
+Optional findings:
+
+- **F4:** `.*` makes the worst case quadratic, about 40 ms on adversarial text.
+- **F5:** further false positives and false negatives to record as
+  limitations.
+- **F6:** dropping the category assertion is acceptable.
+- **F7:** the regression floors have no slack.
+- **F8:** tidy-ups.
+
+The pass stopped here pending an owner decision.
+
+#### Detector pass revisions (owner-authorized)
+
+- **F1 accepted.** Subject, reported-speech, negation, recovery and study
+  context now cancel only the clause that contains an anchoring match. Clauses
+  split on commas, "and", "but", "so", "because" and "then"/"now". Game,
+  fiction, joke and method-benign context still cancel the whole window.
+- **F2 accepted.** The medication guard is evaluated after the whole phrase.
+- **F3 accepted.** Preparation context ("picked a date", "bought a rope") adds to
+  a score but cannot anchor a crisis.
+- **F4 accepted.** `.*` is bounded to 80 characters. The adversarial worst
+  case is 5.2 ms.
+- **F5 partly accepted.** Added "life insurance", "die on this hill" and "like
+  this" guards. The other examples are recorded as limitations.
+- **F6 accepted.** The category is an approximate log label.
+- **F7 accepted.** The floors now sit one case below the measured values, with
+  a recorded procedure: precision ≥ 0.81, recall ≥ 0.50.
+- **F8 accepted.** The duplicate alternative is removed and the comments and
+  docstring are corrected.
+- All review examples became fixtures: 73 positive and 94 negative. The tune
+  split is 1.00/1.00.
+- Holdout, measured once: precision 0.830, recall 0.520. One true positive was
+  lost in exchange for correct handling of the mixed-context class.
+
+#### Detector pass targeted recheck
+
+Result: pass with documented limitations.
+
+- **Verified:** F1 to F3 are fixed, and third-party statements still cancel.
+- **P2-X2-F2, accepted:** anchors come from every match (`finditer`). "my
+  friend is suicidal and i am suicidal too" is now a positive fixture.
+- **P2-X2-F1, recorded as a known limitation:** clause scoping lets benign
+  context in an earlier clause miss a later one. These are false positives
+  only:
+  - "I would never, ever kill myself";
+  - "He said, I want to kill myself";
+  - "Years ago, I tried to kill myself";
+  - "For my essay, what's the most painless way to die";
+  - "My friend was drunk and said he wanted to die".
+
+  Letting earlier clauses cancel would bring back the missed-crisis class
+  fixed by F1.
+- **P2-X2-F3, noted:** benign 129,000-character input measured 5.5–8.7 ms in a
+  noisy run. The adversarial worst case is about 5 ms, and the test bound is
+  50 ms.
+- **P2-X2-F4, accepted:** stale moderation text in this plan is updated.
+- **Final detector metrics:**
+  - fixtures: 75 positive and 94 negative, all passing;
+  - tune: 1.00/1.00;
+  - holdout: precision 0.830, recall 0.520.
 
 ### Phase 3 — Chat-turn integration
 
@@ -540,30 +806,36 @@ note) and the latency constraint. Depends on Phase 2.
      `safety.ai_notice` if due. On a state failure, yield `kind: "start"` and
      log;
    - if local detection was positive, yield `safety.crisis_support`.
-5. **Moderation.** When `moderation_enabled` and a moderation client exists,
-   start the moderation task concurrently with the provider task.
-   - Surface a positive result through the `poll_extra_frame` path used for
-     TTS, at most once per turn and never when the local detector already
-     fired.
-   - After the provider finishes, wait at most 1 second for a pending result,
-     then cancel it before `run.completed`.
-   - Cancel it on the error path and in `finally`.
-   - Errors and timeouts log a content-free warning.
-6. **Tests** (`MockModelClient` and a stub moderation client):
+5. **Inline moderation (OpenAI Responses only).** When crisis detection is
+   effective and the provider is `OpenAIResponsesHTTPAgent`, the Responses
+   request builder adds `moderation={"model": "omni-moderation-latest"}` through
+   a provider option.
+   - The adapter reads `response.moderation.input` from the completed response.
+     A `moderation_result` whose `self-harm/intent` or
+     `self-harm/instructions` category is flagged, or whose `self-harm` score is
+     at or above a named threshold, becomes a content-free signal on the final
+     model-client result.
+   - The executor turns that signal into a `CRISIS_SUPPORT` domain event, at
+     most once per turn and never when the local detector already fired. It is
+     emitted before `run.completed`.
+   - An `error` result or a missing field logs a content-free warning.
+   - Other providers send no moderation field.
+6. **Tests** (`MockModelClient` and stubbed Responses results):
    - the order of notice and crisis frames relative to the first
      `user.response`;
    - a positive turn still streams a reply and persists normally, with the
      care note before the guardrail;
    - a negative turn has no extra frames;
    - a detector exception does not interrupt chat;
-   - moderation disabled sends nothing;
-   - moderation positive emits one frame, while error or timeout emits none;
-   - a slow moderation result stays within the grace bound;
+   - the Responses request carries the moderation field only when detection
+     is effective, and other providers never do;
+   - a flagged input result emits one frame, while an error or missing result
+     emits none;
    - with the global switch off, no notice, detection or moderation occurs,
      and the guardrail is still present;
    - incognito and memory-disabled turns still get the notice and detection.
-7. **Latency evidence.** A test asserts that the provider task starts without
-   awaiting moderation. Record local timing of the setup path with and without
+7. **Latency evidence.** Moderation rides on the provider request and adds no
+   awaited step. Record local timing of the setup path with and without
    detection.
 
 Checks: focused SSE and executor tests, then the full backend chain;
@@ -619,9 +891,6 @@ Requirements: R2, R4, R6, R7 (page) and R8 (UI). Depends on Phase 3.
    containing:
    - a crisis-resource region select ("Automatic (system: XX)" plus the
      table's regions);
-   - an "OpenAI moderation for crisis detection" toggle, shown only when
-     `moderation_available`, with a one-line note that messages are sent to
-     OpenAI when it is on;
    - an AI-notice reminder select, limited to at most the operator's interval
      (for example 1, 2 or 3 hours);
    - a "Safety and crisis protocol" link.
@@ -679,7 +948,7 @@ on Phase 4.
 1. **Protocol document.** Write `docs/safety/crisis-protocol.md` as a
    public-ready document covering every R7 item as implemented. Include
    operator configuration and the global switch, what is sent to OpenAI when
-   moderation is on, the resource sources with their verification dates, and
+   moderation scores are requested inline, the resource sources with their verification dates, and
    the limitations (pattern detection misses indirect phrasing; no age
    verification).
 2. **Current docs.** Update:
@@ -693,7 +962,11 @@ on Phase 4.
    - `docs/backend/features/memory-manager-and-episodic-memory.md`,
      `docs/backend/architecture/http-api.md` and `docs/backend/features/memory.md`:
      the sensitive-data rule and the trailing developer message (review
-     P1-R1-F6).
+     P1-R1-F6);
+   - `docs/backend/features/user-profiles-and-usernames.md`,
+     `docs/frontend/architecture/data-layer.md` and
+     `docs/backend/architecture/data-model.md`: the 18+ requirement,
+     `first_run_complete` and `companion_safety_state` (review P2-R1).
 3. **ADR and glossary.** Finalize ADR 0008 with status Accepted, pending the
    owner's review in gate G1. Add the glossary entries *AI notice*,
    *continuing interaction* and *companion guardrail*.
@@ -708,7 +981,7 @@ on Phase 4.
    - the crisis card in the main window and Quick Chat;
    - PiP shows nothing;
    - first-run gating;
-   - the Safety settings section: the region, moderation visibility and a
+   - the Safety settings section: the region and a
      shorter interval;
    - the Safety page;
    - with `ANIMAMA_COMPANION_SAFETY_ENABLED=false`: no notice and no card.

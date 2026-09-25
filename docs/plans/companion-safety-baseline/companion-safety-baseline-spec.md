@@ -54,7 +54,7 @@ Include:
 
 - A persona-proof companion guardrail at the end of the system instructions (R1).
 - An app-rendered AI notice with a defined cadence (R2).
-- A crisis protocol: local detection, opt-in moderation, a deterministic crisis
+- A crisis protocol: local detection, OpenAI Responses inline moderation, a deterministic crisis
   card with localized resources, and in-character care from the Anima (R3–R5).
 - An 18+ requirement and minors statement in first run, with an age-assurance
   seam (R6).
@@ -182,17 +182,18 @@ deterministic detector before the provider request is made.
   fictional material, song lyrics and discussion of other people are not crises
   on their own.
 
-**Opt-in moderation.** When the owner enables it (R8) and an OpenAI credential
-is configured, the user's message text is sent to OpenAI's moderation endpoint,
-using self-harm categories. That is the only added network call, and it goes to
-the vendor already selected.
+**Provider moderation (OpenAI Responses).** When the turn uses an OpenAI
+Responses model and crisis detection is enabled, the chat request asks the
+Responses API for its built-in moderation scores on the same request. There is
+no additional network call and no data leaves the device beyond the chat request
+itself. Other providers are currently unsupported and rely on the local
+detector.
 
-- It runs concurrently with the provider stream and never delays the first
-  streamed text.
-- A result that arrives after the reply finished may still show the crisis card
-  before the run completes. It waits no more than a bounded grace period of at
-  most 1 second.
-- A timeout, error or missing credential leaves only the local result; the
+- The scores arrive with the completed response, after the reply text, and never
+  delay streaming.
+- A self-harm flag on the turn's input shows the crisis card before the run
+  completes.
+- A missing or errored moderation result leaves only the local result; the
   failure is logged without message content.
 
 Any positive signal from either detector triggers the crisis card (R4). Neither
@@ -278,7 +279,7 @@ repository at `docs/safety/crisis-protocol.md`. It covers:
 - what is detected and how;
 - what the user sees;
 - the resources and their sources;
-- what data leaves the device (only when moderation is enabled);
+- what data leaves the device (nothing beyond the chat request; moderation is inline);
 - what persists (R9);
 - limitations;
 - the 18+ policy and minors statement;
@@ -300,14 +301,13 @@ Everything it always shows either adds protection or chooses resources:
 | Setting | Default | Condition |
 | --- | --- | --- |
 | Crisis-resource region | System locale's region | — |
-| OpenAI moderation | Off | Shown only when an OpenAI credential is configured |
 | AI-notice reminder interval | The operator's interval (3 hours by default) | The owner may only shorten it |
 | Safety page link | — | — |
 
 **Global safety switch.** One environment switch, on by default, turns the AI
-notice, crisis detection, moderation and the crisis card off or back on
-together. It lets an operator or developer toggle them in one place. When it is
-off, the moderation setting is hidden. It never affects the guardrail. It is
+notice, crisis detection (including provider moderation) and the crisis card
+off or back on together. It lets an operator or developer toggle them in one
+place. It never affects the guardrail. It is
 the only way to turn these features off; there is no in-app off switch.
 
 **Self-host operator environment settings.** These are documented as the
@@ -315,10 +315,9 @@ operator's responsibility and have no in-app UI. Beneath the global switch,
 they can individually:
 
 - Relax the reminder interval or disable the AI notice entirely.
-- Disable crisis detection. The local detector, moderation and the crisis card
-  are all turned off; the guardrail's crisis behavior remains.
+- Disable crisis detection. The local detector, provider moderation and the
+  crisis card are all turned off; the guardrail's crisis behavior remains.
 - Replace the crisis-resource table.
-- Default the moderation setting.
 
 When any safety override is active, startup logs a warning naming the override
 without secrets.
@@ -368,7 +367,7 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
 ## Constraints
 
 - **Accountless and local-first (ADR 0002).** One installation owner, no new
-  accounts or telemetry. The only network call is the opt-in moderation request.
+  accounts or telemetry, and no network call beyond the selected provider request.
 - **Request-local streamed chat (ADR 0003).** Detection and notice decisions are
   request-local, with no queues or workers. New SSE events are Animama domain
   events formatted by the route. `run.completed` ordering and the cancellation
@@ -431,11 +430,11 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
 - [ ] A positive turn emits the crisis event and still streams an Anima reply,
   with the care note placed before the guardrail. A negative turn changes
   nothing. Detector exceptions do not interrupt chat. *Evidence:* backend tests.
-- [ ] With moderation enabled:
-  - it runs concurrently, and a positive result shows the card;
-  - errors, timeouts or a missing credential do not affect the turn;
-  - nothing is sent when it is disabled.
-  *Evidence:* backend tests with a stubbed moderation client.
+- [ ] For OpenAI Responses turns with detection enabled, the request includes
+  inline moderation and a self-harm input flag shows the card; a missing or
+  errored result does not affect the turn; other providers and a disabled switch
+  send no moderation field. *Evidence:* backend tests with stubbed Responses
+  results, plus an opt-in live check.
 - [ ] The crisis card shows the configured region's resources, the fallback for
   an unknown region, and a Safety link. It persists until dismissed, is
   announced, and is visible in every canvas mode and in Quick Chat. *Evidence:*
@@ -450,7 +449,7 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
   minors statement and AI reminder. Completion records age status `adult` with
   source and time. *Evidence:* backend and frontend tests plus a manual first-run
   check.
-- [ ] Safety settings (region, moderation and a shorter interval) persist and
+- [ ] Safety settings (region and a shorter interval) persist and
   take effect. A stored interval longer than the operator's is ignored. No
   in-app control disables a safety feature. A packaged desktop build passes no
   safety environment variable to the backend. Environment
@@ -479,7 +478,9 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
 - Target the obligations in force now; the laws below are follow-ups.
 - Environment overrides may relax the notice and disable detection; the
   guardrail cannot be overridden.
-- Local detector plus opt-in OpenAI moderation. No model-reported flag.
+- Local detector plus OpenAI Responses inline moderation (owner direction during
+  implementation, superseding the opt-in separate moderation call and its
+  Settings toggle). No model-reported flag.
 - Normal persistence for crisis turns.
 - No referral counting yet.
 - New York minimum cadence with a 30-minute continuing-interaction gap, per
@@ -489,7 +490,7 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
 - Own vetted resource table.
 - Repo protocol document plus an in-app Safety page.
 - Moderation is a Settings toggle, default off.
-- An app-settings Safety section with region, moderation, a shorter-only
+- An app-settings Safety section with region, a shorter-only
   interval and the Safety link, added by the owner after planning. The owner
   then dropped any in-app relax or disable toggles: the global environment switch
   suffices.
@@ -507,7 +508,6 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
 - Crisis card behavior (R4): dismissal, not stored in history, and repeated on
   later positive turns.
 - Notice and card copy.
-- The moderation grace period of at most 1 second.
 - The detector time bound and fixture sizes.
 - An invalid operator table fails startup.
 - Memory Manager is included in the R9 sensitive-data rule.

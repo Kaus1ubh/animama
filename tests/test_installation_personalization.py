@@ -7,6 +7,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import delete, func, select
 
+from animama.adapters.repositories.sqlalchemy.companion_safety_repo import SQLAlchemyCompanionSafetyRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
@@ -15,8 +16,10 @@ from animama.app.services.owner_bootstrap_service import PROFILE_MEMORY_KIND, PR
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE
 from animama.domain.user_profile import UserProfile, UserProfileInvalidError
 from animama.local.installation_model import ORMInstallationSettings
+from animama.orm.companion_safety import ORMCompanionSafetyState
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
 from animama.server.installation_personalization import (
+    AdultConfirmationRequiredError,
     InstallationBootstrapIncompleteError,
     InstallationPersonalizationService,
     render_profile_document,
@@ -64,7 +67,9 @@ async def test_onboarding_is_atomic_idempotent_and_preserves_later_user_memory_e
     await _seed_personalization(async_session, owner_id)
     service = InstallationPersonalizationService(async_session)
 
-    completed = await service.complete_onboarding(principal_id=owner_id, display_name="  Ada   Lovelace ")
+    completed = await service.complete_onboarding(
+        principal_id=owner_id, display_name="  Ada   Lovelace ", adult_confirmed=True
+    )
     assert completed.display_name == "Ada Lovelace"
     installation = await async_session.get(ORMInstallationSettings, 1, populate_existing=True)
     profile = await SQLAlchemyUserProfileRepository(async_session).get_profile(owner_id)
@@ -75,7 +80,9 @@ async def test_onboarding_is_atomic_idempotent_and_preserves_later_user_memory_e
     assert entry.content == render_profile_document("Ada Lovelace")
     assert entry.metadata["installation_bootstrap"]["managed_entry_version"] == 2
 
-    replay = await service.complete_onboarding(principal_id=owner_id, display_name="Ignored retry")
+    replay = await service.complete_onboarding(
+        principal_id=owner_id, display_name="Ignored retry", adult_confirmed=True
+    )
     assert replay == completed
     assert (await _profile_memory(async_session, owner_id)).version == 2
 
@@ -112,6 +119,7 @@ async def test_precommit_failure_rolls_back_profile_memory_and_timestamp(async_s
         await InstallationPersonalizationService(async_session, before_commit=fail_before_commit).complete_onboarding(
             principal_id=owner_id,
             display_name="Ada",
+            adult_confirmed=True,
         )
 
     installation = await async_session.get(ORMInstallationSettings, 1, populate_existing=True)
@@ -129,7 +137,7 @@ async def test_invalid_onboarding_name_leaves_setup_incomplete(async_session, na
 
     with pytest.raises(UserProfileInvalidError):
         await InstallationPersonalizationService(async_session).complete_onboarding(
-            principal_id=owner_id, display_name=name
+            principal_id=owner_id, display_name=name, adult_confirmed=True
         )
 
     installation = await async_session.get(ORMInstallationSettings, 1, populate_existing=True)
@@ -150,7 +158,7 @@ async def test_previously_skipped_setup_can_gain_a_name_without_resetting_owner_
     await async_session.commit()
 
     service = InstallationPersonalizationService(async_session)
-    completed = await service.complete_onboarding(principal_id=owner_id, display_name="Ada")
+    completed = await service.complete_onboarding(principal_id=owner_id, display_name="Ada", adult_confirmed=True)
     assert completed.display_name == "Ada"
     assert completed.first_run_completed_at == original_timestamp
     await async_session.refresh(installation)
@@ -159,7 +167,9 @@ async def test_previously_skipped_setup_can_gain_a_name_without_resetting_owner_
     entry = await _profile_memory(async_session, owner_id)
     assert entry is not None and entry.content == render_profile_document("Ada")
 
-    replay = await service.complete_onboarding(principal_id=owner_id, display_name="Ignored retry")
+    replay = await service.complete_onboarding(
+        principal_id=owner_id, display_name="Ignored retry", adult_confirmed=True
+    )
     assert replay == completed
     assert (await _profile_memory(async_session, owner_id)).version == 2
 
@@ -175,12 +185,14 @@ async def test_lost_committed_onboarding_response_replays_from_a_new_session(
     committed = await InstallationPersonalizationService(async_session).complete_onboarding(
         principal_id=owner_id,
         display_name="Ada",
+        adult_confirmed=True,
     )
 
     async with async_session_factory() as retry_session:
         replayed = await InstallationPersonalizationService(retry_session).complete_onboarding(
             principal_id=owner_id,
             display_name="Ignored retry",
+            adult_confirmed=True,
         )
         version_count = await retry_session.scalar(
             select(func.count()).select_from(ORMMemoryEntryVersion).where(ORMMemoryEntryVersion.user_id == owner_id)
@@ -200,6 +212,7 @@ async def test_onboarding_refuses_to_complete_without_bootstrap_profile_memory(a
         await InstallationPersonalizationService(async_session).complete_onboarding(
             principal_id=owner_id,
             display_name="Ada",
+            adult_confirmed=True,
         )
 
     installation = await async_session.get(ORMInstallationSettings, 1, populate_existing=True)
@@ -217,6 +230,7 @@ async def test_concurrent_completion_has_one_durable_winner(async_session, async
             return await InstallationPersonalizationService(session).complete_onboarding(
                 principal_id=owner_id,
                 display_name=name,
+                adult_confirmed=True,
             )
 
     first, second = await asyncio.gather(complete("Ada"), complete("Grace"))
@@ -228,3 +242,20 @@ async def test_concurrent_completion_has_one_durable_winner(async_session, async
         )
     assert profile is not None and profile.display_name in {"Ada", "Grace"}
     assert version_count == 2
+
+
+async def test_first_run_requires_and_records_the_adult_confirmation(async_session) -> None:
+    owner_id = str(uuid4())
+    await _seed_personalization(async_session, owner_id)
+    service = InstallationPersonalizationService(async_session)
+
+    with pytest.raises(AdultConfirmationRequiredError):
+        await service.complete_onboarding(principal_id=owner_id, display_name="Ada", adult_confirmed=False)
+    assert await SQLAlchemyCompanionSafetyRepository(async_session).get_age_status(owner_id) == "unknown"
+
+    await service.complete_onboarding(principal_id=owner_id, display_name="Ada", adult_confirmed=True)
+    row = await async_session.get(ORMCompanionSafetyState, owner_id, populate_existing=True)
+    assert row is not None
+    assert row.age_status == "adult"
+    assert row.age_status_source == "self_attestation"
+    assert row.age_status_recorded_at is not None

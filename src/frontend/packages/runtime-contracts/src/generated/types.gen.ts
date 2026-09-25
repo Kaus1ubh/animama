@@ -939,6 +939,30 @@ export type BodySaveVoiceContent = {
 };
 
 /**
+ * CompanionSafetyCapability
+ *
+ * Operator safety configuration; owner preferences are in user settings.
+ */
+export type CompanionSafetyCapability = {
+    /**
+     * Ai Notice Enabled
+     */
+    ai_notice_enabled: boolean;
+    /**
+     * Crisis Detection Enabled
+     */
+    crisis_detection_enabled: boolean;
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Operator Reminder Hours
+     */
+    operator_reminder_hours: number;
+};
+
+/**
  * CreateAnimaRequest
  */
 export type CreateAnimaRequest = {
@@ -993,6 +1017,74 @@ export type CreateMissingStarterRepair = {
      * Starter Id
      */
     starter_id: 'starter:annie' | 'starter:caitlyn';
+};
+
+/**
+ * CrisisContact
+ */
+export type CrisisContact = {
+    /**
+     * Kind
+     */
+    kind: 'phone' | 'sms' | 'chat';
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Value
+     */
+    value: string;
+};
+
+/**
+ * CrisisResourceRegion
+ *
+ * Resources for one region; ``source_url`` and ``verified_on`` record the review.
+ */
+export type CrisisResourceRegion = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Emergency Number
+     */
+    emergency_number?: string | null;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Services
+     */
+    services: Array<CrisisService>;
+    /**
+     * Source Url
+     */
+    source_url: string | null;
+    /**
+     * Verified On
+     */
+    verified_on: string;
+};
+
+/**
+ * CrisisService
+ */
+export type CrisisService = {
+    /**
+     * Contacts
+     */
+    contacts: Array<CrisisContact>;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Name
+     */
+    name: string;
 };
 
 /**
@@ -3369,6 +3461,35 @@ export type PyContentSelection = {
 };
 
 /**
+ * PyCrisisResourceRegionOption
+ */
+export type PyCrisisResourceRegionOption = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Label
+     */
+    label: string;
+};
+
+/**
+ * PyCrisisResources
+ */
+export type PyCrisisResources = {
+    /**
+     * Preferred Region
+     */
+    preferred_region: string | null;
+    /**
+     * Regions
+     */
+    regions: Array<PyCrisisResourceRegionOption>;
+    resolved: CrisisResourceRegion;
+};
+
+/**
  * PyElevenLabsAudioResponse
  */
 export type PyElevenLabsAudioResponse = {
@@ -5124,6 +5245,12 @@ export type PyMusicTrackPlanRequest = {
  * PyOnboardingCompleteRequest
  */
 export type PyOnboardingCompleteRequest = {
+    /**
+     * Adult Confirmed
+     *
+     * The owner confirms they are 18 or older; first run requires true.
+     */
+    adult_confirmed: boolean;
     /**
      * Display Name
      */
@@ -7228,6 +7355,7 @@ export type RecommendedAnimaActions = {
  * RuntimeCapabilities
  */
 export type RuntimeCapabilities = {
+    companion_safety: CompanionSafetyCapability;
     /**
      * Offline Speech Asset Version
      */
@@ -11570,6 +11698,36 @@ export type CompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostResponses = 
 };
 
 export type CompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostResponse = CompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostResponses[keyof CompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostResponses];
+
+export type GetCrisisResourcesV1SafetyCrisisResourcesGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Locale
+         */
+        locale?: string | null;
+    };
+    url: '/v1/safety/crisis-resources';
+};
+
+export type GetCrisisResourcesV1SafetyCrisisResourcesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCrisisResourcesV1SafetyCrisisResourcesGetError = GetCrisisResourcesV1SafetyCrisisResourcesGetErrors[keyof GetCrisisResourcesV1SafetyCrisisResourcesGetErrors];
+
+export type GetCrisisResourcesV1SafetyCrisisResourcesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyCrisisResources;
+};
+
+export type GetCrisisResourcesV1SafetyCrisisResourcesGetResponse = GetCrisisResourcesV1SafetyCrisisResourcesGetResponses[keyof GetCrisisResourcesV1SafetyCrisisResourcesGetResponses];
 
 export type ListSceneEffectsData = {
     body?: never;

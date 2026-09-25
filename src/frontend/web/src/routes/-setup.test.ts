@@ -58,9 +58,21 @@ describe("local first-run setup", () => {
     );
     expect(html).toContain('type="checkbox"');
     expect(html).not.toContain("checked=");
+    expect(html).toContain("I am 18 or older");
     expect(html).not.toContain(">Skip<");
     expect(html).toContain("Install offline speech recognition");
     expect(fixture.run).not.toHaveBeenCalled();
     expect(fixture.completeOnboarding).not.toHaveBeenCalled();
+  });
+
+  it("requires the 18+ confirmation and states the AI and minors notices", () => {
+    const html = renderToStaticMarkup(createElement(Route.options.component!));
+    expect(html).toContain("Animas are AI companions, not people.");
+    expect(html).toContain("may not be suitable for some minors");
+    expect(html).toMatch(
+      /<input[^>]*type="checkbox"[^>]*name="adult-confirmed"/u,
+    );
+    expect(html).not.toMatch(/professional help/iu);
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Continue<\/button>/u);
   });
 });
