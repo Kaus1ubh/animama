@@ -54,6 +54,11 @@ import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
 import { APPEARANCE_COLOR_KEYS } from "@/lib/theme/appearance-overrides";
 import { BEHAVIOR_FLAGS } from "@/lib/settings/behavior-defaults";
 import {
+  AboutVersionSetting,
+  CopyDiagnosticsSetting,
+  OpenLogsSetting,
+} from "@/ui/settings/AboutSettings";
+import {
   AppBehaviorSetting,
   behaviorLabel,
   ResetAppSettingsSetting,
@@ -1155,6 +1160,14 @@ export function ApplicationSettingsModal({
       ),
     },
     {
+      id: "about-version",
+      section: "About",
+      group: "Animama",
+      label: "Version",
+      keywords: ["about", "version", "platform", "build"],
+      render: () => <AboutVersionSetting />,
+    },
+    {
       id: "updates",
       section: "About",
       label: "Desktop updates",
@@ -1163,6 +1176,23 @@ export function ApplicationSettingsModal({
       render: () => (
         <DesktopUpdatesPanel className={FLAT_SETTINGS_PANEL_CLASS_NAME} />
       ),
+    },
+    {
+      id: "open-logs",
+      section: "About",
+      group: "Diagnostics",
+      label: "Open logs folder",
+      keywords: ["logs", "troubleshooting", "debug", "support"],
+      hidden: !platform.isDesktop || !platform.desktopBridge.runtime,
+      render: () => <OpenLogsSetting />,
+    },
+    {
+      id: "copy-diagnostics",
+      section: "About",
+      group: "Diagnostics",
+      label: "Copy diagnostics summary",
+      keywords: ["diagnostics", "bug report", "support", "troubleshooting"],
+      render: () => <CopyDiagnosticsSetting />,
     },
     {
       id: "appearance-mode",

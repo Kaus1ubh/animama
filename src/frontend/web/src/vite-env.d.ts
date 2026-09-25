@@ -2,6 +2,8 @@
 
 /** True only for the development server, never an ordinary or desktop build. */
 declare const __ANIMAMA_DEV_BUILD__: boolean;
+/** App version from web/package.json (or VITE_APP_VERSION), set at build time. */
+declare const __ANIMAMA_APP_VERSION__: string;
 
 declare module "*?url" {
   const url: string;
@@ -42,7 +44,6 @@ interface ImportMetaEnv {
   readonly VITE_DISABLE_WEBUI_TRACES?: string;
   readonly VITE_ENABLE_DEBUG_PANEL?: string;
   readonly VITE_APP_ENV?: string;
-  readonly VITE_APP_VERSION?: string;
 }
 
 interface ImportMeta {

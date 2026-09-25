@@ -89,7 +89,7 @@ Boundaries:
 - [x] Phase 3 (#117): R4 Microphone implemented and reviewed (#1, #2 pass). **Owner hardware acceptance pending.**
 - [x] Phase 4 (#118): R5 General defaults. Reviewed (#1, #2 pass).
 - [x] Phase 5 (#119): R6–R8 inheritance, Markdown persistence, reset. Reviewed (#1, #2 pass).
-- [ ] Phase 6: R9 About & diagnostics.
+- [x] Phase 6 (#120): R9 About & diagnostics. Reviewed (#1–#3, pass). **Owner desktop check pending** (About/logs/copy).
 - [ ] Phase 7: documentation, glossary, final integration review, PR handoff.
 
 ## Surprises & Discoveries
@@ -760,13 +760,90 @@ changes.
 Rendered checks: About in the browser; desktop via `desktop:dev` against the
 stack if available. Otherwise record the desktop check as not performed.
 
+Results:
+
+- **Version approach taken:** a build-time `__ANIMAMA_APP_VERSION__` from
+  `VITE_APP_VERSION` if set, otherwise the web `package.json` version.
+  - No bridge field was added. `app-version.test.ts` enforces that the web and
+    desktop package versions match, because electron-builder takes the app
+    version from `desktop/package.json`.
+  - The dev stack shows "local" because `docker-compose.development.yml` sets
+    `VITE_APP_VERSION=local`.
+  - The production build embeds `0.1.0` (verified in the bundle).
+- **Delivered:**
+  - About → "Animama" group: Version and platform, plus the existing Desktop
+    updates panel.
+  - About → "Diagnostics" group:
+    - Open logs folder, using the existing `runtime.openLogs`, desktop only;
+    - Copy diagnostics summary: an allow-listed builder
+      (`lib/diagnostics/summary.ts`) with sanitised tokens covering version,
+      platform, runtime state/code, installed pack versions and whether each
+      provider is configured.
+  - `copyText` falls back from the Clipboard API to selecting a textarea kept
+    inside the dialog, verifies the selection, and restores focus. This covers
+    the desktop permission handler, which allows only media.
+- **Local checks:**
+  - `pnpm check` pass;
+  - `pnpm web:lint` pass;
+  - `pnpm web:test` 301 files / 1,797 tests pass;
+  - `pnpm build` pass;
+  - after repairs: diagnostics tests (7) pass, `tsc -b` and eslint pass;
+  - production-delivery tests pass (reviewer).
+- **Browser (web):**
+  - About shows "local" and "Web browser";
+  - the copied summary contains only version and platform;
+  - the fallback toast path was exercised. The pane cannot deliver a trusted
+    click for a real fallback copy.
+- **Owner acceptance pending:** in the desktop shell, check that About shows
+  the version and platform, that Open logs works, and that Copy summary puts
+  the text on the clipboard. Check the clipboard contents, not just the toast.
+
 #### Code Review #1 Findings
 
-Pending.
+- **P6-1 (blocking).** The desktop permission handler may deny
+  `navigator.clipboard.writeText`.
+- **P6-2.** Record the version approach.
+- **P6-3.** The pack version shown was the offered version.
+- **P6-4.** Empty-env handling.
+- **P6-5.** Stale `ImportMetaEnv` key.
+- **P6-6.** Extra pack subscription.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P6-1: accepted.** A clipboard fallback was added without widening
+  `guards.ts`.
+- **P6-2 to P6-5: accepted.**
+- **P6-6: acknowledged.**
+
+#### Code Review #2 Findings (repair round 1)
+
+- **P6-7 (blocking).** The fallback textarea was appended to `document.body`,
+  where the dialog focus trap steals focus, and `execCommand` could report a
+  false success. This was reviewed before the in-dialog container fix landed.
+
+#### Code Review #2 Revisions
+
+- **P6-7: accepted.**
+  - The textarea is appended inside the focused element's dialog.
+  - The selection is verified before `execCommand`.
+  - Focus is restored.
+  - The docstring now states the reliance on transient activation.
+  - Three unit tests cover the Clipboard API, the fallback inside the dialog
+    and failure cleanup.
+- The final targeted recheck (round 2) follows.
+
+#### Code Review #3 Findings (repair round 2)
+
+Pass.
+
+- **P6-7:** resolved.
+- **Optional:** the fake-DOM tests do not exercise the real focus trap, which
+  is covered by the owner desktop check.
+
+#### Code Review #3 Revisions
+
+- No change.
+- The repair budget for this phase is exhausted.
 
 ### Phase 7: Documentation, glossary and integration
 

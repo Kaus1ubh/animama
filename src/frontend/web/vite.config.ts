@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
@@ -21,6 +22,18 @@ import {
 
 const webRoot = fileURLToPath(new URL(".", import.meta.url));
 const webSrc = fileURLToPath(new URL("./src", import.meta.url));
+/**
+ * App version shown in App Settings → About. The web and desktop packages share
+ * one version (checked by `app-version.test.ts`); an explicit
+ * VITE_APP_VERSION still wins for custom builds.
+ */
+const appVersion =
+  process.env.VITE_APP_VERSION ||
+  (
+    JSON.parse(
+      readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+    ) as { version: string }
+  ).version;
 const publicPackagesRoot = fileURLToPath(
   new URL("../packages", import.meta.url),
 );
@@ -176,6 +189,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
       ...(command === "build" || isPreview
         ? { "import.meta.env.VITE_ENABLE_DEBUG_PANEL": JSON.stringify("false") }
         : {}),
+      __ANIMAMA_APP_VERSION__: JSON.stringify(appVersion),
       __CLIENT_PARAKEET_MODEL_BASE_URL__: JSON.stringify(
         clientParakeetModelBaseUrl,
       ),
