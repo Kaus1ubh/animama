@@ -3,7 +3,7 @@
 Source agreement: [raymond-van/animama#108](https://github.com/raymond-van/animama/issues/108)
 as published on 2026-09-25, plus the owner decisions dated 2026-09-25 in the
 [Decision Log](#decision-log).
-Authorized scope: plan approved by the owner on 2026-09-25; Phase 1 authorized.
+Authorized scope: plan approved by the owner on 2026-09-25; Phases 1–3 authorized.
 Later phases need separate authorization. Nothing in this plan authorizes
 publishing a release.
 
@@ -66,9 +66,9 @@ Commands run from `src/frontend` unless stated. Relevant code:
 
 ## Progress
 
-- [ ] Phase 1: Security audit and repeatable candidate scan. Implemented; reviews #1–#3 complete (pass after 2 repair rounds). Awaiting owner acceptance of finding dispositions (scanner download approved 2026-09-25).
-- [ ] Phase 2: Distribution policy and build-time selection. Not started.
-- [ ] Phase 3: Installed-app transport for R2. Not started.
+- [x] Phase 1: Security audit and repeatable candidate scan. Owner accepted the finding dispositions and merged [#112](https://github.com/raymond-van/animama/pull/112) (merge `76d4472`) on 2026-09-25.
+- [ ] Phase 2: Distribution policy and build-time selection. Implemented with Phase 3 on `build/r2-release-selection`; reviews #1–#2 pass; awaiting merge approval.
+- [ ] Phase 3: Installed-app transport for R2. Implemented with Phase 2; reviews #1–#2 pass; awaiting merge approval.
 - [ ] Phase 4: R2 publisher and release workflow. Not started.
 - [ ] Phase 5: Cloudflare configuration, live bucket exercise and docs. Not started. Owner gate: dashboard settings; approval before any test upload.
 - [ ] Final integration review. Not started.
@@ -111,7 +111,23 @@ Commands run from `src/frontend` unless stated. Relevant code:
   purged by the OS, breaking `uv` builds. Setting `UV_CACHE_DIR` to a fresh
   directory worked around it without touching the shared cache.
 
+- 2026-09-25 (Phases 2–3): `electron-updater` 6.8.9's generic provider adds a
+  `noCache=<base-32 time>` query to feed requests, because our request headers
+  carry no authorization. It resolves feed file paths relative to the base
+  folder and supplies no release tag. So R2 feeds carry their own `tag`, and the
+  updater allowlist accepts exactly that query on `latest-mac.yml`.
+- 2026-09-25 (Phases 2–3): The runtime already verifies `update-policy.json`
+  beside the pack catalog, so `loadPackCatalog` reads the sealed distribution
+  there. No supervisor or `main.ts` plumbing is needed for pack URLs.
+
 ## Decision Log
+
+- 2026-09-25, owner: accepted the Phase 1 finding dispositions and approved
+  merging #112. Hosted Validation did not run: GitHub Actions has produced no
+  runs since 2026-09-20, so only local validation is recorded.
+- 2026-09-25, owner: Phases 2 and 3 ship together on one branch and PR. The pack
+  producer validates manifests with the runtime's URL check, so an R2-default
+  Phase 2 cannot pass without Phase 3.
 
 - 2026-09-25, owner: Cloudflare R2 is the default distribution; GitHub
   `animama-releases` remains a supported alternate.
@@ -415,15 +431,92 @@ Completion: `pnpm desktop:runtime:stage -- --platform darwin --arch arm64`
 produces an R2 catalog and policy by default and GitHub values with
 `ANIMAMA_RELEASE_DISTRIBUTION=github`.
 
-Results: _pending_
+Results (2026-09-25, delivered together with Phase 3):
+
+Implemented as planned, with these adjustments:
+
+- `release-policy.json` also records the R2 `bucket` for Phase 4. Validation
+  rejects a non-HTTPS, ported, credentialed, query or trailing-slash base URL.
+- `loadReleasePolicy` returns `distribution`, `packReleaseBase` and a v2
+  `updatePolicy`. `stagedPackRelease()` injects both the derived pack folder and
+  the distribution into the pack producer; `feature-pack-releases.json` no
+  longer has `release_base_url`, and a leftover value is rejected.
+- `release-macos.mjs` (planned for Phase 3) moved here because it is a build-time
+  consumer:
+    - It writes a generic or GitHub `publish` entry.
+    - It checks pack URLs against the selected release folder.
+    - It refuses a selection that differs from the staged policy.
+    - It records the distribution in `signing-report.json`.
+- `publish-macos.mjs` refuses a candidate whose recorded distribution differs
+  from the selection, and refuses R2 candidates until Phase 4.
+- The inert `distributions: null` development mode was removed (review F3).
+  Staging always needs a configured distribution, which the committed policy
+  provides.
+
+Evidence: a real default stage, audit and unsigned package produced an R2
+`update-policy.json` and the pack URL
+`https://downloads.animama.ai/desktop/v0.1.0/parakeet-stt-0.1.0-data-only.tar.zst`.
+`ANIMAMA_RELEASE_DISTRIBUTION=github` produced the GitHub release URL. An
+invalid value fails.
 
 #### Code Review #1 Findings
 
-_pending_
+Scope: Phases 2 and 3 together (uncommitted tree over `76d4472`), with
+independent analysis and read-only checks. All checks passed (287 tests,
+`pnpm check`, knip, Prettier, `git diff --check`, distribution selection).
+
+- **P23-R1-F1 (blocking):** the publisher decided R2 or GitHub from the
+  environment, not the candidate. A default (R2) candidate published with
+  `ANIMAMA_RELEASE_DISTRIBUTION=github` would have uploaded an R2-sealed feed and
+  packs to GitHub.
+- **P23-R1-F2 (blocking):** only the notarization-resume path recorded the
+  distribution in `signing-report.json`; the normal signing hook did not.
+- **P23-R1-F3 (blocking):** the inert `distributions: null` mode no longer
+  produced a usable stage; its branch and comments were dead or misleading.
+- **P23-R1-F4 (blocking):** the docs described moving users between transports
+  by a release on the old distribution, which the feed format cannot express.
+- Non-blocking: GitHub-only wording in `overview.md`, the next-steps text and
+  `src/frontend/AGENTS.md`; CI release jobs set no selection; `PackSource`
+  declared between imports; duplicated URL and tag checks; no explicit "GitHub
+  policy rejects an R2 feed URL" case; the resume path read the distribution from
+  the environment; an empty variable means `r2` (intended).
 
 #### Code Review #1 Revisions
 
-_pending_
+- **F1 accepted, fixed.** The publisher reads the candidate's recorded
+  distribution (`candidateDistribution`, from `signing-report.json`) and refuses
+  a missing or different one before any network request, then refuses R2. Tests
+  cover R2, mismatch and missing.
+- **F2 accepted, fixed.** Both signing-report writers record
+  `sealedDistribution(runtime)`, read from the app's staged `update-policy.json`
+  rather than the environment (also fixing the resume-path note). The runtime
+  manifest already covers `update-policy.json`, so no separate manifest field is
+  added.
+- **F3 accepted, fixed by removal.** The inert mode is gone: staging always
+  seals a configured distribution, and `loadPackCatalog` rejects a null one. Only
+  an unpackaged runtime without a staged policy keeps the generic GitHub rule.
+  Comments corrected; test added.
+- **F4 accepted.** The docs now state that the tooling cannot yet produce a
+  migration release, and the Phase 4 inputs record it.
+- Non-blocking fixes: `overview.md` and the next-steps text updated;
+  `PackSource` moved below the imports; the release-tag check is shared
+  (`isReleaseTag`); a GitHub-policy test now rejects an R2 feed URL. Deferred:
+  `src/frontend/AGENTS.md` wording to the Phase 5 docs sweep; the CI selection to
+  Phase 4; the three base-URL validators remain (separate `.mjs`, runtime and
+  producer boundaries).
+- Evidence: `pnpm desktop:test` 290 passed; `pnpm desktop:check` clean.
+- Repair rounds used: 1 of 2.
+
+#### Code Review #2 Findings
+
+Targeted recheck: P23-R1-F1..F4 and the accepted non-blocking fixes are all
+resolved, with no regressions. One non-blocking note: `sealedDistribution` in
+`release-policy.mjs` throws on a missing file, while the private catalog helper
+of the same name returns null (naming only).
+
+#### Code Review #2 Revisions
+
+- Naming note deferred (no behavior impact). Result: **pass**.
 
 ### Phase 3: Installed-app transport for R2
 
@@ -457,15 +550,32 @@ wrong prefix. `pnpm desktop:test`, `pnpm desktop:check`, `pnpm check`.
 Completion: both transports pass. A GitHub-policy app rejects R2 URLs and
 vice versa.
 
-Results: _pending_
+Results (2026-09-25, delivered together with Phase 2):
+
+Implemented as planned, with these adjustments:
+
+- `validateUpdateCandidate` and the update controller take the distribution;
+  `main.ts` passes the sealed one. R2 feeds must list
+  `v<version>/Animama-<version>-arm64.{zip,dmg}`, and GitHub feeds bare names.
+- The pack URL check (`downloadUrl`, `validateManifest`) takes the
+  distribution. R2 accepts only `<base>/v<semver>/<name>.tar.zst` and follows no
+  redirects. GitHub accepts only the configured repository. Unconfigured
+  development builds keep the historical any-repository GitHub rule.
+- `feature-pack.schema.json` documents the distribution-dependent URL.
+
+Evidence: the packaged unsigned app's own `loadPackCatalog` accepted its sealed
+R2 catalog. `pnpm desktop:test` 14 files / 287 tests passed; `pnpm check`
+exit 0; knip clean for changed modules; Prettier clean for changed files;
+`git diff --check` clean. Not run: a live update or pack download (nothing is
+published yet; Phase 5) and a signed build.
 
 #### Code Review #1 Findings
 
-_pending_
+Reviewed together with Phase 2; see the Phase 2 review records.
 
 #### Code Review #1 Revisions
 
-_pending_
+See Phase 2.
 
 ### Phase 4: R2 publisher and release workflow
 
@@ -500,12 +610,20 @@ Intended changes:
    `Cache-Control: no-cache`, and verify the anonymous read-back.
 8. Error output uses bounded messages only: no credentials, signed headers,
    object URLs with query strings, or host paths.
-9. Scan gate (also call `assertPrivatePythonInstallDir()` before PyInstaller
-   expansion; P1-R3-F2): require a passing `release-scan.json` whose `files` cover every
-   uploaded file by SHA-256 (stable promotion rewrites the index). The home-path
-   needle only reflects the scanning machine, so scan where the candidate was
-   built; a CI-built candidate needs a CI-side scan with runner paths reviewed.
-10. Workflow: preview and publication jobs pass the R2 secrets or the GitHub
+9. Carry-over from Phases 2–3:
+    - The publisher already refuses a candidate whose `signing-report.json`
+      distribution differs from the selection. Extend it for R2.
+    - The CI release workflow sets no `ANIMAMA_RELEASE_DISTRIBUTION`, so CI
+      candidates are R2.
+    - A transport-migration release would need a feed in the old distribution's
+      format pointing at a build sealed for the new one. Decide whether to
+      support it.
+10. Scan gate (also call `assertPrivatePythonInstallDir()` before PyInstaller
+    expansion; P1-R3-F2): require a passing `release-scan.json` whose `files` cover every
+    uploaded file by SHA-256 (stable promotion rewrites the index). The home-path
+    needle only reflects the scanning machine, so scan where the candidate was
+    built; a CI-built candidate needs a CI-side scan with runner paths reviewed.
+11. Workflow: preview and publication jobs pass the R2 secrets or the GitHub
     token depending on the recorded distribution. The environment/secret table
     in `releases.md` gains the R2 entries. Publication stays unconfigured by
     default.

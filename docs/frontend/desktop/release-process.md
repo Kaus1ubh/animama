@@ -18,7 +18,7 @@ remain pending for the exact current candidate.
 | Gate                          | What must be true before continuing                                                                                                                                                                                                                                                             |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Inputs                        | Apple Team ID, Developer ID identity and local notarization Keychain profile are configured; content/dependency terms and notices are reviewed. Keep credentials out of source and chat.                                                                                                        |
-| Candidate coordinates         | Configure the intended repository and matching versioned pack URLs. They may name the private distribution repository; no GitHub token, visibility check or upload is needed to build.                                                                                                          |
+| Candidate coordinates         | Select the distribution with `ANIMAMA_RELEASE_DISTRIBUTION` (default `r2`) and keep it identical for stage, audit and `desktop:dist:mac`. Pack and update URLs derive from it; no token, visibility check or upload is needed to build.                                                         |
 | Reviewed packs                | The exact Parakeet inventory is approved. Expanded content and document processing are explicitly deferred from the first release; preserve the signed/notarized worker as future review input without advertising or approving it.                                                             |
 | Candidate                     | From reviewed release inputs on `main`, stage, audit and build the local signed DMG/ZIP. Check sizes, hashes, signatures, notarization and notices. A build never uploads to GitHub; notarization sends the binaries to Apple.                                                                  |
 | Automated acceptance          | Run the required-name setup smoke on a fresh macOS account/runner. It rejects blank input before named completion. Explicit provider-key approval is needed for real chat calls. Never reset the maintainer's normal desktop profile.                                                           |
@@ -51,7 +51,7 @@ The signed helper and reviewed pack/core inputs must already be configured.
 Public visibility and release-repository API availability are not candidate build
 preconditions; dependency downloads and Apple notarization still need network access.
 The embedded update and pack URLs remain pinned and anonymous:
-while their repository is private, those network features cannot succeed. Core
+until the selected destination serves them publicly, those network features cannot succeed. Core
 startup and local functionality must still work. Do not embed tokens, add runtime
 feed/catalog overrides, or call a manually copied pack a verified download.
 Do not rebuild while an exact candidate is under acceptance: a signature or

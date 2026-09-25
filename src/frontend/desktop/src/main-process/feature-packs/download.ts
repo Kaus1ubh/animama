@@ -4,15 +4,23 @@ import { request as httpRequest, type IncomingMessage } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { atomicWrite } from "../runtime/atomic-file.js";
 import { RuntimeError } from "../runtime/errors.js";
-import { downloadUrl, readBoundedJson, type PackManifest } from "./catalog.js";
+import {
+  downloadUrl,
+  readBoundedJson,
+  type PackCatalog,
+  type PackManifest,
+} from "./catalog.js";
 import { hashFile } from "./files.js";
+
+/** Which URLs this build may fetch packs from. */
+type PackSource = Pick<PackCatalog, "development" | "distribution">;
 
 function strongEtag(value: unknown): value is string {
   return typeof value === "string" && /^"[\x21\x23-\x7e]{1,510}"$/u.test(value);
 }
 async function responseFor(
   url: URL,
-  development: boolean,
+  source: PackSource,
   headers: Record<string, string>,
   signal: AbortSignal,
   redirects = 0,
@@ -40,12 +48,11 @@ async function responseFor(
     if (redirects >= 5 || !response.headers.location)
       throw new RuntimeError("pack_download_redirect");
     return responseFor(
-      downloadUrl(
-        new URL(response.headers.location, url).href,
-        development,
-        true,
-      ),
-      development,
+      downloadUrl(new URL(response.headers.location, url).href, {
+        ...source,
+        redirect: true,
+      }),
+      source,
       headers,
       signal,
       redirects + 1,
@@ -59,6 +66,7 @@ export async function downloadPack(options: {
   manifest: PackManifest;
   partial: string;
   development: boolean;
+  distribution: PackCatalog["distribution"];
   signal: AbortSignal;
   progress(bytes: number): void;
 }): Promise<void> {
@@ -89,10 +97,14 @@ export async function downloadPack(options: {
     // A partial without validated resume metadata has no reuse authority.
   }
   signal.throwIfAborted();
-  const url = downloadUrl(manifest.url, options.development);
+  const source = {
+    development: options.development,
+    distribution: options.distribution,
+  };
+  const url = downloadUrl(manifest.url, source);
   let response = await responseFor(
     url,
-    options.development,
+    source,
     {
       "Accept-Encoding": "identity",
       ...(offset && etag
@@ -115,7 +127,7 @@ export async function downloadPack(options: {
     offset = 0;
     response = await responseFor(
       url,
-      options.development,
+      source,
       { "Accept-Encoding": "identity" },
       signal,
     );

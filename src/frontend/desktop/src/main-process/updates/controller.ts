@@ -3,6 +3,7 @@ import { RuntimeError, runtimeErrorCode } from "../runtime/errors.js";
 import {
   updateFreeBytes,
   validateUpdateCandidate,
+  type ReleaseDistribution,
   type UpdateCandidate,
 } from "./policy.js";
 
@@ -18,6 +19,8 @@ export type UpdateAdapter = {
 };
 export type UpdateControllerOptions = {
   version: string;
+  /** The build's sealed distribution, which fixes where feed files may live. */
+  distribution: ReleaseDistribution;
   adapter: UpdateAdapter;
   disk(): Promise<{ free: bigint; databaseBytes: number }>;
   preflight(candidate: UpdateCandidate): Promise<void>;
@@ -117,6 +120,7 @@ export class DesktopUpdateController {
       this.candidate = validateUpdateCandidate(
         result.info,
         this.options.version,
+        this.options.distribution,
       );
       const disk = await this.options.disk();
       this.minimumFreeBytes = updateFreeBytes(

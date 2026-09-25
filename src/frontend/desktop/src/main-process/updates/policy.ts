@@ -7,9 +7,13 @@ import { RuntimeError } from "../runtime/errors.js";
 const MAX_UPDATE_BYTES = 750 * 1024 ** 2;
 const MAX_INSTALLED_BYTES = 1536 * 1024 ** 2;
 const UPDATE_RESERVE_BYTES = 256 * 1024 ** 2;
+/** Where this build's installers, update feed and packs are published; fixed at build time. */
+export type ReleaseDistribution =
+  | { kind: "r2"; base_url: string }
+  | { kind: "github"; owner: string; repo: string };
 export type UpdatePolicy = {
-  schema: "animama-update-policy/1";
-  github: { owner: string; repo: string };
+  schema: "animama-update-policy/2";
+  distribution: ReleaseDistribution;
   channel: "stable";
   team_id: string;
 };
@@ -27,6 +31,11 @@ const VERSION = /^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})$/u;
 const HASH = /^[a-f0-9]{64}$/u;
 const repositoryPart = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/u;
 
+/** A stable release folder name: `v<major>.<minor>.<patch>`. */
+export function isReleaseTag(value: string | undefined): boolean {
+  return Boolean(value?.startsWith("v") && VERSION.test(value.slice(1)));
+}
+
 /** Stable releases only; prereleases and downgrade channels have no local switch. */
 function compareVersions(left: string, right: string): number {
   if (!VERSION.test(left) || !VERSION.test(right))
@@ -38,22 +47,55 @@ function compareVersions(left: string, right: string): number {
   return 0;
 }
 
+/** A public HTTPS base that cannot carry credentials, ports or overrides. */
+function isPublicBaseUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !url.port &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      !url.pathname.endsWith("/") &&
+      url.href === value
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** Accept exactly one of the two supported distribution shapes. */
+export function isReleaseDistribution(
+  value: unknown,
+): value is ReleaseDistribution {
+  const item = value as Record<string, unknown> | null;
+  if (!item || typeof item !== "object") return false;
+  const keys = Object.keys(item).sort().join(",");
+  return item.kind === "r2"
+    ? keys === "base_url,kind" && isPublicBaseUrl(item.base_url)
+    : item.kind === "github" &&
+        keys === "kind,owner,repo" &&
+        typeof item.owner === "string" &&
+        typeof item.repo === "string" &&
+        repositoryPart.test(item.owner) &&
+        repositoryPart.test(item.repo);
+}
+
 /** Read only the non-secret policy embedded in verified application resources. */
 export function validateUpdatePolicy(value: unknown): UpdatePolicy {
   const policy = value as UpdatePolicy;
   if (
     !policy ||
-    policy.schema !== "animama-update-policy/1" ||
+    policy.schema !== "animama-update-policy/2" ||
     policy.channel !== "stable" ||
-    !policy.github ||
-    typeof policy.github.owner !== "string" ||
-    typeof policy.github.repo !== "string" ||
-    !repositoryPart.test(policy.github.owner) ||
-    !repositoryPart.test(policy.github.repo) ||
+    !isReleaseDistribution(policy.distribution) ||
     typeof policy.team_id !== "string" ||
     !/^[A-Z0-9]{10}$/u.test(policy.team_id) ||
-    Object.keys(policy).sort().join(",") !== "channel,github,schema,team_id" ||
-    Object.keys(policy.github).sort().join(",") !== "owner,repo"
+    Object.keys(policy).sort().join(",") !==
+      "channel,distribution,schema,team_id"
   ) {
     throw new RuntimeError("updates_not_configured");
   }
@@ -64,6 +106,7 @@ export function validateUpdatePolicy(value: unknown): UpdatePolicy {
 export function validateUpdateCandidate(
   value: unknown,
   currentVersion: string,
+  distribution: ReleaseDistribution,
 ): UpdateCandidate {
   const info = value as Record<string, unknown>;
   if (
@@ -80,13 +123,17 @@ export function validateUpdateCandidate(
     throw new RuntimeError("update_metadata_invalid");
   }
   const filename = `Animama-${info.version}-arm64.zip`;
+  // R2 feeds sit above per-version folders; GitHub resolves names within the tag.
+  const folder = distribution.kind === "r2" ? `v${info.version}/` : "";
   const names = new Set<string>();
   let archive: { url: string; size: number; sha512: string } | undefined;
   for (const entry of info.files) {
     const file = entry as { url: string; size: number; sha512: string };
     if (
       !file ||
-      ![filename, `Animama-${info.version}-arm64.dmg`].includes(file.url) ||
+      ![filename, `Animama-${info.version}-arm64.dmg`]
+        .map((name) => `${folder}${name}`)
+        .includes(file.url) ||
       names.has(file.url) ||
       !Number.isSafeInteger(file.size) ||
       file.size < 1 ||
@@ -97,7 +144,7 @@ export function validateUpdateCandidate(
       throw new RuntimeError("update_metadata_invalid");
     }
     names.add(file.url);
-    if (file.url === filename) archive = file;
+    if (file.url === `${folder}${filename}`) archive = file;
   }
   const metadata = info.animama as Record<string, unknown>;
   if (
@@ -158,7 +205,11 @@ export function updateFreeBytes(
   return value;
 }
 
-/** The updater's separate Electron session never contacts arbitrary or credentialed origins. */
+/**
+ * The updater's separate Electron session never contacts arbitrary or
+ * credentialed origins: an R2 build reaches only its feed and version folders,
+ * a GitHub build only its repository's releases and asset CDN.
+ */
 export function allowedUpdateUrl(value: string, policy: UpdatePolicy): boolean {
   try {
     const url = new URL(value);
@@ -170,6 +221,20 @@ export function allowedUpdateUrl(value: string, policy: UpdatePolicy): boolean {
       url.hash
     )
       return false;
+    const distribution = policy.distribution;
+    if (distribution.kind === "r2") {
+      const base = new URL(distribution.base_url);
+      if (url.origin !== base.origin) return false;
+      // electron-updater's generic provider adds noCache=<base-32 time> to feed requests.
+      if (url.pathname === `${base.pathname}/latest-mac.yml`)
+        return !url.search || /^\?noCache=[0-9a-v]{1,16}$/u.test(url.search);
+      const [tag, name, ...extra] = url.pathname.startsWith(`${base.pathname}/`)
+        ? url.pathname.slice(base.pathname.length + 1).split("/")
+        : [];
+      return (
+        !url.search && isReleaseTag(tag) && Boolean(name) && extra.length === 0
+      );
+    }
     if (
       [
         "release-assets.githubusercontent.com",
@@ -177,7 +242,7 @@ export function allowedUpdateUrl(value: string, policy: UpdatePolicy): boolean {
       ].includes(url.hostname)
     )
       return true;
-    const prefix = `/${policy.github.owner}/${policy.github.repo}/releases`;
+    const prefix = `/${distribution.owner}/${distribution.repo}/releases`;
     return (
       (url.hostname === "github.com" &&
         (url.pathname === `${prefix}.atom` ||

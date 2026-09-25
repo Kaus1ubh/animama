@@ -9,6 +9,7 @@ import {
 } from "./inventory.mjs";
 import {
   loadReleasePolicy,
+  sealedDistribution,
   verifyRedistributionReview,
 } from "./release-policy.mjs";
 import { nestedCode, notarize, verifySignedApp } from "./macos-signing.mjs";
@@ -96,6 +97,7 @@ export default async function sign(options) {
     schema: "animama-macos-signing/1",
     app_version: release.version,
     team_id: release.publisher.team_id,
+    distribution: sealedDistribution(runtime),
     stage_build_id: stageBuildId,
     runtime_build_id: manifest.build_id,
     native_files: code.native,

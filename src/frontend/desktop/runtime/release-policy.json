@@ -1,6 +1,15 @@
 {
-  "schema": "animama-release-policy/1",
-  "github": { "owner": "raymond-van", "repo": "animama-releases" },
+  "schema": "animama-release-policy/2",
+  "distributions": {
+    "r2": {
+      "base_url": "https://downloads.animama.ai/desktop",
+      "bucket": "animama-releases"
+    },
+    "github": {
+      "owner": "raymond-van",
+      "repo": "animama-releases"
+    }
+  },
   "channel": "stable",
   "distribution_basis": {
     "commercial": false,

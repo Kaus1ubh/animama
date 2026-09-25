@@ -32,9 +32,13 @@ import {
 import { checkSizes, validateSizeReport } from "../scripts/runtime/size.mjs";
 import {
   isPublicReleaseRepository,
+  releaseTagBase,
+  sealedDistribution,
+  selectedDistribution,
   validateReleasePolicy,
 } from "../scripts/runtime/release-policy.mjs";
 import {
+  candidateDistribution,
   updateFeed,
   writeArtifactIndex,
   verifyArtifactIndex,
@@ -615,10 +619,17 @@ Load command 4
   it("validates candidate coordinates, matching publisher/release URLs and explicit review without network access", () => {
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
-    const policy = {
-      schema: "animama-release-policy/1",
-      channel: "stable",
+    const distributions = {
+      r2: {
+        base_url: "https://downloads.example.test/desktop",
+        bucket: "example-releases",
+      },
       github: { owner: "example", repo: "releases" },
+    };
+    const policy = {
+      schema: "animama-release-policy/2",
+      channel: "stable",
+      distributions,
       distribution_basis: {
         commercial: false,
         pocket_tts_onnx_license: "CC-BY-NC-4.0",
@@ -630,8 +641,6 @@ Load command 4
       },
     };
     const packs = {
-      release_base_url:
-        "https://github.com/example/releases/releases/download/v0.1.0",
       macos: {
         team_id: "TESTTEAM01",
         signing_identity: "Developer ID Application: Fixture (TESTTEAM01)",
@@ -650,18 +659,60 @@ Load command 4
         ]),
       ),
     };
-    expect(validateReleasePolicy(policy, packs, "0.1.0").activePackIds).toEqual(
-      ["parakeet-stt"],
+    const r2 = validateReleasePolicy(policy, packs, "0.1.0", {
+      distribution: "r2",
+    });
+    expect(r2.activePackIds).toEqual(["parakeet-stt"]);
+    expect(r2.distribution).toEqual({ name: "r2", ...distributions.r2 });
+    expect(r2.packReleaseBase).toBe(
+      "https://downloads.example.test/desktop/v0.1.0",
     );
+    expect(r2.updatePolicy).toEqual({
+      schema: "animama-update-policy/2",
+      distribution: {
+        kind: "r2",
+        base_url: "https://downloads.example.test/desktop",
+      },
+      channel: "stable",
+      team_id: "TESTTEAM01",
+    });
+    const github = validateReleasePolicy(policy, packs, "0.1.0", {
+      distribution: "github",
+    });
+    expect(github.packReleaseBase).toBe(
+      "https://github.com/example/releases/releases/download/v0.1.0",
+    );
+    expect(github.updatePolicy.distribution).toEqual({
+      kind: "github",
+      owner: "example",
+      repo: "releases",
+    });
     expect(() =>
       validateReleasePolicy({ ...policy }, { ...packs, packs: {} }, "0.1.0"),
     ).toThrow("explicit active or deferred");
-    expect(
-      validateReleasePolicy(policy, packs, "0.1.0").updatePolicy.github,
-    ).toEqual(policy.github);
     expect(() =>
-      validateReleasePolicy({ ...policy, github: null }, packs, "0.1.0"),
-    ).toThrow("intended installer/update repository");
+      validateReleasePolicy({ ...policy, distributions: null }, packs, "0.1.0"),
+    ).toThrow("intended installer/update destinations");
+    for (const base_url of [
+      "http://downloads.example.test/desktop",
+      "https://downloads.example.test/desktop/",
+      "https://downloads.example.test:8443/desktop",
+      "https://user@downloads.example.test/desktop",
+      "https://downloads.example.test/desktop?x=1",
+    ])
+      expect(() =>
+        validateReleasePolicy(
+          {
+            ...policy,
+            distributions: {
+              ...distributions,
+              r2: { ...distributions.r2, base_url },
+            },
+          },
+          packs,
+          "0.1.0",
+        ),
+      ).toThrow("intended installer/update destinations");
     expect(() =>
       validateReleasePolicy(
         {
@@ -695,8 +746,36 @@ Load command 4
         },
         "0.1.0",
       ),
-    ).toThrow("same intended repository");
+    ).toThrow("derived from the selected distribution");
     expect(request).not.toHaveBeenCalled();
+  });
+
+  it("selects the build-time distribution from ANIMAMA_RELEASE_DISTRIBUTION, defaulting to R2", () => {
+    expect(selectedDistribution({})).toBe("r2");
+    expect(selectedDistribution({ ANIMAMA_RELEASE_DISTRIBUTION: "" })).toBe(
+      "r2",
+    );
+    expect(
+      selectedDistribution({ ANIMAMA_RELEASE_DISTRIBUTION: "github" }),
+    ).toBe("github");
+    expect(() =>
+      selectedDistribution({ ANIMAMA_RELEASE_DISTRIBUTION: "s3" }),
+    ).toThrow("ANIMAMA_RELEASE_DISTRIBUTION must be r2 or github");
+  });
+
+  it("derives a retained pack's release folder for either distribution", () => {
+    expect(
+      releaseTagBase(
+        { name: "r2", base_url: "https://downloads.example.test/desktop" },
+        "v0.1.0",
+      ),
+    ).toBe("https://downloads.example.test/desktop/v0.1.0");
+    expect(
+      releaseTagBase(
+        { name: "github", owner: "example", repo: "releases" },
+        "v0.1.0",
+      ),
+    ).toBe("https://github.com/example/releases/releases/download/v0.1.0");
   });
 
   it.each([
@@ -747,9 +826,13 @@ Load command 4
     json(path.join(output, "audit-report.json"), {});
     json(path.join(root, "package.json"), { version: "0.1.0" });
     const github = { owner: "example", repo: "private-releases" };
+    const r2 = {
+      base_url: "https://downloads.example.test/desktop",
+      bucket: "example-releases",
+    };
     json(path.join(source, "release-policy.json"), {
-      schema: "animama-release-policy/1",
-      github,
+      schema: "animama-release-policy/2",
+      distributions: { r2, github },
       channel: "stable",
       distribution_basis: {
         commercial: false,
@@ -762,8 +845,6 @@ Load command 4
       },
     });
     json(path.join(source, "feature-pack-releases.json"), {
-      release_base_url:
-        "https://github.com/example/private-releases/releases/download/v0.1.0",
       macos: {
         team_id: "TESTTEAM01",
         signing_identity: "Developer ID Application: Fixture (TESTTEAM01)",
@@ -789,8 +870,8 @@ Load command 4
       })),
     });
     json(path.join(runtime, "update-policy.json"), {
-      schema: "animama-update-policy/1",
-      github,
+      schema: "animama-update-policy/2",
+      distribution: { kind: "r2", base_url: r2.base_url },
       channel: "stable",
       team_id: "TESTTEAM01",
     });
@@ -799,6 +880,7 @@ Load command 4
       .mockResolvedValue(new Response("{}", { status: 404 }));
     vi.stubGlobal("fetch", request);
     vi.stubEnv("ANIMAMA_MACOS_NOTARY_PROFILE", "fixture-notary");
+    vi.stubEnv("ANIMAMA_RELEASE_DISTRIBUTION", "");
     const stop = new Error("Stop at native builder boundary");
     const build = vi.fn().mockRejectedValue(stop);
     const run = vi.fn();
@@ -839,6 +921,9 @@ Load command 4
           publish: "never",
           config: expect.objectContaining({
             forceCodeSigning: true,
+            publish: [
+              { provider: "generic", url: r2.base_url, channel: "latest" },
+            ],
             mac: expect.objectContaining({
               identity: "Fixture (TESTTEAM01)",
             }),
@@ -862,13 +947,21 @@ Load command 4
         icon: "fixture.icns",
         release: {
           version: "0.1.0",
-          policy: { github },
+          distribution: { name: "github", ...github },
           publisher: {
             signing_identity: "Developer ID Application: Fixture (TESTTEAM01)",
           },
         },
       });
       expect(resumed.prepackaged).toBe("/tmp/Animama.app");
+      expect(resumed.config.publish).toEqual([
+        {
+          provider: "github",
+          ...github,
+          private: false,
+          releaseType: "release",
+        },
+      ]);
       expect(resumed.config.mac).not.toHaveProperty("sign");
       json(path.join(runtime, "pack-catalog.json"), {
         entries: [
@@ -879,6 +972,14 @@ Load command 4
       });
       await expect(releaseMac()).rejects.toThrow(
         "deferred packs must be absent",
+      );
+      json(path.join(runtime, "pack-catalog.json"), {
+        entries: [{ id: "parakeet-stt", signing: { publisher: "TESTTEAM01" } }],
+      });
+      // An R2 stage cannot be packaged as a GitHub candidate, or vice versa.
+      vi.stubEnv("ANIMAMA_RELEASE_DISTRIBUTION", "github");
+      await expect(releaseMac()).rejects.toThrow(
+        "ANIMAMA_RELEASE_DISTRIBUTION",
       );
       expect(build).toHaveBeenCalledTimes(1);
     } finally {
@@ -897,6 +998,11 @@ Load command 4
   it.each(["--confirm-preview-publication", "--confirm-publication"])(
     "refuses %s for a private repository before preparing artifacts or uploading",
     async (operation) => {
+      const github = {
+        kind: "github",
+        owner: "example",
+        repo: "private-releases",
+      };
       const request = vi
         .fn()
         .mockResolvedValue(new Response(JSON.stringify({ private: true })));
@@ -910,11 +1016,17 @@ Load command 4
       vi.doMock("../scripts/runtime/release-policy.mjs", () => ({
         isPublicReleaseRepository,
         loadReleasePolicy: () => ({
-          policy: { github: { owner: "example", repo: "private-releases" } },
+          distribution: {
+            name: "github",
+            owner: "example",
+            repo: "private-releases",
+          },
+          updatePolicy: { distribution: github },
         }),
       }));
       vi.doMock("../scripts/runtime/release-artifacts.mjs", async () => ({
         ...(await vi.importActual("../scripts/runtime/release-artifacts.mjs")),
+        candidateDistribution: () => github,
         verifyArtifactIndex: verifyIndex,
       }));
       try {
@@ -937,6 +1049,95 @@ Load command 4
     },
   );
 
+  it.each([
+    [
+      "an R2 candidate until R2 publication exists",
+      "r2",
+      "r2",
+      "R2 publication is not available yet",
+    ],
+    [
+      "a candidate built for another distribution",
+      "github",
+      "r2",
+      "built for a different distribution",
+    ],
+    [
+      "a candidate that records no distribution",
+      "github",
+      null,
+      "records none",
+    ],
+  ])(
+    "refuses %s before any network request",
+    async (_label, selected, built, message) => {
+      const distributions = {
+        r2: { kind: "r2", base_url: "https://downloads.example.test/desktop" },
+        github: { kind: "github", owner: "example", repo: "releases" },
+      };
+      const request = vi.fn();
+      vi.stubGlobal("fetch", request);
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+      const previousArgs = process.argv;
+      const previousExitCode = process.exitCode;
+      process.argv = [
+        process.execPath,
+        "publish-macos.mjs",
+        "--confirm-preview-publication",
+      ];
+      vi.resetModules();
+      vi.doMock("../scripts/runtime/release-policy.mjs", () => ({
+        isPublicReleaseRepository,
+        loadReleasePolicy: () => ({
+          distribution: { name: selected },
+          updatePolicy: { distribution: distributions[selected] },
+        }),
+      }));
+      vi.doMock("../scripts/runtime/release-artifacts.mjs", async () => ({
+        ...(await vi.importActual("../scripts/runtime/release-artifacts.mjs")),
+        candidateDistribution: () => (built ? distributions[built] : null),
+      }));
+      try {
+        await import("../scripts/runtime/publish-macos.mjs");
+        expect(process.exitCode).toBe(1);
+        expect(log).toHaveBeenCalledWith(expect.stringContaining(message));
+        expect(request).not.toHaveBeenCalled();
+      } finally {
+        process.argv = previousArgs;
+        process.exitCode = previousExitCode;
+        log.mockRestore();
+        vi.doUnmock("../scripts/runtime/release-policy.mjs");
+        vi.doUnmock("../scripts/runtime/release-artifacts.mjs");
+        vi.resetModules();
+      }
+    },
+  );
+
+  it("reads the distribution a runtime and a candidate were sealed for", () => {
+    const root = fixture();
+    const r2 = {
+      kind: "r2",
+      base_url: "https://downloads.example.test/desktop",
+    };
+    expect(candidateDistribution(root)).toBeNull();
+    expect(() => sealedDistribution(root)).toThrow();
+    writeFileSync(
+      path.join(root, "update-policy.json"),
+      JSON.stringify({ schema: "animama-update-policy/2", distribution: r2 }),
+    );
+    expect(sealedDistribution(root)).toEqual(r2);
+    writeFileSync(
+      path.join(root, "signing-report.json"),
+      JSON.stringify({ distribution: r2 }),
+    );
+    expect(candidateDistribution(root)).toEqual(r2);
+    writeFileSync(
+      path.join(root, "signing-report.json"),
+      JSON.stringify({ distribution: { kind: "s3" } }),
+    );
+    expect(candidateDistribution(root)).toBeNull();
+  });
+
   it("writes feed sizes and checksums from final bytes and detects later artifact replacement", async () => {
     const root = fixture();
     for (const extension of ["dmg", "zip"])
@@ -944,20 +1145,49 @@ Load command 4
         path.join(root, `Animama-0.1.0-arm64.${extension}`),
         `archive fixture ${extension}`,
       );
+    const manifest = {
+      app_version: "0.1.0",
+      build_id: "a".repeat(64),
+      minimum_os: "15.0",
+    };
+    const github = { kind: "github", owner: "example", repo: "releases" };
     const feed = await updateFeed(
       root,
-      { app_version: "0.1.0", build_id: "a".repeat(64), minimum_os: "15.0" },
+      manifest,
       2000,
       { entries: [] },
+      github,
     );
+    // GitHub's provider supplies the tag from the release itself.
+    expect(feed).not.toHaveProperty("tag");
     const candidate = validateUpdateCandidate(
       { ...feed, tag: "v0.1.0" },
       "0.0.9",
+      github,
+    );
+    // R2 feeds sit above version folders and carry their own tag.
+    const r2 = {
+      kind: "r2",
+      base_url: "https://downloads.example.test/desktop",
+    };
+    const r2Feed = await updateFeed(root, manifest, 2000, { entries: [] }, r2);
+    expect(r2Feed.tag).toBe("v0.1.0");
+    expect(r2Feed.files.map((file) => file.url)).toEqual([
+      "v0.1.0/Animama-0.1.0-arm64.zip",
+      "v0.1.0/Animama-0.1.0-arm64.dmg",
+    ]);
+    expect(r2Feed.path).toBe("v0.1.0/Animama-0.1.0-arm64.zip");
+    expect(validateUpdateCandidate(r2Feed, "0.0.9", r2).downloadBytes).toBe(
+      candidate.downloadBytes,
     );
     await expect(
-      updateFeed(root, { app_version: "0.1.0", minimum_os: "13.0" }, 2000, {
-        entries: [],
-      }),
+      updateFeed(
+        root,
+        { app_version: "0.1.0", minimum_os: "13.0" },
+        2000,
+        { entries: [] },
+        github,
+      ),
     ).rejects.toThrow("macOS 15 runtime manifest");
     expect(candidate.downloadBytes).toBe(
       readFileSync(path.join(root, candidate.filename)).length,

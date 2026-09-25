@@ -9,8 +9,8 @@ account or hosted Animama account is needed to open the app.
 The runtime includes optional packs, guarded application updates, upgrade
 snapshot retention and signing tools. Release acceptance remains pending for
 fresh matching artifacts, complete starter inputs, minimum-OS and native tests,
-and explicit publication approval. Private GitHub pack/update downloads are
-unsupported. Start with [Installation](installation.md),
+and explicit publication approval. Pack and update downloads come only from the
+public distribution selected at build time. Start with [Installation](installation.md),
 [Feature packs](feature-packs.md) and [Troubleshooting](troubleshooting.md).
 Maintainers use the [manual release process](release-process.md) and
 [Runtime staging](runtime-staging.md).
@@ -247,7 +247,7 @@ manually to bypass references or leases.
 
 ## Application Updates
 
-A signed, configured macOS app checks the public GitHub feed after startup and
+A signed, configured macOS app checks its release feed after startup and
 on demand in Settings → General. Checks never download. Download and confirmed
 Restart are separate actions; normal Quit does not install. Offline checks do
 not prevent startup. Unpackaged and unconfigured builds hide these controls.
