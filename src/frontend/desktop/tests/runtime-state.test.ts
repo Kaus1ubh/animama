@@ -362,6 +362,7 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
         local_http_schema_version: 1,
         core_content_inventory_id: id,
         pack_catalog_id: id,
+        database_schema_sha256: "d".repeat(64),
         files,
       };
       writeFileSync(path.join(root, "manifest.json"), JSON.stringify(manifest));
@@ -384,6 +385,8 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
       { schema: "animama-desktop-runtime/1" },
       { local_http_schema_version: 0 },
       { gateway_schema_version: 1 },
+      { database_schema_sha256: undefined },
+      { database_schema_sha256: "not-a-digest" },
     ])(
       "rejects old or mixed runtime composition before native launch: %j",
       async (change) => {

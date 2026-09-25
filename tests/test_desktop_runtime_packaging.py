@@ -196,9 +196,13 @@ async def test_desktop_readiness_is_private_bounded_and_absent_from_openapi(
             response = await client.get("/_desktop/health", headers=headers)
             assert response.status_code == 404
             assert token not in response.text
-        assert (await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})).status_code == 503
+        starting = await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})
+        assert (starting.status_code, starting.json()) == (503, {"detail": "runtime_starting"})
+        # Failed startup reconciliation is terminal for this process, so the
+        # supervisor receives a specific code instead of waiting for its deadline.
         app.state.local_bootstrap_state = SimpleNamespace(principal_id="desktop-owner", content_ready=False)
-        assert (await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})).status_code == 503
+        failed = await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})
+        assert (failed.status_code, failed.json()) == (503, {"detail": {"code": "content_startup_failed"}})
         app.state.local_bootstrap_state.content_ready = True
         app.state.local_http_lifecycle.mark_ready("desktop-owner")
         ready = await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})

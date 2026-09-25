@@ -28,6 +28,7 @@ import { stageFeaturePacks } from "./feature-packs.mjs";
 import { stagedUpdatePolicy } from "./release-policy.mjs";
 import { excludeDesktopWebAssets } from "./desktop-web.mjs";
 import { writeRedistributionReview } from "./review-packet.mjs";
+import { importBundledTool } from "./bundled-tool.mjs";
 
 const target = parseTarget();
 const sources = readJson(path.join(sourceRoot, "source-manifest.json"));
@@ -181,6 +182,11 @@ try {
   const core = readJson(
     path.join(target.runtime, "content/included-core/inventory.json"),
   );
+  console.log("Staging database schema fingerprint…");
+  const { stagedSchemaDigest } = await importBundledTool(
+    "scripts/runtime/schema-fingerprint.ts",
+  );
+  const databaseSchema = await stagedSchemaDigest(target.runtime);
   const manifest = {
     schema: "animama-desktop-runtime/2",
     app_version: app.version,
@@ -197,6 +203,7 @@ try {
     local_http_schema_version: sources.local_http_schema_version,
     core_content_inventory_id: core.id,
     pack_catalog_id: catalogId,
+    database_schema_sha256: databaseSchema,
     files: inventory,
   };
   writeJson(path.join(target.runtime, "manifest.json"), manifest);

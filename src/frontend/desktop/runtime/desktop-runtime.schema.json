@@ -15,6 +15,7 @@
     "local_http_schema_version",
     "core_content_inventory_id",
     "pack_catalog_id",
+    "database_schema_sha256",
     "files"
   ],
   "properties": {
@@ -47,6 +48,10 @@
       "pattern": "^[a-f0-9]{64}$"
     },
     "pack_catalog_id": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "database_schema_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
     "files": {
       "type": "array",
       "minItems": 1,

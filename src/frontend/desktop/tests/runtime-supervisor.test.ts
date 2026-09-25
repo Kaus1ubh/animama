@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RuntimeSupervisor } from "../src/main-process/runtime/supervisor.js";
 import { runtimePaths } from "../src/main-process/runtime/paths.js";
 import { atomicWrite } from "../src/main-process/runtime/atomic-file.js";
+import { normalizeSchemaDump } from "../src/main-process/runtime/schema.js";
 import {
   manifestDigest,
   versionDirectory,
@@ -48,11 +49,15 @@ const fixture = vi.hoisted(() => {
     alembic_head: state.alembic_head,
     installation_principal_id: state.installation_principal_id,
   };
+  // Stands in for the bundled pg_dump --schema-only output of a current profile.
+  const schema =
+    "-- Dumped from database version 16.15\nCREATE TABLE public.fixture (id integer);\n";
   return {
     launches,
     owners,
     state,
     health,
+    schema,
     ready: vi.fn(),
     quiesce: vi.fn(),
     available: vi.fn(),
@@ -153,8 +158,15 @@ beforeEach(() => {
     alembic_head: fixture.state.alembic_head,
     postgresql: { pgvector: "0.8.6" },
     local_http_schema_version: 1,
+    database_schema_sha256: createHash("sha256")
+      .update(normalizeSchemaDump(fixture.schema))
+      .digest("hex"),
   });
-  fixture.command.mockResolvedValue(JSON.stringify(fixture.state));
+  fixture.command.mockImplementation(async (executable, args) =>
+    executable === "pg_dump" && args[0] === "--schema-only"
+      ? fixture.schema
+      : JSON.stringify(fixture.state),
+  );
   fixture.available.mockResolvedValue(undefined);
   fixture.ready.mockImplementation(async () => {
     const child = fixture.launches
@@ -724,6 +736,97 @@ describe("runtime supervision", () => {
       ),
     ).toBe(false);
     expect(fixture.owners.every((children) => children.size === 0)).toBe(true);
+  });
+
+  it("stops before launching services when a current-revision profile has a stale schema", async () => {
+    fixture.command.mockImplementation(async (executable, args) =>
+      executable === "pg_dump" && args[0] === "--schema-only"
+        ? "CREATE TABLE public.fixture (id integer, stale text);\n"
+        : JSON.stringify(fixture.state),
+    );
+    const current = create();
+    await current.runtime.start();
+    expect(current.runtime.status()).toEqual({
+      state: "error",
+      code: "database_schema_mismatch",
+    });
+    expect(fixture.launches.map((child) => child.name)).toEqual(["postgres"]);
+    // Repeatable seeds never run against a schema they may not fit.
+    expect(
+      fixture.command.mock.calls.some(([, args]) => args[1] === "bootstrap"),
+    ).toBe(false);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    expect(fixture.owners.every((children) => children.size === 0)).toBe(true);
+    expect(
+      existsSync(path.join(current.options.paths.pgData, "PG_VERSION")),
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      "a current-revision profile before seeding",
+      fixture.state.alembic_head,
+      ["provision", "inspect", "--schema-only", "bootstrap"],
+    ],
+    [
+      "a fresh profile after bootstrap",
+      null,
+      ["provision", "inspect", "bootstrap", "--schema-only"],
+    ],
+  ])(
+    "verifies %s and before launching services",
+    async (_name, head, expected) => {
+      fixture.command.mockImplementation(async (executable, args) => {
+        if (executable === "pg_dump" && args[0] === "--schema-only")
+          return fixture.schema;
+        return JSON.stringify(
+          args[1] === "bootstrap"
+            ? fixture.state
+            : { ...fixture.state, alembic_head: head },
+        );
+      });
+      const current = create();
+      await current.runtime.start();
+      expect(current.runtime.status().state).toBe("ready");
+      const operations = fixture.command.mock.calls.map(([executable, args]) =>
+        executable === "pg_dump" ? args[0] : args[1],
+      );
+      expect(operations).toEqual(expected);
+      expect(
+        fixture.command.mock.calls.find(
+          ([executable]) => executable === "pg_dump",
+        )?.[2],
+      ).toMatchObject({ PGPORT: "41236" });
+    },
+  );
+
+  it("reports a terminal content startup failure without waiting for the readiness deadline", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json(
+        { detail: { code: "content_startup_failed" } },
+        { status: 503 },
+      ),
+    );
+    const current = create();
+    await current.runtime.start();
+    expect(current.runtime.status()).toEqual({
+      state: "error",
+      code: "content_startup_failed",
+    });
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
+    expect(fixture.owners.every((children) => children.size === 0)).toBe(true);
+  });
+
+  it("keeps polling while the backend reports ordinary startup progress", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        Response.json({ detail: "runtime_starting" }, { status: 503 }),
+      )
+      .mockResolvedValueOnce(new Response("not json", { status: 503 }));
+    const current = create();
+    await current.runtime.start();
+    expect(current.runtime.status().state).toBe("ready");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3);
   });
 
   it("recovers after an owned backend exit without deleting initialized data", async () => {

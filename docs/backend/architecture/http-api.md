@@ -50,7 +50,9 @@ Tests use explicit fixture bootstrap and dependency overrides.
 - `GET /_desktop/health`: private supervisor readiness, excluded from OpenAPI
   and mounted only in desktop composition. A constant-time match against the per-launch
   `X-Animama-Desktop-Control` token is required; absent/invalid credentials
-  return 404 and incomplete startup or failed Included reconciliation returns 503. The bounded result contains
+  return 404. Incomplete startup returns 503 `{"detail":"runtime_starting"}`;
+  failed startup content reconciliation returns the terminal 503
+  `{"detail":{"code":"content_startup_failed"}}`. The bounded result contains
   schema version, runtime version, build ID, Alembic head, principal ID,
   `local_http_schema_version: 1`, `process_id` and `process_start_token`.
   The latter two identify the supervisor's exact live child. The result never

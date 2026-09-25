@@ -1,6 +1,6 @@
-import { build } from "esbuild";
 import { auditOptionalInputs } from "./optional-inputs.mjs";
-import { mkdirSync, rmSync } from "node:fs";
+import { importBundledTool } from "./bundled-tool.mjs";
+import { rmSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -16,7 +16,6 @@ import {
   writeJson,
 } from "./common.mjs";
 
-/** Bundle build tooling separately; only main/preload enter the application. */
 export async function stageFeaturePacks(target) {
   const release = readJson(path.join(sourceRoot, "feature-pack-releases.json"));
   const parakeet = auditOptionalInputs(target);
@@ -27,21 +26,9 @@ export async function stageFeaturePacks(target) {
     throw new Error(
       "Active Parakeet pack inputs are unavailable; acquire the pinned models and run a fresh stage",
     );
-  const tool = path.join(cacheRoot, "tools/feature-pack-build.mjs");
-  mkdirSync(path.dirname(tool), { recursive: true });
-  await build({
-    absWorkingDir: desktopRoot,
-    entryPoints: ["scripts/runtime/feature-pack-build.ts"],
-    outfile: tool,
-    platform: "node",
-    bundle: true,
-    format: "esm",
-    target: "es2023",
-    banner: {
-      js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',
-    },
-  });
-  const { buildFeaturePacks } = await import(pathToFileURL(tool).href);
+  const { buildFeaturePacks } = await importBundledTool(
+    "scripts/runtime/feature-pack-build.ts",
+  );
   return buildFeaturePacks({
     inputs: {
       "parakeet-stt": path.join(target.output, "pack-inputs/parakeet-stt"),

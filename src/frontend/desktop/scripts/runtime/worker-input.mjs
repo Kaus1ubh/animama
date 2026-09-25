@@ -1,7 +1,6 @@
-import { build } from "esbuild";
-import { mkdirSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { importBundledTool } from "./bundled-tool.mjs";
 import {
   cacheRoot,
   desktopRoot,
@@ -18,21 +17,7 @@ const [action] = process.argv.slice(2);
 if (!["export", "import"].includes(action) || process.argv.length !== 3)
   throw new Error("Expected export or import");
 const target = parseTarget(["--platform", "darwin", "--arch", "arm64"]);
-const tool = path.join(cacheRoot, "tools/worker-input.mjs");
-mkdirSync(path.dirname(tool), { recursive: true });
-await build({
-  absWorkingDir: desktopRoot,
-  entryPoints: ["scripts/runtime/worker-input.ts"],
-  outfile: tool,
-  platform: "node",
-  bundle: true,
-  format: "esm",
-  target: "es2023",
-  banner: {
-    js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',
-  },
-});
-const module = await import(pathToFileURL(tool).href);
+const module = await importBundledTool("scripts/runtime/worker-input.ts");
 await module[action === "export" ? "exportWorkerInput" : "importWorkerInput"]({
   root: path.join(cacheRoot, "document-worker", target.target, "signed-input"),
   exchange: path.join(desktopRoot, "release/worker-input"),

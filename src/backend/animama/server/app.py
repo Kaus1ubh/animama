@@ -55,7 +55,12 @@ def create_local_app(
             """Identify this exact owned child without exposing browser credentials."""
             require_desktop_control(request)
             state = getattr(application.state, "local_bootstrap_state", None)
-            if state is None or not state.content_ready or not lifecycle.ready:
+            if state is not None and not state.content_ready:
+                # Nothing updates content_ready after startup, so this process
+                # can never become ready. A distinct terminal code lets the
+                # supervisor stop waiting.
+                raise HTTPException(status_code=503, detail={"code": "content_startup_failed"})
+            if state is None or not lifecycle.ready:
                 raise HTTPException(status_code=503, detail="runtime_starting")
             from alembic.script import ScriptDirectory
             from animama.runtime.resources import alembic_config

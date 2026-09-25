@@ -17,6 +17,8 @@ export type RuntimeManifest = {
   local_http_schema_version: number;
   core_content_inventory_id: string;
   pack_catalog_id: string;
+  /** SHA-256 of the normalized schema dump of a freshly bootstrapped database. */
+  database_schema_sha256: string;
   files: {
     path: string;
     size_bytes: number;
@@ -85,6 +87,7 @@ export async function verifyRuntime(
       manifest.minimum_os !== "15.0" ||
       !/^[a-f0-9]{64}$/u.test(manifest.core_content_inventory_id) ||
       !/^[a-f0-9]{64}$/u.test(manifest.pack_catalog_id) ||
+      !/^[a-f0-9]{64}$/u.test(manifest.database_schema_sha256) ||
       manifest.local_http_schema_version !== 1 ||
       Object.hasOwn(manifest, "gateway_schema_version") ||
       !Array.isArray(manifest.files) ||

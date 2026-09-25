@@ -37,7 +37,12 @@ import {
 import { assertLoopbackPortAvailable, unusedLoopbackPort } from "./ports.js";
 import { PrivatePostgres } from "./postgres.js";
 import { MigrationBackup } from "./migrations.js";
-import { readBackendReadiness, readDesktopControlJson } from "./readiness.js";
+import {
+  readBackendReadiness,
+  readDesktopControlJson,
+  readTerminalStartupFailure,
+} from "./readiness.js";
+import { databaseSchemaDigest } from "./schema.js";
 import { OwnedProcesses, type OwnedProcess, runCommand } from "./processes.js";
 import { runtimeRedactor } from "./redaction.js";
 import {
@@ -358,6 +363,10 @@ export class RuntimeSupervisor {
           before.alembic_head !== this.manifest.alembic_head
         )
           await backup.prepare(before.alembic_head, this.manifest.alembic_head);
+        // Check a current-revision profile before seeds run, so a seed that no
+        // longer fits its schema cannot mask the mismatch as a migration failure.
+        const current = before.alembic_head === this.manifest.alembic_head;
+        if (current) await this.verifyDatabaseSchema(backup);
         let database: DatabaseState;
         try {
           database = await this.databaseCommand("bootstrap");
@@ -373,6 +382,7 @@ export class RuntimeSupervisor {
           backup.failed();
           throw new RuntimeError("database_version_mismatch");
         }
+        if (!current) await this.verifyDatabaseSchema(backup);
         backup.complete(database.alembic_head);
         this.stage("backend");
         const cleanupEnvironment = this.environment();
@@ -418,6 +428,21 @@ export class RuntimeSupervisor {
         }
       }
     });
+  }
+  /**
+   * A development baseline edited in place keeps its Alembic head, so compare
+   * the live schema with the staged fresh database before any service uses it.
+   */
+  private async verifyDatabaseSchema(backup: MigrationBackup): Promise<void> {
+    const digest = await databaseSchemaDigest(
+      this.postgres!.bin("pg_dump"),
+      this.databaseEnv,
+      this.options.paths.base,
+    );
+    if (digest !== this.manifest!.database_schema_sha256) {
+      backup.failed();
+      throw new RuntimeError("database_schema_mismatch");
+    }
   }
   private async startBackend(principalId: string): Promise<void> {
     const origin = this.applicationOrigin!;
@@ -470,7 +495,8 @@ export class RuntimeSupervisor {
           ready = true;
           break;
         }
-        await response.body?.cancel();
+        const failure = await readTerminalStartupFailure(response);
+        if (failure) throw new RuntimeError(failure);
       } catch (error) {
         if (error instanceof RuntimeError) throw error;
       }
