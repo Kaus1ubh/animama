@@ -69,8 +69,8 @@ Commands run from `src/frontend` unless stated. Relevant code:
 - [x] Phase 1: Security audit and repeatable candidate scan. Owner accepted the finding dispositions and merged [#112](https://github.com/raymond-van/animama/pull/112) (merge `76d4472`) on 2026-09-25.
 - [x] Phase 2: Distribution policy and build-time selection. Merged with Phase 3 in [#124](https://github.com/raymond-van/animama/pull/124) (merge `74a5615`) on 2026-09-25.
 - [x] Phase 3: Installed-app transport for R2. Merged with Phase 2 in #124.
-- [ ] Phase 4: R2 publisher and release workflow. Implemented on `build/r2-release-publisher` ([#125](https://github.com/raymond-van/animama/issues/125)); reviews #1–#2 pass; awaiting merge approval. Live R2 signing is first exercised in Phase 5.
-- [ ] Phase 5: Cloudflare configuration, live bucket exercise and docs. Not started. Owner gate: dashboard settings; approval before any test upload.
+- [x] Phase 4: R2 publisher and release workflow. Merged in [#126](https://github.com/raymond-van/animama/pull/126) (merge `5630ad8`) on 2026-09-25.
+- [ ] Phase 5: Cloudflare configuration, live bucket exercise and docs. Live exercise passed on 2026-09-25. Awaiting the owner's deletion of `test/` and the lock rule.
 - [ ] Final integration review. Not started.
 
 ## Surprises & Discoveries
@@ -123,9 +123,10 @@ Commands run from `src/frontend` unless stated. Relevant code:
 ## Decision Log
 
 - 2026-09-25, owner: approved merging #124 and starting Phase 4.
-- 2026-09-25, agent proposal (pending owner review): transport migration is not
-  supported for now. No release exists yet. If the distribution ever changes,
-  existing installs would need a manual download of the new build.
+- 2026-09-25, owner: transport migration is not supported. The project will
+  settle on one distribution, with R2 as the default for now.
+- 2026-09-25, owner: approved merging #126, starting Phase 5 and uploading
+  synthetic test objects to the `test/` prefix.
 
 - 2026-09-25, owner: accepted the Phase 1 finding dispositions and approved
   merging #112. Hosted Validation did not run: GitHub Actions has produced no
@@ -766,7 +767,8 @@ Steps:
    written last. Then delete the synthetic objects with owner approval.
 3. Update `releases.md`, `release-process.md` and `feature-packs.md`:
    transport selection, R2 layout, operator setup (domain, lock rule, token
-   scope, secret handling), the scan gate, and moving between transports
+   scope, secret handling) and the scan gate. Moving between transports is
+   unsupported (owner decision)
    (one release on the old transport whose sealed policy points to the new one).
    Remove statements that only GitHub can serve downloads.
 
@@ -776,7 +778,39 @@ values; no credentials). The docs follow the reader-value standard.
 Completion: the owner confirms the dashboard settings, the exercise passes, and
 the docs are current.
 
-Results: _pending_
+Results (2026-09-25):
+
+The owner ran the live exercise from their terminal, with credentials read into a
+subshell and never shared. It used the merged publisher against
+`https://downloads.animama.ai/test` with synthetic files. All six checks passed:
+
+- The preflight on the empty prefix passed.
+- A preview uploaded create-only and every object verified anonymously.
+- A rerun resumed the identical objects.
+- Conflicting bytes were refused ("A published R2 object differs … Objects are
+  never replaced").
+- Stable promotion wrote the feed last and hash-verified the read-back.
+- A rerun was refused as already published.
+
+Public headers, checked anonymously:
+
+| Object                              | `Cache-Control`                       | `Content-Type`              | `cf-cache-status` |
+| ----------------------------------- | ------------------------------------- | --------------------------- | ----------------- |
+| `test/v0.0.1/synthetic-notes.txt`   | `public, max-age=31536000, immutable` | `text/plain; charset=utf-8` | DYNAMIC           |
+| `test/v0.0.1/synthetic-archive.zip` | `public, max-age=31536000, immutable` | `application/zip`           | HIT               |
+| `test/latest-mac.yml`               | `no-cache`                            | `text/yaml; charset=utf-8`  | DYNAMIC           |
+
+This confirms that SigV4 signing, conditional create-only PUTs and signed
+payload hashes work against R2.
+
+Docs: operator setup and publication landed in Phase 4. Here, migration is
+documented as unsupported, and `src/frontend/AGENTS.md` now describes the
+distribution selection and the scan gate.
+
+Owner gates still open:
+
+- Delete the synthetic `test/` objects.
+- Add the bucket lock rule (prefix `desktop/v`, indefinite retention).
 
 #### Code Review #1 Findings
 

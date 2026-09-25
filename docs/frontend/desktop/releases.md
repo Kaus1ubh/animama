@@ -61,10 +61,9 @@ this variable and have no runtime override.
 | `github`     | The repository's release feed | `https://github.com/<owner>/<repo>/releases/download/v<version>/` |
 
 An app only ever updates from the distribution it was built for, and it accepts
-only a feed in that distribution's format. The current tooling cannot yet
-produce a migration release that moves installed users to the other
-distribution: it would need a feed in the old distribution's format that
-points at a build sealed for the new one. `signing-report.json` records the
+only a feed in that distribution's format. Moving installed users between
+distributions is not supported: R2 is the distribution for releases, and a
+change would require users to download the new build manually. `signing-report.json` records the
 distribution sealed into the candidate, and the publisher refuses a candidate
 whose recorded distribution differs from the current selection.
 
