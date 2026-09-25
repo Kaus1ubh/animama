@@ -85,7 +85,7 @@ Boundaries:
 
 - [x] Phase 1 (#115): R1–R2 plus section scaffolding. Reviewed (#1, #2 pass);
       committed as `feat(settings)[p1]`.
-- [ ] Phase 2: R3 Appearance. Visual QA gate.
+- [x] Phase 2 (#116): R3 Appearance. Visual QA gate evidence recorded; reviews #1–#3 (pass).
 - [ ] Phase 3: R4 Microphone. Owner hardware gate.
 - [ ] Phase 4: R5 General defaults.
 - [ ] Phase 5: R6–R8 inheritance, Markdown persistence, reset.
@@ -300,13 +300,99 @@ Checks:
 plus a System check using an emulated colour scheme, are recorded here. Remaining
 rough edges are listed explicitly rather than claimed fixed.
 
+Results:
+
+- **Delivered:**
+  - Appearance section: System/Light/Dark mode tiles (radio group) and a
+    "Visual style" group with Accent/Background/Foreground overrides per mode.
+    Each override has a hex input (invalid input shows an alert and is not
+    saved), a debounced native picker that is flushed on unmount, and a reset.
+  - Overrides are stored in `preferences.appearance.{light,dark}` and applied as
+    a stylesheet scoped to `:root:not(.dark)` / `:root.dark`. Card, sidebar,
+    muted and border colours are derived from background/foreground with
+    `color-mix`.
+  - Theme sync with `user_settings.theme` (`system|light|dark`; `custom`/`anima`
+    read as light), guarded against the server's echo of this client's own
+    saves.
+  - Removed: `featureFlags`, the Custom theme, its modal, `tokens.ts`,
+    `color-picker.tsx` and the `color` dependency, plus the user-menu theme UI.
+  - `MemoryCodeEditor` now follows theme tokens (it was white in Dark).
+  - Frontend overview docs updated.
+- **Local checks (`src/frontend`):**
+  - `pnpm check` pass;
+  - `pnpm web:lint` pass;
+  - `pnpm web:test` 296 files / 1,776 tests pass (before repairs);
+  - `pnpm build` pass;
+  - after repairs: `tsc -b`, scoped eslint, and theme/settings/preferences/sonner
+    tests (41) pass;
+  - `pnpm install --frozen-lockfile` consistent;
+  - prettier on changed files pass.
+- **Gate evidence** (browser, stack `animama-settings`, 1280×800 emulated):
+  - **Dark screenshots:** chat/main, sidebar, App Settings, Anima page,
+    Library, Memory, Create hub and Gesture creator. Only the Memory editor
+    needed a fix.
+  - **Override screenshots** (dark accent `#ff6600`, background `#000000`,
+    foreground `#ededed`): chat and Library legible. The avatar renders; an
+    apparent missing avatar was a screenshot-capture artefact of the emulated
+    viewport, disproved by toggling the stylesheet live.
+  - **System mode:** follows an emulated OS scheme change live and on reload.
+    Dark overrides do not apply in light mode.
+  - **Persistence:** mode and overrides persist after reload.
+  - **Rapid switching:** Dark then Light within 20 ms stays Light, with
+    "light" stored.
+- **Not performed:** desktop shell rendering; an exhaustive route sweep beyond
+  the core surfaces.
+- **Remaining legibility caveat:** `--accent`, `--secondary` and
+  `--sidebar-accent` keep built-in colours under extreme background overrides.
+
 #### Code Review #1 Findings
 
-Pending.
+- **P2-1 (blocking).** Stale forced-theme docs.
+- **P2-2 (blocking).** Orphaned `color-picker.tsx` and `color` dependency.
+- **P2-3 (blocking).** Invisible keyboard focus on the colour input, which is
+  also the search-reveal target.
+- **P2-4.** Theme echo can revert rapid changes.
+- **P2-5.** The debounced save used stale values and was dropped on unmount.
+- **P2-6.** Light-mode default probe inherits the override.
+- **P2-7.** Radio group has no arrow-key navigation.
+- **P2-8.** Unused `useId`.
+- **P2-9.** Some surfaces are not derived from overrides.
+- **P2-10.** Overrides apply only under `SettingsProvider`.
+- **P2-11.** Unrelated prettier changes.
+- **P2-12.** Plan notes needed.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **Accepted and fixed:** P2-1, P2-2, P2-3 (focus-within ring; reveal skips
+  `type=color`), P2-4, P2-5 (latest-save ref; unmount flush), P2-8, P2-11
+  (reverted) and P2-12.
+- **Rejected:** P2-6. The default is only shown when that key has no override.
+- **Deferred:** P2-7, P2-9 and P2-10 (acceptable in scope).
+
+#### Code Review #2 Findings (repair round 1)
+
+**R1-1 (blocking).** The in-flight guard was cleared before the settings
+notification (TanStack notifies as a macrotask), so a stale echo could still
+revert the last choice.
+
+#### Code Review #2 Revisions
+
+**R1-1: accepted.** `createThemeEchoTracker` counts submitted themes and
+consumes matching stored values independently of timing. Failed saves are
+released. There are four unit tests, and the browser scenario passes.
+
+#### Code Review #3 Findings (repair round 2)
+
+Pass.
+
+- **R2-1 (optional).** The count can leak after rapid re-clicks of the same
+  value, which could make one later external change look like an echo.
+
+#### Code Review #3 Revisions
+
+- **R2-1: deferred.** It is low impact: single owner, same-origin windows sync
+  through next-themes storage events.
+- The repair budget for this phase is exhausted.
 
 ### Phase 3: Microphone
 

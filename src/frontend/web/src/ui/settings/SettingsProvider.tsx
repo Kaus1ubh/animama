@@ -13,6 +13,12 @@ import {
   type SetStateAction,
 } from "react";
 import { useTheme } from "next-themes";
+import { createThemeEchoTracker } from "@/lib/theme/theme-echo-tracker";
+import {
+  applyAppearanceOverrideCss,
+  buildAppearanceOverrideCss,
+  parseAppearanceOverrides,
+} from "@/lib/theme/appearance-overrides";
 
 import type {
   PyAnimaDispatchOptions,
@@ -22,14 +28,12 @@ import type {
   PyUserSettingsUpdate,
 } from "@/lib/content/catalogTypes";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
-import { featureFlags } from "@/lib/feature-flags";
 import {
   DEFAULT_ANIMAMA_PREFERENCES,
   mergePreferences,
   normalizeThemeSetting,
   resolvePreferences,
   themesEquivalent,
-  toStoredTheme,
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
 import { createLogger } from "@/lib/logger";
@@ -219,15 +223,18 @@ export function SettingsProvider({
 
   const pendingTheme = useRef<string | null>(null);
   const appliedSettingsTheme = useRef<string | null>(null);
+  // Stored themes that merely echo this client's own saves must not revert a
+  // newer local selection (e.g. Dark then Light before the Dark save returns).
+  const themeEchoes = useRef(createThemeEchoTracker());
 
   useEffect(() => {
-    if (!featureFlags.themeSelection) return;
     const storedTheme = userSettings?.theme ?? null;
     if (appliedSettingsTheme.current === storedTheme) return;
     appliedSettingsTheme.current = storedTheme;
 
     const preferredTheme = normalizeThemeSetting(storedTheme);
     if (!preferredTheme || !setTheme) return;
+    if (themeEchoes.current.consumeEcho(preferredTheme)) return;
     if (preferredTheme === theme) {
       pendingTheme.current = null;
       return;
@@ -242,7 +249,6 @@ export function SettingsProvider({
   }, [logger, setTheme, theme, userSettings?.theme]);
 
   useEffect(() => {
-    if (!featureFlags.themeSelection) return;
     if (!userSettings || !theme) return;
     const normalizedTheme = normalizeThemeSetting(theme);
     if (!normalizedTheme) return;
@@ -259,12 +265,24 @@ export function SettingsProvider({
       current: theme,
       normalized: normalizedTheme,
     });
-    void updateUserSettings({ theme: toStoredTheme(normalizedTheme) }).catch(
-      (error) => {
-        logger.error("Theme", "Theme persistence failed", error);
-      },
-    );
+    themeEchoes.current.submit(normalizedTheme);
+    void updateUserSettings({ theme: normalizedTheme }).catch((error) => {
+      themeEchoes.current.fail(normalizedTheme);
+      logger.error("Theme", "Theme persistence failed", error);
+    });
   }, [logger, theme, updateUserSettings, userSettings]);
+
+  // Apply per-mode colour overrides from app preferences on top of the theme.
+  const appearanceCss = useMemo(
+    () =>
+      buildAppearanceOverrideCss(
+        parseAppearanceOverrides(userPreferences?.appearance),
+      ),
+    [userPreferences?.appearance],
+  );
+  useEffect(() => {
+    applyAppearanceOverrideCss(appearanceCss);
+  }, [appearanceCss]);
 
   const value = useMemo<SettingsContextValue>(
     () => ({

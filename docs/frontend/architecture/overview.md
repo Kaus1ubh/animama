@@ -65,13 +65,15 @@ Global startup:
 - `src/frontend/web/src/routes/__root.tsx` owns root document head, scroll
   restoration, scripts, and not-found rendering.
 
-`web/src/lib/feature-flags.ts` currently disables `themeSelection` for web and
-desktop. The theme provider forces the default light theme from startup, and
-the user menu hides the entire theme section and custom-theme editor. Browser/system
-preferences and saved backend themes do not override light while this flag is
-off. Theme synchronization pauses without deleting saved preferences or custom
-colors; enabling the flag restores the existing selection behavior. Toasts use
-the same forced theme.
+Theme mode (System, Light or Dark) and per-mode colour overrides are chosen in
+App Settings → Appearance. `web/src/ui/theme/theme-provider.tsx` applies a
+`light`/`dark` root class through next-themes and defaults to light.
+`SettingsProvider` synchronizes the mode with `user_settings.theme`
+(`system|light|dark`; retired `custom`/`anima` values read as light) and applies
+Accent/Background/Foreground overrides from `preferences.appearance.{light,dark}`
+as a generated stylesheet (`web/src/lib/theme/appearance-overrides.ts`). Style
+new surfaces with theme tokens rather than fixed colours so both modes and
+overrides stay legible.
 
 See [Routing](routing.md) for route ownership and navigation rules, and
 [Local profile](../features/user-profiles.md) for setup and launch selection.

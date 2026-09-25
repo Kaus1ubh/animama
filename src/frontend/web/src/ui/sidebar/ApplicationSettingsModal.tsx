@@ -51,6 +51,12 @@ import {
   type DesktopShortcutMap,
 } from "@/lib/settings/desktop-shortcuts";
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
+import { APPEARANCE_COLOR_KEYS } from "@/lib/theme/appearance-overrides";
+import {
+  APPEARANCE_COLOR_LABELS,
+  AppearanceColorSetting,
+  AppearanceModeSetting,
+} from "@/ui/settings/AppearanceSettings";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { useModelProviders } from "@/query/hooks/useModelProviders";
 import {
@@ -199,6 +205,8 @@ const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
 const REVEAL_HIGHLIGHT_MS = 1600;
 
 const GROUP_DESCRIPTIONS: Record<string, string> = {
+  "Visual style":
+    "Override colours for the mode in effect. Light and Dark keep separate colours.",
   "Desktop shortcuts": "Press to talk also supports a mouse button.",
 };
 
@@ -588,7 +596,8 @@ export function ApplicationSettingsModal({
     });
     const control =
       target.querySelector<HTMLElement>(
-        '[role="switch"]:not(:disabled), [role="combobox"]:not(:disabled), input:not(:disabled)',
+        // Prefer visible controls over the transparent native colour picker.
+        '[role="switch"]:not(:disabled), [role="combobox"]:not(:disabled), input:not(:disabled):not([type="color"])',
       ) ?? target.querySelector<HTMLElement>("button:not(:disabled)");
     control?.focus({ preventScroll: true });
     setHighlightedEntryId(revealRequest.id);
@@ -1122,6 +1131,24 @@ export function ApplicationSettingsModal({
         <DesktopUpdatesPanel className={FLAT_SETTINGS_PANEL_CLASS_NAME} />
       ),
     },
+    {
+      id: "appearance-mode",
+      section: "Appearance",
+      group: "Theme",
+      label: "Mode",
+      keywords: ["theme", "dark", "light", "system", "dark mode"],
+      render: () => <AppearanceModeSetting />,
+    },
+    ...APPEARANCE_COLOR_KEYS.map(
+      (colorKey): SettingEntry => ({
+        id: `appearance-${colorKey}`,
+        section: "Appearance",
+        group: "Visual style",
+        label: `${APPEARANCE_COLOR_LABELS[colorKey]} colour`,
+        keywords: ["theme", "color", "colour", "override", "hex"],
+        render: () => <AppearanceColorSetting colorKey={colorKey} />,
+      }),
+    ),
     {
       id: "stt-provider",
       section: "Voice",

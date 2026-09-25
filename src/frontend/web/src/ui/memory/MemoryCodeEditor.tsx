@@ -87,7 +87,9 @@ export function MemoryCodeEditor({
           ...(ariaDescribedBy ? { "aria-describedby": ariaDescribedBy } : {}),
         }),
       ]}
-      theme="light"
+      // The token-based theme above supplies colours for both app modes; the
+      // package's built-in light theme would force a white editor in dark mode.
+      theme="none"
       onChange={onChange}
     />
   );

@@ -1,3 +1,4 @@
+import type { AppearanceOverrides } from "@/lib/theme/appearance-overrides";
 import {
   DEFAULT_DESKTOP_SHORTCUTS,
   type DesktopShortcut,
@@ -126,6 +127,8 @@ export type PresentationPreferences = {
 export type SettingsPreferences = {
   /** Keeps first-message suggestions dismissed across chats and deleted history. */
   has_sent_chat_message?: boolean;
+  /** Per-mode colour overrides; see `lib/theme/appearance-overrides.ts`. */
+  appearance?: AppearanceOverrides;
   memory?: MemoryPreferences;
   emotion?: PreferenceToggleSection;
   presentation?: PresentationPreferences;
@@ -197,11 +200,30 @@ export function mergePreferences(
   const emotion = mergeSection(baseObj, patchObj, "emotion");
   const presentation = mergeSection(baseObj, patchObj, "presentation");
   const speech = mergeSection(baseObj, patchObj, "speech");
+  const appearance = mergeSection(baseObj, patchObj, "appearance");
 
   if (memory) merged.memory = memory as PreferenceToggleSection;
   if (emotion) merged.emotion = emotion as PreferenceToggleSection;
   if (presentation)
     merged.presentation = presentation as PresentationPreferences;
+  if (appearance) {
+    // Merge each mode separately so editing one colour keeps the others.
+    const baseAppearance = isRecord(baseObj.appearance)
+      ? (baseObj.appearance as Record<string, unknown>)
+      : undefined;
+    const patchAppearance = isRecord(patchObj.appearance)
+      ? (patchObj.appearance as Record<string, unknown>)
+      : undefined;
+    for (const mode of ["light", "dark"]) {
+      const modeValue = mergeNestedRecord(
+        baseAppearance,
+        patchAppearance,
+        mode,
+      );
+      if (modeValue) appearance[mode] = modeValue;
+    }
+    merged.appearance = appearance as AppearanceOverrides;
+  }
   if (speech) {
     const baseSpeech = isRecord(baseObj.speech)
       ? (baseObj.speech as Record<string, unknown>)
@@ -231,13 +253,17 @@ export function resolvePreferences(
   return mergePreferences(withUser, animaPrefs);
 }
 
+/**
+ * Map a stored theme to a supported mode. Retired values (`custom`/`anima`,
+ * the backend default) fall back to light.
+ */
 export function normalizeThemeSetting(
   theme?: string | null,
-): "light" | "dark" | "custom" | null {
-  if (theme === "anima") return "custom";
-  if (theme === "light" || theme === "dark" || theme === "custom") {
+): "system" | "light" | "dark" | null {
+  if (theme === "system" || theme === "light" || theme === "dark") {
     return theme;
   }
+  if (theme === "custom" || theme === "anima") return "light";
   return null;
 }
 
@@ -249,10 +275,6 @@ export function themesEquivalent(
   const currentNormalized = normalizeThemeSetting(current);
   if (!storedNormalized || !currentNormalized) return false;
   return storedNormalized === currentNormalized;
-}
-
-export function toStoredTheme(theme: string): string {
-  return theme === "custom" ? "anima" : theme;
 }
 
 export function toElevenLabsRealtimeTtsModelId(

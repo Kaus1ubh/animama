@@ -16,11 +16,7 @@ type AppProvidersProps = {
 
 export function AppProviders({ children }: AppProvidersProps) {
   return (
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="light"
-      themes={["light", "dark", "custom"]}
-    >
+    <ThemeProvider>
       <RuntimePlatformProvider>
         <QueryClientProvider client={queryClient}>
           <LocalRuntimeProvider>
