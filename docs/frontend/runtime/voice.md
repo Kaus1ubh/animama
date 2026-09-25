@@ -279,8 +279,9 @@ Loading behavior:
 - **Load failure.** The worker checks that ORT actually initialized a WebGPU
   device, because ORT otherwise drops the WebGPU provider silently and runs on
   WASM. If the check fails, or the load throws, the client falls back to WASM
-  and reports "fell back to CPU". For the rest of the page it uses WASM
-  directly (`load_failed`), until the settings panel refreshes the status.
+  and the settings panel says WebGPU failed to load and the CPU was used. For
+  the rest of the page it uses WASM directly (`load_failed`), until the
+  settings panel refreshes the status.
 - **Warm-up.** The worker warms WebGPU with one second of silence during load,
   so shader compilation does not make the first preview look over budget.
 

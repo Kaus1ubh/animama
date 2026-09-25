@@ -132,8 +132,9 @@ The Parakeet model comes from the shared developer model store. Check it with
 - [x] Phase 2 amendment: previews only on the WebGPU backend. Commit
       `e091c69`.
 - [x] Phase 3: experimental WebGPU toggle (issue #113). Review passed after
-      one repair round; the commit is recorded in the Phase 3 section.
-- [ ] Final integration review of the full scope after Phase 3.
+      one repair round. Commit `5a84307` (`feat(voice)[p3]`).
+- [x] Final integration review of the full scope after Phase 3: passed after
+      two repair rounds (Code Review #5).
 - [ ] Owner manual acceptance on the task stack.
 
 ## Surprises & Discoveries
@@ -186,7 +187,8 @@ The Parakeet model comes from the shared developer model store. Check it with
   - Leave feature-pack release planning out of this plan.
 - **2026-09-25, agent proposals (accepted with this plan unless the owner changes
   them):**
-  - Partials get no new user setting.
+  - Partials get no preview-specific user setting. After the Phase 2 amendment
+    they follow the Experimental WebGPU setting.
   - Preview cadence adapts to measured decode time, and previews stop
     automatically when decoding cannot keep up.
   - One branch and one PR: `feat/parakeet-live-partials`.
@@ -1013,7 +1015,20 @@ Checks: `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build`,
 Follow-ups (not in this plan):
 
 - serving the GPU model in built self-host and in a desktop pack;
-- desktop WASM threads (declined for now on 2026-09-25).
+- desktop WASM threads (declined for now on 2026-09-25);
+- investigating the slow Electron WebGPU decoder loop (Phase 1: 289 of 515 ms
+  at 12 s, against 90 ms in Chrome), and using decoder-state reuse for
+  previews (about 40% less decoder time on Electron WebGPU);
+- skipping preview decodes during the 1.4 s VAD redemption period at window
+  end. On WebGPU a preview is often in flight at speech end; the measured
+  final still landed 0.56–0.67 s after it;
+- the `reset()` double-queue edge (a new session can queue one preview behind
+  an old decode), now reachable on WebGPU; its cost is bounded;
+- falling back when the GPU device is lost after a successful load;
+- memory measurement for WebGPU.
+
+The amendment's deferred narrowing of `backend` to `ClientParakeetBackend`
+was done in Phase 3.
 
 #### Phase 3 results (2026-09-25)
 
@@ -1056,15 +1071,30 @@ Apple M5):
   - a stack without the set falls back to the tracked notices directory
     (Compose test).
 
+**Voice Mode on WebGPU** (Chrome, run after the final integration review on
+`5a84307`, with `chat:sse` intercepted and answered with 503):
+
+- previews ran through the 17 s window;
+- the final landed 0.67 s after speech end;
+- auto-submit fired after the final and Smart Turn;
+- the intercepted `message` was the full final transcript.
+
 **Not performed:**
 
 - a real microphone;
+- Electron Voice Mode on WebGPU;
 - `model_missing` on a live stack (covered by unit and Compose tests);
 - WebGPU on non-Apple GPUs;
-- memory measurement.
+- memory measurement;
+- a WebGPU before/after final-latency comparison with previews disabled;
+- automated coverage of `reset.sh`'s present and verification-failure paths
+  for the optional set. The `reset.sh` harness stubs only the base model
+  scripts; the present path was verified manually by `reset.sh` recording the
+  store path.
 
-**Checks** (on the working tree before the Code Review #1 fixes; rerun after
-the fixes under Final integration):
+**Checks** (on the working tree before the Code Review #1 fixes; the rerun after
+the fixes is under Code Review #2 Revisions below, and the checks on `5a84307`
+are under Final integration):
 
 - `pnpm check`, `web:lint`, `web:test` (298 files, 1,791 tests), `build` and
   `desktop:check`: all exit 0;
@@ -1262,36 +1292,166 @@ plus the uncommitted plan edit recording `68cdf0e`. Round: initial.
 
 #### Code Review #2 Revisions (final integration)
 
-None required. The final integration review passed with one repair round
-used.
+None required. The final integration review for Phases 1–2 passed with one
+repair round used.
+
+#### Code Review #3 Findings (final integration, full scope after Phase 3)
+
+Reviewer: independent `sdlc-reviewer` subagent. Source: `c612e9d..5a84307`.
+Round: initial for the full scope. Earlier phase reviews stand.
+
+- **No code, boundary or documentation defects.**
+- **FI2-R1-1 (required):** Validation and acceptance, and the Phase 3 "Not
+  performed" list, still described the pre-amendment outcome. Voice Mode on
+  WebGPU had not been run.
+- **FI2-R1-2 (required):** Idempotence and recovery was stale after Phase 3.
+- **FI2-R1-3 (required):** the Phase 3 commit was not recorded, and a Checks
+  cross-reference was wrong.
+- **Optional:**
+  - FI2-R1-4: deferred items had no disposition;
+  - FI2-R1-5: `reset.sh`'s WebGPU present and failure paths have no automated
+    coverage;
+  - the PR body is stale;
+  - a GPU device lost after load does not fall back;
+  - cosmetic wording.
+
+#### Code Review #3 Revisions (final integration)
+
+- **FI2-R1-1: accepted.**
+  - Validation and acceptance is rewritten per backend, adding the WASM
+    final-only criterion, toggle behavior, and the Phase 3 checks and owner
+    steps.
+  - Voice Mode on WebGPU was run on `5a84307` and recorded under Phase 3.
+  - The "Not performed" list is extended.
+- **FI2-R1-2: accepted.** Idempotence and recovery is rewritten: optional set
+  removal and reacquisition, the toggle, the revert caveats and the inert
+  preference.
+- **FI2-R1-3: accepted.** `5a84307` is recorded in Progress, the
+  cross-reference is fixed, and HEAD checks are recorded below.
+- **FI2-R1-4: accepted.** Follow-ups are listed under Phase 3, and the type
+  narrowing is recorded as done.
+- **FI2-R1-5: disclosed** under Phase 3 "Not performed" rather than extending
+  the `reset.sh` harness in this plan.
+- **PR body:** updated when the branch is pushed.
+- **Device loss after load:** listed as a follow-up.
+- **Cosmetic:**
+  - the `voice.md` fallback wording now matches the panel;
+  - the Decision Log note is updated.
+
+**Checks on `5a84307`:** the tree is identical to the Phase 3 tree checked
+after Code Review #2 (`pnpm check`, `web:lint`, `web:test` 298/1,794, `build`,
+`desktop:check`, pytest 305 passed / 6 skipped, `ruff`, `bash -n`, both Compose
+configs).
+
+- The reviewer reran `tsc -b`, `eslint`, the targeted vitest (53) and pytest
+  (14) runs, `ruff` and `bash -n` on HEAD.
+- This revision changes only the plan and `voice.md`.
+
+#### Code Review #4 Findings (final integration, repair round 1)
+
+- **FI2-R1-1 to FI2-R1-4 and the cosmetic items:** verified.
+- **FI2-R2-1 (required):** the rewritten Validation items 3–4 overstated the
+  evidence.
+  - No first-preview time after speech start was recorded for WebGPU.
+  - "Well under the Phase 2 target" was claimed without a before/after
+    comparison.
+- **Optional:** a `voice.md` line was not re-wrapped.
+
+#### Code Review #4 Revisions (final integration)
+
+- **FI2-R2-1: accepted.**
+  - Item 3 now cites the observed WebGPU trace: first preview 0.86 s after
+    speech start.
+  - Item 4 states the inference: about 0.26–0.37 s added, roughly one preview
+    decode, within the target by inference.
+  - The missing WebGPU before/after comparison is added to Phase 3 "Not
+    performed".
+- **Line wrap: fixed.**
+- **Budget:** this revision is the second and last repair round for the
+  full-scope final integration review, and it was verified by recheck #5.
+
+#### Code Review #5 (final integration, final targeted recheck)
+
+- **Result: pass.** FI2-R2-1 is resolved and no regressions were found.
+- Repair rounds used: 2 of 2.
+- Non-blocking notes (the source-state line for the first WebGPU trace, and
+  the budget wording) are applied above.
 
 ## Validation and acceptance
 
 1. The Phase 1 results table and the G1 decision are recorded.
-2. On the task stack, with Parakeet in Chrome and in `desktop:dev`:
-   - interim text appears within ~1.5 s of starting to speak and updates while
-     speaking
-   - the final text replaces it
-3. Voice Mode never submits on a preview, and final-text latency stays within the
-   Phase 2 target (measured numbers recorded).
-4. `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build` and
-   `pnpm desktop:check` pass. Hosted `Validation` results are recorded separately
-   in the PR.
-5. The owner accepts manually on the task stack using a real microphone.
+2. **Default (WASM) backend:** Parakeet in Chrome and `desktop:dev` is
+   final-only. No interim text appears, and the final text is unchanged.
+3. **WebGPU backend** (with the optional set acquired and the Experimental
+   toggle on), in Chrome and `desktop:dev`:
+   - interim text appears within ~1.5 s of speech start and updates while
+     speaking;
+   - the final text replaces it;
+   - evidence:
+     - in the first Phase 3 WebGPU dictation trace (the Phase 3 tree before
+       the warm-up and Code Review #1 fixes; later runs had warm first decodes
+       of 150–170 ms), speech started at 19.01 s
+       and the first preview arrived at 19.87 s, about 0.86 s after speech
+       start (600 ms threshold plus the first decode);
+     - updates every ~0.6 s;
+     - finals 0.56–0.67 s after speech end, against ~5.9 s on WASM.
+4. **Voice Mode never submits on a preview.** The Phase 2 Voice Mode, mute and
+   stop/restart checks are reused as backend-independent controller evidence,
+   and Voice Mode on WebGPU was run in Phase 3.
+   - WASM creates no preview, so previews add no final latency there.
+   - On WebGPU a preview may be in flight at speech end. Phase 1's warm decode
+     of the 15.9 s clip was about 300 ms, which implies previews add about
+     0.26–0.37 s to the measured 0.56–0.67 s finals. That is roughly one
+     preview decode, within the Phase 2 target by inference.
+   - A WebGPU before/after comparison without previews was not run.
+5. **Toggle behavior:** off by default. With the toggle on:
+   - no WebGPU, missing model, or an unserving build falls back to WASM, and
+     the status line says why;
+   - a failed WebGPU load falls back to WASM.
+6. **Checks:**
+   - `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build` and
+     `pnpm desktop:check`;
+   - pytest model-store, Compose, state-script and CI-policy tests;
+   - `bash -n reset.sh`;
+   - both `docker compose ... config --quiet` commands.
+
+   Hosted `Validation` results are recorded separately in the PR.
+
+7. **Owner manual acceptance** on the task stack with a real microphone:
+   - default WASM: final-only;
+   - after `python3 scripts/models/parakeet_webgpu.py acquire` and `reset.sh`,
+     turn on App Settings → Experimental → GPU-accelerated offline speech:
+     live previews in dictation and Voice Mode;
+   - toggle back off: final-only.
 
 This plan does not establish packaged-app behavior, feature-pack installation or
 release readiness.
 
 ## Idempotence and recovery
 
-- **Spike files:** the benchmark inputs and the extra encoder file live in a
-  developer cache outside the verified model store. They can be deleted and
+- **Spike files:** the Phase 1 benchmark inputs and spike encoder copy live in
+  a developer cache outside the verified model store. They can be deleted and
   fetched again safely.
-- **Reverting partials:** partials are client-only. Reverting the Phase 2 commit
-  restores final-only behavior and changes no stored data.
-- **Disabling previews:** set `maxPreviewDecodeMs: 0` in
-  `DEFAULT_PARAKEET_PREVIEW_CONFIG` (`preview-controller.ts`) to turn previews
-  off. It is an internal constant only, with no debug override or user setting.
+- **Optional WebGPU model set:** about 1.24 GB at
+  `<store>/parakeet-tdt-0.6b-v2-webgpu/<digest>`.
+  - To remove it, first check the stack records and mounts, following the
+    `model-assets.md` cleanup guidance.
+  - Then rerun `reset.sh`. The stack records an empty
+    `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`, Compose mounts the notices directory,
+    and the setting reports `model_missing`.
+  - Reacquire it with `python3 scripts/models/parakeet_webgpu.py acquire`.
+- **Turning previews and WebGPU off:**
+  - Users turn off App Settings → Experimental → GPU-accelerated offline speech
+    (`speech.stt_parakeet_webgpu`). WASM is final-only.
+  - Developers can also set `maxPreviewDecodeMs: 0` in
+    `DEFAULT_PARAKEET_PREVIEW_CONFIG` to disable previews on every backend.
+- **Reverting:** all changes are client-side or development tooling, with no
+  schema or backend change.
+  - Reverting the branch as a whole restores the pre-plan behavior.
+  - Reverting individual phase commits needs care, because the amendment and
+    Phase 3 build on Phase 2's controller and hook changes.
+  - A reverted build ignores a saved `stt_parakeet_webgpu` preference; the key
+    becomes inert.
 - **Task stack:** it uses its own Compose project (`animama-stt`). Stop it with
   project-scoped commands per the
   [cleanup guide](../../backend/operations/development.md#cleaning-up-worktree-stacks).
