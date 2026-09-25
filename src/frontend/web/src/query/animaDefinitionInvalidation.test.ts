@@ -7,17 +7,18 @@ import { invalidateAnimaDefinition } from "./animaDefinitionInvalidation";
 describe("invalidateAnimaDefinition", () => {
   it("refreshes definition guards without remounting runtime or crossing owners", async () => {
     const client = new QueryClient();
-    const affected = [
+    const affected: (readonly unknown[])[] = [
       queryKeys.animas.detail("owner", "anima"),
       queryKeys.animas.list("owner"),
       queryKeys.animaLoadouts.detail("owner", "anima"),
+      queryKeys.memoryEntries.animaIdentities("owner"),
       queryKeys.memoryEntries.byPath("owner", {
         animaId: "anima",
         path: "IDENTITY.md",
         type: "file",
       }),
     ];
-    const unaffected = [
+    const unaffected: (readonly unknown[])[] = [
       queryKeys.animaLoadouts.runtime("owner", "anima"),
       queryKeys.animas.detail("other-owner", "anima"),
       queryKeys.animas.detail("owner", "other-anima"),
@@ -29,6 +30,12 @@ describe("invalidateAnimaDefinition", () => {
     ];
     for (const key of [...affected, ...unaffected])
       client.setQueryData(key, {});
+    const identityDetail = queryKeys.memoryEntries.detail("owner", "identity");
+    const profileDetail = queryKeys.memoryEntries.detail("owner", "profile");
+    client.setQueryData(identityDetail, { anima_id: "anima" });
+    client.setQueryData(profileDetail, { anima_id: null });
+    affected.push(identityDetail);
+    unaffected.push(profileDetail);
 
     await invalidateAnimaDefinition(client, "owner", "anima");
 

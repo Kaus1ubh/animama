@@ -325,6 +325,7 @@ export class FeaturePackManager {
           manifest,
           partial,
           development: this.options.catalog.development,
+          distribution: this.options.catalog.distribution,
           signal,
           progress: (bytes) => {
             if (

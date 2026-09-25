@@ -22,6 +22,7 @@ import { zstdCompressSync } from "node:zlib";
 import { pack, type Headers } from "tar-stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  downloadUrl,
   loadPackCatalog,
   manifestDigest,
   validateManifest,
@@ -225,7 +226,7 @@ async function manager(
   const instance = new FeaturePackManager({
     root: path.join(root, "packs"),
     downloads: path.join(root, "downloads"),
-    catalog: { entries: [manifest], development: true },
+    catalog: { entries: [manifest], development: true, distribution: null },
     freeBytes: async () => options.freeBytes ?? 100_000_000_000n,
     onProgress: progress,
     transition: options.transition ?? (async (change) => change.commit()),
@@ -275,6 +276,97 @@ describe("feature-packs catalog and authority", () => {
     expect(() =>
       validateManifest({ ...manifest, url: "http://127.0.0.1:1234/payload" }),
     ).toThrow("pack_url_invalid");
+  });
+  it("pins pack downloads to the distribution sealed in the update policy", async () => {
+    const { manifest } = await fixture();
+    const r2 = {
+      kind: "r2" as const,
+      base_url: "https://downloads.example.test/desktop",
+    };
+    const github = {
+      kind: "github" as const,
+      owner: "example",
+      repo: "animama",
+    };
+    const r2Url =
+      "https://downloads.example.test/desktop/v0.1.0/parakeet.tar.zst";
+    const r2Manifest = { ...manifest, url: r2Url };
+    expect(validateManifest(r2Manifest, false, r2).url).toBe(r2Url);
+    expect(validateManifest(manifest, false, github).url).toBe(manifest.url);
+    for (const [url, distribution] of [
+      [manifest.url, r2],
+      [r2Url, github],
+      [r2Url, null],
+      [
+        "https://github.com/other/repo/releases/download/v0.1.0/parakeet.tar.zst",
+        github,
+      ],
+      [
+        "https://downloads.example.test/desktop/v0.1.0/parakeet.tar.zst?x=1",
+        r2,
+      ],
+      ["https://downloads.example.test/desktop/latest/parakeet.tar.zst", r2],
+      ["https://downloads.example.test/desktop/v0.1.0/a/parakeet.tar.zst", r2],
+      ["https://downloads.example.test/other/v0.1.0/parakeet.tar.zst", r2],
+      ["https://evil.example.test/desktop/v0.1.0/parakeet.tar.zst", r2],
+    ] as const)
+      expect(() =>
+        validateManifest({ ...manifest, url }, false, distribution),
+      ).toThrow("pack_url_invalid");
+    // R2 serves the object directly; any redirect leaves the sealed origin.
+    expect(() =>
+      downloadUrl("https://release-assets.githubusercontent.com/x", {
+        development: false,
+        distribution: r2,
+        redirect: true,
+      }),
+    ).toThrow("pack_url_invalid");
+    expect(
+      downloadUrl("https://release-assets.githubusercontent.com/x", {
+        development: false,
+        distribution: github,
+        redirect: true,
+      }).hostname,
+    ).toBe("release-assets.githubusercontent.com");
+
+    const root = await temporary();
+    const body = {
+      schema: "animama-pack-catalog/1",
+      app_version: "0.1.0",
+      entries: [r2Manifest],
+    };
+    await writeFile(
+      path.join(root, "pack-catalog.json"),
+      JSON.stringify({ id: sha(Buffer.from(JSON.stringify(body))), ...body }),
+    );
+    const load = () =>
+      loadPackCatalog({
+        runtimeRoot: root,
+        appVersion: "0.1.0",
+        isPackaged: true,
+      });
+    // Without a sealed R2 policy, an R2 pack URL is not trusted.
+    await expect(load()).rejects.toThrow("pack_url_invalid");
+    await writeFile(
+      path.join(root, "update-policy.json"),
+      JSON.stringify({
+        schema: "animama-update-policy/2",
+        distribution: r2,
+        channel: "stable",
+        team_id: "TESTTEAM01",
+      }),
+    );
+    expect(await load()).toMatchObject({ distribution: r2 });
+    await writeFile(
+      path.join(root, "update-policy.json"),
+      JSON.stringify({ distribution: { kind: "r2", base_url: "http://x" } }),
+    );
+    await expect(load()).rejects.toThrow("pack_catalog_invalid");
+    await writeFile(
+      path.join(root, "update-policy.json"),
+      JSON.stringify({ distribution: null }),
+    );
+    await expect(load()).rejects.toThrow("pack_catalog_invalid");
   });
   it.each([
     "../escape",
@@ -469,6 +561,7 @@ describe("feature-packs download and recovery", () => {
         }),
       );
       await downloadPack({
+        distribution: null,
         manifest: input.manifest,
         partial,
         development: true,
@@ -494,6 +587,7 @@ describe("feature-packs download and recovery", () => {
       });
       await expect(
         downloadPack({
+          distribution: null,
           manifest: input.manifest,
           partial: path.join(await temporary(), "partial"),
           development: true,
@@ -905,5 +999,80 @@ describe("feature-packs build artifacts", () => {
     ).toEqual(beforeUpdate.entries);
     await writeFile(path.join(inputs, "fixture.json"), '{"changed":true}');
     expect((await buildFeaturePacks(options)).entries).toEqual([]);
+  });
+  it("pins pack URLs under the selected R2 release folder and rejects unsafe bases", async () => {
+    const root = await temporary();
+    const inputs = path.join(root, "expanded");
+    await mkdir(inputs);
+    await writeFile(path.join(inputs, "fixture.json"), "{}");
+    const files = await inventoryPack(inputs, "expanded-included-content");
+    const packs = Object.fromEntries(
+      ["parakeet-stt", "expanded-included-content", "document-processing"].map(
+        (id) => [
+          id,
+          {
+            release_status:
+              id === "expanded-included-content"
+                ? ("active" as const)
+                : ("deferred" as const),
+            version: "0.1.0",
+            approved_inventory_sha256:
+              id === "expanded-included-content"
+                ? sha(Buffer.from(JSON.stringify(files)))
+                : null,
+            license_refs: ["fixture-only"],
+          },
+        ],
+      ),
+    );
+    const options = {
+      inputs: {
+        "expanded-included-content": inputs,
+        "parakeet-stt": path.join(root, "missing-speech"),
+        "document-processing": path.join(root, "missing-worker"),
+      },
+      output: path.join(root, "archives"),
+      catalog: path.join(root, "pack-catalog.json"),
+      appVersion: "0.2.0",
+      release: {
+        release_base_url: "https://downloads.example.test/desktop/v0.2.0",
+        distribution: {
+          kind: "r2" as const,
+          base_url: "https://downloads.example.test/desktop",
+        },
+        macos: { team_id: null, designated_requirement: null },
+        packs,
+      },
+      budgets: Object.fromEntries(
+        [
+          "parakeet-stt",
+          "expanded-included-content",
+          "document-processing",
+        ].map((id) => [id, { installed_bytes: 100_000, download_bytes: null }]),
+      ),
+      writeTar,
+    } as Parameters<typeof buildFeaturePacks>[0];
+    const [entry] = (await buildFeaturePacks(options)).entries;
+    expect(entry.url).toBe(
+      "https://downloads.example.test/desktop/v0.2.0/expanded-included-content-0.1.0-data-only.tar.zst",
+    );
+    // A retained pack keeps its original release folder on the same transport.
+    packs["expanded-included-content"].app_versions = ["0.1.0", "0.2.0"];
+    packs["expanded-included-content"].release_tag = "v0.1.0";
+    expect((await buildFeaturePacks(options)).entries[0].url).toBe(
+      "https://downloads.example.test/desktop/v0.1.0/expanded-included-content-0.1.0-data-only.tar.zst",
+    );
+    for (const base of [
+      "http://downloads.example.test/desktop/v0.2.0",
+      "https://downloads.example.test:8443/desktop/v0.2.0",
+      "https://user@downloads.example.test/desktop/v0.2.0",
+      "https://downloads.example.test/desktop/v0.2.0?x=1",
+      "https://downloads.example.test/desktop/v0.2.0/",
+    ]) {
+      options.release.release_base_url = base;
+      await expect(buildFeaturePacks(options)).rejects.toThrow(
+        "Invalid fixed pack release configuration",
+      );
+    }
   });
 });

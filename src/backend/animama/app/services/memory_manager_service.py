@@ -50,12 +50,14 @@ from animama.logging import get_logger
 
 from ..ports.memory_manager_port import MemoryManagerRepository, MemoryManagerRepositoryConflictError
 from ..ports.uow_port import UnitOfWork
+from .anima_identity_memory import anima_identity_manager_path, parse_anima_identity_manager_path
 from .memory_entry_service import (
     MemoryEntryConflictError,
     MemoryEntryNotFoundError,
     MemoryEntryProtectedError,
     MemoryEntryService,
     MemoryEntryValidationError,
+    is_anima_identity,
     is_protected_memory_entry,
     is_protected_memory_path,
     normalize_memory_file_path,
@@ -404,7 +406,7 @@ class MemoryManagerService:
             committed_entry_id = approval.target_entry_id
             applied_version = approval.applied_version
             if status == MEMORY_MANAGER_APPROVAL_STATUS_APPROVED:
-                committed = await self._commit_approval_patch(user_id=user_id, approval=approval)
+                committed = await self._commit_approval_patch(user_id=user_id, approval=approval, run=run)
                 committed_entry_id = committed.id
                 applied_version = committed.version
 
@@ -506,6 +508,7 @@ class MemoryManagerService:
             elif approval.operation == MEMORY_PATCH_OPERATION_UPDATE:
                 if approval.old_content is None:
                     raise MemoryManagerConflictError("Approved memory update has no prior content")
+                # Identity Undo locks the Anima's current revision, like approval.
                 entry = await self._memory_entries.undo_approved_update(
                     user_id=user_id,
                     entry_id=approval.target_entry_id,
@@ -513,6 +516,7 @@ class MemoryManagerService:
                     old_content=approval.old_content,
                     old_description=approval.old_description,
                     change_metadata=change_metadata,
+                    use_current_aggregate_revision=True,
                 )
                 deleted = False
             else:
@@ -840,10 +844,24 @@ class MemoryManagerService:
             None,
         )
 
-    async def _commit_approval_patch(self, *, user_id: str, approval: MemoryManagerApproval) -> MemoryEntry:
+    async def _commit_approval_patch(
+        self,
+        *,
+        user_id: str,
+        approval: MemoryManagerApproval,
+        run: MemoryManagerRun,
+    ) -> MemoryEntry:
         try:
-            clean_path = self._validate_approval_target_path(approval.target_path)
+            clean_path, identity_anima_id = self._validate_approval_target_path(approval.target_path)
             change_metadata = self._approval_change_metadata(approval)
+            if identity_anima_id is not None:
+                return await self._commit_identity_approval(
+                    user_id=user_id,
+                    approval=approval,
+                    run=run,
+                    anima_id=identity_anima_id,
+                    change_metadata=change_metadata,
+                )
             if approval.operation == MEMORY_PATCH_OPERATION_CREATE:
                 if approval.new_content is None:
                     raise MemoryEntryValidationError("Approved memory create is missing content")
@@ -883,6 +901,46 @@ class MemoryManagerService:
             raise MemoryManagerValidationError(exc.detail) from exc
         except MemoryEntryValidationError as exc:
             raise MemoryManagerValidationError(exc.detail) from exc
+
+    async def _commit_identity_approval(
+        self,
+        *,
+        user_id: str,
+        approval: MemoryManagerApproval,
+        run: MemoryManagerRun,
+        anima_id: str,
+        change_metadata: dict[str, Any],
+    ) -> MemoryEntry:
+        """Apply one reviewed identity update to the Anima it was proposed for.
+
+        The approval is fenced by the identity's memory version, not the Anima's
+        aggregate revision, so a rename between proposal and approval still
+        applies while newer identity content conflicts.
+        """
+
+        if run.kind == MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING:
+            raise MemoryEntryValidationError("Episode processing cannot change Anima identities")
+        if approval.operation != MEMORY_PATCH_OPERATION_UPDATE or approval.new_content is None:
+            raise MemoryEntryValidationError("Memory Manager can only update existing Anima identities")
+        if approval.target_entry_id is None:
+            raise MemoryEntryConflictError("Identity approval has no target entry")
+        try:
+            current = await self._memory_entries.get_entry(user_id=user_id, entry_id=approval.target_entry_id)
+        except MemoryEntryNotFoundError as exc:
+            raise MemoryEntryConflictError("This Anima no longer exists; reject the proposal") from exc
+        if not is_anima_identity(current) or current.anima_id != anima_id:
+            raise MemoryEntryConflictError("Identity approval target changed after it was proposed")
+        return await self._memory_entries.patch_entry(
+            user_id=user_id,
+            entry_id=current.id,
+            expected_version=approval.expected_version,
+            content=approval.new_content,
+            content_set=True,
+            description=approval.new_description,
+            description_set=True,
+            change_metadata=change_metadata,
+            use_current_aggregate_revision=True,
+        )
 
     @staticmethod
     def _approval_change_metadata(approval: MemoryManagerApproval) -> dict[str, Any]:
@@ -986,13 +1044,17 @@ class MemoryManagerService:
         return normalized
 
     @staticmethod
-    def _validate_approval_target_path(path: str) -> str:
-        clean_path, normalized_path = normalize_memory_file_path(path)
-        if normalized_path == "animas" or normalized_path.startswith("animas/"):
-            raise MemoryEntryValidationError("Anima-scoped identity files are not editable here")
+    def _validate_approval_target_path(path: str) -> tuple[str, str | None]:
+        """Return the clean target path and, for identity targets, the Anima ID."""
+
+        anima_id = parse_anima_identity_manager_path(path)
+        if anima_id is not None:
+            return anima_identity_manager_path(anima_id), anima_id
+        # parse_anima_identity_manager_path already rejects other reserved paths.
+        clean_path, _normalized_path = normalize_memory_file_path(path)
         if is_protected_memory_path(clean_path):
             raise MemoryEntryProtectedError("Generated episode logs are read-only")
-        return clean_path
+        return clean_path, None
 
     @staticmethod
     def _merged_usage_metadata(

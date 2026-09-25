@@ -81,8 +81,8 @@ vi.mock("electron-updater", async () => {
 });
 
 const policy = {
-  schema: "animama-update-policy/1" as const,
-  github: { owner: "example", repo: "releases" },
+  schema: "animama-update-policy/2" as const,
+  distribution: { kind: "github" as const, owner: "example", repo: "releases" },
   channel: "stable" as const,
   team_id: "TESTTEAM01",
 };
@@ -145,7 +145,11 @@ describe("macOS updater adapter", () => {
   it("uses a public provider and does not hand a download to Squirrel until explicit install", async () => {
     const permitQuit = vi.fn();
     const adapter = createMacUpdateAdapter(policy, "0.1.0", permitQuit);
-    const candidate = validateUpdateCandidate(fixture.info, "0.1.0");
+    const candidate = validateUpdateCandidate(
+      fixture.info,
+      "0.1.0",
+      policy.distribution,
+    );
     await adapter.check();
     await adapter.download(candidate, vi.fn());
     expect(fixture.options).toEqual({
@@ -170,6 +174,44 @@ describe("macOS updater adapter", () => {
     expect(fixture.mac.quitAndInstall).toHaveBeenCalledOnce();
     adapter.close();
   });
+  it("uses a generic provider confined to the R2 base for an R2 build", async () => {
+    const r2 = {
+      ...policy,
+      distribution: {
+        kind: "r2" as const,
+        base_url: "https://downloads.example.test/desktop",
+      },
+    };
+    const info = fixture.info as { files: { url: string }[] };
+    info.files[0].url = "v0.2.0/Animama-0.2.0-arm64.zip";
+    const adapter = createMacUpdateAdapter(r2, "0.1.0", vi.fn());
+    expect(fixture.options).toEqual({
+      provider: "generic",
+      url: "https://downloads.example.test/desktop",
+    });
+    const allowed = (url: string) => {
+      let cancel = true;
+      fixture.beforeRequest({ url }, (value) => (cancel = value.cancel));
+      return !cancel;
+    };
+    expect(
+      allowed(
+        "https://downloads.example.test/desktop/latest-mac.yml?noCache=1",
+      ),
+    ).toBe(true);
+    expect(allowed("https://github.com/example/releases/releases/latest")).toBe(
+      false,
+    );
+    const candidate = validateUpdateCandidate(
+      fixture.info,
+      "0.1.0",
+      r2.distribution,
+    );
+    await adapter.check();
+    await adapter.download(candidate, vi.fn());
+    expect(candidate.filename).toBe("Animama-0.2.0-arm64.zip");
+  });
+
   it("rejects modified cache bytes and arbitrary updater hosts without exposing raw errors", async () => {
     const adapter = createMacUpdateAdapter(policy, "0.1.0", vi.fn());
     const callback = vi.fn();
@@ -180,7 +222,10 @@ describe("macOS updater adapter", () => {
     expect(callback).toHaveBeenCalledWith({ cancel: true });
     writeFileSync(fixture.file, "bad fixture");
     await expect(
-      adapter.download(validateUpdateCandidate(fixture.info, "0.1.0"), vi.fn()),
+      adapter.download(
+        validateUpdateCandidate(fixture.info, "0.1.0", policy.distribution),
+        vi.fn(),
+      ),
     ).rejects.toThrow("update_download_invalid");
     expect(fixture.native.checkForUpdates).not.toHaveBeenCalled();
     adapter.close();
@@ -189,7 +234,7 @@ describe("macOS updater adapter", () => {
     const adapter = createMacUpdateAdapter(policy, "0.1.0", vi.fn());
     const bytes = vi.spyOn(fixture.mac, "downloadUpdate");
     const download = adapter.download(
-      validateUpdateCandidate(fixture.info, "0.1.0"),
+      validateUpdateCandidate(fixture.info, "0.1.0", policy.distribution),
       vi.fn(),
     );
     adapter.close();
@@ -202,7 +247,7 @@ describe("macOS updater adapter", () => {
     const permitQuit = vi.fn();
     const adapter = createMacUpdateAdapter(policy, "0.1.0", permitQuit);
     await adapter.download(
-      validateUpdateCandidate(fixture.info, "0.1.0"),
+      validateUpdateCandidate(fixture.info, "0.1.0", policy.distribution),
       vi.fn(),
     );
     const install = adapter.install();

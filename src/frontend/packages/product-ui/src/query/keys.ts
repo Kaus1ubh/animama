@@ -203,8 +203,12 @@ export const queryKeys = {
         opts?.parentId ?? "__root__",
         opts?.recursive === true ? 1 : 0,
       ] as const,
+    details: (userId: string) =>
+      [...queryKeys.memoryEntries.all(userId), "detail"] as const,
     detail: (userId: string, entryId: string) =>
-      [...queryKeys.memoryEntries.all(userId), "detail", entryId] as const,
+      [...queryKeys.memoryEntries.details(userId), entryId] as const,
+    animaIdentities: (userId: string) =>
+      [...queryKeys.memoryEntries.all(userId), "anima-identities"] as const,
     versions: (userId: string, entryId: string) =>
       [...queryKeys.memoryEntries.all(userId), "versions", entryId] as const,
     versionDetail: (userId: string, entryId: string, version: number) =>

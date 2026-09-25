@@ -32,6 +32,7 @@ from animama.domain.memory_entry import (
     MEMORY_ENTRY_OPERATION_REVERT,
     MEMORY_ENTRY_TYPE_DIRECTORY,
     MEMORY_ENTRY_TYPE_FILE,
+    AnimaIdentitySummary,
     MemoryEntry,
     MemoryEntryHeader,
     MemoryEntrySearchResult,
@@ -186,6 +187,10 @@ class _FakeMemoryEntryRepository:
         else:
             entries = [entry for entry in live if entry.parent_id == parent_id]
         return sorted(entries, key=lambda entry: entry.normalized_path)
+
+    async def list_anima_identity_summaries(self, *, user_id: str) -> list[AnimaIdentitySummary]:
+        # This fake stores memory only; Anima rows live in the SQL-backed tests.
+        return []
 
     async def list_entry_headers(
         self,

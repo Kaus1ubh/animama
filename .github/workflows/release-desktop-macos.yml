@@ -12,6 +12,11 @@ on:
         description: Request a public testing preview, then stable promotion after separate native acceptance
         type: boolean
         default: false
+      distribution:
+        description: Where the build's updates and packs are published; sealed into the signed app
+        type: choice
+        options: [r2, github]
+        default: r2
 
 permissions:
   contents: read
@@ -23,6 +28,7 @@ concurrency:
 
 env:
   ANIMAMA_MACOS_NOTARY_PROFILE: animama-ci
+  ANIMAMA_RELEASE_DISTRIBUTION: ${{ inputs.distribution }}
 
 jobs:
   release-policy:
@@ -215,9 +221,18 @@ jobs:
         with:
           name: smoke-name
           path: src/frontend/desktop/release/smoke-name
+      - run: npm install --global pnpm@10.33.0
+      # Only the signing library is needed; skip install scripts in a job holding release credentials.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: src/frontend
+      # Publication also requires the candidate's passing release-scan.json,
+      # which this workflow does not produce yet; the publisher refuses without it.
       - name: Publish reviewed testing preview (not a stable update)
         env:
-          ANIMAMA_RELEASE_TOKEN: ${{ secrets.ANIMAMA_RELEASE_TOKEN }}
+          ANIMAMA_RELEASE_TOKEN: ${{ inputs.distribution == 'github' && secrets.ANIMAMA_RELEASE_TOKEN || '' }}
+          ANIMAMA_R2_ACCOUNT_ID: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_ACCOUNT_ID || '' }}
+          ANIMAMA_R2_ACCESS_KEY_ID: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_ACCESS_KEY_ID || '' }}
+          ANIMAMA_R2_SECRET_ACCESS_KEY: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_SECRET_ACCESS_KEY || '' }}
         run: node src/frontend/desktop/scripts/runtime/publish-macos.mjs --confirm-preview-publication
 
   publish:
@@ -243,8 +258,14 @@ jobs:
         with:
           name: smoke-name
           path: src/frontend/desktop/release/smoke-name
+      - run: npm install --global pnpm@10.33.0
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: src/frontend
       - name: Publish exact accepted artifacts
         env:
-          ANIMAMA_RELEASE_TOKEN: ${{ secrets.ANIMAMA_RELEASE_TOKEN }}
+          ANIMAMA_RELEASE_TOKEN: ${{ inputs.distribution == 'github' && secrets.ANIMAMA_RELEASE_TOKEN || '' }}
+          ANIMAMA_R2_ACCOUNT_ID: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_ACCOUNT_ID || '' }}
+          ANIMAMA_R2_ACCESS_KEY_ID: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_ACCESS_KEY_ID || '' }}
+          ANIMAMA_R2_SECRET_ACCESS_KEY: ${{ inputs.distribution == 'r2' && secrets.ANIMAMA_R2_SECRET_ACCESS_KEY || '' }}
           ANIMAMA_MACOS_ACCEPTANCE: ${{ secrets.ANIMAMA_MACOS_ACCEPTANCE }}
         run: node src/frontend/desktop/scripts/runtime/publish-macos.mjs --confirm-publication

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { PyMemoryPatchPreview } from "@/lib/content/catalogTypes";
 import { memoryDescriptionChange } from "@/lib/memory-manager/description-change";
+import { previewWithDisplayPath } from "@/lib/memory-manager/display-path";
 import { parseUnifiedDiff } from "@/lib/memory-manager/unified-diff";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
@@ -36,12 +37,16 @@ function diffLineClassName(kind: ParsedDiffLine["kind"]) {
 }
 
 export function MemoryDiffViewer({
-  preview,
+  preview: sourcePreview,
+  pathLabel,
   className,
 }: {
   preview: PyMemoryPatchPreview;
+  /** Owner-facing target path, such as `Animas/<name>/IDENTITY.md`. */
+  pathLabel?: string;
   className?: string;
 }) {
+  const preview = previewWithDisplayPath(sourcePreview, pathLabel);
   const descriptionChange = memoryDescriptionChange(preview);
 
   return (

@@ -5,7 +5,7 @@ Authoritative parent: [#69](https://github.com/raymond-van/animama/issues/69).
 Authorized outcome: R1–R6, all phases. Owner approved implementation on 2026-09-23
 by invoking implement after the plan handoff.
 Starting revision and recorded origin/main: `a5a7ba05fc8b72f7821b8afb707df3a8852a8b6b`.
-Branch: `feat/streamline-sfx`, in `/Users/ray/code/animama-ai/worktrees/e9cf/animama`.
+Branch: `feat/streamline-sfx`, in a dedicated task worktree.
 Implementation phase commits: `df51ecf` (upload), `91c40e0` (events/playback),
 `99d6382` (Library/routes), `bbf206a` (final repair). Delivery and hosted
 CI status are recorded on the owning issue and PR.

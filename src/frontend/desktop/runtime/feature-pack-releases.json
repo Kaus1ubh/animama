@@ -1,6 +1,5 @@
 {
   "schema": "animama-pack-release-inputs/1",
-  "release_base_url": "https://github.com/raymond-van/animama-releases/releases/download/v0.1.0",
   "macos": {
     "team_id": "9XHPMZ723L",
     "signing_identity": "Developer ID Application: RAYMOND VAN (9XHPMZ723L)",

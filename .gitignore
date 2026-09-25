@@ -6,7 +6,12 @@ node_modules/
 
 .env
 **/.env
+**/.env.*
+!**/.env.example
 .animama-stack.env
+# Signing keys and certificates stay outside the repository.
+*.p12
+*.p8
 .venv/
 
 .ua/

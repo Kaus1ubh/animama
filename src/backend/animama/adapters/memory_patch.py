@@ -5,12 +5,18 @@ from __future__ import annotations
 from agents import apply_diff
 
 from animama.app.ports.memory_patch_port import MemoryPatchCandidate, MemoryPatchPlanError
+from animama.app.services.anima_identity_memory import (
+    anima_identity_manager_path,
+    get_anima_identity_or_none,
+    parse_anima_identity_manager_path,
+)
 from animama.app.services.memory_entry_service import (
     MemoryEntryNotFoundError,
     MemoryEntryService,
     MemoryEntryValidationError,
     is_protected_memory_entry,
     is_protected_memory_path,
+    is_reserved_user_memory_path,
     normalize_memory_file_path,
 )
 from animama.app.services.memory_patch_document import (
@@ -23,10 +29,16 @@ from animama.domain.memory_manager import MEMORY_PATCH_OPERATION_CREATE, MEMORY_
 
 
 class AgentsSDKV4AMemoryPatchPlanner:
-    """Resolve create/update operations with the Agents SDK V4A parser."""
+    """Resolve create/update operations with the Agents SDK V4A parser.
 
-    def __init__(self, *, memory_entries: MemoryEntryService) -> None:
+    ``allow_anima_identities`` lets general Memory Manager runs update an owned
+    Anima's identity at ``animas/<anima_id>/IDENTITY.md``; identities can never be
+    created, deleted or blanked here. Normal chat leaves it disabled.
+    """
+
+    def __init__(self, *, memory_entries: MemoryEntryService, allow_anima_identities: bool = False) -> None:
         self._memory_entries = memory_entries
+        self._allow_anima_identities = allow_anima_identities
 
     async def plan_v4a_operation(
         self,
@@ -43,12 +55,14 @@ class AgentsSDKV4AMemoryPatchPlanner:
         if not isinstance(diff, str) or not diff.strip():
             raise MemoryPatchPlanError("Patch operation is missing a diff")
 
-        clean_path = _validate_editable_file_path(path)
-        current = await _get_entry_by_path_or_none(
+        clean_path, current, is_identity = await resolve_patch_target(
             self._memory_entries,
             user_id=user_id,
-            path=clean_path,
+            path=path,
+            allow_anima_identities=self._allow_anima_identities,
         )
+        if is_identity and operation_type == "create_file":
+            raise MemoryPatchPlanError("Anima identities already exist; use update_file to change one")
         try:
             if operation_type == "create_file":
                 if current is not None:
@@ -80,6 +94,8 @@ class AgentsSDKV4AMemoryPatchPlanner:
             parsed = parse_memory_patch_document(patched_document)
             if parsed.content == old_content and parsed.description == current.description:
                 raise MemoryPatchPlanError("Patch does not change memory content or description")
+            if is_identity and not parsed.content.strip():
+                raise MemoryPatchPlanError("Anima identity cannot be blank")
             return MemoryPatchCandidate(
                 operation=MEMORY_PATCH_OPERATION_UPDATE,
                 path=clean_path,
@@ -97,6 +113,33 @@ class AgentsSDKV4AMemoryPatchPlanner:
             raise MemoryPatchPlanError(str(exc)) from exc
         except Exception as exc:
             raise MemoryPatchPlanError(f"Patch diff could not be applied: {exc}") from exc
+
+
+async def resolve_patch_target(
+    memory_entries: MemoryEntryService,
+    *,
+    user_id: str,
+    path: str,
+    allow_anima_identities: bool,
+) -> tuple[str, MemoryEntry | None, bool]:
+    """Resolve a model path to its clean path, current entry and identity flag.
+
+    An identity target must already exist; user-memory targets may be new.
+    """
+
+    if allow_anima_identities:
+        try:
+            anima_id = parse_anima_identity_manager_path(path)
+        except MemoryEntryValidationError as exc:
+            raise MemoryPatchPlanError(exc.detail) from exc
+        if anima_id is not None:
+            identity = await get_anima_identity_or_none(memory_entries, user_id=user_id, anima_id=anima_id)
+            if identity is None:
+                raise MemoryPatchPlanError("Anima identity not found")
+            return anima_identity_manager_path(anima_id), identity, True
+    clean_path = _validate_editable_file_path(path)
+    current = await _get_entry_by_path_or_none(memory_entries, user_id=user_id, path=clean_path)
+    return clean_path, current, False
 
 
 async def _get_entry_by_path_or_none(
@@ -121,11 +164,11 @@ def _validate_editable_file_path(path: str) -> str:
         clean_path, normalized_path = normalize_memory_file_path(path)
     except MemoryEntryValidationError as exc:
         raise MemoryPatchPlanError(exc.detail) from exc
-    if normalized_path == "animas" or normalized_path.startswith("animas/"):
-        raise MemoryPatchPlanError("Anima-scoped identity files are not editable here")
+    if is_reserved_user_memory_path(clean_path):
+        raise MemoryPatchPlanError("The animas path is reserved for Anima identities")
     if is_protected_memory_path(clean_path):
         raise MemoryPatchPlanError("Generated episode logs are read-only")
     return clean_path
 
 
-__all__ = ["AgentsSDKV4AMemoryPatchPlanner"]
+__all__ = ["AgentsSDKV4AMemoryPatchPlanner", "resolve_patch_target"]

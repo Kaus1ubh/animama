@@ -34,6 +34,7 @@
     "runtime:packs": "node scripts/runtime/feature-packs.mjs",
     "runtime:document-worker": "node scripts/runtime/document-worker.mjs",
     "release:mac": "node scripts/runtime/release-gate.mjs mac",
+    "release:scan": "node scripts/runtime/scan-release-candidate.mjs",
     "release:windows": "node scripts/runtime/release-gate.mjs windows",
     "smoke:mac": "node scripts/runtime/release-gate.mjs smoke-mac",
     "smoke:windows": "node scripts/runtime/release-gate.mjs smoke-windows",
@@ -46,8 +47,10 @@
     "tar-stream": "3.2.1"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@types/node": "^24.12.2",
     "@types/tar-stream": "3.1.4",
+    "aws4fetch": "1.0.20",
     "electron": "39.8.9",
     "electron-builder": "^26.0.12",
     "esbuild": "0.27.7",

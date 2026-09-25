@@ -13,6 +13,7 @@ from animama.app.ports.memory_manager_runtime import (
     MemoryManagerRuntimeResult,
 )
 from animama.app.services.memory_entry_service import MemoryEntryNotFoundError, MemoryEntryService
+from animama.domain.memory_entry import MemoryEntry
 from animama.domain.memory_manager import (
     MEMORY_MANAGER_EPISODE_TASK_STATUS_PROCESSING,
     MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
@@ -49,6 +50,18 @@ class DeterministicMemoryManagerRuntime:
         self._memory_episodes = memory_episodes
         self._animas = animas
         self._workspace = MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries)
+        self._identity_workspace = MemoryManagerVirtualWorkspace(
+            user_id=user_id,
+            memory_entries=memory_entries,
+            allow_anima_identities=True,
+        )
+
+    def _workspace_for(self, run: MemoryManagerRun) -> MemoryManagerVirtualWorkspace:
+        """Only general runs may see or change Anima identities, matching the live runtime."""
+
+        if run.kind == MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING:
+            return self._workspace
+        return self._identity_workspace
 
     async def run_user_message(
         self,
@@ -70,14 +83,20 @@ class DeterministicMemoryManagerRuntime:
                 outcome=MEMORY_MANAGER_RUNTIME_OUTCOME_COMPLETED,
             )
 
+        workspace = self._workspace_for(run)
         try:
             new_description = await self._candidate_description(
                 path=candidate_path,
                 created_description=_general_description(candidate_path),
+                workspace=workspace,
             )
-            approval = await self._workspace.plan_full_content(
+            approval = await workspace.plan_full_content(
                 path=candidate_path,
-                new_content=await self._candidate_content(path=candidate_path, user_message=user_message.content),
+                new_content=await self._candidate_content(
+                    path=candidate_path,
+                    user_message=user_message.content,
+                    workspace=workspace,
+                ),
                 new_description=new_description,
                 summary=None,
                 metadata={
@@ -102,14 +121,17 @@ class DeterministicMemoryManagerRuntime:
             outcome=MEMORY_MANAGER_RUNTIME_OUTCOME_WAITING_APPROVAL,
         )
 
-    async def _candidate_content(self, *, path: str, user_message: str) -> str:
+    async def _candidate_content(
+        self,
+        *,
+        path: str,
+        user_message: str,
+        workspace: MemoryManagerVirtualWorkspace,
+    ) -> str:
         note = " ".join(user_message.strip().split())
         if len(note) > _DETERMINISTIC_NOTE_MAX_CHARS:
             note = f"{note[: _DETERMINISTIC_NOTE_MAX_CHARS - 3].rstrip()}..."
-        try:
-            current = await self._memory_entries.get_entry_by_path(user_id=self._user_id, path=path)
-        except MemoryEntryNotFoundError:
-            current = None
+        current = await _current_file_or_none(workspace, path)
         if current is None:
             title = path.rsplit("/", 1)[-1].removesuffix(".md").replace("-", " ").replace("_", " ").title()
             return f"# {title}\n\n- Memory manager draft: {note}\n"
@@ -122,15 +144,12 @@ class DeterministicMemoryManagerRuntime:
         *,
         path: str,
         created_description: str,
+        workspace: MemoryManagerVirtualWorkspace,
     ) -> str:
         """Preserve an existing overview or provide one for a deterministic create."""
 
-        try:
-            current = await self._memory_entries.get_entry_by_path(
-                user_id=self._user_id,
-                path=path,
-            )
-        except MemoryEntryNotFoundError:
+        current = await _current_file_or_none(workspace, path)
+        if current is None:
             return created_description
         return current.description or created_description
 
@@ -261,6 +280,7 @@ class DeterministicMemoryManagerRuntime:
         description = await self._candidate_description(
             path=path,
             created_description="Curated durable memories from reviewed episodes.",
+            workspace=self._workspace,
         )
         try:
             approval = await self._workspace.plan_full_content(
@@ -310,6 +330,15 @@ class DeterministicMemoryManagerRuntime:
             error=detail,
             outcome=MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
         )
+
+
+async def _current_file_or_none(workspace: MemoryManagerVirtualWorkspace, path: str) -> MemoryEntry | None:
+    """Look up a target for drafting; invalid targets are rejected later by planning."""
+
+    try:
+        return await workspace.get_file_or_none(path=path)
+    except MemoryManagerPatchRejected:
+        return None
 
 
 def _extract_candidate_path(content: str) -> str | None:

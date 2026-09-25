@@ -7,14 +7,28 @@ Query hooks.
 ## Current User-Facing Surfaces
 
 `/a/memories` provides an installation-wide file explorer, Manual editor,
-Memory Manager and Markdown preview. Upload management and retrieval diagnostics
+Memory Manager and Markdown preview covering user memory and every owned
+Anima's identity. Upload management and retrieval diagnostics
 live in [Library Chat Uploads](user-file-uploads.md).
 
-The workspace loads content-free entry headers recursively. Its left explorer
-keeps ordinary physical directories explicit but replaces the generated
-`episodes/**` storage hierarchy with one virtual `Episodes` root. That root is
-always the first explorer item, remains visible with an empty state before any
-episodes exist, and cannot be displaced by newly created memory entries.
+The workspace loads content-free user entry headers recursively and the
+`GET /v1/memory/anima-identities` listing. Its left explorer starts with a
+virtual `Animas` root, then a virtual `Episodes` root, then ordinary physical
+entries. Both virtual roots are always present, show an empty state when they
+have no children, and cannot be displaced by newly created memory entries.
+
+`Animas` holds one folder per owned Anima in creation order, each containing
+only that Anima's Anima-scoped `IDENTITY.md`. Folders show the current name;
+later Animas sharing a name receive ` (2)`, ` (3)`, and so on, skipping any
+suffix another Anima already uses as its real name. An Anima whose identity
+needs repair shows an empty folder stating that the identity is missing. The owner-facing
+path, such as `Animas/Annie (2)/IDENTITY.md`, appears in tooltips, filtering and
+Preview; renames and new Animas refresh the listing through the Anima definition
+and creation cache invalidations. If the listing fails to load, user memory remains
+available and a toast offers Refresh.
+
+The generated `episodes/**` storage hierarchy is replaced by the virtual
+`Episodes` root.
 Canonical `episodes/YYYY/MM/YYYY-MM-DD.md` files are grouped by newest month and
 displayed with friendly dates. Malformed or historical episode paths remain
 visible under `Other episodes`. Generated episode files are read-only.
@@ -38,13 +52,20 @@ New file accepts either a leaf name or a relative path. For example,
 current creation target and then selects `launch.md`. The final `.md` extension
 is added when omitted. New directory remains a single-segment operation.
 
-Generated episodes, virtual episode groups, `PROFILE.md`, files, the source's
-current parent, the source itself, and descendants of a directory being moved
-are not valid move targets as applicable. Creation and moves are disabled while
-a virtual episode group or generated episode is focused. Creation otherwise
+Generated episodes, virtual episode groups, the virtual Animas root and folders,
+identity files, `PROFILE.md`, files, the source's current parent, the source
+itself, and descendants of a directory being moved are not valid move targets as
+applicable. Identity rows keep their protected row menus: they cannot be
+renamed, moved or deleted. Creation and moves are disabled while a virtual
+episode group, generated episode, Animas folder or identity is focused. Creation otherwise
 targets the focused physical directory or the selected ordinary file's parent.
 The explorer initially selects `PROFILE.md`, then the first ordinary file by
 path, then the newest episode.
+
+User memory cannot use the reserved `animas` path. A user `animas` directory
+created before that reservation stays visible with a warning; its files open
+read-only in Manual until they are moved or the directory is renamed, and it
+cannot receive new children or moves. Rename, move and delete remain available.
 
 Move requests use the existing version-aware patch endpoint and are not
 applied optimistically. On success the explorer refetches the server tree while
@@ -89,6 +110,14 @@ Conflict recovery offers `Use latest` and `Save over latest`. Discard and delete
 require confirmation, and required entries plus generated episodes retain
 their existing protection.
 
+Identity drafts also carry the Anima aggregate revision, exactly like the
+`/a/animas/:animaId/identity` editor: a concurrent name, Avatar, loadout or
+identity change conflicts while keeping the draft, and a blank identity is
+rejected before any request. Saves and reverts refresh that Anima's definition
+views. If an Anima is deleted, its folder disappears on the next refresh and any
+draft for its identity is dropped; a dirty draft produces a warning that its
+unsaved text could not be saved.
+
 Dirty drafts do not interrupt normal workspace navigation. Leaving
 `/a/memories` opens a prompt with Stay, Discard and leave, and sequential Save
 and leave actions. Browser reload or close uses the native unsaved-changes
@@ -127,7 +156,10 @@ read-only. The dialog has no arbitrary two-version selector.
 ## Route State
 
 The canonical route search state uses `tab=memory|uploads` and
-`mode=manual|manager`, with optional `entryId`, file `path`, and `managerRunId`.
+`mode=manual|manager`, with optional `entryId`, file `path`, and `managerRunId`. An identity
+is selected by `entryId`, so renaming its Anima keeps the selection; a `path`
+such as `Animas/Annie/IDENTITY.md` resolves through the current folder labels
+and is then replaced with that identity's `entryId`.
 Task prompts are not route state. File and manager-run updates replace the
 current history entry, while tab and Manual/Memory Manager mode changes push
 history. Explorer search, expansion, collapse, focus, responsive pane, drafts,
@@ -236,6 +268,13 @@ when resuming; decided cards display persisted feedback for audit. Rejection
 does not itself imply that an episode is unworthy of memory, and the specialized
 run may propose a revised diff or complete the review without writing.
 
+General Memory Manager runs can propose changes to an Anima's identity when the
+request is about that Anima. Approval cards label such targets with the current
+workspace path (`Animas/<name>/IDENTITY.md`) instead of the model-facing
+`animas/<anima_id>/IDENTITY.md`. Approving, auto-approving or undoing an
+identity change refreshes that Anima's definition views. Episode processing
+never proposes identity changes.
+
 Approval previews show Markdown content changes and description changes as two
 separate channels. The Description section appears only when the value changes
 and labels exact Before/After values, including “No description” for set and
@@ -267,7 +306,8 @@ session controller.
 ## Anima Identity
 
 Anima management pages read the anima-scoped `IDENTITY.md` entry and open the
-memory editor from `/a/animas/:animaId/identity`. This surface intentionally
+memory editor from `/a/animas/:animaId/identity`; the Memory workspace edits the
+same entry and version history. This surface intentionally
 retains `MemoryEntryEditorModal`. Its editable branch composes the shared
 CodeMirror editor and sanitized GFM preview. It keeps both the memory version
 and Anima aggregate revision from the loaded baseline. A concurrent name,
@@ -276,7 +316,7 @@ their original guards for explicit resolution. Revert sends both current
 guards and creates a new identity version rather than replacing history.
 
 The backend enforces nonblank identity and prevents renaming, moving, deleting,
-kind changes, or AI Undo for the required identity file, including untyped
+or kind changes for the required identity file, including untyped
 legacy `IDENTITY.md` entries. Chat never uses a mutable Avatar fallback for a
 missing identity. Legacy repair state requires explicit owner repair; a
 directory obstructing the reserved path can be explicitly moved first.

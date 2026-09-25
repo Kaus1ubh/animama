@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from sqlalchemy import select
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.domain.anima_definition import ANIMA_IDENTITY_PATH, AnimaDefinitionError, normalize_display_name
 from animama.logging import get_logger
 from animama.orm.anima_definition import ORMAnimaDefinitionRevision
-from animama.orm.memory_entry import ORMMemoryEntry
+from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
 
 from ....adapters.mappers.anima_map import anima_domain_to_orm, anima_orm_to_domain
 from ....app.ports import AnimaRepository
@@ -137,6 +137,19 @@ class SQLAlchemyAnimaRepository(AnimaRepository):
         if orm is None:
             return False
         await SQLAlchemyAnimaCreationRepository(self._s).tombstone_anima(anima_id=anima_id)
+        await self._purge_anima_memory(anima_id)
         await self._s.delete(orm)
         await self._s.flush()
         return True
+
+    async def _purge_anima_memory(self, anima_id: str) -> None:
+        """Permanently remove the Anima's scoped memory, including its identity.
+
+        Memory rows have no foreign key to the Anima, so deletion must remove them
+        explicitly, like the chats and loadouts that cascade from the Anima row.
+        Parent links are cleared first because the tree uses a RESTRICT key.
+        """
+
+        await self._s.execute(update(ORMMemoryEntry).where(ORMMemoryEntry.anima_id == anima_id).values(parent_id=None))
+        await self._s.execute(delete(ORMMemoryEntryVersion).where(ORMMemoryEntryVersion.anima_id == anima_id))
+        await self._s.execute(delete(ORMMemoryEntry).where(ORMMemoryEntry.anima_id == anima_id))

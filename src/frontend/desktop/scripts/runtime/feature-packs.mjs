@@ -1,5 +1,6 @@
 import { auditOptionalInputs } from "./optional-inputs.mjs";
 import { importBundledTool } from "./bundled-tool.mjs";
+import { stagedPackRelease } from "./release-policy.mjs";
 import { rmSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -17,7 +18,10 @@ import {
 } from "./common.mjs";
 
 export async function stageFeaturePacks(target) {
-  const release = readJson(path.join(sourceRoot, "feature-pack-releases.json"));
+  const release = {
+    ...readJson(path.join(sourceRoot, "feature-pack-releases.json")),
+    ...stagedPackRelease(),
+  };
   const parakeet = auditOptionalInputs(target);
   if (
     release.packs["parakeet-stt"].release_status === "active" &&

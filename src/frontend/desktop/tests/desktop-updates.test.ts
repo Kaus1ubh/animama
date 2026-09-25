@@ -12,10 +12,21 @@ import {
 import { RuntimeError } from "../src/main-process/runtime/errors.js";
 
 const policy = {
-  schema: "animama-update-policy/1" as const,
-  github: { owner: "example", repo: "animama-releases" },
+  schema: "animama-update-policy/2" as const,
+  distribution: {
+    kind: "github" as const,
+    owner: "example",
+    repo: "animama-releases",
+  },
   channel: "stable" as const,
   team_id: "ABCDE12345",
+};
+const r2Policy = {
+  ...policy,
+  distribution: {
+    kind: "r2" as const,
+    base_url: "https://downloads.example.test/desktop",
+  },
 };
 const feed = () => ({
   version: "0.2.0",
@@ -46,6 +57,7 @@ function controller() {
   };
   const options = {
     version: "0.1.0",
+    distribution: policy.distribution,
     adapter,
     checkTimeoutMs: 10,
     disk: vi.fn(async () => ({ free: 10_000_000_000n, databaseBytes: 2000 })),
@@ -62,9 +74,33 @@ afterEach(() => vi.useRealTimers());
 describe("public stable macOS update policy", () => {
   it("rejects credentials, alternate channels, targets, paths and unbounded feed sizes", () => {
     expect(validateUpdatePolicy(policy)).toEqual(policy);
+    expect(validateUpdatePolicy(r2Policy)).toEqual(r2Policy);
+    for (const distribution of [
+      { kind: "github", repo: "releases" },
+      { kind: "r2", base_url: "http://downloads.example.test/desktop" },
+      { kind: "r2", base_url: "https://downloads.example.test/desktop/" },
+      { kind: "r2", base_url: "https://downloads.example.test:8443/desktop" },
+      { kind: "r2", base_url: "https://u@downloads.example.test/desktop" },
+      { kind: "r2", base_url: "https://downloads.example.test/desktop?x=1" },
+      {
+        kind: "r2",
+        base_url: "https://downloads.example.test/desktop",
+        bucket: "b",
+      },
+      { kind: "s3", base_url: "https://downloads.example.test/desktop" },
+      null,
+    ])
+      expect(() => validateUpdatePolicy({ ...policy, distribution })).toThrow(
+        "updates_not_configured",
+      );
     expect(() =>
-      validateUpdatePolicy({ ...policy, github: { repo: "releases" } }),
-    ).toThrow();
+      validateUpdatePolicy({
+        schema: "animama-update-policy/1",
+        github: { owner: "example", repo: "animama-releases" },
+        channel: "stable",
+        team_id: "ABCDE12345",
+      }),
+    ).toThrow("updates_not_configured");
     expect(() =>
       validateUpdatePolicy({ ...policy, token: "never-embedded" }),
     ).toThrow();
@@ -73,6 +109,7 @@ describe("public stable macOS update policy", () => {
         validateUpdateCandidate(
           { ...feed(), version, tag: `v${version}` },
           "0.1.0",
+          policy.distribution,
         ),
       ).toThrow();
     for (const field of [
@@ -90,7 +127,11 @@ describe("public stable macOS update policy", () => {
       { files: [{ ...feed().files[0], size: 2 ** 32 }] },
     ])
       expect(() =>
-        validateUpdateCandidate({ ...feed(), ...field }, "0.1.0"),
+        validateUpdateCandidate(
+          { ...feed(), ...field },
+          "0.1.0",
+          policy.distribution,
+        ),
       ).toThrow();
     expect(
       allowedUpdateUrl(
@@ -103,13 +144,69 @@ describe("public stable macOS update policy", () => {
       "https://github.com/attacker/repo/releases/latest",
       "https://github.com@example.invalid/releases",
       "https://secret@github.com/example/animama-releases/releases/latest",
+      // A GitHub build never contacts R2.
+      "https://downloads.example.test/desktop/latest-mac.yml",
       "file:///tmp/update.zip",
     ])
       expect(allowedUpdateUrl(url, policy)).toBe(false);
   });
+  it("confines an R2 updater to the feed and versioned folders under its base URL", () => {
+    const base = "https://downloads.example.test/desktop";
+    for (const url of [
+      `${base}/latest-mac.yml`,
+      `${base}/latest-mac.yml?noCache=1j2k3l4m`,
+      `${base}/v0.2.0/Animama-0.2.0-arm64.zip`,
+    ])
+      expect(allowedUpdateUrl(url, r2Policy)).toBe(true);
+    for (const url of [
+      `${base}/latest-mac.yml?token=secret`,
+      `${base}/v0.2.0/Animama-0.2.0-arm64.zip?x=1`,
+      `${base}/v0.2.0/nested/Animama-0.2.0-arm64.zip`,
+      `${base}/other.yml`,
+      `${base}/../latest-mac.yml`,
+      "https://downloads.example.test/latest-mac.yml",
+      "https://downloads.example.test/desktop-evil/latest-mac.yml",
+      "https://evil.example.test/desktop/latest-mac.yml",
+      "http://downloads.example.test/desktop/latest-mac.yml",
+      "https://downloads.example.test:8443/desktop/latest-mac.yml",
+      "https://github.com/example/animama-releases/releases.atom",
+      "https://release-assets.githubusercontent.com/any",
+    ])
+      expect(allowedUpdateUrl(url, r2Policy)).toBe(false);
+  });
+  it("requires each distribution's own archive location in the feed", () => {
+    const r2Feed = {
+      ...feed(),
+      files: [{ ...feed().files[0], url: "v0.2.0/Animama-0.2.0-arm64.zip" }],
+    };
+    expect(
+      validateUpdateCandidate(r2Feed, "0.1.0", r2Policy.distribution).filename,
+    ).toBe("Animama-0.2.0-arm64.zip");
+    expect(() =>
+      validateUpdateCandidate(feed(), "0.1.0", r2Policy.distribution),
+    ).toThrow("update_metadata_invalid");
+    expect(() =>
+      validateUpdateCandidate(r2Feed, "0.1.0", policy.distribution),
+    ).toThrow("update_metadata_invalid");
+    expect(() =>
+      validateUpdateCandidate(
+        {
+          ...r2Feed,
+          files: [
+            { ...r2Feed.files[0], url: "v0.3.0/Animama-0.2.0-arm64.zip" },
+          ],
+        },
+        "0.1.0",
+        r2Policy.distribution,
+      ),
+    ).toThrow("update_metadata_invalid");
+  });
   it("includes installed bytes, updater staging and the actual database estimate", () => {
     expect(
-      updateFreeBytes(validateUpdateCandidate(feed(), "0.1.0"), 2000),
+      updateFreeBytes(
+        validateUpdateCandidate(feed(), "0.1.0", policy.distribution),
+        2000,
+      ),
     ).toBe(2 * 1000 + 2 * 5000 + 2 * 2000 + 256 * 1024 ** 2);
   });
 });

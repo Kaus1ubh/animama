@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Protocol
 
 from animama.domain.memory_entry import (
+    AnimaIdentitySummary,
     MemoryEntry,
     MemoryEntryHeader,
     MemoryEntrySearchResult,
@@ -67,6 +68,10 @@ class MemoryEntryRepository(Protocol):
         parent_id: str | None,
         recursive: bool,
     ) -> list[MemoryEntry]:
+        raise NotImplementedError
+
+    async def list_anima_identity_summaries(self, *, user_id: str) -> list[AnimaIdentitySummary]:
+        """List the owner's Animas by creation with their live identity headers."""
         raise NotImplementedError
 
     async def list_entry_headers(

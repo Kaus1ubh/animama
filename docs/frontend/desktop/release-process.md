@@ -15,16 +15,16 @@ remain pending for the exact current candidate.
 
 ## Release gates, in order
 
-| Gate                          | What must be true before continuing                                                                                                                                                                                                                                                             |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inputs                        | Apple Team ID, Developer ID identity and local notarization Keychain profile are configured; content/dependency terms and notices are reviewed. Keep credentials out of source and chat.                                                                                                        |
-| Candidate coordinates         | Configure the intended repository and matching versioned pack URLs. They may name the private distribution repository; no GitHub token, visibility check or upload is needed to build.                                                                                                          |
-| Reviewed packs                | The exact Parakeet inventory is approved. Expanded content and document processing are explicitly deferred from the first release; preserve the signed/notarized worker as future review input without advertising or approving it.                                                             |
-| Candidate                     | From reviewed release inputs on `main`, stage, audit and build the local signed DMG/ZIP. Check sizes, hashes, signatures, notarization and notices. A build never uploads to GitHub; notarization sends the binaries to Apple.                                                                  |
-| Automated acceptance          | Run the required-name setup smoke on a fresh macOS account/runner. It rejects blank input before named completion. Explicit provider-key approval is needed for real chat calls. Never reset the maintainer's normal desktop profile.                                                           |
-| Distribution / public preview | Currently not authorized. The existing publisher requires anonymous public repository access and separate approval of the exact candidate/packs. A private repository cannot serve installed-app downloads; a different private testing transport would require a separate design and approval. |
-| Native acceptance             | Check physical microphone/audio, windows/shortcuts, offline dictation, packs/document conversion, failures/recovery and a real forward signed upgrade. Record supported OS and compatible app/pack versions actually exercised.                                                                 |
-| Stable promotion              | `raymond-van` reviews the exact DMG-bound manual receipt and required-name smoke/network reports, then runs the final publisher command.                                                                                                                                                        |
+| Gate                          | What must be true before continuing                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inputs                        | Apple Team ID, Developer ID identity and local notarization Keychain profile are configured; content/dependency terms and notices are reviewed. Keep credentials out of source and chat.                                                                                                                                                                                        |
+| Candidate coordinates         | Select the distribution with `ANIMAMA_RELEASE_DISTRIBUTION` (default `r2`) and keep it identical for stage, audit and `desktop:dist:mac`. Pack and update URLs derive from it; no token, visibility check or upload is needed to build.                                                                                                                                         |
+| Reviewed packs                | The exact Parakeet inventory is approved. Expanded content and document processing are explicitly deferred from the first release; preserve the signed/notarized worker as future review input without advertising or approving it.                                                                                                                                             |
+| Candidate                     | From reviewed release inputs on `main`, stage, audit and build the local signed DMG/ZIP. Check sizes, hashes, signatures, notarization and notices. A build never uploads to GitHub; notarization sends the binaries to Apple.                                                                                                                                                  |
+| Automated acceptance          | Run the required-name setup smoke on a fresh macOS account/runner. It rejects blank input before named completion. Explicit provider-key approval is needed for real chat calls. Never reset the maintainer's normal desktop profile.                                                                                                                                           |
+| Distribution / public preview | Currently not authorized. The publisher requires the selected destination to serve anonymously (a public GitHub repository or the R2 custom domain), a passing release scan and separate approval of the exact candidate/packs. A private destination cannot serve installed-app downloads; a different private testing transport would require a separate design and approval. |
+| Native acceptance             | Check physical microphone/audio, windows/shortcuts, offline dictation, packs/document conversion, failures/recovery and a real forward signed upgrade. Record supported OS and compatible app/pack versions actually exercised.                                                                                                                                                 |
+| Stable promotion              | `raymond-van` reviews the exact DMG-bound manual receipt and required-name smoke/network reports, then runs the final publisher command.                                                                                                                                                                                                                                        |
 
 Windows native packaging is deferred. macOS 15 is the declared minimum; actual
 minimum-OS, clean-machine and signed acceptance require separate evidence.
@@ -51,7 +51,7 @@ The signed helper and reviewed pack/core inputs must already be configured.
 Public visibility and release-repository API availability are not candidate build
 preconditions; dependency downloads and Apple notarization still need network access.
 The embedded update and pack URLs remain pinned and anonymous:
-while their repository is private, those network features cannot succeed. Core
+until the selected destination serves them publicly, those network features cannot succeed. Core
 startup and local functionality must still work. Do not embed tokens, add runtime
 feed/catalog overrides, or call a manually copied pack a verified download.
 Do not rebuild while an exact candidate is under acceptance: a signature or
@@ -74,6 +74,39 @@ survives restart. If its sanitized report asks for manual cleanup, remove that
 test-account copy before continuing; do not clear the maintainer's normal vault
 or change the original provider key.
 
+Scan the exact candidate for secrets and private text before any upload. Use
+the Gitleaks binary pinned in `scripts/repository-boundary/scanner-pins.json`,
+verified against its archive digest; the command never downloads a scanner:
+
+```sh
+ANIMAMA_GITLEAKS=<verified-gitleaks> pnpm desktop:release:scan
+```
+
+Run it on the staged build machine: expanding the frozen backend uses the build
+interpreter from `desktop:runtime:stage`. The scan mounts the DMG and expands the
+update ZIP and feature packs, then every nested archive named `.zip`, `.whl`,
+`.jar`, `.tar.gz`, `.tgz`, `.tar.zst` or `.asar`, and any PyInstaller executable.
+Other compressed formats are scanned only as raw strings. Gitleaks must first
+detect a generated canary token. It then scans every expanded file under a
+neutral numbered name and header line, so its built-in path and file-type
+exclusions (such as `node_modules/`, `*.dist-info` and SQLite or PDF headers) do
+not apply; binaries are scanned as their printable strings. ONNX model weights
+are excluded from Gitleaks because quantized tensors produce chance token
+matches; the receipt counts them. Every expanded file, including ONNX, is also
+byte-searched for this machine's home directory, the Git author email and any
+extra values in `ANIMAMA_SCAN_PRIVATE_TEXT` (one per line; keep them out of
+source and shell history). A symlink fails the scan when its target is absolute
+or escapes its artifact, except an installer's `/Applications` link.
+
+`release-scan.json` records the scanned file hashes, coverage counts, rule IDs
+and locations, never matched values. Errors print only fixed messages; set
+`ANIMAMA_SCAN_DEBUG=1` to see the underlying error locally. Do not publish a
+candidate whose scan fails. Review each finding; add an accepted false positive
+to `desktop/runtime/release-scan.gitleaks.toml` only as an exact placeholder
+value or a known non-secret field. The receipt records that file's hash. The
+home-directory search only catches the scanning machine's paths: scan on the
+machine that built the candidate.
+
 After distinct preview approval, run:
 
 ```sh
@@ -86,8 +119,11 @@ After actual native acceptance and the maintainer's final approval:
 node desktop/scripts/runtime/publish-macos.mjs --confirm-publication
 ```
 
-Both commands run from `src/frontend`. The process needs a narrowly scoped
-`ANIMAMA_RELEASE_TOKEN` for the distribution repository. Stable publication also
+Both commands run from `src/frontend` with the same `ANIMAMA_RELEASE_DISTRIBUTION`
+used to build the candidate. They need that distribution's narrowly scoped
+credentials: `ANIMAMA_RELEASE_TOKEN` for GitHub, or `ANIMAMA_R2_ACCOUNT_ID`,
+`ANIMAMA_R2_ACCESS_KEY_ID` and `ANIMAMA_R2_SECRET_ACCESS_KEY` for R2
+([operator setup](releases.md#r2-operator-setup)). Stable publication also
 needs `ANIMAMA_MACOS_ACCEPTANCE` containing the reviewed JSON itself, not a path.
 Load these privately for the command; do not commit them, print them, place literal
 secrets in shell history or bundle a GitHub token into the app. Clear the release
@@ -107,8 +143,9 @@ signatures or the older-signed-version requirement.
 ## Evidence and actual artifact names
 
 The canonical candidate/publisher directory is `desktop/release/publish`.
-The publisher uploads a fixed list of flat GitHub Release assets, not a source
-commit or an arbitrary directory. These files are produced only after their
+The publisher uploads a fixed list of flat assets (GitHub Release assets, or
+objects in the R2 version folder plus the root `latest-mac.yml` at stable
+promotion), not a source commit or an arbitrary directory. These files are produced only after their
 corresponding gates; their names here are not evidence that a release exists.
 
 | Evidence                                                 | Actual output                                                                                             |
@@ -137,8 +174,8 @@ into a release baseline or completed acceptance report.
 
 ## Failure and handoff
 
-The publisher can resume byte-identical uploads for the same draft or testing
-prerelease. If publication times out, inspect remote state before retrying; do
+The publisher can resume byte-identical uploads for the same GitHub draft or
+testing prerelease, or the same R2 version folder. If publication times out, inspect remote state before retrying; do
 not replace conflicting assets or an already stable release. Rebuilding creates
 a new candidate that requires fresh review, not permission to reuse old receipts.
 For a notarization timeout, preserve the exact Apple submission ID and signed

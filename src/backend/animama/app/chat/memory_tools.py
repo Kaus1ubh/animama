@@ -9,6 +9,7 @@ from typing import Any
 from animama.app.ports.memory_patch_port import MemoryPatchCandidate, MemoryPatchPlanError, MemoryPatchPlanner
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
 from animama.app.services.memory_entry_service import (
+    MEMORY_ENTRY_ANIMAS_ROOT_PATH,
     MemoryEntryConflictError,
     MemoryEntryError,
     MemoryEntryNotFoundError,
@@ -824,9 +825,10 @@ def _normalize_relative_tool_path(value: object, *, allow_empty: bool) -> str:
     segments = path.split("/")
     if any(segment == "" for segment in segments):
         raise MemoryToolPathError("Memory tool paths cannot contain empty segments")
-    first = segments[0].lower()
-    if first == "animas" or segments[0].startswith("["):
-        raise MemoryToolPathError("Memory tools may only access current user-root files")
+    if segments[0].casefold() == MEMORY_ENTRY_ANIMAS_ROOT_PATH or segments[0].startswith("["):
+        raise MemoryToolPathError(
+            "Memory tools may only access current user-root files; animas/ is reserved for Anima identities"
+        )
     for segment in segments:
         if segment in {".", ".."}:
             raise MemoryToolPathError("Memory tool paths cannot contain . or .. segments")

@@ -10,7 +10,10 @@ import type {
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
-import { publishMemoryManagerApproval } from "@/query/mutations/memoryManagerMutationCache";
+import {
+  invalidateApprovedIdentityDefinitions,
+  publishMemoryManagerApproval,
+} from "@/query/mutations/memoryManagerMutationCache";
 
 export type DecideMemoryManagerApprovalArgs = {
   approvalId: string;
@@ -46,6 +49,9 @@ export function useDecideMemoryManagerApproval() {
       if (!userId) return;
       const runKey = queryKeys.memoryManager.run(userKey, approval.run_id);
       publishMemoryManagerApproval(queryClient, userKey, approval);
+      void invalidateApprovedIdentityDefinitions(queryClient, userKey, [
+        approval,
+      ]);
       void queryClient.invalidateQueries({ queryKey: runKey });
       void queryClient.invalidateQueries({
         queryKey: queryKeys.memoryManager.current(userKey),
