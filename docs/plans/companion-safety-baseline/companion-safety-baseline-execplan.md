@@ -17,8 +17,9 @@ Deliver spec R1–R11:
 
 - a non-overridable companion guardrail at the end of the provider instructions;
 - an app-rendered AI notice at the New York cadence;
-- local crisis detection with OpenAI Responses inline moderation, a deterministic crisis
-  card with localized resources, and an in-character care note;
+- crisis detection through OpenAI Responses inline moderation, with a
+  deterministic crisis card and localized resources (the on-device detector and
+  care note were removed after delivery; see the Decision Log);
 - an 18+ first-run step with an age-status seam;
 - a crisis protocol document and an in-app Safety page;
 - configuration limits, including one global safety switch;
@@ -275,6 +276,17 @@ Two further rules apply:
   keeps its name and now controls moderation and the card. The SSE payload
   keeps `source`, now always `"moderation"`.
 
+- **2026-09-26, gate G1 copy review.** An independent read-only copy review
+  (post detector removal) found 5 required issues: a broken protocol
+  paragraph, guardrail outcomes stated as guarantees, an over-broad logging
+  claim, a stale "crisis detection" phrase in the operator docs, and a spec
+  provider requirement contradicting the moderation-only design. All five were
+  fixed, with optional clarity fixes (provider wording, card persistence,
+  storage wording, memory exception, Avatar-only notice placement, card
+  sentence for the fallback region, startup warning text, stale plan lines).
+  Deferred to the owner: the setup age wording and an optional guardrail line
+  on immediate danger and invented phone numbers.
+
 ## Implementation orientation
 
 Backend (`src/backend/animama/`):
@@ -291,8 +303,8 @@ Backend (`src/backend/animama/`):
 
 New backend code:
 
-- `app/safety/` for the guardrail text, crisis detector, resource table model
-  and loader, notice cadence and age status;
+- `app/safety/` for the guardrail text, moderation interpretation, resource
+  table model and loader, notice cadence and age status;
 - `resources/crisis-resources.v1.json` for the bundled table.
 
 Frontend (`src/frontend/`):

@@ -37,7 +37,7 @@ export function CrisisCard({
     >
       <p className="font-medium">
         If you&apos;re thinking about suicide or self-harm, you don&apos;t have
-        to go through it alone. You can reach trained people right now.
+        to go through it alone. Trained people can help.
       </p>
       {region.services.length > 0 ? (
         <ul className="space-y-2">

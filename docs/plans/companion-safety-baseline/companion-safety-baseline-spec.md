@@ -364,15 +364,15 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
   payloads must be distinguishable from existing events.
 - **Schema and client changes.** No Alembic revision; update the ORM and
   `0001_baseline.sql`. Regenerate the frontend API client through `pnpm openapi-ts`.
-- **Providers.** Detection and the guardrail must not depend on the provider.
-  Planned Chat Completions and local providers must work without changes to the
-  safety design.
+- **Providers.** The guardrail must not depend on the provider. Crisis
+  detection currently uses OpenAI Responses moderation only (R3); other
+  providers show no crisis card.
 - **Accessibility.** The notice is a polite status. The crisis card is
   announced, keyboard-operable and meets contrast requirements. Motion respects
   reduced-motion preferences.
 - **Layout.** Desktop viewports come first. Narrower layouts, Quick Chat and
   every canvas mode must not regress.
-- **Privacy.** Logs and errors never include message text or detector matches.
+- **Privacy.** Logs and errors never include message text or moderation results.
 
 ## Acceptance criteria
 

@@ -17,14 +17,16 @@ minors.
 
 ## AI disclosure
 
-- **In conversation.** Every Anima follows fixed companion guardrails that its
+- **In conversation.** Every Anima is given fixed companion guardrails that its
   identity cannot change. If you sincerely ask whether you are talking to a
-  person, the Anima says it is an AI, staying in character while doing so. It
-  can play along only inside a story or role-play you have set up yourself. It
-  never claims to be a therapist or licensed professional. It does not use
-  guilt or pressure to keep you talking, does not claim to suffer or be lonely
-  while you are away, and supports your relationships with other people.
-- **In the app.** The app itself shows a short notice below the chat input,
+  person, the Anima is instructed to say it is an AI, staying in character
+  while doing so. It may play along only inside a story or role-play you have
+  set up yourself. It is told never to claim to be a therapist or licensed
+  professional, not to use guilt or pressure to keep you talking, not to claim
+  to suffer or be lonely while you are away, and to support your relationships
+  with other people. Like any AI, it can make mistakes.
+- **In the app.** The app itself shows a short notice below the chat input (at
+  the bottom of the scene in Avatar-only mode),
   such as "You're talking with *name*, an AI — not a person." It appears on
   your first message of each day and again, as a reminder, after every 3 hours
   of continuing conversation.
@@ -36,21 +38,21 @@ In Settings → Safety you can choose a shorter reminder interval.
 
 ## Crisis detection and support
 
-When you use an OpenAI Responses model, Animama asks OpenAI for moderation
-scores on the same chat request. When those scores indicate possible suicide
-or self-harm:
+When your chat model's provider is OpenAI Responses, Animama asks OpenAI for
+moderation scores on the same chat request. If those scores indicate possible
+suicide or self-harm, the app shows a crisis card after the reply, with crisis
+lines for your region, an emergency number and a link to this page. The card
+is shown by the app, not written by the Anima, so the Anima cannot hide or
+change it. It stays in that Anima's chat until you dismiss it. Other providers,
+including OpenAI models used through other providers, show no crisis card.
 
-After the reply, the app shows a crisis card with crisis lines for your
-region, an emergency number, and a link to this page. The card is shown by the
-app, not written by the Anima, so the Anima cannot hide or change it. It stays
-until you dismiss it.
+With any model, the Anima's guardrails tell it to respond with warmth, take
+what you said seriously and encourage you to reach out to someone you trust or
+to a crisis line. They tell it never to give methods for, or encourage,
+self-harm or suicide. Like any AI, it can make mistakes.
 
-With any model, the Anima's fixed guardrails ask it to respond with warmth,
-take what you said seriously and encourage you to reach out to someone you
-trust or to a crisis line. The Anima never provides methods or encourages
-self-harm.
-
-Chat is never blocked or delayed by the moderation check.
+Animama never blocks, changes or holds back a reply because of the moderation
+check.
 
 If you are in immediate danger, call your local emergency number now.
 
@@ -75,31 +77,33 @@ card asks you to contact a local crisis line or your local emergency number.
 
 ## What data leaves your device
 
-- Your messages already go to the AI model provider you chose. With OpenAI
-  Responses models, that same request also asks OpenAI for moderation scores.
+- Your messages already go to the AI model provider you chose. With the OpenAI
+  Responses provider, that same request also asks OpenAI for moderation scores.
   Nothing extra is sent to any other service.
-- Animama has no telemetry and does not report crisis cards to anyone. Crisis
-  checks and cards are not written to the app's logs. Self-hosted servers
+- Animama has no telemetry and does not report crisis cards to anyone. Crisis-check
+  results and crisis cards are not written to the app's logs (a failed check
+  is logged without any message content). Self-hosted servers
   started with the provided Docker Compose files log short previews of model
   requests by default (`ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS`), which can include
   message text; the desktop app does not.
 
 ## What is stored
 
-- Your chats are stored on your device as usual, including messages that
+- Your chats are stored in your Animama installation's database as usual, including messages that
   showed a crisis card.
 - Animas are told not to save specific self-harm, suicide or health details to
-  memory unless you ask them to remember something. At most they keep a
+  memory unless you explicitly ask them to remember that detail. At most they keep a
   general note, such as "had a hard week".
 - For the AI notice, Animama stores when a notice was last shown and when your
   current conversation started. It also stores that you confirmed you are 18 or
-  older, and when, and your Safety settings (region and reminder interval). It
-  never stores message content or crisis-check results for safety purposes.
+  older, and when, and your Safety settings (region and reminder interval). The
+  safety features themselves store no message content and no crisis-check
+  results.
 
 ## Limitations
 
-- The crisis card depends on OpenAI's moderation and appears only with OpenAI
-  Responses models. Moderation can miss indirect phrasing and occasionally
+- The crisis card depends on OpenAI's moderation and appears only with the
+  OpenAI Responses provider. Moderation can miss indirect phrasing and occasionally
   flags ordinary messages.
 - Animama does not verify age; it relies on your confirmation.
 - Animas are AI. They can make mistakes and cannot call for help on your

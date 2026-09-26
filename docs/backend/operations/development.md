@@ -1464,7 +1464,7 @@ Companion safety (operator settings; the Companion Guardrails are never
 configurable, see the [crisis protocol](../../safety/crisis-protocol.md)):
 
 - `ANIMAMA_COMPANION_SAFETY_ENABLED` (default `true`; `false` turns off the AI
-  notice, crisis detection, OpenAI Responses moderation and the crisis card
+  notice, OpenAI Responses moderation and the crisis card
   together)
 - `ANIMAMA_AI_NOTICE_ENABLED` (default `true`)
 - `ANIMAMA_AI_NOTICE_REMINDER_HOURS` (default `3`, from 0.25 to 168; larger

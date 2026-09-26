@@ -2,7 +2,7 @@
 
 Operators configure safety through environment settings; the global switch
 ``ANIMAMA_COMPANION_SAFETY_ENABLED`` turns the AI notice, crisis detection
-(including provider moderation) and the crisis card off together. Owners may
+(provider moderation) and the crisis card off together. Owners may
 only choose resources and shorten the reminder interval. Nothing here affects the
 Companion Guardrails, which are always present.
 """
@@ -110,7 +110,7 @@ def safety_override_warnings(operator: OperatorSafetyConfig) -> list[str]:
 
     warnings: list[str] = []
     if not operator.enabled:
-        warnings.append("ANIMAMA_COMPANION_SAFETY_ENABLED=false: AI notice and crisis detection are off")
+        warnings.append("ANIMAMA_COMPANION_SAFETY_ENABLED=false: the AI notice, moderation and the crisis card are off")
     if not operator.ai_notice_enabled:
         warnings.append("ANIMAMA_AI_NOTICE_ENABLED=false: the AI notice is off")
     if operator.reminder_interval > DEFAULT_REMINDER_INTERVAL:
