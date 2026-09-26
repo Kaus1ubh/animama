@@ -40,6 +40,7 @@ Tests use explicit fixture bootstrap and dependency overrides.
   listing, path lookup, create, patch, move/rename, and soft-delete routes.
 - `server/routers/memory_manager.py`: episodic-memory review and manual
   memory-manager run/message/approval routes.
+- `server/routers/safety.py`: owner-visible crisis-resource regions.
 - `server/routers/archive.py`: archive metadata/passages and embedding search.
 - `server/routers/elevenlabs.py`: ElevenLabs clone, text-to-speech, sound
   effects, audio isolation, and realtime TTS session helpers.
@@ -80,7 +81,13 @@ Tests use explicit fixture bootstrap and dependency overrides.
     "supported_extensions": []
   },
   "offline_speech_enabled": false,
-  "offline_speech_asset_version": null
+  "offline_speech_asset_version": null,
+  "companion_safety": {
+    "enabled": true,
+    "ai_notice_enabled": true,
+    "crisis_detection_enabled": true,
+    "operator_reminder_hours": 3.0
+  }
 }
 ```
 
@@ -95,6 +102,8 @@ requests before repository lookup or enqueue. Original-file upload/finalization
 and existing indexed-file search still work. React checks fresh capability
 metadata before enqueue and before creating an offline speech worker. The
 asset version is an opaque cache key, never a path or credential.
+`companion_safety` reports the operator's effective safety configuration
+(the global switch already applied); owner preferences live in user settings.
 
 `POST /_desktop/feature-packs/{pack_id}:removal-check` is a separate supervisor
 contract. Only a valid per-launch `X-Animama-Desktop-Control` token reaches it;
@@ -175,20 +184,28 @@ dependency; none accepts an owner ID or internal credential from the body.
 - `POST /v1/runtime/bootstrap:ensure`: retry idempotent local owner bootstrap
   and return the same bounded context.
 - `POST /v1/runtime/onboarding:complete`: accept only
-  `{ "display_name": string }`, required and nonblank (1–80 characters);
-  atomically save private personalization,
-  guarded `PROFILE.md` synchronization, and write-once first-run completion.
+  `{ "display_name": string, "adult_confirmed": boolean }`. The name is
+  required and nonblank (1–80 characters); `adult_confirmed` must be `true`,
+  otherwise the route returns 422 `adult_confirmation_required`. It atomically
+  saves private personalization, guarded `PROFILE.md` synchronization, the
+  owner's 18+ self-attestation, and write-once first-run completion.
 - `GET /v1/users/me/profile`: return only nullable `display_name`.
 - `PATCH /v1/users/me/profile`: require and update nonblank `display_name`
   after first run. Missing, null, blank, and overlong names return 422.
 
 Null display names are only pending-setup placeholders. First-run completion
-requires both a stored name and a timestamp; an earlier skipped setup reopens
+requires a stored name, a timestamp and an `adult` age status; an earlier skipped setup reopens
 without resetting ownership or data. `GET /v1/animas` returns owned rows in
 ascending creation-time/ID order so launch falls back to Annie on fresh installs.
 
 Local profiles provide private display-name personalization. See
 [Local User Profile](../features/user-profiles-and-usernames.md).
+
+`GET /v1/safety/crisis-resources?locale=` returns `regions` (`code`, `label`),
+the owner's nullable `preferred_region`, and the `resolved` region entry. The
+owner's preferred region wins, then the optional BCP 47 `locale`, then the
+fallback entry. The table is bundled or replaced by
+`ANIMAMA_CRISIS_RESOURCES_PATH`; see [companion safety](../runtime/chat.md#companion-safety).
 
 ## Typed Content, Loadouts, And Runtime
 
@@ -455,6 +472,8 @@ The SSE stream currently emits:
 - `emotion.update`
 - `avatar.gesture.requested`
 - `chat.title.updated`
+- `safety.ai_notice`
+- `safety.crisis_support`
 - `error`
 - `run.completed`
 
@@ -468,8 +487,9 @@ useful for clients that need a simple request-scoped stream instead of a
 persistent WebSocket.
 
 The route accepts a `PyAnimaChatRequest` with a required non-blank `message`,
-optional `chat_id`, optional `run_id`, optional `model_provider_id`, and
-optional `dispatch_options`, and required `runtime_revision`. The backend
+optional `chat_id`, optional `run_id`, optional `model_provider_id`,
+optional `dispatch_options`, optional `client_context` (`time_zone`, `locale`
+for safety presentation), and required `runtime_revision`. The backend
 authorizes that owner's persisted runtime snapshot before provider work and
 returns `409 runtime_remount_required` when it is missing or expired. The same
 snapshot's Gesture inventory defines the strict model enum,
@@ -520,14 +540,16 @@ Before model invocation, direct chat opens cached path `IDENTITY.md` in the
 active anima scope for prompt context and appends only the identity markdown
 content to the single system instruction. User profile memory entries are seeded
 during installation bootstrap but their content is not injected into direct chat
-context yet. When memory influence is enabled, direct chat adds a request-local
-`# List of memory files` developer message immediately before the latest user
-message. The list includes only user-scope file entries (`anima_id IS NULL`),
-uses cached paths such as `PROFILE.md`, and omits anima-scoped files and tree
-formatting. `disable_memory_influence` suppresses the list while keeping
-required anima identity active. Provider rows that do not support OpenAI's
-`developer` message role, including DeepSeek, receive that request-local memory
-map inside the system instruction instead.
+context yet. Direct chat adds one request-local `developer` message
+immediately before the latest user message. When memory influence is enabled
+it starts with a `# List of memory files` section. The list includes only
+user-scope file entries (`anima_id IS NULL`), uses cached paths such as
+`PROFILE.md`, and omits anima-scoped files and tree formatting. Any attached-file
+list and crisis care note follow, and the Companion Guardrails always end the
+message. `disable_memory_influence` suppresses the list while keeping required
+anima identity active. Provider rows that do not support OpenAI's `developer`
+message role, including DeepSeek, receive all developer text folded in order
+into the end of the system instruction instead.
 
 ## Installation Events
 

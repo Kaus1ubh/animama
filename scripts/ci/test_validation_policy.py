@@ -46,6 +46,7 @@ class ClassificationTests(unittest.TestCase):
             "docs/configuration.json",
             "docs/script.py",
             "docs/package.json",
+            "docs/safety/crisis-protocol.md",
             "package.json",
             "src/backend/animama/app/services/chat.py",
             "tests/conftest.py",

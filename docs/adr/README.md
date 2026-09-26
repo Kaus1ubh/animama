@@ -21,7 +21,7 @@ production readiness or publication rights.
 | 0005 | [Client-rendered shared UI and local/native composition](0005-client-rendered-ui-and-local-native-composition.md)         | accepted                              |
 | 0006 | [Human and AI software development lifecycle](0006-human-ai-software-development-lifecycle.md)                            | accepted; planning superseded by 0007 |
 | 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                  | accepted                              |
-| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                        | proposed                              |
+| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                        | accepted                              |
 
 ## When and how to record a decision
 

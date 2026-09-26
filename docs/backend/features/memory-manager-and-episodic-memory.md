@@ -171,8 +171,12 @@ after `display`. The value can be a short string, `null`, or an empty string.
 
 The model guidance asks for 1-3 concise sentences about durable new facts,
 preferences, events, decisions, active projects, or relationship/context changes.
-It should not include secrets, credentials, or raw sensitive data unless the user
-explicitly asked the anima to remember it.
+The shared sensitive-memory rule (`SENSITIVE_MEMORY_RULE` in
+`app/safety/prompts.py`) forbids secrets, credentials and other raw sensitive
+data, and keeps health and crisis details out of memory: no specific self-harm
+or suicide details, methods, crisis specifics, diagnoses, medications or other
+health details unless the user explicitly asked to remember them. At most a
+general, non-clinical note, such as that the user had a hard week, is kept.
 
 ### 2. Successful Chat Captures An Episode Item
 
@@ -389,8 +393,10 @@ model tools. In specialized mode the server appends a fixed alias batch with
 occurrence timestamp, local date, and an ownership-checked Anima avatar name
 when available. Instructions explicitly identify episode text as untrusted
 data, require every item to be reviewed, require curated-only duplicate checks,
-and define a final response as completion of the entire batch. Durable episode
-IDs are never sent to the model.
+apply the same sensitive-memory rule to curated files (an episode counts as an
+explicit request only when it says the user asked), and define a final response
+as completion of the entire batch. Durable episode IDs are never sent to the
+model.
 
 The agent instructions enforce these policies:
 

@@ -97,8 +97,7 @@ async def prepare_turn_safety(
         preferred_region=preferences.crisis_resource_region,
         locale=client_context.locale if client_context is not None else None,
     )
-    if detection.positive:
-        _log.info("Local crisis detection positive", category=detection.category, region=region.code)
+    # Detection results are deliberately not logged: they are sensitive and logs persist.
     return TurnSafety(
         effective=effective, detection=detection, crisis_region=region, time_zone=_time_zone(client_context)
     )

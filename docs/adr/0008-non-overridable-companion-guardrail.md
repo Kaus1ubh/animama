@@ -1,10 +1,10 @@
 # 0008: Non-overridable companion guardrail
 
-- Status: proposed
+- Status: accepted
 - Recorded: 2026-09-25
 - Retrospective: no
 - Original decision date: 2026-09-25 (owner decisions during companion safety discovery)
-- Decision basis: new proposal; accepted spec for [companion safety baseline](https://github.com/raymond-van/animama/issues/134)
+- Decision basis: owner decisions in the accepted spec for [companion safety baseline](https://github.com/raymond-van/animama/issues/134)
 
 ## Context
 
@@ -22,9 +22,10 @@ provider-side moderation cannot be assumed.
 Every chat turn ends its provider instructions with a fixed, server-owned
 **Companion Guardrails** section. It comes after the core instruction, the
 identity, memory and response guidance, the memory map, attachments, the
-compaction summary and any per-turn care note. For providers without a developer
-role, the trailing developer text is folded into the system message so the
-guardrail is still last. The guardrail:
+compaction summary and any per-turn crisis care note. The forced-final request
+made at the memory-tool limit restates it after the limit instruction. For
+providers without a developer role, all developer text is folded in order into
+the system message so the guardrail is still last. The guardrail:
 
 - admits being an AI when sincerely asked, in character ("I'm an Anima, not a
   person"), except inside fiction the user explicitly set up;
@@ -37,7 +38,9 @@ guardrail is still last. The guardrail:
   seek help, never with methods;
 - treats ordinary sadness, venting and dark humor as normal conversation.
 
-No setting, environment variable, persona or `IDENTITY.md` removes or edits it.
+No setting, environment variable, persona or `IDENTITY.md` removes or edits it;
+the global companion-safety switch (`ANIMAMA_COMPANION_SAFETY_ENABLED`) never
+affects it.
 The core instruction keeps the identity binding "except where the Companion
 Guardrails apply".
 
@@ -65,5 +68,7 @@ Guardrails apply".
   guardrail text.
 - [`app/chat/openai_prompt.py`](../../src/backend/animama/app/chat/openai_prompt.py):
   trailing instruction placement.
+- [`app/chat/direct_turn/model_stream.py`](../../src/backend/animama/app/chat/direct_turn/model_stream.py):
+  restatement in the forced-final tool-limit request.
 - [`tests/test_companion_guardrail.py`](../../tests/test_companion_guardrail.py):
   placement and coverage tests.

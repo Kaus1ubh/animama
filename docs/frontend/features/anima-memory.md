@@ -320,6 +320,9 @@ missing identity. Legacy repair state requires explicit owner repair; a
 directory obstructing the reserved path can be explicitly moved first.
 
 Backend direct chat can generate user-scope episodic logs after completed
-non-incognito turns with notable `remember` text. These files are generated
+non-incognito turns with notable `remember` text. Model-authored memory
+(`remember`, chat memory tools and Memory Manager) keeps secrets and specific
+health, self-harm and crisis details out of memory unless the user asks; see
+[memory](../../backend/features/memory.md). These files are generated
 projections of backend episode rows and cannot be changed by users or ordinary
 chat memory write tools.

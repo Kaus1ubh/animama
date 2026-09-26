@@ -220,9 +220,12 @@ guidelines plus the dumped schema and example object because JSON mode does not
 enforce schema adherence. The identity section
 contains only file content rather than file path, status, revision, or
 fingerprint details. Anima profile columns, `metadata.direct_chat`, and pinned
-user profile content are not prompt sources. When memory influence is enabled,
-the user-scope memory file map is request-local developer context appended near
-the latest user message rather than stable system identity.
+user profile content are not prompt sources. One request-local `developer`
+message always sits immediately before the latest user message: the user-scope
+memory file map (when memory influence is enabled), the attached-file list, an
+optional crisis care note, and finally the server-owned
+[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
+The guardrail is always the last instruction text of the request.
 
 Model clients receive the same prompt contract. OpenAI Chat Completions rows
 that support the OpenAI `developer` role pass prompt `messages` through
@@ -233,9 +236,10 @@ uses `extra_body={"thinking":{"type":"disabled"}}` for `none`, uses
 values for `high` and `max`, and omits OpenAI-only request fields such as
 `prompt_cache_key` and
 `parallel_tool_calls`. Catalog rows expose `supports_developer_role`; when it is
-false, direct chat places the request-local memory map at the end of the system
-instruction and the Chat Completions adapter folds any remaining `developer`
-messages into the first `system` message before dispatch. `LiteLLMAgent`
+false, the prompt assembler folds every `developer` message, in order, into the
+end of the system message, so the guardrail stays last; the Chat Completions
+adapter also folds any remaining `developer` messages into the first `system`
+message before dispatch. `LiteLLMAgent`
 normalizes system/developer instruction messages into one leading `system`
 message before calling `litellm.acompletion`, because several LiteLLM-backed
 providers do not accept OpenAI's `developer` role. `OpenAIResponsesHTTPAgent` moves all
@@ -315,6 +319,18 @@ response cannot be resolved, the executor fetches local history lazily and
 retries the same provider call once with continuation removed. The retry uses
 the manual-context serialization above, and a successful non-incognito final
 response refreshes the chat-row cursor through normal persistence.
+
+When companion crisis detection is effective, direct chat sets the provider
+option `moderation_model` for `OpenAIResponsesHTTPAgent` rows only, and the
+adapter sends `moderation={"model": "omni-moderation-latest"}` with the
+Responses create request. The option is cleared on tool follow-up and forced
+final requests, so only round 0, whose new input is the user's message, is
+moderated. The adapter parses the completed response's input moderation into a
+content-free `ModelClientFinal.input_moderation` (`status` `result` or `error`,
+flagged categories and scores). Moderation is report-only: it never blocks or
+alters the reply, and the executor only uses a self-harm signal to add a
+[crisis card](chat.md#sse-events). Other provider families do not support
+moderation and never receive the option.
 
 Both OpenAI SDK adapters share one error classifier. It maps OpenAI status and
 SDK exceptions into stable model-client codes such as

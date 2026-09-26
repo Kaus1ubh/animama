@@ -70,7 +70,8 @@ Two further rules apply:
       moderation). Review #2 passed.
 - [x] Phase 4: frontend (notice, crisis card, first run, settings, Safety page).
       Review #3 passed.
-- [ ] Phase 5: protocol document, docs, ADR, glossary, copy audit and manual
+- [x] Phase 5: protocol document, docs, ADR, glossary, copy audit (review #2
+      passed); manual desktop acceptance is owner gate G3. Was:
       desktop acceptance.
 - [ ] Final integration review.
 - [ ] Owner gates G1–G4 (see Validation and acceptance).
@@ -1207,13 +1208,90 @@ content changed.
 Completion: the documents match the implemented behavior; the audit is clean;
 gate G3 evidence is recorded.
 
+Phase record: issue #138; starting source `f7eb96c`.
+
+Evidence:
+
+- **Protocol.** `docs/safety/crisis-protocol.md` covers every R7 item as
+  implemented. Its links are absolute `https://` URLs, as the dialog opens them
+  externally.
+- **Copy audit.** Ran `rg -n -i "therap|counsel|mental[- ]health|treatment|wellbeing|well-being|emotional support" README.md pyproject.toml docs src`,
+  excluding generated files, `node_modules`, `docs/plans` and lock files. Every
+  hit is allowed:
+  - negative "never claims" clauses in the guardrail, protocol and ADR;
+  - resource-table descriptions of crisis lines' trained counselors;
+  - unrelated uses of "treatment" (license notices, UI styling).
+
+  No product copy presents Animama as therapy.
+- **Production build.** `ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name safety --base-port 8760`
+  succeeded. The built root contains `assets/crisis-protocol-*.js`, and a
+  navigation request to `/safety` returns 200. A direct `docker build --target
+  web-builder` needs the `browser_models` build context that reset supplies.
+- **Task stack.** `animama-safety` at `http://animama-safety.localhost:8760`,
+  now in production build mode, with `ANIMAMA_LLM_SKIP=1`.
+
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewed the working tree on `f7eb96c` (`sdlc-reviewer`, full initial review).
+Most claims match the code, including the resource table against the JSON.
+
+- **P5-R1-F1 (blocking):** `docs/frontend/features/anima-memory.md` lacked the
+  sensitive-data rule required by R11.
+- **P5-R1-F2 (blocking):** positive local detections were logged at INFO with
+  category and region. The desktop persists backend output to `main.log`, which
+  contradicts the protocol's "what is stored".
+- **Optional:**
+  - fiction carve-out missing from the protocol;
+  - reminder copy not quoted;
+  - the 8,000-character scan window not stated;
+  - operator wording and on-device claims inaccurate for self-hosting;
+  - Safety settings storage not mentioned;
+  - ADR decision-basis wording;
+  - card state is per Anima route;
+  - nullable payload fields described as optional;
+  - development reminder range not given;
+  - G3 not yet recorded.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** Added the rule and a link to the backend memory doc.
+- **F2 accepted, with a code change.**
+  - Detection results are no longer logged anywhere: removed the backend
+    positive-detection log line and the frontend `useChatSse` crisis log.
+  - Excluded `CRISIS_SUPPORT` frames from the route's SSE frame log. While
+    making this change, the frame was briefly not yielded; the chat tests caught
+    it and it was fixed.
+  - The protocol and `chat.md` now state that detection results are never
+    logged or stored.
+- **Optional, accepted:**
+  - fiction carve-out;
+  - "such as" notice copy, with the reminder mentioned;
+  - long-message scan limit;
+  - "where Animama runs" and self-hosting wording;
+  - Safety settings storage;
+  - ADR decision basis;
+  - nullable fields in `chat.md`;
+  - the reminder range in `development.md`.
+- **Optional, noted:** the per-route card scope matches the spec wording. G3
+  is an owner gate recorded under Validation.
+- Focused SSE and chat tests pass (113).
+
+#### Code Review #2 Findings
+
+Targeted recheck: F1 and F2 are fixed, with no regressions and no remaining
+default log path that reveals a detection.
+
+- **P5-R2-F1 (optional):** opt-in prompt previews can include the care note.
+- **P5-R2-F2 (optional):** the turn `event_count` is one higher on crisis turns
+  (negligible).
+- **P5-R2-F3 (optional):** no log-absence test.
+
+#### Code Review #2 Revisions
+
+- **P5-R2-F1 accepted as documentation.** Compose enables previews by default,
+  and the desktop does not. The protocol and `chat.md` now say so.
+- **F2 and F3 noted.**
+- Repair budget used: one of two. Phase 5 review: pass.
 
 ## Final integration review
 

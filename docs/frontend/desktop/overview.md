@@ -339,7 +339,9 @@ Desktop windows use:
 
 The session permission guard currently allows only media permissions from the
 configured web origin. Navigation guards block or externalize URLs outside the
-configured origin.
+configured origin. Besides external HTTP(S) URLs, only crisis-card `tel:` and
+`sms:` links whose target is digits with an optional leading `+` are handed to
+the operating system.
 
 IPC handlers resolve target windows from `event.sender`. Renderers do not choose
 window ids, target webContents ids, or arbitrary URLs.

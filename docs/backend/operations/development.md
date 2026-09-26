@@ -1467,8 +1467,8 @@ configurable, see the [crisis protocol](../../safety/crisis-protocol.md)):
   notice, crisis detection, OpenAI Responses moderation and the crisis card
   together)
 - `ANIMAMA_AI_NOTICE_ENABLED` (default `true`)
-- `ANIMAMA_AI_NOTICE_REMINDER_HOURS` (default `3`; larger values relax the
-  reminder cadence)
+- `ANIMAMA_AI_NOTICE_REMINDER_HOURS` (default `3`, from 0.25 to 168; larger
+  values relax the reminder cadence; an out-of-range value stops startup)
 - `ANIMAMA_CRISIS_DETECTION_ENABLED` (default `true`)
 - `ANIMAMA_CRISIS_RESOURCES_PATH` (optional replacement crisis-resource table;
   an invalid table stops startup)

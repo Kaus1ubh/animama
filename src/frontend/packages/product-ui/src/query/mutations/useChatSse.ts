@@ -503,11 +503,6 @@ export function useChatSse() {
             if (!matchesExpectedRunId(expectedRunId, data.run_id)) {
               continue;
             }
-            logger.info("useChatSse", "SSE crisis support", {
-              runId: data.run_id,
-              source: data.source,
-              region: data.resources.code,
-            });
             args.onCrisisSupport?.(data);
             continue;
           }
