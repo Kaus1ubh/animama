@@ -37,6 +37,38 @@ export function validateProvider(value: unknown): CredentialProvider {
     throw new RuntimeError("credential_provider_invalid");
   return value as CredentialProvider;
 }
+/**
+ * Validate a renderer-supplied batch: 1..N changes, one per provider, each an
+ * object with only `provider` and an optional `value`.
+ */
+export function validateCredentialChanges(
+  value: unknown,
+): Array<{ provider: CredentialProvider; value?: string }> {
+  if (
+    !Array.isArray(value) ||
+    value.length < 1 ||
+    value.length > credentialProviders.length
+  )
+    throw new RuntimeError("credential_changes_invalid");
+  const seen = new Set<CredentialProvider>();
+  return value.map((change: unknown) => {
+    if (
+      !change ||
+      typeof change !== "object" ||
+      Array.isArray(change) ||
+      Object.keys(change).some((key) => key !== "provider" && key !== "value")
+    )
+      throw new RuntimeError("credential_changes_invalid");
+    const record = change as { provider?: unknown; value?: unknown };
+    const provider = validateProvider(record.provider);
+    if (seen.has(provider))
+      throw new RuntimeError("credential_changes_invalid");
+    seen.add(provider);
+    return record.value === undefined
+      ? { provider }
+      : { provider, value: validateCredential(record.value) };
+  });
+}
 export function validateCredential(value: unknown): string {
   if (
     typeof value !== "string" ||
@@ -140,9 +172,26 @@ export class CredentialVault {
     });
   }
   delete(provider: CredentialProvider): void {
-    validateProvider(provider);
+    this.apply([{ provider }]);
+  }
+  /**
+   * Set or remove several providers in one encrypted write, so a batch is
+   * all-or-nothing on disk (an omitted value removes that provider's key).
+   */
+  apply(
+    changes: ReadonlyArray<{ provider: CredentialProvider; value?: string }>,
+  ): void {
     const providers = { ...this.data.providers };
-    delete providers[provider];
+    const updatedAt = new Date().toISOString();
+    for (const change of changes) {
+      validateProvider(change.provider);
+      if (change.value === undefined) delete providers[change.provider];
+      else
+        providers[change.provider] = {
+          value: validateCredential(change.value),
+          updatedAt,
+        };
+    }
     this.save({ ...this.data, providers });
   }
 }

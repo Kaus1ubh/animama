@@ -683,6 +683,54 @@ describe("runtime supervision", () => {
     },
   );
 
+  it("applies several credential changes with one backend restart", async () => {
+    const current = create();
+    await current.runtime.start();
+    await current.runtime.changeCredential("gemini", "fixture-old-gemini");
+    const before = fixture.launches.filter(
+      (child) => child.name === "fastapi",
+    ).length;
+    const statuses = await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-openai" },
+      { provider: "elevenlabs", value: "fixture-elevenlabs" },
+      { provider: "gemini" },
+    ]);
+    const launches = fixture.launches.filter(
+      (child) => child.name === "fastapi",
+    );
+    expect(launches).toHaveLength(before + 1);
+    expect(launches.at(-1)?.env).toMatchObject({
+      OPENAI_API_KEY: "fixture-openai",
+      ELEVENLABS_API_KEY: "fixture-elevenlabs",
+    });
+    expect(launches.at(-1)?.env.GEMINI_API_KEY).toBeUndefined();
+    expect(
+      Object.fromEntries(
+        statuses.map((status) => [status.provider, status.configured]),
+      ),
+    ).toMatchObject({ openai: true, elevenlabs: true, gemini: false });
+    expect(JSON.stringify(statuses)).not.toContain("fixture-openai");
+  });
+
+  it("records a failed batch against every provider in it and keeps the vault unchanged", async () => {
+    const current = create();
+    await current.runtime.start();
+    await current.runtime.changeCredential("gemini", "fixture-old-gemini");
+    fixture.quiesce.mockRejectedValueOnce(new Error("busy"));
+    const statuses = await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-openai" },
+      { provider: "gemini" },
+    ]);
+    const byProvider = Object.fromEntries(
+      statuses.map((status) => [status.provider, status]),
+    );
+    expect(byProvider.openai).toMatchObject({ configured: false });
+    expect(byProvider.gemini).toMatchObject({ configured: true });
+    expect(byProvider.openai?.error).toBeTruthy();
+    expect(byProvider.gemini?.error).toBeTruthy();
+    expect(byProvider.elevenlabs?.error).toBeUndefined();
+  });
+
   it("retains a saved credential after restart failure and clears its failure when Retry consumes it", async () => {
     const current = create();
     await current.runtime.start();

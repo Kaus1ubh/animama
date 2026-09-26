@@ -144,6 +144,14 @@ Non-goals and deferrals:
     configured. It never includes keys, tokens, file contents, chat or memory
     content, or personal identifiers.
 
+- **R10 — API Keys** (added by the owner 2026-09-25, desktop embedded runtime
+  only). A dedicated API Keys section lists each provider with Configured / Not
+  set status and a write-only masked field; Remove marks a saved key for
+  removal. Several edits are saved together with a single local-service
+  restart, in both setup and App Settings. Keys are never read back; failed
+  providers keep their state and report why. Applying key changes without
+  any restart is out of scope (a separate design).
+
 ## Constraints
 
 - **Accountless model.** Settings remain owned by the installation owner through

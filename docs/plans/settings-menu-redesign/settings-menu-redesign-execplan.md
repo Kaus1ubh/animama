@@ -91,6 +91,7 @@ Boundaries:
 - [x] Phase 5 (#119): R6–R8 inheritance, Markdown persistence, reset. Reviewed (#1, #2 pass).
 - [x] Phase 6 (#120): R9 About & diagnostics. Reviewed (#1–#3, pass). Unpackaged desktop check passed; packaged-only parts remain with owner release acceptance.
 - [x] Phase 8 (#143): expanded colour customization (owner follow-up, R3 revision 2). Reviewed (#1 pass).
+- [x] Phase 9: API Keys with batched saves (R10). Reviewed (#1, #2 pass); packaged-app run with real keys pending (release acceptance).
 - [x] Phase 7 (#121): documentation, glossary and final integration review (pass after revisions). PR handoff.
 
 ## Surprises & Discoveries
@@ -961,6 +962,85 @@ no issues.
 - **P8-6: accepted.** `aria-valuetext` added.
 - **P8-2 to P8-5: acknowledged.** They are optional, and browser evidence
   covers P8-4.
+
+### Phase 9: API Keys with batched saves
+
+Requirement: R10 (owner 2026-09-25). This touches high-risk desktop code
+(supervisor, runtime IPC, preload) with minimal diffs that follow the existing
+patterns.
+
+Results:
+
+- **Desktop:**
+  - `validateCredentialChanges` accepts 1 to 5 changes, one per provider, each
+    `{provider, value?}` with no other fields.
+  - `RuntimeSupervisor.changeCredentials` quiesces once, writes the whole batch
+    and restarts consumers once. On failure it records the same failure for
+    every changed provider, and saved keys remain for Retry.
+  - `changeCredential` delegates to it.
+  - The new `credentials:apply` channel is main-window only (not recovery) and
+    validated in IPC. The preload exposes `credentials.apply`.
+- **Web:**
+  - `credentialChangesFromDrafts` and `applyCredentialChanges` (single-call
+    batch with per-provider confirmation, falling back to sequential saves).
+  - `DesktopCredentialsPanel` is now a per-provider form: status, masked
+    write-only field, Remove/Undo, one Save ("Save N changes") and Discard.
+  - It is used by setup and by the new API Keys section, which is hidden unless
+    the embedded runtime is available (`useDesktopCredentialsAvailable`,
+    external/dev mode excluded).
+- **Checks:**
+  - `pnpm desktop:check` pass;
+  - `pnpm desktop:test` 15 files / 305 pass, including new IPC batch validation
+    and authority tests and a supervisor test showing one FastAPI relaunch with
+    both keys set and one removed;
+  - web credential tests 10 pass; `tsc -b` and eslint pass.
+- **Browser:** tested in a separate Chrome with a simulated desktop bridge
+  injected before load.
+  - The API Keys section lists the providers.
+  - Two new keys plus one removal produced a single `apply` call with three
+    changes, "Restarting local services…", then "3 changes saved"; statuses
+    updated and typed keys were cleared.
+- **Not performed:** a packaged-app run with real keys (owner/release
+  acceptance).
+
+#### Code Review #1 Findings
+
+- **P9-1 (blocking).** Formatting failures in two desktop files.
+- **P9-2 (blocking).** A batch was written one provider at a time, so a
+  failure partway through mislabelled saved keys.
+- **P9-3.** Misleading docstring.
+- **P9-4.** Stale failure lines shown during a save.
+- **P9-5.** Setup Continue discarded unsaved key edits.
+- **P9-6.** Remove/Undo buttons were not named per provider.
+- **P9-7.** Dead sequential fallback.
+- **P9-8.** Spec wording and setup copy.
+
+#### Code Review #1 Revisions
+
+- **All accepted and fixed.**
+  - `CredentialVault.apply` makes one encrypted write per batch (`delete`
+    delegates to it). A supervisor test checks that a failed batch records the
+    failure for every provider in it and leaves the vault unchanged.
+  - `CredentialsBridge.apply` is required.
+  - Setup blocks Continue while key edits are pending.
+  - Accessible names and status descriptions added.
+- **Checks:**
+  - desktop tests 306 pass;
+  - `desktop:check` pass;
+  - `tsc -b` and eslint pass;
+  - settings and routes tests 44 pass.
+
+#### Code Review #2 Findings (repair round 1)
+
+Pass.
+
+- **Optional:** the Undo accessible name did not contain "Undo" (WCAG
+  2.5.3).
+
+#### Code Review #2 Revisions
+
+- **Accepted.** The name is now "Undo removing <provider> key".
+- One repair round remains.
 
 ## Final integration review
 

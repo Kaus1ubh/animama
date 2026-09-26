@@ -16,6 +16,7 @@ import {
   Database,
   Info,
   Keyboard,
+  KeyRound,
   Palette,
   Settings2,
   SlidersHorizontal,
@@ -107,7 +108,10 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { useSettings } from "@/ui/settings/SettingsProvider";
-import { DesktopCredentialsPanel } from "@/ui/settings/DesktopCredentialsPanel";
+import {
+  DesktopCredentialsPanel,
+  useDesktopCredentialsAvailable,
+} from "@/ui/settings/DesktopCredentialsPanel";
 import { DesktopFeaturePacksPanel } from "@/ui/settings/DesktopFeaturePacksPanel";
 import { DesktopUpdatesPanel } from "@/ui/settings/DesktopUpdatesPanel";
 import {
@@ -197,6 +201,7 @@ const sections = [
   "Voice",
   "Shortcuts",
   "Memory & Emotion",
+  "API Keys",
   "Data",
   "Advanced",
   "About",
@@ -222,6 +227,7 @@ const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
   Voice: AudioLines,
   Shortcuts: Keyboard,
   "Memory & Emotion": Brain,
+  "API Keys": KeyRound,
   Data: Database,
   Advanced: SlidersHorizontal,
   About: Info,
@@ -1076,6 +1082,7 @@ export function ApplicationSettingsModal({
   // The updates panel renders nothing while updates are unavailable (browser,
   // unpackaged or unsupported desktop), so its entry is hidden then too.
   const desktopUpdates = useDesktopUpdates();
+  const credentialsAvailable = useDesktopCredentialsAvailable();
   const desktopShortcutsAvailable =
     platform.isDesktop && Boolean(platform.desktopBridge.shortcuts);
   const isAudioBusy = isBusy;
@@ -1135,8 +1142,8 @@ export function ApplicationSettingsModal({
     },
     {
       id: "provider-keys",
-      section: "General",
-      label: "Provider keys",
+      section: "API Keys",
+      label: "API keys",
       keywords: [
         "api key",
         "credentials",
@@ -1146,9 +1153,12 @@ export function ApplicationSettingsModal({
         "gemini",
         "elevenlabs",
       ],
-      hidden: !platform.isDesktop,
+      hidden: !credentialsAvailable,
       render: () => (
-        <DesktopCredentialsPanel className={FLAT_SETTINGS_PANEL_CLASS_NAME} />
+        <DesktopCredentialsPanel
+          className={FLAT_SETTINGS_PANEL_CLASS_NAME}
+          showTitle={false}
+        />
       ),
     },
     {

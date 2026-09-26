@@ -358,6 +358,10 @@ else {
       if (!supervisor) throw new RuntimeError("embedded_runtime_unavailable");
       return supervisor.changeCredential(provider, value);
     },
+    changeCredentials: (changes) => {
+      if (!supervisor) throw new RuntimeError("embedded_runtime_unavailable");
+      return supervisor.changeCredentials(changes);
+    },
     featurePacks: () => supervisor?.featurePacks().list() ?? [],
     changePack: (action, id) => {
       if (!supervisor) throw new RuntimeError("embedded_runtime_unavailable");
