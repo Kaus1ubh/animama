@@ -26,12 +26,19 @@ import {
   resolvePocketVoicePreference,
   toPocketVoicePreference,
 } from "@/lib/speech/pocket/voice-preferences";
+import {
+  groupPocketVoices,
+  pocketVoiceLabel,
+} from "@/lib/speech/pocket/voice-groups";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select";
@@ -142,6 +149,10 @@ export function AnimaSettingsModal() {
   const ttsEnabled = effectivePreferences.speech?.tts_enabled === true;
   const pocketProviderEnabled = ttsEnabled && activeProvider === "pocket_tts";
 
+  const pocketVoiceGroups = useMemo(
+    () => groupPocketVoices(pocketVoices),
+    [pocketVoices],
+  );
   const effectivePocketVoice = resolvePocketVoicePreference(
     effectivePreferences.speech,
   );
@@ -287,10 +298,10 @@ export function AnimaSettingsModal() {
       return "PocketTTS failed to initialize for this route.";
     }
     if (animaHasPocketOverride && animaOverrideVoice) {
-      return `Anima override is active: ${animaOverrideVoice}.`;
+      return `Anima override is active: ${pocketVoiceLabel(animaOverrideVoice)}.`;
     }
     if (effectivePocketVoice) {
-      return `Using application fallback voice: ${effectivePocketVoice}.`;
+      return `Using application fallback voice: ${pocketVoiceLabel(effectivePocketVoice)}.`;
     }
     return "Using PocketTTS default voice.";
   }, [
@@ -407,11 +418,27 @@ export function AnimaSettingsModal() {
                   <SelectItem value={ANIMAMA_DEFAULT_VOICE_VALUE}>
                     Use application default
                   </SelectItem>
-                  {pocketVoices.map((voiceName) => (
-                    <SelectItem key={voiceName} value={voiceName}>
-                      {voiceName}
-                    </SelectItem>
+                  {pocketVoiceGroups.map((group) => (
+                    <SelectGroup key={group.label}>
+                      <SelectSeparator />
+                      <SelectLabel>{group.label}</SelectLabel>
+                      {group.voices.map((voice) => (
+                        <SelectItem
+                          key={voice.id}
+                          value={voice.id}
+                          hint={[
+                            voice.recommended ? "Recommended" : null,
+                            voice.accent,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        >
+                          {voice.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
+                  <SelectSeparator />
                   <SelectItem
                     value={POCKET_TTS_CUSTOM_VOICE}
                     disabled={!hasCustomVoice}

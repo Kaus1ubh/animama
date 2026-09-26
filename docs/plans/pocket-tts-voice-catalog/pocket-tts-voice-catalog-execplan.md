@@ -79,7 +79,8 @@ Line numbers are at the baseline.
       split out at G1 (D11) to #151 / PR #162 (`dc2a433`). Removed from this
       branch in `4123951`.
 - [ ] Phase 3 (#152): Shipped voice assets, acquisition and licences.
-      Publishing to R2 is gate **G2**.
+      Agent work complete (`22c571b`, Review #2 passed); waiting on gate **G2**,
+      the owner publishing to R2.
 - [ ] Phase 4 (#153): Data-driven worker voice list, grouped selector and
       stale-voice notice.
 - [ ] Phase 5 (#154): Inventory, size, docs and verification. Ends at gate
@@ -743,7 +744,25 @@ Optional:
 - **F8, recorded** in the results above; `licenses/README.md` moves to Phase 5
   docs.
 
-Targeted recheck (Review #2): pending.
+#### Code Review #2 Findings
+
+Targeted recheck, pinned to `22c571b`. F1–F6 are resolved, and F7 and F8
+were accepted as records.
+- The reviewer confirmed its cosette scenario now fails the licence test.
+- The upload set matches the committed manifest byte for byte.
+
+Checks:
+- four suites: 106 passed, 6 skipped;
+- ruff and format: clean;
+- `verify` OK.
+
+Result: **pass**. Optional notes:
+- `22c571b` includes the generated `voice-catalog.ts`, which Phase 4 review
+  covers.
+- `browser_speech.shipped_voices`' ID check has no direct test.
+
+Phase 3 agent work is complete (`22c571b`). Gate **G2** remains: the owner
+uploads the set, then the agent runs a real acquire into a fresh root.
 
 ### Phase 4: Data-driven voice list, grouped selector and stale-voice notice
 
@@ -779,7 +798,53 @@ Checks:
 - browser verification on a task stack at desktop size, then a narrow layout:
   grouping, recommended first, accent tags, and each source kind speaking.
 
-Results, issue and commits: _pending_.
+#### Phase 4 results (2026-09-26)
+
+Issue #153. Starting revision `22c571b`.
+
+- **Worker** (`inference-worker.js`).
+  - The hard-coded `PREDEFINED_VOICE_NAMES` is gone. The load message carries
+    `voices` and `defaultVoice`, validated by the new `resolveBuiltInVoices` in
+    `pocket-runtime.js`.
+  - Only the default state loads at startup. Others are fetched on first use
+    through `ensureBuiltInVoice`, which deduplicates concurrent loads.
+  - At most four other compact states stay cached; the default and current
+    voices are never evicted.
+  - `voices_loaded` reports the full list, and `set_voice` loads on demand.
+- **Core and factory.** `PocketTTSCore` passes `voices` and `defaultVoice`;
+  `createPocketTTS` supplies them from `voice-catalog.ts`.
+- **Selector** (`AnimaSettingsModal`).
+  - `groupPocketVoices` builds labelled groups: Female, Male, and "Other
+    voices" as a fallback for an unexpected reported ID.
+  - The shared `SelectItem` gains a `hint` slot, shown in the list but not in
+    the trigger, for "Recommended · accent".
+  - Status copy uses display names (`pocketVoiceLabel`).
+- **Stale voice.** The new pure `resolvePocketFallbackVoice` resolves the
+  voice.
+  - An unknown saved voice uses the catalog default (previously the worker's
+    current voice) with a session-scoped notice.
+  - The custom-voice notice stays per run.
+  - `use-tts-playback` applies the notice scope.
+- **Licence records.** Hashes refreshed for the three edited Pocket code files.
+- **Checks:**
+  - `pnpm check` and `pnpm web:lint`: pass.
+  - `pnpm web:test`: 318 files and 1921 tests passed, before the label helper
+    was added.
+  - Speech tests: 30 passed after it.
+  - Prettier: clean.
+- **Browser evidence** (task stack `animama-pvc`,
+  `http://animama-pvc.localhost:8600`, development mode):
+  - Desktop 1024×768: 38 voices in Female and Male groups, recommended first,
+    accent hints, the trigger showing only the name. Selecting Noah persisted
+    the override, and the status reads "Anima override is active: Noah."
+  - Mobile 375×812: the list is readable and the hints fit.
+  - A standalone worker on the stack's served assets loaded in 1.6 s with only
+    `eve` fetched, then synthesized "Hello there, how are you today?" with
+    `noah` (1.68 s), `harriet` (1.60 s) and `caro_davy` (2.56 s). This covers
+    both release-hosted-style and Kyutai states.
+  - Not browser-exercised: a spoken reply in a real chat turn, which needs a
+    paid model call, and the stale-voice toast (covered by unit test). Owner
+    listening happens at G3.
 
 #### Code Review #1 Findings
 
