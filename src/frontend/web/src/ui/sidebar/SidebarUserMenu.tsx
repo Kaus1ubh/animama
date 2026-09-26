@@ -33,7 +33,7 @@ function initials(name: string): string {
 
 /** Show private installation personalization and application controls. */
 export function SidebarUserMenu() {
-  const { open } = useSidebar();
+  const { open, setOpen } = useSidebar();
   const profile = useUserProfile();
   const [menuOpen, setMenuOpen] = useState(false);
   const [applicationSettingsOpen, setApplicationSettingsOpen] = useState(false);
@@ -93,6 +93,10 @@ export function SidebarUserMenu() {
             onSelect={(event) => {
               event.preventDefault();
               setMenuOpen(false);
+              // The mobile drawer sits above dialogs; close it first.
+              if (!window.matchMedia("(min-width: 768px)").matches) {
+                setOpen(false);
+              }
               setApplicationSettingsOpen(true);
             }}
           >
