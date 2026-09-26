@@ -290,6 +290,16 @@ When the setting is on, `loadClientParakeetWorker` probes
 | `model_missing`        | `wasm`                                                 | GPU speech model not installed |
 | `unavailable_in_build` | `wasm`                                                 | Not available in this build    |
 
+`unavailable_in_build` occurs only in a Vite stack that overrides the base
+model URL; built apps always probe. With an adapter and a `model_missing`
+result, packaged desktop shows a download control below the setting when its
+catalog includes the `parakeet-stt-webgpu` pack. It shows the download size
+and required free space, progress, cancel, retry and removal, and asks for
+offline speech recognition first when `parakeet-stt` is not installed. Turning
+the setting on without the encoder points at that control. Devices without an
+adapter are never offered the download; retained encoder files stay removable.
+Self-host shows operator instructions instead.
+
 Loading behavior:
 
 - **Switching backend.** ORT keeps one WASM build per worker, so switching
@@ -303,9 +313,10 @@ Loading behavior:
 - **Warm-up.** The worker warms WebGPU with one second of silence during load,
   so shader compilation does not make the first preview look over budget.
 
-Only Vite development stacks, including `desktop:dev`, serve the encoder, at
-`/__client-parakeet-webgpu-models/`. Built self-host and packaged desktop
-builds report `unavailable_in_build`. See
+Vite development and built self-host stacks serve an operator-provided encoder
+at `/__client-parakeet-webgpu-models/`; packaged desktop serves the active
+`parakeet-stt-webgpu` pack. A `HEAD` probe decides availability, and the
+encoder URL never carries the base pack's `?v=` version. See
 [model setup](../../backend/operations/model-assets.md#optional-parakeet-webgpu-encoder).
 
 The worker serializes all requests through a promise queue so load,

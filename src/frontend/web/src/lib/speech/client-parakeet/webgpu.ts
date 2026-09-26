@@ -13,9 +13,12 @@ export type ParakeetWebgpuStatus =
   | "available"
   /** No `navigator.gpu` or no adapter on this device/browser. */
   | "unsupported"
-  /** The build serves the route, but the optional model set is not installed. */
+  /**
+   * An adapter exists but the encoder is not installed: desktop can download
+   * its pack; self-host needs the operator-mounted set.
+   */
   | "model_missing"
-  /** This build (built self-host or packaged desktop) does not serve the model. */
+  /** This build never serves the encoder (a Vite stack with a base-URL override). */
   | "unavailable_in_build";
 
 export type ParakeetBackendReason =
@@ -50,6 +53,21 @@ export async function probeParakeetWebgpu({
   } catch {
     return "model_missing";
   }
+}
+
+/**
+ * Swap in the GPU encoder for a WebGPU load. It belongs to its own pack, so it
+ * never carries the base pack's `?v=` version. Desktop revalidates it by its
+ * SHA-256 ETag; self-host serves the mounted file `no-cache`.
+ */
+export function withBackendEncoder<T extends { encoderUrl: string }>(
+  urls: T,
+  backend: ClientParakeetBackend,
+  webgpuEncoderUrl: string | null,
+): T {
+  return backend === "webgpu" && webgpuEncoderUrl
+    ? { ...urls, encoderUrl: webgpuEncoderUrl }
+    : urls;
 }
 
 export function resolveParakeetBackend({

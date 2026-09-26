@@ -334,6 +334,38 @@
       "download_manifest": "models/parakeet-tdt-0.6b-v2/manifest.json"
     },
     {
+      "id": "parakeet-webgpu-source",
+      "license": "CC-BY-4.0 (model derivative)",
+      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
+      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3",
+      "paths": [
+        {
+          "path": "models/parakeet-tdt-0.6b-v2-webgpu/ATTRIBUTION.md",
+          "sha256": "393d5928b012b67ff175bfb604035a2156d664caee3d4994170e9ce5a360b2f7"
+        },
+        {
+          "path": "models/parakeet-tdt-0.6b-v2-webgpu/README.md",
+          "sha256": "4f23ceb429f54a04d55bb174961fdc7b864d01d19459332c350a66f044eb9618"
+        }
+      ],
+      "notice_files": [
+        "src/frontend/desktop/runtime/notices/parakeet-webgpu-attribution.txt"
+      ],
+      "modifications": "NVIDIA model converted to ONNX with FP16 weights upstream by ysdede. Animama redistributes the pinned encoder unmodified; acquisition and storage are external and bound by the download manifest.",
+      "status": "evidence-and-notices-prepared",
+      "remaining_conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "copyright": "NVIDIA; upstream conversion by ysdede",
+      "external_files": [
+        {
+          "path": "encoder-model.fp16.onnx",
+          "sha256": "ad8bb0acaec339c32ffbdedb869bd60f7103d0f6c00e56c7a2c2ab57df7462a2"
+        }
+      ],
+      "download_manifest": "models/parakeet-tdt-0.6b-v2-webgpu/manifest.json"
+    },
+    {
       "id": "whisper-feature-extractor",
       "license": "Apache-2.0 AND MIT (upstream portions); repository license for local additions",
       "source": "https://github.com/huggingface/transformers.js",

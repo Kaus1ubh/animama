@@ -3,6 +3,7 @@ import { lstat, readdir, rename, rm, statfs } from "node:fs/promises";
 import path from "node:path";
 import {
   featurePackIds,
+  featurePackRequires,
   type FeaturePackId,
   type FeaturePackStatus,
 } from "../../../../shared/desktop-runtime.js";
@@ -26,8 +27,11 @@ import { verifyExecutablePack } from "./signature.js";
 export type ActivePack = { manifest: PackManifest; root: string };
 /** Only validated, bounded control-response labels may cross into renderer status. */
 export class PackInUseError extends RuntimeError {
-  constructor(readonly blockers: NonNullable<FeaturePackStatus["blockers"]>) {
-    super("pack_in_use");
+  constructor(
+    readonly blockers: NonNullable<FeaturePackStatus["blockers"]>,
+    code = "pack_in_use",
+  ) {
+    super(code);
   }
 }
 export type ActivePacks = Partial<Record<FeaturePackId, ActivePack>>;
@@ -196,6 +200,20 @@ export class FeaturePackManager {
         this.emit(id, { state: "failed", error: runtimeErrorCode(error) });
       }
     }
+    // A dependent pack is useless without its requirement; keep its files but
+    // never mount it alone (for example after the base pack failed verification).
+    for (const id of featurePackIds) {
+      const current = this.active[id];
+      if (
+        current &&
+        (featurePackRequires[id] ?? []).some(
+          (required) => !this.active[required],
+        )
+      ) {
+        delete this.active[id];
+        this.emit(id, { state: "failed", error: "pack_dependency_missing" });
+      }
+    }
   }
   private enqueue(
     id: FeaturePackId,
@@ -293,6 +311,13 @@ export class FeaturePackManager {
     return this.enqueue(id, async (signal) => {
       const manifest = this.manifest(id);
       if (!manifest) throw new RuntimeError("pack_unpublished");
+      // Checked inside the serialized queue, so a concurrent removal cannot race it.
+      if (
+        (featurePackRequires[id] ?? []).some(
+          (required) => !this.active[required],
+        )
+      )
+        throw new RuntimeError("pack_dependency_missing");
       if (
         this.active[id]?.manifest.archive_sha256 === manifest.archive_sha256
       ) {
@@ -405,6 +430,19 @@ export class FeaturePackManager {
     const id = packId(value);
     return this.enqueue(id, async (signal) => {
       signal.throwIfAborted();
+      const dependents = featurePackIds.filter(
+        (other) =>
+          this.active[other] && featurePackRequires[other]?.includes(id),
+      );
+      if (dependents.length)
+        throw new PackInUseError(
+          dependents.map((other) => ({
+            kind: "feature_pack",
+            id: other,
+            label: `Remove ${this.active[other]!.manifest.display_name} first`,
+          })),
+          "pack_dependent_installed",
+        );
       this.emit(id, { state: "installing" });
       await this.change(id);
       const versions = path.join(this.options.root, id, "versions");

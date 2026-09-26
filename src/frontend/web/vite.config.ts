@@ -61,9 +61,12 @@ export const includedContentAliases: readonly IncludedContentAlias[] = [
 ] as const;
 const publicParakeetModelBaseUrl = "/onnx/models/parakeet-tdt-0.6b-v2";
 const localParakeetModelBaseUrl = "/__client-parakeet-models";
-// The optional experimental WebGPU encoder is served only by local Vite
-// development stacks; built self-host and embedded desktop builds omit it.
+// The optional WebGPU encoder: Vite and built self-host serve an operator-
+// provided directory here; embedded desktop serves the active encoder pack.
+// A HEAD probe decides availability, so an absent encoder is simply a 404.
 const localParakeetWebgpuModelBaseUrl = "/__client-parakeet-webgpu-models";
+const publicParakeetWebgpuModelBaseUrl =
+  "/onnx/models/parakeet-tdt-0.6b-v2-webgpu";
 const rechartsEsToolkitCompat = fileURLToPath(
   new URL("./src/lib/recharts/es-toolkit-compat", import.meta.url),
 );
@@ -206,7 +209,11 @@ export default defineConfig(({ mode, command, isPreview }) => {
         clientParakeetModelBaseUrl,
       ),
       __CLIENT_PARAKEET_WEBGPU_MODEL_BASE_URL__: JSON.stringify(
-        useLocalParakeetModels ? localParakeetWebgpuModelBaseUrl : null,
+        embeddedDesktop
+          ? publicParakeetWebgpuModelBaseUrl
+          : useLocalParakeetModels || command === "build"
+            ? localParakeetWebgpuModelBaseUrl
+            : null,
       ),
     },
     optimizeDeps: {

@@ -714,6 +714,17 @@ def test_old_stack_record_can_render_management_without_browser_cache() -> None:
     assert mount["bind"].get("create_host_path", False) is False
 
 
+def test_built_self_host_serves_an_operator_mounted_webgpu_encoder_or_404s() -> None:
+    server = _rendered_compose(())["services"]["animama-server"]
+    mount = next(v for v in server["volumes"] if v["target"] == "/opt/animama/web/__client-parakeet-webgpu-models")
+    # Without an operator-provided set, the notices directory contains no encoder.
+    if "ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR" not in os.environ:
+        assert mount["source"] == str(REPO_ROOT / "models/parakeet-tdt-0.6b-v2-webgpu")
+    assert mount["read_only"] is True
+    assert mount["bind"].get("create_host_path", False) is False
+    assert not (REPO_ROOT / "models/parakeet-tdt-0.6b-v2-webgpu/encoder-model.fp16.onnx").exists()
+
+
 def test_optional_webgpu_encoder_is_a_dev_only_readonly_mount_with_a_notices_fallback() -> None:
     base = _rendered_compose(())["services"]
     assert not any(

@@ -1,4 +1,4 @@
-"""Built React assets and the installation's verified optional Parakeet mount.
+"""Built React assets and the installation's verified optional Parakeet mounts.
 
 This responder registers no routes and supplies no browser admission policy.
 The local composition calls it only after admission and product routes. Its
@@ -25,6 +25,8 @@ from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.types import Receive, Scope, Send
 
 PARAKEET_MOUNT = "/onnx/models/parakeet-tdt-0.6b-v2/"
+# The optional FP16 encoder pack; it is served only while its pack is active.
+PARAKEET_WEBGPU_MOUNT = "/onnx/models/parakeet-tdt-0.6b-v2-webgpu/"
 IMMUTABLE_APP_ASSET_CACHE = "public, max-age=31536000, immutable"
 _MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 _FINGERPRINTED_CODE = re.compile(r"assets/[^/]+-[\w-]{8,}\.(?:js|css)", re.ASCII)
@@ -288,16 +290,21 @@ class _FileStream(Response):
 
 
 class LocalAssets:
-    """Serve built browser files and one optional verified model-pack mount.
+    """Serve built browser files and the optional verified model-pack mounts.
 
     Roots and inventories come from the local composition, never request data.
     Construct a new instance for a different application build or active pack.
+    An unconfigured mount answers 404 and never falls through to the built tree.
     """
 
-    def __init__(self, web_root: Path, model_mount: ModelMount | None = None) -> None:
+    def __init__(
+        self,
+        web_root: Path,
+        model_mount: ModelMount | None = None,
+        webgpu_model_mount: ModelMount | None = None,
+    ) -> None:
         self._root = web_root.resolve()
-        self._mount = model_mount
-        self._models = {file.path: file for file in model_mount.files} if model_mount else {}
+        self._mounts = {PARAKEET_MOUNT: model_mount, PARAKEET_WEBGPU_MOUNT: webgpu_model_mount}
         self._inventory: frozenset[str] | None = None
 
     async def response(self, request: Request) -> Response:
@@ -314,8 +321,9 @@ class LocalAssets:
         name = path[1:].removesuffix("/")
         if (path != "/" and not _safe_name(name)) or _matches_prefix(path, _PRIVATE_PREFIXES):
             return _error(request)
-        if path == PARAKEET_MOUNT[:-1] or path.startswith(PARAKEET_MOUNT):
-            return await self._model_response(request, path[len(PARAKEET_MOUNT) :])
+        for prefix, mount in self._mounts.items():
+            if path == prefix[:-1] or path.startswith(prefix):
+                return await self._model_response(request, mount, path[len(prefix) :])
         try:
             if name:
                 try:
@@ -371,8 +379,8 @@ class LocalAssets:
             return Response(content=html if request.method == "GET" else None, headers=headers)
         return _FileStream(request, self._root, name, metadata, headers)
 
-    async def _model_response(self, request: Request, name: str) -> Response:
-        mount, model = self._mount, self._models.get(name)
+    async def _model_response(self, request: Request, mount: ModelMount | None, name: str) -> Response:
+        model = next((file for file in mount.files if file.path == name), None) if mount else None
         versions = request.query_params.getlist("v")
         if mount is None or model is None or (versions and versions != [mount.version]):
             return _error(request)

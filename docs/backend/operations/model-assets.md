@@ -136,7 +136,8 @@ optional FP16 encoder set (about 1.24 GB), stored under
 
 - It pairs with the base Parakeet decoder, preprocessor and vocabulary, which
   are still required.
-- It is not part of the desktop `parakeet-stt` pack inventory.
+- Desktop delivers it as the separate `parakeet-stt-webgpu` pack, not in the
+  `parakeet-stt` pack inventory, so release staging needs this set too.
 
 Acquire it only when you want to test WebGPU speech:
 
@@ -145,17 +146,28 @@ python3 scripts/models/parakeet_webgpu.py acquire
 python3 scripts/models/parakeet_webgpu.py path
 ```
 
+A change to the tracked `ATTRIBUTION.md` or `README.md` changes the manifest
+digest, so an older store directory no longer resolves. Reuse its encoder
+without downloading again by copying the current notices and the old
+`encoder-model.fp16.onnx` into one directory, then running
+`python3 scripts/models/parakeet_webgpu.py acquire --offline --import-from DIRECTORY`.
+
 `reset.sh` resolves it offline and records `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`
 when it exists. Missing the set never fails startup:
 
-- development Compose mounts the tracked notices directory instead;
+- Compose mounts the tracked notices directory instead, which contains no
+  encoder;
 - the setting then reports the GPU model as not installed;
 - speech keeps using WASM.
 
-Only Vite development stacks, including `desktop:dev`, serve this encoder
-(`/__client-parakeet-webgpu-models/`). Built self-host and packaged desktop
-builds report it as unavailable. Rerun `reset.sh` after acquiring it for a
-running stack.
+Vite development stacks (including `desktop:dev`) and built self-host stacks
+serve the operator-provided set at `/__client-parakeet-webgpu-models/`; the
+built stack mounts it read-only into FastAPI's web root. Self-host never
+downloads it: acquire it on the host and rerun `reset.sh` for a running stack.
+Packaged desktop serves it only from the active `parakeet-stt-webgpu` pack at
+`/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`, and only beside an active
+`parakeet-stt` pack. The browser probes the encoder with `HEAD`; a 404 means
+not installed.
 
 ## Browser speech assets and dependency inputs
 

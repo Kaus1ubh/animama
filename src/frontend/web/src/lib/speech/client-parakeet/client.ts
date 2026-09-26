@@ -7,6 +7,7 @@ import {
 import {
   probeParakeetWebgpu,
   resolveParakeetBackend,
+  withBackendEncoder,
   type ParakeetBackendReason,
   type ParakeetWebgpuStatus,
 } from "@/lib/speech/client-parakeet/webgpu";
@@ -416,11 +417,11 @@ export async function loadClientParakeetWorker({
       // ORT keeps the WASM build it first loaded, so switching needs a new worker.
       await disposeClientParakeetWorker();
     }
-    const resolvedModelUrls = buildModelUrls(
-      backend === "webgpu" && CLIENT_PARAKEET_WEBGPU_ENCODER_URL
-        ? { ...modelUrls, encoderUrl: CLIENT_PARAKEET_WEBGPU_ENCODER_URL }
-        : modelUrls,
-      capabilities.offline_speech_asset_version,
+    const resolvedModelUrls = withBackendEncoder(
+      buildModelUrls(modelUrls, capabilities.offline_speech_asset_version),
+      backend,
+      CLIENT_PARAKEET_WEBGPU_ENCODER_URL &&
+        toAbsoluteBrowserUrl(CLIENT_PARAKEET_WEBGPU_ENCODER_URL),
     );
     const request: ClientParakeetLoadRequest = {
       type: "client_parakeet/load",
