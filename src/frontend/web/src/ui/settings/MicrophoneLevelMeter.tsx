@@ -65,6 +65,7 @@ export function MicrophoneLevelMeter({
       if (rounded !== lastReported) {
         lastReported = rounded;
         container.setAttribute("aria-valuenow", String(rounded));
+        container.setAttribute("aria-valuetext", `${rounded} dB`);
       }
       frame = requestAnimationFrame(draw);
     };
@@ -88,6 +89,7 @@ export function MicrophoneLevelMeter({
       aria-valuemin={METER_MIN_DB}
       aria-valuemax={0}
       aria-valuenow={METER_MIN_DB}
+      aria-valuetext={`${METER_MIN_DB} dB`}
       className={cn("flex h-3 items-stretch gap-[2px]", className)}
     >
       {Array.from({ length: SEGMENTS }, (_, index) => (

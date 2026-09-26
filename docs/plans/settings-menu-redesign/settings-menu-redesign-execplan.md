@@ -90,7 +90,7 @@ Boundaries:
 - [x] Phase 4 (#118): R5 General defaults. Reviewed (#1, #2 pass).
 - [x] Phase 5 (#119): R6–R8 inheritance, Markdown persistence, reset. Reviewed (#1, #2 pass).
 - [x] Phase 6 (#120): R9 About & diagnostics. Reviewed (#1–#3, pass). Unpackaged desktop check passed; packaged-only parts remain with owner release acceptance.
-- [ ] Phase 8: expanded colour customization (owner follow-up, R3 revision 2).
+- [x] Phase 8 (#143): expanded colour customization (owner follow-up, R3 revision 2). Reviewed (#1 pass).
 - [x] Phase 7 (#121): documentation, glossary and final integration review (pass after revisions). PR handoff.
 
 ## Surprises & Discoveries
@@ -887,7 +887,8 @@ after the PR opened, at the owner's request.
 
 - **Visual style:** Primary, Secondary, Accent, Background and Foreground.
   The previous "Accent" row actually set `--primary`, so it is relabelled
-  Primary and any stored `accent` value is migrated to `primary` when read.
+  Primary. No stored-value migration is needed, because that key existed only
+  on this unmerged branch (agent decision, 2026-09-25).
   Matching `*-foreground` text colours are derived automatically.
 - **Advanced** (collapsed, per mode), grouped:
   - Surfaces: card, popover, muted;
@@ -903,13 +904,63 @@ after the PR opened, at the owner's request.
 1. Extend `appearance-overrides.ts` with a token registry: key, CSS variables
    and derived-foreground rule. Keep the parse, validate and CSS-generation
    tests.
-2. Migrate stored `accent` to `primary` when reading.
+2. (Dropped: no migration needed.)
 3. In the Appearance UI, render the basic rows and a collapsible Advanced
    group from the registry; search entries cover each colour.
 4. Browser check in Light and Dark with sample basic and advanced overrides.
 5. Update docs.
 
 Checks: web check, lint, test and build; independent review.
+
+Issue #143.
+
+Results:
+
+- **Delivered:**
+  - The token registry drives parsing, CSS and the rows.
+  - Visual style has Primary, Secondary, Accent, Background and Foreground,
+    plus "Reset all" for the mode.
+  - "Advanced colours" (Show/Hide, `aria-expanded`) reveals Surfaces, Lines,
+    Status, Sidebar and Charts groups.
+  - Collapsed entries stay searchable, and selecting one expands the section
+    and reveals it.
+  - Advanced values win over derived and basic values; Focus ring also sets
+    the sidebar ring.
+- **Local checks:**
+  - `pnpm check` 0;
+  - `pnpm web:lint` 0;
+  - `pnpm web:test` 305 files / 1,826 pass;
+  - `pnpm build` 0;
+  - prettier on changed files pass;
+  - after review tweaks: `tsc -b`, eslint, and theme and voice tests pass.
+- **Browser:**
+  - search "border" opens Appearance, expands Advanced and focuses the Border
+    hex input;
+  - `#ff0000` is stored as `light.border` and applied;
+  - Reset all clears the mode.
+
+#### Code Review #1 Findings
+
+Pass, with no blocking findings.
+
+- **P8-1.** The sidebar ring kept the Primary colour when a Focus ring colour
+  was set.
+- **P8-2.** Key type widened to string.
+- **P8-3.** A custom background leaves Secondary and Accent unmixed (existing
+  behaviour).
+- **P8-4.** No automated tests for search-expand or reset.
+- **P8-5.** The "Default -" prefix parse only handles English.
+- **P8-6.** The meter has no `aria-valuetext`.
+
+The follow-up commits for the meter and the default-mic label were checked:
+no issues.
+
+#### Code Review #1 Revisions
+
+- **P8-1: accepted.** `ring` also sets `sidebar-ring`.
+- **P8-6: accepted.** `aria-valuetext` added.
+- **P8-2 to P8-5: acknowledged.** They are optional, and browser evidence
+  covers P8-4.
 
 ## Final integration review
 

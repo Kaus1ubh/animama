@@ -51,7 +51,10 @@ import {
   type DesktopShortcutMap,
 } from "@/lib/settings/desktop-shortcuts";
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
-import { APPEARANCE_COLOR_KEYS } from "@/lib/theme/appearance-overrides";
+import {
+  APPEARANCE_COLOR_GROUP_LABELS,
+  APPEARANCE_COLOR_TOKENS,
+} from "@/lib/theme/appearance-overrides";
 import { BEHAVIOR_FLAGS } from "@/lib/settings/behavior-defaults";
 import {
   AboutVersionSetting,
@@ -73,8 +76,9 @@ import {
   MicrophoneTestSetting,
 } from "@/ui/settings/MicrophoneSettings";
 import {
-  APPEARANCE_COLOR_LABELS,
+  AdvancedColorsToggleSetting,
   AppearanceColorSetting,
+  ResetColorsSetting,
   AppearanceModeSetting,
 } from "@/ui/settings/AppearanceSettings";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
@@ -207,6 +211,8 @@ type SettingEntry = SettingsSearchEntry<ApplicationSettingsSection> & {
   id: string;
   /** Hidden entries are neither rendered nor searchable (e.g. unavailable sub-options). */
   hidden?: boolean;
+  /** Collapsed entries stay searchable but render only while expanded. */
+  collapsed?: boolean;
   render: () => ReactNode;
 };
 
@@ -354,6 +360,7 @@ export function ApplicationSettingsModal({
   const [activeSection, setActiveSection] =
     useState<ApplicationSettingsSection>("General");
   const [searchQuery, setSearchQuery] = useState("");
+  const [advancedColorsOpen, setAdvancedColorsOpen] = useState(false);
   const [revealRequest, setRevealRequest] = useState<{
     id: string;
     nonce: number;
@@ -499,6 +506,7 @@ export function ApplicationSettingsModal({
     setAvatarTransformControlsEnabled(savedAvatarTransformControlsEnabled);
     setActiveSection("General");
     setSearchQuery("");
+    setAdvancedColorsOpen(false);
     setRevealRequest(null);
     setHighlightedEntryId(null);
   }, [
@@ -1202,14 +1210,45 @@ export function ApplicationSettingsModal({
       keywords: ["theme", "dark", "light", "system", "dark mode"],
       render: () => <AppearanceModeSetting />,
     },
-    ...APPEARANCE_COLOR_KEYS.map(
-      (colorKey): SettingEntry => ({
-        id: `appearance-${colorKey}`,
+    ...APPEARANCE_COLOR_TOKENS.filter((token) => token.group === "basic").map(
+      (token): SettingEntry => ({
+        id: `appearance-${token.key}`,
         section: "Appearance",
-        group: "Visual style",
-        label: `${APPEARANCE_COLOR_LABELS[colorKey]} colour`,
+        group: APPEARANCE_COLOR_GROUP_LABELS.basic,
+        label: `${token.label} colour`,
         keywords: ["theme", "color", "colour", "override", "hex"],
-        render: () => <AppearanceColorSetting colorKey={colorKey} />,
+        render: () => <AppearanceColorSetting token={token} />,
+      }),
+    ),
+    {
+      id: "appearance-reset-colours",
+      section: "Appearance",
+      group: APPEARANCE_COLOR_GROUP_LABELS.basic,
+      label: "Reset colours",
+      keywords: ["theme", "color", "colour", "reset", "default"],
+      render: () => <ResetColorsSetting />,
+    },
+    {
+      id: "appearance-advanced-toggle",
+      section: "Appearance",
+      label: "Advanced colours",
+      keywords: ["theme", "color", "colour", "custom", "advanced"],
+      render: () => (
+        <AdvancedColorsToggleSetting
+          open={advancedColorsOpen}
+          onToggle={() => setAdvancedColorsOpen((value) => !value)}
+        />
+      ),
+    },
+    ...APPEARANCE_COLOR_TOKENS.filter((token) => token.group !== "basic").map(
+      (token): SettingEntry => ({
+        id: `appearance-${token.key}`,
+        section: "Appearance",
+        group: `Advanced · ${APPEARANCE_COLOR_GROUP_LABELS[token.group]}`,
+        label: `${token.label} colour`,
+        keywords: ["theme", "color", "colour", "advanced", "hex"],
+        collapsed: true,
+        render: () => <AppearanceColorSetting token={token} />,
       }),
     ),
     {
@@ -1648,6 +1687,7 @@ export function ApplicationSettingsModal({
 
   /** Dropdown selection: open the entry's section, then reveal and focus it. */
   const handleSearchSelectEntry = (entry: SettingEntry) => {
+    if (entry.collapsed) setAdvancedColorsOpen(true);
     setActiveSection(entry.section);
     setRevealRequest({ id: entry.id, nonce: Date.now() });
   };
@@ -1688,7 +1728,11 @@ export function ApplicationSettingsModal({
           contentClassName="gap-6"
         >
           {renderSettingEntries(
-            visibleEntries.filter((entry) => entry.section === shownSection),
+            visibleEntries.filter(
+              (entry) =>
+                entry.section === shownSection &&
+                (!entry.collapsed || advancedColorsOpen),
+            ),
             highlightedEntryId,
           )}
         </SectionedModalFrame>

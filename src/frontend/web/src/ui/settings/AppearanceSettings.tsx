@@ -7,9 +7,11 @@ import { cn } from "@/lib/utils";
 import {
   normalizeHexColor,
   parseAppearanceOverrides,
-  type AppearanceColorKey,
+  APPEARANCE_COLOR_TOKENS,
+  type AppearanceColorToken,
   type AppearanceMode,
 } from "@/lib/theme/appearance-overrides";
+import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
 import { useSettings } from "@/ui/settings/SettingsProvider";
@@ -21,21 +23,8 @@ const MODE_LABELS: Record<ThemeMode, string> = {
   dark: "Dark",
 };
 
-/** Built-in token each override replaces, used to show the current default. */
-const COLOR_TOKENS: Record<AppearanceColorKey, string> = {
-  accent: "--primary",
-  background: "--background",
-  foreground: "--foreground",
-};
-
 /** Delay before a colour chosen with the native picker is saved. */
 const PICKER_SAVE_DELAY_MS = 400;
-
-export const APPEARANCE_COLOR_LABELS: Record<AppearanceColorKey, string> = {
-  accent: "Accent",
-  background: "Background",
-  foreground: "Foreground",
-};
 
 /** The mode currently in effect, so overrides edit what the owner sees. */
 function useResolvedMode(): AppearanceMode {
@@ -160,7 +149,7 @@ function cssColorToHex(value: string): string | null {
 
 /** Current built-in colour for a token in the resolved mode. */
 function useDefaultColor(
-  key: AppearanceColorKey,
+  cssVar: string,
   mode: AppearanceMode,
   override: string | null,
 ) {
@@ -171,13 +160,13 @@ function useDefaultColor(
     const frame = requestAnimationFrame(() => {
       const probe = document.createElement("div");
       probe.className = mode === "dark" ? "dark" : "";
-      probe.style.cssText = `position:absolute;visibility:hidden;color:var(${COLOR_TOKENS[key]})`;
+      probe.style.cssText = `position:absolute;visibility:hidden;color:var(--${cssVar})`;
       document.body.appendChild(probe);
       setColor(cssColorToHex(getComputedStyle(probe).color));
       probe.remove();
     });
     return () => cancelAnimationFrame(frame);
-  }, [key, mode, override]);
+  }, [cssVar, mode, override]);
   return color;
 }
 
@@ -186,21 +175,22 @@ function useDefaultColor(
  * Invalid hex input is rejected and the saved value is kept.
  */
 export function AppearanceColorSetting({
-  colorKey,
+  token,
 }: {
-  colorKey: AppearanceColorKey;
+  token: AppearanceColorToken;
 }) {
+  const colorKey = token.key;
   const { userPreferences, updateUserPreferences } = useSettings();
   const mode = useResolvedMode();
   const saved =
     parseAppearanceOverrides(userPreferences?.appearance)[mode]?.[colorKey] ??
     null;
-  const defaultColor = useDefaultColor(colorKey, mode, saved);
+  const defaultColor = useDefaultColor(token.cssVar, mode, saved);
   const pickerTimer = useRef<number | null>(null);
   const pendingPickerColor = useRef<string | null>(null);
   const [draft, setDraft] = useState(saved ?? "");
   const [invalid, setInvalid] = useState(false);
-  const label = APPEARANCE_COLOR_LABELS[colorKey];
+  const label = token.label;
 
   useEffect(() => {
     setDraft(saved ?? "");
@@ -325,6 +315,68 @@ export function AppearanceColorSetting({
             />
           </div>
         </div>
+      }
+    />
+  );
+}
+
+/** Shows or hides the Advanced colour groups (they stay searchable). */
+export function AdvancedColorsToggleSetting({
+  open,
+  onToggle,
+}: {
+  open: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <SettingsRow
+      label="Advanced colours"
+      description="Surfaces, lines, status, sidebar and chart colours."
+      control={
+        <Button
+          type="button"
+          variant="outline"
+          aria-expanded={open}
+          onClick={onToggle}
+        >
+          {open ? "Hide" : "Show"}
+        </Button>
+      }
+    />
+  );
+}
+
+/** Clear every colour override for the mode in effect. */
+export function ResetColorsSetting() {
+  const { userPreferences, updateUserPreferences } = useSettings();
+  const mode = useResolvedMode();
+  const saved = parseAppearanceOverrides(userPreferences?.appearance)[mode];
+  const count = saved ? Object.keys(saved).length : 0;
+  return (
+    <SettingsRow
+      label="Reset colours"
+      description={
+        count
+          ? `Restore all ${count} custom colour${count === 1 ? "" : "s"} for ${mode} mode.`
+          : `No custom colours in ${mode} mode.`
+      }
+      control={
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!count}
+          onClick={() => {
+            // Undefined values are dropped when preferences are serialized.
+            const cleared = Object.fromEntries(
+              APPEARANCE_COLOR_TOKENS.map((token) => [token.key, undefined]),
+            );
+            void updateUserPreferences({
+              appearance: { [mode]: cleared },
+            }).catch(() => toast.error("Failed to reset colours."));
+          }}
+        >
+          Reset all
+        </Button>
       }
     />
   );

@@ -70,8 +70,11 @@ App Settings → Appearance. `web/src/ui/theme/theme-provider.tsx` applies a
 `light`/`dark` root class through next-themes and defaults to light.
 `SettingsProvider` synchronizes the mode with `user_settings.theme`
 (`system|light|dark`; retired `custom`/`anima` values read as light) and applies
-Accent/Background/Foreground overrides from `preferences.appearance.{light,dark}`
-as a generated stylesheet (`web/src/lib/theme/appearance-overrides.ts`). Style
+colour overrides from `preferences.appearance.{light,dark}` as a generated
+stylesheet. `APPEARANCE_COLOR_TOKENS` in `web/src/lib/theme/appearance-overrides.ts`
+lists each overridable token (Primary, Secondary, Accent, Background,
+Foreground, plus Advanced surfaces, lines, status, sidebar and chart colours),
+the variables it sets and its derived text colours. Style
 new surfaces with theme tokens rather than fixed colours so both modes and
 overrides stay legible.
 

@@ -56,7 +56,7 @@ describe("buildAppearanceOverrideCss", () => {
 
   it("scopes light and dark overrides to their own mode", () => {
     const css = buildAppearanceOverrideCss({
-      light: { accent: "#ff6600" },
+      light: { primary: "#ff6600" },
       dark: { background: "#000000" },
     });
     const [light, dark] = css.split("\n");
@@ -69,5 +69,34 @@ describe("buildAppearanceOverrideCss", () => {
     // Derived surfaces follow a custom background.
     expect(dark).toContain("--card: color-mix(");
     expect(dark).not.toContain("--primary:");
+  });
+
+  it("sets secondary and accent with readable text colours", () => {
+    const css = buildAppearanceOverrideCss({
+      light: { secondary: "#1d3557", accent: "#ffd166" },
+    });
+    expect(css).toContain("--secondary: #1d3557;");
+    expect(css).toContain("--secondary-foreground: #ffffff;");
+    expect(css).toContain("--accent: #ffd166;");
+    expect(css).toContain("--sidebar-accent: #ffd166;");
+    expect(css).toContain("--accent-foreground: #000000;");
+  });
+
+  it("lets advanced colours win over derived and basic values", () => {
+    const css = buildAppearanceOverrideCss({
+      dark: {
+        background: "#000000",
+        primary: "#ff6600",
+        border: "#333333",
+        ring: "#00ff00",
+      },
+    });
+    const derivedBorder = css.indexOf("--border: color-mix(");
+    const explicitBorder = css.indexOf("--border: #333333;");
+    expect(derivedBorder).toBeGreaterThan(-1);
+    expect(explicitBorder).toBeGreaterThan(derivedBorder);
+    expect(css.indexOf("--ring: #00ff00;")).toBeGreaterThan(
+      css.indexOf("--ring: #ff6600;"),
+    );
   });
 });
