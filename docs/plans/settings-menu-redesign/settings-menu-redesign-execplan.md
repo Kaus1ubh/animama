@@ -143,6 +143,9 @@ Boundaries:
   writing memory/emotion keys into new Anima preferences, and by letting the
   Anima UI remove a key for "Use app default". The existing resolution order
   already honours absence.
+- **2026-09-25, agent (merge of main).** Main added an "Experimental" section
+  with the WebGPU offline-speech toggle. It is kept as a searchable
+  "Experimental" section between Advanced and About, in the flat row style.
 
 ## Phased implementation
 

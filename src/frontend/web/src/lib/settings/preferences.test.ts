@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ANIMAMA_PREFERENCES,
   DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
+  isParakeetWebgpuPreferred,
   mergePreferences,
   normalizeThemeSetting,
   resolveElevenLabsV3FinalizedChunking,
@@ -57,5 +58,21 @@ describe("theme and appearance preferences", () => {
     expect(JSON.parse(JSON.stringify(merged))).toEqual({
       appearance: { light: {} },
     });
+  });
+});
+
+describe("isParakeetWebgpuPreferred", () => {
+  it("is off unless the experimental setting is explicitly true", () => {
+    expect(isParakeetWebgpuPreferred(null)).toBe(false);
+    expect(isParakeetWebgpuPreferred(DEFAULT_ANIMAMA_PREFERENCES)).toBe(false);
+    // Saved preferences are untyped JSON, so a string must not enable it.
+    expect(
+      isParakeetWebgpuPreferred({
+        speech: { stt_parakeet_webgpu: "true" as unknown as boolean },
+      }),
+    ).toBe(false);
+    expect(
+      isParakeetWebgpuPreferred({ speech: { stt_parakeet_webgpu: true } }),
+    ).toBe(true);
   });
 });

@@ -81,6 +81,7 @@ SHARED_TESTS = {
     "test_included_content_integrity.py",
     "test_model_store.py",
     "test_browser_model_store.py",
+    "test_webgpu_model_store.py",
     "test_generate_synthetic_docs.py",
 }
 

@@ -226,7 +226,19 @@ if ! ANIMAMA_BROWSER_MODEL_DIR="$(python3 "${script_dir}/scripts/models/browser_
   exit 2
 fi
 ANIMAMA_MODEL_ROOT="$(dirname "$(dirname "$ANIMAMA_PARAKEET_MODEL_DIR")")"
-export ANIMAMA_MODEL_ROOT ANIMAMA_PARAKEET_MODEL_DIR ANIMAMA_BROWSER_MODEL_DIR
+# The WebGPU encoder set is optional: when it is absent, development Compose
+# mounts the checked-in notices directory and the experimental toggle reports
+# the GPU model as not installed.
+webgpu_status=0
+ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR="$(python3 "${script_dir}/scripts/models/parakeet_webgpu.py" path --root "$ANIMAMA_MODEL_ROOT" 2>/dev/null)" || webgpu_status=$?
+if [ "$webgpu_status" -ne 0 ]; then
+  ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR=""
+  if [ "$webgpu_status" -ne 2 ]; then
+    echo "⚠️  Optional Parakeet WebGPU model set failed verification; continuing without it." >&2
+    echo "   Run python3 scripts/models/parakeet_webgpu.py verify --root \"$ANIMAMA_MODEL_ROOT\" for details." >&2
+  fi
+fi
+export ANIMAMA_MODEL_ROOT ANIMAMA_PARAKEET_MODEL_DIR ANIMAMA_BROWSER_MODEL_DIR ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR
 
 COMPOSE_PROFILES="${COMPOSE_PROFILES:-}"
 ANIMAMA_WEB_BUILD_MODE="${ANIMAMA_WEB_BUILD_MODE-development}"
@@ -394,6 +406,7 @@ write_stack_env_file() {
     write_env_var ANIMAMA_MODEL_ROOT
     write_env_var ANIMAMA_PARAKEET_MODEL_DIR
     write_env_var ANIMAMA_BROWSER_MODEL_DIR
+    write_env_var ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR
     write_env_var ANIMAMA_CONTAINER_NAME_PREFIX
     write_env_var APP_HOST
     write_env_var APP_SCHEME

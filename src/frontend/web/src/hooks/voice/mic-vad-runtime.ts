@@ -76,6 +76,8 @@ export type CreateMicVadCallbacksArgs = {
     provider: VadSttProvider;
     startedAtMs: number;
   }) => void;
+  /** Receives every 16 kHz MicVAD frame, including pre-speech audio. */
+  onVadFrame?: (frame: Float32Array) => void;
   onAcceptedSpeechEnd?: (args: {
     audio: Float32Array;
     turnId: string;
@@ -107,10 +109,13 @@ export type CreateAndStartMicVadArgs = {
   onSpeechRealStart: () => void;
   onVADMisfire: () => void;
   onSpeechEnd: (audio: Float32Array) => void;
-  onFrameProcessed: (probabilities: {
-    isSpeech: number;
-    notSpeech: number;
-  }) => void;
+  onFrameProcessed: (
+    probabilities: {
+      isSpeech: number;
+      notSpeech: number;
+    },
+    frame: Float32Array,
+  ) => void;
 };
 
 export type MicVadCallbacks = Pick<
@@ -154,6 +159,7 @@ export function createMicVadCallbacks({
   armVoiceSilenceResetTimer,
   onSpeechWindowInvalidated,
   onSpeechWindowStarted,
+  onVadFrame,
   onAcceptedSpeechEnd,
   runSmartTurnSemanticCheck,
   lateFinalTranscriptGraceMs,
@@ -356,7 +362,8 @@ export function createMicVadCallbacks({
         armVoiceSilenceResetTimer("speech_end");
       }
     },
-    onFrameProcessed: (probabilities) => {
+    onFrameProcessed: (probabilities, frame) => {
+      onVadFrame?.(frame);
       const nowMs = Date.now();
       if (
         nowMs - vadFrameLastPublishedAtRef.current <

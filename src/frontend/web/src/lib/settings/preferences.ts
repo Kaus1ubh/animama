@@ -96,6 +96,8 @@ export const ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS: Array<{
 
 export type SpeechPreferences = {
   stt_provider?: SttProviderPreference;
+  /** Experimental: run local Parakeet on WebGPU when available (default off). */
+  stt_parakeet_webgpu?: boolean;
   tts_enabled?: boolean;
   tts_provider?: TtsProviderPreference;
   tts_stream_chunks?: boolean;
@@ -346,4 +348,14 @@ export function resolveElevenLabsV3FinalizedChunking(
     toElevenLabsV3FinalizedChunking(value) ??
     DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING
   );
+}
+
+/**
+ * The experimental WebGPU speech setting is opt-in: absent, `false` or any
+ * non-boolean value means off.
+ */
+export function isParakeetWebgpuPreferred(
+  preferences: SettingsPreferences | null | undefined,
+): boolean {
+  return preferences?.speech?.stt_parakeet_webgpu === true;
 }

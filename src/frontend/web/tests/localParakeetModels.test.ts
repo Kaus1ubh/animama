@@ -9,6 +9,7 @@ import viteConfig from "../vite.config";
 import {
   localParakeetModelPlugin,
   resolveLocalParakeetModelDir,
+  resolveLocalParakeetWebgpuModelDir,
 } from "../vite-plugins/local-parakeet-models";
 vi.mock("node:child_process", () => ({ execFileSync: vi.fn() }));
 const roots: string[] = [];
@@ -20,9 +21,9 @@ function fixture(): string {
   writeFileSync(path.join(root, "config.json"), '{"test":true}');
   return root;
 }
-async function listen(): Promise<string> {
+async function listen(modelDir: string | null = fixture()): Promise<string> {
   const plugin = localParakeetModelPlugin({
-    modelDir: fixture(),
+    modelDir,
     routeBaseUrl: "/__client-parakeet-models",
   });
   let middleware: (
@@ -103,6 +104,10 @@ describe("shared Parakeet model delivery", () => {
           ? await viteConfig({ command: "build", mode })
           : viteConfig;
       expect(execFileSync).not.toHaveBeenCalled();
+      // The optional WebGPU encoder is served only by development stacks.
+      expect(config.define?.__CLIENT_PARAKEET_WEBGPU_MODEL_BASE_URL__).toBe(
+        "null",
+      );
       expect(config.define?.__CLIENT_PARAKEET_MODEL_BASE_URL__).toBe(
         JSON.stringify(
           mode === "embedded-desktop"
@@ -150,6 +155,26 @@ describe("shared Parakeet model delivery", () => {
       expect(response.headers.get("content-range")).toBe("bytes */10");
     },
   );
+  it("answers 404 for an absent optional model set", async () => {
+    const base = await listen(null);
+    const response = await fetch(`${base}/encoder-model.fp16.onnx`, {
+      method: "HEAD",
+    });
+    expect(response.status).toBe(404);
+  });
+
+  it("resolves a missing optional WebGPU set to null instead of failing", () => {
+    vi.stubEnv("VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR", "relative/path");
+    expect(resolveLocalParakeetWebgpuModelDir()).toBeNull();
+    vi.stubEnv("VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR", "/missing/webgpu");
+    expect(resolveLocalParakeetWebgpuModelDir()).toBeNull();
+    vi.stubEnv("VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR", "");
+    vi.mocked(execFileSync).mockImplementationOnce(() => {
+      throw Object.assign(new Error("exit 2"), { status: 2 });
+    });
+    expect(resolveLocalParakeetWebgpuModelDir()).toBeNull();
+  });
+
   it("rejects traversal and leaves unrelated routes alone", async () => {
     const base = await listen();
     expect((await fetch(`${base}/..%2foutside`)).status).toBe(403);

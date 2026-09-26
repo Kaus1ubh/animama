@@ -12,6 +12,7 @@ import {
 import {
   localParakeetModelPlugin,
   resolveLocalParakeetModelDir,
+  resolveLocalParakeetWebgpuModelDir,
 } from "./vite-plugins/local-parakeet-models";
 import { browserRuntimeAssetsPlugin } from "./vite-plugins/browser-runtime-assets";
 import {
@@ -56,6 +57,9 @@ export const includedContentAliases: readonly IncludedContentAlias[] = [
 ] as const;
 const publicParakeetModelBaseUrl = "/onnx/models/parakeet-tdt-0.6b-v2";
 const localParakeetModelBaseUrl = "/__client-parakeet-models";
+// The optional experimental WebGPU encoder is served only by local Vite
+// development stacks; built self-host and embedded desktop builds omit it.
+const localParakeetWebgpuModelBaseUrl = "/__client-parakeet-webgpu-models";
 const rechartsEsToolkitCompat = fileURLToPath(
   new URL("./src/lib/recharts/es-toolkit-compat", import.meta.url),
 );
@@ -159,6 +163,10 @@ export default defineConfig(({ mode, command, isPreview }) => {
               modelDir: resolveLocalParakeetModelDir,
               routeBaseUrl: localParakeetModelBaseUrl,
             }),
+            localParakeetModelPlugin({
+              modelDir: resolveLocalParakeetWebgpuModelDir,
+              routeBaseUrl: localParakeetWebgpuModelBaseUrl,
+            }),
           ]
         : []),
     ],
@@ -192,6 +200,9 @@ export default defineConfig(({ mode, command, isPreview }) => {
       __ANIMAMA_APP_VERSION__: JSON.stringify(appVersion),
       __CLIENT_PARAKEET_MODEL_BASE_URL__: JSON.stringify(
         clientParakeetModelBaseUrl,
+      ),
+      __CLIENT_PARAKEET_WEBGPU_MODEL_BASE_URL__: JSON.stringify(
+        useLocalParakeetModels ? localParakeetWebgpuModelBaseUrl : null,
       ),
     },
     optimizeDeps: {
