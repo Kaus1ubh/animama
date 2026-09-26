@@ -53,7 +53,7 @@ def test_pinned_sources_flat_store_and_offline_reuse(inventory):
     result = store.acquire(i.manifest, i.root, transport=i.transport)
     assert result == i.root / "browser-speech" / i.manifest["digest"]
     assert {p.name for p in result.iterdir()} == set(i.content)
-    assert len(i.calls) == 12
+    assert len(i.calls) == 13
     for entry, url in zip(i.manifest["files"], i.calls, strict=True):
         source = entry["source"]
         assert url == f"https://huggingface.co/{source['repository']}/resolve/{source['revision']}/{source['path']}"
@@ -66,7 +66,7 @@ def test_pinned_april_bundle_and_voice_states(inventory):
     assert targets["flow_lm_flow.onnx"] == "models/pocket-tts/flow_lm_flow.onnx"
     assert targets["mimi_decoder.onnx"] == "models/pocket-tts/mimi_decoder.onnx"
     assert targets["bundle.json"] == "models/pocket-tts/bundle.json"
-    for voice in ("cosette", "jean", "fantine"):
+    for voice in ("eve", "azelma", "mary", "jane"):
         assert targets[f"{voice}.safetensors"] == f"models/pocket-tts/voices/{voice}.safetensors"
     assert "voices.bin" not in targets
 
@@ -90,7 +90,7 @@ def test_versions_coexist_and_concurrent_acquisition_downloads_once(inventory):
         jobs = [pool.submit(store.acquire, i.manifest, i.root, transport=i.transport) for _ in range(2)]
     original = jobs[0].result()
     assert original == jobs[1].result()
-    assert len(i.calls) == 12
+    assert len(i.calls) == 13
     i.path.write_text(i.path.read_text() + "\n")
     changed = browser.load_manifest(i.path)
     next_version = store.acquire(changed, i.root, transport=i.transport)

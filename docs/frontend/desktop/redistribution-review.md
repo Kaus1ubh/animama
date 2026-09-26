@@ -17,11 +17,12 @@ human review; stored receipts apply only to their exact inputs.
 - [Source review inventory](../../../licenses/README.md) describes the broader
   source-publication review, which is distinct from packaged redistribution.
 
-Pocket assets retain the selected noncommercial distribution basis because the
-`cosette` and `jean` built-in voices derive from CC BY-NC 4.0 recordings; the
-ONNX weights themselves are CC BY 4.0. Per-file terms are documented in the
-code/model notices; source-code licensing does not replace model terms. Commercial use requires
-replacement or adequate permission for affected assets.
+Pocket ONNX weights, tokenizer and the `eve`, `azelma`, `mary` and `jane` voice
+states are CC BY 4.0, which permits commercial use with attribution; Kyutai's
+model-card prohibited-use terms still apply. `runtime/release-policy.json`
+separately records a noncommercial distribution basis, which release validation
+requires; changing it is a separate owner decision. Per-file terms are documented
+in the code/model notices; source-code licensing does not replace model terms.
 
 Annie's model uses VRoid preset terms. Caitlyn is authored by Raymond Van using
 VRoid Studio; component terms remain applicable. Their embedded metadata and

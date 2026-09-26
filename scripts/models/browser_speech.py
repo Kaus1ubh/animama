@@ -36,11 +36,13 @@ POCKET_BUNDLE = {
     "bundle.json",
 }
 POCKET_BUNDLE_REVISION = "58a6d00cf13d239b6748cb0769f35c580a8f606c"
-# Kyutai precomputed voice states and the licenses of their source recordings.
+# Kyutai precomputed voice states and the licenses of their source recordings
+# (all four are VCTK speakers).
 POCKET_VOICE_LICENSES = {
-    "cosette.safetensors": "CC-BY-NC-4.0",
-    "jean.safetensors": "CC-BY-NC-4.0",
-    "fantine.safetensors": "CC-BY-4.0",
+    "eve.safetensors": "CC-BY-4.0",
+    "azelma.safetensors": "CC-BY-4.0",
+    "mary.safetensors": "CC-BY-4.0",
+    "jane.safetensors": "CC-BY-4.0",
 }
 POCKET_VOICE_REVISION = "4e1e0a3e611c51c0b4ed8174fc10f32a54644303"
 SMART_TURN = "smart-turn-v3.2-cpu.onnx"
@@ -90,7 +92,7 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict:
         entries = value["files"]
         expected_names = POCKET_BUNDLE | set(POCKET_VOICE_LICENSES) | {SMART_TURN}
         if len(entries) != len(expected_names) or {entry["path"] for entry in entries} != expected_names:
-            raise ValueError("expected the exact twelve-file browser speech inventory")
+            raise ValueError("expected the exact thirteen-file browser speech inventory")
         for entry in entries:
             name = entry["path"]
             validate_bytes(entry)

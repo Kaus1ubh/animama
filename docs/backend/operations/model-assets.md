@@ -130,18 +130,18 @@ Installed desktop packs remain separately owned under Application Support.
 
 ## Browser speech assets and dependency inputs
 
-The twelve reviewed Pocket TTS and Smart Turn files share the same model root,
+The thirteen reviewed Pocket TTS and Smart Turn files share the same model root,
 under `browser-speech/<manifest-digest>/`. The Pocket files are:
 
 - the `english_2026-04` ONNX bundle (INT8 flow LM; FP32 flow head, Mimi decoder,
   Mimi encoder and text conditioner), with its tokenizer, `bundle.json` and
   `bos_before_voice.npy`;
-- three precomputed voice states: `cosette`, `jean` and `fantine`.
+- four precomputed voice states: `eve` (default), `azelma`, `mary` and `jane`.
 
 Their manifest preserves the exact upstream commits, hashes and per-file
-licenses. Animama applies noncommercial terms to Pocket because the `cosette`
-and `jean` source voices are CC-BY-NC-4.0. Acquisition grants no new usage
-rights.
+licenses. All Pocket files are CC-BY-4.0 (the voices derive from VCTK
+recordings), which permits commercial use with attribution; Kyutai's model-card
+prohibited-use terms still apply. Acquisition grants no new usage rights.
 Acquire them explicitly with `python3 scripts/models/browser_speech.py acquire`;
 `verify` and `path` are offline. To reuse an older checkout:
 
@@ -150,7 +150,7 @@ python3 scripts/models/browser_speech.py acquire --offline \
   --import-from /absolute/old-checkout/src/frontend/web/public/onnx
 ```
 
-`models/browser-runtime/manifest.json` binds all 23 browser assets, including nine
+`models/browser-runtime/manifest.json` binds all 24 browser assets, including nine
 ORT 1.24.2 files from the exact `onnxruntime-web-assets` dependency alias and two
 VAD 0.0.30 files from the existing pinned dependency. Existing ORT imports retain
 their separately locked versions. Do not replace a public runtime variant merely
@@ -161,7 +161,7 @@ Reset verifies both model sets offline before mutations. Development mounts the
 browser store read-only and resolves dependency files inside its own Node
 installation. Built self-host uses the verified directory as the `browser_models`
 BuildKit additional context, mounted read-only during the web build. Built outputs
-contain all 23 verified assets and work without that developer store at runtime.
+contain all 24 verified assets and work without that developer store at runtime.
 Installed desktop likewise retains its own required distribution copies. No host
 pnpm or uv installation is needed for a Compose-only journey; Python setup and
 Docker perform that journey. Direct `docker build` of the built application must

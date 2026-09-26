@@ -106,7 +106,7 @@ Why this matters:
 
 ## Developer and self-host model inputs
 
-Parakeet and the twelve reviewed Pocket TTS/Smart Turn inputs are acquired from
+Parakeet and the thirteen reviewed Pocket TTS/Smart Turn inputs are acquired from
 exact pinned revisions into a verified shared store outside Git worktrees.
 `models/browser-runtime/manifest.json` also binds nine ORT 1.24.2 files from the
 exact dependency alias and two VAD 0.0.30 files from its pinned package. Other
@@ -117,7 +117,7 @@ starting Vite or Compose, or building the web application. It documents
 `ANIMAMA_MODEL_ROOT`, the native Windows `%LOCALAPPDATA%\Animama\models` default,
 and the Linux default used by WSL. Development verifies and serves engine inputs
 at the existing same-origin URLs; built self-host and desktop outputs contain
-independent verified copies of the 23 browser assets. Parakeet remains outside
+independent verified copies of the 24 browser assets. Parakeet remains outside
 the web build and retains its installed desktop pack lifecycle.
 
 Startup and builds do not acquire models implicitly. Browsers do not receive
@@ -804,7 +804,7 @@ Voice resolution:
   2. same emotion with lower intensity, descending
   3. anima `neutral`
   4. legacy Pocket voice preference path
-  5. built-in default voice `cosette` (or the first loaded built-in voice)
+  5. built-in default voice `eve` (or the first loaded built-in voice)
 - legacy Pocket voice preference path still uses:
   1. anima override `tts_pocket_anima_voice`
   2. user default `tts_pocket_voice`
@@ -829,11 +829,11 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
 ### Pocket TTS assets
 
 - Small worker/worklet/vendor code stays in `src/frontend/web/public/tts/*`.
-- The eleven reviewed Pocket files are served at `/onnx/models/pocket-tts/*` from
+- The twelve reviewed Pocket files are served at `/onnx/models/pocket-tts/*` from
   the verified sources:
   - the five ONNX graphs;
   - `tokenizer.model`, `bundle.json` and `bos_before_voice.npy`;
-  - the built-in voice states at `voices/{cosette,jean,fantine}.safetensors`.
+  - the built-in voice states at `voices/{eve,azelma,mary,jane}.safetensors`.
 - The worker initializes model state from the `bundle.json` state manifests.
   It loads built-in voices as precomputed flow LM states, so selecting one
   skips voice conditioning. It generates with temperature 0.3.

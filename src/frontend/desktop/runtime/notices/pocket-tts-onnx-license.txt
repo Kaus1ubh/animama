@@ -5,9 +5,8 @@ SHA-256: fe7b4ce83b8381cc5b216bbb4af73c570688d1b819c73bbaed8ca401f4677cd6
 
 This CC BY 4.0 text covers the english_2026-04 ONNX export, tokenizer and
 runtime metadata files, which the exporter licenses as CC BY 4.0 inherited from
-Kyutai. Animama still distributes the Pocket TTS assets on a noncommercial
-basis because two bundled voice states derive from CC BY-NC 4.0 recordings;
-see pocket-tts-attribution.txt. This preserved text is evidence, not the final
+Kyutai. The bundled voice states are also CC BY 4.0; see
+pocket-tts-attribution.txt. This preserved text is evidence, not the final
 hash-bound release approval.
 
 --- Upstream license text ---

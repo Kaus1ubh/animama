@@ -20,8 +20,10 @@ All recorded dispositions are preparation evidence. Public-source acceptance
 and signed binary distribution are separately gated. Raymond confirmed the
 retained model identities and authorized correcting their use/redistribution
 metadata; their derived portraits retain the corresponding model terms. Retained
-PocketTTS assets use the owner's noncommercial election because two built-in
-voices derive from CC BY-NC 4.0 recordings. They are not relicensed as AGPL.
+PocketTTS assets are CC BY 4.0, which permits commercial use with attribution;
+Kyutai's model-card prohibited-use terms still apply. They are not relicensed
+as AGPL. The desktop release policy separately records a noncommercial
+distribution basis; changing it is a separate owner decision.
 
 Imported skills, removed artwork and Mixamo clips are excluded from the source
 candidate. Private ignored files and old Git/LFS history are not publication

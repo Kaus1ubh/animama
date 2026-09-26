@@ -30,8 +30,9 @@ Included:
   - FP32 `mimi_encoder.onnx`
   - the tokenizer, `bos_before_voice.npy` and `bundle.json`
 - Replace the January `voices.bin` built-in voices with Kyutai's precomputed
-  `english_2026-04` voice states, at a pinned revision, for the same voice names
-  (`cosette`, `jean`, `fantine`), so existing voice preferences keep working.
+  `english_2026-04` voice states, at a pinned revision. The built-ins are
+  `eve` (default), `azelma`, `mary` and `jane`, all VCTK speakers licensed
+  CC BY 4.0 (owner decision, 2026-09-25).
 - Make the browser worker follow the April runtime contract: prepend the BOS row
   to cloned-voice embeddings, initialize state from the bundle manifest, and use
   the April text-preparation and EOS rules.
@@ -44,14 +45,19 @@ Non-goals:
 - WebGPU and multi-threaded WASM ([raymond-van/animama#128](https://github.com/raymond-van/animama/issues/128)).
 - Anima-specific voice files: uploaded catalogs, the legacy per-Anima path and
   the catalog builder. The owner excluded these on 2026-09-25.
-- Relaxing the owner's noncommercial election for Pocket assets.
+- Changing Animama's noncommercial release policy. All shipped Pocket assets
+  now permit commercial use with attribution; changing the release policy is a
+  separate owner decision.
+- Additional voices, a gender-grouped voice selector and a voice preview page
+  ([raymond-van/animama#142](https://github.com/raymond-van/animama/issues/142)).
 - Keeping the January checkpoint as a selectable runtime option.
 
 ## Required behavior
 
 - PocketTTS loads the April graphs and speaks with the selected built-in voice
-  (`cosette`, `jean` or `fantine`). A saved preference for any of these names
-  still resolves.
+  (`eve`, `azelma`, `mary` or `jane`), defaulting to `eve`. A saved preference
+  for a removed January voice (`cosette`, `jean`, `fantine`) falls back to the
+  default voice with the existing "voice not found" warning.
 - A custom voice encoded from an audio file in Anima settings uses the April
   encoder, with the BOS row prepended before conditioning.
 - Generation stops at end of speech without clipped endings or long trailing
@@ -69,13 +75,14 @@ Non-goals:
 - Licensing:
   - The ONNX weights are CC BY 4.0 (`KevinAHM/pocket-tts-onnx` `onnx/LICENSE`,
     corrected from CC BY-NC).
-  - The `cosette` and `jean` source voices are CC BY-NC 4.0.
-  - The existing noncommercial election remains. Notices and the license
-    inventory must describe the new sources exactly.
-- Size: PocketTTS loads about 192 MB at startup, up from about 127 MB (FP32 flow
-  and decoder, plus three voice states of about 6–7 MB each). The lazily loaded
-  encoder adds about 40 MB, down from 73 MB. Total on disk is about 232 MB, up
-  from 200 MB.
+  - The four built-in voices come from VCTK recordings (CC BY 4.0), so every
+    shipped Pocket asset permits commercial use with attribution. Kyutai's
+    prohibited-use terms still apply.
+  - Notices and the license inventory must describe the new sources exactly.
+- Size: PocketTTS loads about 201 MB at startup, up from about 127 MB (FP32 flow
+  and decoder, plus four compact voice states totalling 28 MB). The lazily
+  loaded encoder adds about 40 MB, down from 73 MB. Total on disk is about
+  241 MB, up from 200 MB.
 - Latency: time to first audio and real-time factor must not regress beyond the
   budget in the acceptance criteria on an Apple Silicon Mac in single-threaded
   WASM.
@@ -110,12 +117,12 @@ Decisions accepted by the owner on 2026-09-25 (recommended defaults):
    uses with INT8 precision, and they also skip the voice-conditioning pass for
    built-in voices. The alternative is to encode source audio ourselves into the
    existing `voices.bin` format.
-2. **Voice set.** Keep exactly `cosette`, `jean` and `fantine` (about 19 MB).
-   Adding `alba`, `marius` and `javert` (CC BY / CC0 sources) would add about
-   18 MB more.
+2. **Voice set.** Originally `cosette`, `jean` and `fantine`. After listening
+   to all 27 Kyutai voices, the owner chose `eve` (default), `azelma`, `mary`
+   and `jane` on 2026-09-25, preferring voices that permit commercial use.
 3. **Temperature.** Default to 0.3, Kyutai's human-eval-tuned value for
-   `english_2026-04`. The current worker uses 0.7. Confirm at the listening
-   gate.
+   `english_2026-04`. The owner confirmed 0.3 on 2026-09-25 after hearing
+   little difference from 0.7.
 4. **Encoder precision.** Use FP32 `mimi_encoder` (40 MB, lazily loaded), as
    the reference runtime does. The INT8 encoder (21 MB) has no published quality
    validation.
@@ -127,8 +134,8 @@ graphs before any product change.
 ## Spec
 
 Published to [raymond-van/animama#130](https://github.com/raymond-van/animama/issues/130)
-on 2026-09-25. The issue is authoritative; this file is its snapshot at
-publication.
+on 2026-09-25 and updated there the same day with the owner's voice-set and
+temperature decisions. The issue is authoritative; this file is its snapshot.
 
 ## ExecPlan
 

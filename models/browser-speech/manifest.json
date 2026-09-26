@@ -99,39 +99,51 @@
       }
     },
     {
-      "path": "cosette.safetensors",
-      "target": "models/pocket-tts/voices/cosette.safetensors",
-      "size": 6194424,
-      "sha256": "c4fdc15f5a3a20c44dd0064a37e87d15d25562936e8dbad7e07b9832015a545d",
-      "license": "CC-BY-NC-4.0",
-      "source": {
-        "repository": "kyutai/pocket-tts-without-voice-cloning",
-        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
-        "path": "languages/english_2026-04/embeddings/cosette.safetensors"
-      }
-    },
-    {
-      "path": "jean.safetensors",
-      "target": "models/pocket-tts/voices/jean.safetensors",
-      "size": 6194424,
-      "sha256": "90be4b8f50bb4d2dbe27e3fb4e31417cf6a57928931f0a60426a1748821a3d12",
-      "license": "CC-BY-NC-4.0",
-      "source": {
-        "repository": "kyutai/pocket-tts-without-voice-cloning",
-        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
-        "path": "languages/english_2026-04/embeddings/jean.safetensors"
-      }
-    },
-    {
-      "path": "fantine.safetensors",
-      "target": "models/pocket-tts/voices/fantine.safetensors",
+      "path": "eve.safetensors",
+      "target": "models/pocket-tts/voices/eve.safetensors",
       "size": 6538488,
-      "sha256": "51a8a4355d7f912d4959e4b1918314fda85ad47eba0a33a1d78a4a505d3465f5",
+      "sha256": "ea9c2faf862a6c9d2cb61910fdf02842ae56940382cc8c1000fdb1b43269692b",
       "license": "CC-BY-4.0",
       "source": {
         "repository": "kyutai/pocket-tts-without-voice-cloning",
         "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
-        "path": "languages/english_2026-04/embeddings/fantine.safetensors"
+        "path": "languages/english_2026-04/embeddings/eve.safetensors"
+      }
+    },
+    {
+      "path": "azelma.safetensors",
+      "target": "models/pocket-tts/voices/azelma.safetensors",
+      "size": 7963896,
+      "sha256": "9f3e69f29075f991fd47774566865ef0e0e637cb5a35992c9919761b5b84b1de",
+      "license": "CC-BY-4.0",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/azelma.safetensors"
+      }
+    },
+    {
+      "path": "mary.safetensors",
+      "target": "models/pocket-tts/voices/mary.safetensors",
+      "size": 6194424,
+      "sha256": "a8f2adf260cab966fe0a113d6b549d6efdeaa79de544ae0ff34b5b6a41445a59",
+      "license": "CC-BY-4.0",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/mary.safetensors"
+      }
+    },
+    {
+      "path": "jane.safetensors",
+      "target": "models/pocket-tts/voices/jane.safetensors",
+      "size": 7374072,
+      "sha256": "37386227ca8ec5bf1b8e516c13d132ce5ff5437a304fe90129a1c62f41d9a008",
+      "license": "CC-BY-4.0",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/jane.safetensors"
       }
     },
     {
@@ -150,13 +162,13 @@
   "notices": [
     {
       "path": "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",
-      "size": 3537,
-      "sha256": "a5428791de0961a1ddb18f2747f62a4dcdd05501a4f2df7d635f7dadcdf02abc"
+      "size": 2913,
+      "sha256": "27f2fe2e75d7bf7eb0bdb3a4cec04a1f71dbafd95f2f715e9fec171653b933fd"
     },
     {
       "path": "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt",
-      "size": 19335,
-      "sha256": "fc53888062b3dde7353c6348c03804f3554ad9da1d08d244122ec894d776a28b"
+      "size": 19237,
+      "sha256": "7c510bffcf936d379ffb0e94c53ae56726de9f8233d8f987c41d31be024b68ee"
     },
     {
       "path": "src/frontend/desktop/runtime/notices/smart-turn-bsd-2-clause.txt",

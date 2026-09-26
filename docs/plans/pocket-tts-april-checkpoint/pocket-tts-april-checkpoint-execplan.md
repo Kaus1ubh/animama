@@ -21,8 +21,9 @@ precomputed April voice states.
 | `text_conditioner` | FP32 |
 | `mimi_encoder` | FP32 |
 
-After this work, the worker speaks with the April graphs, preserves the
-`cosette`/`jean`/`fantine` voice names, and follows the April runtime contract.
+After this work, the worker speaks with the April graphs and the built-in
+voices `eve` (default), `azelma`, `mary` and `jane`, and follows the April
+runtime contract.
 Acquisition and packaging verify the new pinned file set.
 
 ### Orientation
@@ -96,7 +97,8 @@ Commands run from the repository root unless stated.
 - [x] Phase 2: Assets and worker switch. Complete 2026-09-25 (#132); Review #2
       passed after one repair round.
 - [ ] Phase 3: Browser and desktop verification, docs, owner listening gate.
-      Agent verification complete 2026-09-25 (#133). The owner listening gate
+      Agent verification is complete (#133). The owner confirmed temperature
+      0.3 and chose the voices on 2026-09-25. Final acceptance at merge approval
       and packaged-app speech remain outstanding.
 
 ## Surprises & Discoveries
@@ -138,6 +140,12 @@ Commands run from the repository root unless stated.
   - use the FP32 encoder;
   - have the worker read state manifests from the shipped `bundle.json` instead
     of hardcoded shape tables.
+- 2026-09-25, owner: after listening, the owner confirmed temperature 0.3
+  and chose built-in voices `eve` (default), `azelma`, `mary` and `jane`. All
+  four are VCTK speakers licensed CC BY 4.0, which permits commercial use; they
+  replace `cosette`, `jean` and `fantine`. The owner deferred more voices, a
+  gender-grouped selector and a preview page to #142. The release policy's
+  noncommercial basis is unchanged; changing it is a separate owner decision.
 - 2026-09-25, owner: Anima-specific voice files are out of scope (the
   catalog-builder, uploaded catalogs and the legacy per-Anima path are
   unchanged).
@@ -518,6 +526,81 @@ PocketTTS and two replies were sent to Annie (model `gpt-5.6-luna`). A
    (scratch, outside the repository).
 2. PocketTTS speech in the packaged app on a disposable profile.
 
+#### Voice-set revision results (2026-09-25)
+
+Changes:
+
+- **Built-in voices:** the manifest, `browser_speech.py`, the worker
+  (`PREDEFINED_VOICE_NAMES`) and the tests now use `eve`, `azelma`, `mary` and
+  `jane`. The default is the first loaded voice, so `eve`.
+- **Inventory:** 13 model files and a 24-file runtime inventory.
+- **Notices, license inventory and docs:** all Pocket assets are now described
+  as CC BY 4.0, and the release-policy error text no longer claims the assets
+  require noncommercial treatment.
+- **Saved preferences:** a preference naming a removed voice falls back to the
+  default through the existing "voice not found" warning. The worker confirmed
+  `generate` with `voice: "cosette"` produced speech without an error.
+
+Browser check (`vite preview` of the build, 6 texts × 4 voices, idle machine):
+
+- **Load:** 0.87 s, reporting voices `[eve, azelma, mary, jane]` with default
+  `eve`.
+- **Speed:** mean 2.0× real time (every clip at least 1.84×). Mean first audio
+  was 198 ms, +16% against January's about 170 ms, within the +25% budget.
+  Built-in voices with longer prompt states (for example `azelma`, T = 166) add
+  a little attention cost.
+- **Parakeet transcripts:** every sample is within the criterion apart from the
+  known artefacts:
+  - "to morrow" (`jane`, `mary`);
+  - "to day" (`jane`);
+  - `$42.50` / "cost" number formatting.
+
+Checks for this revision:
+
+| Check | Result |
+| --- | --- |
+| `uv run pytest -q tests/test_browser_model_store.py` | 18 passed |
+| `python3 scripts/models/browser_speech.py verify` | Passed |
+| `pnpm exec vitest run tests/speech tests/browserRuntimeAssets.test.ts` | 30 passed |
+| `pnpm build` | Passed |
+| `pnpm verify:tts-assets` | 24 files, 333,886,277 bytes |
+| `pnpm desktop:test` | 303 passed |
+| Public-release unittest | 12 OK |
+| Prettier on the changed web files | Clean |
+
+Desktop: stage and audit passed.
+
+- 5,345 files, none missing or unexpected.
+- Core download 438,859,952 bytes; installed 1,038,424,499 bytes.
+- The unsigned `.app` inventory is OK and contains the four voice states.
+
+#### Code Review (voice-set revision) #1 and #2
+
+Independent `sdlc-reviewer`; source: the staged revision on top of `1606952`.
+
+**Review #1:** blocked on two text findings.
+
+- **V1:** the plan's Purpose, Idempotence, Outcomes and acceptance sections
+  still described the old voice set and gates, and this revision's checks were
+  not recorded.
+- **V2:** `scripts/public-release/prepare_source.py` and its README still said
+  the PocketTTS assets carry noncommercial restrictions.
+
+The reviewer verified the rest against upstream: manifest sizes and hashes,
+VCTK source mapping, notice and inventory hashes, the 13/24 counts, the worker
+default, the removed-voice fallback, and that no stale names remain.
+
+Optional notes, deferred:
+
+- A saved removed voice triggers the existing error toast on each reply until
+  the user reselects a voice. Recorded for #142.
+- The `pocket_tts_onnx_license` field name awaits the release-policy
+  decision.
+
+**Revisions:** V1 and V2 fixed; public-release unittest OK and ruff clean.
+
+**Review #2:** **pass**. Repair rounds used: 1 of 2.
+
 ## Final integration review
 
 **Final Integration Review #1** (independent `sdlc-reviewer`). Source:
@@ -565,12 +648,12 @@ Status of each spec acceptance criterion (#130) at `01d6222` and later:
 
 | Criterion | Status | Evidence |
 | --- | --- | --- |
-| Clean acquisition verifies the new set; Python and frontend asset tests pass with the new counts and hashes | Passed | Phase 2 results and Review #1 revisions: real `acquire`, `verify`, 18/21 pytest, 30 Vitest, `verify:tts-assets` 23 files |
-| Each built-in voice speaks short, medium and multi-sentence text; the Parakeet transcript matches within punctuation, case and one word per sentence | Passed, with one ASR artifact flagged for the listening gate | See the note below |
+| Clean acquisition verifies the new set; Python and frontend asset tests pass with the new counts and hashes | Passed | Phase 2 results and Review #1 revisions: real `acquire`, `verify`, 18/21 pytest, 30 Vitest, `verify:tts-assets` 23 files; after the voice-set revision, 18 pytest, 30 Vitest, `verify:tts-assets` 24 files |
+| Each built-in voice speaks short, medium and multi-sentence text; the Parakeet transcript matches within punctuation, case and one word per sentence | Passed for `eve`, `azelma`, `mary` and `jane`, apart from the "to morrow" and "to day" ASR token splits | Voice-set revision results; the note below applies to the split |
 | A custom voice encoded from a 10 s clip is intelligible | Passed by ASR in Phase 1; browser path exercised in Phase 3 | Phase 1: native April mixed with BOS, both texts transcribed perfectly. Phase 3: browser encode `[1,125,1024]` and 3.5 s of generated speech, left to the owner's listening check rather than ASR |
-| RTF below 1.0 and time to first audio within +25% of January | Passed | Phase 3: 2.25× real time (RTF about 0.44) vs 2.28×; first audio 177 ms vs about 170 ms (+4%); first prompt per voice 163 ms vs 488–588 ms |
+| RTF below 1.0 and time to first audio within +25% of January | Passed | With the final voices: 2.0× real time (RTF 0.5) vs 2.28×; first audio 198 ms vs about 170 ms (+16%). Phase 3 with the original voices: 2.25× and 177 ms |
 | Packaged desktop audit passes and PocketTTS speaks in the packaged app | Audit passed; speech outstanding | Stage, audit and `desktop:mac` inventory passed. Launching the packaged app requires a disposable profile or a separate macOS account (owner gate) |
-| Owner listening gate: January vs April accepted and temperature confirmed | Outstanding (owner gate) | Paired clips on the local listening page |
+| Owner listening gate: January vs April accepted and temperature confirmed | Temperature 0.3 confirmed and voices chosen by the owner (2026-09-25); final acceptance given at merge approval | Local listening pages: the January/April comparison and all 27 Kyutai voices |
 
 **ASR round-trip note.** The per-voice runs used the production build
 (`vite preview`) and drove the worker directly. The development web app was
@@ -596,7 +679,9 @@ listening check confirms it.
 - `browser_speech.py acquire` is idempotent and content-addressed. Old stores
   are not deleted.
 - The worker change is a single revertible commit series. There is no
-  persistent data migration: voice preferences keep the same names, and custom
+  persistent data migration. A saved preference naming a removed January voice
+  (`cosette`, `jean`, `fantine`) falls back to the default voice with the
+  existing "voice not found" warning until the user picks a new voice. Custom
   voices are memory-only.
 
 ## Outcomes & Retrospective
@@ -607,9 +692,12 @@ listening check confirms it.
   - Speed matches January.
   - Time to first audio on a voice's first use is lower.
   - Accuracy (Parakeet WER) matches or improves on January.
+- **Owner decisions made:** temperature 0.3 and the four built-in voices.
 - **Outstanding owner gates:**
-  - listening acceptance and temperature confirmation;
+  - final acceptance at merge approval;
   - packaged-app speech on a disposable profile.
+- **Deferred:** more voices, a gender-grouped selector and a preview page
+  (#142).
 - **Follow-ups:** multi-threaded WASM (#128). A newer `english_2026-09`
   checkpoint exists without a published ONNX export.
 - **Lesson:** background browser panes throttle WASM workers several-fold, so
