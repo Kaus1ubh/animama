@@ -60,7 +60,7 @@ from animama.app.model_clients.event_types import MCResponseStartedEvent
 from animama.app.model_clients.prompt import prompt_instruction_text
 from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
-from animama.domain import AnimaChatProfile, ModelProvider, ModelProviderCapabilities
+from animama.domain import AnimaChatProfile, ModelConnection, ModelProvider, ModelProviderCapabilities
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.events import EventType
 from animama.domain.usage import Usage
@@ -634,9 +634,38 @@ async def test_direct_turn_passes_responses_standard_to_chat_manager() -> None:
 
 
 @pytest.mark.asyncio
+async def test_direct_turn_rejects_rows_on_an_inactive_connection_before_chat_or_model() -> None:
+    model_client = _FinalModelClient(_structured_response())
+    provider = _provider()
+    provider.connection_id = "conn-local"
+    provider.connection = ModelConnection(id="conn-local", name="Local", preset="ollama", active=False)
+    executor, chats = _executor(client=model_client, provider=provider)
+
+    with pytest.raises(DirectChatTurnSetupError, match="Model connection is inactive"):
+        await executor.prepare_turn(_request())
+
+    assert chats.ensure_calls == []
+    assert model_client.seen_specs == []
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_rejects_responses_rows_outside_the_builtin_connection_before_chat_or_model() -> None:
+    model_client = _FinalModelClient(_structured_response())
+    provider = _provider(provider_type="OpenAIResponsesHTTPAgent", model="gpt-test")
+    provider.connection_id = "conn-local"
+    executor, chats = _executor(client=model_client, provider=provider)
+
+    with pytest.raises(DirectChatTurnSetupError, match="only available on the built-in OpenAI connection"):
+        await executor.prepare_turn(_request())
+
+    assert chats.ensure_calls == []
+    assert model_client.seen_specs == []
+
+
+@pytest.mark.asyncio
 async def test_direct_turn_rejects_unsupported_chat_api_standard_before_chat_or_model() -> None:
     model_client = _FinalModelClient(_structured_response())
-    provider = _provider(provider_type="GeminiAgent", model="gemini-test")
+    provider = _provider(provider_type="UnsupportedAgent", model="unsupported-test")
     executor, chats = _executor(client=model_client, provider=provider)
 
     with pytest.raises(DirectChatTurnSetupError, match="chat_api_standard_unsupported"):

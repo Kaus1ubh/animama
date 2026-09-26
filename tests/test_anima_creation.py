@@ -501,7 +501,7 @@ async def test_new_anima_uses_owner_default_model_when_available(async_session, 
                     (active_id, "OpenAIResponsesHTTPAgent", True),
                     (inactive_id, "OpenAIResponsesHTTPAgent", False),
                     # Active but not supported by direct chat.
-                    (no_chat_id, "GeminiAgent", True),
+                    (no_chat_id, "UnsupportedAgent", True),
                 )
             ]
         )

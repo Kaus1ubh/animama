@@ -16,20 +16,16 @@ from typing import Any
 _PROVIDER_ENV: dict[str, tuple[str, ...]] = {
     # Provider names
     "openai": ("OPENAI_API_KEY",),
-    "gemini": ("GEMINI_API_KEY",),  # OpenAI-compatible Gemini endpoint
-    "litellm": (),  # depends on upstream model; leave empty by default
     # Back-compat legacy adapter kinds
     "httpx_openai_chat": ("OPENAI_API_KEY",),
     "sdk_openai_chat": ("OPENAI_API_KEY",),
-    "httpx_gemini_generate_content": ("GEMINI_API_KEY",),
-    "sdk_gemini_generate_content": ("GEMINI_API_KEY",),
 }
 
 
 def required_environment_keys_for_kind(kind: str) -> tuple[str, ...]:
     """Return environment variables required by a provider or legacy kind.
 
-    Accepts provider names (e.g., "openai", "gemini", "litellm") and legacy
+    Accepts provider names (e.g., "openai") and legacy
     adapter kind strings for back-compat.
     """
 
@@ -84,7 +80,6 @@ def deserialize_provider_config(metadata: Mapping[str, Any]) -> dict[str, Any] |
 # ---- Legacy shims (deprecated) ----
 
 MODEL_KIND_OPENAI_CHAT = "openai_chat_completions"  # deprecated
-MODEL_KIND_LITELLM = "litellm"  # deprecated
 
 
 def serialize_agent_model(model: Any) -> dict[str, Any] | None:  # pragma: no cover - legacy shim
@@ -113,7 +108,6 @@ __all__ = [
     "required_environment_keys_for_model",
     # Legacy constants and shims (deprecated)
     "MODEL_KIND_OPENAI_CHAT",
-    "MODEL_KIND_LITELLM",
     "serialize_agent_model",
     "deserialize_agent_model",
 ]

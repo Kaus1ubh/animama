@@ -20,6 +20,7 @@ from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
 from animama.app.util.json_values import json_safe_copy
 from animama.domain import ModelProvider
 from animama.domain.chat import Chat
+from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID
 
 from ..options import DirectChatOptions
 from .constants import (
@@ -67,6 +68,17 @@ def validate_model_provider_for_direct_turn(
     capabilities = model_provider.capabilities
     if not model_provider.active:
         raise DirectChatTurnSetupError(f"Model provider is inactive: {model_provider.id}")
+    connection = model_provider.connection
+    if connection is not None and not connection.active:
+        raise DirectChatTurnSetupError(f"Model connection is inactive: {connection.id}")
+    if (
+        model_provider.provider_type == OPENAI_RESPONSES_PROVIDER
+        and model_provider.connection_id != BUILTIN_OPENAI_CONNECTION_ID
+    ):
+        # Responses requests carry the OpenAI key; only the built-in connection may use them.
+        raise DirectChatTurnSetupError(
+            f"OpenAI Responses is only available on the built-in OpenAI connection: {model_provider.id}"
+        )
     if not capabilities.supports_streaming:
         raise DirectChatTurnSetupError(f"Model provider does not support streaming chat turns: {model_provider.id}")
     structured_kinds = normalized_string_set(capabilities.structured_kinds)

@@ -6,6 +6,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.mappers.model_connection_map import model_connection_orm_to_domain
 from animama.adapters.mappers.model_provider_map import (
     apply_model_provider_to_orm,
     model_provider_domain_to_orm,
@@ -13,11 +14,16 @@ from animama.adapters.mappers.model_provider_map import (
 )
 from animama.app.ports import ModelProviderRepository
 from animama.domain import ModelProvider
-from animama.orm import ORMModelProvider
+from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID, MODEL_SOURCE_BUILTIN
+from animama.orm import ORMModelConnection, ORMModelProvider
 
 
 class SQLAlchemyModelProviderRepository(ModelProviderRepository):
-    """SQLAlchemy-backed model-provider catalog repository."""
+    """SQLAlchemy-backed model-provider catalog repository.
+
+    Returned rows carry their loaded model connection so model clients can
+    resolve the endpoint and credential without another lookup.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
@@ -29,7 +35,7 @@ class SQLAlchemyModelProviderRepository(ModelProviderRepository):
             .order_by(ORMModelProvider.provider_label, ORMModelProvider.model_label, ORMModelProvider.id)
         )
         res = await self._s.execute(stmt)
-        return [model_provider_orm_to_domain(row) for row in res.scalars()]
+        return await self._with_connections([model_provider_orm_to_domain(row) for row in res.scalars()])
 
     async def get(self, model_provider_id: str, *, for_update: bool = False) -> ModelProvider | None:
         orm = await self._s.get(
@@ -37,18 +43,36 @@ class SQLAlchemyModelProviderRepository(ModelProviderRepository):
         )
         if orm is None:
             return None
-        return model_provider_orm_to_domain(orm)
+        return (await self._with_connections([model_provider_orm_to_domain(orm)]))[0]
 
-    async def get_by_provider_model(self, provider_type: str, model: str) -> ModelProvider | None:
+    async def get_by_provider_model(
+        self,
+        provider_type: str,
+        model: str,
+        *,
+        connection_id: str = BUILTIN_OPENAI_CONNECTION_ID,
+    ) -> ModelProvider | None:
         stmt = select(ORMModelProvider).where(
+            ORMModelProvider.connection_id == connection_id,
             ORMModelProvider.provider_type == provider_type,
             ORMModelProvider.model == model,
+            ORMModelProvider.source == MODEL_SOURCE_BUILTIN,
         )
         res = await self._s.execute(stmt)
         orm = res.scalar_one_or_none()
         if orm is None:
             return None
-        return model_provider_orm_to_domain(orm)
+        return (await self._with_connections([model_provider_orm_to_domain(orm)]))[0]
+
+    async def _with_connections(self, rows: list[ModelProvider]) -> list[ModelProvider]:
+        connection_ids = {row.connection_id for row in rows}
+        if not connection_ids:
+            return rows
+        res = await self._s.execute(select(ORMModelConnection).where(ORMModelConnection.id.in_(connection_ids)))
+        connections = {orm.id: model_connection_orm_to_domain(orm) for orm in res.scalars()}
+        for row in rows:
+            row.connection = connections.get(row.connection_id)
+        return rows
 
     async def upsert_many(
         self,
@@ -61,15 +85,24 @@ class SQLAlchemyModelProviderRepository(ModelProviderRepository):
                 orm = model_provider_domain_to_orm(model_provider)
                 self._s.add(orm)
             else:
+                # Hiding a built-in row is the owner's choice; catalog syncs keep it.
+                hidden = orm.hidden
                 apply_model_provider_to_orm(orm, model_provider)
+                if orm.source == MODEL_SOURCE_BUILTIN:
+                    orm.hidden = hidden
             await self._s.flush()
             await self._s.refresh(orm)
             stored.append(model_provider_orm_to_domain(orm))
-        return stored
+        return await self._with_connections(stored)
 
     async def soft_retire_missing(self, active_ids: Iterable[str]) -> int:
+        """Retire active built-in rows absent from ``active_ids``; owner rows are kept."""
+
         active_id_set = set(active_ids)
-        stmt = select(ORMModelProvider).where(ORMModelProvider.active.is_(True))
+        stmt = select(ORMModelProvider).where(
+            ORMModelProvider.active.is_(True),
+            ORMModelProvider.source == MODEL_SOURCE_BUILTIN,
+        )
         if active_id_set:
             stmt = stmt.where(ORMModelProvider.id.notin_(active_id_set))
         res = await self._s.execute(stmt)

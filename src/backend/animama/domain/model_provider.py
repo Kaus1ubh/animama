@@ -5,6 +5,13 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from .model_connection import (
+    BUILTIN_OPENAI_CONNECTION_ID,
+    MODEL_KIND_CHAT,
+    MODEL_SOURCE_BUILTIN,
+    ModelConnection,
+)
+
 
 @dataclass(slots=True)
 class ModelProviderCapabilities:
@@ -65,7 +72,14 @@ class ModelProviderPricing:
 
 @dataclass(slots=True)
 class ModelProvider:
-    """Durable provider/model catalog row without leaking pricing into runtime Agent."""
+    """Durable provider/model catalog row without leaking pricing into runtime Agent.
+
+    Each row belongs to one model connection (``connection_id``). Repositories
+    attach the loaded ``connection`` so model clients can reach its endpoint;
+    rows built outside the database may leave it unset, meaning the built-in
+    OpenAI connection. ``source`` separates release-managed built-in rows from
+    owner-added rows, which releases never modify.
+    """
 
     id: str
     model: str
@@ -77,8 +91,12 @@ class ModelProvider:
     current_snapshot: str | None = None
     context_window_tokens: int | None = None
     max_output_tokens: int | None = None
-    provider_base_url: str | None = None
-    api_family: str | None = None
+    connection_id: str = BUILTIN_OPENAI_CONNECTION_ID
+    source: str = MODEL_SOURCE_BUILTIN
+    model_kind: str = MODEL_KIND_CHAT
+    hidden: bool = False
+    allow_memory_writes: bool = True
+    probe_result: dict[str, Any] | None = None
     active: bool = True
     deprecated_at: datetime | None = None
     created_at: datetime | None = None
@@ -86,6 +104,18 @@ class ModelProvider:
     capabilities: ModelProviderCapabilities = field(default_factory=ModelProviderCapabilities)
     pricing: ModelProviderPricing = field(default_factory=ModelProviderPricing)
     metadata: dict[str, Any] = field(default_factory=dict)
+    connection: ModelConnection | None = None
+
+    @property
+    def accepts_developer_role(self) -> bool:
+        """Whether requests may send ``developer`` messages to this row.
+
+        False when the model lacks the role or its connection folds developer
+        messages into the system message.
+        """
+
+        folds = self.connection is not None and self.connection.compatibility.fold_developer_role
+        return bool(self.capabilities.supports_developer_role) and not folds
 
 
 __all__ = [

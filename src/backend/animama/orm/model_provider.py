@@ -4,7 +4,19 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import JSON, TIMESTAMP, Boolean, Date, Integer, Numeric, String, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    TIMESTAMP,
+    Boolean,
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .mixins import TimestampMixin
@@ -12,10 +24,23 @@ from .sqlalchemy_base import SqlalchemyBase
 
 
 class ORMModelProvider(SqlalchemyBase, TimestampMixin):
-    """Supported provider/model catalog row with token pricing metadata."""
+    """Provider/model catalog row with token pricing metadata.
+
+    Rows belong to one model connection. Built-in rows are release-managed and
+    reseeded; owner rows are never touched by the seed. Rows are retired with
+    ``active = false`` instead of deleted because chat profiles reference them.
+    """
 
     __tablename__ = "model_providers"
-    __table_args__ = (UniqueConstraint("provider_type", "model", name="uq_model_providers_provider_type_model"),)
+    __table_args__ = (
+        # Source is part of the key so a release can add a built-in row that an
+        # owner already added under the same connection without a seed conflict.
+        UniqueConstraint(
+            "connection_id", "provider_type", "model", "source", name="uq_model_providers_connection_model"
+        ),
+        CheckConstraint("source IN ('builtin', 'owner')", name="source_valid"),
+        CheckConstraint("model_kind IN ('chat', 'embedding')", name="model_kind_valid"),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     model: Mapped[str] = mapped_column(String, nullable=False)
@@ -27,8 +52,14 @@ class ORMModelProvider(SqlalchemyBase, TimestampMixin):
     current_snapshot: Mapped[str | None] = mapped_column(String, nullable=True)
     context_window_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     max_output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    provider_base_url: Mapped[str | None] = mapped_column(String, nullable=True)
-    api_family: Mapped[str | None] = mapped_column(String, nullable=True)
+    connection_id: Mapped[str] = mapped_column(
+        String, ForeignKey("model_connections.id"), nullable=False, default="openai", server_default="openai"
+    )
+    source: Mapped[str] = mapped_column(String, nullable=False, default="builtin", server_default="builtin")
+    model_kind: Mapped[str] = mapped_column(String, nullable=False, default="chat", server_default="chat")
+    hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    allow_memory_writes: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
+    probe_result: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     service_tiers_supported: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     deprecated_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=False), nullable=True)

@@ -793,7 +793,7 @@ class DirectChatTurnExecutor:
                 )
                 else ()
             ),
-            supports_developer_role=model_provider.capabilities.supports_developer_role,
+            supports_developer_role=model_provider.accepts_developer_role,
             visible_history=visible_history,
             # These dictionaries are produced by the local schema/tool builders.
             response_format=cast(ChatCompletionResponseFormat, response_format),

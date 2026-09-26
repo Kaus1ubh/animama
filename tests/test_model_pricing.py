@@ -110,7 +110,15 @@ def test_model_pricing_normalizes_default_service_tier_to_standard() -> None:
 
 
 def test_model_pricing_returns_unpriced_result_for_unpriced_provider_row() -> None:
-    model_provider = _catalog_provider("GeminiAgent:gemini-3.1-flash-lite-preview")
+    # Owner-added rows are unpriced; unknown pricing must never be zero.
+    model_provider = ModelProvider(
+        id="owner:local-model",
+        model="local-model",
+        provider_type="OpenAIHTTPAgent",
+        model_label="local-model",
+        provider_label="Ollama",
+        source="owner",
+    )
 
     cost = estimate_model_token_cost(
         model_provider=model_provider,

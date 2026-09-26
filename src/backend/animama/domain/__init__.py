@@ -24,6 +24,7 @@ from .memory_entry import (
     MemoryEntryVersionListing,
 )
 from .memory_episode import MemoryEpisodeItem
+from .model_connection import ModelConnection, ModelConnectionCompatibility
 from .model_provider import ModelProvider, ModelProviderCapabilities, ModelProviderPricing
 from .request_principal import RequestPrincipal
 from .settings import AnimaSettings, UserSettings
@@ -49,6 +50,8 @@ __all__ = [
     "MemoryEntryHeaderListing",
     "MemoryEpisodeItem",
     "ModelProviderCapabilities",
+    "ModelConnection",
+    "ModelConnectionCompatibility",
     "ModelProvider",
     "ModelProviderPricing",
     "Anima",

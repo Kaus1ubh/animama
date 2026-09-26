@@ -45,7 +45,6 @@ async def test_gpt_5_4_nano_native_apply_patch_with_structured_final() -> None:
         model="gpt-5.4-nano",
         model_label="gpt-5.4-nano",
         provider_label="OpenAI",
-        provider_base_url="https://api.openai.com/v1",
         capabilities=ModelProviderCapabilities(
             supports_streaming=True,
             supports_tools=True,

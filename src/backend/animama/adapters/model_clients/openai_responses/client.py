@@ -29,6 +29,7 @@ from animama.app.model_clients import (
     model_client_preview_log_context,
     model_client_request_log_context,
 )
+from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID
 from animama.logging import get_logger
 
 from .._common import close_maybe_async
@@ -47,7 +48,7 @@ from .events import (
     responses_stream_event_delta,
 )
 from .final import response_final_parts
-from .request import base_url_for_spec, create_response_kwargs, previous_response_id
+from .request import create_response_kwargs, previous_response_id
 from .support import (
     DEFAULT_BASE_URL,
     OPENAI_API,
@@ -124,6 +125,14 @@ class OpenAIResponsesModelClient:
         only after the terminal `response.completed` event is received.
         """
 
+        if spec.model_provider.connection_id != BUILTIN_OPENAI_CONNECTION_ID:
+            # Responses is served only by the built-in OpenAI connection; owner
+            # connections use Chat Completions and must never get the OpenAI key.
+            raise ModelClientProviderError(
+                "The OpenAI Responses API is only available on the built-in OpenAI connection",
+                code="responses_connection_unsupported",
+                raw_metadata={"connection_id": spec.model_provider.connection_id, "model": spec.model_provider.model},
+            )
         if self._client is None and not self._api_key:
             raise ModelClientProviderError("OpenAI API key is not configured", code="missing_api_key")
 
@@ -360,15 +369,20 @@ class OpenAIResponsesModelClient:
         if self._client is None:
             self._client = AsyncOpenAI(
                 api_key=self._api_key,
-                base_url=base_url_for_spec(spec, self._base_url),
+                base_url=self._base_url_for_spec(spec),
                 timeout=self._timeout,
             )
             self._close_client = True
             return self._client
         with_options = getattr(self._client, "with_options", None)
         if callable(with_options):
-            return with_options(base_url=base_url_for_spec(spec, self._base_url), timeout=self._timeout)
+            return with_options(base_url=self._base_url_for_spec(spec), timeout=self._timeout)
         return self._client
+
+    def _base_url_for_spec(self, spec: ModelClientRequest) -> str:
+        connection = spec.model_provider.connection
+        base_url = connection.base_url if connection is not None and connection.base_url else self._base_url
+        return base_url.rstrip("/")
 
 
 __all__ = ["OPENAI_RESPONSES_HTTP_PROVIDER_TYPE", "OpenAIResponsesModelClient"]

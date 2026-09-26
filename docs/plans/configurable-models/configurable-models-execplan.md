@@ -84,7 +84,8 @@ Standing rules:
       spec and plan committed `37abfed` and pushed; parent #165 with sub-issues
       #171 (p1), #166 (p2), #167 (p3), #168 (p4), #169 (p5), #170 (p6), chained
       blocked-by.
-- [ ] Phase 1: connection-aware catalog and credential isolation.
+- [x] Phase 1: connection-aware catalog and credential isolation (review #2
+      pass; commit recorded below).
 - [ ] Phase 2: owner management API, probe and composition boundary.
 - [ ] Phase 3: Chat Completions turn parity and errors.
 - [ ] Phase 4: model roles and fully local operation.
@@ -272,6 +273,26 @@ Observed on `2064540` during planning.
   - **Presets** take their host from `ANIMAMA_LOCAL_MODEL_HOST`: `127.0.0.1`
     by default, and `host.docker.internal` in Compose with a `host-gateway`
     mapping.
+- 2026-09-26 — Agent (Phase 1 implementation; within accepted scope):
+  - **Uniqueness includes `source`**: `(connection_id, provider_type, model,
+    source)`. `ON CONFLICT (id)` cannot absorb a second unique violation, so a
+    three-column key would abort the seed when a release adds a model the owner
+    already added on the OpenAI connection.
+  - **`chats.last_model_provider_id` moves to Phase 3**, where it is written
+    and read.
+  - **The credential resolver lives in `app/model_clients/credentials.py`**
+    (pure, with the environment injected by `server/model_clients.py`) rather
+    than `server/model_credentials.py`, so adapters and the Phase 2 services
+    share one name policy. The Responses adapter keeps the settings OpenAI key,
+    which is the built-in connection's credential.
+  - **Built-in rows no longer store a base URL**; the built-in connection uses
+    `OPENAI_BASE_URL` or the OpenAI default.
+  - **Deferred to later phases in this PR**: backend and frontend docs (Phase
+    6); desktop vault and settings `gemini`, `deepseek` and `huggingface` key
+    entries (Phase 5). The Phase 1 "no Gemini or LiteLLM references" condition
+    therefore covers backend code, tests, dependencies and packaging.
+  - **Release-scan allowlist** entries that mention litellm stay until the next
+    desktop release scan, which is the only place they apply.
 
 ## Implementation orientation
 
@@ -454,15 +475,105 @@ Checks:
 Completion: the tests above pass; no remaining reference to Gemini or LiteLLM
 outside history; review leaves no blocker.
 
-Phase record: issue #171; starting source —; commits —.
+Phase record: issue #171; starting source `25abbfb`; commits —.
+
+Evidence (pre-review, working tree on `25abbfb`):
+
+- `make check-test`: audit, format, lint, mypy (543 files) and pytest 1914
+  passed, 7 skipped. Baseline `main` was 1921 passed; the difference is the
+  removed Gemini, LiteLLM, DeepSeek and Hugging Face built-in tests offset by
+  the new connection tests.
+- `uv lock --check`, `bash -n reset.sh`, both `docker compose … config --quiet`
+  and the fresh-install and bootstrap tests (baseline plus seed, twice) pass.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `25abbfb`. Checks rerun by the reviewer: ruff, format check, boundary
+import check, `uv lock --check`, mypy and 293 focused tests; all pass. An
+in-memory SDK probe reproduced F1.
+
+- **P1-R1-F1 (blocking)** — `openai_chat_completions/client.py`: the SDK merges
+  `OPENAI_CUSTOM_HEADERS` into every client, so an owner connection could
+  receive process headers, and a keyed one a process `Authorization`.
+- **P1-R1-F2 (blocking)** — no setup-time rejection of a Responses row on an
+  owner connection, and no test of the adapter guard.
+- **P1-R1-F3** — a row without its loaded connection fell back to the built-in
+  OpenAI connection even when `connection_id` named another.
+- **P1-R1-F4** — an injected test `client` bypasses the resolver.
+- **P1-R1-F5** — ORM and domain defaults `connection_id='openai'`,
+  `source='builtin'` could hide an omission by a future owner-row writer.
+- **P1-R1-F6** — `sync_from_registry` would reset an owner-hidden built-in.
+- **P1-R1-F7** — forward-looking code without a Phase 1 caller;
+  `managed_credential_env` could map two ids to one name or produce an invalid
+  name.
+- **P1-R1-F8** — duplicated built-in connection and handled-extras definitions.
+- **P1-R1-F9** — seed updated `connection_id` and `source`; unique constraint
+  name.
+- **P1-R1-F10** — deviations not recorded in the plan.
+- **P1-R1-F11** — docs mislead until Phase 6.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** Owner-connection clients omit every header named in
+  `OPENAI_CUSTOM_HEADERS` plus the OpenAI organization and project headers, and
+  keyed connections set `Authorization` explicitly from their own key. Tests
+  send real SDK requests through an in-memory transport with hostile
+  `OPENAI_API_KEY`, `OPENAI_ORG_ID`, `OPENAI_PROJECT_ID` and
+  `OPENAI_CUSTOM_HEADERS`: a keyless connection sends none of them, and a keyed
+  one sends exactly its own bearer key.
+- **F2 accepted.** `validate_model_provider_for_direct_turn` rejects a
+  Responses row off the built-in connection (and an inactive connection) before
+  the stream opens; the adapter guard now keys on `connection_id`. Tests cover
+  both.
+- **F3 accepted.** `connection_for_model_provider` falls back only for the
+  built-in id; otherwise the adapter raises `connection_unavailable`. Tested.
+- **F4 rejected.** The injected client is a test hook that production never
+  passes (documented on the constructor); restricting it would only complicate
+  request-shape tests.
+- **F5 deferred to Phase 2.** The defaults keep built-in and fixture rows
+  simple; the Phase 2 owner services set both fields explicitly and their tests
+  assert them.
+- **F6 accepted.** Catalog upserts preserve `hidden` on built-in rows. Tested.
+- **F7 partly accepted.** `managed_credential_env` accepts only generated ids
+  (`[a-z0-9_]{1,48}`) and so maps one-to-one onto valid names. The connection
+  repository, presets and constants remain for Phase 2, which uses them
+  immediately.
+- **F8 accepted.** The seed serializer derives from `builtin_openai_connection()`
+  (using `PRESET_OPENAI`); the handled extras live once in `events.py`.
+- **F9 accepted.** The seed never updates `connection_id` or `source`; the
+  constraint is `uq_model_providers_connection_model`.
+- **F10 accepted.** Recorded in the Decision Log above.
+- **F11 deferred to Phase 6** as planned, within the same PR.
+- A boundary test that forbids `Authorization`/`Bearer` literals in route tests
+  now also exempts `test_model_client_registry.py`, whose assertions concern
+  synthetic upstream model keys, like the existing `test_model_store.py`
+  exemption.
+
+After repairs: `make check-test` passes (1919 passed, 7 skipped).
+
+#### Code Review #2 Findings
+
+Reviewer: the same independent reviewer, targeted recheck of the accepted
+findings and regressions. Result: **pass**. F1, F2, F3, F6, F7 (managed names),
+F8, F9 and F10 are resolved; a real-SDK probe with hostile process headers
+(including lowercase variants) confirmed that a keyless connection sends none
+and a keyed one sends only its own bearer key. Checks: ruff, format check,
+boundary import check, `uv lock --check`, mypy and 261 focused tests pass.
+
+- **P1-R2-F1** (non-blocking) — the new inactive-connection setup rejection had
+  no test.
+- **P1-R2-F2** (optional) — the boundary exemption covered the whole adapter
+  test file.
+
+#### Code Review #2 Revisions
+
+- **P1-R2-F1 accepted.** Added
+  `test_direct_turn_rejects_rows_on_an_inactive_connection_before_chat_or_model`.
+- **P1-R2-F2 accepted.** The credential header tests moved to
+  `tests/test_model_connection_credentials.py`, which is now the exempt file;
+  `test_model_client_registry.py` is checked again.
+- `make check-test`: 1920 passed, 7 skipped. One repair round used; one remains.
 
 ### Phase 2 — Owner management API, probe and composition boundary
 

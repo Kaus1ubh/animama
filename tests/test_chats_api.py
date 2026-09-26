@@ -104,9 +104,10 @@ def test_fresh_metadata_uses_chat_tables_without_legacy_session_tables() -> None
     foreign_keys = [
         constraint for constraint in chat_messages.constraints if isinstance(constraint, ForeignKeyConstraint)
     ]
-    assert any(
-        {column.name for column in constraint.columns} == {"model_provider", "model"}
-        and {element.column.table.name for element in constraint.elements} == {"model_providers"}
+    # Message model columns are a snapshot: two connections may serve the same
+    # model slug and history outlives catalog rows, so they are not a foreign key.
+    assert not any(
+        {element.column.table.name for element in constraint.elements} == {"model_providers"}
         for constraint in foreign_keys
     )
     chat_check_sql = {

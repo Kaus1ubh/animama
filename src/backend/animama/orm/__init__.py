@@ -29,6 +29,7 @@ from .content_mutation import ORMContentMutationReceipt
 from .memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
 from .memory_episode import ORMMemoryEpisodeItem
 from .memory_manager import ORMMemoryManagerApproval, ORMMemoryManagerMessage, ORMMemoryManagerRun
+from .model_connection import ORMModelConnection
 from .model_provider import ORMModelProvider
 from .runtime_worker import ORMRuntimeWorkerHeartbeat
 from .settings import ORMAnimaSettings, ORMUserSettings
@@ -75,6 +76,7 @@ __all__ = [
     "ORMAnimaContentBinding",
     "ORMAvatar",
     "ORMAvatarUpload",
+    "ORMModelConnection",
     "ORMModelProvider",
     "ORMAnimaChatProfile",
     "ORMTag",

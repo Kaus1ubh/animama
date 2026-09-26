@@ -19,8 +19,12 @@ _ENTRY_FIELD_NAMES = (
     "current_snapshot",
     "context_window_tokens",
     "max_output_tokens",
-    "provider_base_url",
-    "api_family",
+    "connection_id",
+    "source",
+    "model_kind",
+    "hidden",
+    "allow_memory_writes",
+    "probe_result",
     "active",
     "deprecated_at",
     "created_at",
@@ -161,6 +165,8 @@ def _coerce_field(name: str, value: Any) -> Any:
         return _list_or_none(value)
     if name == "metadata":
         return dict(value or {})
+    if name == "probe_result":
+        return dict(value) if value is not None else None
     return value
 
 

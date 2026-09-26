@@ -11,10 +11,9 @@ from ...domain.usage import Usage, UsageInputDetails, UsageOutputDetails
 # Optional type imports for static typing without forcing runtime deps
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from agents import Usage as OAIUsage  # OpenAI Agents SDK
-    from google.genai.types import GenerateContentResponseUsageMetadata as GenAIUsage
 
     # Public alias for supported payloads (typing-only to avoid runtime deps)
-    UsagePayload = Mapping[str, Any] | OAIUsage | GenAIUsage
+    UsagePayload = Mapping[str, Any] | OAIUsage
 
 
 log = get_logger("normalize_usage")
@@ -141,27 +140,6 @@ def normalize_usage(payload: UsagePayload | None) -> Usage | None:
                 log.warning("Failed to extract OpenAI Agents Usage payload")
                 pass
     except Exception:
-        pass
-
-    # Google genai GenerateContentResponseUsageMetadata object
-    try:
-        # Prefer explicit isinstance when the SDK type is available
-        from google.genai.types import GenerateContentResponseUsageMetadata as _GenAIUsage
-
-        if isinstance(payload, _GenAIUsage):
-            pt = getattr(payload, "prompt_token_count", None)
-            ct = getattr(payload, "candidates_token_count", None)
-            tt = getattr(payload, "total_token_count", None)
-            return Usage(
-                requests=1,
-                input_tokens=pt if isinstance(pt, int) else 0,
-                output_tokens=ct if isinstance(ct, int) else 0,
-                total_tokens=tt if isinstance(tt, int) else 0,
-                input_tokens_details=UsageInputDetails(),
-                output_tokens_details=UsageOutputDetails(),
-            )
-    except Exception:
-        log.warning("Failed to extract Gemini SDK Usage payload")
         pass
 
     return None

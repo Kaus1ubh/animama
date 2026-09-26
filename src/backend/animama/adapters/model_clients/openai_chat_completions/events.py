@@ -15,7 +15,10 @@ from animama.app.model_clients import (
 from .support import chat_stream_event_delta
 from .usage import usage_from_chat_completion_usage
 
-HANDLED_CHOICE_EXTRA_FIELD_NAMES = frozenset({"text"})
+# Choice/delta extras that OpenAI-compatible servers (DeepSeek, llama.cpp, vLLM,
+# Ollama, Hugging Face) add. ``text`` is a content fallback; reasoning and token
+# metadata are private: never public text and not unknown-provider events.
+HANDLED_CHOICE_EXTRA_FIELD_NAMES = frozenset({"text", "reasoning", "reasoning_content", "token_id"})
 
 
 def events_from_chat_completion_chunk(

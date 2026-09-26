@@ -33,8 +33,6 @@ _PROVIDER_ENVIRONMENT = (
     "OPENAI_PROJECT_ID",
     "DEEPSEEK_API_KEY",
     "HF_TOKEN",
-    "HUGGINGFACE_API_KEY",
-    "GEMINI_API_KEY",
     "ELEVENLABS_API_KEY",
 )
 for _name in _PROVIDER_ENVIRONMENT:
@@ -210,6 +208,12 @@ async def db_ready(db_url: str) -> AsyncIterator[str]:
                     _Base.metadata.create_all(bind=sync_conn)
 
                 await conn.run_sync(_create_all)
+                # Every catalog row belongs to a connection; the release seed
+                # normally creates the built-in OpenAI connection.
+                await conn.exec_driver_sql(
+                    "INSERT INTO model_connections (id, source, name, preset, compatibility, active) "
+                    "VALUES ('openai', 'builtin', 'OpenAI', 'openai', '{}'::jsonb, TRUE)"
+                )
 
             def _get_engine_patched(url: str | None = None):
                 engine = create_async_engine(url or db_url, poolclass=NullPool, pool_pre_ping=True)
