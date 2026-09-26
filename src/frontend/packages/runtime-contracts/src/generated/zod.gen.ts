@@ -2770,6 +2770,51 @@ export const zPyMemoryManagerRunResponse = z.object({
 });
 
 /**
+ * PyModelAssetState
+ */
+export const zPyModelAssetState = z.object({
+    bytes_downloaded: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    content_url: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    id: z.string(),
+    license_ref: z.string(),
+    media_type: z.string(),
+    reason: z.optional(z.union([
+        z.enum([
+            'asset_download_failed',
+            'asset_host_not_allowed',
+            'asset_size_invalid',
+            'asset_hash_invalid',
+            'asset_store_failed'
+        ]),
+        z.null()
+    ])),
+    size_bytes: z.int(),
+    status: z.enum([
+        'not_installed',
+        'downloading',
+        'installed',
+        'failed'
+    ]),
+    total_bytes: z.optional(z.union([
+        z.int(),
+        z.null()
+    ]))
+});
+
+/**
+ * PyModelAssetList
+ */
+export const zPyModelAssetList = z.object({
+    assets: z.array(zPyModelAssetState)
+});
+
+/**
  * PyModelProviderCatalogItem
  */
 export const zPyModelProviderCatalogItem = z.object({
@@ -6444,6 +6489,69 @@ export const zCreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessE
  * Successful Response
  */
 export const zCreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPostResponse = zPyMemoryManagerRunResponse;
+
+export const zListModelAssetsV1ModelAssetsGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zListModelAssetsV1ModelAssetsGetResponse = zPyModelAssetList;
+
+export const zRemoveModelAssetV1ModelAssetsAssetIdDeleteData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        asset_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zRemoveModelAssetV1ModelAssetsAssetIdDeleteResponse = zPyModelAssetState;
+
+export const zGetModelAssetV1ModelAssetsAssetIdGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        asset_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetModelAssetV1ModelAssetsAssetIdGetResponse = zPyModelAssetState;
+
+export const zGetModelAssetContentV1ModelAssetsAssetIdContentGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        asset_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+export const zGetModelAssetContentV1ModelAssetsAssetIdContentGetResponse = z.union([
+    z.string(),
+    z.unknown()
+]);
+
+export const zInstallModelAssetV1ModelAssetsAssetIdInstallPostData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        asset_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zInstallModelAssetV1ModelAssetsAssetIdInstallPostResponse = zPyModelAssetState;
 
 export const zListModelProvidersV1ModelProvidersGetData = z.object({
     body: z.optional(z.never()),
