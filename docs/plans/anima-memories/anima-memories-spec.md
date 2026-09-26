@@ -10,7 +10,9 @@ draft and its proposals with three changes: `MEMORIES.md` follows the identity
 directly in the instructions (R3), Reflection is a specialized Memory Manager
 prompt rather than a separate workflow (R5), and the starter identities fill
 every section of the new template (R9). The owner then invoked execution planning.
-Authoritative source: this draft (not yet published).
+Authoritative source: https://github.com/raymond-van/animama/issues/156 (this
+file is a snapshot).
+Snapshot captured: 2026-09-26T18:10:04Z, published from revision `c1c215c`.
 Source baseline: `b633af1`.
 
 ## Problem and intended users
@@ -377,7 +379,7 @@ No open product questions block planning.
 
 ## Spec
 
-This document before publication; the owning issue URL after publication.
+https://github.com/raymond-van/animama/issues/156
 
 ## ExecPlan
 
@@ -385,4 +387,4 @@ This document before publication; the owning issue URL after publication.
 
 ## Delivery links
 
-None yet.
+Phase sub-issues #157, #158, #159 and #160.

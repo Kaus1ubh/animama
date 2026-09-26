@@ -40,7 +40,9 @@ version; 3.14 changes OpenAPI wording); never hand-edit generated output.
 - [x] Read agreed spec, lifecycle guides and affected backend/frontend contracts.
 - [x] Prepare phases, recovery steps and acceptance evidence.
 - [x] Owner accepts plan and authorizes all four phases (2026-09-26).
-- [ ] Workspace setup publishes the parent issue and phase sub-issues.
+- [x] Workspace setup published https://github.com/raymond-van/animama/issues/156
+      (read back 2026-09-26T18:10:04Z) with native sub-issues #157, #158, #159,
+      #160 and blocked-by dependencies.
 - [ ] Phase 1: backend `MEMORIES.md` lifecycle, prompt placement and templates.
 - [ ] Phase 2: memory workspace and create-Anima template.
 - [ ] Phase 3: live edits and the chat memory cue.
