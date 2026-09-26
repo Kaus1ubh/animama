@@ -6,39 +6,48 @@ import type {
 } from "@/lib/content/catalogTypes";
 import type { MemoryEntryDraft } from "./workspace-drafts";
 import {
+  animaFolderFiles,
   buildMemoryAnimaFolders,
   isAnimaWorkspacePath,
   isReservedUserMemoryEntry,
   animaIdForManagerPath,
   managerPathLabel,
-  removedIdentityDrafts,
+  removedAnimaFileDrafts,
   resolveWorkspaceSelection,
 } from "./anima-folders";
+
+function header(
+  animaId: string,
+  file: "IDENTITY.md" | "MEMORIES.md",
+  overrides: Partial<PyMemoryEntryHeader> = {},
+): PyMemoryEntryHeader {
+  return {
+    id: `${file === "IDENTITY.md" ? "identity" : "memories"}-${animaId}`,
+    anima_id: animaId,
+    scope: "anima",
+    type: "file",
+    name: file,
+    path: file,
+    kind: file === "IDENTITY.md" ? "anima_identity" : "anima_memories",
+    version: 1,
+    metadata: {},
+    ...overrides,
+  };
+}
 
 function identity(
   animaId: string,
   displayName: string,
   entry: Partial<PyMemoryEntryHeader> | null = {},
+  memories: Partial<PyMemoryEntryHeader> | null = {},
 ): PyAnimaIdentityItem {
   return {
     anima_id: animaId,
     display_name: displayName,
     aggregate_revision: 2,
     identity_status: entry ? "ready" : "repair_required",
-    entry: entry
-      ? {
-          id: `identity-${animaId}`,
-          anima_id: animaId,
-          scope: "anima",
-          type: "file",
-          name: "IDENTITY.md",
-          path: "IDENTITY.md",
-          kind: "anima_identity",
-          version: 1,
-          metadata: {},
-          ...entry,
-        }
-      : null,
+    entry: entry ? header(animaId, "IDENTITY.md", entry) : null,
+    memories_entry: memories ? header(animaId, "MEMORIES.md", memories) : null,
   };
 }
 
@@ -57,7 +66,37 @@ describe("Anima memory folders", () => {
       ["c", "Annie (2)"],
       ["d", "Annie (3)"],
     ]);
-    expect(folders[2]?.path).toBe("Animas/Annie (2)/IDENTITY.md");
+    expect(folders[2]?.identity.path).toBe("Animas/Annie (2)/IDENTITY.md");
+  });
+
+  it("holds each Anima's identity and memories under its label path", () => {
+    const [annie] = buildMemoryAnimaFolders([identity("a", "Annie")]);
+
+    expect(annie?.identity).toEqual({
+      name: "IDENTITY.md",
+      path: "Animas/Annie/IDENTITY.md",
+      entry: expect.objectContaining({ id: "identity-a" }),
+    });
+    expect(annie?.memories).toEqual({
+      name: "MEMORIES.md",
+      path: "Animas/Annie/MEMORIES.md",
+      entry: expect.objectContaining({ id: "memories-a" }),
+    });
+    expect(annie && animaFolderFiles(annie).map((file) => file.name)).toEqual([
+      "IDENTITY.md",
+      "MEMORIES.md",
+    ]);
+  });
+
+  it("keeps a missing MEMORIES.md addressable independently of identity", () => {
+    const [annie] = buildMemoryAnimaFolders([identity("a", "Annie", {}, null)]);
+
+    expect(annie?.identity.entry?.id).toBe("identity-a");
+    expect(annie?.memories).toEqual({
+      name: "MEMORIES.md",
+      path: "Animas/Annie/MEMORIES.md",
+      entry: null,
+    });
   });
 
   it("never gives a duplicate a label that another Anima really uses", () => {
@@ -81,8 +120,12 @@ describe("Anima memory folders", () => {
     ]);
 
     expect(folders[0]?.label).toBe("Annie Two");
-    expect(folders[0]?.entry?.id).toBe("identity-a");
-    expect(folders[1]).toMatchObject({ label: "Broken", entry: null });
+    expect(folders[0]?.identity.entry?.id).toBe("identity-a");
+    expect(folders[1]).toMatchObject({
+      label: "Broken",
+      identity: { entry: null },
+      memories: { entry: { id: "memories-b" } },
+    });
   });
 
   it("recognizes the reserved user-scope animas path", () => {
@@ -139,7 +182,12 @@ describe("workspace identity selection", () => {
       identity("a", "Annie"),
       identity("b", "Annie"),
     ]);
-    const entries = [profile, folders[0]!.entry!, folders[1]!.entry!];
+    const entries = [
+      profile,
+      folders[0]!.identity.entry!,
+      folders[1]!.identity.entry!,
+      folders[1]!.memories.entry!,
+    ];
 
     expect(
       resolveWorkspaceSelection({
@@ -148,7 +196,15 @@ describe("workspace identity selection", () => {
         entryId: null,
         path: "Animas/Annie (2)/IDENTITY.md",
       }),
-    ).toEqual({ header: folders[1]!.entry, pinEntryId: true });
+    ).toEqual({ header: folders[1]!.identity.entry, pinEntryId: true });
+    expect(
+      resolveWorkspaceSelection({
+        entries,
+        folders,
+        entryId: null,
+        path: "Animas/Annie (2)/MEMORIES.md",
+      }),
+    ).toEqual({ header: folders[1]!.memories.entry, pinEntryId: true });
     expect(
       resolveWorkspaceSelection({
         entries,
@@ -165,7 +221,7 @@ describe("workspace identity selection", () => {
       identity("b", "Annie"),
     ]);
     const after = buildMemoryAnimaFolders([identity("b", "Annie")]);
-    const selected = before[1]!.entry!;
+    const selected = before[1]!.memories.entry!;
 
     expect(
       resolveWorkspaceSelection({
@@ -177,20 +233,35 @@ describe("workspace identity selection", () => {
     ).toBe(selected);
   });
 
-  it("never resolves identity stored paths as user paths", () => {
-    const folders = buildMemoryAnimaFolders([identity("a", "Annie")]);
+  it.each(["IDENTITY.md", "MEMORIES.md"])(
+    "never resolves the stored Anima path %s as a user path",
+    (path) => {
+      const folders = buildMemoryAnimaFolders([identity("a", "Annie")]);
+      expect(
+        resolveWorkspaceSelection({
+          entries: animaFolderFiles(folders[0]!).map((file) => file.entry!),
+          folders,
+          entryId: null,
+          path,
+        }).header,
+      ).toBeNull();
+    },
+  );
+
+  it("does not resolve the label path of a missing MEMORIES.md", () => {
+    const folders = buildMemoryAnimaFolders([identity("a", "Annie", {}, null)]);
     expect(
       resolveWorkspaceSelection({
-        entries: [folders[0]!.entry!],
+        entries: [folders[0]!.identity.entry!],
         folders,
         entryId: null,
-        path: "IDENTITY.md",
-      }).header,
-    ).toBeNull();
+        path: "Animas/Annie/MEMORIES.md",
+      }),
+    ).toEqual({ header: null, pinEntryId: false });
   });
 });
 
-describe("removed identity drafts", () => {
+describe("removed Anima file drafts", () => {
   it("drops drafts for deleted Animas and reports only dirty ones", () => {
     const previous = buildMemoryAnimaFolders([
       identity("a", "Annie"),
@@ -204,37 +275,85 @@ describe("removed identity drafts", () => {
     const drafts = {
       "identity-a": draft("identity-a", true),
       "identity-b": draft("identity-b", true),
+      "memories-b": draft("memories-b", true),
       "identity-c": draft("identity-c", false),
     };
 
-    const result = removedIdentityDrafts({ previous, current, drafts });
+    const result = removedAnimaFileDrafts({ previous, current, drafts });
 
     expect(Object.keys(result.drafts)).toEqual(["identity-a"]);
     expect(result.notices).toEqual([
-      { entryId: "identity-b", label: "Caitlin", reason: "deleted" },
+      {
+        entryId: "identity-b",
+        label: "Caitlin",
+        fileName: "IDENTITY.md",
+        reason: "deleted",
+      },
+      {
+        entryId: "memories-b",
+        label: "Caitlin",
+        fileName: "MEMORIES.md",
+        reason: "deleted",
+      },
     ]);
   });
 
-  it("explains a dirty draft whose identity now needs repair", () => {
+  it("explains a dirty draft whose file now needs repair", () => {
     const previous = buildMemoryAnimaFolders([identity("a", "Annie")]);
-    const current = buildMemoryAnimaFolders([identity("a", "Annie", null)]);
-    const result = removedIdentityDrafts({
+    const current = buildMemoryAnimaFolders([
+      identity("a", "Annie", null, null),
+    ]);
+    const result = removedAnimaFileDrafts({
       previous,
       current,
-      drafts: { "identity-a": draft("identity-a", true) },
+      drafts: {
+        "identity-a": draft("identity-a", true),
+        "memories-a": draft("memories-a", true),
+      },
     });
 
     expect(result.drafts).toEqual({});
     expect(result.notices).toEqual([
-      { entryId: "identity-a", label: "Annie", reason: "unavailable" },
+      {
+        entryId: "identity-a",
+        label: "Annie",
+        fileName: "IDENTITY.md",
+        reason: "unavailable",
+      },
+      {
+        entryId: "memories-a",
+        label: "Annie",
+        fileName: "MEMORIES.md",
+        reason: "unavailable",
+      },
     ]);
+  });
+
+  it("keeps an identity draft when only MEMORIES.md disappears", () => {
+    const previous = buildMemoryAnimaFolders([identity("a", "Annie")]);
+    const current = buildMemoryAnimaFolders([identity("a", "Annie", {}, null)]);
+    const identityDraft = draft("identity-a", true);
+    const result = removedAnimaFileDrafts({
+      previous,
+      current,
+      drafts: {
+        "identity-a": identityDraft,
+        "memories-a": draft("memories-a", false),
+      },
+    });
+
+    expect(result.drafts).toEqual({ "identity-a": identityDraft });
+    expect(result.notices).toEqual([]);
   });
 
   it("returns the same drafts object when nothing was removed", () => {
     const folders = buildMemoryAnimaFolders([identity("a", "Annie")]);
-    const drafts = { "identity-a": draft("identity-a", true) };
+    const drafts = {
+      "identity-a": draft("identity-a", true),
+      "memories-a": draft("memories-a", true),
+    };
     expect(
-      removedIdentityDrafts({ previous: folders, current: folders, drafts })
+      removedAnimaFileDrafts({ previous: folders, current: folders, drafts })
         .drafts,
     ).toBe(drafts);
   });

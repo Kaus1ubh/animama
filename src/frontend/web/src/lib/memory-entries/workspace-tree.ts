@@ -1,6 +1,7 @@
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
 import {
   ANIMAS_WORKSPACE_LABEL,
+  animaFolderFiles,
   isReservedUserMemoryEntry,
   type MemoryAnimaFolder,
 } from "@/lib/memory-entries/anima-folders";
@@ -35,6 +36,10 @@ export type MemoryWorkspaceTreeNode =
       id: string;
       label: string;
       animaId: string;
+      /** The identity needs explicit repair; it has no child row. */
+      identityMissing: boolean;
+      /** `MEMORIES.md` is missing and can be recreated from its template. */
+      memoriesMissing: boolean;
       children: MemoryWorkspaceTreeNode[];
     }
   | {
@@ -170,25 +175,31 @@ function animaTree(folders: MemoryAnimaFolder[]): MemoryWorkspaceTreeNode {
       id: `${ANIMA_ROOT_ID}:${folder.animaId}`,
       label: folder.label,
       animaId: folder.animaId,
-      children: folder.entry
-        ? [
-            {
-              kind: "file",
-              id: folder.entry.id,
-              label: folder.entry.name,
-              entry: folder.entry,
-              displayPath: folder.path,
-              children: [],
-            },
-          ]
-        : [],
+      identityMissing: !folder.identity.entry,
+      memoriesMissing: !folder.memories.entry,
+      children: animaFolderFiles(folder).flatMap(
+        ({ entry, path }): MemoryWorkspaceTreeNode[] =>
+          entry
+            ? [
+                {
+                  kind: "file",
+                  id: entry.id,
+                  label: entry.name,
+                  entry,
+                  displayPath: path,
+                  children: [],
+                },
+              ]
+            : [],
+      ),
     })),
   };
 }
 
 /**
- * Builds the virtual Animas root (one identity folder per owned Anima), the
- * chronological virtual Episodes root, then physical user memory.
+ * Builds the virtual Animas root (one folder per owned Anima holding its
+ * `IDENTITY.md` and `MEMORIES.md`), the chronological virtual Episodes root,
+ * then physical user memory.
  */
 export function buildMemoryWorkspaceTree(
   entries: PyMemoryEntryHeader[],
@@ -344,7 +355,7 @@ export function memoryCreationTarget(
   if (node.kind === "directory") {
     return { parentId: node.entry.id, disabled: false };
   }
-  // Anima identities live in their own scopes; their folders hold nothing else.
+  // Anima files live in their own scopes; their folders hold nothing else.
   if (node.kind === "file" && !node.entry.anima_id) {
     return { parentId: node.entry.parent_id ?? null, disabled: false };
   }

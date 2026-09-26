@@ -10,9 +10,10 @@ import type {
   PyMemoryEntryResponse,
 } from "@/lib/content/catalogTypes";
 import {
+  animaFolderFiles,
   buildMemoryAnimaFolders,
   isAnimaWorkspacePath,
-  removedIdentityDrafts,
+  removedAnimaFileDrafts,
   resolveWorkspaceSelection,
   type MemoryAnimaFolder,
 } from "@/lib/memory-entries/anima-folders";
@@ -73,6 +74,7 @@ import {
 import { useDeleteMemoryEntry } from "@/query/mutations/useDeleteMemoryEntry";
 import { useMoveMemoryEntry } from "@/query/mutations/useMoveMemoryEntry";
 import { usePatchMemoryEntry } from "@/query/mutations/usePatchMemoryEntry";
+import { useRepairAnimaMemories } from "@/query/mutations/useRepairAnimaMemories";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { Button } from "@/ui/components/button";
 import {
@@ -161,25 +163,25 @@ export function MemoryLibraryPage({
     ]);
     return users;
   };
-  // User memory plus each Anima's identity header, so selection, drafts and
-  // dirty indicators treat identities like any other workspace file.
+  // Each Anima's live identity and memories files, in folder display order.
+  const animaFiles = useMemo(
+    () =>
+      animaFolders
+        .flatMap(animaFolderFiles)
+        .flatMap(({ entry, path }) => (entry ? [{ entry, path }] : [])),
+    [animaFolders],
+  );
+  // User memory plus the Anima file headers, so selection, drafts and dirty
+  // indicators treat Anima files like any other workspace file.
   const entries = useMemo(() => {
     const userEntries = userEntriesQuery.data?.entries ?? EMPTY_ENTRIES;
-    const identities = animaFolders.flatMap((folder) =>
-      folder.entry ? [folder.entry] : [],
-    );
-    return identities.length > 0
-      ? [...userEntries, ...identities]
+    return animaFiles.length > 0
+      ? [...userEntries, ...animaFiles.map((file) => file.entry)]
       : userEntries;
-  }, [animaFolders, userEntriesQuery.data]);
+  }, [animaFiles, userEntriesQuery.data]);
   const workspacePathById = useMemo(
-    () =>
-      new Map(
-        animaFolders.flatMap((folder) =>
-          folder.entry ? [[folder.entry.id, folder.path] as const] : [],
-        ),
-      ),
-    [animaFolders],
+    () => new Map(animaFiles.map((file) => [file.entry.id, file.path])),
+    [animaFiles],
   );
   const tree = useMemo(
     () => buildMemoryWorkspaceTree(entries, undefined, animaFolders),
@@ -203,7 +205,7 @@ export function MemoryLibraryPage({
   const detailByPath = useMemoryEntryByPath({
     path: search.path,
     type: "file",
-    // Identity label paths resolve only through the loaded folder list.
+    // Anima file label paths resolve only through the loaded folder list.
     enabled:
       !detailId && Boolean(search.path) && !isAnimaWorkspacePath(search.path),
   });
@@ -250,6 +252,7 @@ export function MemoryLibraryPage({
   const patchEntry = usePatchMemoryEntry();
   const moveEntry = useMoveMemoryEntry();
   const deleteEntry = useDeleteMemoryEntry();
+  const repairMemories = useRepairAnimaMemories();
   const manager = useMemoryManagerWorkspace({
     runId: search.managerRunId,
     onRunCreated: (runId) =>
@@ -270,7 +273,7 @@ export function MemoryLibraryPage({
     onPendingEpisodesChanged: () => void pendingEpisodes.refetch(),
   });
 
-  // Deleting an Anima removes its identity. Drafts for it can no longer be
+  // Deleting an Anima removes its files. Drafts for them can no longer be
   // saved, so drop them and tell the owner when unsaved text is discarded.
   const previousFoldersRef = useRef<MemoryAnimaFolder[] | null>(null);
   const draftsRef = useRef(drafts);
@@ -280,7 +283,7 @@ export function MemoryLibraryPage({
     const previous = previousFoldersRef.current;
     previousFoldersRef.current = animaFolders;
     if (!previous) return;
-    const result = removedIdentityDrafts({
+    const result = removedAnimaFileDrafts({
       previous,
       current: animaFolders,
       drafts: draftsRef.current,
@@ -291,11 +294,10 @@ export function MemoryLibraryPage({
       toast.warning(
         notice.reason === "deleted"
           ? `${notice.label} was deleted.`
-          : `${notice.label}'s identity is unavailable.`,
+          : `${notice.label}'s ${notice.fileName} is unavailable.`,
         {
-          id: `identity-removed:${notice.entryId}`,
-          description:
-            "Its unsaved identity changes could not be saved and were discarded.",
+          id: `anima-file-removed:${notice.entryId}`,
+          description: `Unsaved ${notice.fileName} changes could not be saved and were discarded.`,
         },
       );
     }
@@ -315,7 +317,7 @@ export function MemoryLibraryPage({
     const requestedId = selectedHeader?.id ?? search.entryId ?? null;
     const nextEntryId = resolveMemoryWorkspaceFileId(entries, requestedId);
     if (nextEntryId === requestedId && !search.path) return;
-    // User-file path URLs stay readable; identity label paths are pinned to
+    // User-file path URLs stay readable; Anima file label paths are pinned to
     // their entry ID so a rename cannot retarget or lose the selection.
     const pathMatches =
       search.path &&
@@ -717,7 +719,7 @@ export function MemoryLibraryPage({
               (focusedNode &&
                 "entry" in focusedNode &&
                 focusedNode.entry.anima_id)
-            ? "Anima folders only contain each Anima's identity."
+            ? "Anima folders only contain each Anima's identity and memories."
             : "The animas path is reserved for Anima identities.",
       );
       return;
@@ -727,6 +729,21 @@ export function MemoryLibraryPage({
       parentId === undefined ? creationTarget.parentId : parentId,
     );
     setCreateOpen(true);
+  };
+
+  /** Recreates a missing `MEMORIES.md`; the refreshed listing shows it. */
+  const handleRepairAnimaMemories = async (animaId: string) => {
+    const label =
+      animaFolders.find((folder) => folder.animaId === animaId)?.label ??
+      "This Anima";
+    try {
+      await repairMemories.mutateAsync({ animaId });
+      toast.success(`${label}'s MEMORIES.md was repaired.`);
+    } catch (error) {
+      toast.error(`Failed to repair ${label}'s MEMORIES.md.`, {
+        description: memoryEntryErrorMessage(error),
+      });
+    }
   };
 
   const handleCreated = (entry: PyMemoryEntryResponse) => {
@@ -853,6 +870,14 @@ export function MemoryLibraryPage({
                   }
                   onCollapsedChange={setExplorerCollapsed}
                   onRetry={() => void refreshWorkspace()}
+                  repairingAnimaId={
+                    repairMemories.isPending
+                      ? (repairMemories.variables?.animaId ?? null)
+                      : null
+                  }
+                  onRepairAnimaMemories={(animaId) =>
+                    void handleRepairAnimaMemories(animaId)
+                  }
                 />
               </section>
             }

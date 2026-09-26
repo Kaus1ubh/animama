@@ -273,8 +273,10 @@ and immutable version history.
 The `/a/memories` page uses those hooks for user-scope markdown entries and
 `useAnimaIdentities` (`queryKeys.memoryEntries.animaIdentities`) for the virtual
 Animas folders; Anima definition changes also invalidate that listing and the
-Anima's identity detail entries under `queryKeys.memoryEntries.details`. Anima
-details use the same hooks for the selected anima's `IDENTITY.md` editor route.
+Anima's identity detail entries under `queryKeys.memoryEntries.details`. The
+same listing supplies each Anima's `MEMORIES.md` header (`useAnimaMemoriesEntry`),
+and `useRepairAnimaMemories` resolves only after refetching it. Anima details use
+the same hooks for the selected anima's `IDENTITY.md` editor route.
 The shared editor keeps draft state local to the modal and saves with the
 draft's `expected_version`. Anima identity responses also provide
 `aggregate_revision`, captured as `baseAggregateRevision` and sent as

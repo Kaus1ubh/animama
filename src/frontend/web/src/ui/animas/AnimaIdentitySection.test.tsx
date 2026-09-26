@@ -5,14 +5,19 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
     to,
+    search,
     children,
     className,
   }: {
     to: string;
+    search?: Record<string, string>;
     children: ReactNode;
     className?: string;
   }) => (
-    <a href={to} className={className}>
+    <a
+      href={search ? `${to}?${new URLSearchParams(search)}` : to}
+      className={className}
+    >
       {children}
     </a>
   ),
@@ -88,6 +93,27 @@ describe("identity edit action", () => {
     const html = renderToStaticMarkup(
       <AnimaIdentitySection {...identityProps} />,
     );
-    expect(html).toContain('href="/a/animas/$animaId/identity"');
+    expect(html).toContain('href="/a/animas/$animaId/identity?tab=overview"');
+  });
+});
+
+describe("Anima memories link", () => {
+  it("opens MEMORIES.md in the Manual memory workspace by entry ID", () => {
+    const html = renderToStaticMarkup(
+      <AnimaIdentitySection {...identityProps} memoriesEntryId="memories-1" />,
+    );
+    expect(html).toContain(
+      'href="/a/memories?tab=memory&amp;mode=manual&amp;entryId=memories-1"',
+    );
+    expect(html).toContain("Open memories");
+    expect(html).toContain("Edit identity");
+  });
+
+  it("is omitted while the file is unknown or missing", () => {
+    const html = renderToStaticMarkup(
+      <AnimaIdentitySection {...identityProps} memoriesEntryId={null} />,
+    );
+    expect(html).not.toContain("Open memories");
+    expect(html).not.toContain("/a/memories");
   });
 });

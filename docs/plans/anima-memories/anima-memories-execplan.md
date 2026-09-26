@@ -45,7 +45,7 @@ version; 3.14 changes OpenAPI wording); never hand-edit generated output.
       #160 and blocked-by dependencies.
 - [x] Phase 1: backend `MEMORIES.md` lifecycle, prompt placement and templates
       (review #2 pass; commit recorded under the Phase 1 record).
-- [ ] Phase 2: memory workspace and create-Anima template.
+- [x] Phase 2: memory workspace and create-Anima template (review #1 pass).
 - [ ] Phase 3: live edits and the chat memory cue.
 - [ ] Phase 4: Reflection.
 - [ ] Final integration review.
@@ -145,6 +145,18 @@ Planning findings at `410425e` (unchanged at `b633af1`):
   a missing file reports `missing` in the chat manifest and an unreadable one
   `unreadable`. Legacy Anima-scope rows other than the two files can be read,
   edited in place or deleted but not created, moved or renamed.
+- 2026-09-26, implementation (Phase 3 contract, fixed before splitting backend
+  and frontend work): a `memory_cue` object is
+  `{"episode": {"text": str} | null, "memories": {"entry_id": str, "version": int,
+  "excerpt": str} | null}`. `episode` is the `remember` text actually recorded as
+  an episode item; `memories` names the turn's last successful `MEMORIES.md`
+  version and up to 600 characters of text added during the turn. The history
+  API returns it as nullable `PyChatMessage.memory_cue` on the final visible
+  assistant message of a turn. The SSE event is `memory.updated` with data
+  `{"type": "memory.updated", "run_id", "message_id", "memory_cue"}` and ID
+  `memory-updated-<run_id>`, sent after episode recording and before
+  `run.completed`, only when either part is present. Persisted assistant
+  `message_data.memory` holds `updates_enabled` and the `memories` part.
 - 2026-09-26, plan design: one branch and one PR; four phases ordered by
   dependency. Implementation details may change with evidence within the spec.
 
@@ -344,7 +356,6 @@ Requirements: R1, R2 and R8 (frontend), R9 (frontend). Depends on Phase 1.
 6. Create-Anima template. Replace the default identity with the R9 template. The
    upgrade logic recognizes the previous headed and headingless defaults under any
    name and replaces only untouched drafts; the heading-sync behavior is preserved.
-   `summarizeIdentityMarkdown` prefers Essence, then Personality.
 7. Update `docs/frontend/features/anima-memory.md`,
    `custom-anima-creation.md` and `anima-management.md`.
 
@@ -359,13 +370,56 @@ narrow-layout regression check.
 Completion: checks and browser evidence recorded without personal content; review
 has no unresolved blockers.
 
+Phase record: issue #158; starting source `6393451`. Task stack
+`animama-anima-memories` at `http://animama-anima-memories.localhost:8760`
+(development mode, `ANIMAMA_LLM_SKIP=1`, only `web` published). Local evidence
+from `src/frontend`: `pnpm check`, `pnpm web:lint`, `pnpm build` pass;
+`pnpm web:test` 317 files / 1927 tests pass; Prettier check on changed files
+clean. Browser evidence at 1440×900 on a fresh stack: first run fills
+`Preferred name:` in the v2 `PROFILE.md`; each Anima folder lists `IDENTITY.md`
+then `MEMORIES.md` with the template; the `MEMORIES.md` row menu disables Rename,
+Move to… and Delete, and Manual Delete is disabled; edit and save created
+Version 2 and a blank save Version 3 while the Anima's aggregate revision stayed
+1; deleting Caitlyn's row through SQL on the task stack showed "Needs repair" and
+"MEMORIES.md is missing." with Repair, which restored the template with a toast;
+Annie's Identity tab renders the new starter identity and "Open memories" opens
+the file; the create-Anima Identity step shows the R9 template with the name in
+the heading. Narrow layout (375×812): the Files pane shows both files per folder
+without overflow.
+
 #### Code Review #1 Findings
 
-Not started.
+Reviewed the Phase 2 files in the working tree on `6393451` (sdlc-reviewer;
+concurrent Phase 3 backend edits excluded). Checks: 11 Phase 2 test files 115
+passed, full web vitest 1927 passed, eslint, Prettier, `tsc` and
+`git diff --check` clean; upgrade edge cases probed on a scratch copy. Result:
+pass; all findings optional.
+
+- P2-R1-F1: `summarizeIdentityMarkdown` has no production caller, so the
+  Essence-first change only touched dead code.
+- P2-R1-F2: two `MemoryLibraryPage` comments still said "identity" for label
+  paths that now include `MEMORIES.md`.
+- P2-R1-F3: a local `animaFile` in `resolveWorkspaceSelection` shadowed the
+  module helper.
+- P2-R1-F4: after a successful repair the focused Repair button disappears and
+  focus falls to the document body.
+- P2-R1-F5: `data-layer.md` did not mention the repair and memories-entry hooks.
+- P2-R1-F6: deleting an Anima with both drafts dirty raises two same-titled
+  toasts.
 
 #### Code Review #1 Revisions
 
-Not started.
+- F1 accepted: reverted the summary change and its test; the helper is untouched
+  (removing the pre-existing unused helper is outside this plan).
+- F2 accepted: comments say "Anima file".
+- F3 accepted: renamed to `labelled`.
+- F4 deferred: repair is a rare recovery action and the spec sets no focus
+  requirement; the file reappears in place.
+- F5 accepted: one sentence added to `data-layer.md`.
+- F6 rejected: rare, and the two descriptions name different files.
+
+Checks after revisions: memory-entries, memory UI and animas vitest 117 passed;
+eslint, Prettier and `tsc -p tsconfig.app.json --noEmit` clean.
 
 ### Phase 3 — Live edits and the chat memory cue
 

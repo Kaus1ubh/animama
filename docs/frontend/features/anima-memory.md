@@ -8,7 +8,7 @@ Query hooks.
 
 `/a/memories` provides an installation-wide file explorer, Manual editor,
 Memory Manager and Markdown preview covering user memory and every owned
-Anima's identity. Upload management and retrieval diagnostics
+Anima's identity and memories. Upload management and retrieval diagnostics
 live in [Library Chat Uploads](user-file-uploads.md).
 
 The workspace loads content-free user entry headers recursively and the
@@ -18,14 +18,20 @@ entries. Both virtual roots are always present, show an empty state when they
 have no children, and cannot be displaced by newly created memory entries.
 
 `Animas` holds one folder per owned Anima in creation order, each containing
-only that Anima's Anima-scoped `IDENTITY.md`. Folders show the current name;
-later Animas sharing a name receive ` (2)`, ` (3)`, and so on, skipping any
-suffix another Anima already uses as its real name. An Anima whose identity
-needs repair shows an empty folder stating that the identity is missing. The owner-facing
-path, such as `Animas/Annie (2)/IDENTITY.md`, appears in tooltips, filtering and
-Preview; renames and new Animas refresh the listing through the Anima definition
-and creation cache invalidations. If the listing fails to load, user memory remains
-available and a toast offers Refresh.
+only that Anima's Anima-scoped `IDENTITY.md` followed by its relationship
+`MEMORIES.md`. Folders show the current name; later Animas sharing a name
+receive ` (2)`, ` (3)`, and so on, skipping any suffix another Anima already uses
+as its real name. The owner-facing path, such as `Animas/Annie (2)/MEMORIES.md`,
+appears in tooltips, filtering and Preview; renames and new Animas refresh the
+listing through the Anima definition and creation cache invalidations. If the
+listing fails to load, user memory remains available and a toast offers Refresh.
+
+A folder with a missing file shows a warning icon. Expanded, it states that the
+identity is missing and needs repair, or that `MEMORIES.md` is missing with a
+Repair action. Repair calls `POST /v1/memory/anima-memories/{anima_id}:repair`,
+which recreates the file from its template and never overwrites an existing
+one, then refreshes the listing; failures appear as a toast. The two states are
+independent: an Anima can have its identity and no `MEMORIES.md`.
 
 The generated `episodes/**` storage hierarchy is replaced by the virtual
 `Episodes` root.
@@ -53,11 +59,12 @@ current creation target and then selects `launch.md`. The final `.md` extension
 is added when omitted. New directory remains a single-segment operation.
 
 Generated episodes, virtual episode groups, the virtual Animas root and folders,
-identity files, `PROFILE.md`, files, the source's current parent, the source
-itself, and descendants of a directory being moved are not valid move targets as
-applicable. Identity rows keep their protected row menus: they cannot be
-renamed, moved or deleted. Creation and moves are disabled while a virtual
-episode group, generated episode, Animas folder or identity is focused. Creation otherwise
+`IDENTITY.md` and `MEMORIES.md` files, `PROFILE.md`, files, the source's current
+parent, the source itself, and descendants of a directory being moved are not
+valid move targets as applicable. `IDENTITY.md` and `MEMORIES.md` rows keep
+their protected row menus: they cannot be renamed, moved or deleted. Creation
+and moves are disabled while a virtual episode group, generated episode, Animas
+folder or Anima file is focused. Creation otherwise
 targets the focused physical directory or the selected ordinary file's parent.
 The explorer initially selects `PROFILE.md`, then the first ordinary file by
 path, then the newest episode.
@@ -114,9 +121,12 @@ Identity drafts also carry the Anima aggregate revision, exactly like the
 `/a/animas/:animaId/identity` editor: a concurrent name, Avatar, loadout or
 identity change conflicts while keeping the draft, and a blank identity is
 rejected before any request. Saves and reverts refresh that Anima's definition
-views. If an Anima is deleted, its folder disappears on the next refresh and any
-draft for its identity is dropped; a dirty draft produces a warning that its
-unsaved text could not be saved.
+views. `MEMORIES.md` is not part of the Anima definition: its drafts are guarded
+by version only, never conflict with identity, name, Avatar or loadout edits, may
+be saved blank, and do not refresh definition views. If an Anima is deleted, its
+folder disappears on the next refresh and drafts for its files are dropped; the
+same happens to a draft whose file becomes missing. A dirty dropped draft
+produces a warning that its unsaved text could not be saved.
 
 Dirty drafts do not interrupt normal workspace navigation. Leaving
 `/a/memories` opens a prompt with Stay, Discard and leave, and sequential Save
@@ -156,10 +166,11 @@ read-only. The dialog has no arbitrary two-version selector.
 ## Route State
 
 The canonical route search state uses `tab=memory|uploads` and
-`mode=manual|manager`, with optional `entryId`, file `path`, and `managerRunId`. An identity
-is selected by `entryId`, so renaming its Anima keeps the selection; a `path`
-such as `Animas/Annie/IDENTITY.md` resolves through the current folder labels
-and is then replaced with that identity's `entryId`.
+`mode=manual|manager`, with optional `entryId`, file `path`, and `managerRunId`. An
+Anima file is selected by `entryId`, so renaming its Anima keeps the selection;
+a `path` such as `Animas/Annie/MEMORIES.md` resolves through the current folder
+labels and is then replaced with that file's `entryId`. Links from other pages,
+such as the Anima Identity panel's Open memories, use `entryId`.
 Task prompts are not route state. File and manager-run updates replace the
 current history entry, while tab and Manual/Memory Manager mode changes push
 history. Explorer search, expansion, collapse, focus, responsive pane, drafts,
@@ -317,9 +328,11 @@ guards and creates a new identity version rather than replacing history.
 
 The backend enforces nonblank identity and prevents renaming, moving, deleting,
 or kind changes for the required identity file, including untyped
-legacy `IDENTITY.md` entries. Chat never uses a mutable Avatar fallback for a
-missing identity. Legacy repair state requires explicit owner repair; a
-directory obstructing the reserved path can be explicitly moved first.
+legacy `IDENTITY.md` entries. `MEMORIES.md` has the same protection, may be
+blank and is limited to 16 KiB; nothing else can be created in or moved into an
+Anima's scope. Chat never uses a mutable Avatar fallback for a missing identity.
+Legacy repair state requires explicit owner repair; a directory obstructing the
+reserved path can be explicitly moved first.
 
 Backend direct chat can generate user-scope episodic logs after completed
 non-incognito turns with notable `remember` text. Model-authored memory

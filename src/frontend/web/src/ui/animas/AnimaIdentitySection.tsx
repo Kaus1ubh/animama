@@ -1,12 +1,14 @@
 import type { MouseEvent } from "react";
 import { Link } from "@tanstack/react-router";
-import { FileText } from "lucide-react";
+import { Brain, FileText } from "lucide-react";
 
 import { Button } from "@/ui/components/button";
 import { MemoryMarkdownPreview } from "@/ui/memory/MemoryMarkdownPreview";
 
 const IDENTITY_PREVIEW_CLASS =
   "anima-identity-scrollbar border-border/70 bg-muted/25 text-foreground/90 max-h-[clamp(12rem,calc(55dvh-12.5rem),32rem)] overflow-auto rounded-xl border p-5 [overflow-wrap:anywhere] xl:h-full xl:max-h-none";
+
+const IDENTITY_ACTION_CLASS = "bg-background/92 shadow-sm backdrop-blur-sm";
 
 export function AnimaIdentitySection({
   animaId,
@@ -15,6 +17,7 @@ export function AnimaIdentitySection({
   identityError,
   fallbackIdentity,
   onEdit,
+  memoriesEntryId,
   presentation = "panel",
 }: {
   animaId: string;
@@ -23,6 +26,11 @@ export function AnimaIdentitySection({
   identityError: boolean;
   fallbackIdentity: string;
   onEdit?: (event: MouseEvent<HTMLButtonElement>) => void;
+  /**
+   * Entry ID of the Anima's `MEMORIES.md`. When known, an Open memories link
+   * selects it in the Memory workspace; the ID survives Anima renames.
+   */
+  memoriesEntryId?: string | null;
   /** Plain previews follow their parent's scroll flow instead of owning a card. */
   presentation?: "panel" | "plain";
 }) {
@@ -36,7 +44,7 @@ export function AnimaIdentitySection({
       asChild
       size="sm"
       variant="outline"
-      className="not-prose bg-background/92 float-right mb-3 ml-4 shadow-sm backdrop-blur-sm"
+      className={IDENTITY_ACTION_CLASS}
     >
       {onEdit ? (
         <button id="anima-identity-edit-trigger" type="button" onClick={onEdit}>
@@ -55,6 +63,27 @@ export function AnimaIdentitySection({
         </Link>
       )}
     </Button>
+  );
+  const identityActions = (
+    <div className="not-prose float-right mb-3 ml-4 flex flex-wrap justify-end gap-2">
+      {memoriesEntryId ? (
+        <Button
+          asChild
+          size="sm"
+          variant="outline"
+          className={IDENTITY_ACTION_CLASS}
+        >
+          <Link
+            to="/a/memories"
+            search={{ tab: "memory", mode: "manual", entryId: memoriesEntryId }}
+          >
+            <Brain className="size-4" />
+            Open memories
+          </Link>
+        </Button>
+      ) : null}
+      {editIdentityButton}
+    </div>
   );
 
   return (
@@ -78,7 +107,7 @@ export function AnimaIdentitySection({
               emptyText="_No starter identity is available._"
               className={previewClass}
             >
-              {editIdentityButton}
+              {identityActions}
             </MemoryMarkdownPreview>
           </div>
         </div>
@@ -91,7 +120,7 @@ export function AnimaIdentitySection({
             emptyText="_No identity content provided yet._"
             className={previewClass}
           >
-            {editIdentityButton}
+            {identityActions}
           </MemoryMarkdownPreview>
         </div>
       )}
