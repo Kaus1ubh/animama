@@ -289,6 +289,12 @@ Two further rules apply:
   Deferred to the owner: the setup age wording and an optional guardrail line
   on immediate danger and invented phone numbers.
 
+- **2026-09-26, owner follow-ups.** The crisis card moved to the bottom-right
+  corner of the main window's chat panel (and of the scene in Avatar-only),
+  lifted above the input region when it would overlap; the AI notice stays below
+  the input and Quick Chat is unchanged. The planned per-Anima `RELATIONSHIP.md`
+  was renamed `MEMORIES.md` in the spec and #134.
+
 ## Implementation orientation
 
 Backend (`src/backend/animama/`):

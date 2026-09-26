@@ -17,7 +17,7 @@ import { Header } from "@/ui/main/header/Header";
 type MainShellProps = {
   actions?: ReactNode;
   chatPanel?: ReactNode | ((state: { canvasMode: CanvasMode }) => ReactNode);
-  /** Bottom-center content shown in the Avatar-only mode, where no chat panel is rendered. */
+  /** Content laid over the scene in Avatar-only mode, where no chat panel is rendered. */
   avatarOnlyOverlay?: ReactNode;
   headerLeft?: ReactNode;
   headerCenter?: ReactNode;
@@ -120,9 +120,7 @@ export function MainShell({
                     ? (renderedChatPanel ?? <RuntimeChatPlaceholder />)
                     : null}
                   {canvasMode === "avatar" && avatarOnlyOverlay ? (
-                    <div className="absolute inset-x-0 bottom-0 flex justify-center px-4 pb-6">
-                      {avatarOnlyOverlay}
-                    </div>
+                    <div className="absolute inset-0">{avatarOnlyOverlay}</div>
                   ) : null}
                 </div>
                 <Header

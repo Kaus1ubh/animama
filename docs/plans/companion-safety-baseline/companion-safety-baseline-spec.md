@@ -23,7 +23,7 @@ Animama is moving from productivity toward companionship and entertainment. It
 retains memory across chats and sustains personal conversation, so it likely
 falls within the "AI companion" definition of New York General Business Law
 Art. 47 and the "companion chatbot" definition of California SB 243. Planned
-proactive check-ins (a later per-Anima `RELATIONSHIP.md`) would add New York's
+proactive check-ins (a later per-Anima `MEMORIES.md`) would add New York's
 "unprompted emotion-based questions" criterion. The product should meet the
 obligations before those features land.
 
@@ -67,7 +67,7 @@ Include:
 
 Exclude:
 
-- `RELATIONSHIP.md`, proactive check-ins and any other new companion behavior.
+- `MEMORIES.md`, proactive check-ins and any other new companion behavior.
 - Any mode for known minors; building age assurance (OS age signals, hosted
   verification).
 - Crisis-referral counting or any reporting data (deferred; see follow-ups).
@@ -207,8 +207,10 @@ renders a crisis card that:
 - is calm, uses plain language, is visibly separate from the Anima's reply,
   links to the Safety page and briefly says the Anima is an AI and not a
   substitute for professional help;
-- appears in the window where the turn was sent. In the main window it uses the
-  bottom-center region in every canvas mode, including Avatar-only;
+- appears in the window where the turn was sent. In the main window it sits in
+  the bottom-right corner in every canvas mode, including Avatar-only, lifted
+  above the chat input when the window is too narrow for both. Quick Chat shows
+  it below the input;
 - stays until the owner dismisses it, is keyboard reachable and is announced to
   assistive technology;
 - cannot be suppressed, reworded or reordered by the Anima, identity, model
@@ -323,7 +325,7 @@ processing. They do not record specific self-harm or suicide details, methods,
 crisis specifics, diagnoses, medications or other health details unless the
 user explicitly asks the Anima to remember them. At most, a general non-clinical
 note may be kept, e.g. "had a hard week". The guidance is ready for later
-`RELATIONSHIP.md` writes.
+`MEMORIES.md` writes.
 
 Crisis detection creates no new stored record. Notice state (R2) and age status
 (R6) are the only new persisted safety data, and neither contains message

@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { useCallback } from "react";
 import { CompanionSafetyProvider } from "@/ui/safety/CompanionSafetyProvider";
-import { CompanionSafetySlot } from "@/ui/safety/CompanionSafetySlot";
+import { AvatarOnlySafetyOverlay } from "@/ui/safety/CompanionSafetySlot";
 
 import { useRememberLastActiveAnima } from "@/hooks/useRememberLastActiveAnima";
 import { AnimaRouteProviders } from "@/ui/app/AnimaRouteProviders";
@@ -45,7 +45,7 @@ function AnimaRuntimeLayout() {
     <AnimaRouteProviders>
       <CompanionSafetyProvider key={animaId}>
         <MainShell
-          avatarOnlyOverlay={<CompanionSafetySlot className="max-w-xl" />}
+          avatarOnlyOverlay={<AvatarOnlySafetyOverlay />}
           chatPanel={({ canvasMode }) => (
             <ChatInterface
               key={animaId}

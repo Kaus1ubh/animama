@@ -33,6 +33,7 @@ import {
 } from "@/hooks/useUserFileUpload";
 import { ChatFileDropOverlay } from "./ChatFileDropOverlay";
 import { useChatSession } from "./useChatSession";
+import { useCrisisCardCornerBottom } from "./crisisCardCorner";
 import { PromptSuggestion } from "./PromptSuggestion";
 import { useFirstChatSuggestions } from "./useFirstChatSuggestions";
 import { useDictation } from "@/hooks/use-dictation";
@@ -81,8 +82,10 @@ type ChatInterfaceProps = {
 
 type ChatInterfaceViewProps = {
   activeChat: PyChatResponse | null;
-  /** AI notice and crisis card, rendered below the chat input (spec R2, R4). */
+  /** Safety content rendered below the chat input, such as the AI notice (spec R2). */
   safetySlot?: ReactNode;
+  /** Crisis card, placed in the panel's bottom-right corner (spec R4). */
+  crisisSlot?: ReactNode;
   activeMode?: "dictation" | "voice" | null;
   autoFocusInput?: boolean;
   canChat: boolean;
@@ -192,7 +195,17 @@ export function ChatInterfaceView({
   showPromptSuggestions,
   selectableExistingFiles = [],
   safetySlot = null,
+  crisisSlot = null,
 }: ChatInterfaceViewProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const inputRegionRef = useRef<HTMLDivElement>(null);
+  const crisisCardRef = useRef<HTMLDivElement>(null);
+  const crisisCardBottom = useCrisisCardCornerBottom(
+    panelRef,
+    inputRegionRef,
+    crisisCardRef,
+    crisisSlot !== null,
+  );
   const capabilities = useRuntimeCapabilities();
   const platform = useRuntimePlatform();
   const speechAvailable =
@@ -204,8 +217,9 @@ export function ChatInterfaceView({
 
   return (
     <div
+      ref={panelRef}
       className={cn(
-        "pointer-events-auto flex h-full w-full flex-col",
+        "pointer-events-auto relative flex h-full w-full flex-col",
         className,
       )}
     >
@@ -263,6 +277,7 @@ export function ChatInterfaceView({
             <ChatTranscriptScrollButton />
           </ChatTranscript>
           <div
+            ref={inputRegionRef}
             className={cn(
               "mx-auto w-full max-w-[800px] shrink-0 px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]",
               quickChatSurface && "row-start-2 pt-3 pb-3",
@@ -401,6 +416,15 @@ export function ChatInterfaceView({
           </div>
         </div>
       </div>
+      {crisisSlot ? (
+        <div
+          ref={crisisCardRef}
+          className="absolute right-4 z-20 w-[min(24rem,calc(100%-2rem))]"
+          style={{ bottom: crisisCardBottom }}
+        >
+          {crisisSlot}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -948,7 +972,8 @@ export const ChatInterface = ({
   return (
     <>
       <ChatInterfaceView
-        safetySlot={<CompanionSafetySlot className="mt-2" />}
+        safetySlot={<CompanionSafetySlot part="notice" className="mt-2" />}
+        crisisSlot={<CompanionSafetySlot part="crisis" />}
         activeChat={activeChat}
         activeMode={activeMode}
         canChat={canChat}

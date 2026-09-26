@@ -451,7 +451,11 @@ the chat panel. It renders:
   chat panel unmounts, and for at least 8 seconds, then fades
   (`web/src/lib/safety/aiNotice.ts`).
 - **Crisis card.** Localized crisis services with call, text and chat links, the
-  region's emergency number, and a "Safety and crisis protocol" link. It stays
+  region's emergency number, and a "Safety and crisis protocol" link. In the
+  main window it sits in the chat panel's bottom-right corner, or is lifted just
+  above the input region when it would overlap it
+  (`web/src/ui/main/chat/crisisCardCorner.ts`); in Avatar-only mode it uses the
+  scene's bottom-right corner. Quick Chat shows it below the input. It stays
   until dismissed; a later positive turn replaces it.
 
 `SafetyProtocolDialog` opens `docs/safety/crisis-protocol.md`, bundled with

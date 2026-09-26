@@ -113,7 +113,7 @@ export function AiNotice({
   );
 }
 
-/** The crisis card, then the AI notice; rendered below the chat input or bottom-center. */
+/** The crisis card, then the AI notice; the host window decides where each is placed. */
 export function CompanionSafetyView({
   notice,
   noticeVisible,
