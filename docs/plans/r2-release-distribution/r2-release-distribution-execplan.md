@@ -69,9 +69,9 @@ Commands run from `src/frontend` unless stated. Relevant code:
 - [x] Phase 1: Security audit and repeatable candidate scan. Owner accepted the finding dispositions and merged [#112](https://github.com/raymond-van/animama/pull/112) (merge `76d4472`) on 2026-09-25.
 - [x] Phase 2: Distribution policy and build-time selection. Merged with Phase 3 in [#124](https://github.com/raymond-van/animama/pull/124) (merge `74a5615`) on 2026-09-25.
 - [x] Phase 3: Installed-app transport for R2. Merged with Phase 2 in #124.
-- [ ] Phase 4: R2 publisher and release workflow. Implemented on `build/r2-release-publisher` ([#125](https://github.com/raymond-van/animama/issues/125)); reviews #1–#2 pass; awaiting merge approval. Live R2 signing is first exercised in Phase 5.
-- [ ] Phase 5: Cloudflare configuration, live bucket exercise and docs. Not started. Owner gate: dashboard settings; approval before any test upload.
-- [ ] Final integration review. Not started.
+- [x] Phase 4: R2 publisher and release workflow. Merged in [#126](https://github.com/raymond-van/animama/pull/126) (merge `5630ad8`) on 2026-09-25.
+- [x] Phase 5: Cloudflare configuration, live bucket exercise and docs. The live exercise passed. The owner deleted `test/` and added the `desktop/v` indefinite lock rule on 2026-09-25.
+- [x] Final integration review. Passed after one repair round.
 
 ## Surprises & Discoveries
 
@@ -120,12 +120,20 @@ Commands run from `src/frontend` unless stated. Relevant code:
   beside the pack catalog, so `loadPackCatalog` reads the sealed distribution
   there. No supervisor or `main.ts` plumbing is needed for pack URLs.
 
+- 2026-09-25 (Phase 5): after an object was deleted from R2, Cloudflare's edge
+  kept serving it (`cf-cache-status: HIT`), because versioned objects carry a
+  one-year immutable cache policy. Deleting published objects also requires a
+  cache purge.
+
 ## Decision Log
 
 - 2026-09-25, owner: approved merging #124 and starting Phase 4.
-- 2026-09-25, agent proposal (pending owner review): transport migration is not
-  supported for now. No release exists yet. If the distribution ever changes,
-  existing installs would need a manual download of the new build.
+- 2026-09-25, owner: transport migration is not supported. This changes #108's
+  Constraints text, which describes a migration release; the final PR records
+  the deviation. The project will
+  settle on one distribution, with R2 as the default for now.
+- 2026-09-25, owner: approved merging #126, starting Phase 5 and uploading
+  synthetic test objects to the `test/` prefix.
 
 - 2026-09-25, owner: accepted the Phase 1 finding dispositions and approved
   merging #112. Hosted Validation did not run: GitHub Actions has produced no
@@ -766,8 +774,8 @@ Steps:
    written last. Then delete the synthetic objects with owner approval.
 3. Update `releases.md`, `release-process.md` and `feature-packs.md`:
    transport selection, R2 layout, operator setup (domain, lock rule, token
-   scope, secret handling), the scan gate, and moving between transports
-   (one release on the old transport whose sealed policy points to the new one).
+   scope, secret handling) and the scan gate. Moving between transports is
+   unsupported (owner decision).
    Remove statements that only GitHub can serve downloads.
 
 Checks: live exercise results recorded here (object names, HTTP statuses, header
@@ -776,23 +784,106 @@ values; no credentials). The docs follow the reader-value standard.
 Completion: the owner confirms the dashboard settings, the exercise passes, and
 the docs are current.
 
-Results: _pending_
+Results (2026-09-25):
+
+The owner ran the live exercise from their terminal, with credentials read into a
+subshell and never shared. A scratch harness called the merged `preflightR2`
+and `publishR2` directly with a test distribution
+(`https://downloads.animama.ai/test`) and synthetic files. The shared gating in
+`publish-macos.mjs` (distribution match, scan gate, smoke and acceptance) is
+covered by unit tests, not by this live run. The `r2.dev` URL and the token's
+bucket scope were set by the owner at creation (see the Decision Log). All six checks passed:
+
+- The preflight on the empty prefix passed.
+- A preview uploaded create-only and every object verified anonymously.
+- A rerun resumed the identical objects.
+- Conflicting bytes were refused ("A published R2 object differs … Objects are
+  never replaced").
+- Stable promotion wrote the feed last and hash-verified the read-back.
+- A rerun was refused as already published.
+
+Public headers, checked anonymously:
+
+| Object                              | `Cache-Control`                       | `Content-Type`              | `cf-cache-status` |
+| ----------------------------------- | ------------------------------------- | --------------------------- | ----------------- |
+| `test/v0.0.1/synthetic-notes.txt`   | `public, max-age=31536000, immutable` | `text/plain; charset=utf-8` | DYNAMIC           |
+| `test/v0.0.1/synthetic-archive.zip` | `public, max-age=31536000, immutable` | `application/zip`           | HIT               |
+| `test/latest-mac.yml`               | `no-cache`                            | `text/yaml; charset=utf-8`  | DYNAMIC           |
+
+This confirms that SigV4 signing, conditional create-only PUTs and signed
+payload hashes work against R2.
+
+Docs: operator setup and publication landed in Phase 4. Here, migration is
+documented as unsupported, and `src/frontend/AGENTS.md` now describes the
+distribution selection and the scan gate.
+
+Owner gates, completed 2026-09-25:
+
+- The owner deleted the synthetic `test/` objects; they return 404 from R2.
+- The owner added the bucket lock rule: prefix `desktop/v`, indefinite retention.
+- Discovery: the deleted zip was still served from Cloudflare's edge cache
+  (`HIT`, one-year max-age). The operator docs now say to purge the exact URLs
+  when deleting an object. Purging that synthetic URL is optional; it holds
+  only random test bytes.
 
 #### Code Review #1 Findings
 
-_pending_
+Phase 5 changes only documentation and records. The final integration review
+covers them; see the findings below.
 
 #### Code Review #1 Revisions
 
-_pending_
+See the final integration review.
 
 ## Final integration review
 
-Covers combined acceptance: selection and defaulting, both transports end to end
-in tests, scan gate enforcement, docs, and no credential exposure in code, logs
-or artifacts. Reuses still-valid phase evidence.
+#### Code Review #1 Findings (final integration)
 
-_pending_
+Scope: the combined acceptance of Phases 1–5 at `da23f28` against `origin/main`
+`5630ad8`, reusing the phase evidence and reviewing the Phase 5 diff in full.
+`pnpm desktop:test` (303), `pnpm desktop:check`, `pnpm check` and
+`pnpm web:lint` passed.
+
+Acceptance against #108:
+
+- **Met:** the audit, unit coverage, staged selection and the live exercise.
+- **Partly met:** the docs.
+
+Cross-phase consistency is correct across the feed layout, publisher keys,
+runtime allowlist and scan receipt. No code defects.
+
+- **FI-R1-F1 (required):** preview wording in `releases.md` and
+  `release-process.md` was GitHub-only. An R2 preview is permanent, locked
+  public objects.
+- **FI-R1-F2 (required):** a leftover migration parenthetical in Phase 5 step 3.
+- **FI-R1-F3 (required):** #108's Constraints still describe a migration
+  release, contrary to the owner decision.
+- **FI-R1-F4 (required):** Phase 5 review records, the final review and the
+  Outcomes were unfilled.
+- **Optional:**
+    - F5: the exercise entry point, the purge status and the `r2.dev` and token
+      confirmation.
+    - F6: the `AGENTS.md` wording says "build time only".
+    - F7: "the feed is never cached" is absolute.
+    - F8: the edge-cache discovery is missing from Surprises & Discoveries.
+    - Cosmetic: unreflowed lines.
+
+#### Code Review #1 Revisions
+
+- **F1 fixed:** preview and QA wording is now per transport, and states that R2
+  previews are permanent.
+- **F2 fixed:** the parenthetical is removed.
+- **F3 recorded:** the deviation is noted in the Decision Log and in the final
+  PR's Spec section. Amending #108 is left to the owner.
+- **F4 fixed:** this section and the Outcomes are filled.
+- **Optional fixes:** F5 through F8 applied. The cosmetic reflow is deferred, as
+  in P4-R2-N1.
+- Repair rounds used: 1 of 2.
+
+#### Code Review #2 Findings (final integration)
+
+Targeted recheck: FI-R1-F1 to F8 are resolved (F3 is recorded for the PR). No
+regressions. Result: **pass**.
 
 ## Validation and acceptance
 
@@ -832,4 +923,32 @@ native acceptance, forward upgrade, and the owner's publication decision.
 
 ## Outcomes & Retrospective
 
-_pending_
+**Delivered:**
+
+- Signed desktop builds select R2 (default) or GitHub at build time and seal
+  that choice into the app. Installed apps update and download packs only from
+  it.
+- The publisher releases to R2 with create-only, hash-verified uploads and a
+  feed written last.
+- Every release candidate must pass a pinned secret and privacy scan before
+  either transport publishes it.
+- The audit removed build-machine paths from the bundled PostgreSQL and the
+  frozen Python runtime.
+- The live R2 exercise passed, and the lock rule protects published versions.
+
+**Remaining limits:**
+
+- There is no hosted CI evidence: GitHub Actions has been inactive since
+  2026-09-20.
+- CI publication refuses until CI produces a reviewed scan receipt.
+- No signed or notarized candidate, live update or pack install has been
+  tested; that is part of the separate release gates.
+- Moving installed users between distributions is unsupported (owner decision;
+  deviation from #108's Constraints).
+
+**Lessons:**
+
+- Scanning must cover what actually ships. Expanding archives and the frozen
+  backend found leaks that a tree scan missed.
+- Cache policy and deletion interact: immutable edge caching means a delete
+  also needs a purge.

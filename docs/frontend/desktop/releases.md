@@ -61,10 +61,9 @@ this variable and have no runtime override.
 | `github`     | The repository's release feed | `https://github.com/<owner>/<repo>/releases/download/v<version>/` |
 
 An app only ever updates from the distribution it was built for, and it accepts
-only a feed in that distribution's format. The current tooling cannot yet
-produce a migration release that moves installed users to the other
-distribution: it would need a feed in the old distribution's format that
-points at a build sealed for the new one. `signing-report.json` records the
+only a feed in that distribution's format. Moving installed users between
+distributions is not supported: R2 is the distribution for releases, and a
+change would require users to download the new build manually. `signing-report.json` records the
 distribution sealed into the candidate, and the publisher refuses a candidate
 whose recorded distribution differs from the current selection.
 
@@ -279,14 +278,17 @@ Public preview and QA feeds are currently not authorized. A different private
 testing transport would require separate design/approval, not a build flag.
 If the owner later approves public distribution, after the required-name smoke
 passes, separately approve a **public testing preview**:
-the same signed app, packs and notices become a GitHub prerelease, without the
-stable update feed or final acceptance reports. It is not marked latest and the
-installed stable updater ignores it. This is still public distribution, so all
+the same signed app, packs and notices are published without the stable update
+feed or final acceptance reports, so the installed stable updater ignores them.
+On GitHub they form a prerelease that is not marked latest. On R2 they become
+public objects under `desktop/v<version>/`, permanently locked by the bucket
+rule, so a preview cannot be withdrawn and its version cannot be reused. This is still public distribution, so all
 source/license/signing approvals and a separate preview-publication approval
 are required. Do not publish a preview merely because a build succeeded.
 
 For a first release there is no existing signed predecessor. Build one for QA
-with the same app ID/Team ID and a dedicated public QA distribution repository.
+with the same app ID/Team ID and a dedicated public QA destination (a separate
+GitHub repository or R2 base URL in reviewed QA release inputs).
 After explicit authorization, mirror the exact candidate ZIP/feed/packs there
 to test the updater before production promotion. The candidate's own embedded
 policy may point to production after replacement. The older private QA build
@@ -294,8 +296,8 @@ must contain the candidate's exact compatible pack entries, including their
 production-preview URLs; otherwise it tests incompatible-pack retention, not
 preservation of an active compatible pack. Configure this through reviewed QA
 release inputs committed to `main`, not by changing an installed profile. Do not add a runtime feed URL
-override or give installed apps a private-repository token. Creating that QA
-repository or publishing to it is a separate operator action, not something this
+override or give installed apps a token. Creating that QA destination or
+publishing to it is a separate operator action, not something this
 workflow silently does. Without this native upgrade evidence, stable promotion stays
 closed.
 
@@ -365,8 +367,9 @@ If CI publication is configured, the initial release does not dispatch
 deferred. After committing reviewed Parakeet/core inputs, dispatch `release`. The workflow checks/tests,
 stages/audits, signs the candidate, and runs the required-name fresh-profile smoke. With
 `publish=false` it stops there. With `publish=true`, a protected preview job first
-requires explicit approval for public testing. It uploads immutable candidate
-assets/notices as a prerelease, leaving the stable feed private. The stable
+requires explicit approval for public testing. It publishes the immutable
+candidate assets and notices as a preview (a GitHub prerelease, or locked R2
+version objects) without changing the stable feed. The stable
 publication job then waits at a different protected environment while you test
 native behavior and the actual upgrade. Only approve it after supplying the exact
 manual receipt. Inspect artifacts at each gate; do not approve in anticipation.
@@ -427,6 +430,10 @@ new version for corrections.
   Pass its account ID, access key ID and secret as `ANIMAMA_R2_ACCOUNT_ID`,
   `ANIMAMA_R2_ACCESS_KEY_ID` and `ANIMAMA_R2_SECRET_ACCESS_KEY` for the publish
   command only; never commit, print or package them.
+- Versioned objects are cached at Cloudflare's edge for up to a year. Deleting
+  an object from the bucket does not remove cached copies; purge the exact URLs
+  (Caching → Configuration → Custom Purge) as well. The feed is served
+  `no-cache`; do not add a cache rule that caches `desktop/latest-mac.yml`.
 
 The canonical generated evidence is the fixed set in `desktop/release/publish`,
 with `SHA256SUMS.txt` and `signing-report.json`. See the [evidence map](release-process.md#evidence-and-actual-artifact-names)

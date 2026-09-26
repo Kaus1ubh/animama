@@ -4,9 +4,9 @@ The manual release process builds and reviews exact artifacts from `main`, then
 uses separate preview and stable publication commands. `raymond-van` is the
 configured maintainer. CI publication is not configured as the release path.
 
-No public release is accepted. A local signed candidate can be built while the
-configured distribution repository remains private: its builder does not check
-repository visibility or upload release assets. Signing, notarization, complete
+No public release is accepted. A local signed candidate can be built before the
+selected distribution serves anything: its builder does not contact the
+destination or upload release assets. Signing, notarization, complete
 starter inputs and exact inventory review are still required. Public preview and
 stable publication require distinct approval and anonymous download availability.
 The commands below are a runbook; they do not authorize publication or visibility
