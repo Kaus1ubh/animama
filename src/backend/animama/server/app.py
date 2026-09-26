@@ -71,7 +71,9 @@ def create_local_app(
 
             return {
                 "schema_version": 1,
-                "runtime_version": application.version,
+                # The desktop app version, not this API's schema version: the
+                # supervisor refuses a backend reporting any other value.
+                "runtime_version": os.getenv("ANIMAMA_DESKTOP_APP_VERSION", application.version),
                 "build_id": os.getenv("ANIMAMA_DESKTOP_BUILD_ID", "development"),
                 "alembic_head": ScriptDirectory.from_config(alembic_config()).get_current_head(),
                 "installation_principal_id": state.principal_id,
