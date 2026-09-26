@@ -57,8 +57,8 @@ export async function probeParakeetWebgpu({
 
 /**
  * Swap in the GPU encoder for a WebGPU load. It belongs to its own pack, so it
- * never carries the base pack's `?v=` version; the server revalidates it by
- * its SHA-256 ETag instead.
+ * never carries the base pack's `?v=` version. Desktop revalidates it by its
+ * SHA-256 ETag; self-host serves the mounted file `no-cache`.
  */
 export function withBackendEncoder<T extends { encoderUrl: string }>(
   urls: T,

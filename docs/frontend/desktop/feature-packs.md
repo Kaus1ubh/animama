@@ -20,7 +20,9 @@ publicly served cannot deliver packs.
 The GPU speech encoder is offered only beside App Settings → Advanced →
 Experimental → "GPU-accelerated offline speech (WebGPU)", after the renderer
 finds a WebGPU adapter. The general pack list shows it only when its files
-remain installed, for removal or recovery.
+remain installed, for removal or recovery. If the encoder was left inactive
+because offline speech was missing at startup, reinstall offline speech and
+relaunch the app to reactivate it without downloading again.
 
 The expanded-content and document-processing packs are deferred from the
 initial catalog and hidden in Settings on a fresh installation. If old pack files remain,

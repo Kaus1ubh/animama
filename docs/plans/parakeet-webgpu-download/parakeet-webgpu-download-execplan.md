@@ -79,9 +79,9 @@ Excluded, as in #144:
 - [x] Owner review of this plan (2026-09-26): D1–D4 decided; Phases 1–3 authorized.
 - [x] Phase 1 (#147, `3fb6708`): `parakeet-stt-webgpu` pack produced and dependency-aware. Review #2 passed; the pack inventory hash (`76101656…`) awaits owner approval before a release build.
 - [x] Phase 2 (#148, `69ed94e`): Installed encoder served on desktop and self-host. Review #2 passed; built self-host verified at 200/404.
-- [x] Phase 3 (#149): Experimental download control and status. Review #3 passed; native desktop visual check is Phase 4.
+- [x] Phase 3 (#149, `88542f5`): Experimental download control and status. Review #3 passed; native desktop visual check is Phase 4.
 - [ ] Phase 4: Signed candidate and native acceptance (owner-gated).
-- [ ] Final integration review.
+- [x] Final integration review: passed (optional FI-F1 deferred).
 
 ## Surprises & Discoveries
 
@@ -525,9 +525,26 @@ Not applicable unless code changes are needed.
 
 ## Final integration review
 
-After Phases 1–3, review the combined behavior against every #144 acceptance
-item, reusing valid phase evidence. Confirm the base pack's inventory hash and
-CPU dictation behavior are unchanged.
+### Final Integration Review #1 Findings
+
+Independent `sdlc-reviewer` on `88542f5` against `b633af1`, reusing phase
+evidence. It traced the desktop flow from catalog to load, the removal and
+startup paths, self-host, and docs. The base pack is unchanged: inventory
+`455b7628…`, and its rebuilt archive `366c26a0…` is byte-identical to the
+published v0.1.0 archive. No required findings.
+
+- FI-F1: recovering a retained encoder after reinstalling the base downloads
+  it again, while a relaunch reactivates it without downloading.
+- FI-F2: a comment overstated ETag revalidation on self-host.
+- FI-F3: plan housekeeping (Phase 3 commit, this section, outcomes).
+
+### Final Integration Review #1 Revisions
+
+- FI-F1 deferred: `feature-packs.md` documents the relaunch path. Reactivating
+  a retained verified version before downloading is a follow-up.
+- FI-F2 and FI-F3 accepted and fixed.
+
+Result: pass. Native desktop acceptance remains Phase 4.
 
 ## Validation and acceptance
 
@@ -555,4 +572,28 @@ CPU dictation behavior are unchanged.
 
 ## Outcomes & Retrospective
 
-Not started.
+**Delivered in Phases 1–3 (agent-ready; owner acceptance pending):**
+
+- **Desktop pack.** `parakeet-stt-webgpu` is a dependency-aware optional pack
+  produced from the pinned model store. The release workflow acquires its
+  inputs.
+- **Serving.** Desktop serves the active encoder through a second verified
+  mount; built self-host serves an operator mount. Built apps probe instead of
+  reporting `unavailable_in_build`.
+- **Settings.** App Settings → Experimental offers the download only on
+  WebGPU-capable devices, with size, free space, progress, cancel, retry and
+  removal.
+
+**Remaining:**
+
+- The owner reviews the WebGPU pack inventory (`76101656…`) and the changed core
+  inventory before a release build.
+- Phase 4 native acceptance on a WebGPU Mac, then the next app release.
+- FI-F1 follow-up.
+
+**Lessons:**
+
+- Two packs serving related files need separate cache versions. A shared `?v=`
+  silently broke the desktop load, and only a two-version test exposed it.
+- Formatting docs with the web Prettier config reindents nested lists. Edit
+  docs by hand.
