@@ -35,6 +35,8 @@
     "runtime:document-worker": "node scripts/runtime/document-worker.mjs",
     "release:mac": "node scripts/runtime/release-gate.mjs mac",
     "release:scan": "node scripts/runtime/scan-release-candidate.mjs",
+    "models:stage": "node scripts/runtime/publish-models-r2.mjs stage",
+    "models:publish": "node scripts/runtime/publish-models-r2.mjs publish",
     "release:windows": "node scripts/runtime/release-gate.mjs windows",
     "smoke:mac": "node scripts/runtime/release-gate.mjs smoke-mac",
     "smoke:windows": "node scripts/runtime/release-gate.mjs smoke-windows",

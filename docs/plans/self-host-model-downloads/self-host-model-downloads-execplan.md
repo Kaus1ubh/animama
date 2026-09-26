@@ -99,8 +99,10 @@ Excluded:
   layout; O4 option A; O3 and O5–O8 as recommended.
 - [x] Phases 1–3 authorized (2026-09-26). Workspace: branch
   `feat/self-host-model-downloads` from `main` `4e5f663`.
-- [ ] Phase 1 (#173): Downloader adopted, extended and cataloged.
-- [ ] Phase 2 (#174): Create-only model publication command with a scan gate.
+- [x] Phase 1 (#173, `54b33dd`): Downloader adopted, extended and cataloged.
+  Review #2 passed.
+- [x] Phase 2 (#174): Create-only model publication command with a scan gate.
+  Review #2 passed; the scan and publication are Phase 4.
 - [ ] Phase 3 (#175): Built self-host serving and Experimental download control.
 - [ ] Phase 4: R2 publication and built self-host acceptance (owner-gated).
 - [ ] Final integration review.
@@ -138,9 +140,10 @@ Withdrawn alternatives are kept for context.
     - The encoder is uploaded exactly once. A notice or manifest edit publishes
       only that small file under a new hash, and the encoder URL in the catalog
       never changes.
-    - Before uploading, the command checks the public URL anonymously. If the
-      object already exists, it verifies the hash by download and skips the
-      PUT, so a retry or later run never re-sends 1.24 GB.
+    - Before uploading, the command asks the bucket (a signed S3 `HEAD`)
+      whether the key exists. An existing object is never uploaded again, so a
+      retry or later run never re-sends 1.24 GB; it is still verified by an
+      anonymous download.
     - Every object is created once with
       `Cache-Control: public, max-age=31536000, immutable`, as under `desktop/v`.
     - R2 has no directory listing, so "beside the weights" had no practical
@@ -222,6 +225,11 @@ Withdrawn alternatives are kept for context.
 
 - **Implementation decisions (agent, within the accepted outcome).**
     - The encoder asset ID is `parakeet-tdt-0.6b-v2-webgpu-encoder`.
+    - Phase 2 decides whether an object exists with a signed S3 `HEAD`, not an
+      anonymous public request (2026-09-26, after review finding N2). A public
+      404 can be stale right after an upload or from a cached 404, and would
+      have re-sent the encoder; the bucket's answer is authoritative. Public
+      verification still follows for every object.
     - The client selects the encoder source with a build define: `pack` for
       embedded desktop, `model-asset` for `vite build` (built self-host) and
       `operator` for Vite serve. The download control appears only for
@@ -315,8 +323,7 @@ This is expected, and the phase does not merge on its own.
   exit 0.
 - Not applicable: live download (the R2 object is published in Phase 4).
 
-**Commits:** plan `4666d9e`; merge of #162 `509e4e0`; phase commit recorded
-below.
+**Commits:** plan `4666d9e`; merge of #162 `509e4e0`; phase commit `54b33dd`.
 
 #### Code Review #1 Findings
 
@@ -374,8 +381,8 @@ with the release scan's handling of ONNX files.
       file.
     - It requires a passing scan receipt for exactly those files and hashes.
     - For each file (the manifest's files plus `manifest.json`), it first
-      requests `models/<model-id>/<file-sha256>/<file>` anonymously. An
-      existing object is hash-verified and skipped, never re-uploaded.
+      checks `models/<model-id>/<file-sha256>/<file>` with a signed S3 `HEAD`.
+      An existing object is never re-uploaded.
     - Otherwise it uploads the file create-only (`If-None-Match: *`), signed
       with its SHA-256, with an immutable `Cache-Control` and a content type
       from its suffix.
@@ -415,15 +422,72 @@ is verified and skipped without a PUT. The dry run lists four keys, each under
 its own file hash. No request reaches R2 in this
 phase.
 
-**Evidence, commits and review:** to be recorded here.
+**Implementation notes (agent, 2026-09-26):**
+
+- `r2-objects.mjs` holds the shared credentials, signed `HEAD`/`PUT`, public
+  `GET` and anonymous verification; `publish-r2.mjs` imports them unchanged in
+  behavior.
+- `optional-inputs.mjs` exports its model-store helpers, and the new
+  `resolveModelInputs` is shared with pack staging.
+- Commands (from `src/frontend/desktop`): `pnpm models:stage --model ID`,
+  `pnpm release:scan --candidate release/models/ID`, then
+  `pnpm models:publish --model ID --dry-run | --confirm-publication`. The
+  candidate directory is fixed; the existing scan is reused unchanged.
+- Transfer timeouts scale with size (about 99 minutes for the encoder).
+
+**Evidence (working tree before the phase commit):**
+
+- From `src/frontend`: `pnpm --filter animama-desktop test` 17 files, 330
+  tests passed; `pnpm desktop:check` exit 0;
+  `pnpm --filter animama-desktop prettier:check` flags only the pre-existing,
+  unchanged `scripts/runtime/review-packet.mjs` and `runtime/license-sources.json`.
+- `node --check` passes for the publish commands (also covered by tests).
+- Real store: `models:stage` staged four files; the dry run listed
+  `ATTRIBUTION.md` (`393d5928…`), `README.md` (`4f23ceb4…`),
+  `encoder-model.fp16.onnx` (`ad8bb0ac…62a2`, 1,238,960,452 bytes) and
+  `manifest.json` (`59867d06…`), each under its own hash, matching the catalog.
+- `models:publish --confirm-publication` without a scan exits 1 before reading
+  credentials or using the network.
+- Not run: the gitleaks scan (no pinned binary installed locally; installing
+  one needs owner approval) and any R2 request. Both belong to Phase 4.
 
 #### Code Review #1 Findings
 
-Pending.
+Independent `sdlc-reviewer`, initial review of the uncommitted tree on `54b33dd`.
+
+- **P2-F1 (required):** `publish-r2.mjs` imported `publicGet` and still
+  declared its own, a `SyntaxError` under plain Node that would break desktop
+  release publication; vitest hid it, and the full desktop suite failed one
+  packaging test.
+- **P2-F2 (required):** tests did not record PUT attempts, so a re-sent
+  encoder would still pass; the 412 path and PUT headers were untested.
+- **P2-F3 (required):** `models:stage --candidate .` would recursively replace
+  an arbitrary directory.
+- N1: filesystem errors with host paths could be printed. N2: a stale public
+  404 could still re-send the encoder; the fixed 20-minute timeout needs about
+  8.3 Mbit/s. N3: identity encoding for notices is sound. N4: duplicated
+  projection. N5: credentials read before the scan check.
 
 #### Code Review #1 Revisions
 
-Pending.
+- P2-F1 accepted: duplicate removed; `publicGet` sends `headers` only when
+  given; tests run `node --check` on the three publish commands.
+- P2-F2 accepted: `fakeR2` records every PUT and answers signed `HEAD`s; tests
+  cover PUT headers, zero PUTs for a bucket-held encoder behind a stale public
+  404 (first run and rerun), and the 412 path with matching and differing
+  bytes.
+- P2-F3 accepted: `--candidate` removed; the directory is fixed.
+- N1, N2, N4, N5 accepted: generic message for filesystem errors; signed
+  `HEAD` existence check and size-scaled timeouts; `shape` helper; scan checked
+  before credentials. N3: no change.
+
+#### Code Review #2 Findings
+
+Targeted recheck (same reviewer): all fixes verified, no regressions. Result:
+pass; one repair round used. Non-blocking follow-ups applied: plan wording for
+the signed `HEAD` (recorded above), a leftover test comment removed. The shared
+"run pnpm desktop:release:scan" hint in `verifyScanReceipt` was left unchanged;
+`models:stage` prints the exact `--candidate` scan command instead.
 
 ### Phase 3: Built self-host serving and Experimental download control
 

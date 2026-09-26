@@ -150,6 +150,15 @@ the same FastAPI code on desktop and self-host, and it needs no restart.
   model assets. After a restore they report not installed; download them again
   in the app.
 
+Each catalog URL names an object published once under
+`https://downloads.animama.ai/models/<model-id>/<file-sha256>/<file-name>`,
+with the entry's `size` and `sha256` copied from the model's tracked manifest.
+Tests bind the entry to that manifest, and the
+[model publish command](../../frontend/desktop/releases.md#model-objects)
+refuses to publish a set whose objects do not match the catalog. Publish the
+object before a release ships its catalog entry; until then an install fails
+as `asset_download_failed`.
+
 Use the downloader for restart-free data files the running app can pick up,
 such as optional voices. Large bundles that need a service switch, such as the
 desktop Parakeet feature packs, stay in Electron's pack manager.
