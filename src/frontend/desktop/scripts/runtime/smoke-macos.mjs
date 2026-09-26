@@ -310,10 +310,10 @@ export async function smokeMac(args) {
     step = "provider-and-first-run";
     // Set before submission: even a failed save response may have persisted it.
     providerMayBeSaved = true;
-    await page.getByLabel("API key", { exact: true }).fill(provider);
-    await page.getByRole("button", { name: "Save key", exact: true }).click();
+    await page.getByLabel("OpenAI", { exact: true }).fill(provider);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
     await page
-      .getByText("Key saved. Local services are ready.", { exact: true })
+      .getByText("Change saved. Local services are ready.", { exact: true })
       .waitFor({ timeout: 120_000 });
     const providerStatuses = await page.evaluate(() =>
       window.animamaDesktop.credentials.list(),
@@ -608,7 +608,8 @@ export async function smokeMac(args) {
       report.passed = false;
       report.cleanup_required =
         "Remove the temporary OpenAI credential from this test account in Animama settings.";
-      report.failed_step = "temporary-provider-cleanup";
+      // Keep the step that failed first; cleanup failure is reported separately.
+      report.failed_step ??= "temporary-provider-cleanup";
     });
     if (application)
       await close().catch(() => {
