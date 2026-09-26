@@ -922,6 +922,11 @@ describe("runtime supervision", () => {
       current.runtime.rendererCapability,
     );
     expect(backend.env.ANIMAMA_INTERNAL_GATEWAY_TOKEN).toBeUndefined();
+    // The backend echoes this in /_desktop/health; a hard-coded API version
+    // there blocked startup of any app version other than 0.1.0.
+    expect(backend.env.ANIMAMA_DESKTOP_APP_VERSION).toBe(
+      current.options.appVersion,
+    );
     const mount = JSON.parse(backend.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON!);
     expect(mount.files).toEqual([
       {

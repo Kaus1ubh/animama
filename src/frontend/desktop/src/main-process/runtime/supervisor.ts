@@ -212,6 +212,7 @@ export class RuntimeSupervisor {
           }
         : {}),
       ANIMAMA_DESKTOP_BUILD_ID: this.manifest.build_id,
+      ANIMAMA_DESKTOP_APP_VERSION: this.options.appVersion,
       ANIMAMA_LOCAL_BIND_HOST: "127.0.0.1",
       ANIMAMA_LOG_TO_FILE: "0",
       ANIMAMA_LOG_TO_CONSOLE: "1",
