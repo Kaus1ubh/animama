@@ -75,7 +75,9 @@ Two further rules apply:
       passed); manual desktop acceptance is owner gate G3.
 - [x] Final integration review: pass with owner gates.
 - [ ] Owner gates G1–G4 (see Validation and acceptance).
-- [ ] PR opened; hosted Validation; exact-candidate owner merge approval.
+- [x] PR https://github.com/raymond-van/animama/pull/141 opened (validated
+      revision `51c976a`).
+- [ ] Hosted Validation; owner gates G1–G4; exact-candidate owner merge approval.
 
 ## Surprises & Discoveries
 
