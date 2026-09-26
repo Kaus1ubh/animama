@@ -144,8 +144,8 @@ Boundaries:
   Anima UI remove a key for "Use app default". The existing resolution order
   already honours absence.
 - **2026-09-25, agent (merge of main).** Main added an "Experimental" section
-  with the WebGPU offline-speech toggle. It is kept as a searchable
-  "Experimental" section between Advanced and About, in the flat row style.
+  with the WebGPU offline-speech toggle. At the owner's request it is an
+  "Experimental" group at the end of Advanced, in the flat row style.
 
 ## Phased implementation
 

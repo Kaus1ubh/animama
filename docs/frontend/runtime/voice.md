@@ -271,8 +271,8 @@ The Parakeet worker is loaded with:
 
 #### Experimental WebGPU backend
 
-App Settings → **Experimental** → "GPU-accelerated offline speech (WebGPU)" sets
-`speech.stt_parakeet_webgpu`, which is off by default.
+App Settings → **Advanced** → **Experimental** → "GPU-accelerated offline
+speech (WebGPU)" sets `speech.stt_parakeet_webgpu`, which is off by default.
 
 When the setting is on, `loadClientParakeetWorker` probes
 (`getParakeetWebgpuStatus`) for two things:

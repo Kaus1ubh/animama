@@ -14,7 +14,6 @@ import {
   AudioLines,
   Brain,
   Database,
-  FlaskConical,
   Info,
   Keyboard,
   KeyRound,
@@ -206,7 +205,6 @@ const sections = [
   "API Keys",
   "Data",
   "Advanced",
-  "Experimental",
   "About",
 ] as const;
 type ApplicationSettingsSection = (typeof sections)[number];
@@ -233,7 +231,6 @@ const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
   "API Keys": KeyRound,
   Data: Database,
   Advanced: SlidersHorizontal,
-  Experimental: FlaskConical,
   About: Info,
 };
 
@@ -246,7 +243,7 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   "Visual style":
     "Override colours for the mode in effect. Light and Dark keep separate colours.",
   "Desktop shortcuts": "Press to talk also supports a mouse button.",
-  "Offline speech": "Experimental features may not work on every device.",
+  Experimental: "These features may not work on every device.",
 };
 
 const SELECT_TRIGGER_CLASS_NAME = "w-56";
@@ -1183,14 +1180,6 @@ export function ApplicationSettingsModal({
       ),
     },
     {
-      id: "parakeet-webgpu",
-      section: "Experimental",
-      group: "Offline speech",
-      label: "GPU-accelerated offline speech (WebGPU)",
-      keywords: ["parakeet", "speech-to-text", "dictation", "gpu", "preview"],
-      render: () => <ParakeetWebgpuSetting disabled={isBusy} />,
-    },
-    {
       id: "about-version",
       section: "About",
       group: "Animama",
@@ -1697,6 +1686,21 @@ export function ApplicationSettingsModal({
           }
         />
       ),
+    },
+    {
+      id: "parakeet-webgpu",
+      section: "Advanced",
+      group: "Experimental",
+      label: "GPU-accelerated offline speech (WebGPU)",
+      keywords: [
+        "parakeet",
+        "speech-to-text",
+        "dictation",
+        "gpu",
+        "preview",
+        "experimental",
+      ],
+      render: () => <ParakeetWebgpuSetting disabled={isBusy} />,
     },
   ];
 
