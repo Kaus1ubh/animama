@@ -67,8 +67,8 @@ Line numbers are at the baseline.
 ## Progress
 
 - [ ] Phase 1 (#150): Candidate inventory, encoding and screening tools, listening page.
-      Ends at gate **G1**, owner curation.
-- [ ] Phase 2 (#151): Shared backend asset downloader. Independent of G1.
+      Agent work complete (`a297da5`, Review #2 passed); waiting on gate **G1**, owner curation.
+- [x] Phase 2 (#151): Shared backend asset downloader. Complete 2026-09-26; Review #2 passed.
 - [ ] Phase 3 (#152): Curated assets, manifests and licences. Needs G1. R2 publication
       is gate **G2**.
 - [ ] Phase 4 (#153): Runtime voice catalog and grouped selector. Needs Phases 2 and 3.
@@ -494,14 +494,48 @@ Result: **pass**, with no blocking findings. Optional findings:
 
 #### Code Review #1 Revisions
 
-- **F1, F2, F3, F7: accepted.** Fixes are in progress; results will be
-  recorded here.
+- **F1, fixed.**
+  - A per-asset removing marker is held from cancellation through the guards
+    to deletion, and always cleared in `finally`.
+  - `:install` and a second DELETE return 409 `model_asset_busy` while it is
+    held.
+  - OSError during removal returns `failed`/`asset_store_failed`.
+  - Tests: the concurrent-install test and the store-error test.
+- **F2, fixed.** A non-identity `content-encoding` is rejected before the body
+  is read, and raw bytes are streamed, so size and hash apply to the wire
+  bytes. A gzip case is added.
+- **F3, fixed.** Ports other than 443 are rejected in both the catalog and the
+  fetcher, with tests.
+- **F7, fixed.** `verified_file_response` takes an optional `not_found`. The
+  content route returns 404 `model_asset_not_installed`; the Parakeet and
+  static 404 shapes are unchanged. Covered by a test.
 - **F4: accepted as a record change.** Captured under Deviations above.
 - **F5: rejected.** The reviewer confirmed that settings and
   `resolve_local_runtime_paths` resolve the same data root on desktop
   (`ANIMAMA_DATA_ROOT=<userData>/data`) and on Compose.
 - **F6: deferred.** Phase 4 reads `catalog`, and `wait()` supports the tests.
   If neither is used by the end of Phase 4, remove them then.
+
+#### Code Review #2 Findings
+
+This was a targeted recheck of F1, F2, F3 and F7: all resolved, with no
+regressions. The reviewer confirmed:
+- the removing marker is cleared on every path, including cancellation;
+- a download from before the removal is awaited before the rmtree;
+- LocalAssets 404s are unchanged;
+- the docs are accurate.
+
+Checks:
+- asset and local-HTTP tests: 139 passed;
+- ruff, format and mypy: clean;
+- import boundary: 0.
+
+Result: **pass**. The implementer also ran `pnpm openapi-ts:check` (current)
+and `pnpm check` (pass). The coordinator ran the full
+`uv run --no-sync pytest -q`: 1975 passed, 7 skipped.
+
+Review budget used: the initial review and one repair round. Phase 2 is
+complete.
 
 ### Phase 3: Curated assets, manifests and licences
 
