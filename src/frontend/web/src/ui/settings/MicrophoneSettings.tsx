@@ -98,6 +98,16 @@ export function MicrophoneDeviceSetting({
       device.deviceId !== "default" &&
       device.deviceId !== "communications",
   );
+  // Chromium lists the OS default as a "default" alias labelled
+  // "Default - <device name>"; show which device that currently is.
+  const systemDefaultName =
+    inputs
+      .find((device) => device.deviceId === "default")
+      ?.label.replace(/^Default\s*-\s*/, "")
+      .trim() || null;
+  const systemDefaultLabel = systemDefaultName
+    ? `System default (${systemDefaultName})`
+    : "System default";
   const needsPermission =
     inputs.length > 0 && inputs.every((device) => !device.label);
   const selectedMissing =
@@ -125,7 +135,7 @@ export function MicrophoneDeviceSetting({
         selectedMissing
           ? "The selected microphone isn't connected; using the system default."
           : usesSystemRecognizer
-            ? "Browser speech recognition always uses the system default microphone."
+            ? `Browser speech recognition always uses the system default microphone${systemDefaultName ? ` (${systemDefaultName})` : ""}.`
             : "Used for dictation, Voice Mode and press to talk."
       }
       control={
@@ -151,7 +161,9 @@ export function MicrophoneDeviceSetting({
               <SelectValue placeholder="System default" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={SYSTEM_DEFAULT}>System default</SelectItem>
+              <SelectItem value={SYSTEM_DEFAULT}>
+                {systemDefaultLabel}
+              </SelectItem>
               {devices.map((device, index) => (
                 <SelectItem key={device.deviceId} value={device.deviceId}>
                   {device.label || `Microphone ${index + 1}`}
