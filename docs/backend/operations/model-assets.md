@@ -128,30 +128,6 @@ removing unused versions. Cleanup is explicit; the application does not evict mo
 self-host operators needing durable availability should choose persistent storage.
 Installed desktop packs remain separately owned under Application Support.
 
-## Downloaded model assets
-
-The backend's shared downloader installs individual pinned files on demand
-through [`/v1/model-assets`](../architecture/http-api.md#model-assets). It is
-the same FastAPI code on desktop and self-host, and it needs no restart.
-
-- Only files in the release's packaged catalog
-  (`src/backend/animama/resources/model-assets.v1.json`) are fetched, over
-  HTTPS from `downloads.animama.ai` on the default port, without following
-  redirects or accepting compressed transfer encodings.
-- Each file is streamed to `<data_root>/staging/model-assets/`, checked for its
-  exact size and SHA-256, then renamed into
-  `<data_root>/internal/model-assets/<asset_id>/<sha256>`. A failed or
-  cancelled download leaves nothing installed; staging is cleared at startup.
-- `<data_root>` is `ANIMAMA_DATA_ROOT`: `<userData>/data` on desktop and
-  `/var/lib/animama/data` in Compose, so installs persist with that data.
-
-Use the downloader for restart-free data files the running app can pick up,
-such as optional voices. Large bundles that need a service switch, such as the
-desktop Parakeet feature packs, stay in Electron's pack manager.
-
-To force a reinstall, delete `<data_root>/internal/model-assets/<asset_id>/`
-and install again. Never edit an installed file in place.
-
 ## Optional Parakeet WebGPU encoder
 
 The experimental "GPU-accelerated offline speech (WebGPU)" setting uses an

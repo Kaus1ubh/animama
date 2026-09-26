@@ -14,7 +14,6 @@ from . import (
     logs,
     memory_entries,
     memory_manager,
-    model_assets,
     model_provider,
     runtime_capabilities,
     runtime_context,
@@ -33,7 +32,6 @@ router.include_router(anima.router)
 router.include_router(anima_loadouts.router)
 router.include_router(anima_runtime.router)
 router.include_router(model_provider.router)
-router.include_router(model_assets.router)
 router.include_router(runtime_context.router)
 router.include_router(runtime_capabilities.router)
 router.include_router(safety.router)
