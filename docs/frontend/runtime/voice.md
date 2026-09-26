@@ -290,6 +290,16 @@ When the setting is on, `loadClientParakeetWorker` probes
 | `model_missing`        | `wasm`                                                 | GPU speech model not installed |
 | `unavailable_in_build` | `wasm`                                                 | Not available in this build    |
 
+`unavailable_in_build` occurs only in a Vite stack that overrides the base
+model URL; built apps always probe. With an adapter and a `model_missing`
+result, packaged desktop shows a download control below the setting when its
+catalog includes the `parakeet-stt-webgpu` pack. It shows the download size
+and required free space, progress, cancel, retry and removal, and asks for
+offline speech recognition first when `parakeet-stt` is not installed. Turning
+the setting on without the encoder points at that control. Devices without an
+adapter are never offered the download; retained encoder files stay removable.
+Self-host shows operator instructions instead.
+
 Loading behavior:
 
 - **Switching backend.** ORT keeps one WASM build per worker, so switching

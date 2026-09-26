@@ -13,9 +13,12 @@ export type ParakeetWebgpuStatus =
   | "available"
   /** No `navigator.gpu` or no adapter on this device/browser. */
   | "unsupported"
-  /** The build serves the route, but the optional model set is not installed. */
+  /**
+   * An adapter exists but the encoder is not installed: desktop can download
+   * its pack; self-host needs the operator-mounted set.
+   */
   | "model_missing"
-  /** This build (built self-host or packaged desktop) does not serve the model. */
+  /** This build never serves the encoder (a Vite stack with a base-URL override). */
   | "unavailable_in_build";
 
 export type ParakeetBackendReason =

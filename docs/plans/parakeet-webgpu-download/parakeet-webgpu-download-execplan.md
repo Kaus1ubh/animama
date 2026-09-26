@@ -78,8 +78,8 @@ Excluded, as in #144:
 
 - [x] Owner review of this plan (2026-09-26): D1–D4 decided; Phases 1–3 authorized.
 - [x] Phase 1 (#147, `3fb6708`): `parakeet-stt-webgpu` pack produced and dependency-aware. Review #2 passed; the pack inventory hash (`76101656…`) awaits owner approval before a release build.
-- [x] Phase 2 (#148): Installed encoder served on desktop and self-host. Review #2 passed; built self-host verified at 200/404.
-- [ ] Phase 3 (#149): Experimental download control and status.
+- [x] Phase 2 (#148, `69ed94e`): Installed encoder served on desktop and self-host. Review #2 passed; built self-host verified at 200/404.
+- [x] Phase 3 (#149): Experimental download control and status. Review #3 passed; native desktop visual check is Phase 4.
 - [ ] Phase 4: Signed candidate and native acceptance (owner-gated).
 - [ ] Final integration review.
 
@@ -403,13 +403,92 @@ reverted to the four-line serving edit. Result: pass; one repair round unused.
 
 **Completion:** checks pass, and the browser evidence covers the visible states.
 
+**Implementation notes (agent, 2026-09-26):**
+
+- The status name stays `model_missing`: the probe already checks the adapter
+  first, so it means "adapter present, encoder not installed". A rename to
+  `not_installed` would only add churn. `unavailable_in_build` now occurs only
+  in a Vite stack with a base-URL override.
+- The dependency message names the location, General → Optional feature packs,
+  instead of rendering a link. The Settings modal has no deep-link target for a
+  single pack control.
+- The toggle-on prompt and container wiring are covered by the presentational
+  component's tests; the hook-driven container has no render test.
+
+**Evidence:**
+
+- `pnpm check`, `pnpm web:lint`, `pnpm web:test` (317 files / 1919 tests),
+  `pnpm build`, `pnpm desktop:check` and desktop vitest (315 tests) passed.
+- Built self-host stack rebuilt from this tree, in the in-app browser at a
+  desktop viewport:
+    - With the encoder mounted, Experimental reads "Available on this device…",
+      which replaces the old "Not available in this build yet".
+    - Without it, the status shows the operator instructions.
+    - No download control appears on self-host.
+    - At 600 px wide there is no horizontal overflow.
+- The desktop download control is verified by static-render tests only (no
+  Electron bridge in a browser). Its native visual check belongs to Phase 4.
+
 #### Code Review #1 Findings
 
-Pending.
+Independent `sdlc-reviewer`, initial review of the uncommitted tree on `69ed94e`.
+
+- **P3-F1 (required):** the dependency message pointed at a nonexistent
+  "Settings → Speech" section.
+- **P3-F2 (required):** after an interrupted or refused removal (`failed` while
+  the version stays active), the control offered a no-op "Retry download".
+- **P3-F3 (required):** the plan still specified `not_installed`, a link and a
+  new-status test.
+- P3-F4: bridge-level errors were not shown in the control.
+- P3-F5: the panel's reload warning was missing.
+- P3-F6: desktop could briefly show the self-host operator text.
+- P3-F7: the container wiring has no render test.
+- P3-F8: `update_available` was labelled as a fresh download.
+- Docs: `voice.md` omitted that retained files stay removable.
 
 #### Code Review #1 Revisions
 
-Pending.
+- P3-F1 accepted: the message names General → Optional feature packs; no link
+  (recorded above).
+- P3-F2 accepted: an active catalog version counts as installed; tested.
+- P3-F3 accepted: implementation notes above.
+- P3-F4, P3-F5, P3-F6 and P3-F8 accepted:
+    - the bridge error appears as an alert;
+    - the reload warning is shown;
+    - desktop shows "not included in this app version" once its pack
+      catalog is loaded, and otherwise the operator text (revised in round 2);
+    - `update_available` reads "Install compatible version".
+- P3-F7 deferred: hook-level rendering needs a DOM test environment that the
+  web suite does not use (`environment: "node"`). The native check in Phase 4
+  covers the flow.
+- Docs accepted.
+
+Verification: web `tsc -b`, ESLint, and settings tests (15 passed).
+
+#### Code Review #2 Findings
+
+Targeted recheck (same reviewer): P3-F1–F5 and P3-F8 verified. **P3-F9
+(required):** the P3-F6 "Checking…" text never cleared where the pack bridge is
+permanently unavailable (`desktop:dev` external runtime, a failed status call,
+or a non-main window), hiding the operator instructions. Non-blocking: the
+failure line was hidden after an interrupted removal; plan list indentation.
+
+#### Code Review #2 Revisions
+
+- P3-F9 accepted: removed the "Checking…" branch. Desktop shows "not included
+  in this app version" only once its catalog is loaded; otherwise the operator
+  text.
+- The failure line now shows whenever the pack reports `failed`.
+- Plan formatting fixed.
+
+Verification: web `tsc -b`, ESLint, settings tests (15 passed).
+
+#### Code Review #3 Findings
+
+Final targeted recheck: P3-F9 and the failure line verified; plan record
+current. Non-blocking: packaged desktop may briefly show the operator text
+before its catalog loads (accepted trade-off); the hook's generic alert says
+"below". Result: pass.
 
 ### Phase 4: Signed candidate and native acceptance (owner-gated)
 
