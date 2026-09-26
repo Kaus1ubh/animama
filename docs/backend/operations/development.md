@@ -1265,6 +1265,8 @@ ANIMAMA_CHAT_TITLE_GENERATION_ENABLED ANIMAMA_CHAT_COMPACTION_ENABLED
 ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS
 ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER ANIMAMA_CHAT_TITLE_GENERATION_MODEL
 ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT ANIMAMA_LLM_SKIP
+ANIMAMA_COMPANION_SAFETY_ENABLED ANIMAMA_AI_NOTICE_ENABLED ANIMAMA_AI_NOTICE_REMINDER_HOURS
+ANIMAMA_CRISIS_DETECTION_ENABLED ANIMAMA_CRISIS_RESOURCES_PATH
 """.split()
 inherited = {name: os.environ[name] for name in names if name in os.environ}
 baseline = dict(os.environ)
@@ -1457,6 +1459,21 @@ Core:
 - `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`
 - `ANIMAMA_CHAT_COMPACTION_PROVIDER`
 - `ANIMAMA_CHAT_COMPACTION_MODEL`
+
+Companion safety (operator settings; the Companion Guardrails are never
+configurable, see the [crisis protocol](../../safety/crisis-protocol.md)):
+
+- `ANIMAMA_COMPANION_SAFETY_ENABLED` (default `true`; `false` turns off the AI
+  notice, OpenAI Responses moderation and the crisis card
+  together)
+- `ANIMAMA_AI_NOTICE_ENABLED` (default `true`)
+- `ANIMAMA_AI_NOTICE_REMINDER_HOURS` (default `3`, from 0.25 to 168; larger
+  values relax the reminder cadence; an out-of-range value stops startup)
+- `ANIMAMA_CRISIS_DETECTION_ENABLED` (default `true`)
+- `ANIMAMA_CRISIS_RESOURCES_PATH` (optional replacement crisis-resource table;
+  an invalid table stops startup)
+
+Startup logs a warning for each setting that weakens a default.
 
 Model providers:
 

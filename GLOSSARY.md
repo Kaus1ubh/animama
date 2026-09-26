@@ -93,6 +93,27 @@ Per-Anima preferences stored in `anima_settings`. A memory or emotion value
 here overrides the App settings default for that Anima only; choosing
 "App default" removes the override. Distinct from the **Loadout**, which selects content.
 
+## Companion guardrail
+
+The fixed, server-owned **Companion Guardrails** instruction section that ends
+every chat turn's provider instructions: honesty about being an AI, no
+therapist claims, no manipulative retention and a caring crisis response. No
+identity, memory, setting or safety switch removes it; see
+[ADR 0008](docs/adr/0008-non-overridable-companion-guardrail.md).
+
+## AI notice
+
+The app-rendered line reminding the user that an Anima is an AI, not a person.
+The backend decides when it is due (a start notice on the first turn of each
+local day, and a reminder during a long continuing interaction); it is not
+assistant text and is never spoken or saved in the chat.
+
+## Continuing interaction
+
+A run of turns with the same installation owner, across Animas, where each turn
+starts less than 30 minutes after the previous one. AI-notice reminders are
+measured from its start or the last notice, whichever is later.
+
 ## Using these terms
 
 For implemented behavior, consult the [backend](docs/backend/README.md) and

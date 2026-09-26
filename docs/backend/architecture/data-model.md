@@ -171,6 +171,17 @@ User Profile router schema -> UserProfileService -> UserProfileRepository -> SQL
 See [Local User Profile](../features/user-profiles-and-usernames.md) for the
 current API and privacy rules.
 
+### Companion Safety State
+
+`ORMCompanionSafetyState` maps `companion_safety_state`, one row per owner
+principal keyed by `user_id`. It never stores message content. `age_status` is
+`unknown`, `adult` or `minor` (default `unknown`), with nullable
+`age_status_source` (`self_attestation`) and `age_status_recorded_at`; first-run
+completion records `adult` in the same transaction. The AI-notice cadence uses
+`last_notice_at`, `last_notice_local_date`, `interaction_started_at`, and
+`last_turn_started_at`; `chat:sse` locks the row while it decides whether a
+notice is due. See [companion safety](../runtime/chat.md#companion-safety).
+
 ### Content Catalog And Anima Loadouts
 
 Each valid catalog item owns its current readable revision, registered files,
@@ -599,6 +610,8 @@ rows by default and exposes them only with `include_internal=true`.
 Settings models store user-level settings and anima-level settings. Anima
 settings affect dispatch behavior, including memory influence, memory updates,
 emotional analysis, and presentation flags for animation or visual effects.
+User preferences may hold `safety.crisis_resource_region` and
+`safety.reminder_hours`; malformed values fall back to defaults.
 
 ### Avatar And Uploads
 

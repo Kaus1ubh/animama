@@ -30,12 +30,22 @@ class UserFileProcessingCapability(BaseModel):
     supported_extensions: list[str]
 
 
+class CompanionSafetyCapability(BaseModel):
+    """Operator safety configuration; owner preferences are in user settings."""
+
+    enabled: bool
+    ai_notice_enabled: bool
+    crisis_detection_enabled: bool
+    operator_reminder_hours: float
+
+
 class RuntimeCapabilities(BaseModel):
     schema_version: Literal[1] = 1
     runtime_kind: Literal["desktop", "self_hosted_web"]
     user_file_processing: UserFileProcessingCapability
     offline_speech_enabled: bool
     offline_speech_asset_version: str | None
+    companion_safety: CompanionSafetyCapability
 
 
 @router.get("/v1/runtime-capabilities", response_model=RuntimeCapabilities)
@@ -58,7 +68,14 @@ async def get_runtime_capabilities(
             last_heartbeat_at = heartbeat.heartbeat_at
             state = "ready" if heartbeat.heartbeat_at >= datetime.now(UTC) - timedelta(seconds=20) else "stale"
     desktop = bool(runtime_settings.animama_desktop_control_token)
+    safety = runtime_settings.companion_safety
     return RuntimeCapabilities(
+        companion_safety=CompanionSafetyCapability(
+            enabled=safety.enabled,
+            ai_notice_enabled=safety.effective_ai_notice_enabled,
+            crisis_detection_enabled=safety.effective_crisis_detection_enabled,
+            operator_reminder_hours=safety.reminder_interval.total_seconds() / 3600,
+        ),
         runtime_kind="desktop" if desktop else "self_hosted_web",
         offline_speech_enabled=runtime_settings.animama_parakeet_stt_enabled,
         offline_speech_asset_version=runtime_settings.animama_parakeet_asset_version,

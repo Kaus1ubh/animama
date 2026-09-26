@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import os
 
 from fastapi import FastAPI, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from animama.app.safety.config import safety_override_warnings
 from animama.local.database import LocalDatabase
 from animama.local.http.composition import install_local_http
 from animama.logging_config import configure_logging
@@ -19,6 +21,8 @@ from animama.server.local_runtime import initialize_local_runtime
 from animama.server.routers import router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
 from animama.server.telemetry import setup_telemetry
+
+logger = logging.getLogger(__name__)
 
 
 def create_local_app(
@@ -112,6 +116,11 @@ def create_local_app(
             configure_logging()
         except Exception:
             pass
+
+    @application.on_event("startup")
+    async def warn_companion_safety_overrides() -> None:
+        for warning in safety_override_warnings(local_settings.companion_safety):
+            logger.warning("Companion safety override: %s", warning)
 
     @application.on_event("startup")
     async def init_model_clients() -> None:  # pragma: no cover - simple IO

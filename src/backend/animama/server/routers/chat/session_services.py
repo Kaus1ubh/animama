@@ -21,7 +21,7 @@ from .setup_helpers import chat_manager
 _T = TypeVar("_T")
 
 
-async def _with_short_lived_session(session_factory: Any, operation: Callable[[Any], Awaitable[_T]]) -> _T:
+async def with_short_lived_session(session_factory: Any, operation: Callable[[Any], Awaitable[_T]]) -> _T:
     session = session_factory()
     try:
         return await operation(session)
@@ -49,7 +49,7 @@ class SessionBackedChatTurnRecorder:
         async def _record(session: Any) -> Any:
             return await self._chat_manager_factory(session).record_turn(**kwargs)
 
-        return await _with_short_lived_session(self._session_factory, _record)
+        return await with_short_lived_session(self._session_factory, _record)
 
 
 def _timezone_from_preferences(preferences: dict[str, Any] | None) -> tuple[ZoneInfo, str]:
@@ -110,7 +110,7 @@ class SessionBackedMemoryEpisodeRecorder:
                 local_timezone=local_timezone,
             )
 
-        return await _with_short_lived_session(self._session_factory, _record)
+        return await with_short_lived_session(self._session_factory, _record)
 
 
 class SessionBackedMemoryToolService:
@@ -156,7 +156,7 @@ class SessionBackedMemoryToolService:
             )
             return await service.execute(**kwargs)
 
-        return await _with_short_lived_session(self._session_factory, _execute)
+        return await with_short_lived_session(self._session_factory, _execute)
 
     async def execute_native_patch(self, **kwargs: Any) -> str:
         """Execute one native Apply Patch call in a fresh committed session."""
@@ -173,4 +173,4 @@ class SessionBackedMemoryToolService:
             )
             return await service.execute_native_patch(**kwargs)
 
-        return await _with_short_lived_session(self._session_factory, _execute)
+        return await with_short_lived_session(self._session_factory, _execute)

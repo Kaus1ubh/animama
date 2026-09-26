@@ -1,6 +1,7 @@
 import type {
   PyAnimaChatRequest,
   PyAnimaDispatchOptions,
+  PyChatClientContext,
 } from "@animama/runtime-contracts/api-types";
 import { filterRequestableNativeTools } from "./model-provider-native-tools";
 
@@ -13,6 +14,7 @@ type BuildChatSseRequestBodyArgs = {
   attachedFileIds?: string[] | null;
   dispatchOptions?: PyAnimaDispatchOptions | null;
   requestableNativeTools?: string[] | null;
+  clientContext?: PyChatClientContext | null;
 };
 
 function hasDispatchOptions(
@@ -33,6 +35,7 @@ export function buildChatSseRequestBody({
   attachedFileIds,
   dispatchOptions,
   requestableNativeTools,
+  clientContext,
 }: BuildChatSseRequestBodyArgs): PyAnimaChatRequest {
   const trimmedModelProviderId =
     typeof modelProviderId === "string" ? modelProviderId.trim() : "";
@@ -70,5 +73,6 @@ export function buildChatSseRequestBody({
     ...(hasDispatchOptions(sanitizedDispatchOptions)
       ? { dispatch_options: sanitizedDispatchOptions }
       : {}),
+    ...(clientContext ? { client_context: clientContext } : {}),
   };
 }

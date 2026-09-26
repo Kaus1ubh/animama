@@ -17,7 +17,7 @@ from alembic.util import CommandError
 ROOT = Path(__file__).parents[1]
 BASELINE_MIGRATION = ROOT / "alembic" / "versions" / "0001_baseline.py"
 BASELINE_SQL = ROOT / "alembic" / "versions" / "0001_baseline.sql"
-BASELINE_SHA256 = "03007b0c5113a7801c78e617b91757aa783e0abcaf229af24dc68973b8024e43"
+BASELINE_SHA256 = "badff834da0bfe332e85b14e585c6b5b0317dad4da5855ce32e1875b8f8078b1"
 
 
 def test_baseline_does_not_import_live_metadata() -> None:
@@ -33,7 +33,7 @@ def test_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
     assert hashlib.sha256(baseline).hexdigest() == BASELINE_SHA256
     sql = baseline.decode("utf-8")
     assert "CREATE EXTENSION IF NOT EXISTS vector" in sql
-    assert sql.count("CREATE TABLE ") == 40
+    assert sql.count("CREATE TABLE ") == 41
 
 
 def test_current_schema_is_the_single_root_and_head() -> None:

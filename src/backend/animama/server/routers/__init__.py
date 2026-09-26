@@ -17,6 +17,7 @@ from . import (
     model_provider,
     runtime_capabilities,
     runtime_context,
+    safety,
     settings,
     typed_content,
     user_files,
@@ -33,6 +34,7 @@ router.include_router(anima_runtime.router)
 router.include_router(model_provider.router)
 router.include_router(runtime_context.router)
 router.include_router(runtime_capabilities.router)
+router.include_router(safety.router)
 router.include_router(avatar.router)
 router.include_router(logs.router)
 router.include_router(content.router)

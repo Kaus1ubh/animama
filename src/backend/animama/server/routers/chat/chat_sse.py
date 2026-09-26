@@ -14,6 +14,7 @@ from animama.app.services.chat_title_generation_service import ChatTitleGenerati
 from animama.domain.events import EventType
 from animama.domain.request_principal import RequestPrincipal
 from animama.logging_config import get_logger
+from animama.server.config import settings
 from animama.server.deps import get_async_session_factory
 from animama.server.schemas.chat import PyAnimaChatRequest
 from animama.server.sse_events import (
@@ -25,6 +26,7 @@ from animama.server.sse_events import (
 from .compaction import (
     compact_chat_after_success as _compact_chat_after_success,
 )
+from .safety import ai_notice_frame, attach_crisis_resources
 from .setup_helpers import chat_manager as _chat_manager
 from .sse_runtime import (
     DirectChatEventBridge,
@@ -122,6 +124,7 @@ async def stream_direct_chat_sse(
             run_id=run_id,
             chat_id=chat_id,
             model_client_registry=model_client_registry,
+            runtime_settings=getattr(app.state, "runtime_settings", settings),
         )
     except Exception:
         await _cleanup()
@@ -154,6 +157,7 @@ async def stream_direct_chat_sse(
             run_id=run_id,
         )
         completed_emitted = False
+        attach_crisis_resources(turn.safety, state)
         _log.info(
             "HTTP Anima Direct Chat SSE Stream Open",
             anima_id=anima_id,
@@ -217,6 +221,18 @@ async def stream_direct_chat_sse(
                 run_id=run_id,
                 task_name=active_task.get_name(),
             )
+            # The AI notice (spec R2) precedes any provider output. The provider
+            # task is already running, so recording notice state adds no time to
+            # first text; its events wait in the bridge until drained.
+            notice = await ai_notice_frame(
+                turn.safety,
+                session_factory=session_factory,
+                user_id=user.id,
+                run_id=run_id,
+                anima_name=turn.prepared_turn.memory_context.anima_name,
+            )
+            if notice is not None:
+                yield notice
             async for frame in drain_events_while_task_runs(
                 active_task,
                 bridge,

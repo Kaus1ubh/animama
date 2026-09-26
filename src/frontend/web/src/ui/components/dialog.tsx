@@ -60,12 +60,15 @@ function DialogContent({
   children,
   showCloseButton = true,
   avoidSidebar = false,
+  portalContainer,
   style,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
   /** Keep wide workspace dialogs inside the area beside the desktop sidebar. */
   avoidSidebar?: boolean;
+  /** Portal target, e.g. a fullscreen element; defaults to `document.body`. */
+  portalContainer?: HTMLElement | null;
 }) {
   const appShell = useOptionalAppShell();
   const sidebarInset = resolveAppShellSidebarLayout({
@@ -75,7 +78,7 @@ function DialogContent({
   })["--app-shell-sidebar-inset"];
 
   return (
-    <DialogPortal>
+    <DialogPortal container={portalContainer ?? undefined}>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"

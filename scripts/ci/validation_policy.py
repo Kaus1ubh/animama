@@ -105,6 +105,10 @@ def _area(path: str, excluded: set[str]) -> str | None:
     p = PurePosixPath(path)
     if path in excluded or p.name in {"AGENTS.md", "SKILL.md", "PLANS.md"}:
         return None
+    # docs/safety is bundled into the web app (Safety page and dialog), so it is
+    # a frontend build input rather than documentation-only.
+    if path.startswith("docs/safety/"):
+        return None
     if path.startswith("docs/") and p.suffix == ".md":
         return "docs"
     if p.parent == PurePosixPath("tests") and p.name.startswith("test_") and p.suffix == ".py":

@@ -45,9 +45,9 @@ The runtime boundary uses one `DirectChatPrompt`. The prompt
 is ordered for prompt-cache locality: one system message containing stable core
 companion instruction rendered with the active Anima's stable `display_name`, anima
 identity, stable memory guidance, and structured-output guidance; then
-compaction summary, visible chat history, a
-request-local `# List of memory files` `developer` message, and the current user
-message. The structured-output JSON schema travels in the prompt's
+compaction summary, visible chat history, one request-local trailing
+`developer` message, and the current user message. The trailing message holds
+the `# List of memory files` map, any attached-file list, and ends with the [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md). The structured-output JSON schema travels in the prompt's
 `response_format` field rather than being duplicated in prompt text for
 schema-backed rows. JSON-object rows include the expected schema and example in
 the response-format prompt guidance because their provider transport guarantees
@@ -86,6 +86,11 @@ Direct chat's main structured response includes a required `remember` key whose
 value can be a short string, `null`, or an empty string. The model should use it
 only for notable durable context from the completed turn, such as new user
 facts, preferences, decisions, active projects, or relationship/context changes.
+The `remember` guidance and the chat memory-tool guidance share one
+sensitive-memory rule: no secrets, credentials or raw sensitive data, and no
+suicide or self-harm crisis specifics (methods, plans, means) unless the user
+explicitly asked; at most a general note. Ordinary health context may be
+remembered.
 
 After a successful non-incognito `chat:sse` turn is parsed and persisted, the
 backend best-effort captures nonblank `remember` text when memory updates are
@@ -253,9 +258,10 @@ uploads in searchable processed statuses such as `ready` and
 When the upload tools are equipped, the prompt includes a request-local list of
 the validated attached filenames and their persisted chunk counts. A count is
 backend-derived navigation metadata that helps the model plan bounded reads; it
-is not document-content evidence. Providers that support developer messages
-receive that list alongside the memory map; other providers receive it at the
-end of the system instruction. Distinct attachments with the same filename stay
+is not document-content evidence. The list follows the memory map in the
+trailing `developer` message; providers without developer-role support receive
+all developer text folded into the end of the system instruction, still ending
+with the Companion Guardrails. Distinct attachments with the same filename stay
 as separate map entries because filename-based upload tools operate on every
 matching attachment.
 

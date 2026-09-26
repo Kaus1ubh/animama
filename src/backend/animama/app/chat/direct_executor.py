@@ -30,6 +30,7 @@ from animama.app.model_clients import (
 from animama.app.model_clients.prompt import ChatCompletionResponseFormat
 from animama.app.ports import ModelProviderRepository
 from animama.app.primary_emotion_update import build_primary_emotion_update_event
+from animama.app.safety.moderation import moderation_indicates_crisis
 from animama.app.services import AnimaChatProfileService, ChatManager
 from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
@@ -37,7 +38,7 @@ from animama.domain.events import Event
 from animama.logging import get_logger
 
 from .api_standard import chat_api_standard_for_provider
-from .direct_turn.events import avatar_gesture_event, error_event, user_response_event
+from .direct_turn.events import avatar_gesture_event, crisis_support_event, error_event, user_response_event
 from .direct_turn.message_builders import (
     assistant_messages_for_persistence,
     chat_metadata_patch_from_prompt,
@@ -442,6 +443,7 @@ class DirectChatTurnExecutor:
                 request.options,
                 model_provider=model_provider,
                 memory_tool_config=memory_tool_config,
+                provider_moderation=request.provider_moderation,
             ),
             continuation=continuation,
         )
@@ -534,6 +536,18 @@ class DirectChatTurnExecutor:
                 details=dict(exc.error.raw_metadata),
             )
             return
+        if final is not None and prepared.model_request.provider_options.moderation_model is not None:
+            # Provider moderation arrives with the completed response, after the
+            # reply text. It can only add a crisis card; it never alters the turn.
+            if moderation_indicates_crisis(final.input_moderation):
+                yield crisis_support_event(prepared.request, source="moderation")
+            elif final.input_moderation is None or final.input_moderation.status == "error":
+                _log.warning(
+                    "Direct chat provider moderation unavailable",
+                    anima_id=prepared.request.anima_id,
+                    run_id=prepared.request.run_id,
+                    status=None if final.input_moderation is None else final.input_moderation.status,
+                )
         if final is None:
             _log.warning(
                 "Direct chat model stream returned no final",

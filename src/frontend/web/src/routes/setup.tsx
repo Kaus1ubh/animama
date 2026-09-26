@@ -1,4 +1,4 @@
-import { Navigate, createFileRoute } from "@tanstack/react-router";
+import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
 import { useLocalRuntime } from "@web/app/local-runtime/LocalRuntimeProvider";
@@ -26,6 +26,8 @@ function LocalSetupRoute() {
   const [error, setError] = useState<string | null>(null);
   const featurePacks = useDesktopFeaturePacks();
   const [installSpeech, setInstallSpeech] = useState(false);
+  const [adultConfirmed, setAdultConfirmed] = useState(false);
+  const [declinedAge, setDeclinedAge] = useState(false);
   const speechPack = featurePacks.packs.find(
     (pack) => pack.id === "parakeet-stt",
   );
@@ -35,11 +37,12 @@ function LocalSetupRoute() {
   if (state.firstRunComplete) return <Navigate to="/a" replace />;
 
   const submit = async (name: string) => {
-    if (isSubmitting || providerBusy || pendingKeys > 0) return;
+    if (isSubmitting || providerBusy || pendingKeys > 0 || !adultConfirmed)
+      return;
     setIsSubmitting(true);
     setError(null);
     try {
-      await completeOnboarding(name);
+      await completeOnboarding({ displayName: name, adultConfirmed });
       // Save first-run state before an optional pack's activation reload.
       if (installSpeech && speechPack?.available)
         void featurePacks.run("install", "parakeet-stt");
@@ -114,6 +117,55 @@ function LocalSetupRoute() {
             </label>
           </div>
         ) : null}
+        <section
+          aria-labelledby="setup-age-heading"
+          className="border-border space-y-3 rounded-2xl border p-4"
+        >
+          <h2 id="setup-age-heading" className="text-sm font-medium">
+            Before you start
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            Animas are AI companions, not people. Animama&apos;s AI companions
+            may not be suitable for some minors, so you must be 18 or older to
+            use Animama.
+          </p>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              name="adult-confirmed"
+              checked={adultConfirmed}
+              disabled={isSubmitting}
+              onChange={(event) => {
+                setAdultConfirmed(event.target.checked);
+                setDeclinedAge(false);
+              }}
+            />
+            I am 18 or older
+          </label>
+          <Link
+            to="/safety"
+            className="text-muted-foreground block text-xs underline underline-offset-2"
+          >
+            Safety and crisis protocol
+          </Link>
+          {declinedAge ? (
+            <p className="text-sm" role="status">
+              Animama is only for adults 18 and older, so setup can&apos;t
+              continue.
+            </p>
+          ) : (
+            <button
+              type="button"
+              className="text-muted-foreground text-xs underline underline-offset-2"
+              onClick={() => {
+                setAdultConfirmed(false);
+                setDeclinedAge(true);
+              }}
+            >
+              I&apos;m under 18
+            </button>
+          )}
+        </section>
         {error ? (
           <p className="text-destructive text-sm" role="alert">
             {error}
@@ -128,7 +180,11 @@ function LocalSetupRoute() {
           <Button
             type="submit"
             disabled={
-              !normalizedName || isSubmitting || providerBusy || pendingKeys > 0
+              !normalizedName ||
+              !adultConfirmed ||
+              isSubmitting ||
+              providerBusy ||
+              pendingKeys > 0
             }
           >
             {isSubmitting ? "Saving…" : "Continue"}

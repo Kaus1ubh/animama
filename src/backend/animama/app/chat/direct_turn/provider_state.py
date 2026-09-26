@@ -16,6 +16,7 @@ from animama.app.model_provider_native_tools import (
     normalized_native_tool_support,
     requestable_native_tool_support,
 )
+from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
 from animama.app.util.json_values import json_safe_copy
 from animama.domain import ModelProvider
 from animama.domain.chat import Chat
@@ -162,10 +163,18 @@ def build_model_client_provider_options(
     *,
     model_provider: ModelProvider,
     memory_tool_config: MemoryToolConfig,
+    provider_moderation: bool = False,
 ) -> ModelClientProviderOptions:
-    """Build adapter-level options that are not part of prompt messages."""
+    """Build adapter-level options that are not part of prompt messages.
+
+    Provider moderation is requested only for OpenAI Responses, whose built-in
+    moderation rides on the same request; other providers are unsupported.
+    """
 
     return ModelClientProviderOptions(
+        moderation_model=RESPONSES_MODERATION_MODEL
+        if provider_moderation and model_provider.provider_type == OPENAI_RESPONSES_PROVIDER
+        else None,
         native_tools=request_options.native_tools,
         store=not request_options.incognito,
         memory_apply_patch_enabled=native_memory_apply_patch_enabled(
@@ -327,6 +336,7 @@ def final_with_previous_response_retry_metadata(
         raw_provider_metadata=raw_provider_metadata,
         structured_payload=final.structured_payload,
         tool_calls=final.tool_calls,
+        input_moderation=final.input_moderation,
     )
 
 

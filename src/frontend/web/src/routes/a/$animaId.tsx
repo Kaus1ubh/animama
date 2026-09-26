@@ -5,6 +5,8 @@ import {
   useParams,
 } from "@tanstack/react-router";
 import { useCallback } from "react";
+import { CompanionSafetyProvider } from "@/ui/safety/CompanionSafetyProvider";
+import { AvatarOnlySafetyOverlay } from "@/ui/safety/CompanionSafetySlot";
 
 import { useRememberLastActiveAnima } from "@/hooks/useRememberLastActiveAnima";
 import { AnimaRouteProviders } from "@/ui/app/AnimaRouteProviders";
@@ -41,20 +43,23 @@ function AnimaRuntimeLayout() {
 
   return (
     <AnimaRouteProviders>
-      <MainShell
-        chatPanel={({ canvasMode }) => (
-          <ChatInterface
-            key={animaId}
-            layout={canvasMode === "chat" ? "chat-only" : "scene-overlay"}
-            animaId={animaId}
-            chatId={chatId}
-            openDraftChatRoute={openDraftChatRoute}
-            replaceChatRoute={replaceChatRoute}
-          />
-        )}
-      >
-        <Outlet />
-      </MainShell>
+      <CompanionSafetyProvider key={animaId}>
+        <MainShell
+          avatarOnlyOverlay={<AvatarOnlySafetyOverlay />}
+          chatPanel={({ canvasMode }) => (
+            <ChatInterface
+              key={animaId}
+              layout={canvasMode === "chat" ? "chat-only" : "scene-overlay"}
+              animaId={animaId}
+              chatId={chatId}
+              openDraftChatRoute={openDraftChatRoute}
+              replaceChatRoute={replaceChatRoute}
+            />
+          )}
+        >
+          <Outlet />
+        </MainShell>
+      </CompanionSafetyProvider>
     </AnimaRouteProviders>
   );
 }

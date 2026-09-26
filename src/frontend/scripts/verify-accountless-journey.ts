@@ -299,21 +299,26 @@ async function runJourney(options: JourneyOptions): Promise<void> {
     }
     for (const payload of [
       {},
-      { display_name: null },
-      { display_name: "   " },
+      { display_name: null, adult_confirmed: true },
+      { display_name: "   ", adult_confirmed: true },
+      { display_name: options.displayName },
+      { display_name: options.displayName, adult_confirmed: false },
     ]) {
       await jsonRequest(
         options,
         "/v1/runtime/onboarding:complete",
         jsonMutation(payload),
         [422],
-        "Required display-name validation",
+        "Required display-name and 18+ confirmation validation",
       );
     }
     const completed = await jsonRequest(
       options,
       "/v1/runtime/onboarding:complete",
-      jsonMutation({ display_name: options.displayName }),
+      jsonMutation({
+        display_name: options.displayName,
+        adult_confirmed: true,
+      }),
       [200],
       "First-run completion",
     );
@@ -328,7 +333,7 @@ async function runJourney(options: JourneyOptions): Promise<void> {
     const replayed = await jsonRequest(
       options,
       "/v1/runtime/onboarding:complete",
-      jsonMutation({ display_name: "Ignored replay" }),
+      jsonMutation({ display_name: "Ignored replay", adult_confirmed: true }),
       [200],
       "Lost-response onboarding replay",
     );

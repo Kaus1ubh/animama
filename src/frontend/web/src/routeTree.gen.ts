@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from "./routes/__root";
 import { Route as SetupRouteImport } from "./routes/setup";
+import { Route as SafetyRouteImport } from "./routes/safety";
 import { Route as ARouteImport } from "./routes/a";
 import { Route as IndexRouteImport } from "./routes/index";
 import { Route as AIndexRouteImport } from "./routes/a/index";
@@ -50,6 +51,11 @@ import { Route as AAnimaIdCChatIdRouteImport } from "./routes/a/$animaId/c/$chat
 const SetupRoute = SetupRouteImport.update({
   id: "/setup",
   path: "/setup",
+  getParentRoute: () => rootRouteImport,
+} as any);
+const SafetyRoute = SafetyRouteImport.update({
+  id: "/safety",
+  path: "/safety",
   getParentRoute: () => rootRouteImport,
 } as any);
 const ARoute = ARouteImport.update({
@@ -243,6 +249,7 @@ const AAnimaIdCChatIdRoute = AAnimaIdCChatIdRouteImport.update({
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute;
   "/a": typeof ARouteWithChildren;
+  "/safety": typeof SafetyRoute;
   "/setup": typeof SetupRoute;
   "/a/$animaId": typeof AAnimaIdRouteWithChildren;
   "/a/animas": typeof AAnimasRouteWithChildren;
@@ -281,6 +288,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute;
+  "/safety": typeof SafetyRoute;
   "/setup": typeof SetupRoute;
   "/a/avatar-portrait-debug": typeof AAvatarPortraitDebugRoute;
   "/a/create": typeof ACreateRoute;
@@ -319,6 +327,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport;
   "/": typeof IndexRoute;
   "/a": typeof ARouteWithChildren;
+  "/safety": typeof SafetyRoute;
   "/setup": typeof SetupRoute;
   "/a/$animaId": typeof AAnimaIdRouteWithChildren;
   "/a/animas": typeof AAnimasRouteWithChildren;
@@ -360,6 +369,7 @@ export interface FileRouteTypes {
   fullPaths:
     | "/"
     | "/a"
+    | "/safety"
     | "/setup"
     | "/a/$animaId"
     | "/a/animas"
@@ -398,6 +408,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo;
   to:
     | "/"
+    | "/safety"
     | "/setup"
     | "/a/avatar-portrait-debug"
     | "/a/create"
@@ -435,6 +446,7 @@ export interface FileRouteTypes {
     | "__root__"
     | "/"
     | "/a"
+    | "/safety"
     | "/setup"
     | "/a/$animaId"
     | "/a/animas"
@@ -475,6 +487,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute;
   ARoute: typeof ARouteWithChildren;
+  SafetyRoute: typeof SafetyRoute;
   SetupRoute: typeof SetupRoute;
   DesktopPipAnimaIdRoute: typeof DesktopPipAnimaIdRoute;
   DesktopQuickChatAnimaIdRoute: typeof DesktopQuickChatAnimaIdRoute;
@@ -487,6 +500,13 @@ declare module "@tanstack/react-router" {
       path: "/setup";
       fullPath: "/setup";
       preLoaderRoute: typeof SetupRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/safety": {
+      id: "/safety";
+      path: "/safety";
+      fullPath: "/safety";
+      preLoaderRoute: typeof SafetyRouteImport;
       parentRoute: typeof rootRouteImport;
     };
     "/a": {
@@ -849,6 +869,7 @@ const ARouteWithChildren = ARoute._addFileChildren(ARouteChildren);
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ARoute: ARouteWithChildren,
+  SafetyRoute: SafetyRoute,
   SetupRoute: SetupRoute,
   DesktopPipAnimaIdRoute: DesktopPipAnimaIdRoute,
   DesktopQuickChatAnimaIdRoute: DesktopQuickChatAnimaIdRoute,

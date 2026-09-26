@@ -250,6 +250,7 @@ class OpenAIResponsesModelClient:
                                     usage=final_parts.usage,
                                     raw_provider_metadata=metadata,
                                     tool_calls=final_parts.tool_calls,
+                                    input_moderation=final_parts.input_moderation,
                                 ),
                             )
                             yield ModelClientDelta(kind="done")

@@ -84,6 +84,8 @@ for playback internals.
   `display`, and speak only `speech`
 - emotion updates -> update avatar runtime store
 - same-run, same-revision avatar gesture requests -> queue one-shot gesture planner events
+- same-run AI notice and crisis card events -> the route's
+  [companion safety](#companion-safety) state
 - run completion -> finalize run state + cache messages; talking ends on TTS audio-ended
 
 5. `displayMessages` merges persisted server messages + local optimistic message + in-flight assistant stream.
@@ -393,6 +395,9 @@ Type guards map incoming chunks to:
 - gesture requests (`avatar.gesture.requested` with `gesture` and
   `runtime_revision`) ->
   `onAvatarGestureRequested`
+- `safety.ai_notice` (`type` field) -> `onAiNotice`
+- `safety.crisis_support` (`type` field, with `source` and `resources`) ->
+  `onCrisisSupport`
 - run completed (contains `run_id` without `text`, `emotions`, or `gesture`) ->
   `onComplete`
 - error event (contains `error`) -> `onError`
@@ -422,6 +427,50 @@ Final status tracked for metrics:
 - `ok`
 - `error`
 - `cancelled` (aborted before error/completion)
+
+## Companion safety
+
+The user-facing contract is the
+[safety and crisis protocol](../../safety/crisis-protocol.md); the backend
+cadence and detection rules are in
+[backend chat](../../backend/runtime/chat.md#companion-safety).
+
+`useProductChatSession` sends `client_context` (browser time zone and locale)
+with every turn and forwards `safety.ai_notice` and `safety.crisis_support`
+through its optional `safety` argument (`ChatSafetyEffects`). Types and guards
+live in `packages/product-ui/src/lib/chat/companion-safety.ts`.
+
+`CompanionSafetyProvider` (`web/src/ui/safety/`) wraps `MainShell` in the Anima
+route, keyed by Anima, so its state survives canvas-mode switches that unmount
+the chat panel. It renders:
+
+- **AI notice.** App text such as "You're talking with <name>, an AI — not a
+  person." below the chat input, or bottom-center over the scene in Avatar-only
+  mode through `MainShell`'s `avatarOnlyOverlay`. It is never spoken or added to
+  the transcript. It stays visible until its turn completes, fails, stops or its
+  chat panel unmounts, and for at least 8 seconds, then fades
+  (`web/src/lib/safety/aiNotice.ts`).
+- **Crisis card.** Localized crisis services with call, text and chat links, the
+  region's emergency number, and a "Safety and crisis protocol" link. In the
+  main window it sits in the chat panel's bottom-right corner, or is lifted just
+  above the input region when it would overlap it
+  (`web/src/ui/main/chat/crisisCardCorner.ts`); in Avatar-only mode it uses the
+  scene's bottom-right corner. Quick Chat shows it below the input. It stays
+  until dismissed; a later positive turn replaces it.
+
+`SafetyProtocolDialog` opens `docs/safety/crisis-protocol.md`, bundled with
+Vite's `?raw` import, in place so reading it never interrupts the turn. The
+same document is the `/safety` route, reachable before first run. Vite's
+`server.fs.allow`, the production `Dockerfile`, and the development Compose
+mount include `docs/safety` for that import. Quick Chat mirrors the notice and
+card through its snapshot `safety` field and sends `dismiss-crisis-card`
+([Quick chat](../desktop/quick-chat.md#runtime-mirror)).
+
+Settings → Safety chooses the crisis-resource region (or Automatic, from the
+browser locale) and a reminder interval no longer than the operator's
+(`companion_safety.operator_reminder_hours` from runtime capabilities), and
+links the protocol. Both are saved under user preferences `safety`. First-run
+setup requires an 18+ confirmation checkbox before Continue.
 
 ## Speech integration
 

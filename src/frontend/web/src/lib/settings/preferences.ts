@@ -131,6 +131,15 @@ export type PresentationPreferences = {
   [key: string]: unknown;
 };
 
+/** Owner safety choices; they can only choose resources or add protection (spec R8). */
+export type SafetyPreferences = {
+  /** ISO region code, or null to follow the system locale. */
+  crisis_resource_region?: string | null;
+  /** Shorter AI-notice reminder interval in hours; longer values are ignored by the server. */
+  reminder_hours?: number | null;
+  [key: string]: unknown;
+};
+
 export type SettingsPreferences = {
   /** Keeps first-message suggestions dismissed across chats and deleted history. */
   has_sent_chat_message?: boolean;
@@ -143,6 +152,7 @@ export type SettingsPreferences = {
   emotion?: PreferenceToggleSection;
   presentation?: PresentationPreferences;
   speech?: SpeechPreferences;
+  safety?: SafetyPreferences;
   [key: string]: unknown;
 };
 
@@ -210,6 +220,7 @@ export function mergePreferences(
   const emotion = mergeSection(baseObj, patchObj, "emotion");
   const presentation = mergeSection(baseObj, patchObj, "presentation");
   const speech = mergeSection(baseObj, patchObj, "speech");
+  const safety = mergeSection(baseObj, patchObj, "safety");
   const appearance = mergeSection(baseObj, patchObj, "appearance");
   const startup = mergeSection(baseObj, patchObj, "startup");
   const chat = mergeSection(baseObj, patchObj, "chat");
@@ -220,6 +231,7 @@ export function mergePreferences(
   if (emotion) merged.emotion = emotion as PreferenceToggleSection;
   if (presentation)
     merged.presentation = presentation as PresentationPreferences;
+  if (safety) merged.safety = safety as SafetyPreferences;
   if (appearance) {
     // Merge each mode separately so editing one colour keeps the others.
     const baseAppearance = isRecord(baseObj.appearance)

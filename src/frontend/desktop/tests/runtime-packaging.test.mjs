@@ -1340,6 +1340,7 @@ Load command 4
         required_private_name: true,
         empty_name_rejected: true,
         blank_name_rejected: true,
+        adult_confirmation_required: true,
         first_anima_chat: true,
         temporary_provider_removed: true,
         temporary_provider_removal_persists: true,

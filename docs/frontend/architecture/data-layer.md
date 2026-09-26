@@ -155,9 +155,10 @@ mutations. Only a ready provider supplies `installation_principal_id` to shared
 features through `RuntimeOwnerContext`. First-run state remains local to the
 local composition.
 
-`/` chooses `/setup` or `/a` from the backend's `first_run_complete` boolean.
-Continue requires a nonblank private name and calls
-`POST /v1/runtime/onboarding:complete`; repeating the request after a lost
+`/` chooses `/setup` or `/a` from the backend's `first_run_complete` boolean,
+which also requires the owner's recorded 18+ confirmation. Continue requires a
+nonblank private name and the 18+ checkbox, and calls
+`POST /v1/runtime/onboarding:complete` with `adult_confirmed: true`; repeating the request after a lost
 response returns the completed context. `/a/` shares the owned Anima and user
 settings queries, waits for both, and opens the pinned default Anima
 (`preferences.startup.default_anima_id`, set in App Settings → General) when it

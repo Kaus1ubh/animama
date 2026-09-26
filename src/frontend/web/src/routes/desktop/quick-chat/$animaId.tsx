@@ -3,6 +3,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import type { ChangeEvent } from "react";
+import { CompanionSafetyView } from "@/ui/safety/CompanionSafetyView";
 
 import {
   useDesktopQuickChatConsumer,
@@ -176,6 +177,19 @@ function DesktopQuickChatRoute() {
           promptSuggestions={snapshot.promptSuggestions}
           quickChatSurface
           showPromptSuggestions={false}
+          safetySlot={
+            snapshot.safety ? (
+              <CompanionSafetyView
+                notice={snapshot.safety.notice}
+                noticeVisible={snapshot.safety.noticeVisible}
+                crisis={snapshot.safety.crisis}
+                onDismissCrisis={() =>
+                  sendCommand({ type: "dismiss-crisis-card" })
+                }
+                className="mt-2"
+              />
+            ) : null
+          }
         />
       </main>
     </SettingsProvider>

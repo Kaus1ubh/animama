@@ -28,7 +28,7 @@ function api(overrides: Partial<LocalRuntimeApi> = {}): LocalRuntimeApi {
   return {
     ensureBootstrap: vi.fn(async () => incompleteContext),
     getContext: vi.fn(async () => incompleteContext),
-    completeOnboarding: vi.fn(async (displayName) => ({
+    completeOnboarding: vi.fn(async ({ displayName }) => ({
       ...incompleteContext,
       first_run_complete: true,
       display_name: displayName,
@@ -193,16 +193,23 @@ describe("local runtime bootstrap", () => {
     const runtimeApi = api();
 
     await expect(
-      completeLocalRuntimeOnboarding(displayName, runtimeApi),
+      completeLocalRuntimeOnboarding(
+        { displayName, adultConfirmed: true },
+        runtimeApi,
+      ),
     ).resolves.toMatchObject({
       status: "ready",
       firstRunComplete: true,
       displayName,
     });
-    expect(runtimeApi.completeOnboarding).toHaveBeenCalledWith(displayName);
+    expect(runtimeApi.completeOnboarding).toHaveBeenCalledWith({
+      displayName,
+      adultConfirmed: true,
+    });
   });
 
   it("retries a lost onboarding response without changing the operation", async () => {
+    const ada = { displayName: "Ada", adultConfirmed: true };
     const completeOnboarding = vi
       .fn<LocalRuntimeApi["completeOnboarding"]>()
       .mockRejectedValueOnce(new Error("response lost"))
@@ -214,16 +221,16 @@ describe("local runtime bootstrap", () => {
     const runtimeApi = api({ completeOnboarding });
 
     await expect(
-      completeLocalRuntimeOnboarding("Ada", runtimeApi),
+      completeLocalRuntimeOnboarding(ada, runtimeApi),
     ).rejects.toThrow("response lost");
     await expect(
-      completeLocalRuntimeOnboarding("Ada", runtimeApi),
+      completeLocalRuntimeOnboarding(ada, runtimeApi),
     ).resolves.toMatchObject({
       firstRunComplete: true,
       displayName: "Ada",
     });
-    expect(completeOnboarding).toHaveBeenNthCalledWith(1, "Ada");
-    expect(completeOnboarding).toHaveBeenNthCalledWith(2, "Ada");
+    expect(completeOnboarding).toHaveBeenNthCalledWith(1, ada);
+    expect(completeOnboarding).toHaveBeenNthCalledWith(2, ada);
   });
 
   it("rejects a repair-required context instead of mounting feature routes", async () => {

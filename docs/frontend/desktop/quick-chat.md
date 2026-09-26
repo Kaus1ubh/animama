@@ -176,6 +176,8 @@ The main renderer publishes snapshots with:
 - coarse voice state: active mode, preparing state, capture state, and mute
   state
 - user-speaking state from the main renderer's avatar interaction phase
+- companion safety: the AI notice text inputs and visibility, and the current
+  crisis card
 
 The Quick Chat renderer sends commands back to the main renderer:
 
@@ -187,6 +189,7 @@ The Quick Chat renderer sends commands back to the main renderer:
 - stop the mic session
 - toggle Voice Mode mute
 - refresh model/anima state after model selector changes
+- dismiss the crisis card
 
 Quick Chat renders a synthetic waveform from the mirrored voice state. It uses
 the main renderer's user-speaking phase to animate larger bars and falls back to

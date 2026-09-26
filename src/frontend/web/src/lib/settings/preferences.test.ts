@@ -31,6 +31,19 @@ describe("ElevenLabs v3 finalized chunking preferences", () => {
   });
 });
 
+describe("safety preferences", () => {
+  it("merges a partial safety patch without dropping the other safety choice", () => {
+    const merged = mergePreferences(
+      { safety: { crisis_resource_region: "GB", reminder_hours: 2 } },
+      { safety: { reminder_hours: 1 } },
+    );
+    expect(merged.safety).toEqual({
+      crisis_resource_region: "GB",
+      reminder_hours: 1,
+    });
+  });
+});
+
 describe("theme and appearance preferences", () => {
   it("keeps supported modes and maps retired custom themes to light", () => {
     expect(normalizeThemeSetting("system")).toBe("system");

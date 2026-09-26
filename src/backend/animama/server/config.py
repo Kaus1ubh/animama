@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from pydantic import BaseModel, Field, model_validator
+
+from animama.app.safety.config import MAX_REMINDER_HOURS, MIN_REMINDER_HOURS, OperatorSafetyConfig, valid_reminder_hours
+from animama.app.safety.crisis_resources import CrisisResourceTableError, crisis_resource_table
 
 
 def _env_text(name: str) -> str | None:
@@ -19,6 +23,16 @@ def _env_bool(name: str, default: bool) -> bool:
     if value is None:
         return default
     return value.lower() in {"1", "true", "yes", "on"}
+
+
+def _env_float(name: str, default: float) -> float:
+    value = _env_text(name)
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except ValueError as exc:
+        raise ValueError(f"{name} must be a number, got {value!r}") from exc
 
 
 def _resolved_path(value: str) -> Path:
@@ -164,6 +178,14 @@ class Settings(BaseModel):
     elevenlabs_realtime_tts_default_model_id: str = (
         _env_text("ANIMAMA_ELEVENLABS_REALTIME_TTS_DEFAULT_MODEL_ID") or "eleven_flash_v2_5"
     )
+    # Companion safety (spec R8). The global switch turns the AI notice, crisis
+    # detection (including OpenAI Responses moderation) and the crisis card off together; the Companion
+    # Guardrails in chat instructions are never configurable.
+    companion_safety_enabled: bool = _env_bool("ANIMAMA_COMPANION_SAFETY_ENABLED", True)
+    ai_notice_enabled: bool = _env_bool("ANIMAMA_AI_NOTICE_ENABLED", True)
+    ai_notice_reminder_hours: float = _env_float("ANIMAMA_AI_NOTICE_REMINDER_HOURS", 3.0)
+    crisis_detection_enabled: bool = _env_bool("ANIMAMA_CRISIS_DETECTION_ENABLED", True)
+    crisis_resources_path: Path | None = _env_path("ANIMAMA_CRISIS_RESOURCES_PATH")
     avatar_upload_cleanup_interval_seconds: int = int(os.getenv("AVATAR_UPLOAD_CLEANUP_INTERVAL_SECONDS", "300"))
     avatar_upload_cleanup_batch_size: int = int(os.getenv("AVATAR_UPLOAD_CLEANUP_BATCH_SIZE", "50"))
 
@@ -178,6 +200,31 @@ class Settings(BaseModel):
         self.animama_content_root = content_root
         self.animama_data_root = data_root
         return self
+
+    @model_validator(mode="after")
+    def validate_companion_safety(self) -> Settings:
+        """Reject an unusable reminder interval or crisis resource table at startup."""
+
+        if valid_reminder_hours(self.ai_notice_reminder_hours) is None:
+            raise ValueError(
+                "ANIMAMA_AI_NOTICE_REMINDER_HOURS must be a number of hours between "
+                f"{MIN_REMINDER_HOURS:g} and {MAX_REMINDER_HOURS:g}"
+            )
+        try:
+            crisis_resource_table(self.crisis_resources_path)
+        except CrisisResourceTableError as exc:
+            raise ValueError(f"ANIMAMA_CRISIS_RESOURCES_PATH: {exc}") from exc
+        return self
+
+    @property
+    def companion_safety(self) -> OperatorSafetyConfig:
+        return OperatorSafetyConfig(
+            enabled=self.companion_safety_enabled,
+            ai_notice_enabled=self.ai_notice_enabled,
+            reminder_interval=timedelta(hours=self.ai_notice_reminder_hours),
+            crisis_detection_enabled=self.crisis_detection_enabled,
+            crisis_resources_path=self.crisis_resources_path,
+        )
 
 
 settings = Settings()

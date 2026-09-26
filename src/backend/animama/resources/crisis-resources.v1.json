@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "regions": [
+    {
+      "code": "US",
+      "label": "United States",
+      "emergency_number": "911",
+      "services": [
+        {
+          "name": "988 Suicide & Crisis Lifeline",
+          "description": "Free, confidential support 24/7 from trained crisis counselors.",
+          "contacts": [
+            { "kind": "phone", "label": "Call 988", "value": "988" },
+            { "kind": "sms", "label": "Text 988", "value": "988" },
+            { "kind": "chat", "label": "Chat online", "value": "https://chat.988lifeline.org/" }
+          ]
+        }
+      ],
+      "source_url": "https://988lifeline.org/get-help/",
+      "verified_on": "2026-09-25"
+    },
+    {
+      "code": "CA",
+      "label": "Canada",
+      "emergency_number": "911",
+      "services": [
+        {
+          "name": "9-8-8: Suicide Crisis Helpline",
+          "description": "Free support 24/7, 365 days a year.",
+          "contacts": [
+            { "kind": "phone", "label": "Call 9-8-8", "value": "988" },
+            { "kind": "sms", "label": "Text 9-8-8", "value": "988" }
+          ]
+        }
+      ],
+      "source_url": "https://988.ca/get-help",
+      "verified_on": "2026-09-25"
+    },
+    {
+      "code": "GB",
+      "label": "United Kingdom",
+      "emergency_number": "999",
+      "services": [
+        {
+          "name": "Samaritans",
+          "description": "Free to call 24/7, from any phone.",
+          "contacts": [{ "kind": "phone", "label": "Call 116 123", "value": "116123" }]
+        }
+      ],
+      "source_url": "https://www.samaritans.org/how-we-can-help/contact-samaritan/",
+      "verified_on": "2026-09-25"
+    },
+    {
+      "code": "IE",
+      "label": "Ireland",
+      "emergency_number": "112",
+      "services": [
+        {
+          "name": "Samaritans Ireland",
+          "description": "Free to call 24/7, from any phone.",
+          "contacts": [{ "kind": "phone", "label": "Call 116 123", "value": "116123" }]
+        }
+      ],
+      "source_url": "https://www.samaritans.org/ireland/how-we-can-help/contact-samaritan/",
+      "verified_on": "2026-09-25"
+    },
+    {
+      "code": "AU",
+      "label": "Australia",
+      "emergency_number": "000",
+      "services": [
+        {
+          "name": "Lifeline",
+          "description": "Crisis support 24/7.",
+          "contacts": [
+            { "kind": "phone", "label": "Call 13 11 14", "value": "131114" },
+            { "kind": "sms", "label": "Text 0477 13 11 14", "value": "0477131114" },
+            { "kind": "chat", "label": "Chat online", "value": "https://www.lifeline.org.au/crisis-chat/" }
+          ]
+        }
+      ],
+      "source_url": "https://www.lifeline.org.au/",
+      "verified_on": "2026-09-25"
+    },
+    {
+      "code": "NZ",
+      "label": "New Zealand",
+      "emergency_number": "111",
+      "services": [
+        {
+          "name": "1737, Need to talk?",
+          "description": "Free call or text 24/7 to talk with a trained counselor.",
+          "contacts": [
+            { "kind": "phone", "label": "Call 1737", "value": "1737" },
+            { "kind": "sms", "label": "Text 1737", "value": "1737" }
+          ]
+        }
+      ],
+      "source_url": "https://1737.org.nz/",
+      "verified_on": "2026-09-25"
+    }
+  ],
+  "fallback": {
+    "code": "fallback",
+    "label": "Other regions",
+    "emergency_number": null,
+    "services": [],
+    "source_url": null,
+    "verified_on": "2026-09-25"
+  }
+}

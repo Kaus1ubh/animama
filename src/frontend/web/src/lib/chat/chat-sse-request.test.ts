@@ -114,4 +114,17 @@ describe("buildChatSseRequestBody", () => {
       attached_file_ids: ["file-1", "file-2"],
     });
   });
+
+  it("sends the client time zone and locale for safety presentation", () => {
+    expect(
+      buildChatSseRequestBody({
+        message: "hello",
+        runId: "run-1",
+        chatId: "chat-1",
+        runtimeRevision: "ar1-one",
+        modelProviderId: null,
+        clientContext: { time_zone: "America/Toronto", locale: "en-CA" },
+      }).client_context,
+    ).toEqual({ time_zone: "America/Toronto", locale: "en-CA" });
+  });
 });

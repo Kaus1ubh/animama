@@ -16,6 +16,7 @@ from .base import Base, vector_type
 from .chat_compactions import ORMChatCompaction
 from .chat_messages import ORMChatMessage
 from .chats import ORMChat
+from .companion_safety import ORMCompanionSafetyState
 from .content_catalog import (
     ORMAnimaContentBinding,
     ORMContentCatalogDependency,
@@ -60,6 +61,7 @@ UserSettings = ORMUserSettings
 AnimaSettings = ORMAnimaSettings
 
 __all__ = [
+    "ORMCompanionSafetyState",
     "Base",
     "vector_type",
     "ORMArchive",

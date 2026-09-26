@@ -8,6 +8,7 @@ import pytest
 from fastapi import FastAPI
 from sqlalchemy import delete
 
+from animama.adapters.repositories.sqlalchemy.companion_safety_repo import SQLAlchemyCompanionSafetyRepository
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
 from animama.app.services.owner_bootstrap_service import OwnerBootstrapResult, OwnerBootstrapService
 from animama.domain.request_principal import RequestPrincipal
@@ -179,6 +180,9 @@ async def test_runtime_context_requires_a_name_even_after_an_earlier_skip(async_
     async with async_session_factory() as session:
         installation = await session.get(ORMInstallationSettings, 1)
         installation.first_run_completed_at = datetime.now(UTC)
+        await SQLAlchemyCompanionSafetyRepository(session).record_age_status(
+            principal_id, status="adult", source="self_attestation", recorded_at=datetime.now(UTC)
+        )
         await session.commit()
 
     async with local_client(app) as client:
@@ -196,7 +200,16 @@ async def test_runtime_context_requires_a_name_even_after_an_earlier_skip(async_
 
 
 @pytest.mark.parametrize(
-    "payload", [{}, {"display_name": None}, {"display_name": ""}, {"display_name": " \t "}, {"display_name": "x" * 81}]
+    "payload",
+    [
+        {},
+        {"display_name": None, "adult_confirmed": True},
+        {"display_name": "", "adult_confirmed": True},
+        {"display_name": " \t ", "adult_confirmed": True},
+        {"display_name": "x" * 81, "adult_confirmed": True},
+        {"display_name": "Ada"},
+        {"display_name": "Ada", "adult_confirmed": False},
+    ],
 )
 async def test_onboarding_api_rejects_missing_blank_or_overlong_names(async_session_factory, payload) -> None:
     principal_id = str(uuid4())
@@ -211,3 +224,19 @@ async def test_onboarding_api_rejects_missing_blank_or_overlong_names(async_sess
 
 async def _noop() -> None:
     return None
+
+
+async def test_runtime_context_requires_the_adult_confirmation(async_session_factory) -> None:
+    principal_id = str(uuid4())
+    app = await _runtime_app(async_session_factory, principal_id)
+    async with async_session_factory() as session:
+        installation = await session.get(ORMInstallationSettings, 1)
+        installation.first_run_completed_at = datetime.now(UTC)
+        profiles = SQLAlchemyUserProfileRepository(session)
+        profile = await profiles.get_profile(principal_id)
+        assert profile is not None
+        await profiles.update_profile(replace(profile, display_name="Ada"))
+        await session.commit()
+
+    async with local_client(app) as client:
+        assert (await client.get("/v1/runtime-context")).json()["first_run_complete"] is False

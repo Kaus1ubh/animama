@@ -49,12 +49,17 @@ from animama.app.model_clients import (
     MCUnknownProviderEvent,
     ModelClientDelta,
     ModelClientFinal,
+    ModelClientModeration,
     ModelClientProviderError,
     ModelClientRequest,
     ModelClientToolCall,
     StaticModelClientRegistry,
     model_client_event_delta,
 )
+from animama.app.model_clients.event_types import MCResponseStartedEvent
+from animama.app.model_clients.prompt import prompt_instruction_text
+from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
+from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain import AnimaChatProfile, ModelProvider, ModelProviderCapabilities
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.events import EventType
@@ -577,6 +582,12 @@ def _phase5_prefix(response_format_guidance: str | None = None) -> list[tuple[st
     ]
 
 
+def _trailing_instructions() -> str:
+    """Trailing developer text: request context followed by the Companion Guardrails."""
+
+    return f"{_fake_memory_map()}\n\n{COMPANION_GUARDRAILS.strip()}"
+
+
 def _fake_memory_map(anima_id: str = "anima-1") -> str:
     _ = anima_id
     return "\n".join(
@@ -676,7 +687,7 @@ async def test_direct_turn_emits_sse_compatible_events_and_persists_model_snapsh
     assert [(message["role"], message["content"]) for message in spec.prompt.messages] == [
         *_phase5_prefix(),
         ("assistant", "Previous reply."),
-        ("developer", _fake_memory_map()),
+        ("developer", _trailing_instructions()),
         ("user", "Hi"),
     ]
     assert "Expected json schema:" not in _text(spec.prompt.messages[0]["content"])
@@ -1173,7 +1184,7 @@ async def test_direct_turn_places_memory_map_in_system_when_provider_lacks_devel
     messages = model_client.seen_specs[0].prompt.messages
     output_type = build_main_structured_response_model(agent_id="direct_chat_model_client")
     assert [message["role"] for message in messages] == ["system", "user"]
-    assert _text(messages[0]["content"]).endswith(_fake_memory_map())
+    assert _text(messages[0]["content"]).endswith(_trailing_instructions())
     assert "# Response Guidance" in _text(messages[0]["content"])
     assert MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip() in _text(messages[0]["content"])
     assert build_main_structured_prompt(output_type) in _text(messages[0]["content"])
@@ -1349,7 +1360,7 @@ async def test_direct_turn_uses_compatible_openai_responses_cursor_and_persists_
     assert chats.context_calls == []
     assert [(message["role"], message["content"]) for message in spec.prompt.messages] == [
         *_phase5_prefix(),
-        ("developer", _fake_memory_map()),
+        ("developer", _trailing_instructions()),
         ("user", "Hi"),
     ]
     payload = chats.record_turn_calls[0]
@@ -1421,7 +1432,7 @@ async def test_direct_turn_responses_retries_stale_cursor_with_manual_context() 
     assert model_client.seen_specs[0].continuation.cursor == "resp_stale"
     assert [(message["role"], message["content"]) for message in model_client.seen_specs[0].prompt.messages] == [
         *_phase5_prefix(),
-        ("developer", _fake_memory_map()),
+        ("developer", _trailing_instructions()),
         ("user", "Hi"),
     ]
     assert model_client.seen_specs[1].continuation is None
@@ -1429,7 +1440,7 @@ async def test_direct_turn_responses_retries_stale_cursor_with_manual_context() 
     assert [(message["role"], message["content"]) for message in model_client.seen_specs[1].prompt.messages] == [
         *_phase5_prefix(),
         ("assistant", "Previous Responses reply."),
-        ("developer", _fake_memory_map()),
+        ("developer", _trailing_instructions()),
         ("user", "Hi"),
     ]
     assert "phase" not in model_client.seen_specs[1].prompt.messages[1]
@@ -1682,7 +1693,7 @@ async def test_direct_turn_replays_raw_provider_history_messages() -> None:
         assistant_tool_call,
         tool_result,
         {"role": "assistant", "content": prior_final},
-        {"role": "developer", "content": _fake_memory_map()},
+        {"role": "developer", "content": _trailing_instructions()},
         {"role": "user", "content": "Hi"},
     )
 
@@ -1696,7 +1707,7 @@ async def test_direct_turn_does_not_include_legacy_anima_profile_context() -> No
 
     assert [(message["role"], message["content"]) for message in model_client.seen_specs[0].prompt.messages] == [
         *_phase5_prefix(),
-        ("developer", _fake_memory_map()),
+        ("developer", _trailing_instructions()),
         ("user", "Hi"),
     ]
 
@@ -1730,7 +1741,7 @@ async def test_direct_turn_includes_active_compaction_summary_before_recent_hist
             ),
         ),
         ("assistant", "Recent exact reply."),
-        ("developer", _fake_memory_map()),
+        ("developer", _trailing_instructions()),
         ("user", "Hi"),
     ]
 
@@ -2384,6 +2395,9 @@ async def test_direct_turn_native_patch_round_limit_records_failed_output_and_di
     assert forced_request.provider_options.memory_apply_patch_enabled is False
     assert forced_request.prompt.tools == ()
     assert forced_request.prompt.messages[-1]["role"] == "developer"
+    forced_instructions = prompt_instruction_text(forced_request.prompt)
+    assert forced_instructions is not None
+    assert forced_instructions.endswith(COMPANION_GUARDRAILS.strip())
     limit_result = forced_request.prompt.messages[-2]
     assert limit_result["type"] == "model_client_tool_result"
     assert limit_result["call_id"] == "call-patch-4"
@@ -2642,3 +2656,97 @@ async def test_direct_turn_rejects_user_requested_apply_patch_as_generic_native_
         await _collect(executor.stream_turn(_request(request_options={"native_tools": ["apply_patch"]})))
 
     assert client.seen_specs == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "request_options",
+    [
+        {},
+        {"incognito": True},
+        {"disable_memory_influence": True, "disable_memory_updates": True},
+        {"disable_emotion_updates": True, "disable_emotion_influence": True},
+    ],
+)
+async def test_direct_turn_ends_instructions_with_companion_guardrails(request_options: dict[str, Any]) -> None:
+    model_client = _FinalModelClient(_structured_response())
+    executor, _chats = _executor(client=model_client)
+
+    await _collect(executor.stream_turn(_request(request_options=request_options)))
+
+    instructions = prompt_instruction_text(model_client.seen_specs[0].prompt)
+    assert instructions is not None
+    assert instructions.endswith(COMPANION_GUARDRAILS.strip())
+
+
+_FLAGGED = ModelClientModeration(status="result", flagged_categories=("self-harm/intent",))
+
+
+class _EventThenFinalClient(_ScriptedModelClient):
+    """Emits a provider stream event before each final, like the real Responses adapter."""
+
+    async def stream(self, spec: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
+        yield model_client_event_delta(
+            MCResponseStartedEvent(
+                provider_type="OpenAIResponsesHTTPAgent",
+                api="responses",
+                model="gpt-test",
+                provider_event_type="response.created",
+            )
+        )
+        async for delta in super().stream(spec):
+            yield delta
+
+
+@pytest.mark.asyncio
+async def test_moderation_survives_the_stream_event_summary_and_emits_crisis_support() -> None:
+    model_client = _EventThenFinalClient(
+        [ModelClientFinal(text=_structured_response(), usage=Usage(), input_moderation=_FLAGGED)]
+    )
+    executor, _chats = _executor(client=model_client, provider=_provider(provider_type="OpenAIResponsesHTTPAgent"))
+
+    events = await _collect(executor.stream_turn(_request(provider_moderation=True)))
+
+    crisis = [event for event in events if event.type == EventType.CRISIS_SUPPORT]
+    assert len(crisis) == 1 and crisis[0].payload.source == "moderation"
+    assert model_client.seen_specs[0].provider_options.moderation_model == RESPONSES_MODERATION_MODEL
+
+
+@pytest.mark.asyncio
+async def test_moderation_uses_round_zero_and_is_requested_only_there() -> None:
+    tool_final = ModelClientFinal(
+        text="",
+        usage=Usage(),
+        input_moderation=_FLAGGED,
+        tool_calls=(
+            ModelClientToolCall(id="call-1", name="memory_read_files", arguments=json.dumps({"paths": "profile.md"})),
+        ),
+    )
+    answer_final = ModelClientFinal(
+        text=_structured_response(), usage=Usage(), input_moderation=ModelClientModeration(status="result")
+    )
+    model_client = _EventThenFinalClient([tool_final, answer_final])
+    executor, _chats = _executor(
+        client=model_client,
+        provider=_provider(provider_type="OpenAIResponsesHTTPAgent"),
+        memory_tool_service=_FakeMemoryToolService(),
+    )
+
+    events = await _collect(executor.stream_turn(_request(provider_moderation=True)))
+
+    assert [event.type for event in events].count(EventType.CRISIS_SUPPORT) == 1
+    assert model_client.seen_specs[0].provider_options.moderation_model == RESPONSES_MODERATION_MODEL
+    assert model_client.seen_specs[1].provider_options.moderation_model is None
+
+
+@pytest.mark.asyncio
+async def test_moderation_is_ignored_when_not_requested() -> None:
+    model_client = _EventThenFinalClient(
+        [ModelClientFinal(text=_structured_response(), usage=Usage(), input_moderation=_FLAGGED)]
+    )
+    executor, _chats = _executor(client=model_client, provider=_provider(provider_type="OpenAIResponsesHTTPAgent"))
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    assert EventType.CRISIS_SUPPORT not in [event.type for event in events]
+    assert model_client.seen_specs[0].provider_options.moderation_model is None

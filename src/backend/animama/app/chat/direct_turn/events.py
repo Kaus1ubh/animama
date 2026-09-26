@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Literal
 
 from animama.domain.events import (
     AvatarGestureRequestedPayload,
+    CrisisSupportPayload,
     ErrorPayload,
     Event,
     EventType,
@@ -87,4 +88,15 @@ def error_event(
     )
 
 
-__all__ = ["avatar_gesture_event", "error_event", "user_response_event"]
+def crisis_support_event(request: DirectChatTurnRequest, *, source: Literal["moderation"]) -> Event:
+    return Event(
+        event_id=f"crisis-support-{request.run_id}",
+        anima_id=request.anima_id,
+        chat_id=request.chat_id,
+        user_id=request.user_id,
+        type=EventType.CRISIS_SUPPORT,
+        payload=CrisisSupportPayload(run_id=request.run_id, source=source),
+    )
+
+
+__all__ = ["avatar_gesture_event", "crisis_support_event", "error_event", "user_response_event"]

@@ -14,7 +14,7 @@ from openai.types.responses import (
     ResponseUsage,
 )
 
-from animama.app.model_clients import ModelClientToolCall
+from animama.app.model_clients import ModelClientModeration, ModelClientToolCall
 from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
 
 from .._common import get_value, jsonable
@@ -44,6 +44,7 @@ class ResponseFinalParts:
     usage: Usage
     tool_calls: tuple[ModelClientToolCall, ...]
     missing_final_answer_phase: bool = False
+    input_moderation: ModelClientModeration | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +111,25 @@ def response_final_parts(
         usage=usage_from_openai_responses(response.usage),
         tool_calls=extracted.tool_calls,
         missing_final_answer_phase=extracted.missing_final_answer_phase,
+        input_moderation=input_moderation_from_response(response),
+    )
+
+
+def input_moderation_from_response(response: Response) -> ModelClientModeration | None:
+    """Return content-free input moderation when the request asked for it."""
+
+    moderation = getattr(response, "moderation", None)
+    result = getattr(moderation, "input", None)
+    if result is None:
+        return None
+    if getattr(result, "type", None) != "moderation_result":
+        return ModelClientModeration(status="error")
+    categories = getattr(result, "categories", None) or {}
+    scores = getattr(result, "category_scores", None) or {}
+    return ModelClientModeration(
+        status="result",
+        flagged_categories=tuple(sorted(str(name) for name, flagged in categories.items() if flagged is True)),
+        category_scores={str(name): float(score) for name, score in scores.items() if isinstance(score, int | float)},
     )
 
 

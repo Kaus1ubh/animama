@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import type { PyChatResponse } from "@/lib/content/catalogTypes";
 import type { ChatMessage } from "@/ui/main/chat/useChatSession";
+import type { ChatCrisisSupport } from "@animama/product-ui/chat";
+import type { AiNoticeKind } from "@/lib/safety/aiNotice";
 
 const QUICK_CHAT_RENDER_READY_FALLBACK_MS = 150;
 const QUICK_CHAT_BASE_HEIGHT_PX = 760;
@@ -43,6 +45,14 @@ export type DesktopQuickChatSnapshot = {
   promptSuggestions: DesktopQuickChatPromptSuggestion[];
   showPromptSuggestions: boolean;
   voice: DesktopQuickChatVoiceState;
+  /** Mirrored AI notice and crisis card from the main window's session (spec R2, R4). */
+  safety?: DesktopQuickChatSafetyState | null;
+};
+
+export type DesktopQuickChatSafetyState = {
+  notice: { kind: AiNoticeKind; animaName: string | null } | null;
+  noticeVisible: boolean;
+  crisis: ChatCrisisSupport | null;
 };
 
 export type DesktopQuickChatCommand =
@@ -54,7 +64,8 @@ export type DesktopQuickChatCommand =
   | { type: "start-voice-mode" }
   | { type: "stop-mic-session" }
   | { type: "toggle-voice-mute" }
-  | { type: "refresh-model-state" };
+  | { type: "refresh-model-state" }
+  | { type: "dismiss-crisis-card" };
 
 export type DesktopQuickChatCommandHandlers = {
   setInput: (input: string) => void;
@@ -66,6 +77,7 @@ export type DesktopQuickChatCommandHandlers = {
   stopMicSession: () => void;
   toggleVoiceMute: () => void;
   refreshModelState: () => void;
+  dismissCrisisCard: () => void;
 };
 
 type UseDesktopQuickChatOwnerArgs = {
@@ -107,7 +119,10 @@ function createQuickChatRuntimeMessage(
   };
 }
 
-function isQuickChatCommand(value: unknown): value is DesktopQuickChatCommand {
+/** Exported for tests: unknown command types from the Quick Chat window are ignored. */
+export function isQuickChatCommand(
+  value: unknown,
+): value is DesktopQuickChatCommand {
   if (!isRecord(value) || typeof value.type !== "string") return false;
   switch (value.type) {
     case "set-input":
@@ -121,13 +136,15 @@ function isQuickChatCommand(value: unknown): value is DesktopQuickChatCommand {
     case "stop-mic-session":
     case "toggle-voice-mute":
     case "refresh-model-state":
+    case "dismiss-crisis-card":
       return true;
     default:
       return false;
   }
 }
 
-function isQuickChatSnapshot(
+/** Exported for tests. */
+export function isQuickChatSnapshot(
   value: unknown,
 ): value is DesktopQuickChatSnapshot {
   if (!isRecord(value)) return false;
@@ -153,6 +170,9 @@ function isQuickChatSnapshot(
     typeof value.showPromptSuggestions !== "boolean" ||
     !isRecord(value.voice)
   ) {
+    return false;
+  }
+  if ("safety" in value && !(value.safety === null || isRecord(value.safety))) {
     return false;
   }
   return true;
@@ -258,6 +278,9 @@ export function useDesktopQuickChatOwner({
           return;
         case "refresh-model-state":
           currentHandlers.refreshModelState();
+          return;
+        case "dismiss-crisis-card":
+          currentHandlers.dismissCrisisCard();
           return;
       }
     });

@@ -12,6 +12,7 @@ from animama.server.sse_events import (
     GruutSseTextBuilder,
     SseTextState,
     format_avatar_gesture_requested_event,
+    format_crisis_support_event,
     format_emotion_update_event,
     format_error_event,
     format_run_completed_event,
@@ -290,7 +291,12 @@ async def _handle_direct_event(
         frame = format_avatar_gesture_requested_event(event, run_id=run_id)
     elif stream_error and event.type == EventType.ERROR:
         frame = format_error_event(event, run_id=run_id)
-    if frame is not None:
+    elif event.type == EventType.CRISIS_SUPPORT:
+        frame = format_crisis_support_event(run_id=run_id, source=event.payload.source, state=state)
+    if frame is None:
+        return
+    # Crisis frames are never logged: detection results are sensitive and logs persist.
+    if event.type != EventType.CRISIS_SUPPORT:
         _log.info(
             "Direct chat SSE frame emitted",
             anima_id=anima_id,
@@ -300,7 +306,7 @@ async def _handle_direct_event(
             event_type=event.type.value,
             response_part=getattr(event.payload, "response_part", None),
         )
-        yield frame
+    yield frame
 
 
 def _emotional_state_from_update_event(event: Event, *, run_id: str) -> dict[str, int] | None:

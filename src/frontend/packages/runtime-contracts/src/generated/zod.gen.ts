@@ -532,11 +532,68 @@ export const zBodySaveVoiceContent = z.object({
 });
 
 /**
+ * CompanionSafetyCapability
+ *
+ * Operator safety configuration; owner preferences are in user settings.
+ */
+export const zCompanionSafetyCapability = z.object({
+    ai_notice_enabled: z.boolean(),
+    crisis_detection_enabled: z.boolean(),
+    enabled: z.boolean(),
+    operator_reminder_hours: z.number()
+});
+
+/**
  * CreateMissingStarterRepair
  */
 export const zCreateMissingStarterRepair = z.object({
     action: z.literal('create_missing'),
     starter_id: z.enum(['starter:annie', 'starter:caitlyn'])
+});
+
+/**
+ * CrisisContact
+ */
+export const zCrisisContact = z.object({
+    kind: z.enum([
+        'phone',
+        'sms',
+        'chat'
+    ]),
+    label: z.string().min(1).max(80),
+    value: z.string().min(1).max(300)
+});
+
+/**
+ * CrisisService
+ */
+export const zCrisisService = z.object({
+    contacts: z.array(zCrisisContact).min(1),
+    description: z.optional(z.union([
+        z.string().max(300),
+        z.null()
+    ])),
+    name: z.string().min(1).max(120)
+});
+
+/**
+ * CrisisResourceRegion
+ *
+ * Resources for one region; ``source_url`` and ``verified_on`` record the review.
+ */
+export const zCrisisResourceRegion = z.object({
+    code: z.string().regex(/^([A-Z]{2}|fallback)$/),
+    emergency_number: z.optional(z.union([
+        z.string().regex(/^[0-9]{2,4}$/),
+        z.null()
+    ])),
+    label: z.string().min(1).max(80),
+    services: z.array(zCrisisService),
+    source_url: z.union([
+        z.url().min(1).max(2083),
+        z.null()
+    ]),
+    verified_on: z.iso.date()
 });
 
 /**
@@ -779,34 +836,6 @@ export const zPyAnimaDispatchOptions = z.object({
         zPyAnimaTtsRunOptions,
         z.null()
     ]))
-});
-
-/**
- * PyAnimaChatRequest
- */
-export const zPyAnimaChatRequest = z.object({
-    attached_file_ids: z.optional(z.union([
-        z.array(z.string()).max(50),
-        z.null()
-    ])),
-    chat_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    dispatch_options: z.optional(z.union([
-        zPyAnimaDispatchOptions,
-        z.null()
-    ])),
-    message: z.string(),
-    model_provider_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    run_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    runtime_revision: z.string().max(128)
 });
 
 /**
@@ -1256,6 +1285,54 @@ export const zPyCatalogPreviewSource = z.object({
 });
 
 /**
+ * PyChatClientContext
+ *
+ * Client-reported context used only for safety presentation (spec R2, R5).
+ */
+export const zPyChatClientContext = z.object({
+    locale: z.optional(z.union([
+        z.string().max(64),
+        z.null()
+    ])),
+    time_zone: z.optional(z.union([
+        z.string().max(64),
+        z.null()
+    ]))
+});
+
+/**
+ * PyAnimaChatRequest
+ */
+export const zPyAnimaChatRequest = z.object({
+    attached_file_ids: z.optional(z.union([
+        z.array(z.string()).max(50),
+        z.null()
+    ])),
+    chat_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    client_context: z.optional(z.union([
+        zPyChatClientContext,
+        z.null()
+    ])),
+    dispatch_options: z.optional(z.union([
+        zPyAnimaDispatchOptions,
+        z.null()
+    ])),
+    message: z.string(),
+    model_provider_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    run_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    runtime_revision: z.string().max(128)
+});
+
+/**
  * PyChatCreate
  */
 export const zPyChatCreate = z.object({
@@ -1536,6 +1613,26 @@ export const zPyContentRescan = z.object({
 export const zPyContentSaveResult = z.object({
     item: zPyContentItem,
     operation_id: z.string()
+});
+
+/**
+ * PyCrisisResourceRegionOption
+ */
+export const zPyCrisisResourceRegionOption = z.object({
+    code: z.string(),
+    label: z.string()
+});
+
+/**
+ * PyCrisisResources
+ */
+export const zPyCrisisResources = z.object({
+    preferred_region: z.union([
+        z.string(),
+        z.null()
+    ]),
+    regions: z.array(zPyCrisisResourceRegionOption),
+    resolved: zCrisisResourceRegion
 });
 
 /**
@@ -2774,6 +2871,7 @@ export const zPyMusicTrackPlanRequest = z.object({
  * PyOnboardingCompleteRequest
  */
 export const zPyOnboardingCompleteRequest = z.object({
+    adult_confirmed: z.boolean(),
     display_name: z.string().min(1).max(80)
 });
 
@@ -4737,6 +4835,7 @@ export const zUserFileProcessingCapability = z.object({
  * RuntimeCapabilities
  */
 export const zRuntimeCapabilities = z.object({
+    companion_safety: zCompanionSafetyCapability,
     offline_speech_asset_version: z.union([
         z.string(),
         z.null()
@@ -6652,6 +6751,22 @@ export const zCompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostData = z.o
  * Successful Response
  */
 export const zCompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostResponse = zPyRuntimeContext;
+
+export const zGetCrisisResourcesV1SafetyCrisisResourcesGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.object({
+        locale: z.optional(z.union([
+            z.string().max(64),
+            z.null()
+        ]))
+    }))
+});
+
+/**
+ * Successful Response
+ */
+export const zGetCrisisResourcesV1SafetyCrisisResourcesGetResponse = zPyCrisisResources;
 
 export const zListSceneEffectsData = z.object({
     body: z.optional(z.never()),

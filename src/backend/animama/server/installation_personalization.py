@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.repositories.sqlalchemy.companion_safety_repo import SQLAlchemyCompanionSafetyRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
@@ -37,6 +38,10 @@ class FirstRunIncompleteError(InstallationPersonalizationError):
     """A normal profile edit was attempted before onboarding completed."""
 
 
+class AdultConfirmationRequiredError(InstallationPersonalizationError):
+    """First run cannot complete without the owner's 18+ confirmation (spec R6)."""
+
+
 class InstallationBootstrapIncompleteError(InstallationPersonalizationError):
     """Required local bootstrap state is missing during first-run completion."""
 
@@ -58,6 +63,7 @@ class InstallationPersonalizationService:
         self._installations = SQLAlchemyInstallationSettingsRepository(session)
         self._profiles = SQLAlchemyUserProfileRepository(session)
         self._memory_entries = SQLAlchemyMemoryEntryRepository(session)
+        self._safety = SQLAlchemyCompanionSafetyRepository(session)
         self._uow = SQLAlchemyUnitOfWork(session)
         self._before_commit = before_commit
 
@@ -66,7 +72,12 @@ class InstallationPersonalizationService:
         *,
         principal_id: str,
         display_name: str | None,
+        adult_confirmed: bool,
     ) -> InstallationPersonalizationResult:
+        """Complete first run; records the owner's 18+ self-attestation in the same transaction."""
+
+        if not adult_confirmed:
+            raise AdultConfirmationRequiredError("first run requires confirming the owner is 18 or older")
         normalized = normalize_display_name(display_name)
         return await self._write(principal_id=principal_id, display_name=normalized, complete_first_run=True)
 
@@ -98,7 +109,8 @@ class InstallationPersonalizationService:
 
                 completed_at = installation.first_run_completed_at
                 has_name = bool(profile.display_name and profile.display_name.strip())
-                if complete_first_run and completed_at is not None and has_name:
+                is_adult = await self._safety.get_age_status(principal_id) == "adult"
+                if complete_first_run and completed_at is not None and has_name and is_adult:
                     # Named completion replays are read-only. An earlier Skip
                     # may still supply its required name without rekeying data.
                     await self._session.rollback()
@@ -125,6 +137,10 @@ class InstallationPersonalizationService:
                 if profile.display_name != display_name:
                     await self._profiles.update_profile(replace(profile, display_name=display_name))
 
+                if complete_first_run and not is_adult:
+                    await self._safety.record_age_status(
+                        principal_id, status="adult", source="self_attestation", recorded_at=datetime.now(UTC)
+                    )
                 if complete_first_run and completed_at is None:
                     completed_at = datetime.now(UTC)
                     await self._installations.complete_first_run(completed_at=completed_at)

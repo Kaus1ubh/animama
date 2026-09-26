@@ -17,12 +17,14 @@ import {
   Info,
   Keyboard,
   KeyRound,
+  LifeBuoy,
   Palette,
   Settings2,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { SafetySettingsSection } from "@/ui/settings/SafetySettingsSection";
 
 import {
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
@@ -202,6 +204,7 @@ const sections = [
   "Voice",
   "Shortcuts",
   "Memory & Emotion",
+  "Safety",
   "API Keys",
   "Data",
   "Advanced",
@@ -228,6 +231,7 @@ const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
   Voice: AudioLines,
   Shortcuts: Keyboard,
   "Memory & Emotion": Brain,
+  Safety: LifeBuoy,
   "API Keys": KeyRound,
   Data: Database,
   Advanced: SlidersHorizontal,
@@ -1617,6 +1621,29 @@ export function ApplicationSettingsModal({
             </p>
           ) : null}
         </SettingsRow>
+      ),
+    },
+    {
+      id: "safety",
+      section: "Safety",
+      label: "Crisis resources region and AI reminder",
+      keywords: [
+        "safety",
+        "crisis",
+        "help",
+        "hotline",
+        "988",
+        "region",
+        "reminder",
+        "ai notice",
+        "protocol",
+      ],
+      render: () => (
+        <SafetySettingsSection
+          safety={resolvedUserPreferences.safety}
+          updateUserPreferences={updateUserPreferences}
+          disabled={isBusy}
+        />
       ),
     },
     {
