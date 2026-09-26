@@ -4,7 +4,8 @@
     "repository": "kyutai/pocket-tts-without-voice-cloning",
     "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
     "path": "languages/english_2026-04/embeddings/{name}.safetensors",
-    "license_basis": "Per-voice source recording licence; Kyutai's model-card prohibited-use terms apply"
+    "license_basis": "Kyutai publishes the precomputed states under the repository's CC BY 4.0 license; each source recording's own license is listed per voice",
+    "license": "CC-BY-4.0"
   },
   "clips": {
     "repository": "kyutai/tts-voices",
@@ -112,10 +113,10 @@
     },
     {
       "name": "javert",
-      "recording": "kyutai/tts-voices voice-donations/Butter.wav",
+      "recording": "kyutai/tts-voices voice-donations/Butter.wav (Unmute Voice Donation Project, Kyutai)",
       "license": "CC0-1.0",
       "gender": "male",
-      "exclude": "voice-donations source; the owner excluded kyutai/tts-voices donations on 2026-09-26"
+      "note": "voice-donations source restored by the owner at G1 (2026-09-26)"
     },
     {
       "name": "jean",
@@ -136,10 +137,10 @@
     },
     {
       "name": "marius",
-      "recording": "kyutai/tts-voices voice-donations/Selfie.wav",
+      "recording": "kyutai/tts-voices voice-donations/Selfie.wav (Unmute Voice Donation Project, Kyutai)",
       "license": "CC0-1.0",
       "gender": "male",
-      "exclude": "voice-donations source; the owner excluded kyutai/tts-voices donations on 2026-09-26"
+      "note": "voice-donations source restored by the owner at G1 (2026-09-26)"
     },
     {
       "name": "mary",

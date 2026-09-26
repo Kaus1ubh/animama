@@ -119,10 +119,10 @@ afterEach(async () => {
 });
 
 describe("verified browser runtime inputs", () => {
-  it("preserves all 24 reviewed target paths and independent distribution copies", () => {
+  it("preserves all 58 reviewed target paths and independent distribution copies", () => {
     const value = fixture();
     const assets = resolveBrowserRuntimeAssets(value);
-    expect(assets).toHaveLength(24);
+    expect(assets).toHaveLength(58);
     const builtRoot = path.join(value.root, "dist");
     copyBrowserRuntimeAssets(assets, builtRoot);
     rmSync(value.modelDirectory, { recursive: true });
@@ -132,7 +132,7 @@ describe("verified browser runtime inputs", () => {
         manifestPath: value.manifestPath,
         builtRoot,
       }),
-    ).toHaveLength(24);
+    ).toHaveLength(58);
   });
   it("rejects extra built bytes and unsafe output links", () => {
     const value = fixture();
@@ -190,7 +190,7 @@ describe("verified browser runtime inputs", () => {
       manifestPath: value.manifestPath,
       builtRoot,
     });
-    expect(builtAssets).toHaveLength(24);
+    expect(builtAssets).toHaveLength(58);
     const preview = await listen(builtAssets, builtRoot);
     expect(await (await fetch(`${preview}/${relative}`)).text()).toBe(
       "user-catalog",
@@ -279,7 +279,7 @@ describe("verified browser runtime inputs", () => {
     cpSync(packagePath, physical, { recursive: true });
     rmSync(packagePath, { recursive: true });
     symlinkSync(physical, packagePath, "junction");
-    expect(resolveBrowserRuntimeAssets(value)).toHaveLength(24);
+    expect(resolveBrowserRuntimeAssets(value)).toHaveLength(58);
     const payload = path.join(physical, "dist/ort.min.mjs");
     rmSync(payload);
     symlinkSync(

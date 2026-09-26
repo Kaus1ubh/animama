@@ -284,3 +284,38 @@ def test_generation_limits_match_the_worker():
     assert pocket_onnx.frames_after_eos("Okay, sounds really very good.") == 3
     assert pocket_onnx.max_frames_for_tokens(12) == 75
     assert pocket_onnx.prepare_text("hello\nworld") == "Hello world."
+
+
+def test_every_shipped_voice_is_licensed_recorded_and_credited():
+    """R24: every shipped voice has a reviewed licence, a licence record and its attribution."""
+    sources = voices.load_sources()
+    selection = voices.load_selection()
+    kyutai = {voice["name"]: voice for voice in sources["kyutai_voices"]}
+    manifest = {e["path"]: e for e in json.loads(voices.BROWSER_MANIFEST.read_text())["files"]}
+    records = json.loads(voices.LICENSE_RECORDS.read_text())
+    pocket = next(group for group in records["groups"] if group["id"] == "browser-pocket")
+    recorded = {entry["path"]: entry["sha256"] for entry in pocket["external_files"]}
+    shipped = {f"{voice['id']}.safetensors" for voice in selection["voices"]}
+    assert shipped == {name for name, e in manifest.items() if e["target"].startswith("models/pocket-tts/voices/")}
+    for voice in selection["voices"]:
+        entry = manifest[f"{voice['id']}.safetensors"]
+        if voice["source"].startswith("vctk-"):
+            assert entry["license"] == "CC-BY-4.0", voice["id"]
+        else:
+            origin = kyutai[voice["source"]]
+            # The recording must be permitted and not excluded; the file carries the repository licence.
+            assert origin["license"] in voices.PERMITTED_LICENSES and not origin.get("exclude"), voice["id"]
+            assert entry["license"] == sources["kyutai_states"]["license"], voice["id"]
+        assert recorded.get(entry["target"]) == entry["sha256"], voice["id"]
+    assert voices.voice_notice(sources, selection) in voices.ATTRIBUTION.read_text()
+    assert selection["default"] == "eve"
+    assert sum(voice["recommended"] for voice in selection["voices"]) == 14
+
+
+def test_selection_rejects_unsafe_voice_ids(tmp_path):
+    value = json.loads(voices.SELECTION.read_text())
+    value["voices"][0]["id"] = "../eve"
+    path = tmp_path / "selection.json"
+    path.write_text(json.dumps(value))
+    with pytest.raises(voices.VoiceToolError):
+        voices.load_selection(path)

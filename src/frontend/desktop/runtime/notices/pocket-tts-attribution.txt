@@ -17,33 +17,73 @@ Export license: CC BY 4.0, inherited from Kyutai. The pinned onnx/LICENSE
 is reproduced in pocket-tts-onnx-license.txt. The repository README declares
 CC BY 4.0 for the models and Apache-2.0 for code.
 
-Built-in voices: Kyutai precomputed Pocket TTS voice states
+Built-in voices (38)
+
+Kyutai precomputed voice states (14), redistributed unmodified
 Source: https://huggingface.co/kyutai/pocket-tts-without-voice-cloning/tree/4e1e0a3e611c51c0b4ed8174fc10f32a54644303/languages/english_2026-04/embeddings
 Pinned revision: 4e1e0a3e611c51c0b4ed8174fc10f32a54644303
-Repository license: CC BY 4.0
-Files: eve.safetensors, azelma.safetensors, mary.safetensors and
-jane.safetensors, redistributed unmodified. Kyutai computed each state from a
-recording published at https://huggingface.co/kyutai/tts-voices, whose README
-(revision 323332d33f997de8394f24a193e1a76df720e01a) records the dataset
-licenses below. Kyutai's pocket-tts voice catalog at
-https://github.com/kyutai-labs/pocket-tts/blob/a012a26f46843733197db5800c254fc119247cda/pocket_tts/utils/utils.py
-names each source recording.
+Repository license: CC-BY-4.0 (the published states)
+Kyutai computed each state from a recording published at
+https://huggingface.co/kyutai/tts-voices (README revision 323332d33f997de8394f24a193e1a76df720e01a),
+which records each recording's license, listed per voice:
 
-Each voice derives from a clip of the CSTR VCTK Corpus (Centre for Speech
-Technology Research, University of Edinburgh;
-https://datashare.ed.ac.uk/handle/10283/3443), enhanced by Kyutai using
-ai-coustics. License: Creative Commons Attribution 4.0 International
-(CC BY 4.0), https://creativecommons.org/licenses/by/4.0/.
+- azelma: kyutai/tts-voices vctk/p303_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
+- jane: kyutai/tts-voices vctk/p339_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
+- anna: kyutai/tts-voices vctk/p228_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
+- caro_davy: kyutai/tts-voices voice-zero/caro_davy.wav (Voice-Zero, LibriVox); CC0-1.0
+- eponine: kyutai/tts-voices vctk/p262_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
+- eve (default voice): kyutai/tts-voices vctk/p361_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
+- fantine: kyutai/tts-voices vctk/p244_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
+- mary: kyutai/tts-voices vctk/p333_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
+- bill_boerst: kyutai/tts-voices voice-zero/bill_boerst.wav (Voice-Zero, LibriVox); CC0-1.0
+- javert: kyutai/tts-voices voice-donations/Butter.wav (Unmute Voice Donation Project, Kyutai); CC0-1.0
+- marius: kyutai/tts-voices voice-donations/Selfie.wav (Unmute Voice Donation Project, Kyutai); CC0-1.0
+- michael: kyutai/tts-voices vctk/p360_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
+- paul: kyutai/tts-voices vctk/p259_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
+- charles: kyutai/tts-voices vctk/p254_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 
-- eve (default voice): vctk/p361_023_enhanced.wav
-- azelma: vctk/p303_023_enhanced.wav
-- mary: vctk/p333_023_enhanced.wav
-- jane: vctk/p339_023_enhanced.wav
+Animama-encoded VCTK voice states (24)
+Encoded by Animama with the english_2026-04 Mimi encoder, learned BOS row and
+INT8 flow LM (scripts/voices in the Animama source) from Kyutai-enhanced clips
+at https://huggingface.co/kyutai/tts-voices (revision 323332d33f997de8394f24a193e1a76df720e01a,
+vctk/<speaker>_023_enhanced.wav). Published at https://downloads.animama.ai/pocket-tts/voices/english_2026-04/.
+Recordings: CSTR VCTK Corpus (Centre for Speech Technology Research,
+University of Edinburgh; https://datashare.ed.ac.uk/handle/10283/3443),
+enhanced by Kyutai using ai-coustics. License: Creative Commons Attribution
+4.0 International (CC BY 4.0), https://creativecommons.org/licenses/by/4.0/.
 
-License basis: every Pocket TTS asset Animama distributes (the ONNX export,
-tokenizer and the four voice states) is licensed CC BY 4.0, which permits
-commercial use with attribution. Kyutai's model-card prohibited-use terms
-still apply. Animama's desktop release policy separately records a
+- clara: VCTK speaker p236, sentence 023
+- imogen: VCTK speaker p233, sentence 023
+- lucy: VCTK speaker s5, sentence 023
+- olivia: VCTK speaker p300, sentence 023
+- thandi: VCTK speaker p314, sentence 023
+- aoife: VCTK speaker p283, sentence 023
+- beatrice: VCTK speaker p267, sentence 023
+- brooke: VCTK speaker p299, sentence 023
+- chloe: VCTK speaker p307, sentence 023
+- emily: VCTK speaker p308, sentence 023
+- florence: VCTK speaker p276, sentence 023
+- grace: VCTK speaker p305, sentence 023
+- harriet: VCTK speaker p231, sentence 023
+- leah: VCTK speaker p317, sentence 023
+- madison: VCTK speaker p294, sentence 023
+- niamh: VCTK speaker p238, sentence 023
+- orla: VCTK speaker p351, sentence 023
+- siobhan: VCTK speaker p266, sentence 023
+- sophie: VCTK speaker p343, sentence 023
+- noah: VCTK speaker p334, sentence 023
+- oliver: VCTK speaker p232, sentence 023
+- callum: VCTK speaker p241, sentence 023
+- ethan: VCTK speaker p311, sentence 023
+- jack: VCTK speaker p326, sentence 023
+
+License basis: the Pocket TTS ONNX export, tokenizer and every voice state
+Animama distributes are licensed CC BY 4.0, which permits commercial use with
+the attribution above. Kyutai publishes its precomputed states under CC BY 4.0;
+Animama's encoded states derive from CC BY 4.0 VCTK recordings. The recordings
+behind bill_boerst, caro_davy (Voice-Zero, LibriVox), javert and marius (Unmute
+voice donations) are dedicated CC0 1.0. Kyutai's model-card prohibited-use
+terms still apply. Animama's desktop release policy separately records a
 noncommercial distribution basis; changing that policy is a separate owner
 decision. This does not change the separate licenses of Pocket code,
 dependencies or original Animama source. This attribution record is not the

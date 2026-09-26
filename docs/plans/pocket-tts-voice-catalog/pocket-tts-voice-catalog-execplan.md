@@ -629,15 +629,121 @@ Checks:
 - `ruff`;
 - offline import acquire and verify, then a real acquire after G2.
 
-Results, issue and commits: _pending_.
+#### Phase 3 results (2026-09-26)
+
+Issue #152. Starting revision `d872eb5`.
+
+- **Selection.** `scripts/voices/selection.json` records the G1 set: 38
+  voices (27 female, 11 male), 14 recommended, default `eve`. The owner
+  approved the agent-proposed names for the 24 VCTK voices on 2026-09-26.
+  - `javert` and `marius` were restored in `sources.json` and screened: WER 0,
+    with `javert` flagged for leading silence.
+  - The inventory now has `shipped` and `shipped_id`.
+- **`voices.py release`.** Implemented as one command (the plan called it
+  `publish-set`); `inventory` refreshes the inventory separately.
+  - It verifies every input: encoded states against
+    `encoded-state-hashes.json`, and Kyutai states against the pins.
+  - It rebuilds the untracked upload and import directories before writing any
+    tracked file.
+  - It then regenerates the browser speech manifest's voice entries, the
+    runtime manifest's voice entries, the licence `external_files`, the voice
+    section of `pocket-tts-attribution.txt` and `voice-catalog.ts` (D12).
+- **Acquisition.**
+  - `parakeet.py` gains `RELEASE_HOSTS = {downloads.animama.ai}`, used only for
+    entries with a `release` source; redirects stay within the same host set.
+  - `browser_speech.py` derives the expected voice files from
+    `selection.json`. Each voice must match its reviewed source: Kyutai's
+    Hugging Face path, or the release URL `<id>-<sha256[:16]>.safetensors`
+    bound to the entry hash. The exact-count check is derived: 8 bundle files,
+    38 voices and Smart Turn make 47.
+  - Runtime counts are 58 and 47.
+- **Upload set:** 24 files, 158 MB, plus `SHA256SUMS`, under
+  `pocket-tts/voices/english_2026-04/`.
+- **Offline acquisition:** `browser_speech.py acquire --offline --import-from`
+  the staged directory, then `verify`, succeed.
+- **Licences.** Every shipped voice file is CC BY 4.0: Kyutai publishes its
+  states under CC BY 4.0, and the encoded states derive from CC BY 4.0 VCTK.
+  The recordings behind four voices are CC0, and the notice lists each
+  recording's licence. `code-and-models.{json,md}` and `license-sources.json`
+  are updated, and `pocket_onnx.py` is recorded as an Apache-2.0 port.
+  `licenses/source-review.json` is release-candidate evidence refreshed by
+  `scripts/public-release`; it is not updated here (#130 did the same).
+- **Checks:**
+  - `uv run --no-sync pytest -q tests/test_voice_tools.py tests/test_browser_model_store.py`:
+    48 passed.
+  - The reviewer ran `tests/test_model_store.py` and
+    `tests/test_webgpu_model_store.py`: no Parakeet regression.
+  - Ruff check and format, and mypy on the tests: clean.
+  - `pnpm verify:tts-assets`: 58 files.
+  - `browserRuntimeAssets.test.ts`: 13 passed.
+- **Merge safety (G2).** After this manifest merges, every online acquisition
+  (CI full validation, local receipts, desktop release, `reset.sh` on a fresh
+  root) needs the published objects. The PR must not merge until the owner has
+  uploaded the set under the exact manifest keys and a real `acquire` into a
+  fresh root has verified every hash. Until then, hosted model-input failures
+  are expected-pending, not passes, and offline-import evidence is not
+  acquisition acceptance.
 
 #### Code Review #1 Findings
 
-_Pending._
+Independent reviewer, on the working tree over `d872eb5`. Phase 4 edits
+appeared mid-review and were excluded; the lesson is to pin a revision per
+review.
+
+Confirmed sound:
+- **Release host security:** host, port, digest and redirect binding are
+  correct, and the Parakeet default path is unchanged.
+- **Byte-for-byte consistency:** the upload set, both manifests, the licence
+  records and the pins all agree.
+- **Notice:** `voice_notice` regenerates the checked-in section exactly.
+
+Checks: 105 passed and 6 skipped across four suites; ruff and format clean;
+`verify` OK; `verify:tts-assets` 58; runtime asset tests 13 passed.
+
+Required:
+- **P3-R1-F1.** The R24 test trusted the manifest's own `license` field; a
+  hand-edited CC BY-NC voice could pass.
+- **P3-R1-F2.** The inventory still showed `javert` and `marius` as excluded
+  and unscreened, and it had no `shipped` flag.
+- **P3-R1-F3.** The notice dropped the Kyutai repository licence (CC BY 4.0)
+  and labelled four redistributed Kyutai states CC0.
+
+Optional:
+- **P3-R1-F4.** The licence-basis prose cited sources that don't ship.
+- **P3-R1-F5.** `release` wrote tracked files before validating inputs and
+  staging.
+- **P3-R1-F6.** No format check on voice IDs.
+- **P3-R1-F7.** A rename after G2 forces a re-upload.
+- **P3-R1-F8.** Record deviations: the `release` name, `source-review.json`
+  and `licenses/README.md`.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **F1, fixed.** The test now checks against `sources.json`:
+  - VCTK voices must be CC BY 4.0;
+  - Kyutai voices need a permitted, non-excluded recording and the repository
+    licence;
+  - the generated notice section must be contained verbatim.
+- **F2, fixed.** Inventory regenerated: 114 candidates and 7 excluded, with
+  38 marked shipped.
+- **F3, fixed.**
+  - `sources.json` `kyutai_states.license` is CC BY 4.0, and the Kyutai
+    manifest entries use it.
+  - The notice restores "Repository license: CC BY 4.0 (the published
+    states)" and lists each recording's licence.
+  - The licence records now say every file is CC BY 4.0 and the four
+    recordings are CC0.
+- **F4, fixed.** The licence-basis prose names only shipped sources.
+- **F5, fixed.** `release` verifies all inputs (including Kyutai hashes) and
+  rebuilds the work directories before any tracked write.
+- **F6, fixed.** IDs must match `[a-z0-9_]{1,64}` in both `voices.py` and
+  `browser_speech.py`, with a test.
+- **F7, accepted as a record.** The owner approved the names before G2, so
+  IDs are frozen from here. A later rename needs a new upload.
+- **F8, recorded** in the results above; `licenses/README.md` moves to Phase 5
+  docs.
+
+Targeted recheck (Review #2): pending.
 
 ### Phase 4: Data-driven voice list, grouped selector and stale-voice notice
 

@@ -22,10 +22,10 @@ const defaultManifest = path.join(
   repositoryRoot,
   "models/browser-runtime/manifest.json",
 );
-// Reviewed inventory sizes: 13 acquired model files (Pocket TTS english_2026-04
-// bundle, four voice states, Smart Turn) plus 11 pinned package files.
-const RUNTIME_FILE_COUNT = 24;
-const MODEL_FILE_COUNT = 13;
+// Reviewed inventory sizes: 47 acquired model files (Pocket TTS english_2026-04
+// bundle, 38 voice states, Smart Turn) plus 11 pinned package files.
+const RUNTIME_FILE_COUNT = 58;
+const MODEL_FILE_COUNT = 47;
 const packageSources = new Map([
   ["onnxruntime-web-assets", ["onnxruntime-web", "1.24.2"]],
   ["@ricky0123/vad-web", ["@ricky0123/vad-web", "0.0.30"]],

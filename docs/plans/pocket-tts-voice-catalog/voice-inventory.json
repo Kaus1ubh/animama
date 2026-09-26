@@ -5,7 +5,8 @@
       "repository": "kyutai/pocket-tts-without-voice-cloning",
       "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
       "path": "languages/english_2026-04/embeddings/{name}.safetensors",
-      "license_basis": "Per-voice source recording licence; Kyutai's model-card prohibited-use terms apply"
+      "license_basis": "Kyutai publishes the precomputed states under the repository's CC BY 4.0 license; each source recording's own license is listed per voice",
+      "license": "CC-BY-4.0"
     },
     "clips": {
       "repository": "kyutai/tts-voices",
@@ -43,6 +44,7 @@
       "region": null,
       "labels": "manual",
       "status": "candidate",
+      "shipped": false,
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -67,6 +69,8 @@
       "region": "Southern England",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "anna",
       "screening": {
         "mean_wer": 0.0303,
         "max_wer": 0.1818,
@@ -89,6 +93,8 @@
       "region": "Toronto",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "azelma",
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -111,6 +117,8 @@
       "region": null,
       "labels": "manual",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "bill_boerst",
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -133,6 +141,8 @@
       "region": null,
       "labels": "manual",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "caro_davy",
       "screening": {
         "mean_wer": 0.0303,
         "max_wer": 0.1818,
@@ -155,6 +165,8 @@
       "region": "Surrey",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "charles",
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -176,7 +188,8 @@
       "accent": null,
       "region": null,
       "labels": "manual",
-      "status": "excluded:license CC-BY-NC-4.0"
+      "status": "excluded:license CC-BY-NC-4.0",
+      "shipped": false
     },
     {
       "id": "daan",
@@ -193,7 +206,8 @@
       "accent": null,
       "region": null,
       "labels": "manual",
-      "status": "excluded:no documented source recording"
+      "status": "excluded:no documented source recording",
+      "shipped": false
     },
     {
       "id": "eponine",
@@ -211,6 +225,8 @@
       "region": "Edinburgh",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "eponine",
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -233,6 +249,7 @@
       "region": null,
       "labels": "manual",
       "status": "candidate",
+      "shipped": false,
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -257,6 +274,8 @@
       "region": "New Jersey",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "eve",
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -279,6 +298,8 @@
       "region": "Manchester",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "fantine",
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -301,6 +322,7 @@
       "region": "New England Text and mic2 files unavailable",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -324,7 +346,8 @@
       "accent": null,
       "region": null,
       "labels": "manual",
-      "status": "excluded:unconfirmed Common Voice source"
+      "status": "excluded:unconfirmed Common Voice source",
+      "shipped": false
     },
     {
       "id": "jane",
@@ -342,6 +365,8 @@
       "region": "Pennsylvania",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "jane",
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -356,14 +381,23 @@
         "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
         "path": "languages/english_2026-04/embeddings/javert.safetensors",
         "sha256": "0ae88e03ca4e76a0e16cbf321a807428febda9d9e9bc0358c02e7f9c9e2c263b",
-        "recording": "kyutai/tts-voices voice-donations/Butter.wav"
+        "recording": "kyutai/tts-voices voice-donations/Butter.wav (Unmute Voice Donation Project, Kyutai)"
       },
       "license": "CC0-1.0",
       "gender": "male",
       "accent": null,
       "region": null,
       "labels": "manual",
-      "status": "excluded:voice-donations source; the owner excluded kyutai/tts-voices donations on 2026-09-26"
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "javert",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": [
+          "lead-silence"
+        ]
+      }
     },
     {
       "id": "jean",
@@ -380,7 +414,8 @@
       "accent": null,
       "region": null,
       "labels": "manual",
-      "status": "excluded:license CC-BY-NC-4.0"
+      "status": "excluded:license CC-BY-NC-4.0",
+      "shipped": false
     },
     {
       "id": "juergen",
@@ -397,7 +432,8 @@
       "accent": null,
       "region": null,
       "labels": "manual",
-      "status": "excluded:no documented source recording"
+      "status": "excluded:no documented source recording",
+      "shipped": false
     },
     {
       "id": "lola",
@@ -414,7 +450,8 @@
       "accent": null,
       "region": null,
       "labels": "manual",
-      "status": "excluded:unconfirmed Common Voice source"
+      "status": "excluded:unconfirmed Common Voice source",
+      "shipped": false
     },
     {
       "id": "marius",
@@ -424,14 +461,21 @@
         "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
         "path": "languages/english_2026-04/embeddings/marius.safetensors",
         "sha256": "04f84efcb77a0547ba582c058db496f7ff4920891d49d37b9950d128422582a8",
-        "recording": "kyutai/tts-voices voice-donations/Selfie.wav"
+        "recording": "kyutai/tts-voices voice-donations/Selfie.wav (Unmute Voice Donation Project, Kyutai)"
       },
       "license": "CC0-1.0",
       "gender": "male",
       "accent": null,
       "region": null,
       "labels": "manual",
-      "status": "excluded:voice-donations source; the owner excluded kyutai/tts-voices donations on 2026-09-26"
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "marius",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
     },
     {
       "id": "mary",
@@ -449,6 +493,8 @@
       "region": "Indiana",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "mary",
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -471,6 +517,8 @@
       "region": "New Jersey",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "michael",
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -493,6 +541,8 @@
       "region": "Nottingham",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "paul",
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -515,6 +565,7 @@
       "region": null,
       "labels": "manual",
       "status": "candidate",
+      "shipped": false,
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -536,7 +587,8 @@
       "accent": null,
       "region": null,
       "labels": "manual",
-      "status": "excluded:no documented source recording"
+      "status": "excluded:no documented source recording",
+      "shipped": false
     },
     {
       "id": "stuart_bell",
@@ -554,6 +606,7 @@
       "region": null,
       "labels": "manual",
       "status": "candidate",
+      "shipped": false,
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -576,6 +629,7 @@
       "region": "Southern England",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "screening": {
         "mean_wer": 0.0,
         "max_wer": 0.0,
@@ -598,6 +652,7 @@
       "region": "Southern England",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "a9b0e877000e6c908818547954ee4926f74c46ef41f28fe22003a4380b8ef47e",
       "screening": {
         "mean_wer": 0.0151,
@@ -621,6 +676,7 @@
       "region": "Surrey",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "8cbf22c84da2fbeb0ae7e43824f14b6768642ff0cfcb8424da911c81288dc7fb",
       "screening": {
         "mean_wer": 0.0303,
@@ -644,6 +700,7 @@
       "region": "Cumbria",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "d962783e4467d7791ee336758c469b457a381df660cd4813de1c81a36ef3a8a6",
       "screening": {
         "mean_wer": 0.0,
@@ -667,6 +724,7 @@
       "region": "Stockton-on-tees",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "36687de2ec98bd8c882ff6642d97399bedd6e9e7ea4b57e7c6c6babbda3a686a",
       "screening": {
         "mean_wer": 0.0303,
@@ -690,6 +748,8 @@
       "region": "Southern England",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "harriet",
       "encoded_state_sha256": "0b158269b1011fa778897b68e52277d9eb144bd37629b288b58563045a32b796",
       "screening": {
         "mean_wer": 0.0,
@@ -713,6 +773,8 @@
       "region": "Southern England",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "oliver",
       "encoded_state_sha256": "1876b7995b7695010f35d8e2e8eb4015adb1cd17fb2b784f6e2a958326fe47cb",
       "screening": {
         "mean_wer": 0.0,
@@ -736,6 +798,8 @@
       "region": "Staffordshire",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "imogen",
       "encoded_state_sha256": "4c9e1b09ecce22f62e435a948528b9cf28c4cef3bc63dce38a3b08131f13de10",
       "screening": {
         "mean_wer": 0.0,
@@ -759,6 +823,7 @@
       "region": "West Dumfries",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "daea102314b8d278c7193bca3857493dcfcde5ccc67d62cad7d46b2e241a2544",
       "screening": {
         "mean_wer": 0.0,
@@ -782,6 +847,8 @@
       "region": "Manchester",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "clara",
       "encoded_state_sha256": "a36e524390d6a21e7407ab18029a03afd9289b3b406868da01c8c76294cd6173",
       "screening": {
         "mean_wer": 0.0303,
@@ -805,6 +872,7 @@
       "region": "Fife",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "27b9eb98d2ba31460dbe761bc4f355f94956e3478b8c8b6a78fd9dd227a1947d",
       "screening": {
         "mean_wer": 0.0,
@@ -828,6 +896,8 @@
       "region": "Belfast",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "niamh",
       "encoded_state_sha256": "25727e57f344b38ac5af414686bcee7aaa9ba0d75dde0bf678df12e94303c492",
       "screening": {
         "mean_wer": 0.0,
@@ -851,6 +921,7 @@
       "region": "SW England",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "2fdb3b0e077f7e0eb0b7df9fa5fcd0e26f850363d8ce9813b51a260c8242be23",
       "screening": {
         "mean_wer": 0.0,
@@ -874,6 +945,7 @@
       "region": "Southern England",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "1a9960cd4f715bb912b56e835f6be683b17f4c4ed97450cc2cfbfc8dbc259ef5",
       "screening": {
         "mean_wer": 0.0303,
@@ -897,6 +969,8 @@
       "region": "Perth",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "callum",
       "encoded_state_sha256": "60980a12993a2b236276c213cd57466bc6ffae9851ddf6426eb355ae95024fa5",
       "screening": {
         "mean_wer": 0.0,
@@ -920,6 +994,7 @@
       "region": "London",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "07971c872fd097d79c4cabb83decee504e4b717c9d1f4736f4ab1f260d52993f",
       "screening": {
         "mean_wer": 0.0,
@@ -943,6 +1018,7 @@
       "region": "Dublin",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "97e780608f45753f2acb677864050ba40a2b561a472380ad04a2d494b410b7e1",
       "screening": {
         "mean_wer": 0.0,
@@ -966,6 +1042,7 @@
       "region": "Selkirk",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "16d7498026c5251729a8e580a93ad9534fe156fefc2baadba3c7226df6654bdd",
       "screening": {
         "mean_wer": 0.0,
@@ -989,6 +1066,7 @@
       "region": "Argyll",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "a2adf3e17eb02a558ad9f320c40fa4975e7b79ba329f3456e630e5822beeb705",
       "screening": {
         "mean_wer": 0.0,
@@ -1012,6 +1090,7 @@
       "region": "",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "efb20669f2c451ab5ddda3c4dd9eef6a25f118824f4d3d709fcf81e40065a2a4",
       "screening": {
         "mean_wer": 0.0,
@@ -1035,6 +1114,7 @@
       "region": "Aberdeen",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "f7012d776dc6ff6911d60e737405eb1b8d47ebd693f606ee7c43ed01e3357b6b",
       "screening": {
         "mean_wer": 0.0,
@@ -1058,6 +1138,7 @@
       "region": "SE England",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "176ee710926003bbdf95246d8af3f5e6c85ab64a1325e4b045ccbb1d09741707",
       "screening": {
         "mean_wer": 0.0303,
@@ -1081,6 +1162,7 @@
       "region": "",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "f5b0aad579cc61d8f6ae2522ee79c9db06c65262d9515e4764302d5ec9fcedba",
       "screening": {
         "mean_wer": 0.0,
@@ -1104,6 +1186,7 @@
       "region": "Edinburgh",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "18d70cb738b18b226f2e58fc87aa60988af8d8e7f8ff41b5fe89a46b0478812c",
       "screening": {
         "mean_wer": 0.0,
@@ -1127,6 +1210,7 @@
       "region": "Cardiff",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "2f94edb1f199158d349f50f95a2c0c4cdc5f027bdeaef80a6a57ae8f2dfd325b",
       "screening": {
         "mean_wer": 0.0303,
@@ -1150,6 +1234,7 @@
       "region": "Galloway",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "cbb958661c915380e64772a00bdc7f46ac284261558bed30c0b54f9f3848ed6f",
       "screening": {
         "mean_wer": 0.0,
@@ -1173,6 +1258,7 @@
       "region": "Birmingham",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "bc6f690ad413ba6f1643331bd21c65ee1ef6f7844d6a076bb163f691a7d07268",
       "screening": {
         "mean_wer": 0.0,
@@ -1196,6 +1282,7 @@
       "region": "Southern England",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "1764c39b60e3ef1867d5d78e61c2dd7c44df110236ed307c7e69923062febd54",
       "screening": {
         "mean_wer": 0.0,
@@ -1219,6 +1306,7 @@
       "region": "Southern England",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "d9c4507b2532d9fd2d1ff2db5d8cf1655c1e7c61966b3153bb438727e8da4554",
       "screening": {
         "mean_wer": 0.0303,
@@ -1242,6 +1330,7 @@
       "region": "Orkney",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "593ce2baca3508173657ba7106bfe4fec1f32a4e5b5ce2c01f1a93803c27c7c1",
       "screening": {
         "mean_wer": 0.0,
@@ -1265,6 +1354,7 @@
       "region": "Belfast",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "b137e76b32062907a51d3a6741117f0f9a5bb049663526db0646750e73db7d07",
       "screening": {
         "mean_wer": 0.0,
@@ -1288,6 +1378,7 @@
       "region": "Aberdeen",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "a05a479be3cfead03b171fd5ddcdda296af8f6ce4d8fe1b20955e9edb5181732",
       "screening": {
         "mean_wer": 0.0,
@@ -1311,6 +1402,7 @@
       "region": "West Lothian",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "95fb4e7a1af49134aa039f52581d06f13d57f384abc071582c61e0c3b9448532",
       "screening": {
         "mean_wer": 0.0,
@@ -1334,6 +1426,7 @@
       "region": "Ross",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "8a23d243f818c9c8110de026fd65c21f300171d7e535c4b0408ee353010dda29",
       "screening": {
         "mean_wer": 0.0,
@@ -1357,6 +1450,8 @@
       "region": "Athlone",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "siobhan",
       "encoded_state_sha256": "f25466ac5591049147913c5146a97a29d76055e9cfb238a0993df535540d8254",
       "screening": {
         "mean_wer": 0.0,
@@ -1380,6 +1475,8 @@
       "region": "Yorkshire",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "beatrice",
       "encoded_state_sha256": "1c949b29f0c5c17f2f0bbde876679ab051f4ee6e05ef59ef405fa223e74b9d04",
       "screening": {
         "mean_wer": 0.0555,
@@ -1403,6 +1500,7 @@
       "region": "Newcastle",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "073cca805d66ae9a914c531db625d73fdd2603d123d280ba10655acd6f1e3dd2",
       "screening": {
         "mean_wer": 0.0303,
@@ -1426,6 +1524,7 @@
       "region": "Yorkshire",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "1cf8564e1d869d7384936727cc8a1739c14488adb9c732fb5fcc9790fee9b9db",
       "screening": {
         "mean_wer": 0.0303,
@@ -1449,6 +1548,7 @@
       "region": "Fife",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "ce7ffd1b25531e2058f257a048c446aed1c659008e430802e4f89ce09d5d5435",
       "screening": {
         "mean_wer": 0.0555,
@@ -1474,6 +1574,7 @@
       "region": "Edinburgh",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "d8c8c75a65fe0eed982d70f4ef623f0763bc361d10a07bca2fa361b4150a354e",
       "screening": {
         "mean_wer": 0.0,
@@ -1499,6 +1600,7 @@
       "region": "Suffolk",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "7d057be0954a8f1d4baf01a4e04dcdbaffc12d754ac7aa4c984d127ec9d4aa45",
       "screening": {
         "mean_wer": 0.0,
@@ -1522,6 +1624,7 @@
       "region": "Essex",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "a14de0241d06dab3f53d56583f57fc9b13fd097d638a30511e6ec3ce57421ac9",
       "screening": {
         "mean_wer": 0.0303,
@@ -1545,6 +1648,7 @@
       "region": "Midlothian",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "a28fac0078cc5de9bc3ddee4d3b4a9c08106ea4e2044432db1c3bbd9c5c83c27",
       "screening": {
         "mean_wer": 0.0,
@@ -1568,6 +1672,8 @@
       "region": "Oxford",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "florence",
       "encoded_state_sha256": "3ce4b176fd3edb984fd29fde8675aed38ff85b3fa341d1fffdc2361fe66309f5",
       "screening": {
         "mean_wer": 0.0,
@@ -1591,6 +1697,7 @@
       "region": "NE England",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "ae9615f8f42a1ae7bda3d18181c996c15928766b23b9f0007b1261b01d982511",
       "screening": {
         "mean_wer": 0.0,
@@ -1614,6 +1721,7 @@
       "region": "Cheshire",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "cfe3f7ffc2f36c09d143db055dc0c570e87622e1b02c69ce9f3847618a9b4253",
       "screening": {
         "mean_wer": 0.0,
@@ -1637,6 +1745,7 @@
       "region": "Leicester",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "7d95461962d6fd629834550f40299425bc908ff2b94e04e7d59eb588dbd7398d",
       "screening": {
         "mean_wer": 0.0,
@@ -1660,6 +1769,7 @@
       "region": "France mic2 files unavailable",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "7c42e45de8f5f4ba83917ee1560bb83e37106cc14b5a21a71fe7dd315d9d09da",
       "screening": {
         "mean_wer": 0.0303,
@@ -1683,6 +1793,7 @@
       "region": "Edinburgh",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "d537c9019ed714bed7bbca87c5b757ce6bb3ad581b3f96b1755b4e8c7987210a",
       "screening": {
         "mean_wer": 0.0,
@@ -1706,6 +1817,7 @@
       "region": "Newcastle",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "a2cdc35900e8dbb55291f5ce6e92971a1cc5090108172c78a2843aa1d925783f",
       "screening": {
         "mean_wer": 0.0833,
@@ -1731,6 +1843,8 @@
       "region": "Cork",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "aoife",
       "encoded_state_sha256": "b34e164350e588856f1f8a8dbe9b3dc409fe3128d957b9077477c2e8a4c05a4f",
       "screening": {
         "mean_wer": 0.0303,
@@ -1754,6 +1868,7 @@
       "region": "Fife",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "ba0fcf376eefddb1ad822d8262d3db1c9b1c5ac40250796ac6fbcb6a51545b7f",
       "screening": {
         "mean_wer": 0.0,
@@ -1777,6 +1892,7 @@
       "region": "Edinburgh",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "b27c16466062c8729dfe1ce749028332329b9612fa5d33cc496a4536a6aa8413",
       "screening": {
         "mean_wer": 0.0,
@@ -1800,6 +1916,7 @@
       "region": "Newcastle",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "371d321682e16b39baffcc47c657b451060f8079c47ca51e7433750ca16a2879",
       "screening": {
         "mean_wer": 0.0303,
@@ -1823,6 +1940,7 @@
       "region": "York",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "6499cd4efce176bbf1314363543e98c2febff10e1b1663bf1f5e47a1e9659b3f",
       "screening": {
         "mean_wer": 0.0303,
@@ -1846,6 +1964,7 @@
       "region": "Dublin",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "815687b667624f2b6aa5b0baff598fae410d0e0e40477ba266892ab96c7b6d84",
       "screening": {
         "mean_wer": 0.0,
@@ -1869,6 +1988,7 @@
       "region": "Belfast",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "d22c12c35422fbf099865fac2ce0e9e9f070b603b354692e83367a3e954c7a53",
       "screening": {
         "mean_wer": 0.0,
@@ -1892,6 +2012,7 @@
       "region": "Belfast",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "c1f7d3ae03c51e61fd90da0db2d54b4e55b3f831a5b7f72735bb2dda1fa7dbd5",
       "screening": {
         "mean_wer": 0.0,
@@ -1915,6 +2036,8 @@
       "region": "San Francisco",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "madison",
       "encoded_state_sha256": "3b54e4f44dd2d6ab17e0a3c91cc81f6f7342c75644ab837ce581f58c7f7225bc",
       "screening": {
         "mean_wer": 0.0,
@@ -1938,6 +2061,7 @@
       "region": "New York",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "b1ddf58229435aff2ca51b054351b68ce8591ea23a138c67128b1f8e7ae7ae5f",
       "screening": {
         "mean_wer": 0.0,
@@ -1963,6 +2087,7 @@
       "region": "Tipperary",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "d6528659822e0ed12a7a70bfe447f5b466aff54dafb8400f5c0b9bfe300dcfcd",
       "screening": {
         "mean_wer": 0.0,
@@ -1986,6 +2111,8 @@
       "region": "California",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "brooke",
       "encoded_state_sha256": "e31bf978caf66618a567221499d8a312b1f5df848cdb840bd49ee7385fe49364",
       "screening": {
         "mean_wer": 0.0,
@@ -2009,6 +2136,8 @@
       "region": "California",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "olivia",
       "encoded_state_sha256": "5384d691e7f2133c3451fbbb1770c154546bb755908d2d59b7abdad50cf1cd8f",
       "screening": {
         "mean_wer": 0.0,
@@ -2032,6 +2161,7 @@
       "region": "North Carolina",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "a077f1f56f0d88cb5e11fb37c57179c30b661eaa12dce8afa9c2d77c9eb01118",
       "screening": {
         "mean_wer": 0.0,
@@ -2055,6 +2185,7 @@
       "region": "Montreal",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "1f0ee8a26c909f8cc7b1fabb1bed5f1e3d3d2c6db95ec2e8fbb02a02edab8361",
       "screening": {
         "mean_wer": 0.0,
@@ -2078,6 +2209,7 @@
       "region": "Belfast",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "3db6774ce1239068f0fe595050c44aa67268b831bbae557c0fac68dbd4e7c4be",
       "screening": {
         "mean_wer": 0.0,
@@ -2103,6 +2235,8 @@
       "region": "Philadelphia",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "grace",
       "encoded_state_sha256": "1cd6607e55ed506321c23be1c1a4fad10a8cfa931eab8989727a08f690cbdc90",
       "screening": {
         "mean_wer": 0.0,
@@ -2126,6 +2260,7 @@
       "region": "New York",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "0628a771f202d158e33ee9e3aa04567cf55d75435d673e2f37726f8724fc20ac",
       "screening": {
         "mean_wer": 0.0,
@@ -2149,6 +2284,8 @@
       "region": "Ontario",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "chloe",
       "encoded_state_sha256": "52961169e494bdf03f9124ab1b393398ee3448f445608373a87e211ffdfa9ff0",
       "screening": {
         "mean_wer": 0.0,
@@ -2172,6 +2309,8 @@
       "region": "Alabama",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "emily",
       "encoded_state_sha256": "9d3efc5c0156f77c59a57867c1a33460404ea2ad3499abcfe52ccc7dd9491409",
       "screening": {
         "mean_wer": 0.0,
@@ -2195,6 +2334,7 @@
       "region": "Tennessee",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "7e6a7341129640949bf70111d61d4e24e4c7e6a838f7316107ba56d0f0604be0",
       "screening": {
         "mean_wer": 0.0,
@@ -2218,6 +2358,8 @@
       "region": "Iowa",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "ethan",
       "encoded_state_sha256": "a68cc487102c39aa0defca97f069dadc88d4b51cada769176e86fc545b5c5b45",
       "screening": {
         "mean_wer": 0.0,
@@ -2241,6 +2383,7 @@
       "region": "Hamilton",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "0ca856855aa5aba5a4cf0d38987065f5b0b18e1147a5214eb32a0fc0186d22a3",
       "screening": {
         "mean_wer": 0.0,
@@ -2264,6 +2407,7 @@
       "region": "County Down",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "b2334cbb532e868468def5757bba2aa874d5e823d38a7050587509512e8902aa",
       "screening": {
         "mean_wer": 0.0,
@@ -2287,6 +2431,8 @@
       "region": "Cape Town",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "thandi",
       "encoded_state_sha256": "ed185fd0c78eebc6e691167c62d4ece39347699d6185330a5d93ad36af55bea9",
       "screening": {
         "mean_wer": 0.0,
@@ -2310,6 +2456,7 @@
       "region": "Alberta",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "c69ce5fc695ec8d3a99d82bf4a63fbf63188be2c9085e7f793f77a85c2eb7580",
       "screening": {
         "mean_wer": 0.0,
@@ -2333,6 +2480,8 @@
       "region": "Hamilton",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "leah",
       "encoded_state_sha256": "907f96ce9313d403cc81fbc32db09615eead3beedd2374363eb28882b2b99f6b",
       "screening": {
         "mean_wer": 0.0,
@@ -2356,6 +2505,7 @@
       "region": "Napa",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "74f375d778e0bbd4115e1d5c8b42af217fe7fa7f49a9d8ef36488680b630f48c",
       "screening": {
         "mean_wer": 0.0,
@@ -2379,6 +2529,7 @@
       "region": "Pretoria",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "dcf33cff5f85cc01328de335f667042eb2a97bf2debbfd55de2ed6d6bc8729f9",
       "screening": {
         "mean_wer": 0.0303,
@@ -2402,6 +2553,8 @@
       "region": "English Sydney",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "jack",
       "encoded_state_sha256": "8becddb09431d78aab79674ce7245bd4379a94d3ed3a9d59056bc8608c0db7da",
       "screening": {
         "mean_wer": 0.0,
@@ -2425,6 +2578,7 @@
       "region": "",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "86cb27db37ceb74455695004fc41f5a16aad1c994b04b131824f9a3c0ea3b161",
       "screening": {
         "mean_wer": 0.0,
@@ -2448,6 +2602,7 @@
       "region": "",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "d8949a91c0359957860621bc5aae411cc4d44da616548d21b84b4bf5d1fef326",
       "screening": {
         "mean_wer": 0.0,
@@ -2471,6 +2626,8 @@
       "region": "Chicago",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "noah",
       "encoded_state_sha256": "737ca868cff2fca0024fd28ae34027e99fde040a156f5d6d43b63b59ddf41db2",
       "screening": {
         "mean_wer": 0.0,
@@ -2494,6 +2651,7 @@
       "region": "English",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "2f9a8f5a55bbec01a0e0ab1bf291a7975520567e039e115e15fd63962243a137",
       "screening": {
         "mean_wer": 0.0303,
@@ -2517,6 +2675,7 @@
       "region": "Johannesburg",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "8a03fbff1eecf4194c932928db8e3ebcc06b51717ec60af81f19a756a7550ff8",
       "screening": {
         "mean_wer": 0.0,
@@ -2540,6 +2699,7 @@
       "region": "Ohio",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "8732f7522ec5d6e6a21f75f025d43c77848afd4cd517de9018dc5c0e274b5354",
       "screening": {
         "mean_wer": 0.0,
@@ -2565,6 +2725,8 @@
       "region": "Alberta",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "sophie",
       "encoded_state_sha256": "0ff96b6617a1cdb13c9563c1641c660c46bb271b89a85dd79603ae8a3e6289a2",
       "screening": {
         "mean_wer": 0.0,
@@ -2588,6 +2750,7 @@
       "region": "Florida",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "68b8c46a87f9a8ea6921e6f6a9a858fc603a0c88a0a9862d9e6b3e305f5583aa",
       "screening": {
         "mean_wer": 0.0,
@@ -2611,6 +2774,7 @@
       "region": "Johannesburg",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "684fdd950168b537cc6c5bd2cbd73bbe256cd9af830385e06dc1dfa9a1da1fa9",
       "screening": {
         "mean_wer": 0.0,
@@ -2634,6 +2798,8 @@
       "region": "Derry",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "orla",
       "encoded_state_sha256": "ad0d7aabb9ae1a5a07b1cc8aae7367a75a87b4aa487f6fbed5543e92da459c76",
       "screening": {
         "mean_wer": 0.0,
@@ -2657,6 +2823,7 @@
       "region": "Toronto",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "0e0e19705835930892cb625823fd70c6ddd38ce2cb7462e749164b24dd87e1bc",
       "screening": {
         "mean_wer": 0.0,
@@ -2680,6 +2847,7 @@
       "region": "Donegal",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "b55c4404fd022d24b8f0a92fea06ccde7d3f1849596b404b7539dbf8bc990b9e",
       "screening": {
         "mean_wer": 0.0303,
@@ -2703,6 +2871,7 @@
       "region": "English",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "99939f710c5fc6e2730dcd02be0ae648e24c685a7f3db9a82571503c33356174",
       "screening": {
         "mean_wer": 0.0,
@@ -2726,6 +2895,7 @@
       "region": "",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": false,
       "encoded_state_sha256": "58825055579e9b54331f766e8bc59bf9e588da101e44c291bb36441dcd1aef51",
       "screening": {
         "mean_wer": 0.0,
@@ -2749,6 +2919,8 @@
       "region": "new speaker, more data would be released for training a speaker-dependent model",
       "labels": "vctk-speaker-info",
       "status": "candidate",
+      "shipped": true,
+      "shipped_id": "lucy",
       "encoded_state_sha256": "42eb95ebbc8bcdee780b533f24d7b0846afa529332eb7b82025a54366400fbe1",
       "screening": {
         "mean_wer": 0.0,

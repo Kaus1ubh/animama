@@ -75,6 +75,141 @@
       }
     },
     {
+      "path": "models/pocket-tts/voices/azelma.safetensors",
+      "size": 7963896,
+      "sha256": "9f3e69f29075f991fd47774566865ef0e0e637cb5a35992c9919761b5b84b1de",
+      "source": {
+        "kind": "model-store",
+        "path": "azelma.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/clara.safetensors",
+      "size": 6440248,
+      "sha256": "a36e524390d6a21e7407ab18029a03afd9289b3b406868da01c8c76294cd6173",
+      "source": {
+        "kind": "model-store",
+        "path": "clara.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/imogen.safetensors",
+      "size": 6538552,
+      "sha256": "4c9e1b09ecce22f62e435a948528b9cf28c4cef3bc63dce38a3b08131f13de10",
+      "source": {
+        "kind": "model-store",
+        "path": "imogen.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/jane.safetensors",
+      "size": 7374072,
+      "sha256": "37386227ca8ec5bf1b8e516c13d132ce5ff5437a304fe90129a1c62f41d9a008",
+      "source": {
+        "kind": "model-store",
+        "path": "jane.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/lucy.safetensors",
+      "size": 7324984,
+      "sha256": "42eb95ebbc8bcdee780b533f24d7b0846afa529332eb7b82025a54366400fbe1",
+      "source": {
+        "kind": "model-store",
+        "path": "lucy.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/olivia.safetensors",
+      "size": 7865656,
+      "sha256": "5384d691e7f2133c3451fbbb1770c154546bb755908d2d59b7abdad50cf1cd8f",
+      "source": {
+        "kind": "model-store",
+        "path": "olivia.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/thandi.safetensors",
+      "size": 7030072,
+      "sha256": "ed185fd0c78eebc6e691167c62d4ece39347699d6185330a5d93ad36af55bea9",
+      "source": {
+        "kind": "model-store",
+        "path": "thandi.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/anna.safetensors",
+      "size": 7816440,
+      "sha256": "5ea82f78db006c9fd34e32ddd5aae82674b5b32646097977436458d00af80dfa",
+      "source": {
+        "kind": "model-store",
+        "path": "anna.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/aoife.safetensors",
+      "size": 7275832,
+      "sha256": "b34e164350e588856f1f8a8dbe9b3dc409fe3128d957b9077477c2e8a4c05a4f",
+      "source": {
+        "kind": "model-store",
+        "path": "aoife.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/beatrice.safetensors",
+      "size": 7079224,
+      "sha256": "1c949b29f0c5c17f2f0bbde876679ab051f4ee6e05ef59ef405fa223e74b9d04",
+      "source": {
+        "kind": "model-store",
+        "path": "beatrice.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/brooke.safetensors",
+      "size": 6587704,
+      "sha256": "e31bf978caf66618a567221499d8a312b1f5df848cdb840bd49ee7385fe49364",
+      "source": {
+        "kind": "model-store",
+        "path": "brooke.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/caro_davy.safetensors",
+      "size": 5260536,
+      "sha256": "a5961b63a2e7a5cfd7edc383aa9042fb70fd14a9dee6310cdc633881a7f2449a",
+      "source": {
+        "kind": "model-store",
+        "path": "caro_davy.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/chloe.safetensors",
+      "size": 7324984,
+      "sha256": "52961169e494bdf03f9124ab1b393398ee3448f445608373a87e211ffdfa9ff0",
+      "source": {
+        "kind": "model-store",
+        "path": "chloe.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/emily.safetensors",
+      "size": 6391096,
+      "sha256": "9d3efc5c0156f77c59a57867c1a33460404ea2ad3499abcfe52ccc7dd9491409",
+      "source": {
+        "kind": "model-store",
+        "path": "emily.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/eponine.safetensors",
+      "size": 6931704,
+      "sha256": "bda3b76a384ff355fe0350736387765946304ae8ca16e59f60ea3296a1c99cc6",
+      "source": {
+        "kind": "model-store",
+        "path": "eponine.safetensors"
+      }
+    },
+    {
       "path": "models/pocket-tts/voices/eve.safetensors",
       "size": 6538488,
       "sha256": "ea9c2faf862a6c9d2cb61910fdf02842ae56940382cc8c1000fdb1b43269692b",
@@ -84,12 +219,57 @@
       }
     },
     {
-      "path": "models/pocket-tts/voices/azelma.safetensors",
-      "size": 7963896,
-      "sha256": "9f3e69f29075f991fd47774566865ef0e0e637cb5a35992c9919761b5b84b1de",
+      "path": "models/pocket-tts/voices/fantine.safetensors",
+      "size": 6538488,
+      "sha256": "51a8a4355d7f912d4959e4b1918314fda85ad47eba0a33a1d78a4a505d3465f5",
       "source": {
         "kind": "model-store",
-        "path": "azelma.safetensors"
+        "path": "fantine.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/florence.safetensors",
+      "size": 6980920,
+      "sha256": "3ce4b176fd3edb984fd29fde8675aed38ff85b3fa341d1fffdc2361fe66309f5",
+      "source": {
+        "kind": "model-store",
+        "path": "florence.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/grace.safetensors",
+      "size": 7324984,
+      "sha256": "1cd6607e55ed506321c23be1c1a4fad10a8cfa931eab8989727a08f690cbdc90",
+      "source": {
+        "kind": "model-store",
+        "path": "grace.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/harriet.safetensors",
+      "size": 5752112,
+      "sha256": "0b158269b1011fa778897b68e52277d9eb144bd37629b288b58563045a32b796",
+      "source": {
+        "kind": "model-store",
+        "path": "harriet.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/leah.safetensors",
+      "size": 6980920,
+      "sha256": "907f96ce9313d403cc81fbc32db09615eead3beedd2374363eb28882b2b99f6b",
+      "source": {
+        "kind": "model-store",
+        "path": "leah.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/madison.safetensors",
+      "size": 8357176,
+      "sha256": "3b54e4f44dd2d6ab17e0a3c91cc81f6f7342c75644ab837ce581f58c7f7225bc",
+      "source": {
+        "kind": "model-store",
+        "path": "madison.safetensors"
       }
     },
     {
@@ -102,12 +282,138 @@
       }
     },
     {
-      "path": "models/pocket-tts/voices/jane.safetensors",
-      "size": 7374072,
-      "sha256": "37386227ca8ec5bf1b8e516c13d132ce5ff5437a304fe90129a1c62f41d9a008",
+      "path": "models/pocket-tts/voices/niamh.safetensors",
+      "size": 8062264,
+      "sha256": "25727e57f344b38ac5af414686bcee7aaa9ba0d75dde0bf678df12e94303c492",
       "source": {
         "kind": "model-store",
-        "path": "jane.safetensors"
+        "path": "niamh.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/orla.safetensors",
+      "size": 6096184,
+      "sha256": "ad0d7aabb9ae1a5a07b1cc8aae7367a75a87b4aa487f6fbed5543e92da459c76",
+      "source": {
+        "kind": "model-store",
+        "path": "orla.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/siobhan.safetensors",
+      "size": 6636856,
+      "sha256": "f25466ac5591049147913c5146a97a29d76055e9cfb238a0993df535540d8254",
+      "source": {
+        "kind": "model-store",
+        "path": "siobhan.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/sophie.safetensors",
+      "size": 7718200,
+      "sha256": "0ff96b6617a1cdb13c9563c1641c660c46bb271b89a85dd79603ae8a3e6289a2",
+      "source": {
+        "kind": "model-store",
+        "path": "sophie.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/bill_boerst.safetensors",
+      "size": 6735096,
+      "sha256": "75610127d44e0b05b442154f80f89f993df235aecc6cad7070f11000d006c188",
+      "source": {
+        "kind": "model-store",
+        "path": "bill_boerst.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/javert.safetensors",
+      "size": 6194424,
+      "sha256": "0ae88e03ca4e76a0e16cbf321a807428febda9d9e9bc0358c02e7f9c9e2c263b",
+      "source": {
+        "kind": "model-store",
+        "path": "javert.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/marius.safetensors",
+      "size": 6194424,
+      "sha256": "04f84efcb77a0547ba582c058db496f7ff4920891d49d37b9950d128422582a8",
+      "source": {
+        "kind": "model-store",
+        "path": "marius.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/michael.safetensors",
+      "size": 7275768,
+      "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d",
+      "source": {
+        "kind": "model-store",
+        "path": "michael.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/noah.safetensors",
+      "size": 5948720,
+      "sha256": "737ca868cff2fca0024fd28ae34027e99fde040a156f5d6d43b63b59ddf41db2",
+      "source": {
+        "kind": "model-store",
+        "path": "noah.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/oliver.safetensors",
+      "size": 6243640,
+      "sha256": "1876b7995b7695010f35d8e2e8eb4015adb1cd17fb2b784f6e2a958326fe47cb",
+      "source": {
+        "kind": "model-store",
+        "path": "oliver.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/paul.safetensors",
+      "size": 6980856,
+      "sha256": "ed7a019168f94dfe77009f1b0de59387abc6fbb0db954d38ce722ecb77da61aa",
+      "source": {
+        "kind": "model-store",
+        "path": "paul.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/callum.safetensors",
+      "size": 6391096,
+      "sha256": "60980a12993a2b236276c213cd57466bc6ffae9851ddf6426eb355ae95024fa5",
+      "source": {
+        "kind": "model-store",
+        "path": "callum.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/charles.safetensors",
+      "size": 6194424,
+      "sha256": "299edc20182eeccfbf94e308626f259da4fbf339daa8d5905218f2b1774639b8",
+      "source": {
+        "kind": "model-store",
+        "path": "charles.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/ethan.safetensors",
+      "size": 6686008,
+      "sha256": "a68cc487102c39aa0defca97f069dadc88d4b51cada769176e86fc545b5c5b45",
+      "source": {
+        "kind": "model-store",
+        "path": "ethan.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/jack.safetensors",
+      "size": 6686008,
+      "sha256": "8becddb09431d78aab79674ce7245bd4379a94d3ed3a9d59056bc8608c0db7da",
+      "source": {
+        "kind": "model-store",
+        "path": "jack.safetensors"
       }
     },
     {
