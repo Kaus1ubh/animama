@@ -11,7 +11,6 @@ import {
   type MicSensitivity,
 } from "@/lib/voice/microphone-preferences";
 import { Button } from "@/ui/components/button";
-import { LiveWaveform } from "@/ui/components/live-waveform";
 import {
   Select,
   SelectContent,
@@ -19,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select";
+import { MicrophoneLevelMeter } from "@/ui/settings/MicrophoneLevelMeter";
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 
@@ -258,18 +258,7 @@ export function MicrophoneTestSetting() {
       }
       control={
         <div className="flex items-center gap-3">
-          {testing ? (
-            <div role="img" aria-label="Microphone input level">
-              <LiveWaveform
-                active={Boolean(stream)}
-                processing={!stream}
-                stream={stream ?? undefined}
-                mode="static"
-                height={32}
-                className="text-primary w-24"
-              />
-            </div>
-          ) : null}
+          {testing ? <MicrophoneLevelMeter stream={stream} /> : null}
           <Button
             type="button"
             variant={testing ? "default" : "outline"}

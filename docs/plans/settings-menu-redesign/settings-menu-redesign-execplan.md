@@ -476,6 +476,10 @@ Results:
   - High sensitivity persists to preferences;
   - the browser pane blocks capture (NotAllowedError), so the
     permission-request state shows.
+- **Owner follow-up (2026-09-25):** the test meter is now a left-to-right
+  segmented dBFS bar (−60 to 0 dB; green, yellow from −18 dB, red from −6 dB)
+  with a peak decay (`lib/voice/level-meter.ts`, `MicrophoneLevelMeter.tsx`).
+  Verified in the browser with a synthetic tone at −18 dB and at clipping.
 - **Owner hardware gate: pending.** Needs a non-default microphone for Parakeet
   dictation and Voice Mode; the meter responding; the indicator turning off
   after close; unplug fallback; and Low/High tuning.

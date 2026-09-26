@@ -168,8 +168,8 @@ sensitivity and offers an opt-in level meter
 - `speech.mic_sensitivity` (`low`/`normal`/`high`) selects MicVAD positive and
   negative speech thresholds and minimum speech length at session start;
   `normal` is 0.3 / 0.25 / 180 ms.
-- The level meter opens its own stream only while testing and releases it on
-  stop, device change or unmount.
+- The level meter (a segmented −60 to 0 dBFS bar) opens its own stream only
+  while testing and releases it on stop, device change or unmount.
 
 ### Voice mode provider flows
 
