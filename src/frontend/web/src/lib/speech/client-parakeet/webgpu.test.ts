@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   probeParakeetWebgpu,
   resolveParakeetBackend,
+  withBackendEncoder,
   type ParakeetWebgpuStatus,
 } from "./webgpu";
 
@@ -81,5 +82,28 @@ describe("resolveParakeetBackend", () => {
     expect(
       resolveParakeetBackend({ preferWebgpu: true, status: "available" }),
     ).toEqual({ backend: "webgpu", reason: "available" });
+  });
+});
+
+describe("withBackendEncoder", () => {
+  const base = {
+    encoderUrl:
+      "http://app.test/onnx/models/parakeet-tdt-0.6b-v2/encoder-model.int8.onnx?v=0.1.0-aaaa",
+    decoderUrl:
+      "http://app.test/onnx/models/parakeet-tdt-0.6b-v2/decoder_joint-model.int8.onnx?v=0.1.0-aaaa",
+  };
+  const gpuEncoder =
+    "http://app.test/onnx/models/parakeet-tdt-0.6b-v2-webgpu/encoder-model.fp16.onnx";
+
+  it("loads the GPU encoder unversioned while base files keep the base pack version", () => {
+    expect(withBackendEncoder(base, "webgpu", gpuEncoder)).toEqual({
+      encoderUrl: gpuEncoder,
+      decoderUrl: base.decoderUrl,
+    });
+  });
+
+  it("keeps the INT8 encoder for WASM or when the build serves no GPU encoder", () => {
+    expect(withBackendEncoder(base, "wasm", gpuEncoder)).toBe(base);
+    expect(withBackendEncoder(base, "webgpu", null)).toBe(base);
   });
 });

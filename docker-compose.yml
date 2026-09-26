@@ -135,6 +135,14 @@ services:
         read_only: true
         bind:
           create_host_path: false
+      # Optional operator-provided WebGPU encoder. Without an acquired set this
+      # is the checked-in notices directory, so the encoder request returns 404.
+      - type: bind
+        source: ${ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR:-./models/parakeet-tdt-0.6b-v2-webgpu}
+        target: /opt/animama/web/__client-parakeet-webgpu-models
+        read_only: true
+        bind:
+          create_host_path: false
       - type: bind
         # Readable app-shipped typed content; never write catalog machinery here.
         source: ${ANIMAMA_INCLUDED_CONTENT_HOST_PATH:-./content/included}

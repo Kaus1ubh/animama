@@ -230,58 +230,69 @@ function create(
 /** A data-only fixture exercises custody and transitions, not real model inference. */
 function seedSpeechPack(
   options: ReturnType<typeof create>["options"],
-  id: "parakeet-stt" | "expanded-included-content" = "parakeet-stt",
+  id:
+    | "parakeet-stt"
+    | "expanded-included-content"
+    | ("parakeet-stt" | "parakeet-stt-webgpu")[] = "parakeet-stt",
   appVersions = ["0.1.0"],
 ) {
-  const manifest: PackManifest = {
-    schema: "animama-feature-pack/1",
-    id,
-    display_name: "Fixture speech",
-    version: "0.1.0",
-    app_versions: appVersions,
-    platform: "data-only",
-    architecture: "data-only",
-    url: "https://github.com/example/animama/releases/download/v0.1.0/speech.tar.zst",
-    archive_bytes: 100,
-    archive_sha256: "a".repeat(64),
-    installed_bytes: 2,
-    minimum_peak_free_bytes: 100,
-    license_refs: ["fixture"],
-    signing: null,
-    files: [
-      {
-        path: "config.json",
-        size_bytes: 2,
-        sha256: createHash("sha256").update("{}").digest("hex"),
-        media_type: "application/json",
-        mode: "0644",
-      },
-    ],
-  };
-  const root = path.join(
-    options.paths.packs,
-    `${id}/versions`,
-    versionDirectory(manifest),
+  const manifests = (Array.isArray(id) ? id : [id]).map(
+    (packId): PackManifest => ({
+      schema: "animama-feature-pack/1",
+      id: packId,
+      display_name: "Fixture speech",
+      version: "0.1.0",
+      app_versions: appVersions,
+      platform: "data-only",
+      architecture: "data-only",
+      url: `https://github.com/example/animama/releases/download/v0.1.0/${packId}.tar.zst`,
+      archive_bytes: 100,
+      archive_sha256: "a".repeat(64),
+      installed_bytes: 2,
+      minimum_peak_free_bytes: 100,
+      license_refs: ["fixture"],
+      signing: null,
+      files: [
+        {
+          path: "config.json",
+          size_bytes: 2,
+          sha256: createHash("sha256").update("{}").digest("hex"),
+          media_type: "application/json",
+          mode: "0644",
+        },
+      ],
+    }),
   );
-  mkdirSync(root, { recursive: true });
-  writeFileSync(path.join(root, "config.json"), "{}", { mode: 0o644 });
-  writeFileSync(path.join(root, PACK_METADATA), JSON.stringify(manifest));
+  const roots = manifests.map((manifest) => {
+    const root = path.join(
+      options.paths.packs,
+      `${manifest.id}/versions`,
+      versionDirectory(manifest),
+    );
+    mkdirSync(root, { recursive: true });
+    writeFileSync(path.join(root, "config.json"), "{}", { mode: 0o644 });
+    writeFileSync(path.join(root, PACK_METADATA), JSON.stringify(manifest));
+    return root;
+  });
   atomicWrite(
     path.join(options.paths.packs, "active.json"),
     JSON.stringify({
       schema: 1,
-      packs: {
-        [id]: {
-          directory: versionDirectory(manifest),
-          digest: manifestDigest(manifest),
-        },
-      },
+      packs: Object.fromEntries(
+        manifests.map((manifest) => [
+          manifest.id,
+          {
+            directory: versionDirectory(manifest),
+            digest: manifestDigest(manifest),
+          },
+        ]),
+      ),
     }),
   );
   const catalog = {
     schema: "animama-pack-catalog/1",
     app_version: "0.1.0",
-    entries: [manifest],
+    entries: manifests,
   };
   writeFileSync(
     path.join(options.runtimeRoot, "pack-catalog.json"),
@@ -290,7 +301,7 @@ function seedSpeechPack(
       ...catalog,
     }),
   );
-  return root;
+  return roots[0];
 }
 
 async function defaultFetch(input: unknown): Promise<Response> {
@@ -927,6 +938,39 @@ describe("runtime supervision", () => {
       expect(worker.env.ANIMAMA_DESKTOP_RENDERER_CAPABILITY).toBeUndefined();
       expect(worker.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON).toBeUndefined();
     }
+  });
+
+  it("mounts the GPU encoder beside offline speech only for the owned HTTP child", async () => {
+    const current = create();
+    seedSpeechPack(current.options, ["parakeet-stt", "parakeet-stt-webgpu"]);
+    await current.runtime.start();
+    const backend = fixture.launches.find((child) => child.name === "fastapi")!;
+    const base = JSON.parse(backend.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON!);
+    const gpu = JSON.parse(
+      backend.env.ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON!,
+    );
+    expect(gpu.root).toContain(
+      path.join(current.options.paths.packs, "parakeet-stt-webgpu"),
+    );
+    expect(gpu.root).not.toBe(base.root);
+    expect(gpu.version).toBe(backend.env.ANIMAMA_PARAKEET_WEBGPU_ASSET_VERSION);
+    for (const worker of fixture.launches.filter(
+      (child) => child.name !== "fastapi",
+    ))
+      expect(
+        worker.env.ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON,
+      ).toBeUndefined();
+  });
+
+  it("never mounts the GPU encoder without offline speech", async () => {
+    const current = create();
+    seedSpeechPack(current.options, ["parakeet-stt-webgpu"]);
+    await current.runtime.start();
+    const backend = fixture.launches.find((child) => child.name === "fastapi")!;
+    expect(
+      backend.env.ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON,
+    ).toBeUndefined();
+    expect(backend.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON).toBeUndefined();
   });
 
   it("passes no companion-safety override to any packaged child", async () => {

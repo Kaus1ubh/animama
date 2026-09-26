@@ -104,9 +104,14 @@ describe("shared Parakeet model delivery", () => {
           ? await viteConfig({ command: "build", mode })
           : viteConfig;
       expect(execFileSync).not.toHaveBeenCalled();
-      // The optional WebGPU encoder is served only by development stacks.
+      // Built apps probe the optional encoder: desktop serves its active pack,
+      // self-host an operator-provided mount; an absent encoder is a 404.
       expect(config.define?.__CLIENT_PARAKEET_WEBGPU_MODEL_BASE_URL__).toBe(
-        "null",
+        JSON.stringify(
+          mode === "embedded-desktop"
+            ? "/onnx/models/parakeet-tdt-0.6b-v2-webgpu"
+            : "/__client-parakeet-webgpu-models",
+        ),
       );
       expect(config.define?.__CLIENT_PARAKEET_MODEL_BASE_URL__).toBe(
         JSON.stringify(

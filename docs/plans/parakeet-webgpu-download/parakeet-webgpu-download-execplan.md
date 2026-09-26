@@ -77,8 +77,8 @@ Excluded, as in #144:
 ## Progress
 
 - [x] Owner review of this plan (2026-09-26): D1–D4 decided; Phases 1–3 authorized.
-- [x] Phase 1 (#147): `parakeet-stt-webgpu` pack produced and dependency-aware. Review #2 passed; the pack inventory hash (`76101656…`) awaits owner approval before a release build.
-- [ ] Phase 2 (#148): Installed encoder served on desktop and self-host.
+- [x] Phase 1 (#147, `3fb6708`): `parakeet-stt-webgpu` pack produced and dependency-aware. Review #2 passed; the pack inventory hash (`76101656…`) awaits owner approval before a release build.
+- [x] Phase 2 (#148): Installed encoder served on desktop and self-host. Review #2 passed; built self-host verified at 200/404.
 - [ ] Phase 3 (#149): Experimental download control and status.
 - [ ] Phase 4: Signed candidate and native acceptance (owner-gated).
 - [ ] Final integration review.
@@ -297,13 +297,64 @@ Result: pass. One repair round remains unused.
 
 **Completion:** all checks pass, and the built self-host stack shows both states.
 
+**Implementation notes (agent, 2026-09-26):**
+
+- No `offline_speech_webgpu_asset_version` capability field: the `HEAD` probe
+  decides availability, and the unversioned encoder URL is served `no-cache`
+  and revalidated by its SHA-256 ETag. This avoids an OpenAPI/SDK change.
+- The built self-host URL comes from Vite's `build` command, not a `Dockerfile`
+  variable.
+
+**Evidence:**
+
+- `ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name webgpu --base-port 8300`
+  (`http://animama-webgpu.localhost:8300`), built from this source:
+    - With the acquired encoder mounted, `HEAD` on the encoder returned 200 with
+      1,238,960,452 bytes, and a missing file returned 404.
+    - After recreating `animama-server` without the variable (notices fallback),
+      the encoder returned 404.
+    - The built client bundle contains `/__client-parakeet-webgpu-models`.
+- `docker compose config --quiet` is valid for the base and development files.
+
 #### Code Review #1 Findings
 
-Pending.
+Independent `sdlc-reviewer`, initial review of the uncommitted tree on `3fb6708`.
+
+- **P2-F1 (required):** packaged desktop stamped the WebGPU encoder URL with the
+  base pack's `?v=` version. The encoder mount accepts only its own version, so
+  the real load returned 404 after a passing probe, and speech fell back to WASM
+  for the session. Reproduced with two mount versions.
+- P2-F2: `voice.md` still described build-only serving.
+- P2-F3: the `assets.ts` docstring was stale.
+- P2-F4: a class doc comment sat above the new helper.
+- P2-F5: `ANIMAMA_PARAKEET_WEBGPU_ASSET_VERSION` reaches every child, like the
+  existing base version; the mount JSON correctly reaches only the HTTP child.
+- P2-F6: the new removal-check branch was untested.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P2-F1 accepted.** `withBackendEncoder` (in `webgpu.ts`) swaps in the
+  unversioned absolute encoder URL after base URLs are versioned.
+    - Web tests cover WebGPU, WASM and no-encoder builds.
+    - The backend test now uses distinct mount versions: the base version 404s,
+      the encoder's own version and unversioned requests return 200, and
+      unversioned requests are `no-cache`.
+- P2-F2, P2-F3 and P2-F4 accepted and fixed.
+- P2-F5: no change. Both version variables are non-sensitive and consistent.
+- P2-F6 accepted: the removal check returns the WebGPU pack version.
+
+Verification:
+
+- `pytest` asset and capability tests: 113 passed.
+- `ruff check` and `ruff format --check` pass.
+- Web `client-parakeet` tests: 33 passed. Web `tsc -b` passes.
+- `desktop:check` passes.
+
+#### Code Review #2 Findings
+
+Targeted recheck (same reviewer): all accepted fixes verified, no blockers.
+Non-blocking P2-R1: a formatter run had reindented all of `voice.md`; it was
+reverted to the four-line serving edit. Result: pass; one repair round unused.
 
 ### Phase 3: Experimental download control and status
 

@@ -155,14 +155,19 @@ without downloading again by copying the current notices and the old
 `reset.sh` resolves it offline and records `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`
 when it exists. Missing the set never fails startup:
 
-- development Compose mounts the tracked notices directory instead;
+- Compose mounts the tracked notices directory instead, which contains no
+  encoder;
 - the setting then reports the GPU model as not installed;
 - speech keeps using WASM.
 
-Only Vite development stacks, including `desktop:dev`, serve this encoder
-(`/__client-parakeet-webgpu-models/`). Built self-host and packaged desktop
-builds report it as unavailable. Rerun `reset.sh` after acquiring it for a
-running stack.
+Vite development stacks (including `desktop:dev`) and built self-host stacks
+serve the operator-provided set at `/__client-parakeet-webgpu-models/`; the
+built stack mounts it read-only into FastAPI's web root. Self-host never
+downloads it: acquire it on the host and rerun `reset.sh` for a running stack.
+Packaged desktop serves it only from the active `parakeet-stt-webgpu` pack at
+`/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`, and only beside an active
+`parakeet-stt` pack. The browser probes the encoder with `HEAD`; a 404 means
+not installed.
 
 ## Browser speech assets and dependency inputs
 

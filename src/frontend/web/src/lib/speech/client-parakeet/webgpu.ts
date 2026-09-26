@@ -52,6 +52,21 @@ export async function probeParakeetWebgpu({
   }
 }
 
+/**
+ * Swap in the GPU encoder for a WebGPU load. It belongs to its own pack, so it
+ * never carries the base pack's `?v=` version; the server revalidates it by
+ * its SHA-256 ETag instead.
+ */
+export function withBackendEncoder<T extends { encoderUrl: string }>(
+  urls: T,
+  backend: ClientParakeetBackend,
+  webgpuEncoderUrl: string | null,
+): T {
+  return backend === "webgpu" && webgpuEncoderUrl
+    ? { ...urls, encoderUrl: webgpuEncoderUrl }
+    : urls;
+}
+
 export function resolveParakeetBackend({
   preferWebgpu,
   status,

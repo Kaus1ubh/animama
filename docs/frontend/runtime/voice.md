@@ -303,9 +303,10 @@ Loading behavior:
 - **Warm-up.** The worker warms WebGPU with one second of silence during load,
   so shader compilation does not make the first preview look over budget.
 
-Only Vite development stacks, including `desktop:dev`, serve the encoder, at
-`/__client-parakeet-webgpu-models/`. Built self-host and packaged desktop
-builds report `unavailable_in_build`. See
+Vite development and built self-host stacks serve an operator-provided encoder
+at `/__client-parakeet-webgpu-models/`; packaged desktop serves the active
+`parakeet-stt-webgpu` pack. A `HEAD` probe decides availability, and the
+encoder URL never carries the base pack's `?v=` version. See
 [model setup](../../backend/operations/model-assets.md#optional-parakeet-webgpu-encoder).
 
 The worker serializes all requests through a promise queue so load,

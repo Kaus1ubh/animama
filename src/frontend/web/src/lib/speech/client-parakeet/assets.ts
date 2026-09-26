@@ -25,8 +25,9 @@ export const CLIENT_PARAKEET_MODEL_ASSET_PATHS = {
 } as const;
 
 /**
- * Optional experimental WebGPU encoder, served only by local Vite development
- * stacks. `null` means this build does not serve it.
+ * Optional experimental WebGPU encoder. Vite and built self-host serve an
+ * operator-provided set; embedded desktop serves the active encoder pack. A
+ * HEAD probe decides availability. `null` means this build never serves it.
  */
 export const CLIENT_PARAKEET_WEBGPU_ENCODER_URL: string | null =
   typeof __CLIENT_PARAKEET_WEBGPU_MODEL_BASE_URL__ === "string" &&
