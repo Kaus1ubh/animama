@@ -173,10 +173,11 @@ The model guidance asks for 1-3 concise sentences about durable new facts,
 preferences, events, decisions, active projects, or relationship/context changes.
 The shared sensitive-memory rule (`SENSITIVE_MEMORY_RULE` in
 `app/safety/prompts.py`) forbids secrets, credentials and other raw sensitive
-data, and keeps health and crisis details out of memory: no specific self-harm
-or suicide details, methods, crisis specifics, diagnoses, medications or other
-health details unless the user explicitly asked to remember them. At most a
-general, non-clinical note, such as that the user had a hard week, is kept.
+data, and keeps suicide and self-harm crisis specifics (methods, plans, means,
+crisis details) out of memory unless the user explicitly asked; at most a
+general note, such as that the user had a hard week, is kept. Ordinary health
+context the user shares, such as allergies or conditions, is remembered like
+other personal facts.
 
 ### 2. Successful Chat Captures An Episode Item
 

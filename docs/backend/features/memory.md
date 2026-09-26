@@ -88,8 +88,9 @@ only for notable durable context from the completed turn, such as new user
 facts, preferences, decisions, active projects, or relationship/context changes.
 The `remember` guidance and the chat memory-tool guidance share one
 sensitive-memory rule: no secrets, credentials or raw sensitive data, and no
-specific self-harm, suicide, crisis, diagnosis, medication or other health
-details unless the user explicitly asked; at most a general, non-clinical note.
+suicide or self-harm crisis specifics (methods, plans, means) unless the user
+explicitly asked; at most a general note. Ordinary health context may be
+remembered.
 
 After a successful non-incognito `chat:sse` turn is parsed and persisted, the
 backend best-effort captures nonblank `remember` text when memory updates are

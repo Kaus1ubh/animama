@@ -53,8 +53,8 @@ number.
 - The safety features send nothing beyond your normal request to the model
   provider you chose. Animama has no telemetry and reports crisis cards to no
   one.
-- Chats are saved as usual. Animas are instructed not to save suicide,
-  self-harm or health details to memory unless you ask them to.
+- Chats are saved as usual. Animas are instructed not to save details of a
+  suicide or self-harm crisis to memory unless you ask them to.
 - For safety, Animama stores only when the AI notice was last shown, your age
   confirmation and your Safety settings. It never logs or stores crisis-check
   results.

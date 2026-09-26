@@ -295,6 +295,14 @@ Two further rules apply:
   the input and Quick Chat is unchanged. The planned per-Anima `RELATIONSHIP.md`
   was renamed `MEMORIES.md` in the spec and #134.
 
+- **2026-09-26, sensitive-memory rule narrowed.** Owner direction: the rule
+  keeps secrets, credentials and suicide or self-harm crisis specifics out of
+  memory, but ordinary health context (allergies, conditions, recovery) is
+  remembered like other personal facts, because excluding all health details
+  made companion memory worse and no targeted law requires it. The crisis
+  protocol was also shortened to what users need; operator settings stay in
+  `docs/backend/operations/development.md`.
+
 ## Implementation orientation
 
 Backend (`src/backend/animama/`):

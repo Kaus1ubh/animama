@@ -24,8 +24,8 @@ These guardrails take precedence over the Anima Identity, memory and every earli
 """
 
 SENSITIVE_MEMORY_RULE = (
-    "Do not record secrets, credentials or other raw sensitive data, and keep health and crisis details out of "
-    "memory: no specific self-harm or suicide details, methods, crisis specifics, diagnoses, medications or other "
-    "health details, unless the user explicitly asked to remember them. At most keep a general, non-clinical note, "
-    "such as that the user had a hard week."
+    "Do not record secrets, credentials or other raw sensitive data. Keep suicide and self-harm crisis specifics "
+    "out of memory: no methods, plans, means or details of a crisis, unless the user explicitly asked to remember "
+    "them; at most keep a general note, such as that the user had a hard week. Ordinary health context the user "
+    "shares, such as allergies, conditions or recovery from an injury, may be remembered like other personal facts."
 )

@@ -115,10 +115,11 @@ def test_sensitive_memory_rule_reaches_every_memory_writer() -> None:
     assert SENSITIVE_MEMORY_RULE in instructions
 
 
-def test_sensitive_memory_rule_covers_health_and_crisis_details() -> None:
+def test_sensitive_memory_rule_excludes_crisis_specifics_but_allows_health_context() -> None:
     rule = SENSITIVE_MEMORY_RULE.lower()
-    for term in ("self-harm", "suicide", "diagnoses", "medications", "explicitly asked", "credentials", "non-clinical"):
+    for term in ("self-harm", "suicide", "methods", "explicitly asked", "credentials", "general note"):
         assert term in rule
+    assert "ordinary health context" in rule and "may be remembered" in rule
 
 
 def test_fold_without_developer_role_reindexes_assistant_phases() -> None:

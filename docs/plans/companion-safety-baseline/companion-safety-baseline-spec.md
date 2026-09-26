@@ -321,10 +321,11 @@ memory-disabled behavior are unchanged.
 
 All model-authored memory writes follow tightened sensitive-data guidance. This
 covers the `remember` field, chat memory tools and Memory Manager episode
-processing. They do not record specific self-harm or suicide details, methods,
-crisis specifics, diagnoses, medications or other health details unless the
-user explicitly asks the Anima to remember them. At most, a general non-clinical
-note may be kept, e.g. "had a hard week". The guidance is ready for later
+processing. They do not record suicide or self-harm crisis specifics (methods,
+plans, means or crisis details) unless the user explicitly asks the Anima to
+remember them. At most, a general note may be kept, e.g. "had a hard week".
+Ordinary health context the user shares, such as allergies or conditions, may
+be remembered like other personal facts (owner narrowing, 2026-09-26). The guidance is ready for later
 `MEMORIES.md` writes.
 
 Crisis detection creates no new stored record. Notice state (R2) and age status
