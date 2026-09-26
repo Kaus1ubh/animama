@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
 from animama.domain.model_provider import ModelProvider
 from animama.domain.usage import Usage
@@ -89,6 +89,22 @@ class ModelClientToolResult:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelClientModeration:
+    """Content-free provider moderation result for the request input.
+
+    ``status`` is ``"error"`` when the provider could not moderate; otherwise the
+    flagged category names and their scores are carried, never any text.
+    """
+
+    status: Literal["result", "error"]
+    flagged_categories: tuple[str, ...] = ()
+    category_scores: Mapping[str, float] = field(default_factory=lambda: MappingProxyType({}))
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "category_scores", _frozen_mapping(self.category_scores))
+
+
+@dataclass(frozen=True, slots=True)
 class ModelClientFinal:
     """Final assistant result for one direct chat turn.
 
@@ -102,6 +118,7 @@ class ModelClientFinal:
     raw_provider_metadata: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
     structured_payload: Mapping[str, Any] | None = None
     tool_calls: tuple[ModelClientToolCall, ...] = ()
+    input_moderation: ModelClientModeration | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "raw_provider_metadata", _frozen_mapping(self.raw_provider_metadata))
@@ -189,9 +206,16 @@ class ModelClientProviderOptions:
     native_tools: tuple[str, ...] = ()
     store: bool | None = None
     memory_apply_patch_enabled: bool = False
+    moderation_model: str | None = None
+    """Request provider-side moderation scores with this model, when the adapter supports it."""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "native_tools", _string_tuple(self.native_tools))
+        object.__setattr__(
+            self,
+            "moderation_model",
+            self.moderation_model.strip() or None if isinstance(self.moderation_model, str) else None,
+        )
         object.__setattr__(self, "store", self.store if isinstance(self.store, bool) else None)
         object.__setattr__(
             self,
@@ -213,9 +237,12 @@ class ModelClientProviderOptions:
             native_tools=_string_tuple(value.get("native_tools")),
             store=store if isinstance(store, bool) else None,
             memory_apply_patch_enabled=value.get("memory_apply_patch_enabled") is True,
+            moderation_model=value.get("moderation_model") if isinstance(value.get("moderation_model"), str) else None,
         )
 
     def get(self, key: str, default: object = None) -> object:
+        if key == "moderation_model":
+            return self.moderation_model
         if key == "native_tools":
             return self.native_tools
         if key == "store":
@@ -225,6 +252,8 @@ class ModelClientProviderOptions:
         return default
 
     def __getitem__(self, key: str) -> object:
+        if key == "moderation_model":
+            return self.moderation_model
         if key == "native_tools":
             return self.native_tools
         if key == "store":
@@ -314,6 +343,7 @@ __all__ = [
     "ModelClientDelta",
     "ModelClientError",
     "ModelClientFinal",
+    "ModelClientModeration",
     "ModelClientProviderError",
     "ModelClientProviderOptions",
     "ModelClientRequest",

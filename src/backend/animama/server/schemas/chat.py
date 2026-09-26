@@ -5,6 +5,13 @@ from pydantic import BaseModel, Field, field_validator
 from .dispatch import PyAnimaDispatchOptions
 
 
+class PyChatClientContext(BaseModel):
+    """Client-reported context used only for safety presentation (spec R2, R5)."""
+
+    time_zone: str | None = Field(default=None, max_length=64, description="IANA time zone, e.g. America/Toronto.")
+    locale: str | None = Field(default=None, max_length=64, description="BCP 47 locale, e.g. en-US.")
+
+
 class PyAnimaChatRequest(BaseModel):
     message: str
     chat_id: str | None = None
@@ -13,6 +20,7 @@ class PyAnimaChatRequest(BaseModel):
     runtime_revision: str = Field(max_length=128)
     attached_file_ids: list[str] | None = Field(default=None, max_length=50)
     dispatch_options: PyAnimaDispatchOptions | None = None
+    client_context: PyChatClientContext | None = None
 
     @field_validator("message")
     @classmethod

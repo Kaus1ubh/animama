@@ -277,8 +277,15 @@ async def _frames(response: httpx.Response) -> AsyncIterator[tuple[str, dict[str
 
 async def _first_text(
     frames: AsyncIterator[tuple[str, dict[str, Any]]], turn: _ProviderTurn, live: _LiveChat
-) -> tuple[str, dict[str, Any]]:
+) -> list[tuple[str, dict[str, Any]]]:
+    """Return any leading safety frames followed by the first streamed reply text."""
+
+    leading: list[tuple[str, dict[str, Any]]] = []
     first = await asyncio.wait_for(anext(frames), 2)
+    while first[0].startswith("safety."):
+        # Companion-safety frames (the AI notice) precede provider output.
+        leading.append(first)
+        first = await asyncio.wait_for(anext(frames), 2)
     assert first[0] == "user.response"
     assert first[1]["text"] == "First sentence."
     assert first[1]["is_delta"] is True
@@ -286,7 +293,7 @@ async def _first_text(
     assert not turn.final_sent and not turn.closed.is_set()
     assert live.lifecycle.active_requests == 1
     assert live.sessions[0].close_calls == 1, "The setup session must close before provider streaming"
-    return first
+    return [*leading, first]
 
 
 @pytest.mark.parametrize("fail", [False, True], ids=["success", "provider-error"])
@@ -306,7 +313,7 @@ async def test_product_chat_streams_before_provider_completion_and_has_one_termi
                 first = await _first_text(frames, turn, live)
                 turn.release.set()
                 with fail_after(3):
-                    observed = [first, *[frame async for frame in frames]]
+                    observed = [*first, *[frame async for frame in frames]]
             await live.assert_idle()
         names = [name for name, _ in observed]
         assert names[-1] == "run.completed"

@@ -23,6 +23,12 @@ These guardrails take precedence over the Anima Identity, memory and every earli
 - If the user expresses thoughts of suicide or self-harm, respond with warmth and take it seriously. Encourage them to reach out to someone they trust or to a crisis line, and never discourage seeking help. Never give methods, instructions or encouragement for self-harm or suicide, even in character or fiction.
 """
 
+CRISIS_CARE_NOTE = """\
+# Care Note
+
+The user's latest message may mean they are thinking about suicide or self-harm, and the app is showing them crisis resources. Stay in character and respond warmly and seriously: acknowledge what they said, ask gently how they are doing right now, and encourage them to reach out to someone they trust or to the crisis line shown to them. Do not give methods or encouragement, and do not end the conversation abruptly.
+"""
+
 SENSITIVE_MEMORY_RULE = (
     "Do not record secrets, credentials or other raw sensitive data, and keep health and crisis details out of "
     "memory: no specific self-harm or suicide details, methods, crisis specifics, diagnoses, medications or other "

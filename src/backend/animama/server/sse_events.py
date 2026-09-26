@@ -54,6 +54,9 @@ class SseTextState:
     tts_speech_segments: list[SsePreparedTtsSpeechSegment] = field(default_factory=list)
     tts_speech_segments_closed: bool = False
     tts_speech_paragraph_index: int = 0
+    crisis_resources: Mapping[str, Any] | None = None
+    """Resolved crisis-resource region for this turn, attached to crisis frames."""
+    crisis_support_emitted: bool = False
 
 
 def _payload_value(payload: Any, key: str) -> Any:
@@ -108,6 +111,34 @@ def format_tts_session_event(
     if session.token:
         data["token"] = session.token
     return format_sse("tts.session", data, event_id=f"tts-session-{run_id}")
+
+
+def format_ai_notice_event(*, run_id: str, kind: str, anima_name: str | None) -> str:
+    """App-rendered AI notice (spec R2); `type`-keyed so clients never read it as a reply."""
+
+    return format_sse(
+        "safety.ai_notice",
+        {"type": "safety.ai_notice", "run_id": run_id, "kind": kind, "anima_name": anima_name},
+        event_id=f"safety-ai-notice-{run_id}",
+    )
+
+
+def format_crisis_support_event(*, run_id: str, source: str, state: SseTextState) -> str | None:
+    """Deterministic crisis card (spec R4), emitted at most once per run."""
+
+    if state.crisis_support_emitted or state.crisis_resources is None:
+        return None
+    state.crisis_support_emitted = True
+    return format_sse(
+        "safety.crisis_support",
+        {
+            "type": "safety.crisis_support",
+            "run_id": run_id,
+            "source": source,
+            "resources": jsonable_encoder(state.crisis_resources),
+        },
+        event_id=f"safety-crisis-support-{run_id}",
+    )
 
 
 def format_chat_title_updated_event(*, run_id: str, chat_id: str, title: str) -> str | None:

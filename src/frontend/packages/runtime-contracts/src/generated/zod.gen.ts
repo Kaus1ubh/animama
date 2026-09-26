@@ -839,34 +839,6 @@ export const zPyAnimaDispatchOptions = z.object({
 });
 
 /**
- * PyAnimaChatRequest
- */
-export const zPyAnimaChatRequest = z.object({
-    attached_file_ids: z.optional(z.union([
-        z.array(z.string()).max(50),
-        z.null()
-    ])),
-    chat_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    dispatch_options: z.optional(z.union([
-        zPyAnimaDispatchOptions,
-        z.null()
-    ])),
-    message: z.string(),
-    model_provider_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    run_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    runtime_revision: z.string().max(128)
-});
-
-/**
  * PyArchive
  *
  * Archive metadata DTO.
@@ -1310,6 +1282,54 @@ export const zPyAppearancePlanRequest = z.object({
 export const zPyCatalogPreviewSource = z.object({
     catalog_item_id: z.string().min(1).max(128).regex(/^[A-Za-z0-9][A-Za-z0-9:_-]*$/),
     type: z.literal('catalog')
+});
+
+/**
+ * PyChatClientContext
+ *
+ * Client-reported context used only for safety presentation (spec R2, R5).
+ */
+export const zPyChatClientContext = z.object({
+    locale: z.optional(z.union([
+        z.string().max(64),
+        z.null()
+    ])),
+    time_zone: z.optional(z.union([
+        z.string().max(64),
+        z.null()
+    ]))
+});
+
+/**
+ * PyAnimaChatRequest
+ */
+export const zPyAnimaChatRequest = z.object({
+    attached_file_ids: z.optional(z.union([
+        z.array(z.string()).max(50),
+        z.null()
+    ])),
+    chat_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    client_context: z.optional(z.union([
+        zPyChatClientContext,
+        z.null()
+    ])),
+    dispatch_options: z.optional(z.union([
+        zPyAnimaDispatchOptions,
+        z.null()
+    ])),
+    message: z.string(),
+    model_provider_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    run_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    runtime_revision: z.string().max(128)
 });
 
 /**

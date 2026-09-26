@@ -66,7 +66,8 @@ Two further rules apply:
 - [x] Phase 2: backend safety core. Unblocked by the owner-authorized
       detector pass, which passed with documented limitations. Scope: (config, detector, resources, notice state,
       age status).
-- [ ] Phase 3: chat-turn integration (care note, SSE events, moderation).
+- [x] Phase 3: chat-turn integration (care note, SSE events, inline Responses
+      moderation). Review #2 passed.
 - [ ] Phase 4: frontend (notice, crisis card, first run, settings, Safety page).
 - [ ] Phase 5: protocol document, docs, ADR, glossary, copy audit and manual
       desktop acceptance.
@@ -183,7 +184,8 @@ Two further rules apply:
     cover input and output and arrive on the completed response after the
     output text. The openai-python 2.41 SDK types it.
   - Open questions for gate G2 (live check): whether `input` covers the whole
-    chain when `previous_response_id` is set, and the cost.
+    chain when `previous_response_id` is set, whether instructions are scored,
+    and the cost.
 - **2026-09-25, plan design, safety state storage.** A new table
   `companion_safety_state` is keyed by the owner principal's user id, with one
   row per owner. It holds:
@@ -798,7 +800,8 @@ note) and the latency constraint. Depends on Phase 2.
 3. **Events.** Add the domain events `AI_NOTICE` and `CRISIS_SUPPORT`, with
    formatters in `sse_events.py`:
    - `{type: "safety.ai_notice", run_id, kind, anima_name}`;
-   - `{type: "safety.crisis_support", run_id, source: "local"|"moderation", region, resources}`.
+   - `{type: "safety.crisis_support", run_id, source: "local"|"moderation", resources}`,
+     where `resources` is the resolved region entry, including its `code`.
 
    Neither payload has `text`, `error`, `emotions` or `gesture` keys.
 4. **Stream order.** In `_event_stream`, before the provider task is created:
@@ -844,15 +847,83 @@ Checks: focused SSE and executor tests, then the full backend chain;
 Completion: the tests above pass; ADR 0003 ordering and cancellation are
 preserved; review leaves no blockers.
 
-Phase record: to be filled in during implementation.
+Phase record: issue #136; starting source `6a009ba`.
+
+Implementation notes:
+
+- The route emits the AI notice and the local crisis card (`server/routers/chat/safety.py`).
+- Provider moderation reaches the stream as a `CRISIS_SUPPORT` domain event from
+  the executor. The route formats it with the turn's resolved resources, at most
+  once per turn, deduplicated through `SseTextState`.
+- Recording notice state takes one row-locked upsert of about 22 ms (median;
+  p95 26 ms against the test database). It runs after the provider task starts,
+  so time to first text is unchanged.
+- Local detection in setup takes microseconds (Phase 2 timings).
+- If safety preferences fail to load, the turn falls back to defaults.
+
+Evidence:
+
+- `make check-test` before review: 2275 passed, 7 skipped.
+- After the revisions: focused chat, SSE, transport, executor and model-client
+  suites pass, 235 tests; ruff, mypy and the import boundary check pass.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewed the working tree on `6a009ba` (`sdlc-reviewer`, full initial review).
+
+- **P3-R1-F1 (blocking):** three places rebuild `ModelClientFinal`: the stream
+  event summary, tool-round usage aggregation and the stale-cursor retry. All
+  three dropped `input_moderation`, so moderation could never show a card on a
+  real Responses stream. The tests missed it because the fake client emitted no
+  stream events.
+- **P3-R1-F2 (blocking):** on tool rounds, moderation was read from the last
+  round, whose input is tool output, and it was requested on every round.
+- **F3 (optional):** chained or instruction text may be scored; check this in
+  gate G2.
+- **F4 (optional):** missing tests for a detector exception, persistence, and
+  event-emitting or tool-round moderation.
+- **F5 (optional):** the payload shape differed from the plan.
+- **F6 (optional):** latency evidence was missing.
+- **F7 (optional):** the preference-load fallback runs on the shared session.
+- **Nits:** a duplicate constant import; `source` could be a `Literal`.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** All three rebuilds carry `input_moderation`. Added an
+  executor test with an event-emitting client.
+- **F2 accepted.** The collector keeps round 0's moderation for the returned
+  final, and follow-up rounds clear `moderation_model`. Added a tool-round test
+  covering both.
+- **F3 deferred to gate G2.** It is added to the live check. Fallback if
+  confirmed: honor only the category flags.
+- **F4 accepted.** Added tests for a detector exception (chat continues, no
+  card) and for crisis-turn persistence.
+- **F5 accepted.** Plan step 3 now matches the payload.
+- **F6 accepted.**
+  - Measured the notice write (see the implementation notes).
+  - Moved the notice write to after the provider task starts. Provider events
+    queue in the bridge, so the notice and local card still precede reply text.
+- **F7 accepted as a limit.** Only a pure preference-parsing failure is
+  recovered. A real database error on the setup session fails setup as before.
+- **Nits accepted.** Uses the local `OPENAI_RESPONSES_PROVIDER` constant, and
+  `source` is `Literal["local", "moderation"]`.
+
+
+#### Code Review #2 Findings
+
+Targeted recheck: F1, F2, F4 and F6 are fixed, with no regressions. Ordering,
+provider failure, disconnect and bridge capacity were checked under the moved
+notice write.
+
+- **P3-R2-F1 (optional):** a disconnect between the notice commit and its yield
+  records a notice that was never shown. The window is tiny.
+- **P3-R2-F2 (optional):** there is no timing test for the ordering; the
+  guarantee is structural.
+
+#### Code Review #2 Revisions
+
+Both optional findings are accepted as-is. Repair budget used: one of two.
+Phase 3 review: pass.
 
 ### Phase 4 — Frontend safety surfaces
 

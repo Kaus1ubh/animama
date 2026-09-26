@@ -291,6 +291,7 @@ class ModelClientStreamEventObserver:
             raw_provider_metadata=raw_provider_metadata,
             structured_payload=final.structured_payload,
             tool_calls=final.tool_calls,
+            input_moderation=final.input_moderation,
         )
 
 

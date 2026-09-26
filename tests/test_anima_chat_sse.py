@@ -4330,9 +4330,14 @@ async def test_chat_sse_cleans_up_when_stream_closes_early(monkeypatch) -> None:
         user=RequestPrincipal(id="user-1"),
     )
 
-    first_chunk = await anext(_stream_body(response))
+    body = _stream_body(response)
+    first_chunk = await anext(body)
     first_chunk_text = first_chunk.decode() if isinstance(first_chunk, bytes) else first_chunk
-    assert "event: user.response" in first_chunk_text
+    # The AI notice precedes provider output on the first turn of the day.
+    assert "event: safety.ai_notice" in first_chunk_text
+    reply_chunk = await anext(body)
+    reply_chunk_text = reply_chunk.decode() if isinstance(reply_chunk, bytes) else reply_chunk
+    assert "event: user.response" in reply_chunk_text
 
     await _stream_body(response).aclose()
 

@@ -49,13 +49,16 @@ from animama.app.model_clients import (
     MCUnknownProviderEvent,
     ModelClientDelta,
     ModelClientFinal,
+    ModelClientModeration,
     ModelClientProviderError,
     ModelClientRequest,
     ModelClientToolCall,
     StaticModelClientRegistry,
     model_client_event_delta,
 )
+from animama.app.model_clients.event_types import MCResponseStartedEvent
 from animama.app.model_clients.prompt import prompt_instruction_text
+from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain import AnimaChatProfile, ModelProvider, ModelProviderCapabilities
 from animama.domain.chat import ChatMessage, MessageRole
@@ -2674,3 +2677,76 @@ async def test_direct_turn_ends_instructions_with_companion_guardrails(request_o
     instructions = prompt_instruction_text(model_client.seen_specs[0].prompt)
     assert instructions is not None
     assert instructions.endswith(COMPANION_GUARDRAILS.strip())
+
+
+_FLAGGED = ModelClientModeration(status="result", flagged_categories=("self-harm/intent",))
+
+
+class _EventThenFinalClient(_ScriptedModelClient):
+    """Emits a provider stream event before each final, like the real Responses adapter."""
+
+    async def stream(self, spec: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
+        yield model_client_event_delta(
+            MCResponseStartedEvent(
+                provider_type="OpenAIResponsesHTTPAgent",
+                api="responses",
+                model="gpt-test",
+                provider_event_type="response.created",
+            )
+        )
+        async for delta in super().stream(spec):
+            yield delta
+
+
+@pytest.mark.asyncio
+async def test_moderation_survives_the_stream_event_summary_and_emits_crisis_support() -> None:
+    model_client = _EventThenFinalClient(
+        [ModelClientFinal(text=_structured_response(), usage=Usage(), input_moderation=_FLAGGED)]
+    )
+    executor, _chats = _executor(client=model_client, provider=_provider(provider_type="OpenAIResponsesHTTPAgent"))
+
+    events = await _collect(executor.stream_turn(_request(provider_moderation=True)))
+
+    crisis = [event for event in events if event.type == EventType.CRISIS_SUPPORT]
+    assert len(crisis) == 1 and crisis[0].payload.source == "moderation"
+    assert model_client.seen_specs[0].provider_options.moderation_model == RESPONSES_MODERATION_MODEL
+
+
+@pytest.mark.asyncio
+async def test_moderation_uses_round_zero_and_is_requested_only_there() -> None:
+    tool_final = ModelClientFinal(
+        text="",
+        usage=Usage(),
+        input_moderation=_FLAGGED,
+        tool_calls=(
+            ModelClientToolCall(id="call-1", name="memory_read_files", arguments=json.dumps({"paths": "profile.md"})),
+        ),
+    )
+    answer_final = ModelClientFinal(
+        text=_structured_response(), usage=Usage(), input_moderation=ModelClientModeration(status="result")
+    )
+    model_client = _EventThenFinalClient([tool_final, answer_final])
+    executor, _chats = _executor(
+        client=model_client,
+        provider=_provider(provider_type="OpenAIResponsesHTTPAgent"),
+        memory_tool_service=_FakeMemoryToolService(),
+    )
+
+    events = await _collect(executor.stream_turn(_request(provider_moderation=True)))
+
+    assert [event.type for event in events].count(EventType.CRISIS_SUPPORT) == 1
+    assert model_client.seen_specs[0].provider_options.moderation_model == RESPONSES_MODERATION_MODEL
+    assert model_client.seen_specs[1].provider_options.moderation_model is None
+
+
+@pytest.mark.asyncio
+async def test_moderation_is_ignored_when_not_requested() -> None:
+    model_client = _EventThenFinalClient(
+        [ModelClientFinal(text=_structured_response(), usage=Usage(), input_moderation=_FLAGGED)]
+    )
+    executor, _chats = _executor(client=model_client, provider=_provider(provider_type="OpenAIResponsesHTTPAgent"))
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    assert EventType.CRISIS_SUPPORT not in [event.type for event in events]
+    assert model_client.seen_specs[0].provider_options.moderation_model is None

@@ -36,9 +36,11 @@ from animama.domain.user_file import UserFile
 from animama.logging_config import get_logger
 from animama.orm import ORMAnima
 from animama.server.chat_options import DirectChatOptions, resolve_chat_request_options
+from animama.server.config import Settings, settings
 from animama.server.deps import get_embedder
 from animama.server.schemas.chat import PyAnimaChatRequest
 
+from .safety import TurnSafety, prepare_turn_safety
 from .session_services import (
     SessionBackedChatTurnRecorder,
     SessionBackedMemoryEpisodeRecorder,
@@ -57,6 +59,7 @@ class DirectChatTurnSetup:
     chat_options: DirectChatOptions
     executor: DirectChatTurnExecutor
     prepared_turn: PreparedDirectChatTurn
+    safety: TurnSafety
 
 
 def _attachment_prompt_context(user_file: UserFile, *, chunk_count: int) -> DirectChatAttachmentContext:
@@ -92,6 +95,7 @@ async def prepare_direct_chat_turn(
     run_id: str,
     chat_id: str,
     model_client_registry: ModelClientRegistry,
+    runtime_settings: Settings = settings,
 ) -> DirectChatTurnSetup:
     """Validate route inputs and build the app-layer direct chat turn.
 
@@ -147,6 +151,15 @@ async def prepare_direct_chat_turn(
             anima_id=anima_id,
             request_opts=request_options,
         )
+    )
+    # Companion safety is resolved before the prompt so a local crisis signal can add
+    # the care note. It never blocks the turn.
+    safety = await prepare_turn_safety(
+        session=session,
+        user_id=user.id,
+        message=req.message,
+        client_context=req.client_context,
+        runtime_settings=runtime_settings,
     )
     validated_attachments = await validate_searchable_attached_files(
         user_file_processing=SQLAlchemyUserFileProcessingRepository(session),
@@ -211,6 +224,8 @@ async def prepare_direct_chat_turn(
         runtime_revision=runtime_revision,
         runtime_gesture_ids=resolved_runtime_gesture_ids,
         runtime_gesture_descriptors=runtime_gesture_descriptors,
+        care_note=safety.care_note,
+        provider_moderation=safety.provider_moderation,
     )
     try:
         # `prepare_turn` resolves the selected model provider, compiles memory
@@ -240,6 +255,7 @@ async def prepare_direct_chat_turn(
         chat_options=chat_options,
         executor=executor,
         prepared_turn=prepared_turn,
+        safety=safety,
     )
 
 

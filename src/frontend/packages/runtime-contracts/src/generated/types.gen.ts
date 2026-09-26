@@ -1287,6 +1287,7 @@ export type PyAnimaChatRequest = {
      * Chat Id
      */
     chat_id?: string | null;
+    client_context?: PyChatClientContext | null;
     dispatch_options?: PyAnimaDispatchOptions | null;
     /**
      * Message
@@ -2800,6 +2801,26 @@ export type PyCatalogPreviewSource = {
      * Type
      */
     type: 'catalog';
+};
+
+/**
+ * PyChatClientContext
+ *
+ * Client-reported context used only for safety presentation (spec R2, R5).
+ */
+export type PyChatClientContext = {
+    /**
+     * Locale
+     *
+     * BCP 47 locale, e.g. en-US.
+     */
+    locale?: string | null;
+    /**
+     * Time Zone
+     *
+     * IANA time zone, e.g. America/Toronto.
+     */
+    time_zone?: string | null;
 };
 
 /**

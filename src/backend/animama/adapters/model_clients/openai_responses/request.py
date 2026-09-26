@@ -67,6 +67,10 @@ def create_response_kwargs(
         # carried forward; putting the map in input items would persist multiple stale
         # copies in provider-managed chat history across turns.
         payload["instructions"] = instructions
+    moderation_model = spec.provider_options.moderation_model
+    if moderation_model is not None:
+        # Built-in moderation scores ride on this request (report-only; no extra call).
+        payload["moderation"] = {"model": moderation_model}
     cache_key = spec.prompt.prompt_cache_key
     if cache_key is not None:
         payload["prompt_cache_key"] = cache_key
