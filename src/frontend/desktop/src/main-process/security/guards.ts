@@ -12,6 +12,7 @@ import {
   isAllowedWebUrl,
   isExternalHttpUrl,
   isInternalFallbackUrl,
+  isPhoneOrSmsUrl,
 } from "../utils/url-utils.js";
 import { writeLog } from "../logging.js";
 
@@ -155,13 +156,13 @@ export function installWindowGuards(
       return;
     }
     event.preventDefault();
-    if (isExternalHttpUrl(url)) {
+    if (isExternalHttpUrl(url) || isPhoneOrSmsUrl(url)) {
       void shell.openExternal(url);
     }
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (isExternalHttpUrl(url)) {
+    if (isExternalHttpUrl(url) || isPhoneOrSmsUrl(url)) {
       void shell.openExternal(url);
     }
     return { action: "deny" };

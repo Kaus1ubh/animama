@@ -7,6 +7,12 @@ import type { Client } from "@animama/runtime-contracts/sdk";
 import type { ChatAnimaDirectSseV1AnimasAnimaIdChatSsePostData } from "@animama/runtime-contracts/api-types";
 import type { EmotionValue } from "../../lib/emotion";
 import {
+  isChatAiNotice,
+  isChatCrisisSupport,
+  type ChatAiNotice,
+  type ChatCrisisSupport,
+} from "../../lib/chat/companion-safety";
+import {
   useProductLogger,
   useProductDiagnostics,
 } from "../../runtime/diagnostics";
@@ -133,6 +139,8 @@ type ChatSseCallbacks = {
   onTtsDone?: (data: ChatSseTtsDone) => void;
   onTtsError?: (data: ChatSseTtsError) => void;
   onChatTitleUpdated?: (data: ChatSseChatTitleUpdated) => void;
+  onAiNotice?: (data: ChatAiNotice) => void;
+  onCrisisSupport?: (data: ChatCrisisSupport) => void;
   onComplete?: (data: ChatSseRunCompleted) => void;
   onError?: (error: unknown) => void;
 };
@@ -480,6 +488,27 @@ export function useChatSse() {
               title: data.title,
             });
             args.onChatTitleUpdated?.(data);
+            continue;
+          }
+
+          if (isChatAiNotice(data)) {
+            if (!matchesExpectedRunId(expectedRunId, data.run_id)) {
+              continue;
+            }
+            args.onAiNotice?.(data);
+            continue;
+          }
+
+          if (isChatCrisisSupport(data)) {
+            if (!matchesExpectedRunId(expectedRunId, data.run_id)) {
+              continue;
+            }
+            logger.info("useChatSse", "SSE crisis support", {
+              runId: data.run_id,
+              source: data.source,
+              region: data.resources.code,
+            });
+            args.onCrisisSupport?.(data);
             continue;
           }
 

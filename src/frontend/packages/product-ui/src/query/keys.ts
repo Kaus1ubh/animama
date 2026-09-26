@@ -1,6 +1,8 @@
 export const queryKeys = {
   runtimeCapabilities: (ownerId: string) =>
     ["runtime-capabilities", ownerId] as const,
+  crisisResources: (ownerId: string, locale: string) =>
+    ["crisis-resources", ownerId, locale] as const,
   animaCreation: {
     all: (userId: string) => ["anima-creation", userId] as const,
     options: (userId: string) =>

@@ -881,6 +881,33 @@ describe("runtime supervision", () => {
     }
   });
 
+  it("passes no companion-safety override to any packaged child", async () => {
+    // Packaged builds must run with the safe defaults (spec R8); a shell
+    // variable on the owner's machine must not relax them.
+    const names = [
+      "ANIMAMA_COMPANION_SAFETY_ENABLED",
+      "ANIMAMA_AI_NOTICE_ENABLED",
+      "ANIMAMA_AI_NOTICE_REMINDER_HOURS",
+      "ANIMAMA_CRISIS_DETECTION_ENABLED",
+      "ANIMAMA_CRISIS_RESOURCES_PATH",
+    ];
+    for (const name of names) vi.stubEnv(name, "false");
+    try {
+      const current = create();
+      await current.runtime.start();
+      expect(fixture.launches.length).toBeGreaterThan(0);
+      for (const child of fixture.launches) {
+        expect(
+          Object.keys(child.env).filter((key) =>
+            /^ANIMAMA_(COMPANION_SAFETY|AI_NOTICE|CRISIS)/u.test(key),
+          ),
+        ).toEqual([]);
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("cannot expose ready after cleanup exits during the readiness request", async () => {
     fixture.ready.mockImplementationOnce(async () => {
       const backend = fixture.launches.find(

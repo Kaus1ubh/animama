@@ -24,6 +24,10 @@ const webSrc = fileURLToPath(new URL("./src", import.meta.url));
 const publicPackagesRoot = fileURLToPath(
   new URL("../packages", import.meta.url),
 );
+// The Safety page renders the canonical protocol document from the repository.
+const safetyDocsRoot = fileURLToPath(
+  new URL("../../../docs/safety", import.meta.url),
+);
 const includedContentRoot = fileURLToPath(
   new URL("../../../content/included", import.meta.url),
 );
@@ -236,7 +240,7 @@ export default defineConfig(({ mode, command, isPreview }) => {
       strictPort: true,
       proxy: localAPIProxy(localDevelopmentOrigins().apiTarget),
       fs: {
-        allow: [webRoot, publicPackagesRoot],
+        allow: [webRoot, publicPackagesRoot, safetyDocsRoot],
       },
     },
     preview: {

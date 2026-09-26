@@ -23,6 +23,11 @@ import {
   findRestorableChatModel,
 } from "../lib/chat/model-provider-compatibility";
 import { buildChatSseRequestBody } from "../lib/chat/chat-sse-request";
+import {
+  currentChatClientContext,
+  type ChatAiNotice,
+  type ChatCrisisSupport,
+} from "../lib/chat/companion-safety";
 import { isRuntimeRemountRequired } from "../lib/runtime-errors";
 import { runtimeRemountRecovery } from "../lib/chat/runtimeRemountRecovery";
 import {
@@ -108,6 +113,13 @@ export type UseProductChatSessionArgs = {
   getAttachedFileIds?: () => string[];
   openDraftChatRoute: () => void | Promise<void>;
   replaceChatRoute: (chatId: string) => void | Promise<void>;
+  safety?: ChatSafetyEffects;
+};
+
+/** Receives the app-rendered AI notice and crisis card for each turn (spec R2, R4). */
+export type ChatSafetyEffects = {
+  onAiNotice?: (notice: ChatAiNotice) => void;
+  onCrisisSupport?: (card: ChatCrisisSupport) => void;
 };
 
 export type PendingModelSwitch = {
@@ -196,7 +208,12 @@ export function useProductChatSession({
   openDraftChatRoute,
   routeChatId = null,
   replaceChatRoute,
+  safety,
 }: UseProductChatSessionArgs): UseProductChatSessionResult {
+  // Safety handlers change identity per render; read the latest through a ref so
+  // the submit callback need not be rebuilt.
+  const safetyRef = useRef(safety);
+  safetyRef.current = safety;
   // ---------------------------------------------------------------------------
   // Route + shared runtime dependencies.
   // ---------------------------------------------------------------------------
@@ -1068,7 +1085,10 @@ export function useProductChatSession({
             requestableNativeTools: activeModelProvider
               ? (activeModelProvider.requestable_native_tool_support ?? [])
               : undefined,
+            clientContext: currentChatClientContext(),
           }),
+          onAiNotice: (notice) => safetyRef.current?.onAiNotice?.(notice),
+          onCrisisSupport: (card) => safetyRef.current?.onCrisisSupport?.(card),
           onToken: (token, data) => {
             logger.info("Chat", "SSE received token", { token });
             // is_delta controls how this event's text mutates the current part:

@@ -11,6 +11,7 @@ import {
 import * as Dialog from "@radix-ui/react-dialog";
 import { Info, Keyboard } from "lucide-react";
 import { toast } from "sonner";
+import { SafetySettingsSection } from "@/ui/settings/SafetySettingsSection";
 
 import {
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
@@ -141,7 +142,7 @@ function ShortcutRecorder({
   );
 }
 
-const sections = ["General", "Voice", "Memory", "Advanced"] as const;
+const sections = ["General", "Voice", "Memory", "Safety", "Advanced"] as const;
 type ApplicationSettingsSection = (typeof sections)[number];
 
 const OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent";
@@ -1206,6 +1207,14 @@ export function ApplicationSettingsModal({
                 ) : null}
               </div>
             </section>
+          ) : null}
+
+          {activeSection === "Safety" ? (
+            <SafetySettingsSection
+              safety={resolvedUserPreferences.safety}
+              updateUserPreferences={updateUserPreferences}
+              disabled={isBusy}
+            />
           ) : null}
 
           {activeSection === "Advanced" ? (

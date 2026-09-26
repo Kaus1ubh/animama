@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -30,6 +30,18 @@ vi.mock("@/hooks/useDesktopFeaturePacks", () => ({
       },
     ],
   }),
+}));
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  Link: ({
+    to,
+    children,
+    className,
+  }: {
+    to: string;
+    children: ReactNode;
+    className?: string;
+  }) => createElement("a", { href: to, className }, children),
 }));
 vi.mock("@/ui/settings/DesktopCredentialsPanel", () => ({
   DesktopCredentialsPanel: () => null,
@@ -73,6 +85,7 @@ describe("local first-run setup", () => {
       /<input[^>]*type="checkbox"[^>]*name="adult-confirmed"/u,
     );
     expect(html).not.toMatch(/professional help/iu);
+    expect(html).toContain('href="/safety"');
     expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Continue<\/button>/u);
   });
 });

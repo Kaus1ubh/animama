@@ -68,7 +68,8 @@ Two further rules apply:
       age status).
 - [x] Phase 3: chat-turn integration (care note, SSE events, inline Responses
       moderation). Review #2 passed.
-- [ ] Phase 4: frontend (notice, crisis card, first run, settings, Safety page).
+- [x] Phase 4: frontend (notice, crisis card, first run, settings, Safety page).
+      Review #3 passed.
 - [ ] Phase 5: protocol document, docs, ADR, glossary, copy audit and manual
       desktop acceptance.
 - [ ] Final integration review.
@@ -1001,15 +1002,158 @@ layout:
 Completion: checks pass; browser evidence is recorded without personal content;
 review leaves no blockers.
 
-Phase record: to be filled in during implementation.
+Phase record: issue #137; starting source `9683799`.
+
+Implementation notes:
+
+- Shared event types, guards and `currentChatClientContext` live in
+  `packages/product-ui/src/lib/chat/companion-safety.ts`.
+- The chat session takes optional `safety` handlers, read through a ref.
+- `CompanionSafetyProvider`, keyed by Anima, wraps `MainShell` in
+  `routes/a/$animaId.tsx`, so the card survives canvas-mode switches.
+- `MainShell` gained an `avatarOnlyOverlay` for the bottom-center slot.
+- `ChatInterfaceView` gained a `safetySlot` below the input.
+- Quick Chat mirrors the safety state through its snapshot and dismisses the
+  card with a new `dismiss-crisis-card` command.
+- The Safety page (`routes/safety.tsx`) bundles `docs/safety/crisis-protocol.md`
+  with `?raw`. Vite `fs.allow` includes `docs/safety`; the Dockerfile copies it
+  to `/docs/safety`; the development Compose file mounts it read-only there.
+- Owner settings live in a new Settings **Safety** section: region and a
+  shorter reminder, driven by capabilities, plus the Safety link. When the
+  operator's global switch is off, the section explains that and keeps the
+  link.
+- The notice has a soft backdrop for legibility over the scene.
+
+Evidence:
+
+- `pnpm check`, `pnpm web:lint`, `pnpm web:test` (1796 passed), `pnpm build`
+  and `pnpm desktop:check` pass.
+- Focused safety tests pass: web 20, setup 8, desktop supervisor 33.
+- Browser checks on task stack `animama-safety`
+  (`http://animama-safety.localhost:8760`, development, `ANIMAMA_LLM_SKIP=1`),
+  at 1440×900:
+  - first run: Continue stays disabled until "I am 18 or older" is ticked;
+    "I'm under 18" shows the adults-only message; the Safety page is reachable
+    before onboarding; completion proceeds;
+  - crisis turn: the card with US resources (browser locale) appears below the
+    input, and the notice below it;
+  - the notice is removed after its minimum time once the turn finished;
+  - switching to Avatar-only keeps the card at bottom-center, and Dismiss
+    removes it;
+  - a venting turn shows the notice and no card;
+  - Settings → Safety shows "Automatic (United States)" and "Every 3 hours";
+    choosing United Kingdom persists `crisis_resource_region: "GB"`.
+- Narrow layout (420×860): a self-harm turn shows the GB resources (Samaritans,
+  999), with no horizontal scroll.
+- Not yet run: Electron Quick Chat and PiP checks (gate G3, Phase 5).
+
+
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewed the working tree on `9683799` (`sdlc-reviewer`, full initial review).
+
+- **P4-R1-F1 (blocking):** switching to Avatar-only mid-turn unmounts the chat
+  panel without reporting that the turn settled, so the notice stayed visible
+  indefinitely.
+- **P4-R1-F2 (blocking):** `tel:`/`sms:` links were dropped by the Electron
+  navigation guard, and the Quick Chat `will-navigate` handler hid the window.
+- **P4-R1-F3 (blocking):** the card's Safety link navigated to `/safety`,
+  unmounting the provider (losing the card) and aborting a streaming reply.
+- **P4-R1-F4 (blocking):** Quick Chat's card had no Safety link, and no
+  deviation was recorded.
+- **P4-R1-F5 (blocking):** no tests for provider state transitions, the
+  Settings section or Quick Chat snapshot mapping.
+- **Optional:**
+  - a permanent `mt-2` gap below the input;
+  - Prettier on `companion-safety.ts`;
+  - `role="alert"` re-announces on remount;
+  - Quick Chat turns also show in the main window;
+  - the validation policy classifies `docs/safety` edits as docs-only;
+  - no production Docker build yet;
+  - blank Select triggers in edge cases;
+  - input movement;
+  - timer throttling;
+  - transform-mode pointer passthrough.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** `ChatInterface` reports `false` on unmount, which settles
+  the notice. The state transitions moved to a pure reducer
+  (`lib/safety/safetyState.ts`), with an unmount-settle test.
+- **F2 accepted.**
+  - The desktop guards pass `isPhoneOrSmsUrl` URLs (`tel:`/`sms:`, digits with
+    an optional `+`, no query or hash) to `shell.openExternal`, with tests.
+  - Every crisis link uses `target="_blank"`, so it goes through the window-open
+    handler without in-window navigation, and the Quick Chat hide never fires.
+  - Electron verification remains with gate G3.
+- **F3 and F4 accepted.** The card and Settings open the protocol in place
+  with `SafetyProtocolDialog`. It works in the main window and Quick Chat, so
+  the chat, reply and card are unaffected. First run keeps the `/safety` route
+  link, since no chat exists yet.
+- **F5 accepted.** Added tests for:
+  - reducer transitions: persistence, dismissal, replacement, settle, hide and
+    remove;
+  - Quick Chat snapshot mapping;
+  - Settings, with mocked hooks: the normal view, notice off and the global
+    switch off, with no toggle present.
+- **Optional, accepted:**
+  - The gap is fixed (the margin moves into the rendered view).
+  - `companion-safety.ts` formatting was not applied in this round; it was
+    completed in repair 2 (see review #2).
+- **Optional, noted:**
+  - Quick Chat turns showing in the main window is shared state by design.
+    Recorded here.
+  - The `docs/safety` validation note goes to the Phase 5 docs.
+  - The production Docker build is added to Phase 5 checks.
+  - `role="alert"` is kept: one announcement per card appearance is
+    acceptable.
+  - The remaining optional items are accepted as-is.
+- **Evidence after revisions:**
+  - `pnpm check`, `pnpm web:lint`, `pnpm web:test` (1805 passed), `pnpm build`,
+    `pnpm desktop:check` and desktop vitest (306 passed) all pass.
+  - The dialog was not re-exercised in the browser, because the pane was hidden
+    during this session; it is part of gate G3.
+
+#### Code Review #2 Findings
+
+Targeted recheck: F1 to F5 are fixed.
+
+- **P4-R2-F1 (blocking):** in canvas fullscreen, the Safety dialog portaled to
+  `body`, so it was invisible, while the modal still blocked pointer input.
+- **Optional:**
+  - `companion-safety.ts` was still not Prettier-formatted;
+  - the dialog's markdown links would navigate in place once the protocol has
+    source links;
+  - `tel:` with `target="_blank"` can leave an empty tab in plain browsers;
+  - the Quick Chat dialog needs checking in Electron (gate G3).
+
+#### Code Review #2 Revisions
+
+- **P4-R2-F1 accepted.** `DialogContent` takes an optional `portalContainer`.
+  `SafetyProtocolDialog` portals into `document.fullscreenElement` when one
+  exists as it opens.
+- **Links accepted.** `MemoryMarkdownPreview` gained `externalLinks`, which the
+  protocol dialog uses.
+- **Prettier accepted.** `companion-safety.ts` is now formatted (verified with
+  `prettier --check`).
+- **Empty tab noted as cosmetic.**
+- `pnpm check`, `pnpm web:lint` and the focused tests pass. Repair budget used:
+  two of two.
+
+#### Code Review #3 Findings
+
+Final targeted recheck: P4-R2-F1 is fixed, with no regressions. Pass.
+
+- **Optional:** entering fullscreen after the dialog opens leaves it in `body`
+  (hard to reach).
+- **Phase 5 guidance:** protocol links open externally, so keep them absolute
+  `https://` with no footnotes or relative links.
+- The fullscreen and Quick Chat dialogs remain part of gate G3.
+
+#### Code Review #3 Revisions
+
+Accepted as-is. Phase 4 review: pass.
 
 ### Phase 5 — Protocol, docs, copy audit and desktop acceptance
 

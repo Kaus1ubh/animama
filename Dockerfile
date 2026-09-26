@@ -16,6 +16,7 @@ COPY src/frontend ./
 COPY models /models
 COPY LICENSE /LICENSE
 COPY content/included /content/included
+COPY docs/safety /docs/safety
 ENV NODE_ENV=production \
     VITE_APP_ENV=production \
     VITE_DISABLE_WEBUI_TELEMETRY=true \

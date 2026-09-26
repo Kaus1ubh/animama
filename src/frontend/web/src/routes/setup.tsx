@@ -1,4 +1,4 @@
-import { Navigate, createFileRoute } from "@tanstack/react-router";
+import { Link, Navigate, createFileRoute } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
 import { useLocalRuntime } from "@web/app/local-runtime/LocalRuntimeProvider";
@@ -136,6 +136,12 @@ function LocalSetupRoute() {
             />
             I am 18 or older
           </label>
+          <Link
+            to="/safety"
+            className="text-muted-foreground block text-xs underline underline-offset-2"
+          >
+            Safety and crisis protocol
+          </Link>
           {declinedAge ? (
             <p className="text-sm" role="status">
               Animama is only for adults 18 and older, so setup can&apos;t

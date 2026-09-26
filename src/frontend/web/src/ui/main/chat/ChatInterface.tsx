@@ -58,9 +58,12 @@ import { isWebSpeechSupported } from "@/lib/speech/stt-provider";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import { toast } from "sonner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import { useMountedAnimaRuntimeContent } from "@/ui/app/AnimaRouteProviders";
+import { useCompanionSafety } from "@/ui/safety/CompanionSafetyProvider";
+import { CompanionSafetySlot } from "@/ui/safety/CompanionSafetySlot";
+import { quickChatSafetySnapshot } from "@/lib/safety/safetyState";
 import type {
   PyChatResponse,
   PyModelProviderCatalogItem,
@@ -78,6 +81,8 @@ type ChatInterfaceProps = {
 
 type ChatInterfaceViewProps = {
   activeChat: PyChatResponse | null;
+  /** AI notice and crisis card, rendered below the chat input (spec R2, R4). */
+  safetySlot?: ReactNode;
   activeMode?: "dictation" | "voice" | null;
   autoFocusInput?: boolean;
   canChat: boolean;
@@ -186,6 +191,7 @@ export function ChatInterfaceView({
   showMicWaveform = true,
   showPromptSuggestions,
   selectableExistingFiles = [],
+  safetySlot = null,
 }: ChatInterfaceViewProps) {
   const capabilities = useRuntimeCapabilities();
   const platform = useRuntimePlatform();
@@ -391,6 +397,7 @@ export function ChatInterfaceView({
                 )}
               </details>
             ) : null}
+            {safetySlot}
           </div>
         </div>
       </div>
@@ -406,6 +413,7 @@ export const ChatInterface = ({
   openDraftChatRoute,
   replaceChatRoute,
 }: ChatInterfaceProps) => {
+  const companionSafety = useCompanionSafety();
   const fileUploadUppy = useUserFileUpload({
     id: `chat-user-files-${animaId}`,
   });
@@ -491,7 +499,18 @@ export const ChatInterface = ({
     openDraftChatRoute,
     routeChatId: chatId,
     replaceChatRoute,
+    safety: companionSafety?.sessionEffects,
   });
+  const reportSafetyStreaming = companionSafety?.reportStreaming;
+  useEffect(() => {
+    reportSafetyStreaming?.(isStreaming);
+  }, [isStreaming, reportSafetyStreaming]);
+  // Unmounting the chat panel (Avatar-only mode, leaving the Anima) aborts the
+  // turn silently, so settle the AI notice here too.
+  useEffect(
+    () => () => reportSafetyStreaming?.(false),
+    [reportSafetyStreaming],
+  );
   const mountedRuntimeContent = useMountedAnimaRuntimeContent();
   const contentWarning = useMemo(() => {
     if (mountedRuntimeContent.playbackStatus !== "degraded") return null;
@@ -841,8 +860,10 @@ export const ChatInterface = ({
         isUserSpeaking,
         isVoiceMicMuted,
       },
+      safety: companionSafety ? quickChatSafetySnapshot(companionSafety) : null,
     }),
     [
+      companionSafety,
       activeChat,
       activeMode,
       canChat,
@@ -880,8 +901,10 @@ export const ChatInterface = ({
       stopMicSession: handleMicSessionStop,
       toggleVoiceMute: handleVoiceMicToggle,
       refreshModelState: handleModelStateRefresh,
+      dismissCrisisCard: () => companionSafety?.dismissCrisis(),
     }),
     [
+      companionSafety,
       handleDictationStart,
       handleModelStateRefresh,
       handleMicSessionStop,
@@ -925,6 +948,7 @@ export const ChatInterface = ({
   return (
     <>
       <ChatInterfaceView
+        safetySlot={<CompanionSafetySlot className="mt-2" />}
         activeChat={activeChat}
         activeMode={activeMode}
         canChat={canChat}

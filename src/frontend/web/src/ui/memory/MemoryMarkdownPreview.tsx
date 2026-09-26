@@ -14,6 +14,8 @@ type MemoryMarkdownPreviewProps = {
   emptyText?: string;
   className?: string;
   allowImages?: boolean;
+  /** Open links outside the app, so following one never navigates the current view. */
+  externalLinks?: boolean;
 };
 
 export function MemoryMarkdownPreview({
@@ -22,6 +24,7 @@ export function MemoryMarkdownPreview({
   emptyText = "_Empty file_",
   className,
   allowImages = true,
+  externalLinks = false,
 }: MemoryMarkdownPreviewProps) {
   const markdown = value.trim() || emptyText;
 
@@ -39,6 +42,15 @@ export function MemoryMarkdownPreview({
         components={{
           ...(!allowImages
             ? { img: ({ alt }) => <span>[Image: {alt || "not loaded"}]</span> }
+            : {}),
+          ...(externalLinks
+            ? {
+                a: ({ href, children: linkChildren }) => (
+                  <a href={href} target="_blank" rel="noreferrer">
+                    {linkChildren}
+                  </a>
+                ),
+              }
             : {}),
         }}
       >
