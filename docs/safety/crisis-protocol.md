@@ -1,126 +1,63 @@
 # Animama safety and crisis protocol
 
-Animama's companions ("Animas") are AI characters, not people. This page
-describes how the Animama app discloses that, how it responds when someone may
-be thinking about suicide or self-harm, what it stores, and who it is for. It
-describes the app as shipped.
+**If you are in immediate danger, call your local emergency number now.**
 
-Animas are AI and are not a substitute for professional help. They do not
-provide therapy, counseling or medical or mental-health treatment.
+Animas are AI characters, not people. They are not a substitute for
+professional help and do not provide therapy, counseling or medical treatment.
+Like any AI, they can make mistakes, and they cannot call for help for you.
 
 ## Who Animama is for
 
-Animama is for adults 18 and older. Animama's AI companions may not be suitable
-for some minors. First run asks you to confirm that you are 18 or older, and
-setup cannot be completed without that confirmation. Animama has no mode for
-minors.
+Animama is for adults 18 and older; AI companions may not be suitable for some
+minors. Setup asks you to confirm your age. Animama does not verify it.
 
-## AI disclosure
+## Knowing you're talking to an AI
 
-- **In conversation.** Every Anima is given fixed companion guardrails that its
-  identity cannot change. If you sincerely ask whether you are talking to a
-  person, the Anima is instructed to say it is an AI, staying in character
-  while doing so. It may play along only inside a story or role-play you have
-  set up yourself. It is told never to claim to be a therapist or licensed
-  professional, not to use guilt or pressure to keep you talking, not to claim
-  to suffer or be lonely while you are away, and to support your relationships
-  with other people. Like any AI, it can make mistakes.
-- **In the app.** The app itself shows a short notice below the chat input (at
-  the bottom of the scene in Avatar-only mode),
-  such as "You're talking with *name*, an AI — not a person." It appears on
-  your first message of each day and again, as a reminder, after every 3 hours
-  of continuing conversation.
-  A conversation continues while messages are less than 30 minutes apart. The
-  notice stays visible while the reply is written, and for at least 8 seconds,
-  then fades. It is never spoken aloud.
+- If you sincerely ask whether an Anima is a person, it is instructed to say it
+  is an AI (it may play along inside a story you set up).
+- The app shows a short notice, "You're talking with *name*, an AI — not a
+  person," on your first message each day and after every 3 hours of
+  continuing conversation. You can make the reminder more frequent in
+  Settings → Safety.
+- Animas are also instructed not to claim to be a therapist, not to pressure or
+  guilt you into staying, and to support your relationships with other people.
 
-In Settings → Safety you can choose a shorter reminder interval.
+## If you mention suicide or self-harm
 
-## Crisis detection and support
+- Animas are instructed to respond with care, encourage you to reach out to
+  someone you trust or a crisis line, and never give methods or encouragement.
+- With OpenAI Responses models, the same request asks OpenAI to check your
+  message. If it flags possible suicide or self-harm, the app shows a crisis
+  card after the reply with crisis lines for your region. The Anima cannot hide
+  or change the card. Other model providers don't show the card, and the check
+  can miss or misread messages.
+- Chat is never blocked because of the check.
 
-When your chat model's provider is OpenAI Responses, Animama asks OpenAI for
-moderation scores on the same chat request. If those scores indicate possible
-suicide or self-harm, the app shows a crisis card after the reply, with crisis
-lines for your region, an emergency number and a link to this page. The card
-is shown by the app, not written by the Anima, so the Anima cannot hide or
-change it. It stays in that Anima's chat until you dismiss it. Other providers,
-including OpenAI models used through other providers, show no crisis card.
+## Crisis lines
 
-With any model, the Anima's guardrails tell it to respond with warmth, take
-what you said seriously and encourage you to reach out to someone you trust or
-to a crisis line. They tell it never to give methods for, or encourage,
-self-harm or suicide. Like any AI, it can make mistakes.
+| Region | Service | Contact | Emergency |
+| --- | --- | --- | --- |
+| United States | [988 Suicide & Crisis Lifeline](https://988lifeline.org/get-help/) | Call or text 988; chat online | 911 |
+| Canada | [9-8-8: Suicide Crisis Helpline](https://988.ca/get-help) | Call or text 988 | 911 |
+| United Kingdom | [Samaritans](https://www.samaritans.org/how-we-can-help/contact-samaritan/) | Call 116 123 | 999 |
+| Ireland | [Samaritans Ireland](https://www.samaritans.org/ireland/how-we-can-help/contact-samaritan/) | Call 116 123 | 112 |
+| Australia | [Lifeline](https://www.lifeline.org.au/) | Call 13 11 14; text 0477 13 11 14; chat online | 000 |
+| New Zealand | [1737, Need to talk?](https://1737.org.nz/) | Call or text 1737 | 111 |
 
-Animama never blocks, changes or holds back a reply because of the moderation
-check.
+Last verified 2026-09-25. Your region comes from your system settings; change
+it in Settings → Safety. Elsewhere, contact a local crisis line or emergency
+number.
 
-If you are in immediate danger, call your local emergency number now.
+## Your data
 
-## Crisis resources
-
-The crisis card uses a reviewed list of crisis services stored with the app:
-
-| Region | Service | How to reach it | Emergency | Source |
-| --- | --- | --- | --- | --- |
-| United States | 988 Suicide & Crisis Lifeline | Call or text 988; chat online | 911 | <https://988lifeline.org/get-help/> |
-| Canada | 9-8-8: Suicide Crisis Helpline | Call or text 988 | 911 | <https://988.ca/get-help> |
-| United Kingdom | Samaritans | Call 116 123 | 999 | <https://www.samaritans.org/how-we-can-help/contact-samaritan/> |
-| Ireland | Samaritans Ireland | Call 116 123 | 112 | <https://www.samaritans.org/ireland/how-we-can-help/contact-samaritan/> |
-| Australia | Lifeline | Call 13 11 14; text 0477 13 11 14; chat online | 000 | <https://www.lifeline.org.au/> |
-| New Zealand | 1737, Need to talk? | Call or text 1737 | 111 | <https://1737.org.nz/> |
-
-The list was last verified on 2026-09-25.
-
-Animama picks your region from your system language and region settings. You
-can choose a different region in Settings → Safety. In any other region, the
-card asks you to contact a local crisis line or your local emergency number.
-
-## What data leaves your device
-
-- Your messages already go to the AI model provider you chose. With the OpenAI
-  Responses provider, that same request also asks OpenAI for moderation scores.
-  Nothing extra is sent to any other service.
-- Animama has no telemetry and does not report crisis cards to anyone. Crisis-check
-  results and crisis cards are not written to the app's logs (a failed check
-  is logged without any message content). Self-hosted servers
-  started with the provided Docker Compose files log short previews of model
-  requests by default (`ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS`), which can include
-  message text; the desktop app does not.
-
-## What is stored
-
-- Your chats are stored in your Animama installation's database as usual, including messages that
-  showed a crisis card.
-- Animas are told not to save specific self-harm, suicide or health details to
-  memory unless you explicitly ask them to remember that detail. At most they keep a
-  general note, such as "had a hard week".
-- For the AI notice, Animama stores when a notice was last shown and when your
-  current conversation started. It also stores that you confirmed you are 18 or
-  older, and when, and your Safety settings (region and reminder interval). The
-  safety features themselves store no message content and no crisis-check
+- The safety features send nothing beyond your normal request to the model
+  provider you chose. Animama has no telemetry and reports crisis cards to no
+  one.
+- Chats are saved as usual. Animas are instructed not to save suicide,
+  self-harm or health details to memory unless you ask them to.
+- For safety, Animama stores only when the AI notice was last shown, your age
+  confirmation and your Safety settings. It never logs or stores crisis-check
   results.
 
-## Limitations
-
-- The crisis card depends on OpenAI's moderation and appears only with the
-  OpenAI Responses provider. Moderation can miss indirect phrasing and occasionally
-  flags ordinary messages.
-- Animama does not verify age; it relies on your confirmation.
-- Animas are AI. They can make mistakes and cannot call for help on your
-  behalf.
-
-## Operator configuration
-
-Whoever runs a self-hosted Animama server is responsible for these settings. They are environment
-variables only. The companion guardrails cannot be turned off.
-
-| Variable | Default | Effect |
-| --- | --- | --- |
-| `ANIMAMA_COMPANION_SAFETY_ENABLED` | `true` | `false` turns off the AI notice, moderation and the crisis card together |
-| `ANIMAMA_AI_NOTICE_ENABLED` | `true` | Turns the AI notice off or on |
-| `ANIMAMA_AI_NOTICE_REMINDER_HOURS` | `3` | Reminder interval, from 0.25 to 168 hours |
-| `ANIMAMA_CRISIS_DETECTION_ENABLED` | `true` | Turns moderation and the crisis card off or on |
-| `ANIMAMA_CRISIS_RESOURCES_PATH` | unset | Replaces the crisis-resource list with a reviewed file; an invalid file stops startup |
-
-Animama logs a warning at startup for every setting that weakens a default. The
-packaged desktop app does not pass these variables and always uses the defaults.
+A self-hosted server's operator can change or turn off the notice and crisis
+card, and may log message previews. The desktop app always uses the defaults.
