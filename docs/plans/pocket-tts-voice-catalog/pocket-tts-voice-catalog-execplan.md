@@ -1,9 +1,9 @@
-# PocketTTS voice catalog with a grouped selector
+# Expanded PocketTTS core voices with a grouped selector
 
 Source agreement: [pocket-tts-voice-catalog-spec.md](pocket-tts-voice-catalog-spec.md),
-Agreed 2026-09-26 (owner requested this plan after reviewing the draft). The
-spec's requirement IDs (R1–R25) are authoritative; this plan does not redefine
-them. Source issue:
+Agreed 2026-09-26 and revised at gate G1 the same day (D11). The spec's
+requirement IDs are authoritative; this plan does not redefine them. R8–R18
+were withdrawn at G1. Source issue:
 [raymond-van/animama#142](https://github.com/raymond-van/animama/issues/142).
 Authorized scope: the whole plan (owner invoked implementation on 2026-09-26).
 Work stops at the explicit gates G1, G2 and G3.
@@ -16,13 +16,20 @@ fixes (`b633af1`).
 
 After this work:
 
-- PocketTTS ships a curated core set of about 15–20 voices.
-- A curated catalog of about 40–50 more voices can be sampled and downloaded
-  one at a time.
-- The Anima settings selector groups voices by gender, marks recommended voices,
-  shows accent tags and separates installed voices from downloadable ones.
-- Optional voices download through a new backend-owned asset downloader. Later
-  work can reuse it for the Parakeet models, the PocketTTS models and #144.
+- PocketTTS ships 38 curated core voices: 27 female and 11 male, with 14
+  recommended and `eve` the default.
+  - 14 are Kyutai precomputed states.
+  - 24 are VCTK voices we encode reproducibly and publish to the
+    `animama-releases` R2 bucket.
+- The Anima settings selector groups voices by gender, marks recommended
+  voices and shows accent tags.
+- A saved voice that no longer exists falls back to the default with one
+  notice per session.
+
+The shared asset downloader first planned as Phase 2 now lives in
+[raymond-van/animama#151](https://github.com/raymond-van/animama/issues/151)
+(draft PR [raymond-van/animama#162](https://github.com/raymond-van/animama/pull/162)).
+Its Phase 2 record below is kept as delivery history.
 
 Working directory is the repository root unless stated. Baseline: `410425e`
 (`main`, 2026-09-26).
@@ -66,14 +73,17 @@ Line numbers are at the baseline.
 
 ## Progress
 
-- [ ] Phase 1 (#150): Candidate inventory, encoding and screening tools, listening page.
-      Agent work complete (`a297da5`, Review #2 passed); waiting on gate **G1**, owner curation.
-- [x] Phase 2 (#151): Shared backend asset downloader. Complete 2026-09-26; Review #2 passed.
-- [ ] Phase 3 (#152): Curated assets, manifests and licences. Needs G1. R2 publication
-      is gate **G2**.
-- [ ] Phase 4 (#153): Runtime voice catalog and grouped selector. Needs Phases 2 and 3.
-- [ ] Phase 5 (#154): Notices, inventory, size, docs and surface verification. Ends at
-      gate **G3**, owner acceptance.
+- [x] Phase 1 (#150): Candidate inventory, encoding and screening tools, listening page.
+      Complete: `a297da5`, Review #2 passed, gate **G1** passed 2026-09-26 (D11).
+- [x] Phase 2: Shared backend asset downloader. Reviewed and complete, then
+      split out at G1 (D11) to #151 / PR #162 (`dc2a433`). Removed from this
+      branch in `4123951`.
+- [ ] Phase 3 (#152): Shipped voice assets, acquisition and licences.
+      Publishing to R2 is gate **G2**.
+- [ ] Phase 4 (#153): Data-driven worker voice list, grouped selector and
+      stale-voice notice.
+- [ ] Phase 5 (#154): Inventory, size, docs and verification. Ends at gate
+      **G3**, owner acceptance.
 
 ## Surprises & Discoveries
 
@@ -156,6 +166,28 @@ Line numbers are at the baseline.
   manual-label candidates have no accent. Phase 3 maps these tokens to display
   tags (for example "Northern Irish") and omits the tag for `Unknown` or a
   missing value.
+- **D11.** 2026-09-26, owner, gate G1. After listening, the owner selected 38
+  voices and made them all core, with no optional catalog: "Didn't like
+  enough voices, let's just make them all core."
+  - `eve` stays the default.
+  - `javert` and `marius` are restored as recommended voices, reversing their
+    D8 exclusion.
+  - The downloader lost its consumer, so the owner chose to split it into its
+    own PR, to merge with a first consumer (#151 / #162).
+  - The selection is recorded in `scripts/voices/selection.json`.
+  - Consequences:
+    - D2, D4, D5 and D6 are superseded, since there is no removal guard,
+      backend voice catalog, samples or in-app credits list;
+    - the static notices cover every shipped voice (R23);
+    - R8–R18 are withdrawn in the spec.
+- **D12.** 2026-09-26, agent. Voice metadata (display name, gender, accent
+  tag, recommended flag, order) is one tracked frontend module, generated from
+  `selection.json` and the inventory. The UI reads it, and it sends the voice
+  list to the worker at init. A test checks that its IDs equal the voice files
+  in the browser speech manifest, so the two cannot drift. There is no backend
+  API, because every voice is a static core asset. Self-encoded VCTK voices
+  get agent-proposed given names, recorded in the selection file, which the
+  owner can rename in review.
 
 ## Phased implementation
 
@@ -360,6 +392,9 @@ Gate G1: pending the owner's selection.
 
 ### Phase 2: Shared backend asset downloader
 
+> Moved at G1 (D11) to #151 / draft PR #162. The record below documents its
+> implementation and reviews, and those reviews count toward #162.
+
 Requirements: R8–R12. Dependencies: none (it can run in parallel with Phase 1
 and G1). It uses a local fixture server in tests.
 
@@ -537,59 +572,62 @@ and `pnpm check` (pass). The coordinator ran the full
 Review budget used: the initial review and one repair round. Phase 2 is
 complete.
 
-### Phase 3: Curated assets, manifests and licences
+### Phase 3: Shipped voice assets, acquisition and licences
 
-Requirements: R4, R6, R7, R13, R24 and core-set parts of R25. Dependencies: G1
-and the Phase 1 tools.
+Requirements: R3–R7 and R23–R25. Issue #152. Dependencies: G1 (done).
 
 Intended changes:
 
-1. **Voice catalog resource.** Add
-   `src/backend/animama/resources/pocket-voices.json`, generated from the G1
-   selection.
-   - It lists every shipped voice: ID, display name, gender, accent tags,
-     recommended flag, delivery `core|optional`, licence and attribution text.
-   - Each optional voice references its state asset and sample asset in the
-     Phase 2 catalog (URL, size, SHA-256).
-   - The default voice is recorded here.
-2. **R2 layout (proposed).** Objects go under
-   `https://downloads.animama.ai/voices/pocket/english_2026-04/`:
-   - `states/<voice>-<sha16>.safetensors`
-   - `samples/<voice>-<sha16>.ogg` (Opus, about 8 s, the same prompt for every
-     voice)
+1. **Selection record.**
+   - Add `scripts/voices/selection.json`, holding the 38 IDs, the default, the
+     14 recommended voices, the display names and the order.
+   - In `sources.json`, restore `javert` and `marius` (the D11 exception) and
+     screen both so the inventory is complete.
+   - The inventory gains a `shipped` flag.
+2. **Publication set.**
+   - A `voices.py publish-set` command copies the 24 selected self-encoded
+     states into an untracked upload directory. Each is named
+     `pocket-tts/voices/english_2026-04/<name>-<sha16>.safetensors`
+     (immutable, content-addressed).
+   - It verifies every file against `encoded-state-hashes.json` and writes a
+     checksum list.
+3. **Core acquisition.**
+   - `models/browser-speech/manifest.json` lists 38 voice states:
+     - Kyutai states keep their Hugging Face `source`;
+     - self-encoded states get
+       `source: {kind: "release", url: "https://downloads.animama.ai/pocket-tts/voices/english_2026-04/<file>"}`.
+   - `browser_speech.py` validates both source kinds. It allows
+     `downloads.animama.ai` only for `release` sources, and replaces the
+     exact-13 check with the derived count (47 model files).
+   - The store target stays `models/pocket-tts/voices/<id>.safetensors`.
+   - Update `models/browser-runtime/manifest.json`, the counts in
+     `browser-runtime-assets.mjs` (24 to 58 runtime files, 13 to 47 model
+     files), `.dockerignore` if it lists voice files, and the affected tests.
+4. **Licences and notices.**
+   - `pocket-tts-attribution.txt` lists every shipped voice with its source
+     recording and licence. Kyutai states name their Kyutai source; VCTK states
+     name the VCTK speaker and the Kyutai-enhanced clip.
+   - Update `licenses/third-party/code-and-models.{json,md}`,
+     `license-sources.json` and `source-review.json` for the new files and for
+     the `scripts/voices` port of the Apache-2.0 reference runtime.
+   - Add a test that fails if a manifest voice has no licence record or an
+     NC/unknown licence (R24).
+5. **Local development before G2.** `browser_speech.py acquire --offline
+   --import-from <upload dir + kyutai states>` builds the new store without
+   network. Phase 4 develops against it.
 
-   The names are content-addressed and immutable.
-3. **Core set.**
-   - Kyutai-sourced core voices keep their Hugging Face pins.
-   - Self-encoded core voices are fetched from R2. Extend `browser_speech.py`:
-     a per-file `source.kind` of `huggingface` or `release`, and add
-     `downloads.animama.ai` to the allowlist for `release` sources only.
-   - Update the exact-count checks (13, 24) to the new counts.
-   - Update the manifests and `pocket-tts-attribution.txt`. Editing the notice
-     changes the store digest, which is expected; the new directory is created
-     beside the old one.
-4. **Licences.** Add one record per shipped or hosted voice and sample to
-   `licenses/third-party/code-and-models.{json,md}`, `license-sources.json` and
-   `source-review.json`. Add a test that rejects a catalog entry without a
-   record, or with an NC or unknown licence (R24).
-5. **Publication input.** A script produces the exact upload set (states and
-   samples) plus a checksum list in an ignored output directory.
-
-**Gate G2 (owner):** publishing to `animama-releases` and confirming that
-`downloads.animama.ai` publicly serves the objects are owner actions. Agents
-prepare the upload set and verify the served bytes afterwards. They do not
-publish. Until G2, Phase 4 development uses the local fixture server.
+**Gate G2 (owner).** Upload the publication set to `animama-releases` under
+the manifest paths. Agents prepare and verify; they do not publish. After the
+upload, the agent runs a real `browser_speech.py acquire` into a fresh root
+and confirms every hash. Nothing that makes acquisition depend on these
+objects merges before that.
 
 Checks:
-- `python3 scripts/models/browser_speech.py acquire` then `verify` (real
-  downloads after G2);
-- `uv run pytest -q tests/test_browser_model_store.py tests/test_voice_tools.py`
-  and the new licence test;
-- `pnpm verify:tts-assets` and `web/tests/browserRuntimeAssets.test.ts` with the
-  new counts.
-
-Completion: the manifests, catalog and licence records match the G1 decision.
-After G2, every hosted object's served SHA-256 matches.
+- `uv run --no-sync pytest -q tests/test_browser_model_store.py tests/test_voice_tools.py`
+  and the licence test;
+- `pnpm verify:tts-assets` and `web/tests/browserRuntimeAssets.test.ts`;
+- `ruff`;
+- offline import acquire and verify, then a real acquire after G2.
 
 Results, issue and commits: _pending_.
 
@@ -601,69 +639,39 @@ _Pending._
 
 _Pending._
 
-### Phase 4: Runtime voice catalog and grouped selector
+### Phase 4: Data-driven voice list, grouped selector and stale-voice notice
 
-Requirements: R14–R22. Dependencies: Phases 2 and 3 (a fixture catalog is
-enough before G2).
+Requirements: R19–R22. Issue #153. Dependencies: Phase 3's local store.
 
 Intended changes:
 
-1. **Backend voice routes.**
-   - `GET /v1/pocket-voices`: the catalog merged with install state, a state
-     URL (the core `/onnx/...` path or `/v1/model-assets/<id>/content`) and a
-     sample URL.
-   - `POST /v1/pocket-voices/{voice}:install`: delegates to the downloader and
-     installs the sample on first play.
-   - `DELETE /v1/pocket-voices/{voice}`: the R18 guard. It queries
-     `user_settings` and `anima_settings` preferences for `tts_pocket_voice` and
-     `tts_pocket_anima_voice`, and returns 409 with the Anima IDs and names that
-     use the voice.
+1. **Metadata module.** `web/src/lib/speech/pocket/voice-catalog.ts` is
+   generated by `voices.py` and checked in. It holds the ordered voices (ID,
+   display name, gender, accent tag, recommended) and the default. A test
+   checks its IDs equal the manifest's voice files.
 2. **Worker.**
-   - Replace `PREDEFINED_VOICE_NAMES` with a voice list (name → state URL) sent
-     at init and on catalog change.
-   - Load optional states lazily through the existing two-entry LRU.
-   - `voices_loaded` reports installed names. `set_voice` on a not-installed
-     voice returns a typed `voice_not_installed` result, not a generic error.
-3. **Controller and hooks.**
-   - Carry voice metadata (not bare strings) through `PocketTTSCore` and
-     `use-pocket-tts-runtime`.
-   - Add a `usePocketVoiceCatalog` query with install and remove mutations.
-4. **Fallback (R16, R17).** In `use-tts-playback.ts`, when the resolved voice is
-   a catalog voice that is not installed:
-   - use the default voice;
-   - trigger install;
-   - show one notice per app session (a session-scoped key replaces the per-run
-     key for this reason);
-   - retry on a later reply or on the browser `online` event.
-
-   Unknown non-catalog names use the default with the same one-per-session
-   notice.
-5. **Selector** (`AnimaSettingsModal`):
-   - `SelectGroup` Female and Male (female first, matching the set's balance),
-     recommended voices first, each with accent tags.
-   - An "Available to download" section per group with play-sample and download
-     controls and progress.
-   - Remove on downloaded voices, with the 409 reason shown.
-   - The "Use application default" and "Custom (uploaded)" options are
-     unchanged.
-   - The Radix `Select` may not host inline buttons accessibly. If so, use the
-     existing popover/list pattern and record the choice here.
+   - Replace `PREDEFINED_VOICE_NAMES` with the list received in the load
+     message.
+   - The load path fetches `<id>.safetensors` for the listed voices.
+   - Parse and expand lazily, keeping today's two-entry LRU for expanded
+     states. Loading all 38 files eagerly (about 265 MB) is avoided: the list
+     is known up front and each file is fetched on first use.
+   - `voices_loaded` reports the list. `set_voice` behaves as today.
+3. **Selector** (`AnimaSettingsModal`):
+   - `SelectGroup` Female and Male, each labelled, recommended voices first
+     with a marker, then the rest in catalog order;
+   - accent tag as secondary text;
+   - "Use application default" and "Custom (uploaded)" unchanged.
+4. **Stale voice (R22).** In `use-tts-playback.ts`, the unknown-voice warning
+   uses a session-scoped key, so it shows once per app session. The fallback
+   to the default voice is unchanged.
 
 Checks:
-- Unit tests for:
-  - the worker voice-list handling (`pocketRuntime`/worker tests);
-  - the fallback notice once per session and retry;
-  - selector grouping and ordering;
-  - the remove refusal message.
-- Backend route tests, including the 409 guard.
-- `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build`, `uv run pytest -q`.
-- Browser verification on a task stack at desktop size, then a narrow layout:
-  grouping, sample playback, download, speaking with the downloaded voice
-  without a reload, the auto-download path, and the offline notice. Simulate
-  offline by blocking the fixture or R2 host.
-
-Completion: automated checks pass. Browser evidence is recorded with the stack
-URL and revision.
+- unit tests for the metadata and manifest match, selector grouping and
+  ordering, worker voice-list handling, and the once-per-session notice;
+- `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build`;
+- browser verification on a task stack at desktop size, then a narrow layout:
+  grouping, recommended first, accent tags, and each source kind speaking.
 
 Results, issue and commits: _pending_.
 
@@ -675,45 +683,32 @@ _Pending._
 
 _Pending._
 
-### Phase 5: Notices, inventory, size, docs and verification
+### Phase 5: Inventory, size, docs and verification
 
-Requirements: R23, R25 and the combined acceptance.
+Requirements: R23, R25 and the combined acceptance. Issue #154.
 
 Intended changes:
-
-1. **Acknowledgements (D6).**
-   - A read-only list in App Settings → About: core voice credits and the
-     credits of each installed optional voice, from `GET /v1/pocket-voices`.
-   - Removal updates it.
-   - Desktop's staged `THIRD_PARTY_NOTICES.txt` gains the core voices through
-     the existing licence staging.
-2. **Desktop inventory and size.**
-   - The catalog resource is part of the core inventory.
-   - `desktop:runtime:stage` and `desktop:runtime:audit` must pass. Record the
-     download and installed sizes against the 750 MiB and 1.5 GiB caps, with no
-     size exception.
-   - Downloaded assets live under `userData/data` and are not audited as core.
-3. **Docs.** Update:
-   - `docs/frontend/runtime/voice.md` (voice catalog, fallback and selector);
-   - `docs/backend/operations/model-assets.md` (the core voice count, release
-     sources and the downloader store);
+1. **Desktop runtime.** `desktop:runtime:stage` and `desktop:runtime:audit`
+   pass. Record the core download and installed size against the 750 MiB and
+   1.5 GiB caps; exceeding a cap stops for an owner decision. The staged
+   `THIRD_PARTY_NOTICES.txt` includes every voice.
+2. **Docs.** Update:
+   - `docs/frontend/runtime/voice.md` (voice list, selector, stale-voice
+     notice);
+   - `docs/backend/operations/model-assets.md` (voice count, release-hosted
+     states, the `scripts/voices` workflow);
    - `docs/frontend/desktop/redistribution-review.md`;
-   - `src/frontend/AGENTS.md` if its Pocket notes are stale;
-   - `GLOSSARY.md`, if review finds "core voice" or "optional voice" ambiguous.
+   - `src/frontend/AGENTS.md` if its Pocket notes are stale.
 
-**Gate G3 (owner):**
-- A packaged desktop app (`pnpm desktop:mac`, unsigned) and a built self-host
-  stack each complete sample, download, speak, restart persistence and removal
-  against the published R2 objects.
-- Owner listening acceptance of the shipped set, as spec acceptance requires.
-
-Agents run and record these checks where the environment allows. The owner
-confirms them.
+**Gate G3 (owner).** In the running app, the owner accepts the shipped voices
+and selector. The agent first verifies the packaged desktop app
+(`pnpm desktop:mac`, unsigned) and a built self-host stack with the store
+acquired from the published objects.
 
 Checks:
-- `pnpm desktop:check`, `pnpm desktop:test`, `desktop:runtime:stage` and
-  `desktop:runtime:audit`, `pnpm desktop:mac`;
-- the Compose config checks from `AGENTS.md`;
+- `pnpm desktop:check`, `pnpm desktop:test`, runtime stage and audit,
+  `pnpm desktop:mac`;
+- the Compose config checks;
 - the full backend and frontend suites.
 
 Results, issue and commits: _pending_.
@@ -728,12 +723,11 @@ _Pending._
 
 ## Final integration review
 
-Covers the combined spec acceptance using still-valid phase evidence. Review
-focus:
-- no URL or host outside the pinned catalog is reachable;
-- no partial asset is ever served;
-- R18 guard coverage of both preference levels;
-- licence records for every hosted object;
+This review covers the combined spec acceptance, reusing still-valid phase
+evidence. Focus:
+- every shipped voice is licensed, recorded and credited;
+- acquisition accepts only pinned hosts and hashes;
+- the metadata, manifest and worker lists agree;
 - the size record;
 - docs accuracy.
 
@@ -741,20 +735,16 @@ _Pending._
 
 ## Validation and acceptance
 
-The spec's acceptance criteria map to phases as follows:
-
 | Spec acceptance | Phase and evidence |
 | --- | --- |
 | Inventory and no NC/unknown voices | P1 inventory, P3 licence test |
-| Encoder reproducibility | P1 tests |
-| Owner listening acceptance | G1 and G3 |
-| Downloader behavior | P2 tests |
+| Reproducible encoding | P1 `encode --check` and tracked hashes |
+| Owner curation | G1 (D11) |
 | Selector | P4 browser evidence |
-| Sample, download and speak on both surfaces | P4 browser and G3 packaged/self-host |
-| Auto-download and offline notice | P4 tests and browser |
-| Removal guard | P2 and P4 tests |
-| Notices | P5 rendered Acknowledgements |
-| Acquisition, inventory, docs and size | P3 and P5 commands |
+| Stale-voice notice | P4 test |
+| Notices | P3 notice file, P5 staged notices |
+| Acquisition, packaging and size | P3 acquire after G2, P5 stage and audit |
+| Owner acceptance | G3 |
 
 Local evidence, hosted `Validation` results and owner gates are recorded
 separately. None is marked passed without its evidence.
@@ -769,11 +759,8 @@ separately. None is marked passed without its evidence.
   `--rehash` is passed.
 - Core acquisition creates a new digest directory, leaving old stores intact.
   Roll back by checking out the previous manifest.
-- Downloader: a failed install leaves only staging files, which are removed at
-  startup. Delete `<data_root>/internal/model-assets/<asset_id>/` to force a
-  reinstall. Never edit an installed file in place.
 - R2 objects are content-addressed and never overwritten. A bad object is
-  replaced by a new name in a new release manifest.
+  replaced by a new name in a new manifest.
 - The database is reset for this development cycle. No preference migration is
   needed (spec non-goal).
 
