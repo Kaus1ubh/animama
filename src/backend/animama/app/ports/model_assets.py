@@ -36,6 +36,9 @@ class ModelAssetStore(Protocol):
     def discard_staging(self) -> None:
         """Delete leftovers from interrupted installs; call before any install."""
 
+    def free_bytes(self) -> int:
+        """Free bytes on the filesystem holding staged and installed assets."""
+
     def is_installed(self, asset: AssetDescriptor) -> bool:
         """Report a present regular file of the pinned size, without rehashing."""
 

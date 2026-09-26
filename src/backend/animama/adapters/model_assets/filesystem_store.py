@@ -73,6 +73,14 @@ class FilesystemModelAssetStore:
         if self.staging_root.is_dir() and not self.staging_root.is_symlink():
             shutil.rmtree(self.staging_root)
 
+    def free_bytes(self) -> int:
+        # Staging and installed files share the data root's filesystem; measure
+        # its nearest existing directory, since the store may not be created yet.
+        directory = self.installed_root
+        while not directory.exists() and directory != directory.parent:
+            directory = directory.parent
+        return shutil.disk_usage(directory).free
+
     def _path(self, asset: AssetDescriptor) -> Path:
         # Descriptor validation guarantees both parts are single safe names.
         return self.installed_root / asset.id / asset.sha256

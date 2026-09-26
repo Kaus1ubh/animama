@@ -22,6 +22,8 @@ ASSET_ID_PATTERN: Final = re.compile(r"[a-z0-9][a-z0-9._-]{0,127}")
 _SHA256_PATTERN: Final = re.compile(r"[0-9a-f]{64}")
 _MEDIA_TYPE_PATTERN: Final = re.compile(r"[A-Za-z0-9!#$&^_.+-]+/[A-Za-z0-9!#$&^_.+-]+(?:;[\x20-\x7e]+)?")
 _LICENSE_REF_PATTERN: Final = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/+-]{0,199}")
+# Free space kept beyond an asset's size so an install never fills the data root.
+INSTALL_HEADROOM_BYTES: Final = 64 * 1024 * 1024
 
 AssetStatus = Literal["not_installed", "downloading", "installed", "failed"]
 # Stable failure codes reported to clients; they never carry host paths or URLs.
@@ -31,6 +33,7 @@ AssetFailureReason = Literal[
     "asset_size_invalid",
     "asset_hash_invalid",
     "asset_store_failed",
+    "asset_insufficient_space",
 ]
 
 
@@ -78,6 +81,12 @@ class AssetDescriptor:
     @property
     def host(self) -> str:
         return urlsplit(self.url).hostname or ""
+
+    @property
+    def required_free_bytes(self) -> int:
+        """Free space needed to start an install: the staged file plus headroom."""
+
+        return self.size + INSTALL_HEADROOM_BYTES
 
 
 @dataclass(frozen=True, slots=True)

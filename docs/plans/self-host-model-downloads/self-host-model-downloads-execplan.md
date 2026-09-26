@@ -292,15 +292,66 @@ manifest, and the backup exclusion. The SDK is current. Until Phase 4, the
 catalog URL answers 404, so a live install fails as `asset_download_failed`.
 This is expected, and the phase does not merge on its own.
 
-**Evidence, commits and review:** to be recorded here.
+**Implementation notes (agent, 2026-09-26):**
+
+- `main` advanced to `4e5f663` (v0.1.1 release) before work started; the branch
+  was fast-forwarded and #162 merged cleanly (`509e4e0`).
+- Free space that cannot be measured refuses an install as `asset_store_failed`
+  and lists `free_bytes: null`.
+- Restore rollback bundles also omit model assets. Restore wipes the data root
+  before extracting, so assets are gone after any restore anyway.
+- The worktree venv had been created with Python 3.14, which changes OpenAPI
+  422 phrases. It was rebuilt with `uv sync --python 3.12.13`, the CI pin, and
+  all Python evidence below is from 3.12.13.
+
+**Evidence (Python 3.12.13, working tree before the phase commit):**
+
+- `uv run pytest -q`: 1961 passed, 7 skipped.
+- `uv run ruff check`: clean. `uv run ruff format --check src tests`: clean.
+- `uv run python scripts/repository-boundary/check-python-imports.py`:
+  `forbidden_edges: 0`.
+- `bash -n` on `backup-local.sh` and `restore-local.sh`: ok.
+- From `src/frontend`: `pnpm openapi-ts:check` current (17 files); `pnpm check`
+  exit 0.
+- Not applicable: live download (the R2 object is published in Phase 4).
+
+**Commits:** plan `4666d9e`; merge of #162 `509e4e0`; phase commit recorded
+below.
 
 #### Code Review #1 Findings
 
-Pending.
+Independent `sdlc-reviewer`, initial review of the uncommitted tree on `509e4e0`.
+
+- **P1-F1 (required):** the regenerated SDK changed four unrelated 422
+  descriptions (`Unprocessable Entity` → `Unprocessable Content`) because the
+  venv ran Python 3.14.4; CI regenerates under 3.12.13, so `sdk-freshness`
+  would fail.
+- P1-F2 (optional): the unmeasurable-free-space branch had no test or API doc.
+- P1-F3 (optional): `free_bytes` was optional in the schema although always set.
+- P1-F4 (optional): a traceback per list call while measurement fails; a
+  per-asset space check can admit concurrent installs whose total exceeds free
+  space.
+
+Checked without defects: idempotence and busy behavior, `required_free_bytes`
+sizing, security of failure codes and the unchanged host allowlist, the catalog
+binding, desktop composition, tar exclusions (bsdtar and GNU tar), merge
+integration and docs.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P1-F1 accepted.** Venv rebuilt on 3.12.13; SDK regenerated; the generated
+  diff now contains only model-asset hunks. Full checks rerun (see Evidence).
+- P1-F2 accepted: explicit `if free is None` branch, test
+  `test_unmeasurable_free_space_refuses_install`, API doc updated.
+- P1-F3 accepted: `free_bytes: int | None` is required and nullable.
+- P1-F4: logging accepted (warning without traceback). The aggregate check for
+  concurrent installs is deferred: the catalog has one entry, and a mid-download
+  `ENOSPC` still fails cleanly as `asset_store_failed` with staging discarded.
+
+#### Code Review #2 Findings
+
+Targeted recheck (same reviewer): P1-F1 to P1-F4 verified, no regressions, no
+new findings. Result: pass; one repair round used.
 
 ### Phase 2: Create-only model publication command with a scan gate
 

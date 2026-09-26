@@ -126,6 +126,16 @@ class ModelAssetService:
     def states(self) -> list[AssetState]:
         return [self._state(asset) for asset in self._catalog.assets]
 
+    def free_bytes(self) -> int | None:
+        """Report free space for the store, or ``None`` if it cannot be measured."""
+
+        try:
+            return self._store.free_bytes()
+        except OSError as error:
+            # Listed often while a download is shown, so no traceback per call.
+            logger.warning("Model asset store free space could not be measured: %s", error)
+            return None
+
     def _state(self, asset: AssetDescriptor) -> AssetState:
         if asset.id in self._tasks:
             return AssetState(
@@ -147,13 +157,23 @@ class ModelAssetService:
         Idempotent: an installed asset stays installed and an in-flight
         download is shared rather than restarted. Raises ``AssetBusyError``
         while the asset is being removed, so a new download never races the
-        deletion of its directory.
+        deletion of its directory. Without ``required_free_bytes`` of free
+        space nothing is fetched, and the state reports
+        ``asset_insufficient_space`` (``asset_store_failed`` if free space
+        cannot be measured).
         """
 
         asset = self._descriptor(asset_id)
         if asset.id in self._removing:
             raise AssetBusyError(asset.id)
         if asset.id in self._tasks or self._store.is_installed(asset):
+            return self._state(asset)
+        free = self.free_bytes()
+        if free is None:
+            self._failures[asset.id] = "asset_store_failed"
+            return self._state(asset)
+        if free < asset.required_free_bytes:
+            self._failures[asset.id] = "asset_insufficient_space"
             return self._state(asset)
         self._failures.pop(asset.id, None)
         self._progress[asset.id] = 0

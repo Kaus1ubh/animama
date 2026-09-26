@@ -2790,10 +2790,12 @@ export const zPyModelAssetState = z.object({
             'asset_host_not_allowed',
             'asset_size_invalid',
             'asset_hash_invalid',
-            'asset_store_failed'
+            'asset_store_failed',
+            'asset_insufficient_space'
         ]),
         z.null()
     ])),
+    required_free_bytes: z.int(),
     size_bytes: z.int(),
     status: z.enum([
         'not_installed',
@@ -2811,7 +2813,11 @@ export const zPyModelAssetState = z.object({
  * PyModelAssetList
  */
 export const zPyModelAssetList = z.object({
-    assets: z.array(zPyModelAssetState)
+    assets: z.array(zPyModelAssetState),
+    free_bytes: z.union([
+        z.int(),
+        z.null()
+    ])
 });
 
 /**

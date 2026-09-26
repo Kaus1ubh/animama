@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import gzip
 import hashlib
+import json
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,6 +19,7 @@ from animama.app.ports.model_assets import AssetFetchError
 from animama.app.services.model_asset_service import ModelAssetService, load_packaged_asset_catalog
 from animama.domain.model_assets import (
     ASSET_CATALOG_SCHEMA,
+    INSTALL_HEADROOM_BYTES,
     AssetCatalog,
     AssetDescriptor,
     AssetRemovalVeto,
@@ -113,8 +115,19 @@ def release() -> Release:
 # Catalog
 
 
-def test_packaged_catalog_is_valid_and_ships_no_assets_yet() -> None:
-    assert load_packaged_asset_catalog().assets == ()
+def test_packaged_catalog_pins_the_tracked_webgpu_encoder() -> None:
+    manifest_path = Path(__file__).resolve().parents[1] / "models" / "parakeet-tdt-0.6b-v2-webgpu" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    encoder = next(file for file in manifest["files"] if file["path"] == "encoder-model.fp16.onnx")
+
+    (asset,) = load_packaged_asset_catalog().assets
+    assert asset.id == "parakeet-tdt-0.6b-v2-webgpu-encoder"
+    assert (asset.size, asset.sha256) == (encoder["size"], encoder["sha256"])
+    # Published content-addressed: the URL directory is the file's own digest.
+    assert asset.url == (
+        f"https://downloads.animama.ai/models/{manifest['model_id']}/{encoder['sha256']}/encoder-model.fp16.onnx"
+    )
+    assert asset.license_ref == manifest["license"]
 
 
 @pytest.mark.parametrize(
@@ -232,6 +245,54 @@ async def test_failed_downloads_leave_nothing(
     release.serve("/voices/test/voice-a.bin")
     service.install("voice-a")
     assert (await service.wait("voice-a")).status == "installed"
+
+
+async def test_install_is_refused_without_enough_free_space(
+    data_root: Path, release: Release, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = FilesystemModelAssetStore(data_root)
+    service = ModelAssetService(_catalog(), store, release.fetcher())
+    required = len(PAYLOAD) + INSTALL_HEADROOM_BYTES
+    monkeypatch.setattr(store, "free_bytes", lambda: required - 1)
+
+    async with local_client(_app(service)) as client:
+        listed = (await client.get("/v1/model-assets")).json()
+        assert listed["free_bytes"] == required - 1
+        assert listed["assets"][0]["required_free_bytes"] == required
+
+        refused = await client.post("/v1/model-assets/voice-a:install")
+        assert refused.status_code == 202
+        assert (refused.json()["status"], refused.json()["reason"]) == ("failed", "asset_insufficient_space")
+    assert release.requests == []
+    assert _staged(data_root) == []
+
+    # Once space is available, a retry downloads normally.
+    monkeypatch.setattr(store, "free_bytes", lambda: required)
+    service.install("voice-a")
+    assert (await service.wait("voice-a")).status == "installed"
+
+
+async def test_unmeasurable_free_space_refuses_install(
+    data_root: Path, release: Release, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = FilesystemModelAssetStore(data_root)
+    service = ModelAssetService(_catalog(), store, release.fetcher())
+
+    def unreadable() -> int:
+        raise PermissionError("data root not readable")
+
+    monkeypatch.setattr(store, "free_bytes", unreadable)
+    async with local_client(_app(service)) as client:
+        assert (await client.get("/v1/model-assets")).json()["free_bytes"] is None
+        refused = (await client.post("/v1/model-assets/voice-a:install")).json()
+    assert (refused["status"], refused["reason"]) == ("failed", "asset_store_failed")
+    assert release.requests == []
+
+
+def test_store_reports_free_space_before_its_directories_exist(data_root: Path) -> None:
+    free = FilesystemModelAssetStore(data_root).free_bytes()
+    assert isinstance(free, int) and free > 0
+    assert not data_root.exists()
 
 
 async def test_cancelled_install_leaves_nothing(data_root: Path, release: Release) -> None:

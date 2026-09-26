@@ -143,7 +143,12 @@ the same FastAPI code on desktop and self-host, and it needs no restart.
   `<data_root>/internal/model-assets/<asset_id>/<sha256>`. A failed or
   cancelled download leaves nothing installed; staging is cleared at startup.
 - `<data_root>` is `ANIMAMA_DATA_ROOT`: `<userData>/data` on desktop and
-  `/var/lib/animama/data` in Compose, so installs persist with that data.
+  `/var/lib/animama/data` in Compose (the `ANIMAMA_DATA_HOST_PATH` bind
+  mount), so installs persist with that data. There is no quota; an install
+  starts only with its size plus 64 MiB free on that filesystem.
+- `scripts/backup-local.sh` and restore rollbacks omit installed and staged
+  model assets. After a restore they report not installed; download them again
+  in the app.
 
 Use the downloader for restart-free data files the running app can pick up,
 such as optional voices. Large bundles that need a service switch, such as the

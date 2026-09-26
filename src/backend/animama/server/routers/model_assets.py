@@ -58,7 +58,10 @@ def _state(service: ModelAssetService, asset_id: str) -> AssetState:
 
 @router.get("", response_model=PyModelAssetList)
 async def list_model_assets(_principal: Principal, service: Service) -> PyModelAssetList:
-    return PyModelAssetList(assets=[PyModelAssetState.from_state(state) for state in service.states()])
+    return PyModelAssetList(
+        assets=[PyModelAssetState.from_state(state) for state in service.states()],
+        free_bytes=service.free_bytes(),
+    )
 
 
 @router.get("/{asset_id}", response_model=PyModelAssetState)

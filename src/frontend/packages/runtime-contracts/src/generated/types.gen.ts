@@ -5059,6 +5059,10 @@ export type PyModelAssetList = {
      * Assets
      */
     assets: Array<PyModelAssetState>;
+    /**
+     * Free Bytes
+     */
+    free_bytes: number | null;
 };
 
 /**
@@ -5088,7 +5092,11 @@ export type PyModelAssetState = {
     /**
      * Reason
      */
-    reason?: 'asset_download_failed' | 'asset_host_not_allowed' | 'asset_size_invalid' | 'asset_hash_invalid' | 'asset_store_failed' | null;
+    reason?: 'asset_download_failed' | 'asset_host_not_allowed' | 'asset_size_invalid' | 'asset_hash_invalid' | 'asset_store_failed' | 'asset_insufficient_space' | null;
+    /**
+     * Required Free Bytes
+     */
+    required_free_bytes: number;
     /**
      * Size Bytes
      */

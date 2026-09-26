@@ -124,18 +124,25 @@ The shared downloader installs files listed in the release's packaged catalog
 Requests name assets by catalog ID only; the release URL is never accepted from
 or returned to the browser. All routes use the admitted installation principal.
 
-- `GET /v1/model-assets` returns `{"assets": [...]}` for every catalog entry.
+- `GET /v1/model-assets` returns `{"assets": [...], "free_bytes": N}` for every
+  catalog entry. `free_bytes` is the store filesystem's free space, or `null`
+  when it cannot be measured.
 - `GET /v1/model-assets/{asset_id}` returns one state: `id`, `status`
   (`not_installed`, `downloading`, `installed` or `failed`), `size_bytes`,
-  `media_type`, `license_ref`, and `content_url` when installed.
+  `required_free_bytes` (size plus 64 MiB headroom), `media_type`,
+  `license_ref`, and `content_url` when installed.
   `bytes_downloaded`/`total_bytes` are set while downloading; `reason` is set
   when failed (`asset_download_failed`, `asset_host_not_allowed`,
-  `asset_size_invalid`, `asset_hash_invalid` or `asset_store_failed`).
+  `asset_size_invalid`, `asset_hash_invalid`, `asset_store_failed` or
+  `asset_insufficient_space`).
 - `POST /v1/model-assets/{asset_id}:install` returns `202` with the current
   state. It is idempotent: concurrent calls share one download and an installed
-  asset stays installed. Poll the state route for progress. A failed install
-  can be retried with the same call. While the asset is being removed it
-  returns `409 {"detail": {"code": "model_asset_busy"}}`.
+  asset stays installed. With less than `required_free_bytes` free, nothing is
+  fetched and the state is `failed` with `asset_insufficient_space`
+  (`asset_store_failed` when free space cannot be measured). Poll the
+  state route for progress. A failed install can be retried with the same call.
+  While the asset is being removed it returns
+  `409 {"detail": {"code": "model_asset_busy"}}`.
 - `DELETE /v1/model-assets/{asset_id}` cancels an in-flight download or removes
   the installed file, returning the resulting state (`failed` with
   `asset_store_failed` if the file cannot be deleted). A consumer guard may

@@ -1,4 +1,13 @@
 {
   "schema": "animama-asset-catalog/1",
-  "assets": []
+  "assets": [
+    {
+      "id": "parakeet-tdt-0.6b-v2-webgpu-encoder",
+      "url": "https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2-webgpu/ad8bb0acaec339c32ffbdedb869bd60f7103d0f6c00e56c7a2c2ab57df7462a2/encoder-model.fp16.onnx",
+      "size": 1238960452,
+      "sha256": "ad8bb0acaec339c32ffbdedb869bd60f7103d0f6c00e56c7a2c2ab57df7462a2",
+      "media_type": "application/octet-stream",
+      "license_ref": "CC-BY-4.0"
+    }
+  ]
 }

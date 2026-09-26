@@ -13,6 +13,8 @@ class PyModelAssetState(BaseModel):
     id: str
     status: Literal["not_installed", "downloading", "installed", "failed"]
     size_bytes: int
+    # Free space an install needs before it starts (size plus headroom).
+    required_free_bytes: int
     media_type: str
     license_ref: str
     bytes_downloaded: int | None = None
@@ -27,6 +29,7 @@ class PyModelAssetState(BaseModel):
             id=asset.id,
             status=state.status,
             size_bytes=asset.size,
+            required_free_bytes=asset.required_free_bytes,
             media_type=asset.media_type,
             license_ref=asset.license_ref,
             bytes_downloaded=state.bytes_downloaded,
@@ -38,6 +41,8 @@ class PyModelAssetState(BaseModel):
 
 class PyModelAssetList(BaseModel):
     assets: list[PyModelAssetState]
+    # Free bytes in the installation store; null when it cannot be measured.
+    free_bytes: int | None
 
 
 __all__ = ["PyModelAssetList", "PyModelAssetState"]
