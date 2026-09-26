@@ -77,7 +77,7 @@ Excluded, as in #144:
 ## Progress
 
 - [x] Owner review of this plan (2026-09-26): D1–D4 decided; Phases 1–3 authorized.
-- [ ] Phase 1 (#147): `parakeet-stt-webgpu` pack produced and dependency-aware.
+- [x] Phase 1 (#147): `parakeet-stt-webgpu` pack produced and dependency-aware. Review #2 passed; the pack inventory hash (`76101656…`) awaits owner approval before a release build.
 - [ ] Phase 2 (#148): Installed encoder served on desktop and self-host.
 - [ ] Phase 3 (#149): Experimental download control and status.
 - [ ] Phase 4: Signed candidate and native acceptance (owner-gated).
@@ -110,6 +110,12 @@ Proposed by the agent on 2026-09-26; owner decisions are dated.
       says "Install offline speech first" instead of silently installing both.
     - Removing `parakeet-stt` while the WebGPU pack is installed is refused with a
       blocker that names the dependent pack.
+- **Implementation decisions (agent, 2026-09-26, within the accepted outcome).**
+    - The dependency is declared in shared app code rather than as a `requires`
+      field in the signed pack manifest. The app and its catalog ship together,
+      and existing installed manifests (exact-key validated) stay valid.
+    - Staging fails when an active pack's inputs are missing, matching the base
+      pack; release staging therefore needs the 1.24 GB WebGPU set.
 - **D4: release timing (owner decision, 2026-09-26).** v0.1.0 was published
   without WebGPU. The pack ships with the next app release, and its inventory
   hash needs owner review before that release is built.
@@ -149,16 +155,19 @@ plan, with one issue per authorized phase under #144.
    attribution to the upstream NVIDIA model and the ysdede ONNX export). Record it
    in `licenses/third-party/code-and-models.{json,md}` and `source-review.json`,
    and generate its notice text.
-4. **Dependency.**
-    - Add an optional `requires` array to the pack schema and the catalog entry.
-    - `catalog.ts` validates that it names known packs, with no cycles.
+4. **Dependency** (implemented as recorded in the Decision Log, 2026-09-26).
+    - `featurePackRequires` in `shared/desktop-runtime.ts` declares
+      `parakeet-stt-webgpu` → `parakeet-stt`, sealed into the app.
     - `manager.install` fails with `pack_dependency_missing` unless every required
       pack is active.
-    - `remove` of a required pack fails with a `dependent_pack_installed` blocker.
-    - Activation order at startup keeps the required pack first.
-5. **Staging without the input.** A missing WebGPU input does not fail staging
-   for development builds. For a release build (`active` status), it fails with
-   an actionable message naming `parakeet_webgpu.py acquire`, like the base pack.
+    - `remove` of a required pack fails with `pack_dependent_installed` and a
+      `feature_pack` blocker naming the dependent.
+    - At startup a dependent whose requirement is not active is not mounted; it
+      reports `failed`/`pack_dependency_missing` and keeps its files.
+5. **Staging inputs.** Like the base pack, an active pack whose inputs are
+   missing fails staging with an actionable message naming
+   `parakeet_webgpu.py acquire`. The release workflow acquires and verifies the
+   set.
 
 **Checks:**
 
@@ -184,11 +193,57 @@ Phases 2–3.
 
 #### Code Review #1 Findings
 
-Pending.
+Reviewed the uncommitted Phase 1 tree against baseline `0cf2355` (independent
+`sdlc-reviewer`, initial full review). Reviewer checks: pack, input and
+packaging tests (127 passed), `desktop:check`, web panel/diagnostics tests,
+pytest (39 passed), `make format-check`, `ruff`.
+
+- **P1-F1 (required):** the release workflow never acquires the WebGPU set, so
+  release staging would fail; the plan's step 5 no longer matched the code.
+- **P1-F2 (required):** the catalog-limit test passed under the old limit of 3.
+- P1-F3: plan text differs on the dependency location and removal error code.
+- P1-F4: startup mounted a verified dependent even when its requirement was
+  inactive.
+- P1-F5: confirmed the serialized queue prevents dependency races (no change).
+- P1-F6, P1-F7: panel shows Install after a refused removal and lists the pack
+  on any device (Phase 3 scope).
+- P1-F8: the base Parakeet notice said no FP16 model is redistributed.
+- P1-F9: notice edits change the store digest; re-import was undocumented.
+- P1-F10: the core inventory changes (already a Phase 4 gate).
+- P1-F11: missing mixed staging and WebGPU receipt tests.
+- P1-F12: removal docs and troubleshooting lacked the new codes.
 
 #### Code Review #1 Revisions
 
-Pending.
+- P1-F1 accepted: `release-desktop-macos.yml` acquires and verifies
+  `parakeet_webgpu.py`; step 5 and the Decision Log record the behavior.
+- P1-F2 accepted: a 4-entry catalog now passes the length check and fails only
+  the duplicate-ID check; 5 entries fail the length check.
+- P1-F3 accepted: plan step 4 and the Decision Log updated.
+- P1-F4 accepted: `initialize` leaves a dependent unmounted with
+  `pack_dependency_missing`; tested after a base-only update.
+- P1-F5: no change needed.
+- P1-F6, P1-F7 deferred to Phase 3 (download control and device gating).
+- P1-F8 accepted: the base notice scopes its FP16 statement to `parakeet-stt`.
+- P1-F9 accepted: `model-assets.md` documents the offline re-import.
+- P1-F10: no change; Phase 4 lists the core inventory review.
+- P1-F11 accepted: tests for a missing WebGPU set in a selected store and for a
+  stale WebGPU receipt.
+- P1-F12 accepted: `feature-packs.md` and `troubleshooting.md` updated.
+
+Verification: `vitest run tests/feature-packs.test.ts tests/optional-inputs.test.mjs`
+63 passed; full desktop suite 16 files / 313 tests passed; `desktop:check`
+and web `tsc -b` passed.
+
+#### Code Review #2 Findings
+
+Targeted recheck of the accepted fixes (same reviewer): all verified, no
+regressions, no blockers. Reviewer checks: 3 desktop test files / 129 tests,
+`desktop:check`, Prettier on changed files. Non-blocking notes: the owner should
+see the staging decision at PR approval (every local stage now needs the WebGPU
+set), and the no-store WebGPU staging case relies on the generic loop test.
+
+Result: pass. One repair round remains unused.
 
 ### Phase 2: Installed encoder served on desktop and self-host
 

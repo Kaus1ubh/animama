@@ -176,12 +176,9 @@ try {
     if (existsSync(path.join(target.runtime, "web", alias)))
       throw new Error(`Embedded web contains a compatibility alias: ${alias}`);
   }
-  if (
-    existsSync(
-      path.join(target.runtime, "web/onnx/models/parakeet-tdt-0.6b-v2"),
-    )
-  )
-    throw new Error("Parakeet must remain outside core web assets");
+  for (const model of ["parakeet-tdt-0.6b-v2", "parakeet-tdt-0.6b-v2-webgpu"])
+    if (existsSync(path.join(target.runtime, "web/onnx/models", model)))
+      throw new Error("Parakeet must remain outside core web assets");
   // The standalone output must retain every reviewed model and ORT variant.
   resolveBrowserRuntimeAssets({ builtRoot: path.join(target.runtime, "web") });
   // Small vendored runtime code and provider marks stay source-bound.

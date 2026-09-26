@@ -10,12 +10,15 @@ import { Button } from "@/ui/components/button";
 
 const names: Record<FeaturePackId, string> = {
   "parakeet-stt": "Offline speech recognition",
+  "parakeet-stt-webgpu": "GPU speech encoder",
   "expanded-included-content": "Expanded Included content",
   "document-processing": "Document processing",
 };
 const descriptions: Record<FeaturePackId, string> = {
   "parakeet-stt":
     "Enables offline dictation and Voice Mode. Microphone permission and PocketTTS do not require this pack.",
+  "parakeet-stt-webgpu":
+    "Runs offline speech recognition on the GPU with live previews. Requires offline speech recognition and a WebGPU-capable device.",
   "expanded-included-content":
     "Adds selectable content to Included. It never changes your Anima’s loadout automatically.",
   "document-processing":

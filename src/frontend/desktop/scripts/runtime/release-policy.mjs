@@ -128,7 +128,7 @@ export function validateReleasePolicy(
   if (
     !packReleases ||
     Object.keys(packReleases).sort().join(",") !==
-      "document-processing,expanded-included-content,parakeet-stt" ||
+      "document-processing,expanded-included-content,parakeet-stt,parakeet-stt-webgpu" ||
     Object.values(packReleases).some(
       (pack) => !["active", "deferred"].includes(pack?.release_status),
     )

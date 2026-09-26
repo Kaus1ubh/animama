@@ -370,7 +370,7 @@ export async function loadPackCatalog(options: {
     body.schema !== "animama-pack-catalog/1" ||
     body.app_version !== options.appVersion ||
     !Array.isArray(body.entries) ||
-    body.entries.length > 3
+    body.entries.length > featurePackIds.length
   )
     throw new RuntimeError("pack_catalog_invalid");
   const entries = body.entries.map((entry) =>

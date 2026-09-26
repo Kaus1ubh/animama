@@ -7,6 +7,10 @@
       "download_bytes": 524288000,
       "installed_bytes": 681574400
     },
+    "parakeet-stt-webgpu": {
+      "download_bytes": 1342177280,
+      "installed_bytes": 1342177280
+    },
     "expanded-included-content": {
       "download_bytes": null,
       "installed_bytes": 524288000

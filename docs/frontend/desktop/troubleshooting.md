@@ -33,6 +33,7 @@ backend log before deciding on a repair.
 | `migration_failed`, `migration_recovery_required`, `migration_journal_invalid`                      | Preserve the current database and snapshot. Retry the same intended version only after resolving the cause; do not reset, auto-restore or downgrade.                          |
 | `backend_start_failed`, `backend_readiness_mismatch`, `runtime_command_failed`                      | Inspect recent child logs; check for a complete matching app and adequate disk space. Escalate repeated errors rather than deleting state.                                    |
 | `pack_in_use`, `pack_cleanup_pending`, `pack_download_failed`                                       | Follow [Feature packs](feature-packs.md#remove-safely). Do not erase directories or change download hashes.                                                                   |
+| `pack_dependent_installed`, `pack_dependency_missing`                                               | Remove the GPU speech encoder before offline speech; install offline speech first.                                                                                            |
 | `pack_signature_invalid`, `pack_file_invalid`, `pack_catalog_incompatible`                          | Stop using those pack files. Use only the app's compatible install/repair controls; if blocked, preserve evidence and contact support. Never run an unsigned document worker. |
 
 ## Application listener and renderer access

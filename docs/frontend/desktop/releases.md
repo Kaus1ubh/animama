@@ -182,7 +182,7 @@ pnpm desktop:dist:mac
 ```
 
 This command verifies the audit and exactly the active reviewed packs (currently
-Parakeet only), rejects deferred entries, signs nested
+the two Parakeet packs), rejects deferred entries, signs nested
 Mach-O files/bundles, adds the review receipt, recomputes the runtime manifest,
 and only then seals the outer app. It notarizes and staples the app, builds the
 DMG/update ZIP, notarizes both, signs/staples the DMG, and verifies Gatekeeper.

@@ -19,6 +19,7 @@ It is a preparation record, not signed-binary or public-release acceptance.
 | VAD worklet and Silero v5 model | Exact `@ricky0123/vad-web` 0.0.30 package files | ISC worklet and MIT Silero model. |
 | Smart Turn CPU model | Exact pinned model `f766f81d3cfdf7737ac64aad813d91bbfd56bf93` | Model card declares BSD-2-Clause. Full text comes from linked Daily/pipecat code; the model repository's LICENSE endpoint returns 404. |
 | Parakeet seven-file source subset | istupakov `0bbb45a3365852604aef28b538a8f066f4ccaa85`; ysdede `db4a768f5795e0f508187a34241fbeeef6ebb0d3` | NVIDIA CC BY 4.0 attribution, conversion/INT8/rebuilt-preprocessor changes, and onnx-asr MIT tooling notice. Direct pinned config/vocab files match despite stale producer-manifest hashes. |
+| Parakeet WebGPU FP16 encoder | ysdede `db4a768f5795e0f508187a34241fbeeef6ebb0d3` | NVIDIA CC BY 4.0 attribution for the upstream FP16 ONNX conversion, redistributed unmodified only in the optional `parakeet-stt-webgpu` desktop pack. |
 
 Full texts and attribution are in
 [`src/frontend/desktop/runtime/notices`](../../src/frontend/desktop/runtime/notices/).

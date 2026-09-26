@@ -626,6 +626,7 @@ Load command 4
       packs: Object.fromEntries(
         [
           "parakeet-stt",
+          "parakeet-stt-webgpu",
           "expanded-included-content",
           "document-processing",
         ].map((id) => [
@@ -830,6 +831,7 @@ Load command 4
       packs: Object.fromEntries(
         [
           "parakeet-stt",
+          "parakeet-stt-webgpu",
           "expanded-included-content",
           "document-processing",
         ].map((id) => [
