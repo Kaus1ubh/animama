@@ -741,6 +741,7 @@ async def test_anima_memories_follow_identity_when_memory_influence_is_on() -> N
     )
 
     assert context.anima_memories == memories
+    assert context.anima_memories_version == 1
     assert context.manifest["opened_files"][1] == {
         "anima_id": "anima-1",
         "path": "MEMORIES.md",
@@ -774,6 +775,7 @@ async def test_anima_memories_are_omitted_when_memory_influence_is_off() -> None
     )
 
     assert context.anima_memories is None
+    assert context.anima_memories_version is None
     assert [opened["path"] for opened in context.manifest["opened_files"]] == ["IDENTITY.md"]
     assert "# Anima Memories" not in str(prompt.messages[0]["content"])
 
@@ -794,6 +796,8 @@ async def test_missing_or_blank_anima_memories_are_omitted_without_failing_the_t
     )
 
     assert context.anima_memories is None
+    # A blank file is still editable, so its version is kept; a missing one has none.
+    assert context.anima_memories_version == (None if memories is None else 1)
     assert "# Anima Memories" not in str(prompt.messages[0]["content"])
     opened = context.manifest["opened_files"][1]
     if memories is None:

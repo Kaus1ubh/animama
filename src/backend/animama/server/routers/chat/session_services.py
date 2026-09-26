@@ -7,6 +7,7 @@ from typing import Any, TypeVar
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from animama.adapters.memory_patch import AgentsSDKV4AMemoryPatchPlanner
+from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
 from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
@@ -15,6 +16,7 @@ from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import S
 from animama.app.chat import DirectChatMemoryToolService, memory_tool_specs
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.memory_episode_service import MemoryEpisodeService
+from animama.server.config import settings
 
 from .setup_helpers import chat_manager
 
@@ -113,6 +115,22 @@ class SessionBackedMemoryEpisodeRecorder:
         return await with_short_lived_session(self._session_factory, _record)
 
 
+def _chat_tool_memory_entries(session: Any) -> MemoryEntryService:
+    """Build the committed memory service used by chat tools.
+
+    The Anima repository lets a turn reach its own ``MEMORIES.md`` (whose size
+    limit the service enforces), and the file limit matches the memory API.
+    """
+
+    return MemoryEntryService(
+        memory_entries=SQLAlchemyMemoryEntryRepository(session),
+        uow=SQLAlchemyUnitOfWork(session),
+        animas=SQLAlchemyAnimaRepository(session),
+        max_file_bytes=settings.anima_memory_file_max_bytes,
+        commit_on_write=True,
+    )
+
+
 class SessionBackedMemoryToolService:
     """Executes direct-chat memory tools through fresh short-lived DB sessions."""
 
@@ -142,11 +160,7 @@ class SessionBackedMemoryToolService:
 
     async def execute(self, **kwargs: Any) -> str:
         async def _execute(session: Any) -> str:
-            memory_entries = MemoryEntryService(
-                memory_entries=SQLAlchemyMemoryEntryRepository(session),
-                uow=SQLAlchemyUnitOfWork(session),
-                commit_on_write=True,
-            )
+            memory_entries = _chat_tool_memory_entries(session)
             service = DirectChatMemoryToolService(
                 memory_entries=memory_entries,
                 user_file_processing=SQLAlchemyUserFileProcessingRepository(session),
@@ -162,11 +176,7 @@ class SessionBackedMemoryToolService:
         """Execute one native Apply Patch call in a fresh committed session."""
 
         async def _execute(session: Any) -> str:
-            memory_entries = MemoryEntryService(
-                memory_entries=SQLAlchemyMemoryEntryRepository(session),
-                uow=SQLAlchemyUnitOfWork(session),
-                commit_on_write=True,
-            )
+            memory_entries = _chat_tool_memory_entries(session)
             service = DirectChatMemoryToolService(
                 memory_entries=memory_entries,
                 patch_planner=AgentsSDKV4AMemoryPatchPlanner(memory_entries=memory_entries),

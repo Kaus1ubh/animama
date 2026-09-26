@@ -11,6 +11,7 @@ from animama.adapters.memory_manager.episode_processing import (
     render_episode_processing_instructions,
 )
 from animama.app.chat.memory_context import (
+    ANIMA_MEMORIES_WRITE_GUIDANCE,
     MAIN_STRUCTURED_OUTPUT_GUIDANCE,
     MEMORY_SYSTEM_GUIDANCE,
     render_core_companion_instruction,
@@ -91,6 +92,35 @@ def test_instruction_sections_keep_memories_after_identity_and_guardrail_last(su
     assert instructions.endswith(COMPANION_GUARDRAILS.strip())
 
 
+@pytest.mark.parametrize("supports_developer_role", [True, False])
+def test_memories_write_guidance_stays_in_memory_guidance_before_the_guardrail(supports_developer_role: bool) -> None:
+    writable = prompt_instruction_text(
+        _assemble(
+            supports_developer_role=supports_developer_role,
+            anima_memories="# Memories\n\n## Our story\nWe met today.",
+            anima_memories_writable=True,
+        )
+    )
+    read_only = prompt_instruction_text(_assemble(supports_developer_role=supports_developer_role))
+
+    assert writable is not None and read_only is not None
+    guidance = ANIMA_MEMORIES_WRITE_GUIDANCE.strip()
+    assert writable.index("# Memory Guidance") < writable.index(guidance) < writable.index("# Response Guidance")
+    assert writable.endswith(COMPANION_GUARDRAILS.strip())
+    assert "[self]/MEMORIES.md" not in read_only
+
+
+def test_memories_write_guidance_sets_scope_size_and_guardrail_consistent_framing() -> None:
+    guidance = ANIMA_MEMORIES_WRITE_GUIDANCE
+    assert "`[self]/MEMORIES.md`" in guidance
+    assert "small edit" in guidance and "Never rewrite the file every turn" in guidance
+    assert "`PROFILE.md`" in guidance and "first person" in guidance
+    assert "6,000 characters" in guidance
+    assert "`remember` field" in guidance and "shared episode log" in guidance
+    for framing in ("missing the user", "lonely", "jealousy", "discourages their other relationships"):
+        assert framing in guidance
+
+
 def test_guardrail_folds_into_system_message_without_developer_role() -> None:
     prompt = _assemble(supports_developer_role=False, visible_history=None)
 
@@ -116,6 +146,7 @@ def test_core_instruction_defers_to_guardrail() -> None:
 def test_sensitive_memory_rule_reaches_every_memory_writer() -> None:
     assert SENSITIVE_MEMORY_RULE in MAIN_STRUCTURED_OUTPUT_GUIDANCE
     assert SENSITIVE_MEMORY_RULE in MEMORY_SYSTEM_GUIDANCE
+    assert SENSITIVE_MEMORY_RULE in ANIMA_MEMORIES_WRITE_GUIDANCE
     episode = MemoryEpisodeItem(
         id="episode-1",
         user_id="user-1",

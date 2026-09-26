@@ -474,6 +474,7 @@ The SSE stream currently emits:
 - `chat.title.updated`
 - `safety.ai_notice`
 - `safety.crisis_support`
+- `memory.updated`
 - `error`
 - `run.completed`
 
@@ -748,10 +749,11 @@ system instruction context. Anima identity is always required, and
 anima-scoped identity entries with
 `description = "Initial identity of {anima.display_name}"`. The local
 installation bootstrap creates a private user-scope `PROFILE.md` from template
-version 1; first-run personalization updates only its managed preferred-name
-line while the template metadata and version still match. AI memory tools are runtime-scoped to user-scope file
-entries only and are executed through application services, not provider
-clients.
+version 2; first-run personalization writes the `Preferred name:` line in its
+Basics section only while the template metadata and version still match. AI
+memory tools are runtime-scoped to user-scope file entries plus the active
+Anima's own `MEMORIES.md` through the `[self]/MEMORIES.md` alias, and are
+executed through application services, not provider clients.
 
 ## Chats
 
@@ -771,7 +773,11 @@ Chat creation verifies the referenced anima exists and is owned by the
 current user; missing or foreign animas return `404`. Chat reads, updates,
 deletes, and message reads are scoped to the current user's chats. Message
 responses expose `chat_id`, `run_id`, `model_provider`, `model`, and
-`internal`; identifiers belong to Chats and request-local runs.
+`internal`; identifiers belong to Chats and request-local runs. Visible
+assistant messages also carry nullable `memory_cue`
+(`{episode: {text} | null, memories: {entry_id, version, excerpt} | null}`),
+combining the reply's stored `MEMORIES.md` change with the episode note
+captured from it; see [Chat Memory Cue](../features/memory.md#chat-memory-cue).
 Message reads hide internal rows by default, and
 `include_internal=true` includes those rows with `internal=true`. Chat responses
 include nullable `api_standard`, `last_model_client`, and `last_model_id`

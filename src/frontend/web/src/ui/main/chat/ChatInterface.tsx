@@ -32,9 +32,10 @@ import {
   type UserFileUploadUppy,
 } from "@/hooks/useUserFileUpload";
 import { ChatFileDropOverlay } from "./ChatFileDropOverlay";
-import { useChatSession } from "./useChatSession";
+import { useChatSession, type ChatMessage } from "./useChatSession";
 import { useCrisisCardCornerBottom } from "./crisisCardCorner";
 import { PromptSuggestion } from "./PromptSuggestion";
+import { MemoryCue } from "./MemoryCue";
 import { useFirstChatSuggestions } from "./useFirstChatSuggestions";
 import { useDictation } from "@/hooks/use-dictation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -78,6 +79,8 @@ type ChatInterfaceProps = {
   chatId?: string | null;
   openDraftChatRoute: () => void | Promise<void>;
   replaceChatRoute: (chatId: string) => void | Promise<void>;
+  /** Opens a memory entry in the Memory workspace, for Quick Chat's memory cue. */
+  openMemoryEntry: (entryId: string) => void | Promise<void>;
 };
 
 type ChatInterfaceViewProps = {
@@ -87,6 +90,8 @@ type ChatInterfaceViewProps = {
   /** Crisis card, placed in the panel's bottom-right corner (spec R4). */
   crisisSlot?: ReactNode;
   activeMode?: "dictation" | "voice" | null;
+  /** Names the Anima in memory cue details. */
+  animaName?: string | null;
   autoFocusInput?: boolean;
   canChat: boolean;
   preparingPlayback?: boolean;
@@ -120,6 +125,11 @@ type ChatInterfaceViewProps = {
   onMicSessionStop?: () => void;
   onIncompatibleModelSelect: (item: PyModelProviderCatalogItem) => void;
   onModelChange?: () => void;
+  /**
+   * Opens a memory cue's `MEMORIES.md` entry by command. Without it the cue
+   * links within this window; Quick Chat supplies it to reach the main window.
+   */
+  onOpenMemoryEntry?: (entryId: string) => void;
   onPromptSuggestionSelect: (text: string) => void;
   onStop: () => void;
   onRestoreMessage?: (text: string) => void;
@@ -150,6 +160,7 @@ function combineDictationText(committed: string, interim: string): string {
 export function ChatInterfaceView({
   activeChat,
   activeMode = null,
+  animaName = null,
   autoFocusInput = false,
   canChat,
   preparingPlayback = false,
@@ -180,6 +191,7 @@ export function ChatInterfaceView({
   onIncompatibleModelSelect,
   onMicSessionStop,
   onModelChange,
+  onOpenMemoryEntry,
   onPromptSuggestionSelect,
   onStop,
   onRestoreMessage,
@@ -214,6 +226,17 @@ export function ChatInterfaceView({
   const isChatOnlyLayout = layout === "chat-only";
   const fileDropEnabled = Boolean(fileUploadUppy) && !quickChatSurface;
   const fileDropAccepting = fileDropEnabled && canChat && !isStreaming;
+  const renderAssistantAccessory = useCallback(
+    (message: ChatMessage) =>
+      message.memoryCue ? (
+        <MemoryCue
+          cue={message.memoryCue}
+          animaName={animaName}
+          onOpenMemoryEntry={onOpenMemoryEntry}
+        />
+      ) : null,
+    [animaName, onOpenMemoryEntry],
+  );
 
   return (
     <div
@@ -270,6 +293,7 @@ export function ChatInterfaceView({
                     markdownEnabled={chatMarkdownEnabled}
                     layout={layout}
                     messageComponent={Message}
+                    renderAssistantAccessory={renderAssistantAccessory}
                   />
                 </div>
               </>
@@ -436,6 +460,7 @@ export const ChatInterface = ({
   chatId = null,
   openDraftChatRoute,
   replaceChatRoute,
+  openMemoryEntry,
 }: ChatInterfaceProps) => {
   const companionSafety = useCompanionSafety();
   const fileUploadUppy = useUserFileUpload({
@@ -867,6 +892,7 @@ export const ChatInterface = ({
     () => ({
       activeChat,
       animaId,
+      animaName,
       chatId,
       input,
       inputPlaceholder,
@@ -890,6 +916,7 @@ export const ChatInterface = ({
       companionSafety,
       activeChat,
       activeMode,
+      animaName,
       canChat,
       chatMarkdownEnabled,
       chatId,
@@ -926,6 +953,9 @@ export const ChatInterface = ({
       toggleVoiceMute: handleVoiceMicToggle,
       refreshModelState: handleModelStateRefresh,
       dismissCrisisCard: () => companionSafety?.dismissCrisis(),
+      openMemoryEntry: (entryId: string) => {
+        void openMemoryEntry(entryId);
+      },
     }),
     [
       companionSafety,
@@ -937,6 +967,7 @@ export const ChatInterface = ({
       handleSubmitWithDictation,
       handleVoiceMicToggle,
       handleVoiceModeStart,
+      openMemoryEntry,
       setInput,
     ],
   );
@@ -976,6 +1007,7 @@ export const ChatInterface = ({
         crisisSlot={<CompanionSafetySlot part="crisis" />}
         activeChat={activeChat}
         activeMode={activeMode}
+        animaName={animaName}
         canChat={canChat}
         preparingPlayback={
           mountedRuntimeContent.avatarVisualStatus === "visible" &&

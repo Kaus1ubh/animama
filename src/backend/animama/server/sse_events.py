@@ -141,6 +141,28 @@ def format_crisis_support_event(*, run_id: str, source: str, state: SseTextState
     )
 
 
+def format_memory_updated_event(event: Any, *, run_id: str) -> str | None:
+    """Memory cue for the run's saved reply; `type`-keyed so clients never read it as a reply."""
+
+    payload = getattr(event, "payload", None)
+    if _payload_run_id(payload) != run_id:
+        return None
+    memory_cue = _payload_value(payload, "memory_cue")
+    if not isinstance(memory_cue, Mapping):
+        return None
+    message_id = _payload_value(payload, "message_id")
+    return format_sse(
+        "memory.updated",
+        {
+            "type": "memory.updated",
+            "run_id": run_id,
+            "message_id": message_id if isinstance(message_id, int) else None,
+            "memory_cue": jsonable_encoder(memory_cue),
+        },
+        event_id=f"memory-updated-{run_id}",
+    )
+
+
 def format_chat_title_updated_event(*, run_id: str, chat_id: str, title: str) -> str | None:
     clean_title = str(title or "").strip()
     if not clean_title:

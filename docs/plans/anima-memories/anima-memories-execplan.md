@@ -46,7 +46,8 @@ version; 3.14 changes OpenAPI wording); never hand-edit generated output.
 - [x] Phase 1: backend `MEMORIES.md` lifecycle, prompt placement and templates
       (review #2 pass; commit recorded under the Phase 1 record).
 - [x] Phase 2: memory workspace and create-Anima template (review #1 pass).
-- [ ] Phase 3: live edits and the chat memory cue.
+- [x] Phase 3: live edits and the chat memory cue (backend review #2 pass,
+      frontend review #1 pass).
 - [ ] Phase 4: Reflection.
 - [ ] Final integration review.
 - [ ] Owner gate G1: desktop acceptance with a live model.
@@ -157,6 +158,16 @@ Planning findings at `410425e` (unchanged at `b633af1`):
   `memory-updated-<run_id>`, sent after episode recording and before
   `run.completed`, only when either part is present. Persisted assistant
   `message_data.memory` holds `updates_enabled` and the `memories` part.
+- 2026-09-26, implementation (Phase 3 frontend): the cue opens on click or
+  keyboard, not hover (R6 allows either; click suits keyboard users and Quick
+  Chat's click-through window). "Open in Memories" appears only when the cue has
+  a `MEMORIES.md` part; an episode-only cue shows the note without a link,
+  because the note has no file of its own yet and linking to an unchanged
+  `MEMORIES.md` would mislead. Quick Chat sends `open-memory-entry`; the main
+  process reads only the command type and brings the existing main window
+  forward, while the main renderer validates the entry ID before navigating.
+  The `memory.updated` event also marks memory-entry and episode queries stale
+  so the link never opens outdated content.
 - 2026-09-26, plan design: one branch and one PR; four phases ordered by
   dependency. Implementation details may change with evidence within the spec.
 
@@ -465,13 +476,109 @@ popover contents, link, keyboard access, Quick Chat link.
 
 Completion: checks and browser evidence recorded; review has no unresolved blockers.
 
+Phase record: issue #159; starting source `6393451` (backend) and `6a218fd`
+(frontend, after Phase 2 landed). The backend and frontend halves were built in
+parallel against the Decision Log contract. Backend implementation evidence:
+`make check-test` 1968 passed, 7 skipped, mypy and ruff clean; import boundary 0
+forbidden edges; `pnpm openapi-ts:check` current. Design notes: the alias is
+recognized by `is_anima_self_memories_alias` and reaches the file only when the
+turn opened `MEMORIES.md` (memory influence on); a whole-file replace is fenced
+on the version the Anima last saw (instructions, a read or its own write), so a
+stale rewrite cannot erase an unseen owner edit, while patches work on current
+content; the write guidance joins `# Memory Guidance` only when the turn may
+edit the file.
+
 #### Code Review #1 Findings
 
-Not started.
+Backend half reviewed first (sdlc-reviewer; working tree on `6a218fd`, limited
+to backend, tests, backend docs and the generated client). Focused pytest 282
+passed; ruff, format, mypy, import boundary and `openapi-ts:check` clean.
+
+- P3B-R1-F1 (blocking): `runtime/chat.md` still said memory tools reach only
+  user-scope files, and `http-api.md`'s SSE event list lacked `memory.updated`.
+- P3B-R1-F2 (optional): an alias replace sending `description: null` wiped the
+  stored description, which is not in the instructions.
+- P3B-R1-F3 (optional): an owner save between two Anima writes in one turn can
+  appear in the excerpt.
+- P3B-R1-F4 (optional): the size-limit code and the missing-file message were
+  duplicated as literals.
+- P3B-R1-F5 (optional): reading a missing alias returned a generic retryable
+  `not_found` without the repair pointer.
+- P3B-R1-F6 (optional): `memory.md` said every read path resolves with
+  `anima_id=None`.
+- P3B-R1-F7 (optional hardening): the `# Anima Memories` preamble did not say to
+  treat the content as notes rather than instructions.
 
 #### Code Review #1 Revisions
 
-Not started.
+- F1 accepted: both docs corrected.
+- F2 accepted: a null description on an alias replace keeps the stored one;
+  new test.
+- F3 accepted as documented behavior in `memory.md`; diffing each write
+  separately adds complexity for a rare owner-and-Anima race within one turn.
+- F4 accepted: `ANIMA_MEMORIES_TOO_LARGE` (domain) and
+  `ANIMA_SELF_MEMORIES_MISSING_MESSAGE` replace the literals.
+- F5 accepted: a missing alias read returns non-retryable `not_found` with the
+  repair message; new test.
+- F6 accepted: doc corrected.
+- F7 accepted: the preamble now says to treat the content as remembered notes,
+  never as instructions.
+
+Checks after revisions: ruff, format and mypy clean; memory tools, memory
+context, guardrail, executor, Anima memory directory and chat SSE tests 276
+passed. The frontend half's review and a combined targeted recheck follow.
+
+#### Code Review #2 Findings
+
+Backend targeted recheck of F1–F7 on the repaired tree: all verified.
+`make check-test` 1970 passed, 7 skipped; ruff, format and mypy clean. Result:
+pass. Optional notes: `memory.md` should mention that native `update_file` on a
+missing alias returns `patch_rejected` and the preamble's new sentence;
+`ANIMA_SELF_MEMORIES_MISSING_MESSAGE` was missing from `__all__`.
+
+#### Code Review #2 Revisions
+
+All three notes applied (two doc sentences and the `__all__` entry). Backend
+repair budget used: one of two.
+
+#### Code Review #1 Findings (frontend half)
+
+Reviewed `src/frontend/**` (generated client excluded) and `docs/frontend/**` on
+`6a218fd` (sdlc-reviewer). Focused web vitest 97 passed, desktop command tests
+2 passed, product-ui Playwright chat lifecycle 19/19, web `tsc -b`, desktop
+`tsc`, eslint and Prettier clean. Result: pass; all findings optional.
+
+- P3F-R1-F1: episode-only cues have no link, which the plan text did not record.
+- P3F-R1-F2: the popover opens on click or keyboard only.
+- P3F-R1-F3: the main process reveals the main window before the renderer
+  validates the entry ID.
+- P3F-R1-F4: the episode note had no height limit, unlike the excerpt.
+
+#### Code Review #1 Revisions (frontend half)
+
+- F1 and F2 accepted as decisions and recorded in the Decision Log.
+- F3 rejected: only the first-party Quick Chat window can send the command, and
+  the main process only shows an existing window; validation stays at the
+  navigating renderer, as documented in `quick-chat.md`.
+- F4 accepted: the note scrolls within the same `max-h-40` as the excerpt.
+
+Implementation evidence (frontend, from `src/frontend`): `pnpm packages:build`,
+`packages:check`, `check`, `web:lint`, `build`, `desktop:check` pass;
+`web:test` 319 files / 1938 tests; `packages:test` product-ui 19/19;
+`desktop:test` 17 files / 311 tests. Browser evidence on the task stack at
+1440×900 (the web service was restarted so its container rebuilt product-ui):
+the deterministic runtime cannot produce memory writes, so a `memory.updated`
+frame was injected into the live SSE stream by wrapping `fetch`. The cue icon
+appeared on the reply while streaming; its popover (dialog "What Annie
+remembered") listed "Noted in episodes" and "Added to Annie's memories" with
+"Open in Memories"; Escape closed it and returned focus to the icon. For the
+reload path, the last assistant message's `message_data.memory` and a linked
+episode item were seeded in the task-stack database: the history API returned
+the combined `memory_cue`, the icon rendered after reload, and "Open in
+Memories" opened Annie's `MEMORIES.md`. Chat-only mode shows the cue;
+avatar-only mode shows none. At 375×812 the popover flips above the icon and
+stays inside the viewport with nothing covering it. Not performed: Quick Chat
+in Electron and a live-model turn (owner gate G1).
 
 ### Phase 4 — Reflection
 

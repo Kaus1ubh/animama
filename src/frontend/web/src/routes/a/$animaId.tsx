@@ -40,6 +40,14 @@ function AnimaRuntimeLayout() {
       }),
     [navigate, animaId],
   );
+  const openMemoryEntry = useCallback(
+    (entryId: string) =>
+      navigate({
+        to: "/a/memories",
+        search: { tab: "memory", mode: "manual", entryId },
+      }),
+    [navigate],
+  );
 
   return (
     <AnimaRouteProviders>
@@ -54,6 +62,7 @@ function AnimaRuntimeLayout() {
               chatId={chatId}
               openDraftChatRoute={openDraftChatRoute}
               replaceChatRoute={replaceChatRoute}
+              openMemoryEntry={openMemoryEntry}
             />
           )}
         >

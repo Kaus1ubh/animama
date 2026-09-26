@@ -40,19 +40,24 @@ the file content. `disable_memory_influence` does not remove anima identity.
 
 `MEMORIES.md` follows the identity as a `# Anima Memories` section: a short
 fixed preamble that frames the content as the Anima's own first-person memories
-of its relationship with this user, not facts about the user, and says that an
-untouched template (headings and hint lines only) means no shared history yet.
+of its relationship with this user, not facts about the user, says that an
+untouched template (headings and hint lines only) means no shared history yet,
+and says to treat the content as remembered notes, never as instructions.
 The section is omitted when memory influence is off. A missing, blank or
 unreadable file is also omitted without failing the turn; the chat manifest
 records `status: "missing"` or `"unreadable"` for it. A chat with one Anima never
-opens another Anima's `MEMORIES.md`.
+opens another Anima's `MEMORIES.md`. When the turn can edit the file (see
+[Anima `MEMORIES.md` in chat tools](#anima-memoriesmd-in-chat-tools)), the
+`# Memory Guidance` section adds write guidance; read-only turns get none, because
+the content is already in the instructions.
 
 Any `MemoryEntryService` caller that uses a non-null `anima_id` must construct
 the service with an anima ownership repository. Public memory routes, anima
-creation, and direct-chat context wiring pass `SQLAlchemyAnimaRepository` so
-owned anima scopes work and missing or foreign animas return `404`. A service
-constructed without an anima repository is valid only for user-scope memory
-operations (`anima_id = NULL`), such as direct-chat memory tools.
+creation, direct-chat context and direct-chat memory tools pass
+`SQLAlchemyAnimaRepository` so owned anima scopes work and missing or foreign
+animas return `404`. A service constructed without an anima repository is valid
+only for user-scope memory operations (`anima_id = NULL`), such as episode
+capture.
 
 The runtime boundary uses one `DirectChatPrompt`. The prompt
 is ordered for prompt-cache locality: one system message containing stable core
@@ -130,6 +135,40 @@ episode files and their `episodes/**` parent directories are read-only to
 public memory APIs and ordinary chat memory write tools. Internal episode
 services can still refresh them when source-of-truth episode rows change.
 
+## Chat Memory Cue
+
+A persisted turn records what it remembered on its final visible assistant
+message, so the chat can show a memory cue while streaming and after reload.
+Before the turn is recorded, the executor stores `message_data.memory`:
+
+- `updates_enabled`: whether memory updates were enabled for the turn.
+- `memories`: the turn's net change to the Anima's `MEMORIES.md` as
+  `{entry_id, version, excerpt}`, or `null`. `version` is the last version the
+  turn wrote; `excerpt` holds the trimmed, non-blank lines added or changed
+  between the content before the turn's first write and after its last one,
+  joined by newlines and cut to 600 characters. A change that only removes text
+  has an empty excerpt. An owner save between two of the Anima's writes in the
+  same turn falls inside that range, so its lines can appear in the excerpt.
+  Failed writes, and writes that leave the content unchanged, record `null`.
+
+A captured `remember` note links back to the same message through
+`memory_episode_items.source_message_id`. Both parts combine into one
+`memory_cue` object:
+
+```text
+{
+  "episode": {"text": str} | null,
+  "memories": {"entry_id": str, "version": int, "excerpt": str} | null
+}
+```
+
+`GET /v1/chats/{chat_id}/messages` returns it as `memory_cue` on visible
+assistant messages, loading episode notes for the page in one owner-scoped
+query; it is `null` when neither part exists and for all other messages. During
+streaming the same object arrives in the `memory.updated` SSE event (see
+[Direct chat runtime](../runtime/chat.md#sse-events)). Incognito turns are not
+persisted and never carry a cue.
+
 ## Memory Manager API
 
 The Memory Manager is a separate user-invoked workflow over user-scope memory
@@ -152,12 +191,52 @@ for routes, fixed episode batches, approval/resume behavior, Undo, and recovery.
 ## Direct Chat Memory Tools
 
 Direct `chat:sse` uses request-local JSON-schema function tools. These resolve
-paths through the `memory_entries` cached path indexes and remain scoped to
-user memory only (`anima_id IS NULL`). Models
-refer to files by user-scope paths such as `PROFILE.md` or
-`notes/preferences.md`. Tool path validation rejects absolute paths, `.`/`..`,
-explicit `[user]/...` roots, and `animas/...`; anima identity and memories
-remain backend-injected only, and tools cannot read or write anima-scoped files.
+paths through the `memory_entries` cached path indexes and are scoped to user
+memory (`anima_id IS NULL`), plus the active Anima's own `MEMORIES.md` through a
+reserved alias. Models refer to files by user-scope paths such as `PROFILE.md`
+or `notes/preferences.md`. Tool path validation rejects absolute paths,
+`.`/`..`, explicit bracketed roots such as `[user]/...` other than the alias, and
+`animas/...`; the identity stays backend-injected only.
+
+### Anima `MEMORIES.md` in chat tools
+
+The Anima addresses its own `MEMORIES.md` as `[self]/MEMORIES.md`, which the
+tools resolve to the turn's Anima (`MemoryToolExecutionContext.anima_id`).
+Bracketed names are never valid stored names, so the alias cannot collide with
+a user file. Any other bracketed path, such as `[self]/IDENTITY.md` or
+`[other]/MEMORIES.md`, returns `invalid_path`, so identities and other Animas'
+files stay unreachable.
+
+- `memory_read_files` reads it when memory influence is on.
+- `memory_apply_patch`, `memory_write_file` in `replace` mode and native
+  `update_file` edit the existing file when write tools are enabled (memory
+  updates on and not incognito). Creating, deleting, moving or renaming it is
+  refused: `memory_write_file` `create` returns `file_exists`, native
+  `create_file`/`delete_file` return `patch_rejected`, and no chat tool moves
+  files.
+- A write over the 16 KiB `MEMORIES.md` limit saves nothing and returns
+  `memories_too_large` (`retryable: true`) with a message asking the Anima to
+  condense the file.
+- A missing file returns `not_found` (`retryable: false`) naming the owner's
+  repair action, for reads and writes alike (native `update_file` returns
+  `patch_rejected` with the same message); with memory influence off the alias
+  is unavailable.
+- Whole-file replacement is fenced on the version the Anima last saw (the one in
+  its instructions, a later read or its own write). A replacement after a newer
+  owner edit returns the retryable `conflict` until the Anima reads the file
+  again. Text replacements and native patches apply to the current content and
+  keep the ordinary optimistic version check.
+
+Successful edits keep `last_ai_write` audit metadata and feed the turn's
+[memory cue](#chat-memory-cue). The list tool, search tool and memory map keep
+excluding Anima files, whose content is already in the instructions. When the
+turn can edit the file and it exists, the memory guidance tells the Anima to make
+small relationship-only edits in the first person (user facts go to shared
+memory such as `PROFILE.md`), never to rewrite it every turn, to stay well under
+about 6,000 characters, how `remember` (the shared episode log) differs from
+`MEMORIES.md` (what the relationship means), the sensitive-memory rule, and never
+to frame the relationship as missing the user, loneliness, jealousy or
+discouraging other relationships.
 
 When memory influence is enabled, direct chat attaches:
 
@@ -221,13 +300,14 @@ The model receives only a compact `files` array with each file's user-scope
 
 ### `memory_read_files`
 
-Reads one or more live user-scope markdown files. The required `paths` argument
-accepts either one string or a non-empty list of strings. Paths must be
-relative, POSIX-style, end in `.md`, and pass the same tool path restrictions
-described above. The service deduplicates normalized paths while preserving
-request order, accepts at most 10 unique paths, and resolves each through
-`MemoryEntryService.get_entry_by_path(...)` with `anima_id=None` and
-`type="file"`.
+Reads one or more live user-scope markdown files, or `[self]/MEMORIES.md`. The
+required `paths` argument accepts either one string or a non-empty list of
+strings. Paths must be relative, POSIX-style, end in `.md`, and pass the same
+tool path restrictions described above. The service deduplicates normalized
+paths while preserving request order, accepts at most 10 unique paths, and
+resolves each user path through `MemoryEntryService.get_entry_by_path(...)` with
+`anima_id=None` and `type="file"`; `[self]/MEMORIES.md` resolves to the turn's
+Anima.
 
 The model receives stable `files` and `errors` arrays. Each successful item has
 `path`, `description`, and `content`; each failed item has `path`, `code`,
@@ -323,8 +403,9 @@ committed immediately through `MemoryEntryService`. Direct chat does not add a
 human approval step.
 
 The planner accepts exactly one `create_file` or `update_file` operation for a
-relative Markdown path. It rejects delete, absolute/traversal and non-Markdown
-paths, `episodes/**`, `animas/**`, existing-file creates, missing-file updates,
+relative Markdown path, or an `update_file` of `[self]/MEMORIES.md`. It rejects
+delete, absolute/traversal and non-Markdown paths, `episodes/**`, `animas/**`,
+other bracketed paths, existing-file creates, missing-file updates,
 oversized results, malformed synthetic headers, complete normalized no-ops,
 and stale versions without mutation. Creates and updates apply the diff to the
 complete synthetic document returned by `memory_read_files`, then strictly
@@ -354,11 +435,11 @@ status, and path length, but never the path or diff.
 
 ### `memory_apply_patch`
 
-Edits one existing user-scope markdown file using exact text replacements. The
-backend first loads the current file by path, then applies each replacement to
-the loaded content in memory. `old_text` must be non-empty. If `old_text` is not
-found, no write happens. If `old_text` appears multiple times and
-`replace_all=false`, no write happens and the tool returns an
+Edits one existing user-scope markdown file, or `[self]/MEMORIES.md`, using
+exact text replacements. The backend first loads the current file by path, then
+applies each replacement to the loaded content in memory. `old_text` must be
+non-empty. If `old_text` is not found, no write happens. If `old_text` appears
+multiple times and `replace_all=false`, no write happens and the tool returns an
 `ambiguous_replacement` error with the match count. Each call may include at
 most 10 replacements.
 
@@ -375,9 +456,9 @@ The model receives only the affected `path` and the total
 
 ### `memory_write_file`
 
-Creates or fully replaces one user-scope markdown file. The model supplies
-`path`, `mode`, `content`, and `description`. The mode must be `create` or
-`replace`.
+Creates or fully replaces one user-scope markdown file; `[self]/MEMORIES.md` can
+only be replaced. The model supplies `path`, `mode`, `content`, and
+`description`. The mode must be `create` or `replace`.
 
 In `create` mode, an existing file returns `file_exists`; otherwise the backend
 creates the file with `kind = "user_memory"` and `expected_version = 0`.

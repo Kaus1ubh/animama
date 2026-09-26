@@ -147,9 +147,11 @@ fails setup. Either selection must name an active direct model provider.
    controls corrections, Gesture selection, emotion, and durable persistence;
    raw provider observations remain internal.
 5. A fresh short-lived session persists non-incognito chat messages, tool rows,
-   usage, model selection, and memory fingerprints. Memory tool writes commit
-   separately and survive a later model or final-parse failure. Eligible episode
-   capture is best-effort after visible persistence.
+   usage, model selection, memory fingerprints and the reply's memory block.
+   Memory tool writes commit separately and survive a later model or
+   final-parse failure. Eligible episode capture is best-effort after visible
+   persistence; the executor then emits `memory.updated` when the turn
+   remembered anything.
 6. The route drains events, emits any saved title, waits for TTS and applicable
    compaction, then emits one `run.completed`. Cleanup settles request-local
    tasks without closing shared model clients.
@@ -159,9 +161,9 @@ See [memory](../features/memory.md), [user files](../features/user-files.md), an
 
 ## What It Deliberately Does Not Do
 
-Direct chat runs one companion turn. Memory tools operate only on user-scope
-files and cannot edit Anima identity, move/delete files, or change arbitrary
-metadata. Workflow orchestration requires a separate API contract.
+Direct chat runs one companion turn. Memory tools operate on user-scope files
+plus the Anima's own `MEMORIES.md` (through `[self]/MEMORIES.md`), and cannot
+edit Anima identity, move/delete files, or change arbitrary metadata. Workflow orchestration requires a separate API contract.
 
 ## Companion Safety
 
@@ -217,6 +219,7 @@ The direct endpoint uses this frontend SSE contract:
 - `event: chat.title.updated`
 - `event: safety.ai_notice`
 - `event: safety.crisis_support`
+- `event: memory.updated`
 - `event: error`
 - `event: run.completed`
 
@@ -338,6 +341,16 @@ comes from an executor `EventType.CRISIS_SUPPORT` domain event, formatted by
 `sse_runtime.py`, and arrives after the reply text but before `run.completed`.
 Each turn emits at most one crisis card.
 
+`memory.updated` frames (ID `memory-updated-<run_id>`) carry
+`{"type": "memory.updated", "run_id", "message_id", "memory_cue"}`.
+`message_id` is the persisted final visible assistant message (`null` only if
+the recorder did not expose it) and `memory_cue` is the object described in
+[Chat Memory Cue](../features/memory.md#chat-memory-cue), with at least one of
+`episode` or `memories` present. The executor emits it after persistence and
+episode capture, so it arrives after the reply text and before `run.completed`,
+at most once per turn. Incognito turns and turns that remembered nothing emit
+none.
+
 `run.completed` is emitted once after safe side effects have run and includes
 both `run_id` and the resolved `chat_id`. For normal non-voice text, completion
 is usually only the run/chat terminal marker because structured speech/display
@@ -369,7 +382,10 @@ the direct turn observer persists only a compact `stream_event_summary` under
 final response ID also expose compact continuation, phase, output item, native
 tool, and stream-summary metadata under `message_data.openai` so manual
 history replay can preserve assistant `phase` values when the
-`previous_response_id` cursor is unavailable or stale.
+`previous_response_id` cursor is unavailable or stale. The final visible
+assistant row also stores `message_data.memory` (`updates_enabled` and the
+turn's `MEMORIES.md` change); see
+[Chat Memory Cue](../features/memory.md#chat-memory-cue).
 
 Normal chat persistence also reserves per-chat `chat_messages.turn` values from
 `chats.next_turn`. The value starts at `1` for each chat and increments for each

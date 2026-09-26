@@ -12,6 +12,9 @@ ANIMA_IDENTITY_MAX_BYTES = 32 * 1024
 ANIMA_MEMORIES_PATH = "MEMORIES.md"
 ANIMA_MEMORIES_KIND = "anima_memories"
 ANIMA_MEMORIES_MAX_BYTES = 16 * 1024
+_ANIMA_MEMORIES_ERROR_PREFIX = "anima_memories"
+# Error code for a MEMORIES.md write over its size limit.
+ANIMA_MEMORIES_TOO_LARGE = f"{_ANIMA_MEMORIES_ERROR_PREFIX}_too_large"
 ANIMA_MEMORIES_TEMPLATE = """# Memories
 
 ## Our story
@@ -70,7 +73,7 @@ def normalize_anima_memories(value: str, *, max_bytes: int = ANIMA_MEMORIES_MAX_
 
     return _normalize_anima_file(
         value,
-        code="anima_memories",
+        code=_ANIMA_MEMORIES_ERROR_PREFIX,
         max_bytes=min(ANIMA_MEMORIES_MAX_BYTES, max_bytes),
         allow_blank=True,
     )

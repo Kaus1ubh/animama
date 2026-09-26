@@ -13,6 +13,12 @@ import {
   type ChatCrisisSupport,
 } from "../../lib/chat/companion-safety";
 import {
+  isChatMemoryUpdated,
+  parseMemoryCue,
+  type ChatMemoryCue,
+  type ChatMemoryUpdated,
+} from "../../lib/chat/memory-cue";
+import {
   useProductLogger,
   useProductDiagnostics,
 } from "../../runtime/diagnostics";
@@ -141,6 +147,8 @@ type ChatSseCallbacks = {
   onChatTitleUpdated?: (data: ChatSseChatTitleUpdated) => void;
   onAiNotice?: (data: ChatAiNotice) => void;
   onCrisisSupport?: (data: ChatCrisisSupport) => void;
+  /** The run's validated memory cue; malformed `memory.updated` frames are dropped. */
+  onMemoryUpdated?: (memoryCue: ChatMemoryCue, data: ChatMemoryUpdated) => void;
   onComplete?: (data: ChatSseRunCompleted) => void;
   onError?: (error: unknown) => void;
 };
@@ -426,6 +434,22 @@ export function useChatSse() {
               error: data.error,
             });
             args.onTtsError?.(data);
+            continue;
+          }
+
+          // Typed memory frames are claimed before the shape-based guards below.
+          if (isChatMemoryUpdated(data)) {
+            if (!matchesExpectedRunId(expectedRunId, data.run_id)) {
+              continue;
+            }
+            const memoryCue = parseMemoryCue(data.memory_cue);
+            if (!memoryCue) {
+              logger.warn("useChatSse", "Dropped malformed memory cue", {
+                runId: data.run_id,
+              });
+              continue;
+            }
+            args.onMemoryUpdated?.(memoryCue, data);
             continue;
           }
 

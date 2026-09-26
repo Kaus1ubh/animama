@@ -448,7 +448,9 @@ The list is not persisted as a chat message or memory-entry version; persisted
 version/SHA fingerprints used for backend refresh checks. When
 `disable_memory_influence` is true, direct chat omits the list but still keeps
 required anima identity. AI memory tools can list/read/search/write user-scope
-file entries only; they cannot access anima-scoped identity entries.
+file entries and read/edit the active Anima's own `MEMORIES.md` through the
+`[self]/MEMORIES.md` alias; they cannot access identities or other Animas'
+files.
 
 The Memory Manager commits an approved create or update through
 `MemoryEntryService` and resumes the paused Agents SDK state. Specialized
@@ -545,6 +547,9 @@ columns; it does not backfill legacy databases.
   item IDs, assistant `phase`/`phase_counts`, `message_phases`, annotations,
   native tool summaries, unknown output item types, and
   `stream_event_summary`.
+- `message_data.memory`, on the final visible assistant row of a persisted
+  direct-chat turn: `updates_enabled` and the turn's `MEMORIES.md` change
+  (`{entry_id, version, excerpt}` or `null`), read back as the chat memory cue.
 - Stored/debug payloads may contain `message_data.raw_response`; normal
   chat-history responses remove raw-provider details before returning messages
   to clients

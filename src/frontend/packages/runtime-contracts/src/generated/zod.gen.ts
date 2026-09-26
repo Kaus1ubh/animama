@@ -2120,6 +2120,42 @@ export const zPyLoadoutPlan = z.object({
 });
 
 /**
+ * PyMemoryCueEpisode
+ *
+ * The `remember` note this turn recorded in the shared episode log.
+ */
+export const zPyMemoryCueEpisode = z.object({
+    text: z.string()
+});
+
+/**
+ * PyMemoryCueMemories
+ *
+ * This turn's change to the Anima's `MEMORIES.md`: its last version and added text (up to 600 characters).
+ */
+export const zPyMemoryCueMemories = z.object({
+    entry_id: z.string(),
+    excerpt: z.string(),
+    version: z.int()
+});
+
+/**
+ * PyMemoryCue
+ *
+ * What a turn remembered, shown as a memory cue on its final visible assistant message.
+ */
+export const zPyMemoryCue = z.object({
+    episode: z.union([
+        zPyMemoryCueEpisode,
+        z.null()
+    ]),
+    memories: z.union([
+        zPyMemoryCueMemories,
+        z.null()
+    ])
+});
+
+/**
  * PyMemoryEntryCreateRequest
  */
 export const zPyMemoryEntryCreateRequest = z.object({
@@ -4126,6 +4162,10 @@ export const zPyChatMessage = z.object({
         z.null()
     ])),
     internal: z.optional(z.boolean()).default(false),
+    memory_cue: z.optional(z.union([
+        zPyMemoryCue,
+        z.null()
+    ])),
     message_type: z.optional(z.union([
         z.string(),
         z.null()

@@ -1,5 +1,6 @@
 import type { ChatFailure } from "../../chat/chat-failure";
 import type { PyChatMessage } from "@animama/runtime-contracts/api-types";
+import { parseMemoryCue, type ChatMemoryCue } from "./memory-cue";
 
 export type ChatDisplayMessage = {
   id: string;
@@ -11,6 +12,8 @@ export type ChatDisplayMessage = {
   animateOnEnter?: boolean;
   animateTextEffect?: boolean;
   streamingSegments?: string[];
+  /** What the turn remembered; only on the last visible bubble of its reply. */
+  memoryCue?: ChatMemoryCue;
 };
 
 export function chatRunMessageId(
@@ -41,12 +44,17 @@ export function mapServerMessagesForDisplay(
         ? [rawContent]
         : [];
 
-    texts.forEach((text) => {
+    // One row may render as speech plus display bubbles; the cue follows the
+    // reply, so it belongs on the last one, matching the live stream.
+    const memoryCue =
+      role === "assistant" ? parseMemoryCue(message.memory_cue) : null;
+    texts.forEach((text, textIndex) => {
       displayMessages.push({
         id: serverMessageDisplayId(message, role, index, messageIdCounts),
         role,
         text,
         ...(message.created_at ? { createdAt: message.created_at } : {}),
+        ...(memoryCue && textIndex === texts.length - 1 ? { memoryCue } : {}),
       });
     });
   });

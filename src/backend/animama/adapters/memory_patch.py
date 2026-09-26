@@ -6,8 +6,12 @@ from agents import apply_diff
 
 from animama.app.ports.memory_patch_port import MemoryPatchCandidate, MemoryPatchPlanError
 from animama.app.services.anima_identity_memory import (
+    ANIMA_SELF_MEMORIES_ALIAS,
+    ANIMA_SELF_MEMORIES_MISSING_MESSAGE,
     anima_identity_manager_path,
     get_anima_identity_or_none,
+    get_anima_memories_or_none,
+    is_anima_self_memories_alias,
     parse_anima_identity_manager_path,
 )
 from animama.app.services.memory_entry_service import (
@@ -33,7 +37,9 @@ class AgentsSDKV4AMemoryPatchPlanner:
 
     ``allow_anima_identities`` lets general Memory Manager runs update an owned
     Anima's identity at ``animas/<anima_id>/IDENTITY.md``; identities can never be
-    created, deleted or blanked here. Normal chat leaves it disabled.
+    created, deleted or blanked here. Normal chat leaves it disabled and instead
+    passes ``self_anima_id`` per operation, which lets ``[self]/MEMORIES.md``
+    update that Anima's existing ``MEMORIES.md`` (never create or delete it).
     """
 
     def __init__(self, *, memory_entries: MemoryEntryService, allow_anima_identities: bool = False) -> None:
@@ -47,6 +53,7 @@ class AgentsSDKV4AMemoryPatchPlanner:
         operation_type: str,
         path: str,
         diff: str | None,
+        self_anima_id: str | None = None,
     ) -> MemoryPatchCandidate:
         if operation_type == "delete_file":
             raise MemoryPatchPlanError("Apply Patch cannot delete memory files")
@@ -60,9 +67,12 @@ class AgentsSDKV4AMemoryPatchPlanner:
             user_id=user_id,
             path=path,
             allow_anima_identities=self._allow_anima_identities,
+            self_anima_id=self_anima_id,
         )
         if is_identity and operation_type == "create_file":
             raise MemoryPatchPlanError("Anima identities already exist; use update_file to change one")
+        if clean_path == ANIMA_SELF_MEMORIES_ALIAS and operation_type == "create_file":
+            raise MemoryPatchPlanError(f"{ANIMA_SELF_MEMORIES_ALIAS} already exists; use update_file to change it")
         try:
             if operation_type == "create_file":
                 if current is not None:
@@ -121,12 +131,24 @@ async def resolve_patch_target(
     user_id: str,
     path: str,
     allow_anima_identities: bool,
+    self_anima_id: str | None = None,
 ) -> tuple[str, MemoryEntry | None, bool]:
     """Resolve a model path to its clean path, current entry and identity flag.
 
-    An identity target must already exist; user-memory targets may be new.
+    Identity and ``[self]/MEMORIES.md`` targets must already exist; user-memory
+    targets may be new. The alias resolves only when ``self_anima_id`` is given.
     """
 
+    if self_anima_id is not None:
+        try:
+            is_self_memories = is_anima_self_memories_alias(path)
+        except MemoryEntryValidationError as exc:
+            raise MemoryPatchPlanError(exc.detail) from exc
+        if is_self_memories:
+            memories = await get_anima_memories_or_none(memory_entries, user_id=user_id, anima_id=self_anima_id)
+            if memories is None:
+                raise MemoryPatchPlanError(ANIMA_SELF_MEMORIES_MISSING_MESSAGE)
+            return ANIMA_SELF_MEMORIES_ALIAS, memories, False
     if allow_anima_identities:
         try:
             anima_id = parse_anima_identity_manager_path(path)

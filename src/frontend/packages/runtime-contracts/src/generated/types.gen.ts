@@ -2877,6 +2877,7 @@ export type PyChatMessage = {
      * Internal
      */
     internal?: boolean;
+    memory_cue?: PyMemoryCue | null;
     /**
      * Message Type
      */
@@ -4181,6 +4182,48 @@ export type PyLoadoutPlan = {
      * Warnings
      */
     warnings?: Array<PyLoadoutDiagnostic>;
+};
+
+/**
+ * PyMemoryCue
+ *
+ * What a turn remembered, shown as a memory cue on its final visible assistant message.
+ */
+export type PyMemoryCue = {
+    episode: PyMemoryCueEpisode | null;
+    memories: PyMemoryCueMemories | null;
+};
+
+/**
+ * PyMemoryCueEpisode
+ *
+ * The `remember` note this turn recorded in the shared episode log.
+ */
+export type PyMemoryCueEpisode = {
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
+ * PyMemoryCueMemories
+ *
+ * This turn's change to the Anima's `MEMORIES.md`: its last version and added text (up to 600 characters).
+ */
+export type PyMemoryCueMemories = {
+    /**
+     * Entry Id
+     */
+    entry_id: string;
+    /**
+     * Excerpt
+     */
+    excerpt: string;
+    /**
+     * Version
+     */
+    version: number;
 };
 
 /**
