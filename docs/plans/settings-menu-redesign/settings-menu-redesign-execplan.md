@@ -89,7 +89,8 @@ Boundaries:
 - [x] Phase 3 (#117): R4 Microphone implemented and reviewed (#1, #2 pass). **Owner hardware acceptance pending.**
 - [x] Phase 4 (#118): R5 General defaults. Reviewed (#1, #2 pass).
 - [x] Phase 5 (#119): R6–R8 inheritance, Markdown persistence, reset. Reviewed (#1, #2 pass).
-- [x] Phase 6 (#120): R9 About & diagnostics. Reviewed (#1–#3, pass). **Owner desktop check pending** (About/logs/copy).
+- [x] Phase 6 (#120): R9 About & diagnostics. Reviewed (#1–#3, pass). Unpackaged desktop check passed; packaged-only parts remain with owner release acceptance.
+- [ ] Phase 8: expanded colour customization (owner follow-up, R3 revision 2).
 - [x] Phase 7 (#121): documentation, glossary and final integration review (pass after revisions). PR handoff.
 
 ## Surprises & Discoveries
@@ -798,9 +799,20 @@ Results:
   - the copied summary contains only version and platform;
   - the fallback toast path was exercised. The pane cannot deliver a trusted
     click for a real fallback copy.
-- **Owner acceptance pending:** in the desktop shell, check that About shows
-  the version and platform, that Open logs works, and that Copy summary puts
-  the text on the clipboard. Check the clipboard contents, not just the toast.
+- **Desktop shell check (agent, 2026-09-25, owner-authorized):** ran the
+  unpackaged app with an isolated profile against the `animama-settings`
+  stack and drove it over the DevTools protocol with trusted input events.
+  - The bridge reported `darwin`, role main.
+  - The nav included Shortcuts (desktop only).
+  - About showed "Desktop (macOS)" and "local".
+  - Copy summary put "Animama diagnostics / App version: local / Platform:
+    desktop-darwin / Runtime: external" on the macOS clipboard, read back
+    with `pbpaste`.
+  - Open logs folder resolved without an error toast. The Finder window was
+    not confirmed programmatically.
+  - Not covered (packaged-only): the updates panel, and credentials and
+    feature packs in the summary, since external mode reports
+    `embedded_runtime_unavailable`.
 
 #### Code Review #1 Findings
 
@@ -865,6 +877,39 @@ Steps:
 2. Add the **App settings** and **Anima settings** entries to `GLOSSARY.md`.
 3. Run the full applicable validation (below), the final integration review, the
    PR using the template, and record hosted CI.
+
+### Phase 8: Expanded colour customization
+
+Requirement: R3 (revision 2, owner 2026-09-25). Depends on phase 2. Added
+after the PR opened, at the owner's request.
+
+**Scope:**
+
+- **Visual style:** Primary, Secondary, Accent, Background and Foreground.
+  The previous "Accent" row actually set `--primary`, so it is relabelled
+  Primary and any stored `accent` value is migrated to `primary` when read.
+  Matching `*-foreground` text colours are derived automatically.
+- **Advanced** (collapsed, per mode), grouped:
+  - Surfaces: card, popover, muted;
+  - Lines: border, input, focus ring;
+  - Destructive;
+  - Sidebar: sidebar background, foreground, primary, accent, border;
+  - Charts: chart 1–5.
+- Advanced values win over derived ones.
+- Reset per colour and "Reset all" for the mode.
+
+**Steps:**
+
+1. Extend `appearance-overrides.ts` with a token registry: key, CSS variables
+   and derived-foreground rule. Keep the parse, validate and CSS-generation
+   tests.
+2. Migrate stored `accent` to `primary` when reading.
+3. In the Appearance UI, render the basic rows and a collapsible Advanced
+   group from the registry; search entries cover each colour.
+4. Browser check in Light and Dark with sample basic and advanced overrides.
+5. Update docs.
+
+Checks: web check, lint, test and build; independent review.
 
 ## Final integration review
 
@@ -976,8 +1021,8 @@ Delivered R1–R9 in seven phases on one branch:
 - **R4 hardware microphone:** a non-default microphone used by Parakeet
   dictation and Voice Mode; meter; release on close; unplug fallback; Low/High
   tuning.
-- **R9 desktop shell:** About version and platform; Open logs; clipboard
-  contents of Copy summary.
+- **R9 packaged desktop:** the updates panel, and the credentials and feature
+  packs rows of the summary. The unpackaged shell check passed.
 
 **Known limitations:**
 

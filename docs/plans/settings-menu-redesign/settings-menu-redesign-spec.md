@@ -75,8 +75,11 @@ Non-goals and deferrals:
   replace the separate Custom theme.)
   - **Mode:** System, Light or Dark, chosen from preview tiles. System follows the
     operating system and updates when it changes.
-  - **Colour overrides:** Accent, Background and Foreground, each shown with its
-    hex value. Light and Dark keep separate overrides; the controls edit the mode
+  - **Colour overrides:** Primary, Secondary, Accent, Background and Foreground
+    (revision 2, owner 2026-09-25), each shown with its hex value. An Advanced
+    section (collapsed) covers surfaces, lines, destructive, sidebar and chart
+    colours. Text colours on Primary/Secondary/Accent are derived
+    automatically. Light and Dark keep separate overrides; the controls edit the mode
     currently in effect. Each override can be reset to the mode default, and an
     unset override uses the built-in colours.
   - **Validation:** invalid colour input is rejected without changing the saved
