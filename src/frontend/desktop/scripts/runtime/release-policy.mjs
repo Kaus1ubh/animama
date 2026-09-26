@@ -85,7 +85,7 @@ export function validateReleasePolicy(
     !validDistributions(policy.distributions)
   )
     throw new Error(
-      "Set the intended installer/update destinations (an R2 public HTTPS base URL and bucket, and a GitHub repository) and the noncommercial installer/update policy in runtime/release-policy.json; the current PocketTTS exports require CC-BY-NC-4.0 treatment, candidates may remain private, and embedded tokens are not supported.",
+      "Set the intended installer/update destinations (an R2 public HTTPS base URL and bucket, and a GitHub repository) and the noncommercial installer/update policy in runtime/release-policy.json; the release policy records a noncommercial PocketTTS distribution basis, candidates may remain private, and embedded tokens are not supported.",
     );
   const publisher = packs?.macos;
   if (

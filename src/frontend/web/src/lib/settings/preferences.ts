@@ -1,3 +1,5 @@
+import type { MicSensitivity } from "@/lib/voice/microphone-preferences";
+import type { AppearanceOverrides } from "@/lib/theme/appearance-overrides";
 import {
   DEFAULT_DESKTOP_SHORTCUTS,
   type DesktopShortcut,
@@ -94,6 +96,8 @@ export const ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS: Array<{
 
 export type SpeechPreferences = {
   stt_provider?: SttProviderPreference;
+  /** Experimental: run local Parakeet on WebGPU when available (default off). */
+  stt_parakeet_webgpu?: boolean;
   tts_enabled?: boolean;
   tts_provider?: TtsProviderPreference;
   tts_stream_chunks?: boolean;
@@ -104,6 +108,8 @@ export type SpeechPreferences = {
   tts_pocket_anima_voice?: string;
   tts_pocket_custom_voice_available?: boolean;
   tts_pocket_anima_custom_voice_available?: boolean;
+  /** Voice-detection sensitivity; see `lib/voice/microphone-preferences.ts`. */
+  mic_sensitivity?: MicSensitivity;
   [key: string]: unknown;
 };
 
@@ -117,6 +123,8 @@ export type AvatarBackgroundPreferences = {
 
 export type PresentationPreferences = {
   enable_avatar_transform_controls?: boolean;
+  /** Render assistant replies as Markdown (default on). */
+  render_markdown?: boolean;
   disable_animation?: boolean;
   disable_vfx?: boolean;
   avatar_background?: AvatarBackgroundPreferences | null;
@@ -135,6 +143,11 @@ export type SafetyPreferences = {
 export type SettingsPreferences = {
   /** Keeps first-message suggestions dismissed across chats and deleted history. */
   has_sent_chat_message?: boolean;
+  /** App-wide startup and model defaults chosen in App Settings → General. */
+  startup?: { default_anima_id?: string | null };
+  chat?: { default_model_provider_id?: string | null };
+  /** Per-mode colour overrides; see `lib/theme/appearance-overrides.ts`. */
+  appearance?: AppearanceOverrides;
   memory?: MemoryPreferences;
   emotion?: PreferenceToggleSection;
   presentation?: PresentationPreferences;
@@ -208,12 +221,35 @@ export function mergePreferences(
   const presentation = mergeSection(baseObj, patchObj, "presentation");
   const speech = mergeSection(baseObj, patchObj, "speech");
   const safety = mergeSection(baseObj, patchObj, "safety");
+  const appearance = mergeSection(baseObj, patchObj, "appearance");
+  const startup = mergeSection(baseObj, patchObj, "startup");
+  const chat = mergeSection(baseObj, patchObj, "chat");
+  if (startup) merged.startup = startup as SettingsPreferences["startup"];
+  if (chat) merged.chat = chat as SettingsPreferences["chat"];
 
   if (memory) merged.memory = memory as PreferenceToggleSection;
   if (emotion) merged.emotion = emotion as PreferenceToggleSection;
   if (presentation)
     merged.presentation = presentation as PresentationPreferences;
   if (safety) merged.safety = safety as SafetyPreferences;
+  if (appearance) {
+    // Merge each mode separately so editing one colour keeps the others.
+    const baseAppearance = isRecord(baseObj.appearance)
+      ? (baseObj.appearance as Record<string, unknown>)
+      : undefined;
+    const patchAppearance = isRecord(patchObj.appearance)
+      ? (patchObj.appearance as Record<string, unknown>)
+      : undefined;
+    for (const mode of ["light", "dark"]) {
+      const modeValue = mergeNestedRecord(
+        baseAppearance,
+        patchAppearance,
+        mode,
+      );
+      if (modeValue) appearance[mode] = modeValue;
+    }
+    merged.appearance = appearance as AppearanceOverrides;
+  }
   if (speech) {
     const baseSpeech = isRecord(baseObj.speech)
       ? (baseObj.speech as Record<string, unknown>)
@@ -235,6 +271,20 @@ export function mergePreferences(
   return merged;
 }
 
+/** The pinned startup Anima ID, or null for "Last opened". */
+export function readDefaultAnimaId(preferences: unknown): string | null {
+  if (!isRecord(preferences) || !isRecord(preferences.startup)) return null;
+  const value = preferences.startup.default_anima_id;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** The owner's default chat model for new Animas, or null for the system default. */
+export function readDefaultChatModelId(preferences: unknown): string | null {
+  if (!isRecord(preferences) || !isRecord(preferences.chat)) return null;
+  const value = preferences.chat.default_model_provider_id;
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
 export function resolvePreferences(
   userPrefs?: SettingsPreferences | null,
   animaPrefs?: SettingsPreferences | null,
@@ -243,13 +293,17 @@ export function resolvePreferences(
   return mergePreferences(withUser, animaPrefs);
 }
 
+/**
+ * Map a stored theme to a supported mode. Retired values (`custom`/`anima`,
+ * the backend default) fall back to light.
+ */
 export function normalizeThemeSetting(
   theme?: string | null,
-): "light" | "dark" | "custom" | null {
-  if (theme === "anima") return "custom";
-  if (theme === "light" || theme === "dark" || theme === "custom") {
+): "system" | "light" | "dark" | null {
+  if (theme === "system" || theme === "light" || theme === "dark") {
     return theme;
   }
+  if (theme === "custom" || theme === "anima") return "light";
   return null;
 }
 
@@ -261,10 +315,6 @@ export function themesEquivalent(
   const currentNormalized = normalizeThemeSetting(current);
   if (!storedNormalized || !currentNormalized) return false;
   return storedNormalized === currentNormalized;
-}
-
-export function toStoredTheme(theme: string): string {
-  return theme === "custom" ? "anima" : theme;
 }
 
 export function toElevenLabsRealtimeTtsModelId(
@@ -310,4 +360,14 @@ export function resolveElevenLabsV3FinalizedChunking(
     toElevenLabsV3FinalizedChunking(value) ??
     DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING
   );
+}
+
+/**
+ * The experimental WebGPU speech setting is opt-in: absent, `false` or any
+ * non-boolean value means off.
+ */
+export function isParakeetWebgpuPreferred(
+  preferences: SettingsPreferences | null | undefined,
+): boolean {
+  return preferences?.speech?.stt_parakeet_webgpu === true;
 }

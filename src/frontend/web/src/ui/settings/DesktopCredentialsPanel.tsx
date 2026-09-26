@@ -6,14 +6,17 @@ import {
   type CredentialStatus,
 } from "../../../../shared/desktop-runtime";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { cn } from "@/lib/utils";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { queryKeys } from "@/query/keys";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import {
-  applyCredentialChange,
+  applyCredentialChanges,
+  credentialChangesFromDrafts,
   credentialFailureMessage,
+  type CredentialDrafts,
 } from "./desktop-credential-state";
 
 const names: Record<CredentialProvider, string> = {
@@ -40,16 +43,55 @@ export function DesktopCredentialFailures({
   });
 }
 
-/** Optional desktop settings use status-only IPC, never the database or browser storage. */
+/**
+ * Whether provider keys can be managed here: the main window of a desktop app
+ * running its embedded runtime (not the external development stack).
+ */
+export function useDesktopCredentialsAvailable(): boolean {
+  const platform = useRuntimePlatform();
+  const desktop = platform.kind === "desktop" ? platform.desktopBridge : null;
+  const [available, setAvailable] = useState(false);
+  useEffect(() => {
+    const runtime = desktop?.runtime;
+    if (!runtime || !desktop?.credentials || desktop.windowRole !== "main")
+      return;
+    let active = true;
+    void runtime
+      .status()
+      .then((status) => {
+        if (active) setAvailable(status.state !== "external");
+      })
+      .catch(() => {
+        // Recovery surfaces runtime failures; keys stay hidden meanwhile.
+      });
+    return () => {
+      active = false;
+    };
+  }, [desktop]);
+  return available;
+}
+
+/**
+ * Optional provider API keys (desktop embedded runtime only). Keys are
+ * write-only: main stores them encrypted and reports status, never values.
+ * Several edits are saved together so local services restart once.
+ */
 export function DesktopCredentialsPanel({
   onBusyChange,
+  onPendingChange,
+  className,
+  showTitle = true,
 }: {
   onBusyChange?: (busy: boolean) => void;
+  /** Number of unsaved key edits, so a host (setup) can prevent losing them. */
+  onPendingChange?: (count: number) => void;
+  className?: string;
+  /** The App Settings section already names itself "API Keys". */
+  showTitle?: boolean;
 }) {
-  const [available, setAvailable] = useState(false);
+  const available = useDesktopCredentialsAvailable();
   const [statuses, setStatuses] = useState<CredentialStatus[]>([]);
-  const [provider, setProvider] = useState<CredentialProvider>("openai");
-  const [value, setValue] = useState("");
+  const [drafts, setDrafts] = useState<CredentialDrafts>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const ownerId = useRuntimeOwnerId();
@@ -60,15 +102,11 @@ export function DesktopCredentialsPanel({
   const bridge = desktop?.credentials;
 
   useEffect(() => {
-    const runtime = desktop?.runtime;
-    if (!runtime || !bridge || desktop?.windowRole !== "main") return;
+    if (!available || !bridge) return;
     let active = true;
-    void runtime
-      .status()
-      .then(async (status) => {
-        if (status.state === "external" || !active) return;
-        setAvailable(true);
-        const entries = await bridge.list();
+    void bridge
+      .list()
+      .then((entries) => {
         if (active) setStatuses(entries);
       })
       .catch(() => {
@@ -80,55 +118,63 @@ export function DesktopCredentialsPanel({
     return () => {
       active = false;
     };
-  }, [bridge, desktop]);
+  }, [available, bridge]);
+
+  const changes = credentialChangesFromDrafts(drafts);
+  const pendingCount = changes.length;
+  useEffect(() => {
+    onPendingChange?.(pendingCount);
+  }, [onPendingChange, pendingCount]);
 
   if (!available) return null;
-  const configured =
-    statuses.find((item) => item.provider === provider)?.configured ?? false;
-
-  const save = async (remove = false) => {
-    if (!bridge || busy) return;
-    const submitted = value.trim();
-    // Clear the input before IPC; there is no read-back or localStorage copy.
-    setValue("");
-    setBusy(true);
-    onBusyChange?.(true);
+  const isConfigured = (provider: CredentialProvider) =>
+    statuses.some((item) => item.provider === provider && item.configured);
+  const updateDraft = (
+    provider: CredentialProvider,
+    next: { value?: string; remove?: boolean },
+  ) => {
+    setDrafts((current) => ({ ...current, [provider]: next }));
     setMessage(null);
+  };
+
+  const save = async () => {
+    if (!bridge || busy || changes.length === 0) return;
+    // Clear typed keys before IPC; there is no read-back or browser copy.
+    setDrafts({});
+    // Main clears retained failures for the batch; mirror that immediately.
+    const changing = new Set(changes.map((change) => change.provider));
     setStatuses((entries) =>
       entries.map((entry) => {
-        if (entry.provider !== provider) return entry;
+        if (!changing.has(entry.provider)) return entry;
         const status = { ...entry, restartRequired: false };
         delete status.error;
         return status;
       }),
     );
+    setBusy(true);
+    onBusyChange?.(true);
+    setMessage(null);
     try {
-      setStatuses(
-        await applyCredentialChange(
-          bridge,
-          provider,
-          remove ? undefined : submitted,
-        ),
-      );
+      setStatuses(await applyCredentialChanges(bridge, changes));
       await queryClient.invalidateQueries({
         queryKey: queryKeys.modelProviders.all(ownerId ?? "__anon__"),
       });
       setMessage(
-        remove
-          ? "Key removed. Local services are ready."
-          : "Key saved. Local services are ready.",
+        `${changes.length === 1 ? "Change" : `${changes.length} changes`} saved. Local services are ready.`,
       );
-    } catch {
-      const failureMessage =
-        "The change could not finish. Check runtime recovery, then retry. Saved keys are never shown here.";
+    } catch (error) {
+      const failed = (error as { failed?: CredentialProvider[] }).failed;
+      const reported = (error as { statuses?: CredentialStatus[] }).statuses;
       try {
-        const entries = await bridge.list();
-        setStatuses(entries);
-        if (!entries.find((entry) => entry.provider === provider)?.error)
-          setMessage(failureMessage);
+        setStatuses(reported ?? (await bridge.list()));
       } catch {
-        setMessage(failureMessage);
+        // Keep the previous statuses; the message below explains the failure.
       }
+      setMessage(
+        failed?.length
+          ? `Some changes could not finish (${failed.map((provider) => names[provider]).join(", ")}). Retry them; saved keys are never shown here.`
+          : "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
+      );
     } finally {
       setBusy(false);
       onBusyChange?.(false);
@@ -137,89 +183,120 @@ export function DesktopCredentialsPanel({
 
   return (
     <section
-      className="border-border/60 bg-muted/10 space-y-4 rounded-xl border p-5"
+      className={cn(
+        "border-border/60 bg-muted/10 space-y-4 rounded-xl border p-5",
+        className,
+      )}
       aria-busy={busy}
     >
       <div className="space-y-2">
-        <h3 className="text-base font-semibold">
-          Provider keys{" "}
+        <h3 className={cn("text-base font-semibold", !showTitle && "sr-only")}>
+          API keys{" "}
           <span className="text-muted-foreground text-sm font-normal">
             (optional)
           </span>
         </h3>
         <p className="text-muted-foreground text-sm">
-          Add your own provider key for cloud chat or ElevenLabs voices. Keys
-          are encrypted with this computer’s secure storage and are never
-          displayed again. You can do this later in Settings.
+          Add your own provider keys for cloud chat or ElevenLabs voices. Keys
+          are encrypted with this computer’s secure storage and never shown
+          again. Enter several, then save once; local services restart after
+          saving. You can change them later in App Settings → API Keys.
         </p>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor={`${id}-provider`}>Provider</Label>
-        <select
-          id={`${id}-provider`}
-          value={provider}
-          disabled={busy}
-          className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm"
-          onChange={(event) => {
-            setProvider(event.target.value as CredentialProvider);
-            setValue("");
-            setMessage(null);
-          }}
-        >
-          {credentialProviders.map((item) => (
-            <option key={item} value={item}>
-              {names[item]}
-              {statuses.some(
-                (status) => status.provider === item && status.configured,
-              )
-                ? " — configured"
-                : ""}
-            </option>
-          ))}
-        </select>
-        <Label htmlFor={`${id}-key`}>
-          {configured ? "Replace key" : "API key"}
-        </Label>
-        <Input
-          id={`${id}-key`}
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          maxLength={8192}
-          value={value}
-          disabled={busy}
-          onChange={(event) => setValue(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              if (value.trim() && !busy) void save();
-            }
-          }}
-          placeholder={
-            configured
-              ? "Configured — enter a new key to replace it"
-              : "Optional"
-          }
-        />
+      <div className="divide-border/60 divide-y">
+        {credentialProviders.map((provider) => {
+          const configured = isConfigured(provider);
+          const draft = drafts[provider];
+          const removing = Boolean(draft?.remove) && !draft?.value?.trim();
+          return (
+            <div
+              key={provider}
+              className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3"
+            >
+              <div className="min-w-0 flex-1 basis-40">
+                <Label htmlFor={`${id}-${provider}`}>{names[provider]}</Label>
+                <p
+                  id={`${id}-${provider}-status`}
+                  className="text-muted-foreground text-xs"
+                >
+                  {removing
+                    ? "Will be removed when you save."
+                    : configured
+                      ? "Configured"
+                      : "Not set"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  id={`${id}-${provider}`}
+                  aria-describedby={`${id}-${provider}-status`}
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={8192}
+                  className="w-56"
+                  value={draft?.value ?? ""}
+                  disabled={busy}
+                  onChange={(event) =>
+                    updateDraft(provider, { value: event.target.value })
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      // Also keeps the setup form from submitting.
+                      event.preventDefault();
+                      void save();
+                    }
+                  }}
+                  placeholder={
+                    configured ? "Enter a new key to replace" : "API key"
+                  }
+                />
+                {/* Fixed slot keeps inputs aligned whether or not a key is set. */}
+                <div className="w-20">
+                  {configured ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={busy}
+                      aria-label={`${removing ? "Undo removing" : "Remove"} ${names[provider]} key`}
+                      onClick={() =>
+                        updateDraft(provider, removing ? {} : { remove: true })
+                      }
+                    >
+                      {removing ? "Undo" : "Remove"}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
           size="sm"
-          disabled={busy || !value.trim()}
+          disabled={busy || changes.length === 0}
           onClick={() => void save()}
         >
-          {busy ? "Restarting local services…" : "Save key"}
+          {busy
+            ? "Restarting local services…"
+            : changes.length > 1
+              ? `Save ${changes.length} changes`
+              : "Save"}
         </Button>
-        {configured ? (
+        {changes.length > 0 && !busy ? (
           <Button
             type="button"
             size="sm"
-            variant="outline"
-            disabled={busy}
-            onClick={() => void save(true)}
+            variant="ghost"
+            onClick={() => {
+              setDrafts({});
+              setMessage(null);
+            }}
           >
-            Remove key
+            Discard
           </Button>
         ) : null}
       </div>

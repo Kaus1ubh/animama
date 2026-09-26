@@ -79,6 +79,20 @@ such as speech recognition, expanded Included content or document processing.
 It is distinct from a portable content import/export package and a wheel/npm
 software package set; installation alone does not equip an Anima.
 
+## App settings
+
+Installation-wide preferences chosen in App Settings, stored in
+`user_settings` for the installation owner. For memory and emotion behaviour
+they are defaults that every Anima follows unless it sets its own value.
+Per-machine choices such as the microphone device are local to that machine,
+not App settings.
+
+## Anima settings
+
+Per-Anima preferences stored in `anima_settings`. A memory or emotion value
+here overrides the App settings default for that Anima only; choosing
+"App default" removes the override. Distinct from the **Loadout**, which selects content.
+
 ## Companion guardrail
 
 The fixed, server-owned **Companion Guardrails** instruction section that ends

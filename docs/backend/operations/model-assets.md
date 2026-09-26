@@ -128,12 +128,49 @@ removing unused versions. Cleanup is explicit; the application does not evict mo
 self-host operators needing durable availability should choose persistent storage.
 Installed desktop packs remain separately owned under Application Support.
 
+## Optional Parakeet WebGPU encoder
+
+The experimental "GPU-accelerated offline speech (WebGPU)" setting uses an
+optional FP16 encoder set (about 1.24 GB), stored under
+`parakeet-tdt-0.6b-v2-webgpu/<manifest-digest>/` in the same root.
+
+- It pairs with the base Parakeet decoder, preprocessor and vocabulary, which
+  are still required.
+- It is not part of the desktop `parakeet-stt` pack inventory.
+
+Acquire it only when you want to test WebGPU speech:
+
+```bash
+python3 scripts/models/parakeet_webgpu.py acquire
+python3 scripts/models/parakeet_webgpu.py path
+```
+
+`reset.sh` resolves it offline and records `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`
+when it exists. Missing the set never fails startup:
+
+- development Compose mounts the tracked notices directory instead;
+- the setting then reports the GPU model as not installed;
+- speech keeps using WASM.
+
+Only Vite development stacks, including `desktop:dev`, serve this encoder
+(`/__client-parakeet-webgpu-models/`). Built self-host and packaged desktop
+builds report it as unavailable. Rerun `reset.sh` after acquiring it for a
+running stack.
+
 ## Browser speech assets and dependency inputs
 
-The eight reviewed Pocket TTS and Smart Turn files share the same model root,
-under `browser-speech/<manifest-digest>/`. Their manifest preserves the exact
-upstream commits, hashes and existing notice/licensing conditions. Pocket inputs
-retain their recorded CC-BY-NC-4.0 terms; acquisition grants no new usage rights.
+The thirteen reviewed Pocket TTS and Smart Turn files share the same model root,
+under `browser-speech/<manifest-digest>/`. The Pocket files are:
+
+- the `english_2026-04` ONNX bundle (INT8 flow LM; FP32 flow head, Mimi decoder,
+  Mimi encoder and text conditioner), with its tokenizer, `bundle.json` and
+  `bos_before_voice.npy`;
+- four precomputed voice states: `eve` (default), `azelma`, `mary` and `jane`.
+
+Their manifest preserves the exact upstream commits, hashes and per-file
+licenses. All Pocket files are CC-BY-4.0 (the voices derive from VCTK
+recordings), which permits commercial use with attribution; Kyutai's model-card
+prohibited-use terms still apply. Acquisition grants no new usage rights.
 Acquire them explicitly with `python3 scripts/models/browser_speech.py acquire`;
 `verify` and `path` are offline. To reuse an older checkout:
 
@@ -142,7 +179,7 @@ python3 scripts/models/browser_speech.py acquire --offline \
   --import-from /absolute/old-checkout/src/frontend/web/public/onnx
 ```
 
-`models/browser-runtime/manifest.json` binds all 19 browser assets, including nine
+`models/browser-runtime/manifest.json` binds all 24 browser assets, including nine
 ORT 1.24.2 files from the exact `onnxruntime-web-assets` dependency alias and two
 VAD 0.0.30 files from the existing pinned dependency. Existing ORT imports retain
 their separately locked versions. Do not replace a public runtime variant merely
@@ -153,7 +190,7 @@ Reset verifies both model sets offline before mutations. Development mounts the
 browser store read-only and resolves dependency files inside its own Node
 installation. Built self-host uses the verified directory as the `browser_models`
 BuildKit additional context, mounted read-only during the web build. Built outputs
-contain all 19 verified assets and work without that developer store at runtime.
+contain all 24 verified assets and work without that developer store at runtime.
 Installed desktop likewise retains its own required distribution copies. No host
 pnpm or uv installation is needed for a Compose-only journey; Python setup and
 Docker perform that journey. Direct `docker build` of the built application must

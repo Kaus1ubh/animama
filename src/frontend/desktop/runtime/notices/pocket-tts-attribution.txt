@@ -1,32 +1,50 @@
 Pocket TTS model and voice assets
 
-Upstream model: Kyutai Pocket TTS
+Upstream model: Kyutai Pocket TTS, english_2026-04 checkpoint
 Source: https://huggingface.co/kyutai/pocket-tts
-Pinned model metadata revision: 492522650173a0653b7575cdc25ae09810e5d741
+Pinned model-card revision: 75cfe24e3142233bb81887fed3482e9652bb4a6e
 Model-card license: Creative Commons Attribution 4.0 International (CC BY 4.0)
 Model-card license URL: https://creativecommons.org/licenses/by/4.0/
-Initial-release export treatment: Creative Commons
-Attribution-NonCommercial 4.0 International (CC BY-NC 4.0). The owner elected
-to comply with these stricter terms for Animama's entirely free,
-noncommercial initial desktop release despite the web snapshot README's
-CC BY 4.0 declaration.
-Export license URL: https://creativecommons.org/licenses/by-nc/4.0/
 
-The tokenizer.model and voices.bin files match the files published by the
-Pocket TTS web snapshot at revision
-3cf6daa623e2b09992c972cab32568ee8679a154. All five ONNX files exactly match
-https://huggingface.co/spaces/codexxx/pocket-tts-web/tree/6fbae64699d94f60dde9c3975984b383a6a3d950/onnx
+ONNX export: KevinAHM/pocket-tts-onnx, exported from the Kyutai checkpoint
+Source: https://huggingface.co/KevinAHM/pocket-tts-onnx/tree/58a6d00cf13d239b6748cb0769f35c580a8f606c/onnx/english_2026-04
+Pinned revision: 58a6d00cf13d239b6748cb0769f35c580a8f606c
+Files: flow_lm_main_int8.onnx, flow_lm_flow.onnx, mimi_decoder.onnx,
+mimi_encoder.onnx, text_conditioner.onnx, tokenizer.model,
+bos_before_voice.npy and bundle.json, redistributed unmodified.
+Export license: CC BY 4.0, inherited from Kyutai. The pinned onnx/LICENSE
+(SHA-256 fe7b4ce83b8381cc5b216bbb4af73c570688d1b819c73bbaed8ca401f4677cd6)
+is reproduced in pocket-tts-onnx-license.txt. The repository README declares
+CC BY 4.0 for the models and Apache-2.0 for code.
 
-Both web snapshots include ONNX-LICENSE with CC BY-NC 4.0 terms, while their
-README declares CC BY 4.0. Animama conservatively applies CC BY-NC 4.0 to these
-assets for the initial release. Replace the exports or obtain commercial
-permission before charging for Animama, connecting them to a paid service,
-using the release for lead generation, monetizing its data, or otherwise
-directing it toward commercial advantage. This attribution record is not the
+Built-in voices: Kyutai precomputed Pocket TTS voice states
+Source: https://huggingface.co/kyutai/pocket-tts-without-voice-cloning/tree/4e1e0a3e611c51c0b4ed8174fc10f32a54644303/languages/english_2026-04/embeddings
+Pinned revision: 4e1e0a3e611c51c0b4ed8174fc10f32a54644303
+Repository license: CC BY 4.0
+Files: eve.safetensors, azelma.safetensors, mary.safetensors and
+jane.safetensors, redistributed unmodified. Kyutai computed each state from a
+recording published at https://huggingface.co/kyutai/tts-voices, whose README
+(revision 323332d33f997de8394f24a193e1a76df720e01a) records the dataset
+licenses below. Kyutai's pocket-tts voice catalog at
+https://github.com/kyutai-labs/pocket-tts/blob/a012a26f46843733197db5800c254fc119247cda/pocket_tts/utils/utils.py
+names each source recording.
+
+Each voice derives from a clip of the CSTR VCTK Corpus (Centre for Speech
+Technology Research, University of Edinburgh;
+https://datashare.ed.ac.uk/handle/10283/3443), enhanced by Kyutai using
+ai-coustics. License: Creative Commons Attribution 4.0 International
+(CC BY 4.0), https://creativecommons.org/licenses/by/4.0/.
+
+- eve (default voice): vctk/p361_023_enhanced.wav
+- azelma: vctk/p303_023_enhanced.wav
+- mary: vctk/p333_023_enhanced.wav
+- jane: vctk/p339_023_enhanced.wav
+
+License basis: every Pocket TTS asset Animama distributes (the ONNX export,
+tokenizer and the four voice states) is licensed CC BY 4.0, which permits
+commercial use with attribution. Kyutai's model-card prohibited-use terms
+still apply. Animama's desktop release policy separately records a
+noncommercial distribution basis; changing that policy is a separate owner
+decision. This does not change the separate licenses of Pocket code,
+dependencies or original Animama source. This attribution record is not the
 final hash-bound redistribution approval.
-
-Owner decision reaffirmed 2026-09-15: Animama is noncommercial, with no planned
-commercial integration. Retain these assets on the stricter noncommercial basis;
-replace them before introducing commercial use unless adequate permission is
-obtained. This does not resolve the upstream license-text conflict or change
-the separate licenses of Pocket code, dependencies or original Animama source.

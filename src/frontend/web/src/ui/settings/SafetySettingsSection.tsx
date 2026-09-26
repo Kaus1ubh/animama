@@ -20,9 +20,11 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { SafetyProtocolDialog } from "@/ui/safety/SafetyProtocolDialog";
+import { SettingsGroup, SettingsRow } from "@/ui/settings/SettingsLayout";
 
 const AUTOMATIC_REGION = "__automatic__";
 const OPERATOR_INTERVAL = "__operator__";
+const SELECT_TRIGGER_CLASS_NAME = "w-56";
 
 function formatHours(hours: number): string {
   if (hours < 1) return `${Math.round(hours * 60)} minutes`;
@@ -73,14 +75,14 @@ export function SafetySettingsSection({
 
   if (safetyCapability && !safetyCapability.enabled) {
     return (
-      <section className="border-border/60 bg-muted/10 flex flex-col gap-3 rounded-xl border p-5">
-        <h3 className="text-foreground text-base font-semibold">Safety</h3>
-        <p className="text-muted-foreground text-sm">
-          The operator of this installation has turned off the AI notice and
-          crisis support.
-        </p>
-        <SafetyProtocolDialog className="self-start text-sm underline underline-offset-2" />
-      </section>
+      <SettingsGroup title="Safety">
+        <SettingsRow
+          label="Safety features"
+          description="The operator of this installation has turned off the AI notice and crisis support."
+        >
+          <SafetyProtocolDialog className="self-start text-sm underline underline-offset-2" />
+        </SettingsRow>
+      </SettingsGroup>
     );
   }
 
@@ -94,84 +96,90 @@ export function SafetySettingsSection({
       : "Automatic";
 
   return (
-    <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
-      <div>
-        <h3 className="text-foreground text-base font-semibold">Safety</h3>
-        <p className="text-muted-foreground text-sm">
-          Animas are AI, not people. These settings choose which crisis lines
-          you see and how often you are reminded.
-        </p>
-      </div>
-
-      <div className="grid gap-2">
-        <p className="text-foreground text-sm font-medium">
-          Crisis resources region
-        </p>
-        <Select
-          value={region ?? AUTOMATIC_REGION}
-          onValueChange={(value) =>
-            save({
-              crisis_resource_region: value === AUTOMATIC_REGION ? null : value,
-            })
-          }
-          disabled={busy}
-        >
-          <SelectTrigger
-            className="w-full"
-            aria-label="Crisis resources region"
-          >
-            <SelectValue placeholder="Automatic" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={AUTOMATIC_REGION}>{automaticLabel}</SelectItem>
-            {(resources.data?.regions ?? []).map((option) => (
-              <SelectItem key={option.code} value={option.code}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {safetyCapability?.ai_notice_enabled !== false ? (
-        <div className="grid gap-2">
-          <p className="text-foreground text-sm font-medium">
-            AI reminder during long conversations
-          </p>
+    <SettingsGroup
+      title="Safety"
+      description="Animas are AI, not people. Choose which crisis lines you see and how often you are reminded."
+    >
+      <SettingsRow
+        label="Crisis resources region"
+        control={
           <Select
-            value={
-              reminderHours !== null && reminderHours < operatorHours
-                ? String(reminderHours)
-                : OPERATOR_INTERVAL
-            }
+            value={region ?? AUTOMATIC_REGION}
             onValueChange={(value) =>
               save({
-                reminder_hours:
-                  value === OPERATOR_INTERVAL ? null : Number(value),
+                crisis_resource_region:
+                  value === AUTOMATIC_REGION ? null : value,
               })
             }
             disabled={busy}
           >
-            <SelectTrigger className="w-full" aria-label="AI reminder interval">
-              <SelectValue />
+            <SelectTrigger
+              className={SELECT_TRIGGER_CLASS_NAME}
+              aria-label="Crisis resources region"
+            >
+              <SelectValue placeholder="Automatic" />
             </SelectTrigger>
             <SelectContent>
-              {reminderHourOptions(operatorHours).map((hours) => (
-                <SelectItem
-                  key={hours}
-                  value={
-                    hours === operatorHours ? OPERATOR_INTERVAL : String(hours)
-                  }
-                >
-                  Every {formatHours(hours)}
+              <SelectItem value={AUTOMATIC_REGION}>{automaticLabel}</SelectItem>
+              {(resources.data?.regions ?? []).map((option) => (
+                <SelectItem key={option.code} value={option.code}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
+        }
+      />
+
+      {safetyCapability?.ai_notice_enabled !== false ? (
+        <SettingsRow
+          label="AI reminder during long conversations"
+          control={
+            <Select
+              value={
+                reminderHours !== null && reminderHours < operatorHours
+                  ? String(reminderHours)
+                  : OPERATOR_INTERVAL
+              }
+              onValueChange={(value) =>
+                save({
+                  reminder_hours:
+                    value === OPERATOR_INTERVAL ? null : Number(value),
+                })
+              }
+              disabled={busy}
+            >
+              <SelectTrigger
+                className={SELECT_TRIGGER_CLASS_NAME}
+                aria-label="AI reminder interval"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {reminderHourOptions(operatorHours).map((hours) => (
+                  <SelectItem
+                    key={hours}
+                    value={
+                      hours === operatorHours
+                        ? OPERATOR_INTERVAL
+                        : String(hours)
+                    }
+                  >
+                    Every {formatHours(hours)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        />
       ) : null}
 
-      <SafetyProtocolDialog className="self-start text-sm underline underline-offset-2" />
-    </section>
+      <SettingsRow
+        label="Safety and crisis protocol"
+        control={
+          <SafetyProtocolDialog className="text-sm underline underline-offset-2" />
+        }
+      />
+    </SettingsGroup>
   );
 }

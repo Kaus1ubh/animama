@@ -4,18 +4,14 @@ import { Settings } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "@/lib/utils";
-import { featureFlags } from "@/lib/feature-flags";
 import { useUserProfile } from "@/query/hooks/useUserProfile";
 import { Avatar, AvatarFallback } from "@/ui/components/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/ui/components/dropdown-menu";
-import { Theme } from "@/ui/components/theme";
 import {
   Tooltip,
   TooltipContent,
@@ -23,8 +19,6 @@ import {
 } from "@/ui/components/tooltip";
 import { ApplicationSettingsModal } from "@/ui/sidebar/ApplicationSettingsModal";
 import { useSidebar } from "@/ui/sidebar/Sidebar";
-import { ensureCustomTheme } from "@/ui/theme/custom-theme";
-import { CustomThemeModal } from "@/ui/theme/custom-theme-modal";
 
 function initials(name: string): string {
   return name
@@ -39,10 +33,9 @@ function initials(name: string): string {
 
 /** Show private installation personalization and application controls. */
 export function SidebarUserMenu() {
-  const { open } = useSidebar();
+  const { open, setOpen } = useSidebar();
   const profile = useUserProfile();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [customOpen, setCustomOpen] = useState(false);
   const [applicationSettingsOpen, setApplicationSettingsOpen] = useState(false);
   const displayName = profile.data?.display_name?.trim() || "You";
   const triggerButton = (
@@ -95,33 +88,15 @@ export function SidebarUserMenu() {
           sideOffset={12}
           className="z-[130] w-72 p-3"
         >
-          {featureFlags.themeSelection ? (
-            <>
-              <DropdownMenuLabel className="text-muted-foreground dark:text-muted-foreground text-xs font-medium">
-                Theme
-              </DropdownMenuLabel>
-              <div className="px-1 pb-2">
-                <Theme
-                  variant="tabs"
-                  size="sm"
-                  showLabel
-                  themes={["light", "dark", "custom"]}
-                  onCustomSelect={() => {
-                    ensureCustomTheme();
-                    setCustomOpen(true);
-                    setMenuOpen(false);
-                  }}
-                  className="w-full"
-                />
-              </div>
-              <DropdownMenuSeparator />
-            </>
-          ) : null}
           <DropdownMenuItem
             className="gap-2"
             onSelect={(event) => {
               event.preventDefault();
               setMenuOpen(false);
+              // The mobile drawer sits above dialogs; close it first.
+              if (!window.matchMedia("(min-width: 768px)").matches) {
+                setOpen(false);
+              }
               setApplicationSettingsOpen(true);
             }}
           >
@@ -130,9 +105,6 @@ export function SidebarUserMenu() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {featureFlags.themeSelection ? (
-        <CustomThemeModal open={customOpen} onOpenChange={setCustomOpen} />
-      ) : null}
       <ApplicationSettingsModal
         open={applicationSettingsOpen}
         onOpenChange={setApplicationSettingsOpen}

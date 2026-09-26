@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ANIMAMA_PREFERENCES,
   DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
+  isParakeetWebgpuPreferred,
   mergePreferences,
+  normalizeThemeSetting,
   resolveElevenLabsV3FinalizedChunking,
   toElevenLabsV3FinalizedChunking,
 } from "./preferences";
@@ -39,5 +41,51 @@ describe("safety preferences", () => {
       crisis_resource_region: "GB",
       reminder_hours: 1,
     });
+  });
+});
+
+describe("theme and appearance preferences", () => {
+  it("keeps supported modes and maps retired custom themes to light", () => {
+    expect(normalizeThemeSetting("system")).toBe("system");
+    expect(normalizeThemeSetting("dark")).toBe("dark");
+    expect(normalizeThemeSetting("custom")).toBe("light");
+    expect(normalizeThemeSetting("anima")).toBe("light");
+    expect(normalizeThemeSetting("sepia")).toBeNull();
+  });
+
+  it("merges one colour override without dropping the mode's others", () => {
+    const merged = mergePreferences(
+      { appearance: { dark: { accent: "#ff6600", background: "#000000" } } },
+      { appearance: { dark: { accent: "#00ff00" } } },
+    );
+    expect(merged.appearance).toEqual({
+      dark: { accent: "#00ff00", background: "#000000" },
+    });
+  });
+
+  it("removes an override when patched to undefined", () => {
+    const merged = mergePreferences(
+      { appearance: { light: { accent: "#ff6600" } } },
+      { appearance: { light: { accent: undefined } } },
+    );
+    expect(JSON.parse(JSON.stringify(merged))).toEqual({
+      appearance: { light: {} },
+    });
+  });
+});
+
+describe("isParakeetWebgpuPreferred", () => {
+  it("is off unless the experimental setting is explicitly true", () => {
+    expect(isParakeetWebgpuPreferred(null)).toBe(false);
+    expect(isParakeetWebgpuPreferred(DEFAULT_ANIMAMA_PREFERENCES)).toBe(false);
+    // Saved preferences are untyped JSON, so a string must not enable it.
+    expect(
+      isParakeetWebgpuPreferred({
+        speech: { stt_parakeet_webgpu: "true" as unknown as boolean },
+      }),
+    ).toBe(false);
+    expect(
+      isParakeetWebgpuPreferred({ speech: { stt_parakeet_webgpu: true } }),
+    ).toBe(true);
   });
 });

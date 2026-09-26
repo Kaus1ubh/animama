@@ -46,9 +46,8 @@ an existing candidate or receipt.
 Candidate-only transformations replace the root license with the complete SPDX
 AGPL-3.0-only text, update original package/license metadata and add contribution
 and readiness documents. Existing third-party licenses remain intact. The
-per-file source review records exceptions including PocketTTS noncommercial
-assets; the project code license does not turn those assets into unrestricted
-open-source content. The external receipt records
+per-file source review records exceptions including the CC BY 4.0 PocketTTS
+assets; the project code license does not turn those assets into AGPL content. The external receipt records
 every output hash/mode and the transformed paths. Verification rejects extra or
 changed files and any Git metadata; run independent builds in a separate copy.
 

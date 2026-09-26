@@ -53,13 +53,19 @@ class AnimaAggregateMaterializer:
         user_id: str,
         spec: ResolvedAnimaSpec,
         uow: AnimaAggregateUnitOfWork,
+        model_provider_id: str | None = None,
     ) -> Anima:
-        """Create a fresh ID and exact selected loadout from resolved content."""
+        """Create a fresh ID and exact selected loadout from resolved content.
+
+        ``model_provider_id`` overrides the installation default, e.g. with the
+        owner's preferred default chat model; it is validated the same way.
+        """
 
         display_name = normalize_display_name(spec.display_name)
         identity = normalize_identity(spec.identity, max_bytes=self._max_identity_bytes)
         voice = initial_voice_profile(spec.voice_profile)
-        await self._validate_model(uow, self._default_model_provider_id)
+        model_id = model_provider_id or self._default_model_provider_id
+        await self._validate_model(uow, model_id)
         avatar = await uow.avatars.resolve_catalog_avatar(user_id=user_id, item=spec.avatar)
         anima = Anima(
             id=f"anima-{uuid4().hex}",
@@ -72,7 +78,7 @@ class AnimaAggregateMaterializer:
             uow=uow,
             anima=anima,
             identity=identity,
-            model_provider_id=self._default_model_provider_id,
+            model_provider_id=model_id,
             voice_profile=voice,
             identity_metadata={},
         )

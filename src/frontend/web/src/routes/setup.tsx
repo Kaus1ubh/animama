@@ -21,6 +21,8 @@ function LocalSetupRoute() {
   const [displayName, setDisplayName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [providerBusy, setProviderBusy] = useState(false);
+  // Unsaved API key edits would be lost by continuing; save or discard first.
+  const [pendingKeys, setPendingKeys] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const featurePacks = useDesktopFeaturePacks();
   const [installSpeech, setInstallSpeech] = useState(false);
@@ -35,7 +37,8 @@ function LocalSetupRoute() {
   if (state.firstRunComplete) return <Navigate to="/a" replace />;
 
   const submit = async (name: string) => {
-    if (isSubmitting || providerBusy || !adultConfirmed) return;
+    if (isSubmitting || providerBusy || pendingKeys > 0 || !adultConfirmed)
+      return;
     setIsSubmitting(true);
     setError(null);
     try {
@@ -93,7 +96,10 @@ function LocalSetupRoute() {
             }}
           />
         </div>
-        <DesktopCredentialsPanel onBusyChange={setProviderBusy} />
+        <DesktopCredentialsPanel
+          onBusyChange={setProviderBusy}
+          onPendingChange={setPendingKeys}
+        />
         {featurePacks.available && speechPack ? (
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm">
@@ -165,11 +171,20 @@ function LocalSetupRoute() {
             {error}
           </p>
         ) : null}
-        <div className="flex justify-end">
+        <div className="flex items-center justify-end gap-3">
+          {pendingKeys > 0 ? (
+            <p className="text-muted-foreground text-sm" role="status">
+              Save or discard your API key changes to continue.
+            </p>
+          ) : null}
           <Button
             type="submit"
             disabled={
-              !normalizedName || !adultConfirmed || isSubmitting || providerBusy
+              !normalizedName ||
+              !adultConfirmed ||
+              isSubmitting ||
+              providerBusy ||
+              pendingKeys > 0
             }
           >
             {isSubmitting ? "Saving…" : "Continue"}

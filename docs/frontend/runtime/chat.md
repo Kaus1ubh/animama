@@ -121,9 +121,9 @@ unless desktop PiP is active. The chat panel stays mounted as the primary
 surface.
 
 Assistant chat bubbles render streamed and persisted text with Streamdown
-Markdown by default. The session-only App Settings toggle "Render
-assistant Markdown" can turn this off for the current app session, which falls
-back to the plaintext renderer and sparkle animation path. User bubbles always
+Markdown by default. The App Settings → Advanced toggle "Render assistant
+Markdown" (saved as `presentation.render_markdown`) can turn this off, which
+falls back to the plaintext renderer and sparkle animation path. User bubbles always
 render as plaintext.
 
 ### Model selector behavior

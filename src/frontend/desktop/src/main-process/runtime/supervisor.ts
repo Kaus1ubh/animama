@@ -49,6 +49,7 @@ import {
   CredentialVault,
   type Encryption,
   validateCredential,
+  validateCredentialChanges,
   validateProvider,
 } from "./vault.js";
 
@@ -860,28 +861,43 @@ export class RuntimeSupervisor {
     const key = validateProvider(provider);
     const plaintext =
       value === undefined ? undefined : validateCredential(value);
-    if (plaintext) runtimeRedactor.add(plaintext);
+    return this.changeCredentials([{ provider: key, value: plaintext }]).then(
+      (statuses) => statuses.find((item) => item.provider === key)!,
+    );
+  }
+  /**
+   * Save or remove several provider keys with one backend quiesce and one
+   * consumer restart. Every changed provider records the same failure if the
+   * batch cannot finish, and saved keys stay saved for Retry.
+   */
+  changeCredentials(changes: unknown): Promise<CredentialStatus[]> {
+    const batch = validateCredentialChanges(changes);
+    for (const change of batch)
+      if (change.value) runtimeRedactor.add(change.value);
     return this.serialize(async () => {
       if (!this.vault || this.current.state !== "ready")
         throw new RuntimeError("runtime_not_ready");
-      this.credentialFailures.delete(key);
+      const vault = this.vault;
+      for (const change of batch)
+        this.credentialFailures.delete(change.provider);
       this.stage("backend");
       let quiesced = false;
       let saved = false;
       try {
         await this.quiesceBackend();
         quiesced = true;
-        if (plaintext === undefined) this.vault.delete(key);
-        else this.vault.set(key, plaintext);
+        // One encrypted write: either every change is saved or none is.
+        vault.apply(batch);
         saved = true;
         await this.restartConsumers();
-        return this.credentials().find((item) => item.provider === key)!;
+        return this.credentials();
       } catch (error) {
         // Record before recovery emits ready: the old IPC caller no longer exists.
-        this.credentialFailures.set(key, {
-          error: runtimeErrorCode(error),
-          saved,
-        });
+        for (const change of batch)
+          this.credentialFailures.set(change.provider, {
+            error: runtimeErrorCode(error),
+            saved,
+          });
         try {
           if (!quiesced) await this.restartConsumers();
           else throw error;
@@ -892,7 +908,7 @@ export class RuntimeSupervisor {
             code: runtimeErrorCode(recoveryError),
           });
         }
-        return this.credentials().find((item) => item.provider === key)!;
+        return this.credentials();
       }
     });
   }

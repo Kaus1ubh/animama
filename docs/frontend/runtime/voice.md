@@ -17,11 +17,11 @@ VAD. Output uses browser speech, PocketTTS or ElevenLabs. See
 
 ### STT provider matrix
 
-| Provider           | Source                               | Where used        | Notes                                                                 |
-| ------------------ | ------------------------------------ | ----------------- | --------------------------------------------------------------------- |
-| `browser_external` | Web Speech API                       | dictation + voice | default browser path                                                  |
-| `browser_local`    | Web Speech API with `processLocally` | dictation + voice | strict capability check; en-US fallback on unsupported locale         |
-| `parakeet`         | local Parakeet ONNX worker           | dictation + voice | MicVAD speech windows are transcribed locally with final results only |
+| Provider           | Source                               | Where used        | Notes                                                            |
+| ------------------ | ------------------------------------ | ----------------- | ---------------------------------------------------------------- |
+| `browser_external` | Web Speech API                       | dictation + voice | default browser path                                             |
+| `browser_local`    | Web Speech API with `processLocally` | dictation + voice | strict capability check; en-US fallback on unsupported locale    |
+| `parakeet`         | local Parakeet ONNX worker           | dictation + voice | MicVAD windows transcribed locally; live previews on WebGPU only |
 
 In the Animama Electron desktop shell, browser Web Speech providers are treated
 as unavailable even if Chromium exposes `SpeechRecognition` or
@@ -106,7 +106,7 @@ Why this matters:
 
 ## Developer and self-host model inputs
 
-Parakeet and the eight reviewed Pocket TTS/Smart Turn inputs are acquired from
+Parakeet and the thirteen reviewed Pocket TTS/Smart Turn inputs are acquired from
 exact pinned revisions into a verified shared store outside Git worktrees.
 `models/browser-runtime/manifest.json` also binds nine ORT 1.24.2 files from the
 exact dependency alias and two VAD 0.0.30 files from its pinned package. Other
@@ -117,7 +117,7 @@ starting Vite or Compose, or building the web application. It documents
 `ANIMAMA_MODEL_ROOT`, the native Windows `%LOCALAPPDATA%\Animama\models` default,
 and the Linux default used by WSL. Development verifies and serves engine inputs
 at the existing same-origin URLs; built self-host and desktop outputs contain
-independent verified copies of the 19 browser assets. Parakeet remains outside
+independent verified copies of the 24 browser assets. Parakeet remains outside
 the web build and retains its installed desktop pack lifecycle.
 
 Startup and builds do not acquire models implicitly. Browsers do not receive
@@ -152,6 +152,24 @@ Rules:
 Provider helpers:
 
 - `src/frontend/web/src/lib/speech/stt-provider.ts`
+
+### Microphone input and sensitivity
+
+App Settings → Voice → Microphone chooses the input device, voice-detection
+sensitivity and offers an opt-in level meter
+(`web/src/lib/voice/microphone-preferences.ts`, `web/src/ui/settings/MicrophoneSettings.tsx`).
+
+- The device ID is stored per machine in local storage and requested with an
+  `ideal` constraint, so an unplugged device falls back to the system default.
+  Parakeet dictation and Voice Mode pass it to MicVAD through `getStream` and
+  to the visualizer. Browser speech recognition cannot target a device, so the
+  browser path keeps its visualizer and MicVAD on the system default to match
+  the recognizer.
+- `speech.mic_sensitivity` (`low`/`normal`/`high`) selects MicVAD positive and
+  negative speech thresholds and minimum speech length at session start;
+  `normal` is 0.3 / 0.25 / 180 ms.
+- The level meter (a segmented −60 to 0 dBFS bar) opens its own stream only
+  while testing and releases it on stop, device change or unmount.
 
 ### Voice mode provider flows
 
@@ -194,8 +212,9 @@ API exposes interim transcript events.
 
 MicVAD supplies accepted mono 16 kHz windows to `client_parakeet/transcribe`.
 Parakeet commits final text before smart-turn runs on the accepted audio, so the
-end-turn coordinator normally has text ready immediately. There is no interim
-preview. See [Final-window Parakeet path](#final-window-parakeet-path).
+end-turn coordinator normally has text ready immediately. On the WebGPU
+backend, display-only previews show interim text while a window is open; see
+[Live Parakeet previews](#live-parakeet-previews).
 
 #### Shared voice-mode behavior
 
@@ -224,9 +243,12 @@ preview. See [Final-window Parakeet path](#final-window-parakeet-path).
 Parakeet STT is local client-side STT:
 
 - the browser worker loads `parakeet.js` from local v2 int8 assets with
-  `backend: "wasm"`
+  `backend: "wasm"`, or with the experimental WebGPU backend (see
+  [Experimental WebGPU backend](#experimental-webgpu-backend))
 - MicVAD owns speech-window segmentation and stop/start decisions
 - accepted MicVAD windows are sent to the worker for final-window transcription
+- on the WebGPU backend, open windows are re-decoded for display-only previews (see
+  [Live Parakeet previews](#live-parakeet-previews))
 - the model stays warm for the current app session; mic/VAD/audio resources are
   stopped on every stop
 
@@ -240,9 +262,51 @@ acoustic gate.
 
 The Parakeet worker is loaded with:
 
-- `loadClientParakeetWorker({ backend: "wasm", sampleRateHz: 16000 })`
+- `loadClientParakeetWorker({ preferWebgpu, sampleRateHz: 16000 })`. Here
+  `preferWebgpu` is the `speech.stt_parakeet_webgpu` preference, read at each
+  start.
 - local model URLs from `CLIENT_PARAKEET_MODEL_ASSET_PATHS`
-- ORT WASM URLs bundled through Vite `?url` imports
+- ORT WASM URLs bundled through Vite `?url` imports: the plain build for WASM,
+  and the JSEP build for WebGPU
+
+#### Experimental WebGPU backend
+
+App Settings → **Advanced** → **Experimental** → "GPU-accelerated offline
+speech (WebGPU)" sets `speech.stt_parakeet_webgpu`, which is off by default.
+
+When the setting is on, `loadClientParakeetWorker` probes
+(`getParakeetWebgpuStatus`) for two things:
+
+- a WebGPU adapter;
+- a `HEAD` response for the optional FP16 encoder
+  (`CLIENT_PARAKEET_WEBGPU_ENCODER_URL`).
+
+`resolveParakeetBackend` then picks one of these backends:
+
+| Result                 | Backend                                                | Status line                    |
+| ---------------------- | ------------------------------------------------------ | ------------------------------ |
+| `available`            | `webgpu`: FP16 encoder on WebGPU, INT8 decoder on WASM | Available; Active once loaded  |
+| `unsupported`          | `wasm`                                                 | WebGPU not available           |
+| `model_missing`        | `wasm`                                                 | GPU speech model not installed |
+| `unavailable_in_build` | `wasm`                                                 | Not available in this build    |
+
+Loading behavior:
+
+- **Switching backend.** ORT keeps one WASM build per worker, so switching
+  backend terminates and recreates the worker.
+- **Load failure.** The worker checks that ORT actually initialized a WebGPU
+  device, because ORT otherwise drops the WebGPU provider silently and runs on
+  WASM. If the check fails, or the load throws, the client falls back to WASM
+  and the settings panel says WebGPU failed to load and the CPU was used. For
+  the rest of the page it uses WASM directly (`load_failed`), until the
+  settings panel refreshes the status.
+- **Warm-up.** The worker warms WebGPU with one second of silence during load,
+  so shader compilation does not make the first preview look over budget.
+
+Only Vite development stacks, including `desktop:dev`, serve the encoder, at
+`/__client-parakeet-webgpu-models/`. Built self-host and packaged desktop
+builds report `unavailable_in_build`. See
+[model setup](../../backend/operations/model-assets.md#optional-parakeet-webgpu-encoder).
 
 The worker serializes all requests through a promise queue so load,
 transcription, and dispose operations cannot use the model concurrently. If the
@@ -318,9 +382,58 @@ voice-mode auto-submit timeout unchanged: when smart-turn returns `end_turn`,
 the committed Parakeet transcript is already available to the end-turn
 coordinator.
 
-This path has no interim transcript preview. The first text visible to the user
-arrives after MicVAD accepts the speech window and the worker finishes the final
-`transcribe(...)` call.
+This final decode is the only source of committed Parakeet text and of Voice
+Mode auto-submission. As with browser interim text, a manual send includes
+whatever preview is visible in the input.
+
+#### Live Parakeet previews
+
+Previews run only when the loaded Parakeet backend is WebGPU
+(`shouldEnableParakeetPreviews`), which the experimental setting enables. The
+default single-thread WASM backend is final-only, because a preview there
+covered only about 2 s of a window before the decode budget stopped it.
+
+While a MicVAD window is open on WebGPU, `createParakeetPreviewController(...)`
+(`lib/speech/client-parakeet/preview-controller.ts`) re-decodes the growing
+window buffer and shows the result as interim text. Parakeet TDT is a
+full-context model, so previews re-run the whole buffer instead of stitching
+chunks.
+
+- MicVAD frames reach the controller through `onVadFrame`. The window buffer
+  starts with the same 200 ms pre-speech pad MicVAD prepends.
+- The first preview is sent after 600 ms of window audio. Later previews wait
+  `max(600 ms, 1.5 × last preview decode)`, and at most one is in flight. The
+  controller sends them to the same worker with `kind: "preview"`. Previews
+  are not profiled, which keeps `parakeet.js` console output down.
+- A preview in flight delays the final decode that follows it. The controller
+  therefore predicts each decode from the measured rate. It stops previewing a
+  window once the prediction exceeds 800 ms, and it decodes and keeps at most
+  the last 20 s of audio. A window's first preview is not predicted when it is
+  sent on time (within about 1.4 s of window audio), which re-measures the rate
+  after a slow spell such as a cold first decode. A first preview held back
+  while an assistant run is active is predicted like any other. If no rate has
+  been measured yet in that capture session, that window gets no previews.
+  - Measured on Apple Silicon (Metal), WebGPU keeps previews within budget
+    for about 15–18 s of window audio in Electron, and up to the 20 s cap in
+    Chrome.
+  - `maxPreviewDecodeMs: 0` in `DEFAULT_PARAKEET_PREVIEW_CONFIG` disables
+    previews. It is an internal constant, not a user setting.
+- Previews are display-only. They are published through
+  `publishTranscriptPreview(...)` as `interimText` but never written to gate
+  state, speech buffers, Smart Turn audio or `onSegment(...)`. Voice Mode
+  cannot submit preview text.
+- Previews are skipped, and late results dropped, when the window ends or when
+  the session, mode, run or turn changes. In Voice Mode they are also skipped
+  while an assistant run or its speech is active.
+- Muting Voice Mode resets the controller.
+  - A plain mute discards the open window, so its preview is cleared.
+  - A push-to-talk flush keeps the preview until that window's final replaces
+    it.
+- A window's preview stays visible until its final result replaces it, or until
+  the window is rejected or fails. Preview failures only stop previews for that
+  window.
+- Worker preview logs use `debug`. Budget stops and preview failures are logged
+  at `info` under `ClientParakeet`.
 
 ### Browser recognition details
 
@@ -419,7 +532,8 @@ Display model:
 
 - Chat input preview is rendered as `finalText + interimText`.
 - Interim text is shown as a lighter overlay in `ChatInputTextArea`.
-- Parakeet writes final text only; its interim text remains empty.
+- Parakeet previews use the same `interimText` display channel but are kept
+  outside the per-turn buffers, so fallback submission never uses them.
 
 Interim clearing rules:
 
@@ -560,8 +674,8 @@ Matching source priority:
 2. current turn buffered `interimText`
 
 For browser STT, the match can come from final or interim recognition text. For
-Parakeet STT, the match comes from final text only because Parakeet has no
-interim path.
+Parakeet STT, the match comes from final text only, because Parakeet previews
+are display-only and never enter the per-turn buffers.
 
 ## Chat and Avatar Runtime Integration
 
@@ -574,7 +688,8 @@ interim path.
   - `dictationCommittedRef` (final dictation text)
   - `dictationInterimRef` (live interim dictation preview)
 - merges display text as `base + (committed + interim)`
-- updates interim preview from `onTranscriptPreview` (browser STT buffer updates)
+- updates interim preview from `onTranscriptPreview` (browser STT buffer updates
+  and Parakeet previews)
 - starts:
   - `startDictation("dictation")`
   - `startDictation("voice")`
@@ -794,15 +909,17 @@ Voice resolution:
   - `{emotion}_{1|2|3}` for non-neutral emotions
 - anima catalog path:
   - `/onnx/models/pocket-tts/animas/{animaId}_voices.bin`
-- anima catalog format matches the shared `voices.bin` format:
+- anima catalog format:
   - multiple named embeddings in one binary file
   - each embedding is stored as `[1, numFrames, 1024]`
+  - embeddings must come from the current (`english_2026-04`) encoder; the worker
+    prepends the checkpoint's BOS row before conditioning, as for cloned voices
 - fallback order:
   1. exact anima emotion key
   2. same emotion with lower intensity, descending
   3. anima `neutral`
   4. legacy Pocket voice preference path
-  5. shared default voice `cosette` (or first shared voice if `cosette` is absent)
+  5. built-in default voice `eve` (or the first loaded built-in voice)
 - legacy Pocket voice preference path still uses:
   1. anima override `tts_pocket_anima_voice`
   2. user default `tts_pocket_voice`
@@ -827,11 +944,17 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
 ### Pocket TTS assets
 
 - Small worker/worklet/vendor code stays in `src/frontend/web/public/tts/*`.
-- The seven reviewed model, tokenizer and shared voice files are served at
-  `/onnx/models/pocket-tts/*`, including `voices.bin`, from the verified sources.
+- The twelve reviewed Pocket files are served at `/onnx/models/pocket-tts/*` from
+  the verified sources:
+  - the five ONNX graphs;
+  - `tokenizer.model`, `bundle.json` and `bos_before_voice.npy`;
+  - the built-in voice states at `voices/{eve,azelma,mary,jane}.safetensors`.
+- The worker initializes model state from the `bundle.json` state manifests.
+  It loads built-in voices as precomputed flow LM states, so selecting one
+  skips voice conditioning. It generates with temperature 0.3.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
-  are not members of the 19-file engine inventory.
+  are not members of the 23-file engine inventory.
 
 Optional operator voice catalogs are separate from the engine inventory; see
 [Content and workers](../architecture/content-and-workers.md#vite-application-resources).

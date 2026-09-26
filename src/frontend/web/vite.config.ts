@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
@@ -11,6 +12,7 @@ import {
 import {
   localParakeetModelPlugin,
   resolveLocalParakeetModelDir,
+  resolveLocalParakeetWebgpuModelDir,
 } from "./vite-plugins/local-parakeet-models";
 import { browserRuntimeAssetsPlugin } from "./vite-plugins/browser-runtime-assets";
 import {
@@ -21,6 +23,18 @@ import {
 
 const webRoot = fileURLToPath(new URL(".", import.meta.url));
 const webSrc = fileURLToPath(new URL("./src", import.meta.url));
+/**
+ * App version shown in App Settings → About. The web and desktop packages share
+ * one version (checked by `app-version.test.ts`); an explicit
+ * VITE_APP_VERSION still wins for custom builds.
+ */
+const appVersion =
+  process.env.VITE_APP_VERSION ||
+  (
+    JSON.parse(
+      readFileSync(new URL("./package.json", import.meta.url), "utf8"),
+    ) as { version: string }
+  ).version;
 const publicPackagesRoot = fileURLToPath(
   new URL("../packages", import.meta.url),
 );
@@ -47,6 +61,9 @@ export const includedContentAliases: readonly IncludedContentAlias[] = [
 ] as const;
 const publicParakeetModelBaseUrl = "/onnx/models/parakeet-tdt-0.6b-v2";
 const localParakeetModelBaseUrl = "/__client-parakeet-models";
+// The optional experimental WebGPU encoder is served only by local Vite
+// development stacks; built self-host and embedded desktop builds omit it.
+const localParakeetWebgpuModelBaseUrl = "/__client-parakeet-webgpu-models";
 const rechartsEsToolkitCompat = fileURLToPath(
   new URL("./src/lib/recharts/es-toolkit-compat", import.meta.url),
 );
@@ -150,6 +167,10 @@ export default defineConfig(({ mode, command, isPreview }) => {
               modelDir: resolveLocalParakeetModelDir,
               routeBaseUrl: localParakeetModelBaseUrl,
             }),
+            localParakeetModelPlugin({
+              modelDir: resolveLocalParakeetWebgpuModelDir,
+              routeBaseUrl: localParakeetWebgpuModelBaseUrl,
+            }),
           ]
         : []),
     ],
@@ -180,8 +201,12 @@ export default defineConfig(({ mode, command, isPreview }) => {
       ...(command === "build" || isPreview
         ? { "import.meta.env.VITE_ENABLE_DEBUG_PANEL": JSON.stringify("false") }
         : {}),
+      __ANIMAMA_APP_VERSION__: JSON.stringify(appVersion),
       __CLIENT_PARAKEET_MODEL_BASE_URL__: JSON.stringify(
         clientParakeetModelBaseUrl,
+      ),
+      __CLIENT_PARAKEET_WEBGPU_MODEL_BASE_URL__: JSON.stringify(
+        useLocalParakeetModels ? localParakeetWebgpuModelBaseUrl : null,
       ),
     },
     optimizeDeps: {

@@ -37,10 +37,20 @@ export type RuntimeBridge = {
   quit(): Promise<void>;
   onStatus(callback: (status: RuntimeStatus) => void): () => void;
 };
+/** One key change in a batch; an omitted value removes the saved key. */
+export type CredentialChange = {
+  provider: CredentialProvider;
+  value?: string;
+};
 export type CredentialsBridge = {
   list(): Promise<CredentialStatus[]>;
   set(provider: CredentialProvider, value: string): Promise<CredentialStatus>;
   delete(provider: CredentialProvider): Promise<void>;
+  /**
+   * Save or remove several keys with a single local-service restart. Returns
+   * every provider's status; failed entries carry their own `error`.
+   */
+  apply(changes: CredentialChange[]): Promise<CredentialStatus[]>;
 };
 export const featurePackIds = [
   "parakeet-stt",

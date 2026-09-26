@@ -1,10 +1,15 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useOptionalAppShell } from "@/ui/app/AppShell";
+import { resolveAppShellSidebarLayout } from "@/ui/app/appShellSidebarLayout";
+
+/** Icon component for a navigation section, e.g. a lucide icon. */
+export type SectionIcon = ComponentType<{ className?: string }>;
 
 type SectionedModalFrameProps<T extends string> = {
   title: string;
@@ -15,6 +20,16 @@ type SectionedModalFrameProps<T extends string> = {
   sections: readonly T[];
   activeSection: T;
   onSectionChange: (section: T) => void;
+  /** Rendered above the section navigation, e.g. a search field. */
+  sidebarHeader?: ReactNode;
+  /** Optional leading icon for each navigation item. */
+  sectionIcons?: Partial<Record<T, SectionIcon>>;
+  onEscapeKeyDown?: Dialog.DialogContentProps["onEscapeKeyDown"];
+  /**
+   * Centre the modal in the area beside the desktop sidebar (which stays above
+   * dialog backdrops) instead of the whole viewport, so the two never overlap.
+   */
+  avoidSidebar?: boolean;
   headerTitle: ReactNode;
   headerDescription?: ReactNode;
   headerMeta?: ReactNode;
@@ -32,6 +47,10 @@ export function SectionedModalFrame<T extends string>({
   sections,
   activeSection,
   onSectionChange,
+  sidebarHeader,
+  sectionIcons,
+  onEscapeKeyDown,
+  avoidSidebar = false,
   headerTitle,
   headerDescription,
   headerMeta,
@@ -40,8 +59,23 @@ export function SectionedModalFrame<T extends string>({
   gridClassName,
   contentClassName,
 }: SectionedModalFrameProps<T>) {
+  const appShell = useOptionalAppShell();
+  const sidebarInset = resolveAppShellSidebarLayout({
+    behavior: "inset",
+    isDesktop: appShell?.isDesktop === true,
+    sidebarOpen: appShell?.sidebarOpen === true,
+  })["--app-shell-sidebar-inset"];
   return (
     <Dialog.Content
+      onEscapeKeyDown={onEscapeKeyDown}
+      style={
+        avoidSidebar
+          ? {
+              left: `calc(50% + ${sidebarInset} / 2)`,
+              maxWidth: `calc(100vw - ${sidebarInset} - 2rem)`,
+            }
+          : undefined
+      }
       className={cn(
         "fixed top-0 left-1/2 z-50 w-[min(920px,92vw)] -translate-x-1/2",
         "border-border bg-background h-[85vh] overflow-hidden rounded-b-2xl border shadow-2xl",
@@ -58,26 +92,33 @@ export function SectionedModalFrame<T extends string>({
           gridClassName,
         )}
       >
-        <aside className="border-border bg-muted/30 overflow-y-auto border-b p-4 md:border-r md:border-b-0">
-          <nav className="flex flex-wrap gap-2 md:flex-col md:gap-1">
+        <aside className="border-border bg-muted/30 flex min-h-0 flex-col border-b p-4 md:border-r md:border-b-0">
+          {/* Outside the scrolling nav so dropdowns anchored here aren't clipped. */}
+          {sidebarHeader ? (
+            <div className="relative z-20 mb-3">{sidebarHeader}</div>
+          ) : null}
+          <nav className="flex min-h-0 flex-wrap gap-2 overflow-y-auto md:flex-col md:gap-1">
             {sections.map((section) => {
               const active = section === activeSection;
+              const Icon: SectionIcon | undefined = sectionIcons?.[section];
               return (
                 <button
                   key={section}
                   type="button"
+                  aria-current={active ? "page" : undefined}
                   onClick={() => {
                     if (active) return;
                     onSectionChange(section);
                   }}
                   className={cn(
-                    "flex items-center rounded-md px-3 py-2 text-left text-sm transition",
+                    "flex items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm transition",
                     "hover:bg-muted/70",
                     active
                       ? "bg-muted text-foreground font-semibold"
                       : "text-muted-foreground",
                   )}
                 >
+                  {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
                   {section}
                 </button>
               );

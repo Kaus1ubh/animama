@@ -10,6 +10,7 @@ import {
   normalizeLocalDisplayName,
 } from "@/lib/user-profile/display-name";
 import { UserProfileApiError } from "@/lib/user-profile/errors";
+import { cn } from "@/lib/utils";
 import { useUserProfile } from "@/query/hooks/useUserProfile";
 import { useUpdateUserProfile } from "@/query/mutations/useUpdateUserProfile";
 import { Button } from "@/ui/components/button";
@@ -96,13 +97,16 @@ function DisplayNameEditor({
 }
 
 /** Edit the private display name within App Settings without changing its owner. */
-export function DisplayNameSettings() {
+export function DisplayNameSettings({ className }: { className?: string }) {
   const profile = useUserProfile();
 
   return (
     <section
       aria-label="Display name"
-      className="border-border/60 bg-muted/10 rounded-xl border p-5"
+      className={cn(
+        "border-border/60 bg-muted/10 rounded-xl border p-5",
+        className,
+      )}
     >
       {profile.data ? (
         <DisplayNameEditor
