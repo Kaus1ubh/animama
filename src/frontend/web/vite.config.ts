@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
@@ -14,6 +13,7 @@ import {
   resolveLocalParakeetModelDir,
   resolveLocalParakeetWebgpuModelDir,
 } from "./vite-plugins/local-parakeet-models";
+import { resolveAppVersion } from "./vite-plugins/app-version";
 import { browserRuntimeAssetsPlugin } from "./vite-plugins/browser-runtime-assets";
 import {
   localAPIProxy,
@@ -23,18 +23,7 @@ import {
 
 const webRoot = fileURLToPath(new URL(".", import.meta.url));
 const webSrc = fileURLToPath(new URL("./src", import.meta.url));
-/**
- * App version shown in App Settings → About. The web and desktop packages share
- * one version (checked by `app-version.test.ts`); an explicit
- * VITE_APP_VERSION still wins for custom builds.
- */
-const appVersion =
-  process.env.VITE_APP_VERSION ||
-  (
-    JSON.parse(
-      readFileSync(new URL("./package.json", import.meta.url), "utf8"),
-    ) as { version: string }
-  ).version;
+const appVersion = resolveAppVersion();
 const publicPackagesRoot = fileURLToPath(
   new URL("../packages", import.meta.url),
 );
