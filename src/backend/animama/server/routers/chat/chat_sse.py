@@ -26,7 +26,7 @@ from animama.server.sse_events import (
 from .compaction import (
     compact_chat_after_success as _compact_chat_after_success,
 )
-from .safety import ai_notice_frame, attach_crisis_resources, local_crisis_frame
+from .safety import ai_notice_frame, attach_crisis_resources
 from .setup_helpers import chat_manager as _chat_manager
 from .sse_runtime import (
     DirectChatEventBridge,
@@ -221,10 +221,9 @@ async def stream_direct_chat_sse(
                 run_id=run_id,
                 task_name=active_task.get_name(),
             )
-            # Safety frames precede any provider output: the AI notice (spec R2)
-            # and a deterministic crisis card from the local detector (spec R4).
-            # The provider task is already running, so recording notice state adds
-            # no time to first text; its events wait in the bridge until drained.
+            # The AI notice (spec R2) precedes any provider output. The provider
+            # task is already running, so recording notice state adds no time to
+            # first text; its events wait in the bridge until drained.
             notice = await ai_notice_frame(
                 turn.safety,
                 session_factory=session_factory,
@@ -234,9 +233,6 @@ async def stream_direct_chat_sse(
             )
             if notice is not None:
                 yield notice
-            crisis = local_crisis_frame(turn.safety, run_id=run_id, state=state)
-            if crisis is not None:
-                yield crisis
             async for frame in drain_events_while_task_runs(
                 active_task,
                 bridge,

@@ -61,8 +61,6 @@ class DirectChatTurnRequest:
     runtime_gesture_ids: tuple[str, ...] | None = None
     runtime_gesture_descriptors: tuple[RuntimeGestureDescriptor, ...] = ()
     node_id: str = DIRECT_CHAT_NODE_ID
-    care_note: str | None = None
-    """Fixed crisis care note added before the Companion Guardrails (spec R5)."""
     provider_moderation: bool = False
     """Request provider-side moderation scores where the provider supports them (spec R3)."""
 

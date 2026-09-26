@@ -77,6 +77,10 @@ Two further rules apply:
 - [ ] Owner gates G1–G4 (see Validation and acceptance).
 - [x] PR https://github.com/raymond-van/animama/pull/141 opened (validated
       revision `51c976a`).
+- [x] Merged `main` `1a54f11` (2026-09-25); the Safety settings moved into
+      main's searchable settings list as a "Safety" section.
+- [x] On-device detector and care note removed (2026-09-25, owner direction);
+      moderation is the only crisis signal. See the Decision Log.
 - [ ] Hosted Validation; owner gates G1–G4; exact-candidate owner merge approval.
 
 ## Surprises & Discoveries
@@ -259,6 +263,17 @@ Two further rules apply:
 - **2026-09-25, plan design, delivery shape.** Five phases on one branch and one
   PR. Commit scopes: `feat(chat)` for Phases 1 and 3, `feat(safety)` for
   Phases 2 and 4, `docs(safety)` for Phase 5.
+
+- **2026-09-25, post-PR, detector removed.** Owner: "get rid of the on-device
+  detector since it is imperfect (or just archive it)". Deleted
+  `app/safety/crisis_detector.py`, its tests and both fixture files, the
+  `CRISIS_CARE_NOTE` and its prompt plumbing, and the pre-provider local card.
+  The last revision containing them is `51c976a`, which serves as the archive.
+  Consequences: the crisis card appears only with OpenAI Responses models and
+  only after the reply; a provider failure shows no card; the guardrail's
+  crisis rule is the only in-turn care instruction. `ANIMAMA_CRISIS_DETECTION_ENABLED`
+  keeps its name and now controls moderation and the card. The SSE payload
+  keeps `source`, now always `"moderation"`.
 
 ## Implementation orientation
 
@@ -1419,8 +1434,8 @@ referral counting before 2027-07-01, NY S9051B, and counsel review.
 
 - a non-overridable companion guardrail;
 - an app-rendered AI notice at the New York cadence;
-- a local crisis detector plus OpenAI Responses inline moderation, with a
-  deterministic, localized crisis card;
+- OpenAI Responses inline moderation with a deterministic, localized crisis
+  card (the on-device detector was built, measured and then removed);
 - an 18+ first run with an age-status seam;
 - the Safety settings, protocol document, dialog and page;
 - operator configuration with one global switch;

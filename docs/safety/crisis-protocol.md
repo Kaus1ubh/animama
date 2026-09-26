@@ -36,27 +36,21 @@ In Settings → Safety you can choose a shorter reminder interval.
 
 ## Crisis detection and support
 
-Every message you send is checked on the device running Animama (your
-computer, or your server if you self-host) for explicit statements about
-suicide or self-harm, such as intent, a plan, the means, self-harm, or asking
-for methods. The check does not treat sadness, venting, dark humor, jokes,
-quotes, games, stories or talk about other people as a crisis on its own.
+When you use an OpenAI Responses model, Animama asks OpenAI for moderation
+scores on the same chat request. When those scores indicate possible suicide
+or self-harm:
 
-When you use an OpenAI Responses model, Animama also asks OpenAI for its
-moderation scores on the same chat request. A self-harm result can show the
-crisis card after the reply.
+After the reply, the app shows a crisis card with crisis lines for your
+region, an emergency number, and a link to this page. The card is shown by the
+app, not written by the Anima, so the Anima cannot hide or change it. It stays
+until you dismiss it.
 
-When either check finds a possible crisis:
+With any model, the Anima's fixed guardrails ask it to respond with warmth,
+take what you said seriously and encourage you to reach out to someone you
+trust or to a crisis line. The Anima never provides methods or encourages
+self-harm.
 
-- The app shows a crisis card with crisis lines for your region, an emergency
-  number, and a link to this page. The card is shown by the app, not written by
-  the Anima, so the Anima cannot hide or change it. It stays until you dismiss
-  it.
-- The Anima's fixed guardrails ask it to respond with warmth, take what you
-  said seriously and encourage you to reach out to someone you trust or to the crisis line. The
-  Anima never provides methods or encourages self-harm.
-
-Chat is never blocked or delayed by these checks.
+Chat is never blocked or delayed by the moderation check.
 
 If you are in immediate danger, call your local emergency number now.
 
@@ -81,7 +75,6 @@ card asks you to contact a local crisis line or your local emergency number.
 
 ## What data leaves your device
 
-- The crisis check runs where Animama runs and sends nothing anywhere.
 - Your messages already go to the AI model provider you chose. With OpenAI
   Responses models, that same request also asks OpenAI for moderation scores.
   Nothing extra is sent to any other service.
@@ -105,10 +98,9 @@ card asks you to contact a local crisis line or your local emergency number.
 
 ## Limitations
 
-- The built-in check looks for explicit statements. It misses some indirect
-  or unusual phrasing, and occasionally flags ordinary messages. For very long
-  messages it checks only the first and last 3,000 characters. Moderation
-  helps only when you use an OpenAI Responses model.
+- The crisis card depends on OpenAI's moderation and appears only with OpenAI
+  Responses models. Moderation can miss indirect phrasing and occasionally
+  flags ordinary messages.
 - Animama does not verify age; it relies on your confirmation.
 - Animas are AI. They can make mistakes and cannot call for help on your
   behalf.
@@ -120,10 +112,10 @@ variables only. The companion guardrails cannot be turned off.
 
 | Variable | Default | Effect |
 | --- | --- | --- |
-| `ANIMAMA_COMPANION_SAFETY_ENABLED` | `true` | `false` turns off the AI notice, crisis detection, moderation and the crisis card together |
+| `ANIMAMA_COMPANION_SAFETY_ENABLED` | `true` | `false` turns off the AI notice, moderation and the crisis card together |
 | `ANIMAMA_AI_NOTICE_ENABLED` | `true` | Turns the AI notice off or on |
 | `ANIMAMA_AI_NOTICE_REMINDER_HOURS` | `3` | Reminder interval, from 0.25 to 168 hours |
-| `ANIMAMA_CRISIS_DETECTION_ENABLED` | `true` | Turns crisis detection, moderation and the crisis card off or on |
+| `ANIMAMA_CRISIS_DETECTION_ENABLED` | `true` | Turns moderation and the crisis card off or on |
 | `ANIMAMA_CRISIS_RESOURCES_PATH` | unset | Replaces the crisis-resource list with a reviewed file; an invalid file stops startup |
 
 Animama logs a warning at startup for every setting that weakens a default. The

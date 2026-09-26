@@ -88,7 +88,7 @@ def error_event(
     )
 
 
-def crisis_support_event(request: DirectChatTurnRequest, *, source: Literal["local", "moderation"]) -> Event:
+def crisis_support_event(request: DirectChatTurnRequest, *, source: Literal["moderation"]) -> Event:
     return Event(
         event_id=f"crisis-support-{request.run_id}",
         anima_id=request.anima_id,

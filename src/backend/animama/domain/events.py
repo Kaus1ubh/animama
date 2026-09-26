@@ -45,7 +45,7 @@ class CrisisSupportPayload:
     """
 
     run_id: str
-    source: Literal["local", "moderation"]
+    source: Literal["moderation"]
 
 
 @dataclass(slots=True)

@@ -119,7 +119,7 @@ def safety_override_warnings(operator: OperatorSafetyConfig) -> list[str]:
             f"ANIMAMA_AI_NOTICE_REMINDER_HOURS={hours:g}: AI reminders are less frequent than every 3 hours"
         )
     if not operator.crisis_detection_enabled:
-        warnings.append("ANIMAMA_CRISIS_DETECTION_ENABLED=false: crisis detection and the crisis card are off")
+        warnings.append("ANIMAMA_CRISIS_DETECTION_ENABLED=false: moderation and the crisis card are off")
     if operator.crisis_resources_path is not None:
         warnings.append("ANIMAMA_CRISIS_RESOURCES_PATH is set: using an operator-supplied crisis resource table")
     return warnings

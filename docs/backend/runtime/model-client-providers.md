@@ -222,8 +222,8 @@ contains only file content rather than file path, status, revision, or
 fingerprint details. Anima profile columns, `metadata.direct_chat`, and pinned
 user profile content are not prompt sources. One request-local `developer`
 message always sits immediately before the latest user message: the user-scope
-memory file map (when memory influence is enabled), the attached-file list, an
-optional crisis care note, and finally the server-owned
+memory file map (when memory influence is enabled), the attached-file list and
+finally the server-owned
 [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
 The guardrail is always the last instruction text of the request.
 

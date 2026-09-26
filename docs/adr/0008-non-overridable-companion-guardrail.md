@@ -21,8 +21,8 @@ provider-side moderation cannot be assumed.
 
 Every chat turn ends its provider instructions with a fixed, server-owned
 **Companion Guardrails** section. It comes after the core instruction, the
-identity, memory and response guidance, the memory map, attachments, the
-compaction summary and any per-turn crisis care note. The forced-final request
+identity, memory and response guidance, the memory map, attachments and the
+compaction summary. The forced-final request
 made at the memory-tool limit restates it after the limit instruction. For
 providers without a developer role, all developer text is folded in order into
 the system message so the guardrail is still last. The guardrail:

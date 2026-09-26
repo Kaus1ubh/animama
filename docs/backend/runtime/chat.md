@@ -87,7 +87,7 @@ opens the anima identity file because it is anima configuration. When
 `disable_memory_influence` is true, direct chat still keeps anima identity
 active; the memory file list is omitted from the trailing `developer` message.
 That message, placed just before the user message, holds the memory file list,
-the attached-file list, any crisis care note and, always last, the
+the attached-file list and, always last, the
 [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
 Provider rows that expose `supports_developer_role: false`, such as DeepSeek
 and Hugging Face, receive every `developer` message folded in order into the
@@ -127,16 +127,15 @@ fails setup. Either selection must name an active direct model provider.
 1. The local HTTP boundary admits the request and resolves the installation
    principal. Setup validates Anima/chat ownership, the issued runtime snapshot,
    model capabilities, and chat API-standard compatibility before opening SSE.
-   It also resolves [companion safety](#companion-safety) and runs the local
-   crisis detector on the message; detection never blocks the turn.
+   It also resolves [companion safety](#companion-safety), which never blocks
+   the turn.
 2. The executor loads required `IDENTITY.md`, current memory/attachment
    navigation, and local history when the provider needs replay. It assembles
    the prompt, ending with the Companion Guardrails, and closes the setup
    database session before upstream streaming.
 3. The route starts the request-local event bridge and model task, plus eligible
    title/TTS work. While the model task runs, it records the AI-notice decision
-   and yields any `safety.ai_notice` and local `safety.crisis_support` frames
-   before draining provider events. The executor runs bounded memory-tool rounds
+   and yields any `safety.ai_notice` frame before draining provider events. The executor runs bounded memory-tool rounds
    and validates the final structured response. At the tool limit, it makes one
    no-tools attempt to produce the final answer, restating the guardrail after
    the limit instruction; further tool calls fail the turn.
@@ -166,15 +165,15 @@ metadata. Workflow orchestration requires a separate API contract.
 user-facing contract is the [safety and crisis protocol](../../safety/crisis-protocol.md).
 
 - **Companion Guardrails.** `COMPANION_GUARDRAILS` is always the final
-  instruction text of every provider request, including after a care note and
-  in the forced-final tool-limit request. No setting disables it
+  instruction text of every provider request, including in the forced-final
+  tool-limit request. No setting disables it
   ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)).
 - **Effective configuration.** Setup combines operator settings
   (`ANIMAMA_COMPANION_SAFETY_ENABLED`, `ANIMAMA_AI_NOTICE_ENABLED`,
   `ANIMAMA_AI_NOTICE_REMINDER_HOURS`, `ANIMAMA_CRISIS_DETECTION_ENABLED`,
   `ANIMAMA_CRISIS_RESOURCES_PATH`) with the owner's
   `user_settings.preferences.safety`. The global switch turns the AI notice,
-  crisis detection, moderation and crisis card off together. Owners may choose
+  moderation and crisis card off together. Owners may choose
   `crisis_resource_region` and a `reminder_hours` value that applies only when
   it is shorter than the operator interval. Reminder hours must be 0.25–168,
   and an invalid resource table fails startup. Each operator override of a
@@ -186,20 +185,18 @@ user-facing contract is the [safety and crisis protocol](../../safety/crisis-pro
   continuing interaction's start and the last notice. Turns less than 30
   minutes apart continue an interaction. If the state cannot be read or
   written, the notice is shown anyway.
-- **Crisis detection.** The local detector (`app/safety/crisis_detector.py`)
-  is deterministic and makes no network call. A positive result adds
-  `CRISIS_CARE_NOTE` to the trailing instructions before the guardrail and
-  emits a crisis card before provider output. For OpenAI Responses rows only,
-  round 0 also requests [inline moderation](model-client-providers.md#provider-behavior);
-  a self-harm result emits a crisis card after the reply text. Crisis
-  resources resolve from the owner's region, then the `client_context`
-  locale, then the fallback entry.
+- **Crisis detection.** For OpenAI Responses rows, round 0 requests
+  [inline moderation](model-client-providers.md#provider-behavior); a
+  self-harm result emits one `safety.crisis_support` card after the reply text
+  and before `run.completed`. Other providers get no crisis card; the
+  guardrail's crisis rule still applies. Crisis resources resolve from the
+  owner's region, then the `client_context` locale, then the fallback entry.
 
 Crisis turns stream, persist and update memory like any other turn. Safety
 code never logs message text or detection results (crisis frames are excluded
 from SSE frame logging) and stores no detection results. Opt-in model-client
 prompt previews (`ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS`, on by default in Compose)
-can still include the user message and the care note.
+can still include the user message.
 
 ## SSE Events
 

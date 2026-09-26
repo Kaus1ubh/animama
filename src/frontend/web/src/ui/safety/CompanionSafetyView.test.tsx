@@ -15,7 +15,7 @@ import { CompanionSafetyView } from "@/ui/safety/CompanionSafetyView";
 const crisis: ChatCrisisSupport = {
   type: "safety.crisis_support",
   run_id: "run-1",
-  source: "local",
+  source: "moderation",
   resources: {
     code: "US",
     label: "United States",

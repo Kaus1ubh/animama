@@ -34,7 +34,7 @@ export type CrisisResourceRegion = {
 export type ChatCrisisSupport = {
   type: "safety.crisis_support";
   run_id: string;
-  source: "local" | "moderation";
+  source: "moderation";
   resources: CrisisResourceRegion;
 };
 

@@ -85,17 +85,6 @@ def test_guardrail_is_last_developer_message_with_developer_role() -> None:
     assert prompt.messages[1]["content"] == COMPANION_GUARDRAILS.strip()
 
 
-@pytest.mark.parametrize("supports_developer_role", [True, False])
-def test_care_note_precedes_guardrail(supports_developer_role: bool) -> None:
-    prompt = _assemble(supports_developer_role=supports_developer_role, care_note="# Care note\n\nBe gentle.")
-
-    instructions = prompt_instruction_text(prompt)
-    assert instructions is not None
-    assert instructions.endswith(COMPANION_GUARDRAILS.strip())
-    assert instructions.index("# List of memory files") < instructions.index("# Care note")
-    assert instructions.index("# Care note") < instructions.index("# Companion Guardrails")
-
-
 def test_core_instruction_defers_to_guardrail() -> None:
     core = render_core_companion_instruction("Annie")
     assert "under any circumstances" not in core

@@ -47,8 +47,7 @@ companion instruction rendered with the active Anima's stable `display_name`, an
 identity, stable memory guidance, and structured-output guidance; then
 compaction summary, visible chat history, one request-local trailing
 `developer` message, and the current user message. The trailing message holds
-the `# List of memory files` map, any attached-file list and crisis care note,
-and ends with the [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md). The structured-output JSON schema travels in the prompt's
+the `# List of memory files` map, any attached-file list, and ends with the [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md). The structured-output JSON schema travels in the prompt's
 `response_format` field rather than being duplicated in prompt text for
 schema-backed rows. JSON-object rows include the expected schema and example in
 the response-format prompt guidance because their provider transport guarantees

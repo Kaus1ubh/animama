@@ -1,10 +1,9 @@
 """Per-turn companion safety for `chat:sse` (spec R2–R5).
 
-Setup resolves the owner's effective safety configuration, runs the local crisis
-detector and resolves crisis resources before the prompt is built. The stream
-emits the AI notice and any local crisis card before provider output; provider
-moderation arrives later as a `CRISIS_SUPPORT` domain event. No message text is
-logged or stored.
+Setup resolves the owner's effective safety configuration and crisis resources
+before the prompt is built. The stream emits the AI notice before provider
+output; a crisis card follows only when provider moderation flags self-harm,
+as a `CRISIS_SUPPORT` domain event. No message text is logged or stored.
 """
 
 from __future__ import annotations
@@ -23,14 +22,12 @@ from animama.adapters.repositories.sqlalchemy.companion_safety_repo import (
 )
 from animama.app.safety.ai_notice import AiNoticeKind, decide_ai_notice
 from animama.app.safety.config import EffectiveCompanionSafety, SafetyPreferences, resolve_companion_safety
-from animama.app.safety.crisis_detector import NEGATIVE, CrisisDetection, detect_crisis
 from animama.app.safety.crisis_resources import CrisisResourceRegion, resolve_crisis_region
-from animama.app.safety.prompts import CRISIS_CARE_NOTE
 from animama.logging_config import get_logger
 from animama.server.companion_safety import load_safety_preferences, runtime_crisis_resources
 from animama.server.config import Settings
 from animama.server.schemas.chat import PyChatClientContext
-from animama.server.sse_events import SseTextState, format_ai_notice_event, format_crisis_support_event
+from animama.server.sse_events import SseTextState, format_ai_notice_event
 
 from .session_services import with_short_lived_session
 
@@ -42,13 +39,8 @@ class TurnSafety:
     """Route-owned safety state for one turn; carries no message text."""
 
     effective: EffectiveCompanionSafety
-    detection: CrisisDetection
     crisis_region: CrisisResourceRegion
     time_zone: ZoneInfo | None
-
-    @property
-    def care_note(self) -> str | None:
-        return CRISIS_CARE_NOTE if self.detection.positive else None
 
     @property
     def provider_moderation(self) -> bool:
@@ -72,11 +64,10 @@ async def prepare_turn_safety(
     *,
     session: AsyncSession,
     user_id: str,
-    message: str,
     client_context: PyChatClientContext | None,
     runtime_settings: Settings,
 ) -> TurnSafety:
-    """Resolve safety configuration and run the local detector before prompt assembly."""
+    """Resolve safety configuration and crisis resources before prompt assembly."""
 
     try:
         preferences = await load_safety_preferences(session, user_id)
@@ -85,22 +76,12 @@ async def prepare_turn_safety(
         _log.warning("Safety preferences unavailable; using defaults", error_type=type(exc).__name__)
         preferences = SafetyPreferences()
     effective = resolve_companion_safety(runtime_settings.companion_safety, preferences)
-    detection = NEGATIVE
-    if effective.crisis_detection_enabled:
-        try:
-            detection = detect_crisis(message)
-        except Exception as exc:
-            # Never interrupt chat because of detection; log without message content.
-            _log.warning("Local crisis detector failed", error_type=type(exc).__name__)
     region = resolve_crisis_region(
         runtime_crisis_resources(runtime_settings),
         preferred_region=preferences.crisis_resource_region,
         locale=client_context.locale if client_context is not None else None,
     )
-    # Detection results are deliberately not logged: they are sensitive and logs persist.
-    return TurnSafety(
-        effective=effective, detection=detection, crisis_region=region, time_zone=_time_zone(client_context)
-    )
+    return TurnSafety(effective=effective, crisis_region=region, time_zone=_time_zone(client_context))
 
 
 def attach_crisis_resources(safety: TurnSafety, state: SseTextState) -> None:
@@ -149,10 +130,4 @@ async def ai_notice_frame(
     return format_ai_notice_event(run_id=run_id, kind=kind, anima_name=anima_name)
 
 
-def local_crisis_frame(safety: TurnSafety, *, run_id: str, state: SseTextState) -> str | None:
-    if not safety.detection.positive:
-        return None
-    return format_crisis_support_event(run_id=run_id, source="local", state=state)
-
-
-__all__ = ["TurnSafety", "ai_notice_frame", "attach_crisis_resources", "local_crisis_frame", "prepare_turn_safety"]
+__all__ = ["TurnSafety", "ai_notice_frame", "attach_crisis_resources", "prepare_turn_safety"]

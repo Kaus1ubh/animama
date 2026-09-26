@@ -152,12 +152,10 @@ async def prepare_direct_chat_turn(
             request_opts=request_options,
         )
     )
-    # Companion safety is resolved before the prompt so a local crisis signal can add
-    # the care note. It never blocks the turn.
+    # Companion safety (notice cadence, moderation, crisis resources) never blocks the turn.
     safety = await prepare_turn_safety(
         session=session,
         user_id=user.id,
-        message=req.message,
         client_context=req.client_context,
         runtime_settings=runtime_settings,
     )
@@ -224,7 +222,6 @@ async def prepare_direct_chat_turn(
         runtime_revision=runtime_revision,
         runtime_gesture_ids=resolved_runtime_gesture_ids,
         runtime_gesture_descriptors=runtime_gesture_descriptors,
-        care_note=safety.care_note,
         provider_moderation=safety.provider_moderation,
     )
     try:

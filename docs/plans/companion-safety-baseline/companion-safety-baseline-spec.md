@@ -100,8 +100,8 @@ Verified against official sources on 2026-09-25. Recheck before public release.
 
 A fixed "Companion Guardrails" section is the final text of the instructions the
 provider receives on every chat turn. It comes after the core instruction,
-`IDENTITY.md`, memory guidance, response guidance, memory map, attachment list,
-compaction summary and any per-turn care note. For Responses, "instructions" is
+`IDENTITY.md`, memory guidance, response guidance, memory map, attachment list
+and compaction summary. For Responses, "instructions" is
 the combined system and developer text. On providers that separate roles, it is
 the last system content. The existing core instruction no longer says the
 identity overrides "under any circumstances"; it defers to the guardrail.
@@ -169,36 +169,27 @@ is better shown too often than missed.
 
 ### R3 — Crisis detection
 
-**Local detector.** Every user turn's message text is checked by a local,
-deterministic detector before the provider request is made.
-
-- It works identically with every provider, makes no network call and adds
-  negligible time: no more than 5 ms for a maximum-length message on a
-  development machine.
-- It targets explicit first-person suicidal intent, plans, means, preparation,
-  active self-harm, and requests for self-harm or suicide methods.
-- It is tuned for a low false-positive rate. Sadness, loneliness, venting,
-  hyperbole and idioms ("I'm dying", "kill me lol"), dark humor, quoted or
-  fictional material, song lyrics and discussion of other people are not crises
-  on their own.
+The on-device detector was removed on 2026-09-25 (owner direction: its held-out
+recall was about 0.52, too imperfect to ship). It remains in the branch history
+at `51c976a` (`app/safety/crisis_detector.py` and its fixtures) if it is
+revisited.
 
 **Provider moderation (OpenAI Responses).** When the turn uses an OpenAI
 Responses model and crisis detection is enabled, the chat request asks the
 Responses API for its built-in moderation scores on the same request. There is
 no additional network call and no data leaves the device beyond the chat request
-itself. Other providers are currently unsupported and rely on the local
-detector.
+itself. Other providers are currently unsupported and show no crisis card; the
+guardrail's crisis rule still applies.
 
 - The scores arrive with the completed response, after the reply text, and never
   delay streaming.
 - A self-harm flag on the turn's input shows the crisis card before the run
   completes.
-- A missing or errored moderation result leaves only the local result; the
-  failure is logged without message content.
+- A missing or errored moderation result means no card; the turn is otherwise
+  unaffected.
 
-Any positive signal from either detector triggers the crisis card (R4). Neither
-detector blocks, refuses or alters the turn beyond R5. A detector exception is
-logged without content and treated as no signal; chat continues.
+A self-harm moderation result triggers the crisis card (R4). It never blocks,
+refuses or alters the turn.
 
 Detection runs even in incognito and with memory disabled, unless an operator
 disables it through R8.
@@ -221,20 +212,15 @@ renders a crisis card that:
 - stays until the owner dismisses it, is keyboard reachable and is announced to
   assistive technology;
 - cannot be suppressed, reworded or reordered by the Anima, identity, model
-  output or provider failure. A detection before the provider fails still shows
-  the card.
+  output. A provider failure yields no moderation result and so no card.
 
 A later positive turn shows the card again. The card is not stored in chat
 history (proposal).
 
 ### R5 — In-character care and resources
 
-**Care note.** When the local detector fires, the turn's instructions include a
-fixed care note, placed before the guardrail. It tells the Anima that the user
-may be in crisis and that resources are being shown, and asks it to respond
-warmly in character and encourage reaching out. The Anima still replies. A
-moderation-only detection does not alter the current turn; the guardrail
-governs.
+**Care.** Moderation arrives after the reply, so no per-turn care note is added;
+the guardrail's crisis rule governs the Anima's response.
 
 **Crisis-resource table.** Resources come from a static table reviewed and
 shipped in the repository.
@@ -315,8 +301,8 @@ operator's responsibility and have no in-app UI. Beneath the global switch,
 they can individually:
 
 - Relax the reminder interval or disable the AI notice entirely.
-- Disable crisis detection. The local detector, provider moderation and the
-  crisis card are all turned off; the guardrail's crisis behavior remains.
+- Disable crisis detection. Provider moderation and the crisis card are
+  turned off; the guardrail's crisis behavior remains.
 - Replace the crisis-resource table.
 
 When any safety override is active, startup logs a warning naming the override
@@ -421,15 +407,6 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
 
 **Crisis detection and card**
 
-- [ ] The local detector passes a labelled fixture set: at least 40 non-crisis
-  and 25 crisis examples covering R3's categories, with zero false positives and
-  zero false negatives. The fixtures are data that future tuning must keep
-  passing. *Evidence:* backend tests.
-- [ ] The local check meets its time bound. *Evidence:* backend benchmark test
-  or measurement recorded in the plan.
-- [ ] A positive turn emits the crisis event and still streams an Anima reply,
-  with the care note placed before the guardrail. A negative turn changes
-  nothing. Detector exceptions do not interrupt chat. *Evidence:* backend tests.
 - [ ] For OpenAI Responses turns with detection enabled, the request includes
   inline moderation and a self-harm input flag shows the card; a missing or
   errored result does not affect the turn; other providers and a disabled switch
@@ -478,9 +455,9 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
 - Target the obligations in force now; the laws below are follow-ups.
 - Environment overrides may relax the notice and disable detection; the
   guardrail cannot be overridden.
-- Local detector plus OpenAI Responses inline moderation (owner direction during
+- OpenAI Responses inline moderation only (owner direction during
   implementation, superseding the opt-in separate moderation call and its
-  Settings toggle). No model-reported flag.
+  Settings toggle, then removing the on-device detector). No model-reported flag.
 - Normal persistence for crisis turns.
 - No referral counting yet.
 - New York minimum cadence with a 30-minute continuing-interaction gap, per
@@ -503,17 +480,16 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
 
 - R1 details: the therapist clause b), the fiction carve-out, and the rule that
   sadness and venting get no disclaimer.
-- The care note (R5), and moderation-only detection not altering the turn.
+- Moderation not altering the turn (the care note was later removed with the
+  detector).
 - Crisis card behavior (R4): dismissal, not stored in history, and repeated on
   later positive turns.
 - Notice and card copy.
-- The detector time bound and fixture sizes.
 - An invalid operator table fails startup.
 - Memory Manager is included in the R9 sensitive-data rule.
 
 **Left to the ExecPlan:**
 
-- detector patterns;
 - moderation thresholds and category selection;
 - storage for notice state, age status and settings;
 - how the client supplies local day and locale;

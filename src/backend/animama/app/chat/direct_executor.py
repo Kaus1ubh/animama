@@ -807,7 +807,6 @@ class DirectChatTurnExecutor:
                 model=model_provider.model,
             ),
             reasoning_effort=turn_reasoning_effort(request.options),
-            care_note=request.care_note,
             metadata={
                 "anima_id": request.anima_id,
                 "chat_id": request.chat_id,

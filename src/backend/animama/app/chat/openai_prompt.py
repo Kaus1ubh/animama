@@ -72,17 +72,15 @@ class DirectChatPromptAssembler:
         prompt_cache_key: str | None = None,
         reasoning_effort: str | None = None,
         stream_options: ChatCompletionStreamOptionsParam | None = None,
-        care_note: str | None = None,
     ) -> DirectChatPrompt:
         memory_map_text = memory_map.strip() if isinstance(memory_map, str) and memory_map.strip() else None
         attached_files_text = _render_attached_user_file_map(attached_files)
-        care_note_text = care_note.strip() if isinstance(care_note, str) and care_note.strip() else None
-        # Request context, any care note and the Companion Guardrails form the trailing
+        # Request context and the Companion Guardrails form the trailing
         # instructions. The guardrail is always last so no identity, memory or earlier
         # instruction can override it.
         trailing_instruction_text = "\n\n".join(
             section
-            for section in (memory_map_text, attached_files_text, care_note_text, COMPANION_GUARDRAILS.strip())
+            for section in (memory_map_text, attached_files_text, COMPANION_GUARDRAILS.strip())
             if section is not None
         )
         messages: list[ChatCompletionMessageParam] = [

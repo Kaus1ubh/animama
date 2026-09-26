@@ -15,7 +15,7 @@ import {
 const card = (runId: string, code: string): ChatCrisisSupport => ({
   type: "safety.crisis_support",
   run_id: runId,
-  source: "local",
+  source: "moderation",
   resources: { code, label: code, services: [], verified_on: "2026-09-25" },
 });
 

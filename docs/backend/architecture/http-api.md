@@ -545,7 +545,7 @@ immediately before the latest user message. When memory influence is enabled
 it starts with a `# List of memory files` section. The list includes only
 user-scope file entries (`anima_id IS NULL`), uses cached paths such as
 `PROFILE.md`, and omits anima-scoped files and tree formatting. Any attached-file
-list and crisis care note follow, and the Companion Guardrails always end the
+list follows, and the Companion Guardrails always end the
 message. `disable_memory_influence` suppresses the list while keeping required
 anima identity active. Provider rows that do not support OpenAI's `developer`
 message role, including DeepSeek, receive all developer text folded in order
