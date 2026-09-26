@@ -1,6 +1,7 @@
 # Companion safety baseline execution plan
 
-Status: Proposal — awaiting owner acceptance and implementation authorization.
+Status: Implemented; all five phases reviewed. Owner gates G1–G4, hosted
+Validation and exact-candidate merge approval remain.
 Source agreement: [Companion safety baseline spec](companion-safety-baseline-spec.md),
 accepted by the owner on 2026-09-25 when execution planning was invoked. At the
 same time the owner added a single global environment switch for the safety
@@ -71,9 +72,8 @@ Two further rules apply:
 - [x] Phase 4: frontend (notice, crisis card, first run, settings, Safety page).
       Review #3 passed.
 - [x] Phase 5: protocol document, docs, ADR, glossary, copy audit (review #2
-      passed); manual desktop acceptance is owner gate G3. Was:
-      desktop acceptance.
-- [ ] Final integration review.
+      passed); manual desktop acceptance is owner gate G3.
+- [x] Final integration review: pass with owner gates.
 - [ ] Owner gates G1–G4 (see Validation and acceptance).
 - [ ] PR opened; hosted Validation; exact-candidate owner merge approval.
 
@@ -155,7 +155,8 @@ Two further rules apply:
   otherwise; record any change here.
 - **2026-09-25, owner: Safety settings section.**
   - Always shown: the crisis-resource region; the OpenAI moderation opt-in
-    (moved from Advanced); a reminder interval the owner may only shorten; and
+    (moved from Advanced; later superseded by inline Responses moderation, so
+    there is no toggle); a reminder interval the owner may only shorten; and
     the Safety page link.
 - **2026-09-25, owner (implementation start):** no
   `ANIMAMA_SAFETY_SETTINGS_EDITABLE` gate and no in-app relax or disable
@@ -301,7 +302,7 @@ Tests:
   `tests/test_crisis_detector.py` (fixtures in
   `tests/fixtures/safety/crisis_detection.json`),
   `tests/test_crisis_resources.py`, `tests/test_ai_notice_cadence.py` and
-  `tests/test_crisis_moderation.py` (inline Responses moderation).
+  `tests/test_companion_safety_chat.py` (inline Responses moderation and route frames).
 - Backend, existing files to extend: `test_direct_chat_turn_executor.py`,
   `test_anima_chat_sse.py`, `test_anima_sse_events.py`,
   `test_installation_personalization.py`, `test_settings_service.py`.
@@ -936,7 +937,7 @@ Requirements: R2, R4, R6, R7 (page) and R8 (UI). Depends on Phase 3.
    `onAiNotice` and `onCrisisSupport`, and wire them through
    `useProductChatSession`. Send `client_context` on every chat request.
 2. **State.** Mount `CompanionSafetyProvider` in `AnimaRouteProviders`.
-   - Notice visibility is a pure helper in `lib/safety/noticeVisibility.ts`:
+   - Notice visibility is a pure helper in `lib/safety/aiNotice.ts` and `lib/safety/safetyState.ts`:
      visible from the event until the later of turn completion or failure and
      8 seconds, then a fade, with no animation under reduced motion.
    - The crisis card persists until dismissed. A new positive turn replaces it.
@@ -1295,9 +1296,54 @@ default log path that reveals a detection.
 
 ## Final integration review
 
+Pre-review full backend chain: 2279 passed and 1 failed. The failure was
+`test_generate_synthetic_docs.py::test_presets_are_nested_balanced_and_exclude_plans`:
+the updated `chat.md` pushed the xxsmall preset 12.5% below a quarter of small.
+Commit `5cc63b0` rebalances the presets as the generator's comment instructs,
+adding the two user-profile docs to the nested xxsmall and small presets, and
+updates the small-preset source count assertion. All 12 synthetic-doc tests
+pass. `ruff format --check scripts` flags two existing files under
+`scripts/repository-boundary/`; this branch does not change them.
+
 Run `sdlc-reviewer` over the full branch diff against the spec's acceptance
 criteria, reusing still-valid phase evidence. Allow one full review and at most
 two repair rounds. Record the findings and revisions here.
+
+### Final integration Code Review #1 Findings
+
+Scope: the whole plan (`git diff 5630ad8...5cc63b0`), reusing phase evidence.
+Result: pass with owner gates; no code defects. Contracts, privacy, ADR 0002
+and ADR 0003, and the boundaries were verified end to end.
+
+- **FINAL-R1-F1:** G2 did not cover moderation re-triggering on replayed
+  history or instructions.
+- **FINAL-R1-F2:** the detector measured about 5–6 ms against the 5 ms bound.
+- **FINAL-R1-F3:** the spec still said "Moderation is a Settings toggle".
+- **FINAL-R1-F4 (optional):** plan housekeeping.
+- **FINAL-R1-F5 (optional):** hand-written resource types duplicate the
+  generated ones.
+- **FINAL-R1-F6 (optional):** the protocol implied a care note on
+  moderation-only turns.
+- **FINAL-R1-F7 (optional):** a region-less `navigator.language` falls back.
+
+### Final integration Code Review #1 Revisions
+
+- **F1 accepted.** G2 now lists the replayed-history, instruction and cost
+  checks, with a pre-agreed fallback.
+- **F2 accepted.** `MAX_DETECTOR_CHARS` is 6,000 (first and last 3,000
+  characters). It now measures a median of 2.3–3.6 ms and a maximum of 4.7 ms
+  over 30 runs on 130,000-character inputs. Fixtures still pass. Holdout
+  precision and recall are unchanged (0.830 and 0.520). The protocol and
+  `chat.md` are updated.
+- **F3 accepted.** The stale spec line is removed.
+- **F4 accepted.** Plan status, progress, superseded note and file names are
+  fixed.
+- **F6 accepted.** The protocol now says the fixed guardrails ask the Anima to
+  respond with care.
+- **F7 accepted.** The client context and Settings take the first locale with
+  a region from `navigator.languages`.
+- **F5 deferred.** The SSE payload type is intentionally a client-side
+  contract; a follow-up can adopt the generated types.
 
 ## Validation and acceptance
 
@@ -1324,7 +1370,21 @@ merge approval.
   - farewell and absence prompts show no guilt or loneliness claims;
   - a crisis fixture gets a warm, in-character reply;
   - the moderation threshold is calibrated against the fixtures, with the
-    resulting constant recorded.
+    resulting constant recorded;
+  - **moderation input scope** (final review FINAL-R1-F1): after one crisis
+    message, send several ordinary messages in each of these situations:
+    - an incognito chat (`store=false`, so full history is replayed);
+    - the first turn after compaction or a model switch;
+    - a stale-cursor retry.
+
+    For each, confirm no later ordinary turn re-shows the card;
+  - whether the instructions (guardrail and care note mention suicide and
+    self-harm) are scored, and the cost of inline moderation.
+
+  Pre-agreed fallback if replayed history or instructions trigger the card:
+  honor only the `self-harm/intent` and `self-harm/instructions` flags (drop
+  the broad `self-harm` score). If that is not enough, request moderation only
+  when a Responses continuation cursor is present.
 
   Only aggregate results are recorded.
 - **G3, desktop:** the manual Electron acceptance in Phase 5.
@@ -1353,4 +1413,35 @@ referral counting before 2027-07-01, NY S9051B, and counsel review.
 
 ## Outcomes & Retrospective
 
-Not started.
+**Delivered:**
+
+- a non-overridable companion guardrail;
+- an app-rendered AI notice at the New York cadence;
+- a local crisis detector plus OpenAI Responses inline moderation, with a
+  deterministic, localized crisis card;
+- an 18+ first run with an age-status seam;
+- the Safety settings, protocol document, dialog and page;
+- operator configuration with one global switch;
+- sensitive-memory guidance;
+- updated docs, ADR 0008 and the glossary.
+
+**Remaining:**
+
+- owner gates G1–G4;
+- hosted Validation;
+- the release blocker of publishing the protocol publicly;
+- the regulatory follow-ups listed in the spec.
+
+**Lessons:**
+
+- Tuning a phrase-list detector against reviewer probes overfit repeatedly. A
+  held-out corpus gave an honest measure and led to a scorer with a documented
+  ceiling: 0.83 precision and 0.52 recall on unseen text.
+- Several defects only appeared on real integration paths:
+  - final-result rebuilds dropping moderation;
+  - Electron navigation guards;
+  - Avatar-only unmounting the chat panel;
+  - fullscreen portals.
+
+  Tests should use event-emitting clients and cover the unmount paths.
+

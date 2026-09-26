@@ -23,7 +23,7 @@ from typing import Literal
 
 CrisisCategory = Literal["method", "plan", "self_harm", "intent"]
 
-MAX_DETECTOR_CHARS = 8_000
+MAX_DETECTOR_CHARS = 6_000
 """Longer messages are scanned at their start and end only."""
 
 CRISIS_THRESHOLD = 3

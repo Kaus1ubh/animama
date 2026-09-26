@@ -1,6 +1,6 @@
 # Companion safety baseline
 
-Status: Agreed — published; implementation in progress
+Status: Agreed — implemented on the branch; awaiting owner gates and merge approval
 Owner decision: 2026-09-25 intent discovery settled age policy, legal target,
 self-host overrides, detector strategy, crisis-turn memory, referral counting,
 AI-notice cadence and placement, crisis-resource source and protocol location.
@@ -489,7 +489,6 @@ placement. Add glossary entries for *AI notice*, *continuing interaction* and
   spot in Avatar-only. Nothing in PiP.
 - Own vetted resource table.
 - Repo protocol document plus an in-app Safety page.
-- Moderation is a Settings toggle, default off.
 - An app-settings Safety section with region, a shorter-only
   interval and the Safety link, added by the owner after planning. The owner
   then dropped any in-app relax or disable toggles: the global environment switch

@@ -52,8 +52,8 @@ When either check finds a possible crisis:
   number, and a link to this page. The card is shown by the app, not written by
   the Anima, so the Anima cannot hide or change it. It stays until you dismiss
   it.
-- The Anima is asked to respond with warmth, take what you said seriously and
-  encourage you to reach out to someone you trust or to the crisis line. The
+- The Anima's fixed guardrails ask it to respond with warmth, take what you
+  said seriously and encourage you to reach out to someone you trust or to the crisis line. The
   Anima never provides methods or encourages self-harm.
 
 Chat is never blocked or delayed by these checks.
@@ -107,7 +107,7 @@ card asks you to contact a local crisis line or your local emergency number.
 
 - The built-in check looks for explicit statements. It misses some indirect
   or unusual phrasing, and occasionally flags ordinary messages. For very long
-  messages it checks only the first and last 4,000 characters. Moderation
+  messages it checks only the first and last 3,000 characters. Moderation
   helps only when you use an OpenAI Responses model.
 - Animama does not verify age; it relies on your confirmation.
 - Animas are AI. They can make mistakes and cannot call for help on your

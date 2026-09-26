@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { preferredClientLocale } from "@animama/product-ui/chat";
 import { getCrisisResourcesV1SafetyCrisisResourcesGet } from "@animama/runtime-contracts/sdk";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
@@ -45,7 +46,7 @@ export function SafetySettingsSection({
 }: SafetySettingsSectionProps) {
   const ownerId = useRuntimeOwnerId();
   const capabilities = useRuntimeCapabilities();
-  const locale = typeof navigator === "undefined" ? "" : navigator.language;
+  const locale = preferredClientLocale() ?? "";
   const resources = useQuery({
     queryKey: queryKeys.crisisResources(ownerId ?? "__anon__", locale),
     enabled: Boolean(ownerId),

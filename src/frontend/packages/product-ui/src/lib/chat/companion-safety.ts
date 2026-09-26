@@ -64,6 +64,15 @@ export function isChatCrisisSupport(
   );
 }
 
+/** The user's preferred locale, preferring one that names a region (e.g. `en-US`). */
+export function preferredClientLocale(): string | null {
+  if (typeof navigator === "undefined") return null;
+  const locales = [...(navigator.languages ?? []), navigator.language].filter(
+    (value): value is string => typeof value === "string" && value.length > 0,
+  );
+  return locales.find((value) => /[-_][a-z]{2}\b/iu.test(value)) ?? locales[0] ?? null;
+}
+
 /** Time zone and locale sent with each chat turn for the notice day and resource region. */
 export function currentChatClientContext(): PyChatClientContext {
   let timeZone: string | null = null;
@@ -72,9 +81,5 @@ export function currentChatClientContext(): PyChatClientContext {
   } catch {
     timeZone = null;
   }
-  const locale =
-    typeof navigator !== "undefined" && typeof navigator.language === "string"
-      ? navigator.language
-      : null;
-  return { time_zone: timeZone, locale };
+  return { time_zone: timeZone, locale: preferredClientLocale() };
 }
