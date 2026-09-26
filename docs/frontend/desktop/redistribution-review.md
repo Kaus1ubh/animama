@@ -17,8 +17,8 @@ human review; stored receipts apply only to their exact inputs.
 - [Source review inventory](../../../licenses/README.md) describes the broader
   source-publication review, which is distinct from packaged redistribution.
 
-Pocket ONNX weights, tokenizer and the `eve`, `azelma`, `mary` and `jane` voice
-states are CC BY 4.0, which permits commercial use with attribution; Kyutai's
+Pocket ONNX weights, tokenizer and the 38 voice states are CC BY 4.0 (four
+states derive from CC0 recordings), which permits commercial use with attribution; Kyutai's
 model-card prohibited-use terms still apply. `runtime/release-policy.json`
 separately records a noncommercial distribution basis, which release validation
 requires; changing it is a separate owner decision. Per-file terms are documented

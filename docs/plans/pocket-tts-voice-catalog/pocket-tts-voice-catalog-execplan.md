@@ -81,9 +81,10 @@ Line numbers are at the baseline.
 - [ ] Phase 3 (#152): Shipped voice assets, acquisition and licences.
       Agent work complete (`22c571b`, Review #2 passed); waiting on gate **G2**,
       the owner publishing to R2.
-- [ ] Phase 4 (#153): Data-driven worker voice list, grouped selector and
-      stale-voice notice.
-- [ ] Phase 5 (#154): Inventory, size, docs and verification. Ends at gate
+- [x] Phase 4 (#153): Data-driven worker voice list, grouped selector and
+      stale-voice notice. Complete (`7663264`, `769968e`); Review #2 passed.
+- [ ] Phase 5 (#154): Inventory, size, docs and verification. Docs, stage and
+      audit are done; published-object verification waits on G2, then gate
       **G3**, owner acceptance.
 
 ## Surprises & Discoveries
@@ -848,11 +849,62 @@ Issue #153. Starting revision `22c571b`.
 
 #### Code Review #1 Findings
 
-_Pending._
+Independent reviewer, pinned to `7663264` over `22c571b`, including the
+generated catalog and its generator. Checks: speech and runtime-asset tests
+(43 passed), `pnpm check` and lint clean, Prettier clean on the Phase 4 files.
+
+Confirmed sound:
+- **Worker lazy loading:** dedupe, eviction invariants, evicted-but-current
+  references, the conditioned cache, and untouched Anima and custom paths.
+- **Name validation:** names are checked before any URL is built.
+- **Selector:** groups, labels and the trigger text are correct.
+- **Generated catalog:** it equals `selection.json`.
+- **Licence records:** the hashes match the LFS object IDs.
+
+Required:
+- **P4-R1-F1.** The "once per session" notice lived in a hook ref, so
+  remounting the chat panel (switching Anima or canvas mode) repeated it.
+- **P4-R1-F2.** The catalog builder's worker load sent no voices and would now
+  always fail. It is latent: no callers, but it is documented.
+
+Optional:
+- **P4-R1-F3.** A failed voice load failed `set_voice` but still generated in
+  the previous voice.
+- **P4-R1-F4.** The "Other voices" group was unreachable, and
+  `pocketVoiceLabel` hard-coded `"custom"`.
+- **P4-R1-F5.** Tests used a shipped voice (`fantine`) as the "removed"
+  example.
+- **Docs to update:** `voice.md` fallback step 5.
+
+The reviewer also ran the root `pnpm prettier` script, which writes, and
+reformatted 13 unrelated tracked files (formatting only). They are left
+uncommitted for the owner to decide on and are excluded from every commit.
 
 #### Code Review #1 Revisions
 
-_Pending._
+All accepted and fixed in `769968e`:
+- **F1.** The module-level `claimSessionNotice` in `voice-preferences.ts`
+  lasts for the app session, with a test.
+- **F2.** `catalog-builder` sends the catalog voices and default.
+- **F3.** `startGeneration` no longer swallows a built-in voice load failure.
+- **F4.** The branch is removed, and the label uses
+  `POCKET_TTS_CUSTOM_VOICE`.
+- **F5.** Examples use `cosette`.
+- **Docs.** Fixed in the Phase 5 docs commit.
+
+Checks: speech tests (31 passed), `pnpm check` and lint clean, Prettier
+clean.
+
+#### Code Review #2 Findings
+
+Targeted recheck, pinned to `769968e`. All five findings are fixed with no
+regressions. The reviewer confirmed:
+- the load failure reaches the generation `catch`/`finally` with no unhandled
+  rejection, and back-to-back `set_voice`/`generate` share one rejection;
+- there is no import cycle;
+- the worker licence hash matches the LFS object ID.
+
+Result: **pass**. Phase 4 is complete (`7663264`, `769968e`).
 
 ### Phase 5: Inventory, size, docs and verification
 
@@ -882,7 +934,38 @@ Checks:
 - the Compose config checks;
 - the full backend and frontend suites.
 
-Results, issue and commits: _pending_.
+#### Phase 5 results so far (2026-09-26)
+
+Issue #154.
+
+- **Desktop runtime** (darwin arm64, task-owned `UV_CACHE_DIR`).
+  `pnpm desktop:runtime:stage -- --platform darwin --arch arm64` and
+  `desktop:runtime:audit` both pass:
+  - 5,385 files, none missing or unexpected;
+  - zero content diagnostics for Annie and Caitlyn;
+  - the native restore check passes;
+  - **core download 654,172,350 of 786,432,000 bytes** (430 MB before this
+    work), **installed 1,270,400,903 of 1,610,612,736 bytes**. Both are under
+    the caps with no size exception;
+  - the staged `THIRD_PARTY_NOTICES.txt` credits all 38 voices.
+
+  The voice states barely compress, so download headroom is now about 132 MB.
+- **Docs updated:**
+  - `docs/backend/operations/model-assets.md`: 47 and 58 files,
+    release-hosted states, and a new "Changing the Pocket voice set" workflow;
+  - `docs/frontend/runtime/voice.md`: catalog, lazy loading, grouped picker,
+    stale-voice notice and fallback order;
+  - `content-and-workers.md`, `runtime-staging.md` and
+    `redistribution-review.md`;
+  - `licenses/README.md` and `src/frontend/AGENTS.md`.
+
+  `emotional-voice-catalog.md` needed no change once the catalog builder was
+  fixed.
+- **Remaining:**
+  - Gate **G2** upload, then a real acquisition into a fresh root.
+  - `pnpm desktop:mac` and a built self-host stack against the published
+    objects.
+  - Gate **G3**, owner acceptance.
 
 #### Code Review #1 Findings
 

@@ -84,7 +84,7 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 4. Builds Vite in `embedded-desktop` mode, without duplicate Included aliases.
    The stage filter and independent audit reject unapproved portrait copies
    listed in `desktop/scripts/runtime/desktop-web.mjs`.
-   The browser-runtime manifest verifies all 24 PocketTTS, VAD, Smart Turn and
+   The browser-runtime manifest verifies all 58 PocketTTS, VAD, Smart Turn and
    ORT assets from the shared model store and exact dependency versions. Vite
    copies every reviewed variant into the runtime; the independent audit checks
    the built inventory and hashes without relying on a developer cache. These
@@ -127,7 +127,7 @@ mappings and the pending artifact review.
 
 ## Verified browser engine inputs
 
-`models/browser-speech/manifest.json` pins the thirteen shared Pocket TTS/Smart Turn
+`models/browser-speech/manifest.json` pins the 47 shared Pocket TTS/Smart Turn
 files. `models/browser-runtime/manifest.json` binds those plus nine ORT 1.24.2
 files from `onnxruntime-web-assets` and two VAD 0.0.30 files from its pinned
 package. Package installation supplies dependency files; staging only verifies

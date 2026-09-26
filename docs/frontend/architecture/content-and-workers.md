@@ -25,8 +25,8 @@ git lfs pull
 ```
 
 Speech engine payloads use a separate verified input path. The tracked
-`models/browser-runtime/manifest.json` records all 24 same-origin `/onnx/` assets:
-thirteen Pocket TTS/Smart Turn files acquired into the shared model store, nine
+`models/browser-runtime/manifest.json` records all 58 same-origin `/onnx/` assets:
+47 Pocket TTS/Smart Turn files acquired into the shared model store, nine
 ORT 1.24.2 files resolved from the exact dependency alias, and two VAD 0.0.30
 files resolved from its pinned package. Vite verifies their sizes and SHA-256
 hashes before serving or building; it does not fetch model inputs implicitly.
