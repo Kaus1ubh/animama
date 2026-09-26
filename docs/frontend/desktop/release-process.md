@@ -39,7 +39,9 @@ does not prove a clean machine or minimum-OS compatibility.
 ## Commands and inputs
 
 Build details, helper reuse, token scope and first-release upgrade QA are in
-[Release tooling](releases.md). From `src/frontend`, the candidate sequence is:
+[Release tooling](releases.md). Set the release version only in
+`desktop/package.json`: it versions the packaged app, and the web build reports
+it in About. From `src/frontend`, the candidate sequence is:
 
 ```sh
 pnpm desktop:runtime:stage -- --platform darwin --arch arm64
