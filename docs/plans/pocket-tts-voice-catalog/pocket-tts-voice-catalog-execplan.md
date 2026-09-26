@@ -119,10 +119,43 @@ Line numbers are at the baseline.
   App Settings → About. It lists core voice credits and the credits of
   installed downloaded voices, generated from the catalog. This keeps credit
   out of the selector, per the owner's "notices only" choice.
-- **D7.** 2026-09-26, agent. Voice-authoring tools use a `voice-tools` uv
-  dependency group (onnxruntime, soundfile, safetensors and a pinned Parakeet
-  ONNX ASR wrapper). It is not installed in the runtime image or the frozen
-  backend.
+- **D7.** 2026-09-26, agent; revised the same day during Phase 1. Voice
+  tools are one uv script (`scripts/voices/voices.py`) with inline (PEP 723)
+  dependencies and its own `voices.py.lock`. The dependencies are numpy,
+  scipy, onnxruntime, sentencepiece and onnx-asr. The originally planned
+  `voice-tools` dependency group was dropped: adding it re-resolved the shared
+  `uv.lock` and moved Linux `file-worker`'s `transformers` from 5.8.1 to
+  5.17.0, an unrelated change. The script environment leaves the backend lock,
+  runtime image and frozen backend untouched.
+- **D8.** 2026-09-26, agent, from Phase 1 evidence. Of the 23 non-shipped
+  Kyutai voices, 14 remain candidates, not the spec's "17 licensed". With
+  the four shipped voices, 18 Kyutai voices are candidates.
+  - `daan` has no source recording in Kyutai's model card, so R1 excludes it
+    as an unknown licence.
+  - `javert` and `marius` come from `voice-donations/`, which the owner
+    excluded (spec decisions), so they are excluded too. They can be restored
+    at G1 if the owner wants them.
+  - Kyutai's four precomputed Voice-Zero states (`bill_boerst`, `caro_davy`,
+    `peter_yearsley`, `stuart_bell`, CC0) remain candidates. They belong to
+    the Kyutai set the owner selected in discovery; the Voice-Zero exclusion
+    applies to encoding new voices from that dataset.
+  - The remaining candidates are the four shipped voices plus `alba`, `anna`,
+    `charles`, `eponine`, `estelle`, `fantine`, `george`, `michael`, `paul`
+    and `vera`, plus the Voice-Zero four.
+- **D9.** 2026-09-26, agent, from Phase 1 evidence. The encoder does not trim
+  its input. Kyutai's `eve` state has 133 positions: BOS plus
+  `ceil(10.497 s × 12.5)` = 132 frames of the full, untrimmed `p361_023`
+  clip. Trimming would therefore diverge from Kyutai's recipe, so R5's
+  "trim" step is intentionally a no-op. The reproduction tolerance is a
+  per-layer cosine ≥ 0.998. The shipped INT8 `flow_lm_main` differs slightly
+  from Kyutai's reference model, which puts every reproduced voice at
+  0.99865–0.99873. The unenhanced clip only reaches 0.989, so the tolerance
+  separates a correct recipe from a wrong source.
+- **D10.** 2026-09-26, agent. VCTK accents are raw dataset tokens
+  (`NorthernIrish`, `SouthAfrican`, `NewZealand`, `Unknown`). Five
+  manual-label candidates have no accent. Phase 3 maps these tokens to display
+  tags (for example "Northern Irish") and omits the tag for `Unknown` or a
+  missing value.
 
 ## Phased implementation
 
@@ -132,46 +165,43 @@ Requirements: R1–R3 and R5. Dependencies: an acquired browser speech store and
 Parakeet store (`python3 scripts/models/browser_speech.py acquire`,
 `python3 scripts/models/parakeet.py acquire`).
 
-Intended changes:
+Intended changes (as delivered; see D7):
 
-1. **`scripts/voices/` (new):**
-   - `sources.json`: pinned inputs.
-     - The Kyutai states repo and revision.
-     - `kyutai/tts-voices` @`323332d3…`, with `vctk/pNNN_023_enhanced.wav`
-       paths and SHA-256.
-     - The VCTK `speaker-info.txt` (gender, age, accent) from a pinned, hashed
-       source. If no pinned copy is reachable without the full corpus, record
-       the labels manually in the inventory, marked as such.
-     - Each candidate's licence evidence.
-   - `inventory.py`: builds `docs/plans/pocket-tts-voice-catalog/voice-inventory.json`
-     and a Markdown summary. Each record has the ID, source, revision, hash,
-     licence, gender, accent and a `status` (`candidate`, `excluded:<reason>`).
-     The Kyutai voices `cosette`, `jean`, `giovanni`, `lola`, `juergen` and
-     `rafael` are `excluded`. VCTK speakers already used by Kyutai's states are
-     deduplicated, keeping Kyutai's state.
-   - `encode.py`: pinned clip → state `.safetensors`, using the recipe above
-     with the same ONNX files as the core store. Deterministic: fixed trimming,
-     a CPU provider, one thread.
-   - `screen.py`: renders the six #130 prompts with fixed seeds at temperature
-     0.3 through the shipped graphs. It records Parakeet lenient WER, peak and
-     clipping ratio, leading and trailing silence, and RMS noise-floor
-     estimates. It writes `screen-results.json`, ranked per gender.
-   - `listening_page.py`: writes a static HTML page and WAVs to an ignored
-     output directory (default under the OS cache, overridable). The page shows
-     the top N per gender (default 30 female and 12 male) with metadata, scores
-     and checkboxes for core, catalog and recommended. It exports the selection
-     as JSON for the Phase 3 input.
-2. Add the `voice-tools` dependency group to `pyproject.toml` (D7).
-3. Tests (`tests/test_voice_tools.py`):
-   - the inventory rejects NC or unknown licences and duplicate IDs;
-   - the encoder reproduces `eve` and one more Kyutai VCTK voice from its
-     source clip within tolerance (cosine ≥ 0.998 per layer; recorded);
-   - determinism: encoding twice yields identical bytes.
+1. **`scripts/voices/` (new).** Run with `uv run scripts/voices/voices.py <command>`.
+   - `sources.json`: the pinned inputs and each Kyutai voice's recording,
+     licence, VCTK speaker or manual gender label, and any exclusion reason.
+     `pin` adds the upstream size and SHA-256 of every file at the pinned
+     revisions. It also extracts VCTK's `speaker-info.txt` from the
+     11.7 GB DataShare archive using HTTP range reads of the ZIP directory and
+     one member, and records its SHA-256.
+   - `pocket_onnx.py`: an offline port of the worker's April runtime. It
+     encodes a voice state (resample, Mimi encoder, BOS, INT8 voice
+     conditioning, sliced cache plus offset) and renders a prompt with a seeded
+     generator, one CPU thread, and the worker's EOS tail and frame limit.
+   - `voices.py` commands:
+     - `fetch` verifies downloads into an untracked work directory,
+       `<model root>/../voice-tools`.
+     - `encode` writes states and their hashes; `encode --check` reproduces
+       Kyutai's VCTK states.
+     - `screen` covers six prompts per voice: Parakeet INT8 lenient WER through
+       onnx-asr, EOS, clipping, leading and trailing silence, and noise floor.
+     - `inventory` writes `voice-inventory.{json,md}` beside this plan.
+     - `listen` writes the static curation page with an exportable selection.
+2. Tests (`tests/test_voice_tools.py`) cover:
+   - speaker-info parsing;
+   - candidate building (licence exclusions, VCTK deduplication, missing
+     metadata);
+   - ZIP member extraction through range reads;
+   - the host allowlist;
+   - WER, quality flags and ranking;
+   - the listening page's selection controls;
+   - byte-stable safetensors output.
 
-   Mark the ONNX-dependent tests to skip clearly when the stores are absent.
+   ONNX reproduction and determinism run through the script environment and
+   are recorded under Phase 1 results.
 
-Checks: `uv run pytest -q tests/test_voice_tools.py`, `uv run ruff check`, and
-a full `screen.py` run with the results summarized here.
+Checks: `uv run pytest -q tests/test_voice_tools.py`, `uv run ruff check`,
+`encode --check`, and a full `screen` run with the results summarized here.
 
 Completion: the inventory covers every candidate and the screening results are
 recorded. The encoder tolerance is met and recorded, or Phase 1 stops and
@@ -182,15 +212,151 @@ recommended voices and whether `eve` stays default. Record a dated decision with
 counts and the gender split. If the female pool is short (R3), the owner decides
 the balance.
 
-Results, issue and commits: _pending_.
+#### Phase 1 results (2026-09-26)
+
+Issue #150. Starting revision `0f9823c`. Environment: Apple Silicon macOS;
+uv script environment from `voices.py.lock` (onnxruntime 1.30.0 on CPU, one
+thread); the verified browser speech and Parakeet stores.
+
+- **Pinning** (`voices.py pin`): 27 Kyutai states and 106 VCTK
+  `_enhanced.wav` clips pinned with their Hugging Face LFS SHA-256.
+  `speaker-info.txt` (110 speakers, 4,028 bytes, SHA-256 `ee6447ed…`) was
+  extracted through range reads of the 11.7 GB archive.
+- **Fetch:** 133 files verified in about 69 s.
+- **`encode --check`:** all 12 Kyutai VCTK voices reproduced, with per-voice
+  minimum cosine 0.99865–0.99873 against tolerance 0.998. A non-enhanced clip
+  scores 0.989 (D9).
+- **`encode`:** 94 VCTK candidates in about 70 s. Three full runs produced
+  identical SHA-256 for every state. Hashes are tracked in
+  `scripts/voices/encoded-state-hashes.json`; a changed hash fails unless
+  `--rehash` is passed.
+- **Inventory:** 121 records, 112 candidates and 9 excluded (`cosette`,
+  `jean`, `daan`, `giovanni`, `lola`, `juergen`, `rafael`, `javert`,
+  `marius`). Candidates are 62 female and 50 male.
+- **Screen:** six prompts × 112 voices, about 22 min. Two number prompts from
+  the first trial were replaced, because Parakeet writes digits ("$42.50") and
+  that inflates WER without reflecting speech.
+  - 97 voices score mean lenient WER 0.
+  - Clean voices (no flags): 57 of 62 female and 46 of 50 male. So 75% female
+    at any agreed size is feasible.
+  - Flags: 4 lead-silence, 3 clipping, 1 noisy, and 1 unintelligible prompt
+    (`vctk-p282`, "Pie there.").
+  - Every render reached EOS. Leading silence is about 0.7 s for every voice,
+    so its flag threshold is 1.2 s.
+- **Listening page:** `voices.py listen` shows all screened voices, ranked,
+  with per-gender selection counts. The selection persists in the browser
+  and exports as JSON. Served locally for G1.
+- **Checks:**
+  - `uv run --no-sync pytest -q tests/test_voice_tools.py`: 20 passed.
+  - `uv run --no-sync ruff check scripts/voices tests/test_voice_tools.py`: clean.
+  - `ruff format --check`: clean.
+  - `uv run --no-sync mypy tests/test_voice_tools.py`: clean.
+  - `uv lock --script scripts/voices/voices.py --check`: current.
 
 #### Code Review #1 Findings
 
-_Pending._
+Independent reviewer (read-only). Source: Phase 1 working tree on `0f9823c`.
+Checks rerun: `pytest` 14 passed, ruff and format clean, the script lock
+current, and `encode --check --only eve` at 0.99871.
+
+The runtime port was verified against the worker: conditioning, the EOS
+tail, the frame limit, decode partitioning and the state export format all
+match.
+
+Required fixes:
+- **P1-R1-F1.** `encode --check` could pass without a valid comparison. NaN
+  from a shape mismatch was ignored by `min()`, an unknown `--only` passed,
+  and offsets were never compared.
+- **P1-R1-F2.** Encoded-state hashes were untracked, and a rerun silently
+  replaced them.
+- **P1-R1-F3.** The plan did not record the no-trim recipe, the 14-voice
+  Kyutai set (`daan`, donations, Voice-Zero), or the tolerance rationale.
+- **P1-R1-F4.** A `pocket_onnx.py` docstring still referenced the dropped
+  dependency group.
+
+Optional:
+- **P1-R1-F5.** Unbalanced parentheses in VCTK regions; raw accent tokens.
+- **P1-R1-F6.** The listening page's defaults were too small, and it lacked
+  per-gender counts, persistence and checkbox labels.
+- **P1-R1-F7.** Cached screen results were reused after the prompts or seed
+  changed.
+- **P1-R1-F8.** The ZIP64 path was untested, and the locator search was
+  fragile.
+- **P1-R1-F9.** Network errors escaped as tracebacks, and a docstring
+  overstated its validation.
+- **P1-R1-F10.** `render` handled only plain, single-chunk prompts, with no
+  guard, and parity helpers were untested.
 
 #### Code Review #1 Revisions
 
-_Pending._
+All ten were verified and accepted.
+
+- **F1, fixed.**
+  - `pocket_onnx.compare_states` raises on differing tensors, shapes, dtypes
+    or offsets, and on a non-finite cosine.
+  - `check_reproduction` fails when the selection is empty or contains an
+    unknown voice.
+  - Tests: the structural-difference test and the empty-selection test.
+    `encode --check --only nope` now errors.
+- **F2, fixed.**
+  - Tracked `encoded-state-hashes.json`; `record_state_hash` refuses a
+    changed hash without `--rehash`.
+  - The inventory records `encoded_state_sha256`.
+  - Tested, and three runs gave identical hashes.
+- **F3, fixed.** D8 and D9 added, and results recorded above.
+- **F4, fixed.** Docstring corrected.
+- **F5, fixed.** Parentheses are stripped anywhere in the region, with a test;
+  accent display mapping is deferred to Phase 3 (D10).
+- **F6, fixed.** The page shows all screened voices by default, with
+  per-gender counts, `localStorage` persistence and `aria-label`s.
+- **F7, fixed.** Screening stores its parameters and refuses to mix results
+  with different ones unless `--force` is passed.
+- **F8, fixed.** The locator is read at the fixed position before the classic
+  record, and a forced-ZIP64 test was added.
+- **F9, fixed.** HTTP, redirect and network errors become `VoiceToolError`,
+  and the docstring was corrected.
+- **F10, fixed.** `render` rejects digits, symbols and prompts over one
+  50-token chunk. The worker limit helpers are unit-tested.
+
+#### Code Review #2 Findings
+
+This was a targeted recheck. It verified each of F1–F10 as resolved,
+including:
+- tracked, inventory and work-directory hashes agree for all 94 voices;
+- `--only nope` errors;
+- the ZIP64 test runs;
+- the regions are fixed.
+
+Checks:
+- pytest: 20 passed;
+- ruff, format, mypy and the script lock: all clean;
+- `encode --check --only eve`: 0.99871.
+
+Result: **pass**. Optional residuals:
+- **P1-R2-F1.** A forced partial re-screen could keep old renders under new
+  parameters.
+- **P1-R2-F2.** A rejected state still replaced the work file.
+- **P1-R2-F3.** The `render` guard does not cover every normalisation case,
+  such as abbreviations, `:`/`;`/`+` and non-ASCII text.
+- **Recovery text.** The recovery section and the `voices.py` docstring
+  ignored the tracked outputs.
+
+#### Code Review #2 Revisions
+
+- **P1-R2-F1, fixed.** A changed parameter set with `--force` clears all
+  voices before re-screening.
+- **P1-R2-F2, fixed.** Encoded states are written to `.partial` and moved
+  into place only after the hash check passes.
+- **Recovery text, fixed.** Both the recovery section and the docstring now
+  describe the tracked outputs.
+- **P1-R2-F3, deferred to Phase 3.** The sample prompt will be chosen as
+  plain words and short punctuation. Phase 3's sample renderer must reject
+  text that the worker would normalise differently.
+
+Review budget used: the initial review and one repair round. Phase 1 agent
+work is complete; gate G1 remains.
+
+Gate G1: pending the owner's selection.
 
 ### Phase 2: Shared backend asset downloader
 
@@ -254,15 +420,88 @@ Checks:
 
 Completion: all of the above pass and review is complete.
 
-Results, issue and commits: _pending_.
+#### Phase 2 results (2026-09-26)
+
+Issue #151. Starting revision `0f9823c`. A delegated implementation agent
+worked in the same worktree as Phase 1, on disjoint files.
+
+- **Layered implementation.**
+  - `domain/model_assets.py`: catalog schema `animama-asset-catalog/1`,
+    descriptors, state, vetoes, and `PRODUCTION_ASSET_HOSTS =
+    {downloads.animama.ai}`.
+  - `app/ports` and `app/services/model_asset_service.py`: single-flight
+    background install per asset, cancellation that waits for in-flight IO,
+    and removal guards.
+  - `adapters/model_assets/`:
+    - The filesystem store writes `<data_root>/internal/model-assets/<id>/<sha256>`
+      from private staging, with fsync and atomic rename; staging is purged at
+      startup.
+    - The httpx fetcher follows no redirects, requires an exact 200 and
+      rechecks the allowlist.
+  - `server/`: one service per app, created at startup and cancelled at
+    shutdown.
+  - Routes under `/v1/model-assets`. Content uses the existing Range/ETag
+    logic, extracted from `local/http/assets.py` as `verified_file_response`.
+- **Empty production catalog:** `resources/model-assets.v1.json`. Phase 3
+  fills it.
+- **Deviations:**
+  - Tests use `httpx.MockTransport` behind the production allowlist instead
+    of a loopback fixture server. No test-only host allowance exists anywhere,
+    which is stricter than planned.
+  - Implementation preceded the tests (TDD exception). It was compensated by
+    mutation checks: disabling the hash check, staging cleanup, redirect
+    refusal, idempotent install or guard veto each fails the tests.
+- **Checks:**
+  - `uv run pytest -q tests/test_model_assets.py`: 30 passed.
+  - `uv run pytest -q`: 1962 passed, 7 skipped. A first run failed 2 tests
+    because a composition test stubs `local_runtime_paths`; the data root now
+    comes from settings, which is the same path on desktop and Compose.
+  - `uv run ruff check src tests` and `ruff format --check`: clean.
+  - mypy: clean for the new modules.
+  - The import-boundary script reports `forbidden_edges: 0`.
+  - `pnpm openapi-ts` regenerated the client; `pnpm openapi-ts:check` reports
+    it current, and `pnpm check` passes.
 
 #### Code Review #1 Findings
 
-_Pending._
+Independent reviewer (read-only), on the working tree over `0f9823c`.
+Checks rerun:
+- asset and local-HTTP tests: 132 passed;
+- ruff and format: clean;
+- mypy on the 9 modules plus tests: clean;
+- import boundary: 0 forbidden edges;
+- the SDK: current.
+
+It verified atomic install, no partial visibility, cancellation, the size and
+SHA-256 bound, redirect and host enforcement, path safety, auth and CSRF
+admission, the refactor, layering, desktop packaging of the catalog, and the
+Phase 4 fit.
+
+Result: **pass**, with no blocking findings. Optional findings:
+
+- **P2-R1-F1.** An install that races a removal can hit OSError and return a
+  generic 500.
+- **P2-R1-F2.** `aiter_bytes` decodes `Content-Encoding`, so the size bound
+  applies after decompression.
+- **P2-R1-F3.** The host allowlist ignores an explicit non-default port.
+- **P2-R1-F4.** The plan named a loopback fixture, but tests use
+  `MockTransport`.
+- **P2-R1-F5.** The store re-derives the staging and internal roots instead
+  of taking the local runtime paths.
+- **P2-R1-F6.** `wait()` and `catalog` have no production caller yet.
+- **P2-R1-F7.** A file that vanishes after the lookup returns the shared
+  `{"error":"not_found"}` body.
 
 #### Code Review #1 Revisions
 
-_Pending._
+- **F1, F2, F3, F7: accepted.** Fixes are in progress; results will be
+  recorded here.
+- **F4: accepted as a record change.** Captured under Deviations above.
+- **F5: rejected.** The reviewer confirmed that settings and
+  `resolve_local_runtime_paths` resolve the same data root on desktop
+  (`ANIMAMA_DATA_ROOT=<userData>/data`) and on Compose.
+- **F6: deferred.** Phase 4 reads `catalog`, and `wait()` supports the tests.
+  If neither is used by the end of Phase 4, remove them then.
 
 ### Phase 3: Curated assets, manifests and licences
 
@@ -488,8 +727,12 @@ separately. None is marked passed without its evidence.
 
 ## Idempotence and recovery
 
-- The Phase 1 tools write only to ignored output directories. Re-running them
-  is safe, and pinned inputs make results reproducible.
+- The Phase 1 tools write working files only to the untracked work directory.
+  They also update tracked records: `pin` updates `sources.json`, `encode`
+  updates `encoded-state-hashes.json`, and `inventory` updates
+  `voice-inventory.{json,md}`. Re-running them is safe: pinned inputs make
+  results reproducible, and `encode` refuses a changed state hash unless
+  `--rehash` is passed.
 - Core acquisition creates a new digest directory, leaving old stores intact.
   Roll back by checking out the previous manifest.
 - Downloader: a failed install leaves only staging files, which are removed at
