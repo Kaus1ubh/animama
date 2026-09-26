@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ANIMAMA_PREFERENCES,
   DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
+  isParakeetWebgpuPreferred,
   mergePreferences,
   resolveElevenLabsV3FinalizedChunking,
   toElevenLabsV3FinalizedChunking,
@@ -26,5 +27,21 @@ describe("ElevenLabs v3 finalized chunking preferences", () => {
     expect(merged.speech?.tts_elevenlabs_v3_finalized_chunking).toBe(
       "paragraph",
     );
+  });
+});
+
+describe("isParakeetWebgpuPreferred", () => {
+  it("is off unless the experimental setting is explicitly true", () => {
+    expect(isParakeetWebgpuPreferred(null)).toBe(false);
+    expect(isParakeetWebgpuPreferred(DEFAULT_ANIMAMA_PREFERENCES)).toBe(false);
+    // Saved preferences are untyped JSON, so a string must not enable it.
+    expect(
+      isParakeetWebgpuPreferred({
+        speech: { stt_parakeet_webgpu: "true" as unknown as boolean },
+      }),
+    ).toBe(false);
+    expect(
+      isParakeetWebgpuPreferred({ speech: { stt_parakeet_webgpu: true } }),
+    ).toBe(true);
   });
 });

@@ -1,6 +1,10 @@
 import type { TranscribeResult } from "parakeet.js";
 
-export type ClientParakeetBackend = "wasm";
+/**
+ * `wasm`: INT8 encoder and decoder on single-thread WASM (default).
+ * `webgpu`: experimental; FP16 encoder on WebGPU, INT8 decoder on WASM.
+ */
+export type ClientParakeetBackend = "wasm" | "webgpu";
 
 export type ClientParakeetModelUrls = {
   encoderUrl: string;
@@ -27,9 +31,17 @@ export type ClientParakeetLoadRequest = {
   sampleRateHz: number;
 };
 
+/**
+ * `final` decodes a closed speech window and is the only source of dictated or
+ * submitted text. `preview` decodes the still-growing window for display-only
+ * interim text.
+ */
+export type ClientParakeetTranscribeKind = "preview" | "final";
+
 export type ClientParakeetTranscribeRequest = {
   type: "client_parakeet/transcribe";
   requestId: string;
+  kind: ClientParakeetTranscribeKind;
   jobId: string;
   runId: string;
   turnId: string;
@@ -66,7 +78,7 @@ export type ClientParakeetTranscribeResult = {
   turnId: string;
   windowId: string;
   text: string;
-  isFinal: true;
+  isFinal: boolean;
   sampleRateHz: number;
   audioSamples: number;
   audioDurationMs: number;

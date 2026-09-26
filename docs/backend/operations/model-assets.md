@@ -128,6 +128,35 @@ removing unused versions. Cleanup is explicit; the application does not evict mo
 self-host operators needing durable availability should choose persistent storage.
 Installed desktop packs remain separately owned under Application Support.
 
+## Optional Parakeet WebGPU encoder
+
+The experimental "GPU-accelerated offline speech (WebGPU)" setting uses an
+optional FP16 encoder set (about 1.24 GB), stored under
+`parakeet-tdt-0.6b-v2-webgpu/<manifest-digest>/` in the same root.
+
+- It pairs with the base Parakeet decoder, preprocessor and vocabulary, which
+  are still required.
+- It is not part of the desktop `parakeet-stt` pack inventory.
+
+Acquire it only when you want to test WebGPU speech:
+
+```bash
+python3 scripts/models/parakeet_webgpu.py acquire
+python3 scripts/models/parakeet_webgpu.py path
+```
+
+`reset.sh` resolves it offline and records `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`
+when it exists. Missing the set never fails startup:
+
+- development Compose mounts the tracked notices directory instead;
+- the setting then reports the GPU model as not installed;
+- speech keeps using WASM.
+
+Only Vite development stacks, including `desktop:dev`, serve this encoder
+(`/__client-parakeet-webgpu-models/`). Built self-host and packaged desktop
+builds report it as unavailable. Rerun `reset.sh` after acquiring it for a
+running stack.
+
 ## Browser speech assets and dependency inputs
 
 The thirteen reviewed Pocket TTS and Smart Turn files share the same model root,

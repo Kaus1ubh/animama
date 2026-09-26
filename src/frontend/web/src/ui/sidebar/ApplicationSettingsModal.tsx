@@ -54,6 +54,7 @@ import {
   type TtsProvider,
 } from "@/lib/speech/tts-provider";
 import { Switch } from "@/ui/components/switch";
+import { ExperimentalSettingsPanel } from "@/ui/sidebar/ExperimentalSettingsPanel";
 import { Button } from "@/ui/components/button";
 import { DialogOverlay } from "@/ui/components/dialog";
 import { DisplayNameSettings } from "@/ui/profile/DisplayNameSettings";
@@ -141,7 +142,13 @@ function ShortcutRecorder({
   );
 }
 
-const sections = ["General", "Voice", "Memory", "Advanced"] as const;
+const sections = [
+  "General",
+  "Voice",
+  "Memory",
+  "Advanced",
+  "Experimental",
+] as const;
 type ApplicationSettingsSection = (typeof sections)[number];
 
 const OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent";
@@ -1273,6 +1280,9 @@ export function ApplicationSettingsModal({
                 </div>
               </section>
             </>
+          ) : null}
+          {activeSection === "Experimental" ? (
+            <ExperimentalSettingsPanel disabled={isBusy} />
           ) : null}
         </SectionedModalFrame>
       </Dialog.Portal>
