@@ -193,12 +193,18 @@ cloud/cdk.out*/
 
 # Verified engine payloads come from the model build context and pinned packages.
 # Keep the separate optional models/pocket-tts/animas/*_voices.bin user inputs.
-src/frontend/web/public/onnx/models/pocket-tts/flow_lm_flow_int8.onnx
+src/frontend/web/public/onnx/models/pocket-tts/bos_before_voice.npy
+src/frontend/web/public/onnx/models/pocket-tts/bundle.json
+src/frontend/web/public/onnx/models/pocket-tts/flow_lm_flow.onnx
 src/frontend/web/public/onnx/models/pocket-tts/flow_lm_main_int8.onnx
-src/frontend/web/public/onnx/models/pocket-tts/mimi_decoder_int8.onnx
+src/frontend/web/public/onnx/models/pocket-tts/mimi_decoder.onnx
 src/frontend/web/public/onnx/models/pocket-tts/mimi_encoder.onnx
 src/frontend/web/public/onnx/models/pocket-tts/text_conditioner.onnx
 src/frontend/web/public/onnx/models/pocket-tts/tokenizer.model
+src/frontend/web/public/onnx/models/pocket-tts/voices/
+# Pre-April payload names that older checkouts may still hold.
+src/frontend/web/public/onnx/models/pocket-tts/flow_lm_flow_int8.onnx
+src/frontend/web/public/onnx/models/pocket-tts/mimi_decoder_int8.onnx
 src/frontend/web/public/onnx/models/pocket-tts/voices.bin
 src/frontend/web/public/onnx/models/smart-turn/smart-turn-v3.2-cpu.onnx
 src/frontend/web/public/onnx/models/vad/silero_vad_v5.onnx

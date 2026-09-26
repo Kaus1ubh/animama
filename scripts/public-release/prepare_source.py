@@ -145,8 +145,9 @@ Copyright (c) 2026 Raymond Van.
 Project-owned source in this review candidate is licensed AGPL-3.0-only; see
 [LICENSE](LICENSE). Third-party assets and code retain their separately recorded
 terms in [the source review inventory](licenses/source-review.json). In particular,
-the retained PocketTTS assets carry noncommercial restrictions; those restrictions
-do not relicense original Animama code or unrelated dependencies.
+the retained PocketTTS assets are CC BY 4.0 (attribution and Kyutai's
+prohibited-use terms apply); they are not AGPL, and their terms do not relicense
+original Animama code or unrelated dependencies.
 
 This is an unpublished preparation candidate, not a verified public release.
 See [SOURCE_CANDIDATE.json](SOURCE_CANDIDATE.json) for outstanding release gates.
