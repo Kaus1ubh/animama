@@ -538,7 +538,9 @@ not emit `tts.session` or `tts.session.error`.
 The route does not infer TTS setup from `main_structured_response`.
 Before model invocation, direct chat opens cached path `IDENTITY.md` in the
 active anima scope for prompt context and appends only the identity markdown
-content to the single system instruction. User profile memory entries are seeded
+content to the single system instruction. When memory influence is enabled it
+also opens `MEMORIES.md` and appends it directly after the identity; a missing
+or blank file is omitted without failing the turn. User profile memory entries are seeded
 during installation bootstrap but their content is not injected into direct chat
 context yet. Direct chat adds one request-local `developer` message
 immediately before the latest user message. When memory influence is enabled
@@ -546,8 +548,8 @@ it starts with a `# List of memory files` section. The list includes only
 user-scope file entries (`anima_id IS NULL`), uses cached paths such as
 `PROFILE.md`, and omits anima-scoped files and tree formatting. Any attached-file
 list follows, and the Companion Guardrails always end the
-message. `disable_memory_influence` suppresses the list while keeping required
-anima identity active. Provider rows that do not support OpenAI's `developer`
+message. `disable_memory_influence` suppresses the list and `MEMORIES.md` while keeping
+required anima identity active. Provider rows that do not support OpenAI's `developer`
 message role, including DeepSeek, receive all developer text folded in order
 into the end of the system instruction instead.
 
@@ -590,6 +592,7 @@ Memory APIs expose a scoped Markdown entry tree:
 
 - `GET /v1/memory/entries?anima_id=&parent_id=&recursive=false`
 - `GET /v1/memory/anima-identities`
+- `POST /v1/memory/anima-memories/{anima_id}:repair`
 - `GET /v1/memory/entries/by-path?anima_id=&path=...&type=file`
 - `GET /v1/memory/entries/{entry_id}`
 - `GET /v1/memory/entries/{entry_id}/versions?before_version=&limit=50`
@@ -663,6 +666,14 @@ preserving meaningful whitespace, and at most the smaller of 32 KiB and
 `ANIMAMA_MEMORY_FILE_MAX_BYTES`. Moving, renaming, deleting or changing the kind
 of a required identity file is forbidden; deleting the Anima removes it. A missing/blank identity
 blocks chat until explicit repair; there is no current-Avatar fallback.
+
+Anima-scoped `MEMORIES.md` has the same protections but needs no aggregate
+revision, may be blank, and is limited to the smaller of 16 KiB and
+`ANIMAMA_MEMORY_FILE_MAX_BYTES`. Creating any other file or directory in an
+Anima scope, or moving or renaming an entry within it, returns `403`. `POST /v1/memory/anima-memories/{anima_id}:repair` recreates a missing
+`MEMORIES.md` from the template, returns its header, and otherwise changes
+nothing; `GET /v1/memory/anima-identities` reports each header as
+`memories_entry`, `null` when missing.
 
 `POST /v1/memory/debug/search-memory-files` is a read-only authenticated debug
 route for the direct-chat `search_memory_files` tool path. The request accepts a

@@ -16,13 +16,15 @@ from animama.app.services.memory_entry_service import MemoryEntryConflictError, 
 from animama.app.services.owner_bootstrap_service import (
     PROFILE_MEMORY_KIND,
     PROFILE_MEMORY_PATH,
+    PROFILE_TEMPLATE_V2,
 )
 from animama.app.services.user_profile_service import normalize_display_name
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE, MemoryEntry
 from animama.domain.user_profile import UserProfileNotFoundError
 from animama.local.installation_repository import SQLAlchemyInstallationSettingsRepository
 
-PROFILE_TEMPLATE_VERSION = "1"
+PROFILE_TEMPLATE_VERSION = "2"
+_PROFILE_BASICS_HINT = "Preferred name, pronouns, languages, location or time zone."
 _MAX_CONFLICT_RETRIES = 3
 
 
@@ -192,13 +194,14 @@ class InstallationPersonalizationService:
 
 
 def render_profile_document(display_name: str | None) -> str:
-    """Render the one managed preferred-name line in template version 1."""
+    """Render the bootstrap template, filling the managed preferred name into Basics."""
 
-    suffix = f" {display_name}" if display_name else ""
-    return (
-        "# About Me\n\n"
-        f"Preferred name:{suffix}\n\n"
-        "Add anything you would like your Animas to remember about you here.\n"
+    if not display_name:
+        return PROFILE_TEMPLATE_V2
+    return PROFILE_TEMPLATE_V2.replace(
+        _PROFILE_BASICS_HINT,
+        f"Preferred name: {display_name}\nPronouns, languages, location or time zone.",
+        1,
     )
 
 

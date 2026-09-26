@@ -93,6 +93,22 @@ Per-Anima preferences stored in `anima_settings`. A memory or emotion value
 here overrides the App settings default for that Anima only; choosing
 "App default" removes the override. Distinct from the **Loadout**, which selects content.
 
+## Anima memories
+
+An Anima's own `MEMORIES.md`: its first-person record of its relationship and
+shared history with the installation owner, such as milestones, nicknames, how
+the two relate and open threads. It belongs to one Anima and is included in that
+Anima's every turn. Facts about the owner that every Anima should know belong in
+shared memory such as `PROFILE.md`; episodes are the shared log of what happened.
+See [ADR 0009](docs/adr/0009-shared-user-memory-and-per-anima-relationship-memory.md).
+
+## Reflection
+
+An owner-started Memory Manager conversation that reads one Anima's turns not yet
+covered by an applied Reflection and proposes a curated edit of its Anima
+memories. It never runs automatically. Turns count as covered only once its change
+is applied.
+
 ## Companion guardrail
 
 The fixed, server-owned **Companion Guardrails** instruction section that ends

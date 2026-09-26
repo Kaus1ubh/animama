@@ -108,6 +108,8 @@ async def _identity(async_session, *, user_id: str, entry_id: str):
 async def test_manager_navigation_lists_identities_only_when_enabled(async_session, clean_rows) -> None:
     user_id = f"user-{uuid.uuid4()}"
     anima_id, _identity_id = await _anima_with_identity(async_session, user_id=user_id)
+    # Until the Memory Manager addresses MEMORIES.md, it stays out of manager navigation and reads.
+    await memory_entries_router.repair_anima_memories(anima_id, session=async_session, user=_user(user_id))
     await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="file", name="PROFILE.md", content="# Me", description="Owner profile"),
         session=async_session,
@@ -129,6 +131,8 @@ async def test_manager_navigation_lists_identities_only_when_enabled(async_sessi
     assert read["files"][0]["content"] == "# Annie\n\nCalm and curious.\n"
     missing = await manager_reads.read_files(user_id=user_id, paths=["animas/anima-missing/IDENTITY.md"])
     assert missing["errors"][0]["code"] == "not_found"
+    memories = await manager_reads.read_files(user_id=user_id, paths=[f"animas/{anima_id}/MEMORIES.md"])
+    assert memories["files"] == [] and memories["errors"][0]["code"] == "invalid_path"
 
     chat_reads = UserMemoryReadToolService(memory_entries=_entries(async_session))
     assert [file["path"] for file in (await chat_reads.list_files(user_id=user_id))["files"]] == ["PROFILE.md"]

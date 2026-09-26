@@ -43,7 +43,8 @@ version; 3.14 changes OpenAPI wording); never hand-edit generated output.
 - [x] Workspace setup published https://github.com/raymond-van/animama/issues/156
       (read back 2026-09-26T18:10:04Z) with native sub-issues #157, #158, #159,
       #160 and blocked-by dependencies.
-- [ ] Phase 1: backend `MEMORIES.md` lifecycle, prompt placement and templates.
+- [x] Phase 1: backend `MEMORIES.md` lifecycle, prompt placement and templates
+      (review #2 pass; commit recorded under the Phase 1 record).
 - [ ] Phase 2: memory workspace and create-Anima template.
 - [ ] Phase 3: live edits and the chat memory cue.
 - [ ] Phase 4: Reflection.
@@ -135,6 +136,15 @@ Planning findings at `410425e` (unchanged at `b633af1`):
   invoking implementation, without changing the 400-turn Reflection cap, which
   therefore stands and remains revisable. At the owner's request, prompt-prefix
   caching optimization was filed as follow-up issue #155.
+- 2026-09-26, implementation (Phase 1): the `# Anima Memories` preamble only frames
+  the file (first-person relationship memory, user facts belong in shared memory,
+  an untouched template means no shared history). Write guidance (size target,
+  `remember` versus `MEMORIES.md`, sensitive-memory rule) moves to Phase 3 with
+  the edit tools, so Phase 1 never describes an action the Anima cannot take.
+- 2026-09-26, implementation (Phase 1): the listing field is `memories_entry`;
+  a missing file reports `missing` in the chat manifest and an unreadable one
+  `unreadable`. Legacy Anima-scope rows other than the two files can be read,
+  edited in place or deleted but not created, moved or renamed.
 - 2026-09-26, plan design: one branch and one PR; four phases ordered by
   dependency. Implementation details may change with evidence within the spec.
 
@@ -222,10 +232,10 @@ Requirements: R1, R2 and R8 (backend), R3, R7 (influence), R9 (backend), R10
    influence is on and include it as `# Anima Memories` directly after
    `# Anima Identity`. Omit the section when influence is off, and omit it without
    failing the turn when the file is missing, blank or unreadable (record the status
-   in the manifest). Add memory guidance describing the file: relationship-only
-   scope, first-person prose, an untouched template means no shared history, the
-   size target, the `remember`/`MEMORIES.md` distinction and the sensitive-memory
-   rule. Keep the guardrail last; a test asserts the section order.
+   in the manifest). Frame the file with a short preamble: relationship-only
+   scope, first-person prose, an untouched template means no shared history.
+   Write guidance follows in Phase 3. Keep the guardrail last; a test asserts the
+   section order.
 6. Templates (backend). Replace the `PROFILE.md` template with the R9 version
    (template version 2 in the bootstrap policy). Rewrite Annie (version 2) and
    Caitlyn (version 4) with every R9 identity section written out, preserving
@@ -246,13 +256,74 @@ Completion: tests cover creation, protection, blank save, size limit, scope
 restriction, repair, listing, prompt order, influence off and missing-file
 tolerance; review has no unresolved blockers.
 
+Phase record: issue #157; starting source `6c9bc36`. Implementation evidence
+(Python 3.12.13 venv): `make check-test` 1933 passed, 7 skipped, mypy clean;
+`uv run ruff check` pass; `pnpm check`, `pnpm web:lint` and `pnpm openapi-ts:check`
+pass; `git diff --check` clean; Python import boundary 0 forbidden edges.
+Repository-wide `uv run ruff format --check` flags two unmodified
+`scripts/repository-boundary` files that fail identically on `main`. Browser
+checks: not applicable (no UI in this phase). Also changed: first-run
+personalization now fills `Preferred name:` in the v2 Basics section, and
+`scripts/repository-boundary/consumers/backend.py` follows the v2 policy.
+
 #### Code Review #1 Findings
 
-Not started.
+Reviewed the working tree on `6c9bc36` (sdlc-reviewer analysis plus a separate
+checks run; all checks passed).
+
+- P1-R1-F1 (blocking): `docs/backend/features/user-profiles-and-usernames.md`
+  still stated bootstrap template version `1` and an in-place preferred-name
+  line update.
+- P1-R1-F2 (optional): repair took no Anima lock; two concurrent repairs raced to
+  a 409, and a repair racing Anima deletion could leave an orphan template row.
+- P1-R1-F3 (optional): the version-1 starter seed-pin test became vacuous once no
+  starter is version 1.
+- P1-R1-F4 (optional): `http-api.md` overstated the Anima-scope restriction
+  (legacy rows remain readable, deletable and editable in place).
+- P1-R1-F5 (optional): the glossary's Reflection entry describes Phase 4 behavior.
+- P1-R1-F6 (optional): the plan's Phase 1 step 5 still listed write guidance the
+  implementation deferred.
 
 #### Code Review #1 Revisions
 
-Not started.
+- F1 accepted: the doc now states template version `2` and the Basics
+  `Preferred name:` line.
+- F2 accepted: `repair_anima_memories` locks the owned Anima row
+  (`_lock_anima`) before checking for the file, serializing concurrent repairs and
+  Anima deletion. Verified by code reading and the existing repair tests
+  (39 passed with the starter and personalization tests); a two-session race test
+  was not added because the fixture has no concurrent-session helper.
+- F3 accepted: removed the vacuous test and its unused import.
+- F4 accepted: `http-api.md` now names the rejected operations.
+- F5 deferred to Phase 4, which delivers Reflection in the same PR; the final
+  integration review confirms the entry.
+- F6 accepted: recorded in the Decision Log.
+
+Checks after revisions: `uv run ruff check src/backend tests`, `ruff format
+--check src/backend tests`, `mypy src/backend/animama` pass; focused pytest on
+starters, Anima memory directory and personalization 39 passed.
+
+#### Code Review #2 Findings
+
+Targeted recheck of F1–F4 and F6 on the repaired tree: all verified, including
+scratch two-session race tests (concurrent repairs serialize to one row; repair
+and Anima deletion leave no orphan). Result: pass. Optional notes:
+
+- P1-R2-F1: a no-op repair returned inside the transaction, holding the Anima
+  lock until the request session closed.
+- P1-R2-F2: Phase 1 step 5 and Phase 3 steps did not reflect the guidance move.
+- P1-R2-F3: `memory.md` said an Anima scope "holds only" the two files, which
+  overstates it for legacy rows.
+
+#### Code Review #2 Revisions
+
+- F1 accepted: the existing-file path rolls back its read-only transaction before
+  returning.
+- F2 accepted: Phase 1 step 5 now describes the preamble only; Phase 3 step 1 and
+  its checks carry the write guidance.
+- F3 accepted: "admits only", matching ADR 0009.
+
+Checks: see the Phase 1 commit evidence below. Repair budget used: one of two.
 
 ### Phase 2 — Memory workspace and create-Anima template
 
@@ -307,7 +378,9 @@ Phase 1; the cue link uses Phase 2's workspace selection.
    Reject create, delete and move of the alias, any other Anima path, identity and
    oversized writes with actionable tool errors; stale versions return the existing
    retryable conflict. Reads follow memory influence; writes require updates
-   enabled and not incognito.
+   enabled and not incognito. Add write guidance: the alias, small edits only,
+   relationship-only content, the size target, `remember` versus `MEMORIES.md`,
+   the sensitive-memory rule and guardrail-consistent framing.
 2. Turn record. Before `record_turn`, add a `memory` block to the assistant
    `message_data`: `updates_enabled` and successful `MEMORIES.md` changes with
    entry ID, version and a bounded excerpt of added text.
@@ -329,7 +402,8 @@ Phase 1; the cue link uses Phase 2's workspace selection.
    and `docs/backend/features/memory.md`.
 
 Checks: backend tool, executor, SSE and chats API tests (own file only, refusals,
-gating, incognito, oversize, stale version, cue shape, failed episode); frontend
+gating, incognito, oversize, stale version, cue shape, failed episode, write
+guidance present only when writes are enabled); frontend
 guard, mapping, session and Quick Chat validator tests; `pnpm desktop:check`; the
 standard backend and frontend commands. Browser check with the deterministic
 runtime configured to write both memories: cue while streaming and after reload,

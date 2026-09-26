@@ -83,9 +83,12 @@ Responses-backed chats by the same mismatch fence.
 receives the same request-level controls used by chat settings: memory
 influence, memory updates, emotion influence, emotion updates, incognito,
 main-structured response, native tools, and reasoning effort. Direct chat always
-opens the anima identity file because it is anima configuration. When
+opens the anima identity file because it is anima configuration. With memory
+influence enabled it also opens the Anima's `MEMORIES.md` and places it as
+`# Anima Memories` directly after `# Anima Identity`; a missing, blank or
+unreadable file is omitted without failing the turn. When
 `disable_memory_influence` is true, direct chat still keeps anima identity
-active; the memory file list is omitted from the trailing `developer` message.
+active; `MEMORIES.md` and the memory file list are omitted.
 That message, placed just before the user message, holds the memory file list,
 the attached-file list and, always last, the
 [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
@@ -129,8 +132,9 @@ fails setup. Either selection must name an active direct model provider.
    model capabilities, and chat API-standard compatibility before opening SSE.
    It also resolves [companion safety](#companion-safety), which never blocks
    the turn.
-2. The executor loads required `IDENTITY.md`, current memory/attachment
-   navigation, and local history when the provider needs replay. It assembles
+2. The executor loads required `IDENTITY.md`, optional `MEMORIES.md`, current
+   memory/attachment navigation, and local history when the provider needs
+   replay. It assembles
    the prompt, ending with the Companion Guardrails, and closes the setup
    database session before upstream streaming.
 3. The route starts the request-local event bridge and model task, plus eligible

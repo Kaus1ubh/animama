@@ -25,7 +25,7 @@ profile without teaching the shared service about `installation_settings`.
 
 The same owner bootstrap ensures settings, configured Starter Animas and
 receipts, and the initial user-scope `PROFILE.md`. That memory document carries
-closed `installation_bootstrap` metadata containing template version `1` and
+closed `installation_bootstrap` metadata containing template version `2` and
 the managed entry version. Existing profile data, settings, Starter state, and
 memory content are never overwritten by bootstrap retries.
 
@@ -34,7 +34,7 @@ memory content are never overwritten by bootstrap retries.
 `adult_confirmation_required`. In one transaction it locks installation
 settings, the profile, and `PROFILE.md`; saves the normalized display name;
 records the owner's `adult` age status (source `self_attestation`) in
-`companion_safety_state`; updates only the template's preferred-name line
+`companion_safety_state`; writes a `Preferred name:` line in the template's Basics section
 when the metadata, version, and expected content still match; appends the normal
 memory version; and writes `first_run_completed_at` once. A pre-commit failure
 rolls the whole operation back. Replaying a response lost after commit returns

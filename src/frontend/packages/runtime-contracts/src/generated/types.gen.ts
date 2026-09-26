@@ -1349,7 +1349,7 @@ export type PyAnimaDispatchOptions = {
 /**
  * PyAnimaIdentityItem
  *
- * One owned Anima and its content-free identity header, in creation order.
+ * One owned Anima and its content-free protected file headers, in creation order.
  */
 export type PyAnimaIdentityItem = {
     /**
@@ -1376,6 +1376,10 @@ export type PyAnimaIdentityItem = {
      * Identity Status
      */
     identity_status: 'ready' | 'repair_required';
+    /**
+     * Live MEMORIES.md header, or null when it is missing and needs repair.
+     */
+    memories_entry?: PyMemoryEntryHeader | null;
 };
 
 /**
@@ -10518,6 +10522,36 @@ export type ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses = {
 };
 
 export type ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponse = ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses[keyof ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses];
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostData = {
+    body?: never;
+    path: {
+        /**
+         * Anima Id
+         */
+        anima_id: string;
+    };
+    query?: never;
+    url: '/v1/memory/anima-memories/{anima_id}:repair';
+};
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostError = RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostErrors[keyof RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostErrors];
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyMemoryEntryHeader;
+};
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponse = RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses[keyof RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses];
 
 export type DebugSearchMemoryFilesV1MemoryDebugSearchMemoryFilesPostData = {
     body: PySearchMemoryFilesDebugRequest;

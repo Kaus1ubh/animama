@@ -11,7 +11,9 @@ from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.chat.memory_context import (
+    ANIMA_MEMORIES_GUIDANCE,
     STATUS_CURRENT,
+    STATUS_MISSING,
     STATUS_OPENED,
     STATUS_REFRESHED,
     DirectChatMemoryContextError,
@@ -426,7 +428,7 @@ async def test_optional_profile_is_not_injected_into_context_yet() -> None:
     )
     instruction_text = "\n\n".join(str(message.get("content", "")) for message in prompt.messages)
     assert "User likes concise replies." not in instruction_text
-    assert [opened["path"] for opened in context.manifest["opened_files"]] == ["identity.md"]
+    assert [opened["path"] for opened in context.manifest["opened_files"]] == ["identity.md", "MEMORIES.md"]
 
 
 @pytest.mark.asyncio
@@ -447,6 +449,7 @@ async def test_disable_memory_influence_keeps_identity_only() -> None:
     assert [opened["path"] for opened in context.manifest["opened_files"]] == ["identity.md"]
     assert context.anima_identity == "Identity"
     assert context.memory_map is None
+    assert context.anima_memories is None
 
 
 @pytest.mark.asyncio
@@ -717,3 +720,92 @@ async def test_identity_capitalization_preserves_prior_context_fingerprint() -> 
     )
     assert context.manifest["opened_files"][0]["path"] == "IDENTITY.md"
     assert context.manifest["opened_files"][0]["status"] == STATUS_CURRENT
+
+
+@pytest.mark.asyncio
+async def test_anima_memories_follow_identity_when_memory_influence_is_on() -> None:
+    memories = "# Memories\n\n## Our story\nWe met on a rainy Tuesday."
+    service, _repo = _service(
+        [
+            _memory_entry("IDENTITY.md", "Identity", anima_id="anima-1", kind="anima_identity"),
+            _memory_entry("MEMORIES.md", memories, anima_id="anima-1", kind="anima_memories"),
+            _memory_entry("MEMORIES.md", "Another Anima's history", anima_id="anima-2", kind="anima_memories"),
+        ]
+    )
+
+    context = await service.build_context(user_id="user-1", anima_id="anima-1")
+    prompt = DirectChatPromptAssembler().assemble(
+        user_message="hello",
+        anima_identity=context.anima_identity,
+        anima_memories=context.anima_memories,
+    )
+
+    assert context.anima_memories == memories
+    assert context.manifest["opened_files"][1] == {
+        "anima_id": "anima-1",
+        "path": "MEMORIES.md",
+        "status": STATUS_OPENED,
+        "version": 1,
+        "sha256": _sha(memories),
+        "kind": "anima_memories",
+    }
+    system = str(prompt.messages[0]["content"])
+    assert f"# Anima Identity\n\nIdentity\n\n# Anima Memories\n\n{ANIMA_MEMORIES_GUIDANCE}\n\n{memories}" in system
+    assert system.index(memories) < system.index("# Memory Guidance")
+    assert "Another Anima's history" not in system
+
+
+@pytest.mark.asyncio
+async def test_anima_memories_are_omitted_when_memory_influence_is_off() -> None:
+    service, _repo = _service(
+        [
+            _memory_entry("IDENTITY.md", "Identity", anima_id="anima-1", kind="anima_identity"),
+            _memory_entry("MEMORIES.md", "We met today.", anima_id="anima-1", kind="anima_memories"),
+        ]
+    )
+
+    context = await service.build_context(
+        user_id="user-1", anima_id="anima-1", request_options={"disable_memory_influence": True}
+    )
+    prompt = DirectChatPromptAssembler().assemble(
+        user_message="hello",
+        anima_identity=context.anima_identity,
+        anima_memories=context.anima_memories,
+    )
+
+    assert context.anima_memories is None
+    assert [opened["path"] for opened in context.manifest["opened_files"]] == ["IDENTITY.md"]
+    assert "# Anima Memories" not in str(prompt.messages[0]["content"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("memories", [None, "", " \n\t"])
+async def test_missing_or_blank_anima_memories_are_omitted_without_failing_the_turn(memories: str | None) -> None:
+    entries = [_memory_entry("IDENTITY.md", "Identity", anima_id="anima-1", kind="anima_identity")]
+    if memories is not None:
+        entries.append(_memory_entry("MEMORIES.md", memories, anima_id="anima-1", kind="anima_memories"))
+    service, repo = _service(entries)
+
+    context = await service.build_context(user_id="user-1", anima_id="anima-1")
+    prompt = DirectChatPromptAssembler().assemble(
+        user_message="hello",
+        anima_identity=context.anima_identity,
+        anima_memories=context.anima_memories,
+    )
+
+    assert context.anima_memories is None
+    assert "# Anima Memories" not in str(prompt.messages[0]["content"])
+    opened = context.manifest["opened_files"][1]
+    if memories is None:
+        assert opened == {
+            "anima_id": "anima-1",
+            "path": "MEMORIES.md",
+            "status": STATUS_MISSING,
+            "version": None,
+            "sha256": None,
+            "kind": "anima_memories",
+        }
+    else:
+        assert (opened["status"], opened["sha256"]) == (STATUS_OPENED, _sha(memories))
+    # Reading context never repairs the file.
+    assert repo.create_calls == [] and repo.version_calls == []

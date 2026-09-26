@@ -782,6 +782,7 @@ class DirectChatTurnExecutor:
             user_message=request.user_message,
             anima_identity=memory_context.anima_identity,
             anima_name=memory_context.anima_name,
+            anima_memories=getattr(memory_context, "anima_memories", None),
             response_format_guidance=response_format_guidance,
             native_memory_patch_enabled=native_memory_patch_enabled,
             memory_map=getattr(memory_context, "memory_map", None),

@@ -29,6 +29,7 @@ from animama.domain.user_file_processing import UserFileOutlineItem
 
 from .direct_turn.types import DirectChatAttachmentContext
 from .memory_context import (
+    ANIMA_MEMORIES_GUIDANCE,
     MAIN_STRUCTURED_OUTPUT_GUIDANCE,
     MEMORY_SYSTEM_GUIDANCE,
     NATIVE_MEMORY_PATCH_GUIDANCE,
@@ -58,6 +59,7 @@ class DirectChatPromptAssembler:
         user_message: str,
         anima_identity: str,
         anima_name: str | None = None,
+        anima_memories: str | None = None,
         response_format_guidance: str | None = None,
         native_memory_patch_enabled: bool = False,
         memory_map: str | None = None,
@@ -89,6 +91,7 @@ class DirectChatPromptAssembler:
                 _direct_chat_system_instruction(
                     anima_identity,
                     anima_name=anima_name,
+                    anima_memories=anima_memories,
                     response_format_guidance=response_format_guidance,
                     native_memory_patch_enabled=native_memory_patch_enabled,
                 ),
@@ -128,6 +131,7 @@ def _direct_chat_system_instruction(
     anima_identity: str,
     *,
     anima_name: str | None = None,
+    anima_memories: str | None = None,
     response_format_guidance: str | None = None,
     native_memory_patch_enabled: bool = False,
 ) -> str:
@@ -138,6 +142,12 @@ def _direct_chat_system_instruction(
     sections = [
         "# Core Instructions\n\n" + render_core_companion_instruction(anima_name).strip(),
         "# Anima Identity\n\n" + anima_identity.strip(),
+    ]
+    # The Anima's relationship memory follows its identity; it is omitted when
+    # memory influence is off or the file has nothing to say.
+    if isinstance(anima_memories, str) and anima_memories.strip():
+        sections.append(f"# Anima Memories\n\n{ANIMA_MEMORIES_GUIDANCE}\n\n{anima_memories.strip()}")
+    sections += [
         "# Memory Guidance\n\n" + memory_guidance,
         "# Response Guidance\n\n" + (guidance or MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()),
     ]

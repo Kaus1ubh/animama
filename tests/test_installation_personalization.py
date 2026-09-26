@@ -12,7 +12,7 @@ from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
 from animama.app.services.memory_entry_service import MemoryEntryService
-from animama.app.services.owner_bootstrap_service import PROFILE_MEMORY_KIND, PROFILE_MEMORY_PATH
+from animama.app.services.owner_bootstrap_service import PROFILE_MEMORY_KIND, PROFILE_MEMORY_PATH, PROFILE_TEMPLATE_V2
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE
 from animama.domain.user_profile import UserProfile, UserProfileInvalidError
 from animama.local.installation_model import ORMInstallationSettings
@@ -44,7 +44,7 @@ async def _seed_personalization(session, owner_id: str) -> None:  # noqa: ANN001
         description="Private installation-owner profile",
         metadata={
             "installation_bootstrap": {
-                "template_version": "1",
+                "template_version": "2",
                 "managed_entry_version": 1,
             }
         },
@@ -106,6 +106,13 @@ async def test_onboarding_is_atomic_idempotent_and_preserves_later_user_memory_e
     preserved = await _profile_memory(async_session, owner_id)
     assert preserved is not None and preserved.version == 3
     assert preserved.content == "# I edited this myself\n"
+
+
+def test_managed_profile_fills_the_preferred_name_into_the_bootstrap_template() -> None:
+    assert render_profile_document(None) == PROFILE_TEMPLATE_V2
+    named = render_profile_document("Ada Lovelace")
+    assert "## Basics\nPreferred name: Ada Lovelace\nPronouns, languages, location or time zone.\n" in named
+    assert named.replace("Preferred name: Ada Lovelace\nPronouns", "Preferred name, pronouns") == PROFILE_TEMPLATE_V2
 
 
 async def test_precommit_failure_rolls_back_profile_memory_and_timestamp(async_session) -> None:
