@@ -8,6 +8,7 @@ import {
 import { isParakeetWebgpuPreferred } from "@/lib/settings/preferences";
 import type { ParakeetWebgpuStatus } from "@/lib/speech/client-parakeet/webgpu";
 import { Switch } from "@/ui/components/switch";
+import { SettingsRow } from "@/ui/settings/SettingsLayout";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 
 const WEBGPU_STATUS_TEXT: Record<ParakeetWebgpuStatus, string> = {
@@ -19,8 +20,11 @@ const WEBGPU_STATUS_TEXT: Record<ParakeetWebgpuStatus, string> = {
   unavailable_in_build: "Not available in this build yet.",
 };
 
-/** Opt-in features that may not work on every device. */
-export function ExperimentalSettingsPanel({ disabled }: { disabled: boolean }) {
+/**
+ * Opt-in WebGPU backend for offline (Parakeet) speech. Experimental: it may
+ * not work on every device and falls back to the CPU.
+ */
+export function ParakeetWebgpuSetting({ disabled }: { disabled: boolean }) {
   const { userPreferences, updateUserPreferences } = useSettings();
   const savedWebgpu = isParakeetWebgpuPreferred(userPreferences);
   const [webgpuEnabled, setWebgpuEnabled] = useState(savedWebgpu);
@@ -68,39 +72,24 @@ export function ExperimentalSettingsPanel({ disabled }: { disabled: boolean }) {
           : "Checking WebGPU support…";
 
   return (
-    <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
-      <div>
-        <h3 className="text-foreground text-base font-semibold">
-          Offline speech
-        </h3>
-        <p className="text-muted-foreground mt-2 text-xs">
-          Experimental features may not work on every device.
-        </p>
-      </div>
-      <div className="border-border/70 bg-background/50 flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
-        <div>
-          <p className="text-foreground text-sm font-medium">
-            GPU-accelerated offline speech (WebGPU)
-          </p>
-          <p className="text-muted-foreground text-xs">
-            Runs offline speech recognition on the GPU and shows live
-            transcripts while you speak. Falls back to the CPU if WebGPU is
-            unavailable.
-          </p>
-          <p
-            className="text-muted-foreground mt-1 text-xs"
-            data-testid="parakeet-webgpu-status"
-          >
-            {statusText}
-          </p>
-        </div>
+    <SettingsRow
+      label="GPU-accelerated offline speech (WebGPU)"
+      description="Runs offline speech recognition on the GPU and shows live transcripts while you speak. Falls back to the CPU if WebGPU is unavailable."
+      control={
         <Switch
           checked={webgpuEnabled}
           onCheckedChange={handleWebgpuChange}
           disabled={disabled || isSaving}
           aria-label="Enable GPU-accelerated offline speech"
         />
-      </div>
-    </section>
+      }
+    >
+      <p
+        className="text-muted-foreground text-xs"
+        data-testid="parakeet-webgpu-status"
+      >
+        {statusText}
+      </p>
+    </SettingsRow>
   );
 }

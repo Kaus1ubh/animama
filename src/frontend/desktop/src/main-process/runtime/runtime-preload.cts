@@ -34,6 +34,8 @@ export function createCredentialsBridge(): CredentialsBridge {
       ipcRenderer.invoke("animama:credentials:set", provider, value),
     delete: (provider) =>
       ipcRenderer.invoke("animama:credentials:delete", provider),
+    apply: (changes) =>
+      ipcRenderer.invoke("animama:credentials:apply", changes),
   };
 }
 export function createFeaturePacksBridge(): FeaturePacksBridge {

@@ -18,9 +18,15 @@ _UNSET = _Unset.VALUE
 
 
 def default_anima_preferences() -> dict[str, Any]:
+    """Initial per-Anima preferences.
+
+    Memory and emotion flags are deliberately absent: an Anima inherits the
+    owner's App Settings for them until it stores an explicit override, and chat
+    resolution (``merge_chat_request_options``) reads request, then Anima, then
+    owner values.
+    """
+
     return {
-        "memory": {"disable_influence": False, "disable_updates": False},
-        "emotion": {"disable_influence": False, "disable_updates": False},
         "presentation": {
             "disable_animation": False,
             "disable_vfx": False,

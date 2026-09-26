@@ -131,6 +131,44 @@ describe("privileged runtime IPC", () => {
     expect(operations.changeCredential).not.toHaveBeenCalled();
   });
 
+  it("applies a validated credential batch only for the registered main frame", async () => {
+    const applied = vi.fn(async () => []);
+    operations.changeCredentials = applied;
+    await expect(
+      invoke("credentials:apply", main.event, [
+        { provider: "openai", value: "fixture-key" },
+        { provider: "gemini" },
+      ]),
+    ).resolves.toEqual([]);
+    expect(applied).toHaveBeenCalledWith([
+      { provider: "openai", value: "fixture-key" },
+      { provider: "gemini" },
+    ]);
+    await expect(
+      invoke("credentials:apply", recovery.event, [{ provider: "openai" }]),
+    ).rejects.toThrow("ipc_caller_rejected");
+    for (const invalid of [
+      [],
+      "openai",
+      [{ provider: "openai" }, { provider: "openai" }],
+      [{ provider: "openai", value: "fixture-key", path: "/tmp" }],
+      [{ provider: "../path" }],
+      [{ provider: "openai", value: "x".repeat(8193) }],
+      [
+        { provider: "openai" },
+        { provider: "deepseek" },
+        { provider: "huggingface" },
+        { provider: "gemini" },
+        { provider: "elevenlabs" },
+        { provider: "openai" },
+      ],
+    ])
+      await expect(
+        invoke("credentials:apply", main.event, invalid),
+      ).rejects.toThrow(/credential_(changes|provider|value)_invalid/);
+    expect(applied).toHaveBeenCalledOnce();
+  });
+
   it("exposes unavailable future pack/update operations explicitly", async () => {
     await expect(
       invoke("feature-packs:install", main.event, "expanded-included-content"),

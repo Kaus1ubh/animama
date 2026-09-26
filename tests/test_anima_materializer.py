@@ -169,7 +169,8 @@ async def test_materializer_owns_no_commit_provider_or_runtime_and_seeds_exact_d
         voice_id or DEFAULT_ANIMA_VOICE_ID
     )
     assert settings.theme is None and settings.background is None and settings.favorited is False
-    assert settings.preferences["memory"] == {"disable_influence": False, "disable_updates": False}
+    # Memory/emotion flags are inherited from App Settings until overridden.
+    assert "memory" not in settings.preferences and "emotion" not in settings.preferences
     assert (_required(await uow.chat_profiles.get(anima.id))).default_model_provider_id == fixture.provider_id
     loadout = await uow.loadouts.read_model(user_id=fixture.user_id, anima_id=anima.id)
     assert loadout.revision == loadout.aggregate_revision == 1

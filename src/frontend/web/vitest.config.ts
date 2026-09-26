@@ -4,7 +4,10 @@ import { defineConfig } from "vitest/config";
 const webSrc = fileURLToPath(new URL("./src", import.meta.url));
 
 export default defineConfig({
-  define: { __ANIMAMA_DEV_BUILD__: "true" },
+  define: {
+    __ANIMAMA_DEV_BUILD__: "true",
+    __ANIMAMA_APP_VERSION__: JSON.stringify("test"),
+  },
   resolve: {
     alias: {
       "@": webSrc,

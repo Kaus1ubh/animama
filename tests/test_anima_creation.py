@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.app.anima_creation_contract import AnimaSpec, CreateAnimaRequest, canonical_spec_hash
@@ -471,3 +471,65 @@ async def test_validation_respects_smaller_installation_identity_limit(async_ses
         issues = error.value.detail["issues"]
         assert isinstance(issues, list)
         assert issues[0]["path"] == "/identity_markdown"
+
+
+@pytest.mark.parametrize(
+    ("preference", "expect_preferred"),
+    [("active", True), ("inactive", False), ("no_chat", False), ("unknown", False), (None, False)],
+)
+async def test_new_anima_uses_owner_default_model_when_available(async_session, tmp_path, preference, expect_preferred):
+    """App Settings' default chat model applies to new Animas; unusable values fall back."""
+
+    from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
+    from animama.domain.settings import UserSettings
+    from animama.orm.settings import ORMUserSettings
+    from animama.server.routers.anima_creation import preferred_default_model_reader
+
+    async with anima_creation_fixture(async_session, tmp_path) as fixture:
+        active_id, inactive_id, no_chat_id = (f"test:{uuid4().hex}" for _ in range(3))
+        async_session.add_all(
+            [
+                ORMModelProvider(
+                    id=model_id,
+                    provider_type=provider_type,
+                    model=model_id,
+                    active=active,
+                    model_label="Preferred",
+                    provider_label="Fixture",
+                )
+                for model_id, provider_type, active in (
+                    (active_id, "OpenAIResponsesHTTPAgent", True),
+                    (inactive_id, "OpenAIResponsesHTTPAgent", False),
+                    # Active but not supported by direct chat.
+                    (no_chat_id, "GeminiAgent", True),
+                )
+            ]
+        )
+        stored = {
+            "active": active_id,
+            "inactive": inactive_id,
+            "no_chat": no_chat_id,
+            "unknown": "test:missing",
+            None: None,
+        }[preference]
+        await SQLAlchemyUserSettingsRepository(async_session).upsert(
+            UserSettings(
+                user_id=fixture.owner,
+                preferences={"chat": {"default_model_provider_id": stored}} if stored else {},
+            )
+        )
+        await async_session.commit()
+        try:
+            service = fixture.service(async_session)
+            service.preferred_model_provider_id = preferred_default_model_reader(async_session)
+            result = await service.create(user_id=fixture.owner, request=fixture.request())
+            profile = await async_session.get(ORMAnimaChatProfile, result["anima_id"])
+            assert profile.default_model_provider_id == (active_id if expect_preferred else fixture.provider)
+        finally:
+            await async_session.execute(delete(ORMUserSettings).where(ORMUserSettings.user_id == fixture.owner))
+            await async_session.commit()
+    # Fixture cleanup removed the Animas that referenced these providers.
+    await async_session.execute(
+        delete(ORMModelProvider).where(ORMModelProvider.id.in_((active_id, inactive_id, no_chat_id)))
+    )
+    await async_session.commit()

@@ -148,14 +148,16 @@ window and accept zero arguments; recovery can open only the fixed backup folder
 
 Embedded setup and Settings show optional OpenAI, DeepSeek, Hugging Face,
 Gemini, and ElevenLabs key controls. Keys are never read back or saved to
-browser storage. Saving or removing one first drains local work, then encrypts
+browser storage. A save applies one change or a batch (`credentials.apply`,
+validated as at most one change per provider): it first drains local work, then encrypts
 the vault through Electron `safeStorage` and restarts FastAPI and the installed
 document worker with the new environment. PostgreSQL, the stable origin, and local ownership do
 not change. Unavailable secure storage fails closed; it never falls back to
 plaintext storage. Browser and external-stack development do not show these
 desktop credential controls.
 
-A busy or failed drain leaves the previous credential unchanged. Main retains
+A busy or failed drain leaves the previous credentials unchanged; a failed batch
+records the same failure for each provider in it. Main retains
 one bounded failure status per provider across product-window recreation, so
 reopening Settings explains why the change did not finish. A new accepted attempt clears that provider's
 previous failure. If the vault was already updated before a service restart

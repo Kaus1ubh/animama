@@ -1,6 +1,7 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
 
-import { resolveSelectedAnimaId } from "@/lib/animas/anima-management-search";
+import { resolveStartupAnimaId } from "@/lib/animas/anima-management-search";
+import { readDefaultAnimaId } from "@/lib/settings/preferences";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { useUserSettings } from "@/query/hooks/useUserSettings";
 import { AppShellPage } from "@/ui/app/AppShellPage";
@@ -10,7 +11,7 @@ export const Route = createFileRoute("/a/")({
   component: ChatLaunchRoute,
 });
 
-/** Open the remembered owned Anima only after both cached startup reads settle. */
+/** Open the pinned or remembered owned Anima only after both startup reads settle. */
 function ChatLaunchRoute() {
   const animas = useAnimas();
   const settings = useUserSettings();
@@ -48,9 +49,12 @@ function ChatLaunchRoute() {
     );
   }
 
-  const animaId = resolveSelectedAnimaId(
+  const animaId = resolveStartupAnimaId(
     animas.data.map((anima) => anima.id),
-    settings.data.last_active_anima_id,
+    {
+      pinnedAnimaId: readDefaultAnimaId(settings.data.preferences),
+      lastActiveAnimaId: settings.data.last_active_anima_id,
+    },
   );
   // Continue the accepted entry navigation without reopening a departing
   // creator's blocker before its passive-effect cleanup has run.

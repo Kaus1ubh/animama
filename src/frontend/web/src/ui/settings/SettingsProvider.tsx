@@ -13,6 +13,13 @@ import {
   type SetStateAction,
 } from "react";
 import { useTheme } from "next-themes";
+import { toast } from "sonner";
+import { createThemeEchoTracker } from "@/lib/theme/theme-echo-tracker";
+import {
+  applyAppearanceOverrideCss,
+  buildAppearanceOverrideCss,
+  parseAppearanceOverrides,
+} from "@/lib/theme/appearance-overrides";
 
 import type {
   PyAnimaDispatchOptions,
@@ -22,14 +29,11 @@ import type {
   PyUserSettingsUpdate,
 } from "@/lib/content/catalogTypes";
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
-import { featureFlags } from "@/lib/feature-flags";
 import {
-  DEFAULT_ANIMAMA_PREFERENCES,
   mergePreferences,
   normalizeThemeSetting,
   resolvePreferences,
   themesEquivalent,
-  toStoredTheme,
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
 import { createLogger } from "@/lib/logger";
@@ -64,7 +68,8 @@ export type SettingsContextValue = {
     SetStateAction<Partial<PyAnimaDispatchOptions>>
   >;
   chatMarkdownEnabled: boolean;
-  setChatMarkdownEnabled: Dispatch<SetStateAction<boolean>>;
+  /** Saves `presentation.render_markdown` in app preferences. */
+  setChatMarkdownEnabled: (enabled: boolean) => void;
 };
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -174,7 +179,9 @@ export function SettingsProvider({
 
   const updateAnimaPreferences = useCallback(
     async (patch: SettingsPreferences) => {
-      const base = animaPreferences ?? DEFAULT_ANIMAMA_PREFERENCES;
+      // Base on stored Anima values only; copying app defaults into the Anima
+      // row would turn inherited settings into explicit overrides.
+      const base = animaPreferences ?? {};
       const merged = mergePreferences(base, patch);
       logger.info("Preferences", "Updating anima preferences", {
         userId,
@@ -189,7 +196,20 @@ export function SettingsProvider({
   const [chatRequestOverrides, setChatRequestOverrides] = useState<
     Partial<PyAnimaDispatchOptions>
   >({});
-  const [chatMarkdownEnabled, setChatMarkdownEnabled] = useState(true);
+  // Persisted app preference; rendering Markdown stays on unless turned off.
+  const chatMarkdownEnabled =
+    userPreferences?.presentation?.render_markdown !== false;
+  const setChatMarkdownEnabled = useCallback(
+    (enabled: boolean) => {
+      void updateUserPreferences({
+        presentation: { render_markdown: enabled },
+      }).catch((error) => {
+        logger.error("Preferences", "Markdown preference update failed", error);
+        toast.error("Failed to update Markdown rendering.");
+      });
+    },
+    [logger, updateUserPreferences],
+  );
 
   const chatRequestOptions = useMemo(() => {
     const entries: Array<[string, boolean | string | string[]]> = [];
@@ -219,15 +239,18 @@ export function SettingsProvider({
 
   const pendingTheme = useRef<string | null>(null);
   const appliedSettingsTheme = useRef<string | null>(null);
+  // Stored themes that merely echo this client's own saves must not revert a
+  // newer local selection (e.g. Dark then Light before the Dark save returns).
+  const themeEchoes = useRef(createThemeEchoTracker());
 
   useEffect(() => {
-    if (!featureFlags.themeSelection) return;
     const storedTheme = userSettings?.theme ?? null;
     if (appliedSettingsTheme.current === storedTheme) return;
     appliedSettingsTheme.current = storedTheme;
 
     const preferredTheme = normalizeThemeSetting(storedTheme);
     if (!preferredTheme || !setTheme) return;
+    if (themeEchoes.current.consumeEcho(preferredTheme)) return;
     if (preferredTheme === theme) {
       pendingTheme.current = null;
       return;
@@ -242,7 +265,6 @@ export function SettingsProvider({
   }, [logger, setTheme, theme, userSettings?.theme]);
 
   useEffect(() => {
-    if (!featureFlags.themeSelection) return;
     if (!userSettings || !theme) return;
     const normalizedTheme = normalizeThemeSetting(theme);
     if (!normalizedTheme) return;
@@ -259,12 +281,24 @@ export function SettingsProvider({
       current: theme,
       normalized: normalizedTheme,
     });
-    void updateUserSettings({ theme: toStoredTheme(normalizedTheme) }).catch(
-      (error) => {
-        logger.error("Theme", "Theme persistence failed", error);
-      },
-    );
+    themeEchoes.current.submit(normalizedTheme);
+    void updateUserSettings({ theme: normalizedTheme }).catch((error) => {
+      themeEchoes.current.fail(normalizedTheme);
+      logger.error("Theme", "Theme persistence failed", error);
+    });
   }, [logger, theme, updateUserSettings, userSettings]);
+
+  // Apply per-mode colour overrides from app preferences on top of the theme.
+  const appearanceCss = useMemo(
+    () =>
+      buildAppearanceOverrideCss(
+        parseAppearanceOverrides(userPreferences?.appearance),
+      ),
+    [userPreferences?.appearance],
+  );
+  useEffect(() => {
+    applyAppearanceOverrideCss(appearanceCss);
+  }, [appearanceCss]);
 
   const value = useMemo<SettingsContextValue>(
     () => ({
@@ -290,6 +324,7 @@ export function SettingsProvider({
     [
       chatRequestOptions,
       chatMarkdownEnabled,
+      setChatMarkdownEnabled,
       effectivePreferences,
       animaPreferences,
       animaSettings,

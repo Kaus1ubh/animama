@@ -5,6 +5,7 @@ import {
   type FeaturePackStatus,
 } from "../../../../shared/desktop-runtime";
 import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
+import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 
 const names: Record<FeaturePackId, string> = {
@@ -34,7 +35,13 @@ export function packSizeSummary(pack: FeaturePackStatus): string {
 }
 
 /** Reuse the same catalog/IPC controls in Settings and contextual install actions. */
-export function DesktopFeaturePacksPanel({ only }: { only?: FeaturePackId }) {
+export function DesktopFeaturePacksPanel({
+  only,
+  className,
+}: {
+  only?: FeaturePackId;
+  className?: string;
+}) {
   const { available, packs, pending, error, run } = useDesktopFeaturePacks();
   const [confirmRemove, setConfirmRemove] = useState<FeaturePackId | null>(
     null,
@@ -52,7 +59,10 @@ export function DesktopFeaturePacksPanel({ only }: { only?: FeaturePackId }) {
   );
   return (
     <section
-      className="border-border/60 bg-muted/10 space-y-4 rounded-xl border p-5"
+      className={cn(
+        "border-border/60 bg-muted/10 space-y-4 rounded-xl border p-5",
+        className,
+      )}
       aria-label="Optional feature packs"
     >
       <h3 className="text-base font-semibold">

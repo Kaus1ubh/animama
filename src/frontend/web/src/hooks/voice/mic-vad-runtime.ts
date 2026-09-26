@@ -103,6 +103,8 @@ export type CreateAndStartMicVadArgs = {
   redemptionMs: number;
   preSpeechPadMs: number;
   minSpeechMs: number;
+  /** Opens the capture stream; omitted, vad-web opens the system default mic. */
+  getStream?: () => Promise<MediaStream>;
   onSpeechStart: () => void;
   onSpeechRealStart: () => void;
   onVADMisfire: () => void;
@@ -387,6 +389,7 @@ export async function createAndStartMicVad({
   redemptionMs,
   preSpeechPadMs,
   minSpeechMs,
+  getStream,
   onSpeechStart,
   onSpeechRealStart,
   onVADMisfire,
@@ -405,6 +408,7 @@ export async function createAndStartMicVad({
     redemptionMs,
     preSpeechPadMs,
     minSpeechMs,
+    ...(getStream ? { getStream } : {}),
     onSpeechStart,
     onSpeechRealStart,
     onVADMisfire,

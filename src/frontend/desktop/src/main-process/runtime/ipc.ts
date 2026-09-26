@@ -12,7 +12,11 @@ import type {
   UpdateStatus,
 } from "../../../../shared/desktop-runtime.js";
 import { RuntimeError, runtimeErrorCode } from "./errors.js";
-import { validateCredential, validateProvider } from "./vault.js";
+import {
+  validateCredential,
+  validateCredentialChanges,
+  validateProvider,
+} from "./vault.js";
 import { packId } from "../feature-packs/catalog.js";
 
 export type RuntimeIpcOperations = {
@@ -26,6 +30,8 @@ export type RuntimeIpcOperations = {
     provider: unknown,
     value?: unknown,
   ): Promise<CredentialStatus>;
+  /** Several key changes with one local-service restart. */
+  changeCredentials?(changes: unknown): Promise<CredentialStatus[]>;
   featurePacks?(): FeaturePackStatus[];
   changePack?(
     action: "install" | "cancel" | "remove",
@@ -153,6 +159,12 @@ export function installRuntimeIpc(
       validateCredential(value),
     ),
   );
+  handle("credentials:apply", 1, false, (changes) => {
+    if (!operations.changeCredentials)
+      throw new RuntimeError("embedded_runtime_unavailable");
+    // Validate here too so a malformed batch never reaches the supervisor.
+    return operations.changeCredentials(validateCredentialChanges(changes));
+  });
   handle("credentials:delete", 1, false, async (provider) => {
     const status = await operations.changeCredential(
       validateProvider(provider),
