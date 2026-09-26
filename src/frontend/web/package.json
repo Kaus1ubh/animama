@@ -2,7 +2,7 @@
   "name": "animama-web",
   "private": true,
   "license": "UNLICENSED",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "scripts": {
     "routes:generate": "node scripts/generate-routes.mjs",
