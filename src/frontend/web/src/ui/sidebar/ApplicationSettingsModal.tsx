@@ -1706,6 +1706,7 @@ export function ApplicationSettingsModal({
           sectionIcons={SECTION_ICONS}
           activeSection={shownSection}
           onSectionChange={setActiveSection}
+          avoidSidebar
           sidebarHeader={
             <SettingsSearch
               query={searchQuery}

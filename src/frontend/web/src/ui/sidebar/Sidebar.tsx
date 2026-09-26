@@ -138,12 +138,9 @@ export const ResponsiveSidebar = ({
           onClick={() => setOpen(false)}
         />
       ) : null}
-      {/* The mobile drawer covers everything above its backdrop. On desktop the
-          rail sits above canvas overlays (scene VFX z-41) but below dialogs,
-          popovers and menus (z-50+), so modals such as App Settings cover it. */}
       <div
         className={cn(
-          "group/sidebar-shell fixed top-0 left-0 z-[120] flex h-full w-[242px] flex-shrink-0 flex-col overflow-hidden px-[6px] py-3 md:z-[45] md:translate-x-0",
+          "group/sidebar-shell fixed top-0 left-0 z-[120] flex h-full w-[242px] flex-shrink-0 flex-col overflow-hidden px-[6px] py-3 md:translate-x-0",
           open
             ? "bg-sidebar/70 ring-sidebar-border/70 supports-[backdrop-filter]:bg-sidebar/60 rounded-tr-3xl rounded-br-3xl shadow-lg ring-1 backdrop-blur-xs ring-inset"
             : "border-transparent bg-transparent shadow-none",

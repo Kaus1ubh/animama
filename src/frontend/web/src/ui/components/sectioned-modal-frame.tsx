@@ -5,6 +5,8 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useOptionalAppShell } from "@/ui/app/AppShell";
+import { resolveAppShellSidebarLayout } from "@/ui/app/appShellSidebarLayout";
 
 /** Icon component for a navigation section, e.g. a lucide icon. */
 export type SectionIcon = ComponentType<{ className?: string }>;
@@ -23,6 +25,11 @@ type SectionedModalFrameProps<T extends string> = {
   /** Optional leading icon for each navigation item. */
   sectionIcons?: Partial<Record<T, SectionIcon>>;
   onEscapeKeyDown?: Dialog.DialogContentProps["onEscapeKeyDown"];
+  /**
+   * Centre the modal in the area beside the desktop sidebar (which stays above
+   * dialog backdrops) instead of the whole viewport, so the two never overlap.
+   */
+  avoidSidebar?: boolean;
   headerTitle: ReactNode;
   headerDescription?: ReactNode;
   headerMeta?: ReactNode;
@@ -43,6 +50,7 @@ export function SectionedModalFrame<T extends string>({
   sidebarHeader,
   sectionIcons,
   onEscapeKeyDown,
+  avoidSidebar = false,
   headerTitle,
   headerDescription,
   headerMeta,
@@ -51,9 +59,23 @@ export function SectionedModalFrame<T extends string>({
   gridClassName,
   contentClassName,
 }: SectionedModalFrameProps<T>) {
+  const appShell = useOptionalAppShell();
+  const sidebarInset = resolveAppShellSidebarLayout({
+    behavior: "inset",
+    isDesktop: appShell?.isDesktop === true,
+    sidebarOpen: appShell?.sidebarOpen === true,
+  })["--app-shell-sidebar-inset"];
   return (
     <Dialog.Content
       onEscapeKeyDown={onEscapeKeyDown}
+      style={
+        avoidSidebar
+          ? {
+              left: `calc(50% + ${sidebarInset} / 2)`,
+              maxWidth: `calc(100vw - ${sidebarInset} - 2rem)`,
+            }
+          : undefined
+      }
       className={cn(
         "fixed top-0 left-1/2 z-50 w-[min(920px,92vw)] -translate-x-1/2",
         "border-border bg-background h-[85vh] overflow-hidden rounded-b-2xl border shadow-2xl",
