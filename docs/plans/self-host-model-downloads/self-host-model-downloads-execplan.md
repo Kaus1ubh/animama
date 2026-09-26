@@ -1,0 +1,564 @@
+# In-app model downloads for built self-host
+
+Source agreement: [raymond-van/animama#163](https://github.com/raymond-van/animama/issues/163)
+as published (read 2026-09-26), consuming the downloader spec
+[#151](https://github.com/raymond-van/animama/issues/151) and draft
+[#162](https://github.com/raymond-van/animama/pull/162).
+Authorized scope: Phases 1–3, authorized by the owner on 2026-09-26, after
+owner decisions O1–O8 the same day. Phase 4 needs separate authorization.
+Phase 4 publishes to R2 and has its own owner gate. Nothing in this plan
+authorizes publishing an app release.
+
+## Purpose and context
+
+Built self-host serves the experimental Parakeet WebGPU encoder only when the
+operator acquires it on the host and mounts it through
+`ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR` (decision D2 in the
+[WebGPU plan](../parakeet-webgpu-download/parakeet-webgpu-download-execplan.md)).
+Draft #162 adds the missing server-side path: a backend downloader that
+installs pinned, SHA-256-verified assets from `downloads.animama.ai` into
+`<data_root>/internal/model-assets/<id>/<sha256>` and serves them from
+`/v1/model-assets/{id}/content`.
+
+After this work:
+
+- On a built self-host stack, App Settings → Advanced → Experimental offers the
+  encoder download when the browser has a WebGPU adapter. The control shows the
+  download size and free space, with progress, cancel, retry and remove.
+- The backend verifies size and SHA-256 before the file becomes visible. The
+  existing `HEAD` probe then returns 200 and the toggle reports available.
+- The encoder is published once to R2 under a versionless, content-addressed
+  `models/` prefix. The prefix is create-only, anonymously verified and
+  covered by a bucket lock rule.
+- Packaged desktop is unchanged. It keeps the `parakeet-stt-webgpu` feature pack.
+
+The encoder is `encoder-model.fp16.onnx`: 1,238,960,452 bytes, SHA-256
+`ad8bb0acaec339c32ffbdedb869bd60f7103d0f6c00e56c7a2c2ab57df7462a2`, from
+`ysdede/parakeet-tdt-0.6b-v2-onnx@db4a768f`, CC-BY-4.0. Its tracked manifest is
+`models/parakeet-tdt-0.6b-v2-webgpu/manifest.json`.
+
+### Orientation
+
+Commands run from the repository root unless stated.
+
+| Area                 | Files                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Downloader (#162)    | `src/backend/animama/domain/model_assets.py` (catalog schema `animama-asset-catalog/1`, host allowlist, failure reasons), `app/services/model_asset_service.py`, `app/ports/model_assets.py`, `adapters/model_assets/{filesystem_store,http_fetcher}.py`, `server/model_assets.py` (composition), `server/routers/model_assets.py`, `server/schemas/model_asset.py`, `resources/model-assets.v1.json` (empty), `tests/test_model_assets.py` |
+| Request boundary     | `src/backend/animama/local/http/admission.py`: GET and HEAD under `/v1` are safe methods; mutations need `x-animama-csrf: 1`. `local/http/assets.py` serves the web root and the desktop model mounts.                                                                                                                                                                                                                                 |
+| Client probe         | `src/frontend/web/src/lib/speech/client-parakeet/{assets,webgpu,client}.ts` (`CLIENT_PARAKEET_WEBGPU_ENCODER_URL`, `probeParakeetWebgpu`, `withBackendEncoder`); `web/vite.config.ts` (`__CLIENT_PARAKEET_WEBGPU_MODEL_BASE_URL__`)                                                                                                                                                                                                    |
+| Settings UI          | `src/frontend/web/src/ui/settings/ExperimentalSettings.tsx` and its test. The desktop-only `ParakeetWebgpuDownload` shows the control pattern to follow.                                                                                                                                                                                                                                                                             |
+| Self-host            | `docker-compose.yml` (WebGPU mount at `/opt/animama/web/__client-parakeet-webgpu-models`; data root `${ANIMAMA_DATA_HOST_PATH:-./data}` at `/var/lib/animama/data`), `docker-compose.development.yml`, `reset.sh`, `Dockerfile` (web builder copies `models/`), `scripts/backup-local.sh`                                                                                                                                              |
+| R2 publication       | `src/frontend/desktop/scripts/runtime/publish-r2.mjs` (create-only signed PUT, anonymous hash verification), `release-scan.mjs` and `scan-release-candidate.mjs` (gitleaks plus private-text scan, `.onnx` excluded from gitleaks but byte-searched), `desktop/tests/{publish-r2,release-scan}.test.mjs`, `docs/frontend/desktop/releases.md` (R2 operator setup)                                                                    |
+| Model store          | `scripts/models/parakeet_webgpu.py` (`acquire`, `verify`, `path`), `models/parakeet-tdt-0.6b-v2-webgpu/{manifest.json,ATTRIBUTION.md,README.md}`                                                                                                                                                                                                                                                                                      |
+| Licensing            | `licenses/third-party/code-and-models.md` (the encoder row currently says "redistributed unmodified only in the optional `parakeet-stt-webgpu` desktop pack"), `licenses/source-review.json` (`parakeet-webgpu-source`), `src/frontend/desktop/runtime/license-sources.json`                                                                                                                                                         |
+| Generated SDK        | `src/frontend/packages/runtime-contracts/src/generated/*`. Regenerate with `pnpm openapi-ts` from `src/frontend`; never hand-edit.                                                                                                                                                                                                                                                                                                    |
+| Docs                 | `docs/backend/operations/model-assets.md`, `docs/backend/architecture/http-api.md` (#162 section), `docs/frontend/runtime/voice.md`, `docs/frontend/desktop/releases.md`, the WebGPU plan's D2 record                                                                                                                                                                                                                                 |
+
+Facts that shape the design (inspected 2026-09-26 at `origin/main` `2064540`
+and `origin/feat/model-asset-downloader` `dc2a433`):
+
+- `git merge-tree` merges #162 into current `main` without conflicts. #162 and
+  #161 both change `local/http/assets.py`: #162 extracts
+  `verified_file_response`, and #161 adds the WebGPU mount.
+- #162's catalog entry has one file per asset (`id`, `url`, `size`, `sha256`,
+  `media_type`, `license_ref`). It has no grouping, no free-space field and no
+  pre-install space check.
+- The fetcher accepts only `https://downloads.animama.ai` on the default port.
+  It follows no redirects, requires an exact 200 and refuses any
+  `Content-Encoding` other than identity. The read timeout is 60 s per chunk,
+  and there is no resume: a retry starts the download again.
+- The content route already answers `HEAD` with 404 while an asset is not
+  installed or is downloading. The current probe therefore works unchanged if
+  the encoder URL points at that route.
+- The same FastAPI and catalog run on desktop. Any catalog entry is also
+  listed by desktop's `/v1/model-assets`.
+- The built image ships no third-party notices for the encoder. Today its
+  attribution reaches self-host through the operator-mounted directory.
+- `scripts/backup-local.sh` archives the whole data root. Without an exclusion,
+  every backup would include the 1.24 GB encoder.
+- `publish-r2.mjs` hard-codes the `desktop/v<version>/` key layout and the
+  stable feed flow. Its `put` and `verify` closures are the reusable parts.
+- R2 accepts a single PUT of up to 5 GiB, so the encoder needs no multipart
+  upload.
+
+### Boundaries
+
+In scope: #163 as published.
+
+Excluded:
+
+- Desktop feature-pack delivery, its catalog and its pack inventory review.
+- Enabling WebGPU by default.
+- Moving base Parakeet or browser speech to the downloader (see O5).
+- #144 Phase 4 (signed desktop candidate).
+- Publishing an app release.
+
+## Progress
+
+- [x] Owner decisions O1–O8 (2026-09-26): O1 merge #162; O2 per-file hash
+  layout; O4 option A; O3 and O5–O8 as recommended.
+- [x] Phases 1–3 authorized (2026-09-26). Workspace: branch
+  `feat/self-host-model-downloads` from `main` `4e5f663`.
+- [ ] Phase 1 (#173): Downloader adopted, extended and cataloged.
+- [ ] Phase 2 (#174): Create-only model publication command with a scan gate.
+- [ ] Phase 3 (#175): Built self-host serving and Experimental download control.
+- [ ] Phase 4: R2 publication and built self-host acceptance (owner-gated).
+- [ ] Final integration review.
+
+## Surprises & Discoveries
+
+- 2026-09-26: the built self-host image has no copy of the encoder attribution.
+  If the operator mount is retired, the attribution must be delivered another
+  way (O8).
+- 2026-09-26: `backup-local.sh` would archive downloaded model assets (O6).
+- 2026-09-26: desktop FastAPI would list any catalog entry. The client, not the
+  catalog, decides which platforms offer the download (Phase 3).
+
+## Decision Log
+
+Proposed by the agent on 2026-09-26. On 2026-09-26 the owner chose to merge
+#162 (O1), asked that the encoder never be re-uploaded (O2 revised), chose
+option A for O4, and accepted the remaining recommendations (O2, O3, O5–O8).
+Withdrawn alternatives are kept for context.
+
+- **O1: adopting #162 (owner decision, 2026-09-26: merge it).** Merge `origin/feat/model-asset-downloader`
+  into this branch with an ordinary merge commit as Phase 1's first commit.
+  This keeps the reviewed commit `dc2a433` and its review record unchanged.
+  When this plan's PR opens, close #162 as superseded by it, and let the PR
+  close #151.
+
+  Alternative not chosen: rebase and merge #162 on its own first. This contradicts the
+  owner's 2026-09-26 choice to merge the downloader together with a consumer.
+
+- **O2: R2 layout (owner decision, 2026-09-26).** Address every file by its own hash,
+  `models/<model-id>/<file-sha256>/<file-name>`. For the encoder that is
+  `models/parakeet-tdt-0.6b-v2-webgpu/ad8bb0ac…62a2/encoder-model.fp16.onnx`.
+  `ATTRIBUTION.md`, `README.md` and `manifest.json` are published the same
+  way, each under its own hash.
+    - The encoder is uploaded exactly once. A notice or manifest edit publishes
+      only that small file under a new hash, and the encoder URL in the catalog
+      never changes.
+    - Before uploading, the command checks the public URL anonymously. If the
+      object already exists, it verifies the hash by download and skips the
+      PUT, so a retry or later run never re-sends 1.24 GB.
+    - Every object is created once with
+      `Cache-Control: public, max-age=31536000, immutable`, as under `desktop/v`.
+    - R2 has no directory listing, so "beside the weights" had no practical
+      value. The attribution is still published with the set, and it also
+      ships in the app (O8).
+
+  The earlier proposal (one directory per manifest digest) is withdrawn: it
+  forced a 1.24 GB re-upload for any notice change.
+
+- **O3: bucket lock (owner decision, 2026-09-26).** Before the first upload, the owner adds a
+  bucket lock rule with indefinite retention on the prefix `models/` in the
+  Cloudflare dashboard. `desktop/v` stays as it is. The publish command cannot
+  confirm lock rules with the object-scoped token, so the owner's confirmation
+  is a recorded Phase 4 gate.
+
+- **O4: operator mount (owner decision, 2026-09-26: option A).** Today a built self-host stack gets the
+  encoder only one way: the operator runs `parakeet_webgpu.py acquire` on the
+  host, `reset.sh` records `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`, and
+  `docker-compose.yml` bind-mounts that directory into the container. After
+  this plan the app can download the encoder itself. The question is whether
+  built self-host keeps the host mount as a second way in.
+    - **A. Drop it for built self-host (chosen).** Remove one bind mount
+      from `docker-compose.yml`. The in-app download is the only path, so there
+      is one URL, one status and one UI. Development stacks keep the mount
+      unchanged; they use the host model store and never need the download.
+      Cost: a built self-host host that cannot reach `downloads.animama.ai`
+      cannot enable WebGPU, and an operator who already acquired the encoder
+      on the host downloads it again once, into the data root.
+    - **B. Keep it as an offline override (not chosen).** When the mount is present, the
+      backend reports the encoder as installed from it and serves it at the
+      same URL; the UI shows "Provided by the operator" and no Remove button.
+      Cost: a second source inside the downloader, and extra states and tests,
+      for an experimental feature.
+
+- **O5: base Parakeet and browser speech (owner decision, 2026-09-26).** Out of scope, with a
+  follow-up issue.
+    - Browser speech assets are a BuildKit input copied into `dist` at build
+      time; they are not runtime files.
+    - Base Parakeet is required at stack startup (`reset.sh` verification, web
+      root mount). Downloading it in the app changes first-run behavior for
+      every self-host user and needs its own UX and R2 publication.
+    - Once proven by the encoder, the same catalog and layout can carry them.
+
+- **O6: store location and limits (owner decision, 2026-09-26).**
+    - Use #162's store beneath the existing data root bind mount
+      (`${ANIMAMA_DATA_HOST_PATH}/internal/model-assets`). There is no new
+      volume and no quota.
+    - Add `free_bytes` for the store's filesystem to the list response, and
+      `required_free_bytes` (size + 64 MiB) to each asset.
+    - Refuse to start an install when free space is below the requirement,
+      before any bytes are fetched.
+    - Exclude `internal/model-assets` and `staging/model-assets` from
+      `backup-local.sh`. They are re-downloadable. After a restore the asset
+      shows "not installed".
+    - `reset.sh --purge` already removes them with the rest of the data root.
+
+- **O7: download source (owner decision, 2026-09-26).** The R2 `models/` mirror only, with no
+  Hugging Face fallback. Hugging Face serves through redirects to other CDN
+  hosts, which #162 deliberately refuses. A fallback would widen the host
+  allowlist and redirect policy, a security change, for little benefit: the
+  R2 objects are pinned to the same bytes.
+
+- **O8: licensing and attribution (owner decision, 2026-09-26).**
+    - **Shared review.** Extend the existing `parakeet-webgpu-source` review. The
+      bytes, upstream revision and CC-BY-4.0 attribution are identical to the
+      desktop pack's. Update the `code-and-models.md` row to name the R2
+      `models/` mirror and self-host downloads. The owner still reviews the
+      changed licensing records in the PR.
+    - **Attribution ships in the app.** The built web output includes the tracked
+      `ATTRIBUTION.md` (the web builder already copies `models/`). The
+      Experimental control links to it.
+    - **The catalog lists only the encoder**, with `license_ref: "CC-BY-4.0"`.
+      The R2 directory also carries the notices for anyone downloading directly.
+
+  Alternative not chosen, closer to the #163 wording ("plus its attribution files"): add
+  catalog entries for `ATTRIBUTION.md` and `README.md`, installed together
+  with the encoder. #162 has no grouping, so the UI or service would have to
+  install and remove three assets as one.
+
+- **Implementation decisions (agent, within the accepted outcome).**
+    - The encoder asset ID is `parakeet-tdt-0.6b-v2-webgpu-encoder`.
+    - The client selects the encoder source with a build define: `pack` for
+      embedded desktop, `model-asset` for `vite build` (built self-host) and
+      `operator` for Vite serve. The download control appears only for
+      `model-asset`. Desktop FastAPI still lists the entry, but its client
+      never offers it.
+    - No removal guard. The worker keeps a loaded session's weights in memory.
+      After removal the client refreshes its probe, and the next load uses WASM.
+
+## Phased implementation
+
+Default delivery: this branch, `feat/self-host-model-downloads`, and one PR
+for the plan, with one issue per authorized phase under #163. Commit subjects
+use `<type>(<scope>)[p#]: <summary>`, for example
+`feat(models)[p1]: report free space for model assets`.
+
+### Phase 1: Downloader adopted, extended and cataloged
+
+**Requirements:** #163 "Merge #162", "Catalog entries", and the store and
+free-space questions (O1, O6); #151 R8–R12.
+
+**Issue:** #173.
+
+**Starting source:** `origin/main` `4e5f663` plus
+`origin/feat/model-asset-downloader` `dc2a433`.
+
+**Changes:**
+
+1. **Adopt #162.** Run `git merge --no-ff origin/feat/model-asset-downloader`,
+   then rerun its tests on the merged tree before changing anything.
+2. **Free space.**
+    - The store reports free bytes for its filesystem (`shutil.disk_usage` on
+      the installed root's nearest existing ancestor).
+    - `PyModelAssetList` gains `free_bytes`, and `PyModelAssetState` gains
+      `required_free_bytes`.
+    - `install` refuses before staging when free space is below the
+      requirement, reporting failure reason `asset_insufficient_space`. The
+      reason never carries a path.
+3. **Catalog.** Add the encoder entry to `resources/model-assets.v1.json`:
+    - `url`: `https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2-webgpu/<encoder-sha256>/encoder-model.fp16.onnx`
+    - `size` and `sha256` from the tracked manifest
+    - `media_type`: `application/octet-stream`
+    - `license_ref`: `CC-BY-4.0`
+
+   Add a test that binds the entry to the tracked manifest: equal size and
+   hash, and a URL directory equal to that hash. A manifest change then cannot
+   leave the catalog stale.
+4. **Backups.** Exclude the model-asset store and its staging from
+   `scripts/backup-local.sh`. Say so in the backup docs.
+5. **SDK.** From `src/frontend`, run `pnpm openapi-ts` and commit the
+   regenerated client.
+6. **Docs.** Update the #162 section of `docs/backend/architecture/http-api.md`
+   (free space, the new failure reason), and the store and backup notes in
+   `docs/backend/operations/model-assets.md`.
+
+**Checks:**
+
+- `uv run pytest -q tests/test_model_assets.py tests/test_local_http_assets.py tests/test_local_app_composition.py`
+- `uv run pytest -q`
+- `uv run ruff check` and `uv run ruff format --check`
+- `scripts/repository-boundary/check-python-imports.py`
+- `bash -n scripts/backup-local.sh` and `uv run pytest -q tests/test_local_state_scripts.py`,
+  extended to assert the store is absent from the data archive
+- From `src/frontend`: `pnpm openapi-ts:check` and `pnpm check`
+
+**Completion:** the merged downloader passes its original tests. The new tests
+pass: free space, refusal for insufficient space, the catalog bound to the
+manifest, and the backup exclusion. The SDK is current. Until Phase 4, the
+catalog URL answers 404, so a live install fails as `asset_download_failed`.
+This is expected, and the phase does not merge on its own.
+
+**Evidence, commits and review:** to be recorded here.
+
+#### Code Review #1 Findings
+
+Pending.
+
+#### Code Review #1 Revisions
+
+Pending.
+
+### Phase 2: Create-only model publication command with a scan gate
+
+**Issue:** #174.
+
+**Requirements:** #163 "R2 layout for versionless model objects" (O2, O3),
+with the release scan's handling of ONNX files.
+
+**Changes:**
+
+1. **Shared R2 primitives.** Extract the signed create-only PUT and the
+   anonymous verification from `publishR2` into `r2-objects.mjs` in the same
+   directory. `publishR2`'s behavior and tests stay unchanged.
+2. **`publish-models-r2.mjs`**, exposed as the desktop package script
+   `models:publish`:
+    - `--model parakeet-tdt-0.6b-v2-webgpu`. The only allowed IDs are those
+      with a tracked manifest and a catalog entry.
+    - It resolves the verified local set offline with
+      `python3 scripts/models/<model>.py path`, then rehashes every manifest
+      file.
+    - It requires a passing scan receipt for exactly those files and hashes.
+    - For each file (the manifest's files plus `manifest.json`), it first
+      requests `models/<model-id>/<file-sha256>/<file>` anonymously. An
+      existing object is hash-verified and skipped, never re-uploaded.
+    - Otherwise it uploads the file create-only (`If-None-Match: *`), signed
+      with its SHA-256, with an immutable `Cache-Control` and a content type
+      from its suffix.
+    - It then downloads each object anonymously through
+      `https://downloads.animama.ai`, requesting identity encoding. It checks
+      for a 200 with no `Content-Encoding`, an exact `Content-Length` and the
+      SHA-256, which are the same conditions the #162 fetcher enforces.
+    - A retry accepts only byte-identical existing objects; a differing object
+      stops publication for inspection.
+    - `--dry-run` prints the planned keys and hashes without reading
+      credentials. Credentials come only from the existing
+      `ANIMAMA_R2_*` environment variables, and their values are never printed.
+    - `--confirm-publication` is required for any upload.
+3. **Scan gate.** Run `scanCandidate` (gitleaks plus private-text byte search)
+   over a staged directory holding the model set and its notices. Add a
+   `release:scan` option or a thin `models:scan` entry that writes the receipt
+   next to the staged set. The ONNX file stays excluded from gitleaks and
+   included in the private-text byte search, as for release candidates.
+4. **Docs.** In `docs/frontend/desktop/releases.md` → R2 operator setup, add
+   the `models/` prefix, its lock rule and the model publish procedure. In
+   `docs/backend/operations/model-assets.md`, describe how a catalog entry is
+   bound to a published object.
+
+**Checks:**
+
+- `pnpm --filter animama-desktop exec vitest run tests/publish-r2.test.mjs tests/release-scan.test.mjs tests/publish-models-r2.test.mjs`,
+  where the last file is new. Every network call is mocked. Cover
+  keys and headers, 412 followed by matching verification, a differing
+  object, compressed or wrong-length public responses, a missing receipt or a
+  hash mismatch, and credentials never appearing in errors.
+- `pnpm desktop:check`
+- A dry run against the real local store:
+  `pnpm --filter animama-desktop models:publish --model parakeet-tdt-0.6b-v2-webgpu --dry-run`
+
+**Completion:** mocked tests pass, including an existing encoder object that
+is verified and skipped without a PUT. The dry run lists four keys, each under
+its own file hash. No request reaches R2 in this
+phase.
+
+**Evidence, commits and review:** to be recorded here.
+
+#### Code Review #1 Findings
+
+Pending.
+
+#### Code Review #1 Revisions
+
+Pending.
+
+### Phase 3: Built self-host serving and Experimental download control
+
+**Issue:** #175, blocked by #173.
+
+**Requirements:** #163 "Serving and probe", "Self-host settings UI",
+"Operator mount" (O4), "Docs", and the attribution part of O8.
+
+**Changes:**
+
+1. **Build define.** Replace `__CLIENT_PARAKEET_WEBGPU_MODEL_BASE_URL__` with
+   the full encoder URL and a source (`pack`, `model-asset`, `operator` or
+   none):
+    - `vite build` (built self-host): `/v1/model-assets/parakeet-tdt-0.6b-v2-webgpu-encoder/content`.
+    - Embedded desktop and Vite serve: unchanged URLs.
+
+   `probeParakeetWebgpu` and `withBackendEncoder` keep their behavior. The
+   probe's `HEAD` is a safe method under the admission rules.
+2. **Hook.** Add `useModelAsset(id)`, built on the generated SDK:
+    - it reads state (including `free_bytes`);
+    - `install` calls `:install`, and `cancel` and `remove` call DELETE;
+    - it polls once a second only while the asset is downloading;
+    - when the asset settles as installed or removed, it refreshes
+      `getParakeetWebgpuStatus({ refresh: true })`.
+3. **UI.** `ParakeetWebgpuSetting` renders a self-host control when the source
+   is `model-asset`. It reuses the desktop control's layout and wording where
+   they apply:
+    - The control is shown only when the probe found an adapter and the asset
+      is not installed, or when it is installed or failed, so that removal and
+      retry stay reachable.
+    - It shows the size and free space, a progress bar with Cancel,
+      "Retry download" after a failure, and a two-step "Remove GPU encoder".
+    - There is no app reload; the next dictation or Voice Mode start loads it.
+    - It replaces the operator text for `model_missing`.
+    - It links to the bundled attribution.
+
+   Desktop and development behavior is unchanged.
+4. **Attribution (O8).** The web build copies the tracked `ATTRIBUTION.md` (and
+   `README.md`) for the encoder into `dist` at a stable path. This covers
+   built self-host only.
+5. **Retire the built mount (O4).** Remove the WebGPU bind mount from
+   `docker-compose.yml`. `reset.sh` keeps resolving and recording the
+   directory for development stacks. Update `tests/test_compose_network_boundaries.py`
+   or the equivalent Compose tests.
+6. **Docs.**
+    - `docs/frontend/runtime/voice.md`: the serving and probe paragraph and the
+      status table.
+    - `docs/backend/operations/model-assets.md`: the optional WebGPU encoder
+      section, which currently says self-host never downloads it.
+    - The WebGPU plan's D2 record: add a dated note that #163 supersedes D2 for
+      built self-host, without rewriting the history.
+    - `licenses/third-party/code-and-models.md` and the source review records.
+
+**Checks:**
+
+- From `src/frontend`: `pnpm web:test`, including `ExperimentalSettings.test.tsx`
+  with the self-host states:
+    - no adapter: no control;
+    - not installed: size and free space shown;
+    - downloading: progress and Cancel;
+    - failed: Retry;
+    - installed: Remove, with the probe refreshed;
+    - insufficient space: a message, with Download disabled.
+- Also `client-parakeet` tests for each source's URL, and the build-define tests.
+- `pnpm check`, `pnpm web:lint`, `pnpm build`; confirm the built bundle
+  contains the model-asset URL and no `/__client-parakeet-webgpu-models`
+  reference.
+- `uv run pytest -q` (Compose tests)
+- `bash -n reset.sh`
+- `docker compose -f docker-compose.yml config --quiet` and the development
+  combination, with the model variables exported as in AGENTS.md.
+- **Pre-publication built stack.** Run
+  `ANIMAMA_WEB_BUILD_MODE=production ./reset.sh --name selfhost-dl --base-port 8400`,
+  then check in the browser at desktop viewport:
+    - no encoder: `HEAD` returns 404, and Experimental shows the download with
+      size and free space;
+    - an attempted download reports failure until Phase 4, then Retry works;
+    - with a copy of the verified encoder placed at
+      `<data>/internal/model-assets/parakeet-tdt-0.6b-v2-webgpu-encoder/<sha256>`
+      and the backend restarted: `HEAD` returns 200, the toggle reports
+      available, a live preview works, and Remove returns to not installed.
+    - Then check a narrower layout for regressions.
+
+**Completion:** checks pass, and the built stack shows every state except a
+live download. Record that stack's URL here.
+
+**Evidence, commits and review:** to be recorded here.
+
+#### Code Review #1 Findings
+
+Pending.
+
+#### Code Review #1 Revisions
+
+Pending.
+
+### Phase 4: R2 publication and built self-host acceptance (owner-gated)
+
+**Gate:** each step needs explicit owner approval in chat at the time. The
+owner holds the R2 credentials. The agent never requests, reads or prints them.
+
+1. **Bucket lock (owner, dashboard).** The owner adds the `models/` lock rule
+   (O3) and confirms it here, with the date.
+2. **Scan.** Stage the verified set and run the model scan with the pinned
+   gitleaks binary. Record the receipt's summary.
+3. **Publish (owner-run or owner-approved).** With the owner's credentials in
+   their own environment, run:
+
+   `pnpm --filter animama-desktop models:publish --model parakeet-tdt-0.6b-v2-webgpu --confirm-publication`
+
+   Record the four keys, whether each was uploaded or already present, and the
+   anonymous verification result.
+4. **Built self-host acceptance.** On a stack built from the final candidate,
+   with a WebGPU-capable browser and no operator mount:
+    - Experimental offers the download with size and free space.
+    - The download completes, and the file is served only after verification.
+    - Cancel mid-download leaves nothing staged; Retry succeeds.
+    - The toggle reports available, and live previews work.
+    - Remove returns the status to not installed.
+    - A browser without a WebGPU adapter (for example, WebGPU disabled) sees no
+      download control.
+5. **Desktop unchanged.** Confirm that desktop checks pass and that the
+   embedded build still points at the pack URL. #144 Phase 4 still owns native
+   pack acceptance.
+
+**Completion:** the #163 acceptance items are recorded with evidence, and the
+catalog URL downloads anonymously with matching hashes. Merging still needs
+separate exact-candidate approval.
+
+#### Code Review #1 Findings
+
+Pending, covering any code changed during this phase.
+
+## Final integration review
+
+After Phase 4, an independent reviewer checks the combined acceptance of #163
+and #151 on the final candidate. Phase evidence that is still valid is reused.
+Findings and revisions are recorded here: one full review and at most two
+repair rounds.
+
+## Validation and acceptance
+
+The acceptance criteria are those of #163:
+
+- On a built self-host stack with a WebGPU-capable browser and no operator
+  mount, Experimental offers the encoder with size and free space.
+- The download is verified before it is served.
+- Cancel and retry work.
+- After install the toggle reports available and live previews work.
+- Removal returns the status to not installed.
+- Without a WebGPU adapter, no download is offered.
+- The R2 objects download anonymously and match the catalog hashes, and the
+  bucket lock covers `models/`.
+- Desktop pack behavior is unchanged.
+
+Required checks:
+
+- `uv run pytest -q`, `uv run ruff check`
+- From `src/frontend`: `pnpm openapi-ts:check`, `pnpm check`, `pnpm web:lint`,
+  `pnpm web:test`, `pnpm build`, `pnpm desktop:check`
+- The Compose config checks and `bash -n reset.sh`
+- A built self-host browser check
+
+Record local evidence, hosted `Validation` and browser evidence separately.
+
+## Idempotence and recovery
+
+- **Merging #162** is a normal merge commit. It can be reverted without
+  touching #161.
+- **Interrupted downloads** leave only staging files, which are discarded at
+  service start. Retry restarts the download. A failed install leaves nothing
+  servable.
+- **Publication.** Uploads are create-only, and a rerun verifies existing
+  objects byte for byte. A differing object stops publication. Objects under
+  the lock cannot be deleted or replaced: a corrected file has a new hash and
+  so a new key. Unchanged files, including the encoder, are never re-uploaded.
+  Never overwrite in place.
+- **Wrong or unwanted objects.** If an object was published without the lock
+  and must be withdrawn, delete it and purge its exact URL from Cloudflare's
+  cache, as documented for `desktop/v`.
+- **Reverting the UI** restores `model_missing` text for self-host. Installed
+  files stay in the data root until the operator removes
+  `internal/model-assets`.
+- **Retiring the mount** is reversible by restoring the Compose bind mount.
+  Development stacks are unaffected either way.
+
+## Outcomes & Retrospective
+
+Pending.
