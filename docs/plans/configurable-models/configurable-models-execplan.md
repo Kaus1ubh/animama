@@ -475,7 +475,7 @@ Checks:
 Completion: the tests above pass; no remaining reference to Gemini or LiteLLM
 outside history; review leaves no blocker.
 
-Phase record: issue #171; starting source `25abbfb`; commits —.
+Phase record: issue #171; starting source `25abbfb`; commit `6b79505`.
 
 Evidence (pre-review, working tree on `25abbfb`):
 
