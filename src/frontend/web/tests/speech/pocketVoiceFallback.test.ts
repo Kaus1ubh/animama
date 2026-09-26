@@ -21,18 +21,18 @@ describe("resolvePocketFallbackVoice", () => {
   });
 
   it("falls back to the default with a session notice for a removed voice", () => {
-    const result = resolvePocketFallbackVoice("fantine", voices, false, "eve");
+    const result = resolvePocketFallbackVoice("cosette", voices, false, "eve");
     expect(result.voice).toBe("eve");
     expect(result.notice).toMatchObject({
       scope: "session",
-      key: "pocket_voice_unknown:fantine",
+      key: "pocket_voice_unknown:cosette",
     });
-    expect(result.notice?.message).toContain("fantine");
+    expect(result.notice?.message).toContain("cosette");
   });
 
   it("does not judge a saved voice before the worker reports its voices", () => {
-    expect(resolvePocketFallbackVoice("fantine", [], false, "eve")).toEqual({
-      voice: "fantine",
+    expect(resolvePocketFallbackVoice("cosette", [], false, "eve")).toEqual({
+      voice: "cosette",
     });
   });
 
@@ -49,5 +49,21 @@ describe("resolvePocketFallbackVoice", () => {
     expect(resolvePocketFallbackVoice("custom", voices, true, "eve")).toEqual({
       voice: "custom",
     });
+  });
+});
+
+describe("claimSessionNotice", () => {
+  it("allows each notice once for the whole app session", async () => {
+    const first = await import("../../src/lib/speech/pocket/voice-preferences");
+    expect(first.claimSessionNotice("pocket_voice_unknown:cosette")).toBe(true);
+    expect(first.claimSessionNotice("pocket_voice_unknown:cosette")).toBe(
+      false,
+    );
+    expect(first.claimSessionNotice("pocket_voice_unknown:jean")).toBe(true);
+    // Remounting a hook re-imports the same module instance, so state persists.
+    const again = await import("../../src/lib/speech/pocket/voice-preferences");
+    expect(again.claimSessionNotice("pocket_voice_unknown:cosette")).toBe(
+      false,
+    );
   });
 });

@@ -22,6 +22,7 @@ import {
   type TtsProvider,
 } from "@/lib/speech/tts-provider";
 import {
+  claimSessionNotice,
   resolvePocketFallbackVoice,
   resolvePocketVoicePreference,
 } from "@/lib/speech/pocket/voice-preferences";
@@ -326,8 +327,6 @@ export function useTtsPlayback(
   const bufferRef = useRef("");
   const idleFlushTimerRef = useRef<number | null>(null);
   const warnedKeysRef = useRef<Set<string>>(new Set());
-  // Warnings about saved settings (not a single run) show once per app session.
-  const warnedSessionKeysRef = useRef<Set<string>>(new Set());
   const runCompletedRef = useRef(false);
   const audioStartedRef = useRef(false);
   const audioEndedRef = useRef(false);
@@ -531,9 +530,9 @@ export function useTtsPlayback(
     [],
   );
 
+  // Warnings about saved settings (not a single run) show once per app session.
   const warnOncePerSession = useCallback((reason: string, message: string) => {
-    if (warnedSessionKeysRef.current.has(reason)) return;
-    warnedSessionKeysRef.current.add(reason);
+    if (!claimSessionNotice(reason)) return;
     toast.warning("Pocket voice unavailable", { description: message });
   }, []);
 

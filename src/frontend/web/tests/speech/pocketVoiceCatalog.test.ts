@@ -60,7 +60,7 @@ describe("groupPocketVoices", () => {
     );
   });
 
-  it("keeps only voices the worker reported, and lists unknown ones last", () => {
+  it("keeps only voices the worker reported", () => {
     const groups = groupPocketVoices(["noah", "azelma", "legacy_voice"]);
     expect(
       groups.map((group) => [
@@ -70,7 +70,6 @@ describe("groupPocketVoices", () => {
     ).toEqual([
       ["Female voices", ["azelma"]],
       ["Male voices", ["noah"]],
-      ["Other voices", ["legacy_voice"]],
     ]);
   });
 

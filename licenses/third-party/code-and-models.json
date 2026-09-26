@@ -18,7 +18,7 @@
         },
         {
           "path": "src/frontend/web/public/tts/workers/inference-worker.js",
-          "sha256": "ea6ff6ceb87b68fe696374e9ca535f6969be6bc482680084b5c5039821fbb71e"
+          "sha256": "7fa5fe78ab451b79b575fc387440285cc243391740d9b04a7c3edc49b3d0dcd1"
         },
         {
           "path": "src/frontend/web/public/tts/workers/ort-debug-reporter.js",

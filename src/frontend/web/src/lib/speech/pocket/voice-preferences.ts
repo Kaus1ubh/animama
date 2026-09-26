@@ -81,3 +81,14 @@ export function resolvePocketFallbackVoice(
   }
   return { voice: configuredVoice };
 }
+
+// App-lifetime record of shown session notices. Module state survives chat
+// remounts (switching Animas or canvas modes), unlike component state.
+const claimedSessionNotices = new Set<string>();
+
+/** Return true the first time a session notice key is claimed in this app session. */
+export function claimSessionNotice(key: string): boolean {
+  if (claimedSessionNotices.has(key)) return false;
+  claimedSessionNotices.add(key);
+  return true;
+}

@@ -287,7 +287,7 @@ describe("resolveBuiltInVoices", () => {
     expect(
       resolveBuiltInVoices({
         voices: ["azelma", "jane"],
-        defaultVoice: "fantine",
+        defaultVoice: "cosette",
       }),
     ).toEqual({ names: ["azelma", "jane"], defaultVoice: "azelma" });
   });

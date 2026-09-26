@@ -2,6 +2,7 @@ import {
   POCKET_VOICES,
   type PocketVoice,
 } from "@/lib/speech/pocket/voice-catalog";
+import { POCKET_TTS_CUSTOM_VOICE } from "@/lib/speech/pocket/voice-preferences";
 
 /** What the picker shows for one voice. */
 export type PocketVoiceOption = Pick<
@@ -21,39 +22,25 @@ const GROUP_LABELS = {
 
 /**
  * Group the voices the Pocket worker reported for the voice picker: Female,
- * then Male, each in catalog order (recommended voices first). A reported voice
- * missing from the catalog is still selectable under "Other voices".
+ * then Male, each in catalog order (recommended voices first). The worker's list
+ * comes from the same catalog, so every reported voice has metadata.
  */
 export function groupPocketVoices(
   available: readonly string[],
 ): PocketVoiceGroup[] {
   const reported = new Set(available);
-  const known = new Set(POCKET_VOICES.map((voice) => voice.id));
-  const groups: PocketVoiceGroup[] = (["female", "male"] as const).map(
-    (gender) => ({
+  return (["female", "male"] as const)
+    .map((gender) => ({
       label: GROUP_LABELS[gender],
       voices: POCKET_VOICES.filter(
         (voice) => voice.gender === gender && reported.has(voice.id),
       ),
-    }),
-  );
-  const unknown = available.filter((id) => !known.has(id));
-  if (unknown.length > 0) {
-    groups.push({
-      label: "Other voices",
-      voices: unknown.map((id) => ({
-        id,
-        name: id,
-        accent: null,
-        recommended: false,
-      })),
-    });
-  }
-  return groups.filter((group) => group.voices.length > 0);
+    }))
+    .filter((group) => group.voices.length > 0);
 }
 
 /** The display name of a built-in voice, or the raw value for anything else. */
 export function pocketVoiceLabel(id: string): string {
-  if (id === "custom") return "Custom (uploaded)";
+  if (id === POCKET_TTS_CUSTOM_VOICE) return "Custom (uploaded)";
   return POCKET_VOICES.find((voice) => voice.id === id)?.name ?? id;
 }
