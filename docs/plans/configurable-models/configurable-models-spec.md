@@ -10,7 +10,9 @@ The same day the owner accepted the draft, including the removal behavior (R2),
 the summarizing indicator (R10), the shared web-search control (R11) and a
 guardrail-only safety posture for non-OpenAI models, by invoking execution
 planning.
-Authoritative source: this draft (not yet published).
+Authoritative source: https://github.com/raymond-van/animama/issues/165 (this
+file is a snapshot).
+Snapshot captured: 2026-09-26, published from revision `37abfed`.
 Source baseline: `2064540`.
 
 ## Problem and intended users
@@ -363,7 +365,7 @@ Open:
 
 ## Spec
 
-This document before publication.
+https://github.com/raymond-van/animama/issues/165
 
 ## ExecPlan
 
@@ -374,4 +376,5 @@ This document before publication.
 
 ## Delivery links
 
-None yet.
+Plan A phases: #171 (p1), #166 (p2), #167 (p3), #168 (p4), #169 (p5),
+#170 (p6). Branch `feat/configurable-models`.

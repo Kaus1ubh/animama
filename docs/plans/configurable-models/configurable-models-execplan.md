@@ -38,7 +38,8 @@ verify it.
 
 Repository `raymond-van/animama`, worktree
 `worktrees/animama/configurable-models`, branch `feat/configurable-models`
-(no upstream until workspace setup). Starting revision `2064540`. The primary
+tracking `origin/feat/configurable-models`. Starting revision `feb6ad3`
+(`main` after the 0.1.1 release). The primary
 checkout stays on `main`. No Cloud checkout or private input is needed.
 
 Follow:
@@ -79,7 +80,10 @@ Standing rules:
       Surprises & Discoveries.
 - [x] Plan drafted (2026-09-26).
 - [x] Owner authorized all phases via `/implement` (2026-09-26).
-- [ ] Workspace setup: parent issue from the spec, one issue per phase.
+- [x] Workspace setup (2026-09-26): branch fast-forwarded to `main` `feb6ad3`;
+      spec and plan committed `37abfed` and pushed; parent #165 with sub-issues
+      #171 (p1), #166 (p2), #167 (p3), #168 (p4), #169 (p5), #170 (p6), chained
+      blocked-by.
 - [ ] Phase 1: connection-aware catalog and credential isolation.
 - [ ] Phase 2: owner management API, probe and composition boundary.
 - [ ] Phase 3: Chat Completions turn parity and errors.
@@ -450,7 +454,7 @@ Checks:
 Completion: the tests above pass; no remaining reference to Gemini or LiteLLM
 outside history; review leaves no blocker.
 
-Phase record: issue —; starting source —; commits —.
+Phase record: issue #171; starting source —; commits —.
 
 #### Code Review #1 Findings
 
@@ -556,7 +560,7 @@ Checks: focused pytest, `make check-test`, `pnpm openapi-ts:check`,
 
 Completion: tests pass; the SDK is regenerated; review has no blocker.
 
-Phase record: issue —; starting source —; commits —.
+Phase record: issue #166; starting source —; commits —.
 
 #### Code Review #1 Findings
 
@@ -619,7 +623,7 @@ changed.
 
 Completion: tests pass; review has no blocker.
 
-Phase record: issue —; starting source —; commits —.
+Phase record: issue #167; starting source —; commits —.
 
 #### Code Review #1 Findings
 
@@ -714,7 +718,7 @@ Checks: focused pytest, `make check-test`, `pnpm openapi-ts:check`.
 
 Completion: tests pass; review has no blocker.
 
-Phase record: issue —; starting source —; commits —.
+Phase record: issue #168; starting source —; commits —.
 
 #### Code Review #1 Findings
 
@@ -792,7 +796,7 @@ Checks: `pnpm openapi-ts:check`, `pnpm check`, `pnpm web:lint`,
 Completion: checks pass, browser checks are recorded, and review has no
 blocker.
 
-Phase record: issue —; starting source —; commits —.
+Phase record: issue #169; starting source —; commits —.
 
 #### Code Review #1 Findings
 
@@ -836,7 +840,7 @@ Requirements: R13 for R1–R9; acceptance evidence. Depends on Phase 5.
 Checks: docs review against the delivered behavior, then the full validation
 set below.
 
-Phase record: issue —; starting source —; commits —.
+Phase record: issue #170; starting source —; commits —.
 
 #### Code Review #1 Findings
 
