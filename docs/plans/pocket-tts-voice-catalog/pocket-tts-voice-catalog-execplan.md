@@ -86,10 +86,11 @@ Line numbers are at the baseline.
 - [x] Phase 6 (#182): Split into core and downloadable voices; publication set and
       catalog. Complete (`9d48fee`, `ae2657b`, `98b6bf3`; Review #2 passed);
       gate **G2** published and verified on 2026-09-27.
-- [ ] Phase 7 (#183): On-demand voice downloads in the app (desktop and self-host).
-- [ ] Phase 5 (#154): Inventory, size, docs and verification. Docs, stage and
-      audit are done; published-object verification waits on G2, then gate
-      **G3**, owner acceptance.
+- [x] Phase 7 (#183): On-demand voice downloads in the app (desktop and self-host).
+      Complete (`93b19ee`, `9b5b4fc`, status copy follow-up; Review #2 passed).
+- [ ] Phase 5 (#154): Inventory, size, docs and verification. Docs, stage,
+      audit and published-object verification (G2) are done; gate **G3**,
+      owner acceptance, remains.
 
 ## Surprises & Discoveries
 
@@ -1163,7 +1164,14 @@ Commit `9b5b4fc`.
   naming. Sighted users see the glyph and ring, and the status copy states the
   download.
 
-Checks:
+#### Code Review #2 Findings
+
+Pinned to `3b3222e`; result **pass**. F1–F3 and F5–F8 are resolved with no
+regressions, and the F4 deferral is accepted. One cosmetic note: the status
+copy said "downloading" for `unknown` and `not_installed`. It was fixed
+afterwards with a per-status copy table (installed and unknown add nothing).
+
+Checks after Review #1 revisions:
 
 - web tests: 321 files, 1966 tests passed;
 - `pnpm check` and `web:lint` pass, with no warnings;

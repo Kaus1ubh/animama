@@ -25,6 +25,7 @@ import {
   isPocketCustomVoice,
   resolvePocketVoicePreference,
   toPocketVoicePreference,
+  type PocketVoiceAvailability,
 } from "@/lib/speech/pocket/voice-preferences";
 import {
   groupPocketVoices,
@@ -51,6 +52,18 @@ import {
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 import { useSettings } from "@/ui/settings/SettingsProvider";
+
+/** What the status line adds for a saved downloadable voice, per install state. */
+const POCKET_DOWNLOAD_STATUS_COPY: Record<
+  PocketVoiceAvailability["status"],
+  string
+> = {
+  installed: "",
+  unknown: "",
+  downloading: " (downloading; the default voice speaks until it is ready)",
+  not_installed: " (not downloaded yet; it downloads on the next reply)",
+  failed: " (download failed; retrying on the next reply)",
+};
 
 type InheritableSettingRowProps = {
   label: string;
@@ -324,12 +337,9 @@ export function AnimaSettingsModal() {
     }
     if (animaHasPocketOverride && animaOverrideVoice) {
       const download = pocketVoiceDownloads.availability(animaOverrideVoice);
-      const pending =
-        download && download.status !== "installed"
-          ? download.status === "failed"
-            ? " (download failed; retrying on the next reply)"
-            : " (downloading; the default voice speaks until it is ready)"
-          : "";
+      const pending = download
+        ? POCKET_DOWNLOAD_STATUS_COPY[download.status]
+        : "";
       return `Anima override is active: ${pocketVoiceLabel(animaOverrideVoice)}${pending}.`;
     }
     if (effectivePocketVoice) {
