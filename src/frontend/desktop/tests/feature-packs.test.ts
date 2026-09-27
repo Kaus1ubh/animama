@@ -880,6 +880,70 @@ describe("feature-pack dependencies", () => {
     await instance.remove("parakeet-stt");
     expect(instance.activePacks()).toEqual({});
   });
+  it("reactivates a retained verified encoder without downloading it again", async () => {
+    const base = await hostedFixture();
+    const gpu = await fixture();
+    gpu.manifest.id = "parakeet-stt-webgpu";
+    gpu.manifest.display_name = "GPU speech encoder";
+    let gpuRequests = 0;
+    gpu.manifest.url = await serve((_req, res) => {
+      gpuRequests++;
+      res.writeHead(200, {
+        "Content-Length": gpu.archive.length,
+        ETag: '"gpu"',
+      });
+      res.end(gpu.archive);
+    });
+    const root = await temporary();
+    let freeBytes = 100_000_000_000n;
+    const create = async () => {
+      const instance = new FeaturePackManager({
+        root: path.join(root, "packs"),
+        downloads: path.join(root, "downloads"),
+        catalog: {
+          entries: [base.manifest, gpu.manifest],
+          development: true,
+          distribution: null,
+        },
+        freeBytes: async () => freeBytes,
+        onProgress: vi.fn(),
+        transition: async (change) => change.commit(),
+      });
+      await instance.initialize();
+      return instance;
+    };
+    const first = await create();
+    await first.install("parakeet-stt");
+    await first.install("parakeet-stt-webgpu");
+    expect(gpuRequests).toBe(1);
+    // The base pack fails verification at the next launch, so the encoder is
+    // left unmounted with its verified files retained.
+    await writeFile(
+      path.join(
+        root,
+        "packs/parakeet-stt/versions",
+        versionDirectory(base.manifest),
+        "config.json",
+      ),
+      "changed",
+    );
+    const restarted = await create();
+    expect(restarted.activePacks()).toEqual({});
+    await restarted.install("parakeet-stt");
+    expect(Object.keys(restarted.activePacks())).toEqual(["parakeet-stt"]);
+    // Retry in the same session reuses the retained version: no download and
+    // no free-space demand.
+    freeBytes = 0n;
+    await restarted.install("parakeet-stt-webgpu");
+    expect(gpuRequests).toBe(1);
+    expect(Object.keys(restarted.activePacks()).sort()).toEqual([
+      "parakeet-stt",
+      "parakeet-stt-webgpu",
+    ]);
+    expect(
+      restarted.list().find((status) => status.id === "parakeet-stt-webgpu"),
+    ).toMatchObject({ state: "installed", activeVersion: "0.1.0" });
+  });
   it("accepts one catalog entry per supported pack and no more", async () => {
     const { manifest } = await fixture();
     const root = await temporary();

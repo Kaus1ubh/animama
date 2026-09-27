@@ -48,16 +48,23 @@ async def test_direct_creation_is_exact_atomic_and_has_no_runtime_or_provider(as
         assert anima.display_name == "Test  Companion"
         assert anima.aggregate_revision == 1 and anima.identity_status == "ready"
         assert all(value == 0 for value in anima.emotional_state.values())
-        identity = await async_session.scalar(select(ORMMemoryEntry).where(ORMMemoryEntry.anima_id == anima.id))
+        files = {
+            entry.path: entry
+            for entry in await async_session.scalars(select(ORMMemoryEntry).where(ORMMemoryEntry.anima_id == anima.id))
+        }
+        assert set(files) == {"IDENTITY.md", "MEMORIES.md"}
+        identity = files["IDENTITY.md"]
         assert identity.content == "# Test\n\nKeep two spaces.  \n"
         assert identity.version == 1 and identity.kind == "anima_identity"
+        assert files["MEMORIES.md"].version == 1 and files["MEMORIES.md"].kind == "anima_memories"
+        # Each file starts with exactly its creation Version.
         assert (
             await async_session.scalar(
                 select(func.count())
                 .select_from(ORMMemoryEntryVersion)
                 .where(ORMMemoryEntryVersion.anima_id == anima.id)
             )
-            == 1
+            == 2
         )
         assert await async_session.get(ORMAnimaDefinitionRevision, (anima.id, 1)) is not None
         settings = await async_session.scalar(select(ORMAnimaSettings).where(ORMAnimaSettings.anima_id == anima.id))

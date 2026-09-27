@@ -271,8 +271,8 @@ The script validates the selected Compose project, quiesces currently running
 application services while PostgreSQL stays available, creates a custom-format
 database dump plus Local/data archives and SHA-256 inventory, then restarts only
 the services it stopped. The default output is the ignored `backups/`
-directory. Included content, browser/HTTP caches, model caches, environment
-secrets are intentionally excluded. The
+directory. Included content, browser/HTTP caches, model caches, downloaded
+model assets and environment secrets are intentionally excluded. The
 PostgreSQL dump includes `installation_settings`, so restoring it preserves the
 installation principal and every existing owner ID.
 

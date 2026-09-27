@@ -193,6 +193,27 @@ function normalizeLayoutMetrics(value: unknown): DesktopQuickChatLayoutMetrics {
   };
 }
 
+/**
+ * Quick Chat commands whose result appears in the main window, such as opening
+ * a memory cue's file in the Memory workspace. The owner renderer validates
+ * the payload; the manager only reads its type to reveal that window.
+ */
+const OWNER_WINDOW_COMMAND_TYPES: ReadonlySet<string> = new Set([
+  "open-memory-entry",
+]);
+
+/** Exported for tests. */
+export function isOwnerWindowCommand(
+  message: DesktopQuickChatRuntimeMessage,
+): boolean {
+  return (
+    message.type === "command" &&
+    isRecord(message.payload) &&
+    typeof message.payload.type === "string" &&
+    OWNER_WINDOW_COMMAND_TYPES.has(message.payload.type)
+  );
+}
+
 function isLiveWebContents(
   contents: WebContents | null,
 ): contents is WebContents {
@@ -620,7 +641,23 @@ export class QuickChatWindowManager {
       : (this.quickChatWindow?.webContents ?? null);
     if (isLiveWebContents(target)) {
       target.send(this.runtimeMessageChannel, message);
+      if (isQuickChatSender && isOwnerWindowCommand(message)) {
+        this.revealOwnerWindow(target);
+      }
     }
+  }
+
+  /**
+   * Hides Quick Chat and brings the owner window forward. The owner navigates
+   * away from its chat, so the mirrored Quick Chat surface would go stale.
+   */
+  private revealOwnerWindow(ownerContents: WebContents): void {
+    this.close();
+    const ownerWindow = BrowserWindow.fromWebContents(ownerContents);
+    if (!ownerWindow || ownerWindow.isDestroyed()) return;
+    if (ownerWindow.isMinimized()) ownerWindow.restore();
+    ownerWindow.show();
+    ownerWindow.focus();
   }
 
   setInteractiveRegions(sender: WebContents, rawRegions: unknown): void {

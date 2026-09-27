@@ -5,6 +5,8 @@ import {
   canDeleteMemoryEntry,
   canEditMemoryEntry,
   isAnimaIdentityEntry,
+  isAnimaMemoriesEntry,
+  isBlankAnimaIdentityDraft,
   isRequiredMemoryEntry,
 } from "./protection";
 
@@ -29,6 +31,55 @@ describe("required Anima identity", () => {
 
   it("allows explicit repair of a legacy directory obstructing the reserved path", () => {
     expect(canDeleteMemoryEntry({ ...identity, type: "directory" })).toBe(true);
+  });
+});
+
+describe("required Anima memories", () => {
+  const memories: PyMemoryEntryHeader = {
+    id: "memories",
+    anima_id: "anima",
+    scope: "anima",
+    type: "file",
+    name: "MEMORIES.md",
+    path: "MEMORIES.md",
+    kind: "anima_memories",
+    version: 1,
+  };
+
+  it("recognizes MEMORIES.md by kind or by its Anima-scope path", () => {
+    expect(isAnimaMemoriesEntry(memories)).toBe(true);
+    expect(isAnimaMemoriesEntry({ ...memories, kind: null })).toBe(true);
+    expect(
+      isAnimaMemoriesEntry({ ...memories, kind: null, path: "memories.md" }),
+    ).toBe(true);
+    expect(
+      isAnimaMemoriesEntry({ ...memories, scope: "user", anima_id: null }),
+    ).toBe(false);
+    expect(isAnimaMemoriesEntry({ ...memories, type: "directory" })).toBe(
+      false,
+    );
+    expect(isAnimaIdentityEntry(memories)).toBe(false);
+  });
+
+  it("is editable but cannot be deleted", () => {
+    expect(isRequiredMemoryEntry(memories)).toBe(true);
+    expect(canEditMemoryEntry(memories)).toBe(true);
+    expect(canDeleteMemoryEntry(memories)).toBe(false);
+  });
+
+  it("may be saved blank, unlike the identity", () => {
+    expect(isBlankAnimaIdentityDraft(memories, "  \n")).toBe(false);
+    expect(
+      isBlankAnimaIdentityDraft(
+        {
+          ...memories,
+          name: "IDENTITY.md",
+          path: "IDENTITY.md",
+          kind: "anima_identity",
+        },
+        "  \n",
+      ),
+    ).toBe(true);
   });
 });
 

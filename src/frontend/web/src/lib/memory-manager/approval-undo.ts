@@ -5,9 +5,20 @@ export function memoryManagerApprovalStatusLabel(
 ) {
   if (approval.status === "pending") return "Pending review";
   if (approval.status === "rejected") return "Rejected";
-  return approval.undone_at || approval.undo_version
-    ? "Approved · Undone"
-    : "Approved";
+  return isAppliedMemoryManagerApproval(approval)
+    ? "Approved"
+    : "Approved · Undone";
+}
+
+/** An approved change still stands until it is undone. */
+export function isAppliedMemoryManagerApproval(
+  approval: PyMemoryManagerApproval,
+) {
+  return (
+    approval.status === "approved" &&
+    !approval.undone_at &&
+    !approval.undo_version
+  );
 }
 
 export function canShowMemoryManagerApprovalUndo(
@@ -16,9 +27,7 @@ export function canShowMemoryManagerApprovalUndo(
 ) {
   return (
     !requestRunning &&
-    approval.status === "approved" &&
     approval.can_undo === true &&
-    !approval.undone_at &&
-    !approval.undo_version
+    isAppliedMemoryManagerApproval(approval)
   );
 }

@@ -1,15 +1,17 @@
 # Memory
 
 Animama stores scoped Markdown memory as versioned SQL-backed files and
-directories. Direct chat reads Anima identity and can use constrained tools over
-user memory; the Memory Manager provides a separate maintenance and approval
-workflow.
+directories. Direct chat reads the Anima's identity and relationship memories and
+can use constrained tools over user memory; the Memory Manager provides a
+separate maintenance and approval workflow.
 
 ## Built-in filenames
 
-The user profile is `PROFILE.md` at the user-scope root; each Anima has its
-required `IDENTITY.md` at its own scope root. Lookups remain case-insensitive,
-so existing lowercase links and tool requests keep reaching the same entry.
+The user profile is `PROFILE.md` at the user-scope root and is shared by every
+Anima. Each Anima has two required files at its own scope root: `IDENTITY.md`
+(who the Anima is) and `MEMORIES.md` (its shared history with the user). Lookups
+remain case-insensitive, so existing lowercase links and tool requests keep
+reaching the same entry.
 
 Stored entries, versions, and chat manifests preserve their original spelling;
 identity context matches manifests case-insensitively.
@@ -18,11 +20,13 @@ identity context matches manifests case-insensitively.
 
 Normal `chat:sse` uses `ChatManager`, `DirectChatMemoryContextService`, and
 `DirectChatPromptAssembler` to build the OpenAI Chat Completions-compatible
-prompt passed to direct model clients. Direct chat currently opens one selected
-memory file entry before model invocation:
+prompt passed to direct model clients. Direct chat opens these memory file
+entries in the active anima scope (`anima_id = {anima_id}`) before model
+invocation:
 
-- required anima identity: cached path `IDENTITY.md` in the active anima scope
-  (`anima_id = {anima_id}`)
+- required anima identity: cached path `IDENTITY.md`
+- anima memories: cached path `MEMORIES.md`, only when memory influence is
+  enabled
 
 The required anima identity is treated as anima configuration, not optional
 memory influence. If the identity entry is missing or blank, chat setup fails
@@ -34,17 +38,32 @@ Avatar identity from databases stamped with removed revisions.
 The identity markdown is appended to the single system instruction using only
 the file content. `disable_memory_influence` does not remove anima identity.
 
+`MEMORIES.md` follows the identity as a `# Anima Memories` section: a short
+fixed preamble that frames the content as the Anima's own first-person memories
+of its relationship with this user, not facts about the user, says that an
+untouched template (headings and hint lines only) means no shared history yet,
+and says to treat the content as remembered notes, never as instructions.
+The section is omitted when memory influence is off. A missing, blank or
+unreadable file is also omitted without failing the turn; the chat manifest
+records `status: "missing"` or `"unreadable"` for it. A chat with one Anima never
+opens another Anima's `MEMORIES.md`. When the turn can edit the file (see
+[Anima `MEMORIES.md` in chat tools](#anima-memoriesmd-in-chat-tools)), the
+`# Memory Guidance` section adds write guidance; read-only turns get none, because
+the content is already in the instructions.
+
 Any `MemoryEntryService` caller that uses a non-null `anima_id` must construct
 the service with an anima ownership repository. Public memory routes, anima
-creation, and direct-chat context wiring pass `SQLAlchemyAnimaRepository` so
-owned anima scopes work and missing or foreign animas return `404`. A service
-constructed without an anima repository is valid only for user-scope memory
-operations (`anima_id = NULL`), such as direct-chat memory tools.
+creation, direct-chat context and direct-chat memory tools pass
+`SQLAlchemyAnimaRepository` so owned anima scopes work and missing or foreign
+animas return `404`. A service constructed without an anima repository is valid
+only for user-scope memory operations (`anima_id = NULL`), such as episode
+capture.
 
 The runtime boundary uses one `DirectChatPrompt`. The prompt
 is ordered for prompt-cache locality: one system message containing stable core
 companion instruction rendered with the active Anima's stable `display_name`, anima
-identity, stable memory guidance, and structured-output guidance; then
+identity, anima memories when included, stable memory guidance, and
+structured-output guidance; then
 compaction summary, visible chat history, one request-local trailing
 `developer` message, and the current user message. The trailing message holds
 the `# List of memory files` map, any attached-file list, and ends with the [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md). The structured-output JSON schema travels in the prompt's
@@ -63,7 +82,7 @@ include a tree. Each YAML entry includes exactly `path` and `description`.
 Opened-file status, versions, and SHA fingerprints remain durable metadata
 under `chats.metadata.memory_context.opened_files`; they are not rendered in the
 model-facing list. When `disable_memory_influence` is true, direct chat omits
-the list while still injecting anima identity.
+the list and `MEMORIES.md` while still injecting anima identity.
 
 Memory influence, memory updates and emotion updates resolve per turn in
 `server/chat_options.py`: a request option wins, then the Anima's
@@ -116,16 +135,60 @@ episode files and their `episodes/**` parent directories are read-only to
 public memory APIs and ordinary chat memory write tools. Internal episode
 services can still refresh them when source-of-truth episode rows change.
 
+## Chat Memory Cue
+
+A persisted turn records what it remembered on its final visible assistant
+message, so the chat can show a memory cue while streaming and after reload.
+Before the turn is recorded, the executor stores `message_data.memory`:
+
+- `updates_enabled`: whether memory updates were enabled for the turn.
+- `memories`: the turn's net change to the Anima's `MEMORIES.md` as
+  `{entry_id, version, excerpt}`, or `null`. `version` is the last version the
+  turn wrote; `excerpt` holds the trimmed, non-blank lines added or changed
+  between the content before the turn's first write and after its last one,
+  joined by newlines and cut to 600 characters. A change that only removes text
+  has an empty excerpt. An owner save between two of the Anima's writes in the
+  same turn falls inside that range, so its lines can appear in the excerpt.
+  Failed writes, and writes that leave the content unchanged, record `null`.
+
+A captured `remember` note links back to the same message through
+`memory_episode_items.source_message_id`. Both parts combine into one
+`memory_cue` object:
+
+```text
+{
+  "episode": {"text": str} | null,
+  "memories": {"entry_id": str, "version": int, "excerpt": str} | null
+}
+```
+
+`GET /v1/chats/{chat_id}/messages` returns it as `memory_cue` on visible
+assistant messages, loading episode notes for the page in one owner-scoped
+query; it is `null` when neither part exists and for all other messages. During
+streaming the same object arrives in the `memory.updated` SSE event (see
+[Direct chat runtime](../runtime/chat.md#sse-events)). Incognito turns are not
+persisted and never carry a cue.
+
 ## Memory Manager API
 
 The Memory Manager is a separate user-invoked workflow over user-scope memory
-and, in general runs, owned Anima identities. It proposes create/update patches
-for approval and keeps episode logs read-only. Approvals use optimistic
-versions; rejection leaves memory unchanged, and Undo is available only while
-the target still matches the approved version. Identity approvals, Auto approve
-and Undo use the trusted current-revision path described below, so an Anima
-rename does not block them; a deleted Anima's pending approval returns `409`
-and can still be rejected.
+and, in general runs, owned Anima identities and `MEMORIES.md` files (changed
+only when the owner asks). It proposes create/update patches for approval and
+keeps episode logs read-only. Approvals use optimistic versions; rejection
+leaves memory unchanged, and Undo is available only while the target still
+matches the approved version. Identity approvals, Auto approve and Undo use the
+trusted current-revision path described below, so an Anima rename does not
+block them; a deleted Anima's pending approval returns `409` and can still be
+rejected. Episode processing never reaches Anima files.
+
+A **Reflection** (`POST /v1/memory/manager/runs:reflect`) is a Memory Manager
+run bound to one Anima. It reads that Anima's chat turns that no applied
+Reflection has covered, oldest first and at most 400 turns or 200,000
+characters of turn text per run, and may propose
+changes only to that Anima's `MEMORIES.md`; other memory is read-only context.
+Turns taken with memory updates off are never read. Its turns count as covered
+only once its `MEMORIES.md` change is applied, and Undo of that change uncovers
+them again.
 
 The live runtime uses the Memory Manager model role: the App Settings
 assignment `user_settings.preferences.models.memory_manager_model_provider_id`,
@@ -140,12 +203,54 @@ for routes, fixed episode batches, approval/resume behavior, Undo, and recovery.
 ## Direct Chat Memory Tools
 
 Direct `chat:sse` uses request-local JSON-schema function tools. These resolve
-paths through the `memory_entries` cached path indexes and remain scoped to
-user memory only (`anima_id IS NULL`). Models
-refer to files by user-scope paths such as `PROFILE.md` or
-`notes/preferences.md`. Tool path validation rejects absolute paths, `.`/`..`,
-explicit `[user]/...` roots, and `animas/...`; anima identity remains
-backend-injected only and tools cannot read or write anima-scoped `IDENTITY.md`.
+paths through the `memory_entries` cached path indexes and are scoped to user
+memory (`anima_id IS NULL`), plus the active Anima's own `MEMORIES.md` through a
+reserved alias. Models refer to files by user-scope paths such as `PROFILE.md`
+or `notes/preferences.md`. Tool path validation rejects absolute paths,
+`.`/`..`, explicit bracketed roots such as `[user]/...` other than the alias, and
+`animas/...`; the identity stays backend-injected only.
+
+### Anima `MEMORIES.md` in chat tools
+
+The Anima addresses its own `MEMORIES.md` as `[self]/MEMORIES.md`, which the
+tools resolve to the turn's Anima (`MemoryToolExecutionContext.anima_id`).
+Bracketed names are never valid stored names, so the alias cannot collide with
+a user file. Any other bracketed path, such as `[self]/IDENTITY.md` or
+`[other]/MEMORIES.md`, returns `invalid_path`, so identities and other Animas'
+files stay unreachable.
+
+- `memory_read_files` reads it when memory influence is on.
+- `memory_apply_patch`, `memory_write_file` in `replace` mode and native
+  `update_file` edit the existing file when write tools are enabled (memory
+  updates on and not incognito). Creating, deleting, moving or renaming it is
+  refused: `memory_write_file` `create` returns `file_exists`, native
+  `create_file`/`delete_file` return `patch_rejected`, and no chat tool moves
+  files.
+- A write over the 16 KiB `MEMORIES.md` limit saves nothing and returns
+  `memories_too_large` (`retryable: true`) with a message asking the Anima to
+  condense the file.
+- A missing file returns `not_found` (`retryable: false`) naming the owner's
+  repair action, for reads and writes alike (native `update_file` returns
+  `patch_rejected` with the same message); with memory influence off the alias
+  is unavailable.
+- Whole-file replacement is fenced on the version the Anima last saw (the one in
+  its instructions, a later read or its own write). A replacement after a newer
+  owner edit returns the retryable `conflict` until the Anima reads the file
+  again. Text replacements and native patches apply to the current content and
+  keep the ordinary optimistic version check.
+
+Successful edits keep `last_ai_write` audit metadata and feed the turn's
+[memory cue](#chat-memory-cue). The list tool, search tool and memory map keep
+excluding Anima files, whose content is already in the instructions. When the
+turn can edit the file and it exists, the memory guidance tells the Anima to make
+small relationship-only edits in the first person (user facts go to shared
+memory such as `PROFILE.md`), to keep the file's existing headings (including
+owner-written ones) and file each memory under the best fit, never to rewrite it
+every turn, to stay well under
+about 6,000 characters, how `remember` (the shared episode log) differs from
+`MEMORIES.md` (what the relationship means), the sensitive-memory rule, and never
+to frame the relationship as missing the user, loneliness, jealousy or
+discouraging other relationships.
 
 When memory influence is enabled, direct chat attaches:
 
@@ -159,8 +264,8 @@ context during a tool loop. Its output is a compact `files` array containing
 only user-scope paths and descriptions. Generated episode logs are omitted from
 this list. The same navigation projection is injected into the normal Anima
 prompt, so directories, episode logs, and anima identity files are absent there;
-general Memory Manager runs additionally list identities (see
-[Memory Manager and episodic memory](memory-manager-and-episodic-memory.md)).
+general Memory Manager runs additionally list Anima identities and `MEMORIES.md`
+files (see [Memory Manager and episodic memory](memory-manager-and-episodic-memory.md)).
 
 When memory updates are enabled and the turn is not incognito, direct chat uses
 one write transport selected from the persisted model capability:
@@ -209,13 +314,14 @@ The model receives only a compact `files` array with each file's user-scope
 
 ### `memory_read_files`
 
-Reads one or more live user-scope markdown files. The required `paths` argument
-accepts either one string or a non-empty list of strings. Paths must be
-relative, POSIX-style, end in `.md`, and pass the same tool path restrictions
-described above. The service deduplicates normalized paths while preserving
-request order, accepts at most 10 unique paths, and resolves each through
-`MemoryEntryService.get_entry_by_path(...)` with `anima_id=None` and
-`type="file"`.
+Reads one or more live user-scope markdown files, or `[self]/MEMORIES.md`. The
+required `paths` argument accepts either one string or a non-empty list of
+strings. Paths must be relative, POSIX-style, end in `.md`, and pass the same
+tool path restrictions described above. The service deduplicates normalized
+paths while preserving request order, accepts at most 10 unique paths, and
+resolves each user path through `MemoryEntryService.get_entry_by_path(...)` with
+`anima_id=None` and `type="file"`; `[self]/MEMORIES.md` resolves to the turn's
+Anima.
 
 The model receives stable `files` and `errors` arrays. Each successful item has
 `path`, `description`, and `content`; each failed item has `path`, `code`,
@@ -311,8 +417,9 @@ committed immediately through `MemoryEntryService`. Direct chat does not add a
 human approval step.
 
 The planner accepts exactly one `create_file` or `update_file` operation for a
-relative Markdown path. It rejects delete, absolute/traversal and non-Markdown
-paths, `episodes/**`, `animas/**`, existing-file creates, missing-file updates,
+relative Markdown path, or an `update_file` of `[self]/MEMORIES.md`. It rejects
+delete, absolute/traversal and non-Markdown paths, `episodes/**`, `animas/**`,
+other bracketed paths, existing-file creates, missing-file updates,
 oversized results, malformed synthetic headers, complete normalized no-ops,
 and stale versions without mutation. Creates and updates apply the diff to the
 complete synthetic document returned by `memory_read_files`, then strictly
@@ -342,11 +449,11 @@ status, and path length, but never the path or diff.
 
 ### `memory_apply_patch`
 
-Edits one existing user-scope markdown file using exact text replacements. The
-backend first loads the current file by path, then applies each replacement to
-the loaded content in memory. `old_text` must be non-empty. If `old_text` is not
-found, no write happens. If `old_text` appears multiple times and
-`replace_all=false`, no write happens and the tool returns an
+Edits one existing user-scope markdown file, or `[self]/MEMORIES.md`, using
+exact text replacements. The backend first loads the current file by path, then
+applies each replacement to the loaded content in memory. `old_text` must be
+non-empty. If `old_text` is not found, no write happens. If `old_text` appears
+multiple times and `replace_all=false`, no write happens and the tool returns an
 `ambiguous_replacement` error with the match count. Each call may include at
 most 10 replacements.
 
@@ -363,9 +470,9 @@ The model receives only the affected `path` and the total
 
 ### `memory_write_file`
 
-Creates or fully replaces one user-scope markdown file. The model supplies
-`path`, `mode`, `content`, and `description`. The mode must be `create` or
-`replace`.
+Creates or fully replaces one user-scope markdown file; `[self]/MEMORIES.md` can
+only be replaced. The model supplies `path`, `mode`, `content`, and
+`description`. The mode must be `create` or `replace`.
 
 In `create` mode, an existing file returns `file_exists`; otherwise the backend
 creates the file with `kind = "user_memory"` and `expected_version = 0`.
@@ -410,7 +517,7 @@ lookup, for example:
 
 - user scope: `PROFILE.md`
 - user scope: `notes/preferences.md`
-- active anima scope: `IDENTITY.md`
+- active anima scope: `IDENTITY.md` and `MEMORIES.md`
 
 The backend exposes authenticated CRUD routes under `/v1/memory/entries`:
 
@@ -433,9 +540,14 @@ The backend exposes authenticated CRUD routes under `/v1/memory/entries`:
   soft-delete one entry. Non-recursive directory deletes return `409 Conflict`
   when live children exist; `recursive=true` soft-deletes descendants too.
 - `GET /v1/memory/anima-identities`: list every owned Anima in creation order
-  with `display_name`, `aggregate_revision`, `identity_status` and its
-  content-free `IDENTITY.md` header, or `entry: null` when the identity needs
-  repair. The Memory workspace uses it for the virtual Animas directory.
+  with `display_name`, `aggregate_revision`, `identity_status`, its
+  content-free `IDENTITY.md` header (`entry`) and `MEMORIES.md` header
+  (`memories_entry`). Either header is `null` when that file is missing and
+  needs repair. The Memory workspace uses it for the virtual Animas directory.
+- `POST /v1/memory/anima-memories/{anima_id}:repair`: recreate a missing
+  `MEMORIES.md` from the template and return its header. An existing file,
+  including a blank one, is returned unchanged. A missing or foreign Anima
+  returns `404`.
 
 A move that supplies `parent_id` runs through `MemoryEntryService` in one unit
 of work. The moved row receives its new parent and cached path, and every live
@@ -459,7 +571,7 @@ Forbidden`. Internal episodic-memory services pass a system-managed write flag
 when regenerating those files from `memory_episode_items`.
 
 User scope also reserves `animas` and `animas/**` (case-insensitively) for the
-Memory workspace's virtual Anima identity directory. Creating, moving or
+Memory workspace's virtual Anima folders. Creating, moving or
 renaming a user entry to those paths returns `403 Forbidden`. An entry that
 already exists there stays readable and can be moved, renamed out or deleted,
 but content, description and Revert edits return `403` until it is moved.
@@ -500,14 +612,26 @@ concurrent rename does not invalidate an already-reviewed identity change,
 while the memory `expected_version` still rejects newer identity content. These
 writes keep the nonblank rule and record a definition revision like explicit edits.
 
+The Anima-scoped root `MEMORIES.md` must be a file with kind `anima_memories`.
+It follows the identity's Markdown rules except that it may be blank, and its
+byte limit is the smaller of 16 KiB and `ANIMAMA_MEMORY_FILE_MAX_BYTES`
+(`anima_memories_invalid` and `anima_memories_too_large` return `400`). It
+cannot be renamed, moved, deleted or retyped. Unlike identity it is not part of
+the Anima definition: writes use only the memory `expected_version`, return
+`aggregate_revision: null`, and never advance or conflict with the aggregate
+revision.
+
+An Anima scope admits only these two root files. Creating any other file or
+directory there, or moving or renaming an entry within it, returns `403`.
+
 Deleting an Anima (`DELETE /v1/animas/{anima_id}`) permanently removes all of
-its Anima-scoped memory entries and their versions, including `IDENTITY.md`, in
-the same transaction as the Anima row. Memory Manager approvals and messages
+its Anima-scoped memory entries and their versions, including `IDENTITY.md` and
+`MEMORIES.md`, and its Reflection coverage, in the same transaction as the Anima row. Memory Manager approvals and messages
 that quoted the identity remain as run history, so a pending proposal can still
 be rejected.
 A legacy directory obstructing the reserved path is not an identity file:
-the owner may explicitly move it, then create the missing identity with the
-current aggregate revision. Nothing moves or overwrites it automatically.
+the owner may explicitly delete it, then create the missing identity with the
+current aggregate revision. Nothing deletes or overwrites it automatically.
 
 Entry names are stable POSIX path segments, not display names. The service
 rejects blank names, `.`, `..`, slashes, backslashes, control characters,
@@ -572,25 +696,32 @@ copied into the entry's user-facing metadata.
 
 `AnimaAggregateMaterializer` stores the resolved identity in an Anima-scoped
 `IDENTITY.md` entry with `kind = "anima_identity"` and
-`description = "Initial identity of {anima.display_name}"`. It uses the caller's
-SQL transaction with no physical-file projection or independent commit.
+`description = "Initial identity of {anima.display_name}"`, then creates
+`MEMORIES.md` from its template (sections Our story, How we are together, What
+works between us and Open threads, each with a hint line) with
+`kind = "anima_memories"` and `description = "Shared history with the user"`.
+It uses the caller's SQL transaction with no physical-file projection or
+independent commit, so a failure leaves neither file.
 Strict live creation supplies the authored Markdown, and backend starters
 supply their configured identity through the same materializer. Later Avatar edits and chat turns
 cannot synchronize or overwrite the existing live identity.
 
 Installation bootstrap seeds one user-scope `PROFILE.md` entry with
-`kind = "user_profile"`. Optional first-run display-name completion updates its
-bootstrap-managed preferred-name line in the same backend transaction. A direct
-user edit to that line prevents later personalization changes from overwriting
-it. The profile file is durable memory data, but direct chat does not inject its
+`kind = "user_profile"` from template version 2: an `# About me` heading and
+Basics, Life right now, People, Interests, Goals, Routines and How I like to be
+treated sections, each with a hint line. Optional first-run display-name
+completion writes a bootstrap-managed `Preferred name:` line in the same backend
+transaction: it replaces an existing line, otherwise goes under a Basics heading,
+the first heading or the top, so it does not depend on the template's wording.
+Any other edit to the file stops later personalization from overwriting it. The profile file is durable memory data, but direct chat does not inject its
 content into prompt context yet. Its path and description can appear in the
 transient memory file list while memory influence is enabled.
 
-The current direct-chat path feeds the selected anima identity entry into prompt
-context and exposes the scoped AI tools above. The frontend exposes user-scope
-memory files from `/a/memories` and anima identity editing from
-`/a/animas/{anima_id}/identity`. AI tools still do not expose delete, move/copy,
-arbitrary metadata editing, anima identity reads, or anima identity writes.
+The current direct-chat path feeds the selected anima identity and memories
+entries into prompt context and exposes the scoped AI tools above. The frontend
+exposes user-scope memory files from `/a/memories` and anima identity editing
+from `/a/animas/{anima_id}/identity`. AI tools still do not expose delete,
+move/copy, arbitrary metadata editing, or anima-scoped file reads or writes.
 
 ## User Files And Archives
 

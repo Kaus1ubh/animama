@@ -386,6 +386,55 @@ test("an error is terminal: duplicate errors, late text and run.completed cannot
   );
 });
 
+test("memory cue frames reach only their run and are never read as replies or completion", async (t) => {
+  const page = await consumer(t);
+  await start(page);
+  await page.evaluate(() => {
+    window.fixture.respond(0);
+    const cue = (text) => ({
+      episode: { text },
+      memories: { entry_id: "mem-1", version: 2, excerpt: "- Tea" },
+    });
+    window.fixture.send(0, [
+      { text: "reply", run_id: "run-1" },
+      {
+        type: "memory.updated",
+        run_id: "run-other",
+        message_id: 1,
+        memory_cue: cue("stale run"),
+      },
+      {
+        type: "memory.updated",
+        run_id: "run-1",
+        message_id: 2,
+        memory_cue: { episode: null, memories: null },
+      },
+      {
+        type: "memory.updated",
+        run_id: "run-1",
+        message_id: 3,
+        memory_cue: cue("Loves tea"),
+      },
+    ]);
+  });
+  await page.waitForFunction(() =>
+    window.fixture.events().some(([kind]) => kind === "memory"),
+  );
+  // The memory frame was not taken for completion, so the stream stays open.
+  assert.equal(await page.textContent("#streaming"), "true");
+  await page.evaluate(() => {
+    window.fixture.send(0, [{ run_id: "run-1" }]);
+  });
+  await idle(page);
+  assert.equal(await page.textContent("#transcript"), "reply");
+  assert.deepEqual(await page.evaluate(() => window.fixture.events()), [
+    ["open", "run-1"],
+    ["token", "reply"],
+    ["memory", "run-1", "Loves tea", "mem-1"],
+    ["complete", "run-1"],
+  ]);
+});
+
 test("known error guidance is specific and unknown payloads never become display text", async (t) => {
   const page = await consumer(t);
   const values = await page.evaluate(() => {
@@ -560,4 +609,88 @@ test("text and error in one chunk preserve the partial answer without success", 
     (await page.evaluate(() => window.fixture.requests())).length,
     1,
   );
+});
+
+test("a streamed memory cue stays on the reply's last bubble after completion and reload", async (t) => {
+  const page = await sessionConsumer(t);
+  await page.evaluate(() => window.fixture.seedMemoryCaches());
+  await submitSession(page, "I adopted a cat");
+  const runId = await page.evaluate(() => {
+    window.fixture.respond(0);
+    const run_id = window.fixture.requests()[0].body.run_id;
+    const part = (response_part, text) => ({
+      text,
+      response_part,
+      is_delta: false,
+      part_final: true,
+      run_id,
+    });
+    window.fixture.send(0, [
+      part("speech", "A cat!"),
+      part("display", "Tell me everything."),
+      {
+        type: "memory.updated",
+        run_id,
+        message_id: 7,
+        memory_cue: {
+          episode: { text: "They adopted a cat." },
+          memories: { entry_id: "mem-annie", version: 2, excerpt: "- Cat" },
+        },
+      },
+    ]);
+    return run_id;
+  });
+  const cues = () =>
+    page.$$eval("[data-memory-cue]", (nodes) =>
+      nodes.map((node) => [node.dataset.memoryCue, node.textContent]),
+    );
+  // Speech and display render as two bubbles; only the last carries the cue.
+  await page.locator("[data-memory-cue]").waitFor();
+  assert.deepEqual(await cues(), [[`run-${runId}-assistant-1`, "mem-annie"]]);
+  // The Memory workspace refetches what the turn changed.
+  assert.deepEqual(
+    await page.evaluate(() => window.fixture.memoryCachesInvalidated()),
+    [true, true],
+  );
+
+  await page.evaluate((run_id) => {
+    window.fixture.send(0, [{ run_id, chat_id: "chat-fixture" }]);
+  }, runId);
+  await sessionIdle(page);
+  await page.waitForFunction(
+    () => document.querySelector("#finalizing").textContent === "false",
+  );
+  // Streaming state is gone; the cached completion rows now carry the cue.
+  assert.deepEqual(await cues(), [[`run-${runId}-assistant-1`, "mem-annie"]]);
+
+  await page.evaluate(() => {
+    window.fixture.setHistory("chat-other", [
+      {
+        id: 1,
+        chat_id: "chat-other",
+        run_id: "run-old",
+        role: "user",
+        content: "Remember my cat",
+        created_at: "2026-09-01T00:00:00Z",
+      },
+      {
+        id: 2,
+        chat_id: "chat-other",
+        run_id: "run-old",
+        role: "assistant",
+        content: "Persisted display",
+        created_at: "2026-09-01T00:00:01Z",
+        data: {
+          structured: {
+            speech: "Persisted speech",
+            display: "Persisted display",
+          },
+        },
+        memory_cue: { episode: { text: "Has a cat" }, memories: null },
+      },
+    ]);
+    window.fixture.switchChat();
+  });
+  await page.getByText("Persisted display", { exact: true }).waitFor();
+  assert.deepEqual(await cues(), [["run-run-old-assistant-1", "Has a cat"]]);
 });

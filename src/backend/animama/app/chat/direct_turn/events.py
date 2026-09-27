@@ -13,6 +13,7 @@ from animama.domain.events import (
     ErrorPayload,
     Event,
     EventType,
+    MemoryUpdatedPayload,
     UserResponsePayload,
 )
 
@@ -110,6 +111,24 @@ def error_event(
     )
 
 
+def memory_updated_event(
+    request: DirectChatTurnRequest,
+    *,
+    message_id: int | None,
+    memory_cue: Mapping[str, Any],
+) -> Event:
+    """Build the post-persistence event that carries a turn's memory cue."""
+
+    return Event(
+        event_id=f"memory-updated-{request.run_id}",
+        anima_id=request.anima_id,
+        chat_id=request.chat_id,
+        user_id=request.user_id,
+        type=EventType.MEMORY_UPDATED,
+        payload=MemoryUpdatedPayload(run_id=request.run_id, message_id=message_id, memory_cue=memory_cue),
+    )
+
+
 def crisis_support_event(request: DirectChatTurnRequest, *, source: Literal["moderation"]) -> Event:
     return Event(
         event_id=f"crisis-support-{request.run_id}",
@@ -121,4 +140,10 @@ def crisis_support_event(request: DirectChatTurnRequest, *, source: Literal["mod
     )
 
 
-__all__ = ["avatar_gesture_event", "crisis_support_event", "error_event", "user_response_event"]
+__all__ = [
+    "avatar_gesture_event",
+    "crisis_support_event",
+    "error_event",
+    "memory_updated_event",
+    "user_response_event",
+]

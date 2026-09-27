@@ -29,6 +29,8 @@ from animama.domain.user_file_processing import UserFileOutlineItem
 
 from .direct_turn.types import DirectChatAttachmentContext
 from .memory_context import (
+    ANIMA_MEMORIES_GUIDANCE,
+    ANIMA_MEMORIES_WRITE_GUIDANCE,
     MAIN_STRUCTURED_OUTPUT_GUIDANCE,
     MEMORY_SYSTEM_GUIDANCE,
     NATIVE_MEMORY_PATCH_GUIDANCE,
@@ -58,6 +60,8 @@ class DirectChatPromptAssembler:
         user_message: str,
         anima_identity: str,
         anima_name: str | None = None,
+        anima_memories: str | None = None,
+        anima_memories_writable: bool = False,
         response_format_guidance: str | None = None,
         native_memory_patch_enabled: bool = False,
         memory_map: str | None = None,
@@ -89,6 +93,8 @@ class DirectChatPromptAssembler:
                 _direct_chat_system_instruction(
                     anima_identity,
                     anima_name=anima_name,
+                    anima_memories=anima_memories,
+                    anima_memories_writable=anima_memories_writable,
                     response_format_guidance=response_format_guidance,
                     native_memory_patch_enabled=native_memory_patch_enabled,
                 ),
@@ -128,16 +134,28 @@ def _direct_chat_system_instruction(
     anima_identity: str,
     *,
     anima_name: str | None = None,
+    anima_memories: str | None = None,
+    anima_memories_writable: bool = False,
     response_format_guidance: str | None = None,
     native_memory_patch_enabled: bool = False,
 ) -> str:
     guidance = response_format_guidance.strip() if isinstance(response_format_guidance, str) else ""
     memory_guidance = MEMORY_SYSTEM_GUIDANCE.strip()
+    # The alias is advertised only when this turn can edit MEMORIES.md; its
+    # content is already in these instructions, so a read-only turn needs no path.
+    if anima_memories_writable:
+        memory_guidance = f"{memory_guidance}\n\n{ANIMA_MEMORIES_WRITE_GUIDANCE.strip()}"
     if native_memory_patch_enabled:
         memory_guidance = f"{memory_guidance}\n\n{NATIVE_MEMORY_PATCH_GUIDANCE.strip()}"
     sections = [
         "# Core Instructions\n\n" + render_core_companion_instruction(anima_name).strip(),
         "# Anima Identity\n\n" + anima_identity.strip(),
+    ]
+    # The Anima's relationship memory follows its identity; it is omitted when
+    # memory influence is off or the file has nothing to say.
+    if isinstance(anima_memories, str) and anima_memories.strip():
+        sections.append(f"# Anima Memories\n\n{ANIMA_MEMORIES_GUIDANCE}\n\n{anima_memories.strip()}")
+    sections += [
         "# Memory Guidance\n\n" + memory_guidance,
         "# Response Guidance\n\n" + (guidance or MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()),
     ]

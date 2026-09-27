@@ -139,16 +139,21 @@ describe("identity approval invalidation", () => {
     const queryClient = new QueryClient();
     const annie = queryKeys.animas.detail("owner", "anima-1");
     const caitlin = queryKeys.animas.detail("owner", "anima-2");
+    const reflected = queryKeys.animas.detail("owner", "anima-3");
     queryClient.setQueryData(annie, {});
     queryClient.setQueryData(caitlin, {});
+    queryClient.setQueryData(reflected, {});
 
     await invalidateApprovedIdentityDefinitions(queryClient, "owner", [
       approval("animas/anima-1/IDENTITY.md", "approved"),
       approval("animas/anima-2/IDENTITY.md", "pending"),
+      // MEMORIES.md is not part of the Anima definition.
+      approval("animas/anima-3/MEMORIES.md", "approved"),
       approval("notes/a.md", "approved"),
     ]);
 
     expect(queryClient.getQueryState(annie)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(caitlin)?.isInvalidated).toBe(false);
+    expect(queryClient.getQueryState(reflected)?.isInvalidated).toBe(false);
   });
 });

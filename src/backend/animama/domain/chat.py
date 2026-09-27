@@ -84,4 +84,54 @@ class ChatContext:
     active_compaction: ChatCompaction | None = None
 
 
-__all__ = ["Chat", "ChatContext", "ChatMessage", "ChatSearchResult", "MessageRole"]
+@dataclass(frozen=True, order=True, slots=True)
+class ChatHistoryPosition:
+    """A point in an owner's history across chats, ordered by message time, then message ID.
+
+    ``created_at`` is the stored naive UTC message timestamp. All rows of one
+    persisted turn share it, and message IDs keep their insertion order.
+    """
+
+    created_at: datetime
+    message_id: int
+
+
+@dataclass(frozen=True, slots=True)
+class AnimaHistoryTurn:
+    """One persisted chat turn with an Anima: the owner's message and the Anima's visible reply.
+
+    Either text is ``None`` when that side of the turn has no visible row.
+    ``position`` is the turn's last visible message.
+    """
+
+    chat_id: str
+    chat_title: str | None
+    user_text: str | None
+    anima_text: str | None
+    position: ChatHistoryPosition
+
+
+@dataclass(frozen=True, slots=True)
+class AnimaHistoryTurnBatch:
+    """The oldest uncovered turns selected for one Reflection.
+
+    ``through`` is the last message of the batch's final turn, or ``None`` when
+    no turn is uncovered; ``uncovered_turn_count`` counts every uncovered turn,
+    including those beyond the batch.
+    """
+
+    turn_count: int
+    uncovered_turn_count: int
+    through: ChatHistoryPosition | None
+
+
+__all__ = [
+    "AnimaHistoryTurn",
+    "AnimaHistoryTurnBatch",
+    "Chat",
+    "ChatContext",
+    "ChatHistoryPosition",
+    "ChatMessage",
+    "ChatSearchResult",
+    "MessageRole",
+]

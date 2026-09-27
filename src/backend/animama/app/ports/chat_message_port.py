@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from ...domain.chat import ChatMessage, ChatSearchResult
+from ...domain.chat import (
+    AnimaHistoryTurn,
+    AnimaHistoryTurnBatch,
+    ChatHistoryPosition,
+    ChatMessage,
+    ChatSearchResult,
+)
 
 
 class ChatMessageRepository(Protocol):
@@ -56,6 +62,39 @@ class ChatMessageRepository(Protocol):
         limit: int,
         offset: int = 0,
     ) -> list[ChatSearchResult]:
+        raise NotImplementedError
+
+    async def select_reflection_batch(
+        self,
+        *,
+        user_id: str,
+        anima_id: str,
+        after: ChatHistoryPosition | None,
+        max_turns: int,
+    ) -> AnimaHistoryTurnBatch:
+        """Select up to ``max_turns`` of the owner's oldest turns with one Anima after ``after``.
+
+        A turn is one persisted user message and the Anima's visible reply, which
+        share a chat and run, across all of the Anima's chats. Internal rows are
+        never part of a turn, and a turn whose reply recorded memory updates as
+        disabled is skipped entirely, including its user message. The result also
+        counts every such turn after ``after``.
+        """
+
+        raise NotImplementedError
+
+    async def list_reflection_turns(
+        self,
+        *,
+        user_id: str,
+        anima_id: str,
+        after: ChatHistoryPosition | None,
+        through: ChatHistoryPosition,
+        offset: int = 0,
+        limit: int | None = None,
+    ) -> list[AnimaHistoryTurn]:
+        """List readable turns after ``after`` through ``through``, oldest first, paged by turn."""
+
         raise NotImplementedError
 
     async def append(self, message: ChatMessage) -> ChatMessage:

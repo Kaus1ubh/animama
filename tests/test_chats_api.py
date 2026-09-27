@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from fastapi import HTTPException
@@ -14,7 +14,7 @@ from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.services import ModelProviderCatalogService
 from animama.domain.chat import Chat, MessageRole
 from animama.domain.request_principal import RequestPrincipal
-from animama.orm import ORMAnima, ORMChat, ORMChatMessage
+from animama.orm import ORMAnima, ORMChat, ORMChatMessage, ORMMemoryEpisodeItem
 from animama.orm.base import Base
 from animama.server.routers import chats as chats_router, router as api_router
 from animama.server.schemas.chat_history import PyChatCreate, PyChatSearchRequest, PyChatUpdate
@@ -421,6 +421,84 @@ async def test_chat_messages_hide_internal_by_default_and_do_not_expose_session_
     )
     assert [message.content for message in with_internal.messages] == ["Display visible", "internal"]
     assert with_internal.messages[1].internal is True
+
+
+def _episode_item(*, user_id: str, source_message_id: int, text: str) -> ORMMemoryEpisodeItem:
+    return ORMMemoryEpisodeItem(
+        id=f"episode-{uuid.uuid4()}",
+        user_id=user_id,
+        source_message_id=str(source_message_id),
+        occurred_at=datetime(2026, 9, 26, 12, tzinfo=UTC),
+        local_date=date(2026, 9, 26),
+        episode_path="episodes/2026/09/2026-09-26.md",
+        kind="chat_turn",
+        text=text,
+        status="pending",
+    )
+
+
+@pytest.mark.asyncio
+async def test_chat_messages_return_memory_cue_from_stored_changes_and_linked_episodes(async_session) -> None:
+    owner_id = f"user-{uuid.uuid4()}"
+    other_id = f"user-{uuid.uuid4()}"
+    anima_id = f"anima-{uuid.uuid4()}"
+    chat_id = f"chat-{uuid.uuid4()}"
+    await _create_anima(async_session, anima_id=anima_id, user_id=owner_id)
+    await _create_chat(async_session, chat_id=chat_id, anima_id=anima_id, user_id=owner_id)
+    memories = {"entry_id": "mem-memories", "version": 3, "excerpt": "Mira calls me her lake twin."}
+    created_at = datetime(2026, 9, 26, 12, 0, 0)
+
+    def _assistant(label: str, offset: int, memory: dict[str, object] | None) -> ORMChatMessage:
+        return ORMChatMessage(
+            chat_id=chat_id,
+            run_id=f"run-{label}",
+            role=MessageRole.ASSISTANT.value,
+            content=label,
+            message_data={"memory": memory} if memory is not None else {},
+            internal=False,
+            created_at=created_at + timedelta(seconds=offset),
+        )
+
+    user = ORMChatMessage(
+        chat_id=chat_id,
+        run_id="run-user",
+        role=MessageRole.USER.value,
+        content="user",
+        message_data={},
+        created_at=created_at,
+    )
+    episode_only = _assistant("episode-only", 1, {"updates_enabled": True, "memories": None})
+    memories_only = _assistant("memories-only", 2, {"updates_enabled": True, "memories": memories})
+    both = _assistant("both", 3, {"updates_enabled": True, "memories": memories})
+    failed_episode = _assistant("failed-episode", 4, {"updates_enabled": True, "memories": None})
+    legacy = _assistant("legacy", 5, None)
+    async_session.add_all([user, episode_only, memories_only, both, failed_episode, legacy])
+    await async_session.commit()
+    async_session.add_all(
+        [
+            _episode_item(user_id=owner_id, source_message_id=episode_only.id, text="We planned a kayak trip."),
+            _episode_item(user_id=owner_id, source_message_id=both.id, text="Mira shared a nickname."),
+            # Episodes are owner-scoped, and a user row never carries a cue.
+            _episode_item(user_id=other_id, source_message_id=failed_episode.id, text="Another owner's note."),
+            _episode_item(user_id=owner_id, source_message_id=user.id, text="Misattributed note."),
+        ]
+    )
+    await async_session.commit()
+
+    response = await chats_router.list_chat_messages(chat_id, user=_user(owner_id), session=async_session)
+
+    cues = {
+        message.content: message.memory_cue.model_dump() if message.memory_cue is not None else None
+        for message in response.messages
+    }
+    assert cues == {
+        "user": None,
+        "episode-only": {"episode": {"text": "We planned a kayak trip."}, "memories": None},
+        "memories-only": {"episode": None, "memories": memories},
+        "both": {"episode": {"text": "Mira shared a nickname."}, "memories": memories},
+        "failed-episode": None,
+        "legacy": None,
+    }
 
 
 @pytest.mark.asyncio

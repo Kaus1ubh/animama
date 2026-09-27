@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from animama.app.ports.memory_entry_port import MemoryEntryRepository, MemoryEntryRepositoryConflictError
-from animama.domain.anima_definition import ANIMA_IDENTITY_PATH
+from animama.domain.anima_definition import ANIMA_IDENTITY_PATH, ANIMA_MEMORIES_PATH
 from animama.domain.memory_entry import (
     MEMORY_ENTRY_OPERATION_DELETE,
     MEMORY_ENTRY_OPERATION_MOVE,
@@ -511,6 +511,18 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
             .order_by(ORMAnima.created_at.asc(), ORMAnima.id.asc())
         )
         result = await self._s.execute(stmt)
+        rows = [item._mapping for item in result]
+        memories_stmt = select(*self._header_columns()).where(
+            ORMMemoryEntry.user_id == user_id,
+            ORMMemoryEntry.anima_id.is_not(None),
+            ORMMemoryEntry.type == MEMORY_ENTRY_TYPE_FILE,
+            ORMMemoryEntry.normalized_path == ANIMA_MEMORIES_PATH.casefold(),
+            ORMMemoryEntry.deleted_at.is_(None),
+        )
+        memories = {
+            header.anima_id: header
+            for header in (self._row_to_header(item._mapping) for item in await self._s.execute(memories_stmt))
+        }
         return [
             AnimaIdentitySummary(
                 anima_id=row["anima_row_id"],
@@ -519,8 +531,9 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
                 identity_status=row["anima_identity_status"],
                 created_at=row["anima_created_at"],
                 identity=self._row_to_header(row) if row["id"] is not None else None,
+                memories=memories.get(row["anima_row_id"]),
             )
-            for row in (item._mapping for item in result)
+            for row in rows
         ]
 
     async def list_live_children(self, *, user_id: str, parent_id: str) -> list[MemoryEntry]:

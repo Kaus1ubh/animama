@@ -8,6 +8,7 @@ from .anima_loadout import (
     ORMAnimaLoadoutMutationReceipt,
     ORMAnimaRuntimeSnapshot,
 )
+from .anima_memory_reflection import ORMAnimaMemoryReflection
 from .archive import ORMArchive
 from .archive_passage import ORMArchivePassage
 from .avatar import ORMAvatar
@@ -88,6 +89,7 @@ __all__ = [
     "ORMAnimaLoadout",
     "ORMAnimaLoadoutDiagnostic",
     "ORMAnimaLoadoutMutationReceipt",
+    "ORMAnimaMemoryReflection",
     "ORMAnimaRuntimeSnapshot",
     "ORMUserSettings",
     "ORMAnimaSettings",

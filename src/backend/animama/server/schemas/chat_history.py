@@ -69,6 +69,33 @@ class PyUsage(BaseModel):
     output_tokens_details: PyUsageOutputDetails | None = None
 
 
+class PyMemoryCueEpisode(BaseModel):
+    """The `remember` note this turn recorded in the shared episode log."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str
+
+
+class PyMemoryCueMemories(BaseModel):
+    """This turn's change to the Anima's `MEMORIES.md`: its last version and added text (up to 600 characters)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    entry_id: str
+    version: int
+    excerpt: str
+
+
+class PyMemoryCue(BaseModel):
+    """What a turn remembered, shown as a memory cue on its final visible assistant message."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    episode: PyMemoryCueEpisode | None
+    memories: PyMemoryCueMemories | None
+
+
 class PyChatMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -85,6 +112,7 @@ class PyChatMessage(BaseModel):
     turn: int | None = None
     created_at: datetime | None = None
     internal: bool = False
+    memory_cue: PyMemoryCue | None = None
 
 
 class PyChatMessagesResponse(BaseModel):
@@ -141,6 +169,9 @@ __all__ = [
     "PyChatResponse",
     "PyChatMessage",
     "PyChatMessagesResponse",
+    "PyMemoryCue",
+    "PyMemoryCueEpisode",
+    "PyMemoryCueMemories",
     "PyChatSearchRequest",
     "PyChatSearchResult",
     "PyChatSearchResponse",

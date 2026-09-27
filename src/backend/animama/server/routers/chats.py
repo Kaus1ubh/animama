@@ -9,7 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
 from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
+from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+from animama.app.chat.memory_cue import memory_cue_payload, stored_memories_cue
 from animama.app.services import ChatService
 from animama.domain.chat import Chat, ChatMessage, ChatSearchResult
 from animama.domain.request_principal import RequestPrincipal
@@ -25,6 +27,7 @@ from animama.server.schemas.chat_history import (
     PyChatSearchResponse,
     PyChatSearchResult,
     PyChatUpdate,
+    PyMemoryCue,
     PyUsage,
     PyUsageInputDetails,
     PyUsageOutputDetails,
@@ -99,7 +102,43 @@ def _public_message_content(message: ChatMessage) -> str | None:
     return message.content
 
 
-def _message_to_schema(message: ChatMessage) -> PyChatMessage:
+def _is_visible_assistant_message(message: ChatMessage) -> bool:
+    return message.role is not None and message.role.value == "assistant" and not message.internal
+
+
+def _memory_cue(message: ChatMessage, *, episode_text: str | None) -> PyMemoryCue | None:
+    """Combine a reply's stored MEMORIES.md change with the episode captured from it."""
+
+    if not _is_visible_assistant_message(message):
+        return None
+    payload = memory_cue_payload(episode_text=episode_text, memories=stored_memories_cue(message.data))
+    return PyMemoryCue.model_validate(payload) if payload is not None else None
+
+
+async def _episode_texts_by_message_id(
+    session: AsyncSession,
+    *,
+    user_id: str,
+    messages: list[ChatMessage],
+) -> dict[int, str]:
+    """Load, in one owner-scoped query, the episode note captured from each assistant reply on the page."""
+
+    message_ids = [
+        str(message.id) for message in messages if message.id is not None and _is_visible_assistant_message(message)
+    ]
+    items = await SQLAlchemyMemoryEpisodeRepository(session).list_items_by_source_message_ids(
+        user_id=user_id,
+        source_message_ids=message_ids,
+    )
+    texts: dict[int, str] = {}
+    for item in items:
+        if item.source_message_id is not None and item.source_message_id.isdigit():
+            # A turn records at most one note; keep the earliest if several exist.
+            texts.setdefault(int(item.source_message_id), item.text)
+    return texts
+
+
+def _message_to_schema(message: ChatMessage, *, episode_text: str | None = None) -> PyChatMessage:
     return PyChatMessage(
         id=message.id,
         chat_id=message.chat_id,
@@ -114,6 +153,7 @@ def _message_to_schema(message: ChatMessage) -> PyChatMessage:
         turn=message.turn,
         created_at=message.created_at,
         internal=bool(message.internal),
+        memory_cue=_memory_cue(message, episode_text=episode_text),
     )
 
 
@@ -272,4 +312,11 @@ async def list_chat_messages(
         order="desc" if order == "desc" else "asc",
         include_internal=include_internal,
     )
-    return PyChatMessagesResponse(chat_id=chat_id, messages=[_message_to_schema(message) for message in messages])
+    episode_texts = await _episode_texts_by_message_id(session, user_id=user.id, messages=messages)
+    return PyChatMessagesResponse(
+        chat_id=chat_id,
+        messages=[
+            _message_to_schema(message, episode_text=episode_texts.get(message.id) if message.id is not None else None)
+            for message in messages
+        ],
+    )

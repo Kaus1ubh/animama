@@ -48,13 +48,15 @@ presentation use the live name and identity, never continuing Avatar fallbacks.
 
 `AnimaAggregateMaterializer.materialize` accepts an internal `ResolvedAnimaSpec`
 and authenticated owner through one caller-owned `AnimaAggregateUnitOfWork`.
-It associates the logical Avatar, writes identity/history, defaults/settings,
-chat profile, and exact typed selections through `AnimaLoadoutService.initialize`.
+It associates the logical Avatar, writes identity/history and the template
+`MEMORIES.md`, defaults/settings, chat profile, and exact typed selections
+through `AnimaLoadoutService.initialize`.
 Aggregate, identity, and loadout revisions start at 1. It never commits,
 contacts a provider, writes files, or issues runtime. The configured active
 model row is checked locally; default ElevenLabs voice is `gJx1vCzNCD1EQHT212Ls`.
 Idle starts empty, emotion is neutral, and there is
-no Music/typed Voice binding, archive, chat, greeting, or relationship memory.
+no Music/typed Voice binding, archive, chat or greeting. Relationship memory
+(`MEMORIES.md`) starts as the untouched template, meaning no shared history yet.
 An explicit validated internal voice choice can replace that default.
 
 Direct creation and backend starter provisioning use this materializer through
@@ -68,10 +70,11 @@ identity backfill for databases outside its supported revision graph.
 
 Explicit identity edits/reverts require both the memory version and aggregate
 revision. Name edits advance the aggregate only; Avatar/Appearance/loadout
-edits advance aggregate and loadout once. Chat, emotion, relationship memory,
-model selection, and unrelated settings do not advance the definition.
-Required identity files cannot be renamed, moved or deleted; deleting the Anima
-permanently removes its identity and other Anima-scoped memory.
+edits advance aggregate and loadout once. Chat, emotion, relationship memory
+(`MEMORIES.md` edits), model selection, and unrelated settings do not advance
+the definition. The required `IDENTITY.md` and `MEMORIES.md` files cannot be
+renamed, moved or deleted, and an Anima's memory scope holds no other entries;
+deleting the Anima permanently removes both.
 Avatar, Appearance, and support content with live bindings/dependency references
 cannot be deleted through the content API; confirmed My Content is not deleted
 when an Anima is removed. External file changes may break the next runtime
@@ -138,8 +141,9 @@ retry retains the first result if the second fails. Spec version is metadata,
 not the stable owner/starter identity. Successful or deleted slots are never
 rewritten by a later spec version.
 
-Current defaults are Annie version 1 (`AvatarSample_A_1_New`) and Caitlyn
-version 3 (`AvatarSample_R1`), with matching Included portraits when available.
+Current defaults are Annie version 2 (`AvatarSample_A_1_New`) and Caitlyn
+version 4 (`AvatarSample_R1`), with matching Included portraits when available.
+Their identities write out every section of the `IDENTITY.md` template.
 Existing ready/deleted starter receipts are preserved. Automatic adoption uses
 the historical `avt_chibi_2` identifier only to recognize existing data.
 

@@ -65,6 +65,30 @@ describe("memory workspace moves", () => {
     expect(canMoveMemoryEntry(entries[7]!)).toBe(false);
   });
 
+  it("never moves an Anima's MEMORIES.md or uses it as a destination", () => {
+    const memories = entry("memories", "MEMORIES.md", "file", null, {
+      scope: "anima",
+      anima_id: "annie",
+      kind: "anima_memories",
+    });
+
+    expect(canMoveMemoryEntry(memories)).toBe(false);
+    expect(
+      validateMemoryMoveDestination({
+        source: memories,
+        destination: null,
+        entries: [...entries, memories],
+      }),
+    ).toEqual({ valid: false, reason: "This memory entry cannot be moved." });
+    expect(
+      validateMemoryMoveDestination({
+        source: entries[4]!,
+        destination: memories,
+        entries: [...entries, memories],
+      }).valid,
+    ).toBe(false);
+  });
+
   it("rejects moves into a pre-existing reserved animas directory", () => {
     const reserved = entry("reserved", "Animas", "directory");
     expect(

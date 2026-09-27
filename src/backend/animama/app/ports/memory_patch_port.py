@@ -26,7 +26,11 @@ class MemoryPatchCandidate:
 
 
 class MemoryPatchPlanner(Protocol):
-    """Resolve model-authored V4A operations against current user memory."""
+    """Resolve model-authored V4A operations against current user memory.
+
+    ``self_anima_id`` is supplied by a chat turn so ``[self]/MEMORIES.md`` resolves
+    to that Anima's own ``MEMORIES.md``; other callers leave it unset.
+    """
 
     async def plan_v4a_operation(
         self,
@@ -35,6 +39,7 @@ class MemoryPatchPlanner(Protocol):
         operation_type: str,
         path: str,
         diff: str | None,
+        self_anima_id: str | None = None,
     ) -> MemoryPatchCandidate:
         raise NotImplementedError
 

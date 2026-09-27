@@ -21,6 +21,8 @@ Tests use explicit fixture bootstrap and dependency overrides.
   SSE, and voice catalog uploads.
 - `server/routers/model_provider.py`: active provider/model catalog for
   frontend model selection.
+- `server/routers/model_assets.py`: pinned downloadable asset install state,
+  install, removal and same-origin byte delivery.
 - `server/routers/chats.py`: chat CRUD and persisted chat messages.
 - `server/routers/settings.py`: user settings and per-anima settings.
 - `server/routers/user_profiles.py`: private local display-name reads and edits.
@@ -38,8 +40,8 @@ Tests use explicit fixture bootstrap and dependency overrides.
   delete lifecycle.
 - `server/routers/memory_entries.py`: scoped markdown memory entry tree
   listing, path lookup, create, patch, move/rename, and soft-delete routes.
-- `server/routers/memory_manager.py`: episodic-memory review and manual
-  memory-manager run/message/approval routes.
+- `server/routers/memory_manager.py`: episodic-memory review, Reflection and
+  manual memory-manager run/message/approval routes.
 - `server/routers/safety.py`: owner-visible crisis-resource regions.
 - `server/routers/archive.py`: archive metadata/passages and embedding search.
 - `server/routers/elevenlabs.py`: ElevenLabs clone, text-to-speech, sound
@@ -114,6 +116,44 @@ runtime and preview leases, content operations, and live document jobs. It never
 returns filesystem roots. Electron repeats preflight after draining renderers
 and stopping the worker, before switching pack pointers. Catalog withdrawal
 reuses the same reference checks at restart; readiness fails closed on conflict.
+
+## Model Assets
+
+The shared downloader installs files listed in the release's packaged catalog
+(`animama/resources/model-assets.v1.json`, schema `animama-asset-catalog/1`).
+Requests name assets by catalog ID only; the release URL is never accepted from
+or returned to the browser. All routes use the admitted installation principal.
+
+- `GET /v1/model-assets` returns `{"assets": [...], "free_bytes": N}` for every
+  catalog entry. `free_bytes` is the store filesystem's free space, or `null`
+  when it cannot be measured.
+- `GET /v1/model-assets/{asset_id}` returns one state: `id`, `status`
+  (`not_installed`, `downloading`, `installed` or `failed`), `size_bytes`,
+  `required_free_bytes` (size plus 64 MiB headroom), `media_type`,
+  `license_ref`, and `content_url` when installed.
+  `bytes_downloaded`/`total_bytes` are set while downloading; `reason` is set
+  when failed (`asset_download_failed`, `asset_host_not_allowed`,
+  `asset_size_invalid`, `asset_hash_invalid`, `asset_store_failed` or
+  `asset_insufficient_space`).
+- `POST /v1/model-assets/{asset_id}:install` returns `202` with the current
+  state. It is idempotent: concurrent calls share one download and an installed
+  asset stays installed. With less than `required_free_bytes` free, nothing is
+  fetched and the state is `failed` with `asset_insufficient_space`
+  (`asset_store_failed` when free space cannot be measured). Poll the
+  state route for progress. A failed install can be retried with the same call.
+  While the asset is being removed it returns
+  `409 {"detail": {"code": "model_asset_busy"}}`.
+- `DELETE /v1/model-assets/{asset_id}` cancels an in-flight download or removes
+  the installed file, returning the resulting state (`failed` with
+  `asset_store_failed` if the file cannot be deleted). A consumer guard may
+  refuse removal with `409 {"detail": {"code": "...", "details": {...}}}`; a
+  concurrent removal returns `model_asset_busy`.
+- `GET`/`HEAD /v1/model-assets/{asset_id}/content` serves installed bytes with
+  the SHA-256 as `ETag`, `If-None-Match` and single byte ranges. It returns
+  `404 {"detail": {"code": "model_asset_not_installed"}}` until installed.
+
+Unknown IDs return `404 {"detail": {"code": "model_asset_not_found"}}`. Store
+location and recovery are in [model assets](../operations/model-assets.md#downloaded-model-assets).
 
 ## Content Catalog
 
@@ -474,6 +514,7 @@ The SSE stream currently emits:
 - `chat.title.updated`
 - `safety.ai_notice`
 - `safety.crisis_support`
+- `memory.updated`
 - `error`
 - `run.completed`
 
@@ -537,8 +578,10 @@ configured default. Realtime selected models are returned in
 not emit `tts.session` or `tts.session.error`.
 The route does not infer TTS setup from `main_structured_response`.
 Before model invocation, direct chat opens cached path `IDENTITY.md` in the
-active anima scope for prompt context and appends only the identity markdown
-content to the single system instruction. User profile memory entries are seeded
+active anima scope for prompt context and appends its markdown content to the
+single system instruction. When memory influence is enabled it
+also opens `MEMORIES.md` and appends it directly after the identity; a missing
+or blank file is omitted without failing the turn. User profile memory entries are seeded
 during installation bootstrap but their content is not injected into direct chat
 context yet. Direct chat adds one request-local `developer` message
 immediately before the latest user message. When memory influence is enabled
@@ -546,8 +589,8 @@ it starts with a `# List of memory files` section. The list includes only
 user-scope file entries (`anima_id IS NULL`), uses cached paths such as
 `PROFILE.md`, and omits anima-scoped files and tree formatting. Any attached-file
 list follows, and the Companion Guardrails always end the
-message. `disable_memory_influence` suppresses the list while keeping required
-anima identity active. Provider rows that do not support OpenAI's `developer`
+message. `disable_memory_influence` suppresses the list and `MEMORIES.md` while keeping
+required anima identity active. Provider rows that do not support OpenAI's `developer`
 message role, including DeepSeek, receive all developer text folded in order
 into the end of the system instruction instead.
 
@@ -590,6 +633,7 @@ Memory APIs expose a scoped Markdown entry tree:
 
 - `GET /v1/memory/entries?anima_id=&parent_id=&recursive=false`
 - `GET /v1/memory/anima-identities`
+- `POST /v1/memory/anima-memories/{anima_id}:repair`
 - `GET /v1/memory/entries/by-path?anima_id=&path=...&type=file`
 - `GET /v1/memory/entries/{entry_id}`
 - `GET /v1/memory/entries/{entry_id}/versions?before_version=&limit=50`
@@ -602,6 +646,7 @@ Memory APIs expose a scoped Markdown entry tree:
 - `GET /v1/memory/episodes?status=pending&limit=100`
 - `POST /v1/memory/manager/runs`
 - `POST /v1/memory/manager/runs:process-episodes`
+- `POST /v1/memory/manager/runs:reflect`
 - `GET /v1/memory/manager/runs/current`
 - `GET /v1/memory/manager/runs/{run_id}`
 - `POST /v1/memory/manager/runs/{run_id}:complete`
@@ -664,6 +709,14 @@ preserving meaningful whitespace, and at most the smaller of 32 KiB and
 of a required identity file is forbidden; deleting the Anima removes it. A missing/blank identity
 blocks chat until explicit repair; there is no current-Avatar fallback.
 
+Anima-scoped `MEMORIES.md` has the same protections but needs no aggregate
+revision, may be blank, and is limited to the smaller of 16 KiB and
+`ANIMAMA_MEMORY_FILE_MAX_BYTES`. Creating any other file or directory in an
+Anima scope, or moving or renaming an entry within it, returns `403`. `POST /v1/memory/anima-memories/{anima_id}:repair` recreates a missing
+`MEMORIES.md` from the template, returns its header, and otherwise changes
+nothing; `GET /v1/memory/anima-identities` reports each header as
+`memories_entry`, `null` when missing.
+
 `POST /v1/memory/debug/search-memory-files` is a read-only authenticated debug
 route for the direct-chat `search_memory_files` tool path. The request accepts a
 trimmed non-empty `query` up to 2048 characters. The response echoes `query` and
@@ -699,6 +752,21 @@ daily files, and changes task status to `processed`. The run itself remains
 `active`; later messages use general Memory Manager instructions on the same
 Responses cursor. Overflow and newly captured rows are not changed. Blocked or
 failed runtime results fail the run and leave the task and rows pending.
+
+`POST /v1/memory/manager/runs:reflect` accepts `anima_id` and
+`auto_approve_diffs`, and starts a Reflection over that owned Anima's oldest
+uncovered chat turns across all its chats, at most 400 turns or 200,000
+characters of turn text. It follows the same open-run rules: it supersedes an
+open run without a pending approval and returns `409` while one is pending. A missing or foreign Anima returns `404`.
+It also returns `409` without creating a run when the Anima's `MEMORIES.md`
+needs repair or no turn is uncovered (`There are no new turns with <name> to
+reflect on`). The `201` response is the normal run snapshot with
+`kind = "reflection"` and a `reflection` summary (`anima_id`, `anima_name`,
+`turn_count`, `remaining_turn_count`, `started_at`); `task` stays `null`.
+Proposals target `animas/<anima_id>/MEMORIES.md`. Approving one (manually or
+automatically) marks the run's turns covered in the same transaction; Undo of
+that approval uncovers them again. Rejection, a superseded run, failure or a
+`409` version conflict leave the file and coverage unchanged.
 
 Manager messages normally run a live OpenAI Agents SDK `ApplyPatchTool`
 workflow over a constrained virtual memory workspace;
@@ -737,10 +805,11 @@ system instruction context. Anima identity is always required, and
 anima-scoped identity entries with
 `description = "Initial identity of {anima.display_name}"`. The local
 installation bootstrap creates a private user-scope `PROFILE.md` from template
-version 1; first-run personalization updates only its managed preferred-name
-line while the template metadata and version still match. AI memory tools are runtime-scoped to user-scope file
-entries only and are executed through application services, not provider
-clients.
+version 2; first-run personalization sets its `Preferred name:` line only while
+nothing else has edited the file since the last managed write. AI
+memory tools are runtime-scoped to user-scope file entries plus the active
+Anima's own `MEMORIES.md` through the `[self]/MEMORIES.md` alias, and are
+executed through application services, not provider clients.
 
 ## Chats
 
@@ -760,7 +829,11 @@ Chat creation verifies the referenced anima exists and is owned by the
 current user; missing or foreign animas return `404`. Chat reads, updates,
 deletes, and message reads are scoped to the current user's chats. Message
 responses expose `chat_id`, `run_id`, `model_provider`, `model`, and
-`internal`; identifiers belong to Chats and request-local runs.
+`internal`; identifiers belong to Chats and request-local runs. Visible
+assistant messages also carry nullable `memory_cue`
+(`{episode: {text} | null, memories: {entry_id, version, excerpt} | null}`),
+combining the reply's stored `MEMORIES.md` change with the episode note
+captured from it; see [Chat Memory Cue](../features/memory.md#chat-memory-cue).
 Message reads hide internal rows by default, and
 `include_internal=true` includes those rows with `internal=true`. Chat responses
 include nullable `api_standard`, `last_model_client`, and `last_model_id`

@@ -128,6 +128,44 @@ removing unused versions. Cleanup is explicit; the application does not evict mo
 self-host operators needing durable availability should choose persistent storage.
 Installed desktop packs remain separately owned under Application Support.
 
+## Downloaded model assets
+
+The backend's shared downloader installs individual pinned files on demand
+through [`/v1/model-assets`](../architecture/http-api.md#model-assets). It is
+the same FastAPI code on desktop and self-host, and it needs no restart.
+
+- Only files in the release's packaged catalog
+  (`src/backend/animama/resources/model-assets.v1.json`) are fetched, over
+  HTTPS from `downloads.animama.ai` on the default port, without following
+  redirects or accepting compressed transfer encodings.
+- Each file is streamed to `<data_root>/staging/model-assets/`, checked for its
+  exact size and SHA-256, then renamed into
+  `<data_root>/internal/model-assets/<asset_id>/<sha256>`. A failed or
+  cancelled download leaves nothing installed; staging is cleared at startup.
+- `<data_root>` is `ANIMAMA_DATA_ROOT`: `<userData>/data` on desktop and
+  `/var/lib/animama/data` in Compose (the `ANIMAMA_DATA_HOST_PATH` bind
+  mount), so installs persist with that data. There is no quota; an install
+  starts only with its size plus 64 MiB free on that filesystem.
+- `scripts/backup-local.sh` and restore rollbacks omit installed and staged
+  model assets. After a restore they report not installed; download them again
+  in the app.
+
+Each catalog URL names an object published once under
+`https://downloads.animama.ai/models/<model-id>/<file-sha256>/<file-name>`,
+with the entry's `size` and `sha256` copied from the model's tracked manifest.
+Tests bind the entry to that manifest, and the
+[model publish command](../../frontend/desktop/releases.md#model-objects)
+refuses to publish a set whose objects do not match the catalog. Publish the
+object before a release ships its catalog entry; until then an install fails
+as `asset_download_failed`.
+
+Use the downloader for restart-free data files the running app can pick up,
+such as optional voices. Large bundles that need a service switch, such as the
+desktop Parakeet feature packs, stay in Electron's pack manager.
+
+To force a reinstall, delete `<data_root>/internal/model-assets/<asset_id>/`
+and install again. Never edit an installed file in place.
+
 ## Optional Parakeet WebGPU encoder
 
 The experimental "GPU-accelerated offline speech (WebGPU)" setting uses an
@@ -153,21 +191,30 @@ without downloading again by copying the current notices and the old
 `python3 scripts/models/parakeet_webgpu.py acquire --offline --import-from DIRECTORY`.
 
 `reset.sh` resolves it offline and records `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`
-when it exists. Missing the set never fails startup:
+when it exists; only the development Compose selection mounts it. Missing the
+set never fails startup:
 
-- Compose mounts the tracked notices directory instead, which contains no
-  encoder;
+- development Compose mounts the tracked notices directory instead, which
+  contains no encoder;
 - the setting then reports the GPU model as not installed;
 - speech keeps using WASM.
 
-Vite development stacks (including `desktop:dev`) and built self-host stacks
-serve the operator-provided set at `/__client-parakeet-webgpu-models/`; the
-built stack mounts it read-only into FastAPI's web root. Self-host never
-downloads it: acquire it on the host and rerun `reset.sh` for a running stack.
-Packaged desktop serves it only from the active `parakeet-stt-webgpu` pack at
-`/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`, and only beside an active
-`parakeet-stt` pack. The browser probes the encoder with `HEAD`; a 404 means
-not installed.
+Where each build gets it:
+
+- **Vite development stacks** (including `desktop:dev`) serve this
+  operator-provided set at `/__client-parakeet-webgpu-models/`. Acquire it on
+  the host and rerun `reset.sh` for a running stack.
+- **Built self-host** downloads it in the app (App Settings → Advanced →
+  Experimental) as the model asset `parakeet-tdt-0.6b-v2-webgpu-encoder`, from
+  its published object under `models/` on `downloads.animama.ai`, into the
+  data root (see [Downloaded model assets](#downloaded-model-assets)). The
+  host model store is not used, and a host that cannot reach
+  `downloads.animama.ai` cannot enable WebGPU.
+- **Packaged desktop** serves it only from the active `parakeet-stt-webgpu`
+  pack at `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`, and only beside an
+  active `parakeet-stt` pack.
+
+The browser probes the encoder with `HEAD`; a 404 means not installed.
 
 ## Browser speech assets and dependency inputs
 

@@ -56,7 +56,7 @@ export function useMemoryEntries(opts?: UseMemoryEntriesOptions) {
   });
 }
 
-/** Labels each owned Anima's identity folder for display. */
+/** Labels each owned Anima's folder (identity and memories) for display. */
 export function useMemoryAnimaFolders() {
   const identities = useAnimaIdentities();
   return useMemo(
@@ -65,7 +65,10 @@ export function useMemoryAnimaFolders() {
   );
 }
 
-/** Lists every owned Anima in creation order with its identity header. */
+/**
+ * Lists every owned Anima in creation order with its identity and
+ * `MEMORIES.md` headers.
+ */
 export function useAnimaIdentities(opts?: { enabled?: boolean }) {
   const userId = useRuntimeOwnerId();
   const userKey = userId ?? "__anon__";
@@ -82,6 +85,20 @@ export function useAnimaIdentities(opts?: { enabled?: boolean }) {
       return data;
     },
   });
+}
+
+/**
+ * Returns an Anima's `MEMORIES.md` header from the Anima listing, or null while
+ * loading or when the file is missing and needs repair.
+ */
+export function useAnimaMemoriesEntry(animaId: string | null | undefined) {
+  const identities = useAnimaIdentities({ enabled: Boolean(animaId) });
+  return useMemo(
+    () =>
+      identities.data?.identities?.find((item) => item.anima_id === animaId)
+        ?.memories_entry ?? null,
+    [animaId, identities.data],
+  );
 }
 
 export type UseMemoryEntryOptions = {

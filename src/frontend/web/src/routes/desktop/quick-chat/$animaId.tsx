@@ -141,6 +141,7 @@ function DesktopQuickChatRoute() {
         <ChatInterfaceView
           activeChat={snapshot.activeChat}
           activeMode={snapshot.voice.activeMode}
+          animaName={snapshot.animaName ?? null}
           autoFocusInput
           canChat={snapshot.canChat}
           chatMarkdownEnabled={snapshot.chatMarkdownEnabled ?? true}
@@ -167,6 +168,10 @@ function DesktopQuickChatRoute() {
           onInputChange={handleInputChange}
           onMicSessionStop={() => sendCommand({ type: "stop-mic-session" })}
           onModelChange={() => sendCommand({ type: "refresh-model-state" })}
+          onOpenMemoryEntry={(entryId) =>
+            // The main process hides Quick Chat and brings the main window forward.
+            sendCommand({ type: "open-memory-entry", entryId })
+          }
           onPromptSuggestionSelect={handlePromptSuggestionSelect}
           onStop={() => sendCommand({ type: "stop" })}
           onStreamingAnimationComplete={() => {}}

@@ -328,6 +328,31 @@ export class FeaturePackManager {
         });
         return;
       }
+      // A version this installation already activated (for example, an encoder
+      // left unmounted while its required pack was missing) is reactivated
+      // from its verified files instead of being downloaded again.
+      const retained = this.pointers[id];
+      if (
+        retained?.digest === manifestDigest(manifest) &&
+        retained.directory === versionDirectory(manifest)
+      ) {
+        const root = this.installedRoot(id, retained.directory);
+        const verified = await this.verify(root, manifest).then(
+          () => true,
+          () => false,
+        );
+        if (verified) {
+          signal.throwIfAborted();
+          this.emit(id, { state: "installing" });
+          await this.change(id, { root, manifest });
+          this.emit(id, {
+            state: "installed",
+            activeVersion: manifest.version,
+            assetVersion: versionDirectory(manifest),
+          });
+          return;
+        }
+      }
       const free = this.options.freeBytes
         ? await this.options.freeBytes()
         : await statfs(this.options.root, { bigint: true }).then(

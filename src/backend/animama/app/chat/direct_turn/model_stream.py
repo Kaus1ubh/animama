@@ -28,6 +28,7 @@ from animama.domain.chat import ChatMessage
 from animama.domain.usage import Usage
 from animama.logging import get_logger
 
+from ..memory_cue import AnimaMemoriesTurn
 from ..memory_tools import DirectChatMemoryToolService, MemoryToolExecutionContext
 from .constants import (
     MAX_MEMORY_TOOL_ROUNDS,
@@ -79,11 +80,15 @@ class DirectTurnModelStreamCollector:
         memory_tool_service: DirectChatMemoryToolService | None,
         load_chat_context: Callable[[str], Awaitable[Any]],
         build_prompt: Callable[..., DirectChatPrompt],
+        anima_memories: AnimaMemoriesTurn | None = None,
     ) -> None:
         self._stream = stream
         self._memory_tool_service = memory_tool_service
         self._load_chat_context = load_chat_context
         self._build_prompt = build_prompt
+        # The turn's MEMORIES.md state, shared by every tool call; None keeps the
+        # [self]/MEMORIES.md alias unavailable (memory influence is off).
+        self._anima_memories = anima_memories
 
     async def collect(
         self,
@@ -551,6 +556,7 @@ class DirectTurnModelStreamCollector:
             model_provider_id=model_request.model_provider.id,
             model=model_request.model_provider.model,
             native_memory_patch_enabled=model_request.provider_options.memory_apply_patch_enabled,
+            anima_memories=self._anima_memories,
         )
         if tool_call.tool_type == "apply_patch":
             if tool_call.name != "apply_patch":

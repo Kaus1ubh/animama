@@ -27,7 +27,7 @@ class FakeOwnerBootstrap(OwnerBootstrapService):
         self._result = result or OwnerBootstrapResult()
 
     async def ensure(self, *, owner_id: str, policy):  # noqa: ANN001
-        assert policy.profile_template_version == "1"
+        assert policy.profile_template_version == "2"
         self._calls.append(owner_id)
         return self._result
 

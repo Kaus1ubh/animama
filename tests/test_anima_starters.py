@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import replace
-from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -23,7 +22,7 @@ from animama.app.services.starter_loadout_policy import starter_loadout_policy
 from animama.domain.anima import Anima
 from animama.domain.anima_chat_profile import AnimaChatProfile
 from animama.domain.anima_creation_error import AnimaCreationError
-from animama.domain.anima_definition import DEFAULT_ANIMA_VOICE_ID
+from animama.domain.anima_definition import ANIMA_MEMORIES_TEMPLATE, DEFAULT_ANIMA_VOICE_ID
 from animama.domain.avatar import Avatar
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import AnimaSettings
@@ -106,11 +105,29 @@ async def mark_legacy(session, fixture):
     await session.commit()
 
 
-@pytest.mark.parametrize("spec", [spec for spec in STARTER_ANIMA_SPECS if spec.version == 1])
-def test_original_starter_identity_is_exact_backend_owned_seed_text(spec):
-    seed = (Path(__file__).parents[1] / "alembic/seeds/02-seed-avatars.sql").read_text()
-    match = re.search(re.escape(f"('{spec.legacy_avatar_id}'") + r".*?\$\$(.*?)\$\$", seed, re.S)
-    assert match and spec.identity_markdown == match.group(1).replace("\r\n", "\n").replace("\r", "\n")
+IDENTITY_TEMPLATE_HINTS = {
+    "## Essence": "In a sentence or two, who they are at heart.",
+    "## Personality": "Temperament, quirks, and how they react to people and situations.",
+    "## Speaking style": "Tone, word choice, pace, humor and verbal habits. Replies are often spoken aloud.",
+    "## Appearance and presence": "How they look, dress and carry themselves; how they move and express emotion.",
+    "## Background": "The history and experiences that shape them.",
+    "## Interests": "What they love, know about and enjoy talking about.",
+    "## Values": "What matters to them and what they stand for.",
+    "## With the user": "The role they play in the user's life (friend, sidekick, mentor…) and how they",
+    "## Boundaries": "Topics they avoid, lines they will not cross and how they express limits.",
+}
+
+
+@pytest.mark.parametrize("spec", STARTER_ANIMA_SPECS, ids=lambda spec: spec.id)
+def test_starter_identity_writes_every_identity_template_section(spec):
+    lines = spec.identity_markdown.strip().splitlines()
+    assert lines[0] == f"# {spec.display_name}"
+    headings = [line for line in lines if line.startswith("## ")]
+    assert headings == list(IDENTITY_TEMPLATE_HINTS)
+    sections = re.split(r"^## .*$", spec.identity_markdown, flags=re.M)[1:]
+    for heading, body in zip(headings, sections, strict=True):
+        assert body.strip(), heading
+        assert IDENTITY_TEMPLATE_HINTS[heading] not in body, heading
 
 
 @pytest.mark.parametrize("mounted_included", [False, True])
@@ -134,8 +151,15 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
             avatar = await service.uow.avatars.get(anima.avatar_id)
             assert avatar is not None
             assert avatar.file_path.endswith(spec.avatar_locator)
-            identity = await async_session.scalar(select(ORMMemoryEntry).where(ORMMemoryEntry.anima_id == anima_id))
-            assert identity.content == spec.identity_markdown
+            files = {
+                entry.path: entry
+                for entry in await async_session.scalars(
+                    select(ORMMemoryEntry).where(ORMMemoryEntry.anima_id == anima_id)
+                )
+            }
+            assert set(files) == {"IDENTITY.md", "MEMORIES.md"}
+            assert files["IDENTITY.md"].content == spec.identity_markdown
+            assert files["MEMORIES.md"].content == ANIMA_MEMORIES_TEMPLATE
             settings = await async_session.scalar(select(ORMAnimaSettings).where(ORMAnimaSettings.anima_id == anima_id))
             assert settings.preferences["speech"]["elevenlabs"]["primary_voice"]["voice_id"] == DEFAULT_ANIMA_VOICE_ID
             loadout = await AnimaLoadoutService(async_session).read_model(user_id=fixture.owner, anima_id=anima_id)

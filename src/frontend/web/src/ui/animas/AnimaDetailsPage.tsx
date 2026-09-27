@@ -56,7 +56,10 @@ import { useAnima } from "@/query/hooks/useAnima";
 import { useAnimas } from "@/query/hooks/useAnimas";
 import { useAnimaPresentationImage } from "@/query/hooks/useAnimaPresentationImage";
 import { useAnimaRuntimeCatalog } from "@/query/hooks/useAnimaRuntimeCatalog";
-import { useMemoryEntryByPath } from "@/query/hooks/useMemoryEntries";
+import {
+  useAnimaMemoriesEntry,
+  useMemoryEntryByPath,
+} from "@/query/hooks/useMemoryEntries";
 import { useRuntimeContentMediaUrl } from "@/query/hooks/useRuntimeContentMediaUrl";
 import {
   AnimaAppearanceDialog,
@@ -171,6 +174,7 @@ function IdentityTab({
   identityError: boolean;
   fallbackIdentity: string;
 }) {
+  const memoriesEntry = useAnimaMemoriesEntry(animaId);
   return (
     <div className="xl:h-full xl:min-h-0">
       <AnimaIdentitySection
@@ -179,6 +183,7 @@ function IdentityTab({
         identityLoading={identityLoading}
         identityError={identityError}
         fallbackIdentity={fallbackIdentity}
+        memoriesEntryId={memoriesEntry?.id}
       />
     </div>
   );

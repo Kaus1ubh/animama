@@ -24,6 +24,7 @@ from animama.app.chat.api_standard import (
     MODEL_CLIENT_OPENAI_RESPONSES,
 )
 from animama.app.chat.memory_context import (
+    ANIMA_MEMORIES_WRITE_GUIDANCE,
     MAIN_STRUCTURED_OUTPUT_GUIDANCE,
     MEMORY_SYSTEM_GUIDANCE,
     render_core_companion_instruction,
@@ -270,7 +271,9 @@ class _ChunkedModelClient:
 
 
 class _FakeMemoryContextService:
-    def __init__(self) -> None:
+    def __init__(self, *, anima_memories_version: int | None = None) -> None:
+        # MEMORIES.md opens (at this version) only while memory influence is on.
+        self.anima_memories_version = anima_memories_version
         self.calls: list[dict[str, Any]] = []
 
     async def build_context(self, **kwargs):  # noqa: ANN003
@@ -302,6 +305,7 @@ class _FakeMemoryContextService:
             },
             anima_name="Annie",
             memory_map=memory_map,
+            anima_memories_version=self.anima_memories_version if memory_map is not None else None,
         )
 
 
@@ -422,6 +426,28 @@ class _FakeMemoryEpisodeRecorder:
         self.calls.append(dict(kwargs))
         if self.fail:
             raise RuntimeError("episode capture failed")
+        return SimpleNamespace(text=" ".join(kwargs["text"].split()))
+
+
+class _SelfMemoriesWritingToolService(_FakeMemoryToolService):
+    """Simulates one successful `[self]/MEMORIES.md` edit by reporting it to the turn state."""
+
+    def __init__(self) -> None:
+        super().__init__(result={"ok": True, "path": "[self]/MEMORIES.md", "replacements_applied": 1})
+        self.contexts: list[Any] = []
+
+    async def execute(self, **kwargs):  # noqa: ANN003
+        context = kwargs["context"]
+        self.contexts.append(context)
+        if context.anima_memories is not None:
+            context.anima_memories.record_write(
+                entry_id="mem-memories",
+                previous_version=4,
+                previous_content="# Memories\n\n## Our story\nWe met at the lake.\n",
+                version=5,
+                content="# Memories\n\n## Our story\nWe met at the lake.\nMira calls me her lake twin.\n",
+            )
+        return await super().execute(**kwargs)
 
 
 def _provider(
@@ -530,6 +556,7 @@ def _executor(
     chat_manager: _FakeChatManager | None = None,
     memory_tool_service: Any | None = None,
     memory_episode_recorder: Any | None = None,
+    anima_memories_version: int | None = None,
 ) -> tuple[DirectChatTurnExecutor, _FakeChatManager]:
     resolved_provider = _provider() if provider is _DEFAULT else provider
     resolved_profile: AnimaChatProfile | None
@@ -557,7 +584,9 @@ def _executor(
             profile_service=_FakeProfileService(resolved_profile),  # type: ignore[arg-type]
             model_providers=_FakeModelProviderRepository(resolved_provider),  # type: ignore[arg-type]
             chat_manager=chats,  # type: ignore[arg-type]
-            memory_context_service=_FakeMemoryContextService(),  # type: ignore[arg-type]
+            memory_context_service=_FakeMemoryContextService(  # type: ignore[arg-type]
+                anima_memories_version=anima_memories_version
+            ),
             memory_tool_service=memory_tool_service,
             memory_episode_recorder=memory_episode_recorder,
         ),
@@ -846,7 +875,15 @@ async def test_direct_turn_captures_nonblank_remember_after_successful_persisten
         EventType.USER_RESPONSE,
         EventType.USER_RESPONSE,
         EventType.EMOTION_UPDATE,
+        EventType.MEMORY_UPDATED,
     ]
+    assert events[-1].event_id == "memory-updated-run-1"
+    assert events[-1].payload.run_id == "run-1"
+    assert events[-1].payload.message_id == 1002
+    assert events[-1].payload.memory_cue == {
+        "episode": {"text": "The user wants episodic memory captured after each successful chat turn."},
+        "memories": None,
+    }
     assert len(chats.record_turn_calls) == 1
     assert episode_recorder.calls == [
         {
@@ -878,10 +915,11 @@ async def test_direct_turn_skips_remember_for_incognito_turns() -> None:
     model_client = _FinalModelClient(_structured_response(remember="A durable note."))
     executor, chats = _executor(client=model_client, memory_episode_recorder=episode_recorder)
 
-    await _collect(executor.stream_turn(_request(request_options={"incognito": True})))
+    events = await _collect(executor.stream_turn(_request(request_options={"incognito": True})))
 
     assert chats.record_turn_calls == []
     assert episode_recorder.calls == []
+    assert all(event.type is not EventType.MEMORY_UPDATED for event in events)
 
 
 @pytest.mark.asyncio
@@ -890,10 +928,12 @@ async def test_direct_turn_skips_remember_when_memory_updates_disabled() -> None
     model_client = _FinalModelClient(_structured_response(remember="A durable note."))
     executor, chats = _executor(client=model_client, memory_episode_recorder=episode_recorder)
 
-    await _collect(executor.stream_turn(_request(request_options={"disable_memory_updates": True})))
+    events = await _collect(executor.stream_turn(_request(request_options={"disable_memory_updates": True})))
 
     assert len(chats.record_turn_calls) == 1
     assert episode_recorder.calls == []
+    assert all(event.type is not EventType.MEMORY_UPDATED for event in events)
+    assert chats.record_turn_calls[0]["assistant_msg"].data["memory"] == {"updates_enabled": False, "memories": None}
 
 
 @pytest.mark.asyncio
@@ -2908,3 +2948,161 @@ async def test_direct_turn_does_not_split_responses_rows() -> None:
 
     assert len(model_client.seen_specs) == 1
     assert model_client.seen_specs[0].prompt.response_format is not None
+
+
+def _self_memories_patch_turn(*, remember: str | None) -> _ScriptedModelClient:
+    return _ScriptedModelClient(
+        [
+            ModelClientFinal(
+                text="",
+                usage=Usage(requests=1, input_tokens=10, output_tokens=1, total_tokens=11),
+                tool_calls=(
+                    ModelClientToolCall(
+                        id="call-memories",
+                        name="memory_apply_patch",
+                        arguments=json.dumps(
+                            {
+                                "path": "[self]/MEMORIES.md",
+                                "replacements": [
+                                    {
+                                        "old_text": "We met at the lake.",
+                                        "new_text": "We met at the lake.\nMira calls me her lake twin.",
+                                        "replace_all": False,
+                                    }
+                                ],
+                                "update_description": False,
+                                "description": None,
+                            }
+                        ),
+                    ),
+                ),
+            ),
+            ModelClientFinal(
+                text=_structured_response(speech="Lake twins it is.", remember=remember),
+                usage=Usage(requests=1, input_tokens=12, output_tokens=3, total_tokens=15),
+            ),
+        ]
+    )
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_stores_memories_change_on_the_reply_and_emits_memory_cue_last() -> None:
+    model_client = _self_memories_patch_turn(remember="Mira shared her lake twin nickname.")
+    memory_tools = _SelfMemoriesWritingToolService()
+    episode_recorder = _FakeMemoryEpisodeRecorder()
+    executor, chats = _executor(
+        client=model_client,
+        memory_tool_service=memory_tools,
+        memory_episode_recorder=episode_recorder,
+        anima_memories_version=4,
+    )
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    # The turn state started at the instructions' version 4, so the edit advanced it.
+    assert memory_tools.contexts[0].anima_memories.seen_version == 5
+    memories = {"entry_id": "mem-memories", "version": 5, "excerpt": "Mira calls me her lake twin."}
+    assistant = chats.record_turn_calls[0]["assistant_msg"][-1]
+    assert (assistant.role, assistant.internal) == (MessageRole.ASSISTANT, False)
+    assert assistant.data["memory"] == {"updates_enabled": True, "memories": memories}
+    assert [event.type for event in events][-2:] == [EventType.EMOTION_UPDATE, EventType.MEMORY_UPDATED]
+    assert events[-1].payload.message_id == assistant.id == 1004
+    assert events[-1].payload.memory_cue == {
+        "episode": {"text": "Mira shared her lake twin nickname."},
+        "memories": memories,
+    }
+    assert episode_recorder.calls[0]["source_message_id"] == "1004"
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_emits_memories_only_cue_when_episode_capture_fails() -> None:
+    executor, chats = _executor(
+        client=_self_memories_patch_turn(remember="Mira shared a nickname."),
+        memory_tool_service=_SelfMemoriesWritingToolService(),
+        memory_episode_recorder=_FakeMemoryEpisodeRecorder(fail=True),
+        anima_memories_version=4,
+    )
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    assert events[-1].type is EventType.MEMORY_UPDATED
+    assert events[-1].payload.memory_cue["episode"] is None
+    assert events[-1].payload.memory_cue["memories"]["version"] == 5
+    assert all(event.type is not EventType.ERROR for event in events)
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_without_memory_changes_stores_empty_memory_block_and_no_cue() -> None:
+    executor, chats = _executor(client=_FinalModelClient(_structured_response()), anima_memories_version=4)
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    assert all(event.type is not EventType.MEMORY_UPDATED for event in events)
+    assert chats.record_turn_calls[0]["assistant_msg"].data["memory"] == {"updates_enabled": True, "memories": None}
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_withholds_memories_access_when_memory_influence_is_off() -> None:
+    memory_tools = _SelfMemoriesWritingToolService()
+    executor, chats = _executor(
+        client=_self_memories_patch_turn(remember=None),
+        memory_tool_service=memory_tools,
+        anima_memories_version=4,
+    )
+
+    events = await _collect(executor.stream_turn(_request(request_options={"disable_memory_influence": True})))
+
+    assert memory_tools.contexts[0].anima_memories is None
+    assert all(event.type is not EventType.MEMORY_UPDATED for event in events)
+    assert chats.record_turn_calls[0]["assistant_msg"][-1].data["memory"]["memories"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("request_options", "anima_memories_version", "expected"),
+    [
+        ({}, 4, True),
+        ({}, None, False),  # MEMORIES.md is missing: nothing to edit.
+        ({"disable_memory_updates": True}, 4, False),
+        ({"incognito": True}, 4, False),
+        ({"disable_memory_influence": True}, 4, False),
+    ],
+)
+async def test_memories_write_guidance_appears_only_when_the_turn_can_edit_memories(
+    request_options: dict[str, Any],
+    anima_memories_version: int | None,
+    expected: bool,
+) -> None:
+    model_client = _FinalModelClient(_structured_response())
+    executor, _chats = _executor(
+        client=model_client,
+        memory_tool_service=_FakeMemoryToolService(),
+        anima_memories_version=anima_memories_version,
+    )
+
+    await _collect(executor.stream_turn(_request(request_options=request_options)))
+
+    prompt = model_client.seen_specs[0].prompt
+    system = _text(prompt.messages[0]["content"])
+    assert (ANIMA_MEMORIES_WRITE_GUIDANCE.strip() in system) is expected
+    assert ("[self]/MEMORIES.md" in system) is expected
+    instructions = prompt_instruction_text(prompt)
+    assert instructions is not None and instructions.endswith(COMPANION_GUARDRAILS.strip())
+
+
+@pytest.mark.asyncio
+async def test_native_patch_turn_includes_memories_write_guidance() -> None:
+    provider = _provider(provider_type="OpenAIResponsesHTTPAgent", native_tool_support=["apply_patch"])
+    model_client = _FinalModelClient(_structured_response())
+    executor, _chats = _executor(
+        client=model_client,
+        provider=provider,
+        memory_tool_service=_FakeMemoryToolService(),
+        anima_memories_version=4,
+    )
+
+    await _collect(executor.stream_turn(_request()))
+
+    spec = model_client.seen_specs[0]
+    assert spec.provider_options.memory_apply_patch_enabled is True
+    assert ANIMA_MEMORIES_WRITE_GUIDANCE.strip() in _text(spec.prompt.messages[0]["content"])

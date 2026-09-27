@@ -42,6 +42,7 @@ from .direct_turn.events import (
     avatar_gesture_event,
     crisis_support_event,
     error_event,
+    memory_updated_event,
     model_error_details,
     user_response_event,
 )
@@ -80,7 +81,8 @@ from .direct_turn.types import (
     RuntimeGestureDescriptor as RuntimeGestureDescriptor,
 )
 from .memory_context import DirectChatMemoryContext, DirectChatMemoryContextError, DirectChatMemoryContextService
-from .memory_tools import MEMORY_TOOL_SEARCH_UPLOADED_FILES
+from .memory_cue import AnimaMemoriesTurn, memory_cue_payload, turn_memory_message_data
+from .memory_tools import MEMORY_TOOL_SEARCH_UPLOADED_FILES, MEMORY_TOOL_WRITE_NAMES
 from .openai_prompt import DirectChatPromptAssembler, scoped_prompt_cache_key
 
 _log = get_logger("app.chat.direct_executor")
@@ -489,6 +491,12 @@ class DirectChatTurnExecutor:
             else None
         )
         early_event_queue: asyncio.Queue[Event | None] = asyncio.Queue()
+        # The Anima's MEMORIES.md is reachable only while memory influence is on.
+        anima_memories = (
+            None
+            if prepared.request.options.disable_memory_influence
+            else AnimaMemoriesTurn(seen_version=getattr(prepared.memory_context, "anima_memories_version", None))
+        )
 
         async def on_model_round_start(round_index: int) -> None:
             if stream_emitter is not None:
@@ -502,7 +510,7 @@ class DirectChatTurnExecutor:
 
         async def collect_model_stream() -> tuple[Any, list[ChatMessage]]:
             try:
-                return await self._model_stream_collector().collect(
+                return await self._model_stream_collector(anima_memories=anima_memories).collect(
                     prepared,
                     on_model_round_start=on_model_round_start,
                     on_text_delta=on_text_delta,
@@ -683,7 +691,12 @@ class DirectChatTurnExecutor:
                 )
             # Persist the user message, internal memory tool transcript, final
             # assistant message, usage, and provider metadata after successful
-            # parsing. Incognito turns deliberately skip durable history.
+            # parsing. Incognito turns deliberately skip durable history. The
+            # assistant row is append-only, so its memory block is built first.
+            memory_data = turn_memory_message_data(
+                updates_enabled=not prepared.request.options.disable_memory_updates,
+                anima_memories=anima_memories,
+            )
             _log.info(
                 "Direct chat turn persistence started",
                 anima_id=prepared.request.anima_id,
@@ -717,6 +730,7 @@ class DirectChatTurnExecutor:
                     final=final,
                     model_provider=prepared.model_request.model_provider,
                     internal_tool_messages=internal_tool_messages,
+                    memory=memory_data,
                 ),
                 chat_metadata_patch=chat_metadata_patch_from_prompt(prepared.model_request.prompt),
                 last_model_client=api_standard_profile.model_client,
@@ -730,7 +744,24 @@ class DirectChatTurnExecutor:
                 run_id=prepared.request.run_id,
                 internal_tool_message_count=len(internal_tool_messages),
             )
-            await self._record_episode_memory(prepared=prepared, parsed=parsed, record_result=record_result)
+            assistant_message = _assistant_message_from_record_result(record_result)
+            episode_text = await self._record_episode_memory(
+                prepared=prepared,
+                parsed=parsed,
+                source_message_id=(
+                    str(assistant_message.id)
+                    if assistant_message is not None and assistant_message.id is not None
+                    else None
+                ),
+            )
+            memory_cue = memory_cue_payload(episode_text=episode_text, memories=memory_data["memories"])
+            if memory_cue is not None:
+                # Sent after persistence so the chat can attach the cue to the saved reply.
+                yield memory_updated_event(
+                    prepared.request,
+                    message_id=assistant_message.id if assistant_message is not None else None,
+                    memory_cue=memory_cue,
+                )
         else:
             _log.info(
                 "Direct chat turn persistence skipped",
@@ -788,10 +819,17 @@ class DirectChatTurnExecutor:
     ) -> DirectChatPrompt:
         """Assemble provider-neutral prompt state for the selected model client."""
 
+        memory_writes_enabled = native_memory_patch_enabled or any(
+            spec.get("function", {}).get("name") in MEMORY_TOOL_WRITE_NAMES for spec in memory_tool_specs
+        )
         return self._prompt_assembler.assemble(
             user_message=request.user_message,
             anima_identity=memory_context.anima_identity,
             anima_name=memory_context.anima_name,
+            anima_memories=getattr(memory_context, "anima_memories", None),
+            # An opened MEMORIES.md version means memory influence is on and the file exists.
+            anima_memories_writable=memory_writes_enabled
+            and getattr(memory_context, "anima_memories_version", None) is not None,
             response_format_guidance=response_format_guidance,
             native_memory_patch_enabled=native_memory_patch_enabled,
             memory_map=getattr(memory_context, "memory_map", None),
@@ -830,8 +868,8 @@ class DirectChatTurnExecutor:
             },
         )
 
-    def _model_stream_collector(self) -> DirectTurnModelStreamCollector:
-        """Create the stream collector with executor-local callbacks."""
+    def _model_stream_collector(self, *, anima_memories: AnimaMemoriesTurn | None) -> DirectTurnModelStreamCollector:
+        """Create the stream collector with executor-local callbacks and the turn's MEMORIES.md state."""
 
         _, _, chat_manager, _ = self._required_services()
 
@@ -843,6 +881,7 @@ class DirectChatTurnExecutor:
             memory_tool_service=self._memory_tool_service,
             load_chat_context=load_chat_context,
             build_prompt=self._build_prompt,
+            anima_memories=anima_memories,
         )
 
     def _required_services(
@@ -872,13 +911,16 @@ class DirectChatTurnExecutor:
         *,
         prepared: PreparedDirectChatTurn,
         parsed: MainStructuredResponse,
-        record_result: Any,
-    ) -> None:
-        """Best-effort capture of the final turn's structured `remember` note."""
+        source_message_id: str | None,
+    ) -> str | None:
+        """Best-effort capture of the final turn's structured `remember` note.
+
+        Returns the recorded episode text, or `None` when nothing was recorded.
+        """
 
         remember = parsed.remember.strip() if isinstance(parsed.remember, str) else ""
         if not remember:
-            return
+            return None
         if prepared.request.options.disable_memory_updates:
             _log.info(
                 "Direct chat episodic memory skipped",
@@ -887,7 +929,7 @@ class DirectChatTurnExecutor:
                 run_id=prepared.request.run_id,
                 reason="memory_updates_disabled",
             )
-            return
+            return None
         recorder = self._memory_episode_recorder
         if recorder is None:
             _log.info(
@@ -897,14 +939,14 @@ class DirectChatTurnExecutor:
                 run_id=prepared.request.run_id,
                 reason="recorder_unavailable",
             )
-            return
+            return None
         try:
-            await recorder.record_episode_item(
+            item = await recorder.record_episode_item(
                 user_id=prepared.request.user_id,
                 source_anima_id=prepared.request.anima_id,
                 source_chat_id=prepared.request.chat_id,
                 source_run_id=prepared.request.run_id,
-                source_message_id=_assistant_message_id_from_record_result(record_result),
+                source_message_id=source_message_id,
                 text=remember,
             )
         except Exception as exc:
@@ -915,17 +957,20 @@ class DirectChatTurnExecutor:
                 run_id=prepared.request.run_id,
                 exc_type=exc.__class__.__name__,
             )
-            return
+            return None
         _log.info(
             "Direct chat episodic memory captured",
             anima_id=prepared.request.anima_id,
             chat_id=prepared.request.chat_id,
             run_id=prepared.request.run_id,
         )
+        # The stored item holds the normalized text; fall back to the same normalization.
+        text = getattr(item, "text", None)
+        return text if isinstance(text, str) and text.strip() else " ".join(remember.split())
 
 
-def _assistant_message_id_from_record_result(record_result: Any) -> str | None:
-    """Return the persisted final assistant message id when recorder output exposes it."""
+def _assistant_message_from_record_result(record_result: Any) -> ChatMessage | None:
+    """Return the persisted final visible assistant message when recorder output exposes it."""
 
     if not isinstance(record_result, tuple) or len(record_result) < 2:
         return None
@@ -944,7 +989,7 @@ def _assistant_message_id_from_record_result(record_result: Any) -> str | None:
         if message.message_type != "message":
             continue
         if message.id is not None:
-            return str(message.id)
+            return message
     return None
 
 

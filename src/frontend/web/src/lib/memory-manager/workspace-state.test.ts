@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import type { PyMemoryManagerRun } from "@/lib/content/catalogTypes";
 import {
-  canProcessPendingEpisodes,
   episodeProcessingPresentation,
   isEpisodeProcessingComposerLocked,
   isRecoverableMemoryManagerRun,
   memoryManagerRunCapabilities,
+  reflectionPresentation,
   resolveMemoryManagerSessionRunId,
+  specializedMemoryManagerRunBlockReason,
   startNewMemoryManagerConversation,
 } from "./workspace-state";
 
@@ -130,47 +132,47 @@ describe("memory manager workspace state", () => {
     });
   });
 
-  it("allows repeated processing unless work or an approval locks it", () => {
+  it("allows repeated specialized runs unless work or an approval locks them", () => {
     expect(
-      canProcessPendingEpisodes({
+      specializedMemoryManagerRunBlockReason({
         isBusy: false,
         isLoading: false,
         isError: false,
         hasPendingApproval: false,
       }),
-    ).toBe(true);
+    ).toBeNull();
     expect(
-      canProcessPendingEpisodes({
+      specializedMemoryManagerRunBlockReason({
         isBusy: false,
         isLoading: false,
         isError: false,
         hasPendingApproval: true,
       }),
-    ).toBe(false);
+    ).not.toBeNull();
     expect(
-      canProcessPendingEpisodes({
+      specializedMemoryManagerRunBlockReason({
         isBusy: true,
         isLoading: false,
         isError: false,
         hasPendingApproval: false,
       }),
-    ).toBe(false);
+    ).not.toBeNull();
     expect(
-      canProcessPendingEpisodes({
+      specializedMemoryManagerRunBlockReason({
         isBusy: false,
         isLoading: true,
         isError: false,
         hasPendingApproval: false,
       }),
-    ).toBe(false);
+    ).not.toBeNull();
     expect(
-      canProcessPendingEpisodes({
+      specializedMemoryManagerRunBlockReason({
         isBusy: false,
         isLoading: false,
         isError: true,
         hasPendingApproval: false,
       }),
-    ).toBe(false);
+    ).not.toBeNull();
   });
 
   it("presents processing, approval, and post-processing general mode", () => {
@@ -216,6 +218,166 @@ describe("memory manager workspace state", () => {
     expect(
       episodeProcessingPresentation({ ...run, status: "failed" }),
     ).toMatchObject({ state: "failed" });
+  });
+
+  it("explains why a specialized run cannot start", () => {
+    const idle = {
+      isBusy: false,
+      isLoading: false,
+      isError: false,
+      hasPendingApproval: false,
+    };
+    expect(specializedMemoryManagerRunBlockReason(idle)).toBeNull();
+    expect(
+      specializedMemoryManagerRunBlockReason({
+        ...idle,
+        isBusy: true,
+        hasPendingApproval: true,
+      }),
+    ).toContain("pending memory change");
+    expect(
+      specializedMemoryManagerRunBlockReason({ ...idle, isError: true }),
+    ).toContain("could not load");
+    expect(
+      specializedMemoryManagerRunBlockReason({ ...idle, isBusy: true }),
+    ).toContain("still working");
+    expect(
+      specializedMemoryManagerRunBlockReason({ ...idle, isLoading: true }),
+    ).toContain("still working");
+  });
+
+  it("presents a Reflection with its Anima and turn counts", () => {
+    const run: PyMemoryManagerRun = {
+      id: "run-1",
+      status: "active",
+      kind: "reflection",
+      task: null,
+      reflection: {
+        anima_id: "anima-1",
+        anima_name: "Annie",
+        turn_count: 12,
+        remaining_turn_count: 3,
+        started_at: "2026-09-26T12:00:00Z",
+      },
+    };
+
+    // Follow-up messages stay available throughout a Reflection.
+    expect(isEpisodeProcessingComposerLocked(run)).toBe(false);
+    expect(episodeProcessingPresentation(run)).toBeNull();
+    expect(reflectionPresentation(run)).toMatchObject({
+      state: "active",
+      title: "Reflecting on 12 turns with Annie · 3 more remain",
+    });
+    expect(
+      reflectionPresentation({ ...run, status: "waiting_approval" }),
+    ).toMatchObject({
+      state: "waiting_approval",
+      title: "Reflecting on 12 turns with Annie · 3 more remain",
+    });
+  });
+
+  it("titles a completed Reflection in the past tense", () => {
+    const run: PyMemoryManagerRun = {
+      id: "run-1",
+      status: "completed",
+      kind: "reflection",
+      reflection: {
+        anima_id: "anima-1",
+        anima_name: "Annie",
+        turn_count: 12,
+        remaining_turn_count: 0,
+        started_at: "2026-09-26T12:00:00Z",
+      },
+    };
+    const applied = reflectionPresentation(run, { hasAppliedChange: true });
+    expect(applied).toMatchObject({
+      state: "completed",
+      title: "Reflected on 12 turns with Annie",
+    });
+    expect(applied?.description).toContain("count as reflected");
+    expect(reflectionPresentation(run)?.description).toContain(
+      "remain for the next Reflection",
+    );
+  });
+
+  it("keeps a stopped Reflection's copy true to what was applied", () => {
+    const run: PyMemoryManagerRun = {
+      id: "run-1",
+      status: "failed",
+      kind: "reflection",
+      reflection: {
+        anima_id: "anima-1",
+        anima_name: "Annie",
+        turn_count: 12,
+        remaining_turn_count: 0,
+        started_at: "2026-09-26T12:00:00Z",
+      },
+    };
+
+    const unchanged = reflectionPresentation(run);
+    expect(unchanged).toMatchObject({
+      state: "failed",
+      title: "Reflection on 12 turns with Annie stopped",
+    });
+    expect(unchanged?.description).toContain(
+      "Annie's MEMORIES.md and these turns are unchanged",
+    );
+    // The cause is not assumed to be model availability.
+    expect(unchanged?.description).not.toContain("available");
+
+    // Approval commits the change and its coverage before the model resumes,
+    // so a later failure must not claim the file is unchanged.
+    const applied = reflectionPresentation(run, { hasAppliedChange: true });
+    expect(applied).toMatchObject({
+      state: "failed",
+      title: "Reflection on 12 turns with Annie stopped",
+    });
+    expect(applied?.description).not.toContain("unchanged");
+    expect(applied?.description).toContain("applied MEMORIES.md change stands");
+    expect(applied?.description).toContain("count as reflected");
+  });
+
+  it("uses singular counts and omits the remainder when none remain", () => {
+    const run: PyMemoryManagerRun = {
+      id: "run-1",
+      status: "active",
+      kind: "reflection",
+      reflection: {
+        anima_id: "anima-1",
+        anima_name: "Annie",
+        turn_count: 1,
+        remaining_turn_count: 0,
+        started_at: "2026-09-26T12:00:00Z",
+      },
+    };
+    expect(reflectionPresentation(run)?.title).toBe(
+      "Reflecting on 1 turn with Annie",
+    );
+    expect(
+      reflectionPresentation({
+        ...run,
+        reflection: { ...run.reflection!, remaining_turn_count: 1 },
+      })?.title,
+    ).toBe("Reflecting on 1 turn with Annie · 1 more remains");
+  });
+
+  it("presents no Reflection for other run kinds or a missing summary", () => {
+    expect(reflectionPresentation(null)).toBeNull();
+    expect(
+      reflectionPresentation({
+        id: "run-1",
+        status: "active",
+        kind: "general",
+      }),
+    ).toBeNull();
+    expect(
+      reflectionPresentation({
+        id: "run-1",
+        status: "active",
+        kind: "reflection",
+        reflection: null,
+      }),
+    ).toBeNull();
   });
 
   it("completes active runs before clearing them", async () => {

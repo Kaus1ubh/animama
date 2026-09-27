@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
@@ -13,6 +14,7 @@ from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
 from animama.app.chat import memory_tools as memory_tools_module
+from animama.app.chat.memory_cue import AnimaMemoriesTurn
 from animama.app.chat.memory_tools import (
     MEMORY_TOOL_APPLY_PATCH,
     MEMORY_TOOL_LIST_FILES,
@@ -1740,3 +1742,458 @@ async def test_native_apply_patch_rejects_stale_planned_version_without_mutation
     assert stored.content == "external edit\n"
     assert stored.description == "Profile"
     assert stored.version == 2
+
+
+# `[self]/MEMORIES.md`: the Anima's own relationship memory, reached only through the alias.
+
+_SELF_MEMORIES = "[self]/MEMORIES.md"
+_MEMORIES_BODY = "# Memories\n\n## Our story\nWe met at the lake.\n"
+
+
+def _anima_tool_service(async_session) -> DirectChatMemoryToolService:  # noqa: ANN001
+    memory_entries = _memory_service(async_session, animas=_AllowAnimaRepository())
+    return DirectChatMemoryToolService(
+        memory_entries=memory_entries,
+        patch_planner=AgentsSDKV4AMemoryPatchPlanner(memory_entries=memory_entries),
+    )
+
+
+def _anima_context(
+    *,
+    seen_version: int | None = 1,
+    native: bool = False,
+) -> tuple[MemoryToolExecutionContext, AnimaMemoriesTurn]:
+    turn = AnimaMemoriesTurn(seen_version=seen_version)
+    return replace(_native_context() if native else _context(), anima_memories=turn), turn
+
+
+async def _put_anima_memories(async_session, content: str, *, anima_id: str = "anima-1") -> None:  # noqa: ANN001
+    await _memory_service(async_session, animas=_AllowAnimaRepository()).put_file_by_path(
+        user_id="user-1",
+        anima_id=anima_id,
+        path="MEMORIES.md",
+        content=content,
+        kind="anima_memories",
+        description="Shared history with the user",
+        expected_version=0,
+    )
+
+
+async def _anima_memories(async_session, *, anima_id: str = "anima-1") -> ORMMemoryEntry:  # noqa: ANN001
+    stored: ORMMemoryEntry | None = await async_session.scalar(
+        select(ORMMemoryEntry).where(
+            ORMMemoryEntry.user_id == "user-1",
+            ORMMemoryEntry.anima_id == anima_id,
+            ORMMemoryEntry.path == "MEMORIES.md",
+        )
+    )
+    assert stored is not None
+    await async_session.refresh(stored)
+    return stored
+
+
+def _patch_arguments(path: str, old_text: str, new_text: str) -> dict[str, Any]:
+    return {
+        "path": path,
+        "replacements": [{"old_text": old_text, "new_text": new_text, "replace_all": False}],
+        "update_description": False,
+        "description": None,
+    }
+
+
+def _replace_arguments(path: str, content: str, *, mode: str = "replace") -> dict[str, Any]:
+    return {"path": path, "mode": mode, "content": content, "description": "Shared history with the user"}
+
+
+@pytest.mark.asyncio
+async def test_self_memories_alias_reads_patches_and_replaces_only_the_turn_anima_file(async_session) -> None:
+    await _put_anima_memories(async_session, _MEMORIES_BODY)
+    await _put_anima_memories(async_session, "Another Anima's history.\n", anima_id="anima-2")
+    tools = _anima_tool_service(async_session)
+    context, turn = _anima_context()
+
+    read = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_READ_FILES,
+            arguments={"paths": _SELF_MEMORIES},
+            context=context,
+            tool_call_id="call-read",
+        )
+    )
+    patched = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_APPLY_PATCH,
+            arguments=_patch_arguments(
+                _SELF_MEMORIES,
+                "We met at the lake.",
+                "We met at the lake.\nMira calls me her lake twin.",
+            ),
+            context=context,
+            tool_call_id="call-patch",
+        )
+    )
+    replaced = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_WRITE_FILE,
+            arguments=_replace_arguments(
+                _SELF_MEMORIES,
+                _MEMORIES_BODY + "Mira calls me her lake twin.\n\n## Open threads\n- Kayak trip on 2026-10-04.\n",
+            ),
+            context=context,
+            tool_call_id="call-replace",
+        )
+    )
+
+    assert read == {
+        "ok": True,
+        "files": [{"path": _SELF_MEMORIES, "description": "Shared history with the user", "content": _MEMORIES_BODY}],
+        "errors": [],
+    }
+    assert patched == {"ok": True, "path": _SELF_MEMORIES, "replacements_applied": 1}
+    assert replaced == {"ok": True, "path": _SELF_MEMORIES, "mode": "replace"}
+    stored = await _anima_memories(async_session)
+    assert stored.version == 3
+    assert stored.kind == "anima_memories"
+    assert (stored.content or "").endswith("- Kayak trip on 2026-10-04.\n")
+    assert stored.metadata_["last_ai_write"]["tool_name"] == MEMORY_TOOL_WRITE_FILE
+    assert stored.metadata_["last_ai_write"]["anima_id"] == "anima-1"
+    other = await _anima_memories(async_session, anima_id="anima-2")
+    assert (other.version, other.content) == (1, "Another Anima's history.\n")
+    assert turn.cue() == {
+        "entry_id": stored.id,
+        "version": 3,
+        "excerpt": "Mira calls me her lake twin.\n## Open threads\n- Kayak trip on 2026-10-04.",
+    }
+
+    # Chat navigation keeps excluding Anima files; their content is already in the instructions.
+    listed = _loads(
+        await tools.execute(tool_name=MEMORY_TOOL_LIST_FILES, arguments={}, context=context, tool_call_id="call-list")
+    )
+    searched = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_SEARCH_MEMORY_FILES,
+            arguments={"query": "kayak", "include_episodic_memory": True},
+            context=context,
+            tool_call_id="call-search",
+        )
+    )
+    assert listed == {"ok": True, "files": []}
+    assert searched == {"ok": True, "memory_results": []}
+
+
+@pytest.mark.asyncio
+async def test_native_apply_patch_updates_self_memories_through_alias(async_session) -> None:
+    await _put_anima_memories(async_session, _MEMORIES_BODY)
+    tools = _anima_tool_service(async_session)
+    context, turn = _anima_context(native=True)
+
+    read = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_READ_FILES,
+            arguments={"paths": [_SELF_MEMORIES]},
+            context=context,
+            tool_call_id="call-read",
+        )
+    )
+    result = _loads(
+        await tools.execute_native_patch(
+            operation={
+                "type": "update_file",
+                "path": _SELF_MEMORIES,
+                "diff": "@@\n ## Our story\n We met at the lake.\n+Mira laughed at my pun about herons.\n",
+            },
+            context=context,
+            tool_call_id="call-native",
+        )
+    )
+
+    assert read["files"][0]["content"].startswith('---\ndescription: "Shared history with the user"\n---\n')
+    assert result == {"ok": True, "path": _SELF_MEMORIES, "operation": "update", "version": 2}
+    stored = await _anima_memories(async_session)
+    assert stored.content == _MEMORIES_BODY + "Mira laughed at my pun about herons.\n"
+    assert stored.description == "Shared history with the user"
+    assert stored.metadata_["last_ai_write"]["tool_type"] == "apply_patch"
+    assert turn.cue() == {"entry_id": stored.id, "version": 2, "excerpt": "Mira laughed at my pun about herons."}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("tool_name", "arguments", "code"),
+    [
+        (MEMORY_TOOL_READ_FILES, {"paths": "[self]/IDENTITY.md"}, "invalid_path"),
+        (MEMORY_TOOL_READ_FILES, {"paths": "[anima-2]/MEMORIES.md"}, "invalid_path"),
+        (MEMORY_TOOL_READ_FILES, {"paths": "animas/anima-2/MEMORIES.md"}, "invalid_path"),
+        (MEMORY_TOOL_APPLY_PATCH, _patch_arguments("[self]/IDENTITY.md", "Identity", "Rewritten"), "invalid_path"),
+        (MEMORY_TOOL_APPLY_PATCH, _patch_arguments("[other]/MEMORIES.md", "lake", "sea"), "invalid_path"),
+        (MEMORY_TOOL_APPLY_PATCH, _patch_arguments("animas/anima-1/MEMORIES.md", "lake", "sea"), "invalid_path"),
+        (MEMORY_TOOL_WRITE_FILE, _replace_arguments("[self]/notes.md", "New file", mode="create"), "invalid_path"),
+        (MEMORY_TOOL_WRITE_FILE, _replace_arguments("animas/anima-2/MEMORIES.md", "Taken over"), "invalid_path"),
+        (MEMORY_TOOL_WRITE_FILE, _replace_arguments("animas/anima-1/IDENTITY.md", "Rewritten"), "invalid_path"),
+        (MEMORY_TOOL_WRITE_FILE, _replace_arguments(_SELF_MEMORIES, "Second copy", mode="create"), "file_exists"),
+    ],
+)
+async def test_self_memories_alias_refuses_identity_other_animas_and_creation(
+    async_session,
+    tool_name: str,
+    arguments: dict[str, Any],
+    code: str,
+) -> None:
+    await _put_anima_memories(async_session, _MEMORIES_BODY)
+    await _put_anima_memories(async_session, "Another Anima's history.\n", anima_id="anima-2")
+    await _memory_service(async_session, animas=_AllowAnimaRepository()).put_file_by_path(
+        user_id="user-1",
+        anima_id="anima-1",
+        path="IDENTITY.md",
+        expected_aggregate_revision=1,
+        content="Identity",
+        expected_version=0,
+    )
+    context, turn = _anima_context()
+
+    result = _loads(
+        await _anima_tool_service(async_session).execute(
+            tool_name=tool_name,
+            arguments=arguments,
+            context=context,
+            tool_call_id="call-refused",
+        )
+    )
+
+    error = result["errors"][0] if tool_name == MEMORY_TOOL_READ_FILES else result
+    assert error["code"] == code
+    assert error["retryable"] is False
+    assert (await _anima_memories(async_session)).version == 1
+    assert (await _anima_memories(async_session, anima_id="anima-2")).version == 1
+    assert turn.cue() is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "operation",
+    [
+        {"type": "create_file", "path": _SELF_MEMORIES, "diff": "+---\n+description: null\n+---\n+Fresh start\n"},
+        {"type": "delete_file", "path": _SELF_MEMORIES},
+        {"type": "update_file", "path": "[self]/IDENTITY.md", "diff": "@@\n-Identity\n+Rewritten\n"},
+        {"type": "create_file", "path": "animas/anima-1/MEMORIES.md", "diff": "+blocked\n"},
+    ],
+)
+async def test_native_apply_patch_refuses_creating_deleting_or_escaping_self_memories(
+    async_session,
+    operation: dict[str, Any],
+) -> None:
+    await _put_anima_memories(async_session, _MEMORIES_BODY)
+    context, turn = _anima_context(native=True)
+
+    result = _loads(
+        await _anima_tool_service(async_session).execute_native_patch(
+            operation=operation,
+            context=context,
+            tool_call_id="call-native-refused",
+        )
+    )
+
+    assert result["ok"] is False
+    assert result["code"] == "patch_rejected"
+    assert (await _anima_memories(async_session)).version == 1
+    assert turn.cue() is None
+
+
+@pytest.mark.asyncio
+async def test_self_memories_edits_over_the_size_limit_are_refused_with_a_condense_instruction(async_session) -> None:
+    await _put_anima_memories(async_session, _MEMORIES_BODY)
+    tools = _anima_tool_service(async_session)
+    context, turn = _anima_context(native=True)
+    oversized_line = "x" * (16 * 1024)
+
+    results = [
+        _loads(
+            await tools.execute(
+                tool_name=MEMORY_TOOL_WRITE_FILE,
+                arguments=_replace_arguments(_SELF_MEMORIES, _MEMORIES_BODY + oversized_line),
+                context=context,
+                tool_call_id="call-replace",
+            )
+        ),
+        _loads(
+            await tools.execute(
+                tool_name=MEMORY_TOOL_APPLY_PATCH,
+                arguments=_patch_arguments(_SELF_MEMORIES, "We met at the lake.", oversized_line),
+                context=context,
+                tool_call_id="call-patch",
+            )
+        ),
+        _loads(
+            await tools.execute_native_patch(
+                operation={
+                    "type": "update_file",
+                    "path": _SELF_MEMORIES,
+                    "diff": f"@@\n We met at the lake.\n+{oversized_line}\n",
+                },
+                context=context,
+                tool_call_id="call-native",
+            )
+        ),
+    ]
+
+    for result in results:
+        assert result["ok"] is False
+        assert result["code"] == "memories_too_large"
+        assert result["path"] == _SELF_MEMORIES
+        assert "16 KiB" in result["message"]
+        assert "Condense it" in result["message"]
+    stored = await _anima_memories(async_session)
+    assert (stored.version, stored.content) == (1, _MEMORIES_BODY)
+    assert turn.cue() is None
+
+
+@pytest.mark.asyncio
+async def test_self_memories_replacement_from_a_stale_version_conflicts_until_reread(async_session) -> None:
+    await _put_anima_memories(async_session, _MEMORIES_BODY)
+    memory_entries = _memory_service(async_session, animas=_AllowAnimaRepository())
+    owner_content = _MEMORIES_BODY + "The owner added this.\n"
+    await memory_entries.put_file_by_path(
+        user_id="user-1",
+        anima_id="anima-1",
+        path="MEMORIES.md",
+        content=owner_content,
+        kind="anima_memories",
+        description="Shared history with the user",
+        expected_version=1,
+    )
+    tools = _anima_tool_service(async_session)
+    # The turn's instructions showed version 1; the owner saved version 2 since.
+    context, turn = _anima_context(seen_version=1)
+
+    stale = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_WRITE_FILE,
+            arguments=_replace_arguments(_SELF_MEMORIES, _MEMORIES_BODY + "Rewritten from stale content.\n"),
+            context=context,
+            tool_call_id="call-stale",
+        )
+    )
+    assert stale["ok"] is False
+    assert stale["code"] == "conflict"
+    assert stale["retryable"] is True
+    assert (await _anima_memories(async_session)).content == owner_content
+
+    await tools.execute(
+        tool_name=MEMORY_TOOL_READ_FILES,
+        arguments={"paths": _SELF_MEMORIES},
+        context=context,
+        tool_call_id="call-reread",
+    )
+    fresh = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_WRITE_FILE,
+            arguments=_replace_arguments(_SELF_MEMORIES, owner_content + "Added after rereading.\n"),
+            context=context,
+            tool_call_id="call-fresh",
+        )
+    )
+    assert fresh == {"ok": True, "path": _SELF_MEMORIES, "mode": "replace"}
+    stored = await _anima_memories(async_session)
+    assert stored.content == owner_content + "Added after rereading.\n"
+    assert turn.cue() == {"entry_id": stored.id, "version": 3, "excerpt": "Added after rereading."}
+
+
+@pytest.mark.asyncio
+async def test_self_memories_alias_is_unavailable_without_turn_access(async_session) -> None:
+    """Memory influence off: the turn has no MEMORIES.md state, so the alias reaches nothing."""
+
+    await _put_anima_memories(async_session, _MEMORIES_BODY)
+    tools = _anima_tool_service(async_session)
+
+    read = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_READ_FILES,
+            arguments={"paths": _SELF_MEMORIES},
+            context=_context(),
+            tool_call_id="call-read",
+        )
+    )
+    patch = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_APPLY_PATCH,
+            arguments=_patch_arguments(_SELF_MEMORIES, "lake", "sea"),
+            context=_context(),
+            tool_call_id="call-patch",
+        )
+    )
+    native = _loads(
+        await tools.execute_native_patch(
+            operation={"type": "update_file", "path": _SELF_MEMORIES, "diff": "@@\n-We met at the lake.\n+Sea\n"},
+            context=_native_context(),
+            tool_call_id="call-native",
+        )
+    )
+
+    assert read["files"] == []
+    assert read["errors"][0]["code"] == "invalid_path"
+    assert patch["code"] == "not_found"
+    assert "memory is turned off" in patch["message"]
+    assert native["code"] == "patch_rejected"
+    assert (await _anima_memories(async_session)).version == 1
+
+
+@pytest.mark.asyncio
+async def test_failed_self_memories_edit_leaves_no_turn_change(async_session) -> None:
+    await _put_anima_memories(async_session, _MEMORIES_BODY)
+    context, turn = _anima_context()
+
+    result = _loads(
+        await _anima_tool_service(async_session).execute(
+            tool_name=MEMORY_TOOL_APPLY_PATCH,
+            arguments=_patch_arguments(_SELF_MEMORIES, "Text that is not there", "New text"),
+            context=context,
+            tool_call_id="call-missing-text",
+        )
+    )
+
+    assert result["code"] == "text_not_found"
+    assert turn.cue() is None
+    assert turn.seen_version == 1
+
+
+@pytest.mark.asyncio
+async def test_self_memories_replace_without_a_description_keeps_the_stored_one(async_session) -> None:
+    await _put_anima_memories(async_session, _MEMORIES_BODY)
+    tools = _anima_tool_service(async_session)
+    context, _turn = _anima_context()
+
+    replaced = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_WRITE_FILE,
+            arguments={
+                **_replace_arguments(_SELF_MEMORIES, _MEMORIES_BODY + "- New milestone.\n"),
+                "description": None,
+            },
+            context=context,
+            tool_call_id="call-replace",
+        )
+    )
+
+    assert replaced["ok"] is True
+    stored = await _anima_memories(async_session)
+    assert stored.description == "Shared history with the user"
+    assert (stored.content or "").endswith("- New milestone.\n")
+
+
+@pytest.mark.asyncio
+async def test_reading_a_missing_self_memories_names_the_repair_action(async_session) -> None:
+    tools = _anima_tool_service(async_session)
+    context, _turn = _anima_context(seen_version=None)
+
+    read = _loads(
+        await tools.execute(
+            tool_name=MEMORY_TOOL_READ_FILES,
+            arguments={"paths": _SELF_MEMORIES},
+            context=context,
+            tool_call_id="call-read",
+        )
+    )
+
+    assert read["files"] == []
+    error = read["errors"][0]
+    assert (error["path"], error["code"], error["retryable"]) == (_SELF_MEMORIES, "not_found", False)
+    assert "repair" in error["message"]
