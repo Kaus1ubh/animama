@@ -22,14 +22,19 @@ import {
   type TtsProvider,
 } from "@/lib/speech/tts-provider";
 import {
-  isPocketCustomVoice,
+  claimSessionNotice,
+  resolveOncePerRun,
+  resolvePocketFallbackVoice,
   resolvePocketVoicePreference,
+  type PerRunValue,
 } from "@/lib/speech/pocket/voice-preferences";
 import {
   encodePocketAnimaCatalogReference,
   resolvePocketAnimaVoiceSelection,
 } from "@/lib/speech/pocket/anima-voice-selection";
 import type { PocketAnimaVoiceSelectionContext } from "@/lib/speech/pocket/anima-voice-selection";
+import { DEFAULT_POCKET_VOICE } from "@/lib/speech/pocket/voice-catalog";
+import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
 import {
   usePocketTtsRuntime,
   type PocketTtsCoreEvent,
@@ -349,6 +354,7 @@ export function useTtsPlayback(
   const pocketStreamOpenRef = useRef(false);
   const activePocketVoiceSelectionRef =
     useRef<ResolvedPocketVoiceSelection | null>(null);
+  const pocketFallbackVoiceRef = useRef<PerRunValue<string | undefined>>(null);
   const lastPreloadedPocketAnimaRefRef = useRef<string | null>(null);
   const finalizedTextBasisByRunRef = useRef<Record<string, TtsTextBasis>>({});
 
@@ -527,6 +533,12 @@ export function useTtsPlayback(
     },
     [],
   );
+
+  // Warnings about saved settings (not a single run) show once per app session.
+  const warnOncePerSession = useCallback((reason: string, message: string) => {
+    if (!claimSessionNotice(reason)) return;
+    toast.warning("Pocket voice unavailable", { description: message });
+  }, []);
 
   const shouldStreamChunksForProvider = useCallback(
     (provider: TtsProvider, runId: string): boolean => {
@@ -742,44 +754,40 @@ export function useTtsPlayback(
     warnOnceForRun,
   ]);
 
+  const pocketVoiceDownloads = usePocketVoiceDownloads({
+    enabled:
+      effectivePreferences.speech?.tts_enabled === true &&
+      effectivePreferences.speech?.tts_provider === "pocket_tts",
+  });
+
   const resolvePocketFallbackVoiceForRun = useCallback(
-    (runId: string): string | undefined => {
-      const configuredVoice = resolvePocketVoicePreference(
-        effectivePreferences.speech,
-      );
-      if (!configuredVoice) {
-        return pocketVoices[0];
-      }
-
-      if (isPocketCustomVoice(configuredVoice) && !pocketHasCustomVoice) {
-        warnOnceForRun(
-          runId,
-          "pocket_custom_missing",
-          "Custom PocketTTS voice is selected but no custom voice has been uploaded.",
+    (runId: string): string | undefined =>
+      // Every chunk of a reply speaks with the voice chosen for its first one.
+      resolveOncePerRun(pocketFallbackVoiceRef, runId, () => {
+        const { voice, notice, install } = resolvePocketFallbackVoice(
+          resolvePocketVoicePreference(effectivePreferences.speech),
+          pocketVoices,
+          pocketHasCustomVoice,
+          DEFAULT_POCKET_VOICE,
+          pocketVoiceDownloads.availability,
         );
-        return undefined;
-      }
-
-      if (
-        !isPocketCustomVoice(configuredVoice) &&
-        pocketVoices.length > 0 &&
-        !pocketVoices.includes(configuredVoice)
-      ) {
-        warnOnceForRun(
-          runId,
-          "pocket_voice_unknown",
-          `PocketTTS voice "${configuredVoice}" was not found. Using default Pocket voice instead.`,
-        );
-        return undefined;
-      }
-
-      return configuredVoice;
-    },
+        // A missing downloadable voice installs in the background; this reply
+        // uses the default voice and later replies use the installed voice.
+        if (install) pocketVoiceDownloads.install(install);
+        if (notice?.scope === "session") {
+          warnOncePerSession(notice.key, notice.message);
+        } else if (notice) {
+          warnOnceForRun(runId, notice.key, notice.message);
+        }
+        return voice;
+      }),
     [
       effectivePreferences.speech,
       pocketHasCustomVoice,
+      pocketVoiceDownloads,
       pocketVoices,
       warnOnceForRun,
+      warnOncePerSession,
     ],
   );
 

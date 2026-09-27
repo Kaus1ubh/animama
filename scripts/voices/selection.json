@@ -1,0 +1,311 @@
+{
+  "schema": "animama-pocket-voice-selection/1",
+  "decided": "2026-09-26 (owner, gate G1)",
+  "default": "eve",
+  "voices": [
+    {
+      "id": "azelma",
+      "source": "azelma",
+      "name": "Azelma",
+      "gender": "female",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "clara",
+      "source": "vctk-p236",
+      "name": "Clara",
+      "gender": "female",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "imogen",
+      "source": "vctk-p233",
+      "name": "Imogen",
+      "gender": "female",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "jane",
+      "source": "jane",
+      "name": "Jane",
+      "gender": "female",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "lucy",
+      "source": "vctk-s5",
+      "name": "Lucy",
+      "gender": "female",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "olivia",
+      "source": "vctk-p300",
+      "name": "Olivia",
+      "gender": "female",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "thandi",
+      "source": "vctk-p314",
+      "name": "Thandi",
+      "gender": "female",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "anna",
+      "source": "anna",
+      "name": "Anna",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "aoife",
+      "source": "vctk-p283",
+      "name": "Aoife",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "beatrice",
+      "source": "vctk-p267",
+      "name": "Beatrice",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "brooke",
+      "source": "vctk-p299",
+      "name": "Brooke",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "caro_davy",
+      "source": "caro_davy",
+      "name": "Caro Davy",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "chloe",
+      "source": "vctk-p307",
+      "name": "Chloe",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "emily",
+      "source": "vctk-p308",
+      "name": "Emily",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "eponine",
+      "source": "eponine",
+      "name": "Eponine",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "eve",
+      "source": "eve",
+      "name": "Eve",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "core"
+    },
+    {
+      "id": "fantine",
+      "source": "fantine",
+      "name": "Fantine",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "florence",
+      "source": "vctk-p276",
+      "name": "Florence",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "grace",
+      "source": "vctk-p305",
+      "name": "Grace",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "harriet",
+      "source": "vctk-p231",
+      "name": "Harriet",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "leah",
+      "source": "vctk-p317",
+      "name": "Leah",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "madison",
+      "source": "vctk-p294",
+      "name": "Madison",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "mary",
+      "source": "mary",
+      "name": "Mary",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "niamh",
+      "source": "vctk-p238",
+      "name": "Niamh",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "orla",
+      "source": "vctk-p351",
+      "name": "Orla",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "siobhan",
+      "source": "vctk-p266",
+      "name": "Siobhan",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "sophie",
+      "source": "vctk-p343",
+      "name": "Sophie",
+      "gender": "female",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "bill_boerst",
+      "source": "bill_boerst",
+      "name": "Bill Boerst",
+      "gender": "male",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "javert",
+      "source": "javert",
+      "name": "Javert",
+      "gender": "male",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "marius",
+      "source": "marius",
+      "name": "Marius",
+      "gender": "male",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "michael",
+      "source": "michael",
+      "name": "Michael",
+      "gender": "male",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "noah",
+      "source": "vctk-p334",
+      "name": "Noah",
+      "gender": "male",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "oliver",
+      "source": "vctk-p232",
+      "name": "Oliver",
+      "gender": "male",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "paul",
+      "source": "paul",
+      "name": "Paul",
+      "gender": "male",
+      "recommended": true,
+      "delivery": "core"
+    },
+    {
+      "id": "callum",
+      "source": "vctk-p241",
+      "name": "Callum",
+      "gender": "male",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "charles",
+      "source": "charles",
+      "name": "Charles",
+      "gender": "male",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "ethan",
+      "source": "vctk-p311",
+      "name": "Ethan",
+      "gender": "male",
+      "recommended": false,
+      "delivery": "download"
+    },
+    {
+      "id": "jack",
+      "source": "vctk-p326",
+      "name": "Jack",
+      "gender": "male",
+      "recommended": false,
+      "delivery": "download"
+    }
+  ]
+}

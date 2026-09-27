@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  DEFAULT_POCKET_VOICE,
+  POCKET_VOICES,
+} from "@/lib/speech/pocket/voice-catalog";
 import { createLogger } from "@/lib/logger";
 import { isPocketTtsSupported } from "@/lib/speech/tts-provider";
 
@@ -304,7 +308,13 @@ class PocketCatalogWorkerClient {
   }
 
   async init(): Promise<void> {
-    await this.send("load", {});
+    // The worker requires the built-in voice list, even though encoding uses none.
+    await this.send("load", {
+      voices: POCKET_VOICES.filter((voice) => voice.delivery === "core").map(
+        (voice) => voice.id,
+      ),
+      defaultVoice: DEFAULT_POCKET_VOICE,
+    });
   }
 
   async encodeVoice(audio: Float32Array): Promise<EncodeVoiceResponse> {

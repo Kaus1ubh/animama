@@ -226,7 +226,7 @@ or migration behavior.
   shared store and exact dependency files described in
   `../../docs/backend/operations/model-assets.md`; do not restore ONNX payloads to
   `web/public` or substitute different runtime versions.
-- Vite verifies the 24 browser engine files before serving/building and copies
+- Vite verifies the 35 browser engine files before serving/building and copies
   them into built artifacts. Keep every variant, same-origin URL and notice;
   installed artifacts must not depend on a developer cache.
 - Use root-relative public URLs for runtime fetches.
