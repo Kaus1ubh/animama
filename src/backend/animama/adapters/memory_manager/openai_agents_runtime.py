@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from openai import APIStatusError, AsyncOpenAI
 
+from animama.adapters.model_clients.openai_responses.support import DEFAULT_BASE_URL
 from animama.adapters.openai_agents import OpenAIAgentsRunner, OpenAIAgentsRunOutput
 from animama.app.chat.memory_tools import (
     MEMORY_TOOL_LIST_FILES,
@@ -85,7 +86,9 @@ class OpenAIAgentsMemoryManagerRuntime:
         self._animas = animas
         self._chat_messages = chat_messages
         self._api_key = (api_key or "").strip()
-        self._base_url = (base_url or "").strip().rstrip("/") or None
+        # Always pass an explicit endpoint: when omitted, the SDK falls back to the
+        # OPENAI_BASE_URL env var, which Compose sets to an empty string by default.
+        self._base_url = (base_url or "").strip().rstrip("/") or DEFAULT_BASE_URL
         self._model = model.strip() or "gpt-5.4-mini"
         self._timeout_seconds = max(0.1, float(timeout_seconds))
         self._runner = OpenAIAgentsRunner()
@@ -235,13 +238,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             raise MemoryManagerRuntimeConfigurationError("OPENAI_API_KEY is required for the memory manager")
 
     def _client(self) -> AsyncOpenAI:
-        kwargs: dict[str, Any] = {
-            "api_key": self._api_key,
-            "timeout": self._timeout_seconds,
-        }
-        if self._base_url:
-            kwargs["base_url"] = self._base_url
-        return AsyncOpenAI(**kwargs)
+        return AsyncOpenAI(api_key=self._api_key, base_url=self._base_url, timeout=self._timeout_seconds)
 
     async def _build_agent(
         self,
