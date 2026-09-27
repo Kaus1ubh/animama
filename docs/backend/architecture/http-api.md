@@ -21,6 +21,8 @@ Tests use explicit fixture bootstrap and dependency overrides.
   SSE, and voice catalog uploads.
 - `server/routers/model_provider.py`: active provider/model catalog for
   frontend model selection.
+- `server/routers/model_assets.py`: pinned downloadable asset install state,
+  install, removal and same-origin byte delivery.
 - `server/routers/chats.py`: chat CRUD and persisted chat messages.
 - `server/routers/settings.py`: user settings and per-anima settings.
 - `server/routers/user_profiles.py`: private local display-name reads and edits.
@@ -114,6 +116,44 @@ runtime and preview leases, content operations, and live document jobs. It never
 returns filesystem roots. Electron repeats preflight after draining renderers
 and stopping the worker, before switching pack pointers. Catalog withdrawal
 reuses the same reference checks at restart; readiness fails closed on conflict.
+
+## Model Assets
+
+The shared downloader installs files listed in the release's packaged catalog
+(`animama/resources/model-assets.v1.json`, schema `animama-asset-catalog/1`).
+Requests name assets by catalog ID only; the release URL is never accepted from
+or returned to the browser. All routes use the admitted installation principal.
+
+- `GET /v1/model-assets` returns `{"assets": [...], "free_bytes": N}` for every
+  catalog entry. `free_bytes` is the store filesystem's free space, or `null`
+  when it cannot be measured.
+- `GET /v1/model-assets/{asset_id}` returns one state: `id`, `status`
+  (`not_installed`, `downloading`, `installed` or `failed`), `size_bytes`,
+  `required_free_bytes` (size plus 64 MiB headroom), `media_type`,
+  `license_ref`, and `content_url` when installed.
+  `bytes_downloaded`/`total_bytes` are set while downloading; `reason` is set
+  when failed (`asset_download_failed`, `asset_host_not_allowed`,
+  `asset_size_invalid`, `asset_hash_invalid`, `asset_store_failed` or
+  `asset_insufficient_space`).
+- `POST /v1/model-assets/{asset_id}:install` returns `202` with the current
+  state. It is idempotent: concurrent calls share one download and an installed
+  asset stays installed. With less than `required_free_bytes` free, nothing is
+  fetched and the state is `failed` with `asset_insufficient_space`
+  (`asset_store_failed` when free space cannot be measured). Poll the
+  state route for progress. A failed install can be retried with the same call.
+  While the asset is being removed it returns
+  `409 {"detail": {"code": "model_asset_busy"}}`.
+- `DELETE /v1/model-assets/{asset_id}` cancels an in-flight download or removes
+  the installed file, returning the resulting state (`failed` with
+  `asset_store_failed` if the file cannot be deleted). A consumer guard may
+  refuse removal with `409 {"detail": {"code": "...", "details": {...}}}`; a
+  concurrent removal returns `model_asset_busy`.
+- `GET`/`HEAD /v1/model-assets/{asset_id}/content` serves installed bytes with
+  the SHA-256 as `ETag`, `If-None-Match` and single byte ranges. It returns
+  `404 {"detail": {"code": "model_asset_not_installed"}}` until installed.
+
+Unknown IDs return `404 {"detail": {"code": "model_asset_not_found"}}`. Store
+location and recovery are in [model assets](../operations/model-assets.md#downloaded-model-assets).
 
 ## Content Catalog
 

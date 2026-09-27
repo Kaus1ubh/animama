@@ -403,5 +403,5 @@ writes and backs up those three authorities as one unit.
 restores the three authorities, runs Alembic while application services are
 stopped, requires the existing principal, and performs
 an authoritative content rescan. Included is restored from the matching
-application version. Browser memory, HTTP caches, model caches, environment
-secrets are not part of the backup.
+application version. Browser memory, HTTP caches, model caches, downloaded
+model assets and environment secrets are not part of the backup.

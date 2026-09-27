@@ -58,8 +58,12 @@ const modelPacks = [
   defaultManifest: path.join(repoRoot, "models", spec.modelId, "manifest.json"),
 }));
 
+/** The model-store input spec for a tracked model ID, or undefined. */
+export const modelInputSpec = (modelId) =>
+  modelPacks.find((spec) => spec.modelId === modelId);
+
 /** Keep each pack payload fixed while acquisition stays outside Git. */
-function modelManifest(spec, file) {
+export function modelManifest(spec, file) {
   const manifest = readJson(file);
   if (
     manifest.schema_version !== 1 ||
@@ -80,7 +84,7 @@ function modelManifest(spec, file) {
 }
 
 /** Independently hash local/staged bytes; reject pointers, links and extra inputs. */
-function verifyInputs(spec, root, manifest, staged = false) {
+export function verifyInputs(spec, root, manifest, staged = false) {
   const directory = lstatSync(root);
   if (!directory.isDirectory() || directory.isSymbolicLink())
     throw new Error(`${spec.label} input root must be a real directory`);
@@ -116,10 +120,11 @@ function verifyInputs(spec, root, manifest, staged = false) {
   );
 }
 
-/** Stage one pack's verified inputs; returns its receipt value. */
-function stageModelPack(target, spec, manifestFile, modelRoot) {
-  const manifest = modelManifest(spec, manifestFile);
-  const destination = path.join(target.output, "pack-inputs", spec.id);
+/**
+ * Resolve the verified local model-store directory offline. Returns null when
+ * the default store has no copy, so optional callers can skip it.
+ */
+export function resolveModelInputs(spec, manifestFile, modelRoot) {
   const resolved = spawnSync(
     "python3",
     [
@@ -132,10 +137,8 @@ function stageModelPack(target, spec, manifestFile, modelRoot) {
     ],
     { cwd: repoRoot, encoding: "utf8", maxBuffer: 1024 * 1024 },
   );
-  if (resolved.status === 2 && !modelRoot && !process.env.ANIMAMA_MODEL_ROOT) {
-    rmSync(destination, { recursive: true, force: true });
-    return "unavailable";
-  }
+  if (resolved.status === 2 && !modelRoot && !process.env.ANIMAMA_MODEL_ROOT)
+    return null;
   if (resolved.error || resolved.status !== 0)
     throw new Error(
       `${spec.label} staging needs verified local inputs. Run python3 ${spec.script} verify to diagnose, then acquire with the selected ANIMAMA_MODEL_ROOT and restage; staging never downloads models.`,
@@ -144,6 +147,18 @@ function stageModelPack(target, spec, manifestFile, modelRoot) {
   const source = resolved.stdout.trim();
   if (!path.isAbsolute(source))
     throw new Error(`Invalid resolved ${spec.label} directory`);
+  return source;
+}
+
+/** Stage one pack's verified inputs; returns its receipt value. */
+function stageModelPack(target, spec, manifestFile, modelRoot) {
+  const manifest = modelManifest(spec, manifestFile);
+  const destination = path.join(target.output, "pack-inputs", spec.id);
+  const source = resolveModelInputs(spec, manifestFile, modelRoot);
+  if (source === null) {
+    rmSync(destination, { recursive: true, force: true });
+    return "unavailable";
+  }
   verifyInputs(spec, source, manifest);
   const parent = path.dirname(destination);
   mkdirSync(parent, { recursive: true });

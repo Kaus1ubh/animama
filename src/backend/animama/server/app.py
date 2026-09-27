@@ -18,6 +18,7 @@ from animama.server.deps import get_async_session_factory
 from animama.server.local_http import local_assets, local_http_config, local_telemetry
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
+from animama.server.model_assets import close_model_asset_service, model_asset_service_for
 from animama.server.routers import router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
 from animama.server.telemetry import setup_telemetry
@@ -88,6 +89,8 @@ def create_local_app(
 
         paths = initialize_local_runtime(local_settings)
         application.state.local_runtime_paths = paths
+        # Discard staging left by an interrupted install before serving requests.
+        model_asset_service_for(application)
         bootstrap = create_local_installation_bootstrap_service(
             session_factory=get_async_session_factory(application),
             paths=paths,
@@ -108,6 +111,7 @@ def create_local_app(
 
     @application.on_event("shutdown")
     async def stop_accountless_runtime() -> None:  # pragma: no cover - startup IO
+        await close_model_asset_service(application)
         await stop_content_runtime(application)
         if database is not None:
             await database.close()

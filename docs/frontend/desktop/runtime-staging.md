@@ -179,8 +179,8 @@ versions, license references, explicit `active`/`deferred` release status, and
 approved inventory digest for each supported ID. Expanded Included content and
 document processing are `deferred` for the first release: their development
 inputs remain but they produce no archive/catalog entry or release size gate and
-require no initial-release approval. Parakeet is the only active pack and remains
-bound to its owner-approved exact digest. A null or changed digest produces a
+require no initial-release approval. The two Parakeet packs are active; each ships
+only when bound to its owner-approved exact digest. A null or changed digest produces a
 review report, not an installable catalog entry. Do not fill in approval hashes
 without reviewing redistribution
 rights and required notices. No files are uploaded by this command.

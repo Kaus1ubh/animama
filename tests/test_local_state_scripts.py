@@ -92,7 +92,14 @@ def test_backup_keeps_legacy_exclusions_without_recreating_gateway_credentials()
     backup = (REPO_ROOT / "scripts/backup-local.sh").read_text()
     restore = (REPO_ROOT / "scripts/restore-local.sh").read_text()
     assert "--exclude='./internal/gateway/token'" in backup
-    assert "ANIMAMA_BACKUP_EXCLUDED=content-included,browser-cache,model-cache,secrets,gateway-token" in backup
+    assert (
+        "ANIMAMA_BACKUP_EXCLUDED=content-included,browser-cache,model-cache,downloaded-model-assets,secrets,gateway-token"
+        in backup
+    )
+    # Downloaded model assets are large and re-downloadable in the app.
+    for script in (backup, restore):
+        assert "--exclude='./internal/model-assets'" in script
+        assert "--exclude='./staging/model-assets'" in script
     assert "gateway_token" not in restore
     assert "local-gateway-token.sh" not in restore
     assert "content_cli" in restore
