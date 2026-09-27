@@ -78,14 +78,14 @@ Line numbers are at the baseline.
 - [x] Phase 2: Shared backend asset downloader. Reviewed and complete, then
       split out at G1 (D11) to #151 / PR #162 (`dc2a433`). Removed from this
       branch in `4123951`.
-- [ ] Phase 3 (#152): Shipped voice assets, acquisition and licences.
-      Agent work complete (`22c571b`, Review #2 passed); waiting on gate **G2**,
-      the owner publishing to R2.
+- [x] Phase 3 (#152): Shipped voice assets, acquisition and licences.
+      Complete (`22c571b`); its G2 was superseded by Phase 6's publication
+      (D13).
 - [x] Phase 4 (#153): Data-driven worker voice list, grouped selector and
       stale-voice notice. Complete (`7663264`, `769968e`); Review #2 passed.
-- [ ] Phase 6 (#182): Split into core and downloadable voices; publication set and
-      catalog. Ends at gate **G2**: publish, run by the agent with the owner's
-      token file.
+- [x] Phase 6 (#182): Split into core and downloadable voices; publication set and
+      catalog. Complete (`9d48fee`, `ae2657b`, `98b6bf3`; Review #2 passed);
+      gate **G2** published and verified on 2026-09-27.
 - [ ] Phase 7 (#183): On-demand voice downloads in the app (desktop and self-host).
 - [ ] Phase 5 (#154): Inventory, size, docs and verification. Docs, stage and
       audit are done; published-object verification waits on G2, then gate
@@ -976,7 +976,88 @@ Intended changes:
 
 Objects are immutable, so publish only after Phase 6 review passes.
 
-Results, issue and commits: _pending_.
+#### Phase 6 results (2026-09-27)
+
+Issue #182. Commits `9d48fee`, `ae2657b` and `98b6bf3`; `main` was merged in
+`f329bcf`.
+
+- **Split.** `selection.json` gains `delivery`: 15 core voices (`eve` plus the
+  14 recommended; 7 self-encoded) and 23 downloadable.
+- **What `release` regenerates:**
+  - the browser speech manifest: 24 model files and 35 runtime files;
+  - `models/pocket-tts-voices/manifest.json`: 30 states plus a set-scoped
+    `ATTRIBUTION.md` and `README.md`;
+  - 23 `pocket-voice-<id>` catalog entries;
+  - `voice-catalog.ts` with `delivery`, `assetId` and `sizeBytes`;
+  - notices, licence records and offline import directories.
+- **New code.** `scripts/models/pocket_voices.py` acquires the set, and
+  `optional-inputs.mjs` registers it as a published, non-pack set for
+  `models:stage` and `models:publish`.
+- **Size.** Desktop core download is 508,068,225 of 786,432,000 bytes (was
+  430 MB before this work, 654 MB with 38 core voices); installed is
+  1,113,178,754 of 1,610,612,736. The audit passes.
+- **Checks:**
+  - Python: 97 passed across the four affected suites, with ruff and mypy
+    clean.
+  - Web: speech and runtime-asset tests pass.
+  - Desktop: 331 passed; the optional-inputs and publish-models tests pass
+    (27).
+  - `pnpm check` and lint pass.
+
+#### Code Review #1 Findings
+
+Pinned to `9d48fee`. It confirmed keys, hashes, the catalog, `license_ref`
+and set membership. Required:
+- **P6-R1-F1.** The published `ATTRIBUTION.md` reused the 38-voice runtime
+  notice. Its counts were wrong for the 30-state set, it listed voices not in
+  the set, and it omitted the model and export credits and the licence basis.
+  Once published under the locked prefix it could not be corrected.
+- **P6-R1-F2.** Two licence records still cited the abandoned
+  `pocket-tts/voices/english_2026-04` URL.
+- **P6-R1-F3.** `.gitattributes` had no entries for the hash-bound set files.
+
+There were also optional notes on lazy manifest reading, tests binding the
+notices, write ordering and DRY. Publication verdict: the voice states were
+safe; the notice was not.
+
+#### Code Review #1 Revisions
+
+- **F1, fixed.** A set-scoped notice: counts, the Kyutai model and KevinAHM
+  export credits, only the set's voices, and a licence basis. It is written as
+  LF bytes, and a new test binds it to the generator.
+- **F2, fixed.** Both records now point at
+  `models/pocket-tts-voices/<sha256>/<voice>.safetensors` with the 15/23
+  split.
+- **F3, fixed.** `.gitattributes` entries added.
+- **Optional items taken:** a lazy `names` getter, and a cross-manifest test
+  for the self-encoded core entries.
+
+#### Code Review #2 Findings
+
+Pinned to `ae2657b`. All three findings are resolved with no regressions.
+Verdict: the staged candidate is **safe to publish as-is**.
+
+A cosmetic plural ("recordings … are" for one recording) was fixed before
+publishing (`98b6bf3`), and the set was then restaged and rescanned.
+
+#### Gate G2 (2026-09-27, agent with owner token)
+
+- **Scanner:** pinned `gitleaks` 8.30.1, downloaded from its GitHub release
+  and verified against `scripts/repository-boundary/scanner-pins.json`
+  (SHA-256 `b40ab0ae…`).
+- **Stage and scan:** `models:stage` staged 33 files, and `release:scan`
+  passed with 0 findings.
+- **Publish:** `models:publish --dry-run` listed 33 keys. Then
+  `models:publish --confirm-publication` ran with `ANIMAMA_R2_*` loaded from
+  the owner-only `~/.config/animama/r2-publish.env` for that command only;
+  no value was printed. It uploaded 33 objects create-only (0 pre-existing),
+  and every object was verified anonymously.
+- **Spot check:** `…/noah.safetensors` serves 200, 5,948,720 bytes,
+  `public, max-age=31536000, immutable`, uncompressed.
+- **Fresh-root acquisition:** online `browser_speech.py acquire` (about 21 s)
+  and `pocket_voices.py acquire`, then `verify`, all pass. Store digests:
+  browser speech `672c4d04…`, voice set `0fed31b7…`.
+
 
 ### Phase 7: On-demand voice downloads in the app
 
@@ -1006,7 +1087,37 @@ Intended changes:
    self-host) against the published objects, and a packaged desktop check in
    Phase 5.
 
-Results, issue and commits: _pending_.
+#### Phase 7 results (2026-09-27)
+
+Issue #183. Commit `93b19ee`.
+
+- **Worker.** `resolveBuiltInVoices` accepts `voiceUrls`, restricted to
+  `/v1/model-assets/<asset>/content`, and the worker fetches downloadable
+  states from them.
+- **Factory.** `createPocketTTS` sends all 38 IDs and the URLs.
+- **Availability and installs.**
+  - `voice-downloads.ts` maps downloader states onto voices.
+  - `usePocketVoiceDownloads` wraps #180's hooks.
+  - `resolvePocketFallbackVoice` returns an install request for a missing or
+    failed downloadable voice, keeps the default while it downloads, and
+    raises a session notice on failure.
+  - `use-tts-playback` starts installs.
+- **Picker.** Selecting a downloadable voice that isn't installed saves it and
+  installs it, skipping `set_voice`. A download glyph marks voices not yet
+  installed, and a progress ring shows while downloading.
+- **Checks:** web tests pass (320 files, 1957 tests); `pnpm check` and lint
+  pass.
+- **Live evidence** (development stack `animama-pvc`, published objects):
+  - Icons appear only on the 23 downloadable voices.
+  - Selecting Callum went from downloading (3.8 of 6.4 MB) to installed in
+    about 4 s, and the status reads "Anima override is active: Callum."
+    Madison behaved the same.
+  - A worker with `voiceUrls` synthesized `callum` (1.60 s) and `madison`
+    (2.16 s) from the content route; `anna`, not installed, returned a 404.
+  - Not observed: the progress ring (downloads finished too fast) and the
+    offline notice (unit-tested).
+
+Results, issue and commits: see above.
 
 ### Phase 5: Inventory, size, docs and verification
 
