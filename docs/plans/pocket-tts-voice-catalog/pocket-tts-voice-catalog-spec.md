@@ -85,8 +85,9 @@ Non-goals:
 - **Preview and attribution UI:** a user-facing preview or attribution page.
   The listening page is for development only.
 - **Old preferences:** migrating saved preferences for the removed January
-  voices (`cosette`, `jean`, `fantine`). The product has no users and the
-  database will be reset.
+  voices (`cosette`, `jean`). The product has no users and the database will
+  be reset. `fantine` now names Kyutai's licensed state, shipped as a
+  downloadable voice.
 - **Other voice work:** Anima-specific emotion voice catalogs, voice-cloning
   UX changes and changing the model checkpoint.
 - **Release policy:** changing the noncommercial distribution basis

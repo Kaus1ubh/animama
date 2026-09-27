@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  resolveOncePerRun,
   resolvePocketFallbackVoice,
+  type PerRunValue,
   type PocketVoiceAvailability,
 } from "../../src/lib/speech/pocket/voice-preferences";
 
@@ -145,5 +147,18 @@ describe("resolvePocketFallbackVoice with downloadable voices", () => {
       scope: "session",
       key: "pocket_voice_download_failed:harriet",
     });
+  });
+});
+
+describe("resolveOncePerRun", () => {
+  it("resolves once per run and again for the next run", () => {
+    const cache: { current: PerRunValue<string> } = { current: null };
+    let calls = 0;
+    const resolve = () => `voice-${++calls}`;
+    expect(resolveOncePerRun(cache, "run-1", resolve)).toBe("voice-1");
+    // A download finishing mid-reply must not switch this run's voice.
+    expect(resolveOncePerRun(cache, "run-1", resolve)).toBe("voice-1");
+    expect(resolveOncePerRun(cache, "run-2", resolve)).toBe("voice-2");
+    expect(calls).toBe(2);
   });
 });

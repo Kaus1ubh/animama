@@ -23,8 +23,10 @@ import {
 } from "@/lib/speech/tts-provider";
 import {
   claimSessionNotice,
+  resolveOncePerRun,
   resolvePocketFallbackVoice,
   resolvePocketVoicePreference,
+  type PerRunValue,
 } from "@/lib/speech/pocket/voice-preferences";
 import {
   encodePocketAnimaCatalogReference,
@@ -352,6 +354,7 @@ export function useTtsPlayback(
   const pocketStreamOpenRef = useRef(false);
   const activePocketVoiceSelectionRef =
     useRef<ResolvedPocketVoiceSelection | null>(null);
+  const pocketFallbackVoiceRef = useRef<PerRunValue<string | undefined>>(null);
   const lastPreloadedPocketAnimaRefRef = useRef<string | null>(null);
   const finalizedTextBasisByRunRef = useRef<Record<string, TtsTextBasis>>({});
 
@@ -758,24 +761,26 @@ export function useTtsPlayback(
   });
 
   const resolvePocketFallbackVoiceForRun = useCallback(
-    (runId: string): string | undefined => {
-      const { voice, notice, install } = resolvePocketFallbackVoice(
-        resolvePocketVoicePreference(effectivePreferences.speech),
-        pocketVoices,
-        pocketHasCustomVoice,
-        DEFAULT_POCKET_VOICE,
-        pocketVoiceDownloads.availability,
-      );
-      // A missing downloadable voice installs in the background; this reply
-      // uses the default voice and later replies use the installed voice.
-      if (install) pocketVoiceDownloads.install(install);
-      if (notice?.scope === "session") {
-        warnOncePerSession(notice.key, notice.message);
-      } else if (notice) {
-        warnOnceForRun(runId, notice.key, notice.message);
-      }
-      return voice;
-    },
+    (runId: string): string | undefined =>
+      // Every chunk of a reply speaks with the voice chosen for its first one.
+      resolveOncePerRun(pocketFallbackVoiceRef, runId, () => {
+        const { voice, notice, install } = resolvePocketFallbackVoice(
+          resolvePocketVoicePreference(effectivePreferences.speech),
+          pocketVoices,
+          pocketHasCustomVoice,
+          DEFAULT_POCKET_VOICE,
+          pocketVoiceDownloads.availability,
+        );
+        // A missing downloadable voice installs in the background; this reply
+        // uses the default voice and later replies use the installed voice.
+        if (install) pocketVoiceDownloads.install(install);
+        if (notice?.scope === "session") {
+          warnOncePerSession(notice.key, notice.message);
+        } else if (notice) {
+          warnOnceForRun(runId, notice.key, notice.message);
+        }
+        return voice;
+      }),
     [
       effectivePreferences.speech,
       pocketHasCustomVoice,

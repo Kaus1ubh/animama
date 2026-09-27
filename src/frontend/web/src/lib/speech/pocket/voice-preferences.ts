@@ -125,3 +125,23 @@ export function claimSessionNotice(key: string): boolean {
   claimedSessionNotices.add(key);
   return true;
 }
+
+/** The value computed for one run, reused by that run's later chunks. */
+export type PerRunValue<T> = { runId: string; value: T } | null;
+
+/**
+ * Compute `resolve()` once per run and reuse it for the rest of that run. A
+ * reply streams in several chunks; resolving the voice for each one would let a
+ * download that finishes mid-reply switch voices partway through, and would
+ * repeat install requests within one reply.
+ */
+export function resolveOncePerRun<T>(
+  cache: { current: PerRunValue<T> },
+  runId: string,
+  resolve: () => T,
+): T {
+  if (cache.current?.runId === runId) return cache.current.value;
+  const value = resolve();
+  cache.current = { runId, value };
+  return value;
+}

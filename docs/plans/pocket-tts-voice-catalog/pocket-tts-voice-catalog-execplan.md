@@ -1215,12 +1215,13 @@ Issue #154.
   - 5,385 files, none missing or unexpected;
   - zero content diagnostics for Annie and Caitlyn;
   - the native restore check passes;
-  - **core download 654,172,350 of 786,432,000 bytes** (430 MB before this
-    work), **installed 1,270,400,903 of 1,610,612,736 bytes**. Both are under
-    the caps with no size exception;
+  - with all 38 voices in core: core download 654,172,350 bytes, installed
+    1,270,400,903 bytes;
   - the staged `THIRD_PARTY_NOTICES.txt` credits all 38 voices.
 
-  The voice states barely compress, so download headroom is now about 132 MB.
+  Superseded by Phase 6 (D13), whose 15-voice core is the size record for
+  R25: **core download 508,068,225 of 786,432,000 bytes, installed
+  1,113,178,754 of 1,610,612,736 bytes**.
 - **Docs updated:**
   - `docs/backend/operations/model-assets.md`: 47 and 58 files,
     release-hosted states, and a new "Changing the Pocket voice set" workflow;
@@ -1232,19 +1233,19 @@ Issue #154.
 
   `emotional-voice-catalog.md` needed no change once the catalog builder was
   fixed.
-- **Remaining:**
-  - Gate **G2** upload, then a real acquisition into a fresh root.
-  - `pnpm desktop:mac` and a built self-host stack against the published
-    objects.
-  - Gate **G3**, owner acceptance.
+- **Done since:**
+  - Gate G2 upload and fresh-root acquisition (Phase 6).
+  - `pnpm desktop:mac` built an unsigned app with a passing inventory. It was
+    not launched, because it would open the owner's real profile.
+- **Remaining** (gate **G3**, owner):
+  - Listening acceptance.
+  - The packaged desktop app and a built self-host stack, both downloading a
+    voice from the published objects.
 
 #### Code Review #1 Findings
 
-_Pending._
-
-#### Code Review #1 Revisions
-
-_Pending._
+Phase 5 had no separate review. Its docs, size record and notices were
+reviewed as part of the final integration review below.
 
 ## Final integration review
 
@@ -1256,7 +1257,39 @@ evidence. Focus:
 - the size record;
 - docs accuracy.
 
-_Pending._
+#### Final Code Review #1 Findings
+
+Pinned to `007e016`, which includes a merge of `main` at `bb564bd`.
+
+**Blocking — FIN-R1-F1.** The Pocket voice was resolved per chunk rather
+than per reply:
+- a download that finished mid-reply could switch the voice partway through;
+- an install could repeat within one reply.
+
+**Non-blocking:**
+- The spec listed `fantine` among the removed voices, but it now ships as a
+  downloadable voice.
+- The Phase 5 size record was stale.
+- The validation table had no Downloads row.
+- F4 (P7) stays deferred.
+
+**Passed, with zero mismatches:**
+- consistency of hashes, sizes and URLs across the catalog, both manifests,
+  the asset catalog, licences and notices;
+- offline `verify` of both stores, matching the G2 digests;
+- worker URL validation, and that no voice which isn't installed reaches the
+  worker;
+- the merge from `main`, and boundaries;
+- docs.
+
+#### Final Code Review #1 Revisions
+
+- **F1:** the fallback voice, its install request and its notices are now
+  resolved once per run (`resolveOncePerRun`, with a test).
+- **Non-blocking:**
+  - the spec wording is clarified;
+  - the Phase 5 record points to Phase 6's sizes;
+  - the table gained the Downloads row.
 
 ## Validation and acceptance
 
@@ -1265,10 +1298,11 @@ _Pending._
 | Inventory and no NC/unknown voices | P1 inventory, P3 licence test |
 | Reproducible encoding | P1 `encode --check` and tracked hashes |
 | Owner curation | G1 (D11) |
-| Selector | P4 browser evidence |
+| Selector | P4 browser evidence; desktop and self-host at G3 |
+| Downloads (R26–R30) | P6 G2 publish and fresh-root acquire; P7 tests and development-stack evidence; packaged desktop and built self-host at G3 |
 | Stale-voice notice | P4 test |
 | Notices | P3 notice file, P5 staged notices |
-| Acquisition, packaging and size | P3 acquire after G2, P5 stage and audit |
+| Acquisition, packaging and size | P6 G2 acquire; P5 stage and audit; P6 size record |
 | Owner acceptance | G3 |
 
 Local evidence, hosted `Validation` results and owner gates are recorded
