@@ -112,7 +112,13 @@ Excluded:
   merge until Phase 4. Notice fixed, pack version bumped, approval pending.
 - [ ] Owner approval of the `parakeet-stt-webgpu` 0.1.1 inventory `9f3cd0b9…`
   before the next desktop release build.
-- [ ] Phase 4: R2 publication and built self-host acceptance (owner-gated).
+- [x] Phase 4 steps 1–3 (owner, 2026-09-27): `models/` bucket lock rule added
+  and the model set published.
+- [x] Phase 4 step 4 (agent, 2026-09-27): live built self-host acceptance on
+  `ef9066d`, except the manual items below.
+- [ ] Owner manual checks: live previews with a microphone; a browser without a
+  WebGPU adapter.
+- [ ] Merge approval of the exact candidate (held until Phase 4 by the owner).
 
 ## Surprises & Discoveries
 
@@ -730,9 +736,41 @@ owner holds the R2 credentials. The agent never requests, reads or prints them.
 catalog URL downloads anonymously with matching hashes. Merging still needs
 separate exact-candidate approval.
 
+**Results (2026-09-27):**
+
+- **Steps 1–3 (owner).** The owner added the `models/` lock rule and published
+  the set with `models:publish --confirm-publication`.
+- **Publication verified anonymously** (identity encoding): all four objects
+  return 200 with the exact `Content-Length`, no `Content-Encoding`,
+  `Cache-Control: public, max-age=31536000, immutable` and suffix content
+  types; `ATTRIBUTION.md` (`2efaf55f…`), `README.md` (`4f23ceb4…`) and
+  `manifest.json` (`760221af…`) match their keys by SHA-256. The encoder was
+  verified through the app's own install (below).
+- **Step 4, built self-host** (`animama-selfhost-dl`, rebuilt from `ef9066d`,
+  empty store, in-app browser with a WebGPU adapter, desktop width):
+    - Experimental offered "1.2 GB download · 435 GB free on the server".
+    - Download started; progress reached 0.35 after about 5 s with a
+      `.part` file in `staging/model-assets`; the status line read
+      "Downloading the GPU speech encoder…".
+    - Cancel returned to not installed, with 0 files staged or installed and
+      the content route at 404.
+    - Download again: the content route stayed 404 while downloading (66%),
+      then the asset installed; the setting reported "Available on this
+      device" without a reload.
+    - The installed file is 1,238,960,452 bytes with SHA-256 `ad8bb0ac…62a2`
+      (recomputed on disk), mode `0600`; the route served 200 with that ETag.
+      This also verifies the published encoder object.
+    - Two-step removal returned to not installed; 0 files remain; route 404.
+- **Not performed here:** live previews and the WebGPU worker actually loading
+  the encoder (the in-app browser blocks the microphone), and a browser without
+  a WebGPU adapter (unit-tested only). These are owner manual checks.
+- **Step 5.** Desktop checks pass (`pnpm --filter animama-desktop test` 331,
+  `pnpm check`); the embedded define is still `pack`. The `0.1.1` inventory
+  approval remains before the next desktop release build.
+
 #### Code Review #1 Findings
 
-Pending, covering any code changed during this phase.
+No code changed in this phase; no review required.
 
 ## Final integration review
 
