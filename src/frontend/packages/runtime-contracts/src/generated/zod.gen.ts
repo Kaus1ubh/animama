@@ -1764,6 +1764,28 @@ export const zPyElevenLabsTextToSpeechRequest = z.object({
 });
 
 /**
+ * PyEmbeddingRefreshStatus
+ *
+ * Whether stored vectors match the embeddings role.
+ *
+ * While ``re_embedding`` or ``retrying``, search uses keyword retrieval;
+ * ``pending`` counts rows still waiting for a vector.
+ */
+export const zPyEmbeddingRefreshStatus = z.object({
+    error_category: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    pending: z.optional(z.int()).default(0),
+    state: z.enum([
+        'off',
+        'current',
+        're_embedding',
+        'retrying'
+    ])
+});
+
+/**
  * PyEmotionalState
  */
 export const zPyEmotionalState = z.object({
@@ -3091,6 +3113,55 @@ export const zPyModelProviderCatalogItem = z.object({
     ])),
     supports_streaming: z.optional(z.boolean()).default(false),
     supports_tools: z.optional(z.boolean()).default(false)
+});
+
+/**
+ * PyModelRoleAssignment
+ *
+ * The row doing one role's job and how it was chosen.
+ *
+ * ``source`` is ``owner`` (App Settings), ``default`` (operator environment),
+ * ``inherited`` (the chat role) or ``off``. ``assignment_available`` is False
+ * when the owner's choice could not be used and the role fell back.
+ */
+export const zPyModelRoleAssignment = z.object({
+    assignment_available: z.boolean(),
+    connection_name: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    model_label: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    model_provider_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    requested_model_provider_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    role: z.enum([
+        'chat',
+        'utility',
+        'memory_manager',
+        'embeddings'
+    ]),
+    source: z.enum([
+        'owner',
+        'default',
+        'inherited',
+        'off'
+    ])
+});
+
+/**
+ * PyModelRoles
+ */
+export const zPyModelRoles = z.object({
+    embeddings_refresh: zPyEmbeddingRefreshStatus,
+    roles: z.array(zPyModelRoleAssignment)
 });
 
 /**
@@ -6974,6 +7045,17 @@ export const zUpdateModelV1ModelProvidersModelProviderIdPatchData = z.object({
  * Successful Response
  */
 export const zUpdateModelV1ModelProvidersModelProviderIdPatchResponse = zPyConfiguredModel;
+
+export const zGetModelRolesV1ModelRolesGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetModelRolesV1ModelRolesGetResponse = zPyModelRoles;
 
 export const zListMusicTracksData = z.object({
     body: z.optional(z.never()),

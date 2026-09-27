@@ -2237,6 +2237,8 @@ export type PyArchivePassageSearchRequest = {
     query: string;
     /**
      * Threshold
+     *
+     * Minimum vector similarity; not applied when search falls back to full text
      */
     threshold?: number;
 };
@@ -3722,6 +3724,29 @@ export type PyElevenLabsVoiceSettings = {
      * Use Speaker Boost
      */
     use_speaker_boost?: boolean | null;
+};
+
+/**
+ * PyEmbeddingRefreshStatus
+ *
+ * Whether stored vectors match the embeddings role.
+ *
+ * While ``re_embedding`` or ``retrying``, search uses keyword retrieval;
+ * ``pending`` counts rows still waiting for a vector.
+ */
+export type PyEmbeddingRefreshStatus = {
+    /**
+     * Error Category
+     */
+    error_category?: string | null;
+    /**
+     * Pending
+     */
+    pending?: number;
+    /**
+     * State
+     */
+    state: 'off' | 'current' | 're_embedding' | 'retrying';
 };
 
 /**
@@ -5531,6 +5556,57 @@ export type PyModelRemovalResult = {
      */
     removed: boolean;
     usage: PyModelUsage;
+};
+
+/**
+ * PyModelRoleAssignment
+ *
+ * The row doing one role's job and how it was chosen.
+ *
+ * ``source`` is ``owner`` (App Settings), ``default`` (operator environment),
+ * ``inherited`` (the chat role) or ``off``. ``assignment_available`` is False
+ * when the owner's choice could not be used and the role fell back.
+ */
+export type PyModelRoleAssignment = {
+    /**
+     * Assignment Available
+     */
+    assignment_available: boolean;
+    /**
+     * Connection Name
+     */
+    connection_name?: string | null;
+    /**
+     * Model Label
+     */
+    model_label?: string | null;
+    /**
+     * Model Provider Id
+     */
+    model_provider_id?: string | null;
+    /**
+     * Requested Model Provider Id
+     */
+    requested_model_provider_id?: string | null;
+    /**
+     * Role
+     */
+    role: 'chat' | 'utility' | 'memory_manager' | 'embeddings';
+    /**
+     * Source
+     */
+    source: 'owner' | 'default' | 'inherited' | 'off';
+};
+
+/**
+ * PyModelRoles
+ */
+export type PyModelRoles = {
+    embeddings_refresh: PyEmbeddingRefreshStatus;
+    /**
+     * Roles
+     */
+    roles: Array<PyModelRoleAssignment>;
 };
 
 /**
@@ -11947,6 +12023,22 @@ export type UpdateModelV1ModelProvidersModelProviderIdPatchResponses = {
 };
 
 export type UpdateModelV1ModelProvidersModelProviderIdPatchResponse = UpdateModelV1ModelProvidersModelProviderIdPatchResponses[keyof UpdateModelV1ModelProvidersModelProviderIdPatchResponses];
+
+export type GetModelRolesV1ModelRolesGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/model-roles';
+};
+
+export type GetModelRolesV1ModelRolesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelRoles;
+};
+
+export type GetModelRolesV1ModelRolesGetResponse = GetModelRolesV1ModelRolesGetResponses[keyof GetModelRolesV1ModelRolesGetResponses];
 
 export type ListMusicTracksData = {
     body?: never;

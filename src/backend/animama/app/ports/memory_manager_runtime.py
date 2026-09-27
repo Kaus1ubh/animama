@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -88,8 +89,13 @@ class MemoryManagerRuntime(Protocol):
         *,
         run: MemoryManagerRun,
         user_message: MemoryManagerMessage,
+        history: Sequence[MemoryManagerMessage] = (),
     ) -> MemoryManagerRuntimeResult:
-        """Process a newly appended user message."""
+        """Process a newly appended user message.
+
+        ``history`` holds the run's earlier messages for runtimes whose model
+        server keeps no conversation state.
+        """
 
         raise NotImplementedError
 

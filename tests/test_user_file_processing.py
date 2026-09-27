@@ -19,6 +19,7 @@ from animama.app.ports.user_file_processing_port import UserFileProcessingReposi
 from animama.app.services import user_file_processing_service as processing_service_module
 from animama.app.services.user_file_processing_service import (
     UserFileProcessingService,
+    UserFileProcessingUnavailableError,
     chunk_parsed_user_file_document,
     parse_lightweight_user_file,
 )
@@ -45,16 +46,21 @@ from animama.domain.user_file_processing import (
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
 from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
+from animama.server.model_roles import ModelRoleSettings
 from animama.server.routers import user_files as user_files_router
 from animama.server.schemas.user_file import PyUserFileProcessRequest, PyUserFileSearchRequest
 
 
 class _FakeEmbedder:
+    model_id = "test:embedding"
+
     async def embed_texts(self, texts):
         return [[1.0, 0.0, float(index)] for index, _text in enumerate(texts)]
 
 
 class _RecordingEmbedder:
+    model_id = "test:embedding"
+
     def __init__(self) -> None:
         self.texts: list[str] = []
 
@@ -64,11 +70,22 @@ class _RecordingEmbedder:
 
 
 class _FailingEmbedder:
+    model_id = "test:embedding"
+
     async def embed_texts(self, texts):
         raise RuntimeError(f"embedding unavailable for {len(texts)} chunks")
 
 
 class _HybridRepo:
+    def __init__(self, *, stale_chunks: int = 0) -> None:
+        self.stale_chunks = stale_chunks
+        self.semantic_model_ids: list[str] = []
+
+    async def count_stale_chunks(
+        self, *, user_id: str, embedding_model_id: str, file_ids: list[str] | None = None
+    ) -> int:
+        return self.stale_chunks
+
     async def get_user_file(self, *, user_id: str, file_id: str, include_deleted: bool = False):
         return SimpleNamespace(id=file_id, user_id=user_id)
 
@@ -103,9 +120,11 @@ class _HybridRepo:
         *,
         user_id: str,
         embedding: list[float],
+        embedding_model_id: str,
         limit: int,
         file_ids: list[str] | None = None,
     ):
+        self.semantic_model_ids.append(embedding_model_id)
         return [
             UserFileSearchResult(
                 chunk_id="chunk-b",
@@ -147,6 +166,7 @@ class _CapturingProcessingRepo:
         file_id: str,
         sha256: str,
         processed_at: datetime,
+        embedding_model_id: str | None = None,
     ) -> UserFileProcessingJob | None:
         self.reuse_calls.append(
             {
@@ -155,6 +175,7 @@ class _CapturingProcessingRepo:
                 "file_id": file_id,
                 "sha256": sha256,
                 "processed_at": processed_at,
+                "embedding_model_id": embedding_model_id,
             }
         )
         return self.reuse_result
@@ -171,8 +192,10 @@ class _CapturingProcessingRepo:
         processing_metadata: dict[str, Any],
         file_metadata_updates: dict[str, Any] | None = None,
         processed_at: datetime,
+        embedding_model_id: str | None = None,
     ) -> UserFileProcessingJob:
         self.chunks = chunks
+        self.embedding_model_id = embedding_model_id
         self.file_metadata = processing_metadata
         self.file_metadata_updates = file_metadata_updates
         self.file_status = file_status
@@ -427,12 +450,17 @@ async def test_process_endpoint_enforces_current_user_not_found(monkeypatch) -> 
 @pytest.mark.asyncio
 async def test_debug_search_endpoint_returns_results_without_embedder_for_keyword(monkeypatch) -> None:
     monkeypatch.setattr(user_files_router, "_processing_service", lambda _session: _RouterProcessingService())
-    monkeypatch.setattr(user_files_router, "get_embedder", lambda: pytest.fail("keyword search should not embed"))
+
+    async def _unexpected_embedder(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        pytest.fail("keyword search should not resolve an embedder")
+
+    monkeypatch.setattr(user_files_router, "role_embedder", _unexpected_embedder)
 
     response = await user_files_router.search_user_file_chunks(
         PyUserFileSearchRequest(query="alpha", mode="keyword", limit=5),
         session=AsyncSession(),
         user=RequestPrincipal(id="user-1"),
+        roles=ModelRoleSettings(owner_roles_enabled=True),
     )
 
     assert response.query == "alpha"
@@ -520,11 +548,17 @@ async def test_replace_chunks_success_and_search_modes(async_session, clean_user
         processing_metadata={"parser": "test"},
         file_metadata_updates={"overview": {"version": 1}},
         processed_at=_now(),
+        embedding_model_id="model-a",
     )
     await async_session.commit()
 
     keyword = await repo.keyword_search(user_id="user-1", query="Alpha", limit=5)
-    semantic = await repo.semantic_search(user_id="user-1", embedding=[1.0, 0.0, 0.0], limit=5)
+    semantic = await repo.semantic_search(
+        user_id="user-1", embedding=[1.0, 0.0, 0.0], embedding_model_id="model-a", limit=5
+    )
+    other_model = await repo.semantic_search(
+        user_id="user-1", embedding=[1.0, 0.0, 0.0], embedding_model_id="model-b", limit=5
+    )
     ordered_chunks = await repo.read_chunks(
         user_id="user-1",
         file_id="file-search",
@@ -549,6 +583,10 @@ async def test_replace_chunks_success_and_search_modes(async_session, clean_user
     assert keyword[0].file_id == "file-search"
     assert "Alpha" in keyword[0].text
     assert semantic[0].file_id == "file-search"
+    # Vectors from another embedding model are never compared.
+    assert other_model == []
+    assert await repo.count_stale_chunks(user_id="user-1", embedding_model_id="model-a") == 0
+    assert await repo.count_stale_chunks(user_id="user-1", embedding_model_id="model-b") == len(chunks)
     assert [chunk.chunk_index for chunk in ordered_chunks] == list(range(len(chunks)))
     assert [chunk.chunk_index for chunk in later_chunks] == ([1] if len(chunks) > 1 else [])
     assert foreign_read == []
@@ -595,7 +633,9 @@ async def test_reuse_processed_file_clones_same_user_digest_result_atomically(
             user_id="user-1",
             chunk_index=0,
             text="Reusable source chunk",
+            embedding_text="Reusable\nReusable source chunk",
             embedding=[1.0, 2.0, 3.0],
+            embedding_model_id="model-a",
             char_count=21,
             token_estimate=5,
             metadata_={
@@ -626,6 +666,7 @@ async def test_reuse_processed_file_clones_same_user_digest_result_atomically(
         file_id="file-target",
         sha256=digest,
         processed_at=_now(),
+        embedding_model_id="model-a",
     )
     await async_session.commit()
 
@@ -662,6 +703,8 @@ async def test_reuse_processed_file_clones_same_user_digest_result_atomically(
     assert target_chunks[0].text == "Reusable source chunk"
     assert target_chunks[0].embedding is not None
     assert list(target_chunks[0].embedding) == [1.0, 2.0, 3.0]
+    assert target_chunks[0].embedding_model_id == "model-a"
+    assert target_chunks[0].embedding_text == "Reusable\nReusable source chunk"
     assert target_chunks[0].metadata_ == {
         "headings": ["Reusable"],
         "filename": "file-target.txt",
@@ -669,6 +712,51 @@ async def test_reuse_processed_file_clones_same_user_digest_result_atomically(
     }
     assert len(source_chunks) == 1
     assert source_chunks[0].id == "chunk-file-source-000000"
+
+
+@pytest.mark.asyncio
+async def test_reuse_processed_file_copies_only_vectors_from_the_current_model(
+    async_session,
+    clean_user_file_tables,
+) -> None:
+    digest = hashlib.sha256(b"same bytes").hexdigest()
+    await _insert_file(async_session, file_id="file-source", status=STATUS_READY, sha256=digest)
+    async_session.add(
+        ORMUserFileChunk(
+            id="chunk-file-source-000000",
+            file_id="file-source",
+            user_id="user-1",
+            chunk_index=0,
+            text="Reusable source chunk",
+            embedding=[1.0, 2.0, 3.0],
+            embedding_model_id="model-old",
+            char_count=21,
+            token_estimate=5,
+            metadata_={},
+        )
+    )
+    await _insert_file(async_session, file_id="file-target", status=STATUS_PROCESSING)
+    await _insert_job(async_session, job_id="job-target", file_id="file-target", status=JOB_STATUS_RUNNING, attempts=1)
+    repo = SQLAlchemyUserFileProcessingRepository(async_session)
+
+    await repo.reuse_processed_file(
+        job_id="job-target",
+        user_id="user-1",
+        file_id="file-target",
+        sha256=digest,
+        processed_at=_now(),
+        embedding_model_id="model-new",
+    )
+    await async_session.commit()
+
+    target_chunk = await async_session.get(ORMUserFileChunk, "chunk-file-target-000000")
+    assert target_chunk is not None
+    assert target_chunk.text == "Reusable source chunk"
+    assert target_chunk.embedding is None
+    assert target_chunk.embedding_model_id is None
+    assert (
+        await repo.count_stale_chunks(user_id="user-1", embedding_model_id="model-new", file_ids=["file-target"]) == 1
+    )
 
 
 @pytest.mark.asyncio
@@ -830,6 +918,8 @@ async def test_complete_claimed_job_uses_parser_chunks_and_embedding_text() -> N
     assert repo.chunks[0].text == "Display chunk text"
     assert repo.chunks[0].embedding_text == "Heading breadcrumb\nDisplay chunk text"
     assert repo.chunks[0].embedding == [1.0, 0.0, 0.0]
+    assert repo.embedding_model_id == "test:embedding"
+    assert repo.reuse_calls[0]["embedding_model_id"] == "test:embedding"
     assert repo.file_metadata is not None
     assert repo.file_metadata["embedded"] is True
     assert repo.file_metadata_updates is not None
@@ -962,6 +1052,11 @@ async def test_complete_claimed_job_uses_safe_overview_fallback_on_builder_failu
 
     assert repo.file_metadata is not None
     assert any("Overview generation failed" in warning for warning in repo.file_metadata["warnings"])
+    # Embeddings being off is not a failure: the file is ready for keyword search.
+    assert repo.file_status == STATUS_READY
+    assert repo.file_metadata["embedded"] is False
+    assert not any("mbedding" in warning for warning in repo.file_metadata["warnings"])
+    assert repo.embedding_model_id is None
     assert repo.file_metadata_updates is not None
     assert repo.file_metadata_updates["overview"] == {
         "version": 1,
@@ -1228,3 +1323,35 @@ async def test_hybrid_search_dedupes_with_rrf() -> None:
 
     assert [result.chunk_id for result in response.results] == ["chunk-b", "chunk-a"]
     assert response.results[0].match_type == "keyword+semantic"
+
+
+@pytest.mark.asyncio
+async def test_hybrid_search_uses_keywords_while_embeddings_are_off_or_pending() -> None:
+    pending = _HybridRepo(stale_chunks=3)
+    off = _HybridRepo()
+
+    while_pending = await UserFileProcessingService(
+        processing=cast(UserFileProcessingRepository, pending), uow=_NoopUow()
+    ).search(user_id="user-1", query="both", mode="hybrid", limit=5, embedder=_FakeEmbedder())
+    while_off = await UserFileProcessingService(
+        processing=cast(UserFileProcessingRepository, off), uow=_NoopUow()
+    ).search(user_id="user-1", query="both", mode="hybrid", limit=5, embedder=None)
+
+    assert {result.match_type for result in while_pending.results} == {"keyword"}
+    assert pending.semantic_model_ids == []
+    assert "re-embedded" in while_pending.warnings[0]
+    assert {result.match_type for result in while_off.results} == {"keyword"}
+    assert while_off.warnings == []
+
+
+@pytest.mark.asyncio
+async def test_semantic_search_compares_only_the_embedder_model_and_requires_embeddings() -> None:
+    repo = _HybridRepo()
+    service = UserFileProcessingService(processing=cast(UserFileProcessingRepository, repo), uow=_NoopUow())
+
+    response = await service.search(user_id="user-1", query="both", mode="semantic", limit=5, embedder=_FakeEmbedder())
+    with pytest.raises(UserFileProcessingUnavailableError, match="Embeddings are off"):
+        await service.search(user_id="user-1", query="both", mode="semantic", limit=5, embedder=None)
+
+    assert repo.semantic_model_ids == ["test:embedding"]
+    assert response.results[0].chunk_id == "chunk-b"

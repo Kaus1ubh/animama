@@ -120,10 +120,9 @@ class Settings(BaseModel):
     anima_user_file_docling_table_mode: str = os.getenv("ANIMAMA_USER_FILE_DOCLING_TABLE_MODE", "fast")
     anima_user_file_docling_warmup: bool = _env_bool("ANIMAMA_USER_FILE_DOCLING_WARMUP", True)
     anima_user_file_chunk_max_tokens: int = int(os.getenv("ANIMAMA_USER_FILE_CHUNK_MAX_TOKENS", "800"))
+    # A tiktoken encoding name for chunk sizing only; tokenization runs offline.
     anima_user_file_chunk_tokenizer_model: str = (
-        _env_text("ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL")
-        or _env_text("ANIMAMA_EMBEDDING_MODEL")
-        or "text-embedding-3-small"
+        _env_text("ANIMAMA_USER_FILE_CHUNK_TOKENIZER_MODEL") or "text-embedding-3-small"
     )
     anima_memory_file_max_bytes: int = int(os.getenv("ANIMAMA_MEMORY_FILE_MAX_BYTES", str(32 * 1024)))
     anima_chat_compaction_enabled: bool = _env_bool("ANIMAMA_CHAT_COMPACTION_ENABLED", True)
@@ -135,24 +134,21 @@ class Settings(BaseModel):
         "ANIMAMA_DEFAULT_MODEL_PROVIDER_ID",
         "OpenAIResponsesHTTPAgent:gpt-5.6-luna",
     )
+    # Operator defaults for model roles (catalog row ids). Unset utility and
+    # memory-manager roles use the default chat model; embeddings stay off.
+    anima_default_utility_model_provider_id: str | None = _env_text("ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID")
+    anima_default_memory_manager_model_provider_id: str | None = _env_text(
+        "ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID"
+    )
+    anima_default_embedding_model_provider_id: str | None = _env_text("ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID")
     anima_openai_responses_compaction_threshold_tokens: int = int(
         os.getenv("ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS", "10000")
     )
-    anima_chat_compaction_provider: str = os.getenv(
-        "ANIMAMA_CHAT_COMPACTION_PROVIDER",
-        "OpenAIHTTPAgent",
-    )
-    anima_chat_compaction_model: str = os.getenv("ANIMAMA_CHAT_COMPACTION_MODEL", "gpt-5-nano")
     anima_chat_compaction_prompt_version: str = os.getenv(
         "ANIMAMA_CHAT_COMPACTION_PROMPT_VERSION",
         "chat-compaction-v1",
     )
     anima_chat_title_generation_enabled: bool = _env_bool("ANIMAMA_CHAT_TITLE_GENERATION_ENABLED", True)
-    anima_chat_title_generation_provider: str = os.getenv(
-        "ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER",
-        "OpenAIHTTPAgent",
-    )
-    anima_chat_title_generation_model: str = os.getenv("ANIMAMA_CHAT_TITLE_GENERATION_MODEL", "gpt-5-nano")
     anima_chat_title_generation_prompt_version: str = os.getenv(
         "ANIMAMA_CHAT_TITLE_GENERATION_PROMPT_VERSION",
         "chat-title-v1",
@@ -168,7 +164,6 @@ class Settings(BaseModel):
     # Host that local model-server presets (Ollama, LM Studio, llama.cpp, vLLM)
     # suggest; Compose sets host.docker.internal so containers reach the host.
     animama_local_model_host: str = os.getenv("ANIMAMA_LOCAL_MODEL_HOST", "127.0.0.1")
-    anima_memory_manager_agent_model: str = os.getenv("ANIMAMA_MEMORY_MANAGER_AGENT_MODEL", "gpt-5.4-mini")
     elevenlabs_audio_max_upload_bytes: int = int(os.getenv("ELEVENLABS_AUDIO_MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))
     elevenlabs_max_in_flight: int = int(os.getenv("ELEVENLABS_MAX_IN_FLIGHT", "3"))
     elevenlabs_max_retries: int = int(os.getenv("ELEVENLABS_MAX_RETRIES", "2"))

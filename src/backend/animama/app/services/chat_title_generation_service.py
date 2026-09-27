@@ -6,6 +6,7 @@ import asyncio
 import re
 from dataclasses import dataclass
 
+from animama.domain import ModelProvider
 from animama.domain.usage import Usage
 from animama.logging import get_logger
 
@@ -13,7 +14,6 @@ from .direct_model_prompt_runner import DirectModelPromptRequest, DirectModelPro
 
 CHAT_TITLE_AGENT_ID = "backend-chat-title-generator"
 DEFAULT_CHAT_TITLE_MAX_CHARS = 48
-DEFAULT_AUXILIARY_MODEL_PROVIDER = "OpenAIHTTPAgent"
 DEFAULT_CHAT_TITLE_TIMEOUT_SECONDS = 10.0
 DEFAULT_CHAT_TITLE_REASONING_EFFORT = "minimal"
 
@@ -23,8 +23,6 @@ class ChatTitleGenerationSettings:
     """Configuration for hidden direct-chat title generation."""
 
     enabled: bool = True
-    model_provider: str = DEFAULT_AUXILIARY_MODEL_PROVIDER
-    model: str = "gpt-5-nano"
     prompt_version: str = "chat-title-v1"
     max_chars: int = DEFAULT_CHAT_TITLE_MAX_CHARS
     timeout_seconds: float = DEFAULT_CHAT_TITLE_TIMEOUT_SECONDS
@@ -39,8 +37,8 @@ class ChatTitleGenerationResult:
     raw_title: str | None
     reason: str
     usage: Usage | None
-    model_provider: str
-    model: str
+    model_provider: str | None
+    model: str | None
     prompt_version: str
 
 
@@ -95,7 +93,7 @@ class ChatTitleGenerationService:
         if not user_message.strip():
             return self._result(None, None, "empty_user_message", None)
         try:
-            raw_title, usage = await asyncio.wait_for(
+            raw_title, usage, provider = await asyncio.wait_for(
                 self._run_title_model(
                     anima_id=anima_id,
                     user_id=user_id,
@@ -123,8 +121,8 @@ class ChatTitleGenerationService:
 
         title = sanitize_generated_chat_title(raw_title, max_chars=max(1, int(settings.max_chars)))
         if not title:
-            return self._result(None, raw_title, "empty_title", usage)
-        return self._result(title, raw_title, "generated", usage)
+            return self._result(None, raw_title, "empty_title", usage, provider)
+        return self._result(title, raw_title, "generated", usage, provider)
 
     def _result(
         self,
@@ -132,14 +130,15 @@ class ChatTitleGenerationService:
         raw_title: str | None,
         reason: str,
         usage: Usage | None,
+        provider: ModelProvider | None = None,
     ) -> ChatTitleGenerationResult:
         return ChatTitleGenerationResult(
             title=title,
             raw_title=raw_title,
             reason=reason,
             usage=usage,
-            model_provider=self._settings.model_provider,
-            model=self._settings.model,
+            model_provider=provider.provider_type if provider is not None else None,
+            model=provider.model if provider is not None else None,
             prompt_version=self._settings.prompt_version,
         )
 
@@ -150,22 +149,20 @@ class ChatTitleGenerationService:
         user_id: str,
         chat_id: str,
         prompt: str,
-    ) -> tuple[str, Usage | None]:
+    ) -> tuple[str, Usage | None, ModelProvider]:
         result = await self._model_runner.run_prompt(
             DirectModelPromptRequest(
                 anima_id=anima_id,
                 user_id=user_id,
                 chat_id=chat_id,
                 task="chat-title",
-                model_provider=self._settings.model_provider,
-                model=self._settings.model,
                 prompt=prompt,
                 prompt_version=self._settings.prompt_version,
                 instructions="Generate concise chat titles. Return only the title.",
                 request_options=_title_request_options(self._settings),
             )
         )
-        return result.text, result.usage
+        return result.text, result.usage, result.model_provider
 
     def _build_title_prompt(self, user_message: str) -> str:
         max_chars = max(1, int(self._settings.max_chars))
@@ -191,7 +188,6 @@ def _title_request_options(settings: ChatTitleGenerationSettings) -> dict[str, o
 
 __all__ = [
     "CHAT_TITLE_AGENT_ID",
-    "DEFAULT_AUXILIARY_MODEL_PROVIDER",
     "DEFAULT_CHAT_TITLE_REASONING_EFFORT",
     "DEFAULT_CHAT_TITLE_MAX_CHARS",
     "DEFAULT_CHAT_TITLE_TIMEOUT_SECONDS",

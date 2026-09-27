@@ -12,7 +12,9 @@ from animama.domain.archive import Archive as ArchiveDomain, ArchivePassage as A
 from animama.domain.request_principal import RequestPrincipal
 from animama.logging_config import get_logger
 from animama.orm import ORMAnima
-from animama.server.deps import get_async_session, get_current_principal, get_embedder
+from animama.server.deps import get_async_session, get_current_principal
+from animama.server.embeddings import role_embedder
+from animama.server.model_roles import ModelRoleSettings, get_model_role_settings
 
 from ..schemas import (
     PyArchive,
@@ -143,6 +145,7 @@ async def create_anima_archive_passage(
     req: PyArchivePassageCreate,
     session: Annotated[AsyncSession, Depends(get_async_session)],
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    roles: Annotated[ModelRoleSettings, Depends(get_model_role_settings)],
 ) -> PyArchivePassageResponse:
     """Create a new archive passage for a anima.
 
@@ -153,7 +156,7 @@ async def create_anima_archive_passage(
 
     repo = SQLAlchemyArchiveRepository(session)
     uow = SQLAlchemyUnitOfWork(session)
-    service = ArchiveService(archives=repo, uow=uow)
+    service = ArchiveService(archives=repo, uow=uow, embedder=await role_embedder(session, user.id, roles))
 
     archive_id = orm_anima.archive_id
     if not archive_id:
@@ -172,16 +175,6 @@ async def create_anima_archive_passage(
         await session.flush()
         await session.commit()
 
-    # Embed text on creation (for vector search)
-    embedding: list[float] | None = None
-    try:
-        embedder = get_embedder()
-        vectors = await embedder.embed_texts([req.text])
-        if vectors and vectors[0]:
-            embedding = vectors[0]
-    except Exception as exc:  # pragma: no cover - defensive
-        _log.warning("Archive embedding failed on create_passage", error=str(exc))
-
     passage = await service.create_passage(
         archive_id=archive_id,
         text=req.text,
@@ -189,7 +182,6 @@ async def create_anima_archive_passage(
         metadata=req.metadata,
         source_id=req.source_id,
         file_id=req.file_id,
-        embedding=embedding,
     )
     return _passage_dom_to_schema(passage)
 
@@ -205,6 +197,7 @@ async def update_anima_archive_passage(
     req: PyArchivePassageUpdate,
     session: Annotated[AsyncSession, Depends(get_async_session)],
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    roles: Annotated[ModelRoleSettings, Depends(get_model_role_settings)],
 ) -> PyArchivePassageResponse:
     """Update an existing archive passage."""
     _log.info("HTTP Archive UpdatePassage", anima_id=anima_id, passage_id=passage_id)
@@ -214,7 +207,7 @@ async def update_anima_archive_passage(
 
     repo = SQLAlchemyArchiveRepository(session)
     uow = SQLAlchemyUnitOfWork(session)
-    service = ArchiveService(archives=repo, uow=uow)
+    service = ArchiveService(archives=repo, uow=uow, embedder=await role_embedder(session, user.id, roles))
 
     existing = await service.get_passage(passage_id)
     if existing is None or existing.archive_id != orm_anima.archive_id:
@@ -232,6 +225,7 @@ async def update_anima_archive_passage(
         updated_at=existing.updated_at,
         score=existing.score,
         embedding=existing.embedding,
+        embedding_model_id=existing.embedding_model_id,
     )
 
     stored = await service.update_passage(passage=updated_dom)
@@ -277,8 +271,9 @@ async def search_anima_archive_passages(
     req: PyArchivePassageSearchRequest,
     session: Annotated[AsyncSession, Depends(get_async_session)],
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    roles: Annotated[ModelRoleSettings, Depends(get_model_role_settings)],
 ) -> list[PyArchivePassageSearchResult]:
-    """Search archive passages for a anima using vector similarity."""
+    """Search an Anima's archive passages by similarity, or by full text when embeddings are unavailable."""
     _log.info(
         "HTTP Archive SearchPassages",
         anima_id=anima_id,
@@ -289,23 +284,13 @@ async def search_anima_archive_passages(
     if not orm_anima.archive_id:
         return []
 
-    # Embed the query text
-    try:
-        embedder = get_embedder()
-        vectors = await embedder.embed_texts([req.query])
-        if not vectors or not vectors[0]:
-            return []
-        query_embedding = vectors[0]
-    except Exception as exc:  # pragma: no cover - defensive
-        _log.error("Archive search embedding failed", error=str(exc))
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Embedding failed") from exc
-
-    repo = SQLAlchemyArchiveRepository(session)
-    uow = SQLAlchemyUnitOfWork(session)
-    service = ArchiveService(archives=repo, uow=uow)
-
+    service = ArchiveService(
+        archives=SQLAlchemyArchiveRepository(session),
+        uow=SQLAlchemyUnitOfWork(session),
+        embedder=await role_embedder(session, user.id, roles),
+    )
     results = await service.search_passages(
-        embedding=query_embedding,
+        query=req.query,
         limit=req.limit,
         threshold=req.threshold,
         archive_id=orm_anima.archive_id,

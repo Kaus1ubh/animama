@@ -771,6 +771,7 @@ def test_compose_forwards_auxiliary_controls_and_openai_endpoint(
     expected = {
         "ANIMAMA_CHAT_TITLE_GENERATION_ENABLED": "false" if configured else "true",
         "ANIMAMA_CHAT_COMPACTION_ENABLED": "false" if configured else "true",
+        "ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID": "OpenAIHTTPAgent:text-embedding-3-small" if configured else "",
         "OPENAI_BASE_URL": "https://approved-relay.example.invalid/v1" if configured else "",
     }
     selection = tmp_path / "nonsecret.env"
@@ -812,8 +813,7 @@ def test_reset_selected_files_preserve_credentials_and_resume_in_a_clean_termina
         "APP_HOST=fixture.localhost\nANIMAMA_WEB_BUILD_MODE=production\n"
         "POSTGRES_USER=fixture_owner\nPOSTGRES_DB=fixture_db\n"
         f"ANIMAMA_INCLUDED_CONTENT_HOST_PATH={included}\n"
-        "ANIMAMA_CHAT_TITLE_GENERATION_MODEL=gpt-5.6-luna\n"
-        "ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER=OpenAIResponsesHTTPAgent\n"
+        "ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID=OpenAIResponsesHTTPAgent:gpt-5.6-luna\n"
         "ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT=none\n"
     )
     selection = "../shared config/dev-secrets.env,.env"
@@ -848,12 +848,8 @@ def test_reset_selected_files_preserve_credentials_and_resume_in_a_clean_termina
     server = graph["services"]["animama-server"]
     assert server["environment"]["OPENAI_API_KEY"] == "fixture-provider-secret"
     assert server["environment"]["ANIMAMA_PUBLIC_ORIGIN"] == "http://fixture.localhost:9180"
-    for suffix, expected in (
-        ("MODEL", "gpt-5.6-luna"),
-        ("PROVIDER", "OpenAIResponsesHTTPAgent"),
-        ("REASONING_EFFORT", "none"),
-    ):
-        assert server["environment"]["ANIMAMA_CHAT_TITLE_GENERATION_" + suffix] == expected
+    assert server["environment"]["ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID"] == "OpenAIResponsesHTTPAgent:gpt-5.6-luna"
+    assert server["environment"]["ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT"] == "none"
     assert next(mount for mount in server["volumes"] if mount["target"] == "/var/lib/animama/content/included")[
         "source"
     ] == str(included)

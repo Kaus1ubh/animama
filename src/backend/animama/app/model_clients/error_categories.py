@@ -49,9 +49,11 @@ _CATEGORY_BY_CODE = {
 _CONTEXT_EXCEEDED_CODES = frozenset({"context_length_exceeded"})
 _CONTEXT_EXCEEDED_MESSAGE = re.compile(
     r"context (length|window|size)|maximum context|exceeds? the (available )?context|"
-    r"too many tokens|prompt is too long|n_ctx|input is too long",
+    r"too many tokens|prompt is too long|n_ctx|input is too (long|large)",
     re.IGNORECASE,
 )
+# llama.cpp rejects an embedding input larger than its batch with HTTP 500.
+_OVERSIZED_INPUT_MESSAGE = re.compile(r"input is too (long|large)", re.IGNORECASE)
 
 
 def model_error_category(code: str | None, metadata: Mapping[str, Any] | None = None) -> str:
@@ -62,6 +64,8 @@ def model_error_category(code: str | None, metadata: Mapping[str, Any] | None = 
     # mentions "context" (for example a failed model load) keeps its category.
     if category in {ERROR_BAD_REQUEST, ERROR_PROVIDER_ERROR} and _context_exceeded(metadata):
         return ERROR_CONTEXT_EXCEEDED
+    if category == ERROR_SERVER_ERROR and _message_matches(metadata, _OVERSIZED_INPUT_MESSAGE):
+        return ERROR_CONTEXT_EXCEEDED
     return category
 
 
@@ -70,8 +74,12 @@ def _context_exceeded(metadata: Mapping[str, Any] | None) -> bool:
         return False
     if metadata.get("provider_error_code") in _CONTEXT_EXCEEDED_CODES:
         return True
-    message = metadata.get("provider_error_message")
-    return isinstance(message, str) and bool(_CONTEXT_EXCEEDED_MESSAGE.search(message))
+    return _message_matches(metadata, _CONTEXT_EXCEEDED_MESSAGE)
+
+
+def _message_matches(metadata: Mapping[str, Any] | None, pattern: re.Pattern[str]) -> bool:
+    message = metadata.get("provider_error_message") if metadata else None
+    return isinstance(message, str) and bool(pattern.search(message))
 
 
 __all__ = [

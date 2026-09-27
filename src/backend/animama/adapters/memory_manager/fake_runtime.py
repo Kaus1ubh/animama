@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
@@ -68,6 +69,7 @@ class DeterministicMemoryManagerRuntime:
         *,
         run: MemoryManagerRun,
         user_message: MemoryManagerMessage,
+        history: Sequence[MemoryManagerMessage] = (),
     ) -> MemoryManagerRuntimeResult:
         if self._is_processing_run(run):
             return await self._run_episode_processing(run=run, source_message_id=user_message.id)

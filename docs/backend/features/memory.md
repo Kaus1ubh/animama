@@ -127,10 +127,12 @@ and Undo use the trusted current-revision path described below, so an Anima
 rename does not block them; a deleted Anima's pending approval returns `409`
 and can still be rejected.
 
-The live runtime uses `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, and
-`ANIMAMA_MEMORY_MANAGER_AGENT_MODEL` (default `gpt-5.4-mini`). A nonempty
-`user_settings.preferences.memory.manager_model` overrides that default.
-`ANIMAMA_LLM_SKIP=1` selects the deterministic test runtime.
+The live runtime uses the Memory Manager model role: the App Settings
+assignment `user_settings.preferences.models.memory_manager_model_provider_id`,
+else `ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID`, else the default chat
+model when it supports tool calling. The row's connection supplies the base URL
+and key. Without a tool-capable model, runs fail with a message to choose one in
+App Settings. `ANIMAMA_LLM_SKIP=1` selects the deterministic test runtime.
 
 See [Memory Manager and episodic memory](memory-manager-and-episodic-memory.md)
 for routes, fixed episode batches, approval/resume behavior, Undo, and recovery.

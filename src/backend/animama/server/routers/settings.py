@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.mappers.settings_map import anima_settings_domain_to_schema, user_settings_domain_to_schema
@@ -17,6 +17,7 @@ from animama.domain.settings import AnimaSettings, UserSettings
 from animama.orm.anima import ORMAnima
 
 from ..deps import get_async_session, get_current_principal
+from ..embedding_refresh import wake_embedding_refresh
 from ..schemas import PyAnimaSettings, PyAnimaSettingsUpdate, PyUserSettings, PyUserSettingsUpdate
 
 router = APIRouter()
@@ -40,6 +41,7 @@ async def get_user_settings(
 
 @router.post("/v1/users/me/settings", response_model=PyUserSettings, status_code=status.HTTP_201_CREATED)
 async def create_user_settings(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_async_session)],
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     req: PyUserSettingsUpdate | None = None,
@@ -54,12 +56,15 @@ async def create_user_settings(
         raise HTTPException(status_code=409, detail="User settings already exist")
     patch = req.model_dump(exclude_unset=True) if req is not None else {}
     settings = await service.patch_user_settings(user_id=user.id, **patch)
+    # The embeddings role may have changed.
+    wake_embedding_refresh(request.app)
     return user_settings_domain_to_schema(settings)
 
 
 @router.patch("/v1/users/me/settings", response_model=PyUserSettings)
 async def patch_user_settings(
     req: PyUserSettingsUpdate,
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_async_session)],
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> PyUserSettings:
@@ -70,11 +75,14 @@ async def patch_user_settings(
     )
     patch = req.model_dump(exclude_unset=True)
     settings = await service.patch_user_settings(user_id=user.id, **patch)
+    # The embeddings role may have changed.
+    wake_embedding_refresh(request.app)
     return user_settings_domain_to_schema(settings)
 
 
 @router.delete("/v1/users/me/settings", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user_settings(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_async_session)],
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> Response:
@@ -84,6 +92,7 @@ async def delete_user_settings(
         uow=SQLAlchemyUnitOfWork(session),
     )
     await service.delete_user_settings(user.id)
+    wake_embedding_refresh(request.app)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

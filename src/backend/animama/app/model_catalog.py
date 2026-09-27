@@ -22,6 +22,7 @@ from animama.app.model_provider_native_tools import requestable_native_tool_supp
 from animama.domain.model_connection import (
     BUILTIN_OPENAI_CONNECTION_ID,
     MODEL_KIND_CHAT,
+    MODEL_KIND_EMBEDDING,
     MODEL_SOURCE_BUILTIN,
 )
 from animama.domain.types import Modality
@@ -350,6 +351,17 @@ MODEL_CATALOG: dict[str, dict[str, Any]] = {
         },
         "pricing": OPENAI_GPT_56_TERRA_PRICING,
     },
+    # OpenAI embedding models, used only by the embeddings role.
+    "text-embedding-3-small": {
+        "model_kind": MODEL_KIND_EMBEDDING,
+        "capabilities": {"accepts": _s("text"), "produces": _s("embedding")},
+        "providers": {"OpenAIHTTPAgent": {}},
+    },
+    "text-embedding-3-large": {
+        "model_kind": MODEL_KIND_EMBEDDING,
+        "capabilities": {"accepts": _s("text"), "produces": _s("embedding")},
+        "providers": {"OpenAIHTTPAgent": {}},
+    },
 }
 
 
@@ -508,7 +520,7 @@ def serialize_model_catalog() -> list[dict[str, Any]]:
                 "source": MODEL_SOURCE_BUILTIN,
                 "connection_id": BUILTIN_OPENAI_CONNECTION_ID,
                 "connection_name": "OpenAI",
-                "model_kind": MODEL_KIND_CHAT,
+                "model_kind": entry.get("model_kind", MODEL_KIND_CHAT),
                 "hidden": False,
                 "context_window_tokens": (entry.get("model_metadata") or {}).get("context_window_tokens"),
                 "accepts": _modality_values(capabilities.get("accepts")),
@@ -563,7 +575,7 @@ def serialize_model_provider_catalog() -> list[dict[str, Any]]:
                 "max_output_tokens": model_metadata.get("max_output_tokens"),
                 "connection_id": BUILTIN_OPENAI_CONNECTION_ID,
                 "source": MODEL_SOURCE_BUILTIN,
-                "model_kind": MODEL_KIND_CHAT,
+                "model_kind": entry.get("model_kind", MODEL_KIND_CHAT),
                 "service_tiers_supported": _service_tiers_supported(pricing),
                 "active": bool(entry.get("active", True)),
                 "deprecated_at": entry.get("deprecated_at"),

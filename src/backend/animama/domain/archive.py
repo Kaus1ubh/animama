@@ -35,6 +35,8 @@ class ArchivePassage:
     score: float | None = None
     # Embedding is managed by adapters; domain treats it as opaque.
     embedding: list[float] | None = None
+    # Catalog row id of the embedding model that produced ``embedding``.
+    embedding_model_id: str | None = None
 
 
 __all__ = ["Archive", "ArchivePassage"]

@@ -16,6 +16,7 @@ from animama.logging_config import configure_logging
 from animama.server.config import Settings
 from animama.server.content_startup import start_content_runtime, stop_content_runtime
 from animama.server.deps import get_async_session_factory
+from animama.server.embedding_refresh import start_embedding_refresh, stop_embedding_refresh
 from animama.server.local_http import local_assets, local_http_config, local_telemetry
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
@@ -105,6 +106,7 @@ def create_local_app(
             owner_id=state.principal_id,
             perform_initial_scan=False,
         )
+        start_embedding_refresh(application, session_factory=get_async_session_factory(application))
         # A bounded repair state may still use the existing bootstrap API. The
         # owner is established by completed service bootstrap, never that API's
         # request body; desktop readiness separately requires content readiness.
@@ -112,6 +114,7 @@ def create_local_app(
 
     @application.on_event("shutdown")
     async def stop_accountless_runtime() -> None:  # pragma: no cover - startup IO
+        await stop_embedding_refresh(application)
         await stop_content_runtime(application)
         if database is not None:
             await database.close()

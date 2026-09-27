@@ -23,7 +23,13 @@ from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
 from animama.workers.user_file_processing import UserFileProcessingWorker
 
 
+async def _resolve_fake_embedder(_session, _user_id):  # noqa: ANN001
+    return _FakeEmbedder()
+
+
 class _FakeEmbedder:
+    model_id = "test:embedding"
+
     async def embed_texts(self, texts):
         return [[1.0, 0.0, float(index)] for index, _text in enumerate(texts)]
 
@@ -133,11 +139,10 @@ def _worker(
         max_attempts=1,
         max_process_bytes=max_process_bytes,
         parser=parser,
-        embedder_factory=lambda: _FakeEmbedder(),
+        embedder_resolver=_resolve_fake_embedder,
         object_loader=object_loader,
     )
     worker._session_factory = async_session_factory
-    worker._embedder = _FakeEmbedder()
     return worker
 
 

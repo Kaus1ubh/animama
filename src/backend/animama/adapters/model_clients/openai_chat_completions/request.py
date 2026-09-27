@@ -69,11 +69,13 @@ def _messages_for_spec(spec: ModelClientRequest) -> list[dict[str, Any]]:
 def _tools_for_spec(spec: ModelClientRequest, *, compatibility: ModelConnectionCompatibility) -> Any:
     tools = jsonable(spec.prompt.tools)
     if compatibility.strip_function_strict:
-        return _tools_without_function_strict(tools)
+        return tools_without_function_strict(tools)
     return tools
 
 
-def _tools_without_function_strict(tools: Any) -> Any:
+def tools_without_function_strict(tools: Any) -> Any:
+    """Drop ``strict`` from function tool definitions for servers that reject it."""
+
     if not isinstance(tools, list):
         return tools
     stripped_tools: list[Any] = []

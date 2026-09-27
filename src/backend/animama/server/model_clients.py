@@ -30,6 +30,12 @@ def build_model_credential_resolver(*, app_settings: Settings = settings) -> Mod
     return EnvironmentModelCredentialResolver(openai_api_key=app_settings.openai_api_key, environ=os.environ)
 
 
+def openai_base_url() -> str:
+    """Return the built-in OpenAI connection's base URL from the process environment."""
+
+    return (os.getenv("OPENAI_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+
+
 def build_model_client_registry(
     *,
     app_settings: Settings = settings,
@@ -46,18 +52,18 @@ def build_model_client_registry(
         registry.register(MockModelClient.PROVIDER_TYPE, mock_client)
         return registry
 
-    openai_base_url = (os.getenv("OPENAI_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+    base_url = openai_base_url()
     responses_client = openai_client
     if responses_client is None and app_settings.openai_api_key:
         responses_client = AsyncOpenAI(
             api_key=app_settings.openai_api_key,
-            base_url=openai_base_url,
+            base_url=base_url,
             timeout=app_settings.anima_model_client_timeout_seconds,
         )
     registry.register(
         OPENAI_HTTP_PROVIDER_TYPE,
         OpenAIChatCompletionsModelClient(
-            base_url=openai_base_url,
+            base_url=base_url,
             credential_resolver=credential_resolver or build_model_credential_resolver(app_settings=app_settings),
             client=openai_client,
             timeout=app_settings.anima_model_client_timeout_seconds,
@@ -68,7 +74,7 @@ def build_model_client_registry(
         OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
         OpenAIResponsesModelClient(
             api_key=app_settings.openai_api_key,
-            base_url=openai_base_url,
+            base_url=base_url,
             client=responses_client,
             timeout=app_settings.anima_model_client_timeout_seconds,
             compaction_threshold_tokens=app_settings.anima_openai_responses_compaction_threshold_tokens,
@@ -109,4 +115,5 @@ __all__ = [
     "close_model_client_registry",
     "get_model_client_registry",
     "init_model_client_registry",
+    "openai_base_url",
 ]

@@ -210,6 +210,8 @@ class OpenAICompatibleConnectionProbe:
                 response = await session.client.embeddings.create(
                     model=model,
                     input=["probe"],
+                    # Matches the embedder: every OpenAI-compatible server accepts float.
+                    encoding_format="float",
                     extra_headers=session.extra_headers,
                 )
                 vector = response.data[0].embedding if response.data else []

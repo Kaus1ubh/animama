@@ -90,7 +90,8 @@ Standing rules:
       #2 pass; commit recorded below).
 - [x] Phase 3: Chat Completions turn parity and errors (review #2 pass; commit
       recorded below).
-- [ ] Phase 4: model roles and fully local operation.
+- [x] Phase 4: model roles and fully local operation (review #3 pass; commit
+      recorded below).
 - [ ] Phase 5: App Settings, model selector and desktop keys.
 - [ ] Phase 6: documentation, decisions and acceptance gates G1–G3.
 - [ ] Final integration review.
@@ -295,6 +296,45 @@ Observed on `2064540` during planning.
     therefore covers backend code, tests, dependencies and packaging.
   - **Release-scan allowlist** entries that mention litellm stay until the next
     desktop release scan, which is the only place they apply.
+
+- 2026-09-26 — Agent (Phase 4 implementation; within accepted scope):
+  - **Memory manager continuity on Chat Completions** replays the run's stored
+    messages each turn instead of adding a persisted-items column; the SDK
+    state still carries the pending approval. The function tool keeps the name
+    `apply_patch` and feeds the same approval editor, so previews and resume
+    match both paths.
+  - **Embeddings off is not a failure.** Files processed while the role is off
+    are `ready`; `ready_keyword_only` now means embedding failed, and
+    re-embedding promotes such files to `ready`.
+  - **Chunks store `embedding_text`** (the contextualized text, when it differs)
+    so re-embedded vectors match freshly processed ones.
+  - **Texts the model cannot embed** (too long, blank, or refused while other
+    texts in the batch succeed) are recorded with the model id and no vector,
+    so they cannot stall re-embedding; connection, key and rate failures fail
+    the batch and back off (5 s doubling to 10 min). llama.cpp's HTTP 500
+    "input is too large" counts as context exceeded.
+  - **Role policy is a composition input** (`ModelRoleSettings`): only
+    compositions whose `ModelCatalogPolicy` enables owner models apply App
+    Settings roles; the document worker, a local composition root, enables it.
+  - **Re-embedding runs per owner** in the local composition only, rests 60 s
+    when nothing is stale and wakes when user settings change or a model or
+    connection is removed.
+  - **Search policy.** Hybrid upload search uses keywords alone while the role is
+    off or the searched files wait for re-embedding. Debug `semantic` mode
+    returns 503 while off. Archive search falls back to full text (threshold not
+    applied) while off, pending or when the query embedding fails; editing a
+    passage's text embeds it again.
+  - **Built-in embedding rows** `OpenAIHTTPAgent:text-embedding-3-small` and
+    `-large` are unpriced. `GET /v1/model-providers` lists them with
+    `model_kind: "embedding"`; Phase 5 selectors must filter by kind.
+  - **Utility inherits the chat default.** Compose previously pinned titles to
+    `gpt-5-nano`; operators who want a cheaper utility model set
+    `ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID`.
+  - **Embedding requests send `encoding_format: "float"`** (embedder and probe),
+    which every OpenAI-compatible server accepts.
+  - **Deferred to Phase 5 in this PR:** the frontend still writes
+    `memory.manager_model`, which the backend no longer reads, and
+    `docs/frontend/features/anima-memory.md` still names the removed variable.
 
 ## Implementation orientation
 
@@ -1040,15 +1080,172 @@ Checks: focused pytest, `make check-test`, `pnpm openapi-ts:check`.
 
 Completion: tests pass; review has no blocker.
 
-Phase record: issue #168; starting source —; commits —.
+Phase record: issue #168; starting source `b0b4237`; commits —.
+
+Implementation notes (agent, within scope):
+
+- `ModelRoleResolver` (`app/services/model_role_resolver.py`) resolves each role
+  from preferences, then the operator default, then (utility and memory
+  manager) the chat role; `server/model_roles.py` builds it for the local
+  composition. `GET /v1/model-roles` reports each role's row, source,
+  requested id and availability, plus `embeddings_refresh` state
+  (`off`, `current`, `re_embedding`, `retrying`), pending rows and last error
+  category.
+- `DirectModelPromptRunner` takes a role instead of a provider and model;
+  title and compaction settings lost their model fields.
+- The embeddings role uses `ConnectionEmbedder` (connection URL, own key,
+  timeout, neutral error codes); `server/embeddings.role_embedder` resolves it
+  per owner for uploads, the file worker (per job), chat attachments and
+  archives. The env singleton, `load_dotenv()`, `ANIMAMA_EMBEDDING_MODEL` and
+  `ANIMAMA_EMBEDDING_DIM` are gone.
+- Schema: `user_file_chunk.embedding_model_id`, `user_file_chunk.embedding_text`,
+  index `(user_id, embedding_model_id)`, `archive_passages.embedding_model_id`;
+  ORM vectors are dimensionless.
+- Re-embedding: `EmbeddingRefreshService` (app) with
+  `SQLAlchemyEmbeddingRefreshRepository`, driven by `EmbeddingRefreshWorker`
+  (`server/embedding_refresh.py`) from the local lifespan. Writes are guarded
+  by the row's text so edited or reprocessed rows are embedded again.
+- The fully local test (`tests/test_fully_local_roles.py`) runs two SSE turns,
+  a title, a compaction, a Memory Manager run through approval, archive
+  writes and search, and a re-embedding pass against a scripted Ollama-like
+  server, spying on every `AsyncOpenAI` construction.
+
+Evidence (pre-review, working tree on `b0b4237`):
+
+- `make check-test`: 2029 passed, 7 skipped (ruff, format check, mypy,
+  typed-content audit included).
+- Boundary imports: 0 forbidden edges. Both Compose configs render.
+- SDK regenerated from Python 3.12.13; `pnpm openapi-ts:check` current (17
+  files); `pnpm check` passes.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `b0b4237`. Its checks (ruff, format check, mypy, boundary imports, 171
+focused tests, `pnpm openapi-ts:check`) passed.
+
+Blocking:
+
+- **P4-R1-F1** Memory Manager runs always record provider `openai`
+  (`memory_manager_service.py`), so local runs are credited to OpenAI.
+- **P4-R1-F2** The Memory Manager client ignores the connection timeout (60 s
+  instead of a local preset's 300 s).
+- **P4-R1-F3** Memory Manager function tools ignore `strip_function_strict`; the
+  Agents SDK always sends `strict`.
+- **P4-R1-F4** Re-embedding stalls on one text that always fails; llama.cpp's
+  oversized-input error arrives as HTTP 500 and was categorized
+  `server_error`; blank passage text fails every retry.
+- **P4-R1-F5** Role resolution hardcodes `owner_roles_enabled=True`; step 1
+  requires the composition policy (hosted: operator defaults only).
+- **P4-R1-F6** `memory-manager-and-episodic-memory.md` still describes a
+  Responses-only runtime that needs `OPENAI_API_KEY`.
+
+Optional: F7 manager role needlessly requires streaming and owner chat rows
+without a window pass the chat role; F8 a role switch mid-run loses history or
+breaks a pending approval; F9 connection and model edits do not wake
+re-embedding; F10 a base-URL change keeps the row id, so another server's
+vectors count as current and a dimension mismatch returns 500; F11 the write
+guard ignores `embedding_text`; F12 embedder errors carry OpenAI codes into file
+warnings; F13 the license review lists the deleted `embeddings.py`; test gaps
+(rejected-approval resume and keyless headers on the Chat Completions manager
+path, worker loop timing).
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** The runtime reports the row's provider type, row id and
+  connection in result metadata; the service stores the provider type. The
+  fully local test asserts `OpenAIHTTPAgent` and the row id.
+- **F2 accepted.** `_client` uses `connection.timeout_seconds` when set.
+- **F3 accepted.** Chat Completions manager clients for connections with
+  `strip_function_strict` go through a small client view that removes `strict`
+  from tools (shared `tools_without_function_strict`). Test added.
+- **F4 accepted.** Failures that can belong to one text (`bad_request`,
+  `server_error`, `provider_error`, `context_exceeded`) split the batch; a text
+  is recorded without a vector only when others succeed, otherwise the batch
+  fails and backs off. Blank text is recorded without calling the model.
+  `server_error` with llama.cpp's "input is too large/long" is
+  `context_exceeded`. Tests cover isolation, an all-failing batch, the 500
+  shape and the category.
+- **F5 accepted.** `ModelRoleSettings` (server) carries the composition's
+  `owner_roles_enabled` (from `ModelCatalogPolicy`, off by default) and
+  settings; routers get it through `get_model_role_settings`, chat SSE passes
+  it to setup, titles and compaction, the refresh worker takes it at start,
+  and the document worker, a local composition root, enables it explicitly.
+  Test added.
+- **F6 accepted.** The runtime section, configuration error and
+  troubleshooting now describe both paths and the role's connection key.
+- **F7 accepted.** The manager role needs tools only; owner chat rows need a
+  context window for the chat role. Test added.
+- **F8 partly accepted.** A Responses turn without a cursor replays the run's
+  messages. Switching the role while an approval is pending remains a known
+  limitation: the resume uses the new row's tools and can fail after the
+  approved write; recorded for Phase 6 docs.
+- **F9 accepted.** Connection and model edits wake re-embedding.
+- **F10 deferred.** Changing a connection to a different server with the same
+  model name is an owner action outside Phase 4's acceptance. Re-selecting the
+  same model keeps its row id and would not re-embed, so Phase 6 docs tell
+  owners to switch to a different embeddings model (for example one added on a
+  new connection) after pointing a connection at another server.
+- **F11 accepted.** Chunk writes also guard on `COALESCE(embedding_text, text)`.
+  Test added.
+- **F12 accepted.** Embedder errors read "The embeddings request to
+  {connection} failed ({category})".
+- **F13 accepted.** Removed the license entry.
+- **Test gaps**: covered by existing shared paths (rejection resume uses the
+  same editor and interruption lookup as Responses; keyless headers are set
+  through `keyless_request_headers`, tested for chat); not added.
+
+Evidence after revisions: `make check-test` 2035 passed and 1 failed (a debug
+search test missing the new `roles` argument), fixed and rerun (29 passed);
+ruff, format check and mypy clean; boundary imports 0 forbidden edges;
+`pnpm openapi-ts:check` current.
+
+#### Code Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck. Result: pass; all
+six blocking findings resolved, no new blocker. It verified the `strict`
+removal end to end with a real `Runner.run` against a mock transport. 308
+focused tests, ruff, format check, mypy, boundary imports and the SDK check
+passed.
+
+Optional:
+
+- **P4-R2-F1** Server errors in the per-text set let a temporary 503 or 5xx
+  leave early texts permanently without vectors.
+- **P4-R2-F2** The F10 record promised a recovery (re-select the model) that
+  does not re-embed, since the row id is unchanged.
+- **P4-R2-F3** The Memory Manager doc's continuation paragraph omits the
+  no-cursor replay, and a troubleshooting heading still names the OpenAI key.
+- **P4-R2-F4** Owner rows without a context window still pass the utility role.
+- **P4-R2-F5** Stale chunks that always fail with a per-text error on their own
+  keep stale passages from being processed.
+
+#### Code Review #2 Revisions
+
+- **F1 accepted.** `server_error` left the per-text set; such batches fail and
+  back off.
+- **F2 accepted.** The F10 disposition now names a working recovery.
+- **F3 accepted.** Both doc leftovers fixed.
+- **F4 accepted.** Owner rows need a context window for chat and utility; the
+  resolver test covers utility.
+- **F5 deferred.** It needs a single chunk that the server rejects as a bad
+  request while no other chunk in its batch succeeds; the role status reports
+  `retrying` with the category, and Phase 6 docs describe it.
+
+#### Code Review #3 Findings
+
+Reviewer: same independent `sdlc-reviewer`, final targeted recheck of repair
+round 2. Result: pass; all four accepted revisions correct, no regressions, the
+F5 deferral acceptable, no new findings. 216 focused tests, ruff, format check
+and mypy passed.
+
+Evidence for the reviewed candidate: `make check-test` 2036 passed, 7 skipped;
+boundary imports 0 forbidden edges; both Compose configs render;
+`pnpm openapi-ts:check` current; `pnpm check` passes.
+
+Phase 6 documentation carries three limitations from this review: switching
+the Memory Manager role while an approval is pending (F8), pointing a
+connection at another server (F10), and chunks a server always rejects (R2-F5).
 
 ### Phase 5 — App Settings, model selector and desktop keys
 

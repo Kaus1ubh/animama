@@ -15,6 +15,7 @@ from typing import Any
 from uuid import uuid4
 from xml.etree import ElementTree
 
+from animama.app.ports.text_embedder import TextEmbedder
 from animama.app.ports.uow_port import UnitOfWork
 from animama.app.ports.user_file_parser_port import UserFileParser
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
@@ -406,9 +407,15 @@ class UserFileProcessingService:
         claimed: ClaimedUserFileProcessingJob,
         payload: bytes | None,
         parser: UserFileParser,
-        embedder: Any | None,
+        embedder: TextEmbedder | None,
         max_process_bytes: int,
     ) -> UserFileProcessingJob:
+        """Parse, chunk and (when embeddings are on) embed a claimed upload.
+
+        With embeddings off the file is ready for keyword search; only an
+        embedding failure marks it ``ready_keyword_only``.
+        """
+
         if payload is None:
             raise UserFileProcessingValidationError("Uploaded file was not found in private local storage")
         if len(payload) <= 0:
@@ -425,6 +432,7 @@ class UserFileProcessingService:
                 file_id=claimed.job.file_id,
                 sha256=content_sha256,
                 processed_at=_utcnow(),
+                embedding_model_id=embedder.model_id if embedder is not None else None,
             )
             if reused is not None:
                 self._log.info(
@@ -524,6 +532,7 @@ class UserFileProcessingService:
             )
 
         embedding_warning: str | None = None
+        embedding_model_id: str | None = None
         embedded_chunks = chunks
         if embedder is not None:
             embedding_inputs = [chunk.embedding_text or chunk.text for chunk in chunks]
@@ -549,6 +558,7 @@ class UserFileProcessingService:
                     duration_seconds=round(time.perf_counter() - embedding_started, 3),
                 )
                 if len(vectors) == len(chunks):
+                    embedding_model_id = embedder.model_id
                     embedded_chunks = [
                         UserFileChunkDraft(
                             chunk_index=chunk.chunk_index,
@@ -573,15 +583,13 @@ class UserFileProcessingService:
                     error=str(exc),
                 )
                 embedding_warning = f"Embedding failed: {exc}"
-        else:
-            embedding_warning = "Embedding provider unavailable"
 
         file_status = STATUS_READY if embedding_warning is None else STATUS_READY_KEYWORD_ONLY
         processing_warnings = [warning for warning in (embedding_warning, overview_warning) if warning]
         processing_metadata: dict[str, Any] = {
             "parser": parsed.parser_name,
             "source_extension": extension,
-            "embedded": embedding_warning is None,
+            "embedded": embedding_model_id is not None,
             "warnings": processing_warnings,
             "parser_metadata": parsed.metadata,
         }
@@ -595,6 +603,7 @@ class UserFileProcessingService:
             processing_metadata=processing_metadata,
             file_metadata_updates={"overview": serialize_user_file_overview(overview)},
             processed_at=_utcnow(),
+            embedding_model_id=embedding_model_id,
         )
         await self._uow.commit()
         return completed
@@ -629,7 +638,7 @@ class UserFileProcessingService:
         mode: SearchMode,
         limit: int,
         file_ids: list[str] | None = None,
-        embedder: Any | None = None,
+        embedder: TextEmbedder | None = None,
     ) -> UserFileSearchResults:
         return await search_user_file_chunks(
             processing=self._processing,
@@ -645,6 +654,10 @@ class UserFileProcessingService:
         return await _owned_file_filters(processing=self._processing, user_id=user_id, file_ids=file_ids)
 
 
+EMBEDDINGS_OFF_DETAIL = "Embeddings are off. Choose an embedding model in App Settings."
+REEMBEDDING_WARNING = "Files are being re-embedded; using keyword search until it finishes."
+
+
 async def search_user_file_chunks(
     *,
     processing: UserFileProcessingRepository,
@@ -653,9 +666,14 @@ async def search_user_file_chunks(
     mode: SearchMode,
     limit: int,
     file_ids: list[str] | None = None,
-    embedder: Any | None = None,
+    embedder: TextEmbedder | None = None,
 ) -> UserFileSearchResults:
-    """Search current-user processed upload chunks through the shared retrieval policy."""
+    """Search current-user processed upload chunks through the shared retrieval policy.
+
+    Semantic matching compares only vectors from the embedder's model. Hybrid
+    search uses keyword retrieval alone while embeddings are off or while the
+    searched files wait for re-embedding.
+    """
 
     normalized_query = query.strip()
     if not normalized_query:
@@ -674,10 +692,15 @@ async def search_user_file_chunks(
         return UserFileSearchResults(query=normalized_query, mode=mode, results=results, warnings=warnings)
 
     if mode == SEARCH_MODE_SEMANTIC:
+        if embedder is None:
+            raise UserFileProcessingUnavailableError(EMBEDDINGS_OFF_DETAIL)
+        if await _reembedding_pending(processing, user_id=user_id, embedder=embedder, file_ids=filters):
+            warnings.append("Files are being re-embedded; results include only re-embedded chunks.")
         embedding = await _embed_query(embedder, normalized_query)
         results = await processing.semantic_search(
             user_id=user_id,
             embedding=embedding,
+            embedding_model_id=embedder.model_id,
             limit=bounded_limit,
             file_ids=filters,
         )
@@ -692,20 +715,38 @@ async def search_user_file_chunks(
         limit=bounded_limit * 2,
         file_ids=filters,
     )
-    try:
-        embedding = await _embed_query(embedder, normalized_query)
-        semantic_results = await processing.semantic_search(
-            user_id=user_id,
-            embedding=embedding,
-            limit=bounded_limit * 2,
-            file_ids=filters,
-        )
-    except UserFileProcessingUnavailableError as exc:
-        semantic_results = []
-        warnings.append(exc.detail)
+    semantic_results: list[UserFileSearchResult] = []
+    if embedder is not None:
+        if await _reembedding_pending(processing, user_id=user_id, embedder=embedder, file_ids=filters):
+            warnings.append(REEMBEDDING_WARNING)
+        else:
+            try:
+                embedding = await _embed_query(embedder, normalized_query)
+                semantic_results = await processing.semantic_search(
+                    user_id=user_id,
+                    embedding=embedding,
+                    embedding_model_id=embedder.model_id,
+                    limit=bounded_limit * 2,
+                    file_ids=filters,
+                )
+            except UserFileProcessingUnavailableError as exc:
+                warnings.append(exc.detail)
 
     fused = _reciprocal_rank_fusion(keyword_results, semantic_results, limit=bounded_limit)
     return UserFileSearchResults(query=normalized_query, mode=mode, results=fused, warnings=warnings)
+
+
+async def _reembedding_pending(
+    processing: UserFileProcessingRepository,
+    *,
+    user_id: str,
+    embedder: TextEmbedder,
+    file_ids: list[str] | None,
+) -> bool:
+    stale = await processing.count_stale_chunks(
+        user_id=user_id, embedding_model_id=embedder.model_id, file_ids=file_ids
+    )
+    return stale > 0
 
 
 async def _owned_file_filters(
@@ -725,9 +766,7 @@ async def _owned_file_filters(
     return owned
 
 
-async def _embed_query(embedder: Any | None, query: str) -> list[float]:
-    if embedder is None:
-        raise UserFileProcessingUnavailableError("Semantic search embedding provider unavailable")
+async def _embed_query(embedder: TextEmbedder, query: str) -> list[float]:
     try:
         vectors = await embedder.embed_texts([query])
     except Exception as exc:

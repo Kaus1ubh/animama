@@ -346,6 +346,7 @@ class MemoryManagerService:
                 if any(item.status == MEMORY_MANAGER_APPROVAL_STATUS_PENDING for item in approvals):
                     raise MemoryManagerConflictError("Resolve pending memory approvals before sending another message")
 
+            history = await self._memory_manager.list_messages(user_id=user_id, run_id=run.id)
             user_message = await self._memory_manager.create_message(
                 MemoryManagerMessage(
                     id=new_memory_manager_message_id(),
@@ -360,6 +361,7 @@ class MemoryManagerService:
                 runtime_result = await self._runtime.run_user_message(
                     run=run,
                     user_message=user_message,
+                    history=history,
                 )
             except MemoryManagerRuntimeError as exc:
                 runtime_result = self._runtime_failure_result(exc)
@@ -707,6 +709,7 @@ class MemoryManagerService:
         has_pending = any(item.status == MEMORY_MANAGER_APPROVAL_STATUS_PENDING for item in approvals)
         result_metadata = dict(result.metadata or {})
         result_model = result_metadata.get("model")
+        result_provider = result_metadata.get("model_provider")
         outcome = self._validated_runtime_outcome(result=result, has_pending=has_pending)
         failed = outcome in {MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED, MEMORY_MANAGER_RUNTIME_OUTCOME_FAILED}
         next_status = (
@@ -720,7 +723,7 @@ class MemoryManagerService:
             replace(
                 run,
                 status=next_status,
-                model_provider="openai" if self._runtime.name == "openai_agents" else run.model_provider,
+                model_provider=result_provider if isinstance(result_provider, str) else run.model_provider,
                 model_name=result_model if isinstance(result_model, str) else run.model_name,
                 openai_previous_response_id=(
                     self._nonblank_string(result.openai_previous_response_id) or run.openai_previous_response_id

@@ -1260,10 +1260,10 @@ ANIMAMA_INCLUDED_CONTENT_HOST_PATH ANIMAMA_LOCAL_CONTENT_HOST_PATH
 ANIMAMA_DATA_HOST_PATH ANIMAMA_DOCLING_CACHE_HOST_PATH ANIMAMA_LOG_DIR
 POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB PGADMIN_EMAIL PGADMIN_PASSWORD
 OPENAI_API_KEY OPENAI_BASE_URL DEEPSEEK_API_KEY GEMINI_API_KEY HF_TOKEN
-ANIMAMA_DEFAULT_MODEL_PROVIDER_ID ANIMAMA_MEMORY_MANAGER_AGENT_MODEL
+ANIMAMA_DEFAULT_MODEL_PROVIDER_ID ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID
+ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID
 ANIMAMA_CHAT_TITLE_GENERATION_ENABLED ANIMAMA_CHAT_COMPACTION_ENABLED
 ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS
-ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER ANIMAMA_CHAT_TITLE_GENERATION_MODEL
 ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT ANIMAMA_LLM_SKIP
 ANIMAMA_COMPANION_SAFETY_ENABLED ANIMAMA_AI_NOTICE_ENABLED ANIMAMA_AI_NOTICE_REMINDER_HOURS
 ANIMAMA_CRISIS_DETECTION_ENABLED ANIMAMA_CRISIS_RESOURCES_PATH
@@ -1321,20 +1321,20 @@ memory; select a disposable task chat and inspect only its own memory results.
 Microphone transcription, spoken replies and upload/parser testing are separate
 journeys and need not be part of this text/avatar/gesture/memory rehearsal.
 
-Auxiliary calls have separate owners. To configure title generation explicitly
-in the worktree's nonsecret `.env`, use:
+Auxiliary calls use model roles. Titles and compaction use the utility role and
+the Memory Manager uses its own role; both default to the chat model. To pin
+them in the worktree's nonsecret `.env`, use catalog row ids:
 
 ```dotenv
-ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER=OpenAIResponsesHTTPAgent
-ANIMAMA_CHAT_TITLE_GENERATION_MODEL=gpt-5.6-luna
+ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID=OpenAIResponsesHTTPAgent:gpt-5.6-luna
+ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID=OpenAIResponsesHTTPAgent:gpt-5.6-luna
 ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT=none
 ```
 
-Compose forwards these settings to the backend. A nonempty title when creating
-a test chat avoids an auxiliary title call; this does not validate title
-generation. `ANIMAMA_MEMORY_MANAGER_AGENT_MODEL=gpt-5.6-luna` selects the separate
-Memory Manager model, but that auxiliary path has no configurable reasoning
-setting. Do not claim it uses `none`. Essential memory tools and episodic capture
+Compose forwards these settings to the backend; App Settings assignments take
+precedence. A nonempty title when creating a test chat avoids an auxiliary
+title call; this does not validate title generation. The Memory Manager path
+has no configurable reasoning setting. Do not claim it uses `none`. Essential memory tools and episodic capture
 in a main chat turn use the selected primary model/reasoning. Keep a short
 rehearsal rather than assuming separate long-chat compaction inherits them.
 
@@ -1451,14 +1451,13 @@ Core:
 - `DEEPSEEK_API_KEY`
 - `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS`
 - `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID`
-- `ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER`
-- `ANIMAMA_CHAT_TITLE_GENERATION_MODEL`
+- `ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID`
+- `ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID`
+- `ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID`
 - `ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`
 - `ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT`
 - `ANIMAMA_CHAT_COMPACTION_ENABLED`
 - `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`
-- `ANIMAMA_CHAT_COMPACTION_PROVIDER`
-- `ANIMAMA_CHAT_COMPACTION_MODEL`
 
 Companion safety (operator settings; the Companion Guardrails are never
 configurable, see the [crisis protocol](../../safety/crisis-protocol.md)):

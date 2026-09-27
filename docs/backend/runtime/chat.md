@@ -374,10 +374,12 @@ persisted message row, including multiple rows in the same run.
 For first-turn title generation, `chat:sse` conditionally writes `chats.title`
 only while it is still blank through its own short-lived database sessions.
 Generated-title model usage is stored as small metadata under
-`chats.metadata.title_generation`; it is not added to chat usage counters. The
-title model is controlled by `ANIMAMA_CHAT_TITLE_GENERATION_PROVIDER` and
-`ANIMAMA_CHAT_TITLE_GENERATION_MODEL`. The hidden title prompt defaults to a
-low reasoning effort and a 20 second timeout through
+`chats.metadata.title_generation`; it is not added to chat usage counters.
+Titles and post-response compaction use the utility model role: the App
+Settings assignment `models.utility_model_provider_id`, else
+`ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID`, else the default chat model. The
+hidden title prompt defaults to a low reasoning effort (sent only when the
+utility model supports it) and a 20 second timeout through
 `ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT` and
 `ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`. Incognito turns skip title
 generation.

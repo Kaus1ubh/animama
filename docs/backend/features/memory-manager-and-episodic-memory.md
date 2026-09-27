@@ -323,14 +323,24 @@ Responses cursor without reinjecting the fixed batch.
 
 ### Live OpenAI Agents Runtime
 
-The normal runtime is `OpenAIAgentsMemoryManagerRuntime`. It uses the OpenAI
-Agents SDK with:
+The normal runtime is `OpenAIAgentsMemoryManagerRuntime`. It runs on the
+Memory Manager model role's catalog row and uses the OpenAI Agents SDK with
+`Agent`, `function_tool` read tools and resumable run state for human approval
+interruptions. The patch tool and continuity depend on the row's API:
 
-- `Agent`
-- `OpenAIResponsesModel`
-- `function_tool`
-- `ApplyPatchTool(editor=..., needs_approval=True)`
-- resumable run state for human approval interruptions
+- OpenAI Responses rows use `OpenAIResponsesModel` and the hosted
+  `ApplyPatchTool(editor=..., needs_approval=True)`, with server-managed
+  continuation (below).
+- Chat Completions rows, on any connection, use `OpenAIChatCompletionsModel`
+  and an `apply_patch` function tool with `needs_approval=True` that feeds the
+  same approval editor. These servers keep no conversation state, so each turn
+  replays the run's stored user and assistant messages.
+
+The client reaches the row's connection with only that connection's key and
+timeout, honors its `strip_function_strict` option, and sends `store` and
+`prompt_cache_key` only to OpenAI. Tracing is disabled unless the row is on the
+built-in OpenAI connection. Runs record the row's provider type, model, row id
+and connection.
 
 OpenAI Agents SDK documentation describes `needs_approval=True` tools as
 interrupting a run for human approval. A caller can persist run state, approve
@@ -338,7 +348,7 @@ or reject interruptions, and resume the same run. Animama stores the SDK state o
 `memory_manager_runs.serialized_agent_state` and maps SDK interruptions to
 Animama approval rows.
 
-Normal manager turns use Responses server-managed continuation. After every
+Responses manager turns use server-managed continuation. After every
 successful SDK segment, Animama stores the latest nonblank response ID in the
 internal `memory_manager_runs.openai_previous_response_id` column. The next user
 turn sends only the new user message plus that cursor with
@@ -348,7 +358,10 @@ the cursor can be resolved. OpenAI stores response objects for 30 days by
 default, so this chain is not indefinite durable history. If a cursor expires or
 cannot be resolved, Animama marks the run failed with
 `memory_manager_previous_response_unresolvable` metadata and directs the user to
-start a new manager run rather than silently dropping or replaying context.
+start a new manager run rather than silently dropping or replaying context. A
+Responses turn on a run that has messages but no cursor, for example after the
+Memory Manager role moved from a Chat Completions model, replays the run's
+stored messages instead.
 
 Approval resume uses only the serialized Agents SDK `RunState`, which already
 contains its continuation settings. The run-row cursor is not passed as a
@@ -713,18 +726,23 @@ The Memory Manager runtime is selected per request in
 Environment and settings:
 
 - `ANIMAMA_LLM_SKIP=1`: use deterministic runtime instead of live OpenAI Agents.
-- `OPENAI_API_KEY`: required for the live OpenAI Agents runtime.
-- `OPENAI_BASE_URL`: optional OpenAI-compatible base URL.
-- `ANIMAMA_MEMORY_MANAGER_AGENT_MODEL`: live manager model, default
-  `gpt-5.4-mini`.
+- Memory Manager model role: `models.memory_manager_model_provider_id` in App
+  Settings, else `ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID`, else the
+  default chat model when it supports tools. The row's connection supplies the
+  base URL and key (`OPENAI_API_KEY` and `OPENAI_BASE_URL` for built-in rows).
+  Responses rows use OpenAI's hosted `apply_patch` tool and
+  `previous_response_id` continuity; Chat Completions rows use an
+  approval-gated `apply_patch` function tool and replay the run's stored
+  messages each turn. Tracing is disabled for rows not on the built-in OpenAI
+  connection.
 - `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS`: shared model client timeout, default
   `60.0`.
 - `ANIMAMA_MEMORY_FILE_MAX_BYTES`: inherited memory file size guard used by
   `MemoryEntryService`.
 
-If the live runtime is invoked without `OPENAI_API_KEY`, the run fails clearly
-with a configuration error instead of silently falling back to the deterministic
-runtime.
+If no tool-capable model resolves for the role, or the row's connection needs a
+key that is not configured, the run fails clearly with a configuration error
+instead of silently falling back to the deterministic runtime.
 
 ## Persistence And Ownership
 
@@ -863,9 +881,11 @@ The table is authoritative. Run or inspect the code path that calls
 `MemoryEpisodeService.refresh_daily_episode_file(user_id, local_date)`. Status
 updates through `mark_items_processed(...)` should refresh all affected days.
 
-### Manager says OpenAI API key is missing
+### Manager says no key or model is configured
 
-Live manager mode requires `OPENAI_API_KEY`. For local no-model development, set
+Live manager mode needs a tool-capable Memory Manager model whose connection is
+reachable and, when it expects one, has its key (`OPENAI_API_KEY` for built-in
+OpenAI rows). Check `GET /v1/model-roles`. For local no-model development, set
 `ANIMAMA_LLM_SKIP=1` before starting the backend.
 
 ### Approval is stuck pending

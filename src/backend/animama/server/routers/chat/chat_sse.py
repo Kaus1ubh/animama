@@ -16,6 +16,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.logging_config import get_logger
 from animama.server.config import settings
 from animama.server.deps import get_async_session_factory
+from animama.server.model_roles import ModelRoleSettings
 from animama.server.schemas.chat import PyAnimaChatRequest
 from animama.server.sse_events import (
     GruutSseTextBuilder,
@@ -91,6 +92,7 @@ async def stream_direct_chat_sse(
     turn: DirectChatTurnSetup | None = None
     run_id = req.run_id or f"run-{uuid.uuid4().hex}"
     chat_id = req.chat_id or f"chat-{uuid.uuid4().hex}"
+    model_roles = ModelRoleSettings.for_app(app)
 
     async def _close_session() -> None:
         """Close the setup session exactly once across setup and stream cleanup."""
@@ -125,6 +127,7 @@ async def stream_direct_chat_sse(
             chat_id=chat_id,
             model_client_registry=model_client_registry,
             runtime_settings=getattr(app.state, "runtime_settings", settings),
+            model_roles=model_roles,
         )
     except Exception:
         await _cleanup()
@@ -178,6 +181,7 @@ async def stream_direct_chat_sse(
                         chat_id=chat_id,
                         run_id=run_id,
                         message=req.message,
+                        model_roles=model_roles,
                     ),
                     name=f"direct-chat-title-{run_id}",
                 )
@@ -352,6 +356,7 @@ async def stream_direct_chat_sse(
                 anima_id=anima_id,
                 run_id=run_id,
                 chat_options=turn.chat_options,
+                model_roles=model_roles,
                 model_provider_type=turn.prepared_turn.model_request.model_provider.provider_type,
             )
             _log.info(

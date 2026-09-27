@@ -35,9 +35,11 @@ from animama.domain.user_file_processing import (
 )
 from animama.logging_config import get_logger
 from animama.server.config import Settings, settings
-from animama.server.deps import get_async_session, get_current_principal, get_embedder
+from animama.server.deps import get_async_session, get_current_principal
+from animama.server.embeddings import role_embedder
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.local_upload_stream import LocalUploadError, spool_bounded_request
+from animama.server.model_roles import ModelRoleSettings, get_model_role_settings
 from animama.server.routers.runtime_capabilities import get_runtime_settings
 from animama.server.schemas.user_file import (
     PyUserFileFinalizeRequest,
@@ -384,20 +386,11 @@ async def search_user_file_chunks(
     req: PyUserFileSearchRequest,
     session: SessionDep,
     user: UserDep,
+    roles: Annotated[ModelRoleSettings, Depends(get_model_role_settings)],
 ) -> PyUserFileSearchResponse:
     """Search current-user processed file chunks for debug retrieval validation."""
 
-    embedder = None
-    if req.mode in {"semantic", "hybrid"}:
-        try:
-            embedder = get_embedder()
-        except Exception as exc:
-            _log.warning(
-                "User file search embedder unavailable",
-                user_id=user.id,
-                mode=req.mode,
-                error=str(exc),
-            )
+    embedder = await role_embedder(session, user.id, roles) if req.mode in {"semantic", "hybrid"} else None
     try:
         results = await _processing_service(session).search(
             user_id=user.id,

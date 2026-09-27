@@ -44,6 +44,7 @@ from ..ports import (
     UnitOfWork,
     UserSettingsRepository,
 )
+from .model_role_resolver import ROLE_PREFERENCE_PATHS
 
 CREDENTIAL_MODE_NONE = "none"
 CREDENTIAL_MODE_ENV = "env"
@@ -53,7 +54,7 @@ CREDENTIAL_MODES = frozenset({CREDENTIAL_MODE_NONE, CREDENTIAL_MODE_ENV, CREDENT
 CHAT_COMPLETIONS_PROVIDER_TYPE = OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE
 RESPONSES_PROVIDER_TYPE = OPENAI_RESPONSES_PROVIDER_TYPE
 
-MODEL_ROLE_PREFERENCE_PATHS: tuple[tuple[str, str], ...] = (("chat", "default_model_provider_id"),)
+MODEL_ROLE_PREFERENCE_PATHS: tuple[tuple[str, str], ...] = tuple(ROLE_PREFERENCE_PATHS.values())
 """Preference keys that hold a catalog row id for an installation-wide model role."""
 
 _MAX_NAME_LENGTH = 80

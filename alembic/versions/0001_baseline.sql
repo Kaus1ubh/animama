@@ -185,6 +185,7 @@ CREATE TABLE archive_passages (
     archive_id character varying NOT NULL,
     text text NOT NULL,
     embedding vector,
+    embedding_model_id character varying,
     tags json,
     metadata_ json,
     source_id character varying,
@@ -829,7 +830,9 @@ CREATE TABLE user_file_chunk (
     user_id character varying NOT NULL,
     chunk_index integer NOT NULL,
     text text NOT NULL,
+    embedding_text text,
     embedding vector,
+    embedding_model_id character varying,
     char_count bigint NOT NULL,
     token_estimate integer NOT NULL,
     metadata json NOT NULL,
@@ -1402,6 +1405,10 @@ CREATE INDEX ix_memory_manager_runs_user_status_created ON memory_manager_runs U
 -- animama-statement --
 
 CREATE INDEX ix_user_file_chunk_file_id ON user_file_chunk USING btree (file_id);
+
+-- animama-statement --
+
+CREATE INDEX ix_user_file_chunk_user_embedding_model ON user_file_chunk USING btree (user_id, embedding_model_id);
 
 -- animama-statement --
 

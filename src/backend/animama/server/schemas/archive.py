@@ -64,7 +64,12 @@ class PyArchivePassageSearchRequest(BaseModel):
 
     query: str = Field(..., description="Natural language query text")
     limit: int = Field(default=5, ge=1, le=50)
-    threshold: float = Field(default=0.1, ge=0.0, le=1.0)
+    threshold: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        description="Minimum vector similarity; not applied when search falls back to full text",
+    )
 
 
 class PyArchivePassageSearchResult(PyArchivePassageResponse):

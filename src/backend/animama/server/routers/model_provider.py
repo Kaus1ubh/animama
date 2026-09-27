@@ -11,6 +11,7 @@ from animama.app.services.model_provider_catalog_service import ModelCatalogPoli
 from animama.domain.request_principal import RequestPrincipal
 from animama.logging import get_logger
 from animama.server.deps import get_async_session, get_current_principal
+from animama.server.model_roles import composition_model_policy
 from animama.server.schemas.model_provider import PyModelProviderCatalogItem
 
 router = APIRouter()
@@ -20,8 +21,7 @@ _log = get_logger("server.routers.model_provider")
 def get_model_catalog_policy(request: Request) -> ModelCatalogPolicy:
     """Return the composition's catalog policy; built-in rows only by default."""
 
-    policy = getattr(request.app.state, "model_catalog_policy", None)
-    return policy if isinstance(policy, ModelCatalogPolicy) else ModelCatalogPolicy()
+    return composition_model_policy(request.app)
 
 
 @router.get("/v1/model-providers", response_model=list[PyModelProviderCatalogItem])

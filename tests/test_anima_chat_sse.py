@@ -272,11 +272,11 @@ class _FakePromptRunner:
             text=self.text,
             usage=self.usage,
             model_provider=ModelProvider(
-                id=f"{request.model_provider}:{request.model}",
-                provider_type=request.model_provider,
-                model=request.model,
-                model_label=request.model,
-                provider_label=request.model_provider,
+                id="OpenAIResponsesHTTPAgent:gpt-5-nano",
+                provider_type="OpenAIResponsesHTTPAgent",
+                model="gpt-5-nano",
+                model_label="gpt-5-nano",
+                provider_label="OpenAI",
                 active=True,
             ),
         )
@@ -795,8 +795,6 @@ def _install_route_compaction_mocks(
             enabled=True,
             threshold_tokens=threshold_tokens,
             recent_message_min_count=recent_message_min_count,
-            model_provider="OpenAIResponsesHTTPAgent",
-            model="gpt-5-nano",
             prompt_version="chat-compaction-v1-test",
         ),
     )
@@ -831,8 +829,6 @@ def _install_route_title_mocks(
         "chat_title_generation_settings",
         lambda: ChatTitleGenerationSettings(
             enabled=True,
-            model_provider="OpenAIResponsesHTTPAgent",
-            model="gpt-5-nano",
             prompt_version="chat-title-v1-test",
             max_chars=48,
             timeout_seconds=1.0,

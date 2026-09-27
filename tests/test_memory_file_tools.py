@@ -110,6 +110,8 @@ def _memory_service(async_session, *, animas: _AllowAnimaRepository | None = Non
 
 
 class _FakeEmbedder:
+    model_id = "test:embedding"
+
     async def embed_texts(self, texts: list[str]) -> list[list[float]]:
         return [[1.0, 0.0, 0.0] for _ in texts]
 
@@ -199,6 +201,7 @@ async def _insert_uploaded_file_chunk(
                 chunk_index=chunk_index,
                 text=chunk_text,
                 embedding=[1.0, 0.0, 0.0],
+                embedding_model_id="test:embedding",
                 char_count=len(chunk_text),
                 token_estimate=max(1, len(chunk_text) // 4),
                 metadata_={"chunk_debug": "must-not-leak"},
