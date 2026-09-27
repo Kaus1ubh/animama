@@ -1,8 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
+
 import type { FeaturePackStatus } from "../../../../shared/desktop-runtime";
-import { ParakeetWebgpuDownload } from "./ExperimentalSettings";
+import {
+  ParakeetWebgpuAssetDownload,
+  ParakeetWebgpuDownload,
+} from "./ExperimentalSettings";
 
 const base: FeaturePackStatus = {
   id: "parakeet-stt",
@@ -133,5 +138,102 @@ describe("GPU speech encoder download control", () => {
     expect(render({ prompted: true })).toContain(
       "Download the GPU speech encoder to use this setting.",
     );
+  });
+});
+
+const GIB = 1024 ** 3;
+const encoder: PyModelAssetState = {
+  id: "parakeet-tdt-0.6b-v2-webgpu-encoder",
+  status: "not_installed",
+  size_bytes: 1.2 * GIB,
+  required_free_bytes: 1.3 * GIB,
+  media_type: "application/octet-stream",
+  license_ref: "CC-BY-4.0",
+};
+
+function renderAsset(
+  props: Partial<Parameters<typeof ParakeetWebgpuAssetDownload>[0]> = {},
+) {
+  return renderToStaticMarkup(
+    <ParakeetWebgpuAssetDownload
+      status="model_missing"
+      asset={encoder}
+      freeBytes={40 * GIB}
+      pending={false}
+      prompted={false}
+      onInstall={vi.fn()}
+      onCancel={vi.fn()}
+      onRemove={vi.fn()}
+      {...props}
+    />,
+  );
+}
+
+describe("self-host GPU speech encoder download", () => {
+  it("offers the download with its size and free space once an adapter exists", () => {
+    const html = renderAsset();
+    expect(html).toContain("1.2 GB download · 40 GB free on the server");
+    expect(html).toMatch(
+      /<button(?![^>]*disabled="")[^>]*>.*Download GPU encoder<\/button>/su,
+    );
+    expect(html).toContain("Model attribution");
+    expect(html).not.toContain("reloads the app");
+  });
+
+  it("never offers it without WebGPU, before probing, or without the asset", () => {
+    expect(renderAsset({ status: "unsupported" })).toBe("");
+    expect(renderAsset({ status: null })).toBe("");
+    expect(renderAsset({ asset: undefined })).toBe("");
+  });
+
+  it("refuses to start without enough free space", () => {
+    const html = renderAsset({ freeBytes: 1 * GIB });
+    expect(html).toContain("Not enough free space");
+    expect(html).toMatch(
+      /<button[^>]*disabled=""[^>]*>.*Download GPU encoder/su,
+    );
+  });
+
+  it("shows progress and cancel while downloading", () => {
+    const html = renderAsset({
+      asset: {
+        ...encoder,
+        status: "downloading",
+        bytes_downloaded: 0.3 * GIB,
+        total_bytes: 1.2 * GIB,
+      },
+    });
+    expect(html).toContain('value="0.25"');
+    expect(html).toContain("Cancel");
+    expect(html).not.toContain("Download GPU encoder");
+  });
+
+  it("explains a failure and offers retry", () => {
+    const html = renderAsset({
+      asset: { ...encoder, status: "failed", reason: "asset_hash_invalid" },
+    });
+    expect(html).toContain("did not match its checksum");
+    expect(html).toContain("Retry download");
+  });
+
+  it("offers removal once installed, even without a WebGPU adapter", () => {
+    const installed = { ...encoder, status: "installed" as const };
+    for (const status of ["available", "unsupported"] as const) {
+      const html = renderAsset({ status, asset: installed });
+      expect(html).toContain("Remove GPU encoder");
+      expect(html).not.toContain("Download GPU encoder");
+      expect(html).not.toContain("free on the server");
+    }
+  });
+
+  it("prompts for the download and shows request errors", () => {
+    const html = renderAsset({
+      prompted: true,
+      error: "The encoder change could not finish. Retry in a moment.",
+    });
+    expect(html).toContain(
+      "Download the GPU speech encoder to use this setting.",
+    );
+    expect(html).toContain('role="alert"');
   });
 });

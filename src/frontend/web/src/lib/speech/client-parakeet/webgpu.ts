@@ -14,8 +14,8 @@ export type ParakeetWebgpuStatus =
   /** No `navigator.gpu` or no adapter on this device/browser. */
   | "unsupported"
   /**
-   * An adapter exists but the encoder is not installed: desktop can download
-   * its pack; self-host needs the operator-mounted set.
+   * An adapter exists but the encoder is not installed: desktop downloads its
+   * pack, built self-host its model asset; development stacks mount the set.
    */
   | "model_missing"
   /** This build never serves the encoder (a Vite stack with a base-URL override). */
@@ -56,9 +56,10 @@ export async function probeParakeetWebgpu({
 }
 
 /**
- * Swap in the GPU encoder for a WebGPU load. It belongs to its own pack, so it
- * never carries the base pack's `?v=` version. Desktop revalidates it by its
- * SHA-256 ETag; self-host serves the mounted file `no-cache`.
+ * Swap in the GPU encoder for a WebGPU load. It is delivered separately from
+ * the base models, so it never carries the base pack's `?v=` version. Desktop
+ * packs and self-host model assets are served `no-cache` and revalidated by
+ * their SHA-256 ETag.
  */
 export function withBackendEncoder<T extends { encoderUrl: string }>(
   urls: T,
@@ -68,6 +69,30 @@ export function withBackendEncoder<T extends { encoderUrl: string }>(
   return backend === "webgpu" && webgpuEncoderUrl
     ? { ...urls, encoderUrl: webgpuEncoderUrl }
     : urls;
+}
+
+/**
+ * Cache the probe for the page, except a `model_missing` result: built
+ * self-host installs the encoder without a reload, so the next caller probes
+ * again (one same-origin `HEAD`). `refresh` always probes again.
+ */
+export function cacheParakeetWebgpuProbe(
+  probe: () => Promise<ParakeetWebgpuStatus>,
+): (refresh?: boolean) => Promise<ParakeetWebgpuStatus> {
+  let cached: Promise<ParakeetWebgpuStatus> | null = null;
+  let settled: ParakeetWebgpuStatus | null = null;
+  return (refresh = false) => {
+    if (!cached || refresh || settled === "model_missing") {
+      const current = probe();
+      cached = current;
+      settled = null;
+      void current.then((status) => {
+        // A newer probe owns the cache; never let an older result overwrite it.
+        if (cached === current) settled = status;
+      });
+    }
+    return cached;
+  };
 }
 
 export function resolveParakeetBackend({

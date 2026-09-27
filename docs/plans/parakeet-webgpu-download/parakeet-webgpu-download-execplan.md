@@ -105,6 +105,10 @@ Proposed by the agent on 2026-09-26; owner decisions are dated.
   `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`, verified at startup by `reset.sh`, as the
   dev stack already does. A server-side download would add a new network path,
   storage management and progress API for an experimental feature.
+  *Superseded for built self-host on 2026-09-26* by owner decision O4 in
+  [self-host model downloads](../self-host-model-downloads/self-host-model-downloads-execplan.md)
+  (#163): built self-host downloads the encoder in the app through the shared
+  model-asset downloader, and only development stacks keep the operator mount.
 - **D3: dependency behavior (owner decision, 2026-09-26).**
     - Installing the WebGPU pack requires `parakeet-stt` to be active. The control
       says "Install offline speech first" instead of silently installing both.

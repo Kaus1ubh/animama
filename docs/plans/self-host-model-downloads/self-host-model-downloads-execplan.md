@@ -103,7 +103,8 @@ Excluded:
   Review #2 passed.
 - [x] Phase 2 (#174): Create-only model publication command with a scan gate.
   Review #2 passed; the scan and publication are Phase 4.
-- [ ] Phase 3 (#175): Built self-host serving and Experimental download control.
+- [x] Phase 3 (#175): Built self-host serving and Experimental download control.
+  Review #2 passed after one repair round.
 - [ ] Phase 4: R2 publication and built self-host acceptance (owner-gated).
 - [ ] Final integration review.
 
@@ -576,13 +577,92 @@ live download. Record that stack's URL here.
 
 **Evidence, commits and review:** to be recorded here.
 
+**Status (2026-09-27):** complete. Review #2 passed after one repair round.
+The built stack `animama-selfhost-dl` (http://animama-selfhost-dl.localhost:8400)
+was used for the browser evidence.
+
+**Evidence so far:** `pnpm check` exit 0; `pnpm web:test` 1927 passed, 1
+failed (`app-version.test.ts`, pre-existing on `main`: v0.1.1 bumped desktop
+but not web); `pnpm build` bundle holds the model-asset URL and attribution,
+no mount path; Compose tests 122 passed; compose config ok. Browser (built
+stack, desktop and tablet widths): download offered with size and free space;
+an unpublished object fails as `asset_download_failed` with Retry; a seeded
+verified encoder serves 200 with the SHA-256 ETag and reports available;
+two-step removal returns to not installed without reload. Not done: live
+preview with a microphone; a browser without a WebGPU adapter (unit-tested).
+
 #### Code Review #1 Findings
 
-Pending.
+Independent `sdlc-reviewer`, initial review of the uncommitted tree on `4086c2a`.
+
+- **P3-F1 (required):** `getParakeetWebgpuStatus` caches the probe for the
+  page and only the Settings modal refreshes it, so a download that finishes
+  after Settings closes keeps WASM until reload. Fix: do not cache a
+  `model_missing` result (or refresh in `loadClientParakeetWorker` when
+  WebGPU is preferred); add a unit test.
+- **P3-F2 (required):** `webgpu.ts` comments (lines 17-18, 59-61) still
+  describe the operator mount for self-host.
+- **P3-F3 (required):** no test for the Vite-serve `operator` define or the
+  override `null`; no test that an asset status change refreshes the probe.
+- N1: the tracked `ATTRIBUTION.md` has an outdated sentence about
+  operator-mounted self-host; editing it changes the manifest digest and the
+  reviewed desktop pack inventory. **Owner decision needed before Phase 4**,
+  because Phase 4 publishes that file permanently.
+- N2: record deviations: attribution is inlined via `?raw` (not copied to
+  `dist`), `README.md` not bundled; licensing JSON records unchanged.
+- N3–N9 (optional): duplication with the desktop control; double probe on
+  mount; misleading text if the asset list fails; exhaustive failure-text
+  typing and size-mismatch wording; status line during download; voice.md
+  "preview" wording; indeterminate progress when total is unknown.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P3-F1 accepted.** `cacheParakeetWebgpuProbe` (in `webgpu.ts`) caches the
+  probe per page but probes again after a `model_missing` result, so the next
+  dictation or Voice Mode start sees an encoder installed while Settings was
+  closed. `getParakeetWebgpuStatus` uses it; `refresh` still resets the
+  load-failure flag. Unit tests cover the recheck, the cached settled result,
+  `refresh` and a shared in-flight probe.
+- **P3-F2 accepted.** `webgpu.ts` comments describe pack, model-asset and
+  development delivery.
+- **P3-F3 accepted in part.** Tests now cover the Vite-serve `operator` define
+  and the base-URL override `null`. The Settings effect that refreshes the probe
+  on an asset status change is not unit-tested: the web tests have no DOM
+  renderer, and the load path no longer depends on that effect (P3-F1). The
+  built-stack check observed the refresh (install and removal changed the
+  status without a reload).
+- N1: surfaced to the owner (the `ATTRIBUTION.md` wording must be decided
+  before Phase 4 publishes it).
+- N2 recorded: the attribution is inlined into the bundle with `?raw` and shown
+  as compact text; `README.md` is not bundled (it holds no attribution terms).
+  The licensing JSON records are unchanged; the owner's licensing review of the
+  PR decides whether they should name the R2 channel.
+- N5, N6, N7, N8, N9 accepted: a self-host message when the asset list is
+  unavailable; failure text typed against the generated reason union, with
+  separate size-mismatch wording; a downloading status line; voice.md says
+  "Vite development"; an indeterminate progress bar without a total.
+- N3 (shared presentational piece) and N4 (one extra probe on mount): no change;
+  the data models differ and the extra probe is one `HEAD`.
+
+Verification: from `src/frontend/web`,
+`pnpm exec vitest run src/ui/settings src/lib/speech/client-parakeet tests/localParakeetModels.test.ts`
+101 passed; eslint clean on changed files; `pnpm check` exit 0.
+
+#### Code Review #2 Findings
+
+Targeted recheck (same reviewer): P3-F1 to P3-F3 and N5 to N9 verified, no
+regressions. Result: pass; one repair round used. Non-blocking follow-ups
+applied: the self-host "download unavailable" message no longer flashes while
+the asset list is loading (it shows "Checking the GPU speech encoder…"), and
+this status record was updated.
+
+**Pre-Phase 4 scan (owner approved the scanner, 2026-09-27):** the pinned
+gitleaks 8.30.1 darwin_arm64 archive matched its pinned SHA-256
+(`b40ab0ae…b6a5`). `pnpm release:scan --candidate release/models/parakeet-tdt-0.6b-v2-webgpu`
+passed: 4 files, 0 findings, canary detected, the ONNX file excluded from
+gitleaks and byte-searched for private text. The dry run reports a passing
+receipt. Nothing was uploaded. A change to `ATTRIBUTION.md` (N1) would require
+restaging and rescanning.
 
 ### Phase 4: R2 publication and built self-host acceptance (owner-gated)
 

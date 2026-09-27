@@ -191,21 +191,30 @@ without downloading again by copying the current notices and the old
 `python3 scripts/models/parakeet_webgpu.py acquire --offline --import-from DIRECTORY`.
 
 `reset.sh` resolves it offline and records `ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR`
-when it exists. Missing the set never fails startup:
+when it exists; only the development Compose selection mounts it. Missing the
+set never fails startup:
 
-- Compose mounts the tracked notices directory instead, which contains no
-  encoder;
+- development Compose mounts the tracked notices directory instead, which
+  contains no encoder;
 - the setting then reports the GPU model as not installed;
 - speech keeps using WASM.
 
-Vite development stacks (including `desktop:dev`) and built self-host stacks
-serve the operator-provided set at `/__client-parakeet-webgpu-models/`; the
-built stack mounts it read-only into FastAPI's web root. Self-host never
-downloads it: acquire it on the host and rerun `reset.sh` for a running stack.
-Packaged desktop serves it only from the active `parakeet-stt-webgpu` pack at
-`/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`, and only beside an active
-`parakeet-stt` pack. The browser probes the encoder with `HEAD`; a 404 means
-not installed.
+Where each build gets it:
+
+- **Vite development stacks** (including `desktop:dev`) serve this
+  operator-provided set at `/__client-parakeet-webgpu-models/`. Acquire it on
+  the host and rerun `reset.sh` for a running stack.
+- **Built self-host** downloads it in the app (App Settings → Advanced →
+  Experimental) as the model asset `parakeet-tdt-0.6b-v2-webgpu-encoder`, from
+  its published object under `models/` on `downloads.animama.ai`, into the
+  data root (see [Downloaded model assets](#downloaded-model-assets)). The
+  host model store is not used, and a host that cannot reach
+  `downloads.animama.ai` cannot enable WebGPU.
+- **Packaged desktop** serves it only from the active `parakeet-stt-webgpu`
+  pack at `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/`, and only beside an
+  active `parakeet-stt` pack.
+
+The browser probes the encoder with `HEAD`; a 404 means not installed.
 
 ## Browser speech assets and dependency inputs
 
