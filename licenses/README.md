@@ -20,7 +20,7 @@ All recorded dispositions are preparation evidence. Public-source acceptance
 and signed binary distribution are separately gated. Raymond confirmed the
 retained model identities and authorized correcting their use/redistribution
 metadata; their derived portraits retain the corresponding model terms. Retained
-PocketTTS assets, including all 38 voice states, are CC BY 4.0, which permits commercial use with attribution;
+PocketTTS assets, including all 38 voice states (15 core, 23 downloaded on demand), are CC BY 4.0, which permits commercial use with attribution;
 Kyutai's model-card prohibited-use terms still apply. They are not relicensed
 as AGPL. The desktop release policy separately records a noncommercial
 distribution basis; changing it is a separate owner decision.

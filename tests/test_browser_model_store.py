@@ -33,7 +33,7 @@ def inventory(tmp_path):
         entry["sha256"] = hashlib.sha256(data).hexdigest()
         if entry["source"].get("kind") == "release":
             voice = entry["path"].removesuffix(".safetensors")
-            entry["source"]["url"] = f"{browser.RELEASE_VOICE_PREFIX}{voice}-{entry['sha256'][:16]}.safetensors"
+            entry["source"]["url"] = f"{browser.RELEASE_VOICE_PREFIX}{entry['sha256']}/{voice}.safetensors"
     path = tmp_path / "browser-manifest.json"
     path.write_text(json.dumps(value))
     calls = []
@@ -82,8 +82,9 @@ def test_pinned_april_bundle_and_voice_states(inventory):
     assert targets["flow_lm_flow.onnx"] == "models/pocket-tts/flow_lm_flow.onnx"
     assert targets["mimi_decoder.onnx"] == "models/pocket-tts/mimi_decoder.onnx"
     assert targets["bundle.json"] == "models/pocket-tts/bundle.json"
-    voices = {voice["id"] for voice in shipped_voices()}
-    assert len(voices) == 38 and {"eve", "azelma", "mary", "jane", "javert", "marius"} <= voices
+    voices = {voice["id"] for voice in shipped_voices() if voice["delivery"] == "core"}
+    assert len(voices) == 15 and {"eve", "azelma", "jane", "javert", "marius", "noah"} <= voices
+    assert "mary" not in voices  # Downloaded on demand since 2026-09-27.
     for voice in voices:
         assert targets[f"{voice}.safetensors"] == f"models/pocket-tts/voices/{voice}.safetensors"
     assert "voices.bin" not in targets
@@ -101,12 +102,12 @@ def test_self_encoded_voices_come_only_from_the_release_host(inventory):
         if source.get("kind") == "release":
             voice = entry["path"].removesuffix(".safetensors")
             assert source["url"] == (
-                "https://downloads.animama.ai/pocket-tts/voices/english_2026-04/"
-                f"{voice}-{entry['sha256'][:16]}.safetensors"
+                f"https://downloads.animama.ai/models/pocket-tts-voices/{entry['sha256']}/{voice}.safetensors"
             )
     expected = {
         f"{v['id']}.safetensors": "release" if v["source"].startswith("vctk-") else "huggingface"
         for v in shipped_voices()
+        if v["delivery"] == "core"
     }
     assert kinds == expected
 
@@ -180,7 +181,7 @@ def test_manifest_rejects_unreviewed_voice_entries(inventory, change):
     if change == "release-host":
         entry["source"]["url"] = entry["source"]["url"].replace("downloads.animama.ai", "example.com")
     elif change == "release-digest":
-        entry["source"]["url"] = entry["source"]["url"].replace(entry["sha256"][:16], "0" * 16)
+        entry["source"]["url"] = entry["source"]["url"].replace(entry["sha256"], "0" * 64)
     elif change == "release-port":
         entry["source"]["url"] = entry["source"]["url"].replace("animama.ai/", "animama.ai:8443/")
     elif change == "unselected-voice":

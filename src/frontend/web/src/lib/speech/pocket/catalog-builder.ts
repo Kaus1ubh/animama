@@ -310,7 +310,9 @@ class PocketCatalogWorkerClient {
   async init(): Promise<void> {
     // The worker requires the built-in voice list, even though encoding uses none.
     await this.send("load", {
-      voices: POCKET_VOICES.map((voice) => voice.id),
+      voices: POCKET_VOICES.filter((voice) => voice.delivery === "core").map(
+        (voice) => voice.id,
+      ),
       defaultVoice: DEFAULT_POCKET_VOICE,
     });
   }

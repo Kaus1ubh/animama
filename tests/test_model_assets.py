@@ -120,8 +120,7 @@ def test_packaged_catalog_pins_the_tracked_webgpu_encoder() -> None:
     manifest = json.loads(manifest_path.read_text())
     encoder = next(file for file in manifest["files"] if file["path"] == "encoder-model.fp16.onnx")
 
-    (asset,) = load_packaged_asset_catalog().assets
-    assert asset.id == "parakeet-tdt-0.6b-v2-webgpu-encoder"
+    asset = next(a for a in load_packaged_asset_catalog().assets if a.id == "parakeet-tdt-0.6b-v2-webgpu-encoder")
     assert (asset.size, asset.sha256) == (encoder["size"], encoder["sha256"])
     # Published content-addressed: the URL directory is the file's own digest.
     assert asset.url == (

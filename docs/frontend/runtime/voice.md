@@ -106,7 +106,7 @@ Why this matters:
 
 ## Developer and self-host model inputs
 
-Parakeet and the 47 reviewed Pocket TTS/Smart Turn inputs are acquired from
+Parakeet and the 24 reviewed Pocket TTS/Smart Turn inputs are acquired from
 exact pinned revisions into a verified shared store outside Git worktrees.
 `models/browser-runtime/manifest.json` also binds nine ORT 1.24.2 files from the
 exact dependency alias and two VAD 0.0.30 files from its pinned package. Other
@@ -117,7 +117,7 @@ starting Vite or Compose, or building the web application. It documents
 `ANIMAMA_MODEL_ROOT`, the native Windows `%LOCALAPPDATA%\Animama\models` default,
 and the Linux default used by WSL. Development verifies and serves engine inputs
 at the existing same-origin URLs; built self-host and desktop outputs contain
-independent verified copies of the 58 browser assets. Parakeet remains outside
+independent verified copies of the 35 browser assets. Parakeet remains outside
 the web build and retains its installed desktop pack lifecycle.
 
 Startup and builds do not acquire models implicitly. Browsers do not receive
@@ -978,15 +978,17 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
 ### Pocket TTS assets
 
 - Small worker/worklet/vendor code stays in `src/frontend/web/public/tts/*`.
-- The 46 reviewed Pocket files are served at `/onnx/models/pocket-tts/*` from
+- The 23 reviewed Pocket files are served at `/onnx/models/pocket-tts/*` from
   the verified sources:
   - the five ONNX graphs;
   - `tokenizer.model`, `bundle.json` and `bos_before_voice.npy`;
-  - the 38 built-in voice states at `voices/<id>.safetensors`.
-- `src/frontend/web/src/lib/speech/pocket/voice-catalog.ts` lists the built-in
-  voices: ID, display name, gender, accent and recommended flag, with `eve` as
-  default. `scripts/voices/voices.py release` generates it, and a test keeps it
-  equal to the manifest's voice files.
+  - the 15 core voice states at `voices/<id>.safetensors`.
+- `src/frontend/web/src/lib/speech/pocket/voice-catalog.ts` lists all 38
+  voices, with `eve` as default. Each has an ID, display name, gender, accent,
+  recommended flag and delivery: `core`, or `download` with its asset ID and
+  size. `scripts/voices/voices.py release` generates it, and tests keep it
+  equal to the core manifest and the packaged asset catalog. The 23
+  downloadable voices install through `/v1/model-assets`.
 - `createPocketTTS` sends the catalog's IDs and default to the worker. The
   worker initializes model state from the `bundle.json` state manifests.
   - Built-in voices are precomputed flow LM states, so selecting one skips
@@ -998,7 +1000,7 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   (`voice-groups.ts`), with recommended voices first and accent tags as hints.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
-  are not members of the 58-file engine inventory.
+  are not members of the 35-file engine inventory.
 
 Optional operator voice catalogs are separate from the engine inventory; see
 [Content and workers](../architecture/content-and-workers.md#vite-application-resources).

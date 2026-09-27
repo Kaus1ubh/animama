@@ -28,9 +28,11 @@ Commands, in order:
   (Parakeet WER) and audio quality, ranked per gender.
 - `inventory`: write `voice-inventory.json` and its Markdown summary beside the plan.
 - `listen`: write a static listening page for owner curation.
-- `release`: from `selection.json`, write the browser speech manifest's voice
-  entries, the voice section of the Pocket attribution notice, the release upload
-  set (content-addressed names plus `SHA256SUMS`) and an offline import directory.
+- `release`: from `selection.json`, regenerate the browser speech manifest (core
+  voices), the hosted voice set `models/pocket-tts-voices/` (publish it with
+  `models:stage`, `release:scan` and `models:publish`), the packaged asset catalog
+  entries of downloadable voices, `voice-catalog.ts`, the attribution notice and
+  licence records, and offline import directories for both stores.
 
 Work files default to `<model store root>/../voice-tools` (override with
 `--work-dir` or `ANIMAMA_VOICE_TOOLS_DIR`). Nothing in the work directory is tracked;
@@ -774,11 +776,16 @@ a.download='voice-selection.json';a.click();}};
 
 
 # ---------------------------------------------------------------------------
-# Release: shipped voices, upload set, manifest, notice and offline import
+# Release: core and downloadable voices, manifests, catalogs, notices, imports
 
 SELECTION = HERE / "selection.json"
 BROWSER_MANIFEST = REPOSITORY / "models" / "browser-speech" / "manifest.json"
 RUNTIME_MANIFEST = REPOSITORY / "models" / "browser-runtime" / "manifest.json"
+VOICE_SET_ID = "pocket-tts-voices"
+VOICE_SET_DIRECTORY = REPOSITORY / "models" / VOICE_SET_ID
+VOICE_SET_MANIFEST = VOICE_SET_DIRECTORY / "manifest.json"
+ASSET_CATALOG = REPOSITORY / "src" / "backend" / "animama" / "resources" / "model-assets.v1.json"
+ASSET_PREFIX = "pocket-voice-"
 LICENSE_RECORDS = REPOSITORY / "licenses" / "third-party" / "code-and-models.json"
 FRONTEND_CATALOG = REPOSITORY / "src" / "frontend" / "web" / "src" / "lib" / "speech" / "pocket" / "voice-catalog.ts"
 # VCTK accent tokens to display tags (D10); unknown or missing accents show no tag.
@@ -798,69 +805,86 @@ ACCENT_TAGS = {
     "Welsh": "Welsh",
 }
 ATTRIBUTION = REPOSITORY / "src" / "frontend" / "desktop" / "runtime" / "notices" / "pocket-tts-attribution.txt"
-RELEASE_PREFIX = "pocket-tts/voices/english_2026-04"
-RELEASE_BASE = f"https://downloads.animama.ai/{RELEASE_PREFIX}"
+# #180's immutable, content-addressed layout: models/<model-id>/<file-sha256>/<file-name>.
+RELEASE_BASE = f"https://downloads.animama.ai/models/{VOICE_SET_ID}"
 VOICES_HEADING = "Built-in voices"
 LICENSE_HEADING = "License basis:"
 
 
 def load_selection(path: Path = SELECTION) -> dict:
-    """The owner-curated shipped voices (gate G1), in display order."""
+    """The owner-curated voices (G1), in display order, each `core` or `download`."""
     selection = json.loads(path.read_text())
     if selection.get("schema") != "animama-pocket-voice-selection/1":
         raise VoiceToolError("Unexpected selection.json schema")
-    ids = [voice["id"] for voice in selection["voices"]]
+    voices = selection["voices"]
+    ids = [voice["id"] for voice in voices]
     if any(not re.fullmatch(r"[a-z0-9_]{1,64}", voice_id) for voice_id in ids):
         raise VoiceToolError("Voice IDs must be lowercase letters, digits or underscores")
     if len(ids) != len(set(ids)) or selection["default"] not in ids:
         raise VoiceToolError("selection.json needs unique voice IDs and a listed default")
+    if any(voice.get("delivery") not in {"core", "download"} for voice in voices):
+        raise VoiceToolError("Every voice needs delivery `core` or `download`")
+    if next(v for v in voices if v["id"] == selection["default"])["delivery"] != "core":
+        raise VoiceToolError("The default voice must be core")
     return selection
 
 
-def shipped_entries(sources: dict, selection: dict, work: Path) -> list[dict]:
-    """Manifest entries for every shipped voice, verified against the pinned or recorded hashes."""
+def is_hosted(voice: dict) -> bool:
+    """Animama hosts self-encoded core states and every downloadable state."""
+    return voice["delivery"] == "download" or voice["source"].startswith("vctk-")
+
+
+def release_url(voice_id: str, sha256: str) -> str:
+    return f"{RELEASE_BASE}/{sha256}/{voice_id}.safetensors"
+
+
+def voice_entries(sources: dict, selection: dict, work: Path) -> list[dict]:
+    """One verified entry per voice: its pinned source, hash, licence and local bytes."""
     kyutai = {voice["name"]: voice for voice in sources["kyutai_voices"]}
     state_hashes = load_state_hashes()
     entries = []
     for voice in selection["voices"]:
         name = f"{voice['id']}.safetensors"
-        entry = {"path": name, "target": f"models/pocket-tts/voices/{name}"}
         if voice["source"].startswith("vctk-"):
             local = work / "encoded-states" / f"{voice['source']}.safetensors"
             digest = state_hashes.get(voice["source"])
             if not digest or not local.exists() or sha256_file(local) != digest:
                 raise VoiceToolError(f"{voice['source']}: encoded state missing or not the recorded hash; run encode")
-            entry |= {
-                "size": local.stat().st_size,
-                "sha256": digest,
-                "license": "CC-BY-4.0",
-                "source": {"kind": "release", "url": f"{RELEASE_BASE}/{voice['id']}-{digest[:16]}.safetensors"},
-            }
+            license_id = "CC-BY-4.0"
+            source = {"kind": "release", "url": release_url(voice["id"], digest)}
         else:
             origin = kyutai[voice["source"]]
             if origin["license"] not in PERMITTED_LICENSES or origin.get("exclude"):
                 raise VoiceToolError(f"{voice['source']} is not a permitted shipped voice")
-            pin = sources["pins"]["kyutai_states"][voice["source"]]
+            digest = sources["pins"]["kyutai_states"][voice["source"]]["sha256"]
             local = work / "kyutai-states" / f"{voice['source']}.safetensors"
-            if not local.exists() or sha256_file(local) != pin["sha256"]:
+            if not local.exists() or sha256_file(local) != digest:
                 raise VoiceToolError(f"{voice['source']}: Kyutai state missing or not the pinned hash; run fetch")
-            entry |= {
-                "size": pin["size"],
-                "sha256": pin["sha256"],
-                # The published state carries the repository license; the recording's is in the notice.
-                "license": sources["kyutai_states"]["license"],
-                "source": {
-                    "repository": sources["kyutai_states"]["repository"],
-                    "revision": sources["kyutai_states"]["revision"],
-                    "path": sources["kyutai_states"]["path"].format(name=voice["source"]),
+            # The published state carries the repository license; the recording's is in the notice.
+            license_id = sources["kyutai_states"]["license"]
+            source = {
+                "repository": sources["kyutai_states"]["repository"],
+                "revision": sources["kyutai_states"]["revision"],
+                "path": sources["kyutai_states"]["path"].format(name=voice["source"]),
+            }
+        entries.append(
+            {
+                "voice": voice,
+                "local": local,
+                "entry": {
+                    "path": name,
+                    "size": local.stat().st_size,
+                    "sha256": digest,
+                    "license": license_id,
+                    "source": source,
                 },
             }
-        entries.append(entry)
+        )
     return entries
 
 
 def voice_notice(sources: dict, selection: dict) -> str:
-    """The attribution section naming every shipped voice and its source recording."""
+    """The attribution section naming every voice and its source recording."""
     kyutai = {voice["name"]: voice for voice in sources["kyutai_voices"]}
     states, clips = sources["kyutai_states"], sources["clips"]
     precomputed = [v for v in selection["voices"] if not v["source"].startswith("vctk-")]
@@ -868,10 +892,16 @@ def voice_notice(sources: dict, selection: dict) -> str:
     default = selection["default"]
 
     def label(voice: dict) -> str:
-        return f"{voice['id']} (default voice)" if voice["id"] == default else voice["id"]
+        notes = (["default voice"] if voice["id"] == default else []) + (
+            ["downloaded on demand"] if voice["delivery"] == "download" else []
+        )
+        return f"{voice['id']} ({', '.join(notes)})" if notes else voice["id"]
 
     lines = [
         f"{VOICES_HEADING} ({len(selection['voices'])})",
+        "",
+        "Core voices ship with the app; the others are downloaded on demand from",
+        f"{RELEASE_BASE}/, where each state is published under its own SHA-256.",
         "",
         f"Kyutai precomputed voice states ({len(precomputed)}), redistributed unmodified",
         f"Source: https://huggingface.co/{states['repository']}/tree/{states['revision']}/"
@@ -892,7 +922,7 @@ def voice_notice(sources: dict, selection: dict) -> str:
         "Encoded by Animama with the english_2026-04 Mimi encoder, learned BOS row and",
         "INT8 flow LM (scripts/voices in the Animama source) from Kyutai-enhanced clips",
         f"at https://huggingface.co/{clips['repository']} (revision {clips['revision']},",
-        f"{clips['vctk_path'].format(speaker='<speaker>')}). Published at {RELEASE_BASE}/.",
+        f"{clips['vctk_path'].format(speaker='<speaker>')}).",
         "Recordings: CSTR VCTK Corpus (Centre for Speech Technology Research,",
         "University of Edinburgh; https://datashare.ed.ac.uk/handle/10283/3443),",
         "enhanced by Kyutai using ai-coustics. License: Creative Commons Attribution",
@@ -911,6 +941,24 @@ def update_attribution(sources: dict, selection: dict, path: Path = ATTRIBUTION)
     path.write_text(text[:start] + voice_notice(sources, selection) + text[end:])
 
 
+def voice_set_notices(sources: dict, selection: dict) -> dict[str, str]:
+    """ATTRIBUTION.md and README.md published with the hosted voice set."""
+    attribution = (
+        "# Pocket TTS voice states\n\n"
+        + voice_notice(sources, selection)
+        + ("Kyutai's Pocket TTS model-card prohibited-use terms apply to every voice.\n")
+    )
+    readme = (
+        "# Animama Pocket TTS voice set\n\n"
+        "Voice states for Pocket TTS `english_2026-04`, hosted by Animama: its self-encoded\n"
+        "core voices and every voice downloaded on demand. Each file is a precomputed\n"
+        "flow LM voice state (`<voice>.safetensors`). See ATTRIBUTION.md for sources and\n"
+        "licenses; `scripts/voices/voices.py` in the Animama source reproduces the\n"
+        "self-encoded states.\n"
+    )
+    return {"ATTRIBUTION.md": attribution, "README.md": readme}
+
+
 def current_store() -> Path:
     """Verify the store of the checked-in manifest by hash alone, before `release` replaces it.
 
@@ -922,11 +970,12 @@ def current_store() -> Path:
     return store.verify_directory(json.loads(raw), directory)
 
 
-def frontend_catalog(selection: dict, candidates: dict[str, dict]) -> str:
+def frontend_catalog(selection: dict, candidates: dict[str, dict], entries: dict[str, dict]) -> str:
     """TypeScript voice metadata for the app, in selection (display) order."""
     rows = []
     for voice in selection["voices"]:
         accent = ACCENT_TAGS.get(candidates[voice["source"]]["accent"] or "")
+        asset = f"{ASSET_PREFIX}{voice['id']}" if voice["delivery"] == "download" else None
         rows.append(
             "  {\n"
             f"    id: {json.dumps(voice['id'])},\n"
@@ -934,6 +983,9 @@ def frontend_catalog(selection: dict, candidates: dict[str, dict]) -> str:
             f"    gender: {json.dumps(voice['gender'])},\n"
             f"    accent: {json.dumps(accent)},\n"
             f"    recommended: {'true' if voice['recommended'] else 'false'},\n"
+            f"    delivery: {json.dumps(voice['delivery'])},\n"
+            f"    assetId: {json.dumps(asset)},\n"
+            f"    sizeBytes: {entries[voice['id']]['entry']['size']},\n"
             "  },"
         )
     return FRONTEND_TEMPLATE.replace("__DEFAULT__", json.dumps(selection["default"])).replace(
@@ -943,11 +995,12 @@ def frontend_catalog(selection: dict, candidates: dict[str, dict]) -> str:
 
 FRONTEND_TEMPLATE = """// Generated by `uv run scripts/voices/voices.py release` from
 // scripts/voices/selection.json. Change the selection and rerun the command
-// instead of editing this file; a test checks it against the model manifest.
+// instead of editing this file; tests check it against the model manifest and
+// the packaged asset catalog.
 
 export type PocketVoiceGender = "female" | "male";
 
-/** A built-in PocketTTS voice shipped in the core model store. */
+/** A built-in PocketTTS voice: shipped in core, or downloaded on demand. */
 export type PocketVoice = {
   /** Worker voice ID, state file name and saved preference value. */
   readonly id: string;
@@ -956,6 +1009,11 @@ export type PocketVoice = {
   /** Accent from the source dataset's speaker metadata, when known. */
   readonly accent: string | null;
   readonly recommended: boolean;
+  /** `core` states ship with the app; `download` states install on demand. */
+  readonly delivery: "core" | "download";
+  /** The `/v1/model-assets` ID of a downloadable voice; null for core voices. */
+  readonly assetId: string | null;
+  readonly sizeBytes: number;
 };
 
 export const DEFAULT_POCKET_VOICE = __DEFAULT__;
@@ -968,49 +1026,57 @@ __VOICES__
 
 
 def command_release(args: argparse.Namespace) -> None:
-    """Write the upload set, manifest voice entries, attribution and an offline import directory.
+    """Regenerate every derived voice file from `selection.json`, plus offline import directories.
 
-    Every input is verified and both work directories are rebuilt before any
+    Every input is verified and both import directories are rebuilt before any
     tracked file changes, so a failure leaves the repository untouched.
     """
     sources = load_sources()
     selection = load_selection()
     work = work_directory(args.work_dir)
-    entries = shipped_entries(sources, selection, work)
+    voices = voice_entries(sources, selection, work)
+    by_id = {item["voice"]["id"]: item for item in voices}
+    core = [item for item in voices if item["voice"]["delivery"] == "core"]
+    hosted = [item for item in voices if is_hosted(item["voice"])]
     current = current_store()  # The verified store for the manifest being replaced supplies the other files.
     manifest = json.loads(BROWSER_MANIFEST.read_text())
     others = [e for e in manifest["files"] if not e["target"].startswith("models/pocket-tts/voices/")]
     candidates = {c["id"]: c for c in build_candidates(sources, speaker_info(sources, work))}
+    notices = voice_set_notices(sources, selection)
 
-    upload = work / "release-upload"
-    staged = work / "import-store"
-    for directory in (upload, staged):
+    speech_import = work / "import-store"
+    set_import = work / "import-voice-set"
+    for directory in (speech_import, set_import, work / "release-upload"):
         if directory.exists():
             shutil.rmtree(directory)
-    checksums = []
-    for voice, entry in zip(selection["voices"], entries, strict=True):
-        if voice["source"].startswith("vctk-"):
-            source = work / "encoded-states" / f"{voice['source']}.safetensors"
-            key = entry["source"]["url"].removeprefix("https://downloads.animama.ai/")
-            (upload / key).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, upload / key)
-            checksums.append(f"{entry['sha256']}  {key}")
-        else:
-            source = work / "kyutai-states" / f"{voice['source']}.safetensors"
-        (staged / entry["target"]).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source, staged / entry["target"])
-    (upload / "SHA256SUMS").write_text("\n".join(checksums) + "\n")
+    for item in core:
+        target = speech_import / "models" / "pocket-tts" / "voices" / item["entry"]["path"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(item["local"], target)
     for entry in others:
-        (staged / entry["target"]).parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(current / entry["path"], staged / entry["target"])
+        (speech_import / entry["target"]).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(current / entry["path"], speech_import / entry["target"])
+    set_import.mkdir(parents=True)
+    for item in hosted:
+        shutil.copyfile(item["local"], set_import / item["entry"]["path"])
+    for name, text in notices.items():
+        (set_import / name).write_text(text)
 
+    # Core voices: the browser speech store.
+    core_entries = [
+        {
+            "path": i["entry"]["path"],
+            "target": f"models/pocket-tts/voices/{i['entry']['path']}",
+            **{k: i["entry"][k] for k in ("size", "sha256", "license", "source")},
+        }
+        for i in core
+    ]
     manifest["files"] = (
         [e for e in others if e["path"] != "smart-turn-v3.2-cpu.onnx"]
-        + entries
+        + core_entries
         + [e for e in others if e["path"] == "smart-turn-v3.2-cpu.onnx"]
     )
     update_attribution(sources, selection)
-    FRONTEND_CATALOG.write_text(frontend_catalog(selection, candidates))
     for notice in manifest["notices"]:
         path = REPOSITORY / notice["path"]
         notice["size"], notice["sha256"] = path.stat().st_size, sha256_file(path)
@@ -1018,31 +1084,77 @@ def command_release(args: argparse.Namespace) -> None:
     runtime = json.loads(RUNTIME_MANIFEST.read_text())
     kept = [e for e in runtime["files"] if not e["path"].startswith("models/pocket-tts/voices/")]
     position = next(i for i, e in enumerate(kept) if e["path"] == "models/smart-turn/smart-turn-v3.2-cpu.onnx")
-    voices = [
-        {
-            "path": e["target"],
-            "size": e["size"],
-            "sha256": e["sha256"],
-            "source": {"kind": "model-store", "path": e["path"]},
-        }
-        for e in entries
-    ]
-    runtime["files"] = kept[:position] + voices + kept[position:]
+    runtime["files"] = (
+        kept[:position]
+        + [
+            {
+                "path": e["target"],
+                "size": e["size"],
+                "sha256": e["sha256"],
+                "source": {"kind": "model-store", "path": e["path"]},
+            }
+            for e in core_entries
+        ]
+        + kept[position:]
+    )
     RUNTIME_MANIFEST.write_text(json.dumps(runtime, indent=2) + "\n")
+
+    # Hosted voices: the tracked set #180's publisher stages, scans and publishes.
+    VOICE_SET_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    for name, text in notices.items():
+        (VOICE_SET_DIRECTORY / name).write_text(text)
+    set_files = [
+        {
+            "path": name,
+            "size": len(text.encode()),
+            "sha256": hashlib.sha256(text.encode()).hexdigest(),
+            "source": {"local": name},
+        }
+        for name, text in sorted(notices.items())
+    ] + [{k: i["entry"][k] for k in ("path", "size", "sha256", "source")} for i in hosted]
+    VOICE_SET_MANIFEST.write_text(
+        json.dumps(
+            {"schema_version": 1, "model_id": VOICE_SET_ID, "license": "CC-BY-4.0", "files": set_files}, indent=2
+        )
+        + "\n"
+    )
+
+    # Downloadable voices: packaged asset catalog entries (other assets are kept).
+    catalog = json.loads(ASSET_CATALOG.read_text())
+    catalog["assets"] = [a for a in catalog["assets"] if not a["id"].startswith(ASSET_PREFIX)] + [
+        {
+            "id": f"{ASSET_PREFIX}{i['voice']['id']}",
+            "url": release_url(i["voice"]["id"], i["entry"]["sha256"]),
+            "size": i["entry"]["size"],
+            "sha256": i["entry"]["sha256"],
+            "media_type": "application/octet-stream",
+            "license_ref": i["entry"]["license"],
+        }
+        for i in voices
+        if i["voice"]["delivery"] == "download"
+    ]
+    ASSET_CATALOG.write_text(json.dumps(catalog, indent=2) + "\n")
+    FRONTEND_CATALOG.write_text(frontend_catalog(selection, candidates, by_id))
+
     records = json.loads(LICENSE_RECORDS.read_text())
     pocket = next(group for group in records["groups"] if group["id"] == "browser-pocket")
     pocket["external_files"] = [
         {"path": e["target"], "sha256": e["sha256"]}
         for e in manifest["files"]
         if e["target"].startswith("models/pocket-tts/")
+    ] + [
+        {"path": f"models/{VOICE_SET_ID}/{i['entry']['path']}", "sha256": i["entry"]["sha256"]}
+        for i in voices
+        if i["voice"]["delivery"] == "download"
     ]
     LICENSE_RECORDS.write_text(json.dumps(records, indent=2, ensure_ascii=False) + "\n")
     print(
-        f"Manifests: {len(entries)} voices ({len(checksums)} release-hosted); "
+        f"Voices: {len(core)} core ({sum(is_hosted(i['voice']) for i in core)} release-hosted), "
+        f"{len(voices) - len(core)} downloadable; hosted set {len(set_files)} files; "
         f"{len(manifest['files'])} model files, {len(runtime['files'])} runtime files"
     )
-    print(f"Upload set: {upload}")
-    print(f"Offline import: python3 scripts/models/browser_speech.py acquire --offline --import-from {staged}")
+    print(f"Offline imports: python3 scripts/models/browser_speech.py acquire --offline --import-from {speech_import}")
+    print(f"                 python3 scripts/models/pocket_voices.py acquire --offline --import-from {set_import}")
 
 
 def main(argv: list[str] | None = None) -> int:

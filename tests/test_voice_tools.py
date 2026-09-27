@@ -287,29 +287,34 @@ def test_generation_limits_match_the_worker():
 
 
 def test_every_shipped_voice_is_licensed_recorded_and_credited():
-    """R24: every shipped voice has a reviewed licence, a licence record and its attribution."""
+    """R24: every core or downloadable voice has a reviewed licence, a licence record and its attribution."""
     sources = voices.load_sources()
     selection = voices.load_selection()
     kyutai = {voice["name"]: voice for voice in sources["kyutai_voices"]}
-    manifest = {e["path"]: e for e in json.loads(voices.BROWSER_MANIFEST.read_text())["files"]}
+    core = {e["path"]: e for e in json.loads(voices.BROWSER_MANIFEST.read_text())["files"]}
+    hosted = {e["path"]: e for e in json.loads(voices.VOICE_SET_MANIFEST.read_text())["files"]}
     records = json.loads(voices.LICENSE_RECORDS.read_text())
     pocket = next(group for group in records["groups"] if group["id"] == "browser-pocket")
     recorded = {entry["path"]: entry["sha256"] for entry in pocket["external_files"]}
-    shipped = {f"{voice['id']}.safetensors" for voice in selection["voices"]}
-    assert shipped == {name for name, e in manifest.items() if e["target"].startswith("models/pocket-tts/voices/")}
+    core_voices = {f"{v['id']}.safetensors" for v in selection["voices"] if v["delivery"] == "core"}
+    assert core_voices == {n for n, e in core.items() if e["target"].startswith("models/pocket-tts/voices/")}
     for voice in selection["voices"]:
-        entry = manifest[f"{voice['id']}.safetensors"]
-        if voice["source"].startswith("vctk-"):
-            assert entry["license"] == "CC-BY-4.0", voice["id"]
-        else:
+        name = f"{voice['id']}.safetensors"
+        entry = core[name] if voice["delivery"] == "core" else hosted[name]
+        # Core entries carry a per-file licence; the hosted set is CC BY 4.0 as a whole.
+        assert entry.get("license", "CC-BY-4.0") == "CC-BY-4.0", voice["id"]
+        if not voice["source"].startswith("vctk-"):
             origin = kyutai[voice["source"]]
             # The recording must be permitted and not excluded; the file carries the repository licence.
             assert origin["license"] in voices.PERMITTED_LICENSES and not origin.get("exclude"), voice["id"]
-            assert entry["license"] == sources["kyutai_states"]["license"], voice["id"]
-        assert recorded.get(entry["target"]) == entry["sha256"], voice["id"]
+        record_path = core[name]["target"] if voice["delivery"] == "core" else f"models/{voices.VOICE_SET_ID}/{name}"
+        assert recorded.get(record_path) == entry["sha256"], voice["id"]
     assert voices.voice_notice(sources, selection) in voices.ATTRIBUTION.read_text()
     assert selection["default"] == "eve"
     assert sum(voice["recommended"] for voice in selection["voices"]) == 14
+    assert {v["id"] for v in selection["voices"] if v["delivery"] == "core"} == {
+        v["id"] for v in selection["voices"] if v["recommended"] or v["id"] == "eve"
+    }
 
 
 def test_selection_rejects_unsafe_voice_ids(tmp_path):

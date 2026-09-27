@@ -58,9 +58,42 @@ const modelPacks = [
   defaultManifest: path.join(repoRoot, "models", spec.modelId, "manifest.json"),
 }));
 
+/**
+ * Tracked model sets that are published to R2 for the backend downloader but are
+ * never desktop packs. Their file names come from the tracked manifest, which
+ * each set's acquisition script validates against its reviewed contract.
+ */
+const publishedModelSets = [
+  {
+    id: "pocket-tts-voices",
+    label: "Pocket TTS voices",
+    licenseRef: "browser-pocket",
+    modelId: "pocket-tts-voices",
+    script: "scripts/models/pocket_voices.py",
+  },
+].map((spec) => {
+  const defaultManifest = path.join(
+    repoRoot,
+    "models",
+    spec.modelId,
+    "manifest.json",
+  );
+  return {
+    ...spec,
+    defaultManifest,
+    names: existsSync(defaultManifest)
+      ? readJson(defaultManifest)
+          .files.map((item) => item.path)
+          .sort()
+      : [],
+  };
+});
+
 /** The model-store input spec for a tracked model ID, or undefined. */
 export const modelInputSpec = (modelId) =>
-  modelPacks.find((spec) => spec.modelId === modelId);
+  [...modelPacks, ...publishedModelSets].find(
+    (spec) => spec.modelId === modelId,
+  );
 
 /** Keep each pack payload fixed while acquisition stays outside Git. */
 export function modelManifest(spec, file) {

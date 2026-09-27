@@ -11,7 +11,10 @@ export function createPocketTTS() {
     assetBaseUrl: "/tts",
     playbackStrategy: "adaptive",
     enableVoiceCloning: true,
-    voices: POCKET_VOICES.map((voice) => voice.id),
+    // Downloadable voices join once installed (Phase 7 of the voice plan).
+    voices: POCKET_VOICES.filter((voice) => voice.delivery === "core").map(
+      (voice) => voice.id,
+    ),
     defaultVoice: DEFAULT_POCKET_VOICE,
   });
 }

@@ -19,20 +19,32 @@ const repositoryRoot = path.resolve(
 );
 
 describe("Pocket voice catalog", () => {
-  it("lists exactly the voice states in the browser speech manifest", () => {
-    const manifest = JSON.parse(
-      readFileSync(
-        path.join(repositoryRoot, "models/browser-speech/manifest.json"),
-        "utf8",
-      ),
-    ) as { files: { path: string; target: string }[] };
-    const manifestVoices = manifest.files
+  it("lists the core manifest voices and the downloadable catalog assets", () => {
+    const read = (file: string) =>
+      JSON.parse(readFileSync(path.join(repositoryRoot, file), "utf8"));
+    const manifest = read("models/browser-speech/manifest.json") as {
+      files: { path: string; target: string }[];
+    };
+    const catalog = read(
+      "src/backend/animama/resources/model-assets.v1.json",
+    ) as { assets: { id: string; size: number }[] };
+    const coreVoices = manifest.files
       .filter((file) => file.target.startsWith("models/pocket-tts/voices/"))
       .map((file) => file.path.replace(/\.safetensors$/, ""))
       .sort();
-    expect(POCKET_VOICES.map((voice) => voice.id).sort()).toEqual(
-      manifestVoices,
-    );
+    expect(
+      POCKET_VOICES.filter((voice) => voice.delivery === "core")
+        .map((voice) => voice.id)
+        .sort(),
+    ).toEqual(coreVoices);
+    for (const voice of POCKET_VOICES) {
+      if (voice.delivery === "core") {
+        expect(voice.assetId).toBeNull();
+        continue;
+      }
+      const asset = catalog.assets.find((item) => item.id === voice.assetId);
+      expect(asset?.size).toBe(voice.sizeBytes);
+    }
     expect(POCKET_VOICES.map((voice) => voice.id)).toContain(
       DEFAULT_POCKET_VOICE,
     );

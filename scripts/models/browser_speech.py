@@ -36,37 +36,42 @@ POCKET_BUNDLE = {
     "bundle.json",
 }
 POCKET_BUNDLE_REVISION = "58a6d00cf13d239b6748cb0769f35c580a8f606c"
-# Shipped voice states: the owner-curated selection (scripts/voices/selection.json).
+# Core voice states: the `core` voices of the owner-curated selection
+# (scripts/voices/selection.json); the others download on demand (pocket_voices.py).
 # Kyutai precomputed states come from Hugging Face; self-encoded VCTK states from
 # Animama's release host under content-addressed names. Every voice must carry a
 # license that permits commercial use.
 VOICE_SELECTION = REPOSITORY / "scripts" / "voices" / "selection.json"
 POCKET_VOICE_REVISION = "4e1e0a3e611c51c0b4ed8174fc10f32a54644303"
 POCKET_VOICE_LICENSES = {"CC-BY-4.0", "CC0-1.0"}  # CC0 is permitted, though every shipped state is CC BY 4.0 today.
-RELEASE_VOICE_PREFIX = "https://downloads.animama.ai/pocket-tts/voices/english_2026-04/"
+# Animama-hosted states use the immutable models/<model-id>/<sha256>/<file> layout.
+RELEASE_VOICE_PREFIX = "https://downloads.animama.ai/models/pocket-tts-voices/"
 SMART_TURN = "smart-turn-v3.2-cpu.onnx"
 NOTICE_NAMES = {"pocket-tts-attribution.txt", "pocket-tts-onnx-license.txt", "smart-turn-bsd-2-clause.txt"}
 NOTICE_PATHS = {f"src/frontend/desktop/runtime/notices/{name}" for name in NOTICE_NAMES}
 
 
-def shipped_voices(path: Path = VOICE_SELECTION) -> dict[str, str]:
-    """Map each shipped voice file name to its source kind (`huggingface` or `release`)."""
+def load_voice_selection(path: Path = VOICE_SELECTION) -> list[dict]:
+    """Every curated voice; IDs become file names, so only safe names are accepted."""
     voices = json.loads(path.read_text())["voices"]
     if any(not re.fullmatch(r"[a-z0-9_]{1,64}", voice["id"]) for voice in voices):
-        raise ValueError("shipped voice IDs must be lowercase letters, digits or underscores")
+        raise ValueError("voice IDs must be lowercase letters, digits or underscores")
+    return voices
+
+
+def shipped_voices(path: Path = VOICE_SELECTION) -> dict[str, str]:
+    """Map each core voice file name to its source kind (`huggingface` or `release`)."""
     return {
         f"{voice['id']}.safetensors": "release" if voice["source"].startswith("vctk-") else "huggingface"
-        for voice in voices
+        for voice in load_voice_selection(path)
+        if voice["delivery"] == "core"
     }
 
 
 def expected_voice_source(name: str, kind: str, sha256: str) -> dict:
-    """The only reviewed source for a shipped voice state."""
+    """The only reviewed source for a voice state."""
     if kind == "release":
-        return {
-            "kind": "release",
-            "url": f"{RELEASE_VOICE_PREFIX}{name.removesuffix('.safetensors')}-{sha256[:16]}.safetensors",
-        }
+        return {"kind": "release", "url": f"{RELEASE_VOICE_PREFIX}{sha256}/{name}"}
     return {
         "repository": "kyutai/pocket-tts-without-voice-cloning",
         "revision": POCKET_VOICE_REVISION,

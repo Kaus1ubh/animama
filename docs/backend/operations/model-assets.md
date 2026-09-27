@@ -218,22 +218,25 @@ The browser probes the encoder with `HEAD`; a 404 means not installed.
 
 ## Browser speech assets and dependency inputs
 
-The 47 reviewed Pocket TTS and Smart Turn files share the same model root,
+The 24 reviewed Pocket TTS and Smart Turn files share the same model root,
 under `browser-speech/<manifest-digest>/`. The Pocket files are:
 
 - the `english_2026-04` ONNX bundle (INT8 flow LM; FP32 flow head, Mimi decoder,
   Mimi encoder and text conditioner), with its tokenizer, `bundle.json` and
   `bos_before_voice.npy`;
-- 38 voice states, `eve` by default, listed in `scripts/voices/selection.json`:
-  - 14 are Kyutai precomputed states, pinned on Hugging Face;
-  - 24 are VCTK voices encoded by Animama and downloaded from Animama's
-    release host,
-    `https://downloads.animama.ai/pocket-tts/voices/english_2026-04/`, under
-    content-addressed names.
+- the 15 core voice states (`eve`, the default, and the 14 recommended voices
+  in `scripts/voices/selection.json`):
+  - 8 are Kyutai precomputed states, pinned on Hugging Face;
+  - 7 are VCTK voices encoded by Animama and downloaded from
+    `https://downloads.animama.ai/models/pocket-tts-voices/<sha256>/<voice>.safetensors`.
+
+The other 23 voices are not in this store. The app installs them on demand
+through `/v1/model-assets` (the `pocket-voice-<id>` catalog entries), as
+described under Downloaded model assets.
 
 Their manifest preserves the exact upstream commits, hashes and per-file
 licenses. `browser_speech.py` allows the release host only for entries with a
-`release` source, bound to the exact `<voice>-<sha256[:16]>.safetensors` URL.
+`release` source, bound to the exact `<sha256>/<voice>.safetensors` URL.
 All Pocket files are CC-BY-4.0, which permits commercial use with attribution;
 `pocket-tts-attribution.txt` names each voice's source recording. Kyutai's
 model-card prohibited-use terms still apply. Acquisition grants no new usage
@@ -246,7 +249,7 @@ python3 scripts/models/browser_speech.py acquire --offline \
   --import-from /absolute/old-checkout/src/frontend/web/public/onnx
 ```
 
-`models/browser-runtime/manifest.json` binds all 58 browser assets, including nine
+`models/browser-runtime/manifest.json` binds all 35 browser assets, including nine
 ORT 1.24.2 files from the exact `onnxruntime-web-assets` dependency alias and two
 VAD 0.0.30 files from the existing pinned dependency. Existing ORT imports retain
 their separately locked versions. Do not replace a public runtime variant merely
@@ -257,7 +260,7 @@ Reset verifies both model sets offline before mutations. Development mounts the
 browser store read-only and resolves dependency files inside its own Node
 installation. Built self-host uses the verified directory as the `browser_models`
 BuildKit additional context, mounted read-only during the web build. Built outputs
-contain all 58 verified assets and work without that developer store at runtime.
+contain all 35 verified assets and work without that developer store at runtime.
 Installed desktop likewise retains its own required distribution copies. No host
 pnpm or uv installation is needed for a Compose-only journey; Python setup and
 Docker perform that journey. Direct `docker build` of the built application must
@@ -286,12 +289,26 @@ own locked environment:
 2. `encode --check`: confirm the encoder still reproduces Kyutai's VCTK states.
 3. `encode`, `screen`, `listen`: encode, score and review candidates.
 4. Edit `scripts/voices/selection.json` with the chosen voices.
-5. `release`: regenerate every derived file. That covers the manifests, the
-   attribution section, the licence `external_files`, the app's
-   `voice-catalog.ts`, an upload set, and an offline import directory for
-   local testing before publication.
+   Each voice is `core` (shipped) or `download` (installed on demand).
+5. `release`: regenerate every derived file:
+   - the browser speech manifest (core voices);
+   - the hosted set `models/pocket-tts-voices/`: the self-encoded core states,
+     every downloadable state, `ATTRIBUTION.md` and `README.md`;
+   - the `pocket-voice-*` entries in the packaged asset catalog;
+   - the app's `voice-catalog.ts`, the attribution notice and the licence
+     records;
+   - offline import directories for both stores.
 
-Upload new release-hosted states to `animama-releases` before merging a
-manifest that references them. Otherwise every fresh acquisition fails. Objects
-are immutable: a changed state gets a new name. A changed encoded-state hash
+   Import both stores with the printed `acquire --offline --import-from`
+   commands to test locally before publication.
+6. Publish the hosted set with the model publication flow:
+   - `pnpm --filter animama-desktop models:stage -- --model pocket-tts-voices`;
+   - `release:scan`, then `models:publish --dry-run`, then
+     `--confirm-publication`.
+
+   Objects under `models/` are create-only and locked, so a changed state
+   gets a new hash path; nothing is overwritten.
+
+Publish before merging a manifest or catalog that references new objects.
+Otherwise fresh acquisitions and downloads fail. A changed encoded-state hash
 fails `encode` unless it is intentionally accepted with `--rehash`.
