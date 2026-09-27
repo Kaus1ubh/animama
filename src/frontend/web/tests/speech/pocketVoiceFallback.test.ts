@@ -119,6 +119,18 @@ describe("resolvePocketFallbackVoice with downloadable voices", () => {
     ).toEqual({ voice: "eve" });
   });
 
+  it("waits without installing until the install state is known", () => {
+    expect(
+      resolvePocketFallbackVoice(
+        "anna",
+        listed,
+        false,
+        "eve",
+        availability({ anna: "unknown" }),
+      ),
+    ).toEqual({ voice: "eve" });
+  });
+
   it("retries a failed download and notices once per session", () => {
     const result = resolvePocketFallbackVoice(
       "harriet",

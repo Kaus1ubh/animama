@@ -42,7 +42,8 @@ export type PocketFallbackResolution = {
 
 /** Install state of a downloadable voice (core voices have none). */
 export type PocketVoiceAvailability = {
-  status: "not_installed" | "downloading" | "installed" | "failed";
+  /** `unknown` until the downloader's asset list has loaded. */
+  status: "unknown" | "not_installed" | "downloading" | "installed" | "failed";
   assetId: string;
   progress?: number | null;
 };
@@ -94,7 +95,9 @@ export function resolvePocketFallbackVoice(
   if (download && download.status !== "installed") {
     // Speak with the default until the voice is installed; start (or retry) the
     // download unless one is already running.
-    if (download.status === "downloading") return { voice: fallback };
+    // Downloading, or state not yet known: speak with the default, no request.
+    if (download.status === "downloading" || download.status === "unknown")
+      return { voice: fallback };
     return {
       voice: fallback,
       install: download.assetId,
@@ -103,7 +106,7 @@ export function resolvePocketFallbackVoice(
             notice: {
               scope: "session" as const,
               key: `pocket_voice_download_failed:${configuredVoice}`,
-              message: `The voice "${configuredVoice}" could not be downloaded, so the default voice is used. It will be retried automatically.`,
+              message: `The voice "${configuredVoice}" could not be downloaded, so the default voice is used. The download is retried on the next reply or when you pick the voice again.`,
             },
           }
         : {}),

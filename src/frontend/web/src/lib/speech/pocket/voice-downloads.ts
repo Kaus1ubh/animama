@@ -29,6 +29,10 @@ export function pocketVoiceAvailability(
   return (voiceId) => {
     const voice = POCKET_VOICES.find((item) => item.id === voiceId);
     if (!voice?.assetId) return null;
+    // Before the list loads (or while it fails), the state is unknown: callers
+    // must neither assume "installed" nor request another install.
+    if (!assets)
+      return { status: "unknown", assetId: voice.assetId, progress: null };
     const asset = byId.get(voice.assetId);
     const total = asset?.total_bytes ?? 0;
     return {
@@ -40,4 +44,17 @@ export function pocketVoiceAvailability(
           : null,
     };
   };
+}
+
+/**
+ * What picking a voice does: `select` loads it now (core or installed);
+ * `install` saves it and starts the download; `save` saves it while a download
+ * is already running. Downloadable voices that are not installed are never sent
+ * to the worker.
+ */
+export function pocketVoicePickAction(
+  availability: PocketVoiceAvailability | null,
+): "select" | "install" | "save" {
+  if (!availability || availability.status === "installed") return "select";
+  return availability.status === "downloading" ? "save" : "install";
 }

@@ -7,7 +7,6 @@ import {
   useRef,
   type ChangeEvent,
 } from "react";
-import { Download } from "lucide-react";
 import { toast } from "sonner";
 
 import { usePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
@@ -31,8 +30,9 @@ import {
   groupPocketVoices,
   pocketVoiceLabel,
 } from "@/lib/speech/pocket/voice-groups";
-import type { PocketVoiceAvailability } from "@/lib/speech/pocket/voice-preferences";
 import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
+import { pocketVoicePickAction } from "@/lib/speech/pocket/voice-downloads";
+import { PocketVoiceDownloadIcon } from "@/ui/main/header/PocketVoiceDownloadIcon";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import {
@@ -111,60 +111,6 @@ function InheritableSettingRow({
       </TooltipTrigger>
       <TooltipContent sideOffset={6}>{tooltip}</TooltipContent>
     </Tooltip>
-  );
-}
-
-/**
- * A subtle status mark for downloadable voices: a download glyph until the
- * voice is installed, and a small progress ring while it downloads.
- */
-function PocketVoiceDownloadIcon({
-  availability,
-}: {
-  availability: PocketVoiceAvailability | null;
-}) {
-  if (!availability || availability.status === "installed") return null;
-  if (availability.status === "downloading") {
-    const progress = availability.progress ?? 0;
-    const circumference = 2 * Math.PI * 5;
-    return (
-      <svg
-        viewBox="0 0 14 14"
-        className="size-3.5 -rotate-90"
-        role="img"
-        aria-label={`Downloading ${Math.round(progress * 100)}%`}
-      >
-        <circle
-          cx="7"
-          cy="7"
-          r="5"
-          fill="none"
-          strokeWidth="2"
-          className="stroke-muted-foreground/25"
-        />
-        <circle
-          cx="7"
-          cy="7"
-          r="5"
-          fill="none"
-          strokeWidth="2"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - progress)}
-          className="stroke-muted-foreground transition-[stroke-dashoffset]"
-        />
-      </svg>
-    );
-  }
-  return (
-    <Download
-      className="size-3.5"
-      role="img"
-      aria-label={
-        availability.status === "failed"
-          ? "Download failed; select to retry"
-          : "Downloads when selected"
-      }
-    />
   );
 }
 
@@ -292,13 +238,15 @@ export function AnimaSettingsModal() {
         return;
       }
 
-      // A downloadable voice that isn't installed is saved and installed; replies
-      // use the default voice until the download finishes.
+      // A downloadable voice that isn't installed is saved and installed (never
+      // sent to the worker, which would 404); replies use the default voice
+      // until the download finishes.
       const download = pocketVoiceDownloads.availability(value);
-      if (download && download.status !== "installed") {
+      const action = pocketVoicePickAction(download);
+      if (action !== "select") {
         void persistAnimaPocketVoice(value)
           .then(() => {
-            if (download.status !== "downloading") {
+            if (action === "install" && download) {
               pocketVoiceDownloads.install(download.assetId);
             }
           })
@@ -375,7 +323,14 @@ export function AnimaSettingsModal() {
       return "PocketTTS failed to initialize for this route.";
     }
     if (animaHasPocketOverride && animaOverrideVoice) {
-      return `Anima override is active: ${pocketVoiceLabel(animaOverrideVoice)}.`;
+      const download = pocketVoiceDownloads.availability(animaOverrideVoice);
+      const pending =
+        download && download.status !== "installed"
+          ? download.status === "failed"
+            ? " (download failed; retrying on the next reply)"
+            : " (downloading; the default voice speaks until it is ready)"
+          : "";
+      return `Anima override is active: ${pocketVoiceLabel(animaOverrideVoice)}${pending}.`;
     }
     if (effectivePocketVoice) {
       return `Using application fallback voice: ${pocketVoiceLabel(effectivePocketVoice)}.`;
@@ -388,6 +343,7 @@ export function AnimaSettingsModal() {
     animaOverrideVoice,
     pocketPhase,
     pocketReady,
+    pocketVoiceDownloads,
     ttsEnabled,
   ]);
 

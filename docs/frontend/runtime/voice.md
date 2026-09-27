@@ -998,6 +998,17 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   - It generates with temperature 0.3.
 - The Anima settings voice picker groups the voices into Female and Male
   (`voice-groups.ts`), with recommended voices first and accent tags as hints.
+  A downloadable voice that is not installed shows a small download glyph, and
+  a progress ring while it downloads.
+- Downloadable voices install through `/v1/model-assets`
+  (`usePocketVoiceDownloads`, `voice-downloads.ts`) on desktop and self-host.
+  - Picking one saves the preference and starts the install; the worker loads
+    the state from `/v1/model-assets/pocket-voice-<id>/content` once
+    installed.
+  - Until then, replies use the default voice. A saved voice that is not
+    installed starts its install on the next reply.
+  - A failed download shows one notice per session, and the next reply or pick
+    retries it.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
   are not members of the 35-file engine inventory.

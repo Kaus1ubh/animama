@@ -159,6 +159,11 @@ refuses to publish a set whose objects do not match the catalog. Publish the
 object before a release ships its catalog entry; until then an install fails
 as `asset_download_failed`.
 
+Current catalog entries are the experimental Parakeet WebGPU encoder, offered in
+built self-host settings, and the 23 downloadable Pocket TTS voices
+(`pocket-voice-<id>`, set `models/pocket-tts-voices`). The voices install on
+desktop and self-host when a user picks one or a saved voice is first needed.
+
 Use the downloader for restart-free data files the running app can pick up,
 such as optional voices. Large bundles that need a service switch, such as the
 desktop Parakeet feature packs, stay in Electron's pack manager.
