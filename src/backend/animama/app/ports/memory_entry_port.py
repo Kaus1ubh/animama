@@ -71,7 +71,7 @@ class MemoryEntryRepository(Protocol):
         raise NotImplementedError
 
     async def list_anima_identity_summaries(self, *, user_id: str) -> list[AnimaIdentitySummary]:
-        """List the owner's Animas by creation with their live identity headers."""
+        """List the owner's Animas by creation with live IDENTITY.md and MEMORIES.md headers."""
         raise NotImplementedError
 
     async def list_entry_headers(

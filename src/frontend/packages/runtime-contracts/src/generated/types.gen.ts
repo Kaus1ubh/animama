@@ -1349,7 +1349,7 @@ export type PyAnimaDispatchOptions = {
 /**
  * PyAnimaIdentityItem
  *
- * One owned Anima and its content-free identity header, in creation order.
+ * One owned Anima and its content-free protected file headers, in creation order.
  */
 export type PyAnimaIdentityItem = {
     /**
@@ -1376,6 +1376,10 @@ export type PyAnimaIdentityItem = {
      * Identity Status
      */
     identity_status: 'ready' | 'repair_required';
+    /**
+     * Live MEMORIES.md header, or null when it is missing and needs repair.
+     */
+    memories_entry?: PyMemoryEntryHeader | null;
 };
 
 /**
@@ -2873,6 +2877,7 @@ export type PyChatMessage = {
      * Internal
      */
     internal?: boolean;
+    memory_cue?: PyMemoryCue | null;
     /**
      * Message Type
      */
@@ -4180,6 +4185,48 @@ export type PyLoadoutPlan = {
 };
 
 /**
+ * PyMemoryCue
+ *
+ * What a turn remembered, shown as a memory cue on its final visible assistant message.
+ */
+export type PyMemoryCue = {
+    episode: PyMemoryCueEpisode | null;
+    memories: PyMemoryCueMemories | null;
+};
+
+/**
+ * PyMemoryCueEpisode
+ *
+ * The `remember` note this turn recorded in the shared episode log.
+ */
+export type PyMemoryCueEpisode = {
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
+ * PyMemoryCueMemories
+ *
+ * This turn's change to the Anima's `MEMORIES.md`: its last version and added text (up to 600 characters).
+ */
+export type PyMemoryCueMemories = {
+    /**
+     * Entry Id
+     */
+    entry_id: string;
+    /**
+     * Excerpt
+     */
+    excerpt: string;
+    /**
+     * Version
+     */
+    version: number;
+};
+
+/**
  * PyMemoryEntryCreateRequest
  */
 export type PyMemoryEntryCreateRequest = {
@@ -4886,6 +4933,48 @@ export type PyMemoryManagerMessageCreateRequest = {
 };
 
 /**
+ * PyMemoryManagerReflectionRunCreateRequest
+ */
+export type PyMemoryManagerReflectionRunCreateRequest = {
+    /**
+     * Anima Id
+     */
+    anima_id: string;
+    /**
+     * Auto Approve Diffs
+     */
+    auto_approve_diffs?: boolean;
+};
+
+/**
+ * PyMemoryManagerReflectionSummary
+ *
+ * What one Reflection run covers; its turns become covered only when its MEMORIES.md change is applied.
+ */
+export type PyMemoryManagerReflectionSummary = {
+    /**
+     * Anima Id
+     */
+    anima_id: string;
+    /**
+     * Anima Name
+     */
+    anima_name: string;
+    /**
+     * Remaining Turn Count
+     */
+    remaining_turn_count: number;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Turn Count
+     */
+    turn_count: number;
+};
+
+/**
  * PyMemoryManagerRun
  */
 export type PyMemoryManagerRun = {
@@ -4908,7 +4997,7 @@ export type PyMemoryManagerRun = {
     /**
      * Kind
      */
-    kind?: 'general' | 'episode_processing';
+    kind?: 'general' | 'episode_processing' | 'reflection';
     /**
      * Metadata
      */
@@ -4923,6 +5012,7 @@ export type PyMemoryManagerRun = {
      * Model Provider
      */
     model_provider?: string | null;
+    reflection?: PyMemoryManagerReflectionSummary | null;
     /**
      * Status
      */
@@ -10579,6 +10669,36 @@ export type ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses = {
 
 export type ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponse = ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses[keyof ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses];
 
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostData = {
+    body?: never;
+    path: {
+        /**
+         * Anima Id
+         */
+        anima_id: string;
+    };
+    query?: never;
+    url: '/v1/memory/anima-memories/{anima_id}:repair';
+};
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostError = RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostErrors[keyof RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostErrors];
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyMemoryEntryHeader;
+};
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponse = RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses[keyof RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses];
+
 export type DebugSearchMemoryFilesV1MemoryDebugSearchMemoryFilesPostData = {
     body: PySearchMemoryFilesDebugRequest;
     path?: never;
@@ -11158,6 +11278,31 @@ export type CreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpi
 };
 
 export type CreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPostResponse = CreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPostResponses[keyof CreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPostResponses];
+
+export type CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostData = {
+    body: PyMemoryManagerReflectionRunCreateRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/memory/manager/runs:reflect';
+};
+
+export type CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostError = CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostErrors[keyof CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostErrors];
+
+export type CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: PyMemoryManagerRunResponse;
+};
+
+export type CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostResponse = CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostResponses[keyof CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostResponses];
 
 export type ListModelAssetsV1ModelAssetsGetData = {
     body?: never;

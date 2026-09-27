@@ -7,6 +7,7 @@ import type {
 import {
   createEpisodeProcessingOptimisticSubmission,
   createMemoryManagerOptimisticSubmission,
+  createReflectionOptimisticSubmission,
   MEMORY_MANAGER_MARKDOWN_ANIMATION,
   memoryManagerMarkdownAnimationDurationMs,
   newMemoryManagerAssistantMessage,
@@ -120,6 +121,31 @@ describe("memory manager transcript projection", () => {
         message: {
           role: "user",
           content: "Process 50 pending episodes.",
+          optimistic: true,
+        },
+      },
+      { kind: "loader" },
+    ]);
+  });
+
+  it("projects a Reflection request naming the Anima before it responds", () => {
+    const messages = [message("m1", "assistant")];
+    const optimisticSubmission = createReflectionOptimisticSubmission(
+      "Annie",
+      messages,
+    );
+    const items = projectMemoryManagerTranscript({
+      messages,
+      approvals: [],
+      optimisticSubmission,
+    });
+
+    expect(items.slice(-2)).toMatchObject([
+      {
+        kind: "message",
+        message: {
+          role: "user",
+          content: "Reflect on turns with Annie.",
           optimistic: true,
         },
       },

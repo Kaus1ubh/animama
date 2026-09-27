@@ -17,6 +17,7 @@ from animama.app.ports.memory_manager_runtime import (
     MemoryManagerRuntimeError,
     MemoryManagerRuntimeResult,
 )
+from animama.domain.chat import AnimaHistoryTurn
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE, MemoryEntry
 from animama.domain.memory_manager import (
     MEMORY_MANAGER_APPROVAL_STATUS_APPROVED,
@@ -29,28 +30,35 @@ from animama.domain.memory_manager import (
     MEMORY_MANAGER_MESSAGE_ROLE_USER,
     MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
     MEMORY_MANAGER_RUN_KIND_GENERAL,
+    MEMORY_MANAGER_RUN_KIND_REFLECTION,
     MEMORY_MANAGER_RUN_STATUS_ACTIVE,
     MEMORY_MANAGER_RUN_STATUS_COMPLETED,
     MEMORY_MANAGER_RUN_STATUS_FAILED,
     MEMORY_MANAGER_RUN_STATUS_WAITING_APPROVAL,
     MEMORY_PATCH_OPERATION_CREATE,
     MEMORY_PATCH_OPERATION_UPDATE,
+    AnimaMemoryReflection,
     MemoryManagerApproval,
     MemoryManagerApprovalUndoResult,
     MemoryManagerEpisodeTaskItem,
     MemoryManagerEpisodeTaskState,
     MemoryManagerMessage,
+    MemoryManagerReflectionTaskState,
     MemoryManagerRun,
     MemoryManagerRunSnapshot,
+    format_turn_count,
     new_memory_manager_approval_id,
     new_memory_manager_message_id,
     new_memory_manager_run_id,
+    reflection_turn_read_chars,
 )
 from animama.logging import get_logger
 
+from ..ports.anima_memory_reflection_port import AnimaMemoryReflectionRepository
+from ..ports.chat_message_port import ChatMessageRepository
 from ..ports.memory_manager_port import MemoryManagerRepository, MemoryManagerRepositoryConflictError
 from ..ports.uow_port import UnitOfWork
-from .anima_identity_memory import anima_identity_manager_path, parse_anima_identity_manager_path
+from .anima_identity_memory import AnimaManagerPath, manager_file_access_for_run, parse_anima_manager_path
 from .memory_entry_service import (
     MemoryEntryConflictError,
     MemoryEntryNotFoundError,
@@ -58,6 +66,7 @@ from .memory_entry_service import (
     MemoryEntryService,
     MemoryEntryValidationError,
     is_anima_identity,
+    is_anima_memories,
     is_protected_memory_entry,
     is_protected_memory_path,
     normalize_memory_file_path,
@@ -70,6 +79,13 @@ _USER_MEMORY_KIND = "user_memory"
 _USAGE_COUNTER_KEYS = frozenset({"requests", "input_tokens", "output_tokens", "total_tokens"})
 _SUPERSEDED_COMPLETION_REASON = "superseded_by_new_run"
 _EPISODE_PROCESSING_BATCH_SIZE = 50
+# Safety cap on the turns one Reflection reads; later turns wait for the next Reflection.
+REFLECTION_MAX_TURNS = 400
+# Budget for the turn text one Reflection reads (about 50K tokens), counted after each side
+# is shortened past REFLECTION_TURN_TEXT_MAX_CHARS. A turn then reads at most 4,000
+# characters, so one full page of 50 maximal turns still fits; turns averaging under 500
+# characters reach REFLECTION_MAX_TURNS first.
+REFLECTION_MAX_BATCH_CHARS = 200_000
 _REJECTION_FEEDBACK_MAX_CHARS = 2000
 
 
@@ -102,13 +118,19 @@ class MemoryManagerService:
         memory_manager: MemoryManagerRepository,
         memory_entries: MemoryEntryService,
         memory_episodes: MemoryEpisodeService | None = None,
+        chat_messages: ChatMessageRepository | None = None,
+        anima_reflections: AnimaMemoryReflectionRepository | None = None,
         runtime: MemoryManagerRuntime,
         uow: UnitOfWork,
         commit_on_write: bool = True,
     ) -> None:
+        """``chat_messages`` and ``anima_reflections`` enable Reflection runs."""
+
         self._memory_manager = memory_manager
         self._memory_entries = memory_entries
         self._memory_episodes = memory_episodes
+        self._chat_messages = chat_messages
+        self._anima_reflections = anima_reflections
         self._runtime = runtime
         self._uow = uow
         self._commit_on_write = commit_on_write
@@ -129,19 +151,7 @@ class MemoryManagerService:
             if any(run.status == MEMORY_MANAGER_RUN_STATUS_WAITING_APPROVAL for run in open_runs):
                 raise MemoryManagerConflictError("Resolve the pending memory approval before starting a new run")
 
-            superseded_at = datetime.utcnow()
-            for open_run in open_runs:
-                await self._memory_manager.update_run(
-                    replace(
-                        open_run,
-                        status=MEMORY_MANAGER_RUN_STATUS_COMPLETED,
-                        completed_at=superseded_at,
-                        metadata={
-                            **dict(open_run.metadata or {}),
-                            "completion_reason": _SUPERSEDED_COMPLETION_REASON,
-                        },
-                    )
-                )
+            await self._supersede_open_runs(open_runs)
 
             run = MemoryManagerRun(
                 id=new_memory_manager_run_id(),
@@ -210,19 +220,7 @@ class MemoryManagerService:
                 started_at=started_at,
             )
 
-            superseded_at = datetime.utcnow()
-            for open_run in open_runs:
-                await self._memory_manager.update_run(
-                    replace(
-                        open_run,
-                        status=MEMORY_MANAGER_RUN_STATUS_COMPLETED,
-                        completed_at=superseded_at,
-                        metadata={
-                            **dict(open_run.metadata or {}),
-                            "completion_reason": _SUPERSEDED_COMPLETION_REASON,
-                        },
-                    )
-                )
+            await self._supersede_open_runs(open_runs)
 
             run = MemoryManagerRun(
                 id=new_memory_manager_run_id(),
@@ -256,6 +254,133 @@ class MemoryManagerService:
             content=f"Process {task.batch_size} pending episodes.",
             auto_approve_diffs=auto_approve_diffs,
         )
+
+    async def create_reflection_run(
+        self,
+        *,
+        user_id: str,
+        anima_id: str,
+        auto_approve_diffs: bool = False,
+        timezone: str = "UTC",
+    ) -> MemoryManagerRunSnapshot:
+        """Start a Reflection over one owned Anima's oldest uncovered chat turns.
+
+        Like other runs it supersedes the open run and is refused while an
+        approval is pending. When no turn is uncovered it creates nothing. The
+        batch stops at ``REFLECTION_MAX_TURNS`` turns or ``REFLECTION_MAX_BATCH_CHARS``
+        of turn text, whichever comes first, and always holds at least one
+        turn. ``timezone`` is the owner's IANA zone for showing turn times.
+        """
+
+        if self._chat_messages is None or self._anima_reflections is None:
+            raise MemoryManagerValidationError("Reflection is not configured")
+        try:
+            anima = next(
+                (
+                    summary
+                    for summary in await self._memory_entries.list_anima_identities(user_id=user_id)
+                    if summary.anima_id == anima_id
+                ),
+                None,
+            )
+            if anima is None:
+                raise MemoryManagerNotFoundError("Anima not found")
+            anima_name = anima.display_name.strip() or "this Anima"
+
+            open_runs = await self._memory_manager.list_open_runs_for_update(user_id=user_id)
+            if any(run.status == MEMORY_MANAGER_RUN_STATUS_WAITING_APPROVAL for run in open_runs):
+                raise MemoryManagerConflictError("Resolve the pending memory approval before reflecting")
+            if anima.memories is None:
+                raise MemoryManagerConflictError(f"{anima_name}'s MEMORIES.md is missing; repair it before reflecting")
+
+            coverage = await self._anima_reflections.get(user_id=user_id, anima_id=anima_id)
+            covered_after = coverage.covered_through if coverage is not None else None
+            batch = await self._chat_messages.select_reflection_batch(
+                user_id=user_id,
+                anima_id=anima_id,
+                after=covered_after,
+                max_turns=REFLECTION_MAX_TURNS,
+            )
+            turns: list[AnimaHistoryTurn] = []
+            if batch.through is not None:
+                # The character budget needs the text of the turn-capped batch.
+                turns = _turns_within_char_budget(
+                    await self._chat_messages.list_reflection_turns(
+                        user_id=user_id,
+                        anima_id=anima_id,
+                        after=covered_after,
+                        through=batch.through,
+                        limit=batch.turn_count,
+                    )
+                )
+            if not turns:
+                raise MemoryManagerConflictError(f"There are no new turns with {anima_name} to reflect on")
+            task = MemoryManagerReflectionTaskState(
+                anima_id=anima_id,
+                anima_name=anima_name,
+                covered_after=covered_after,
+                covered_after_run_id=coverage.run_id if coverage is not None else None,
+                # A budget cut moves the boundary back to the last turn kept.
+                covered_through=turns[-1].position,
+                turn_count=len(turns),
+                # Still counts every uncovered turn, so the remainder includes budget-cut turns.
+                uncovered_turn_count=batch.uncovered_turn_count,
+                started_at=datetime.now(UTC),
+                timezone=timezone,
+            )
+
+            await self._supersede_open_runs(open_runs)
+            stored = await self._memory_manager.create_run(
+                MemoryManagerRun(
+                    id=new_memory_manager_run_id(),
+                    user_id=user_id,
+                    status=MEMORY_MANAGER_RUN_STATUS_ACTIVE,
+                    kind=MEMORY_MANAGER_RUN_KIND_REFLECTION,
+                    task_state=task.to_dict(),
+                    metadata={"runtime": self._runtime.name},
+                )
+            )
+            await self._commit_if_enabled()
+        except MemoryManagerRepositoryConflictError as exc:
+            await self._rollback_if_enabled()
+            raise MemoryManagerConflictError(
+                "Another memory manager run is already open; reload and continue it"
+            ) from exc
+        except Exception:
+            await self._rollback_if_enabled()
+            raise
+
+        self._log.info(
+            "MemoryManagerService.create_reflection_run.created",
+            user_id=user_id,
+            run_id=stored.id,
+            anima_id=anima_id,
+            turn_count=task.turn_count,
+            remaining_turn_count=task.remaining_turn_count,
+        )
+        return await self.append_user_message(
+            user_id=user_id,
+            run_id=stored.id,
+            content=f"Reflect on {format_turn_count(task.turn_count)} with {anima_name}.",
+            auto_approve_diffs=auto_approve_diffs,
+        )
+
+    async def _supersede_open_runs(self, open_runs: list[MemoryManagerRun]) -> None:
+        """Close locked open runs that a new run replaces; callers refuse pending approvals first."""
+
+        superseded_at = datetime.utcnow()
+        for open_run in open_runs:
+            await self._memory_manager.update_run(
+                replace(
+                    open_run,
+                    status=MEMORY_MANAGER_RUN_STATUS_COMPLETED,
+                    completed_at=superseded_at,
+                    metadata={
+                        **dict(open_run.metadata or {}),
+                        "completion_reason": _SUPERSEDED_COMPLETION_REASON,
+                    },
+                )
+            )
 
     async def get_current_run_snapshot(self, *, user_id: str) -> MemoryManagerRunSnapshot | None:
         """Return the user's one open run, or None when no run is active."""
@@ -519,6 +644,12 @@ class MemoryManagerService:
                     use_current_aggregate_revision=True,
                 )
                 deleted = False
+                await self._restore_reflection_coverage(
+                    run=run,
+                    undone=approval,
+                    entry=entry,
+                    run_approvals=run_approvals,
+                )
             else:
                 raise MemoryManagerConflictError("This memory approval operation cannot be undone")
 
@@ -852,16 +983,19 @@ class MemoryManagerService:
         run: MemoryManagerRun,
     ) -> MemoryEntry:
         try:
-            clean_path, identity_anima_id = self._validate_approval_target_path(approval.target_path)
+            clean_path, anima_file = self._validate_approval_target_path(approval.target_path)
             change_metadata = self._approval_change_metadata(approval)
-            if identity_anima_id is not None:
-                return await self._commit_identity_approval(
+            if anima_file is not None:
+                return await self._commit_anima_file_approval(
                     user_id=user_id,
                     approval=approval,
                     run=run,
-                    anima_id=identity_anima_id,
+                    anima_file=anima_file,
                     change_metadata=change_metadata,
                 )
+            access = manager_file_access_for_run(run)
+            if not access.user_files_writable:
+                raise MemoryEntryValidationError(access.denied_message(clean_path))
             if approval.operation == MEMORY_PATCH_OPERATION_CREATE:
                 if approval.new_content is None:
                     raise MemoryEntryValidationError("Approved memory create is missing content")
@@ -902,35 +1036,43 @@ class MemoryManagerService:
         except MemoryEntryValidationError as exc:
             raise MemoryManagerValidationError(exc.detail) from exc
 
-    async def _commit_identity_approval(
+    async def _commit_anima_file_approval(
         self,
         *,
         user_id: str,
         approval: MemoryManagerApproval,
         run: MemoryManagerRun,
-        anima_id: str,
+        anima_file: AnimaManagerPath,
         change_metadata: dict[str, Any],
     ) -> MemoryEntry:
-        """Apply one reviewed identity update to the Anima it was proposed for.
+        """Apply one reviewed update to the Anima file it was proposed for.
 
-        The approval is fenced by the identity's memory version, not the Anima's
-        aggregate revision, so a rename between proposal and approval still
-        applies while newer identity content conflicts.
+        The run's file scope is checked again here, so episode processing never
+        changes an Anima file and a Reflection changes only its own Anima's
+        ``MEMORIES.md``. The approval is fenced by the file's memory version, not
+        the Anima's aggregate revision, so a rename between proposal and approval
+        still applies while newer content conflicts. A Reflection's applied
+        ``MEMORIES.md`` change also advances its Anima's coverage in the same
+        transaction.
         """
 
-        if run.kind == MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING:
-            raise MemoryEntryValidationError("Episode processing cannot change Anima identities")
+        access = manager_file_access_for_run(run)
+        if not access.allows(anima_file):
+            if run.kind == MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING:
+                raise MemoryEntryValidationError("Episode processing cannot change Anima files")
+            raise MemoryEntryValidationError(access.denied_message(anima_file.path))
         if approval.operation != MEMORY_PATCH_OPERATION_UPDATE or approval.new_content is None:
-            raise MemoryEntryValidationError("Memory Manager can only update existing Anima identities")
+            raise MemoryEntryValidationError("Memory Manager can only update existing Anima files")
         if approval.target_entry_id is None:
-            raise MemoryEntryConflictError("Identity approval has no target entry")
+            raise MemoryEntryConflictError(f"{anima_file.filename} approval has no target entry")
         try:
             current = await self._memory_entries.get_entry(user_id=user_id, entry_id=approval.target_entry_id)
         except MemoryEntryNotFoundError as exc:
             raise MemoryEntryConflictError("This Anima no longer exists; reject the proposal") from exc
-        if not is_anima_identity(current) or current.anima_id != anima_id:
-            raise MemoryEntryConflictError("Identity approval target changed after it was proposed")
-        return await self._memory_entries.patch_entry(
+        same_kind = is_anima_identity(current) if anima_file.is_identity else is_anima_memories(current)
+        if not same_kind or current.anima_id != anima_file.anima_id:
+            raise MemoryEntryConflictError(f"{anima_file.filename} approval target changed after it was proposed")
+        committed = await self._memory_entries.patch_entry(
             user_id=user_id,
             entry_id=current.id,
             expected_version=approval.expected_version,
@@ -940,6 +1082,102 @@ class MemoryManagerService:
             description_set=True,
             change_metadata=change_metadata,
             use_current_aggregate_revision=True,
+        )
+        if not anima_file.is_identity:
+            await self._advance_reflection_coverage(run=run, anima_id=anima_file.anima_id)
+        return committed
+
+    def _reflection_task_for_anima(
+        self,
+        *,
+        run: MemoryManagerRun,
+        anima_id: str,
+    ) -> MemoryManagerReflectionTaskState | None:
+        """Return the task of a Reflection run bound to ``anima_id``, or ``None`` for any other run."""
+
+        if run.kind != MEMORY_MANAGER_RUN_KIND_REFLECTION:
+            return None
+        try:
+            task = MemoryManagerReflectionTaskState.from_dict(run.task_state)
+        except ValueError as exc:
+            raise MemoryEntryConflictError(str(exc)) from exc
+        if task.anima_id != anima_id:
+            return None
+        if self._anima_reflections is None:
+            raise MemoryManagerValidationError("Reflection is not configured")
+        return task
+
+    async def _advance_reflection_coverage(self, *, run: MemoryManagerRun, anima_id: str) -> None:
+        """Mark a Reflection's batch covered once its ``MEMORIES.md`` change is applied.
+
+        General runs never move coverage. Coverage must still be where the
+        Reflection started (or already at its boundary, for a second change in
+        the same run); otherwise the approval conflicts and stays pending.
+        """
+
+        task = self._reflection_task_for_anima(run=run, anima_id=anima_id)
+        if task is None:
+            return
+        assert self._anima_reflections is not None
+        coverage = await self._anima_reflections.get(user_id=run.user_id, anima_id=anima_id, for_update=True)
+        current = coverage.covered_through if coverage is not None else None
+        if current == task.covered_through:
+            return
+        if current != task.covered_after:
+            raise MemoryEntryConflictError(
+                f"Reflection coverage for {task.anima_name} changed after this Reflection started; "
+                "reject the proposal and reflect again"
+            )
+        await self._anima_reflections.put(
+            AnimaMemoryReflection(
+                anima_id=anima_id,
+                user_id=run.user_id,
+                covered_through=task.covered_through,
+                run_id=run.id,
+            )
+        )
+
+    async def _restore_reflection_coverage(
+        self,
+        *,
+        run: MemoryManagerRun,
+        undone: MemoryManagerApproval,
+        entry: MemoryEntry,
+        run_approvals: list[MemoryManagerApproval],
+    ) -> None:
+        """Return coverage to where a Reflection started when its applied change is undone.
+
+        Coverage is left alone when another applied change from the same run
+        still stands, or when coverage no longer sits at this run's boundary.
+        """
+
+        if not is_anima_memories(entry) or entry.anima_id is None:
+            return
+        task = self._reflection_task_for_anima(run=run, anima_id=entry.anima_id)
+        if task is None:
+            return
+        if any(
+            item.id != undone.id
+            and item.status == MEMORY_MANAGER_APPROVAL_STATUS_APPROVED
+            and item.undone_at is None
+            and item.target_entry_id == entry.id
+            for item in run_approvals
+        ):
+            return
+        assert self._anima_reflections is not None
+        coverage = await self._anima_reflections.get(user_id=run.user_id, anima_id=task.anima_id, for_update=True)
+        if coverage is None or coverage.run_id != run.id or coverage.covered_through != task.covered_through:
+            return
+        if task.covered_after is None or task.covered_after_run_id is None:
+            await self._anima_reflections.delete(user_id=run.user_id, anima_id=task.anima_id)
+            return
+        await self._anima_reflections.put(
+            AnimaMemoryReflection(
+                anima_id=task.anima_id,
+                user_id=run.user_id,
+                covered_through=task.covered_after,
+                run_id=task.covered_after_run_id,
+            )
         )
 
     @staticmethod
@@ -1044,13 +1282,13 @@ class MemoryManagerService:
         return normalized
 
     @staticmethod
-    def _validate_approval_target_path(path: str) -> tuple[str, str | None]:
-        """Return the clean target path and, for identity targets, the Anima ID."""
+    def _validate_approval_target_path(path: str) -> tuple[str, AnimaManagerPath | None]:
+        """Return the clean target path and, for Anima file targets, the addressed file."""
 
-        anima_id = parse_anima_identity_manager_path(path)
-        if anima_id is not None:
-            return anima_identity_manager_path(anima_id), anima_id
-        # parse_anima_identity_manager_path already rejects other reserved paths.
+        anima_file = parse_anima_manager_path(path)
+        if anima_file is not None:
+            return anima_file.path, anima_file
+        # parse_anima_manager_path already rejects other reserved paths.
         clean_path, _normalized_path = normalize_memory_file_path(path)
         if is_protected_memory_path(clean_path):
             raise MemoryEntryProtectedError("Generated episode logs are read-only")
@@ -1095,6 +1333,21 @@ class MemoryManagerService:
     async def _raise_not_found(self, detail: str) -> NoReturn:
         await self._rollback_if_enabled()
         raise MemoryManagerNotFoundError(detail)
+
+
+def _turns_within_char_budget(turns: list[AnimaHistoryTurn]) -> list[AnimaHistoryTurn]:
+    """Keep the oldest turns whose read text fits ``REFLECTION_MAX_BATCH_CHARS``, always at least one.
+
+    Without the budget, a history of very long replies would make every
+    Reflection fail on the same oversized oldest batch.
+    """
+
+    total = 0
+    for index, turn in enumerate(turns):
+        total += reflection_turn_read_chars(turn)
+        if index > 0 and total > REFLECTION_MAX_BATCH_CHARS:
+            return turns[:index]
+    return turns
 
 
 __all__ = [

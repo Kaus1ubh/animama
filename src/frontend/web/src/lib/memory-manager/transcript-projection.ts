@@ -72,6 +72,20 @@ export function createEpisodeProcessingOptimisticSubmission(
   );
 }
 
+/**
+ * Stands in for the server-owned `Reflect on N turns with <Name>.` message
+ * while a Reflection starts; only the server knows the turn count.
+ */
+export function createReflectionOptimisticSubmission(
+  animaName: string,
+  messages: readonly PyMemoryManagerMessage[],
+): MemoryManagerOptimisticSubmission {
+  return createMemoryManagerOptimisticSubmission(
+    `Reflect on turns with ${animaName}.`,
+    messages,
+  );
+}
+
 /** Keeps a newer draft, otherwise restores the failed submitted request. */
 export function restoreMemoryManagerComposer(
   currentComposer: string,

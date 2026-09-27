@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 
 import pytest
 
 from animama.domain.emotions import EmotionValue
-from animama.domain.events import EventType
+from animama.domain.events import EventType, MemoryUpdatedPayload
 from animama.server import sse_events
 
 
@@ -37,3 +38,27 @@ async def test_sse_side_effect_persists_current_run_emotion(monkeypatch) -> None
     assert persisted is True
     assert skipped is False
     assert calls == [(session_factory, "anima-1", payload)]
+
+
+def test_memory_updated_frame_carries_the_turn_memory_cue() -> None:
+    memory_cue = {
+        "episode": {"text": "Mira shared her lake twin nickname."},
+        "memories": {"entry_id": "mem-memories", "version": 5, "excerpt": "Mira calls me her lake twin."},
+    }
+    event = SimpleNamespace(
+        type=EventType.MEMORY_UPDATED,
+        payload=MemoryUpdatedPayload(run_id="run-1", message_id=42, memory_cue=memory_cue),
+    )
+
+    frame = sse_events.format_memory_updated_event(event, run_id="run-1")
+
+    assert frame is not None
+    lines = frame.strip().splitlines()
+    assert lines[:2] == ["id: memory-updated-run-1", "event: memory.updated"]
+    assert json.loads(lines[2].removeprefix("data: ")) == {
+        "type": "memory.updated",
+        "run_id": "run-1",
+        "message_id": 42,
+        "memory_cue": memory_cue,
+    }
+    assert sse_events.format_memory_updated_event(event, run_id="run-2") is None

@@ -190,7 +190,7 @@ async def exercise() -> dict:
         starters=None,
         uow=uow,
     )
-    policy = OwnerBootstrapPolicy(profile_template_version="1", starter_anima_ids=())
+    policy = OwnerBootstrapPolicy(profile_template_version="2", starter_anima_ids=())
     animas = AnimaService(animas=InMemoryAnimaRepository(), uow=uow)
     chats, messages = Chats(), Messages()
     chat_service = ChatService(chats=chats, uow=uow)

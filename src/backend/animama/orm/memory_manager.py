@@ -21,7 +21,7 @@ class ORMMemoryManagerRun(SqlalchemyBase, TimestampMixin):
             name="memory_manager_runs_status_valid",
         ),
         CheckConstraint(
-            "kind IN ('general', 'episode_processing')",
+            "kind IN ('general', 'episode_processing', 'reflection')",
             name="memory_manager_runs_kind_valid",
         ),
         Index("ix_memory_manager_runs_user_status_created", "user_id", "status", "created_at"),

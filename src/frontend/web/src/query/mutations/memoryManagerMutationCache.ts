@@ -4,7 +4,7 @@ import type {
   PyMemoryManagerApproval,
   PyMemoryManagerRunResponse,
 } from "@/lib/content/catalogTypes";
-import { animaIdForManagerPath } from "@/lib/memory-entries/anima-folders";
+import { animaIdForManagerIdentityPath } from "@/lib/memory-entries/anima-folders";
 import { invalidateAnimaDefinition } from "@/query/animaDefinitionInvalidation";
 import { queryKeys } from "@/query/keys";
 
@@ -52,6 +52,8 @@ export function publishMemoryManagerApproval(
 /**
  * Approved identity changes advance their Anima's definition revision, so
  * refresh each affected Anima's definition views and identity caches.
+ * `MEMORIES.md` is outside the definition; its approvals refresh through the
+ * memory-entry invalidations of each manager mutation.
  */
 export async function invalidateApprovedIdentityDefinitions(
   queryClient: QueryClient,
@@ -62,7 +64,7 @@ export async function invalidateApprovedIdentityDefinitions(
     approvals.flatMap((approval) => {
       const animaId =
         approval.status === "approved"
-          ? animaIdForManagerPath(approval.preview.path)
+          ? animaIdForManagerIdentityPath(approval.preview.path)
           : null;
       return animaId ? [animaId] : [];
     }),

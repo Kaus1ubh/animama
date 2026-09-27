@@ -27,6 +27,7 @@ from animama.app.services.memory_entry_service import (
     MemoryEntryValidationError,
 )
 from animama.domain.anima_definition import (
+    ANIMA_MEMORIES_TEMPLATE,
     DEFAULT_ANIMA_VOICE_ID,
     AnimaDefinitionError,
     normalize_display_name,
@@ -164,6 +165,12 @@ async def test_materializer_owns_no_commit_provider_or_runtime_and_seeds_exact_d
     audit = await async_session.get(ORMAnimaDefinitionRevision, (anima.id, 1))
     assert audit.identity_entry_id == identity.id and audit.identity_version == history.version == 1
     assert not hasattr(audit, "identity")
+    memories = await memory_service(uow).get_entry_by_path(
+        user_id=fixture.user_id, anima_id=anima.id, path="MEMORIES.md"
+    )
+    assert (memories.content, memories.kind, memories.version) == (ANIMA_MEMORIES_TEMPLATE, "anima_memories", 1)
+    assert memories.description == "Shared history with the user"
+    assert memories.aggregate_revision is None
     settings = await async_session.get(ORMAnimaSettings, (fixture.user_id, anima.id))
     assert settings.preferences["speech"]["elevenlabs"]["primary_voice"]["voice_id"] == (
         voice_id or DEFAULT_ANIMA_VOICE_ID
@@ -532,7 +539,7 @@ async def test_missing_identity_has_no_runtime_avatar_fallback(async_session) ->
 
 
 @pytest.mark.asyncio
-async def test_legacy_directory_obstruction_can_be_explicitly_moved_before_identity_repair(
+async def test_legacy_directory_obstruction_can_be_explicitly_deleted_before_identity_repair(
     async_session, creation
 ) -> None:
     owner, anima_id, entry_id = creation.user_id, f"repair-{uuid4().hex}", f"directory-{uuid4().hex}"
@@ -553,10 +560,13 @@ async def test_legacy_directory_obstruction_can_be_explicitly_moved_before_ident
     await async_session.commit()
     uow = SQLAlchemyAnimaAggregateUnitOfWork(async_session)
     memory = memory_service(uow)
-    moved = await memory.patch_entry(
-        user_id=owner, entry_id=entry_id, expected_version=1, name="legacy-identity", name_set=True
-    )
-    assert moved.type == "directory" and moved.aggregate_revision is None
+    # An Anima folder admits only its two root files, so the obstruction cannot
+    # be renamed within it, but it is not itself an identity and can be deleted.
+    with pytest.raises(MemoryEntryProtectedError):
+        await memory.patch_entry(
+            user_id=owner, entry_id=entry_id, expected_version=1, name="legacy-identity", name_set=True
+        )
+    await memory.delete_entry(user_id=owner, entry_id=entry_id, expected_version=1)
     repaired = await memory.create_entry(
         user_id=owner,
         anima_id=anima_id,

@@ -28,7 +28,9 @@ The panel renders the Anima-scoped `IDENTITY.md`; if that file is unavailable,
 the selected Avatar's starter identity is shown as a fallback. Edit identity
 opens a nested modal route and closing it returns focus to the Identity panel.
 Saving updates the shared memory-entry query used by the rendered preview and
-subsequent chat turns.
+subsequent chat turns. Open memories selects the Anima's relationship
+`MEMORIES.md` in the Manual [memory workspace](anima-memory.md) by entry ID. It
+is hidden while that file is missing; repair it from the Anima's folder there.
 
 ## Appearance editor
 

@@ -8,24 +8,51 @@ import {
   type MemoryEntryDrafts,
 } from "@/lib/memory-entries/workspace-drafts";
 
-/** Visible name of the virtual directory holding each Anima's identity. */
+/** Visible name of the virtual directory holding each Anima's protected files. */
 export const ANIMAS_WORKSPACE_LABEL = "Animas";
 /** User-scope path the backend reserves for that virtual directory. */
 const RESERVED_USER_ROOT = "animas";
+const ANIMA_IDENTITY_FILE_NAME = "IDENTITY.md";
+const ANIMA_MEMORIES_FILE_NAME = "MEMORIES.md";
+
+/** One protected file in an Anima folder. */
+export type MemoryAnimaFile = {
+  /** File name shown in the folder. */
+  name: string;
+  /** Label path shown to the owner and accepted in workspace URLs. */
+  path: string;
+  /** Live header, or null when the file is missing and needs repair. */
+  entry: PyMemoryEntryHeader | null;
+};
 
 /** One owned Anima's virtual folder in the Memory workspace. */
 export type MemoryAnimaFolder = {
   animaId: string;
   /** Current name, suffixed ` (2)`, ` (3)`… by creation order when shared. */
   label: string;
-  /** Label path shown to the owner and accepted in workspace URLs. */
-  path: string;
-  /** Live identity header, or null when the identity needs explicit repair. */
-  entry: PyMemoryEntryHeader | null;
+  /** Owner-authored `IDENTITY.md`, part of the Anima definition. */
+  identity: MemoryAnimaFile;
+  /** Relationship `MEMORIES.md`, repairable separately from the identity. */
+  memories: MemoryAnimaFile;
 };
+
+/** Returns a folder's files in display order: identity, then memories. */
+export function animaFolderFiles(folder: MemoryAnimaFolder) {
+  return [folder.identity, folder.memories];
+}
 
 function folderName(identity: PyAnimaIdentityItem) {
   return identity.display_name.trim() || identity.anima_id;
+}
+
+function animaFile(
+  folderPath: string,
+  entry: PyMemoryEntryHeader | null | undefined,
+  defaultName: string,
+): MemoryAnimaFile {
+  // Legacy identities may be stored as `identity.md`; show the stored name.
+  const name = entry?.name ?? defaultName;
+  return { name, path: `${folderPath}/${name}`, entry: entry ?? null };
 }
 
 /**
@@ -49,11 +76,16 @@ export function buildMemoryAnimaFolders(
       label = `${base} (${suffix})`;
     }
     used.add(label);
+    const folderPath = `${ANIMAS_WORKSPACE_LABEL}/${label}`;
     return {
       animaId: identity.anima_id,
       label,
-      path: `${ANIMAS_WORKSPACE_LABEL}/${label}/${identity.entry?.name ?? "IDENTITY.md"}`,
-      entry: identity.entry ?? null,
+      identity: animaFile(folderPath, identity.entry, ANIMA_IDENTITY_FILE_NAME),
+      memories: animaFile(
+        folderPath,
+        identity.memories_entry,
+        ANIMA_MEMORIES_FILE_NAME,
+      ),
     };
   });
 }
@@ -78,10 +110,10 @@ export function isReservedUserMemoryEntry(
 }
 
 /**
- * Resolves the workspace file named by route state. Identities are always
- * reached through their folder label path, never their stored `IDENTITY.md`
- * path; a label-path hit asks the caller to pin the URL to the entry ID so the
- * selection survives renames and duplicate-label shifts.
+ * Resolves the workspace file named by route state. Anima files are always
+ * reached through their folder label path, never their stored `IDENTITY.md` or
+ * `MEMORIES.md` path; a label-path hit asks the caller to pin the URL to the
+ * entry ID so the selection survives renames and duplicate-label shifts.
  */
 export function resolveWorkspaceSelection({
   entries,
@@ -100,26 +132,31 @@ export function resolveWorkspaceSelection({
     if (byId) return { header: byId, pinEntryId: false };
   }
   if (!path) return { header: null, pinEntryId: false };
-  const folder = folders.find((candidate) => candidate.path === path);
-  if (folder?.entry) return { header: folder.entry, pinEntryId: true };
+  const labelled = folders
+    .flatMap(animaFolderFiles)
+    .find((candidate) => candidate.path === path);
+  if (labelled?.entry) return { header: labelled.entry, pinEntryId: true };
   const userFile = files.find(
     (entry) => !entry.anima_id && entry.path === path,
   );
   return { header: userFile ?? null, pinEntryId: false };
 }
 
-export type RemovedIdentityNotice = {
+export type RemovedAnimaFileNotice = {
   entryId: string;
+  /** Folder label of the Anima that owned the file. */
   label: string;
+  fileName: string;
   reason: "deleted" | "unavailable";
 };
 
 /**
- * Drops drafts whose identity left the listing. A dirty draft yields a notice:
- * `deleted` when its Anima is gone, `unavailable` when the Anima remains but its
- * identity now needs repair. Returns the input drafts object when unchanged.
+ * Drops drafts whose Anima file left the listing. A dirty draft yields a
+ * notice: `deleted` when its Anima is gone, `unavailable` when the Anima
+ * remains but the file now needs repair. Returns the input drafts object when
+ * unchanged.
  */
-export function removedIdentityDrafts({
+export function removedAnimaFileDrafts({
   previous,
   current,
   drafts,
@@ -127,42 +164,77 @@ export function removedIdentityDrafts({
   previous: MemoryAnimaFolder[];
   current: MemoryAnimaFolder[];
   drafts: MemoryEntryDrafts;
-}): { drafts: MemoryEntryDrafts; notices: RemovedIdentityNotice[] } {
+}): { drafts: MemoryEntryDrafts; notices: RemovedAnimaFileNotice[] } {
   const liveEntryIds = new Set(
-    current.flatMap((folder) => (folder.entry ? [folder.entry.id] : [])),
+    current
+      .flatMap(animaFolderFiles)
+      .flatMap((file) => (file.entry ? [file.entry.id] : [])),
   );
   const liveAnimaIds = new Set(current.map((folder) => folder.animaId));
-  const notices: RemovedIdentityNotice[] = [];
+  const notices: RemovedAnimaFileNotice[] = [];
   let next = drafts;
   for (const folder of previous) {
-    const entryId = folder.entry?.id;
-    if (!entryId || liveEntryIds.has(entryId) || !drafts[entryId]) continue;
-    if (next === drafts) next = { ...drafts };
-    if (isMemoryEntryDraftDirty(drafts[entryId])) {
-      notices.push({
-        entryId,
-        label: folder.label,
-        reason: liveAnimaIds.has(folder.animaId) ? "unavailable" : "deleted",
-      });
+    for (const file of animaFolderFiles(folder)) {
+      const entryId = file.entry?.id;
+      if (!entryId || liveEntryIds.has(entryId) || !drafts[entryId]) continue;
+      if (next === drafts) next = { ...drafts };
+      if (isMemoryEntryDraftDirty(drafts[entryId])) {
+        notices.push({
+          entryId,
+          label: folder.label,
+          fileName: file.name,
+          reason: liveAnimaIds.has(folder.animaId) ? "unavailable" : "deleted",
+        });
+      }
+      delete next[entryId];
     }
-    delete next[entryId];
   }
   return { drafts: next, notices };
 }
 
-const MANAGER_IDENTITY_PATH = /^animas\/([^/]+)\/identity\.md$/i;
+/** Model-facing Anima file paths: `animas/<anima_id>/IDENTITY.md|MEMORIES.md`. */
+const MANAGER_ANIMA_FILE_PATH = /^animas\/([^/]+)\/(identity|memories)\.md$/i;
+
+function parseManagerAnimaPath(path: string) {
+  const match = MANAGER_ANIMA_FILE_PATH.exec(path);
+  if (!match) return null;
+  return {
+    animaId: match[1],
+    file: match[2].toLowerCase() === "identity" ? "identity" : "memories",
+  } as const;
+}
 
 /**
  * Returns the Anima ID in a Memory Manager identity path
- * (`animas/<anima_id>/IDENTITY.md`), or null for user memory.
+ * (`animas/<anima_id>/IDENTITY.md`), or null for `MEMORIES.md` and user memory.
+ * Only identity changes advance the Anima definition.
  */
-export function animaIdForManagerPath(path: string) {
-  return MANAGER_IDENTITY_PATH.exec(path)?.[1] ?? null;
+export function animaIdForManagerIdentityPath(path: string) {
+  const parsed = parseManagerAnimaPath(path);
+  return parsed?.file === "identity" ? parsed.animaId : null;
 }
 
-/** Shows a Memory Manager target by its owner-facing workspace path. */
+/**
+ * Shows a Memory Manager target by its owner-facing workspace path, such as
+ * `Animas/Annie (2)/MEMORIES.md`; unknown Animas keep the model-facing path.
+ */
 export function managerPathLabel(path: string, folders: MemoryAnimaFolder[]) {
-  const animaId = animaIdForManagerPath(path);
-  if (!animaId) return path;
-  return folders.find((folder) => folder.animaId === animaId)?.path ?? path;
+  const parsed = parseManagerAnimaPath(path);
+  if (!parsed) return path;
+  const folder = folders.find((item) => item.animaId === parsed.animaId);
+  return folder?.[parsed.file].path ?? path;
+}
+
+/**
+ * Returns the Anima folder whose live `MEMORIES.md` has this entry ID, which
+ * is the file a Reflection curates; null for any other selection.
+ */
+export function animaFolderForMemoriesEntry(
+  folders: MemoryAnimaFolder[],
+  entryId: string | null | undefined,
+) {
+  if (!entryId) return null;
+  return (
+    folders.find((folder) => folder.memories.entry?.id === entryId) ?? null
+  );
 }

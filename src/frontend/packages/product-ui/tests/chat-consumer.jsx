@@ -7,13 +7,14 @@ import {
   describeChatFailure,
 } from "@animama/product-ui/chat";
 import { ChatConversation } from "@animama/product-ui/components";
-import { useChatSse } from "@animama/product-ui/query";
+import { queryKeys, useChatSse } from "@animama/product-ui/query";
 
 // A separately bundled consumer: only package exports and browser primitives.
 // The transport deliberately permits late responses to exercise cancellation races.
 const requests = [];
 const events = [];
 const settled = [];
+const histories = {};
 let stopOnToken = false;
 let run = 0;
 let api;
@@ -37,7 +38,8 @@ const transport = {
           name: "Annie",
           chat_profile: { default_model_provider_id: model.id },
         };
-      else if (path.endsWith("/messages")) data = { messages: [] };
+      else if (path.endsWith("/messages"))
+        data = { messages: histories[path.split("/").at(-2)] ?? [] };
       else if (path.startsWith("/v1/chats/"))
         data = { id: path.split("/").at(-1), anima_id: "anima-fixture" };
       else
@@ -83,6 +85,13 @@ function Consumer() {
       onEmotionUpdate: () => events.push(["emotion"]),
       onChatTitleUpdated: () => events.push(["title"]),
       onAvatarGestureRequested: () => events.push(["gesture"]),
+      onMemoryUpdated: (cue, data) =>
+        events.push([
+          "memory",
+          data.run_id,
+          cue.episode?.text ?? null,
+          cue.memories?.entry_id ?? null,
+        ]),
     }).finally(() => settled.push(run_id));
   }
   return (
@@ -144,6 +153,9 @@ function SessionConsumer() {
         Stop
       </button>
       <output id="streaming">{String(session.isStreaming)}</output>
+      <output id="finalizing">
+        {String(session.isAwaitingStreamingAnimationFinalization)}
+      </output>
       <ChatConversation
         messages={session.displayMessages}
         markdownEnabled
@@ -152,6 +164,14 @@ function SessionConsumer() {
         onQueueComplete={session.handleStreamingAnimationComplete}
         onRestoreMessage={session.restoreFailedMessage}
         restoreDisabled={Boolean(session.input.trim())}
+        renderAssistantAccessory={(message) =>
+          message.memoryCue ? (
+            <span data-memory-cue={message.id}>
+              {message.memoryCue.memories?.entry_id ??
+                message.memoryCue.episode?.text}
+            </span>
+          ) : null
+        }
       />
     </main>
   );
@@ -175,6 +195,24 @@ window.fixture = {
   mount,
   mountSession: () => mount("owner-fixture", true),
   switchChat: () => api.switchChat(),
+  setHistory: (chatId, messages) => {
+    histories[chatId] = messages;
+  },
+  // Memory workspace caches a chat turn's memory writes should mark stale.
+  seedMemoryCaches: () => {
+    queryClient.setQueryData(
+      queryKeys.memoryEntries.detail("owner-fixture", "mem-annie"),
+      { id: "mem-annie", version: 1 },
+    );
+    queryClient.setQueryData(queryKeys.memoryEpisodes.all("owner-fixture"), {
+      items: [],
+    });
+  },
+  memoryCachesInvalidated: () =>
+    [
+      queryKeys.memoryEntries.detail("owner-fixture", "mem-annie"),
+      queryKeys.memoryEpisodes.all("owner-fixture"),
+    ].map((key) => queryClient.getQueryState(key)?.isInvalidated ?? null),
   describeFailure: describeChatFailure,
   unmount: () => root.unmount(),
   stop: () => api.stop(),

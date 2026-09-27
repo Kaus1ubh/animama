@@ -36,6 +36,16 @@ class MemoryEpisodeRepository(Protocol):
     ) -> list[MemoryEpisodeItem]:
         raise NotImplementedError
 
+    async def list_items_by_source_message_ids(
+        self,
+        *,
+        user_id: str,
+        source_message_ids: Iterable[str],
+    ) -> list[MemoryEpisodeItem]:
+        """List the owner's items captured from any of these chat messages, oldest first."""
+
+        raise NotImplementedError
+
     async def update_items_status(
         self,
         *,

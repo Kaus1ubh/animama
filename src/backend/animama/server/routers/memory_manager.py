@@ -9,7 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.memory_manager import DeterministicMemoryManagerRuntime, OpenAIAgentsMemoryManagerRuntime
+from animama.adapters.repositories.sqlalchemy.anima_memory_reflection_repo import (
+    SQLAlchemyAnimaMemoryReflectionRepository,
+)
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
+from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
 from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlchemyMemoryManagerRepository
@@ -31,15 +35,19 @@ from animama.app.services.memory_manager_service import (
 )
 from animama.domain.memory_episode import MemoryEpisodeItem
 from animama.domain.memory_manager import (
+    MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
+    MEMORY_MANAGER_RUN_KIND_REFLECTION,
     MemoryManagerApproval,
     MemoryManagerApprovalUndoResult,
     MemoryManagerEpisodeTaskState,
     MemoryManagerMessage,
+    MemoryManagerReflectionTaskState,
     MemoryManagerRun,
     MemoryManagerRunSnapshot,
     MemoryPatchPreview,
 )
 from animama.domain.request_principal import RequestPrincipal
+from animama.domain.settings import preferred_time_zone
 from animama.server.config import settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.schemas.memory_manager import (
@@ -51,6 +59,8 @@ from animama.server.schemas.memory_manager import (
     PyMemoryManagerEpisodeProcessingRunCreateRequest,
     PyMemoryManagerMessage,
     PyMemoryManagerMessageCreateRequest,
+    PyMemoryManagerReflectionRunCreateRequest,
+    PyMemoryManagerReflectionSummary,
     PyMemoryManagerRun,
     PyMemoryManagerRunCreateRequest,
     PyMemoryManagerRunResponse,
@@ -81,6 +91,14 @@ def _episode_service(session: AsyncSession) -> MemoryEpisodeService:
     )
 
 
+async def _owner_timezone(session: AsyncSession, user_id: str) -> str:
+    """Return the owner's valid IANA time zone preference, or UTC."""
+
+    user_settings = await SQLAlchemyUserSettingsRepository(session).get(user_id)
+    _zone, name = preferred_time_zone(user_settings.preferences if user_settings is not None else None)
+    return name
+
+
 def _resolve_memory_manager_model(preferences: object) -> str:
     """Return a non-empty per-user model override or the server default."""
 
@@ -100,6 +118,7 @@ async def _manager_service(session: AsyncSession, user_id: str) -> MemoryManager
     uow = SQLAlchemyUnitOfWork(session)
     memory_episode_repository = SQLAlchemyMemoryEpisodeRepository(session)
     anima_repository = SQLAlchemyAnimaRepository(session)
+    chat_message_repository = SQLAlchemyChatMessageRepository(session)
     memory_episodes = MemoryEpisodeService(
         memory_episodes=memory_episode_repository,
         memory_entries=memory_entries,
@@ -114,6 +133,7 @@ async def _manager_service(session: AsyncSession, user_id: str) -> MemoryManager
             memory_entries=memory_entries,
             memory_episodes=memory_episode_repository,
             animas=anima_repository,
+            chat_messages=chat_message_repository,
         )
         if _truthy_env(os.getenv("ANIMAMA_LLM_SKIP"))
         else OpenAIAgentsMemoryManagerRuntime(
@@ -121,6 +141,7 @@ async def _manager_service(session: AsyncSession, user_id: str) -> MemoryManager
             memory_entries=memory_entries,
             memory_episodes=memory_episode_repository,
             animas=anima_repository,
+            chat_messages=chat_message_repository,
             api_key=settings.openai_api_key,
             base_url=settings.openai_base_url,
             model=manager_model,
@@ -131,6 +152,8 @@ async def _manager_service(session: AsyncSession, user_id: str) -> MemoryManager
         memory_manager=SQLAlchemyMemoryManagerRepository(session),
         memory_entries=memory_entries,
         memory_episodes=memory_episodes,
+        chat_messages=chat_message_repository,
+        anima_reflections=SQLAlchemyAnimaMemoryReflectionRepository(session),
         runtime=runtime,
         uow=uow,
     )
@@ -178,7 +201,8 @@ def _to_patch_preview(preview: MemoryPatchPreview) -> PyMemoryPatchPreview:
 
 def _to_manager_run(run: MemoryManagerRun) -> PyMemoryManagerRun:
     task_summary = None
-    if run.task_state is not None:
+    reflection_summary = None
+    if run.task_state is not None and run.kind == MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING:
         task = MemoryManagerEpisodeTaskState.from_dict(run.task_state)
         task_summary = PyMemoryManagerTaskSummary(
             kind=task.kind,
@@ -188,11 +212,21 @@ def _to_manager_run(run: MemoryManagerRun) -> PyMemoryManagerRun:
             started_at=task.started_at,
             processed_at=task.processed_at,
         )
+    elif run.task_state is not None and run.kind == MEMORY_MANAGER_RUN_KIND_REFLECTION:
+        reflection = MemoryManagerReflectionTaskState.from_dict(run.task_state)
+        reflection_summary = PyMemoryManagerReflectionSummary(
+            anima_id=reflection.anima_id,
+            anima_name=reflection.anima_name,
+            turn_count=reflection.turn_count,
+            remaining_turn_count=reflection.remaining_turn_count,
+            started_at=reflection.started_at,
+        )
     return PyMemoryManagerRun(
         id=run.id,
         status=run.status,
         kind=run.kind,
         task=task_summary,
+        reflection=reflection_summary,
         model_provider=run.model_provider,
         model_name=run.model_name,
         summary=run.summary,
@@ -338,6 +372,36 @@ async def create_episode_processing_memory_manager_run(
     return _to_run_response(snapshot)
 
 
+@router.post(
+    "/v1/memory/manager/runs:reflect",
+    response_model=PyMemoryManagerRunResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_reflection_memory_manager_run(
+    req: PyMemoryManagerReflectionRunCreateRequest,
+    session: SessionDep,
+    user: UserDep,
+) -> PyMemoryManagerRunResponse:
+    """Start a Reflection over one owned Anima's uncovered chat turns.
+
+    Returns 404 for a missing or foreign Anima and 409 while an approval is
+    pending, when the Anima's MEMORIES.md needs repair, or when no turn is
+    uncovered; a 409 creates no run.
+    """
+
+    try:
+        service = await _manager_service(session, user.id)
+        snapshot = await service.create_reflection_run(
+            user_id=user.id,
+            anima_id=req.anima_id,
+            auto_approve_diffs=req.auto_approve_diffs,
+            timezone=await _owner_timezone(session, user.id),
+        )
+    except MemoryManagerError as exc:
+        _raise_http_error(exc)
+    return _to_run_response(snapshot)
+
+
 @router.get(
     "/v1/memory/manager/runs/current",
     response_model=PyMemoryManagerRunResponse | None,
@@ -477,6 +541,7 @@ __all__ = [
     "complete_memory_manager_run",
     "create_memory_manager_run",
     "create_episode_processing_memory_manager_run",
+    "create_reflection_memory_manager_run",
     "decide_memory_manager_approval",
     "get_current_memory_manager_run",
     "get_memory_manager_run",

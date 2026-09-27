@@ -21,6 +21,7 @@ import {
 } from "@/lib/memory-manager/approval-feedback";
 import {
   canShowMemoryManagerApprovalUndo,
+  isAppliedMemoryManagerApproval,
   memoryManagerApprovalStatusLabel,
 } from "@/lib/memory-manager/approval-undo";
 import {
@@ -29,7 +30,10 @@ import {
   type MemoryManagerOptimisticSubmission,
   type MemoryManagerTranscriptItem,
 } from "@/lib/memory-manager/transcript-projection";
-import { episodeProcessingPresentation } from "@/lib/memory-manager/workspace-state";
+import {
+  episodeProcessingPresentation,
+  reflectionPresentation,
+} from "@/lib/memory-manager/workspace-state";
 import { cn } from "@/lib/utils";
 import { Response as PlainTextResponse } from "@/ui/components/animated-text-response";
 import { Button } from "@/ui/components/button";
@@ -317,7 +321,9 @@ function TranscriptItem({
         <MessageContent
           animateOnEnter={message.animateOnEnter}
           className={cn(
-            "min-w-0",
+            // Long unbroken tokens such as manager paths must wrap rather
+            // than widen the Work pane; code blocks keep their own scroll.
+            "min-w-0 [overflow-wrap:anywhere]",
             message.role === "assistant" && "w-full max-w-full",
           )}
           from={message.role}
@@ -384,7 +390,13 @@ export function MemoryManagerChatPanel({
   );
   const failed = snapshot?.run.status === "failed";
   const completed = snapshot?.run.status === "completed";
-  const processingStatus = episodeProcessingPresentation(snapshot?.run);
+  const processingStatus =
+    episodeProcessingPresentation(snapshot?.run) ??
+    reflectionPresentation(snapshot?.run, {
+      hasAppliedChange: (snapshot?.approvals ?? []).some(
+        isAppliedMemoryManagerApproval,
+      ),
+    });
   const composerDisabled =
     isBusy || hasPendingApproval || episodeProcessingComposerLocked;
 

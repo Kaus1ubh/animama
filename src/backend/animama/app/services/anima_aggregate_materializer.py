@@ -123,6 +123,7 @@ class AnimaAggregateMaterializer:
             description=f"Initial identity of {anima.display_name}",
             metadata=identity_metadata,
         )
+        await memory.initialize_anima_memories(user_id=anima.user_id, anima_id=anima.id)
         preferences = default_anima_preferences()
         preferences["speech"] = {"elevenlabs": voice_profile}
         await uow.settings.upsert(AnimaSettings(user_id=anima.user_id, anima_id=anima.id, preferences=preferences))

@@ -87,33 +87,17 @@ describe("memory workspace tree", () => {
   });
 
   it("lists one protected folder per Anima above Episodes", () => {
-    const identityA = entry("identity-a", "IDENTITY.md", "file", null, {
-      scope: "anima",
-      anima_id: "a",
-      kind: "anima_identity",
-    });
-    const identityB = entry("identity-b", "IDENTITY.md", "file", null, {
-      scope: "anima",
-      anima_id: "b",
-      kind: "anima_identity",
-    });
-    const folders: MemoryAnimaFolder[] = [
-      {
-        animaId: "a",
-        label: "Annie",
-        path: "Animas/Annie/IDENTITY.md",
-        entry: identityA,
-      },
-      {
-        animaId: "b",
-        label: "Annie (2)",
-        path: "Animas/Annie (2)/IDENTITY.md",
-        entry: identityB,
-      },
-      { animaId: "c", label: "Broken", path: "", entry: null },
+    const identityA = animaEntry("a", "IDENTITY.md");
+    const memoriesA = animaEntry("a", "MEMORIES.md");
+    const identityB = animaEntry("b", "IDENTITY.md");
+    const memoriesB = animaEntry("b", "MEMORIES.md");
+    const folders = [
+      animaFolder("a", "Annie", identityA, memoriesA),
+      animaFolder("b", "Annie (2)", identityB, memoriesB),
+      animaFolder("c", "Broken", null, null),
     ];
     const tree = buildMemoryWorkspaceTree(
-      [...entries, identityA, identityB],
+      [...entries, identityA, memoriesA, identityB, memoriesB],
       "en-US",
       folders,
     );
@@ -137,26 +121,71 @@ describe("memory workspace tree", () => {
         label: "IDENTITY.md",
         displayPath: "Animas/Annie (2)/IDENTITY.md",
       }),
+      expect.objectContaining({
+        kind: "file",
+        id: "memories-b",
+        label: "MEMORIES.md",
+        displayPath: "Animas/Annie (2)/MEMORIES.md",
+      }),
     ]);
     expect(animas?.children[2]?.children).toEqual([]);
-    expect(memoryWorkspaceAncestorIds(tree, "identity-b")).toEqual([
+    expect(memoryWorkspaceAncestorIds(tree, "memories-b")).toEqual([
       "virtual:animas",
       "virtual:animas:b",
     ]);
     expect(
       filterMemoryWorkspaceTree(tree, "annie (2)/identity")[0]?.children,
     ).toHaveLength(1);
-    for (const nodeId of ["virtual:animas", "virtual:animas:a", "identity-a"]) {
+    expect(
+      filterMemoryWorkspaceTree(tree, "annie (2)/memories")[0]?.children[0]
+        ?.children,
+    ).toEqual([expect.objectContaining({ id: "memories-b" })]);
+    for (const nodeId of [
+      "virtual:animas",
+      "virtual:animas:a",
+      "identity-a",
+      "memories-a",
+    ]) {
       expect(
         memoryCreationTarget(findMemoryWorkspaceNode(tree, nodeId)),
       ).toEqual({ parentId: null, disabled: true });
     }
-    expect(initialMemoryWorkspaceFileId([identityA, ...entries])).toBe(
-      "profile",
-    );
     expect(
-      initialMemoryWorkspaceFileId([identityA, entry("z", "z.md", "file")]),
+      initialMemoryWorkspaceFileId([identityA, memoriesA, ...entries]),
+    ).toBe("profile");
+    expect(
+      initialMemoryWorkspaceFileId([
+        identityA,
+        memoriesA,
+        entry("z", "z.md", "file"),
+      ]),
     ).toBe("z");
+  });
+
+  it("marks which protected files each Anima folder is missing", () => {
+    const identityA = animaEntry("a", "IDENTITY.md");
+    const memoriesB = animaEntry("b", "MEMORIES.md");
+    const tree = buildMemoryWorkspaceTree([identityA, memoriesB], "en-US", [
+      animaFolder("a", "Annie", identityA, null),
+      animaFolder("b", "Mika", null, memoriesB),
+    ]);
+
+    expect(tree[0]?.children).toEqual([
+      expect.objectContaining({
+        kind: "anima-directory",
+        animaId: "a",
+        identityMissing: false,
+        memoriesMissing: true,
+        children: [expect.objectContaining({ id: "identity-a" })],
+      }),
+      expect.objectContaining({
+        kind: "anima-directory",
+        animaId: "b",
+        identityMissing: true,
+        memoriesMissing: false,
+        children: [expect.objectContaining({ id: "memories-b" })],
+      }),
+    ]);
   });
 
   it("pins Episodes above sorted physical roots and preserves virtual groups", () => {
@@ -248,6 +277,37 @@ describe("memory workspace tree", () => {
     }
   });
 });
+
+function animaEntry(animaId: string, name: "IDENTITY.md" | "MEMORIES.md") {
+  const role = name === "IDENTITY.md" ? "identity" : "memories";
+  return entry(`${role}-${animaId}`, name, "file", null, {
+    scope: "anima",
+    anima_id: animaId,
+    kind: `anima_${role}`,
+  });
+}
+
+function animaFolder(
+  animaId: string,
+  label: string,
+  identity: PyMemoryEntryHeader | null,
+  memories: PyMemoryEntryHeader | null,
+): MemoryAnimaFolder {
+  return {
+    animaId,
+    label,
+    identity: {
+      name: "IDENTITY.md",
+      path: `Animas/${label}/IDENTITY.md`,
+      entry: identity,
+    },
+    memories: {
+      name: "MEMORIES.md",
+      path: `Animas/${label}/MEMORIES.md`,
+      entry: memories,
+    },
+  };
+}
 
 function isEpisodeEntry(item: PyMemoryEntryHeader) {
   return item.path === "episodes" || item.path.startsWith("episodes/");

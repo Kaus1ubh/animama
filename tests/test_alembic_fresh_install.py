@@ -17,7 +17,7 @@ from alembic.util import CommandError
 ROOT = Path(__file__).parents[1]
 BASELINE_MIGRATION = ROOT / "alembic" / "versions" / "0001_baseline.py"
 BASELINE_SQL = ROOT / "alembic" / "versions" / "0001_baseline.sql"
-BASELINE_SHA256 = "badff834da0bfe332e85b14e585c6b5b0317dad4da5855ce32e1875b8f8078b1"
+BASELINE_SHA256 = "2b3e09c833cc5892b45a9e065b0986b75ab357a096cf9df837b5113cb51a342a"
 
 
 def test_baseline_does_not_import_live_metadata() -> None:
@@ -33,7 +33,7 @@ def test_baseline_artifact_has_the_reviewed_schema_fingerprint() -> None:
     assert hashlib.sha256(baseline).hexdigest() == BASELINE_SHA256
     sql = baseline.decode("utf-8")
     assert "CREATE EXTENSION IF NOT EXISTS vector" in sql
-    assert sql.count("CREATE TABLE ") == 41
+    assert sql.count("CREATE TABLE ") == 42
 
 
 def test_current_schema_is_the_single_root_and_head() -> None:
@@ -78,6 +78,20 @@ def test_fresh_database_migrates_to_head(db_url: str, monkeypatch) -> None:  # n
             assert "content_mutation_receipts" in tables
             assert "anima_definition_revisions" in tables
             assert "anima_loadout_diagnostics" in tables
+            # Reflection coverage is removed with its Anima.
+            assert {column["name"] for column in inspect(engine).get_columns("anima_memory_reflections")} == {
+                "anima_id",
+                "user_id",
+                "covered_through_created_at",
+                "covered_through_message_id",
+                "run_id",
+                "updated_at",
+            }
+            (reflection_fk,) = inspect(engine).get_foreign_keys("anima_memory_reflections")
+            assert reflection_fk["referred_table"] == "anima"
+            assert reflection_fk["options"]["ondelete"] == "CASCADE"
+            run_checks = inspect(engine).get_check_constraints("memory_manager_runs")
+            assert any("'reflection'" in check["sqltext"] for check in run_checks)
             anima_columns = {column["name"]: column for column in inspect(engine).get_columns("anima")}
             assert anima_columns["display_name"]["nullable"] is False
             assert anima_columns["aggregate_revision"]["nullable"] is False

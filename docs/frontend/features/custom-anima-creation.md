@@ -80,11 +80,12 @@ appearance; use [Appearance management](avatar-releases-and-appearance.md) after
 
 Identity uses the existing Markdown editor/renderer primitives with one string,
 LF normalization, and the server's effective UTF-8 byte limit. A new draft is
-seeded once with literal first line `# [NAME]`, followed by editable plain
-Markdown for Personality, Speaking style, Values, Background, and Boundaries;
-the seed alone is not a meaningful edit. An editable saved draft that still has
-the exact previous untouched template gains the heading safely; customized
-identity text and frozen submissions are not rewritten.
+seeded once with literal first line `# [NAME]`, followed by one hint line under
+each of Essence, Personality, Speaking style, Appearance and presence,
+Background, Interests, Values, With the user, and Boundaries; the seed alone is
+not a meaningful edit. An editable saved draft whose body is still the exact
+previous untouched template receives the current template, keeping its heading;
+customized identity text and frozen submissions are not rewritten.
 Write and Preview retain one editor instance and undo history. Tab leaves the
 editor instead of inserting indentation. New creation and explicit rename use
 a 1–40 Unicode-code-point name limit read from creation options. Existing

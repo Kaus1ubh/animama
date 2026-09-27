@@ -22,6 +22,7 @@ class EventType(str, Enum):
     DROP = "drop"
     CONTROL_SHUTDOWN = "control.shutdown"
     CRISIS_SUPPORT = "safety.crisis_support"
+    MEMORY_UPDATED = "memory.updated"
 
 
 @dataclass(slots=True)
@@ -46,6 +47,20 @@ class CrisisSupportPayload:
 
     run_id: str
     source: Literal["moderation"]
+
+
+@dataclass(slots=True)
+class MemoryUpdatedPayload:
+    """What one persisted turn remembered, for the chat's memory cue.
+
+    ``memory_cue`` is ``{"episode": {"text"} | None, "memories": {"entry_id",
+    "version", "excerpt"} | None}`` with at least one part present;
+    ``message_id`` is the turn's final visible assistant message.
+    """
+
+    run_id: str
+    message_id: int | None
+    memory_cue: Mapping[str, Any]
 
 
 @dataclass(slots=True)

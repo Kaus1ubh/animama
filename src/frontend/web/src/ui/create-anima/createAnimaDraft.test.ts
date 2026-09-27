@@ -41,7 +41,36 @@ describe("CreateAnimaDraft", () => {
     expect(draft.schema_version).toBe(2);
     expect(draft.identity_markdown).toBe(DEFAULT_ANIMA_IDENTITY_MARKDOWN);
     expect(draft.identity_markdown).toBe(
-      "# [NAME]\n## Personality\nDescribe their temperament and how they respond to people.\n## Speaking style\nDescribe their tone, word choice, and pace.\n## Values\nDescribe what matters to them.\n## Background\nDescribe the experiences that shape them.\n## Boundaries\nDescribe what they avoid and how they express limits.",
+      [
+        "# [NAME]",
+        "",
+        "## Essence",
+        "In a sentence or two, who they are at heart.",
+        "",
+        "## Personality",
+        "Temperament, quirks, and how they react to people and situations.",
+        "",
+        "## Speaking style",
+        "Tone, word choice, pace, humor and verbal habits. Replies are often spoken aloud.",
+        "",
+        "## Appearance and presence",
+        "How they look, dress and carry themselves; how they move and express emotion.",
+        "",
+        "## Background",
+        "The history and experiences that shape them.",
+        "",
+        "## Interests",
+        "What they love, know about and enjoy talking about.",
+        "",
+        "## Values",
+        "What matters to them and what they stand for.",
+        "",
+        "## With the user",
+        "The role they play in the user's life (friend, sidekick, mentor…) and how they show care, give support and disagree.",
+        "",
+        "## Boundaries",
+        "Topics they avoid, lines they will not cross and how they express limits.",
+      ].join("\n"),
     );
     expect(draft.meaningful).toBe(false);
     expect(draft.appearance_migration).toBe("none");
@@ -55,13 +84,13 @@ describe("CreateAnimaDraft", () => {
       type: "edit",
       patch: { display_name: "  Rowan  " },
     });
-    expect(named.identity_markdown).toMatch(/^# Rowan\n## Personality/);
+    expect(named.identity_markdown).toMatch(/^# Rowan\n\n## Essence/);
 
     const renamed = createAnimaDraftReducer(named, {
       type: "edit",
       patch: { display_name: "Juniper" },
     });
-    expect(renamed.identity_markdown).toMatch(/^# Juniper\n## Personality/);
+    expect(renamed.identity_markdown).toMatch(/^# Juniper\n\n## Essence/);
 
     const customized = createAnimaDraftReducer(renamed, {
       type: "edit",
@@ -77,7 +106,7 @@ describe("CreateAnimaDraft", () => {
       patch: { display_name: "Pine" },
     });
     expect(renamedAgain.identity_markdown).toMatch(
-      /^# Captain Juniper\n## Personality/,
+      /^# Captain Juniper\n\n## Essence/,
     );
   });
 

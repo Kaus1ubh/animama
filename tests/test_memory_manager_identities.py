@@ -15,10 +15,16 @@ from animama.adapters.memory_manager import (
     MemoryManagerPatchRejected,
     MemoryManagerVirtualWorkspace,
 )
-from animama.adapters.memory_manager.openai_agents_runtime import _allows_anima_identities, _instructions
+from animama.adapters.memory_manager.openai_agents_runtime import _instructions
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
+from animama.app.services.anima_identity_memory import (
+    EPISODE_PROCESSING_MANAGER_FILE_ACCESS,
+    GENERAL_MANAGER_FILE_ACCESS,
+    manager_file_access_for_run,
+)
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.user_memory_read_tools import UserMemoryReadToolService
 from animama.domain.memory_manager import (
@@ -105,22 +111,28 @@ async def _identity(async_session, *, user_id: str, entry_id: str):
 
 
 @pytest.mark.asyncio
-async def test_manager_navigation_lists_identities_only_when_enabled(async_session, clean_rows) -> None:
+async def test_manager_navigation_lists_anima_files_only_when_enabled(async_session, clean_rows) -> None:
     user_id = f"user-{uuid.uuid4()}"
     anima_id, _identity_id = await _anima_with_identity(async_session, user_id=user_id)
+    await memory_entries_router.repair_anima_memories(anima_id, session=async_session, user=_user(user_id))
     await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="file", name="PROFILE.md", content="# Me", description="Owner profile"),
         session=async_session,
         user=_user(user_id),
     )
     manager_path = f"animas/{anima_id}/IDENTITY.md"
+    memories_path = f"animas/{anima_id}/MEMORIES.md"
 
-    manager_reads = UserMemoryReadToolService(memory_entries=_entries(async_session), include_anima_identities=True)
+    manager_reads = UserMemoryReadToolService(
+        memory_entries=_entries(async_session), manager_access=GENERAL_MANAGER_FILE_ACCESS
+    )
     listed = await manager_reads.list_files(user_id=user_id)
-    assert listed["files"] == [
-        {"path": "PROFILE.md", "description": "Owner profile"},
-        {"path": manager_path, "description": "Who Annie is", "anima_name": "Annie"},
+    assert [(file["path"], file.get("anima_name")) for file in listed["files"]] == [
+        ("PROFILE.md", None),
+        (manager_path, "Annie"),
+        (memories_path, "Annie"),
     ]
+    assert listed["files"][1]["description"] == "Who Annie is"
     memory_map = await manager_reads.render_memory_map(user_id=user_id)
     assert f"  - path: {manager_path}\n    description: Who Annie is\n    anima: Annie" in memory_map
     read = await manager_reads.read_files(user_id=user_id, paths=[manager_path])
@@ -129,6 +141,17 @@ async def test_manager_navigation_lists_identities_only_when_enabled(async_sessi
     assert read["files"][0]["content"] == "# Annie\n\nCalm and curious.\n"
     missing = await manager_reads.read_files(user_id=user_id, paths=["animas/anima-missing/IDENTITY.md"])
     assert missing["errors"][0]["code"] == "not_found"
+    memories = await manager_reads.read_files(user_id=user_id, paths=[memories_path])
+    assert memories["errors"] == [] and memories["files"][0]["path"] == memories_path
+    assert memories["files"][0]["content"].startswith("# Memories\n")
+
+    episode_reads = UserMemoryReadToolService(
+        memory_entries=_entries(async_session), manager_access=EPISODE_PROCESSING_MANAGER_FILE_ACCESS
+    )
+    assert "animas/" not in await episode_reads.render_memory_map(user_id=user_id)
+    for path in (manager_path, memories_path):
+        refused = await episode_reads.read_files(user_id=user_id, paths=[path])
+        assert refused["files"] == [] and refused["errors"][0]["code"] == "invalid_path"
 
     chat_reads = UserMemoryReadToolService(memory_entries=_entries(async_session))
     assert [file["path"] for file in (await chat_reads.list_files(user_id=user_id))["files"]] == ["PROFILE.md"]
@@ -145,7 +168,9 @@ async def test_workspace_plans_identity_updates_only_when_enabled(async_session,
     manager_path = f"animas/{anima_id}/IDENTITY.md"
     entries = _entries(async_session)
 
-    workspace = MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=entries, allow_anima_identities=True)
+    workspace = MemoryManagerVirtualWorkspace(
+        user_id=user_id, memory_entries=entries, access=GENERAL_MANAGER_FILE_ACCESS
+    )
     planned = await workspace.plan_v4a_operation(
         operation_type="update_file",
         path=manager_path,
@@ -342,14 +367,21 @@ async def test_episode_processing_runs_cannot_change_identities(async_session, c
     assert unchanged.content == "# Annie\n\nCalm and curious.\n"
 
 
-def test_live_runtime_limits_identity_access_to_general_runs() -> None:
-    general = MemoryManagerRun(id="run-general", user_id="user", status="active")
-    episode = MemoryManagerRun(id="run-episode", user_id="user", status="active", kind="episode_processing")
+def test_live_runtime_limits_anima_file_access_to_general_runs() -> None:
+    general = manager_file_access_for_run(MemoryManagerRun(id="run-general", user_id="user", status="active"))
+    episode = manager_file_access_for_run(
+        MemoryManagerRun(id="run-episode", user_id="user", status="active", kind="episode_processing")
+    )
 
-    assert _allows_anima_identities(general) is True
-    assert _allows_anima_identities(episode) is False
-    assert "animas/<anima_id>/IDENTITY.md" in _instructions(memory_map="", anima_identities=True)
-    assert "animas/" not in _instructions(memory_map="", anima_identities=False)
+    assert general.anima_identities and general.anima_memories and general.anima_id is None
+    assert not episode.anima_files and episode.user_files_writable
+    general_instructions = _instructions(memory_map="", access=general)
+    assert "animas/<anima_id>/IDENTITY.md" in general_instructions
+    assert "animas/<anima_id>/MEMORIES.md" in general_instructions
+    assert "only when the user explicitly asks" in general_instructions
+    assert SENSITIVE_MEMORY_RULE in general_instructions
+    assert "missing the user" in general_instructions
+    assert "animas/" not in _instructions(memory_map="", access=episode)
 
 
 @pytest.mark.asyncio

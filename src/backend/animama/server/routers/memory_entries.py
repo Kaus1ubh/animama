@@ -213,7 +213,7 @@ async def list_memory_entries(
     status_code=status.HTTP_200_OK,
 )
 async def list_anima_identities(session: SessionDep, user: UserDep) -> PyAnimaIdentityListResponse:
-    """List every owned Anima in creation order with its identity header."""
+    """List every owned Anima in creation order with its IDENTITY.md and MEMORIES.md headers."""
 
     summaries = await _service(session).list_anima_identities(user_id=user.id)
     return PyAnimaIdentityListResponse(
@@ -225,10 +225,26 @@ async def list_anima_identities(session: SessionDep, user: UserDep) -> PyAnimaId
                 identity_status=summary.identity_status,
                 created_at=summary.created_at,
                 entry=_to_header(summary.identity) if summary.identity is not None else None,
+                memories_entry=_to_header(summary.memories) if summary.memories is not None else None,
             )
             for summary in summaries
         ]
     )
+
+
+@router.post(
+    "/v1/memory/anima-memories/{anima_id}:repair",
+    response_model=PyMemoryEntryHeader,
+    status_code=status.HTTP_200_OK,
+)
+async def repair_anima_memories(anima_id: str, session: SessionDep, user: UserDep) -> PyMemoryEntryHeader:
+    """Recreate an owned Anima's missing MEMORIES.md from the template; existing files are unchanged."""
+
+    try:
+        entry = await _service(session).repair_anima_memories(user_id=user.id, anima_id=anima_id)
+    except (MemoryEntryNotFoundError, MemoryEntryConflictError) as exc:
+        _raise_http_error(exc)
+    return _to_header(entry)
 
 
 @router.get(
@@ -498,6 +514,7 @@ __all__ = [
     "list_memory_entries",
     "list_memory_entry_versions",
     "patch_memory_entry",
+    "repair_anima_memories",
     "revert_memory_entry",
     "router",
 ]

@@ -2,8 +2,15 @@ import type { PyMemoryManagerRun } from "@/lib/content/catalogTypes";
 
 type MemoryManagerRunStatus = PyMemoryManagerRun["status"] | null | undefined;
 
-export type EpisodeProcessingPresentation = {
-  state: "processing" | "waiting_approval" | "processed" | "failed";
+/** Status banner for a specialized run (episode processing or Reflection). */
+export type MemoryManagerRunPresentation = {
+  state:
+    | "processing"
+    | "active"
+    | "waiting_approval"
+    | "processed"
+    | "completed"
+    | "failed";
   title: string;
   description: string;
 };
@@ -74,7 +81,7 @@ export function isEpisodeProcessingComposerLocked(
 /** Builds safe processing copy from the public task summary only. */
 export function episodeProcessingPresentation(
   run: PyMemoryManagerRun | null | undefined,
-): EpisodeProcessingPresentation | null {
+): MemoryManagerRunPresentation | null {
   if (run?.kind !== "episode_processing" || !run.task) return null;
   const count = run.task.batch_size;
   const noun = count === 1 ? "episode" : "episodes";
@@ -111,8 +118,72 @@ export function episodeProcessingPresentation(
   };
 }
 
-/** Specialized creation may supersede active runs but never a pending approval. */
-export function canProcessPendingEpisodes({
+function countLabel(count: number, singular: string, plural: string) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+/**
+ * Builds Reflection copy from the public summary only. The composer stays
+ * available, so follow-ups refine the proposal like any other conversation.
+ * `hasAppliedChange` reports an approved, not undone, change in this run:
+ * approval commits the file and the turns' coverage before the manager
+ * resumes, so a later stop leaves that change in place.
+ */
+export function reflectionPresentation(
+  run: PyMemoryManagerRun | null | undefined,
+  { hasAppliedChange = false }: { hasAppliedChange?: boolean } = {},
+): MemoryManagerRunPresentation | null {
+  if (run?.kind !== "reflection" || !run.reflection) return null;
+  const {
+    anima_name: name,
+    turn_count: count,
+    remaining_turn_count: remaining,
+  } = run.reflection;
+  const turns = countLabel(count, "turn", "turns");
+  if (run.status === "failed") {
+    return {
+      state: "failed",
+      title: `Reflection on ${turns} with ${name} stopped`,
+      description: hasAppliedChange
+        ? "The applied MEMORIES.md change stands and these turns count as reflected. The conversation stopped before it finished; the error below explains why."
+        : `${name}'s MEMORIES.md and these turns are unchanged, so they remain for the next Reflection. The error below explains why it stopped.`,
+    };
+  }
+  const remainder =
+    remaining > 0
+      ? ` · ${remaining} more ${remaining === 1 ? "remains" : "remain"}`
+      : "";
+  if (run.status === "completed") {
+    return {
+      state: "completed",
+      title: `Reflected on ${turns} with ${name}${remainder}`,
+      description: hasAppliedChange
+        ? "The applied MEMORIES.md change stands and these turns count as reflected."
+        : "No change from this Reflection was applied, so these turns remain for the next Reflection.",
+    };
+  }
+  const title = `Reflecting on ${turns} with ${name}${remainder}`;
+  if (run.status === "waiting_approval") {
+    return {
+      state: "waiting_approval",
+      title,
+      description:
+        "Review the proposed MEMORIES.md change below. These turns count as reflected only once a change from this Reflection is applied.",
+    };
+  }
+  return {
+    state: "active",
+    title,
+    description:
+      "These turns count as reflected once a MEMORIES.md change from this Reflection is applied. Reply to refine it.",
+  };
+}
+
+/**
+ * Owner-facing reason a specialized run cannot start, or null when it can.
+ * Specialized creation may supersede active runs but never a pending approval.
+ */
+export function specializedMemoryManagerRunBlockReason({
   isBusy,
   isLoading,
   isError,
@@ -123,7 +194,16 @@ export function canProcessPendingEpisodes({
   isError: boolean;
   hasPendingApproval: boolean;
 }) {
-  return !isBusy && !isLoading && !isError && !hasPendingApproval;
+  if (hasPendingApproval) {
+    return "Approve or reject the pending memory change in the Memory Manager first.";
+  }
+  if (isError) {
+    return "The Memory Manager conversation could not load. Retry it first.";
+  }
+  if (isBusy || isLoading) {
+    return "The Memory Manager is still working. Try again when it finishes.";
+  }
+  return null;
 }
 
 /** Clears a run only after any required completion succeeds. */
