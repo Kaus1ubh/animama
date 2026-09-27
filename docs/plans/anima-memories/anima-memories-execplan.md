@@ -52,7 +52,8 @@ version; 3.14 changes OpenAPI wording); never hand-edit generated output.
 - [x] Phase 4: Reflection (review #2 pass; commit `6c95470`).
 - [x] Final integration review (review #2 pass; see section).
 - [ ] Owner gate G1: desktop acceptance with a live model.
-- [ ] PR opened; hosted Validation recorded.
+- [x] PR https://github.com/raymond-van/animama/pull/181 opened; latest main
+      merged (generated client regenerated); hosted Validation pending.
 - [ ] Exact-candidate owner merge approval.
 
 ## Surprises & Discoveries
