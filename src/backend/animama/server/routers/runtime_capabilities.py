@@ -12,6 +12,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
 from animama.server.config import Settings, settings
 from animama.server.deps import get_async_session, get_current_principal
+from animama.server.routers.model_provider import get_model_catalog_policy
 
 router = APIRouter()
 
@@ -42,6 +43,8 @@ class CompanionSafetyCapability(BaseModel):
 class RuntimeCapabilities(BaseModel):
     schema_version: Literal[1] = 1
     runtime_kind: Literal["desktop", "self_hosted_web"]
+    model_configuration: bool = False
+    """Whether the owner may manage model connections, models and roles."""
     user_file_processing: UserFileProcessingCapability
     offline_speech_enabled: bool
     offline_speech_asset_version: str | None
@@ -50,6 +53,7 @@ class RuntimeCapabilities(BaseModel):
 
 @router.get("/v1/runtime-capabilities", response_model=RuntimeCapabilities)
 async def get_runtime_capabilities(
+    request: Request,
     principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
     session: Annotated[AsyncSession, Depends(get_async_session)],
     runtime_settings: Annotated[Settings, Depends(get_runtime_settings)],
@@ -70,6 +74,7 @@ async def get_runtime_capabilities(
     desktop = bool(runtime_settings.animama_desktop_control_token)
     safety = runtime_settings.companion_safety
     return RuntimeCapabilities(
+        model_configuration=get_model_catalog_policy(request).owner_models_enabled,
         companion_safety=CompanionSafetyCapability(
             enabled=safety.enabled,
             ai_notice_enabled=safety.effective_ai_notice_enabled,

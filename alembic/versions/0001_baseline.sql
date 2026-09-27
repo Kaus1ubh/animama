@@ -714,6 +714,7 @@ CREATE TABLE model_providers (
     supports_reasoning boolean,
     supported_reasoning_efforts json,
     native_tool_support json,
+    tools_with_structured_output boolean DEFAULT true NOT NULL,
     pricing_status character varying NOT NULL,
     pricing_source_provider character varying,
     pricing_source_model character varying,

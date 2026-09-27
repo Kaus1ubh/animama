@@ -6,7 +6,7 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from openai import AsyncOpenAI, Omit, OpenAIError
+from openai import AsyncOpenAI, OpenAIError
 
 from animama.app.model_clients import (
     ModelClientDelta,
@@ -17,12 +17,7 @@ from animama.app.model_clients import (
     model_client_preview_log_context,
     model_client_request_log_context,
 )
-from animama.app.model_clients.credentials import (
-    EnvironmentModelCredentialResolver,
-    ModelCredential,
-    ModelCredentialResolver,
-    connection_for_model_provider,
-)
+from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver, ModelCredentialResolver
 from animama.domain.model_connection import ModelConnection
 from animama.domain.usage import Usage
 from animama.logging import get_logger
@@ -33,6 +28,12 @@ from ..openai_errors import (
     model_client_error_from_openai_info,
     should_retry_openai_error,
     sleep_before_openai_retry,
+)
+from .connection_sdk import (
+    connection_base_url,
+    connection_for_request,
+    keyless_request_headers,
+    sdk_client_for_connection,
 )
 from .events import (
     choice_zero,
@@ -46,14 +47,6 @@ from .tools import merge_tool_call_deltas_from_choice, tool_calls_from_parts
 from .usage import usage_from_chat_completion_usage
 
 _log = get_logger("adapters.model_clients.openai_chat_completions.client")
-
-# Keyless connections must not send an Authorization header, and non-OpenAI
-# endpoints must not receive the process OpenAI organization or project ids.
-_NON_OPENAI_OMITTED_HEADERS: dict[str, Any] = {
-    "OpenAI-Organization": Omit(),
-    "OpenAI-Project": Omit(),
-}
-_KEYLESS_PLACEHOLDER = "not-required"
 
 
 class OpenAIChatCompletionsModelClient:
@@ -97,7 +90,7 @@ class OpenAIChatCompletionsModelClient:
         after the stream ends with finish/usage metadata captured.
         """
 
-        connection = _connection_for_spec(spec)
+        connection = connection_for_request(spec.model_provider)
         base_url = self._base_url_for_connection(connection)
         if self._client is None and not self._credentials.resolve(connection).usable:
             raise ModelClientProviderError(
@@ -263,25 +256,17 @@ class OpenAIChatCompletionsModelClient:
     async def _create_stream(self, spec: ModelClientRequest) -> Any:
         """Create the OpenAI SDK stream with request fields translated upstream."""
 
-        connection = _connection_for_spec(spec)
+        connection = connection_for_request(spec.model_provider)
         timeout = self._timeout_for_connection(connection)
         client = self._client_for_connection(connection, timeout=timeout)
         kwargs = create_chat_completion_kwargs(spec, timeout=timeout)
-        if not connection.is_builtin_openai and not self._credentials.resolve(connection).api_key:
-            # The SDK only accepts an omitted Authorization header per request.
-            kwargs["extra_headers"] = {"Authorization": Omit()}
+        extra_headers = keyless_request_headers(connection, self._credentials.resolve(connection))
+        if extra_headers is not None:
+            kwargs["extra_headers"] = extra_headers
         return await client.chat.completions.create(**kwargs)
 
     def _base_url_for_connection(self, connection: ModelConnection) -> str:
-        if connection.is_builtin_openai:
-            return (connection.base_url or self._base_url).rstrip("/")
-        if not connection.base_url:
-            raise ModelClientProviderError(
-                f"{connection.name} has no base URL",
-                code="connection_base_url_missing",
-                raw_metadata={"connection_id": connection.id, "connection_name": connection.name},
-            )
-        return connection.base_url.rstrip("/")
+        return connection_base_url(connection, openai_base_url=self._base_url)
 
     def _timeout_for_connection(self, connection: ModelConnection) -> float | None:
         return connection.timeout_seconds if connection.timeout_seconds is not None else self._timeout
@@ -299,7 +284,7 @@ class OpenAIChatCompletionsModelClient:
         cache_key = (connection.id, base_url, connection.credential_env, timeout)
         client = self._clients_by_connection.get(cache_key)
         if client is None:
-            client = _sdk_client_for_connection(
+            client = sdk_client_for_connection(
                 connection,
                 credential=self._credentials.resolve(connection),
                 base_url=base_url,
@@ -307,55 +292,6 @@ class OpenAIChatCompletionsModelClient:
             )
             self._clients_by_connection[cache_key] = client
         return client
-
-
-def _connection_for_spec(spec: ModelClientRequest) -> ModelConnection:
-    try:
-        return connection_for_model_provider(spec.model_provider)
-    except ValueError as exc:
-        raise ModelClientProviderError(
-            str(exc),
-            code="connection_unavailable",
-            raw_metadata={"connection_id": spec.model_provider.connection_id, "model": spec.model_provider.model},
-        ) from exc
-
-
-def _sdk_client_for_connection(
-    connection: ModelConnection,
-    *,
-    credential: ModelCredential,
-    base_url: str,
-    timeout: float | None,
-) -> AsyncOpenAI:
-    """Build an SDK client that cannot fall back to process OpenAI settings.
-
-    ``AsyncOpenAI`` reads ``OPENAI_API_KEY``, ``OPENAI_ORG_ID``,
-    ``OPENAI_PROJECT_ID`` and ``OPENAI_CUSTOM_HEADERS`` from the environment.
-    For owner connections every such header is omitted and ``Authorization``
-    is set from the connection's own key. Keyless connections pass a
-    placeholder key and omit ``Authorization`` per request (see
-    ``_create_stream``), which is the only omission the SDK accepts.
-    """
-
-    if connection.is_builtin_openai:
-        return AsyncOpenAI(api_key=credential.api_key, base_url=base_url, timeout=timeout)
-    headers: dict[str, Any] = {name: Omit() for name in _environment_custom_header_names()}
-    headers.update(_NON_OPENAI_OMITTED_HEADERS)
-    if credential.api_key:
-        headers["Authorization"] = f"Bearer {credential.api_key}"
-    return AsyncOpenAI(
-        api_key=credential.api_key or _KEYLESS_PLACEHOLDER,
-        base_url=base_url,
-        timeout=timeout,
-        default_headers=headers,
-    )
-
-
-def _environment_custom_header_names() -> list[str]:
-    """Return header names the SDK would add from ``OPENAI_CUSTOM_HEADERS``."""
-
-    raw = os.environ.get("OPENAI_CUSTOM_HEADERS") or ""
-    return [line[: line.find(":")].strip() for line in raw.split("\n") if ":" in line]
 
 
 __all__ = ["OPENAI_HTTP_PROVIDER_TYPE", "OpenAIChatCompletionsModelClient"]

@@ -86,7 +86,8 @@ Standing rules:
       blocked-by.
 - [x] Phase 1: connection-aware catalog and credential isolation (review #2
       pass; commit recorded below).
-- [ ] Phase 2: owner management API, probe and composition boundary.
+- [x] Phase 2: owner management API, probe and composition boundary (review
+      #2 pass; commit recorded below).
 - [ ] Phase 3: Chat Completions turn parity and errors.
 - [ ] Phase 4: model roles and fully local operation.
 - [ ] Phase 5: App Settings, model selector and desktop keys.
@@ -671,15 +672,132 @@ Checks: focused pytest, `make check-test`, `pnpm openapi-ts:check`,
 
 Completion: tests pass; the SDK is regenerated; review has no blocker.
 
-Phase record: issue #166; starting source —; commits —.
+Phase record: issue #166; starting source `f6f68c5`; commits —.
+
+Implementation notes (agent, within scope):
+
+- One `ModelConfigurationService` covers connections, owner models, hiding and
+  removal, because removal spans all three.
+- A `tools_with_structured_output` capability column records the probe's
+  combination result for Phase 3.
+- A Responses probe (built-in connection only) checks that the model exists;
+  its capabilities come from the chosen built-in template.
+- Hiding a built-in uses a dedicated `set_hidden` repository write, since
+  catalog upserts deliberately preserve the flag.
+- The Compose `host-gateway` mapping and `ANIMAMA_LOCAL_MODEL_HOST` default
+  moved here from Phase 6 because the presets use them now.
+- The SDK is regenerated from a Python 3.12.13 environment, matching CI.
+- Files: routes are in `server/routers/model_configuration.py`; the probe is an
+  app port (`app/model_clients/probe.py`) with an OpenAI-compatible adapter
+  (`adapters/model_clients/openai_chat_completions/probe.py`).
+- `ModelCatalogPolicy` filters the public listing. Enforcing a hosted
+  built-in allowlist in turn setup and chat profiles is left to the hosted
+  composition (and the Phase 4 role resolver for roles).
+
+Evidence (pre-review, working tree on `f6f68c5`):
+
+- `make check-test`: 1950 passed, 7 skipped; format, lint, mypy and audit pass.
+- `pnpm openapi-ts:check`: generated SDK current (17 files); `pnpm check` passes.
+- Both `docker compose … config --quiet` commands and
+  `tests/test_compose_network_boundaries.py` (122) pass.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `f6f68c5`. Its checks (ruff, format check, boundary imports, mypy, 216
+focused tests, `pnpm openapi-ts:check`) pass. Credential isolation on every
+probe path was confirmed with hostile process OpenAI settings.
+
+- **P2-R1-F1 (blocking)** — probe steps and model listing caught only SDK
+  errors; HTML replies, error bodies, missing fields and mid-stream
+  `httpx.ReadTimeout` escaped as HTTP 500 without a category.
+- **P2-R1-F2 (blocking)** — `normalize_base_url` let `urlsplit` raise and did
+  not validate the port (`http://[::1:…`, `:abc`, `:99999`).
+- **P2-R1-F3 (blocking)** — no tests for either PATCH route, the 503 catalog
+  path or the runtime capability flag.
+- **P2-R1-F4** — PATCH of a connection acted as a full replace (dropping the
+  credential reference and custom options).
+- **P2-R1-F5** — owner rows kept the connection name from creation, so a
+  renamed connection's models stayed under the old selector group.
+- **P2-R1-F6** — a capability edit reset a Responses row's hosted tools;
+  `_owner_capabilities` had an unused parameter; templates were accepted for
+  embedding models.
+- **P2-R1-F7** — a template copied OpenAI's context window onto a model on
+  another server.
+- **P2-R1-F8** (optional) — no short connect timeout for the probe.
+- **P2-R1-F9** (optional) — `supports_streaming=False` after connectivity
+  failures; a 404 on `/models` reported as `model_not_found`; a missing key
+  returned 502.
+- **P2-R1-F10** (optional) — plan record drift (router/probe file names,
+  reactivation wording for connections, allowlist enforcement scope).
+- **P2-R1-F11** (optional) — small cleanups (duplicate policy lookup and
+  provider-type constants, hardcoded Responses type, and others).
+- Compose comment overstated Linux reachability; docs deferred to Phase 6.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** Each step and model listing reports SDK errors,
+  `httpx` timeouts (`timeout`), other transport failures (`unreachable`) and
+  non-OpenAI replies (`unexpected_response`) as categorized steps or probe
+  errors; SDK client construction is guarded. Tests cover a stalled stream, an
+  HTML reply and a wrong base path.
+- **F2 accepted.** Base URLs failing `urlsplit` or port validation are
+  rejected with `invalid_base_url`; the three reviewer cases are tested.
+- **F3 accepted.** Tests cover partial connection updates (including the
+  built-in rejection), owner model updates, the 503 catalog response and the
+  capability flag in local and non-local compositions.
+- **F4 accepted.** `PATCH /v1/model-connections/{id}` takes
+  `PyModelConnectionUpdate`; omitted fields, including the credential
+  reference, keep their values.
+- **F5 accepted.** The public catalog labels owner rows with their
+  connection's current name and preset logo.
+- **F6 accepted.** Capability edits keep native tools from a Responses
+  template; the unused parameter is gone; templates are rejected for embedding
+  models.
+- **F7 accepted.** Template context windows (and output limits) apply only on
+  the built-in OpenAI connection.
+- **F8 accepted.** Probe clients use a 10 s connect timeout within the
+  connection timeout.
+- **F9 accepted.** Connectivity, credential and model-not-found failures leave
+  `supports_streaming` undetermined; a 404 while listing models reports
+  `unreachable` with a wrong-path hint; a missing key returns 400.
+- **F10 accepted.** Recorded below and in Idempotence and recovery.
+- **F11 partly accepted.** Runtime capabilities reuse
+  `get_model_catalog_policy`; the service and probe route use the provider-type
+  constants from `app/chat/api_standard.py`. The remaining items are left: the
+  app error carries a status like other app services, per-connection model
+  queries are bounded by the owner's few connections, and stricter literal
+  types in the public catalog schema would churn the generated client for no
+  behavioral gain.
+- The Compose comment now says Linux host servers must listen beyond
+  `127.0.0.1`; the Phase 6 guide will repeat it.
+
+After repairs: `make check-test` 1963 passed, 7 skipped; SDK regenerated and
+current; `pnpm check` passes.
+
+#### Code Review #2 Findings
+
+Reviewer: the same independent reviewer, targeted recheck. Result: **pass**.
+F1–F3 and the accepted optional findings are resolved with no blocking
+regression; the reviewer's failure scripts now produce categorized results and
+credential isolation still holds on every probe path. Checks: ruff, format
+check, boundary imports, mypy, 283 focused tests and `pnpm openapi-ts:check`.
+
+- **P2-R2-F1** (optional) — an invalid stored base URL at probe time returned
+  502 instead of 400.
+- **P2-R2-F2** (optional) — a streaming step with no text had no category; a
+  literal category string duplicated a constant.
+- **P2-R2-F3** (optional) — the catalog sorted groups by the stored label, not
+  the displayed connection name.
+
+#### Code Review #2 Revisions
+
+- **P2-R2-F1 accepted.** A new `invalid_base_url` category maps to 400.
+- **P2-R2-F2 accepted.** An empty stream reports `unexpected_response`; the
+  constant is used.
+- **P2-R2-F3 accepted.** The public catalog sorts by the displayed labels.
+- `make check-test`: 1963 passed, 7 skipped; SDK current. One repair round
+  used; one remains.
 
 ### Phase 3 — Chat Completions turn parity and errors
 
@@ -1043,8 +1161,9 @@ Owner gates:
   owner decides when to reset their own development databases.
 - **Seed.** Rerunning is idempotent and never modifies owner rows or `hidden`.
   Retired built-ins keep their ids, so chat profiles and history stay valid.
-- **Removal** is soft. Re-adding a model or connection reactivates it; chats
-  keep their snapshots.
+- **Removal** is soft. Re-adding a model to the same connection reactivates its
+  row; a re-added connection is a new connection with a new id (and managed
+  key name). Chats keep their snapshots.
 - **Keys.** Removing a desktop connection key uses the existing batched apply.
   Older builds ignore and preserve the vault `connections` field. Legacy
   provider entries are dropped on the first load of the new build; re-enter a

@@ -27,6 +27,12 @@ class ModelProviderCapabilities:
     supports_reasoning: bool | None = None
     supported_reasoning_efforts: list[str] | None = None
     native_tool_support: list[str] | None = None
+    tools_with_structured_output: bool = True
+    """Whether one request may carry both function tools and a response format.
+
+    Some local servers reject the combination or ignore the tools; those turns
+    call tools first and request the structured reply in a separate round.
+    """
 
 
 @dataclass(slots=True)
@@ -118,7 +124,17 @@ class ModelProvider:
         return bool(self.capabilities.supports_developer_role) and not folds
 
 
+@dataclass(frozen=True, slots=True)
+class AnimaModelUsage:
+    """An owned Anima whose chat profile selects a catalog row."""
+
+    anima_id: str
+    display_name: str
+    model_provider_id: str
+
+
 __all__ = [
+    "AnimaModelUsage",
     "ModelProviderCapabilities",
     "ModelProvider",
     "ModelProviderPricing",

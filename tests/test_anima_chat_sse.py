@@ -586,6 +586,7 @@ class _ProviderSeedOptions(TypedDict, total=False):
     provider_label: str
     connection_id: str
     source: str
+    context_window_tokens: int | None
     metadata: dict[str, Any] | None
     active: bool
     supports_streaming: bool
@@ -605,6 +606,7 @@ async def _seed_chat_model_provider(
     provider_label: str = "OpenAI",
     connection_id: str = "openai",
     source: str = "builtin",
+    context_window_tokens: int | None = 128_000,
     metadata: dict[str, Any] | None = None,
     active: bool = True,
     supports_streaming: bool = True,
@@ -622,6 +624,7 @@ async def _seed_chat_model_provider(
         "provider_label": provider_label,
         "connection_id": connection_id,
         "source": source,
+        "context_window_tokens": context_window_tokens,
         "active": active,
         "accepts": ["text"],
         "produces": ["text"],
@@ -2720,6 +2723,50 @@ async def test_chat_sse_owner_connection_row_is_rejected_for_responses_chat_befo
     assert _json_object(exc_info.value.detail)["requested_api_standard"] == "chat_completions"
     assert _json_object(exc_info.value.detail)["requested_model_provider_id"] == model_provider_id
     assert model_client.seen_specs == []
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_owner_model_on_the_openai_connection_completes_a_turn(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    """A newly released OpenAI model added by the owner chats without a code change."""
+
+    anima_id = "anima-db-owner-openai"
+    chat_id = "chat-db-owner-openai"
+    model_provider_id = "owner:gpt-6-luna"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_chat_model_provider(
+        async_session,
+        model_provider_id,
+        provider_type="OpenAIResponsesHTTPAgent",
+        model="gpt-6-luna",
+        source="owner",
+        context_window_tokens=1_050_000,
+        supported_reasoning_efforts=["none", "low"],
+    )
+    model_client = _RouteModelClient(text=_direct_structured_response(speech="new model"))
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="hello", run_id="run-db-owner-openai", chat_id=chat_id, model_provider_id=model_provider_id
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert _event_data(chunks, "run.completed")["chat_id"] == chat_id
+    spec = model_client.seen_specs[0]
+    assert spec.model_provider.model == "gpt-6-luna"
+    assert spec.model_provider.connection is not None and spec.model_provider.connection.is_builtin_openai
+    chat = await async_session.get(ORMChat, chat_id)
+    assert chat is not None and chat.api_standard == "responses"
 
 
 @pytest.mark.asyncio

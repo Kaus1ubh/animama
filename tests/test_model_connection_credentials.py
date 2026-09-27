@@ -13,7 +13,7 @@ import httpx
 import pytest
 
 from animama.adapters.model_clients import OpenAIChatCompletionsModelClient
-from animama.adapters.model_clients.openai_chat_completions import client as openai_chat_client_module
+from animama.adapters.model_clients.openai_chat_completions import connection_sdk as openai_chat_client_module
 from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
 from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
 from animama.domain import ModelConnection

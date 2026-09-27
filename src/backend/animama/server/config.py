@@ -165,6 +165,9 @@ class Settings(BaseModel):
         _env_text("ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT") or "low"
     )
     anima_model_client_timeout_seconds: float = float(os.getenv("ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS", "60.0"))
+    # Host that local model-server presets (Ollama, LM Studio, llama.cpp, vLLM)
+    # suggest; Compose sets host.docker.internal so containers reach the host.
+    animama_local_model_host: str = os.getenv("ANIMAMA_LOCAL_MODEL_HOST", "127.0.0.1")
     anima_memory_manager_agent_model: str = os.getenv("ANIMAMA_MEMORY_MANAGER_AGENT_MODEL", "gpt-5.4-mini")
     elevenlabs_audio_max_upload_bytes: int = int(os.getenv("ELEVENLABS_AUDIO_MAX_UPLOAD_BYTES", str(25 * 1024 * 1024)))
     elevenlabs_max_in_flight: int = int(os.getenv("ELEVENLABS_MAX_IN_FLIGHT", "3"))

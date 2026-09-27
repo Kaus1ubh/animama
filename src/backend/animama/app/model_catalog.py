@@ -482,10 +482,11 @@ def _metadata_for_provider(entry: dict[str, Any], provider_attrs: dict[str, Any]
 
 
 def serialize_model_catalog() -> list[dict[str, Any]]:
-    """Return public model catalog rows for API/UI use.
+    """Return the public `/v1/model-providers` rows the built-in catalog seeds.
 
-    Provider credentials, registry base URLs, and user-supplied overrides are
-    intentionally omitted from this payload.
+    The API serves rows from the database; this projection lets tests check
+    that seeded rows keep the public shape. Credentials, base URLs and pricing
+    are omitted.
     """
 
     rows: list[dict[str, Any]] = []
@@ -504,6 +505,12 @@ def serialize_model_catalog() -> list[dict[str, Any]]:
                 "provider_label": _provider_label(provider_type, provider_attrs),
                 "logo_provider": _logo_provider(provider_type, provider_attrs),
                 **_chat_api_standard_fields(provider_type),
+                "source": MODEL_SOURCE_BUILTIN,
+                "connection_id": BUILTIN_OPENAI_CONNECTION_ID,
+                "connection_name": "OpenAI",
+                "model_kind": MODEL_KIND_CHAT,
+                "hidden": False,
+                "context_window_tokens": (entry.get("model_metadata") or {}).get("context_window_tokens"),
                 "accepts": _modality_values(capabilities.get("accepts")),
                 "produces": _modality_values(capabilities.get("produces")),
                 "supports_developer_role": bool(capabilities.get("supports_developer_role", True)),

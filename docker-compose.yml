@@ -51,6 +51,11 @@ services:
     container_name: "${ANIMAMA_CONTAINER_NAME_PREFIX:-}animama-server"
     restart: unless-stopped
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    # Owner-configured model servers on the host (Ollama, LM Studio, llama.cpp)
+    # are reached as host.docker.internal. On Linux this is the bridge gateway,
+    # so those servers must listen beyond 127.0.0.1.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       # Libraries such as Torch call getpass.getuser(); provide a logical name
       # because the host UID intentionally may not exist in the image passwd file.
@@ -77,6 +82,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       ANIMAMA_DEFAULT_MODEL_PROVIDER_ID: ${ANIMAMA_DEFAULT_MODEL_PROVIDER_ID:-OpenAIResponsesHTTPAgent:gpt-5.6-luna}
+      ANIMAMA_LOCAL_MODEL_HOST: ${ANIMAMA_LOCAL_MODEL_HOST:-host.docker.internal}
       ANIMAMA_LLM_SKIP: ${ANIMAMA_LLM_SKIP:-}
       WATCHFILES_FORCE_POLLING: "true"
       ANIMAMA_LOG_TZ: America/New_York

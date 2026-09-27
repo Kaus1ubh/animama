@@ -634,6 +634,33 @@ async def test_direct_turn_passes_responses_standard_to_chat_manager() -> None:
 
 
 @pytest.mark.asyncio
+async def test_direct_turn_requires_a_context_window_for_owner_models() -> None:
+    model_client = _FinalModelClient(_structured_response())
+    provider = _provider()
+    provider.source = "owner"
+    provider.context_window_tokens = None
+    executor, chats = _executor(client=model_client, provider=provider)
+
+    with pytest.raises(DirectChatTurnSetupError, match="context window"):
+        await executor.prepare_turn(_request())
+
+    assert chats.ensure_calls == []
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_rejects_embedding_models() -> None:
+    model_client = _FinalModelClient(_structured_response())
+    provider = _provider()
+    provider.model_kind = "embedding"
+    executor, chats = _executor(client=model_client, provider=provider)
+
+    with pytest.raises(DirectChatTurnSetupError, match="not a chat model"):
+        await executor.prepare_turn(_request())
+
+    assert chats.ensure_calls == []
+
+
+@pytest.mark.asyncio
 async def test_direct_turn_rejects_rows_on_an_inactive_connection_before_chat_or_model() -> None:
     model_client = _FinalModelClient(_structured_response())
     provider = _provider()

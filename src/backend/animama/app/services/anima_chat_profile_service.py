@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from animama.domain import AnimaChatProfile
+from animama.domain.model_connection import MODEL_KIND_CHAT
 from animama.logging import get_logger
 
 from ..ports import AnimaChatProfileRepository, ModelProviderRepository, UnitOfWork
@@ -36,6 +37,8 @@ class AnimaChatProfileService:
         model_provider = await self._model_providers.get(model_provider_id)
         if model_provider is None or not model_provider.active:
             raise ValueError("Default model provider must reference an active catalog row")
+        if model_provider.model_kind != MODEL_KIND_CHAT:
+            raise ValueError("Default model provider must be a chat model")
 
         current = await self._profiles.get(anima_id)
         metadata = dict(current.metadata or {}) if current is not None else {}

@@ -20,7 +20,7 @@ from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
 from animama.app.util.json_values import json_safe_copy
 from animama.domain import ModelProvider
 from animama.domain.chat import Chat
-from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID
+from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID, MODEL_KIND_CHAT, MODEL_SOURCE_OWNER
 
 from ..options import DirectChatOptions
 from .constants import (
@@ -71,6 +71,12 @@ def validate_model_provider_for_direct_turn(
     connection = model_provider.connection
     if connection is not None and not connection.active:
         raise DirectChatTurnSetupError(f"Model connection is inactive: {connection.id}")
+    if model_provider.model_kind != MODEL_KIND_CHAT:
+        raise DirectChatTurnSetupError(f"Model is not a chat model: {model_provider.id}")
+    if model_provider.source == MODEL_SOURCE_OWNER and model_provider.context_window_tokens is None:
+        raise DirectChatTurnSetupError(
+            f"Set the model's context window in App Settings before chatting: {model_provider.id}"
+        )
     if (
         model_provider.provider_type == OPENAI_RESPONSES_PROVIDER
         and model_provider.connection_id != BUILTIN_OPENAI_CONNECTION_ID

@@ -14,6 +14,12 @@ class PyModelProviderCatalogItem(BaseModel):
     logo_provider: str | None = None
     model_client: str | None = None
     api_standard: str | None = None
+    source: str = "builtin"
+    connection_id: str = "openai"
+    connection_name: str | None = None
+    model_kind: str = "chat"
+    hidden: bool = False
+    context_window_tokens: int | None = None
     accepts: list[str] = Field(default_factory=list)
     produces: list[str] = Field(default_factory=list)
     supports_developer_role: bool = True

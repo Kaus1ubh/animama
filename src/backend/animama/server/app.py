@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.app.safety.config import safety_override_warnings
+from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
 from animama.local.database import LocalDatabase
 from animama.local.http.composition import install_local_http
 from animama.logging_config import configure_logging
@@ -20,6 +21,7 @@ from animama.server.local_installation_bootstrap import create_local_installatio
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.routers import router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
+from animama.server.routers.model_configuration import router as model_configuration_router
 from animama.server.telemetry import setup_telemetry
 
 logger = logging.getLogger(__name__)
@@ -51,6 +53,10 @@ def create_local_app(
         return {"status": "ok"}
 
     application.include_router(router)
+    # The installation owner may add model connections and models. These routes
+    # reach owner-supplied endpoints, so only the local composition mounts them.
+    application.state.model_catalog_policy = ModelCatalogPolicy(owner_models_enabled=True)
+    application.include_router(model_configuration_router)
     if http_config.desktop is not None:
         application.include_router(desktop_control_router)
 

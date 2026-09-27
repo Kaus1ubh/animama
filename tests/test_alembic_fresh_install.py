@@ -17,7 +17,7 @@ from alembic.util import CommandError
 ROOT = Path(__file__).parents[1]
 BASELINE_MIGRATION = ROOT / "alembic" / "versions" / "0001_baseline.py"
 BASELINE_SQL = ROOT / "alembic" / "versions" / "0001_baseline.sql"
-BASELINE_SHA256 = "147da475895a3b10c164651a86b9ed728a510999b94c607f72253c726d34edd9"
+BASELINE_SHA256 = "c441f412598a301a28257eb7e107be1c5e2f9285d8d1e614093e1cd1f2d59f99"
 
 
 def test_baseline_does_not_import_live_metadata() -> None:

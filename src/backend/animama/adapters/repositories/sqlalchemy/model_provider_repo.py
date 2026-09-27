@@ -14,7 +14,7 @@ from animama.adapters.mappers.model_provider_map import (
 )
 from animama.app.ports import ModelProviderRepository
 from animama.domain import ModelProvider
-from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID, MODEL_SOURCE_BUILTIN
+from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID, MODEL_SOURCE_BUILTIN, MODEL_SOURCE_OWNER
 from animama.orm import ORMModelConnection, ORMModelProvider
 
 
@@ -62,6 +62,35 @@ class SQLAlchemyModelProviderRepository(ModelProviderRepository):
         orm = res.scalar_one_or_none()
         if orm is None:
             return None
+        return (await self._with_connections([model_provider_orm_to_domain(orm)]))[0]
+
+    async def list_for_connection(self, connection_id: str, *, include_inactive: bool = False) -> list[ModelProvider]:
+        stmt = select(ORMModelProvider).where(ORMModelProvider.connection_id == connection_id)
+        if not include_inactive:
+            stmt = stmt.where(ORMModelProvider.active.is_(True))
+        stmt = stmt.order_by(ORMModelProvider.model_label, ORMModelProvider.id)
+        res = await self._s.execute(stmt)
+        return await self._with_connections([model_provider_orm_to_domain(row) for row in res.scalars()])
+
+    async def get_owner_row(self, connection_id: str, provider_type: str, model: str) -> ModelProvider | None:
+        stmt = select(ORMModelProvider).where(
+            ORMModelProvider.connection_id == connection_id,
+            ORMModelProvider.provider_type == provider_type,
+            ORMModelProvider.model == model,
+            ORMModelProvider.source == MODEL_SOURCE_OWNER,
+        )
+        orm = (await self._s.execute(stmt)).scalar_one_or_none()
+        if orm is None:
+            return None
+        return (await self._with_connections([model_provider_orm_to_domain(orm)]))[0]
+
+    async def set_hidden(self, model_provider_id: str, *, hidden: bool) -> ModelProvider | None:
+        orm = await self._s.get(ORMModelProvider, model_provider_id)
+        if orm is None:
+            return None
+        orm.hidden = hidden
+        await self._s.flush()
+        await self._s.refresh(orm)
         return (await self._with_connections([model_provider_orm_to_domain(orm)]))[0]
 
     async def _with_connections(self, rows: list[ModelProvider]) -> list[ModelProvider]:

@@ -74,6 +74,9 @@ class ORMModelProvider(SqlalchemyBase, TimestampMixin):
     supports_reasoning: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     supported_reasoning_efforts: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     native_tool_support: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    tools_with_structured_output: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
 
     pricing_status: Mapped[str] = mapped_column(String, nullable=False, default="unpriced")
     pricing_source_provider: Mapped[str | None] = mapped_column(String, nullable=True)
