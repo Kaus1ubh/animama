@@ -1080,7 +1080,7 @@ Checks: focused pytest, `make check-test`, `pnpm openapi-ts:check`.
 
 Completion: tests pass; review has no blocker.
 
-Phase record: issue #168; starting source `b0b4237`; commits —.
+Phase record: issue #168; starting source `b0b4237`; commit `957e3c5`.
 
 Implementation notes (agent, within scope):
 
