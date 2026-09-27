@@ -1291,6 +1291,17 @@ than per reply:
   - the Phase 5 record points to Phase 6's sizes;
   - the table gained the Downloads row.
 
+#### Final Code Review #2 Findings
+
+Pinned to `884ff5d`; result **pass**.
+
+- **FIN-R1-F1 is resolved.** Later chunks keep the voice chosen for the run,
+  and an install is requested at most once per run. A new run recomputes the
+  voice. Anima selection is still resolved per chunk.
+- **Accepted edge case.** When a reply starts before the asset list loads, an
+  installed saved voice uses the default voice for that one reply.
+- **Remaining.** Only owner gate G3 is open.
+
 ## Validation and acceptance
 
 | Spec acceptance | Phase and evidence |
