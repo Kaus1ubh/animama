@@ -36,32 +36,49 @@ afterEach(() => {
     rmSync(root, { recursive: true, force: true });
 });
 const digest = (data) => createHash("sha256").update(data).digest("hex");
-function fixture() {
-  const root = realpathSync(
-    mkdtempSync(path.join(tmpdir(), "animama-parakeet-stage-")),
-  );
-  roots.push(root);
+/** A fixture copy of one tracked model manifest with its store directory populated. */
+function modelFixture(root, modelRoot, modelId) {
+  const directory = path.join(root, modelId);
+  mkdirSync(directory);
   const manifest = readJson(
-    path.join(repoRoot, "models/parakeet-tdt-0.6b-v2/manifest.json"),
+    path.join(repoRoot, "models", modelId, "manifest.json"),
   );
-  const manifestFile = path.join(root, "manifest.json");
+  const manifestFile = path.join(directory, "manifest.json");
   const data = new Map();
   for (const item of manifest.files) {
     const bytes = Buffer.from(`Reviewed fixture bytes for ${item.path}\n`);
     data.set(item.path, bytes);
     item.size = bytes.length;
     item.sha256 = digest(bytes);
-    if (item.source.local) writeFileSync(path.join(root, item.path), bytes);
+    if (item.source.local)
+      writeFileSync(path.join(directory, item.path), bytes);
   }
   writeJson(manifestFile, manifest);
-  const modelRoot = path.join(root, "models");
   const source = path.join(modelRoot, manifest.model_id, sha256(manifestFile));
   mkdirSync(source, { recursive: true });
   for (const [name, bytes] of data)
     writeFileSync(path.join(source, name), bytes);
+  return { manifestFile, source };
+}
+function fixture() {
+  const root = realpathSync(
+    mkdtempSync(path.join(tmpdir(), "animama-parakeet-stage-")),
+  );
+  roots.push(root);
+  const modelRoot = path.join(root, "models");
+  const base = modelFixture(root, modelRoot, "parakeet-tdt-0.6b-v2");
+  const webgpu = modelFixture(root, modelRoot, "parakeet-tdt-0.6b-v2-webgpu");
   const target = { output: path.join(root, "stage") };
   mkdirSync(target.output);
-  return { root, source, target, manifestFile, modelRoot };
+  return {
+    root,
+    source: base.source,
+    webgpuSource: webgpu.source,
+    target,
+    manifestFile: base.manifestFile,
+    webgpuManifestFile: webgpu.manifestFile,
+    modelRoot,
+  };
 }
 async function writeTar(source, files, output) {
   const archive = pack();
@@ -82,12 +99,33 @@ async function writeTar(source, files, output) {
 }
 
 describe("verified local Parakeet pack inputs", () => {
-  it("stages the seven files and audits independently after cache removal", async () => {
+  it("stages both model packs and audits independently after cache removal", async () => {
     const value = fixture();
     stageOptionalInputs(value.target, value);
     rmSync(value.source, { recursive: true });
-    const inventory = auditOptionalInputs(value.target, value);
+    rmSync(value.webgpuSource, { recursive: true });
+    const audited = auditOptionalInputs(value.target, value);
+    const inventory = audited["parakeet-stt"];
     expect(inventory).toHaveLength(7);
+    expect(
+      audited["parakeet-stt-webgpu"].map((file) => [
+        file.path,
+        file.license_refs,
+      ]),
+    ).toEqual([
+      ["ATTRIBUTION.md", ["parakeet-webgpu-input"]],
+      ["README.md", ["parakeet-webgpu-input"]],
+      ["encoder-model.fp16.onnx", ["parakeet-webgpu-input"]],
+    ]);
+    const webgpuFiles = await inventoryPack(
+      path.join(value.target.output, "pack-inputs/parakeet-stt-webgpu"),
+      "parakeet-stt-webgpu",
+    );
+    expect(webgpuFiles.map((file) => file.path)).toEqual([
+      "ATTRIBUTION.md",
+      "README.md",
+      "encoder-model.fp16.onnx",
+    ]);
     const files = await inventoryPack(
       path.join(value.target.output, "pack-inputs/parakeet-stt"),
       "parakeet-stt",
@@ -128,26 +166,57 @@ describe("verified local Parakeet pack inputs", () => {
     vi.stubEnv("HOME", value.root);
     vi.stubEnv("XDG_CACHE_HOME", path.join(value.root, "cache"));
     vi.stubEnv("ANIMAMA_MODEL_ROOT", undefined);
-    stageOptionalInputs(value.target, { manifestFile: value.manifestFile });
-    expect(auditOptionalInputs(value.target, value)).toEqual([]);
-    expect(
-      readJson(path.join(value.target.output, "optional-inputs.json")).parakeet,
-    ).toBe("unavailable");
+    stageOptionalInputs(value.target, {
+      manifestFile: value.manifestFile,
+      webgpuManifestFile: value.webgpuManifestFile,
+    });
+    expect(auditOptionalInputs(value.target, value)).toEqual({
+      "parakeet-stt": [],
+      "parakeet-stt-webgpu": [],
+    });
+    const receipt = readJson(
+      path.join(value.target.output, "optional-inputs.json"),
+    );
+    expect(receipt.parakeet).toBe("unavailable");
+    expect(receipt.parakeet_webgpu).toBe("unavailable");
     expect(() =>
       stageOptionalInputs(value.target, {
         manifestFile: value.manifestFile,
+        webgpuManifestFile: value.webgpuManifestFile,
         modelRoot: path.join(value.root, "absent"),
       }),
     ).toThrow("verified local inputs");
+  });
+  it("fails when only the WebGPU encoder is missing from a selected store", () => {
+    const value = fixture();
+    rmSync(value.webgpuSource, { recursive: true });
+    expect(() => stageOptionalInputs(value.target, value)).toThrow(
+      "Parakeet WebGPU staging needs verified local inputs",
+    );
+    expect(
+      existsSync(path.join(value.target.output, "optional-inputs.json")),
+    ).toBe(false);
+  });
+  it("rejects a stale WebGPU receipt", () => {
+    const value = fixture();
+    stageOptionalInputs(value.target, value);
+    const receiptPath = path.join(value.target.output, "optional-inputs.json");
+    const receipt = readJson(receiptPath);
+    receipt.parakeet_webgpu.manifest_sha256 = "0".repeat(64);
+    writeJson(receiptPath, receipt);
+    expect(() => auditOptionalInputs(value.target, value)).toThrow(
+      "Parakeet WebGPU staged receipt differs",
+    );
   });
   it("rejects missing active pack inputs before building a release catalog", async () => {
     const value = fixture();
     writeJson(path.join(value.target.output, "optional-inputs.json"), {
       schema: "animama-optional-inputs/1",
       parakeet: "unavailable",
+      parakeet_webgpu: "unavailable",
     });
     await expect(stageFeaturePacks(value.target)).rejects.toThrow(
-      "Active Parakeet pack inputs are unavailable",
+      "Active parakeet-stt pack inputs are unavailable",
     );
   });
   it("rejects unsafe manifest paths before resolving the store", () => {
@@ -182,6 +251,7 @@ describe("verified local Parakeet pack inputs", () => {
     const input = path.join(value.target.output, "pack-inputs/parakeet-stt");
     const ids = [
       "parakeet-stt",
+      "parakeet-stt-webgpu",
       "expanded-included-content",
       "document-processing",
     ];

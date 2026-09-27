@@ -54,7 +54,7 @@ import {
   validateManualAcceptance,
 } from "../scripts/runtime/smoke-policy.mjs";
 import { nestedCode } from "../scripts/runtime/macos-signing.mjs";
-import { removeTemporarySmokeProvider } from "../scripts/runtime/smoke-macos.mjs";
+import { temporarySmokeProviderRemoved } from "../scripts/runtime/smoke-macos.mjs";
 import {
   assertMacosMinimum,
   auditMacosMinimum,
@@ -345,42 +345,17 @@ describe("desktop runtime packaging", () => {
     );
   });
 
-  it("removes only the smoke OpenAI credential before checking its status", async () => {
-    const events = [];
-    vi.stubGlobal("window", {
-      animamaDesktop: {
-        credentials: {
-          delete: async (provider) => {
-            events.push(`delete:${provider}`);
-          },
-          list: async () => {
-            events.push("list");
-            return [{ provider: "openai", configured: false }];
-          },
-        },
-      },
-    });
-    await removeTemporarySmokeProvider();
-    expect(events).toEqual(["delete:openai", "list"]);
-  });
-
   it.each([
-    { status: [] },
-    { status: [{ provider: "openai", configured: true }] },
+    { status: [{ provider: "openai", configured: false }], removed: true },
+    { status: [], removed: false },
+    { status: [{ provider: "openai", configured: true }], removed: false },
   ])(
-    "does not claim cleanup when the credential status is missing or still configured ($status)",
-    async ({ status }) => {
+    "claims smoke credential removal only for an unconfigured OpenAI status ($status)",
+    async ({ status, removed }) => {
       vi.stubGlobal("window", {
-        animamaDesktop: {
-          credentials: {
-            delete: async () => {},
-            list: async () => status,
-          },
-        },
+        animamaDesktop: { credentials: { list: async () => status } },
       });
-      await expect(removeTemporarySmokeProvider()).rejects.toThrow(
-        "temporary_provider_cleanup_failed",
-      );
+      await expect(temporarySmokeProviderRemoved()).resolves.toBe(removed);
     },
   );
 
@@ -651,6 +626,7 @@ Load command 4
       packs: Object.fromEntries(
         [
           "parakeet-stt",
+          "parakeet-stt-webgpu",
           "expanded-included-content",
           "document-processing",
         ].map((id) => [
@@ -855,6 +831,7 @@ Load command 4
       packs: Object.fromEntries(
         [
           "parakeet-stt",
+          "parakeet-stt-webgpu",
           "expanded-included-content",
           "document-processing",
         ].map((id) => [

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { Server, IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
@@ -104,16 +104,65 @@ describe("shared Parakeet model delivery", () => {
           ? await viteConfig({ command: "build", mode })
           : viteConfig;
       expect(execFileSync).not.toHaveBeenCalled();
-      // The optional WebGPU encoder is served only by development stacks.
-      expect(config.define?.__CLIENT_PARAKEET_WEBGPU_MODEL_BASE_URL__).toBe(
-        "null",
+      // Built apps probe the optional encoder: desktop serves its active pack,
+      // self-host the downloaded model asset; an absent encoder is a 404.
+      expect(config.define?.__CLIENT_PARAKEET_WEBGPU_ENCODER__).toBe(
+        JSON.stringify(
+          mode === "embedded-desktop"
+            ? {
+                source: "pack",
+                url: "/onnx/models/parakeet-tdt-0.6b-v2-webgpu/encoder-model.fp16.onnx",
+              }
+            : {
+                source: "model-asset",
+                url: "/v1/model-assets/parakeet-tdt-0.6b-v2-webgpu-encoder/content",
+              },
+        ),
       );
+      if (mode === "production") {
+        // The built URL must name an asset the backend's catalog installs.
+        const catalog = JSON.parse(
+          readFileSync(
+            new URL(
+              "../../../backend/animama/resources/model-assets.v1.json",
+              import.meta.url,
+            ),
+            "utf8",
+          ),
+        ) as { assets: { id: string }[] };
+        expect(catalog.assets.map((asset) => asset.id)).toContain(
+          "parakeet-tdt-0.6b-v2-webgpu-encoder",
+        );
+      }
       expect(config.define?.__CLIENT_PARAKEET_MODEL_BASE_URL__).toBe(
         JSON.stringify(
           mode === "embedded-desktop"
             ? "/onnx/models/parakeet-tdt-0.6b-v2"
             : "/__client-parakeet-models",
         ),
+      );
+    },
+  );
+  it.each([
+    [
+      "",
+      {
+        source: "operator",
+        url: "/__client-parakeet-webgpu-models/encoder-model.fp16.onnx",
+      },
+    ],
+    // A base-URL override points at models this stack does not serve.
+    ["https://models.example.test/parakeet", null],
+  ])(
+    "Vite development selects the operator encoder (override %j)",
+    async (override, encoder) => {
+      vi.stubEnv("VITE_CLIENT_PARAKEET_MODEL_BASE_URL", override);
+      const config =
+        typeof viteConfig === "function"
+          ? await viteConfig({ command: "serve", mode: "development" })
+          : viteConfig;
+      expect(config.define?.__CLIENT_PARAKEET_WEBGPU_ENCODER__).toBe(
+        JSON.stringify(encoder),
       );
     },
   );

@@ -17,6 +17,8 @@ src/frontend/**
 !src/frontend/shared/**
 !src/frontend/packages/
 !src/frontend/packages/**
+# The web build reports the desktop release version (web/vite-plugins/app-version.ts).
+!src/frontend/desktop/package.json
 !src/frontend/web/
 !src/frontend/web/**
 **/node_modules/**

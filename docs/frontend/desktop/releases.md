@@ -182,7 +182,7 @@ pnpm desktop:dist:mac
 ```
 
 This command verifies the audit and exactly the active reviewed packs (currently
-Parakeet only), rejects deferred entries, signs nested
+the two Parakeet packs), rejects deferred entries, signs nested
 Mach-O files/bundles, adds the review receipt, recomputes the runtime manifest,
 and only then seals the outer app. It notarizes and staples the app, builds the
 DMG/update ZIP, notarizes both, signs/staples the DMG, and verifies Gatekeeper.
@@ -426,6 +426,8 @@ new version for corrections.
 - Add a bucket lock rule with indefinite retention on the prefix `desktop/v`, so
   published versions cannot be deleted or overwritten. The feed
   `desktop/latest-mac.yml` stays outside the rule.
+- Add a second rule with indefinite retention on the prefix `models/` before
+  publishing any model object (see [Model objects](#model-objects)).
 - Create an R2 API token with **Object Read & Write** on `animama-releases` only.
   Pass its account ID, access key ID and secret as `ANIMAMA_R2_ACCOUNT_ID`,
   `ANIMAMA_R2_ACCESS_KEY_ID` and `ANIMAMA_R2_SECRET_ACCESS_KEY` for the publish
@@ -434,6 +436,43 @@ new version for corrections.
   an object from the bucket does not remove cached copies; purge the exact URLs
   (Caching → Configuration → Custom Purge) as well. The feed is served
   `no-cache`; do not add a cache rule that caches `desktop/latest-mac.yml`.
+
+### Model objects
+
+Model files that the app downloads at runtime are published once under
+`models/<model-id>/<file-sha256>/<file-name>`, independent of app versions. A
+file's key is its own SHA-256, so published objects never change and an
+unchanged file is never uploaded again. The packaged model-asset catalog pins
+these URLs (see [downloaded model assets](../../backend/operations/model-assets.md#downloaded-model-assets)).
+
+From `src/frontend`, with the set already acquired into the model store:
+
+```sh
+pnpm --filter animama-desktop models:stage --model parakeet-tdt-0.6b-v2-webgpu
+ANIMAMA_GITLEAKS=<verified-gitleaks> pnpm --filter animama-desktop release:scan --candidate release/models/parakeet-tdt-0.6b-v2-webgpu
+pnpm --filter animama-desktop models:publish --model parakeet-tdt-0.6b-v2-webgpu --dry-run
+pnpm --filter animama-desktop models:publish --model parakeet-tdt-0.6b-v2-webgpu --confirm-publication
+```
+
+- `models:stage` copies the verified store set and its tracked `manifest.json`
+  into `desktop/release/models/<model-id>/` with an artifact index; it never
+  downloads.
+- `models:publish` refuses a candidate that differs from the tracked manifest,
+  lacks a passing scan of its exact files, or does not create every catalog URL
+  under that model.
+- For each file it first asks the bucket, through a signed `HEAD`, whether the
+  key exists. An existing object is never uploaded again, even if the public
+  domain has not served it yet; otherwise it uploads create-only with immutable
+  caching. Transfers allow extra time in proportion to the file's size.
+- Every object must then be served anonymously as exactly its bytes: `200`, no
+  `Content-Encoding`, the exact `Content-Length` and SHA-256, the same
+  conditions the app's downloader enforces.
+- `--dry-run` lists the keys and scan status without reading credentials. A
+  missing or stale scan is refused before credentials are read. Publishing uses
+  the same `ANIMAMA_R2_*` token as releases and needs owner approval.
+
+A corrected file has a new hash and therefore a new key; update the catalog to
+it. Never replace a published object.
 
 The canonical generated evidence is the fixed set in `desktop/release/publish`,
 with `SHA256SUMS.txt` and `signing-report.json`. See the [evidence map](release-process.md#evidence-and-actual-artifact-names)

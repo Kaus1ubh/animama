@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  cacheParakeetWebgpuProbe,
   probeParakeetWebgpu,
   resolveParakeetBackend,
+  withBackendEncoder,
   type ParakeetWebgpuStatus,
 } from "./webgpu";
 
@@ -81,5 +83,56 @@ describe("resolveParakeetBackend", () => {
     expect(
       resolveParakeetBackend({ preferWebgpu: true, status: "available" }),
     ).toEqual({ backend: "webgpu", reason: "available" });
+  });
+});
+
+describe("withBackendEncoder", () => {
+  const base = {
+    encoderUrl:
+      "http://app.test/onnx/models/parakeet-tdt-0.6b-v2/encoder-model.int8.onnx?v=0.1.0-aaaa",
+    decoderUrl:
+      "http://app.test/onnx/models/parakeet-tdt-0.6b-v2/decoder_joint-model.int8.onnx?v=0.1.0-aaaa",
+  };
+  const gpuEncoder =
+    "http://app.test/onnx/models/parakeet-tdt-0.6b-v2-webgpu/encoder-model.fp16.onnx";
+
+  it("loads the GPU encoder unversioned while base files keep the base pack version", () => {
+    expect(withBackendEncoder(base, "webgpu", gpuEncoder)).toEqual({
+      encoderUrl: gpuEncoder,
+      decoderUrl: base.decoderUrl,
+    });
+  });
+
+  it("keeps the INT8 encoder for WASM or when the build serves no GPU encoder", () => {
+    expect(withBackendEncoder(base, "wasm", gpuEncoder)).toBe(base);
+    expect(withBackendEncoder(base, "webgpu", null)).toBe(base);
+  });
+});
+
+describe("cacheParakeetWebgpuProbe", () => {
+  it("caches a settled result but probes again while the encoder is missing", async () => {
+    const results: ParakeetWebgpuStatus[] = [
+      "model_missing",
+      "available",
+      "unsupported",
+    ];
+    const probe = vi.fn(async () => results.shift() ?? "unsupported");
+    const status = cacheParakeetWebgpuProbe(probe);
+
+    // The encoder can be installed while the page stays open (self-host).
+    await expect(status()).resolves.toBe("model_missing");
+    await expect(status()).resolves.toBe("available");
+    await expect(status()).resolves.toBe("available");
+    expect(probe).toHaveBeenCalledTimes(2);
+
+    await expect(status(true)).resolves.toBe("unsupported");
+    expect(probe).toHaveBeenCalledTimes(3);
+  });
+
+  it("shares one in-flight probe between concurrent callers", async () => {
+    const probe = vi.fn(async () => "model_missing" as const);
+    const status = cacheParakeetWebgpuProbe(probe);
+    await Promise.all([status(), status()]);
+    expect(probe).toHaveBeenCalledTimes(1);
   });
 });

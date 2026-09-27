@@ -44,6 +44,46 @@ describe("optional feature pack controls", () => {
     ];
     expect(renderToStaticMarkup(<DesktopFeaturePacksPanel />)).toBe("");
   });
+  it("lists the GPU encoder only for recovery, leaving downloads to the WebGPU setting", () => {
+    fixture.packs = [
+      { id: "parakeet-stt-webgpu", state: "not_installed", available: true },
+    ];
+    expect(renderToStaticMarkup(<DesktopFeaturePacksPanel />)).toBe("");
+    fixture.packs = [
+      {
+        id: "parakeet-stt-webgpu",
+        state: "update_available",
+        available: true,
+        hasInstalledFiles: true,
+      },
+    ];
+    expect(renderToStaticMarkup(<DesktopFeaturePacksPanel />)).toContain(
+      "GPU speech encoder",
+    );
+  });
+  it("keeps an active pack's removal refusal from offering Install", () => {
+    fixture.packs = [
+      {
+        id: "parakeet-stt",
+        state: "failed",
+        available: true,
+        version: "0.1.0",
+        activeVersion: "0.1.0",
+        hasInstalledFiles: true,
+        error: "pack_dependent_installed",
+        blockers: [
+          {
+            kind: "feature_pack",
+            id: "parakeet-stt-webgpu",
+            label: "Remove GPU speech encoder first",
+          },
+        ],
+      },
+    ];
+    const html = renderToStaticMarkup(<DesktopFeaturePacksPanel />);
+    expect(html).toContain("Remove GPU speech encoder first");
+    expect(html).not.toContain(">Install<");
+  });
   it("shows bounded progress and cancellation for a catalog download", () => {
     fixture.packs = [
       {

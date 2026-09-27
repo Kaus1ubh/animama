@@ -807,6 +807,175 @@ describe("feature-packs download and recovery", () => {
   });
 });
 
+describe("feature-pack dependencies", () => {
+  it("installs the GPU encoder only beside active offline speech and blocks removing that requirement", async () => {
+    const base = await hostedFixture();
+    const gpu = await hostedFixture();
+    gpu.manifest.id = "parakeet-stt-webgpu";
+    gpu.manifest.display_name = "GPU speech encoder";
+    const root = await temporary();
+    const instance = new FeaturePackManager({
+      root: path.join(root, "packs"),
+      downloads: path.join(root, "downloads"),
+      catalog: {
+        entries: [base.manifest, gpu.manifest],
+        development: true,
+        distribution: null,
+      },
+      freeBytes: async () => 100_000_000_000n,
+      onProgress: vi.fn(),
+      transition: async (change) => change.commit(),
+    });
+    await instance.initialize();
+    await expect(instance.install("parakeet-stt-webgpu")).rejects.toThrow(
+      "pack_dependency_missing",
+    );
+    await instance.install("parakeet-stt");
+    await instance.install("parakeet-stt-webgpu");
+    await expect(instance.remove("parakeet-stt")).rejects.toThrow(
+      "pack_dependent_installed",
+    );
+    expect(
+      instance.list().find((status) => status.id === "parakeet-stt"),
+    ).toMatchObject({
+      state: "failed",
+      error: "pack_dependent_installed",
+      activeVersion: "0.1.0",
+      blockers: [
+        {
+          kind: "feature_pack",
+          id: "parakeet-stt-webgpu",
+          label: "Remove GPU speech encoder first",
+        },
+      ],
+    });
+    expect(Object.keys(instance.activePacks()).sort()).toEqual([
+      "parakeet-stt",
+      "parakeet-stt-webgpu",
+    ]);
+    // After an app update replaces only the base pack, the encoder is not
+    // mounted alone; its files stay for reinstall or removal.
+    const updatedBase = { ...base.manifest, archive_sha256: "f".repeat(64) };
+    const restarted = new FeaturePackManager({
+      root: path.join(root, "packs"),
+      downloads: path.join(root, "downloads"),
+      catalog: {
+        entries: [updatedBase, gpu.manifest],
+        development: true,
+        distribution: null,
+      },
+      onProgress: vi.fn(),
+      transition: async (change) => change.commit(),
+    });
+    await restarted.initialize();
+    expect(restarted.activePacks()).toEqual({});
+    expect(
+      restarted.list().find((status) => status.id === "parakeet-stt-webgpu"),
+    ).toMatchObject({
+      state: "failed",
+      error: "pack_dependency_missing",
+      hasInstalledFiles: true,
+    });
+    await instance.remove("parakeet-stt-webgpu");
+    await instance.remove("parakeet-stt");
+    expect(instance.activePacks()).toEqual({});
+  });
+  it("reactivates a retained verified encoder without downloading it again", async () => {
+    const base = await hostedFixture();
+    const gpu = await fixture();
+    gpu.manifest.id = "parakeet-stt-webgpu";
+    gpu.manifest.display_name = "GPU speech encoder";
+    let gpuRequests = 0;
+    gpu.manifest.url = await serve((_req, res) => {
+      gpuRequests++;
+      res.writeHead(200, {
+        "Content-Length": gpu.archive.length,
+        ETag: '"gpu"',
+      });
+      res.end(gpu.archive);
+    });
+    const root = await temporary();
+    let freeBytes = 100_000_000_000n;
+    const create = async () => {
+      const instance = new FeaturePackManager({
+        root: path.join(root, "packs"),
+        downloads: path.join(root, "downloads"),
+        catalog: {
+          entries: [base.manifest, gpu.manifest],
+          development: true,
+          distribution: null,
+        },
+        freeBytes: async () => freeBytes,
+        onProgress: vi.fn(),
+        transition: async (change) => change.commit(),
+      });
+      await instance.initialize();
+      return instance;
+    };
+    const first = await create();
+    await first.install("parakeet-stt");
+    await first.install("parakeet-stt-webgpu");
+    expect(gpuRequests).toBe(1);
+    // The base pack fails verification at the next launch, so the encoder is
+    // left unmounted with its verified files retained.
+    await writeFile(
+      path.join(
+        root,
+        "packs/parakeet-stt/versions",
+        versionDirectory(base.manifest),
+        "config.json",
+      ),
+      "changed",
+    );
+    const restarted = await create();
+    expect(restarted.activePacks()).toEqual({});
+    await restarted.install("parakeet-stt");
+    expect(Object.keys(restarted.activePacks())).toEqual(["parakeet-stt"]);
+    // Retry in the same session reuses the retained version: no download and
+    // no free-space demand.
+    freeBytes = 0n;
+    await restarted.install("parakeet-stt-webgpu");
+    expect(gpuRequests).toBe(1);
+    expect(Object.keys(restarted.activePacks()).sort()).toEqual([
+      "parakeet-stt",
+      "parakeet-stt-webgpu",
+    ]);
+    expect(
+      restarted.list().find((status) => status.id === "parakeet-stt-webgpu"),
+    ).toMatchObject({ state: "installed", activeVersion: "0.1.0" });
+  });
+  it("accepts one catalog entry per supported pack and no more", async () => {
+    const { manifest } = await fixture();
+    const root = await temporary();
+    const write = async (entries: PackManifest[]) => {
+      const body = {
+        schema: "animama-pack-catalog/1",
+        app_version: "0.1.0",
+        entries,
+      };
+      await writeFile(
+        path.join(root, "pack-catalog.json"),
+        JSON.stringify({ id: sha(Buffer.from(JSON.stringify(body))), ...body }),
+      );
+      return loadPackCatalog({
+        runtimeRoot: root,
+        appVersion: "0.1.0",
+        isPackaged: true,
+      });
+    };
+    const gpu = { ...manifest, id: "parakeet-stt-webgpu" as const };
+    expect((await write([manifest, gpu])).entries).toHaveLength(2);
+    // Four entries pass the length limit (then fail only the duplicate-ID check);
+    // five exceed it.
+    await expect(write([manifest, gpu, manifest, gpu])).rejects.toThrow(
+      "pack_catalog_incompatible",
+    );
+    await expect(
+      write([manifest, gpu, manifest, gpu, manifest]),
+    ).rejects.toThrow("pack_catalog_invalid");
+  });
+});
+
 describe("feature-packs build artifacts", () => {
   const writeTar = async (
     source: string,
@@ -915,6 +1084,7 @@ describe("feature-packs build artifacts", () => {
       packs: Object.fromEntries(
         [
           "parakeet-stt",
+          "parakeet-stt-webgpu",
           "expanded-included-content",
           "document-processing",
         ].map((id) => [
@@ -932,6 +1102,7 @@ describe("feature-packs build artifacts", () => {
       inputs: {
         "expanded-included-content": inputs,
         "parakeet-stt": path.join(root, "missing-speech"),
+        "parakeet-stt-webgpu": path.join(root, "missing-gpu-speech"),
         "document-processing": path.join(root, "missing-worker"),
       },
       output: path.join(root, "archives"),
@@ -941,6 +1112,7 @@ describe("feature-packs build artifacts", () => {
       budgets: Object.fromEntries(
         [
           "parakeet-stt",
+          "parakeet-stt-webgpu",
           "expanded-included-content",
           "document-processing",
         ].map((id) => [id, { installed_bytes: 100_000, download_bytes: null }]),
@@ -1007,28 +1179,32 @@ describe("feature-packs build artifacts", () => {
     await writeFile(path.join(inputs, "fixture.json"), "{}");
     const files = await inventoryPack(inputs, "expanded-included-content");
     const packs = Object.fromEntries(
-      ["parakeet-stt", "expanded-included-content", "document-processing"].map(
-        (id) => [
-          id,
-          {
-            release_status:
-              id === "expanded-included-content"
-                ? ("active" as const)
-                : ("deferred" as const),
-            version: "0.1.0",
-            approved_inventory_sha256:
-              id === "expanded-included-content"
-                ? sha(Buffer.from(JSON.stringify(files)))
-                : null,
-            license_refs: ["fixture-only"],
-          },
-        ],
-      ),
+      [
+        "parakeet-stt",
+        "parakeet-stt-webgpu",
+        "expanded-included-content",
+        "document-processing",
+      ].map((id) => [
+        id,
+        {
+          release_status:
+            id === "expanded-included-content"
+              ? ("active" as const)
+              : ("deferred" as const),
+          version: "0.1.0",
+          approved_inventory_sha256:
+            id === "expanded-included-content"
+              ? sha(Buffer.from(JSON.stringify(files)))
+              : null,
+          license_refs: ["fixture-only"],
+        },
+      ]),
     );
     const options = {
       inputs: {
         "expanded-included-content": inputs,
         "parakeet-stt": path.join(root, "missing-speech"),
+        "parakeet-stt-webgpu": path.join(root, "missing-gpu-speech"),
         "document-processing": path.join(root, "missing-worker"),
       },
       output: path.join(root, "archives"),
@@ -1046,6 +1222,7 @@ describe("feature-packs build artifacts", () => {
       budgets: Object.fromEntries(
         [
           "parakeet-stt",
+          "parakeet-stt-webgpu",
           "expanded-included-content",
           "document-processing",
         ].map((id) => [id, { installed_bytes: 100_000, download_bytes: null }]),

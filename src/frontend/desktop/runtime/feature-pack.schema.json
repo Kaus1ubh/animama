@@ -25,6 +25,7 @@
     "id": {
       "enum": [
         "parakeet-stt",
+        "parakeet-stt-webgpu",
         "expanded-included-content",
         "document-processing"
       ]

@@ -290,6 +290,27 @@ When the setting is on, `loadClientParakeetWorker` probes
 | `model_missing`        | `wasm`                                                 | GPU speech model not installed |
 | `unavailable_in_build` | `wasm`                                                 | Not available in this build    |
 
+`unavailable_in_build` occurs only in a Vite stack that overrides the base
+model URL; built apps always probe. With an adapter and a `model_missing`
+result, packaged desktop shows a download control below the setting when its
+catalog includes the `parakeet-stt-webgpu` pack. It shows the download size
+and required free space, progress, cancel, retry and removal, and asks for
+offline speech recognition first when `parakeet-stt` is not installed. Turning
+the setting on without the encoder points at that control. Devices without an
+adapter are never offered the download; retained encoder files stay removable.
+
+Built self-host shows the same kind of control, backed by the backend's
+[model assets](../../backend/architecture/http-api.md#model-assets)
+(`useModelAssets`, `useModelAssetAction`, asset
+`parakeet-tdt-0.6b-v2-webgpu-encoder`). It shows the download size and the
+free space where the backend stores downloads, and disables the download when
+there is not enough.
+Progress polls once a second while downloading; cancel, retry and a two-step
+removal follow the API. No reload is needed: the probe refreshes when the
+asset settles, and the next dictation or Voice Mode start loads the encoder.
+The encoder's attribution is bundled and shown below the control. Vite
+development stacks show operator instructions instead.
+
 Loading behavior:
 
 - **Switching backend.** ORT keeps one WASM build per worker, so switching
@@ -303,9 +324,18 @@ Loading behavior:
 - **Warm-up.** The worker warms WebGPU with one second of silence during load,
   so shader compilation does not make the first preview look over budget.
 
-Only Vite development stacks, including `desktop:dev`, serve the encoder, at
-`/__client-parakeet-webgpu-models/`. Built self-host and packaged desktop
-builds report `unavailable_in_build`. See
+The build define `__CLIENT_PARAKEET_WEBGPU_ENCODER__` sets the encoder's source
+and URL (`CLIENT_PARAKEET_WEBGPU_ENCODER`):
+
+| Build                    | Source        | Encoder URL                                                        |
+| ------------------------ | ------------- | ------------------------------------------------------------------ |
+| Packaged desktop         | `pack`        | `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/encoder-model.fp16.onnx` |
+| Built self-host          | `model-asset` | `/v1/model-assets/parakeet-tdt-0.6b-v2-webgpu-encoder/content`     |
+| Vite development         | `operator`    | `/__client-parakeet-webgpu-models/encoder-model.fp16.onnx`         |
+
+A `HEAD` probe decides availability: each source answers 404 until the
+encoder is installed. The encoder URL never carries the base pack's `?v=`
+version. See
 [model setup](../../backend/operations/model-assets.md#optional-parakeet-webgpu-encoder).
 
 The worker serializes all requests through a promise queue so load,

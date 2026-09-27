@@ -2,17 +2,28 @@ import { readFileSync } from "node:fs";
 
 import { expect, it } from "vitest";
 
-const version = (path: string) =>
-  (
-    JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")) as {
-      version: string;
-    }
-  ).version;
+import {
+  releaseManifestUrl,
+  resolveAppVersion,
+} from "../../../vite-plugins/app-version";
 
-it("keeps web and desktop package versions aligned for About", () => {
-  // The web build reports its package version; the packaged desktop app is
-  // versioned from desktop/package.json. They must describe the same release.
-  expect(version("../../../package.json")).toBe(
-    version("../../../../desktop/package.json"),
+const packageVersion = (url: URL) =>
+  (JSON.parse(readFileSync(url, "utf8")) as { version?: string }).version;
+
+it("reports the desktop release version in About", () => {
+  // The packaged desktop app is versioned from desktop/package.json; the web
+  // build must describe the same release without a second version to bump.
+  expect(resolveAppVersion({})).toBe(packageVersion(releaseManifestUrl));
+});
+
+it("lets an explicit VITE_APP_VERSION override the release version", () => {
+  expect(resolveAppVersion({ VITE_APP_VERSION: "9.9.9-custom" })).toBe(
+    "9.9.9-custom",
   );
+});
+
+it("keeps the web package free of a second release version", () => {
+  expect(
+    packageVersion(new URL("../../../package.json", import.meta.url)),
+  ).toBeUndefined();
 });
