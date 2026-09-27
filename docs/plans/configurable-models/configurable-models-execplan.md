@@ -97,9 +97,8 @@ Standing rules:
 - [ ] Phase 6: documentation, decisions and acceptance gates G1–G3
       (documentation, ADR and keys file: review #2 pass, commit recorded
       below; owner gates G1–G3 pending).
-- [ ] Final integration review (review #2: no blocking findings; the
-      database-backed suite on the merged candidate runs in hosted Validation
-      because the host's Docker engine hung).
+- [x] Final integration review (review #2: no blocking findings; full
+      `make check-test` on `9cdc955` after Docker recovered: 2208 passed).
 - [ ] PR, hosted Validation and owner merge approval (PR opened; Validation,
       owner gates G1–G3 and merge approval pending).
 
@@ -1724,6 +1723,11 @@ tests pass). The committed SDK is byte-identical to an independent raw
 generation. Result: incomplete until the database-backed suite runs on a
 healthy engine. Optional: an unused Responses `DEFAULT_BASE_URL`, and the probe
 and Memory Manager passing `x or None` to the base-URL helper; both fixed.
+
+Completion evidence: after the Docker engine recovered, `make check-test` on
+`9cdc955` (the merged candidate with all revisions) passed 2208, 7 skipped,
+including every database-backed test. With the review's only open condition
+met, the final integration review passes.
 
 ## Validation and acceptance
 
