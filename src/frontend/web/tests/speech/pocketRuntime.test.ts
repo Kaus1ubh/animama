@@ -280,7 +280,11 @@ describe("resolveBuiltInVoices", () => {
         voices: ["azelma", "eve", "caro_davy"],
         defaultVoice: "eve",
       }),
-    ).toEqual({ names: ["azelma", "eve", "caro_davy"], defaultVoice: "eve" });
+    ).toEqual({
+      names: ["azelma", "eve", "caro_davy"],
+      defaultVoice: "eve",
+      voiceUrls: {},
+    });
   });
 
   it("falls back to the first voice when the default is not listed", () => {
@@ -289,7 +293,43 @@ describe("resolveBuiltInVoices", () => {
         voices: ["azelma", "jane"],
         defaultVoice: "cosette",
       }),
-    ).toEqual({ names: ["azelma", "jane"], defaultVoice: "azelma" });
+    ).toEqual({
+      names: ["azelma", "jane"],
+      defaultVoice: "azelma",
+      voiceUrls: {},
+    });
+  });
+
+  it("accepts content-route URLs for downloadable voices", () => {
+    expect(
+      resolveBuiltInVoices({
+        voices: ["eve", "anna"],
+        defaultVoice: "eve",
+        voiceUrls: { anna: "/v1/model-assets/pocket-voice-anna/content" },
+      }),
+    ).toEqual({
+      names: ["eve", "anna"],
+      defaultVoice: "eve",
+      voiceUrls: { anna: "/v1/model-assets/pocket-voice-anna/content" },
+    });
+  });
+
+  it("rejects voice URLs outside the model-asset content route", () => {
+    for (const url of [
+      "https://example.com/anna.safetensors",
+      "/v1/model-assets/../secrets/content",
+      "/onnx/models/pocket-tts/voices/anna.safetensors",
+    ]) {
+      expect(() =>
+        resolveBuiltInVoices({ voices: ["anna"], voiceUrls: { anna: url } }),
+      ).toThrow(/voice URL/);
+    }
+    expect(() =>
+      resolveBuiltInVoices({
+        voices: ["eve"],
+        voiceUrls: { anna: "/v1/model-assets/pocket-voice-anna/content" },
+      }),
+    ).toThrow(/not listed/);
   });
 
   it("rejects missing, duplicate or unsafe voice names", () => {

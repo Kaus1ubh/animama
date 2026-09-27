@@ -50,6 +50,8 @@ export class PocketTTSCore extends EventEmitter {
       defaultVoice: options.defaultVoice || null,
       // Built-in voice IDs, in picker order; the worker loads each on first use.
       voices: Array.isArray(options.voices) ? [...options.voices] : [],
+      // Same-origin state URLs for downloadable voices, keyed by voice ID.
+      voiceUrls: options.voiceUrls ? { ...options.voiceUrls } : {},
       maxVoiceSeconds: options.maxVoiceSeconds || 10,
       onEvent: typeof options.onEvent === "function" ? options.onEvent : null,
       workerUrl:
@@ -205,6 +207,7 @@ export class PocketTTSCore extends EventEmitter {
       "load",
       {
         voices: this.options.voices,
+        voiceUrls: this.options.voiceUrls,
         defaultVoice: this.options.defaultVoice,
         // Model URLs default to the worker's reviewed bundle layout.
         runtime: {

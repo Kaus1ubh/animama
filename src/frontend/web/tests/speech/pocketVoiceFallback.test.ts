@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { resolvePocketFallbackVoice } from "../../src/lib/speech/pocket/voice-preferences";
+import {
+  resolvePocketFallbackVoice,
+  type PocketVoiceAvailability,
+} from "../../src/lib/speech/pocket/voice-preferences";
 
 const voices = ["azelma", "eve", "noah"];
 
@@ -65,5 +68,70 @@ describe("claimSessionNotice", () => {
     expect(again.claimSessionNotice("pocket_voice_unknown:cosette")).toBe(
       false,
     );
+  });
+});
+
+describe("resolvePocketFallbackVoice with downloadable voices", () => {
+  const listed = ["eve", "noah", "anna", "harriet"];
+  const availability =
+    (states: Record<string, PocketVoiceAvailability["status"]>) =>
+    (id: string): PocketVoiceAvailability | null =>
+      ["anna", "harriet"].includes(id)
+        ? {
+            status: states[id] ?? "not_installed",
+            assetId: `pocket-voice-${id}`,
+          }
+        : null;
+
+  it("uses an installed downloadable voice", () => {
+    expect(
+      resolvePocketFallbackVoice(
+        "anna",
+        listed,
+        false,
+        "eve",
+        availability({ anna: "installed" }),
+      ),
+    ).toEqual({ voice: "anna" });
+  });
+
+  it("speaks with the default and installs a missing downloadable voice", () => {
+    expect(
+      resolvePocketFallbackVoice(
+        "anna",
+        listed,
+        false,
+        "eve",
+        availability({}),
+      ),
+    ).toEqual({ voice: "eve", install: "pocket-voice-anna" });
+  });
+
+  it("waits quietly while the voice downloads", () => {
+    expect(
+      resolvePocketFallbackVoice(
+        "anna",
+        listed,
+        false,
+        "eve",
+        availability({ anna: "downloading" }),
+      ),
+    ).toEqual({ voice: "eve" });
+  });
+
+  it("retries a failed download and notices once per session", () => {
+    const result = resolvePocketFallbackVoice(
+      "harriet",
+      listed,
+      false,
+      "eve",
+      availability({ harriet: "failed" }),
+    );
+    expect(result.voice).toBe("eve");
+    expect(result.install).toBe("pocket-voice-harriet");
+    expect(result.notice).toMatchObject({
+      scope: "session",
+      key: "pocket_voice_download_failed:harriet",
+    });
   });
 });

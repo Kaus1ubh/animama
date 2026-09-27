@@ -36,6 +36,15 @@ export type PocketFallbackNotice = {
 export type PocketFallbackResolution = {
   voice: string | undefined;
   notice?: PocketFallbackNotice;
+  /** A downloadable voice's asset to install before it can be used. */
+  install?: string;
+};
+
+/** Install state of a downloadable voice (core voices have none). */
+export type PocketVoiceAvailability = {
+  status: "not_installed" | "downloading" | "installed" | "failed";
+  assetId: string;
+  progress?: number | null;
 };
 
 /**
@@ -49,6 +58,8 @@ export function resolvePocketFallbackVoice(
   availableVoices: readonly string[],
   hasCustomVoice: boolean,
   defaultVoice: string,
+  availability: (voiceId: string) => PocketVoiceAvailability | null = () =>
+    null,
 ): PocketFallbackResolution {
   const fallback = availableVoices.includes(defaultVoice)
     ? defaultVoice
@@ -77,6 +88,25 @@ export function resolvePocketFallbackVoice(
         key: `pocket_voice_unknown:${configuredVoice}`,
         message: `The saved voice "${configuredVoice}" is no longer available, so the default voice is used. Choose another voice in Anima settings.`,
       },
+    };
+  }
+  const download = availability(configuredVoice);
+  if (download && download.status !== "installed") {
+    // Speak with the default until the voice is installed; start (or retry) the
+    // download unless one is already running.
+    if (download.status === "downloading") return { voice: fallback };
+    return {
+      voice: fallback,
+      install: download.assetId,
+      ...(download.status === "failed"
+        ? {
+            notice: {
+              scope: "session" as const,
+              key: `pocket_voice_download_failed:${configuredVoice}`,
+              message: `The voice "${configuredVoice}" could not be downloaded, so the default voice is used. It will be retried automatically.`,
+            },
+          }
+        : {}),
     };
   }
   return { voice: configuredVoice };

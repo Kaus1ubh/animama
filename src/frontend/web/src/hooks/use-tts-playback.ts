@@ -32,6 +32,7 @@ import {
 } from "@/lib/speech/pocket/anima-voice-selection";
 import type { PocketAnimaVoiceSelectionContext } from "@/lib/speech/pocket/anima-voice-selection";
 import { DEFAULT_POCKET_VOICE } from "@/lib/speech/pocket/voice-catalog";
+import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
 import {
   usePocketTtsRuntime,
   type PocketTtsCoreEvent,
@@ -750,14 +751,24 @@ export function useTtsPlayback(
     warnOnceForRun,
   ]);
 
+  const pocketVoiceDownloads = usePocketVoiceDownloads({
+    enabled:
+      effectivePreferences.speech?.tts_enabled === true &&
+      effectivePreferences.speech?.tts_provider === "pocket_tts",
+  });
+
   const resolvePocketFallbackVoiceForRun = useCallback(
     (runId: string): string | undefined => {
-      const { voice, notice } = resolvePocketFallbackVoice(
+      const { voice, notice, install } = resolvePocketFallbackVoice(
         resolvePocketVoicePreference(effectivePreferences.speech),
         pocketVoices,
         pocketHasCustomVoice,
         DEFAULT_POCKET_VOICE,
+        pocketVoiceDownloads.availability,
       );
+      // A missing downloadable voice installs in the background; this reply
+      // uses the default voice and later replies use the installed voice.
+      if (install) pocketVoiceDownloads.install(install);
       if (notice?.scope === "session") {
         warnOncePerSession(notice.key, notice.message);
       } else if (notice) {
@@ -768,6 +779,7 @@ export function useTtsPlayback(
     [
       effectivePreferences.speech,
       pocketHasCustomVoice,
+      pocketVoiceDownloads,
       pocketVoices,
       warnOnceForRun,
       warnOncePerSession,

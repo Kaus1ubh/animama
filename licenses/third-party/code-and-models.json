@@ -18,7 +18,7 @@
         },
         {
           "path": "src/frontend/web/public/tts/workers/inference-worker.js",
-          "sha256": "7fa5fe78ab451b79b575fc387440285cc243391740d9b04a7c3edc49b3d0dcd1"
+          "sha256": "8cbe51e53ead557d45ae88dd5ec6dbf1759ad2ea97820b42375b2d8f13c45fe6"
         },
         {
           "path": "src/frontend/web/public/tts/workers/ort-debug-reporter.js",
@@ -26,7 +26,7 @@
         },
         {
           "path": "src/frontend/web/public/tts/workers/pocket-runtime.js",
-          "sha256": "05ae03c329a18975b8bab065164b8a6a397c16e72310f0191d909c7de1e150c2"
+          "sha256": "2d0b6c71e11bdfd45eed7d92be4541d696a3783c5c30085fa4acf88de306758f"
         },
         {
           "path": "src/frontend/web/src/lib/speech/pocket/audio/PCMPlayerWorklet.js",
@@ -42,7 +42,7 @@
         },
         {
           "path": "src/frontend/web/src/lib/speech/pocket/core/PocketTTSCore.js",
-          "sha256": "d903b9ce500b6430f7a2fbd19a68f7b1d2422b9aa3b5a9885ce59445d8167eba"
+          "sha256": "d49931582b162db29a55a17548a750e4d00bd3e8eb0c700f4f2cf18e6b300251"
         },
         {
           "path": "src/frontend/web/src/lib/speech/pocket/core/PocketTTSDebugSupport.js",

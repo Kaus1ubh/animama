@@ -7,6 +7,7 @@ import {
   useRef,
   type ChangeEvent,
 } from "react";
+import { Download } from "lucide-react";
 import { toast } from "sonner";
 
 import { usePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
@@ -30,6 +31,8 @@ import {
   groupPocketVoices,
   pocketVoiceLabel,
 } from "@/lib/speech/pocket/voice-groups";
+import type { PocketVoiceAvailability } from "@/lib/speech/pocket/voice-preferences";
+import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import {
@@ -111,6 +114,60 @@ function InheritableSettingRow({
   );
 }
 
+/**
+ * A subtle status mark for downloadable voices: a download glyph until the
+ * voice is installed, and a small progress ring while it downloads.
+ */
+function PocketVoiceDownloadIcon({
+  availability,
+}: {
+  availability: PocketVoiceAvailability | null;
+}) {
+  if (!availability || availability.status === "installed") return null;
+  if (availability.status === "downloading") {
+    const progress = availability.progress ?? 0;
+    const circumference = 2 * Math.PI * 5;
+    return (
+      <svg
+        viewBox="0 0 14 14"
+        className="size-3.5 -rotate-90"
+        role="img"
+        aria-label={`Downloading ${Math.round(progress * 100)}%`}
+      >
+        <circle
+          cx="7"
+          cy="7"
+          r="5"
+          fill="none"
+          strokeWidth="2"
+          className="stroke-muted-foreground/25"
+        />
+        <circle
+          cx="7"
+          cy="7"
+          r="5"
+          fill="none"
+          strokeWidth="2"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - progress)}
+          className="stroke-muted-foreground transition-[stroke-dashoffset]"
+        />
+      </svg>
+    );
+  }
+  return (
+    <Download
+      className="size-3.5"
+      role="img"
+      aria-label={
+        availability.status === "failed"
+          ? "Download failed; select to retry"
+          : "Downloads when selected"
+      }
+    />
+  );
+}
+
 export function AnimaSettingsModal() {
   const {
     effectivePreferences,
@@ -168,6 +225,9 @@ export function AnimaSettingsModal() {
     : ANIMAMA_DEFAULT_VOICE_VALUE;
 
   const canEditPocketSettings = pocketProviderEnabled && !isBusy;
+  const pocketVoiceDownloads = usePocketVoiceDownloads({
+    enabled: pocketProviderEnabled,
+  });
 
   useEffect(() => {
     if (!pocketProviderEnabled) return;
@@ -232,6 +292,22 @@ export function AnimaSettingsModal() {
         return;
       }
 
+      // A downloadable voice that isn't installed is saved and installed; replies
+      // use the default voice until the download finishes.
+      const download = pocketVoiceDownloads.availability(value);
+      if (download && download.status !== "installed") {
+        void persistAnimaPocketVoice(value)
+          .then(() => {
+            if (download.status !== "downloading") {
+              pocketVoiceDownloads.install(download.assetId);
+            }
+          })
+          .catch(() => {
+            toast.error("Failed to update anima Pocket voice.");
+          });
+        return;
+      }
+
       void (async () => {
         await setPocketVoice(value);
         await persistAnimaPocketVoice(value);
@@ -245,6 +321,7 @@ export function AnimaSettingsModal() {
       isEncodingVoice,
       persistAnimaPocketVoice,
       setPocketVoice,
+      pocketVoiceDownloads,
     ],
   );
 
@@ -426,12 +503,21 @@ export function AnimaSettingsModal() {
                         <SelectItem
                           key={voice.id}
                           value={voice.id}
-                          hint={[
-                            voice.recommended ? "Recommended" : null,
-                            voice.accent,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
+                          hint={
+                            <>
+                              {[
+                                voice.recommended ? "Recommended" : null,
+                                voice.accent,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                              <PocketVoiceDownloadIcon
+                                availability={pocketVoiceDownloads.availability(
+                                  voice.id,
+                                )}
+                              />
+                            </>
+                          }
                         >
                           {voice.name}
                         </SelectItem>
