@@ -1,10 +1,10 @@
-# Expanded PocketTTS core voices with a grouped selector
+# Expanded PocketTTS voices with a grouped selector and on-demand downloads
 
 Snapshot of [raymond-van/animama#142](https://github.com/raymond-van/animama/issues/142),
-captured 2026-09-26T19:09:25Z. The issue is authoritative; refresh this file from it
+captured 2026-09-27T02:52:43Z. The issue is authoritative; refresh this file from it
 before resuming.
 
-Status: Agreed (revised 2026-09-26 at gate G1)
+Status: Agreed (revised 2026-09-26 at gate G1 and 2026-09-27 for downloads)
 Owner decision:
 - **2026-09-26 (discovery):** the owner agreed the candidate sources,
   screening, gender balance, hosting, selector shape and failure handling, and
@@ -17,6 +17,18 @@ Owner decision:
   ([raymond-van/animama#151](https://github.com/raymond-van/animama/issues/151),
   draft PR [raymond-van/animama#162](https://github.com/raymond-van/animama/pull/162)),
   to merge with its first consumer.
+- **2026-09-27 (size):** the owner judged the extra core size of 38 voices
+  (about 230 MB) unacceptable.
+  - **Split:** `eve` and the 14 recommended voices stay core. The other 23
+    download on demand through the shared downloader merged in
+    [raymond-van/animama#180](https://github.com/raymond-van/animama/pull/180).
+  - **Surfaces:** it works on desktop and self-host alike.
+  - **Picking:** choosing a voice that isn't installed saves it and downloads
+    it automatically, with a subtle progress icon.
+  - **Hosting:** all Animama-hosted voice states use #180's immutable
+    `models/<model-id>/<sha256>/<file>` layout.
+  - **Publishing:** the agent runs publication with a bucket-scoped token from
+    an owner-only env file.
 
 ## Problem and intended users
 
@@ -33,8 +45,8 @@ This creates two problems:
 - The installation owner, as maintainer, has no reproducible way to screen,
   curate and ship a larger set of voices that permit commercial use.
 
-The outcome is a curated set of 38 core voices and a selector that makes a
-good choice easy.
+The outcome is 38 curated voices: 15 in core and 23 downloaded on demand, with
+a selector that makes a good choice easy.
 
 ## Goals, scope and non-goals
 
@@ -47,10 +59,12 @@ Included:
   - the remaining VCTK speakers (CC BY 4.0), encoded by us.
 - **Owner curation** on a developer listening page.
 - **Reproducible self-encoded voice states** from pinned source audio, published
-  as pinned hosted artifacts that core acquisition downloads.
-- **A core set of 38 voices** (27 female, 11 male), of which 14 are
-  recommended.
-- **Grouped selector** with voice metadata.
+  as pinned hosted artifacts.
+- **38 voices** (27 female, 11 male), 14 of them recommended.
+  - **Core (15):** `eve` and the 14 recommended voices.
+  - **Downloadable (23):** the rest, installed on demand through the shared
+    backend downloader (#180) on desktop and self-host.
+- **Grouped selector** with voice metadata and download state.
 - Updated acquisition, runtime inventory, licence notices and docs.
 
 Non-goals:
@@ -63,9 +77,11 @@ Non-goals:
   Kyutai's `cosette` and `jean` (CC BY-NC), `giovanni` and `lola`
   (unconfirmed Common Voice), and `juergen`, `rafael` and `daan` (no
   documented source).
-- **Downloads:** an optional downloadable voice catalog, prerendered samples,
-  per-voice download, auto-download and removal. These were withdrawn at G1.
-- **The downloader itself:** it is tracked in #151.
+- **Download extras:** prerendered samples before download, and a UI for
+  removing downloaded voices. The downloader's DELETE route exists, but
+  nothing in the picker uses it yet.
+- **The downloader itself:** it was delivered in #180 and is reused unchanged
+  apart from voice catalog entries.
 - **Preview and attribution UI:** a user-facing preview or attribution page.
   The listening page is for development only.
 - **Old preferences:** migrating saved preferences for the removed January
@@ -91,7 +107,8 @@ Non-goals:
 - **R3.** A developer-only listening page plays every screened candidate with
   its metadata and scores. The owner selects the shipped set and the
   recommended voices from it. At G1 the owner chose 38 voices (27 female,
-  11 male) and 14 recommended; voices not selected are dropped.
+  11 male) and 14 recommended; voices not selected are dropped. On 2026-09-27
+  the owner set core to `eve` plus the recommended voices.
 - **R4.** The default voice stays `eve`.
 
 ### Self-encoded voice states
@@ -106,28 +123,30 @@ Non-goals:
   Re-running it from the same inputs yields states that match the recorded
   hashes. The recipe reproduces Kyutai's own VCTK states within a recorded
   tolerance.
-- **R6.** Self-encoded states are published as pinned, hash-recorded hosted
-  artifacts in the `animama-releases` R2 bucket. Acquisition downloads and
-  verifies them; it never runs the encoder.
+- **R6.** Animama-hosted voice states are published to the `animama-releases`
+  R2 bucket under `models/pocket-tts-voices/<sha256>/<id>.safetensors`. That
+  covers the self-encoded core states and every downloadable state, Kyutai's
+  included. Publication uses the repository's staged, scanned, create-only
+  model publication, and the objects are immutable. Acquisition and the
+  downloader verify the bytes; neither runs the encoder.
 
 ### Core set
 
-- **R7.** All 38 voices ship in the core distribution and are acquired and
-  verified like today's built-in voices, with their hashes and licences in the
-  browser speech manifest. Kyutai states keep their Hugging Face pins, and
-  self-encoded states come from the release host.
-- **R8–R18. Withdrawn at G1 (2026-09-26).**
-  - The shared downloader requirements, R8–R12, moved to #151.
-  - The optional catalog, samples, downloads, auto-download and removal,
-    R13–R18, are no longer needed.
+- **R7.** The 15 core voices ship in the core distribution and are acquired
+  and verified like today's built-in voices, with their hashes and licences in
+  the browser speech manifest. Kyutai core states keep their Hugging Face
+  pins; self-encoded core states come from the release host.
+- **R8–R18. Withdrawn at G1 (2026-09-26).** The downloader is delivered by #180.
+  Downloadable voices are specified afresh in R26–R30.
 
 ### Selector
 
 - **R19.** The Pocket voice selector in Anima settings groups voices into
   Female and Male. Recommended voices come first in each group.
 - **R20.** Each voice shows its display name and an accent tag where known.
-- **R21.** Every listed voice is installed and selectable, so no download
-  state is shown.
+- **R21.** Every voice is listed and selectable. A downloadable voice that is
+  not installed shows a subtle download indicator. While it downloads, a
+  subtle progress icon replaces the indicator.
 - **R22.** The "Use application default" and custom (cloned) voice options
   keep their current behavior. A saved voice that is not in the list falls
   back to the default voice. The user sees one notice per session, not one per
@@ -145,26 +164,48 @@ Non-goals:
   the new core voices and the encoding pipeline. The size impact is recorded
   against the desktop core caps.
 
+### Downloadable voices
+
+- **R26.** Each downloadable voice has a pinned entry in the packaged asset
+  catalog (`model-assets.v1.json`): ID, `downloads.animama.ai` URL, size,
+  SHA-256 and licence. A tracked `models/pocket-tts-voices/manifest.json` binds
+  the published set.
+- **R27.** Selecting a downloadable voice that is not installed saves the
+  preference and starts its download. It works on desktop and self-host, with
+  no restart. Speech uses the default voice until the download is installed,
+  then uses the selected voice without a reload.
+- **R28.** If a saved downloadable voice is not installed (a fresh install,
+  cleared data, or another device), the app starts the download when it first
+  needs the voice.
+- **R29.** A failed download (offline, host error or verification failure)
+  leaves nothing installed. Speech continues with the default voice. The app
+  shows one notice per session and retries quietly on a later reply or pick.
+- **R30.** The worker loads a downloaded state from the downloader's content
+  route (`/v1/model-assets/<id>/content`); core states still load from
+  `/onnx/models/pocket-tts/voices/`.
 ## Constraints
 
 - **Licensing:** only voices whose licence permits commercial use ship: CC BY
   4.0 for VCTK and Alba MacKenna, and CC0 for Voice-Zero, Kyutai's own
   recording and the two donation voices. CC BY sources need attribution.
   Kyutai's model-card prohibited-use terms still apply.
-- **Size:** voice states are about 6–8 MB each, so 38 voices are about 265 MB
-  installed, 237 MB more than today's four. The desktop hard caps are 750 MiB
-  compressed core and 1.5 GiB installed core. The last stage measured 430 MB
-  download and 1.03 GB installed. The core must stay under the caps without a
-  size exception; compression of the states is not yet measured.
+- **Size:** voice states are about 6–8 MB each, and they barely compress.
+  - **Measured:** all 38 in core measured 654 MB download (the owner rejected
+    that). The 15 core voices should add about 80 MB over the original four.
+  - **Caps:** 750 MiB compressed core and 1.5 GiB installed core.
+  - **Downloads:** downloaded voices live in the data root and are not core.
 - **Pinned inputs:** source audio, Kyutai states and self-encoded states are
   pinned by revision and SHA-256. There are no moving branches or unverified
   bytes. Core acquisition adds `downloads.animama.ai` as an allowed host for
   release-hosted states only.
-- **Publication gate:** acquisition of the self-encoded states depends on the
-  owner publishing them to `animama-releases`. Nothing that makes acquisition
-  depend on them may merge before they are publicly served and their hashes
-  verified.
-- **Offline:** every shipped voice works offline once acquired.
+- **Publication gate:** acquisition and downloads depend on the published
+  objects. Nothing that references them may merge before they are publicly
+  served and verified. Objects under `models/` are immutable because of the
+  bucket lock rule, so the publish must be right the first time.
+- **Credentials:** the bucket-scoped R2 token is read from an owner-only file
+  and never printed, logged or committed.
+- **Offline:** core voices work offline once acquired; downloaded voices work
+  offline once installed.
 
 ## Acceptance criteria
 
@@ -192,6 +233,11 @@ Non-goals:
       under the caps. (R6, R7, R25) Evidence: `browser_speech.py
       acquire`/`verify` against published objects, the runtime stage and
       audit, and docs review.
+- [ ] **Downloads.** Selecting a downloadable voice installs it with a subtle
+      progress icon and speaks with it without a reload, on desktop and
+      self-host. A failed download leaves nothing installed and shows one
+      notice per session. (R26–R30) Evidence: automated tests, and browser and
+      desktop verification against the published objects.
 - [ ] **Owner acceptance.** The owner accepts the shipped voices in the app.
       Evidence: owner manual check.
 
@@ -207,17 +253,22 @@ Agreed on 2026-09-26:
   page.
 - **Self-encoded states:** published as pinned hosted artifacts in
   `animama-releases`, not generated at acquire time.
-- **Shipped set (G1):** 38 voices, all core, with no optional catalog. `eve`
-  stays the default, and 14 voices are recommended.
-- **Downloader:** split to #151 and draft PR #162.
+- **Shipped set (G1):** 38 voices; `eve` is the default, and 14 are
+  recommended.
+- **Delivery (2026-09-27):**
+  - `eve` and the recommended voices are core; the other 23 download on demand.
+  - Downloads use the same backend downloader on desktop and self-host.
+  - Picking a voice downloads it automatically, with a subtle progress icon.
+  - The agent publishes with the owner's bucket-scoped token file.
+- **Downloader:** delivered by #180 (it superseded #162).
 - **Attribution:** in notices only.
 - **Stale voices:** no migration for the removed January voices, and a stale
   saved voice shows one notice per session.
 
 Open, non-blocking; the plan resolves them:
 
-- Display names for self-encoded VCTK voices, which have no Kyutai name.
-- The R2 URL layout for voice states.
+- Resolved: display names (owner-approved) and the R2 layout (#180's
+  `models/` layout).
 
 ## Spec
 
@@ -226,7 +277,7 @@ Open, non-blocking; the plan resolves them:
 ## ExecPlan
 
 Required: the work spans curation, a hosted artifact pipeline, core
-acquisition and the selector.
+acquisition, on-demand downloads and the selector.
 [pocket-tts-voice-catalog-execplan.md](pocket-tts-voice-catalog-execplan.md).
 
 ## Delivery links
@@ -236,5 +287,7 @@ Phase issues:
 - #152 (P3)
 - #153 (P4)
 - #154 (P5)
+- #182 (P6)
+- #183 (P7)
 
 The former P2 is now #151 / PR #162.

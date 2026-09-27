@@ -1,4 +1,4 @@
-# Expanded PocketTTS core voices with a grouped selector
+# Expanded PocketTTS voices with a grouped selector and on-demand downloads
 
 Source agreement: [pocket-tts-voice-catalog-spec.md](pocket-tts-voice-catalog-spec.md),
 Agreed 2026-09-26 and revised at gate G1 the same day (D11). The spec's
@@ -83,6 +83,10 @@ Line numbers are at the baseline.
       the owner publishing to R2.
 - [x] Phase 4 (#153): Data-driven worker voice list, grouped selector and
       stale-voice notice. Complete (`7663264`, `769968e`); Review #2 passed.
+- [ ] Phase 6 (#182): Split into core and downloadable voices; publication set and
+      catalog. Ends at gate **G2**: publish, run by the agent with the owner's
+      token file.
+- [ ] Phase 7 (#183): On-demand voice downloads in the app (desktop and self-host).
 - [ ] Phase 5 (#154): Inventory, size, docs and verification. Docs, stage and
       audit are done; published-object verification waits on G2, then gate
       **G3**, owner acceptance.
@@ -190,6 +194,31 @@ Line numbers are at the baseline.
   API, because every voice is a static core asset. Self-encoded VCTK voices
   get agent-proposed given names, recorded in the selection file, which the
   owner can rename in review.
+- **D13.** 2026-09-27, owner. The extra ~230 MB core download for 38 voices
+  is not acceptable.
+  - **Split:** `eve` plus the 14 recommended voices stay core (15, of which 7
+    are self-encoded). The other 23 download on demand through #180's
+    backend downloader.
+  - **Surfaces:** the same downloader serves desktop and self-host.
+  - **Picking:** selecting a voice auto-downloads it, with a subtle progress
+    icon.
+  - **Publishing:** the agent publishes (G2) using an owner-only token file
+    that is never printed.
+  - **Unused prepared upload:** the `pocket-tts/voices/…` upload set was never
+    uploaded and is abandoned.
+- **D14.** 2026-09-27, agent.
+  - **Layout:** voice states Animama hosts use #180's layout,
+    `models/pocket-tts-voices/<sha256>/<id>.safetensors`, under the locked
+    `models/` prefix.
+  - **Tracked set:** one tracked set, `models/pocket-tts-voices/manifest.json`,
+    binds the 30 hosted states (7 core self-encoded and 23 downloadable,
+    Kyutai's included). It is published with #180's
+    `models:stage` → `release:scan` → `models:publish` flow, registered as a
+    model input like the Parakeet sets.
+  - **Catalog entries:** each downloadable voice gets a packaged catalog entry
+    with ID `pocket-voice-<id>`.
+  - **Removal and samples:** the removal UI and prerendered samples are
+    deferred (spec non-goals).
 
 ## Phased implementation
 
@@ -905,6 +934,79 @@ regressions. The reviewer confirmed:
 - the worker licence hash matches the LFS object ID.
 
 Result: **pass**. Phase 4 is complete (`7663264`, `769968e`).
+
+### Phase 6: Core and downloadable split, publication set and catalog
+
+Requirements: R3, R6, R7, R23–R26. Dependencies: Phases 1–4 and #180 (merged
+into this branch in `f329bcf`).
+
+Intended changes:
+
+1. **Selection.** `selection.json` gains `delivery: core|download`: core is
+   `eve` plus the recommended voices. `voices.py release` then regenerates:
+   - the browser speech manifest with the 15 core voices; self-encoded core
+     URLs become `https://downloads.animama.ai/models/pocket-tts-voices/<sha256>/<id>.safetensors`;
+   - `models/pocket-tts-voices/manifest.json`, the 30 Animama-hosted states;
+   - the 23 `pocket-voice-<id>` entries in
+     `src/backend/animama/resources/model-assets.v1.json`, preserving the
+     encoder entry;
+   - `voice-catalog.ts`, with `delivery` and `assetId`;
+   - the attribution notice, the licence records and the runtime manifest,
+     whose counts shrink to 24 model files and 35 runtime files.
+2. **Acquisition.**
+   - Add `scripts/models/pocket_voices.py` (`acquire`, `verify`, `path`,
+     reusing `parakeet.py`), so the publisher can stage the set. Before
+     publication it imports offline from the voice-tools directory.
+   - Register the set in `desktop/scripts/runtime/optional-inputs.mjs` for
+     `models:stage` and `models:publish` only. It is not a desktop pack.
+   - Point `browser_speech.py` release sources at the new layout.
+3. **Tests.** Cover:
+   - the manifest and catalog agreeing with the selection;
+   - the catalog URL pattern and publication plan (a dry run);
+   - licence coverage for every hosted and shipped voice;
+   - the updated counts.
+
+**Gate G2 (agent, owner token).**
+1. `models:stage` → `release:scan` → `models:publish --dry-run` → `models:publish
+   --confirm-publication`, loading `ANIMAMA_R2_*` from the owner-only file
+   `~/.config/animama/r2-publish.env` for that command only.
+2. Anonymous verification of every object.
+3. A real `browser_speech.py acquire` and `pocket_voices.py acquire` into a
+   fresh root.
+
+Objects are immutable, so publish only after Phase 6 review passes.
+
+Results, issue and commits: _pending_.
+
+### Phase 7: On-demand voice downloads in the app
+
+Requirements: R21, R27–R30. Dependencies: Phase 6, and G2 for live
+verification; a locally seeded store suffices for development.
+
+Intended changes:
+
+1. **Worker.** The voice list carries a URL per voice: core states from
+   `/onnx/...`, downloadable ones from `/v1/model-assets/<asset>/content`. The
+   app only selects installed voices.
+2. **App state.** Build on `useModelAssets` and `useModelAssetAction` from
+   #180:
+   - an installed set for downloadable voices;
+   - selecting a missing voice saves the preference and calls `:install`;
+   - a saved voice that isn't installed triggers `:install` on first use;
+   - on failure, one session notice and a quiet retry on a later reply or
+     pick.
+3. **Fallback.** `resolvePocketFallbackVoice` treats a saved downloadable voice
+   that isn't installed as the default voice for the run, plus an install
+   request.
+4. **Selector.** A subtle download indicator on voices not yet installed, and
+   a subtle progress icon while downloading.
+5. **Tests.** Fallback and install triggering, the selector states, and the
+   worker URL handling.
+6. **Verification.** Browser check on a task stack (development and built
+   self-host) against the published objects, and a packaged desktop check in
+   Phase 5.
+
+Results, issue and commits: _pending_.
 
 ### Phase 5: Inventory, size, docs and verification
 
