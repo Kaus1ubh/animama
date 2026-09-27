@@ -567,7 +567,7 @@ Forbidden`. Internal episodic-memory services pass a system-managed write flag
 when regenerating those files from `memory_episode_items`.
 
 User scope also reserves `animas` and `animas/**` (case-insensitively) for the
-Memory workspace's virtual Anima identity directory. Creating, moving or
+Memory workspace's virtual Anima folders. Creating, moving or
 renaming a user entry to those paths returns `403 Forbidden`. An entry that
 already exists there stays readable and can be moved, renamed out or deleted,
 but content, description and Revert edits return `403` until it is moved.

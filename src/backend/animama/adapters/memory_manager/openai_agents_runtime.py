@@ -27,6 +27,7 @@ from animama.app.ports.memory_manager_runtime import (
     MemoryManagerRuntimeConfigurationError,
     MemoryManagerRuntimeResult,
 )
+from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.app.services.anima_identity_memory import ManagerFileAccess, manager_file_access_for_run
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.user_memory_read_tools import UserMemoryReadToolService
@@ -601,7 +602,9 @@ _ANIMA_IDENTITY_INSTRUCTIONS = (
 _ANIMA_MEMORIES_INSTRUCTIONS = (
     "animas/<anima_id>/MEMORIES.md is that Anima's own first-person record of its relationship with the user, "
     "which the Anima and Reflection maintain. Propose an update_file change to it only when the user explicitly "
-    "asks to change that Anima's MEMORIES.md.\n"
+    "asks to change that Anima's MEMORIES.md. "
+    f"{SENSITIVE_MEMORY_RULE} Never record or frame the relationship as the Anima missing the user or feeling "
+    "lonely without them, as jealousy, or in a way that discourages the user's other relationships.\n"
 )
 
 

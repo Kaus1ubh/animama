@@ -19,6 +19,7 @@ from animama.adapters.memory_manager.openai_agents_runtime import _instructions
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.app.services.anima_identity_memory import (
     EPISODE_PROCESSING_MANAGER_FILE_ACCESS,
     GENERAL_MANAGER_FILE_ACCESS,
@@ -378,6 +379,8 @@ def test_live_runtime_limits_anima_file_access_to_general_runs() -> None:
     assert "animas/<anima_id>/IDENTITY.md" in general_instructions
     assert "animas/<anima_id>/MEMORIES.md" in general_instructions
     assert "only when the user explicitly asks" in general_instructions
+    assert SENSITIVE_MEMORY_RULE in general_instructions
+    assert "missing the user" in general_instructions
     assert "animas/" not in _instructions(memory_map="", access=episode)
 
 

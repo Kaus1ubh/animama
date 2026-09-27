@@ -413,7 +413,8 @@ the raw user ID, manager run ID, messages, paths, or memory content in the key.
 The live runtime tools are:
 
 - `memory_list_files`: lists the navigable path-and-description references shown
-  to normal Anima chat, plus owned identities in general runs.
+  to normal Anima chat, plus owned identities and `MEMORIES.md` files in general
+  runs, or the run's own `MEMORIES.md` in a Reflection.
 - `memory_read_files(paths)`: reads one path string or an ordered batch of up to
   10 user-scope markdown paths with partial success. Its `content` value is the
   native synthetic description-plus-body patch document in this runtime.
@@ -499,8 +500,8 @@ no-model development.
 
 For ordinary ad hoc memory edits, it looks for a markdown path in the user
 message and creates a predictable approval preview. In general runs that path
-may be `animas/<anima_id>/IDENTITY.md`, which appends a draft line to that
-identity; episode-processing runs reject identity paths. New general files receive a
+may be `animas/<anima_id>/IDENTITY.md` or `animas/<anima_id>/MEMORIES.md`, which
+appends a draft line to that file; episode-processing runs reject Anima paths. New general files receive a
 description derived from the path subject, while updates preserve an existing
 description. A newly created episodic-curation file is described as curated
 reviewed memory.

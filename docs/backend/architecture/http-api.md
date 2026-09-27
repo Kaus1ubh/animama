@@ -538,8 +538,8 @@ configured default. Realtime selected models are returned in
 not emit `tts.session` or `tts.session.error`.
 The route does not infer TTS setup from `main_structured_response`.
 Before model invocation, direct chat opens cached path `IDENTITY.md` in the
-active anima scope for prompt context and appends only the identity markdown
-content to the single system instruction. When memory influence is enabled it
+active anima scope for prompt context and appends its markdown content to the
+single system instruction. When memory influence is enabled it
 also opens `MEMORIES.md` and appends it directly after the identity; a missing
 or blank file is omitted without failing the turn. User profile memory entries are seeded
 during installation bootstrap but their content is not injected into direct chat

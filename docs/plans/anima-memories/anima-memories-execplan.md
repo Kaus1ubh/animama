@@ -44,12 +44,13 @@ version; 3.14 changes OpenAPI wording); never hand-edit generated output.
       (read back 2026-09-26T18:10:04Z) with native sub-issues #157, #158, #159,
       #160 and blocked-by dependencies.
 - [x] Phase 1: backend `MEMORIES.md` lifecycle, prompt placement and templates
-      (review #2 pass; commit recorded under the Phase 1 record).
-- [x] Phase 2: memory workspace and create-Anima template (review #1 pass).
+      (review #2 pass; commit `6393451`).
+- [x] Phase 2: memory workspace and create-Anima template (review #1 pass;
+      commit `6a218fd`).
 - [x] Phase 3: live edits and the chat memory cue (backend review #2 pass,
-      frontend review #1 pass).
-- [x] Phase 4: Reflection (review #2 pass).
-- [ ] Final integration review.
+      frontend review #1 pass; commit `59db411`).
+- [x] Phase 4: Reflection (review #2 pass; commit `6c95470`).
+- [x] Final integration review (review #2 pass; see section).
 - [ ] Owner gate G1: desktop acceptance with a live model.
 - [ ] PR opened; hosted Validation recorded.
 - [ ] Exact-candidate owner merge approval.
@@ -369,7 +370,7 @@ and Anima deletion leave no orphan). Result: pass. Optional notes:
   its checks carry the write guidance.
 - F3 accepted: "admits only", matching ADR 0009.
 
-Checks: see the Phase 1 commit evidence below. Repair budget used: one of two.
+Checks: repair tests 10 passed; ruff and format clean. Repair budget used: one of two.
 
 ### Phase 2 — Memory workspace and create-Anima template
 
@@ -735,10 +736,70 @@ long path, and after Approve the Work pane stayed at its width with no
 horizontal scroll. Repair budget used: one of two.
 
 
+## Final integration review
+
 After Phase 4, one full review of the combined diff against spec R1–R10, reusing
 still-valid phase evidence, with at most two repair rounds. Confirm the docs,
 glossary and ADR describe delivered behavior, and that no requirement is covered
 only by a test double where the spec asks for rendered or manual evidence.
+
+#### Code Review #1 Findings
+
+Reviewed `b633af1..6c95470` (sdlc-reviewer, final integration mode).
+`make check-test` 1994 passed, 7 skipped; `openapi-ts:check` current;
+`pnpm check` and 39 focused web test files (255 tests) passed. A separate full
+frontend run passed `packages:build`, `packages:check`, `check`, `web:lint`,
+`web:test` (320 files / 1949 tests), `packages:test` (product-ui 19/19),
+`build`, `desktop:check`, `desktop:test` (17 files / 311 tests) and
+`openapi-ts:check`; `prettier:check` flags only 13 files unchanged since
+`b633af1`, and every changed frontend file passes Prettier. No correctness,
+security or cross-phase defect: version fencing, identity-only revisions,
+memory controls, the `updates_enabled` handoff from Phase 3 to Phase 4, cache
+refreshes, Anima deletion and safety ordering were verified across phases.
+
+- FI-R1-F1 (blocking): G1 did not include a real `MEMORIES.md` edit producing
+  the cue, or the Quick Chat cue and its handoff, so those R6 behaviors rested
+  only on injected and seeded evidence without an owner check.
+- FI-R1-F2 (optional): the Final integration review heading was lost and two
+  Phase 1 references pointed to missing evidence.
+- FI-R1-F3 (optional): the Phase 2 browser evidence lacked the `MEMORIES.md`
+  conflict flow.
+- FI-R1-F4 (optional): several backend docs, the glossary and ADR wording were
+  slightly stale or imprecise.
+- FI-R1-F5 (optional hardening): general Memory Manager instructions for
+  `MEMORIES.md` lacked the sensitive-memory and guardrail-framing rules.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: G1 now includes the real write→cue path and the Electron Quick
+  Chat cue with "Open in Memories".
+- F2 accepted: heading restored; commit references added to Progress.
+- F3 accepted: the conflict flow is added to G1 (unit coverage exists in
+  `workspace-drafts.test.ts`; the conflict UI is shared with other files).
+- F4 accepted: backend doc wording corrected; the glossary now says "while
+  memory influence is on". ADR 0009 keeps the spec's wording as decision
+  history.
+- F5 accepted: general-run `MEMORIES.md` instructions carry both rules; a test
+  asserts them.
+
+Checks after revisions: ruff and format clean; Memory Manager identity and
+reflection tests 32 passed.
+
+#### Code Review #2 Findings
+
+Targeted recheck of FI-R1-F1–F5: all verified, no regressions (Memory Manager
+tests 91 passed; ruff, format, mypy, import boundary and `git diff --check`
+clean). Result: pass. Optional notes: the guardrail-framing sentence now exists
+in three prompt places and could become one constant; two edited prose lines
+are longer than their neighbours.
+
+#### Code Review #2 Revisions
+
+None applied: the three framings differ in person (chat addresses the Anima
+directly) and the line lengths are cosmetic. Final repair budget used: one of
+two. Agent work is complete; owner gate G1 and exact-candidate merge approval
+remain.
+
 
 ## Validation and acceptance
 
@@ -763,7 +824,11 @@ never record personal memory content.
 Owner gate G1 (desktop app, live OpenAI model): the spec's owner-verification
 criterion. Across two chats with one Anima, the second follows up an open thread
 from the first; a second Anima does not know that history; a new Anima does not
-claim shared history; a Reflection produces a sensible curated diff. Record the
+claim shared history; a Reflection produces a sensible curated diff; a real turn
+in which the Anima edits `MEMORIES.md` shows the memory cue while streaming and
+after reload; in Electron Quick Chat the cue appears and "Open in Memories"
+brings the main window forward on the file; and a `MEMORIES.md` edit that
+conflicts with a newer save offers Use latest and Save over latest. Record the
 owner's dated result; agent evidence cannot substitute for it.
 
 Hosted `Validation` is recorded separately from local evidence in the PR.

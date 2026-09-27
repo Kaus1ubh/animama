@@ -98,7 +98,7 @@ here overrides the App settings default for that Anima only; choosing
 An Anima's own `MEMORIES.md`: its first-person record of its relationship and
 shared history with the installation owner, such as milestones, nicknames, how
 the two relate and open threads. It belongs to one Anima and is included in that
-Anima's every turn. Facts about the owner that every Anima should know belong in
+Anima's every turn while memory influence is on. Facts about the owner that every Anima should know belong in
 shared memory such as `PROFILE.md`; episodes are the shared log of what happened.
 See [ADR 0009](docs/adr/0009-shared-user-memory-and-per-anima-relationship-memory.md).
 

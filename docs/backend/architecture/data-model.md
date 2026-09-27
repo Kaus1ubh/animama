@@ -440,14 +440,14 @@ Source/provenance details for seeded files belong in memory-entry `metadata`
 instead of dedicated columns. Materialization seeds an anima-scoped `IDENTITY.md`
 entry with `kind = "anima_identity"` and
 `description = "Initial identity of {anima.display_name}"`, plus a template
-`MEMORIES.md` with `kind = "anima_memories"`. An anima scope holds only these
+`MEMORIES.md` with `kind = "anima_memories"`. An anima scope admits only these
 two root files. Starter adoption
 can inspect persisted `avatar_identity_seed` metadata and Version 1 history;
 ordinary creation does not invent that adoption evidence.
 
 Normal direct chat fetches cached path `IDENTITY.md` in the active anima scope
-at turn setup as required anima configuration and inserts only the identity
-markdown content into the system instruction, followed by `MEMORIES.md` when
+at turn setup as required anima configuration and inserts its markdown content
+into the system instruction, followed by the content of `MEMORIES.md` when
 memory influence is enabled and the file is nonblank. Installation bootstrap creates a
 user-scope `PROFILE.md` entry for the installation owner with `kind = "user_profile"`
 and `description = "Private installation-owner profile"`. Its guarded bootstrap
