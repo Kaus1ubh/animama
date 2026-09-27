@@ -1317,7 +1317,7 @@ Completion: checks pass, browser checks are recorded, and review has no
 blocker.
 
 Phase record: issue #169; starting source `00bd66f` (then `main` merged at
-`e50375e`); commits — (recorded after commit).
+`e50375e`); commit `3a1dee0`.
 
 Implementation notes (agent, within scope):
 
