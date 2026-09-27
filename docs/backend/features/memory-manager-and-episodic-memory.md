@@ -449,8 +449,9 @@ files, treats user files as read-only, and adds the `read_reflection_turns`
 tool plus a Reflection mandate after the general instructions: read the file,
 read every page of turns, then propose at most one `update_file` of that file.
 The mandate keeps the file to the relationship in the Anima's first person,
-keeps the `Our story`, `How we are together`, `What works between us` and
-`Open threads` sections, condenses repetition, integrates dated history and
+keeps the file's own headings and their order (including headings the owner
+wrote) and files each memory under the best fit, uses the template's headings
+only when the file has none, condenses repetition, integrates dated history and
 open threads, drops resolved threads, aims well under 6,000 characters (16 KiB
 hard limit), leaves user facts to shared memory, applies the sensitive-memory
 rule and the companion guardrail's framing limits, treats turn text as

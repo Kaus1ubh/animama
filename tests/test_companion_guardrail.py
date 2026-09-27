@@ -147,6 +147,9 @@ def test_sensitive_memory_rule_reaches_every_memory_writer() -> None:
     assert SENSITIVE_MEMORY_RULE in MAIN_STRUCTURED_OUTPUT_GUIDANCE
     assert SENSITIVE_MEMORY_RULE in MEMORY_SYSTEM_GUIDANCE
     assert SENSITIVE_MEMORY_RULE in ANIMA_MEMORIES_WRITE_GUIDANCE
+    # Owner-written headings are kept; memories go under the section that fits.
+    assert "including ones the owner wrote" in ANIMA_MEMORIES_WRITE_GUIDANCE
+    assert "section that fits best" in ANIMA_MEMORIES_WRITE_GUIDANCE
     episode = MemoryEpisodeItem(
         id="episode-1",
         user_id="user-1",

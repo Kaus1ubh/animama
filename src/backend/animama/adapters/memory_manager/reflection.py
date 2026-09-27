@@ -14,7 +14,7 @@ from typing import Any
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.app.services.anima_identity_memory import anima_memories_manager_path
-from animama.domain.anima_definition import ANIMA_MEMORIES_MAX_BYTES
+from animama.domain.anima_definition import ANIMA_MEMORIES_MAX_BYTES, ANIMA_MEMORIES_TEMPLATE
 from animama.domain.chat import AnimaHistoryTurn, ChatHistoryPosition
 from animama.domain.memory_manager import (
     MEMORY_MANAGER_RUN_KIND_REFLECTION,
@@ -129,6 +129,13 @@ class ReflectionTurnReader:
         }
 
 
+def _default_memories_layout() -> str:
+    """List the template's headings so the fallback layout follows the template."""
+
+    headings = [line.strip() for line in ANIMA_MEMORIES_TEMPLATE.splitlines() if line.startswith("#")]
+    return ", then ".join(f"`{heading}`" for heading in headings)
+
+
 def render_reflection_instructions(*, task: MemoryManagerReflectionTaskState) -> str:
     """Render the server-owned Reflection mandate for one Anima's batch of turns."""
 
@@ -167,15 +174,17 @@ def render_reflection_instructions(*, task: MemoryManagerReflectionTaskState) ->
             "your final reply instead.",
             "",
             "How to write it:",
-            "- Keep the file's shape: `# Memories`, then `## Our story`, `## How we are together`, "
-            "`## What works between us` and `## Open threads`, in that order.",
+            "- Keep the file's own structure, including headings the owner wrote. Never rename, reorder or remove "
+            "its sections; put each memory under the heading that fits best, and add a section only when nothing "
+            "fits.",
+            f"- Use the default layout ({_default_memories_layout()}) only when the file has no headings.",
             f"- Write prose in the first person as {name}, and refer to the user by their preferred name when "
             "it is known.",
             "- Integrate the new history into the existing text rather than appending a log. Condense repetition "
             "and merge related moments. Date moments and open threads using the turns' times.",
             "- Add new open threads and drop threads that the turns show were resolved or have passed.",
-            "- Replace a section's hint line with real content once there is something to say; keep the hint "
-            "while there is nothing yet.",
+            "- Replace a section's placeholder or hint line with real content once there is something to say; "
+            "keep it while there is nothing yet.",
             f"- Keep the whole file well under {REFLECTION_MEMORIES_TARGET_CHARS:,} characters (the hard limit is "
             f"{ANIMA_MEMORIES_MAX_BYTES // 1024} KiB) by condensing older moments.",
             "- Keep the file's description an accurate overview; preserve it verbatim when it still fits.",

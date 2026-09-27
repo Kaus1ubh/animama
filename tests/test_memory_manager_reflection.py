@@ -848,6 +848,10 @@ async def test_live_runtime_offers_turn_reading_and_own_memories_only_in_reflect
     assert f"animas/{anima_id}/MEMORIES.md" in instructions
     assert f"animas/{anima_id}/IDENTITY.md" not in instructions
     assert f"animas/{other_id}/" not in instructions
+    # The owner's own headings win; the default layout applies only to a file without any.
+    assert "including headings the owner wrote" in instructions
+    assert "Never rename, reorder or remove" in instructions
+    assert "only when the file has no headings" in instructions
     assert "## Our story" in instructions and "## Open threads" in instructions
     assert "6,000 characters" in instructions
     assert SENSITIVE_MEMORY_RULE in instructions

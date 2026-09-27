@@ -134,8 +134,8 @@ Reflection is a specialized Memory Manager prompt, not a separate workflow.
   turns are never persisted and therefore never read. Turns from deleted chats
   are gone.
 - It proposes an edit of `MEMORIES.md` that condenses repetition, integrates new
-  history and open threads, drops resolved threads, keeps the R9 shape and fits
-  the size limit. When there is nothing worth adding it says so and proposes
+  history and open threads, drops resolved threads, keeps the file's own headings
+  (the R9 layout applies only to a file with none) and fits the size limit. When there is nothing worth adding it says so and proposes
   nothing.
 - Turns count as covered only once a Reflection's `MEMORIES.md` change is applied
   (approved or auto-approved). Rejecting, abandoning the conversation or failing

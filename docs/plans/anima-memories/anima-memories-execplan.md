@@ -192,6 +192,12 @@ Planning findings at `410425e` (unchanged at `b633af1`):
   "Reflection did not start." toast carrying the server's reason; a dirty
   `MEMORIES.md` draft asks for confirmation; failed and completed banners say
   whether an applied change stands.
+- 2026-09-26, owner: owners may write their own `MEMORIES.md` headings, so the
+  template is not a required shape. Live edits and Reflection keep the file's
+  existing headings and order (including owner-written ones) and file memories
+  under the best fit; Reflection uses the template's headings, read from
+  `ANIMA_MEMORIES_TEMPLATE`, only when the file has none. Spec R5 wording updated
+  to match.
 - 2026-09-26, plan design: one branch and one PR; four phases ordered by
   dependency. Implementation details may change with evidence within the spec.
 

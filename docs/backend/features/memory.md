@@ -242,7 +242,9 @@ Successful edits keep `last_ai_write` audit metadata and feed the turn's
 excluding Anima files, whose content is already in the instructions. When the
 turn can edit the file and it exists, the memory guidance tells the Anima to make
 small relationship-only edits in the first person (user facts go to shared
-memory such as `PROFILE.md`), never to rewrite it every turn, to stay well under
+memory such as `PROFILE.md`), to keep the file's existing headings (including
+owner-written ones) and file each memory under the best fit, never to rewrite it
+every turn, to stay well under
 about 6,000 characters, how `remember` (the shared episode log) differs from
 `MEMORIES.md` (what the relationship means), the sensitive-memory rule, and never
 to frame the relationship as missing the user, loneliness, jealousy or
