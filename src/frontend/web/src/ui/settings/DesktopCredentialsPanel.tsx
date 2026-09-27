@@ -2,6 +2,8 @@ import { useEffect, useId, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   credentialProviders,
+  credentialTarget,
+  isProviderCredential,
   type CredentialProvider,
   type CredentialStatus,
 } from "../../../../shared/desktop-runtime";
@@ -21,11 +23,15 @@ import {
 
 const names: Record<CredentialProvider, string> = {
   openai: "OpenAI",
-  deepseek: "DeepSeek",
-  huggingface: "Hugging Face",
-  gemini: "Gemini",
   elevenlabs: "ElevenLabs",
 };
+
+/** A readable name for a provider or a model connection's key variable. */
+function credentialName(target: string): string {
+  return target in names
+    ? names[target as CredentialProvider]
+    : "Model connection key";
+}
 
 /** Main retains failures across window recreation, including for an unselected provider. */
 export function DesktopCredentialFailures({
@@ -35,9 +41,10 @@ export function DesktopCredentialFailures({
 }) {
   return statuses.map((status) => {
     const message = credentialFailureMessage(status);
+    const target = credentialTarget(status);
     return message ? (
-      <p className="text-sm" role="status" key={status.provider}>
-        {names[status.provider]}: {message}
+      <p className="text-sm" role="status" key={target}>
+        {credentialName(target)}: {message}
       </p>
     ) : null;
   });
@@ -128,7 +135,12 @@ export function DesktopCredentialsPanel({
 
   if (!available) return null;
   const isConfigured = (provider: CredentialProvider) =>
-    statuses.some((item) => item.provider === provider && item.configured);
+    statuses.some(
+      (item) =>
+        isProviderCredential(item) &&
+        item.provider === provider &&
+        item.configured,
+    );
   const updateDraft = (
     provider: CredentialProvider,
     next: { value?: string; remove?: boolean },
@@ -142,10 +154,10 @@ export function DesktopCredentialsPanel({
     // Clear typed keys before IPC; there is no read-back or browser copy.
     setDrafts({});
     // Main clears retained failures for the batch; mirror that immediately.
-    const changing = new Set(changes.map((change) => change.provider));
+    const changing = new Set(changes.map(credentialTarget));
     setStatuses((entries) =>
       entries.map((entry) => {
-        if (!changing.has(entry.provider)) return entry;
+        if (!changing.has(credentialTarget(entry))) return entry;
         const status = { ...entry, restartRequired: false };
         delete status.error;
         return status;
@@ -163,7 +175,7 @@ export function DesktopCredentialsPanel({
         `${changes.length === 1 ? "Change" : `${changes.length} changes`} saved. Local services are ready.`,
       );
     } catch (error) {
-      const failed = (error as { failed?: CredentialProvider[] }).failed;
+      const failed = (error as { failed?: string[] }).failed;
       const reported = (error as { statuses?: CredentialStatus[] }).statuses;
       try {
         setStatuses(reported ?? (await bridge.list()));
@@ -172,7 +184,7 @@ export function DesktopCredentialsPanel({
       }
       setMessage(
         failed?.length
-          ? `Some changes could not finish (${failed.map((provider) => names[provider]).join(", ")}). Retry them; saved keys are never shown here.`
+          ? `Some changes could not finish (${failed.map(credentialName).join(", ")}). Retry them; saved keys are never shown here.`
           : "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
       );
     } finally {
@@ -197,10 +209,12 @@ export function DesktopCredentialsPanel({
           </span>
         </h3>
         <p className="text-muted-foreground text-sm">
-          Add your own provider keys for cloud chat or ElevenLabs voices. Keys
-          are encrypted with this computer’s secure storage and never shown
-          again. Enter several, then save once; local services restart after
-          saving. You can change them later in App Settings → API Keys.
+          Add an OpenAI key for cloud chat or an ElevenLabs key for voices. Keys
+          for other model servers are entered on each connection in App Settings
+          → Models. Keys are encrypted with this computer’s secure storage and
+          never shown again. Enter several, then save once; local services
+          restart after saving. You can change them later in App Settings → API
+          Keys.
         </p>
       </div>
       <div className="divide-border/60 divide-y">

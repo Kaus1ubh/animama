@@ -13,7 +13,7 @@ describe("buildDiagnosticsSummary", () => {
       ],
       providers: [
         { provider: "openai", configured: true },
-        { provider: "gemini", configured: false },
+        { provider: "elevenlabs", configured: false },
       ],
     });
     expect(summary).toBe(
@@ -26,7 +26,7 @@ describe("buildDiagnosticsSummary", () => {
         "- parakeet-stt: installed 1.2.0",
         "Provider keys configured:",
         "- openai: yes",
-        "- gemini: no",
+        "- elevenlabs: no",
       ].join("\n"),
     );
   });

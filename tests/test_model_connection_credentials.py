@@ -14,6 +14,7 @@ import pytest
 
 from animama.adapters.model_clients import OpenAIChatCompletionsModelClient
 from animama.adapters.model_clients.openai_chat_completions import connection_sdk as openai_chat_client_module
+from animama.adapters.model_clients.openai_chat_completions.connection_sdk import connection_timeout
 from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
 from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
 from animama.domain import ModelConnection
@@ -91,9 +92,9 @@ async def test_openai_chat_completions_client_sends_each_connection_only_its_own
     await client.aclose()
 
     assert [(client.api_key, client.base_url, client.timeout) for client in created_clients] == [
-        ("sk-openai", "https://api.openai.com/v1", 13.0),
-        ("sk-deepseek", DEEPSEEK_BASE_URL, 13.0),
-        ("sk-custom", "https://models.example.test/v1", 13.0),
+        ("sk-openai", "https://api.openai.com/v1", connection_timeout(13.0)),
+        ("sk-deepseek", DEEPSEEK_BASE_URL, connection_timeout(13.0)),
+        ("sk-custom", "https://models.example.test/v1", connection_timeout(13.0)),
     ]
     assert created_clients[1].default_headers["Authorization"] == "Bearer sk-deepseek"
     assert [client.close_calls for client in created_clients] == [1, 1, 1]
@@ -117,7 +118,7 @@ async def test_openai_chat_completions_client_never_sends_the_openai_key_to_a_ke
     constructed = created_clients[0]
     assert constructed.api_key not in {"sk-openai", "sk-process-openai"}
     assert constructed.base_url == "http://127.0.0.1:11434/v1"
-    assert constructed.timeout == 300.0
+    assert constructed.timeout == connection_timeout(300.0)
     assert isinstance(constructed.create_calls[0]["extra_headers"]["Authorization"], Omit)
     assert isinstance(constructed.default_headers["OpenAI-Organization"], Omit)
 

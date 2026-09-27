@@ -1,7 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import {
+  connectionCredentialPattern,
   credentialProviders,
+  maxConnectionCredentials,
+  maxCredentialChanges,
+  type CredentialChange,
   type CredentialProvider,
   type CredentialStatus,
 } from "../../../../shared/desktop-runtime.js";
@@ -14,20 +18,22 @@ export type Encryption = {
   encryptString(value: string): Buffer;
   decryptString(value: Buffer): string;
 };
+type VaultEntry = { value: string; updatedAt: string };
 type VaultData = {
   version: 1;
   postgresPassword: string;
-  providers: Partial<
-    Record<CredentialProvider, { value: string; updatedAt: string }>
-  >;
+  providers: Partial<Record<CredentialProvider, VaultEntry>>;
+  /** Model-connection keys by environment name; absent in older vaults. */
+  connections?: Record<string, VaultEntry>;
 };
 const providerEnvironment: Record<CredentialProvider, string> = {
   openai: "OPENAI_API_KEY",
-  deepseek: "DEEPSEEK_API_KEY",
-  huggingface: "HF_TOKEN",
-  gemini: "GEMINI_API_KEY",
   elevenlabs: "ELEVENLABS_API_KEY",
 };
+/** Provider keys earlier releases stored; they are dropped when a vault loads. */
+const retiredProviders = new Set(["deepseek", "huggingface", "gemini"]);
+/** Room for both providers and every connection key at the value limit. */
+const maxVaultBytes = 512 * 1024;
 
 export function validateProvider(value: unknown): CredentialProvider {
   if (
@@ -37,36 +43,51 @@ export function validateProvider(value: unknown): CredentialProvider {
     throw new RuntimeError("credential_provider_invalid");
   return value as CredentialProvider;
 }
+export function validateConnectionCredential(value: unknown): string {
+  if (typeof value !== "string" || !connectionCredentialPattern.test(value))
+    throw new RuntimeError("credential_connection_invalid");
+  return value;
+}
 /**
- * Validate a renderer-supplied batch: 1..N changes, one per provider, each an
- * object with only `provider` and an optional `value`.
+ * Validate a renderer-supplied batch: 1..N changes, one per provider or
+ * connection, each an object with exactly one of `provider` or `connection`
+ * and an optional `value`.
  */
-export function validateCredentialChanges(
-  value: unknown,
-): Array<{ provider: CredentialProvider; value?: string }> {
+export function validateCredentialChanges(value: unknown): CredentialChange[] {
   if (
     !Array.isArray(value) ||
     value.length < 1 ||
-    value.length > credentialProviders.length
+    value.length > maxCredentialChanges
   )
     throw new RuntimeError("credential_changes_invalid");
-  const seen = new Set<CredentialProvider>();
-  return value.map((change: unknown) => {
-    if (
-      !change ||
-      typeof change !== "object" ||
-      Array.isArray(change) ||
-      Object.keys(change).some((key) => key !== "provider" && key !== "value")
-    )
+  const seen = new Set<string>();
+  return value.map((change: unknown): CredentialChange => {
+    if (!change || typeof change !== "object" || Array.isArray(change))
       throw new RuntimeError("credential_changes_invalid");
-    const record = change as { provider?: unknown; value?: unknown };
-    const provider = validateProvider(record.provider);
-    if (seen.has(provider))
+    const keys = Object.keys(change);
+    const target = keys.includes("provider") ? "provider" : "connection";
+    if (keys.some((key) => key !== target && key !== "value"))
       throw new RuntimeError("credential_changes_invalid");
-    seen.add(provider);
-    return record.value === undefined
-      ? { provider }
-      : { provider, value: validateCredential(record.value) };
+    const record = change as {
+      provider?: unknown;
+      connection?: unknown;
+      value?: unknown;
+    };
+    const name =
+      target === "provider"
+        ? validateProvider(record.provider)
+        : validateConnectionCredential(record.connection);
+    if (seen.has(name)) throw new RuntimeError("credential_changes_invalid");
+    seen.add(name);
+    const value =
+      record.value === undefined ? undefined : validateCredential(record.value);
+    if (target === "provider")
+      return value === undefined
+        ? { provider: name as CredentialProvider }
+        : { provider: name as CredentialProvider, value };
+    return value === undefined
+      ? { connection: name }
+      : { connection: name, value };
   });
 }
 export function validateCredential(value: unknown): string {
@@ -78,6 +99,14 @@ export function validateCredential(value: unknown): string {
   )
     throw new RuntimeError("credential_value_invalid");
   return value;
+}
+function validateEntry(entry: VaultEntry): void {
+  validateCredential(entry.value);
+  if (
+    typeof entry.updatedAt !== "string" ||
+    !Number.isFinite(Date.parse(entry.updatedAt))
+  )
+    throw new Error();
 }
 
 /** Only main can decrypt. Public methods return configured/missing status. */
@@ -99,7 +128,7 @@ export class CredentialVault {
           stat.isSymbolicLink() ||
           stat.nlink !== 1 ||
           (stat.mode & 0o777) !== 0o600 ||
-          stat.size > 128 * 1024
+          stat.size > maxVaultBytes
         )
           throw new Error();
         const data = JSON.parse(
@@ -112,16 +141,24 @@ export class CredentialVault {
           typeof data.providers !== "object"
         )
           throw new Error();
+        const providers: VaultData["providers"] = {};
         for (const [name, entry] of Object.entries(data.providers)) {
-          validateProvider(name);
-          validateCredential(entry.value);
-          if (
-            typeof entry.updatedAt !== "string" ||
-            !Number.isFinite(Date.parse(entry.updatedAt))
-          )
-            throw new Error();
+          if (retiredProviders.has(name)) continue;
+          validateEntry(entry);
+          providers[validateProvider(name)] = entry;
         }
-        this.data = data;
+        const connections = data.connections ?? {};
+        if (
+          typeof connections !== "object" ||
+          Array.isArray(connections) ||
+          Object.keys(connections).length > maxConnectionCredentials
+        )
+          throw new Error();
+        for (const [name, entry] of Object.entries(connections)) {
+          validateConnectionCredential(name);
+          validateEntry(entry);
+        }
+        this.data = { ...data, providers, connections };
       } catch {
         throw new RuntimeError("vault_unreadable");
       }
@@ -131,6 +168,7 @@ export class CredentialVault {
         version: 1,
         postgresPassword: randomBytes(32).toString("hex"),
         providers: {},
+        connections: {},
       };
       this.save(this.data);
     }
@@ -145,20 +183,38 @@ export class CredentialVault {
     return this.data.postgresPassword;
   }
   childEnvironment(): Record<string, string> {
-    return Object.fromEntries(
-      Object.entries(this.data.providers).map(([provider, entry]) => [
-        providerEnvironment[provider as CredentialProvider],
-        entry.value,
-      ]),
-    );
+    return {
+      ...Object.fromEntries(
+        Object.entries(this.data.providers).map(([provider, entry]) => [
+          providerEnvironment[provider as CredentialProvider],
+          entry.value,
+        ]),
+      ),
+      ...Object.fromEntries(
+        Object.entries(this.data.connections ?? {}).map(([name, entry]) => [
+          name,
+          entry.value,
+        ]),
+      ),
+    };
   }
   list(): CredentialStatus[] {
-    return credentialProviders.map((provider) => ({
-      provider,
-      configured: Boolean(this.data.providers[provider]),
-      updatedAt: this.data.providers[provider]?.updatedAt ?? null,
-      restartRequired: false,
-    }));
+    return [
+      ...credentialProviders.map((provider) => ({
+        provider,
+        configured: Boolean(this.data.providers[provider]),
+        updatedAt: this.data.providers[provider]?.updatedAt ?? null,
+        restartRequired: false,
+      })),
+      ...Object.entries(this.data.connections ?? {})
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([connection, entry]) => ({
+          connection,
+          configured: true,
+          updatedAt: entry.updatedAt,
+          restartRequired: false,
+        })),
+    ];
   }
   set(provider: CredentialProvider, value: string): void {
     validateProvider(provider);
@@ -175,23 +231,43 @@ export class CredentialVault {
     this.apply([{ provider }]);
   }
   /**
-   * Set or remove several providers in one encrypted write, so a batch is
-   * all-or-nothing on disk (an omitted value removes that provider's key).
+   * Set or remove several keys in one encrypted write, so a batch is
+   * all-or-nothing on disk (an omitted value removes that key).
    */
-  apply(
-    changes: ReadonlyArray<{ provider: CredentialProvider; value?: string }>,
-  ): void {
+  apply(changes: ReadonlyArray<CredentialChange>): void {
+    this.assertCapacity(changes);
     const providers = { ...this.data.providers };
+    const connections = { ...(this.data.connections ?? {}) };
     const updatedAt = new Date().toISOString();
     for (const change of changes) {
-      validateProvider(change.provider);
-      if (change.value === undefined) delete providers[change.provider];
-      else
-        providers[change.provider] = {
-          value: validateCredential(change.value),
-          updatedAt,
-        };
+      const value =
+        change.value === undefined
+          ? undefined
+          : { value: validateCredential(change.value), updatedAt };
+      if ("provider" in change) {
+        validateProvider(change.provider);
+        if (value) providers[change.provider] = value;
+        else delete providers[change.provider];
+      } else {
+        validateConnectionCredential(change.connection);
+        if (value) connections[change.connection] = value;
+        else delete connections[change.connection];
+      }
     }
-    this.save({ ...this.data, providers });
+    this.save({ ...this.data, providers, connections });
+  }
+  /**
+   * Refuse a batch that would store more than `maxConnectionCredentials`
+   * connection keys. Callers check before stopping anything.
+   */
+  assertCapacity(changes: ReadonlyArray<CredentialChange>): void {
+    const names = new Set(Object.keys(this.data.connections ?? {}));
+    for (const change of changes) {
+      if (!("connection" in change)) continue;
+      if (change.value === undefined) names.delete(change.connection);
+      else names.add(change.connection);
+    }
+    if (names.size > maxConnectionCredentials)
+      throw new RuntimeError("connection_credentials_full");
   }
 }

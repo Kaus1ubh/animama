@@ -21,6 +21,7 @@ import {
   PACK_METADATA,
   type PackManifest,
 } from "../src/main-process/feature-packs/catalog.js";
+import { credentialTarget } from "../../shared/desktop-runtime";
 
 const fixture = vi.hoisted(() => {
   type Child = {
@@ -663,7 +664,7 @@ describe("runtime supervision", () => {
           .find((entry) => entry.provider === "openai"),
       ).toMatchObject(expected);
 
-      await current.runtime.changeCredential("gemini", "fixture-other-key");
+      await current.runtime.changeCredential("elevenlabs", "fixture-other-key");
       expect(
         current.runtime
           .credentials()
@@ -694,17 +695,87 @@ describe("runtime supervision", () => {
     },
   );
 
+  it("gives a saved connection key to FastAPI on start but never to cleanup", async () => {
+    const env = "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY";
+    const first = create();
+    await first.runtime.start();
+    await first.runtime.changeCredentials([
+      { connection: env, value: "fixture-connection-key" },
+    ]);
+    await first.runtime.stop();
+    const launches = fixture.launches.length;
+
+    const second = create(first.options.paths);
+    await second.runtime.start();
+
+    const started = fixture.launches.slice(launches);
+    expect(started.find((child) => child.name === "fastapi")?.env[env]).toBe(
+      "fixture-connection-key",
+    );
+    const cleanup = started.find((child) => child.name === "avatar-cleanup");
+    expect(cleanup).toBeDefined();
+    expect(cleanup?.env[env]).toBeUndefined();
+  });
+
+  it("refuses a connection key beyond the limit without stopping services", async () => {
+    const current = create();
+    await current.runtime.start();
+    for (let batch = 0; batch < 4; batch += 1)
+      await current.runtime.changeCredentials(
+        Array.from({ length: 8 }, (_, index) => ({
+          connection: `ANIMAMA_CONNECTION_C${batch * 8 + index}_API_KEY`,
+          value: `fixture-${batch * 8 + index}`,
+        })),
+      );
+    const launches = fixture.launches.filter(
+      (child) => child.name === "fastapi",
+    ).length;
+    const quiesces = fixture.quiesce.mock.calls.length;
+
+    const statuses = await current.runtime.changeCredentials([
+      {
+        connection: "ANIMAMA_CONNECTION_EXTRA_API_KEY",
+        value: "fixture-extra",
+      },
+    ]);
+
+    expect(current.runtime.status()).toMatchObject({ state: "ready" });
+    expect(fixture.quiesce.mock.calls.length).toBe(quiesces);
+    expect(
+      fixture.launches.filter((child) => child.name === "fastapi"),
+    ).toHaveLength(launches);
+    expect(
+      statuses.find(
+        (status) =>
+          credentialTarget(status) === "ANIMAMA_CONNECTION_EXTRA_API_KEY",
+      ),
+    ).toMatchObject({
+      configured: false,
+      restartRequired: false,
+      error: "connection_credentials_full",
+    });
+  });
+
   it("applies several credential changes with one backend restart", async () => {
     const current = create();
     await current.runtime.start();
-    await current.runtime.changeCredential("gemini", "fixture-old-gemini");
+    await current.runtime.changeCredentials([
+      {
+        connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
+        value: "fixture-old-connection",
+      },
+    ]);
     const before = fixture.launches.filter(
       (child) => child.name === "fastapi",
     ).length;
     const statuses = await current.runtime.changeCredentials([
       { provider: "openai", value: "fixture-openai" },
       { provider: "elevenlabs", value: "fixture-elevenlabs" },
-      { provider: "gemini" },
+      { connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY" },
+      {
+        connection: "ANIMAMA_CONNECTION_C_NEW_API_KEY",
+        value: "fixture-new-connection",
+      },
     ]);
     const launches = fixture.launches.filter(
       (child) => child.name === "fastapi",
@@ -713,33 +784,55 @@ describe("runtime supervision", () => {
     expect(launches.at(-1)?.env).toMatchObject({
       OPENAI_API_KEY: "fixture-openai",
       ELEVENLABS_API_KEY: "fixture-elevenlabs",
+      ANIMAMA_CONNECTION_C_NEW_API_KEY: "fixture-new-connection",
     });
-    expect(launches.at(-1)?.env.GEMINI_API_KEY).toBeUndefined();
+    expect(
+      launches.at(-1)?.env.ANIMAMA_CONNECTION_C_0123456789AB_API_KEY,
+    ).toBeUndefined();
     expect(
       Object.fromEntries(
-        statuses.map((status) => [status.provider, status.configured]),
+        statuses.map((status) => [credentialTarget(status), status.configured]),
       ),
-    ).toMatchObject({ openai: true, elevenlabs: true, gemini: false });
-    expect(JSON.stringify(statuses)).not.toContain("fixture-openai");
+    ).toEqual({
+      openai: true,
+      elevenlabs: true,
+      ANIMAMA_CONNECTION_C_NEW_API_KEY: true,
+    });
+    expect(JSON.stringify(statuses)).not.toContain("fixture-");
   });
 
   it("records a failed batch against every provider in it and keeps the vault unchanged", async () => {
     const current = create();
     await current.runtime.start();
-    await current.runtime.changeCredential("gemini", "fixture-old-gemini");
+    await current.runtime.changeCredentials([
+      {
+        connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
+        value: "fixture-old-connection",
+      },
+    ]);
     fixture.quiesce.mockRejectedValueOnce(new Error("busy"));
     const statuses = await current.runtime.changeCredentials([
       { provider: "openai", value: "fixture-openai" },
-      { provider: "gemini" },
+      { connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY" },
+      { connection: "ANIMAMA_CONNECTION_C_NEW_API_KEY", value: "fixture-new" },
     ]);
-    const byProvider = Object.fromEntries(
-      statuses.map((status) => [status.provider, status]),
+    const byTarget = Object.fromEntries(
+      statuses.map((status) => [credentialTarget(status), status]),
     );
-    expect(byProvider.openai).toMatchObject({ configured: false });
-    expect(byProvider.gemini).toMatchObject({ configured: true });
-    expect(byProvider.openai?.error).toBeTruthy();
-    expect(byProvider.gemini?.error).toBeTruthy();
-    expect(byProvider.elevenlabs?.error).toBeUndefined();
+    expect(byTarget.openai).toMatchObject({ configured: false });
+    expect(byTarget.ANIMAMA_CONNECTION_C_0123456789AB_API_KEY).toMatchObject({
+      configured: true,
+    });
+    // A key that was never saved is still reported with its failure.
+    expect(byTarget.ANIMAMA_CONNECTION_C_NEW_API_KEY).toMatchObject({
+      configured: false,
+    });
+    expect(byTarget.openai?.error).toBeTruthy();
+    expect(
+      byTarget.ANIMAMA_CONNECTION_C_0123456789AB_API_KEY?.error,
+    ).toBeTruthy();
+    expect(byTarget.ANIMAMA_CONNECTION_C_NEW_API_KEY?.error).toBeTruthy();
+    expect(byTarget.elevenlabs?.error).toBeUndefined();
   });
 
   it("retains a saved credential after restart failure and clears its failure when Retry consumes it", async () => {

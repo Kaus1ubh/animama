@@ -26,6 +26,7 @@ Feature guides:
 - `features/avatar-releases-and-appearance.md`
 - `features/anima-memory.md` (filesystem workspace and Memory Manager)
 - `features/user-file-uploads.md`
+- `features/model-settings.md` (model connections, models and roles)
 - `features/library.md`
 - `features/user-profiles.md` (private display-name setup, 18+ confirmation,
   and personalization)

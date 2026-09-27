@@ -1,19 +1,38 @@
 /** Public IPC contracts contain status only; credentials and host paths stay in main. */
-export const credentialProviders = [
-  "openai",
-  "deepseek",
-  "huggingface",
-  "gemini",
-  "elevenlabs",
-] as const;
+export const credentialProviders = ["openai", "elevenlabs"] as const;
 export type CredentialProvider = (typeof credentialProviders)[number];
-export type CredentialStatus = {
-  provider: CredentialProvider;
+/**
+ * Environment name the backend reads for a model connection's managed key
+ * (`ANIMAMA_CONNECTION_<ID>_API_KEY`); main stores at most
+ * `maxConnectionCredentials` of them.
+ */
+export const connectionCredentialPattern =
+  /^ANIMAMA_CONNECTION_[A-Z0-9_]{1,64}_API_KEY$/u;
+export const maxConnectionCredentials = 32;
+/** Largest renderer batch: both providers plus several connection keys. */
+export const maxCredentialChanges = 8;
+type CredentialState = {
   configured: boolean;
   updatedAt: string | null;
   restartRequired: boolean;
   error?: string;
 };
+export type ProviderCredentialStatus = CredentialState & {
+  provider: CredentialProvider;
+};
+/** A saved model-connection key, named by its environment variable. */
+export type ConnectionCredentialStatus = CredentialState & {
+  connection: string;
+};
+export type CredentialStatus =
+  | ProviderCredentialStatus
+  | ConnectionCredentialStatus;
+/** Narrow a status to a built-in provider key. */
+export function isProviderCredential(
+  status: CredentialStatus,
+): status is ProviderCredentialStatus {
+  return "provider" in status;
+}
 export type RuntimeStage =
   | "validating"
   | "vault"
@@ -37,18 +56,30 @@ export type RuntimeBridge = {
   quit(): Promise<void>;
   onStatus(callback: (status: RuntimeStatus) => void): () => void;
 };
-/** One key change in a batch; an omitted value removes the saved key. */
-export type CredentialChange = {
-  provider: CredentialProvider;
-  value?: string;
-};
+/**
+ * One key change in a batch, for a built-in provider or a model connection;
+ * an omitted value removes the saved key.
+ */
+export type CredentialChange =
+  | { provider: CredentialProvider; value?: string }
+  | { connection: string; value?: string };
+/** The provider name or connection variable a change or status refers to. */
+export function credentialTarget(
+  item: CredentialChange | CredentialStatus,
+): string {
+  return "provider" in item ? item.provider : item.connection;
+}
 export type CredentialsBridge = {
+  /** Every provider's status, then each saved or failed connection key. */
   list(): Promise<CredentialStatus[]>;
-  set(provider: CredentialProvider, value: string): Promise<CredentialStatus>;
+  set(
+    provider: CredentialProvider,
+    value: string,
+  ): Promise<ProviderCredentialStatus>;
   delete(provider: CredentialProvider): Promise<void>;
   /**
    * Save or remove several keys with a single local-service restart. Returns
-   * every provider's status; failed entries carry their own `error`.
+   * every status; failed entries carry their own `error`.
    */
   apply(changes: CredentialChange[]): Promise<CredentialStatus[]>;
 };

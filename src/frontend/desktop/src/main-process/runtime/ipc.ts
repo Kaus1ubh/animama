@@ -7,6 +7,7 @@ import {
 import {
   featurePackIds,
   type CredentialStatus,
+  type ProviderCredentialStatus,
   type RuntimeStatus,
   type FeaturePackStatus,
   type FeaturePackId,
@@ -30,7 +31,7 @@ export type RuntimeIpcOperations = {
   changeCredential(
     provider: unknown,
     value?: unknown,
-  ): Promise<CredentialStatus>;
+  ): Promise<ProviderCredentialStatus>;
   /** Several key changes with one local-service restart. */
   changeCredentials?(changes: unknown): Promise<CredentialStatus[]>;
   featurePacks?(): FeaturePackStatus[];

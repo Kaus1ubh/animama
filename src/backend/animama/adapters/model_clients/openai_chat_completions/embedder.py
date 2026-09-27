@@ -17,6 +17,7 @@ from ..openai_errors import classify_openai_exception
 from .connection_sdk import (
     connection_base_url,
     connection_for_request,
+    connection_timeout,
     keyless_request_headers,
     sdk_client_for_connection,
 )
@@ -68,7 +69,7 @@ class ConnectionEmbedder:
             connection,
             credential=credential,
             base_url=connection_base_url(connection, openai_base_url=self._openai_base_url),
-            timeout=timeout,
+            timeout=connection_timeout(timeout),
         )
         model = self._model_provider.model
         try:

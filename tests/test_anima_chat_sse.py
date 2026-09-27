@@ -4503,6 +4503,7 @@ async def test_chat_sse_provider_failures_name_the_connection_and_leave_the_chat
     assert error["details"]["connection_name"] == "Ollama"
     assert error["details"]["connection_preset"] == "ollama"
     assert error["details"]["provider"] == "ollama"
+    assert error["details"]["connection_base_url"] == "http://127.0.0.1:11434/v1"
     assert sum(1 for chunk in chunks if "event: run.completed" in chunk) == 1
     async_session.expire_all()
     rows = (

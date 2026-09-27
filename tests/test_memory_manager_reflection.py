@@ -29,6 +29,7 @@ from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaR
 from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlchemyMemoryManagerRepository
+from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
 from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
@@ -40,6 +41,7 @@ from animama.app.services.anima_identity_memory import (
 )
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.memory_manager_service import REFLECTION_MAX_BATCH_CHARS
+from animama.app.services.model_provider_catalog_service import ModelProviderCatalogService
 from animama.app.services.user_memory_read_tools import UserMemoryReadToolService
 from animama.domain import ModelProvider, ModelProviderCapabilities
 from animama.domain.chat import ChatHistoryPosition
@@ -924,7 +926,12 @@ async def test_failed_reflection_changes_nothing_and_leaves_its_turns_uncovered(
     chat_id = await _chat(async_session, user_id=user_id, anima_id=anima_id)
     await _add_turns(async_session, chat_id, ["Model unavailable"], start=_START)
     before = await _memories(async_session, user_id=user_id, entry_id=memories_id)
-    # Without a usable Memory Manager model the live runtime fails before any model call.
+    # The default Memory Manager model is on the built-in OpenAI connection;
+    # without an OpenAI key the live runtime fails before any model call.
+    await ModelProviderCatalogService(
+        model_providers=SQLAlchemyModelProviderRepository(async_session),
+        uow=SQLAlchemyUnitOfWork(async_session),
+    ).sync_from_registry()
     monkeypatch.delenv("ANIMAMA_LLM_SKIP")
     monkeypatch.setattr("animama.server.config.settings.openai_api_key", "")
 
@@ -932,9 +939,7 @@ async def test_failed_reflection_changes_nothing_and_leaves_its_turns_uncovered(
 
     assert failed.run.kind == "reflection"
     assert failed.run.status == "failed"
-    assert failed.run.error == (
-        "No model with tool calling is available for the Memory Manager. Choose one in App Settings."
-    )
+    assert failed.run.error == "No key is configured for OpenAI."
     assert failed.approvals == []
     after = await _memories(async_session, user_id=user_id, entry_id=memories_id)
     assert (after.version, after.content) == (before.version, before.content)

@@ -47,7 +47,13 @@ from animama.domain.model_connection import ModelConnection
 from animama.logging import get_logger
 
 from ..openai_errors import classify_openai_exception
-from .connection_sdk import connection_base_url, keyless_request_headers, sdk_client_for_connection
+from .connection_sdk import (
+    CONNECT_TIMEOUT_SECONDS,
+    connection_base_url,
+    connection_timeout,
+    keyless_request_headers,
+    sdk_client_for_connection,
+)
 from .support import DEFAULT_BASE_URL, OPENAI_API, OPENAI_HTTP_PROVIDER_TYPE
 
 _log = get_logger("adapters.model_clients.openai_chat_completions.probe")
@@ -55,7 +61,6 @@ _log = get_logger("adapters.model_clients.openai_chat_completions.probe")
 _MAX_LISTED_MODELS = 500
 _CONTEXT_LOOKUP_TIMEOUT_SECONDS = 5.0
 # A server that is down should fail fast even when loading a model may take minutes.
-_CONNECT_TIMEOUT_SECONDS = 10.0
 # Failures a probe step reports instead of raising: SDK errors, transport errors
 # the SDK does not wrap (for example mid-stream timeouts) and replies that are
 # not OpenAI-compatible JSON.
@@ -240,7 +245,7 @@ class OpenAICompatibleConnectionProbe:
         except ModelClientProviderError as exc:
             raise ModelConnectionProbeError(str(exc), category=model_error_category(exc.code)) from exc
         seconds = connection.timeout_seconds if connection.timeout_seconds is not None else self._default_timeout
-        timeout = httpx.Timeout(seconds, connect=min(seconds or _CONNECT_TIMEOUT_SECONDS, _CONNECT_TIMEOUT_SECONDS))
+        timeout = connection_timeout(seconds) or httpx.Timeout(None, connect=CONNECT_TIMEOUT_SECONDS)
         try:
             client = sdk_client_for_connection(connection, credential=credential, base_url=base_url, timeout=timeout)
         except (httpx.InvalidURL, ValueError) as exc:

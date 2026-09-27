@@ -14,16 +14,32 @@ export type ChatModelSendGate =
       selectedApiStandard: string;
     };
 
+/**
+ * The catalog row a chat last used. Chats that recorded a row id restore only
+ * that row, since several connections can serve the same model name; a removed
+ * row restores nothing, leaving the Anima's model unavailable until the owner
+ * picks another. Chats recorded before row ids match the client, model name
+ * and API standard.
+ */
 export function findRestorableChatModel(
   chat: PyChatResponse | null | undefined,
   models: PyModelProviderCatalogItem[],
 ): PyModelProviderCatalogItem | null {
+  const chatModels = models.filter(
+    (model) => (model.model_kind ?? "chat") === "chat",
+  );
+  if (chat?.last_model_provider_id) {
+    return (
+      chatModels.find((model) => model.id === chat.last_model_provider_id) ??
+      null
+    );
+  }
   if (!chat?.last_model_client || !chat.last_model_id || !chat.api_standard) {
     return null;
   }
 
   return (
-    models.find(
+    chatModels.find(
       (model) =>
         model.model_client === chat.last_model_client &&
         model.model === chat.last_model_id &&

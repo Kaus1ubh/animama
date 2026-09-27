@@ -33,6 +33,7 @@ from ..openai_errors import (
 from .connection_sdk import (
     connection_base_url,
     connection_for_request,
+    connection_timeout,
     keyless_request_headers,
     sdk_client_for_connection,
 )
@@ -262,7 +263,7 @@ class OpenAIChatCompletionsModelClient:
         connection = connection_for_request(spec.model_provider)
         timeout = self._timeout_for_connection(connection)
         client = self._client_for_connection(connection, timeout=timeout)
-        kwargs = create_chat_completion_kwargs(spec, timeout=timeout)
+        kwargs = create_chat_completion_kwargs(spec, timeout=connection_timeout(timeout))
         extra_headers = keyless_request_headers(connection, self._credentials.resolve(connection))
         if extra_headers is not None:
             kwargs["extra_headers"] = extra_headers
@@ -281,7 +282,7 @@ class OpenAIChatCompletionsModelClient:
         if self._client is not None:
             with_options = getattr(self._client, "with_options", None)
             if callable(with_options):
-                return with_options(base_url=base_url, timeout=timeout)
+                return with_options(base_url=base_url, timeout=connection_timeout(timeout))
             return self._client
 
         cache_key = (connection.id, base_url, connection.credential_env, timeout)
@@ -291,7 +292,7 @@ class OpenAIChatCompletionsModelClient:
                 connection,
                 credential=self._credentials.resolve(connection),
                 base_url=base_url,
-                timeout=timeout,
+                timeout=connection_timeout(timeout),
             )
             self._clients_by_connection[cache_key] = client
         return client

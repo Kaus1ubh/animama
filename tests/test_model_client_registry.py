@@ -33,6 +33,7 @@ from animama.adapters.model_clients import (
     OpenAIChatCompletionsModelClient,
     OpenAIResponsesModelClient,
 )
+from animama.adapters.model_clients.openai_chat_completions.connection_sdk import connection_timeout
 from animama.adapters.model_clients.openai_errors import (
     OPENAI_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE,
     classify_openai_exception,
@@ -659,7 +660,9 @@ async def test_openai_chat_completions_client_streams_sdk_chunks_and_usage() -> 
     )
     assert usage_event.usage is not None
     assert usage_event.usage.total_tokens == 5
-    assert fake_openai.with_options_calls == [{"base_url": "https://api.openai.example/v1", "timeout": 12.0}]
+    assert fake_openai.with_options_calls == [
+        {"base_url": "https://api.openai.example/v1", "timeout": connection_timeout(12.0)}
+    ]
     payload = fake_openai.create_calls[0]
     assert payload["model"] == "gpt-test"
     assert payload["messages"] == [
@@ -674,7 +677,7 @@ async def test_openai_chat_completions_client_streams_sdk_chunks_and_usage() -> 
     assert payload["response_format"]["type"] == "json_schema"
     assert payload["reasoning_effort"] == "low"
     assert payload["prompt_cache_key"] == sha256(b"user-1\x1fanima-1\x1fOpenAIHTTPAgent\x1fgpt-test").hexdigest()
-    assert payload["timeout"] == 12.0
+    assert payload["timeout"] == connection_timeout(12.0)
     final = public_deltas[2].final
     assert final is not None
     assert final.text == "Hello"
@@ -776,7 +779,9 @@ async def test_openai_chat_completions_client_shapes_huggingface_request_payload
         )
     )
 
-    assert fake_openai.with_options_calls == [{"base_url": HUGGINGFACE_ROUTER_BASE_URL, "timeout": 11.0}]
+    assert fake_openai.with_options_calls == [
+        {"base_url": HUGGINGFACE_ROUTER_BASE_URL, "timeout": connection_timeout(11.0)}
+    ]
     payload = fake_openai.create_calls[0]
     assert payload["model"] == model
     assert payload["messages"] == [

@@ -91,6 +91,9 @@ def model_error_details(error: ModelClientError, model_provider: ModelProvider) 
         # The row's connection is not loaded; name nothing rather than guess OpenAI.
         return details
     details.update(connection_name=connection.name, connection_preset=connection.preset, provider=connection.preset)
+    if not connection.is_builtin_openai and connection.base_url:
+        # Lets the client ask "is Ollama running at …?"; owner connections hold no credential in the URL.
+        details["connection_base_url"] = connection.base_url
     return details
 
 

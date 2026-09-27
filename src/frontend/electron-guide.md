@@ -28,7 +28,7 @@ runtime-owner context. Electron imports stay out of browser modules.
 | `desktop/src/main-process/runtime/product-windows.ts` | Product-document destruction, remembered routes and request gating                             |
 | `src/backend/animama/local/http/`                     | Exact Host/Origin, metadata, CSRF, capability, static/model delivery and quiescence            |
 | `shared/desktop-runtime.ts`                           | Serializable API version 2 runtime and credential contracts                                    |
-| `web/src/ui/settings/DesktopCredentialsPanel.tsx`     | Optional setup/settings key entry and status, no readback                                      |
+| `web/src/ui/settings/DesktopCredentialsPanel.tsx`     | Optional OpenAI/ElevenLabs key entry and status, no readback                                   |
 | `web/src/ui/settings/DesktopFeaturePacksPanel.tsx`    | Bounded main-window pack controls and affected-content labels                                  |
 | `src/backend/animama/runtime/`                        | Frozen CLI and packaged resources                                                              |
 | `src/backend/animama/server/local_runtime.py`         | Immutable Included source configuration and writable local roots                               |

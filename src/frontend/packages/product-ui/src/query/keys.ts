@@ -179,6 +179,16 @@ export const queryKeys = {
   modelProviders: {
     all: (userId: string) => ["model-providers", userId] as const,
   },
+  /** Owner model connections, presets and role status (local composition). */
+  modelConfiguration: {
+    all: (userId: string) => ["model-configuration", userId] as const,
+    presets: (userId: string) =>
+      [...queryKeys.modelConfiguration.all(userId), "presets"] as const,
+    connections: (userId: string) =>
+      [...queryKeys.modelConfiguration.all(userId), "connections"] as const,
+    roles: (userId: string) =>
+      [...queryKeys.modelConfiguration.all(userId), "roles"] as const,
+  },
   userFiles: {
     all: (userId: string) => ["user-files", userId] as const,
     list: (userId: string) =>

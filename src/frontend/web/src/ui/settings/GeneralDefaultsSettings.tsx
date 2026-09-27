@@ -16,6 +16,10 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
+import {
+  modelOptionLabel,
+  selectableChatModels,
+} from "@/lib/chat/model-catalog";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 
 const LAST_OPENED = "__last_opened__";
@@ -84,9 +88,17 @@ export function DefaultChatModelSetting({ disabled }: { disabled: boolean }) {
   const { userPreferences, updateUserPreferences } = useSettings();
   const modelProviders = useModelProviders();
   const savedId = readDefaultChatModelId(userPreferences);
-  // Only models direct chat supports, matching the chat input's model picker.
-  const models = (modelProviders.data ?? []).filter(
-    (model) => chatModelSendGate(null, model).ok,
+  // The same chat models the server accepts as a default: supported by direct
+  // chat, streaming, and (for owner models) with a context window. A hidden
+  // model stays listed while it is the saved choice, as the server keeps it.
+  const models = selectableChatModels(
+    modelProviders.data ?? [],
+    savedId,
+  ).filter(
+    (model) =>
+      chatModelSendGate(null, model).ok &&
+      model.supports_streaming !== false &&
+      (model.source !== "owner" || model.context_window_tokens != null),
   );
   const savedMissing =
     Boolean(savedId) &&
@@ -129,9 +141,7 @@ export function DefaultChatModelSetting({ disabled }: { disabled: boolean }) {
             ) : null}
             {models.map((model) => (
               <SelectItem key={model.id} value={model.id}>
-                {model.provider_label
-                  ? `${model.provider_label}: ${model.model_label ?? model.model}`
-                  : (model.model_label ?? model.model)}
+                {modelOptionLabel(model)}
               </SelectItem>
             ))}
           </SelectContent>

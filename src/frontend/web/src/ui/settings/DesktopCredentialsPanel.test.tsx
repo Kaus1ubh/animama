@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type {
   CredentialStatus,
   CredentialsBridge,
+  ProviderCredentialStatus,
 } from "../../../../shared/desktop-runtime";
 import { DesktopCredentialFailures } from "./DesktopCredentialsPanel";
 import {
@@ -11,7 +12,7 @@ import {
   credentialChangesFromDrafts,
 } from "./desktop-credential-state";
 
-const configured: CredentialStatus = {
+const configured: ProviderCredentialStatus = {
   provider: "openai",
   configured: true,
   updatedAt: "2026-09-15T00:00:00Z",
@@ -31,7 +32,7 @@ describe("credential failures after product-window recreation", () => {
   it("renders retained failures from main on a fresh view, including another provider", () => {
     const statuses: CredentialStatus[] = [
       configured,
-      { ...configured, provider: "gemini", error: "runtime_busy" },
+      { ...configured, provider: "elevenlabs", error: "runtime_busy" },
     ];
     const first = renderToStaticMarkup(
       <DesktopCredentialFailures statuses={statuses} />,
@@ -41,7 +42,7 @@ describe("credential failures after product-window recreation", () => {
     );
     expect(recreated).toBe(first);
     expect(recreated).toContain('role="status"');
-    expect(recreated).toContain("Gemini: The key was not changed");
+    expect(recreated).toContain("ElevenLabs: The key was not changed");
     expect(recreated).toContain("Wait, then retry.");
     expect(recreated).not.toContain("Key saved");
   });
@@ -105,11 +106,21 @@ describe("credential failures after product-window recreation", () => {
 
 describe("batched API key changes", () => {
   const status = (
-    provider: CredentialStatus["provider"],
+    provider: ProviderCredentialStatus["provider"],
+    configured: boolean,
+    extra: Partial<ProviderCredentialStatus> = {},
+  ): CredentialStatus => ({
+    provider,
+    configured,
+    updatedAt: configured ? "2026-09-25T00:00:00Z" : null,
+    restartRequired: false,
+    ...extra,
+  });
+  const connection = (
     configured: boolean,
     extra: Partial<CredentialStatus> = {},
   ): CredentialStatus => ({
-    provider,
+    connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
     configured,
     updatedAt: configured ? "2026-09-25T00:00:00Z" : null,
     restartRequired: false,
@@ -120,46 +131,82 @@ describe("batched API key changes", () => {
     expect(
       credentialChangesFromDrafts({
         openai: { value: "  fixture-key  " },
-        gemini: { remove: true },
-        deepseek: { value: "   " },
-        elevenlabs: { value: "fixture-voice", remove: true },
+        elevenlabs: { value: "   ", remove: true },
       }),
     ).toEqual([
       { provider: "openai", value: "fixture-key" },
-      { provider: "gemini" },
-      { provider: "elevenlabs", value: "fixture-voice" },
+      { provider: "elevenlabs" },
     ]);
+    expect(
+      credentialChangesFromDrafts({
+        elevenlabs: { value: "fixture-voice", remove: true },
+      }),
+    ).toEqual([{ provider: "elevenlabs", value: "fixture-voice" }]);
   });
 
   it("applies a batch in one call and confirms each saved status", async () => {
     const apply = vi.fn(async () => [
       status("openai", true),
-      status("gemini", false),
+      status("elevenlabs", false),
+      connection(true),
     ]);
     const current = { ...bridge(), apply };
     await expect(
       applyCredentialChanges(current, [
         { provider: "openai", value: "fixture-key" },
-        { provider: "gemini" },
+        { provider: "elevenlabs" },
+        {
+          connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
+          value: "fixture-connection",
+        },
       ]),
-    ).resolves.toHaveLength(2);
+    ).resolves.toHaveLength(3);
     expect(apply).toHaveBeenCalledOnce();
     expect(current.set).not.toHaveBeenCalled();
   });
 
-  it("reports only the providers whose change did not land", async () => {
+  it("confirms a removed connection key by its absence", async () => {
+    const current = {
+      ...bridge(),
+      apply: vi.fn(async () => [status("openai", true)]),
+    };
+    await expect(
+      applyCredentialChanges(current, [
+        { connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY" },
+      ]),
+    ).resolves.toHaveLength(1);
+    await expect(
+      applyCredentialChanges(current, [
+        {
+          connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
+          value: "fixture",
+        },
+      ]),
+    ).rejects.toMatchObject({
+      failed: ["ANIMAMA_CONNECTION_C_0123456789AB_API_KEY"],
+    });
+  });
+
+  it("reports only the keys whose change did not land", async () => {
     const current = {
       ...bridge(),
       apply: vi.fn(async () => [
         status("openai", true),
-        status("gemini", true, { error: "runtime_busy" }),
+        status("elevenlabs", true, { error: "runtime_busy" }),
+        connection(false, { error: "runtime_busy" }),
       ]),
     };
     await expect(
       applyCredentialChanges(current, [
         { provider: "openai", value: "fixture-key" },
-        { provider: "gemini" },
+        { provider: "elevenlabs" },
+        {
+          connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
+          value: "fixture-connection",
+        },
       ]),
-    ).rejects.toMatchObject({ failed: ["gemini"] });
+    ).rejects.toMatchObject({
+      failed: ["elevenlabs", "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY"],
+    });
   });
 });

@@ -20,6 +20,7 @@ import {
   LifeBuoy,
   Palette,
   Settings2,
+  Cpu,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -85,7 +86,6 @@ import {
   AppearanceModeSetting,
 } from "@/ui/settings/AppearanceSettings";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
-import { useModelProviders } from "@/query/hooks/useModelProviders";
 import {
   getSttProviderOptions,
   resolvePreferredSttProvider,
@@ -123,6 +123,8 @@ import {
   SettingsRow,
 } from "@/ui/settings/SettingsLayout";
 import { SettingsSearch } from "@/ui/settings/SettingsSearch";
+import { ModelConnectionsSettings } from "@/ui/settings/models/ModelConnectionsSettings";
+import { ModelRolesSettings } from "@/ui/settings/models/ModelRolesSettings";
 import {
   availableSettingsSections,
   type SettingsSearchEntry,
@@ -200,6 +202,7 @@ function ShortcutRecorder({
 
 const sections = [
   "General",
+  "Models",
   "Appearance",
   "Voice",
   "Shortcuts",
@@ -227,6 +230,7 @@ type SettingEntry = SettingsSearchEntry<ApplicationSettingsSection> & {
 
 const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
   General: Settings2,
+  Models: Cpu,
   Appearance: Palette,
   Voice: AudioLines,
   Shortcuts: Keyboard,
@@ -248,6 +252,8 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
     "Override colours for the mode in effect. Light and Dark keep separate colours.",
   "Desktop shortcuts": "Press to talk also supports a mouse button.",
   Experimental: "These features may not work on every device.",
+  "Model roles":
+    "Models for work outside chat turns. The default chat model is in General.",
 };
 
 const SELECT_TRIGGER_CLASS_NAME = "w-56";
@@ -302,9 +308,6 @@ function renderSettingEntries(
   );
 }
 
-const OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent";
-const SYSTEM_MEMORY_MANAGER_MODEL = "__system_default__";
-
 const AVATAR_TRANSFORM_CONTROLS_TOOLTIP =
   "Press G to move, R to rotate, and S to scale the avatar. Press Esc to exit a transform mode. In avatar mode, drag or scroll the canvas to orbit and zoom. In avatar-chat mode, hold Ctrl while dragging to orbit and Ctrl + scroll to zoom.";
 
@@ -343,7 +346,6 @@ export function ApplicationSettingsModal({
     updateUserPreferences,
   } = useSettings();
   const platform = useRuntimePlatform();
-  const modelProviders = useModelProviders();
   const resolvedUserPreferences = useMemo<SettingsPreferences>(
     () => mergePreferences(DEFAULT_ANIMAMA_PREFERENCES, userPreferences),
     [userPreferences],
@@ -385,6 +387,8 @@ export function ApplicationSettingsModal({
   const runtimeCapabilities = useRuntimeCapabilities();
   const parakeetAvailable =
     runtimeCapabilities.data?.offline_speech_enabled ?? null;
+  const modelConfigurationEnabled =
+    runtimeCapabilities.data?.model_configuration === true;
   const initializedForOpenRef = useRef(false);
   const savedSttProviderRef = useRef<SttProvider | null>(null);
   const savedTtsProviderRef = useRef<TtsProvider | null>(null);
@@ -430,22 +434,6 @@ export function ApplicationSettingsModal({
   const savedAvatarTransformControlsEnabled =
     resolvedUserPreferences?.presentation?.enable_avatar_transform_controls ===
     true;
-  const savedMemoryManagerModel =
-    typeof resolvedUserPreferences.memory?.manager_model === "string" &&
-    resolvedUserPreferences.memory.manager_model.trim()
-      ? resolvedUserPreferences.memory.manager_model.trim()
-      : null;
-  const memoryManagerModels = useMemo(
-    () =>
-      (modelProviders.data ?? []).filter(
-        (provider) => provider.model_provider === OPENAI_RESPONSES_PROVIDER,
-      ),
-    [modelProviders.data],
-  );
-  const currentMemoryManagerModel = memoryManagerModels.find(
-    (provider) => provider.model === savedMemoryManagerModel,
-  );
-
   useEffect(() => {
     savedSttProviderRef.current = savedSttProvider;
   }, [savedSttProvider]);
@@ -1055,35 +1043,6 @@ export function ApplicationSettingsModal({
     ],
   );
 
-  const handleMemoryManagerModelChange = useCallback(
-    (value: string) => {
-      if (isSaving || isInitializing) return;
-      const nextModel =
-        value === SYSTEM_MEMORY_MANAGER_MODEL
-          ? null
-          : (memoryManagerModels.find((provider) => provider.model === value)
-              ?.model ?? null);
-      if (value !== SYSTEM_MEMORY_MANAGER_MODEL && !nextModel) return;
-      if (nextModel === savedMemoryManagerModel) return;
-
-      setIsSaving(true);
-      void updateUserPreferences({
-        memory: { manager_model: nextModel },
-      })
-        .catch(() => {
-          toast.error("Failed to update the Memory Manager model.");
-        })
-        .finally(() => setIsSaving(false));
-    },
-    [
-      isInitializing,
-      isSaving,
-      memoryManagerModels,
-      savedMemoryManagerModel,
-      updateUserPreferences,
-    ],
-  );
-
   const isBusy = isSaving || isInitializing;
   // The updates panel renders nothing while updates are unavailable (browser,
   // unpackaged or unsupported desktop), so its entry is hidden then too.
@@ -1123,6 +1082,43 @@ export function ApplicationSettingsModal({
       render: () => <DefaultChatModelSetting disabled={isBusy} />,
     },
     {
+      id: "model-connections",
+      section: "Models",
+      label: "Connections and models",
+      keywords: [
+        "model",
+        "connection",
+        "ollama",
+        "lm studio",
+        "llama.cpp",
+        "vllm",
+        "deepseek",
+        "hugging face",
+        "local",
+        "provider",
+        "hide",
+      ],
+      hidden: !modelConfigurationEnabled,
+      render: () => <ModelConnectionsSettings disabled={isBusy} />,
+    },
+    {
+      id: "model-roles",
+      section: "Models",
+      group: "Model roles",
+      label: "Utility, Memory Manager and embeddings models",
+      keywords: [
+        "utility",
+        "title",
+        "compaction",
+        "memory manager",
+        "embeddings",
+        "search",
+        "role",
+      ],
+      hidden: !modelConfigurationEnabled,
+      render: () => <ModelRolesSettings disabled={isBusy} />,
+    },
+    {
       id: "volume",
       section: "General",
       group: "Audio",
@@ -1150,15 +1146,7 @@ export function ApplicationSettingsModal({
       id: "provider-keys",
       section: "API Keys",
       label: "API keys",
-      keywords: [
-        "api key",
-        "credentials",
-        "openai",
-        "deepseek",
-        "hugging face",
-        "gemini",
-        "elevenlabs",
-      ],
+      keywords: ["api key", "credentials", "openai", "elevenlabs"],
       hidden: !credentialsAvailable,
       render: () => (
         <DesktopCredentialsPanel
@@ -1571,58 +1559,6 @@ export function ApplicationSettingsModal({
         render: () => <AppBehaviorSetting flag={flag} disabled={isBusy} />,
       }),
     ),
-    {
-      id: "memory-manager-model",
-      section: "Memory & Emotion",
-      group: "Memory Manager",
-      label: "Memory Manager model",
-      keywords: ["openai", "responses", "llm"],
-      render: () => (
-        <SettingsRow
-          label="Model"
-          control={
-            <Select
-              value={savedMemoryManagerModel ?? SYSTEM_MEMORY_MANAGER_MODEL}
-              onValueChange={handleMemoryManagerModelChange}
-              disabled={isBusy}
-            >
-              <SelectTrigger
-                className={SELECT_TRIGGER_CLASS_NAME}
-                aria-label="Memory Manager model"
-              >
-                <SelectValue placeholder="Select model" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={SYSTEM_MEMORY_MANAGER_MODEL}>
-                  System default
-                </SelectItem>
-                {savedMemoryManagerModel && !currentMemoryManagerModel ? (
-                  <SelectItem value={savedMemoryManagerModel} disabled>
-                    {savedMemoryManagerModel} (unavailable)
-                  </SelectItem>
-                ) : null}
-                {memoryManagerModels.map((provider) => (
-                  <SelectItem key={provider.id} value={provider.model}>
-                    {provider.model_label ?? provider.model}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          }
-        >
-          {modelProviders.isLoading ? (
-            <p className="text-muted-foreground text-xs">
-              Loading OpenAI Responses models...
-            </p>
-          ) : null}
-          {modelProviders.isError ? (
-            <p className="text-destructive text-xs">
-              OpenAI Responses models could not be loaded.
-            </p>
-          ) : null}
-        </SettingsRow>
-      ),
-    },
     {
       id: "safety",
       section: "Safety",

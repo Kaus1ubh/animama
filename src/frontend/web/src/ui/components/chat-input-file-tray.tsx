@@ -27,6 +27,8 @@ import { useMemo } from "react";
 
 type ChatInputFileTrayProps = {
   className?: string;
+  /** Shown under the attached files, e.g. when the model cannot search them. */
+  note?: string | null;
   existingFiles?: readonly PyUserFileResponse[];
   onRemoveExistingFile?: (fileId: string) => void;
   uppy: UserFileUploadUppy;
@@ -156,6 +158,7 @@ function ExistingFileCard({
 
 export function ChatInputFileTray({
   className,
+  note,
   existingFiles = [],
   onRemoveExistingFile,
   uppy,
@@ -289,6 +292,11 @@ export function ChatInputFileTray({
           />
         ))}
       </div>
+      {note ? (
+        <p className="text-muted-foreground text-xs" role="status">
+          {note}
+        </p>
+      ) : null}
     </div>
   );
 }

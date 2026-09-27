@@ -25,6 +25,18 @@ _NON_OPENAI_OMITTED_HEADERS: dict[str, Any] = {
     "OpenAI-Project": Omit(),
 }
 _KEYLESS_PLACEHOLDER = "not-required"
+CONNECT_TIMEOUT_SECONDS = 10.0
+"""Longest wait to open a connection; local presets allow minutes for replies only."""
+
+
+def connection_timeout(seconds: float | None) -> httpx.Timeout | None:
+    """Timeout for requests to a connection: ``seconds`` overall, but at most
+    ``CONNECT_TIMEOUT_SECONDS`` to connect, so a stopped server fails quickly
+    even when a loading model may take minutes to answer."""
+
+    if seconds is None:
+        return None
+    return httpx.Timeout(seconds, connect=min(seconds, CONNECT_TIMEOUT_SECONDS))
 
 
 def connection_for_request(model_provider: ModelProvider) -> ModelConnection:
@@ -101,7 +113,9 @@ def _environment_custom_header_names() -> list[str]:
 
 
 __all__ = [
+    "CONNECT_TIMEOUT_SECONDS",
     "connection_base_url",
+    "connection_timeout",
     "connection_for_request",
     "keyless_request_headers",
     "sdk_client_for_connection",

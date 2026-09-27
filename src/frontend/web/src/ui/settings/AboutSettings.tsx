@@ -1,3 +1,4 @@
+import { isProviderCredential } from "../../../../shared/desktop-runtime";
 import { toast } from "sonner";
 
 import { copyText } from "@/lib/diagnostics/copy-text";
@@ -98,7 +99,7 @@ export function CopyDiagnosticsSetting() {
         // Only the installed version; `version` may be the one on offer.
         version: pack.activeVersion,
       })),
-      providers: providers?.map((status) => ({
+      providers: providers?.filter(isProviderCredential).map((status) => ({
         provider: status.provider,
         configured: status.configured,
       })),

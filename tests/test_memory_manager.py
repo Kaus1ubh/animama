@@ -3058,7 +3058,8 @@ async def test_chat_completions_manager_uses_the_connection_timeout_and_strips_s
     finally:
         await client.close()
 
-    assert client.timeout == 300.0
+    # Replies may take the connection's 300 s; connecting is capped.
+    assert (client.timeout.read, client.timeout.connect) == (300.0, 10.0)  # type: ignore[union-attr]
     assert sent["tools"] == [{"type": "function", "function": {"name": "apply_patch", "parameters": {}}}]
 
 

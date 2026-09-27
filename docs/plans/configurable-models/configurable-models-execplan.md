@@ -92,7 +92,8 @@ Standing rules:
       recorded below).
 - [x] Phase 4: model roles and fully local operation (review #3 pass; commit
       recorded below).
-- [ ] Phase 5: App Settings, model selector and desktop keys.
+- [x] Phase 5: App Settings, model selector and desktop keys (review #3 pass;
+      commit recorded below).
 - [ ] Phase 6: documentation, decisions and acceptance gates G1–G3.
 - [ ] Final integration review.
 - [ ] PR, hosted Validation and owner merge approval.
@@ -1315,15 +1316,192 @@ Checks: `pnpm openapi-ts:check`, `pnpm check`, `pnpm web:lint`,
 Completion: checks pass, browser checks are recorded, and review has no
 blocker.
 
-Phase record: issue #169; starting source —; commits —.
+Phase record: issue #169; starting source `00bd66f` (then `main` merged at
+`e50375e`); commits — (recorded after commit).
+
+Implementation notes (agent, within scope):
+
+- **Merge.** `origin/main` (Anima memories, model assets and others) was merged
+  at `e50375e` before browser checks. Reflection runs now resolve the Memory
+  Manager role like other runs; the baseline gained `main`'s table (43 tables).
+- **Desktop keys.** `shared/desktop-runtime.ts` adds connection changes and
+  statuses (`{connection: ANIMAMA_CONNECTION_<ID>_API_KEY}`), at most 32 keys,
+  batches of at most 8 and a 512 KiB vault. Retired DeepSeek, Hugging Face and
+  Gemini provider keys are dropped on load. `list()` returns provider statuses
+  then saved or failed connection keys; failures are keyed by target. Diagnostics
+  report provider keys only. API Keys lists OpenAI and ElevenLabs.
+- **Models section** (`web/src/ui/settings/models/`): connections with preset,
+  URL, timeout, Advanced compatibility and key entry (desktop managed key saved
+  after the connection, which reloads the window; self-hosted web and the
+  external dev stack name an environment variable), an insecure-`http` warning,
+  models (list, type, copy a built-in template, Test, capabilities, required
+  context window, memory writes), built-in hide toggles labelled by API,
+  removal with usage confirmation (and deletion of a removed connection's
+  desktop key), and the Model roles group with re-embedding status. The built-in
+  OpenAI connection accepts owner models (for example `gpt-6-luna` copied from
+  `gpt-5.6-luna` on the Responses API).
+- **Preferences.** `models` merges per key; the Memory Manager setting moved
+  from `memory.manager_model` to `models.memory_manager_model_provider_id`.
+- **Selector.** Chat-only rows (hidden only while current), label fallbacks,
+  owner rows without a context window disabled, a warning for an unavailable
+  stored row, and restore by `last_model_provider_id` first.
+- **Failures.** Copy names `details.connection_name`; local presets ask whether
+  the server is running at `details.connection_base_url` (a new backend detail
+  for owner connections, whose URLs cannot hold credentials), and
+  `context_exceeded` explains oversized conversations.
+- **Attachments.** The file tray says when the active model cannot call tools.
+- **Connect timeout (found in browser checks).** Chat, embedding and Memory
+  Manager clients used the connection's whole timeout (300 s for local presets)
+  to connect as well; `connection_timeout` now caps connecting at 10 s, as the
+  probe did.
+
+Browser evidence (task stack `animama-cm`, http://animama-cm.localhost:8300,
+self-hosted web development build; a scripted llama.cpp-shaped server on the
+host at port 18080 because Ollama had no models pulled):
+
+- 1280×800: first-run setup; App Settings → Models; added a llama.cpp
+  connection (Compose host prefilled, Advanced options, env-var key field);
+  listed models (2 found); tested `fake-chat` (streaming and tools passed,
+  8,192-token window read from `/props`; the scripted server's JSON did not
+  match the probe schema, so JSON checks failed as expected) and added it with
+  JSON schema set manually; tested and added `fake-embed` (3 dimensions);
+  assigned Utility and Embeddings (status "Stored files and archives are
+  embedded with this model"); hid built-in `gpt-5-nano` (Chat Completions),
+  which then left the chat picker along with both embedding models; chatted
+  with `fake-chat` (reply, emotion, title "Scripted chat title" from the
+  Utility role); with the server stopped, the turn failed in about 10 s with
+  "Animama couldn't reach Scripted llama.cpp. Is llama.cpp running at
+  http://host.docker.internal:18080/v1?"; removing `fake-chat` asked for
+  confirmation naming Annie and the Utility role, then Utility showed the
+  default and the composer marked Annie's model unavailable.
+- 375×812: the Models section and roles wrap without horizontal scrolling;
+  the built-in connection's explanation now wraps instead of truncating.
+- Not exercised in a browser: desktop managed keys (Electron; covered by vault,
+  IPC, supervisor and helper tests) and a real Ollama, LM Studio or llama.cpp
+  model (owner gate G1).
+
+Evidence (pre-review, working tree on `e50375e`):
+
+- `make check-test`: 2155 passed, 7 skipped (ruff, format check, mypy included).
+- `pnpm check`, `pnpm web:lint`, `pnpm build` pass; `pnpm web:test` 1997
+  passed; `pnpm desktop:test` 335 passed; `pnpm openapi-ts:check` current.
+- `pnpm prettier:check` reports 11 files this branch does not touch (existing
+  drift); every changed file is formatted.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `e50375e`. Its checks (focused desktop, web and backend tests, eslint,
+prettier, `pnpm check`, ruff) passed. It confirmed name validation, batch
+bounds, retired-provider loading, cleanup-worker stripping, main-window-only
+IPC, the save order, env-name-only web keys and server-text-free failure copy.
+
+Blocking:
+
+- **P5-R1-F1** A 33rd connection key is refused only inside `vault.apply()`,
+  after the backend has quiesced, so the supervisor stops every service and
+  shows recovery with an unexplained code.
+- **P5-R1-F2** Restoring a chat whose recorded row was removed falls back to a
+  same-named model on another connection, instead of leaving the Anima
+  unavailable (R2).
+- **P5-R1-F3** Role and General selectors drop hidden rows, so a hidden
+  built-in that is still the stored choice (and still used by the server) reads
+  as unavailable; the General list also does not require streaming.
+- **P5-R1-F4** `runtime/chat.md` says URLs never appear in failure notices
+  while the new copy shows the connection's base URL.
+
+Optional: F5 a failed key deletion after removal leaves an orphaned key with no
+retry, and every removal of a managed-key connection restarts the app without
+saying so, even with no saved key; F6 unsaved failure entries are not bounded;
+F7 the removal dialog always mentions Animas and roles; F8 the quota copy
+repeats "The" without a connection name; F9 no note when a role has no usable
+model; F10 the dialog flickers from the env-name field to the key field, and a
+key error reads as if the connection was not saved; F11 model buttons, built-in
+switches and templates lack distinguishing accessible names, and probe results
+are not announced; F12 a probe from the other API can be saved after switching
+API; F13 an unused query key; F14 test gaps (panel markup, cleanup stripping of
+connection keys, supervisor capacity); F15 the role table omits operator
+defaults.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** `CredentialVault.assertCapacity` computes the post-batch
+  count; `changeCredentials` calls it before quiescing and records
+  `connection_credentials_full` against the batch without touching services.
+  The web copy names the 32-key limit. Supervisor test added.
+- **F2 accepted.** `findRestorableChatModel` uses the name match only when no
+  row id was recorded; the test expects no restore for a removed row.
+- **F3 accepted.** `roleCandidates` and `selectableChatModels` keep the stored
+  row even when hidden; the General default list requires streaming (and a
+  context window for owner rows), like the chat role.
+- **F4 accepted.** The doc says only a non-built-in connection's
+  owner-configured base URL is shown; provider text and URLs never are.
+- **F5 accepted.** The key is deleted only when the connection's key state is
+  `configured`; such a removal always confirms first and says the app restarts
+  and reloads; a failed deletion offers Retry.
+- **F6 accepted.** Unsaved connection failure entries are pruned to 32, oldest
+  first.
+- **F7 accepted.** `removalConsequences` adds the Animas or roles sentence only
+  when they apply. Test extended.
+- **F8 accepted.** Quota copy is "`{name}`'s account has reached its usage
+  limit."
+- **F9 accepted.** An `off` Utility or Memory Manager role says no model can do
+  the job.
+- **F10 accepted.** The dialog takes `managedKeys` from its parent; a key
+  failure after saving says the connection was saved and names the key error.
+- **F11 accepted.** Per-model and per-connection Edit and Remove labels, API in
+  built-in switch labels and template options, and a polite live region for
+  probe results.
+- **F12 accepted.** Changing the API clears the probe report.
+- **F13 accepted.** Removed the key.
+- **F14 partly accepted.** Supervisor tests added for capacity and for a saved
+  connection key reaching FastAPI but not cleanup on start. Static markup tests
+  for the panels were not added: their decisions live in tested helpers and the
+  browser journey exercised the panels.
+- **F15 accepted.** The role table and text name the operator defaults.
+
+Evidence after revisions: `pnpm check`, `pnpm web:lint`, `pnpm build`,
+`pnpm desktop:check` pass; `pnpm web:test` 1997 passed; `pnpm desktop:test`
+337 passed; every changed frontend file and doc passes prettier;
+`make check-test` 2155 passed, 7 skipped.
+
+#### Code Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck of repair round 1.
+Result: pass; F1–F4 resolved, every optional revision verified, no regression.
+Its checks (91 focused desktop tests, 51 focused web tests, eslint, prettier,
+`pnpm check`) passed.
+
+Optional:
+
+- **P5-R2-F1** Removing a saved key from Edit reads the variable from the
+  saved connection, which no longer names one, so a failed deletion says the
+  key "was not stored" and offers no retry.
+- **P5-R2-F2** The probe results' live region mounts with its content, so some
+  screen readers skip the first announcement.
+- **P5-R2-F3** A supervisor comment omits the unsaved connection failures from
+  its bound.
+
+#### Code Review #2 Revisions
+
+- **F1 accepted.** Edit deletes the key named before saving through the shared
+  `deleteConnectionKey`, whose failure toast offers Retry (also used after
+  removal); a failure to save the connection itself stays separate.
+- **F2 accepted.** The live region stays mounted and fills when a test ends.
+- **F3 accepted.** Comment corrected.
+
+Evidence after revisions: `pnpm exec tsc -b`, `pnpm web:lint`,
+`pnpm desktop:check` pass; focused web tests 112 passed; `pnpm desktop:test`
+337 passed; changed files formatted.
+
+#### Code Review #3 Findings
+
+Reviewer: same independent `sdlc-reviewer`, final targeted recheck of repair
+round 2. Result: pass; all three revisions correct, no regressions. Optional: a
+doc comment had moved above `deleteConnectionKey` (moved back); a failed key
+deletion from Edit shows both the Retry toast and "Connection saved.", which is
+accurate. Its checks (eslint, prettier, 63 settings tests, `pnpm check`, 39
+supervisor tests) passed.
 
 ### Phase 6 — Documentation, decisions and acceptance
 

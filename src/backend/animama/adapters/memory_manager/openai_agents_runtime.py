@@ -15,6 +15,7 @@ from pydantic import BaseModel, ConfigDict
 
 from animama.adapters.model_clients.openai_chat_completions.connection_sdk import (
     connection_base_url,
+    connection_timeout,
     keyless_request_headers,
     sdk_client_for_connection,
 )
@@ -347,7 +348,9 @@ class OpenAIAgentsMemoryManagerRuntime:
             connection,
             credential=self._credentials.resolve(connection),
             base_url=base_url,
-            timeout=connection.timeout_seconds if connection.timeout_seconds is not None else self._timeout_seconds,
+            timeout=connection_timeout(
+                connection.timeout_seconds if connection.timeout_seconds is not None else self._timeout_seconds
+            ),
         )
 
     async def _build_agent(

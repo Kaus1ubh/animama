@@ -10,6 +10,7 @@ import httpx
 import pytest
 from openai import AsyncOpenAI
 
+from animama.adapters.model_clients.openai_chat_completions.connection_sdk import connection_timeout
 from animama.adapters.model_clients.openai_chat_completions.probe import OpenAICompatibleConnectionProbe
 from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver
 from animama.app.model_clients.probe import ModelConnectionProbeError
@@ -321,3 +322,12 @@ async def test_context_lookups_send_only_the_connection_key(sdk_transport, monke
     await probe.probe_chat_model(_connection("llamacpp"), model="qwen3:8b")
 
     assert seen and all("authorization" not in headers for headers in seen)
+
+
+def test_connection_timeouts_cap_connecting_but_not_replies():
+    local = connection_timeout(300.0)
+    short = connection_timeout(5.0)
+
+    assert local is not None and (local.connect, local.read) == (10.0, 300.0)
+    assert short is not None and short.connect == 5.0
+    assert connection_timeout(None) is None

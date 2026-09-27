@@ -12,8 +12,20 @@ export type PreferenceToggleSection = {
   [key: string]: unknown;
 };
 
-export type MemoryPreferences = PreferenceToggleSection & {
-  manager_model?: string | null;
+export type MemoryPreferences = PreferenceToggleSection;
+
+/** A job the owner assigns to a catalog model row in App Settings → Models. */
+export type ModelRole = "utility" | "memory_manager" | "embeddings";
+
+/**
+ * Catalog row ids for installation-wide model roles; null or absent uses the
+ * default (the chat model for utility and the Memory Manager, off for
+ * embeddings).
+ */
+export type ModelRolePreferences = {
+  utility_model_provider_id?: string | null;
+  memory_manager_model_provider_id?: string | null;
+  embedding_model_provider_id?: string | null;
 };
 
 export type SttProviderPreference =
@@ -146,6 +158,8 @@ export type SettingsPreferences = {
   /** App-wide startup and model defaults chosen in App Settings → General. */
   startup?: { default_anima_id?: string | null };
   chat?: { default_model_provider_id?: string | null };
+  /** Model role assignments chosen in App Settings → Models. */
+  models?: ModelRolePreferences;
   /** Per-mode colour overrides; see `lib/theme/appearance-overrides.ts`. */
   appearance?: AppearanceOverrides;
   memory?: MemoryPreferences;
@@ -224,8 +238,10 @@ export function mergePreferences(
   const appearance = mergeSection(baseObj, patchObj, "appearance");
   const startup = mergeSection(baseObj, patchObj, "startup");
   const chat = mergeSection(baseObj, patchObj, "chat");
+  const models = mergeSection(baseObj, patchObj, "models");
   if (startup) merged.startup = startup as SettingsPreferences["startup"];
   if (chat) merged.chat = chat as SettingsPreferences["chat"];
+  if (models) merged.models = models as ModelRolePreferences;
 
   if (memory) merged.memory = memory as PreferenceToggleSection;
   if (emotion) merged.emotion = emotion as PreferenceToggleSection;
@@ -283,6 +299,31 @@ export function readDefaultChatModelId(preferences: unknown): string | null {
   if (!isRecord(preferences) || !isRecord(preferences.chat)) return null;
   const value = preferences.chat.default_model_provider_id;
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** Preference key holding each role's catalog row id. */
+export const MODEL_ROLE_PREFERENCE_KEYS = {
+  utility: "utility_model_provider_id",
+  memory_manager: "memory_manager_model_provider_id",
+  embeddings: "embedding_model_provider_id",
+} as const satisfies Record<ModelRole, keyof ModelRolePreferences>;
+
+/** The owner's model for a role, or null for the role's default. */
+export function readModelRoleId(
+  preferences: unknown,
+  role: ModelRole,
+): string | null {
+  if (!isRecord(preferences) || !isRecord(preferences.models)) return null;
+  const value = preferences.models[MODEL_ROLE_PREFERENCE_KEYS[role]];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** A preferences patch that assigns (or, with null, clears) one role. */
+export function modelRolePatch(
+  role: ModelRole,
+  modelProviderId: string | null,
+): SettingsPreferences {
+  return { models: { [MODEL_ROLE_PREFERENCE_KEYS[role]]: modelProviderId } };
 }
 
 export function resolvePreferences(

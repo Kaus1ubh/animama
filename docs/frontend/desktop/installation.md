@@ -40,11 +40,12 @@ existing Animas or restore a deliberately deleted starter.
 
 ## Provider keys and speech
 
-Embedded desktop setup and App Settings → API Keys offer OpenAI, DeepSeek,
-Hugging Face, Gemini and ElevenLabs key fields. Configure the provider required by the feature you
-want to use; you do not need all five. Text chat through an external model
-requires that provider to be configured and reachable and can incur its charges.
-There is no bundled offline chat model.
+Embedded desktop setup and App Settings → API Keys offer OpenAI and ElevenLabs
+key fields. Other model servers, such as DeepSeek or a local Ollama, LM Studio or
+llama.cpp server, are added in App Settings → Models, with their key (if any) on
+the connection. Text chat through an external model requires that provider to be
+configured and reachable and can incur its charges. There is no bundled offline
+chat model; a local server on this computer keeps chat fully local.
 
 Keys are encrypted using macOS secure storage and are never read back into the
 browser. Enter or remove several keys, then Save once: saving briefly restarts
