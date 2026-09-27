@@ -19,6 +19,7 @@ import type { UpdateCandidate } from "../updates/policy.js";
 import {
   FeaturePackManager,
   PackInUseError,
+  type ActivePack,
   type ActivePacks,
   type PackTransition,
 } from "../feature-packs/manager.js";
@@ -70,6 +71,22 @@ export type SupervisorOptions = {
   onPackProgress?(status: FeaturePackStatus): void;
   quiesceRenderers?(): Promise<void>;
 };
+
+/** The backend's private model-mount configuration for one verified active pack. */
+function modelMountJson(pack: ActivePack): string {
+  return JSON.stringify({
+    root: pack.root,
+    version: versionDirectory(pack.manifest),
+    files: pack.manifest.files.map(
+      ({ path, size_bytes, sha256, media_type }) => ({
+        path,
+        size_bytes,
+        sha256,
+        media_type,
+      }),
+    ),
+  });
+}
 
 /** Own the entire local process graph; never infer authority from a port or PID. */
 export class RuntimeSupervisor {
@@ -179,6 +196,13 @@ export class RuntimeSupervisor {
             ),
           }
         : {}),
+      ...(this.activePacks["parakeet-stt-webgpu"]
+        ? {
+            ANIMAMA_PARAKEET_WEBGPU_ASSET_VERSION: versionDirectory(
+              this.activePacks["parakeet-stt-webgpu"].manifest,
+            ),
+          }
+        : {}),
       ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID: this.documentInstance,
       ...(this.activePacks["document-processing"]
         ? {
@@ -188,6 +212,7 @@ export class RuntimeSupervisor {
           }
         : {}),
       ANIMAMA_DESKTOP_BUILD_ID: this.manifest.build_id,
+      ANIMAMA_DESKTOP_APP_VERSION: this.options.appVersion,
       ANIMAMA_LOCAL_BIND_HOST: "127.0.0.1",
       ANIMAMA_LOG_TO_FILE: "0",
       ANIMAMA_LOG_TO_CONSOLE: "1",
@@ -201,6 +226,8 @@ export class RuntimeSupervisor {
     if (!this.applicationOrigin)
       throw new RuntimeError("runtime_not_initialized");
     const parakeet = this.activePacks["parakeet-stt"];
+    // The pack manager never activates the encoder without the base pack.
+    const webgpu = this.activePacks["parakeet-stt-webgpu"];
     return {
       ...this.environment(),
       ANIMAMA_PUBLIC_ORIGIN: this.applicationOrigin.origin,
@@ -208,20 +235,10 @@ export class RuntimeSupervisor {
       ANIMAMA_DESKTOP_RENDERER_CAPABILITY: this.rendererCapability,
       ANIMAMA_DESKTOP_CONTROL_TOKEN: this.controlToken,
       ...(parakeet
-        ? {
-            ANIMAMA_PARAKEET_MODEL_MOUNT_JSON: JSON.stringify({
-              root: parakeet.root,
-              version: versionDirectory(parakeet.manifest),
-              files: parakeet.manifest.files.map(
-                ({ path, size_bytes, sha256, media_type }) => ({
-                  path,
-                  size_bytes,
-                  sha256,
-                  media_type,
-                }),
-              ),
-            }),
-          }
+        ? { ANIMAMA_PARAKEET_MODEL_MOUNT_JSON: modelMountJson(parakeet) }
+        : {}),
+      ...(webgpu
+        ? { ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON: modelMountJson(webgpu) }
         : {}),
     };
   }

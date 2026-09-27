@@ -113,6 +113,16 @@
       ]
     },
     {
+      "id": "parakeet-webgpu-input",
+      "name": "Optional Parakeet WebGPU encoder input",
+      "license": "CC-BY-4.0 (declared)",
+      "source": "models/parakeet-tdt-0.6b-v2-webgpu/ATTRIBUTION.md pins ysdede revision db4a768f5795e0f508187a34241fbeeef6ebb0d3; the FP16 encoder hash matches that public revision",
+      "review": "pending",
+      "notice_files": [
+        "parakeet-webgpu-attribution.txt"
+      ]
+    },
+    {
       "id": "included-content-attribution",
       "name": "Included content source and attribution notice",
       "license": "Mixed: Adobe Mixamo product-use terms, CC-BY-4.0, CC0-1.0 and source-specific permissive terms",

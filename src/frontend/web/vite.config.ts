@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
@@ -14,6 +13,7 @@ import {
   resolveLocalParakeetModelDir,
   resolveLocalParakeetWebgpuModelDir,
 } from "./vite-plugins/local-parakeet-models";
+import { resolveAppVersion } from "./vite-plugins/app-version";
 import { browserRuntimeAssetsPlugin } from "./vite-plugins/browser-runtime-assets";
 import {
   localAPIProxy,
@@ -23,18 +23,7 @@ import {
 
 const webRoot = fileURLToPath(new URL(".", import.meta.url));
 const webSrc = fileURLToPath(new URL("./src", import.meta.url));
-/**
- * App version shown in App Settings → About. The web and desktop packages share
- * one version (checked by `app-version.test.ts`); an explicit
- * VITE_APP_VERSION still wins for custom builds.
- */
-const appVersion =
-  process.env.VITE_APP_VERSION ||
-  (
-    JSON.parse(
-      readFileSync(new URL("./package.json", import.meta.url), "utf8"),
-    ) as { version: string }
-  ).version;
+const appVersion = resolveAppVersion();
 const publicPackagesRoot = fileURLToPath(
   new URL("../packages", import.meta.url),
 );
@@ -61,9 +50,27 @@ export const includedContentAliases: readonly IncludedContentAlias[] = [
 ] as const;
 const publicParakeetModelBaseUrl = "/onnx/models/parakeet-tdt-0.6b-v2";
 const localParakeetModelBaseUrl = "/__client-parakeet-models";
-// The optional experimental WebGPU encoder is served only by local Vite
-// development stacks; built self-host and embedded desktop builds omit it.
+// The optional WebGPU encoder and where each build gets it. Vite serves an
+// operator-provided directory, embedded desktop its active encoder pack, and
+// built self-host the model asset downloaded in the app. A HEAD probe decides
+// availability, so an absent encoder is simply a 404.
 const localParakeetWebgpuModelBaseUrl = "/__client-parakeet-webgpu-models";
+const parakeetWebgpuEncoderName = "encoder-model.fp16.onnx";
+const parakeetWebgpuEncoders = {
+  pack: `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/${parakeetWebgpuEncoderName}`,
+  operator: `${localParakeetWebgpuModelBaseUrl}/${parakeetWebgpuEncoderName}`,
+  "model-asset": "/v1/model-assets/parakeet-tdt-0.6b-v2-webgpu-encoder/content",
+} as const;
+const parakeetWebgpuEncoder = (
+  source: keyof typeof parakeetWebgpuEncoders,
+) => ({
+  source,
+  url: parakeetWebgpuEncoders[source],
+});
+// The encoder's reviewed attribution is bundled for the settings panel.
+const parakeetWebgpuNoticesRoot = fileURLToPath(
+  new URL("../../../models/parakeet-tdt-0.6b-v2-webgpu", import.meta.url),
+);
 const rechartsEsToolkitCompat = fileURLToPath(
   new URL("./src/lib/recharts/es-toolkit-compat", import.meta.url),
 );
@@ -205,8 +212,14 @@ export default defineConfig(({ mode, command, isPreview }) => {
       __CLIENT_PARAKEET_MODEL_BASE_URL__: JSON.stringify(
         clientParakeetModelBaseUrl,
       ),
-      __CLIENT_PARAKEET_WEBGPU_MODEL_BASE_URL__: JSON.stringify(
-        useLocalParakeetModels ? localParakeetWebgpuModelBaseUrl : null,
+      __CLIENT_PARAKEET_WEBGPU_ENCODER__: JSON.stringify(
+        embeddedDesktop
+          ? parakeetWebgpuEncoder("pack")
+          : useLocalParakeetModels
+            ? parakeetWebgpuEncoder("operator")
+            : command === "build"
+              ? parakeetWebgpuEncoder("model-asset")
+              : null,
       ),
     },
     optimizeDeps: {
@@ -265,7 +278,12 @@ export default defineConfig(({ mode, command, isPreview }) => {
       strictPort: true,
       proxy: localAPIProxy(localDevelopmentOrigins().apiTarget),
       fs: {
-        allow: [webRoot, publicPackagesRoot, safetyDocsRoot],
+        allow: [
+          webRoot,
+          publicPackagesRoot,
+          safetyDocsRoot,
+          parakeetWebgpuNoticesRoot,
+        ],
       },
     },
     preview: {

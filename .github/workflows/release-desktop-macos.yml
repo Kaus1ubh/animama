@@ -137,6 +137,8 @@ jobs:
         run: |
           python3 scripts/models/parakeet.py acquire
           python3 scripts/models/parakeet.py verify
+          python3 scripts/models/parakeet_webgpu.py acquire
+          python3 scripts/models/parakeet_webgpu.py verify
           python3 scripts/models/browser_speech.py acquire
           python3 scripts/models/browser_speech.py verify
           echo "ANIMAMA_MODEL_ROOT=$ANIMAMA_MODEL_ROOT" >> "$GITHUB_ENV"

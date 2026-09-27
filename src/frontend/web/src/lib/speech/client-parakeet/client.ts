@@ -5,8 +5,10 @@ import {
   CLIENT_PARAKEET_WEBGPU_ENCODER_URL,
 } from "@/lib/speech/client-parakeet/assets";
 import {
+  cacheParakeetWebgpuProbe,
   probeParakeetWebgpu,
   resolveParakeetBackend,
+  withBackendEncoder,
   type ParakeetBackendReason,
   type ParakeetWebgpuStatus,
 } from "@/lib/speech/client-parakeet/webgpu";
@@ -55,7 +57,20 @@ const CLIENT_PARAKEET_IDLE_DISPOSE_MS = 300000;
 let workerInstance: Worker | null = null;
 /** The ORT build the current worker initialized; switching needs a new worker. */
 let workerBackend: ClientParakeetBackend | null = null;
-let webgpuStatusPromise: Promise<ParakeetWebgpuStatus> | null = null;
+const webgpuStatus = cacheParakeetWebgpuProbe(() =>
+  probeParakeetWebgpu({
+    encoderUrl: CLIENT_PARAKEET_WEBGPU_ENCODER_URL,
+    gpu:
+      typeof navigator === "undefined"
+        ? undefined
+        : (
+            navigator as Navigator & {
+              gpu?: { requestAdapter: () => Promise<unknown> };
+            }
+          ).gpu,
+    fetch: (url, init) => globalThis.fetch(url, init),
+  }),
+);
 /**
  * Set when WebGPU passed the probe but failed to load; later starts go straight
  * to WASM instead of discarding a warm worker to retry. A status refresh clears it.
@@ -78,27 +93,14 @@ export function getLastClientParakeetBackendState(): ClientParakeetBackendState 
 
 /**
  * Probe WebGPU support and whether this build serves the optional encoder.
- * Cached per page; pass `refresh` after the user changes the environment.
+ * Cached per page (a missing encoder is rechecked on each call); pass
+ * `refresh` after the user changes the environment.
  */
 export function getParakeetWebgpuStatus(options?: {
   refresh?: boolean;
 }): Promise<ParakeetWebgpuStatus> {
-  if (!webgpuStatusPromise || options?.refresh) {
-    webgpuLoadFailed = false;
-    webgpuStatusPromise = probeParakeetWebgpu({
-      encoderUrl: CLIENT_PARAKEET_WEBGPU_ENCODER_URL,
-      gpu:
-        typeof navigator === "undefined"
-          ? undefined
-          : (
-              navigator as Navigator & {
-                gpu?: { requestAdapter: () => Promise<unknown> };
-              }
-            ).gpu,
-      fetch: (url, init) => globalThis.fetch(url, init),
-    });
-  }
-  return webgpuStatusPromise;
+  if (options?.refresh) webgpuLoadFailed = false;
+  return webgpuStatus(options?.refresh);
 }
 let requestCounter = 0;
 const pending = new Map<string, PendingRequest<unknown>>();
@@ -416,11 +418,11 @@ export async function loadClientParakeetWorker({
       // ORT keeps the WASM build it first loaded, so switching needs a new worker.
       await disposeClientParakeetWorker();
     }
-    const resolvedModelUrls = buildModelUrls(
-      backend === "webgpu" && CLIENT_PARAKEET_WEBGPU_ENCODER_URL
-        ? { ...modelUrls, encoderUrl: CLIENT_PARAKEET_WEBGPU_ENCODER_URL }
-        : modelUrls,
-      capabilities.offline_speech_asset_version,
+    const resolvedModelUrls = withBackendEncoder(
+      buildModelUrls(modelUrls, capabilities.offline_speech_asset_version),
+      backend,
+      CLIENT_PARAKEET_WEBGPU_ENCODER_URL &&
+        toAbsoluteBrowserUrl(CLIENT_PARAKEET_WEBGPU_ENCODER_URL),
     );
     const request: ClientParakeetLoadRequest = {
       type: "client_parakeet/load",

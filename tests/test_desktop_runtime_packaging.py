@@ -180,6 +180,8 @@ async def test_desktop_readiness_is_private_bounded_and_absent_from_openapi(
 
     token = "a" * 64
     monkeypatch.setenv("ANIMAMA_DESKTOP_BUILD_ID", "b" * 64)
+    # A released app version differs from the API schema version (0.1.0).
+    monkeypatch.setenv("ANIMAMA_DESKTOP_APP_VERSION", "0.1.1")
     monkeypatch.setenv("ANIMAMA_PROCESS_START_TOKEN", "11111111-1111-4111-8111-111111111111")
     app = create_local_app(
         runtime_settings=Settings(
@@ -209,7 +211,7 @@ async def test_desktop_readiness_is_private_bounded_and_absent_from_openapi(
         assert ready.status_code == 200
         assert ready.json() == {
             "schema_version": 1,
-            "runtime_version": "0.1.0",
+            "runtime_version": "0.1.1",
             "build_id": "b" * 64,
             "alembic_head": ScriptDirectory.from_config(resources.alembic_config()).get_current_head(),
             "installation_principal_id": "desktop-owner",

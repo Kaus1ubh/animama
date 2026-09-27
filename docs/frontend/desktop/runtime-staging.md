@@ -20,10 +20,11 @@ root:
 
 ```sh
 python3 scripts/models/parakeet.py acquire
+python3 scripts/models/parakeet_webgpu.py acquire
 python3 scripts/models/browser_speech.py acquire
 ```
 
-Then run from `src/frontend`:
+The WebGPU encoder is about 1.24 GB. Then run from `src/frontend`:
 
 ```sh
 pnpm desktop:runtime:stage -- --platform darwin --arch arm64
@@ -147,12 +148,15 @@ runtime staging.
 
 ## Verified Parakeet producer inputs
 
-Before producing the Parakeet pack, run `python3 scripts/models/parakeet.py acquire`
-from the repository root, or import a previous source copy using the
+Before producing the Parakeet packs, run `python3 scripts/models/parakeet.py acquire`
+and `python3 scripts/models/parakeet_webgpu.py acquire` from the repository root,
+or import previous source copies using the
 [model-store workflow](../../backend/operations/model-assets.md). Set the absolute
 `ANIMAMA_MODEL_ROOT` only when selecting a different store. Staging consumes the
-tracked manifest and verifies each local file; it does not query Hugging Face or
-infer weights from Git's tracked-file list. The pack requires its seven pinned files, exact payload hashes and attribution.
+tracked manifests and verifies each local file; it does not query Hugging Face or
+infer weights from Git's tracked-file list. `parakeet-stt` requires its seven
+pinned files and `parakeet-stt-webgpu` its FP16 encoder, each with exact payload
+hashes and attribution. An active pack whose inputs are missing fails staging.
 Inventory review, signing, hosting and native acceptance remain separate gates.
 
 This developer/producer cache is not an installed app model directory. Installed
@@ -175,8 +179,8 @@ versions, license references, explicit `active`/`deferred` release status, and
 approved inventory digest for each supported ID. Expanded Included content and
 document processing are `deferred` for the first release: their development
 inputs remain but they produce no archive/catalog entry or release size gate and
-require no initial-release approval. Parakeet is the only active pack and remains
-bound to its owner-approved exact digest. A null or changed digest produces a
+require no initial-release approval. The two Parakeet packs are active; each ships
+only when bound to its owner-approved exact digest. A null or changed digest produces a
 review report, not an installable catalog entry. Do not fill in approval hashes
 without reviewing redistribution
 rights and required notices. No files are uploaded by this command.

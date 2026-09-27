@@ -10,12 +10,15 @@ import { Button } from "@/ui/components/button";
 
 const names: Record<FeaturePackId, string> = {
   "parakeet-stt": "Offline speech recognition",
+  "parakeet-stt-webgpu": "GPU speech encoder",
   "expanded-included-content": "Expanded Included content",
   "document-processing": "Document processing",
 };
 const descriptions: Record<FeaturePackId, string> = {
   "parakeet-stt":
     "Enables offline dictation and Voice Mode. Microphone permission and PocketTTS do not require this pack.",
+  "parakeet-stt-webgpu":
+    "Runs offline speech recognition on the GPU with live previews. Requires offline speech recognition and a WebGPU-capable device.",
   "expanded-included-content":
     "Adds selectable content to Included. It never changes your Anima’s loadout automatically.",
   "document-processing":
@@ -50,8 +53,13 @@ export function DesktopFeaturePacksPanel({
   // General Settings follows the embedded catalog. Preserve retained files for
   // removal/recovery even if a later release no longer offers their pack.
   // Contextual controls may still explain why their required pack is unavailable.
+  // The GPU encoder is offered only beside the WebGPU setting, which checks
+  // for an adapter first; here it appears only for recovery or removal.
   const visiblePacks = packs.filter((pack) =>
-    only ? pack.id === only : pack.available || pack.hasInstalledFiles,
+    only
+      ? pack.id === only
+      : pack.hasInstalledFiles ||
+        (pack.available && pack.id !== "parakeet-stt-webgpu"),
   );
   if (!visiblePacks.length && !error) return null;
   const changing = packs.some((pack) =>
@@ -100,7 +108,9 @@ export function DesktopFeaturePacksPanel({
               />
             ) : null}
             <div className="flex flex-wrap gap-2">
-              {pack.state !== "installed" ? (
+              {pack.state !== "installed" &&
+              // A refused removal reports `failed` while this version stays active.
+              !(pack.activeVersion && pack.activeVersion === pack.version) ? (
                 <Button
                   type="button"
                   size="sm"

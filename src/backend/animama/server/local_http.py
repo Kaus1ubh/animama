@@ -65,11 +65,12 @@ def verified_model_mount(payload: str | None) -> ModelMount | None:
 def local_assets(settings: Settings) -> LocalAssets | None:
     """Development leaves build serving to Vite; built installations supply it."""
     mount = verified_model_mount(settings.animama_parakeet_model_mount_json)
+    webgpu_mount = verified_model_mount(settings.animama_parakeet_webgpu_model_mount_json)
     if settings.animama_web_root is None:
-        if mount is not None:
+        if mount is not None or webgpu_mount is not None:
             raise ValueError("A configured model mount requires the built application root")
         return None
-    return LocalAssets(settings.animama_web_root, mount)
+    return LocalAssets(settings.animama_web_root, mount, webgpu_mount)
 
 
 def local_telemetry(config: LocalHTTPConfig) -> TelemetryForwarder:

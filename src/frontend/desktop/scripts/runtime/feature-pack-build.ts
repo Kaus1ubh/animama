@@ -67,18 +67,27 @@ type ReleaseInputs = {
 };
 const titles: Record<FeaturePackId, string> = {
   "parakeet-stt": "Offline speech recognition",
+  "parakeet-stt-webgpu": "GPU speech encoder",
   "expanded-included-content": "Expanded Included content",
   "document-processing": "Document processing",
 };
-const parakeetFiles = new Set([
-  "ATTRIBUTION.md",
-  "README.md",
-  "encoder-model.int8.onnx",
-  "decoder_joint-model.int8.onnx",
-  "nemo128.onnx",
-  "vocab.txt",
-  "config.json",
-]);
+/** Model packs carry an exact payload; their input review note is never shipped. */
+const modelPackFiles: Partial<Record<FeaturePackId, Set<string>>> = {
+  "parakeet-stt": new Set([
+    "ATTRIBUTION.md",
+    "README.md",
+    "encoder-model.int8.onnx",
+    "decoder_joint-model.int8.onnx",
+    "nemo128.onnx",
+    "vocab.txt",
+    "config.json",
+  ]),
+  "parakeet-stt-webgpu": new Set([
+    "ATTRIBUTION.md",
+    "README.md",
+    "encoder-model.fp16.onnx",
+  ]),
+};
 
 /** Inspect immutable staged inputs, retaining mode and hash rather than file-name guesses. */
 export async function inventoryPack(
@@ -86,6 +95,7 @@ export async function inventoryPack(
   id: FeaturePackId,
 ): Promise<PackFile[]> {
   await realDirectory(root);
+  const allowed = modelPackFiles[id];
   const files: PackFile[] = [];
   const visit = async (relative: string): Promise<void> => {
     for (const name of (await readdir(path.join(root, relative))).sort()) {
@@ -103,9 +113,9 @@ export async function inventoryPack(
         continue;
       }
       // The input review note is not part of the model/configuration release.
-      if (id === "parakeet-stt" && key === "PACK-REVIEW.txt") continue;
-      if (id === "parakeet-stt" && !parakeetFiles.has(key))
-        throw new Error("Unexpected Parakeet payload");
+      if (allowed && key === "PACK-REVIEW.txt") continue;
+      if (allowed && !allowed.has(key))
+        throw new Error("Unexpected model pack payload");
       if (metadata.nlink !== 1) throw new Error("Hardlinked pack input");
       const media =
         path.extname(name) === ".json"
@@ -127,8 +137,8 @@ export async function inventoryPack(
     }
   };
   await visit("");
-  if (id === "parakeet-stt" && files.length !== parakeetFiles.size)
-    throw new Error("Missing Parakeet model/configuration input");
+  if (allowed && files.length !== allowed.size)
+    throw new Error("Missing model pack input");
   return files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 

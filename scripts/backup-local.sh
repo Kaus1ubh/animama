@@ -14,7 +14,8 @@ Usage: ./scripts/backup-local.sh [--name NAME] [--stack-env-file PATH] [--output
 
 Creates a quiesced Animama self-host backup containing PostgreSQL,
 content/local, and private data. Included content, browser caches, model
-caches, environment secrets, and legacy gateway credentials are excluded.
+caches, downloaded model assets, environment secrets, and legacy gateway
+credentials are excluded.
 EOF
 }
 
@@ -97,6 +98,8 @@ tar -C "$ANIMAMA_STATE_LOCAL_ROOT" -czf "${payload}/content-local.tar.gz" .
 tar -C "$ANIMAMA_STATE_DATA_ROOT" \
   --exclude='./internal/gateway/token' \
   --exclude='./internal/gateway/.gateway-token.*' \
+  --exclude='./internal/model-assets' \
+  --exclude='./staging/model-assets' \
   -czf "${payload}/data.tar.gz" .
 
 git_revision="unknown"
@@ -109,7 +112,7 @@ ANIMAMA_BACKUP_CREATED_AT=${created_at}
 ANIMAMA_BACKUP_STACK=${ANIMAMA_STATE_PROJECT}
 ANIMAMA_BACKUP_GIT_REVISION=${git_revision}
 ANIMAMA_BACKUP_INCLUDED=postgres,content-local,data
-ANIMAMA_BACKUP_EXCLUDED=content-included,browser-cache,model-cache,secrets,gateway-token
+ANIMAMA_BACKUP_EXCLUDED=content-included,browser-cache,model-cache,downloaded-model-assets,secrets,gateway-token
 EOF
 
 (
