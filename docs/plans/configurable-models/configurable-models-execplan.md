@@ -672,7 +672,7 @@ Checks: focused pytest, `make check-test`, `pnpm openapi-ts:check`,
 
 Completion: tests pass; the SDK is regenerated; review has no blocker.
 
-Phase record: issue #166; starting source `f6f68c5`; commits —.
+Phase record: issue #166; starting source `f6f68c5`; commit `42cb40f`.
 
 Implementation notes (agent, within scope):
 
