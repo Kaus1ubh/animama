@@ -128,8 +128,9 @@ Complete configured local checks before pushing. Write `task_pr_body` using the
 configured PR template, including one compact validated-revision/baseline reference
 with unique short SHAs linked to full commits, artifact links, review outcomes,
 actual local evidence and remaining gates. Refer back to that revision reference
-in review and merge sections instead of repeating hashes. Use `Refs #N` for partial work and
-`Closes #N` only when the issue's acceptance is fully delivered.
+in review and merge sections instead of repeating hashes. Use `Closes #N` for the parent and every
+phase issue whose implementation the PR delivers, even when owner checks remain;
+list those checks as remaining gates. Use `Refs #N` only for a partial plan delivery.
 
 ```bash
 git push -u "$task_remote" "$task_branch"

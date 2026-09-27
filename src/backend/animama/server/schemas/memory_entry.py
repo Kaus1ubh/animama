@@ -36,7 +36,7 @@ class PyMemoryEntryListResponse(BaseModel):
 
 
 class PyAnimaIdentityItem(BaseModel):
-    """One owned Anima and its content-free identity header, in creation order."""
+    """One owned Anima and its content-free protected file headers, in creation order."""
 
     anima_id: str
     display_name: str
@@ -45,6 +45,9 @@ class PyAnimaIdentityItem(BaseModel):
     created_at: datetime | None = None
     entry: PyMemoryEntryHeader | None = Field(
         None, description="Live IDENTITY.md header, or null when the identity needs explicit repair."
+    )
+    memories_entry: PyMemoryEntryHeader | None = Field(
+        None, description="Live MEMORIES.md header, or null when it is missing and needs repair."
     )
 
 

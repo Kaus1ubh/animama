@@ -8,7 +8,7 @@ establishes common meanings between Raymond and agents.
 ## Index
 
 Records 0001–0005 document foundational decisions retrospectively; records 0006–0007
-record lifecycle and planning ownership decisions. Each record states its decision basis
+record lifecycle and planning ownership decisions; later records document product decisions. Each record states its decision basis
 and dates. Acceptance is not proof of unknown historical human approval,
 production readiness or publication rights.
 
@@ -22,6 +22,7 @@ production readiness or publication rights.
 | 0006 | [Human and AI software development lifecycle](0006-human-ai-software-development-lifecycle.md)                            | accepted; planning superseded by 0007 |
 | 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                  | accepted                              |
 | 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                        | accepted                              |
+| 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)      | accepted                              |
 
 ## When and how to record a decision
 

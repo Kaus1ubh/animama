@@ -154,6 +154,78 @@ describe("display message mapping", () => {
     ]);
   });
 
+  it("puts a reply's memory cue only on the last bubble of its row", () => {
+    const memoryCue = {
+      episode: { text: "They adopted a cat named Miso." },
+      memories: { entry_id: "mem-1", version: 3, excerpt: "- Miso the cat" },
+    };
+    const messages = mapServerMessagesForDisplay([
+      {
+        id: 10,
+        run_id: "run-1",
+        role: "user",
+        content: "I adopted a cat!",
+        memory_cue: null,
+      },
+      {
+        id: 11,
+        run_id: "run-1",
+        role: "assistant",
+        content: "Tell me everything.",
+        data: {
+          structured: {
+            speech: "A cat!",
+            display: "Tell me everything.",
+          },
+        },
+        memory_cue: memoryCue,
+      },
+    ]);
+
+    expect(messages.map((message) => message.memoryCue ?? null)).toEqual([
+      null,
+      null,
+      memoryCue,
+    ]);
+  });
+
+  it("keeps the cue on a single-bubble reply and ignores empty or malformed cues", () => {
+    const [withCue, emptyCue, malformedCue] = mapServerMessagesForDisplay([
+      {
+        id: 1,
+        role: "assistant",
+        content: "Noted.",
+        memory_cue: {
+          episode: null,
+          memories: { entry_id: "mem-1", version: 2, excerpt: "" },
+        },
+      },
+      {
+        id: 2,
+        role: "assistant",
+        content: "Nothing to remember.",
+        memory_cue: { episode: null, memories: null },
+      },
+      {
+        id: 3,
+        role: "assistant",
+        content: "Broken cue.",
+        memory_cue: {
+          episode: { text: "  " },
+          memories: { entry_id: "mem-1", version: "2", excerpt: "x" },
+        } as never,
+      },
+    ]);
+
+    // A removal-only change has an empty excerpt but is still an update.
+    expect(withCue.memoryCue).toEqual({
+      episode: null,
+      memories: { entry_id: "mem-1", version: 2, excerpt: "" },
+    });
+    expect(emptyCue).not.toHaveProperty("memoryCue");
+    expect(malformedCue).not.toHaveProperty("memoryCue");
+  });
+
   it("skips internal and empty messages", () => {
     expect(
       mapServerMessagesForDisplay([

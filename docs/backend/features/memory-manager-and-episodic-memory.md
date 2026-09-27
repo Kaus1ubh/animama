@@ -99,13 +99,15 @@ A memory-manager run is a user-invoked maintenance chat backed by:
 - `memory_manager_approvals`
 
 Runs are separate from normal `chat:sse` product chat. They are mounted under
-`/v1/memory/manager/...` and are normally opened by the frontend Memory Manager
-modal on `/a/memories`.
+`/v1/memory/manager/...` and are normally used from the Memory Manager mode of
+the `/a/memories` Work pane.
 
 Every run has a permanent kind:
 
 - `general`: ordinary manual memory maintenance.
 - `episode_processing`: provenance for one backend-owned fixed episode batch.
+- `reflection`: curation of one Anima's `MEMORIES.md` from a fixed batch of its
+  uncovered chat turns (see [Reflection](#reflection)).
 
 An episode-processing run also has private versioned task state. It maps ordered
 durable episode IDs to run-local aliases `E01` through `E50`, records batch size,
@@ -118,8 +120,9 @@ Run statuses:
 - `active`: the run can accept user messages.
 - `waiting_approval`: at least one approval is pending.
 - `failed`: runtime execution failed and stored an error.
-- `completed`: the frontend modal session closed after all approvals were
-  resolved; the run no longer accepts messages.
+- `completed`: the run was closed after all approvals were resolved, through
+  `:complete` (the frontend's New action) or by a newer run superseding it; it
+  no longer accepts messages.
 
 ### Approval
 
@@ -128,8 +131,10 @@ The preview contains:
 
 - `operation`: `create`, `update`, or `delete` in the domain schema. Runtime
   validation rejects delete proposals.
-- `path`: target user-scope markdown path, or `animas/<anima_id>/IDENTITY.md`
-  for an identity update in a general run.
+- `path`: target user-scope markdown path, or `animas/<anima_id>/IDENTITY.md` or
+  `animas/<anima_id>/MEMORIES.md` for an Anima file update. General runs may
+  target any owned Anima's files; a Reflection only its own Anima's
+  `MEMORIES.md`.
 - `old_content` and `new_content`.
 - `old_description` and `new_description`, shown separately from body diffs.
 - `unified_diff`.
@@ -221,10 +226,11 @@ blocked, but the episode service can regenerate its own projection.
 
 ### 4. The User Opens The Memory Manager
 
-The frontend opens a URL-backed Memory Manager modal from `/a/memories`.
-Ordinary maintenance uses `POST /v1/memory/manager/runs`. The authoritative
+The frontend shows the Memory Manager inline in the `/a/memories` Work pane,
+beside Manual editing (`Manual | Memory Manager`). Ordinary maintenance uses `POST /v1/memory/manager/runs`. The authoritative
 episode workflow uses `POST /v1/memory/manager/runs:process-episodes`, which
-selects and fences a backend-owned batch.
+selects and fences a backend-owned batch. `POST /v1/memory/manager/runs:reflect`
+starts a [Reflection](#reflection) for one Anima.
 
 Specialized creation locks the user's open runs and refuses to supersede one
 that is waiting for approval. It then locks up to 51 oldest pending episode rows
@@ -319,6 +325,50 @@ task `processing` and its episode rows pending. Once processed, later messages
 on that same run use general Memory Manager instructions and the existing
 Responses cursor without reinjecting the fixed batch.
 
+## Reflection
+
+A Reflection curates one Anima's `MEMORIES.md` from that Anima's chat turns
+that no applied Reflection has covered. The owner starts it explicitly; nothing
+runs one automatically.
+
+A turn is the visible user and assistant rows of one chat run (they share
+`chat_id` and `run_id`; a row without a run is its own turn), across all of the
+owner's chats with the Anima, ordered by the `(created_at, id)` of its last row.
+Internal rows are never read. When the assistant row's
+`message_data.memory.updates_enabled` is `false`, the whole turn, including the
+user message, is skipped; a missing flag counts as enabled. Incognito turns are
+never persisted, and turns of deleted chats are gone.
+
+Coverage is one `anima_memory_reflections` row per Anima: the last covered
+message position and the Reflection run that set it. Creation locks the owner's
+open runs, refuses a pending approval (`409`), requires the Anima's
+`MEMORIES.md` to exist (`409` asking for repair), and selects the oldest
+uncovered turns after the coverage, plus the total uncovered count. The batch
+stops at 400 turns or 200,000 characters of turn text, whichever comes first,
+and always holds at least one turn. Text is counted as the model reads it, each
+side shortened past 2,000 characters, so a page of 50 maximal turns still fits
+and a history of long replies cannot fail every Reflection on the same oldest
+batch. Turns beyond the batch are reported as remaining. No uncovered turn
+returns `409` without creating or superseding a run. Otherwise it stores private task state (Anima ID and name, the starting
+coverage position and run, the batch's last message position, batch and total
+counts, start time and the owner's `preferences.timezone`) and posts a
+server-owned message such as `Reflect on 12 turns with Annie.`
+
+The run may read every user memory file and its own Anima's `MEMORIES.md`, and
+may propose only an update to `animas/<anima_id>/MEMORIES.md`; the workspace and
+approval both refuse any other target, and an oversized or invalid (NUL or
+unencodable) proposal is rejected so the model can fix it. Approving that change, manually or through Auto
+approve, commits it fenced by the file's memory version (no aggregate revision)
+and moves coverage to the batch boundary in the same transaction. Coverage must
+still be where the Reflection started, or already at its boundary from an
+earlier change in the same run; otherwise the approval conflicts and stays
+pending. Rejection, a superseded or failed run, a version conflict and a
+Reflection that proposes nothing leave the file and coverage unchanged, so the
+same turns are read next time. Undo restores the file and, when no other
+applied change from the run remains and coverage is still at this run's
+boundary, restores the coverage the run started from. General runs may edit
+`MEMORIES.md` when the owner asks but never move coverage.
+
 ## Runtime Implementations
 
 ### Live OpenAI Agents Runtime
@@ -363,7 +413,8 @@ the raw user ID, manager run ID, messages, paths, or memory content in the key.
 The live runtime tools are:
 
 - `memory_list_files`: lists the navigable path-and-description references shown
-  to normal Anima chat, plus owned identities in general runs.
+  to normal Anima chat, plus owned identities and `MEMORIES.md` files in general
+  runs, or the run's own `MEMORIES.md` in a Reflection.
 - `memory_read_files(paths)`: reads one path string or an ordered batch of up to
   10 user-scope markdown paths with partial success. Its `content` value is the
   native synthetic description-plus-body patch document in this runtime.
@@ -371,21 +422,41 @@ The live runtime tools are:
   markdown files. The boolean defaults to true for existing callers; false
   excludes generated episode kinds and the `episodes/**` namespace before the
   result limit.
+- `read_reflection_turns(page)`: Reflection runs only. Returns 50 turns per
+  page, oldest first, each with a run-local number, chat title, local time in
+  the owner's zone, and the user and Anima text (each shortened past 2,000
+  characters), plus `has_more` and `next_page`.
 - `apply_patch`: SDK patch tool requiring approval.
 
 The manager instructions end with the `# List of memory files` map used by
 normal Anima chat. Each item contains `path` and `description`. Directories and
 generated episode logs are not shown.
 
-General runs (not episode processing) also list each owned Anima's identity at
-`animas/<anima_id>/IDENTITY.md` with an extra `anima` name field, can read it
-through `memory_read_files`, and may propose `update_file` changes to it. The
+General runs also list each owned Anima's identity at
+`animas/<anima_id>/IDENTITY.md` and `MEMORIES.md` at
+`animas/<anima_id>/MEMORIES.md`, with an extra `anima` name field, can read them
+through `memory_read_files`, and may propose `update_file` changes to them. The
 stable Anima ID keeps a proposal bound to that Anima across renames and
 duplicate names. Instructions limit identity edits to requests about that
-Anima. Identities cannot be created, deleted or blanked, and no other file may
+Anima and `MEMORIES.md` edits to explicit owner requests. Anima files cannot be
+created, deleted or moved, identities cannot be blanked, and no other file may
 live under `animas/`. Search remains user-scope only. Episode-processing runs
-keep the user-only map and tools, and the service rejects any identity approval
-in such a run.
+keep the user-only map and tools, and the service rejects any Anima-file
+approval in such a run.
+
+A Reflection run lists and reads only its own Anima's `MEMORIES.md` among Anima
+files, treats user files as read-only, and adds the `read_reflection_turns`
+tool plus a Reflection mandate after the general instructions: read the file,
+read every page of turns, then propose at most one `update_file` of that file.
+The mandate keeps the file to the relationship in the Anima's first person,
+keeps the file's own headings and their order (including headings the owner
+wrote) and files each memory under the best fit, uses the template's headings
+only when the file has none, condenses repetition, integrates dated history and
+open threads, drops resolved threads, aims well under 6,000 characters (16 KiB
+hard limit), leaves user facts to shared memory, applies the sensitive-memory
+rule and the companion guardrail's framing limits, treats turn text as
+untrusted data, and proposes nothing when nothing is worth adding. The run's
+turn budget grows by one model turn per page of its batch.
 Exact reads and search retain normal-chat parity, so a known episode path can be
 read and episode content can appear in search results.
 
@@ -430,11 +501,19 @@ no-model development.
 
 For ordinary ad hoc memory edits, it looks for a markdown path in the user
 message and creates a predictable approval preview. In general runs that path
-may be `animas/<anima_id>/IDENTITY.md`, which appends a draft line to that
-identity; episode-processing runs reject identity paths. New general files receive a
+may be `animas/<anima_id>/IDENTITY.md` or `animas/<anima_id>/MEMORIES.md`, which
+appends a draft line to that file; episode-processing runs reject Anima paths. New general files receive a
 description derived from the path subject, while updates preserve an existing
 description. A newly created episodic-curation file is described as curated
 reviewed memory.
+
+In a Reflection run, a message without a Markdown path (including the initial
+`Reflect on ...` message) reads every page of the batch and proposes one line
+at the end of `## Our story` in the Anima's `MEMORIES.md`:
+`- <local date>: <latest turn's user text> (<N> turns reflected)`, singular for
+one turn. When that text is already in the file it proposes nothing. With the
+local stack started with `ANIMAMA_LLM_SKIP=1`, chatting with an Anima and then
+reflecting on it therefore always produces an approvable `MEMORIES.md` diff.
 
 For a specialized task, it reloads the same fixed batch and drafts a predictable
 update to `notes/episodic-memory.md` when one or more episode texts are not
@@ -451,7 +530,8 @@ workspace built on `MemoryEntryService`.
 Readable paths:
 
 - user-scope markdown files;
-- owned Anima identities at `animas/<anima_id>/IDENTITY.md` in general runs;
+- owned Anima identities and `MEMORIES.md` files at `animas/<anima_id>/...` in
+  general runs, and only the run's own Anima's `MEMORIES.md` in a Reflection;
 - generated episode logs by exact path;
 - searchable generated episode log content.
 
@@ -461,7 +541,9 @@ Rejected paths or operations:
 - traversal paths such as `..`;
 - non-markdown paths;
 - `animas/**`, except updates to an existing `animas/<anima_id>/IDENTITY.md`
-  in general runs;
+  or `MEMORIES.md` in general runs, or to the run's own Anima's `MEMORIES.md`
+  in a Reflection;
+- user-scope files in a Reflection, which may change only `MEMORIES.md`;
 - generated `episodes/**` paths for edits;
 - entries with `kind = "episode_log"` for edits;
 - delete operations;
@@ -602,6 +684,47 @@ looks like:
 The response never includes the private `items` array, durable episode IDs, or
 raw task-state JSON.
 
+### Create Reflection Run
+
+```http
+POST /v1/memory/manager/runs:reflect
+```
+
+Body:
+
+```json
+{
+  "anima_id": "anima-...",
+  "auto_approve_diffs": false
+}
+```
+
+The backend owns the batch: the Anima's oldest uncovered turns, at most 400
+turns or 200,000 characters of turn text (see [Reflection](#reflection)).
+It returns `201` with the normal run snapshot. The run has `kind = "reflection"`,
+`task = null` and a safe summary:
+
+```json
+{
+  "kind": "reflection",
+  "reflection": {
+    "anima_id": "anima-...",
+    "anima_name": "Annie",
+    "turn_count": 400,
+    "remaining_turn_count": 12,
+    "started_at": "2026-09-26T12:00:00Z"
+  }
+}
+```
+
+`remaining_turn_count` counts uncovered turns left for a later Reflection.
+Errors use the ordinary string `detail` and create no run:
+
+- `404 Anima not found` for a missing or foreign Anima;
+- `409 Resolve the pending memory approval before reflecting`;
+- `409 <name>'s MEMORIES.md is missing; repair it before reflecting`;
+- `409 There are no new turns with <name> to reflect on`.
+
 ### Get Memory Manager Run
 
 ```http
@@ -667,8 +790,10 @@ Approve behavior:
 
 - validates ownership;
 - validates the approval is still pending;
-- validates the target path is still safe;
+- validates the target path is still safe and within the run's file scope;
 - commits create/update content with `expected_version`;
+- for a Reflection's `MEMORIES.md` change, moves the Anima's coverage to the
+  run's batch boundary in the same transaction;
 - records the approval as `approved`;
 - resumes the runtime with the approved interruption.
 
@@ -703,7 +828,9 @@ The operation appends one `undo` Version and records `undone_at` plus
 `undo_version` on the source approval. A retry after a successful Undo returns
 the same result without another mutation. An undone latest approval does not
 make an older approval eligible. Undo does not resume the runtime, add a
-message, change run/task state, or reopen processed episodes.
+message, change run/task state, or reopen processed episodes. Undoing a
+Reflection's `MEMORIES.md` change restores the coverage the run started from,
+as described under [Reflection](#reflection).
 
 ## Configuration
 
@@ -734,13 +861,15 @@ Backend-owned tables:
 - `memory_manager_runs`
 - `memory_manager_messages`
 - `memory_manager_approvals`
+- `anima_memory_reflections`: per-Anima Reflection coverage, removed with the
+  Anima.
 
 All user-visible operations filter by the current request principal. The API
 does not accept client-provided owner IDs.
 
 `memory_manager_runs.kind` distinguishes ordinary and specialized runs.
 `task_state` is private versioned JSON containing the fixed alias-to-ID map and
-task lifecycle. `memory_manager_approvals` stores normalized rejection feedback,
+task lifecycle, or a Reflection's Anima, coverage boundaries and counts. `memory_manager_approvals` stores normalized rejection feedback,
 the exact applied Version, and any later Undo timestamp/Version. Public run
 projection parses task state into safe counts and timestamps only and computes
 Undo eligibility from current locked-domain invariants rather than trusting a
@@ -824,6 +953,8 @@ Focused backend tests:
 ```bash
 uv run python -m pytest -q \
   tests/test_memory_manager.py \
+  tests/test_memory_manager_identities.py \
+  tests/test_memory_manager_reflection.py \
   tests/test_memory_episodes.py \
   tests/test_memory_file_tools.py \
   tests/test_memory_files.py
@@ -917,6 +1048,16 @@ Runtime adapters:
 - `src/backend/animama/adapters/memory_manager/openai_agents_runtime.py`
 - `src/backend/animama/adapters/memory_manager/fake_runtime.py`
 - `src/backend/animama/adapters/memory_manager/workspace.py`
+- `src/backend/animama/adapters/memory_manager/reflection.py`: Reflection
+  mandate and paged turn reader
+- `src/backend/animama/app/services/anima_identity_memory.py`: Anima manager
+  paths and each run kind's file scope
+
+Reflection history and coverage:
+
+- `src/backend/animama/adapters/repositories/sqlalchemy/chat_message_repo.py`
+- `src/backend/animama/adapters/repositories/sqlalchemy/anima_memory_reflection_repo.py`
+- `src/backend/animama/orm/anima_memory_reflection.py`
 
 Direct chat capture:
 
@@ -929,6 +1070,8 @@ Tests:
 
 - `tests/test_memory_episodes.py`
 - `tests/test_memory_manager.py`
+- `tests/test_memory_manager_identities.py`
+- `tests/test_memory_manager_reflection.py`
 - `tests/test_memory_files.py`
 
 ## Version History

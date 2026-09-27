@@ -20,7 +20,9 @@ export function MemoryManagerPanel({
   pendingEpisodeCount: number;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // min-w-0 lets this row item shrink to the Work pane instead of growing
+    // to the transcript's widest unbreakable content.
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="border-border/40 flex min-h-12 shrink-0 flex-wrap items-center justify-start gap-2 border-b px-3 py-2">
         <Button
           type="button"
@@ -41,7 +43,7 @@ export function MemoryManagerPanel({
             type="button"
             variant="outline"
             size="sm"
-            disabled={!controller.canProcessEpisodes}
+            disabled={!controller.canStartSpecializedRun}
             onClick={() => void controller.processPending(pendingEpisodeCount)}
           >
             {controller.isProcessingEpisodes ? (

@@ -19,12 +19,17 @@ from animama.app.services.memory_entry_service import (
     MemoryEntryService,
     MemoryEntryValidationError,
 )
+from animama.domain.anima_definition import ANIMA_MEMORIES_KIND, ANIMA_MEMORIES_MAX_BYTES, ANIMA_MEMORIES_TEMPLATE
 from animama.domain.memory_entry import MEMORY_ENTRY_OPERATION_UNDO
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMMemoryEntry, ORMMemoryEntryVersion
 from animama.server.app import app
 from animama.server.routers import anima as anima_router, memory_entries as memory_entries_router
-from animama.server.schemas.memory_entry import PyMemoryEntryCreateRequest, PyMemoryEntryPatchRequest
+from animama.server.schemas.memory_entry import (
+    PyMemoryEntryCreateRequest,
+    PyMemoryEntryPatchRequest,
+    PyMemoryEntryRevertRequest,
+)
 
 _BASE_TIME = datetime(2026, 1, 1, 12, 0, 0)
 
@@ -70,6 +75,40 @@ async def _create_identity(async_session, *, user_id: str, anima_id: str, conten
     )
 
 
+async def _repair_memories(async_session, *, user_id: str, anima_id: str):
+    return await memory_entries_router.repair_anima_memories(anima_id, session=async_session, user=_user(user_id))
+
+
+async def _aggregate_revision(async_session, anima_id: str) -> int:
+    revision = await async_session.scalar(select(ORMAnima.aggregate_revision).where(ORMAnima.id == anima_id))
+    assert isinstance(revision, int)
+    return revision
+
+
+async def _store_legacy_anima_file(async_session, *, user_id: str, anima_id: str, name: str) -> str:
+    """Insert an Anima-scope row that predates the two-file rule."""
+
+    entry = ORMMemoryEntry(
+        id=f"mem-{uuid.uuid4()}",
+        user_id=user_id,
+        anima_id=anima_id,
+        parent_id=None,
+        type="file",
+        name=name,
+        normalized_name=name.casefold(),
+        path=name,
+        normalized_path=name.casefold(),
+        content="legacy",
+        content_sha256="0" * 64,
+        size_bytes=6,
+        version=1,
+        metadata_={},
+    )
+    async_session.add(entry)
+    await async_session.commit()
+    return entry.id
+
+
 @pytest_asyncio.fixture
 async def clean_tables(async_session):
     async def _clean() -> None:
@@ -94,6 +133,8 @@ async def test_anima_identity_listing_orders_owned_animas_and_reports_missing_id
     await _store_anima(async_session, user_id=foreign_id, name="Foreign", created_offset=0)
     identity = await _create_identity(async_session, user_id=owner_id, anima_id=earlier)
 
+    memories = await _repair_memories(async_session, user_id=owner_id, anima_id=later)
+
     listing = await memory_entries_router.list_anima_identities(session=async_session, user=_user(owner_id))
 
     assert [item.anima_id for item in listing.identities] == [earlier, later]
@@ -108,6 +149,12 @@ async def test_anima_identity_listing_orders_owned_animas_and_reports_missing_id
     assert "content" not in first.entry.model_dump()
     assert second.entry is None
     assert second.identity_status == "repair_required"
+    # MEMORIES.md is reported independently of the identity.
+    assert first.memories_entry is None
+    assert second.memories_entry is not None
+    assert second.memories_entry.id == memories.id
+    assert second.memories_entry.kind == ANIMA_MEMORIES_KIND
+    assert "content" not in second.memories_entry.model_dump()
 
 
 @pytest.mark.asyncio
@@ -301,10 +348,10 @@ async def test_deleting_anima_removes_its_scoped_memory_only(async_session, clea
         session=async_session,
         user=user,
     )
-    nested = await memory_entries_router.create_memory_entry(
-        PyMemoryEntryCreateRequest(
-            anima_id=doomed, type="file", name="notes/extra.md", content="extra", create_parents=True
-        ),
+    memories = await _repair_memories(async_session, user_id=owner_id, anima_id=doomed)
+    await memory_entries_router.patch_memory_entry(
+        memories.id,
+        PyMemoryEntryPatchRequest(content="We met today.", expected_version=memories.version),
         session=async_session,
         user=user,
     )
@@ -325,7 +372,7 @@ async def test_deleting_anima_removes_its_scoped_memory_only(async_session, clea
     ).scalar_one()
     assert remaining_entries == 0
     assert remaining_versions == 0
-    for entry_id in (doomed_identity.id, nested.id):
+    for entry_id in (doomed_identity.id, memories.id):
         with pytest.raises(HTTPException) as missing:
             await memory_entries_router.get_memory_entry(entry_id, session=async_session, user=user)
         assert missing.value.status_code == 404
@@ -437,9 +484,195 @@ async def test_trusted_identity_writes_lock_the_current_anima_revision(async_ses
         )
 
 
+@pytest.mark.asyncio
+async def test_anima_memories_repair_creates_the_template_once_for_owned_animas(async_session, clean_tables) -> None:
+    owner_id = f"user-{uuid.uuid4()}"
+    user = _user(owner_id)
+    anima_id = await _store_anima(async_session, user_id=owner_id, name="Annie")
+
+    created = await _repair_memories(async_session, user_id=owner_id, anima_id=anima_id)
+
+    assert (created.path, created.kind, created.scope) == ("MEMORIES.md", ANIMA_MEMORIES_KIND, "anima")
+    assert created.version == 1
+    assert "content" not in created.model_dump()
+    stored = await memory_entries_router.get_memory_entry(created.id, session=async_session, user=user)
+    assert stored.content == ANIMA_MEMORIES_TEMPLATE
+    assert stored.aggregate_revision is None
+
+    edited = await memory_entries_router.patch_memory_entry(
+        created.id,
+        PyMemoryEntryPatchRequest(content="We met today.", expected_version=created.version),
+        session=async_session,
+        user=user,
+    )
+    repeated = await _repair_memories(async_session, user_id=owner_id, anima_id=anima_id)
+    assert (repeated.id, repeated.version) == (edited.id, edited.version)
+    unchanged = await memory_entries_router.get_memory_entry(created.id, session=async_session, user=user)
+    assert unchanged.content == "We met today."
+    assert await _aggregate_revision(async_session, anima_id) == 1
+
+    for requester, target in ((f"user-{uuid.uuid4()}", anima_id), (owner_id, f"anima-{uuid.uuid4()}")):
+        with pytest.raises(HTTPException) as missing:
+            await _repair_memories(async_session, user_id=requester, anima_id=target)
+        assert missing.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_anima_memories_edits_are_protected_and_leave_the_definition_alone(async_session, clean_tables) -> None:
+    owner_id = f"user-{uuid.uuid4()}"
+    user = _user(owner_id)
+    anima_id = await _store_anima(async_session, user_id=owner_id, name="Annie")
+    identity = await _create_identity(async_session, user_id=owner_id, anima_id=anima_id)
+    memories = await _repair_memories(async_session, user_id=owner_id, anima_id=anima_id)
+    revision = await _aggregate_revision(async_session, anima_id)
+
+    # No aggregate revision is required, and line endings are normalized.
+    edited = await memory_entries_router.patch_memory_entry(
+        memories.id,
+        PyMemoryEntryPatchRequest(content="# Memories\r\n\nWe met on a rainy day.\r", expected_version=1),
+        session=async_session,
+        user=user,
+    )
+    assert edited.content == "# Memories\n\nWe met on a rainy day.\n"
+    assert edited.aggregate_revision is None
+    blank = await memory_entries_router.patch_memory_entry(
+        memories.id,
+        PyMemoryEntryPatchRequest(content="", expected_version=edited.version),
+        session=async_session,
+        user=user,
+    )
+    assert blank.content == "" and blank.kind == ANIMA_MEMORIES_KIND
+    for content, detail in (
+        ("bad\x00text", "anima_memories_invalid"),
+        ("a" * (ANIMA_MEMORIES_MAX_BYTES + 1), "anima_memories_too_large"),
+    ):
+        with pytest.raises(HTTPException) as invalid:
+            await memory_entries_router.patch_memory_entry(
+                memories.id,
+                PyMemoryEntryPatchRequest(content=content, expected_version=blank.version),
+                session=async_session,
+                user=user,
+            )
+        assert (invalid.value.status_code, invalid.value.detail) == (400, detail)
+    reverted = await memory_entries_router.revert_memory_entry(
+        memories.id,
+        PyMemoryEntryRevertRequest(target_version=edited.version, expected_version=blank.version),
+        session=async_session,
+        user=user,
+    )
+    assert reverted.content == edited.content
+
+    for request in (
+        PyMemoryEntryPatchRequest(name="OTHER.md", expected_version=reverted.version),
+        PyMemoryEntryPatchRequest(parent_id=None, expected_version=reverted.version),
+        PyMemoryEntryPatchRequest(kind="user_memory", expected_version=reverted.version),
+    ):
+        with pytest.raises(HTTPException) as protected:
+            await memory_entries_router.patch_memory_entry(memories.id, request, session=async_session, user=user)
+        assert protected.value.status_code == 403
+    with pytest.raises(HTTPException) as undeletable:
+        await memory_entries_router.delete_memory_entry(
+            memories.id, session=async_session, user=user, expected_version=reverted.version
+        )
+    assert undeletable.value.status_code == 403
+    with pytest.raises(MemoryEntryProtectedError):
+        await _service(async_session).undo_approved_create(
+            user_id=owner_id,
+            entry_id=memories.id,
+            expected_version=reverted.version,
+            change_metadata={"source_type": "memory_manager_undo"},
+        )
+
+    # A kind-less whole-file write keeps the reserved kind.
+    rewritten = await _service(async_session).put_file_by_path(
+        user_id=owner_id,
+        anima_id=anima_id,
+        path="memories.md",
+        content="Rewritten",
+        expected_version=reverted.version,
+    )
+    assert (rewritten.path, rewritten.kind) == ("MEMORIES.md", ANIMA_MEMORIES_KIND)
+
+    # None of these writes advanced the definition, so an open identity draft still saves.
+    assert await _aggregate_revision(async_session, anima_id) == revision
+    saved_identity = await memory_entries_router.patch_memory_entry(
+        identity.id,
+        PyMemoryEntryPatchRequest(
+            content="# Updated identity", expected_version=identity.version, expected_aggregate_revision=revision
+        ),
+        session=async_session,
+        user=user,
+    )
+    assert saved_identity.aggregate_revision == revision + 1
+
+
+@pytest.mark.asyncio
+async def test_anima_scope_admits_only_identity_and_memories(async_session, clean_tables) -> None:
+    owner_id = f"user-{uuid.uuid4()}"
+    user = _user(owner_id)
+    anima_id = await _store_anima(async_session, user_id=owner_id, name="Annie")
+    # Rejected writes roll back the request transaction, so keep the Anima durable.
+    await async_session.commit()
+
+    for request in (
+        PyMemoryEntryCreateRequest(anima_id=anima_id, type="file", name="notes.md", content="x"),
+        PyMemoryEntryCreateRequest(anima_id=anima_id, type="directory", name="notes"),
+        PyMemoryEntryCreateRequest(
+            anima_id=anima_id, type="file", name="notes/extra.md", content="x", create_parents=True
+        ),
+    ):
+        with pytest.raises(HTTPException) as rejected:
+            await memory_entries_router.create_memory_entry(request, session=async_session, user=user)
+        assert rejected.value.status_code == 403
+        assert "IDENTITY.md and MEMORIES.md" in rejected.value.detail
+    with pytest.raises(MemoryEntryProtectedError):
+        await _service(async_session).put_file_by_path(
+            user_id=owner_id,
+            anima_id=anima_id,
+            path="notes/extra.md",
+            content="x",
+            expected_version=0,
+            create_parents=True,
+        )
+    with pytest.raises(HTTPException) as misplaced_kind:
+        await memory_entries_router.create_memory_entry(
+            PyMemoryEntryCreateRequest(type="file", name="relationship.md", content="x", kind=ANIMA_MEMORIES_KIND),
+            session=async_session,
+            user=user,
+        )
+    assert misplaced_kind.value.status_code == 400
+
+    # The reserved file itself can be created explicitly, with canonical casing and kind.
+    memories = await memory_entries_router.create_memory_entry(
+        PyMemoryEntryCreateRequest(anima_id=anima_id, type="file", name="memories.md", content="Hello\r\n"),
+        session=async_session,
+        user=user,
+    )
+    assert (memories.path, memories.kind, memories.content) == ("MEMORIES.md", ANIMA_MEMORIES_KIND, "Hello\n")
+    listing = await memory_entries_router.list_memory_entries(
+        session=async_session, user=user, anima_id=anima_id, recursive=True
+    )
+    assert [entry.path for entry in listing.entries] == ["MEMORIES.md"]
+
+    # Rows that predate the rule can be read or deleted, but not renamed within the folder
+    # or moved onto a protected file.
+    legacy_id = await _store_legacy_anima_file(async_session, user_id=owner_id, anima_id=anima_id, name="old.md")
+    for name in ("renamed.md", "IDENTITY.md"):
+        with pytest.raises(HTTPException) as rename_error:
+            await memory_entries_router.patch_memory_entry(
+                legacy_id,
+                PyMemoryEntryPatchRequest(name=name, expected_version=1),
+                session=async_session,
+                user=user,
+            )
+        assert rename_error.value.status_code == 403
+    await memory_entries_router.delete_memory_entry(legacy_id, session=async_session, user=user, expected_version=1)
+
+
 def test_openapi_exposes_anima_identity_listing() -> None:
     app.openapi_schema = None
     openapi = app.openapi()
     assert "get" in openapi["paths"]["/v1/memory/anima-identities"]
     item = openapi["components"]["schemas"]["PyAnimaIdentityItem"]["properties"]
-    assert {"anima_id", "display_name", "aggregate_revision", "identity_status", "entry"} <= set(item)
+    assert {"anima_id", "display_name", "aggregate_revision", "identity_status", "entry", "memories_entry"} <= set(item)
+    assert "post" in openapi["paths"]["/v1/memory/anima-memories/{anima_id}:repair"]

@@ -17,11 +17,29 @@ from animama.domain.settings import UserSettings
 
 PROFILE_MEMORY_PATH = "PROFILE.md"
 PROFILE_MEMORY_KIND = "user_profile"
-PROFILE_TEMPLATE_V1 = """# About Me
+# Who the user is, shared by every Anima. Each hint line is replaced by the owner.
+PROFILE_TEMPLATE_V2 = """# About me
 
-Preferred name:
+## Basics
+Preferred name, pronouns, languages, location or time zone.
 
-Add anything you would like your Animas to remember about you here.
+## Life right now
+Work or study, home, and what this chapter of life looks like.
+
+## People
+The people and pets who matter to me.
+
+## Interests
+Hobbies, favorite media, food and things I'm into.
+
+## Goals
+What I'm working toward or hoping for.
+
+## Routines
+My usual daily or weekly rhythm.
+
+## How I like to be treated
+Tone, humor, directness, reply length and topics to avoid.
 """
 
 BOOTSTRAP_STEPS = ("local_profile", "user_settings", "profile_memory", "starter_animas")
@@ -137,9 +155,9 @@ class OwnerBootstrapService:
 
 
 def _profile_template(version: str) -> str:
-    if version != "1":
+    if version != "2":
         raise ValueError(f"unsupported profile template version: {version}")
-    return PROFILE_TEMPLATE_V1
+    return PROFILE_TEMPLATE_V2
 
 
 __all__ = [
@@ -150,5 +168,5 @@ __all__ = [
     "OwnerStarterBootstrap",
     "PROFILE_MEMORY_KIND",
     "PROFILE_MEMORY_PATH",
-    "PROFILE_TEMPLATE_V1",
+    "PROFILE_TEMPLATE_V2",
 ]

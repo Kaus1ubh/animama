@@ -51,5 +51,6 @@ Use `git-workflow` to finish scoped commits, complete applicable pre-push valida
 push and create/update the PR automatically. Automatically convert drafts when ready for
 review, unless explicitly instructed otherwise. Follow the actual CI policy and report
 the exact candidate, results, review dispositions, outstanding gates and limitations.
-Use closing references only for fully delivered issues. Merge requires separate
+Close the parent and delivered phase issues through the PR; record outstanding
+owner checks as PR gates, not open issues. Merge requires separate
 exact-candidate approval. Keep retained workspace/services documented for handoff.

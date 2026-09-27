@@ -2120,6 +2120,42 @@ export const zPyLoadoutPlan = z.object({
 });
 
 /**
+ * PyMemoryCueEpisode
+ *
+ * The `remember` note this turn recorded in the shared episode log.
+ */
+export const zPyMemoryCueEpisode = z.object({
+    text: z.string()
+});
+
+/**
+ * PyMemoryCueMemories
+ *
+ * This turn's change to the Anima's `MEMORIES.md`: its last version and added text (up to 600 characters).
+ */
+export const zPyMemoryCueMemories = z.object({
+    entry_id: z.string(),
+    excerpt: z.string(),
+    version: z.int()
+});
+
+/**
+ * PyMemoryCue
+ *
+ * What a turn remembered, shown as a memory cue on its final visible assistant message.
+ */
+export const zPyMemoryCue = z.object({
+    episode: z.union([
+        zPyMemoryCueEpisode,
+        z.null()
+    ]),
+    memories: z.union([
+        zPyMemoryCueMemories,
+        z.null()
+    ])
+});
+
+/**
  * PyMemoryEntryCreateRequest
  */
 export const zPyMemoryEntryCreateRequest = z.object({
@@ -2205,7 +2241,7 @@ export const zPyMemoryEntryHeader = z.object({
 /**
  * PyAnimaIdentityItem
  *
- * One owned Anima and its content-free identity header, in creation order.
+ * One owned Anima and its content-free protected file headers, in creation order.
  */
 export const zPyAnimaIdentityItem = z.object({
     aggregate_revision: z.int().gte(1),
@@ -2219,7 +2255,11 @@ export const zPyAnimaIdentityItem = z.object({
         zPyMemoryEntryHeader,
         z.null()
     ])),
-    identity_status: z.enum(['ready', 'repair_required'])
+    identity_status: z.enum(['ready', 'repair_required']),
+    memories_entry: z.optional(z.union([
+        zPyMemoryEntryHeader,
+        z.null()
+    ]))
 });
 
 /**
@@ -2591,6 +2631,27 @@ export const zPyMemoryManagerMessageCreateRequest = z.object({
 });
 
 /**
+ * PyMemoryManagerReflectionRunCreateRequest
+ */
+export const zPyMemoryManagerReflectionRunCreateRequest = z.object({
+    anima_id: z.string().min(1),
+    auto_approve_diffs: z.optional(z.boolean()).default(false)
+});
+
+/**
+ * PyMemoryManagerReflectionSummary
+ *
+ * What one Reflection run covers; its turns become covered only when its MEMORIES.md change is applied.
+ */
+export const zPyMemoryManagerReflectionSummary = z.object({
+    anima_id: z.string(),
+    anima_name: z.string(),
+    remaining_turn_count: z.int().gte(0),
+    started_at: z.iso.datetime(),
+    turn_count: z.int().gte(1)
+});
+
+/**
  * PyMemoryManagerRunCreateRequest
  */
 export const zPyMemoryManagerRunCreateRequest = z.object({
@@ -2634,7 +2695,11 @@ export const zPyMemoryManagerRun = z.object({
         z.null()
     ])),
     id: z.string(),
-    kind: z.optional(z.enum(['general', 'episode_processing'])),
+    kind: z.optional(z.enum([
+        'general',
+        'episode_processing',
+        'reflection'
+    ])),
     metadata: z.optional(z.record(z.string(), z.unknown())),
     model_name: z.optional(z.union([
         z.string(),
@@ -2642,6 +2707,10 @@ export const zPyMemoryManagerRun = z.object({
     ])),
     model_provider: z.optional(z.union([
         z.string(),
+        z.null()
+    ])),
+    reflection: z.optional(z.union([
+        zPyMemoryManagerReflectionSummary,
         z.null()
     ])),
     status: z.enum([
@@ -4173,6 +4242,10 @@ export const zPyChatMessage = z.object({
         z.null()
     ])),
     internal: z.optional(z.boolean()).default(false),
+    memory_cue: z.optional(z.union([
+        zPyMemoryCue,
+        z.null()
+    ])),
     message_type: z.optional(z.union([
         z.string(),
         z.null()
@@ -6227,6 +6300,19 @@ export const zListAnimaIdentitiesV1MemoryAnimaIdentitiesGetData = z.object({
  */
 export const zListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponse = zPyAnimaIdentityListResponse;
 
+export const zRepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        anima_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zRepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponse = zPyMemoryEntryHeader;
+
 export const zDebugSearchMemoryFilesV1MemoryDebugSearchMemoryFilesPostData = z.object({
     body: zPySearchMemoryFilesDebugRequest,
     path: z.optional(z.never()),
@@ -6495,6 +6581,17 @@ export const zCreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessE
  * Successful Response
  */
 export const zCreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPostResponse = zPyMemoryManagerRunResponse;
+
+export const zCreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostData = z.object({
+    body: zPyMemoryManagerReflectionRunCreateRequest,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zCreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostResponse = zPyMemoryManagerRunResponse;
 
 export const zListModelAssetsV1ModelAssetsGetData = z.object({
     body: z.optional(z.never()),

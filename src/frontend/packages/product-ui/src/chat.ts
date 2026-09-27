@@ -4,6 +4,7 @@ export * from "./lib/runtime-errors";
 export * from "./lib/chat/chat-sse-request";
 export * from "./lib/chat/companion-safety";
 export * from "./lib/chat/display-message-mapping";
+export * from "./lib/chat/memory-cue";
 export * from "./lib/chat/model-provider-compatibility";
 export * from "./lib/chat/model-provider-native-tools";
 export * from "./lib/chat/runtimeRemountRecovery";

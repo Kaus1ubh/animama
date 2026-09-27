@@ -167,11 +167,12 @@ web/src/hooks/useDesktopQuickChatRuntime.ts
 
 The main renderer publishes snapshots with:
 
-- current anima and chat ids
+- current anima and chat ids, and the Anima name used by memory cue details
 - input value and placeholder
 - chat availability
 - streaming state
-- display messages
+- display messages, including each reply's
+  [memory cue](../runtime/chat.md#memory-cue)
 - prompt suggestions
 - coarse voice state: active mode, preparing state, capture state, and mute
   state
@@ -190,6 +191,15 @@ The Quick Chat renderer sends commands back to the main renderer:
 - toggle Voice Mode mute
 - refresh model/anima state after model selector changes
 - dismiss the crisis card
+- open a memory cue's `MEMORIES.md` entry (`open-memory-entry`)
+
+Quick Chat cannot route the main window, so its memory cue sends
+`open-memory-entry` instead of linking. The main renderer accepts only an
+`entryId` of up to 128 ASCII letters, digits, `-` and `_` that starts with a
+letter or digit, then opens `/a/memories` with that entry selected. After forwarding the command, the main
+process hides Quick Chat, whose owner chat unmounts on navigation, and restores,
+shows and focuses the main window. The manager reads only the command type; the
+main renderer validates the payload.
 
 Quick Chat renders a synthetic waveform from the mirrored voice state. It uses
 the main renderer's user-speaking phase to animate larger bars and falls back to
@@ -251,5 +261,8 @@ window behavior.
   state without starting a second mic capture.
 - The synthetic waveform idles while listening or muted and animates when the
   main renderer enters the user-speaking phase.
+- A reply that remembered something shows the memory cue; its popover opens,
+  and Open in Memories hides Quick Chat and shows the file in the main window,
+  including when the main window was behind another app or minimized.
 - Existing PiP, Press to talk, Voice Mode toggle, mute toggle, and Skip TTS
   shortcuts still work.
