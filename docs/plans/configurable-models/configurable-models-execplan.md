@@ -853,7 +853,7 @@ changed.
 
 Completion: tests pass; review has no blocker.
 
-Phase record: issue #167; starting source `d9b3b43`; commit PHASE3SHA.
+Phase record: issue #167; starting source `d9b3b43`; commit `d0aa9b9`.
 
 Implementation notes (agent, within scope):
 
