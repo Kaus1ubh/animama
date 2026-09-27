@@ -708,10 +708,10 @@ Installation bootstrap seeds one user-scope `PROFILE.md` entry with
 `kind = "user_profile"` from template version 2: an `# About me` heading and
 Basics, Life right now, People, Interests, Goals, Routines and How I like to be
 treated sections, each with a hint line. Optional first-run display-name
-completion writes a bootstrap-managed `Preferred name:` line under Basics in the
-same backend transaction. A direct
-user edit to that line prevents later personalization changes from overwriting
-it. The profile file is durable memory data, but direct chat does not inject its
+completion writes a bootstrap-managed `Preferred name:` line in the same backend
+transaction: it replaces an existing line, otherwise goes under a Basics heading,
+the first heading or the top, so it does not depend on the template's wording.
+Any other edit to the file stops later personalization from overwriting it. The profile file is durable memory data, but direct chat does not inject its
 content into prompt context yet. Its path and description can appear in the
 transient memory file list while memory influence is enabled.
 

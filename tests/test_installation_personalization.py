@@ -22,7 +22,7 @@ from animama.server.installation_personalization import (
     AdultConfirmationRequiredError,
     InstallationBootstrapIncompleteError,
     InstallationPersonalizationService,
-    render_profile_document,
+    with_preferred_name,
 )
 
 
@@ -39,7 +39,7 @@ async def _seed_personalization(session, owner_id: str) -> None:  # noqa: ANN001
     await memory.put_file_by_path(
         user_id=owner_id,
         path=PROFILE_MEMORY_PATH,
-        content=render_profile_document(None),
+        content=with_preferred_name(PROFILE_TEMPLATE_V2, None),
         kind=PROFILE_MEMORY_KIND,
         description="Private installation-owner profile",
         metadata={
@@ -77,7 +77,7 @@ async def test_onboarding_is_atomic_idempotent_and_preserves_later_user_memory_e
     assert installation is not None and installation.first_run_completed_at == completed.first_run_completed_at
     assert profile is not None and profile.display_name == "Ada Lovelace"
     assert entry is not None and entry.version == 2
-    assert entry.content == render_profile_document("Ada Lovelace")
+    assert entry.content == with_preferred_name(PROFILE_TEMPLATE_V2, "Ada Lovelace")
     assert entry.metadata["installation_bootstrap"]["managed_entry_version"] == 2
 
     replay = await service.complete_onboarding(
@@ -108,11 +108,42 @@ async def test_onboarding_is_atomic_idempotent_and_preserves_later_user_memory_e
     assert preserved.content == "# I edited this myself\n"
 
 
-def test_managed_profile_fills_the_preferred_name_into_the_bootstrap_template() -> None:
-    assert render_profile_document(None) == PROFILE_TEMPLATE_V2
-    named = render_profile_document("Ada Lovelace")
-    assert "## Basics\nPreferred name: Ada Lovelace\nPronouns, languages, location or time zone.\n" in named
-    assert named.replace("Preferred name: Ada Lovelace\nPronouns", "Preferred name, pronouns") == PROFILE_TEMPLATE_V2
+def test_preferred_name_goes_under_basics_in_the_bootstrap_template() -> None:
+    assert with_preferred_name(PROFILE_TEMPLATE_V2, None) == PROFILE_TEMPLATE_V2
+    named = with_preferred_name(PROFILE_TEMPLATE_V2, "Ada Lovelace")
+    assert named.replace("Preferred name: Ada Lovelace\n", "", 1) == PROFILE_TEMPLATE_V2
+    assert "## Basics\nPreferred name: Ada Lovelace\n" in named
+
+
+def test_preferred_name_does_not_depend_on_the_template_text() -> None:
+    custom = "# Me\n\n## Things\nStuff.\n"
+    assert with_preferred_name(custom, "Ada") == "# Me\nPreferred name: Ada\n\n## Things\nStuff.\n"
+    assert with_preferred_name("Just text.\n", "Ada") == "Preferred name: Ada\nJust text.\n"
+    renamed = with_preferred_name("# Me\nPreferred name: Ada\n", "Grace")
+    assert renamed == "# Me\nPreferred name: Grace\n"
+    assert with_preferred_name(renamed, None) == "# Me\n"
+
+
+async def test_managed_profile_from_another_template_still_gets_the_name(async_session) -> None:
+    owner_id = str(uuid4())
+    await _seed_personalization(async_session, owner_id)
+    entry = await async_session.scalar(
+        select(ORMMemoryEntry).where(ORMMemoryEntry.user_id == owner_id, ORMMemoryEntry.path == PROFILE_MEMORY_PATH)
+    )
+    assert entry is not None
+    # An older or future bootstrap template, still untouched by the owner.
+    entry.content = "# About me\n\n## Details\nAnything you like.\n"
+    entry.metadata_ = {"installation_bootstrap": {"template_version": "1", "managed_entry_version": 1}}
+    await async_session.commit()
+
+    await InstallationPersonalizationService(async_session).complete_onboarding(
+        principal_id=owner_id, display_name="Ada", adult_confirmed=True
+    )
+
+    updated = await _profile_memory(async_session, owner_id)
+    assert updated is not None and updated.version == 2
+    assert updated.content == "# About me\nPreferred name: Ada\n\n## Details\nAnything you like.\n"
+    assert updated.metadata["installation_bootstrap"] == {"template_version": "1", "managed_entry_version": 2}
 
 
 async def test_precommit_failure_rolls_back_profile_memory_and_timestamp(async_session) -> None:
@@ -134,7 +165,7 @@ async def test_precommit_failure_rolls_back_profile_memory_and_timestamp(async_s
     entry = await _profile_memory(async_session, owner_id)
     assert installation is not None and installation.first_run_completed_at is None
     assert profile is not None and profile.display_name is None
-    assert entry is not None and entry.version == 1 and entry.content == render_profile_document(None)
+    assert entry is not None and entry.version == 1 and entry.content == with_preferred_name(PROFILE_TEMPLATE_V2, None)
 
 
 @pytest.mark.parametrize("name", [None, "", " \t ", "x" * 81])
@@ -172,7 +203,7 @@ async def test_previously_skipped_setup_can_gain_a_name_without_resetting_owner_
     assert installation.installation_principal_id == owner_id
     assert installation.first_run_completed_at == original_timestamp
     entry = await _profile_memory(async_session, owner_id)
-    assert entry is not None and entry.content == render_profile_document("Ada")
+    assert entry is not None and entry.content == with_preferred_name(PROFILE_TEMPLATE_V2, "Ada")
 
     replay = await service.complete_onboarding(
         principal_id=owner_id, display_name="Ignored retry", adult_confirmed=True

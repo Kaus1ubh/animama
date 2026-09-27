@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
@@ -16,15 +17,15 @@ from animama.app.services.memory_entry_service import MemoryEntryConflictError, 
 from animama.app.services.owner_bootstrap_service import (
     PROFILE_MEMORY_KIND,
     PROFILE_MEMORY_PATH,
-    PROFILE_TEMPLATE_V2,
 )
 from animama.app.services.user_profile_service import normalize_display_name
 from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE, MemoryEntry
 from animama.domain.user_profile import UserProfileNotFoundError
 from animama.local.installation_repository import SQLAlchemyInstallationSettingsRepository
 
-PROFILE_TEMPLATE_VERSION = "2"
-_PROFILE_BASICS_HINT = "Preferred name, pronouns, languages, location or time zone."
+_PREFERRED_NAME_PREFIX = "Preferred name:"
+_HEADING_RE = re.compile(r"^#{1,6}\s")
+_BASICS_HEADING_RE = re.compile(r"^#{1,6}\s+basics\s*$", re.IGNORECASE)
 _MAX_CONFLICT_RETRIES = 3
 
 
@@ -129,7 +130,7 @@ class InstallationPersonalizationService:
                 )
                 if complete_first_run and entry is None:
                     raise InstallationBootstrapIncompleteError("bootstrap profile memory is missing")
-                if entry is not None and _is_bootstrap_managed(entry, current_display_name=profile.display_name):
+                if entry is not None and _is_bootstrap_managed(entry):
                     await self._update_managed_memory(
                         principal_id=principal_id,
                         entry=entry,
@@ -168,12 +169,12 @@ class InstallationPersonalizationService:
         entry: MemoryEntry,
         display_name: str | None,
     ) -> None:
-        content = render_profile_document(display_name)
+        content = with_preferred_name(entry.content or "", display_name)
         if content == entry.content:
             return
         metadata = dict(entry.metadata or {})
         metadata["installation_bootstrap"] = {
-            "template_version": PROFILE_TEMPLATE_VERSION,
+            **(metadata.get("installation_bootstrap") or {}),
             "managed_entry_version": entry.version + 1,
         }
         memory = MemoryEntryService(
@@ -193,26 +194,40 @@ class InstallationPersonalizationService:
         )
 
 
-def render_profile_document(display_name: str | None) -> str:
-    """Render the bootstrap template, filling the managed preferred name into Basics."""
+def with_preferred_name(content: str, display_name: str | None) -> str:
+    """Set, replace or remove the managed ``Preferred name:`` line in any profile text.
 
+    An existing line is updated in place. A new line goes under a ``Basics``
+    heading when there is one, otherwise under the first heading, otherwise at
+    the top, so the result does not depend on the bootstrap template's wording.
+    """
+
+    lines = content.splitlines(keepends=True)
+    existing = next((i for i, line in enumerate(lines) if line.startswith(_PREFERRED_NAME_PREFIX)), None)
     if not display_name:
-        return PROFILE_TEMPLATE_V2
-    return PROFILE_TEMPLATE_V2.replace(
-        _PROFILE_BASICS_HINT,
-        f"Preferred name: {display_name}\nPronouns, languages, location or time zone.",
-        1,
-    )
+        if existing is not None:
+            del lines[existing]
+        return "".join(lines)
+    name_line = f"{_PREFERRED_NAME_PREFIX} {display_name}\n"
+    if existing is not None:
+        lines[existing] = name_line
+        return "".join(lines)
+    headings = [i for i, line in enumerate(lines) if _HEADING_RE.match(line)]
+    basics = next((i for i in headings if _BASICS_HEADING_RE.match(lines[i].rstrip("\n"))), None)
+    anchor = basics if basics is not None else (headings[0] if headings else None)
+    if anchor is None:
+        return name_line + content
+    if not lines[anchor].endswith("\n"):
+        lines[anchor] += "\n"
+    lines.insert(anchor + 1, name_line)
+    return "".join(lines)
 
 
-def _is_bootstrap_managed(entry: MemoryEntry, *, current_display_name: str | None) -> bool:
+def _is_bootstrap_managed(entry: MemoryEntry) -> bool:
+    """A profile stays managed until any other write moves it past the last managed version."""
+
     bootstrap = (entry.metadata or {}).get("installation_bootstrap")
-    return (
-        isinstance(bootstrap, dict)
-        and bootstrap.get("template_version") == PROFILE_TEMPLATE_VERSION
-        and bootstrap.get("managed_entry_version") == entry.version
-        and entry.content == render_profile_document(current_display_name)
-    )
+    return isinstance(bootstrap, dict) and bootstrap.get("managed_entry_version") == entry.version
 
 
 __all__ = [
@@ -221,5 +236,5 @@ __all__ = [
     "InstallationPersonalizationResult",
     "InstallationPersonalizationService",
     "InstallationPrincipalMismatchError",
-    "render_profile_document",
+    "with_preferred_name",
 ]

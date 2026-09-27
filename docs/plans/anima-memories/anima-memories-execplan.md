@@ -198,6 +198,11 @@ Planning findings at `410425e` (unchanged at `b633af1`):
   under the best fit; Reflection uses the template's headings, read from
   `ANIMA_MEMORIES_TEMPLATE`, only when the file has none. Spec R5 wording updated
   to match.
+- 2026-09-26, owner: first-run personalization must not depend on the
+  `PROFILE.md` template text. `with_preferred_name` replaces an existing
+  `Preferred name:` line or inserts one under a Basics heading, the first
+  heading or the top; the file counts as managed while its
+  `managed_entry_version` equals its version, whatever template it came from.
 - 2026-09-26, plan design: one branch and one PR; four phases ordered by
   dependency. Implementation details may change with evidence within the spec.
 

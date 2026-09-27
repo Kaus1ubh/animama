@@ -765,8 +765,8 @@ system instruction context. Anima identity is always required, and
 anima-scoped identity entries with
 `description = "Initial identity of {anima.display_name}"`. The local
 installation bootstrap creates a private user-scope `PROFILE.md` from template
-version 2; first-run personalization writes the `Preferred name:` line in its
-Basics section only while the template metadata and version still match. AI
+version 2; first-run personalization sets its `Preferred name:` line only while
+nothing else has edited the file since the last managed write. AI
 memory tools are runtime-scoped to user-scope file entries plus the active
 Anima's own `MEMORIES.md` through the `[self]/MEMORIES.md` alias, and are
 executed through application services, not provider clients.
