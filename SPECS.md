@@ -146,8 +146,10 @@ tests together. Agents may revise implementation details within the accepted
 scope without repeating product approval. Retain any explicit verification gates
 already recorded in a plan unless the owner changes or waives them.
 
-Close the parent only after its acceptance and required owner verification, or
-an explicit cancellation/deferral decision. Merged sub-issues alone are insufficient.
+The PR that delivers the full plan closes the parent. Outstanding owner checks are
+recorded in the PR and plan rather than holding the parent open; a failed check
+becomes a new bug or follow-up issue. Close an undelivered parent only on an
+explicit cancellation or deferral decision.
 Update current guidance when the delivered change leaves it incomplete or
 misleading; record significant choices in ADRs. Retain the spec as delivery
 history, not a competing current-system manual. Keep public-safe execution evidence and dated decision summaries in the

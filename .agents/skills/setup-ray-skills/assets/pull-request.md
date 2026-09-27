@@ -4,8 +4,8 @@
 
 ## Related work
 
-<!-- Owning spec/issues, requirements and delivered phases. Close only work fully
-delivered by this PR. Explain an incidental-change exception where applicable. -->
+<!-- Owning spec/issues, requirements and delivered phases. Close the parent and
+every phase issue this PR implements, even with owner checks pending. Explain an incidental-change exception where applicable. -->
 
 ## Spec
 

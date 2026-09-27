@@ -6,8 +6,9 @@
 
 <!-- Link the parent/phase issues and relevant acceptance criteria; identify delivered
 and deferred phases. Use one PR per plan in this repository. For an issue-free incidental
-correction, state why the exception applies. Close only issues fully delivered by
-this PR; a partial child PR must not close its parent. No private-plan prerequisite. -->
+correction, state why the exception applies. Close the parent and every phase issue
+this PR implements, even with owner checks pending (list them under limitations);
+a partial child PR must not close its parent. No private-plan prerequisite. -->
 
 ## Spec
 
