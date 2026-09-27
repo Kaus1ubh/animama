@@ -2220,3 +2220,19 @@ async def test_openai_responses_client_sends_function_call_outputs_with_cursor()
             "output": '{"ok":true,"content":"Profile content"}',
         }
     ]
+
+
+@pytest.mark.asyncio
+async def test_missing_streamed_usage_is_estimated_and_marked() -> None:
+    fake_openai = _FakeOpenAIClient([_sdk_chunk(content="Hello there"), _sdk_chunk(finish_reason="stop")])
+    client = OpenAIChatCompletionsModelClient(api_key="sk-test", client=fake_openai)  # type: ignore[arg-type]
+
+    deltas = await _collect(client.stream(_spec(connection=_owner_connection("huggingface"))))
+
+    final = _public_deltas(deltas)[-2].final
+    assert final is not None
+    assert final.raw_provider_metadata["usage_missing"] is True
+    assert final.raw_provider_metadata["usage_estimated"] is True
+    assert final.usage.output_tokens == 3
+    assert final.usage.input_tokens > 0
+    assert final.usage.total_tokens == final.usage.input_tokens + final.usage.output_tokens

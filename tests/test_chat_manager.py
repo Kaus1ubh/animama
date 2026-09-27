@@ -18,7 +18,7 @@ from animama.app.services.chat_title_generation_service import sanitize_generate
 from animama.domain.chat import Chat, ChatMessage, MessageRole
 from animama.domain.chat_compaction import ChatCompaction
 from animama.domain.usage import Usage, UsageOutputDetails
-from animama.orm import ORMAnima
+from animama.orm import ORMAnima, ORMChat
 
 
 def _chat_manager(async_session) -> ChatManager:
@@ -869,3 +869,44 @@ async def test_chat_manager_ignores_active_compaction_without_summary_or_boundar
 
     assert context.active_compaction is None
     assert [message.content for message in context.messages] == ["visible user", "visible assistant"]
+
+
+async def test_chat_manager_active_context_uses_the_last_request_footprint(async_session):
+    """A turn with several requests bills them all but keeps only the last in context."""
+
+    await _sync_model_catalog(async_session)
+    async_session.add(ORMAnima(id="anima-chat-context", user_id="user-1"))
+    await async_session.commit()
+    manager = _chat_manager(async_session)
+    await manager.ensure_owned_chat(anima_id="anima-chat-context", chat_id="chat-context-1", user_id="user-1")
+
+    def _message(role: MessageRole, *, data=None, usage=None) -> ChatMessage:  # noqa: ANN001
+        return ChatMessage(
+            id=None,
+            chat_id="chat-context-1",
+            run_id="run-context",
+            message_type="message",
+            role=role,
+            content="text",
+            data=data,
+            usage=usage,
+            turn=None,
+            created_at=None,
+            internal=False,
+        )
+
+    await manager.record_turn(
+        anima_id="anima-chat-context",
+        chat_id="chat-context-1",
+        user_msg=_message(MessageRole.USER),
+        assistant_msg=_message(
+            MessageRole.ASSISTANT,
+            data={"model_client": {"raw_provider_metadata": {"context_tokens": 16}}},
+            usage=Usage(input_tokens=35, output_tokens=6, total_tokens=41),
+        ),
+    )
+
+    chat = await async_session.get(ORMChat, "chat-context-1")
+    assert chat is not None
+    assert chat.cum_total_tokens == 41
+    assert chat.active_context_tokens == 16

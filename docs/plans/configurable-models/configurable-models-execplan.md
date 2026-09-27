@@ -88,7 +88,8 @@ Standing rules:
       pass; commit recorded below).
 - [x] Phase 2: owner management API, probe and composition boundary (review
       #2 pass; commit recorded below).
-- [ ] Phase 3: Chat Completions turn parity and errors.
+- [x] Phase 3: Chat Completions turn parity and errors (review #2 pass; commit
+      recorded below).
 - [ ] Phase 4: model roles and fully local operation.
 - [ ] Phase 5: App Settings, model selector and desktop keys.
 - [ ] Phase 6: documentation, decisions and acceptance gates G1–G3.
@@ -852,15 +853,107 @@ changed.
 
 Completion: tests pass; review has no blocker.
 
-Phase record: issue #167; starting source —; commits —.
+Phase record: issue #167; starting source `d9b3b43`; commit PHASE3SHA.
+
+Implementation notes (agent, within scope):
+
+- Error details come from one helper (`model_error_details`) at the point the
+  executor emits the error event; `provider` becomes the connection preset.
+- The split turn discards the unconstrained answer of the last tool round and
+  asks again under the response format without tools; only that round
+  streams public text.
+- Per-connection timeouts were already applied in Phase 1 (client and
+  request); no further change.
+- Usage estimates use about four characters per token over the serialized
+  messages and tools and are marked `usage_estimated` in the message's
+  provider metadata; `active_context_tokens` then advances, so post-response
+  compaction can trigger.
+
+Evidence (pre-review, working tree on `d9b3b43`):
+
+- `make check-test`: 1990 passed, 7 skipped.
+- SDK regenerated and current; `pnpm check` passes.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `d9b3b43`. Its checks (ruff, format check, boundary imports, mypy, 263
+focused tests, SDK currency) pass; a scratch probe exercised the split turn.
+
+- **P3-R1-F1 (blocking)** — the split turn stored usage summed over every
+  request on the final message, and `active_context_tokens` used it, so the
+  prompt counted at least twice and compaction ran far too early.
+- **P3-R1-F2 (blocking)** — no test showed an estimated usage reaching
+  `active_context_tokens` and triggering compaction.
+- **P3-R1-F3** — the split test's plain-text draft would never stream anyway.
+- **P3-R1-F4** — the split could apply to Responses rows, where moderation,
+  stale-cursor retries and continuation assume one request shape.
+- **P3-R1-F5** — the structured-round request duplicated the forced-final
+  builder; error details guessed "OpenAI" when a connection was not loaded.
+- **P3-R1-F6** — an unreachable validation branch and a stale comment.
+- **P3-R1-F7** — five categories untested at route level; usage/cursor and the
+  chat payload field not asserted.
+- **P3-R1-F8** — `string_above_max_length` and server errors could be read as
+  context exceeded.
+- **P3-R1-F9** (observation) — attachments are silently dropped on tool-less
+  models (they cannot call the file tool).
+- **P3-R1-F10** (minor) — estimate ignores tool-call arguments and the schema.
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** The final result records `context_tokens` (the last
+  request's prompt and reply) in provider metadata; `ChatManager` uses it for
+  `active_context_tokens` and keeps summed usage for cumulative counters. This
+  also corrects the existing tool-round case. The split test asserts 41 billed
+  and 16 in context.
+- **F2 accepted.** A route test sends a real Chat Completions adapter a stream
+  without usage and shows the estimate persisted as `usage_estimated`,
+  `active_context_tokens` above zero and compaction triggered at that value.
+  The plan's reasoning-privacy and guardrail-with-folding tests map to
+  existing coverage (`test_openai_chat_completions_client_keeps_reasoning_content_private`,
+  `tests/test_companion_guardrail.py`, and the executor folding tests).
+- **F3 accepted.** The discarded draft is a well-formed structured reply with
+  distinct speech.
+- **F4 accepted.** Only Chat Completions rows split; the no-tools request never
+  repeats moderation. A test shows a Responses row is not split.
+- **F5 accepted.** One `_model_request_without_tools` builder serves the
+  structured round and the forced final (which adds the limit instruction and
+  guardrail). Error details name a connection only when it is loaded.
+- **F6 accepted.** Removed the unreachable branch; the comment describes
+  narrowing.
+- **F7 accepted.** The route test covers all ten categories and asserts
+  cumulative usage and the cursor stay unchanged; chat API tests assert the new
+  field.
+- **F8 accepted.** Only OpenAI's `context_length_exceeded` code counts, and the
+  message heuristic applies to rejected requests only.
+- **F9 deferred to Phase 5.** The composer will say attachments need a model
+  with tool calling.
+- **F10 rejected.** A rough estimate is the stated intent; the omissions are
+  small beside the prompt.
+
+After repairs: `make check-test` 1997 passed, 7 skipped.
+
+#### Code Review #2 Findings
+
+Reviewer: the same independent reviewer, targeted recheck. Result: **pass**.
+F1–F8 are resolved (a probe through the real `ChatManager` confirmed 41 billed
+and 16 in context), F9's deferral and F10's rejection are accepted, and no
+regression was found. Checks: ruff, format check, boundary imports, mypy, 287
+focused tests and SDK currency.
+
+- **P3-R2-F1** (optional) — no direct `ChatManager` test for recorded context
+  tokens.
+- **P3-R2-F2** (optional) — an unused `previous_final` parameter.
+- **P3-R2-F3** (naming nit) — context-token helpers live in the estimate module.
+
+#### Code Review #2 Revisions
+
+- **P3-R2-F1 accepted.** Added
+  `test_chat_manager_active_context_uses_the_last_request_footprint`.
+- **P3-R2-F2 accepted.** Removed the parameter.
+- **P3-R2-F3 rejected.** Both helpers describe request token accounting and sit
+  beside the estimate that feeds them; moving them adds churn only.
+- `make check-test`: 1998 passed, 7 skipped. One repair round used; one remains.
 
 ### Phase 4 — Model roles and fully local operation
 

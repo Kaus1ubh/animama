@@ -18,6 +18,7 @@ from animama.app.model_clients import (
     model_client_request_log_context,
 )
 from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver, ModelCredentialResolver
+from animama.app.model_clients.usage_estimate import estimate_usage
 from animama.domain.model_connection import ModelConnection
 from animama.domain.usage import Usage
 from animama.logging import get_logger
@@ -212,9 +213,11 @@ class OpenAIChatCompletionsModelClient:
                 raise model_client_error_from_openai_info(info) from exc
             break
 
+        final_text = "".join(parts)
         if not usage_seen:
             metadata["usage_missing"] = True
-        final_text = "".join(parts)
+            metadata["usage_estimated"] = True
+            usage = estimate_usage(spec.prompt, final_text)
         tool_calls = tool_calls_from_parts(tool_call_parts)
         _log.info(
             "OpenAI Chat Completions stream final prepared",

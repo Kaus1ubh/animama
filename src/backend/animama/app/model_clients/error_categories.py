@@ -7,6 +7,10 @@ and suggest a fix without exposing provider bodies or credentials.
 
 from __future__ import annotations
 
+import re
+from collections.abc import Mapping
+from typing import Any
+
 ERROR_UNREACHABLE = "unreachable"
 ERROR_CREDENTIAL_MISSING = "credential_missing"
 ERROR_CREDENTIAL_REJECTED = "credential_rejected"
@@ -40,10 +44,34 @@ _CATEGORY_BY_CODE = {
 }
 
 
-def model_error_category(code: str | None) -> str:
-    """Return the neutral category for an adapter error code."""
+# Rejections for prompts larger than the served context window. OpenAI reports
+# the code; llama.cpp, vLLM, LM Studio and others only describe it.
+_CONTEXT_EXCEEDED_CODES = frozenset({"context_length_exceeded"})
+_CONTEXT_EXCEEDED_MESSAGE = re.compile(
+    r"context (length|window|size)|maximum context|exceeds? the (available )?context|"
+    r"too many tokens|prompt is too long|n_ctx|input is too long",
+    re.IGNORECASE,
+)
 
-    return _CATEGORY_BY_CODE.get(code or "", ERROR_PROVIDER_ERROR)
+
+def model_error_category(code: str | None, metadata: Mapping[str, Any] | None = None) -> str:
+    """Return the neutral category for an adapter error code and its sanitized metadata."""
+
+    category = _CATEGORY_BY_CODE.get(code or "", ERROR_PROVIDER_ERROR)
+    # Only a rejected request can mean an oversized prompt; a server error that
+    # mentions "context" (for example a failed model load) keeps its category.
+    if category in {ERROR_BAD_REQUEST, ERROR_PROVIDER_ERROR} and _context_exceeded(metadata):
+        return ERROR_CONTEXT_EXCEEDED
+    return category
+
+
+def _context_exceeded(metadata: Mapping[str, Any] | None) -> bool:
+    if not metadata:
+        return False
+    if metadata.get("provider_error_code") in _CONTEXT_EXCEEDED_CODES:
+        return True
+    message = metadata.get("provider_error_message")
+    return isinstance(message, str) and bool(_CONTEXT_EXCEEDED_MESSAGE.search(message))
 
 
 __all__ = [

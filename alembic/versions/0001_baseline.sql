@@ -346,6 +346,7 @@ CREATE TABLE chats (
     api_standard character varying,
     last_model_client character varying,
     last_model_id character varying,
+    last_model_provider_id character varying,
     openai_previous_response_id character varying,
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     cum_input_tokens integer DEFAULT 0 NOT NULL,

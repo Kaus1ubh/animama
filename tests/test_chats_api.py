@@ -155,6 +155,7 @@ async def test_create_chat_for_owned_anima_succeeds(async_session) -> None:
     assert response.model_dump()["api_standard"] is None
     assert response.model_dump()["last_model_client"] is None
     assert response.model_dump()["last_model_id"] is None
+    assert response.model_dump()["last_model_provider_id"] is None
 
 
 @pytest.mark.asyncio
@@ -173,6 +174,7 @@ async def test_chat_repository_round_trips_api_standard_fields(async_session) ->
             api_standard="responses",
             last_model_client="openai_responses",
             last_model_id="gpt-5-responses",
+            last_model_provider_id="owner:gpt-5-responses",
         )
     )
     fetched = await repo.get(chat_id)
@@ -184,6 +186,7 @@ async def test_chat_repository_round_trips_api_standard_fields(async_session) ->
     assert fetched.api_standard == "responses"
     assert fetched.last_model_client == "openai_responses"
     assert fetched.last_model_id == "gpt-5-responses"
+    assert fetched.last_model_provider_id == "owner:gpt-5-responses"
 
     updated = await repo.update(
         Chat(

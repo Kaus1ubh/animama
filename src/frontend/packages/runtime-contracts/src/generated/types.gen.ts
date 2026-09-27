@@ -2961,6 +2961,10 @@ export type PyChatResponse = {
      */
     last_model_id?: string | null;
     /**
+     * Last Model Provider Id
+     */
+    last_model_provider_id?: string | null;
+    /**
      * Metadata
      */
     metadata?: {

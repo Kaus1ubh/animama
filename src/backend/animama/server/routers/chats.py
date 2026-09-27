@@ -41,6 +41,7 @@ def _to_schema(chat: Chat, *, last_message_at: datetime | None = None) -> PyChat
         api_standard=chat.api_standard,
         last_model_client=chat.last_model_client,
         last_model_id=chat.last_model_id,
+        last_model_provider_id=chat.last_model_provider_id,
         metadata=chat.metadata or {},
         created_at=chat.created_at,
         updated_at=chat.updated_at,

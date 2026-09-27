@@ -2661,6 +2661,7 @@ async def test_chat_sse_owner_connection_row_initializes_chat_completions_and_pe
     assert chat.api_standard == "chat_completions"
     assert chat.last_model_client == "openai_chat_completions"
     assert chat.last_model_id == "deepseek-v4-flash"
+    assert chat.last_model_provider_id == model_provider_id
 
 
 @pytest.mark.asyncio
@@ -4363,3 +4364,168 @@ async def test_chat_sse_cleans_up_when_stream_closes_early(monkeypatch) -> None:
 
     assert session.close_calls == 1
     assert model_client.close_calls == 0
+
+
+class _FailingRouteModelClient(_RouteModelClient):
+    def __init__(self, error: ModelClientProviderError) -> None:
+        super().__init__()
+        self.error = error
+
+    async def stream(self, spec: ModelClientRequest):  # noqa: ANN201
+        self.seen_specs.append(spec)
+        raise self.error
+        yield  # pragma: no cover
+
+
+@pytest.mark.parametrize(
+    ("code", "metadata", "category"),
+    [
+        ("openai_connection_error", {}, "unreachable"),
+        ("openai_authentication_error", {"status_code": 401}, "credential_rejected"),
+        ("openai_not_found", {"status_code": 404}, "model_not_found"),
+        ("openai_timeout", {}, "timeout"),
+        (
+            "openai_bad_request",
+            {"status_code": 400, "provider_error_message": "the request exceeds the available context size"},
+            "context_exceeded",
+        ),
+        ("missing_api_key", {}, "credential_missing"),
+        ("openai_rate_limit", {"status_code": 429}, "rate_limited"),
+        ("openai_quota_exceeded", {"status_code": 429}, "quota_exceeded"),
+        ("openai_server_error", {"status_code": 500}, "server_error"),
+        ("openai_bad_request", {"status_code": 400, "provider_error_message": "Unsupported parameter"}, "bad_request"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_chat_sse_provider_failures_name_the_connection_and_leave_the_chat_unchanged(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+    code,
+    metadata,
+    category,
+) -> None:
+    suffix = f"{code}-{category}".replace("_", "-")
+    anima_id = f"anima-db-failure-{suffix}"
+    chat_id = f"chat-db-failure-{suffix}"
+    connection_id = f"conn-failure-{suffix}"
+    model_provider_id = f"owner:failure-{suffix}"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(id=chat_id, anima_id=anima_id, user_id="user-1", api_standard="chat_completions", metadata_={})
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_owner_connection(
+        async_session, connection_id, preset="ollama", base_url="http://127.0.0.1:11434/v1", name="Ollama"
+    )
+    await _seed_chat_model_provider(
+        async_session,
+        model_provider_id,
+        provider_type="OpenAIHTTPAgent",
+        model="qwen3:8b",
+        connection_id=connection_id,
+        source="owner",
+        supports_reasoning=None,
+        supported_reasoning_efforts=[],
+        native_tool_support=[],
+    )
+    before = await async_session.get(ORMChat, chat_id)
+    assert before is not None
+    next_turn_before = before.next_turn
+    usage_before = before.cum_total_tokens
+    model_client = _FailingRouteModelClient(
+        ModelClientProviderError("provider failed", code=code, raw_metadata={"provider": "openai", **metadata})
+    )
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id=f"run-{suffix}", chat_id=chat_id, model_provider_id=model_provider_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    error = _event_data(chunks, "error")
+    assert error["code"] == code
+    assert error["details"]["category"] == category
+    assert error["details"]["connection_name"] == "Ollama"
+    assert error["details"]["connection_preset"] == "ollama"
+    assert error["details"]["provider"] == "ollama"
+    assert sum(1 for chunk in chunks if "event: run.completed" in chunk) == 1
+    async_session.expire_all()
+    rows = (
+        (await async_session.execute(select(ORMChatMessage).where(ORMChatMessage.chat_id == chat_id))).scalars().all()
+    )
+    assert rows == []
+    after = await async_session.get(ORMChat, chat_id)
+    assert after is not None
+    assert after.next_turn == next_turn_before
+    assert after.cum_total_tokens == usage_before
+    assert after.openai_previous_response_id is None
+    assert after.last_model_provider_id is None
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_estimated_usage_advances_context_and_triggers_compaction(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    """A server that streams no usage still grows the context and compacts."""
+
+    from animama.adapters.model_clients import OpenAIChatCompletionsModelClient
+    from tests.test_model_client_registry import _FakeOpenAIClient, _sdk_chunk
+
+    anima_id = "anima-db-estimated-usage"
+    chat_id = "chat-db-estimated-usage"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(
+        ORMChat(id=chat_id, anima_id=anima_id, user_id="user-1", api_standard="chat_completions", metadata_={})
+    )
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    await _seed_default_chat_model_provider(async_session)
+    await _seed_visible_chat_messages(
+        async_session,
+        chat_id=chat_id,
+        contents=["old-user-1", "old-assistant-1", "old-user-2", "old-assistant-2"],
+    )
+    reply = _direct_structured_response(speech="estimated")
+    adapter = OpenAIChatCompletionsModelClient(
+        api_key="sk-test",
+        client=_FakeOpenAIClient([_sdk_chunk(content=reply), _sdk_chunk(finish_reason="stop")]),  # type: ignore[arg-type]
+    )
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=adapter)  # type: ignore[arg-type]
+    _install_route_compaction_mocks(monkeypatch, summary="Earlier talk.", usage=Usage(total_tokens=5))
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="hello", run_id="run-db-estimated-usage", chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    async_session.expire_all()
+    chat = await async_session.get(ORMChat, chat_id)
+    assert chat is not None and chat.active_context_tokens > 0
+    assistant = (
+        (
+            await async_session.execute(
+                select(ORMChatMessage)
+                .where(ORMChatMessage.chat_id == chat_id, ORMChatMessage.role == "assistant")
+                .order_by(ORMChatMessage.turn.desc())
+            )
+        )
+        .scalars()
+        .first()
+    )
+    assert assistant is not None
+    assert assistant.message_data["model_client"]["raw_provider_metadata"]["usage_estimated"] is True
+    compaction = (
+        await async_session.execute(select(ORMChatCompaction).where(ORMChatCompaction.chat_id == chat_id))
+    ).scalar_one()
+    assert compaction.metadata_["trigger_active_context_tokens"] == chat.active_context_tokens

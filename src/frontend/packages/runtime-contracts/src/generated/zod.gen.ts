@@ -4570,6 +4570,10 @@ export const zPyChatResponse = z.object({
         z.string(),
         z.null()
     ])),
+    last_model_provider_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
     metadata: z.optional(z.union([
         z.record(z.string(), z.unknown()),
         z.null()

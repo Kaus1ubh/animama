@@ -66,6 +66,7 @@ class ChatService:
             api_standard=current.api_standard,
             last_model_client=current.last_model_client,
             last_model_id=current.last_model_id,
+            last_model_provider_id=current.last_model_provider_id,
             openai_previous_response_id=current.openai_previous_response_id,
             metadata=metadata if metadata is not None else current.metadata,
             created_at=current.created_at,

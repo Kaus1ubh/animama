@@ -1838,7 +1838,14 @@ async def test_direct_turn_provider_error_emits_error_and_skips_persistence() ->
 
     assert [event.type for event in events] == [EventType.ERROR]
     assert events[0].payload.code == "provider_failed"
-    assert events[0].payload.details == {"provider": "fake"}
+    # Details name the connection and a neutral category instead of the adapter's label.
+    assert events[0].payload.details == {
+        "provider": "openai",
+        "category": "provider_error",
+        "connection_id": "openai",
+        "connection_name": "OpenAI",
+        "connection_preset": "openai",
+    }
     assert chats.record_turn_calls == []
 
 
@@ -2806,3 +2813,98 @@ async def test_moderation_is_ignored_when_not_requested() -> None:
 
     assert EventType.CRISIS_SUPPORT not in [event.type for event in events]
     assert model_client.seen_specs[0].provider_options.moderation_model is None
+
+
+def _tool_names(spec: ModelClientRequest) -> list[str]:
+    return [_function_tool(tool)["function"]["name"] for tool in spec.prompt.tools]
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_runs_a_tool_less_model_without_memory_tools() -> None:
+    model_client = _FinalModelClient(_structured_response(speech="No tools needed."))
+    provider = _provider(supports_tools=False)
+    executor, chats = _executor(client=model_client, provider=provider, memory_tool_service=_FakeMemoryToolService())
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    assert EventType.ERROR not in [event.type for event in events]
+    assert model_client.seen_specs[0].prompt.tools == ()
+    assert len(chats.record_turn_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_offers_only_read_tools_when_memory_writes_are_off() -> None:
+    model_client = _FinalModelClient(_structured_response(speech="Reading only."))
+    provider = _provider()
+    provider.allow_memory_writes = False
+    executor, _chats = _executor(client=model_client, provider=provider, memory_tool_service=_FakeMemoryToolService())
+
+    await _collect(executor.stream_turn(_request()))
+
+    names = _tool_names(model_client.seen_specs[0])
+    assert names == ["memory_list_files", "memory_read_files", "search_memory_files"]
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_splits_tool_rounds_from_the_structured_reply_when_the_server_needs_it() -> None:
+    tool_final = ModelClientFinal(
+        text="",
+        usage=Usage(requests=1, input_tokens=10, output_tokens=1, total_tokens=11),
+        tool_calls=(
+            ModelClientToolCall(id="call-1", name="memory_read_files", arguments=json.dumps({"paths": "profile.md"})),
+        ),
+    )
+    unconstrained_final = ModelClientFinal(
+        # A well-formed draft proves tool rounds do not stream public text.
+        text=_structured_response(speech="DRAFT SPEECH"),
+        usage=Usage(requests=1, input_tokens=12, output_tokens=2, total_tokens=14),
+    )
+    structured_final = ModelClientFinal(
+        text=_structured_response(speech="Structured reply."),
+        usage=Usage(requests=1, input_tokens=13, output_tokens=3, total_tokens=16),
+    )
+    model_client = _ScriptedModelClient([tool_final, unconstrained_final, structured_final])
+    provider = _provider()
+    provider.capabilities.tools_with_structured_output = False
+    executor, chats = _executor(client=model_client, provider=provider, memory_tool_service=_FakeMemoryToolService())
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    first, second, third = model_client.seen_specs
+    assert first.prompt.tools and first.prompt.response_format is None
+    assert second.prompt.tools and second.prompt.response_format is None
+    assert third.prompt.tools == () and third.prompt.response_format is not None
+    streamed = " ".join(
+        str(getattr(event.payload, "value", "") or "") for event in events if event.type == EventType.USER_RESPONSE
+    )
+    assert "DRAFT SPEECH" not in streamed
+    assert "Structured reply." in streamed
+    final_message = chats.record_turn_calls[0]["assistant_msg"][-1]
+    # Every request is billed; only the structured round stays in the next turn's context.
+    assert final_message.usage.total_tokens == 41
+    assert final_message.data["model_client"]["raw_provider_metadata"]["context_tokens"] == 16
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_sends_tools_and_the_structured_reply_together_when_supported() -> None:
+    model_client = _FinalModelClient(_structured_response(speech="Together."))
+    executor, _chats = _executor(client=model_client, memory_tool_service=_FakeMemoryToolService())
+
+    await _collect(executor.stream_turn(_request()))
+
+    assert len(model_client.seen_specs) == 1
+    spec = model_client.seen_specs[0]
+    assert spec.prompt.tools and spec.prompt.response_format is not None
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_does_not_split_responses_rows() -> None:
+    model_client = _FinalModelClient(_structured_response(speech="One request."))
+    provider = _provider(provider_type="OpenAIResponsesHTTPAgent")
+    provider.capabilities.tools_with_structured_output = False
+    executor, _chats = _executor(client=model_client, provider=provider, memory_tool_service=_FakeMemoryToolService())
+
+    await _collect(executor.stream_turn(_request()))
+
+    assert len(model_client.seen_specs) == 1
+    assert model_client.seen_specs[0].prompt.response_format is not None

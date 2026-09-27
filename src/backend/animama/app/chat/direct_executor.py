@@ -38,7 +38,13 @@ from animama.domain.events import Event
 from animama.logging import get_logger
 
 from .api_standard import chat_api_standard_for_provider
-from .direct_turn.events import avatar_gesture_event, crisis_support_event, error_event, user_response_event
+from .direct_turn.events import (
+    avatar_gesture_event,
+    crisis_support_event,
+    error_event,
+    model_error_details,
+    user_response_event,
+)
 from .direct_turn.message_builders import (
     assistant_messages_for_persistence,
     chat_metadata_patch_from_prompt,
@@ -49,6 +55,7 @@ from .direct_turn.provider_state import (
     build_memory_tool_config,
     build_model_client_provider_options,
     compiled_context_history,
+    memory_tool_config_for_model,
     native_memory_apply_patch_enabled,
     openai_responses_continuation_from_chat,
     should_skip_context_fetch_for_responses_cursor,
@@ -327,14 +334,16 @@ class DirectChatTurnExecutor:
             native_tools=list(request.options.native_tools),
             reasoning_effort=request.options.reasoning_effort,
         )
-        # Memory tools are request-scoped. Incognito and memory-disable flags are
-        # applied before provider validation so unsupported tool combinations are
-        # rejected before opening any upstream stream.
+        # Memory tools are request-scoped. Incognito and memory-disable flags,
+        # then the selected model's tool support and write opt-out, narrow them
+        # before provider validation so the upstream request never offers tools
+        # the model cannot use.
         memory_tool_config = build_memory_tool_config(
             request.options,
             enabled=self._memory_tool_service is not None,
         )
         model_provider = await self._resolve_model_provider(request)
+        memory_tool_config = memory_tool_config_for_model(memory_tool_config, model_provider)
         api_standard_profile = chat_api_standard_for_provider(model_provider)
         if api_standard_profile is None:
             raise DirectChatTurnSetupError(f"chat_api_standard_unsupported: {model_provider.id}")
@@ -533,7 +542,7 @@ class DirectChatTurnExecutor:
                 prepared.request,
                 message=exc.error.message,
                 code=exc.error.code or "model_client_error",
-                details=dict(exc.error.raw_metadata),
+                details=model_error_details(exc.error, prepared.model_request.model_provider),
             )
             return
         if final is not None and prepared.model_request.provider_options.moderation_model is not None:
@@ -712,6 +721,7 @@ class DirectChatTurnExecutor:
                 chat_metadata_patch=chat_metadata_patch_from_prompt(prepared.model_request.prompt),
                 last_model_client=api_standard_profile.model_client,
                 last_model_id=prepared.model_request.model_provider.model,
+                last_model_provider_id=prepared.model_request.model_provider.id,
             )
             _log.info(
                 "Direct chat turn persistence completed",

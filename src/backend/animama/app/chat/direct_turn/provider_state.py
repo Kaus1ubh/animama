@@ -44,6 +44,26 @@ class MemoryToolConfig:
         return self.allow_reads or self.allow_writes
 
 
+def memory_tool_config_for_model(config: MemoryToolConfig, model_provider: ModelProvider) -> MemoryToolConfig:
+    """Limit memory tools to what the selected model can use.
+
+    A model without tool calling chats without memory tools rather than failing
+    the turn, and a model whose owner turned off memory writes gets read tools
+    only.
+    """
+
+    if not config.active:
+        return config
+    if (
+        not model_provider.capabilities.supports_tools
+        or model_provider.provider_type not in DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER
+    ):
+        return MemoryToolConfig(allow_reads=False, allow_writes=False)
+    if not model_provider.allow_memory_writes:
+        return MemoryToolConfig(allow_reads=config.allow_reads, allow_writes=False)
+    return config
+
+
 def normalized_string_set(value: object) -> set[str]:
     """Coerce catalog/request capability values into a normalized string set."""
 
@@ -126,14 +146,6 @@ def validate_model_provider_for_direct_turn(
             tools = ", ".join(sorted(missing_tools or requested_native_tools))
             raise DirectChatTurnSetupError(
                 f"Model provider does not support requested native tools {tools}: {model_provider.id}"
-            )
-
-    if memory_tools_active:
-        if not capabilities.supports_tools:
-            raise DirectChatTurnSetupError(f"Model provider does not support memory tools: {model_provider.id}")
-        if model_provider.provider_type not in DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER:
-            raise DirectChatTurnSetupError(
-                f"Model provider does not support direct memory tools: {model_provider.provider_type}"
             )
 
 
