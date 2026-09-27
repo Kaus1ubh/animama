@@ -303,7 +303,8 @@ Built self-host shows the same kind of control, backed by the backend's
 [model assets](../../backend/architecture/http-api.md#model-assets)
 (`useModelAssets`, `useModelAssetAction`, asset
 `parakeet-tdt-0.6b-v2-webgpu-encoder`). It shows the download size and the
-server's free space, and disables the download when there is not enough.
+free space where the backend stores downloads, and disables the download when
+there is not enough.
 Progress polls once a second while downloading; cancel, retry and a two-step
 removal follow the API. No reload is needed: the probe refreshes when the
 asset settles, and the next dictation or Voice Mode start loads the encoder.

@@ -172,7 +172,7 @@ function renderAsset(
 describe("self-host GPU speech encoder download", () => {
   it("offers the download with its size and free space once an adapter exists", () => {
     const html = renderAsset();
-    expect(html).toContain("1.2 GB download · 40 GB free on the server");
+    expect(html).toContain("1.2 GB download · 40 GB free for downloads");
     expect(html).toMatch(
       /<button(?![^>]*disabled="")[^>]*>.*Download GPU encoder<\/button>/su,
     );
@@ -222,7 +222,7 @@ describe("self-host GPU speech encoder download", () => {
       const html = renderAsset({ status, asset: installed });
       expect(html).toContain("Remove GPU encoder");
       expect(html).not.toContain("Download GPU encoder");
-      expect(html).not.toContain("free on the server");
+      expect(html).not.toContain("free for downloads");
     }
   });
 

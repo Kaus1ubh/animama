@@ -185,7 +185,7 @@ const ASSET_FAILURE_TEXT: Record<
     "The downloaded file did not match its checksum and was discarded.",
   asset_store_failed:
     "The server could not store the file. Check its data directory, then retry.",
-  asset_insufficient_space: "Not enough free space on the server.",
+  asset_insufficient_space: "Not enough free space for downloads.",
 };
 
 /**
@@ -239,12 +239,12 @@ export function ParakeetWebgpuAssetDownload({
       {!installed && !busy ? (
         <p className="text-muted-foreground text-xs">
           {formatFileSize(asset.size_bytes)} download
-          {measured ? ` · ${formatFileSize(freeBytes)} free on the server` : ""}
+          {measured ? ` · ${formatFileSize(freeBytes)} free for downloads` : ""}
         </p>
       ) : null}
       {!installed && !busy && !enoughSpace ? (
         <p className="text-muted-foreground text-xs" role="status">
-          Not enough free space: the server needs{" "}
+          Not enough free space: downloads need{" "}
           {formatFileSize(asset.required_free_bytes)} free.
         </p>
       ) : null}
