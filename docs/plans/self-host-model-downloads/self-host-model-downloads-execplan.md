@@ -101,12 +101,15 @@ Excluded:
   `feat/self-host-model-downloads` from `main` `4e5f663`.
 - [x] Phase 1 (#173, `54b33dd`): Downloader adopted, extended and cataloged.
   Review #2 passed.
-- [x] Phase 2 (#174): Create-only model publication command with a scan gate.
-  Review #2 passed; the scan and publication are Phase 4.
-- [x] Phase 3 (#175): Built self-host serving and Experimental download control.
-  Review #2 passed after one repair round.
+- [x] Phase 2 (#174, `4086c2a`): Create-only model publication command with a
+  scan gate. Review #2 passed. The model-set scan has also passed (see Phase 3);
+  publication remains Phase 4.
+- [x] Phase 3 (#175, `eb05b80`): Built self-host serving and Experimental
+  download control. Review #2 passed after one repair round.
+- [x] `main` `bf9fe3f` merged into the branch (`9bc8aac`, no conflicts).
+- [x] Final Integration Review #1 of Phases 1–3 on `9bc8aac`: pass.
+- [ ] Owner decision on the `ATTRIBUTION.md` wording (FI-F2), before Phase 4.
 - [ ] Phase 4: R2 publication and built self-host acceptance (owner-gated).
-- [ ] Final integration review.
 
 ## Surprises & Discoveries
 
@@ -233,7 +236,8 @@ Withdrawn alternatives are kept for context.
       verification still follows for every object.
     - The client selects the encoder source with a build define: `pack` for
       embedded desktop, `model-asset` for `vite build` (built self-host) and
-      `operator` for Vite serve. The download control appears only for
+      `operator` for Vite serve without a base-URL override (`null` with
+      one). The download control appears only for
       `model-asset`. Desktop FastAPI still lists the entry, but its client
       never offers it.
     - No removal guard. The worker keeps a loaded session's weights in memory.
@@ -575,15 +579,15 @@ the signed `HEAD` (recorded above), a leftover test comment removed. The shared
 **Completion:** checks pass, and the built stack shows every state except a
 live download. Record that stack's URL here.
 
-**Evidence, commits and review:** to be recorded here.
+**Commits:** phase commit `eb05b80`.
 
 **Status (2026-09-27):** complete. Review #2 passed after one repair round.
 The built stack `animama-selfhost-dl` (http://animama-selfhost-dl.localhost:8400)
 was used for the browser evidence.
 
-**Evidence so far:** `pnpm check` exit 0; `pnpm web:test` 1927 passed, 1
-failed (`app-version.test.ts`, pre-existing on `main`: v0.1.1 bumped desktop
-but not web); `pnpm build` bundle holds the model-asset URL and attribution,
+**Evidence (before the `main` merge):** `pnpm check` exit 0; `pnpm web:test`
+1927 passed, 1 failed (`app-version.test.ts`, then failing on `main`, fixed by
+#179 and passing after the merge); `pnpm build` bundle holds the model-asset URL and attribution,
 no mount path; Compose tests 122 passed; compose config ok. Browser (built
 stack, desktop and tablet widths): download offered with size and free space;
 an unpublished object fails as `asset_download_failed` with Retry; a seeded
@@ -671,8 +675,9 @@ owner holds the R2 credentials. The agent never requests, reads or prints them.
 
 1. **Bucket lock (owner, dashboard).** The owner adds the `models/` lock rule
    (O3) and confirms it here, with the date.
-2. **Scan.** Stage the verified set and run the model scan with the pinned
-   gitleaks binary. Record the receipt's summary.
+2. **Scan.** Done before Phase 4 (see Phase 3): the receipt stays valid
+   while the staged files are unchanged. Restage and rescan if
+   `ATTRIBUTION.md` or any other set file changes (FI-F2).
 3. **Publish (owner-run or owner-approved).** With the owner's credentials in
    their own environment, run:
 
@@ -703,10 +708,48 @@ Pending, covering any code changed during this phase.
 
 ## Final integration review
 
-After Phase 4, an independent reviewer checks the combined acceptance of #163
-and #151 on the final candidate. Phase evidence that is still valid is reused.
-Findings and revisions are recorded here: one full review and at most two
-repair rounds.
+Scope: the authorized Phases 1–3. Phase 4 code or notice changes get Phase 4
+Code Review #1 and continue this final-scope round count (one repair round
+remains unused here) rather than starting a fresh count.
+
+**Candidate evidence on `9bc8aac` (Python 3.12.13, 2026-09-27):**
+
+- `uv run pytest -q` 1961 passed, 7 skipped; `uv run ruff check` and
+  `ruff format --check src tests` clean; import boundary `forbidden_edges: 0`.
+- From `src/frontend`: `pnpm check`, `pnpm web:lint`, `pnpm build`,
+  `pnpm desktop:check` exit 0; `pnpm web:test` 317 files, 1934 tests passed;
+  `pnpm --filter animama-desktop test` 17 files, 331 passed;
+  `pnpm openapi-ts:check` current.
+- `bash -n reset.sh`; `docker compose config --quiet` for base and development.
+- Built stack `animama-selfhost-dl` rebuilt from `9bc8aac`: encoder `HEAD` 404,
+  asset `not_installed` with free space, Experimental shows
+  "1.2 GB download · 436 GB free on the server" and the download button.
+
+### Final Integration Review #1 Findings
+
+Independent `sdlc-reviewer` on `9bc8aac` (baseline `main` `bf9fe3f`): pass.
+Catalog, publication keys and the client URL and asset ID agree; the `main`
+merge left Phase 3 intact; docs are consistent; desktop pack behavior is
+unchanged.
+
+- FI-F1 (required, record only): this plan's progress, commits and evidence
+  were stale for the integrated candidate.
+- FI-F2 (owner decision, gates Phase 4): the tracked `ATTRIBUTION.md` says
+  self-host loads an operator-mounted set and desktop redistributes the file
+  only in the pack. The self-host panel shows it, and Phase 4 would publish it
+  permanently. Editing it changes the manifest digest and the next desktop pack
+  inventory (fresh owner approval), requires reimporting store copies with
+  `acquire --offline --import-from`, and a restage and rescan; the encoder URL
+  and catalog do not change. v0.1.1 already published the current file under
+  `desktop/v0.1.1/`.
+- FI-F3 (optional): the client asset ID was not bound to the catalog by a test.
+
+### Final Integration Review #1 Revisions
+
+- FI-F1 accepted: progress, commits, evidence and this section updated.
+- FI-F2: presented to the owner; no change until decided.
+- FI-F3 accepted: `tests/localParakeetModels.test.ts` asserts the built define's
+  asset ID exists in the packaged catalog.
 
 ## Validation and acceptance
 
