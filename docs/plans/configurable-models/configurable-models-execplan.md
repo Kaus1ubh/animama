@@ -97,8 +97,11 @@ Standing rules:
 - [ ] Phase 6: documentation, decisions and acceptance gates G1–G3
       (documentation, ADR and keys file: review #2 pass, commit recorded
       below; owner gates G1–G3 pending).
-- [ ] Final integration review.
-- [ ] PR, hosted Validation and owner merge approval.
+- [ ] Final integration review (review #2: no blocking findings; the
+      database-backed suite on the merged candidate runs in hosted Validation
+      because the host's Docker engine hung).
+- [ ] PR, hosted Validation and owner merge approval (PR opened; Validation,
+      owner gates G1–G3 and merge approval pending).
 
 ## Surprises & Discoveries
 
@@ -1811,4 +1814,29 @@ Owner gates:
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered (agent), 2026-09-27: R1–R9 and R13 for Plan A.
+
+- The owner adds connections (Ollama, LM Studio, llama.cpp, vLLM, DeepSeek,
+  Hugging Face or custom) and models in App Settings → Models, including a new
+  OpenAI model copied from a built-in template, without code changes or a reset.
+- Chat Completions models give a complete companion turn within their
+  capabilities and fail with a named, categorized error; roles (Utility,
+  Memory Manager, Embeddings) and re-embedding make a fully local installation
+  possible, with no hidden OpenAI calls.
+- Keys stay out of the database: the desktop vault per connection, environment
+  names (and the optional keys file) on self-hosted web.
+- The hosted composition gains nothing configurable; policy is a composition
+  input (ADR 0010).
+
+Pending: hosted Validation, owner gates G1–G3 and merge approval.
+
+Lessons:
+
+- Phase reviews caught real cross-cutting defects (credential routing, the
+  connect timeout, removed-row restore); the documentation pass found another
+  (Anima creation accepting an unsuitable default).
+- Merging `main` mid-plan twice was cheaper than one late merge, but the second
+  still produced a conflict with a fix to deleted code; porting the fix's test
+  kept its intent.
+- The host's Docker engine can hang for long periods; a watchdog `timeout` on
+  every suite kept failures visible instead of stalled.
