@@ -883,12 +883,13 @@ def voice_entries(sources: dict, selection: dict, work: Path) -> list[dict]:
     return entries
 
 
-def voice_notice(sources: dict, selection: dict) -> str:
-    """The attribution section naming every voice and its source recording."""
+def voice_notice(sources: dict, selection: dict, only: list[dict] | None = None) -> str:
+    """The attribution section naming each voice (all, or `only`) and its source recording."""
     kyutai = {voice["name"]: voice for voice in sources["kyutai_voices"]}
     states, clips = sources["kyutai_states"], sources["clips"]
-    precomputed = [v for v in selection["voices"] if not v["source"].startswith("vctk-")]
-    encoded = [v for v in selection["voices"] if v["source"].startswith("vctk-")]
+    listed = selection["voices"] if only is None else only
+    precomputed = [v for v in listed if not v["source"].startswith("vctk-")]
+    encoded = [v for v in listed if v["source"].startswith("vctk-")]
     default = selection["default"]
 
     def label(voice: dict) -> str:
@@ -897,12 +898,17 @@ def voice_notice(sources: dict, selection: dict) -> str:
         )
         return f"{voice['id']} ({', '.join(notes)})" if notes else voice["id"]
 
-    lines = [
-        f"{VOICES_HEADING} ({len(selection['voices'])})",
-        "",
-        "Core voices ship with the app; the others are downloaded on demand from",
-        f"{RELEASE_BASE}/, where each state is published under its own SHA-256.",
-        "",
+    lines = (
+        [
+            f"{VOICES_HEADING} ({len(listed)})",
+            "",
+            "Core voices ship with the app; the others are downloaded on demand from",
+            f"{RELEASE_BASE}/, where each state is published under its own SHA-256.",
+            "",
+        ]
+        if only is None
+        else [f"Voices in this set ({len(listed)})", ""]
+    ) + [
         f"Kyutai precomputed voice states ({len(precomputed)}), redistributed unmodified",
         f"Source: https://huggingface.co/{states['repository']}/tree/{states['revision']}/"
         f"{Path(states['path']).parent}",
@@ -942,21 +948,53 @@ def update_attribution(sources: dict, selection: dict, path: Path = ATTRIBUTION)
 
 
 def voice_set_notices(sources: dict, selection: dict) -> dict[str, str]:
-    """ATTRIBUTION.md and README.md published with the hosted voice set."""
-    attribution = (
-        "# Pocket TTS voice states\n\n"
-        + voice_notice(sources, selection)
-        + ("Kyutai's Pocket TTS model-card prohibited-use terms apply to every voice.\n")
+    """ATTRIBUTION.md and README.md published with the hosted voice set (only its voices)."""
+    hosted = [voice for voice in selection["voices"] if is_hosted(voice)]
+    self_encoded = sum(voice["source"].startswith("vctk-") for voice in hosted)
+    downloadable = sum(voice["delivery"] == "download" for voice in hosted)
+    cc0 = [
+        voice["id"]
+        for voice in hosted
+        if not voice["source"].startswith("vctk-")
+        and next(k for k in sources["kyutai_voices"] if k["name"] == voice["source"])["license"] == "CC0-1.0"
+    ]
+    header = f"""# Pocket TTS voice states hosted by Animama
+
+This set holds {len(hosted)} Pocket TTS `english_2026-04` voice states: {downloadable} that
+the Animama app downloads on demand, and the self-encoded states of core voices
+that ship with the app. {len(hosted) - self_encoded} are Kyutai precomputed states, redistributed
+unmodified; {self_encoded} are encoded by Animama. Other core voices come from Hugging Face
+directly and are not part of this set.
+
+Upstream model: Kyutai Pocket TTS, english_2026-04 checkpoint
+Source: https://huggingface.co/kyutai/pocket-tts
+Pinned model-card revision: 75cfe24e3142233bb81887fed3482e9652bb4a6e
+Model-card license: Creative Commons Attribution 4.0 International (CC BY 4.0)
+Model-card license URL: https://creativecommons.org/licenses/by/4.0/
+
+The Animama-encoded states were computed with this checkpoint's ONNX export by
+KevinAHM/pocket-tts-onnx (revision 58a6d00cf13d239b6748cb0769f35c580a8f606c,
+onnx/english_2026-04; CC BY 4.0, inherited from Kyutai): its FP32 Mimi encoder,
+learned BOS row and INT8 flow LM.
+
+"""
+    basis = (
+        "License basis: every voice state in this set is licensed CC BY 4.0, which permits\n"
+        "commercial use with the attribution above. Kyutai publishes its precomputed states\n"
+        "under CC BY 4.0, and the Animama-encoded states derive from CC BY 4.0 VCTK\n"
+        "recordings."
+        + (f" The recordings behind {', '.join(cc0)} are dedicated CC0 1.0." if cc0 else "")
+        + "\nKyutai's Pocket TTS model-card prohibited-use terms apply to every voice.\n"
     )
     readme = (
         "# Animama Pocket TTS voice set\n\n"
-        "Voice states for Pocket TTS `english_2026-04`, hosted by Animama: its self-encoded\n"
-        "core voices and every voice downloaded on demand. Each file is a precomputed\n"
-        "flow LM voice state (`<voice>.safetensors`). See ATTRIBUTION.md for sources and\n"
-        "licenses; `scripts/voices/voices.py` in the Animama source reproduces the\n"
-        "self-encoded states.\n"
+        "Voice states for Pocket TTS `english_2026-04`, hosted by Animama: the voices its app\n"
+        "downloads on demand and the self-encoded states of its core voices. Each file is a\n"
+        "precomputed flow LM voice state (`<voice>.safetensors`). See ATTRIBUTION.md for\n"
+        "sources and licenses; `scripts/voices/voices.py` in the Animama source reproduces\n"
+        "the self-encoded states.\n"
     )
-    return {"ATTRIBUTION.md": attribution, "README.md": readme}
+    return {"ATTRIBUTION.md": header + voice_notice(sources, selection, hosted) + basis, "README.md": readme}
 
 
 def current_store() -> Path:
@@ -1060,7 +1098,7 @@ def command_release(args: argparse.Namespace) -> None:
     for item in hosted:
         shutil.copyfile(item["local"], set_import / item["entry"]["path"])
     for name, text in notices.items():
-        (set_import / name).write_text(text)
+        (set_import / name).write_bytes(text.encode())
 
     # Core voices: the browser speech store.
     core_entries = [
@@ -1102,7 +1140,7 @@ def command_release(args: argparse.Namespace) -> None:
     # Hosted voices: the tracked set #180's publisher stages, scans and publishes.
     VOICE_SET_DIRECTORY.mkdir(parents=True, exist_ok=True)
     for name, text in notices.items():
-        (VOICE_SET_DIRECTORY / name).write_text(text)
+        (VOICE_SET_DIRECTORY / name).write_bytes(text.encode())  # LF bytes: the manifest binds them
     set_files = [
         {
             "path": name,

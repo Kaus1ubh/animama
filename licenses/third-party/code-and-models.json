@@ -87,7 +87,7 @@
       "id": "browser-pocket",
       "license": "CC-BY-4.0 (ONNX export, tokenizer, metadata and all 38 voice states; the bill_boerst, caro_davy, javert and marius states derive from CC0-1.0 recordings)",
       "source": "https://huggingface.co/KevinAHM/pocket-tts-onnx",
-      "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c (onnx/english_2026-04 export, tokenizer and metadata); kyutai/pocket-tts-without-voice-cloning 4e1e0a3e611c51c0b4ed8174fc10f32a54644303 (14 precomputed voice states); kyutai/tts-voices 323332d33f997de8394f24a193e1a76df720e01a (source clips of 24 Animama-encoded VCTK voice states, published at https://downloads.animama.ai/pocket-tts/voices/english_2026-04/)",
+      "revision": "58a6d00cf13d239b6748cb0769f35c580a8f606c (onnx/english_2026-04 export, tokenizer and metadata); kyutai/pocket-tts-without-voice-cloning 4e1e0a3e611c51c0b4ed8174fc10f32a54644303 (14 precomputed voice states); kyutai/tts-voices 323332d33f997de8394f24a193e1a76df720e01a (source clips of 24 Animama-encoded VCTK voice states). Animama hosts the self-encoded core states and all 23 on-demand voices at https://downloads.animama.ai/models/pocket-tts-voices/<sha256>/<voice>.safetensors (tracked set models/pocket-tts-voices).",
       "paths": [],
       "notice_files": [
         "src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt",

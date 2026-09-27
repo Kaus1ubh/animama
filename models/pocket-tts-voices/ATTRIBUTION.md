@@ -1,11 +1,25 @@
-# Pocket TTS voice states
+# Pocket TTS voice states hosted by Animama
 
-Built-in voices (38)
+This set holds 30 Pocket TTS `english_2026-04` voice states: 23 that
+the Animama app downloads on demand, and the self-encoded states of core voices
+that ship with the app. 6 are Kyutai precomputed states, redistributed
+unmodified; 24 are encoded by Animama. Other core voices come from Hugging Face
+directly and are not part of this set.
 
-Core voices ship with the app; the others are downloaded on demand from
-https://downloads.animama.ai/models/pocket-tts-voices/, where each state is published under its own SHA-256.
+Upstream model: Kyutai Pocket TTS, english_2026-04 checkpoint
+Source: https://huggingface.co/kyutai/pocket-tts
+Pinned model-card revision: 75cfe24e3142233bb81887fed3482e9652bb4a6e
+Model-card license: Creative Commons Attribution 4.0 International (CC BY 4.0)
+Model-card license URL: https://creativecommons.org/licenses/by/4.0/
 
-Kyutai precomputed voice states (14), redistributed unmodified
+The Animama-encoded states were computed with this checkpoint's ONNX export by
+KevinAHM/pocket-tts-onnx (revision 58a6d00cf13d239b6748cb0769f35c580a8f606c,
+onnx/english_2026-04; CC BY 4.0, inherited from Kyutai): its FP32 Mimi encoder,
+learned BOS row and INT8 flow LM.
+
+Voices in this set (30)
+
+Kyutai precomputed voice states (6), redistributed unmodified
 Source: https://huggingface.co/kyutai/pocket-tts-without-voice-cloning/tree/4e1e0a3e611c51c0b4ed8174fc10f32a54644303/languages/english_2026-04/embeddings
 Pinned revision: 4e1e0a3e611c51c0b4ed8174fc10f32a54644303
 Repository license: CC-BY-4.0 (the published states)
@@ -13,19 +27,11 @@ Kyutai computed each state from a recording published at
 https://huggingface.co/kyutai/tts-voices (README revision 323332d33f997de8394f24a193e1a76df720e01a),
 which records each recording's license, listed per voice:
 
-- azelma: kyutai/tts-voices vctk/p303_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
-- jane: kyutai/tts-voices vctk/p339_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 - anna (downloaded on demand): kyutai/tts-voices vctk/p228_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 - caro_davy (downloaded on demand): kyutai/tts-voices voice-zero/caro_davy.wav (Voice-Zero, LibriVox); CC0-1.0
 - eponine (downloaded on demand): kyutai/tts-voices vctk/p262_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
-- eve (default voice): kyutai/tts-voices vctk/p361_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 - fantine (downloaded on demand): kyutai/tts-voices vctk/p244_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 - mary (downloaded on demand): kyutai/tts-voices vctk/p333_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
-- bill_boerst: kyutai/tts-voices voice-zero/bill_boerst.wav (Voice-Zero, LibriVox); CC0-1.0
-- javert: kyutai/tts-voices voice-donations/Butter.wav (Unmute Voice Donation Project, Kyutai); CC0-1.0
-- marius: kyutai/tts-voices voice-donations/Selfie.wav (Unmute Voice Donation Project, Kyutai); CC0-1.0
-- michael: kyutai/tts-voices vctk/p360_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
-- paul: kyutai/tts-voices vctk/p259_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 - charles (downloaded on demand): kyutai/tts-voices vctk/p254_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh); CC-BY-4.0
 
 Animama-encoded VCTK voice states (24)
@@ -63,4 +69,8 @@ enhanced by Kyutai using ai-coustics. License: Creative Commons Attribution
 - ethan (downloaded on demand): VCTK speaker p311, sentence 023
 - jack (downloaded on demand): VCTK speaker p326, sentence 023
 
+License basis: every voice state in this set is licensed CC BY 4.0, which permits
+commercial use with the attribution above. Kyutai publishes its precomputed states
+under CC BY 4.0, and the Animama-encoded states derive from CC BY 4.0 VCTK
+recordings. The recordings behind caro_davy are dedicated CC0 1.0.
 Kyutai's Pocket TTS model-card prohibited-use terms apply to every voice.

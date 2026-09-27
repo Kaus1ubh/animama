@@ -5,16 +5,16 @@
   "files": [
     {
       "path": "ATTRIBUTION.md",
-      "size": 4495,
-      "sha256": "fc41e64ddc35fa77e5581a7189e84832e0ccc09d369e763e7b90fc30437659de",
+      "size": 4720,
+      "sha256": "1214ee5802fae28f6da6eb2dc0a64eda526e32c1b320b2c36778ff778c85d85a",
       "source": {
         "local": "ATTRIBUTION.md"
       }
     },
     {
       "path": "README.md",
-      "size": 367,
-      "sha256": "756b2d1ea7952eba9fb630f541ebb548132563c237b29a0c490d49700b79e42a",
+      "size": 387,
+      "sha256": "999981fff7f4d4579e9814d00edf41536717e9a12ce09806b448ad2996f9dfff",
       "source": {
         "local": "README.md"
       }

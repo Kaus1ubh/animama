@@ -197,7 +197,7 @@ def test_manifest_rejects_unreviewed_voice_entries(inventory, change):
 
 
 def test_release_host_is_allowed_only_for_release_sources():
-    url = "https://downloads.animama.ai/pocket-tts/voices/english_2026-04/x-0123456789abcdef.safetensors"
+    url = "https://downloads.animama.ai/models/pocket-tts-voices/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/x.safetensors"
     store.validate_url(url, hosts=store.RELEASE_HOSTS)
     with pytest.raises(store.ModelStoreError):
         store.validate_url(url)

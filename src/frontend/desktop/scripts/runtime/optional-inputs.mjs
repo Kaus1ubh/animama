@@ -81,11 +81,12 @@ const publishedModelSets = [
   return {
     ...spec,
     defaultManifest,
-    names: existsSync(defaultManifest)
-      ? readJson(defaultManifest)
-          .files.map((item) => item.path)
-          .sort()
-      : [],
+    // Read on use, so a broken manifest never breaks importing this module.
+    get names() {
+      return readJson(defaultManifest)
+        .files.map((item) => item.path)
+        .sort();
+    },
   };
 });
 

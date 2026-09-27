@@ -324,3 +324,22 @@ def test_selection_rejects_unsafe_voice_ids(tmp_path):
     path.write_text(json.dumps(value))
     with pytest.raises(voices.VoiceToolError):
         voices.load_selection(path)
+
+
+def test_hosted_set_notices_and_core_entries_match_the_generator():
+    """The published ATTRIBUTION.md/README.md are exactly what `release` generates for the set."""
+    sources, selection = voices.load_sources(), voices.load_selection()
+    for name, text in voices.voice_set_notices(sources, selection).items():
+        assert (voices.VOICE_SET_DIRECTORY / name).read_bytes() == text.encode(), name
+    attribution = (voices.VOICE_SET_DIRECTORY / "ATTRIBUTION.md").read_text()
+    hosted = [v for v in selection["voices"] if voices.is_hosted(v)]
+    assert f"Voices in this set ({len(hosted)})" in attribution
+    for voice in selection["voices"]:
+        assert (f"\n- {voice['id']}" in attribution) == voices.is_hosted(voice), voice["id"]
+    # Self-encoded core states are published once and referenced from both manifests.
+    core = {e["path"]: e for e in json.loads(voices.BROWSER_MANIFEST.read_text())["files"]}
+    hosted_entries = {e["path"]: e for e in json.loads(voices.VOICE_SET_MANIFEST.read_text())["files"]}
+    for name, entry in core.items():
+        if entry["source"].get("kind") == "release":
+            assert entry["source"] == hosted_entries[name]["source"], name
+            assert entry["sha256"] == hosted_entries[name]["sha256"], name
