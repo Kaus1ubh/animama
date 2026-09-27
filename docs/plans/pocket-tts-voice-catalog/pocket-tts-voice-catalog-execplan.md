@@ -1119,6 +1119,56 @@ Issue #183. Commit `93b19ee`.
 
 Results, issue and commits: see above.
 
+#### Code Review #1 Findings
+
+Pinned to `93b19ee` against `9d48fee`. One blocking finding:
+
+- **P7-R1-F1 (required):** the plan's selector-state and install-on-pick tests
+  were missing.
+
+Optional findings:
+
+- **F2:** voices were reported as `not_installed` before the asset list
+  loaded, causing a default-voice reply and a redundant install.
+- **F3:** install request failures were swallowed.
+- **F4:** the icon labels are not announced, because Radix names an option
+  only by its ItemText.
+- **F5:** the hook returned an unstable object.
+- **F6:** the closed picker's status did not mention a running download.
+- **F7:** the failure notice promised automatic success.
+- **F8:** the voice docs lacked the download flow (Phase 5).
+
+#### Code Review #1 Revisions
+
+Commit `9b5b4fc`.
+
+- **F1:**
+  - `pocketVoicePickAction` now decides select, install or save, and the
+    picker uses it.
+  - Its tests cover every state.
+  - `PocketVoiceDownloadIcon` moved to its own module, with a render test for
+    each state.
+  - The playback wiring passes the resolver's `install` through unchanged;
+    the resolver itself is tested.
+- **F2:** with no list, availability is `unknown`. The resolver uses the
+  default voice without an install, and a pick still installs.
+- **F3:** failures are logged as warnings.
+- **F5:** the hook's return value is memoized.
+- **F6:** the status copy says the voice is downloading or failed.
+- **F7:** the notice now says the download is retried on the next reply or
+  pick.
+- **F8:** `voice.md` gained a downloadable-voices section, and
+  `model-assets.md` names the catalog's consumers.
+- **F4 deferred:** a label outside ItemText would change Radix's option
+  naming. Sighted users see the glyph and ring, and the status copy states the
+  download.
+
+Checks:
+
+- web tests: 321 files, 1966 tests passed;
+- `pnpm check` and `web:lint` pass, with no warnings;
+- prettier check passes.
+
 ### Phase 5: Inventory, size, docs and verification
 
 Requirements: R23, R25 and the combined acceptance. Issue #154.
