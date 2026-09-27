@@ -983,7 +983,12 @@ learned BOS row and INT8 flow LM.
         "commercial use with the attribution above. Kyutai publishes its precomputed states\n"
         "under CC BY 4.0, and the Animama-encoded states derive from CC BY 4.0 VCTK\n"
         "recordings."
-        + (f" The recordings behind {', '.join(cc0)} are dedicated CC0 1.0." if cc0 else "")
+        + (
+            f" The recording{'s' if len(cc0) > 1 else ''} behind {', '.join(cc0)}"
+            f" {'are' if len(cc0) > 1 else 'is'} dedicated CC0 1.0."
+            if cc0
+            else ""
+        )
         + "\nKyutai's Pocket TTS model-card prohibited-use terms apply to every voice.\n"
     )
     readme = (

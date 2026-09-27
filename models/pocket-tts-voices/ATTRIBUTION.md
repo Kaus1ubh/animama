@@ -72,5 +72,5 @@ enhanced by Kyutai using ai-coustics. License: Creative Commons Attribution
 License basis: every voice state in this set is licensed CC BY 4.0, which permits
 commercial use with the attribution above. Kyutai publishes its precomputed states
 under CC BY 4.0, and the Animama-encoded states derive from CC BY 4.0 VCTK
-recordings. The recordings behind caro_davy are dedicated CC0 1.0.
+recordings. The recording behind caro_davy is dedicated CC0 1.0.
 Kyutai's Pocket TTS model-card prohibited-use terms apply to every voice.
