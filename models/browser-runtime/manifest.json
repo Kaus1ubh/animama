@@ -75,15 +75,6 @@
       }
     },
     {
-      "path": "models/pocket-tts/voices/eve.safetensors",
-      "size": 6538488,
-      "sha256": "ea9c2faf862a6c9d2cb61910fdf02842ae56940382cc8c1000fdb1b43269692b",
-      "source": {
-        "kind": "model-store",
-        "path": "eve.safetensors"
-      }
-    },
-    {
       "path": "models/pocket-tts/voices/azelma.safetensors",
       "size": 7963896,
       "sha256": "9f3e69f29075f991fd47774566865ef0e0e637cb5a35992c9919761b5b84b1de",
@@ -93,12 +84,21 @@
       }
     },
     {
-      "path": "models/pocket-tts/voices/mary.safetensors",
-      "size": 6194424,
-      "sha256": "a8f2adf260cab966fe0a113d6b549d6efdeaa79de544ae0ff34b5b6a41445a59",
+      "path": "models/pocket-tts/voices/clara.safetensors",
+      "size": 6440248,
+      "sha256": "a36e524390d6a21e7407ab18029a03afd9289b3b406868da01c8c76294cd6173",
       "source": {
         "kind": "model-store",
-        "path": "mary.safetensors"
+        "path": "clara.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/imogen.safetensors",
+      "size": 6538552,
+      "sha256": "4c9e1b09ecce22f62e435a948528b9cf28c4cef3bc63dce38a3b08131f13de10",
+      "source": {
+        "kind": "model-store",
+        "path": "imogen.safetensors"
       }
     },
     {
@@ -108,6 +108,105 @@
       "source": {
         "kind": "model-store",
         "path": "jane.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/lucy.safetensors",
+      "size": 7324984,
+      "sha256": "42eb95ebbc8bcdee780b533f24d7b0846afa529332eb7b82025a54366400fbe1",
+      "source": {
+        "kind": "model-store",
+        "path": "lucy.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/olivia.safetensors",
+      "size": 7865656,
+      "sha256": "5384d691e7f2133c3451fbbb1770c154546bb755908d2d59b7abdad50cf1cd8f",
+      "source": {
+        "kind": "model-store",
+        "path": "olivia.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/thandi.safetensors",
+      "size": 7030072,
+      "sha256": "ed185fd0c78eebc6e691167c62d4ece39347699d6185330a5d93ad36af55bea9",
+      "source": {
+        "kind": "model-store",
+        "path": "thandi.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/eve.safetensors",
+      "size": 6538488,
+      "sha256": "ea9c2faf862a6c9d2cb61910fdf02842ae56940382cc8c1000fdb1b43269692b",
+      "source": {
+        "kind": "model-store",
+        "path": "eve.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/bill_boerst.safetensors",
+      "size": 6735096,
+      "sha256": "75610127d44e0b05b442154f80f89f993df235aecc6cad7070f11000d006c188",
+      "source": {
+        "kind": "model-store",
+        "path": "bill_boerst.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/javert.safetensors",
+      "size": 6194424,
+      "sha256": "0ae88e03ca4e76a0e16cbf321a807428febda9d9e9bc0358c02e7f9c9e2c263b",
+      "source": {
+        "kind": "model-store",
+        "path": "javert.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/marius.safetensors",
+      "size": 6194424,
+      "sha256": "04f84efcb77a0547ba582c058db496f7ff4920891d49d37b9950d128422582a8",
+      "source": {
+        "kind": "model-store",
+        "path": "marius.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/michael.safetensors",
+      "size": 7275768,
+      "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d",
+      "source": {
+        "kind": "model-store",
+        "path": "michael.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/noah.safetensors",
+      "size": 5948720,
+      "sha256": "737ca868cff2fca0024fd28ae34027e99fde040a156f5d6d43b63b59ddf41db2",
+      "source": {
+        "kind": "model-store",
+        "path": "noah.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/oliver.safetensors",
+      "size": 6243640,
+      "sha256": "1876b7995b7695010f35d8e2e8eb4015adb1cd17fb2b784f6e2a958326fe47cb",
+      "source": {
+        "kind": "model-store",
+        "path": "oliver.safetensors"
+      }
+    },
+    {
+      "path": "models/pocket-tts/voices/paul.safetensors",
+      "size": 6980856,
+      "sha256": "ed7a019168f94dfe77009f1b0de59387abc6fbb0db954d38ce722ecb77da61aa",
+      "source": {
+        "kind": "model-store",
+        "path": "paul.safetensors"
       }
     },
     {

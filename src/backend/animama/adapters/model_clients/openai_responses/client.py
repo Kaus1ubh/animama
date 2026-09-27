@@ -33,6 +33,7 @@ from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID
 from animama.logging import get_logger
 
 from .._common import close_maybe_async
+from ..openai_chat_completions.support import resolve_openai_base_url
 from ..openai_errors import (
     classify_openai_exception,
     classify_openai_response_event,
@@ -50,7 +51,6 @@ from .events import (
 from .final import response_final_parts
 from .request import create_response_kwargs, previous_response_id
 from .support import (
-    DEFAULT_BASE_URL,
     OPENAI_API,
     OPENAI_MISSING_FINAL_ANSWER_PHASE_CODE,
     OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
@@ -108,9 +108,8 @@ class OpenAIResponsesModelClient:
         close_client: bool | None = None,
     ) -> None:
         resolved_api_key = api_key if api_key is not None else os.getenv("OPENAI_API_KEY")
-        resolved_base_url = base_url if base_url is not None else os.getenv("OPENAI_BASE_URL")
         self._api_key = (resolved_api_key or "").strip()
-        self._base_url = (resolved_base_url or DEFAULT_BASE_URL).rstrip("/")
+        self._base_url = resolve_openai_base_url(base_url)
         self._client = client
         self._timeout = timeout
         self._compaction_threshold_tokens = compaction_threshold_tokens

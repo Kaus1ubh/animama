@@ -12,7 +12,7 @@ from animama.adapters.model_clients import (
     OpenAIChatCompletionsModelClient,
     OpenAIResponsesModelClient,
 )
-from animama.adapters.model_clients.openai_chat_completions.support import DEFAULT_BASE_URL
+from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
 from animama.app.model_clients import StaticModelClientRegistry
 from animama.app.model_clients.credentials import EnvironmentModelCredentialResolver, ModelCredentialResolver
 from animama.server.config import Settings, settings
@@ -33,7 +33,7 @@ def build_model_credential_resolver(*, app_settings: Settings = settings) -> Mod
 def openai_base_url() -> str:
     """Return the built-in OpenAI connection's base URL from the process environment."""
 
-    return (os.getenv("OPENAI_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+    return resolve_openai_base_url()
 
 
 def build_model_client_registry(

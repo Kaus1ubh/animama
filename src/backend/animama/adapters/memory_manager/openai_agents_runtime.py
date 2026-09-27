@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import inspect
 import json
-import os
 from collections.abc import Mapping, Sequence
 from hashlib import sha256
 from types import SimpleNamespace
@@ -20,7 +19,7 @@ from animama.adapters.model_clients.openai_chat_completions.connection_sdk impor
     sdk_client_for_connection,
 )
 from animama.adapters.model_clients.openai_chat_completions.request import tools_without_function_strict
-from animama.adapters.model_clients.openai_chat_completions.support import DEFAULT_BASE_URL
+from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
 from animama.adapters.openai_agents import OpenAIAgentsRunner, OpenAIAgentsRunOutput
 from animama.app.chat.api_standard import OPENAI_RESPONSES_PROVIDER_TYPE
 from animama.app.chat.memory_tools import (
@@ -146,7 +145,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         self._chat_messages = chat_messages
         self._model_provider = model_provider
         self._credentials = credential_resolver
-        self._openai_base_url = (openai_base_url or os.getenv("OPENAI_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+        self._openai_base_url = resolve_openai_base_url(openai_base_url or None)
         self._model = model_provider.model if model_provider is not None else ""
         self._timeout_seconds = max(0.1, float(timeout_seconds))
         self._runner = OpenAIAgentsRunner()

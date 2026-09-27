@@ -57,7 +57,8 @@ before invoking `implement`. An explicit instruction may already provide agreeme
 Unresolved consequential questions block dependent implementation.
 
 `implement` starts with `workspace-setup`, which publishes the agreed spec, prepares
-phase issues and chooses a safe workspace. Use one issue per authorized phase and
+phase issues and chooses a safe workspace. Use one issue per authorized implementation phase (owner-only checks are PR/plan
+gates, not issues) and
 one branch/PR per plan per affected repository by default. Reuse existing records;
 do not create retrospective work merely to fit this convention.
 

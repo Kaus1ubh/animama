@@ -44,7 +44,7 @@ from .events import (
     merge_chunk_metadata,
 )
 from .request import create_chat_completion_kwargs
-from .support import DEFAULT_BASE_URL, OPENAI_API, OPENAI_HTTP_PROVIDER_TYPE
+from .support import OPENAI_API, OPENAI_HTTP_PROVIDER_TYPE, resolve_openai_base_url
 from .tools import merge_tool_call_deltas_from_choice, tool_calls_from_parts
 from .usage import usage_from_chat_completion_usage
 
@@ -72,8 +72,7 @@ class OpenAIChatCompletionsModelClient:
         timeout: float | None = 60.0,
         close_client: bool | None = None,
     ) -> None:
-        resolved_base_url = base_url if base_url is not None else os.getenv("OPENAI_BASE_URL")
-        self._base_url = (resolved_base_url or DEFAULT_BASE_URL).rstrip("/")
+        self._base_url = resolve_openai_base_url(base_url)
         self._credentials = credential_resolver or EnvironmentModelCredentialResolver(
             openai_api_key=api_key if api_key is not None else os.getenv("OPENAI_API_KEY"),
             environ=os.environ,

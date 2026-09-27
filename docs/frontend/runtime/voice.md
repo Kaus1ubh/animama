@@ -106,7 +106,7 @@ Why this matters:
 
 ## Developer and self-host model inputs
 
-Parakeet and the thirteen reviewed Pocket TTS/Smart Turn inputs are acquired from
+Parakeet and the 24 reviewed Pocket TTS/Smart Turn inputs are acquired from
 exact pinned revisions into a verified shared store outside Git worktrees.
 `models/browser-runtime/manifest.json` also binds nine ORT 1.24.2 files from the
 exact dependency alias and two VAD 0.0.30 files from its pinned package. Other
@@ -117,7 +117,7 @@ starting Vite or Compose, or building the web application. It documents
 `ANIMAMA_MODEL_ROOT`, the native Windows `%LOCALAPPDATA%\Animama\models` default,
 and the Linux default used by WSL. Development verifies and serves engine inputs
 at the existing same-origin URLs; built self-host and desktop outputs contain
-independent verified copies of the 24 browser assets. Parakeet remains outside
+independent verified copies of the 35 browser assets. Parakeet remains outside
 the web build and retains its installed desktop pack lifecycle.
 
 Startup and builds do not acquire models implicitly. Browsers do not receive
@@ -949,11 +949,15 @@ Voice resolution:
   2. same emotion with lower intensity, descending
   3. anima `neutral`
   4. legacy Pocket voice preference path
-  5. built-in default voice `eve` (or the first loaded built-in voice)
+  5. the app's fallback voice: the saved voice when it is built in, otherwise
+     the default (`DEFAULT_POCKET_VOICE`, `eve`)
 - legacy Pocket voice preference path still uses:
   1. anima override `tts_pocket_anima_voice`
   2. user default `tts_pocket_voice`
 - custom voice token `custom` is still supported in the legacy path when a custom voice embedding exists
+- a saved voice that is not built in (for example a removed voice) falls back to
+  the default voice; the "Pocket voice unavailable" notice shows once per app
+  session (`resolvePocketFallbackVoice` in `voice-preferences.ts`)
 - custom/cloned voices remain in-memory only; cloning does not create a anima `{animaId}_voices.bin`
 
 ## Assets and Configuration Checklist
@@ -974,17 +978,40 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
 ### Pocket TTS assets
 
 - Small worker/worklet/vendor code stays in `src/frontend/web/public/tts/*`.
-- The twelve reviewed Pocket files are served at `/onnx/models/pocket-tts/*` from
+- The 23 reviewed Pocket files are served at `/onnx/models/pocket-tts/*` from
   the verified sources:
   - the five ONNX graphs;
   - `tokenizer.model`, `bundle.json` and `bos_before_voice.npy`;
-  - the built-in voice states at `voices/{eve,azelma,mary,jane}.safetensors`.
-- The worker initializes model state from the `bundle.json` state manifests.
-  It loads built-in voices as precomputed flow LM states, so selecting one
-  skips voice conditioning. It generates with temperature 0.3.
+  - the 15 core voice states at `voices/<id>.safetensors`.
+- `src/frontend/web/src/lib/speech/pocket/voice-catalog.ts` lists all 38
+  voices, with `eve` as default. Each has an ID, display name, gender, accent,
+  recommended flag and delivery: `core`, or `download` with its asset ID and
+  size. `scripts/voices/voices.py release` generates it, and tests keep it
+  equal to the core manifest and the packaged asset catalog. The 23
+  downloadable voices install through `/v1/model-assets`.
+- `createPocketTTS` sends the catalog's IDs and default to the worker. The
+  worker initializes model state from the `bundle.json` state manifests.
+  - Built-in voices are precomputed flow LM states, so selecting one skips
+    voice conditioning.
+  - Only the default state loads at startup. Others load on first use, and at
+    most four more compact states stay cached.
+  - It generates with temperature 0.3.
+- The Anima settings voice picker groups the voices into Female and Male
+  (`voice-groups.ts`), with recommended voices first and accent tags as hints.
+  A downloadable voice that is not installed shows a small download glyph, and
+  a progress ring while it downloads.
+- Downloadable voices install through `/v1/model-assets`
+  (`usePocketVoiceDownloads`, `voice-downloads.ts`) on desktop and self-host.
+  - Picking one saves the preference and starts the install; the worker loads
+    the state from `/v1/model-assets/pocket-voice-<id>/content` once
+    installed.
+  - Until then, replies use the default voice. A saved voice that is not
+    installed starts its install on the next reply.
+  - A failed download shows one notice per session, and the next reply or pick
+    retries it.
 - Anima voice catalogs are separate user/catalog inputs; their persisted URLs
   and legacy `/onnx/models/pocket-tts/animas/{animaId}_voices.bin` reference format
-  are not members of the 23-file engine inventory.
+  are not members of the 35-file engine inventory.
 
 Optional operator voice catalogs are separate from the engine inventory; see
 [Content and workers](../architecture/content-and-workers.md#vite-application-resources).

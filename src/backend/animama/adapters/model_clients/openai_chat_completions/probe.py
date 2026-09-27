@@ -10,7 +10,6 @@ LM Studio's native API reports it only while the model is loaded.
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Mapping
 from typing import Any
 
@@ -54,7 +53,7 @@ from .connection_sdk import (
     keyless_request_headers,
     sdk_client_for_connection,
 )
-from .support import DEFAULT_BASE_URL, OPENAI_API, OPENAI_HTTP_PROVIDER_TYPE
+from .support import OPENAI_API, OPENAI_HTTP_PROVIDER_TYPE, resolve_openai_base_url
 
 _log = get_logger("adapters.model_clients.openai_chat_completions.probe")
 
@@ -119,7 +118,7 @@ class OpenAICompatibleConnectionProbe:
         http_transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._credentials = credential_resolver
-        self._openai_base_url = (openai_base_url or os.getenv("OPENAI_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+        self._openai_base_url = resolve_openai_base_url(openai_base_url or None)
         self._default_timeout = default_timeout
         self._http_transport = http_transport
 

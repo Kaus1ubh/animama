@@ -7,6 +7,7 @@ import {
   parseNpyFloat32,
   parseSafetensors,
   prependBos,
+  resolveBuiltInVoices,
   stateArraysFromVoiceState,
 } from "../../public/tts/workers/pocket-runtime.js";
 
@@ -269,5 +270,79 @@ describe("Pocket generation limits", () => {
     // ceil((9 / 3 + 2) * 12.5) = ceil(62.5) = 63
     expect(maxFramesForTokens(9)).toBe(63);
     expect(maxFramesForTokens(0)).toBe(25);
+  });
+});
+
+describe("resolveBuiltInVoices", () => {
+  it("keeps the configured order and default", () => {
+    expect(
+      resolveBuiltInVoices({
+        voices: ["azelma", "eve", "caro_davy"],
+        defaultVoice: "eve",
+      }),
+    ).toEqual({
+      names: ["azelma", "eve", "caro_davy"],
+      defaultVoice: "eve",
+      voiceUrls: {},
+    });
+  });
+
+  it("falls back to the first voice when the default is not listed", () => {
+    expect(
+      resolveBuiltInVoices({
+        voices: ["azelma", "jane"],
+        defaultVoice: "cosette",
+      }),
+    ).toEqual({
+      names: ["azelma", "jane"],
+      defaultVoice: "azelma",
+      voiceUrls: {},
+    });
+  });
+
+  it("accepts content-route URLs for downloadable voices", () => {
+    expect(
+      resolveBuiltInVoices({
+        voices: ["eve", "anna"],
+        defaultVoice: "eve",
+        voiceUrls: { anna: "/v1/model-assets/pocket-voice-anna/content" },
+      }),
+    ).toEqual({
+      names: ["eve", "anna"],
+      defaultVoice: "eve",
+      voiceUrls: { anna: "/v1/model-assets/pocket-voice-anna/content" },
+    });
+  });
+
+  it("rejects voice URLs outside the model-asset content route", () => {
+    for (const url of [
+      "https://example.com/anna.safetensors",
+      "/v1/model-assets/../secrets/content",
+      "/onnx/models/pocket-tts/voices/anna.safetensors",
+    ]) {
+      expect(() =>
+        resolveBuiltInVoices({ voices: ["anna"], voiceUrls: { anna: url } }),
+      ).toThrow(/voice URL/);
+    }
+    expect(() =>
+      resolveBuiltInVoices({
+        voices: ["eve"],
+        voiceUrls: { anna: "/v1/model-assets/pocket-voice-anna/content" },
+      }),
+    ).toThrow(/not listed/);
+  });
+
+  it("rejects missing, duplicate or unsafe voice names", () => {
+    expect(() => resolveBuiltInVoices({})).toThrow(/voice/);
+    expect(() => resolveBuiltInVoices({ voices: [] })).toThrow(/voice/);
+    expect(() => resolveBuiltInVoices({ voices: ["eve", "eve"] })).toThrow(
+      /duplicate/,
+    );
+    expect(() => resolveBuiltInVoices({ voices: ["../eve"] })).toThrow(
+      /voice name/,
+    );
+    expect(() => resolveBuiltInVoices({ voices: ["Eve"] })).toThrow(
+      /voice name/,
+    );
   });
 });
