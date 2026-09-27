@@ -14,8 +14,8 @@
     },
     "parakeet-stt-webgpu": {
       "release_status": "active",
-      "version": "0.1.0",
-      "approved_inventory_sha256": "761016568b61410c845c427e55773f2eb20e0d1284aff13e79de366e7f965231",
+      "version": "0.1.1",
+      "approved_inventory_sha256": null,
       "license_refs": ["parakeet-webgpu-input"]
     },
     "expanded-included-content": {

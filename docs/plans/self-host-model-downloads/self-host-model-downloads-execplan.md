@@ -108,7 +108,10 @@ Excluded:
   download control. Review #2 passed after one repair round.
 - [x] `main` `bf9fe3f` merged into the branch (`9bc8aac`, no conflicts).
 - [x] Final Integration Review #1 of Phases 1–3 on `9bc8aac`: pass.
-- [ ] Owner decision on the `ATTRIBUTION.md` wording (FI-F2), before Phase 4.
+- [x] Owner decision (2026-09-27): fix `ATTRIBUTION.md` (FI-F2); hold the PR
+  merge until Phase 4. Notice fixed, pack version bumped, approval pending.
+- [ ] Owner approval of the `parakeet-stt-webgpu` 0.1.1 inventory `9f3cd0b9…`
+  before the next desktop release build.
 - [ ] Phase 4: R2 publication and built self-host acceptance (owner-gated).
 
 ## Surprises & Discoveries
@@ -227,6 +230,29 @@ Withdrawn alternatives are kept for context.
   with the encoder. #162 has no grouping, so the UI or service would have to
   install and remove three assets as one.
 
+- **FI-F2: attribution notice (owner decision, 2026-09-27).** Fix the tracked
+  `ATTRIBUTION.md` so it names both redistribution channels, and hold the PR
+  merge until Phase 4 publishes the objects.
+    - The notice now says development stacks use the operator's model store and
+      Animama redistributes the file unmodified in the desktop pack and as a
+      self-host download under `models/parakeet-tdt-0.6b-v2-webgpu/`.
+    - Its SHA-256 is now `2efaf55f…dc24b` (887 bytes); the manifest digest is
+      `760221af…55df4`. The encoder, its catalog entry and URL are unchanged.
+    - The `parakeet-stt-webgpu` payload changed, so, per the pack release rules
+      ("changed payloads need a new pack version and review"), its version is
+      now `0.1.1` and `approved_inventory_sha256` is `null`. The new inventory
+      digest is `9f3cd0b927f70facf7caac57c32eda41dd24855c0d026ed9a7c2ffa6e878b1de`
+      (computed with `feature-pack-build`'s `inventoryPack`, which reproduces
+      the previously approved `76101656…` for the old set). Until the owner
+      records it, a release build reports the pack as
+      `redistribution_review_required` instead of shipping it. The desktop
+      notice `parakeet-webgpu-attribution.txt` is unchanged; it stays accurate.
+      The bump costs existing desktop users no extra download: v0.1.1 set no
+      `app_versions`/`release_tag` for the pack, so the next app release would
+      offer a pack update anyway.
+    - Local model stores need the new set:
+      `python3 scripts/models/parakeet_webgpu.py acquire --offline --import-from DIRECTORY`
+      with the current notices and the existing encoder; the old version stays.
 - **Implementation decisions (agent, within the accepted outcome).**
     - The encoder asset ID is `parakeet-tdt-0.6b-v2-webgpu-encoder`.
     - Phase 2 decides whether an object exists with a signed S3 `HEAD`, not an
@@ -675,9 +701,9 @@ owner holds the R2 credentials. The agent never requests, reads or prints them.
 
 1. **Bucket lock (owner, dashboard).** The owner adds the `models/` lock rule
    (O3) and confirms it here, with the date.
-2. **Scan.** Done before Phase 4 (see Phase 3): the receipt stays valid
-   while the staged files are unchanged. Restage and rescan if
-   `ATTRIBUTION.md` or any other set file changes (FI-F2).
+2. **Scan.** Done: after the FI-F2 notice fix the set was restaged and
+   rescanned (2026-09-27, pass, 4 files, 0 findings). The receipt stays valid
+   while the staged files are unchanged; restage and rescan after any change.
 3. **Publish (owner-run or owner-approved).** With the owner's credentials in
    their own environment, run:
 
@@ -694,9 +720,11 @@ owner holds the R2 credentials. The agent never requests, reads or prints them.
     - Remove returns the status to not installed.
     - A browser without a WebGPU adapter (for example, WebGPU disabled) sees no
       download control.
-5. **Desktop unchanged.** Confirm that desktop checks pass and that the
-   embedded build still points at the pack URL. #144 Phase 4 still owns native
-   pack acceptance.
+5. **Desktop.** Confirm that desktop checks pass and that the embedded build
+   still points at the pack URL. The pack's notice changed (FI-F2): the owner
+   records the `0.1.1` inventory digest before the next desktop release build;
+   #144 Phase 4 still owns native pack acceptance.
+6. **Merge.** The owner approves the exact PR candidate after steps 1–4.
 
 **Completion:** the #163 acceptance items are recorded with evidence, and the
 catalog URL downloads anonymously with matching hashes. Merging still needs
@@ -747,7 +775,24 @@ unchanged.
 ### Final Integration Review #1 Revisions
 
 - FI-F1 accepted: progress, commits, evidence and this section updated.
-- FI-F2: presented to the owner; no change until decided.
+- FI-F2 accepted per the owner decision (2026-09-27): notice fixed, manifest
+  and license hash updated, pack version `0.1.1` with approval pending, model
+  store reimported, set restaged and rescanned. This is final-scope repair
+  round 1. Checks: `uv run pytest -q` 1961 passed, 7 skipped; `pnpm web:test`
+  1934 passed; `pnpm --filter animama-desktop test` 331 passed; `pnpm check`
+  exit 0; dry run lists the new notice and manifest keys, the unchanged encoder
+  key, and a passing scan.
+
+### Final Integration Review #2 Findings
+
+Targeted recheck (same reviewer) of the FI-F2 fix on the tree over `261553f`:
+pass. Hashes, manifest, license record and the new inventory digest were
+independently recomputed (the method reproduces the old approved `76101656…`);
+the version bump with a `null` approval follows `runtime-staging.md`; no other
+license record needs a change. Optional follow-ups applied: the
+`runtime-staging.md` sentence about active packs, a dated pointer in the WebGPU
+plan, and the no-extra-download note above. One final-scope repair round
+remains.
 - FI-F3 accepted: `tests/localParakeetModels.test.ts` asserts the built define's
   asset ID exists in the packaged catalog.
 

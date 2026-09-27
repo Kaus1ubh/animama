@@ -17,6 +17,8 @@ This optional set packages one derivative ONNX artifact for Parakeet ASR.
 - Keep model card attribution to NVIDIA and conversion/tooling provenance.
 - Do not remove this file when publishing.
 
-Development stacks and operator-mounted self-host installs load this set
-directly. The desktop app redistributes it, with this file, only as the
-optional `parakeet-stt-webgpu` feature pack after its inventory review.
+Development stacks load this set from the operator's model store. Animama
+redistributes it unmodified, with this file, in the optional
+`parakeet-stt-webgpu` desktop feature pack and as an in-app download for
+built self-host installs, published under `models/parakeet-tdt-0.6b-v2-webgpu/`
+on `downloads.animama.ai`.

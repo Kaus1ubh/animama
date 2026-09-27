@@ -528,6 +528,9 @@ separate owner authorization, and it overlaps the next app release.
 - **Owner approvals:** the owner approved the pack inventory `76101656…` and
   core inventory `13f6218a…`, recorded in #164 along with the version bump to
   0.1.1.
+  *2026-09-27:* superseded by pack `0.1.1` (inventory `9f3cd0b9…`, approval
+  pending) after the notice fix recorded in
+  [self-host model downloads](../self-host-model-downloads/self-host-model-downloads-execplan.md) (FI-F2).
 - **First smoke run failed** at `fresh-launch` (`backend_readiness_mismatch`).
   `/_desktop/health` reported the API's hard-coded version 0.1.0, so no app
   version other than 0.1.0 could start. Fixed in #172, which passes the desktop
