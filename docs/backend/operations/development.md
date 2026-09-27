@@ -414,9 +414,11 @@ seeding is enabled.
 
 ## Memory Manager Tracing
 
-Live Memory Manager invocations use the OpenAI Agents SDK's built-in tracing.
-Each SDK invocation creates its own trace with workflow name
-`Animama memory manager`; all invocations for one manager conversation share
+Memory Manager invocations whose role model is on the built-in OpenAI connection
+use the OpenAI Agents SDK's built-in tracing, which exports to OpenAI. Runs on
+any other model connection are never traced, so a local Memory Manager sends
+nothing to OpenAI. Each traced SDK invocation creates its own trace with
+workflow name `Animama memory manager`; all invocations for one manager conversation share
 the Memory Manager run ID as their trace group ID. Trace metadata is limited to
 the manager run ID, runtime name, and model name.
 
@@ -426,9 +428,9 @@ contents and paths, and patch diffs out of normal trace payloads while retaining
 agent, generation, tool, timing, and lifecycle spans. There is intentionally no
 Animama setting to opt into sensitive payload capture.
 
-Tracing is enabled by default when the SDK has an OpenAI API key. To disable all
-Agents SDK tracing for a local or deployed process, set the SDK's native global
-opt-out before starting the API:
+For those runs tracing is enabled by default and exports when `OPENAI_API_KEY`
+is set. To disable all Agents SDK tracing for a local or deployed process, set
+the SDK's native global opt-out before starting the API:
 
 ```bash
 export OPENAI_AGENTS_DISABLE_TRACING=1
@@ -440,7 +442,8 @@ disabled because the Agents SDK tracing service is unavailable under ZDR.
 To verify a normal local run:
 
 1. Configure `OPENAI_API_KEY`, ensure `OPENAI_AGENTS_DISABLE_TRACING` is unset,
-   and start the API.
+   and start the API. Check that App Settings → Models shows a built-in OpenAI
+   model in effect for the Memory Manager role.
 2. Send two messages in the same Memory Manager run and approve or reject one
    proposed diff.
 3. Open the [OpenAI Traces dashboard](https://platform.openai.com/traces), find
@@ -832,7 +835,11 @@ User-file processing:
 uv run --extra file-worker python -m animama.workers.user_file_processing
 ```
 
-Workers need the same database configuration as the API.
+Workers need the same database configuration as the API. The user-file worker
+also embeds chunks with the owner's Embeddings role, so give it the API's
+`OPENAI_BASE_URL` (if set) and the key variable of that role's connection.
+Without a working connection the file is processed for keyword search only; the
+API's re-embedding adds its vectors once the connection works.
 
 ## Docker Compose
 
@@ -1069,7 +1076,11 @@ Compose reads this comma-separated list in order, so the worktree file wins for
 any repeated name. Inherited shell values take precedence over file values.
 `COMPOSE_ENV_FILES` supplies interpolation inputs; it does not automatically
 forward every entry into a container. The Compose service must declare each
-backend setting it consumes. See Docker's documentation for
+backend setting it consumes. Keys that owner model connections name
+(`ANIMAMA_CONNECTION_<NAME>_API_KEY`) are not declared individually: keep them
+in a separate owner-only file selected by `ANIMAMA_CONNECTION_KEYS_FILE`, which
+Compose loads in full into `animama-server` (see
+[local model servers](local-models.md)). See Docker's documentation for
 [environment-file selection](https://docs.docker.com/compose/how-tos/environment-variables/envvars/)
 and [interpolation precedence](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/).
 
@@ -1160,7 +1171,8 @@ http://animama-abc.localhost:8200  local application
 
 `reset.sh` writes `.animama-stack.env` in the checkout/worktree root with the
 derived Compose project, selected Compose files, normalized absolute
-`COMPOSE_ENV_FILES` paths, container-name prefix, application port/public origin,
+`COMPOSE_ENV_FILES` paths, the optional `ANIMAMA_CONNECTION_KEYS_FILE` path,
+container-name prefix, application port/public origin,
 private roots, `ANIMAMA_STACK_REPO_ROOT` and `ANIMAMA_DESKTOP_WEB_URL`. It records file paths, not credential
 values or a host database URL. In a new terminal, enter the same checkout and
 source its trusted generated record before project-scoped follow-up commands:
@@ -1259,7 +1271,8 @@ APP_HOST APP_SCHEME WEB_SERVER_PORT PGADMIN_PORT DOZZLE_PORT
 ANIMAMA_INCLUDED_CONTENT_HOST_PATH ANIMAMA_LOCAL_CONTENT_HOST_PATH
 ANIMAMA_DATA_HOST_PATH ANIMAMA_DOCLING_CACHE_HOST_PATH ANIMAMA_LOG_DIR
 POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB PGADMIN_EMAIL PGADMIN_PASSWORD
-OPENAI_API_KEY OPENAI_BASE_URL DEEPSEEK_API_KEY GEMINI_API_KEY HF_TOKEN
+OPENAI_API_KEY OPENAI_BASE_URL DEEPSEEK_API_KEY HF_TOKEN
+ANIMAMA_LOCAL_MODEL_HOST ANIMAMA_CONNECTION_KEYS_FILE
 ANIMAMA_DEFAULT_MODEL_PROVIDER_ID ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID
 ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID
 ANIMAMA_CHAT_TITLE_GENERATION_ENABLED ANIMAMA_CHAT_COMPACTION_ENABLED
@@ -1346,13 +1359,14 @@ preserve main-turn memory tools and episodic capture. Avoid invoking the separat
 Memory Manager when it is outside the rehearsal scope. Recreate the selected
 service after environment changes and check its effective backend settings.
 
-Compose also forwards `OPENAI_BASE_URL` as the model-client fallback endpoint;
-unset or empty retains the official OpenAI default. A selected provider catalog
-row with `provider_base_url` takes precedence, including the built-in Luna Responses
-row. Changing this environment variable alone therefore does not redirect that
-model or establish a test transport boundary. Select only trusted endpoints because
-provider credentials and prompts are sent there. Verify the selected provider row
-and the model client’s resolved endpoint before a live turn. These settings provide no hard request, token or spending cap; short prompts,
+Compose also forwards `OPENAI_BASE_URL`, the endpoint of the built-in OpenAI
+connection; unset or empty uses the official OpenAI API. Built-in catalog rows
+store no URL, so this variable redirects every built-in OpenAI row, including
+the Luna Responses row, and `OPENAI_API_KEY` goes with it. Owner connections use
+their own base URL and only the key variable they name; they never fall back to
+`OPENAI_BASE_URL` or `OPENAI_API_KEY`. Select only trusted endpoints because
+credentials and prompts are sent there. Verify the selected row's connection
+before a live turn. These settings provide no hard request, token or spending cap; short prompts,
 reasoning `none` and Stop do not establish a budget ceiling.
 
 Preparing credentials, acquiring public model assets and checking readiness do
@@ -1447,17 +1461,38 @@ Core:
 - `ANIMAMA_LOCAL_BIND_HOST` and `ANIMAMA_LOCAL_API_PORT` (supported native
   FastAPI launcher only; Compose ignores them)
 - `ANIMAMA_LLM_SKIP`
-- `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS`
-- `DEEPSEEK_API_KEY`
-- `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS`
-- `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID`
-- `ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID`
-- `ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID`
-- `ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID`
-- `ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`
-- `ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT`
-- `ANIMAMA_CHAT_COMPACTION_ENABLED`
-- `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`
+
+Models (connections, models and role assignments are managed in App Settings →
+Models; see [local model servers](local-models.md)):
+
+- `OPENAI_API_KEY` (key of the built-in OpenAI connection; not needed when every
+  role and Anima uses another connection)
+- `OPENAI_BASE_URL` (endpoint of the built-in OpenAI connection; unset uses the
+  official OpenAI API)
+- `ANIMAMA_CONNECTION_<NAME>_API_KEY` (a key variable that an owner connection
+  names; a connection may also name `DEEPSEEK_API_KEY` or `HF_TOKEN`, which
+  Compose forwards individually)
+- `ANIMAMA_CONNECTION_KEYS_FILE` (optional absolute path to an owner-only file of
+  connection keys; `reset.sh` checks its permissions and records the path, and
+  Compose loads it into `animama-server`)
+- `ANIMAMA_LOCAL_MODEL_HOST` (host that the Ollama, LM Studio, llama.cpp and vLLM
+  presets fill in; default `127.0.0.1` natively, `host.docker.internal` in Compose)
+- `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS` (default `60`; used by connections
+  without their own timeout, such as the built-in OpenAI connection)
+- `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` (catalog row id of the default chat model;
+  App Settings → General takes precedence)
+- `ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID`,
+  `ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID`,
+  `ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID` (operator role defaults as catalog
+  row ids; App Settings assignments take precedence; unset utility and Memory
+  Manager roles use the default chat model, and embeddings stay off)
+- `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS` (default `10000`; `0`
+  omits OpenAI Responses native compaction)
+- `ANIMAMA_CHAT_TITLE_GENERATION_ENABLED`,
+  `ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`,
+  `ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT` (titles from the utility role)
+- `ANIMAMA_CHAT_COMPACTION_ENABLED`, `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`
+  (post-response compaction by the utility role)
 
 Companion safety (operator settings; the Companion Guardrails are never
 configurable, see the [crisis protocol](../../safety/crisis-protocol.md)):
@@ -1473,12 +1508,6 @@ configurable, see the [crisis protocol](../../safety/crisis-protocol.md)):
   an invalid table stops startup)
 
 Startup logs a warning for each setting that weakens a default.
-
-Model providers:
-
-- OpenAI provider keys/settings
-- Gemini provider keys/settings
-- LiteLLM provider settings where supported
 
 Content storage:
 

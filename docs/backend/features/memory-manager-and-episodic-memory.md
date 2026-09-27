@@ -322,8 +322,8 @@ Overflow rows, rows captured after batch selection, and all other users' rows
 remain untouched. A retry after task status is already `processed` is a no-op.
 Blocked or failed execution marks the run failed but deliberately leaves the
 task `processing` and its episode rows pending. Once processed, later messages
-on that same run use general Memory Manager instructions and the existing
-Responses cursor without reinjecting the fixed batch.
+on that same run use general Memory Manager instructions and the run's
+existing context without reinjecting the fixed batch.
 
 ## Reflection
 
@@ -387,10 +387,12 @@ interruptions. The patch tool and continuity depend on the row's API:
   replays the run's stored user and assistant messages.
 
 The client reaches the row's connection with only that connection's key and
-timeout, honors its `strip_function_strict` option, and sends `store` and
-`prompt_cache_key` only to OpenAI. Tracing is disabled unless the row is on the
-built-in OpenAI connection. Runs record the row's provider type, model, row id
-and connection.
+timeout (connecting is capped at 10 seconds), honors its
+`strip_function_strict` option, sends `store` only on Responses, and sends
+`prompt_cache_key` on Responses or when the connection's
+`send_openai_extensions` option is on. Agents SDK tracing, which exports to
+OpenAI, is disabled unless the row is on the built-in OpenAI connection. Runs
+record the row's provider type, model, row id and connection.
 
 OpenAI Agents SDK documentation describes `needs_approval=True` tools as
 interrupting a run for human approval. A caller can persist run state, approve
@@ -418,7 +420,7 @@ contains its continuation settings. The run-row cursor is not passed as a
 second input during resume; the cursor is advanced from the resumed result.
 These two persisted fields therefore solve different recovery problems.
 
-Every Responses request also uses a private SHA-256 prompt-cache key derived
+Every request that sends a prompt-cache key uses a private SHA-256 key derived
 from the manager run ID and model. Reusing one stable key within the run helps
 route its repeated instruction/tool prefix to the same cache without exposing
 the raw user ID, manager run ID, messages, paths, or memory content in the key.
@@ -499,8 +501,8 @@ The agent instructions enforce these policies:
 
 When the private task status becomes `processed`, the runtime returns to these
 ordinary instructions. It retains the run ID, trace group, prompt-cache scope,
-visible transcript, and latest Responses cursor, but does not append the batch
-again.
+visible transcript, and model context (the latest Responses cursor or the
+replayed messages), but does not append the batch again.
 
 Backend path validation remains authoritative: Apply Patch rejects episode,
 anima, invalid, non-markdown, and delete operations even though those details
@@ -645,8 +647,8 @@ Response:
     "status": "waiting_approval",
     "kind": "general",
     "task": null,
-    "model_provider": "openai",
-    "model_name": "gpt-5.4-mini",
+    "model_provider": "OpenAIResponsesHTTPAgent",
+    "model_name": "gpt-5.6-luna",
     "summary": "Live OpenAI Agents memory-manager run",
     "error": null,
     "usage_metadata": {},
@@ -862,8 +864,9 @@ Environment and settings:
   approval-gated `apply_patch` function tool and replay the run's stored
   messages each turn. Tracing is disabled for rows not on the built-in OpenAI
   connection.
-- `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS`: shared model client timeout, default
-  `60.0`.
+- `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS`: request timeout, default `60.0`, for
+  connections without their own; a connection's `timeout_seconds` applies when
+  set. Connecting is capped at 10 seconds either way.
 - `ANIMAMA_MEMORY_FILE_MAX_BYTES`: inherited memory file size guard used by
   `MemoryEntryService`.
 
@@ -1106,3 +1109,8 @@ eligibility rules described [above](#undo-approved-patch).
 The deterministic runtime checks workflow mechanics without evaluating memory
 quality. Frontend component coverage is limited; verify the affected approval,
 Undo, and episode-processing flows in the running UI.
+
+Changing the Memory Manager model role while an approval is pending can make
+the resumed run fail after the approved write commits, because the resume
+builds the agent with the new row's model and tools. Resolve pending approvals
+before switching the role. After such a failure, start a new run to continue.

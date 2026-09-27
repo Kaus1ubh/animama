@@ -28,8 +28,9 @@ requires the existing explicit recovery action.
 ## Failed turns and recovery
 
 The shared session keeps a failure notice beside the affected user message. Known
-provider codes distinguish missing/rejected credentials, access or usage limits,
-rate limits, timeouts and unavailable providers. The notice names the failed
+error codes distinguish missing/rejected credentials, unknown models, access or
+usage limits, rate limits, timeouts, unreachable or unavailable servers and
+removed connections. The notice names the failed
 connection from the error's `details.connection_name` (never assuming OpenAI);
 for Ollama, LM Studio, llama.cpp and vLLM connections it asks whether the server
 is running at `details.connection_base_url`, and the `context_exceeded` category

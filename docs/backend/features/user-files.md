@@ -12,7 +12,9 @@ available, the prompt includes a request-local
 and persisted chunk count, plus any safe processing overview available for the
 current turn. The count helps the model plan bounded sequential reads without
 exposing opaque backend file IDs, which remain outside model-facing prompts and
-tool results.
+tool results. A model without tool calling receives neither the tools nor the
+list, so its turns cannot search or read attachments; the chat composer says
+so.
 
 ## Current Surfaces
 
@@ -198,7 +200,8 @@ Docling-parsed formats use Docling Core's `HybridChunker`:
   exceed the configured token budget, and merges compatible neighboring chunks
   when `merge_peers` allows it.
 - Anima stores display text in chunk rows and embeds Docling's contextualized
-  text. Contextualized text is transient and is not exposed through public APIs.
+  text, kept in `embedding_text` so re-embedding matches. Contextualized text is
+  not exposed through public APIs.
 - Hybrid chunk metadata is compacted to stable keys: `parser`, `chunker`,
   `headings`, `captions`, `origin`, `doc_items`, `doc_item_count`, and
   `token_count`. Bulky Docling document items are truncated in metadata while
@@ -408,6 +411,17 @@ added later.
 
 Processing enqueue is idempotent. Worker leases are recoverable after lease
 expiration. Reprocessing with `force=true` replaces chunks idempotently.
+
+## Known Limitations
+
+- Stored vectors are keyed by catalog row ID. Pointing an embeddings
+  connection at another server keeps the row ID, so existing vectors still
+  count as current: search compares them with the new server's vectors, and a
+  dimension mismatch fails semantic search. To re-embed, switch the Embeddings
+  role to a different model row, for example one added on a new connection.
+- A chunk that the server always rejects as a bad request, in a batch where no
+  other chunk succeeds, cannot be isolated. Re-embedding stays `retrying` and
+  `GET /v1/model-roles` reports that category under `embeddings_refresh`.
 
 ## Non-Goals
 

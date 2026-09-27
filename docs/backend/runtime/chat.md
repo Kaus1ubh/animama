@@ -53,9 +53,12 @@ file preparation, while already prepared browser bytes remain stable if a
 source is subsequently edited.
 `model_provider_id` is an optional stable catalog selector that must match
 `model_providers.id`. When it is present, the backend validates that the row
-exists, is active, supports streaming, supports the required
+exists, is an active chat row (`model_kind="chat"`) on an active connection,
+supports streaming, supports the required
 `main_structured_response` kind, and supports requested reasoning effort or
-native tools before the provider is invoked. When it is omitted, the route
+native tools before the provider is invoked. Owner-added rows also need a
+context window, and `OpenAIResponsesHTTPAgent` rows are valid only on the
+built-in OpenAI connection. When it is omitted, the route
 requires an explicit `anima_chat_profiles` row for the anima. Missing
 profiles fail setup before any upstream model call. Unsupported, inactive, or
 unregistered provider IDs are rejected before model invocation. Accepted turns
@@ -66,19 +69,11 @@ Direct chat also enforces the chat API standard recorded on `chats`. The first
 model-backed `chat:sse` request for a missing or empty chat stores the selected
 provider's `api_standard` on the chat row before memory context, history
 replay, Responses cursor use, or upstream model invocation.
-Subsequent requests may switch models only within the same `api_standard`.
-Requests that would switch between OpenAI Chat Completions
+Subsequent requests may switch models only within the same `api_standard`, on
+any connection. Requests that would switch between OpenAI Chat Completions
 (`chat_completions`) and OpenAI Responses (`responses`) fail setup with
-`409` and detail code `chat_api_standard_mismatch`. Gemini and LiteLLM catalog
-rows currently have no direct-chat standard mapping and fail setup with
-`chat_api_standard_unsupported`.
-DeepSeek V4 Flash and V4 Pro rows use `OpenAIHTTPAgent`, classify as
-`chat_completions`, and can continue existing Chat Completions chats. They are
-rejected from Responses-backed chats by the same mismatch fence.
-Hugging Face Inference Provider rows also use `OpenAIHTTPAgent`, classify as
-`chat_completions`, route through `https://router.huggingface.co/v1`, pin
-DeepInfra through the catalog model ID suffix, and are rejected from
-Responses-backed chats by the same mismatch fence.
+`409` and detail code `chat_api_standard_mismatch`. Rows whose provider type
+has no direct-chat standard fail setup with `chat_api_standard_unsupported`.
 `dispatch_options` reuses `PyAnimaDispatchOptions`, so the direct path
 receives the same request-level controls used by chat settings: memory
 influence, memory updates, emotion influence, emotion updates, incognito,
@@ -92,10 +87,15 @@ active; `MEMORIES.md` and the memory file list are omitted.
 That message, placed just before the user message, holds the memory file list,
 the attached-file list and, always last, the
 [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
-Provider rows that expose `supports_developer_role: false`, such as DeepSeek
-and Hugging Face, receive every `developer` message folded in order into the
+Provider rows that expose `supports_developer_role: false`, such as rows on
+connections with the `fold_developer_role` option (the default for non-OpenAI
+presets), receive every `developer` message folded in order into the
 end of the system instruction, so the guardrail remains the final instruction
 text.
+Memory tools also depend on the selected row. A row without tool calling runs
+the turn without memory tools or attached-file search instead of failing
+setup, and a row whose owner turned off memory writes (`allow_memory_writes`)
+gets read tools only.
 The model catalog separates complete `native_tool_support` from
 `requestable_native_tool_support`. Clients may send only the latter through
 `dispatch_options.native_tools`; backend-owned capabilities such as memory
@@ -114,16 +114,19 @@ turn supplies its selected row, prompt, options, and continuation state in a
 `ModelClientRequest`; clients retain no owner, Anima, chat, or tool state.
 `ANIMAMA_LLM_SKIP=1` registers deterministic clients for all provider families.
 
-See [model clients and providers](model-client-providers.md) for credentials,
-request translation, Responses continuation and compaction, retries, and stream
-finality. [Memory tools](../features/memory.md#direct-chat-memory-tools) defines
+See [model clients and providers](model-client-providers.md) for connections
+and credentials, request translation, Responses continuation and compaction,
+retries, and stream finality. [Memory tools](../features/memory.md#direct-chat-memory-tools) defines
 the function/native-patch boundary.
 
 ## Model selection
 
 Anima creation writes its chat profile directly. Request-time model selection
 uses an explicit `model_provider_id` or that profile's default; missing both
-fails setup. Either selection must name an active direct model provider.
+fails setup. Either selection must name an active direct model provider. The
+catalog, including owner-added rows and model connections, is described in
+[model catalog](../model-catalog.md); the owner manages it in
+[App Settings → Models](../../frontend/features/model-settings.md).
 
 ## Step-By-Step Flow
 
@@ -368,11 +371,17 @@ the request is incognito. The route supplies that recorder through
 upstream model streaming begins. Assistant message usage is persisted on the message
 row and added eagerly to the parent `chats.cum_*` usage counters in the same
 unit of work. The parent chat's `active_context_tokens` is replaced with the
-latest normal assistant turn's provider-reported `total_tokens` minus output
-reasoning tokens. The same non-incognito update stores the last durable model
-snapshot as `last_model_client` from the catalog row's model-client profile and
-`last_model_id` from the selected model slug. Incognito turns skip durable
-message writes and chat usage updates.
+latest turn's footprint in the next turn's context: its last request's total
+tokens minus output reasoning tokens. A turn with tool rounds or a split
+structured round sums every request in the message usage, so it records that
+footprint as `context_tokens` in the provider metadata. When a stream reports
+no usage, the Chat Completions adapter substitutes a character-based estimate
+marked `usage_estimated`, so the value still advances and post-response
+compaction can trigger. The same non-incognito update stores the last durable
+model snapshot as `last_model_provider_id` (the exact catalog row, used by the
+frontend to restore the chat's model), `last_model_client` from the catalog
+row's model-client profile and `last_model_id` from the selected model slug.
+Incognito turns skip durable message writes and chat usage updates.
 
 Visible assistant rows store `message_data.structured` for the parsed
 speech/display/emotion payload and `message_data.model_client` for JSON-safe
@@ -405,8 +414,11 @@ utility model supports it) and a 20 second timeout through
 generation.
 
 After a successful non-incognito response and before the normal
-`run.completed` frame, the route runs a hidden compaction check. If
-`chats.active_context_tokens` is at or above the configured compaction threshold,
+`run.completed` frame, the route runs a hidden compaction check. OpenAI
+Responses turns skip it and rely on provider-side compaction; Chat Completions
+models get only this post-response pass. If
+`chats.active_context_tokens` is at or above
+`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000),
 `ChatCompactionService` calls a separate backend-owned direct model prompt and
 stores the resulting summary in `chat_compactions`. Compaction summaries are not
 streamed as `user.response` events and are not inserted into `chat_messages`.
@@ -429,18 +441,25 @@ Emotion persistence reuses `persist_sse_side_effect(...)`. Current-run
 
 No background memory extraction queue is scheduled by this route. Direct
 model-client turns can attach
-request-local memory entry tools for provider families that support Anima's
-function-tool loop.
+request-local memory entry tools when the selected row supports tool calling.
 
 ## Error And Cancellation Behavior
 
 Provider/model-client errors after stream setup are caught by the SSE generator.
 The route emits `event: error`, skips title persistence and post-response
 compaction, and then emits exactly one `event: run.completed` with `chat_id`.
-For OpenAI-backed direct clients, the error payload contains the normalized
-safe metadata described above rather than raw SDK response bodies.
+On every connection the error `details` carry a provider-neutral `category`
+(such as `unreachable`, `credential_rejected`, `model_not_found`, `timeout` or
+`context_exceeded`), the connection's `connection_id`, `connection_name` and
+`connection_preset`, `connection_base_url` for owner connections, and the
+sanitized metadata described in
+[model clients](model-client-providers.md#provider-behavior); never raw SDK
+response bodies or keys. A failed turn persists no chat messages and leaves the
+Responses cursor, usage counters and turn counter unchanged; memory tool writes
+that already committed remain.
 Setup-time validation failures such as missing animas, foreign chats,
-inactive model rows, unsupported capabilities, missing direct clients, or a
+inactive model rows or connections, non-chat rows, owner rows without a context
+window, unsupported capabilities, missing direct clients, or a
 missing app-scoped registry return normal HTTP errors before `StreamingResponse`
 is opened.
 

@@ -2,9 +2,11 @@
 
 App Settings → Models lets the installation owner connect model servers, add
 their models and assign model roles. It appears only when
-`GET /v1/runtime/capabilities` reports `model_configuration: true` (desktop and
+`GET /v1/runtime-capabilities` reports `model_configuration: true` (desktop and
 self-hosted web); other compositions keep a fixed catalog. The default chat
-model for new Animas stays in App Settings → General.
+model for new Animas stays in App Settings → General. Running Ollama, LM Studio,
+llama.cpp or vLLM, their context windows and reaching them from Docker Compose
+are covered in [Local model servers](../../backend/operations/local-models.md).
 
 Code: `web/src/ui/settings/models/`, hooks in
 `web/src/query/hooks/useModelConfiguration.ts` and mutations in
@@ -17,10 +19,12 @@ assignments on the server.
 
 Each connection is an OpenAI-compatible server: Ollama, LM Studio, llama.cpp,
 vLLM, DeepSeek, Hugging Face or a custom URL. The preset fills the base URL,
-timeout and compatibility options (under Advanced). The built-in OpenAI
-connection uses the OpenAI key and base URL from API Keys or the environment and
-cannot be edited or removed, but the owner can add models to it, for example a
-newer OpenAI model copied from a built-in template.
+timeout and compatibility options (under Advanced); local presets use the host
+from `ANIMAMA_LOCAL_MODEL_HOST` (`127.0.0.1` by default, including desktop;
+`host.docker.internal` in Compose). The built-in OpenAI connection uses the
+OpenAI key from API Keys or `OPENAI_API_KEY` and, on self-hosted web,
+`OPENAI_BASE_URL`. It cannot be edited or removed, but the owner can add models
+to it, for example a newer OpenAI model copied from a built-in template.
 
 Keys depend on where the app runs:
 
@@ -28,10 +32,14 @@ Keys depend on where the app runs:
   first with a managed key; the key is then stored in the encrypted vault under
   `ANIMAMA_CONNECTION_<ID>_API_KEY` through `credentials.apply`, which restarts
   local services and reloads the window. Test models after the reload. Removing
-  a connection also deletes its key.
+  a connection with a saved key asks for confirmation, deletes the key and
+  restarts the same way. At most 32 connection keys can be stored.
 - **Self-hosted web (and the external development stack):** the owner names the
-  environment variable that holds the key; the connection shows whether it is
-  set in the backend environment. Keys never reach the database.
+  environment variable that holds the key (`OPENAI_API_KEY`, `DEEPSEEK_API_KEY`,
+  `HF_TOKEN` or `ANIMAMA_CONNECTION_<NAME>_API_KEY`); the connection shows
+  whether it is set in the backend environment. Under Compose, the
+  `ANIMAMA_CONNECTION_*` variables come from the file named by
+  `ANIMAMA_CONNECTION_KEYS_FILE`. Keys never reach the database.
 
 A key that would travel over plain `http` to another computer shows a warning.
 

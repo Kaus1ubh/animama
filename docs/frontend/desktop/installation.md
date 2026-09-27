@@ -45,16 +45,23 @@ key fields. Other model servers, such as DeepSeek or a local Ollama, LM Studio o
 llama.cpp server, are added in App Settings → Models, with their key (if any) on
 the connection. Text chat through an external model requires that provider to be
 configured and reachable and can incur its charges. There is no bundled offline
-chat model; a local server on this computer keeps chat fully local.
+chat model; a local server on this computer keeps chat fully local. The app
+reaches local servers at `127.0.0.1` on their usual port; start the server and
+load a model before testing it. See
+[Local model servers](../../backend/operations/local-models.md) for server setup
+and context windows.
 
 Keys are encrypted using macOS secure storage and are never read back into the
 browser. Enter or remove several keys, then Save once: saving briefly restarts
 the local service consumers a single time for the whole batch;
-the database, saved origin and installation owner stay unchanged. Finish active
-work before changing credentials. Never put a key in a URL or send it to support.
+the database, saved origin and installation owner stay unchanged. Saving or
+removing a connection's key, including removing a connection that has one,
+restarts them the same way and reloads the window; up to 32 connection keys can
+be stored. Finish active work before changing credentials. Never put a key in a
+URL or send it to support.
 
 If local work prevents a change, the previous key stays unchanged. Reopen
-Settings after recovery to see the provider's failure and retry the change.
+Settings after recovery to see the key's failure and retry the change.
 The Settings dialog may close while services restart. If the key was saved but
 services could not restart, runtime Retry uses that saved value; do not remove
 the vault or re-enter the key merely to repair the restart.

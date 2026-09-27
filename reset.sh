@@ -240,6 +240,21 @@ if [ "$webgpu_status" -ne 0 ]; then
 fi
 export ANIMAMA_MODEL_ROOT ANIMAMA_PARAKEET_MODEL_DIR ANIMAMA_BROWSER_MODEL_DIR ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR
 
+# Optional keys for owner-added model connections, loaded into the backend
+# container. Compose would read any file it is given, so refuse one that other
+# users can read.
+ANIMAMA_CONNECTION_KEYS_FILE="${ANIMAMA_CONNECTION_KEYS_FILE:-}"
+if [ -n "$ANIMAMA_CONNECTION_KEYS_FILE" ]; then
+  case "$ANIMAMA_CONNECTION_KEYS_FILE" in
+    /*) ;;
+    *) die "ANIMAMA_CONNECTION_KEYS_FILE must be an absolute path" ;;
+  esac
+  [ -f "$ANIMAMA_CONNECTION_KEYS_FILE" ] || die "ANIMAMA_CONNECTION_KEYS_FILE is not a file: $ANIMAMA_CONNECTION_KEYS_FILE"
+  python3 -c 'import os, sys; sys.exit(os.stat(sys.argv[1]).st_mode & 0o077 != 0)' "$ANIMAMA_CONNECTION_KEYS_FILE" ||
+    die "ANIMAMA_CONNECTION_KEYS_FILE must be readable only by its owner; run chmod 600 on it"
+fi
+export ANIMAMA_CONNECTION_KEYS_FILE
+
 COMPOSE_PROFILES="${COMPOSE_PROFILES:-}"
 ANIMAMA_WEB_BUILD_MODE="${ANIMAMA_WEB_BUILD_MODE-development}"
 case "$ANIMAMA_WEB_BUILD_MODE" in
@@ -407,6 +422,8 @@ write_stack_env_file() {
     write_env_var ANIMAMA_PARAKEET_MODEL_DIR
     write_env_var ANIMAMA_BROWSER_MODEL_DIR
     write_env_var ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR
+    # The path only; the keys stay in the owner's file.
+    write_env_var ANIMAMA_CONNECTION_KEYS_FILE
     write_env_var ANIMAMA_CONTAINER_NAME_PREFIX
     write_env_var APP_HOST
     write_env_var APP_SCHEME

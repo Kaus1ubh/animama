@@ -62,6 +62,11 @@ and source metadata are bound into the inventory, so changing either invalidates
 an approval for different bytes. Resolve unclassified or unclear records; do not
 fill approval fields automatically from a passing scan.
 
+The approved core inventory in `release-policy.json` predates the removal of
+the `google-genai` and `litellm` runtime dependencies, so the next stage needs a
+fresh inventory review. Allowlist entries in `release-scan.gitleaks.toml` that
+only covered those packages can be dropped once that scan passes without them.
+
 The generated `desktop/release/review/redistribution-review.md` packet links the
 current local artifacts. Keep the reviewer's decision with exact inventory and
 artifact hashes. `release-policy.json` and `feature-pack-releases.json` supply

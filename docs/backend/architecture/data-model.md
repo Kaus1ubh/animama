@@ -279,29 +279,67 @@ caller-owned unit of work; first runtime issuance happens after commit.
 ### Anima Chat Profile
 
 `ORMAnimaChatProfile` stores product-level chat configuration for one anima.
-Its current source-of-truth field is `default_model_provider_id`, a foreign-key
-style catalog ID such as `OpenAIHTTPAgent:gpt-5-nano`. Normal
+Its current source-of-truth field is `default_model_provider_id`, a foreign key
+to `model_providers.id` such as `OpenAIHTTPAgent:gpt-5-nano` or an owner row's
+`owner:<hex>` ID. Because profiles reference catalog rows, removed models are
+retired rather than deleted. Normal
 `chat:sse` uses this row when a request does not pass an explicit
 `model_provider_id`, and the frontend model selector updates it through
 `PATCH /v1/animas/{anima_id}/chat-profile`.
 
 ### Model Providers
 
-`ORMModelProvider` stores the durable supported provider/model catalog in
-`model_providers`. Each row represents one supported adapter/model pair, such as
-`OpenAIHTTPAgent:gpt-5-nano`, and has a unique `(provider_type, model)`
-pair for chat-message model snapshots and anima chat-profile defaults.
+`ORMModelProvider` stores the durable provider/model catalog in
+`model_providers`. Each row is one adapter/model pair served by one model
+connection. Built-in rows use IDs such as `OpenAIHTTPAgent:gpt-5-nano`; owner
+rows use opaque `owner:<hex>` IDs. The unique key
+`uq_model_providers_connection_model` covers
+`(connection_id, provider_type, model, source)`, so two connections can serve
+the same model name, and a release can add a built-in row that the owner
+already added on the OpenAI connection.
 
 Rows include public selection metadata, runtime capability metadata such as
-`supports_developer_role` and the backend-internal
-`structured_output_transport`, lifecycle fields (`active` and
-`deprecated_at`), provider base URL, and backend-internal pricing/source
-metadata. The deterministic post-schema seed is generated from `MODEL_CATALOG`;
-public `/v1/model-providers` responses omit pricing fields and
-`structured_output_transport`.
+`supports_developer_role`, `supports_tools`, `tools_with_structured_output`
+(whether tools and a response schema work in one request) and the
+backend-internal `structured_output_transport`, lifecycle fields (`active` and
+`deprecated_at`), and backend-internal pricing/source metadata. Rows store no
+base URL or credential; both come from the connection. Connection and owner
+configuration columns are:
+
+- `connection_id`: non-null foreign key to `model_connections.id`;
+- `source`: `builtin` (release-managed) or `owner`;
+- `model_kind`: `chat` or `embedding`;
+- `hidden`: the owner hid the row from model lists;
+- `allow_memory_writes`: false limits direct chat to read-only memory tools;
+- `probe_result`: nullable JSONB summary of the capability probe the owner
+  applied.
+
+The deterministic post-schema seed is generated from `MODEL_CATALOG`. It
+upserts the built-in `openai` connection and built-in rows, never changes
+`hidden`, `source` or `connection_id`, never touches owner rows, and retires
+built-in rows missing from the catalog. Owner rows and connections are retired
+(`active = false`), never deleted, and re-adding a model on the same connection
+reactivates its row. Public `/v1/model-providers` responses omit pricing fields
+and `structured_output_transport`.
 Application cost helpers consume these rows together with `Usage` counters to
 produce Decimal token-cost estimates, but account billing and quota enforcement
-are not implemented in this table.
+are not implemented in this table. Owner rows are unpriced.
+
+Model role assignments are catalog row IDs in user preferences (see
+[Settings](#settings)); they have no foreign key, and removal clears them.
+
+### Model Connections
+
+`ORMModelConnection` maps `model_connections`: one model server that catalog
+rows belong to. Columns are `id`, `source` (`builtin` or `owner`), `name`,
+`preset`, nullable `base_url`, nullable `credential_env`, `compatibility`
+JSONB, nullable `timeout_seconds`, `active` and timestamps. The seeded
+built-in `openai` connection stores no base URL or credential reference and
+uses the process `OPENAI_BASE_URL` and `OPENAI_API_KEY`. `credential_env`
+stores only an environment variable name, never a key. `compatibility` holds
+the request-shape options `fold_developer_role`, `send_openai_extensions`,
+`send_stream_usage`, `strip_function_strict` and `reasoning_mode`. Removing a
+connection retires it and all its rows.
 
 ### Memory
 
@@ -371,9 +409,10 @@ Neither the Responses cursor nor private task state is projected through the
 public manager API. The API exposes only run kind, a safe episode task summary with
 status, batch size, `has_more`, `started_at`, and `processed_at`, and a
 Reflection summary with the Anima ID and name, turn count, remaining turn count
-and `started_at`. Visible
-messages remain the UI/audit transcript, while the cursor is the live
-model-context chain. Serialized agent state is separate: it stores an exact
+and `started_at`. Visible messages remain the UI/audit transcript. On
+Responses rows the cursor is the live model-context chain; Chat Completions
+rows keep no server state, so each turn replays the run's stored user and
+assistant messages. Serialized agent state is separate: it stores an exact
 paused Apply Patch interruption and is cleared after the SDK resumes without
 another interruption.
 
@@ -506,6 +545,9 @@ resolved owner principal chatting with one anima/avatar. The public durable API 
   `openai_chat_completions` or `openai_responses`.
 - `last_model_id`, nullable. This records the catalog model slug from the
   latest successful durable `chat:sse` turn.
+- `last_model_provider_id`, nullable text with no foreign key. This records the
+  catalog row ID from the same turn, so clients can restore the exact row when
+  several connections serve the same model name.
 - metadata JSON
 - `metadata.memory_context`, a direct-chat manifest recording the latest opened
   memory file fingerprints for the chat. The manifest includes opened `path`,
@@ -522,9 +564,11 @@ resolved owner principal chatting with one anima/avatar. The public durable API 
 - cumulative usage counters: `cum_input_tokens`, `cum_output_tokens`,
   `cum_total_tokens`, `cum_cached_input_tokens`, and
   `cum_output_reasoning_tokens`
-- `active_context_tokens`, copied from the latest normal assistant message usage
-  `total_tokens` minus output reasoning tokens for active-context trigger
-  decisions
+- `active_context_tokens`, the latest normal assistant turn's last model
+  request (prompt and reply, minus output reasoning tokens) for compaction
+  trigger decisions. A turn with several requests records that footprint as
+  `context_tokens` in the assistant row's provider metadata; a server that
+  streams no usage gets a character-based estimate marked `usage_estimated`
 - `next_turn`, the next per-chat `chat_messages.turn` value to reserve
 
 The compatibility columns remain nullable because `/v1/chats` may create an
@@ -533,9 +577,9 @@ empty chat before a model provider is selected. `ChatManager` writes
 empty pre-created row, allows later model switches only when the stored
 `api_standard` matches the selected provider's `api_standard`, and rejects
 non-empty null-standard chats as invalid transcript state. Successful
-non-incognito turns update `last_model_client` and `last_model_id` together
-with usage totals and turn reservation. The baseline includes these
-columns; it does not backfill legacy databases.
+non-incognito turns update `last_model_client`, `last_model_id` and
+`last_model_provider_id` together with usage totals and turn reservation. The
+baseline includes these columns; it does not backfill legacy databases.
 
 `ORMChatMessage` stores persisted messages in `chat_messages`:
 
@@ -550,9 +594,10 @@ columns; it does not backfill legacy databases.
   used for next-turn replay. User rows store user messages, final assistant
   rows store raw assistant content, internal assistant rows store `tool_calls`,
   and internal tool rows store `tool_call_id` plus tool output.
-- optional `model_provider` and `model` snapshot for provider-generated rows;
-  when both are set, they reference `model_providers(provider_type, model)`.
-  User messages and non-provider rows intentionally keep these fields null.
+- optional `model_provider` and `model` snapshot for provider-generated rows,
+  indexed but without a foreign key, so history survives retired or
+  same-named rows on other connections. User messages and non-provider rows
+  intentionally keep these fields null.
 - `message_data.structured`, the parsed direct-chat structured response used by
   history readers, search, emotion updates, gesture requests, and TTS
 - `message_data.model_client`, the provider-neutral metadata envelope for the
@@ -642,7 +687,12 @@ Settings models store user-level settings and anima-level settings. Anima
 settings affect dispatch behavior, including memory influence, memory updates,
 emotional analysis, and presentation flags for animation or visual effects.
 User preferences may hold `safety.crisis_resource_region` and
-`safety.reminder_hours`; malformed values fall back to defaults.
+`safety.reminder_hours`; malformed values fall back to defaults. Model choices
+are catalog row IDs: `chat.default_model_provider_id` (the default for new
+Animas) and the role assignments `models.utility_model_provider_id`,
+`models.memory_manager_model_provider_id` and
+`models.embedding_model_provider_id`. They are validated when used, not when
+saved; an unusable ID falls back to the role's default.
 
 ### Avatar And Uploads
 
@@ -705,12 +755,21 @@ timestamps. A unique `(file_id, chunk_index)` constraint makes reprocessing
 replacement idempotent. Keyword search uses PostgreSQL full-text search over
 chunk text; semantic search uses chunk embeddings when available.
 
+Vectors are dimensionless (`vector` without a size), so any embeddings model
+fits. `embedding_model_id` records the catalog row that embedded the chunk; it
+is also set, without a vector, for text that model cannot embed.
+`embedding_text` stores the contextualized text that was embedded when it
+differs from the display text, so re-embedding produces the same vectors as
+fresh processing. The `(user_id, embedding_model_id)` index finds chunks that
+do not match the owner's Embeddings role. Search compares only vectors from
+the current role; other chunks wait for the re-embedding task.
+
 For Docling-parsed formats, chunk metadata is compacted before persistence.
 Stable metadata keys are `parser`, `chunker`, `headings`, `captions`, `origin`,
 `doc_items`, `doc_item_count`, and `token_count`. `doc_items` stores a bounded
 summary of source item refs/labels/text/page hints, while `doc_item_count`
-records the original Docling item count. Docling's contextualized embedding
-text is transient worker data; it is not stored in `ORMUserFileChunk`.
+records the original Docling item count. Docling's contextualized text is
+stored only in `embedding_text` and is never returned by public APIs.
 
 The original-file, chunk, and queue tables are part of the accountless Alembic
 baseline. Disabling or removing the desktop document pack retains those rows.
@@ -726,8 +785,12 @@ twenty-second freshness threshold; queue leases retain their separate timeout.
 
 ### Archive
 
-Archive models store anima archive metadata and passages. Passage search can
-use embeddings when the database/provider stack is configured for it. Archive
+Archive models store anima archive metadata and passages. Passage vectors are
+dimensionless, and `archive_passages.embedding_model_id` records the catalog
+row that embedded each one. Vector search compares only passages from the
+current Embeddings role; while the role is off, passages await re-embedding
+or the query cannot be embedded, search falls back to PostgreSQL full-text
+search over passage text. Archive
 data is distinct from the scoped Markdown memory filesystem.
 
 ## Repository And Mapper Pattern

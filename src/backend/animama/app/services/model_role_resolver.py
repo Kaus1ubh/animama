@@ -125,22 +125,28 @@ class ModelRoleResolver:
             self._log.warning("Operator default for model role is unavailable", role=role)
         if role in {ROLE_UTILITY, ROLE_MEMORY_MANAGER}:
             chat = await self.resolve(owner_id, ROLE_CHAT)
-            if chat.model_provider is not None and _suits(role, chat.model_provider):
+            if chat.model_provider is not None and suits_role(role, chat.model_provider):
                 return ResolvedModelRole(role=role, model_provider=chat.model_provider, source=ROLE_SOURCE_INHERITED)
         return ResolvedModelRole(role=role, model_provider=None, source=ROLE_SOURCE_OFF)
 
     async def _usable_row(self, role: str, model_provider_id: str) -> ModelProvider | None:
         row = await self._model_providers.get(model_provider_id)
-        if row is None or not row.active or (row.connection is not None and not row.connection.active):
-            return None
-        return row if _suits(role, row) else None
+        return row if row is not None and usable_for_role(role, row) else None
 
     async def _preferences(self, owner_id: str) -> dict[str, Any]:
         settings = await self._user_settings.get(owner_id)
         return dict(settings.preferences) if settings is not None else {}
 
 
-def _suits(role: str, row: ModelProvider) -> bool:
+def usable_for_role(role: str, row: ModelProvider) -> bool:
+    """Whether an active row on an active connection can do a role's job."""
+
+    if not row.active or (row.connection is not None and not row.connection.active):
+        return False
+    return suits_role(role, row)
+
+
+def suits_role(role: str, row: ModelProvider) -> bool:
     """Whether a row can do a role's job.
 
     The Memory Manager needs tool calling (its requests are not streamed); chat
@@ -166,6 +172,8 @@ def _preference(preferences: dict[str, Any], section: str, key: str) -> str | No
 
 __all__ = [
     "MODEL_ROLES",
+    "suits_role",
+    "usable_for_role",
     "ROLE_CHAT",
     "ROLE_EMBEDDINGS",
     "ROLE_MEMORY_MANAGER",

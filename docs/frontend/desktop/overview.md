@@ -133,8 +133,8 @@ TypeScript compilation. Keep new bridge APIs narrow, serializable, and explicit.
 Do not expose Node or arbitrary Electron APIs directly to the renderer.
 
 Shared serializable runtime contracts live in `shared/desktop-runtime.ts`.
-Credential results contain only provider/configured/update/restart status and
-bounded failure codes;
+Credential results contain only the provider name or connection key variable,
+configured/update/restart status and bounded failure codes;
 there is no read-key API. Main accepts these operations only from a registered,
 live main window's top-level frame at the exact application origin. The
 recovery window has access only to runtime actions. PiP, quick chat, unknown
@@ -159,8 +159,10 @@ not change. Unavailable secure storage fails closed; it never falls back to
 plaintext storage. Browser and external-stack development do not show these
 desktop credential controls.
 
-A busy or failed drain leaves the previous credentials unchanged; a failed batch
-records the same failure for each key in it. Main retains
+A batch that would exceed 32 connection keys is refused with
+`connection_credentials_full` before anything drains. A busy or failed drain
+leaves the previous credentials unchanged; a failed batch records the same
+failure for each key in it. Main retains
 one bounded failure status per provider or connection key across product-window
 recreation, so reopening Settings explains why the change did not finish. A new
 accepted attempt clears that key's previous failure. Vaults from earlier releases

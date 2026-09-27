@@ -11,8 +11,9 @@ Direct chat resolves model selection in this order:
 1. request `model_provider_id`, when present
 2. `anima_chat_profiles.default_model_provider_id`
 
-The selected ID must name an active `model_providers` row whose provider/model
-capabilities support the requested turn. Setup errors happen before the SSE
+The selected ID must name an active chat row on an active connection whose
+capabilities support the requested turn; [direct chat](chat.md#request-contract)
+lists the owner-row rules. Setup errors happen before the SSE
 stream opens, so callers receive a normal HTTP error instead of a partially
 opened stream.
 
@@ -22,7 +23,8 @@ opened stream.
 - fetches visible chat history and active compaction context
 - opens direct-chat memory context for anima identity
 - assembles one OpenAI Chat Completions-compatible prompt
-- attaches scoped memory tools when request options and model capabilities allow them
+- attaches scoped memory tools when request options, the row's tool support and
+  its `allow_memory_writes` flag allow them
 - builds a provider-neutral `ModelClientRequest`
 - invokes the selected shared model client
 - executes bounded request-local memory tool loops when the model asks for them
@@ -49,10 +51,10 @@ under `openai_responses/`.
 
 Registered provider families are:
 
-- `OpenAIHTTPAgent`: OpenAI Chat Completions via the OpenAI Python SDK
-- `OpenAIResponsesHTTPAgent`: OpenAI Responses via the OpenAI Python SDK
-- `GeminiAgent`: Google Gemini via `google-genai`
-- `LiteLLMAgent`: LiteLLM async chat completions
+- `OpenAIHTTPAgent`: OpenAI Chat Completions via the OpenAI Python SDK, for
+  every model connection
+- `OpenAIResponsesHTTPAgent`: OpenAI Responses via the OpenAI Python SDK, on
+  the built-in OpenAI connection only
 - `MockModelClient`: deterministic local/test model client
 
 Provider type names, including their `Agent` suffixes, are durable catalog
@@ -61,30 +63,22 @@ identifiers.
 The public model-provider catalog also reports a nullable chat compatibility
 profile for each row. `OpenAIHTTPAgent` maps to
 `model_client="openai_chat_completions"` and
-`api_standard="chat_completions"`. `OpenAIResponsesHTTPAgent` maps to
-`model_client="openai_responses"` and `api_standard="responses"`. Gemini and
-LiteLLM rows currently report null compatibility fields because their transcript
-standard has not been defined for the chat API standard fence.
-DeepSeek V4 Flash and V4 Pro rows also use `OpenAIHTTPAgent`, so they expose
-`model_client="openai_chat_completions"` and
-`api_standard="chat_completions"` while carrying DeepSeek provider label,
-logo, base URL, and credential metadata.
-Hugging Face Inference Provider rows use the same `OpenAIHTTPAgent`
-compatibility profile and expose `model_client="openai_chat_completions"` plus
-`api_standard="chat_completions"` while carrying Hugging Face provider label,
-logo, router base URL, and credential metadata.
+`api_standard="chat_completions"` on every connection.
+`OpenAIResponsesHTTPAgent` maps to `model_client="openai_responses"` and
+`api_standard="responses"`.
 
 `chat:sse` treats `api_standard` as the compatibility key for one persisted
 chat. A new or empty chat records the selected row's `api_standard` before any
 provider call. Successful non-incognito turns then update
+`chats.last_model_provider_id` from the row ID,
 `chats.last_model_client` from the selected catalog row's `model_client` and
 `chats.last_model_id` from the selected model slug in the same chat-row update
 that records usage and advances turns. Later requests can switch to another
 catalog row with the same `api_standard`, but a different standard is rejected
 with `409 chat_api_standard_mismatch` before local history, Responses cursors,
-memory side effects, or upstream model clients are used. Rows with null
-compatibility fields are not accepted for direct chat and fail
-setup with `chat_api_standard_unsupported`.
+memory side effects, or upstream model clients are used. Rows whose provider
+type has no compatibility profile fail setup with
+`chat_api_standard_unsupported`.
 
 Server startup builds the app-scoped registry in `server/model_clients.py`.
 Clients may hold reusable SDK or HTTP resources. They must not store
@@ -111,24 +105,79 @@ request-local summary for direct chat persistence and warnings through
 `app/model_clients/event_sanitizer.py`; raw provider event payloads are not
 persisted.
 
-`ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS` sets the timeout passed to direct model
-clients and defaults to 60 seconds. `OpenAIResponsesHTTPAgent` owns an
-OpenAI-only SDK client. `OpenAIHTTPAgent` owns Chat Completions SDK clients per
-OpenAI-compatible base URL so OpenAI rows use `OPENAI_API_KEY` and DeepSeek
-rows use `DEEPSEEK_API_KEY`; Hugging Face rows use `HF_TOKEN` with
-`HUGGINGFACE_API_KEY` as a fallback. `GeminiAgent` and `LiteLLMAgent` own
-their provider-family client/module state through the same registry boundary.
-
 `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS` controls native
 server-side auto-compaction for `OpenAIResponsesHTTPAgent` Responses create
-requests. It defaults to `200000`. Values less than or equal to zero disable
+requests. It defaults to `10000`. Values less than or equal to zero disable
 the `context_management` payload. When enabled, the adapter sends
 `context_management: [{"type": "compaction", "compact_threshold": ...}]`; the
 OpenAI server decides whether to compact based on the rendered token count.
+Chat Completions rows have no provider-side compaction; they use the local
+post-response pass described under
+[prompt-only maintenance calls](#prompt-only-maintenance-calls).
 
 When `ANIMAMA_LLM_SKIP=1`, startup registers `MockModelClient` for all direct
 provider families so local chat can run without upstream API keys. Mock mode is
 all-or-nothing for direct provider families.
+
+## Connections And Credentials
+
+Every catalog row belongs to a model connection
+([model catalog](../model-catalog.md#connections-and-row-ownership)). A request
+goes only to the row's connection base URL, with only that connection's key and
+timeout. `app/model_clients/credentials.py` resolves keys, and
+`adapters/model_clients/openai_chat_completions/connection_sdk.py` builds SDK
+clients from them.
+
+- **Built-in `openai` connection.** Uses `OPENAI_API_KEY` and `OPENAI_BASE_URL`
+  (default `https://api.openai.com/v1`). It is the only connection that runs
+  `OpenAIResponsesHTTPAgent`: setup rejects a Responses row elsewhere, and the
+  adapter refuses one with `responses_connection_unsupported`.
+- **Owner connections.** `EnvironmentModelCredentialResolver` reads only the
+  environment variable the connection names in `credential_env`. The name must
+  be `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN` or match
+  `ANIMAMA_CONNECTION_<NAME>_API_KEY`; desktop-managed keys use
+  `ANIMAMA_CONNECTION_<ID>_API_KEY`. An owner connection never falls back to
+  the OpenAI key.
+- **Isolation.** Owner-connection SDK clients omit the process
+  `OpenAI-Organization` and `OpenAI-Project` headers and every header listed in
+  `OPENAI_CUSTOM_HEADERS`, and set `Authorization` from the connection's own
+  key. A keyless connection (no `credential_env`) sends no `Authorization`
+  header.
+- **Missing keys.** A named variable that is unset fails the turn with
+  `missing_api_key` (category `credential_missing`). Keys are read from the
+  backend process environment, so a new key applies after the backend restarts;
+  desktop restarts its local services when a key is saved.
+- **Timeouts.** Owner connections store their own timeout: 60 s by default for
+  cloud presets and 300 s for local presets, because a first request may load a
+  model. The built-in connection and `OpenAIResponsesHTTPAgent` use
+  `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS` (default 60). Chat Completions requests
+  also cap connecting at 10 s (`connection_timeout`), so a stopped server fails
+  quickly.
+- **Clients.** `OpenAIHTTPAgent` caches one SDK client per connection.
+  `OpenAIResponsesHTTPAgent` owns one OpenAI-only SDK client.
+
+### Connection Presets
+
+Presets (`app/model_connection_presets.py`) only fill defaults when the owner
+adds a connection; every value can be changed afterwards. Local presets build
+their base URL from `ANIMAMA_LOCAL_MODEL_HOST` (`127.0.0.1` by default,
+`host.docker.internal` in Compose).
+
+| Preset        | Default base URL                   | Key                                   | Timeout | Compatibility defaults                                                                                    |
+| ------------- | ---------------------------------- | ------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------- |
+| `ollama`      | `http://<host>:11434/v1`           | none                                  | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
+| `lmstudio`    | `http://<host>:1234/v1`            | none                                  | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
+| `llamacpp`    | `http://<host>:8080/v1`            | none                                  | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
+| `vllm`        | `http://<host>:8000/v1`            | none                                  | 300 s   | fold `developer`, no OpenAI extensions                                                                    |
+| `deepseek`    | `https://api.deepseek.com`         | expected; suggests `DEEPSEEK_API_KEY` | 60 s    | fold `developer`, no OpenAI extensions, `reasoning_mode=deepseek_thinking`                                |
+| `huggingface` | `https://router.huggingface.co/v1` | expected; suggests `HF_TOKEN`         | 60 s    | fold `developer`, no OpenAI extensions, no streamed usage, strip function `strict`, `reasoning_mode=omit` |
+| `custom`      | none                               | optional                              | 60 s    | fold `developer`, no OpenAI extensions                                                                    |
+
+DeepSeek models typically need the `json_object` structured-output mode, which
+the probe selects when schema output fails. Hugging Face model IDs are sent
+exactly, so a suffix such as `zai-org/GLM-5.2:deepinfra` pins the router's
+inference provider. Without `stream_options`, servers usually stream no usage;
+the adapter then estimates it (see [chat persistence](#chat-persistence)).
 
 ## Stream Event Finality And Observability
 
@@ -171,9 +220,11 @@ function tool-call fragments, and emits `ModelClientFinal` only after the SDK
 stream iterator closes. If no finish reason or usage appears, direct chat keeps
 the turn behavior unchanged but records summary warnings such as
 `missing_finish_reason` or `missing_usage`.
-For DeepSeek thinking-mode streams, `delta.reasoning_content` is treated as
-internal provider metadata and is not folded into public text deltas, final
-assistant text, or persisted chat messages.
+OpenAI-compatible servers may add choice or delta extras. On every connection,
+`reasoning`, `reasoning_content` and `token_id` are private provider metadata:
+they never become public text deltas, final assistant text, spoken text or
+persisted chat content, and they do not raise unknown-provider warnings. A
+choice-level `text` extra is used as content when `delta.content` is absent.
 
 OpenAI Responses uses SDK `ResponseStreamEvent` variants and maps lifecycle,
 output item, text, function-call argument, native hosted/tool-call, terminal, and
@@ -227,22 +278,33 @@ finally the server-owned
 [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
 The guardrail is always the last instruction text of the request.
 
-Model clients receive the same prompt contract. OpenAI Chat Completions rows
-that support the OpenAI `developer` role pass prompt `messages` through
-directly. For DeepSeek rows, the adapter targets
-`https://api.deepseek.com`, sends `response_format={"type":"json_object"}`,
-uses `extra_body={"thinking":{"type":"disabled"}}` for `none`, uses
-`extra_body={"thinking":{"type":"enabled"}}` with literal `reasoning_effort`
-values for `high` and `max`, and omits OpenAI-only request fields such as
-`prompt_cache_key` and
-`parallel_tool_calls`. Catalog rows expose `supports_developer_role`; when it is
-false, the prompt assembler folds every `developer` message, in order, into the
-end of the system message, so the guardrail stays last; the Chat Completions
-adapter also folds any remaining `developer` messages into the first `system`
-message before dispatch. `LiteLLMAgent`
-normalizes system/developer instruction messages into one leading `system`
-message before calling `litellm.acompletion`, because several LiteLLM-backed
-providers do not accept OpenAI's `developer` role. `OpenAIResponsesHTTPAgent` moves all
+Model clients receive the same prompt contract. Chat Completions requests are
+shaped by the row's connection compatibility options
+(`ModelConnectionCompatibility`, stored in `model_connections.compatibility`
+and edited under Advanced in App Settings). The built-in OpenAI connection uses
+the defaults: no folding, every field sent and `openai_effort`.
+
+- `fold_developer_role`: merge `developer` messages into the system message.
+  The row's `supports_developer_role` is then false, so the prompt assembler
+  folds every `developer` message, in order, into the end of the system
+  message and the guardrail stays last; the adapter also folds any remaining
+  `developer` messages into the first `system` message before dispatch. On by
+  default for every non-OpenAI preset.
+- `send_openai_extensions`: send `prompt_cache_key` and `parallel_tool_calls`,
+  which some servers reject as unknown fields.
+- `send_stream_usage`: send `stream_options` (`include_usage`).
+- `strip_function_strict`: drop `strict` from function tool definitions while
+  keeping the schema and Animama's local argument validation.
+- `reasoning_mode`: `openai_effort` sends a supported effort as
+  `reasoning_effort`; `deepseek_thinking` sends
+  `extra_body={"thinking":{"type":"disabled"}}` for `none` and enabled thinking
+  with a literal `reasoning_effort` for `high` and `max` (other values fail with
+  `unsupported_reasoning_effort`); `omit` never sends an effort.
+
+JSON-mode rows (`structured_output_transport="json_object"`) receive
+`response_format={"type":"json_object"}` whatever the connection.
+
+`OpenAIResponsesHTTPAgent` moves all
 system/developer instruction text into the Responses `instructions` parameter
 every turn. Request-local guidance such as the memory map stays in
 `instructions` so Responses continuation via `previous_response_id` does not
@@ -258,9 +320,7 @@ exchanges become typed SDK `ApplyPatchCall` and `ApplyPatchCallOutput` items.
 This is the manual-context path used for new Responses chats and for
 stale-cursor fallback. With a cursor, a tool follow-up sends only the trailing
 call outputs required by the previous response.
-`GeminiAgent` moves system/developer
-instruction text into `system_instruction` and sends user/assistant
-conversation content through `contents`. OpenAI SDK clients and provider
+OpenAI SDK clients and provider
 response objects stay inside adapter modules; application services persist only
 domain data and JSON-safe metadata.
 
@@ -271,18 +331,15 @@ For `OpenAIResponsesHTTPAgent`, the adapter additionally sends typed SDK
 selected catalog row advertises `apply_patch`. That request keeps read/search
 functions and omits the two function-tool writers. The official OpenAI Responses rows
 for `gpt-5.4-nano`, `gpt-5.6-luna`, and `gpt-5.6-terra` have that capability;
-`gpt-5-nano` and other providers retain JSON-schema functions. `apply_patch` is
+`gpt-5-nano` and Chat Completions rows retain JSON-schema functions. `apply_patch` is
 intentionally absent from the user-requestable generic `native_tools`
 allowlist. Public catalog rows keep the complete capability in
 `native_tool_support` and separately expose
 `requestable_native_tool_support`; both that public projection and direct-turn
 validation use the same backend allowlist.
 
-The LiteLLM adapter strips the
-OpenAI-specific `function.strict` marker before dispatch and asks LiteLLM to
-drop unsupported OpenAI parameters, while keeping the schema and backend
-argument validation. `ModelClientFinal` can carry provider-neutral
-`tool_calls`; OpenAI Chat Completions and LiteLLM aggregate streamed tool-call
+`ModelClientFinal` can carry provider-neutral
+`tool_calls`; OpenAI Chat Completions aggregates streamed tool-call
 argument fragments before returning the final, while OpenAI Responses converts
 Responses `function_call` and `apply_patch_call` output items into the same
 provider-neutral call shape with an explicit tool type. Follow-up native results
@@ -292,6 +349,15 @@ executing the patch again.
 Tool execution belongs to
 `DirectChatTurnExecutor` and `DirectChatMemoryToolService`, not the provider
 adapters.
+
+Some servers reject a response format together with tools, or ignore the tools.
+When a Chat Completions row's internal `tools_with_structured_output`
+capability is false (set by the probe or the owner) and the turn offers tools,
+direct chat splits the turn: tool rounds send tools without `response_format`,
+then one structured round sends `response_format` without tools, built like
+the forced final after the tool limit. Only the structured round streams public
+text; the last tool round's unconstrained answer is discarded. Responses rows
+never split.
 
 Direct chat requires the canonical `main_structured_response` envelope. SSE
 `user.response` events for structured turns carry
@@ -329,92 +395,104 @@ moderated. The adapter parses the completed response's input moderation into a
 content-free `ModelClientFinal.input_moderation` (`status` `result` or `error`,
 flagged categories and scores). Moderation is report-only: it never blocks or
 alters the reply, and the executor only uses a self-harm signal to add a
-[crisis card](chat.md#sse-events). Other provider families do not support
+[crisis card](chat.md#sse-events). Chat Completions rows do not support
 moderation and never receive the option.
 
-Both OpenAI SDK adapters share one error classifier. It maps OpenAI status and
-SDK exceptions into stable model-client codes such as
+Both OpenAI SDK adapters share one error classifier
+(`adapters/model_clients/openai_errors.py`) on every connection. It maps SDK
+exceptions and status codes into stable model-client codes such as
 `openai_bad_request`, `openai_authentication_error`,
 `openai_permission_denied`, `openai_not_found`, `openai_rate_limit`,
 `openai_quota_exceeded`, `openai_timeout`, `openai_connection_error`,
 `openai_conflict`, `openai_server_error`, `openai_overloaded`, and
-`openai_previous_response_unresolvable`. The adapters retry one request-local
+`openai_previous_response_unresolvable`; connection failures before a request
+use codes such as `missing_api_key` and `connection_unavailable`. The adapters
+retry one request-local
 time only for retryable failures before any downstream text delta has been
 yielded. Once text has streamed, the adapter surfaces the error without retry
 so the runtime does not duplicate a partial generation. Error metadata exposed
 through model-client errors is sanitized to provider/API/model, status code,
 request ID, retryability, retry-after, provider error code/type/param, and a
-redacted provider error message; raw OpenAI response bodies are intentionally
-not carried into `chat:sse` details.
+redacted provider error message; raw provider response bodies and keys are
+intentionally not carried into `chat:sse` details.
+
+When direct chat emits the `error` event, `model_error_details`
+(`app/chat/direct_turn/events.py`) adds a provider-neutral `category` from
+`app/model_clients/error_categories.py` and names the connection:
+`connection_id`, `connection_name`, `connection_preset` (also written to
+`provider`) and, for connections other than the built-in one,
+`connection_base_url`. The event `code` stays the adapter code on every
+connection, so clients explain failures from `details.category`:
+
+- `unreachable`, `timeout`, `server_error`;
+- `credential_missing`, `credential_rejected`;
+- `model_not_found`, `bad_request`;
+- `context_exceeded`: OpenAI's `context_length_exceeded` code, a rejected
+  request whose message matches known llama.cpp, vLLM or LM Studio wording, or
+  llama.cpp's HTTP 500 "input is too large";
+- `rate_limited`, `quota_exceeded`;
+- `provider_error` for any other code.
+
+The connection probe also reports `invalid_base_url` and `unexpected_response`
+(a reply that is not OpenAI-compatible).
 
 The prompt `prompt_cache_key` is a SHA-256 scope derived from user ID, anima
 ID, provider type, and model. This avoids mixing incompatible anima prefixes
 while keeping repeated turns for the same user/anima/provider/model eligible
-for provider prompt caching. DeepSeek Chat Completions rows omit this field
-because DeepSeek's documented request shape does not use OpenAI's
-`prompt_cache_key`. Hugging Face Chat Completions rows also omit
-`prompt_cache_key`, `stream_options`, `parallel_tool_calls`, and
-`reasoning_effort` for router compatibility.
-
-DeepSeek JSON Object mode is selected from the persisted
-`structured_output_transport="json_object"` capability on the chosen
-`model_providers` row. It requires the prompt to ask for JSON, so the
-direct-chat response-format instructions include the shared response guidelines,
-the word `json`, the expected JSON schema, and an example object. DeepSeek
-still receives
-`response_format={"type":"json_object"}`; schema adherence is enforced by
-Animama's local final-response validation.
-
-Hugging Face rows use
-`structured_output_transport="json_schema"` and target
-`https://router.huggingface.co/v1` through the same Chat Completions adapter.
-The catalog pins DeepInfra with model IDs such as
-`zai-org/GLM-5.2:deepinfra`, and the adapter preserves that exact model string.
-It folds any `developer` messages into `system` and strips the OpenAI-specific
-`function.strict` marker from function tools before dispatch while keeping
-Animama's local tool-argument validation. Hugging Face chunks may include
-provider-specific choice extras such as `text`, `reasoning`,
-`reasoning_content`, and `token_id`; `text` is normalized as assistant content
-when `delta.content` is absent, while private reasoning/token metadata is not
-treated as an unknown-provider warning.
+for provider prompt caching. Responses always sends it; Chat Completions sends
+it only when the connection's `send_openai_extensions` option is on.
 
 `native_tools` and `reasoning_effort` are request-scoped options validated
 against the selected catalog row. Current direct support includes the
-Responses-native `web_search` tool for catalog rows that advertise it; the Chat
-Completions `OpenAIHTTPAgent:gpt-5.4-nano` row does not advertise native web
-search, while the GPT-5.6 entries are Responses-only. The Responses adapter
+Responses-native `web_search` tool for catalog rows that advertise it; Chat
+Completions rows never advertise native web search, and the GPT-5.6 entries are
+Responses-only. The Responses adapter
 sends native web search with `search_context_size: "low"` by default. Anima
-memory tools are separate app-layer function tools. They are
-currently supported for `OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent`,
-`LiteLLMAgent`, and `MockModelClient`. The Responses adapter converts the
-shared Chat Completions-style function schemas and tool-result messages into
-Responses `function` tools and `function_call_output` input items. For
-`OpenAIHTTPAgent:gpt-5.4-nano`, a turn that would attach
-memory function tools is rejected when `reasoning_effort` is also requested,
-because that `/v1/chat/completions` combination is not supported upstream.
-Gemini setup fails when memory tools would be active for the requested turn.
-
-LiteLLM support is intentionally constrained to the provider-prefixed aliases in
-`MODEL_CATALOG`; arbitrary LiteLLM model IDs are not accepted by the model
-selector.
+memory tools are separate app-layer function tools, supported for
+`OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent` and `MockModelClient` rows with
+tool calling. A row without tool calling runs the turn without memory tools
+(and without attached-file search) instead of failing setup, and a row with
+`allow_memory_writes=false` gets read tools only. The Responses adapter
+converts the shared Chat Completions-style function schemas and tool-result
+messages into Responses `function` tools and `function_call_output` input
+items. For Chat Completions models whose ID starts with `gpt-5.4`, a turn that
+would attach memory function tools is rejected when `reasoning_effort` is also
+requested, because that `/v1/chat/completions` combination is not supported
+upstream.
 
 ## Prompt-Only Maintenance Calls
 
 Title generation and chat compaction use `DirectModelPromptRunner`, which
-resolves a backend-owned catalog row and invokes the same shared model-client
-registry. These prompt-only calls are separate from the primary anima turn,
-do not stream to the frontend, and persist usage only where their service owns
-durable state, such as `chat_compactions`. Primary `chat:sse` turns that use
-`OpenAIResponsesHTTPAgent` skip this local post-response chat-compaction pass
-and rely on Responses server-side compaction instead.
+resolves the Utility [model role](../../frontend/features/model-settings.md#model-roles)
+(the App Settings choice, then `ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID`,
+then the default chat model) and invokes the same shared model-client registry.
+It sends a requested `request_options` reasoning effort only when the row
+supports that effort. These prompt-only calls are separate from the primary
+anima turn, do not stream to the frontend, and persist usage only where their
+service owns durable state, such as `chat_compactions`.
+
+After a successful non-incognito Chat Completions turn, the local
+post-response compaction pass runs when `chats.active_context_tokens` reaches
+`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000). Chat Completions
+models have no pre-send compaction. Primary `chat:sse` turns that use
+`OpenAIResponsesHTTPAgent` skip the local pass and rely on Responses
+server-side compaction instead.
 
 ## Chat Persistence
 
 Normal direct `chat:sse` turns persist messages through `ChatManager` unless
 dispatch options mark the turn incognito. Assistant messages store a lightweight
-`model_provider` and `model` snapshot so later catalog changes do not rewrite
-history. Assistant usage is added eagerly to the parent chat's cumulative usage
-counters.
+`model_provider` and `model` snapshot, without a foreign key, so later catalog
+changes and model removal do not rewrite history. Assistant usage is added
+eagerly to the parent chat's cumulative usage counters.
+
+When a Chat Completions stream reports no usage, the adapter estimates it at
+about four characters per token over the serialized request and reply, and
+marks the provider metadata with `usage_estimated` (and `usage_missing`). A turn
+with tool rounds or a split structured round bills the sum of every request,
+while `context_tokens` in the provider metadata records the last request's
+footprint; `chats.active_context_tokens` uses that footprint, so estimated or
+multi-request turns still trigger post-response compaction at the right size.
 
 Direct chat also persists a raw Chat Completions-style `raw_provider_message`
 for each durable row used in model replay. User rows store `role: "user"`,
@@ -442,9 +520,12 @@ usage. Incognito Responses turns send `store=false` upstream and do not advance
 the local Responses cursor.
 
 The same successful non-incognito chat-row update stores the last durable model
-snapshot for frontend restore: `chats.last_model_client` is the catalog row's
-model-client profile such as `openai_chat_completions` or `openai_responses`,
-and `chats.last_model_id` is the model slug such as `gpt-5-nano`.
+snapshot for frontend restore: `chats.last_model_provider_id` is the exact
+catalog row ID, `chats.last_model_client` is the row's model-client profile
+such as `openai_chat_completions` or `openai_responses`, and
+`chats.last_model_id` is the model slug such as `gpt-5-nano`. The frontend
+restores by row ID, since several connections can serve the same model slug,
+and falls back to the client and slug only for chats without a row ID.
 
 ## Adding Provider Support
 

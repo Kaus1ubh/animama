@@ -19,14 +19,17 @@ shared model clients, streams direct chat events, and persists side effects.
 - `app/contracts/`: neutral Pydantic schemas consumed by shared mappers. The
   matching `server/schemas/` modules reexport the same types for HTTP routes.
 - `app/services/`: use-case services for animas, editable content, exact
-  runtime closures, chats, model provider catalog access, title generation,
+  runtime closures, chats, model provider catalog access, owner model
+  configuration, model role resolution, embedding refresh, title generation,
   compaction, and settings. These operate on domain objects and ports.
 - `app/chat/`: direct chat memory context reads, OpenAI-compatible prompt
   assembly, request options, `DirectChatTurnExecutor`, and direct-turn helpers
   for model stream collection, provider state, response formatting, and
   persistence payloads.
 - `app/model_clients/`: provider-neutral direct model-client contracts, `MC*`
-  stream-event types, event sanitization, and compact event summaries.
+  stream-event types, event sanitization, compact event summaries, connection
+  credential resolution, the capability-probe port, error categories and usage
+  estimates.
 - `adapters/`: concrete implementations. The containment-safe content
   filesystem store, SQLAlchemy repositories, ORM/domain mappers, and direct
   model-client adapters live here. OpenAI Chat Completions and Responses
@@ -88,8 +91,22 @@ Normal product chat resolves its model through the Anima chat profile:
 
 - `anima_chat_profiles.default_model_provider_id` stores the anima's
   default catalog row.
-- `model_providers` stores active provider/model rows, capabilities, lifecycle
-  state, and pricing metadata.
+- `model_providers` stores provider/model rows, capabilities, lifecycle
+  state, and pricing metadata. Built-in rows are seeded from the release
+  catalog; the owner can add rows and hide built-in ones.
+- `model_connections` stores the model server each row belongs to: the
+  built-in OpenAI connection or an owner-configured OpenAI-compatible Chat
+  Completions endpoint, with its base URL, credential variable name,
+  compatibility options and timeout. Requests for a row go only to its
+  connection with only that connection's key.
+- `ModelCatalogPolicy` is a composition input that decides which rows a
+  composition exposes. Shared services default to built-in rows only; the
+  local composition enables owner models and App Settings roles.
+- Model roles assign rows to installation-wide jobs: chat (the default for new
+  Animas), utility (titles and compaction), the Memory Manager and embeddings.
+  `ModelRoleResolver` reads them from user preferences when the policy
+  enables owner models, falls back to operator defaults, and checks that each
+  row can do its job.
 - `DirectChatTurnExecutor` validates the selected provider, opens required
   anima identity context, assembles one OpenAI-compatible `DirectChatPrompt`,
   calls the shared direct model client, parses the main structured response,
@@ -114,7 +131,11 @@ Normal product chat resolves its model through the Anima chat profile:
 
 - global telemetry middleware from `server/telemetry.py`
 - `/health`
-- all `/v1/...` routers through `server/routers/__init__.py`
+- the shared `/v1/...` routers through `server/routers/__init__.py`
+- `app.state.model_catalog_policy` with owner models enabled, and the
+  local-only `model_configuration` router for owner connections, models and
+  roles, which the shared aggregate omits
+- private desktop control routes when desktop control is configured
 
 Startup performs process-level setup:
 
@@ -126,6 +147,8 @@ Startup performs process-level setup:
   settings, `PROFILE.md`, and configured Starter Animas
 - reconfigures logging
 - initializes the app-scoped direct model-client registry
+- starts the embedding refresh worker, which re-embeds stored upload chunks and
+  archive passages whose model differs from the owner's Embeddings role
 - watches Local content; ordinary single-root installations also watch Included,
   while immutable desktop Included mounts are scanned without a watcher
 - initializes optional voice provider state when `ANIMAMA_ENABLE_VOICE` is set
@@ -133,9 +156,10 @@ Startup performs process-level setup:
 The app owns a lazy `local.database.LocalDatabase`, or an explicitly injected
 `session_factory`. Request dependencies, startup scans, and streaming chat
 resolve sessions from that app. Engines are created on the serving event loop;
-cross-loop reuse before disposal fails clearly. Shutdown closes app-owned
-database resources and model clients. An injected factory remains owned by its
-caller. There is no process-global request session factory.
+cross-loop reuse before disposal fails clearly. Shutdown stops the embedding
+refresh worker and closes app-owned database resources and model clients. An
+injected factory remains owned by its caller. There is no process-global
+request session factory.
 
 ## Configuration
 
@@ -143,7 +167,13 @@ caller. There is no process-global request session factory.
 policy values or ports from their composition. Important local settings include:
 
 - database URL and PostgreSQL fallback variables
-- default model names and provider configuration
+- the default chat model `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` and role defaults
+  `ANIMAMA_DEFAULT_{UTILITY,MEMORY_MANAGER,EMBEDDING}_MODEL_PROVIDER_ID`
+  (catalog row IDs)
+- the built-in OpenAI connection's `OPENAI_API_KEY` and `OPENAI_BASE_URL`,
+  `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS` for connections without their own
+  timeout, and `ANIMAMA_LOCAL_MODEL_HOST`, the host that local-server presets
+  suggest (`host.docker.internal` in Compose)
 - ElevenLabs configuration
 - readable `ANIMAMA_CONTENT_ROOT` and private `ANIMAMA_DATA_ROOT` settings
 - `ANIMAMA_LOCAL_BIND_HOST` for the supported native loopback launcher;

@@ -72,9 +72,30 @@ launch method and displayed state; do not reset the privacy database blindly.
 
 Offline dictation requires the Parakeet pack; PocketTTS and microphone permission
 do not. Check pack status, selected input/output devices and mute/volume settings.
-Remote TTS or chat also requires its configured provider and connectivity. PiP
+Remote TTS also requires its configured provider and connectivity, and chat a
+reachable model connection. PiP
 is visual-only; the main renderer owns audio. See [Keyboard shortcuts](keyboard-shortcuts.md)
 for native hook permissions and [Feature packs](feature-packs.md) for installation.
+
+## Model connections and chat errors
+
+A failed turn shows a notice beside your message naming the connection that
+failed. Connection key changes report their failures in App Settings → Models.
+
+| Error or symptom                                                   | Safe next action                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Animama couldn't reach … Is … running at …?"                      | Start the server and load the model, or correct the connection's base URL in App Settings → Models. The app reaches local servers at `127.0.0.1`.                                                                                        |
+| "The conversation is too long for …" (category `context_exceeded`) | Start a new chat, or have the server load the model with a larger context window and record that window on the model.                                                                                                                    |
+| `connection_credentials_full` (the 32-key limit)                   | Remove the key from a connection you no longer use, then retry. The change was refused before any service stopped.                                                                                                                       |
+| `credential_connection_invalid`, `credential_changes_invalid`      | Main refused a malformed key change (a variable outside `ANIMAMA_CONNECTION_<ID>_API_KEY`, more than eight changes, or one target twice). Nothing changed; reopen Settings and retry, and report repeated failures with the app version. |
+
+DeepSeek, Hugging Face and Gemini keys saved by earlier builds are dropped when
+the vault loads; they never make it `vault_unreadable`. Re-enter such a key on a
+model connection.
+
+[Local model servers](../../backend/operations/local-models.md) covers starting
+Ollama, LM Studio, llama.cpp or vLLM, setting their context windows and further
+checks.
 
 ## Update failures
 

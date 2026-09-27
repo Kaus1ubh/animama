@@ -895,3 +895,53 @@ def test_reset_record_replaces_a_previous_terminal_project(tmp_path: Path, proje
     assert resumed.returncode == 0, resumed.stderr
     local_root = workspace / ".animama-stacks" / project / "content/local" if project else workspace / "content/local"
     assert resumed.stdout.splitlines() == [project or "animama", project or "animama", str(local_root)]
+
+
+def test_connection_keys_file_reaches_only_the_backend(tmp_path: Path) -> None:
+    keys = tmp_path / "connection-keys.env"
+    keys.write_text("ANIMAMA_CONNECTION_C_FIXTURE_API_KEY=fixture-connection-key\n")
+    keys.chmod(0o600)
+    environment = os.environ.copy()
+    environment.update(
+        COMPOSE_PROFILES="*",
+        ANIMAMA_PARAKEET_MODEL_DIR="/verified-test-models/parakeet/version",
+        ANIMAMA_BROWSER_MODEL_DIR="/verified-test-models/browser/version",
+        ANIMAMA_CONNECTION_KEYS_FILE=str(keys),
+    )
+    environment.pop("COMPOSE_FILE", None)
+    result = subprocess.run(
+        ["docker", "compose", "-f", "docker-compose.yml", "config", "--format", "json"],
+        cwd=REPO_ROOT,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    services = json.loads(result.stdout)["services"]
+    key = "ANIMAMA_CONNECTION_C_FIXTURE_API_KEY"
+    holders = {name for name, service in services.items() if key in _environment_names(service)}
+    assert holders == {"animama-server"}
+
+
+@pytest.mark.parametrize(("mode", "relative"), [(0o640, False), (0o600, True)])
+def test_reset_refuses_a_shared_or_relative_connection_keys_file(tmp_path: Path, mode: int, relative: bool) -> None:
+    keys = tmp_path / "connection-keys.env"
+    keys.write_text("ANIMAMA_CONNECTION_C_FIXTURE_API_KEY=fixture-connection-key\n")
+    keys.chmod(mode)
+    path = os.path.relpath(keys, tmp_path / "animama") if relative else str(keys)
+    result, commands, workspace = _run_reset(tmp_path, [], {"ANIMAMA_CONNECTION_KEYS_FILE": path})
+    assert result.returncode == 2
+    assert "ANIMAMA_CONNECTION_KEYS_FILE" in result.stderr
+    assert not any("down" in command["args"] for command in commands)
+    assert not (workspace / ".animama-stack.env").exists()
+
+
+def test_reset_records_the_connection_keys_path_without_its_keys(tmp_path: Path) -> None:
+    keys = tmp_path / "connection-keys.env"
+    keys.write_text("ANIMAMA_CONNECTION_C_FIXTURE_API_KEY=fixture-connection-key\n")
+    keys.chmod(0o600)
+    result, _, workspace = _run_reset(tmp_path, [], {"ANIMAMA_CONNECTION_KEYS_FILE": str(keys)})
+    assert result.returncode == 0, result.stderr
+    record = (workspace / ".animama-stack.env").read_text()
+    assert f"export ANIMAMA_CONNECTION_KEYS_FILE={keys}" in record
+    assert "fixture-connection-key" not in record

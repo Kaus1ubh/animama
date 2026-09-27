@@ -94,7 +94,9 @@ Standing rules:
       recorded below).
 - [x] Phase 5: App Settings, model selector and desktop keys (review #3 pass;
       commit recorded below).
-- [ ] Phase 6: documentation, decisions and acceptance gates G1–G3.
+- [ ] Phase 6: documentation, decisions and acceptance gates G1–G3
+      (documentation, ADR and keys file: review #2 pass, commit recorded
+      below; owner gates G1–G3 pending).
 - [ ] Final integration review.
 - [ ] PR, hosted Validation and owner merge approval.
 
@@ -1528,7 +1530,7 @@ Requirements: R13 for R1–R9; acceptance evidence. Depends on Phase 5.
    `env_file`, `ANIMAMA_LOCAL_MODEL_HOST`, `host-gateway`) and `reset.sh`
    pass-through.
 5. **Glossary:** **model connection** and **model role**.
-6. **ADR 0009:** companion features are application-owned with provider-native
+6. **ADR 0010** (0009 was taken by `main`'s Anima memories): companion features are application-owned with provider-native
    fast paths; catalog policy is a composition input. Add it to the index.
 7. **Desktop release note:** the next stage re-reviews the core license
    inventory after the dependency removals.
@@ -1537,15 +1539,108 @@ Requirements: R13 for R1–R9; acceptance evidence. Depends on Phase 5.
 Checks: docs review against the delivered behavior, then the full validation
 set below.
 
-Phase record: issue #170; starting source —; commits —.
+Phase record: issue #170; starting source `747faf6`; commits —.
+
+Implementation notes (agent, within scope):
+
+- **ADR 0010**, not 0009: `main`'s Anima memories took 0009.
+- **Docs** updated across backend catalog, runtime, architecture, features and
+  operations, and frontend desktop, chat and model settings, after a read-only
+  audit. The Responses compaction default is documented as 10000 (the value
+  `server/config.py` passes); local post-response compaction uses
+  `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (6000). The three Phase 4
+  limitations (F8 role switch during a pending approval, F10 a connection
+  pointed at another server, R2-F5 a chunk the server always rejects) are in
+  `memory-manager-and-episodic-memory.md` and `user-files.md`.
+- **Local model guide** `docs/backend/operations/local-models.md`: requirements
+  per role, context windows (Ollama's 4,096 default, Modelfile, llama.cpp `-c`,
+  LM Studio load settings, vLLM `--max-model-len`), `--jinja`, Compose host
+  access with the Linux `host-gateway` note, and self-hosted keys.
+- **Keys file.** Compose loads an optional `ANIMAMA_CONNECTION_KEYS_FILE`
+  (`env_file` with `required: false`) into `animama-server` only. `reset.sh`
+  reads it like other selectors, refuses a relative path or a group- or
+  world-readable file before touching services, and records only the path.
+  `DEEPSEEK_API_KEY`, `HF_TOKEN` and `OPENAI_API_KEY` stay on their explicit
+  `environment` entries, which take precedence over the file. Tests cover the
+  rendered graph and both `reset.sh` outcomes.
+- **Found while documenting:** Anima creation accepted a preferred default
+  chat model that the chat role refuses (an embedding row, an owner row without
+  a context window, or an inactive connection). Creation now falls back to the
+  installation default for those, using the resolver's `suits_role`; the
+  creation test covers both rows.
+- **Deferred to Plan B:** an owner chat row saved with structured output
+  "None" can be selected but fails turn setup, which requires a structured
+  reply; Plan B's plain-text fallback (R12) removes the requirement. The guide
+  states that chat needs JSON schema or JSON mode.
+- **Release note:** `redistribution-review.md` records that the next stage
+  re-reviews the core inventory after the `google-genai` and `litellm` removal.
+- **Pre-existing, outside scope:** desktop child processes get a fixed
+  environment, so `OPENAI_AGENTS_DISABLE_TRACING` cannot turn off Memory
+  Manager tracing on desktop; and `desktop/overview.md` pack descriptions lag
+  the four pack IDs. Both were offered as separate tasks.
 
 #### Code Review #1 Findings
 
-Not yet run.
+Reviewer: independent `sdlc-reviewer`, full initial review of the working tree
+on `747faf6`. Its checks (ruff, format check, boundary imports, creation and
+keys-file tests, Compose precedence experiments, link check) passed; it
+confirmed the creation test fails with the fix neutralized, the keys-file
+security, the absence of Plan B claims and obsolete terms, and the accuracy of
+thresholds, codes, routes, vault limits, timeouts and presets.
+
+Blocking:
+
+- **P6-R1-F1** The guide's `install -m 600 /dev/null …` fails without the
+  parent directory and empties an existing keys file when rerun.
+
+Optional: F2 Compose expands `$` in `env_file` values, and `OPENAI_API_KEY`,
+`DEEPSEEK_API_KEY` or `HF_TOKEN` lines in the keys file are silently ignored;
+F3 `http-api.md` states the old creation rule; F4 the guide overstates the
+Utility requirements; F5 llama.cpp without `--jinja` rejects tool requests
+rather than ignoring them; F6 Ollama lists a created variant as
+`qwen3-16k:latest`, which the probe needs to read its window; F7 the ADR links
+error categories to the wrong module; F8 the ADR overstates the policy default
+and graceful degradation in Plan A; F9 no test for a preferred row on an
+inactive connection, and the checks repeat the resolver's; F10 the commented
+file-worker template lacks the embeddings key and host mapping; F11 facts to
+confirm during G1 (Ollama's default window, `lms server start --bind`, Linux
+firewall and Docker bridge subnets).
 
 #### Code Review #1 Revisions
 
-Not yet run.
+- **F1 accepted.** The guide creates a private directory and touches the file
+  under `umask 077`, keeping existing content.
+- **F2 accepted.** The example quotes the key, and the guide says those three
+  variables are ignored in the file.
+- **F3 accepted.** `http-api.md` states the chat-role rule.
+- **F4 accepted.** Utility needs streaming and a context window.
+- **F5 accepted.** The guide says the server rejects tool requests.
+- **F6 accepted.** The guide names `qwen3-16k:latest`, as List models shows.
+- **F7 and F8 accepted.** The ADR links `app/model_clients/error_categories.py`,
+  says `ModelRoleSettings` derives from the policy, and states Plan A's chat
+  requirements.
+- **F9 accepted.** `usable_for_role` (active row, active connection, suitable)
+  is shared by the resolver and creation; the creation test covers an inactive
+  connection.
+- **F10 rejected.** The commented worker is not started by any selection and
+  the API's re-embedding covers its files; a template change would not change
+  behavior.
+- **F11 deferred to G1**, where the owner runs the real servers.
+
+Evidence after revisions: `make check-test` (before F9) 2161 passed, 7 skipped;
+after F9, ruff, format check, mypy and 61 creation and role tests pass; the
+changed docs pass prettier and the link check.
+
+#### Code Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck of repair round 1.
+Result: pass; F1–F9 resolved, F10 and F11 dispositions accepted, no
+regressions and no new findings. It ran the keys-file commands with an empty
+`HOME` (700 directory, 600 file, content kept on rerun) and mutation-tested the
+creation fix (removing the connection check fails only `inactive_connection`;
+removing `suits_role` fails `embedding` and `owner_without_window`). Ruff,
+format check, mypy, boundary imports, 61 focused tests and the link check
+passed.
 
 ## Final integration review
 

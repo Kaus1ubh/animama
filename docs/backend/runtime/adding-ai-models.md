@@ -2,7 +2,13 @@
 
 This guide explains how model-provider integration is wired from the durable
 backend catalog through direct chat and the frontend model selector, then gives
-the implementation workflow for adding a model or a provider family.
+the implementation workflow for adding a built-in model, a connection preset or
+a provider family.
+
+Most new models need no code: the installation owner adds them under a model
+connection in App Settings → Models, including a new OpenAI model on the
+built-in OpenAI connection ([model settings](../../frontend/features/model-settings.md)).
+Use this guide for release-managed catalog and adapter changes.
 
 Use this page together with:
 
@@ -11,6 +17,8 @@ Use this page together with:
 - [Model clients and providers](model-client-providers.md) for detailed runtime
   behavior.
 - [Direct chat SSE runtime](chat.md) for the public chat lifecycle.
+- [ADR 0010](../../adr/0010-application-owned-companion-features-and-composition-catalog-policy.md)
+  for why companion features must work on any Chat Completions model.
 
 When a change depends on current vendor behavior, verify the model ID, endpoint,
 request fields, reasoning values, tools, context limits, and pricing against the
@@ -24,17 +32,23 @@ skill is required.
 Animama separates a selectable model row from the code that calls its provider:
 
 - A **model** is a provider-specific model ID such as `gpt-5.4-nano`.
+- A **model connection** (`model_connections`) is the endpoint and credential
+  boundary a row belongs to: the built-in `openai` connection or an owner
+  connection with its own base URL, key variable, timeout and compatibility
+  options.
 - A **provider type** is a durable adapter-family identifier such as
   `OpenAIResponsesHTTPAgent`.
-- A **model-provider row** is one supported provider/model pair, identified by
-  `${provider_type}:${model}`.
+- A **model-provider row** is one supported provider/model pair on one
+  connection. Built-in rows are identified by `${provider_type}:${model}`;
+  owner rows by `owner:<hex>`. Each row has a `model_kind` (`chat` or
+  `embedding`) and a `hidden` flag that removes it from model lists.
 - A **model client** is the app-scoped adapter implementation registered for a
   provider type.
 - An **API standard** is the persisted chat-transcript compatibility boundary,
   currently `chat_completions` or `responses` for direct OpenAI-compatible chat.
 
-Adding a model to an existing provider type normally adds catalog data, not a
-new FastAPI endpoint or a new app-scoped client. For example, adding
+Adding a model to an existing provider type normally adds data, not a new
+FastAPI endpoint or a new app-scoped client. For example,
 `OpenAIResponsesHTTPAgent:gpt-5.6-terra` reuses Animama's existing
 `POST /v1/animas/{anima_id}/chat:sse` route and shared OpenAI Responses client.
 That client sends the selected row's model ID to OpenAI's `POST /v1/responses`
@@ -43,17 +57,17 @@ endpoint.
 ## End-To-End Integration Map
 
 ```text
-app/model_catalog.py
-    -> serialize provider/model rows
-    -> alembic/seeds/01-seed-model-providers.sql
-    -> model_providers table
-    -> GET /v1/model-providers
+app/model_catalog.py (built-in rows)  |  App Settings → Models (owner rows)
+    -> alembic/seeds/01-seed-model-providers.sql  |  /v1/model-connections/{id}/models
+    -> model_connections + model_providers tables
+    -> GET /v1/model-providers (filtered by the composition's ModelCatalogPolicy)
     -> generated frontend client + useModelProviders()
     -> chat model selector
     -> PATCH /v1/animas/{anima_id}/chat-profile
     -> POST /v1/animas/{anima_id}/chat:sse with model_provider_id
     -> persisted row resolution and capability validation
     -> app-scoped ModelClient selected by provider_type
+    -> the row's connection: base URL, key, timeout, compatibility options
     -> provider SDK/API stream
     -> provider-neutral ModelClientDelta stream
     -> DirectChatTurnExecutor parsing, tools, persistence, and domain events
@@ -63,31 +77,46 @@ app/model_catalog.py
 
 ### Catalog And Database
 
-`src/backend/animama/app/model_catalog.py` is the built-in source of model and
-provider metadata. `serialize_model_provider_catalog()` expands it into durable
-rows for `model_providers`; `serialize_model_catalog()` creates the safe public
-fallback projection.
+`src/backend/animama/app/model_catalog.py` is the source of built-in model and
+provider metadata for the built-in OpenAI connection.
+`serialize_model_provider_catalog()` expands it into durable rows for
+`model_providers`, and `serialize_builtin_model_connections()` produces the
+built-in `openai` connection row. `serialize_model_catalog()` is the public
+projection of those rows; only tests use it, and the API never falls back to it.
 
 The generated post-schema seed
-`alembic/seeds/01-seed-model-providers.sql` upserts those rows after
-Alembic creates the table. `animama.server.db_bootstrap` executes it for both
+`alembic/seeds/01-seed-model-providers.sql` upserts the built-in connection and
+then the built-in rows after Alembic creates the tables. It updates only
+`source='builtin'` rows, never changes `hidden`, `source` or `connection_id`,
+and retires built-in rows missing from the catalog. Owner connections and rows
+are never touched. `animama.server.db_bootstrap` executes it for both
 `reset.sh` and native/packaged bootstrap. Restarting FastAPI alone does not
 synchronize a changed Python catalog into an existing database.
 
-`ModelProviderCatalogService` can synchronize repository rows from the Python
-catalog, but normal app startup currently relies on the post-schema SQL seed.
+`ModelProviderCatalogService.sync_from_registry` can synchronize built-in
+repository rows from the Python catalog (retiring only built-ins), but it has
+no production caller; normal startup relies on the post-schema SQL seed.
 The SQL renderer lives in `tests/test_model_provider_catalog.py`.
+
+Owner connections and rows are written by `ModelConfigurationService` through
+the local-only `/v1/model-connections` routes. They are never seeded.
 
 ### Public Catalog And Frontend Discovery
 
-`GET /v1/model-providers` reads active database rows and exposes the public
+`GET /v1/model-providers` reads active rows on active connections that the
+composition's `ModelCatalogPolicy` allows (built-in rows only by default; the
+local composition adds owner rows) and exposes the public
 `PyModelProviderCatalogItem` projection. It omits provider credentials, base
-URLs, internal structured-output transport, and pricing.
+URLs, internal structured-output transport, and pricing. A database failure
+returns `503 model_catalog_unavailable` instead of a static fallback.
 
 The frontend does not hardcode supported model IDs. `useModelProviders()` calls
 the generated API client, and `ChatInputModelSelector` groups returned rows by
-provider label. A schema-preserving catalog addition therefore appears in the
-selector without a frontend source change or client regeneration.
+provider label (an owner row's connection name). Chat pickers omit
+`model_kind: "embedding"` rows and hidden rows other than the current one, and
+disable owner rows without `context_window_tokens`. A schema-preserving catalog
+addition therefore appears in the selector without a frontend source change or
+client regeneration.
 
 Selecting a row updates
 `anima_chat_profiles.default_model_provider_id` through
@@ -103,9 +132,13 @@ Direct chat resolves the selected row in this order:
 2. the anima chat profile's `default_model_provider_id`.
 
 Before opening the SSE stream, setup verifies ownership and validates that the
-persisted row is active and supports streaming, the canonical
-`main_structured_response` kind, the requested reasoning effort, requested
-native tools, and any active memory tools.
+persisted row is an active chat row on an active connection and supports
+streaming, the canonical `main_structured_response` kind, the requested
+reasoning effort, and requested native tools. Owner rows also need a context
+window, and Responses rows are valid only on the built-in OpenAI connection.
+Memory tools are narrowed to the row instead of failing setup: a row without
+tool calling chats without memory tools, and a row with
+`allow_memory_writes=false` gets read tools only.
 
 The provider type also supplies `model_client` and `api_standard`. A chat may
 switch between rows with the same API standard, but switching between
@@ -117,7 +150,10 @@ selection for usability; the backend remains authoritative and returns
 
 `server/model_clients.py` constructs one shared client per registered provider
 type. The selected durable row remains request-local and supplies the exact
-model ID, provider base URL, capabilities, and pricing metadata.
+model ID, its loaded connection, capabilities, and pricing metadata. The base
+URL, key, timeout and request-shape options come from that connection; built-in
+rows store no base URL. The Chat Completions client caches one SDK client per
+connection.
 
 Adapters translate a provider-neutral `ModelClientRequest` into SDK/API request
 fields and stream provider-neutral `ModelClientDelta` values:
@@ -139,15 +175,19 @@ OpenAI Responses chats additionally persist the latest successful response ID
 on `chats.openai_previous_response_id`. The next turn normally sends it as
 `previous_response_id`; a stale-cursor failure is retried once with locally
 replayed history. Successful chat rows also retain `api_standard`,
-`last_model_client`, and `last_model_id`, which let the frontend restore the
-historical selection when reopening a chat.
+`last_model_provider_id`, `last_model_client`, and `last_model_id`. The
+frontend restores a reopened chat's selection by `last_model_provider_id`,
+using the client/model pair only for chats without a recorded row ID.
 
 ## Decide The Change Type First
 
 ### Existing Provider Type, New Model
 
-Use this path when the existing adapter already supports the required endpoint,
-request shape, stream semantics, structured output, and tools. Typical work is:
+An owner can add any model to an existing connection without a release. Use
+this path only when a model should ship as a release-managed built-in row on
+the built-in OpenAI connection, and the existing adapter already supports the
+required endpoint, request shape, stream semantics, structured output, and
+tools. Typical work is:
 
 1. add a `MODEL_CATALOG` entry;
 2. add or update pricing metadata;
@@ -160,12 +200,22 @@ public schema remains unchanged.
 
 ### Existing Protocol, New Compatible Vendor
 
-An OpenAI-compatible vendor may reuse `OpenAIHTTPAgent` only when its actual
-Chat Completions behavior fits that adapter. The catalog row may provide a base
-URL, provider label/logo, provider family, API family, developer-role support,
-and other capability overrides. Credentials must still come from settings or
-secret storage, and `server/model_clients.py` must map the vendor base URL to
-the appropriate credential.
+An OpenAI-compatible server needs no code when the owner can reach it through
+the Custom preset and its compatibility options. Add a preset to
+`app/model_connection_presets.py` only to give a common server family good
+defaults: label and logo, default base URL (local presets derive the host from
+`ANIMAMA_LOCAL_MODEL_HOST`), whether a key is expected, a suggested key
+variable, timeout and `ModelConnectionCompatibility`. Settings read presets
+from `GET /v1/model-connection-presets`; chat-failure hints in
+`packages/product-ui/src/chat/chat-failure.ts` name local presets. A suggested
+key variable must also be allowed by `KNOWN_PROVIDER_CREDENTIAL_ENVS` in
+`app/model_clients/credentials.py`; otherwise owners use
+`ANIMAMA_CONNECTION_<NAME>_API_KEY`.
+
+When a server differs in a way the existing options cannot express, add a
+compatibility option and apply it in
+`adapters/model_clients/openai_chat_completions/request.py`. Do not infer
+behavior from a base URL, provider label or model prefix.
 
 Do not label a vendor OpenAI-compatible merely because its payload looks
 similar. Verify unsupported request fields, stream chunks, errors, tool calls,
@@ -180,20 +230,24 @@ the provider's lifecycle. This is a larger change:
    `adapters/model_clients/`;
 2. keep vendor SDK types inside the adapter package;
 3. register and close the app-scoped client in `server/model_clients.py`;
-4. add credentials, base URL, timeout, and other settings without placing
-   secrets in the catalog;
+4. reach each row's connection base URL with only that connection's key from
+   `ModelCredentialResolver`, and honor its timeout, without placing secrets in
+   the catalog or reading process keys for owner connections;
 5. decide whether the provider shares an existing transcript standard or needs
    a new `api_standard` mapping;
 6. translate structured output, reasoning, tools, usage, errors, retries, and
-   terminal stream events explicitly;
-7. add focused adapter, registry, direct-turn, route, persistence, and public
+   terminal stream events explicitly, mapping failures to the neutral
+   categories in `app/model_clients/error_categories.py`;
+7. decide whether owner rows may use it (`ModelConfigurationService` accepts
+   only the two OpenAI provider types);
+8. add focused adapter, registry, direct-turn, route, persistence, and public
    catalog tests;
-8. regenerate the frontend client if public schemas change.
+9. regenerate the frontend client if public schemas change.
 
 Do not expose a catalog row for direct chat until its provider type has a
 registered client and a supported API-standard profile.
 
-## Adding A Model To An Existing Provider
+## Adding A Built-In Model To An Existing Provider
 
 ### 1. Verify The Provider Contract
 
@@ -216,13 +270,14 @@ following the alias is intentional product behavior.
 ### 2. Add The Catalog Entry
 
 Add the model to `MODEL_CATALOG` with only verified, Animama-supported
-capabilities. A schema-backed reasoning model generally resembles:
+capabilities. Every entry becomes a row on the built-in OpenAI connection. A
+schema-backed reasoning model generally resembles:
 
 ```python
-"vendor-model-id": {
+"openai-model-id": {
     "model_metadata": {
         "model_type": "reasoning",
-        "current_snapshot": "vendor-model-snapshot",
+        "current_snapshot": "openai-model-snapshot",
         "context_window_tokens": 1_000_000,
         "max_output_tokens": 128_000,
     },
@@ -238,13 +293,14 @@ capabilities. A schema-backed reasoning model generally resembles:
         "supported_reasoning_efforts": {"low", "medium", "high"},
     },
     "providers": {
-        "ExistingProviderType": {
-            "base_url": "https://provider.example/v1",
-        },
+        "OpenAIResponsesHTTPAgent": {},
     },
     "pricing": VERIFIED_PRICING,
 },
 ```
+
+An embedding model sets `"model_kind": MODEL_KIND_EMBEDDING`, produces
+`embedding` and uses `OpenAIHTTPAgent`; see the `text-embedding-3-*` entries.
 
 Provider attributes override shared model capabilities when one endpoint has a
 different feature set. Add multiple provider types only when each path is
@@ -280,7 +336,8 @@ generated client, and selector instead of relying on set order.
 
 Pricing is backend-internal but participates in usage estimates. Populate the
 source URL and checked date together with every verified tier. Preserve
-trailing decimal precision as strings in the catalog constants.
+trailing decimal precision as strings in the catalog constants. Entries without
+pricing, and every owner row, are stored as `unpriced`.
 
 The current model supports input, cached-input, and output prices for standard,
 batch, flex, and priority tiers, plus corresponding long-context rates and a
@@ -298,8 +355,10 @@ Unknown pricing must remain explicitly unpriced, never zero.
 ### 5. Regenerate And Apply The Seed
 
 Update `alembic/seeds/01-seed-model-providers.sql` from
-`serialize_model_provider_catalog()` and run the catalog parity test. Do not
-hand-edit only the SQL while leaving the Python source stale.
+`serialize_model_provider_catalog()` and `serialize_builtin_model_connections()`
+and run the catalog parity test. Do not hand-edit only the SQL while leaving the
+Python source stale. Removing an entry retires its row on the next seed run; the
+row keeps its ID so chat profiles and history stay valid.
 
 Apply the new rows locally through the normal stack reset:
 
@@ -338,7 +397,9 @@ OpenAIResponsesHTTPAgent:gpt-5.6-terra
 
 Their catalog entries enable requestable `web_search` and backend-controlled
 memory `apply_patch`. The ordered reasoning list starts with `none`, which the
-selector sends as its default. Sol is not an implemented catalog row.
+selector sends as its default. Sol is not an implemented catalog row; an owner
+can add it on the built-in OpenAI connection by copying the Luna template,
+which keeps the Responses API and its native tools.
 
 Use [the model catalog](../model-catalog.md) for supported capabilities and
 `MODEL_CATALOG` for source-attributed pricing. Verify current vendor terms
@@ -358,8 +419,9 @@ At minimum, cover:
 - complete versus requestable native tools;
 - short/long-context pricing and explicitly missing rates;
 - SQL seed parity with the Python serializer;
-- repository sync insertion, update, and retirement behavior;
-- adapter request shape and terminal stream behavior;
+- seed reruns that keep owner rows and `hidden` flags and retire removed
+  built-ins;
+- adapter request shape per compatibility option and terminal stream behavior;
 - direct-turn selection, capability rejection, persistence, and API-standard
   fencing;
 - anima chat-profile and `chat:sse` request overrides.
@@ -373,7 +435,11 @@ uv run pytest -q \
   tests/test_model_client_registry.py \
   tests/test_direct_chat_turn_executor.py \
   tests/test_anima_chat_profile.py \
-  tests/test_anima_chat_sse.py
+  tests/test_anima_chat_sse.py \
+  tests/test_model_configuration_api.py \
+  tests/test_model_connection_credentials.py \
+  tests/test_model_connection_probe.py \
+  tests/test_model_error_categories.py
 
 uv run ruff check
 ```
@@ -416,13 +482,21 @@ responses, user content, tool arguments, or sensitive stream previews.
 
 - **The model is in Python but absent from the UI:** the database seed was not
   regenerated or applied, or the row is inactive.
+- **A row is in the database but not in a chat picker:** it is hidden, an
+  embedding row, on a removed connection, or an owner row outside a composition
+  whose `ModelCatalogPolicy` enables owner models.
+- **`GET /v1/model-providers` returns `503 model_catalog_unavailable`:** the
+  catalog query failed; check the database and backend logs.
 - **The selector shows the row but send is blocked:** the provider type has no
-  supported API-standard profile or the active chat uses another standard.
-- **Setup returns 400 before SSE opens:** a persisted capability does not cover
-  streaming, structured output, reasoning, native tools, or memory tools.
-- **The provider rejects the request:** catalog capability metadata is broader
-  than the adapter/provider combination actually supports, or the SDK/request
-  translation needs updating.
+  supported API-standard profile, the active chat uses another standard, or an
+  owner row has no context window.
+- **Setup returns 400 before SSE opens:** the row is not an active chat row, its
+  connection is inactive, an owner row lacks a context window, a Responses row
+  is on an owner connection, or a persisted capability does not cover
+  streaming, structured output, reasoning, or native tools.
+- **The provider rejects the request:** capability metadata is broader than the
+  model actually supports, the connection's compatibility options send a field
+  the server rejects, or the SDK/request translation needs updating.
 - **A Responses turn loses continuity:** inspect the chat cursor, terminal
   response ID, incognito/store behavior, stale-cursor retry, and manual-history
   serialization.
