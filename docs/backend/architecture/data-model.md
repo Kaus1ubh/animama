@@ -312,7 +312,8 @@ configuration columns are:
 - `hidden`: the owner hid the row from model lists;
 - `allow_memory_writes`: false limits direct chat to read-only memory tools;
 - `probe_result`: nullable JSONB summary of the capability probe the owner
-  applied.
+  applied: its findings and each step's name, result and category, never the
+  server's error text.
 
 The deterministic post-schema seed is generated from `MODEL_CATALOG`. It
 upserts the built-in `openai` connection and built-in rows, never changes

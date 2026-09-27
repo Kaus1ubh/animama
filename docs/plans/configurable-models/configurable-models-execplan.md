@@ -1652,7 +1652,63 @@ healthy engine before pushing.
 Covers the combined Plan A diff against the spec's Plan A acceptance, reusing
 still-valid phase evidence. One full review and at most two repair rounds.
 
-Not yet run.
+### Final Integration Review #1 Findings
+
+Reviewer: independent `sdlc-reviewer`, final integration mode, on `13a9a47`
+against the merge base with `main`. It found no blocking defect in Plan A's own
+code and confirmed across phases: owner rows flow from the API through turns,
+roles and the UI; removal is consistent across API, roles, selector and
+restore; every client reaches its connection with only that connection's key;
+role consumers and management routes stay off outside the local composition;
+and a fully local installation makes no hidden OpenAI call (moderation,
+tracing, `store` and `prompt_cache_key` stay on OpenAI rows; usage estimates
+need no tokenizer). Its non-database checks (ruff, format check, mypy,
+boundary imports, `uv lock --check`, `pnpm openapi-ts:check`, `pnpm check`,
+`pnpm web:lint`, 1997 web and 337 desktop tests, 1578 non-database backend
+tests, Compose configs) passed; the host's Docker engine was hung, so database
+tests could not run.
+
+Blocking:
+
+- **FI-R1-F1** The branch conflicted with `main` (#185's empty
+  `OPENAI_BASE_URL` fix touched the Memory Manager runtime and the deleted
+  `embeddings.py`), and `main`'s new `tests/test_openai_sdk_base_url.py`
+  targets removed APIs. A full database-backed suite must pass on the merged
+  candidate.
+
+Optional: F2 the committed generated SDK was Prettier-formatted, hiding the
+contract diff; F3 saved `probe_result` kept step details that can quote server
+error text; F4 the Memory Manager router builds its credential resolver from
+global settings while roles use the injected settings; F5 the configuration
+service duplicated the role-preference reader without trimming; F6 ADR wording
+on `ModelRoleSettings` and the spec's "draft" status; watch items for G1
+(starter Animas start on the default OpenAI model; the 20 s title timeout with
+a separate cold Utility model).
+
+### Final Integration Review #1 Revisions
+
+- **F1 accepted.** Merged `origin/main` (`e3b5289`), keeping Plan A's runtime
+  and the deletion of `embeddings.py`. One helper, `resolve_openai_base_url`,
+  now resolves the built-in endpoint everywhere (server, both chat clients,
+  probe, Memory Manager) and treats a blank value as the default, which
+  carries #185's fix. `tests/test_openai_sdk_base_url.py` is ported to the
+  helper, the server resolver and the Memory Manager client.
+- **F2 accepted.** The SDK is regenerated with `pnpm openapi-ts`; its diff
+  against `main` is the contract change alone.
+- **F3 accepted.** The service stores `probe_result_summary`: findings and
+  each step's name, result and category. Test added; docs updated.
+- **F4 deferred.** Both read the same settings object in every production
+  composition, so behavior is unaffected; aligning them belongs with the next
+  change to that router.
+- **F5 accepted.** The service uses the resolver's `role_preference`.
+- **F6 accepted.** ADR and spec wording corrected; the local model guide gains
+  a fully local section covering starter Animas and the title timeout.
+
+Evidence after revisions: ruff, format check and mypy clean; the ported
+base-URL tests, probe and client tests pass (69 and 38 non-database tests);
+`pnpm openapi-ts:check` and `pnpm check` pass; `pnpm prettier:check` reports
+only 11 files this branch does not change. The full `make check-test` waits
+for a responsive Docker engine.
 
 ## Validation and acceptance
 

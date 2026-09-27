@@ -694,8 +694,9 @@ carry a key value.
   reports one. An `embedding` probe reports the vector dimensions. A Responses
   probe checks that the model exists and is refused off the built-in
   connection (`400 invalid_provider_type`). Values the probe could not
-  determine are null. Saving the model stores the owner's summary in
-  `probe_result`.
+  determine are null. Saving the model stores a summary in `probe_result`: the
+  findings and each step's name, result and category; step details and notes,
+  which can quote server error text, are dropped.
 - `POST /v1/model-connections/{connection_id}/models` (`201`): add an owner row
   with `model`, optional `label`, `kind`, `context_window_tokens`,
   `allow_memory_writes` (default true), `probe_result` and `capabilities`, or a

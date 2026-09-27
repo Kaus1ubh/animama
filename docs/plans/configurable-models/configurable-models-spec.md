@@ -370,7 +370,7 @@ https://github.com/raymond-van/animama/issues/165
 ## ExecPlan
 
 - Plan A (R1–R9): [configurable-models-execplan.md](configurable-models-execplan.md)
-  (draft for owner review).
+  (authorized 2026-09-26; implemented, owner gates pending).
 - Plan B (R10–R12): `configurable-models-features-execplan.md`, to be written
   after Plan A merges.
 

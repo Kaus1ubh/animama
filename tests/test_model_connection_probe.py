@@ -331,3 +331,32 @@ def test_connection_timeouts_cap_connecting_but_not_replies():
     assert local is not None and (local.connect, local.read) == (10.0, 300.0)
     assert short is not None and short.connect == 5.0
     assert connection_timeout(None) is None
+
+
+def test_saved_probe_results_keep_findings_but_never_server_text() -> None:
+    from animama.app.services.model_configuration_service import probe_result_summary
+
+    report = {
+        "model": "qwen3:8b",
+        "supports_tools": True,
+        "context_window_tokens": 16384,
+        "notes": ["The server said: key sk-live-secret is invalid"],
+        "steps": [
+            {"name": "streaming", "ok": True, "category": None, "detail": None},
+            {"name": "tool_calls", "ok": False, "category": "bad_request", "detail": "echoed key abc-SECRET"},
+        ],
+    }
+
+    summary = probe_result_summary(report)
+
+    assert summary == {
+        "model": "qwen3:8b",
+        "supports_tools": True,
+        "context_window_tokens": 16384,
+        "steps": [
+            {"name": "streaming", "ok": True, "category": None},
+            {"name": "tool_calls", "ok": False, "category": "bad_request"},
+        ],
+    }
+    assert "SECRET" not in str(summary) and "sk-live" not in str(summary)
+    assert probe_result_summary(None) is None

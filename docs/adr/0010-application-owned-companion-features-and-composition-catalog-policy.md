@@ -49,9 +49,10 @@ instead of failing. In Plan A a chat model still needs streaming, JSON output
 and (for owner rows) a context window.
 
 **Catalog policy is a composition input.** Shared services receive a
-`ModelCatalogPolicy` (owner models enabled, optional built-in allowlist) and
-`ModelRoleSettings`, derived from the policy; owner models are off unless a
-composition enables them. Only the local composition enables
+`ModelCatalogPolicy` (owner models enabled, optional built-in allowlist), and
+the role resolver receives whether owner role choices apply, which the server
+derives from that policy; owner models are off unless a composition enables
+them. Only the local composition enables
 owner connections, owner models, App Settings roles and their management
 routes. A hosted composition supplies its fixed list and operator defaults
 without Cloud imports.

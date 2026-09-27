@@ -99,7 +99,7 @@ class ModelRoleResolver:
         if role not in ROLE_PREFERENCE_PATHS:
             raise ValueError(f"Unknown model role: {role}")
         preferences = await self._preferences(owner_id)
-        requested = _preference(preferences, *ROLE_PREFERENCE_PATHS[role]) if self._owner_roles_enabled else None
+        requested = role_preference(preferences, *ROLE_PREFERENCE_PATHS[role]) if self._owner_roles_enabled else None
         if requested is not None:
             row = await self._usable_row(role, requested)
             if row is not None:
@@ -164,7 +164,7 @@ def suits_role(role: str, row: ModelProvider) -> bool:
     return row.source != MODEL_SOURCE_OWNER or row.context_window_tokens is not None
 
 
-def _preference(preferences: dict[str, Any], section: str, key: str) -> str | None:
+def role_preference(preferences: dict[str, Any], section: str, key: str) -> str | None:
     values = preferences.get(section)
     value = values.get(key) if isinstance(values, dict) else None
     return value.strip() if isinstance(value, str) and value.strip() else None
@@ -172,6 +172,7 @@ def _preference(preferences: dict[str, Any], section: str, key: str) -> str | No
 
 __all__ = [
     "MODEL_ROLES",
+    "role_preference",
     "suits_role",
     "usable_for_role",
     "ROLE_CHAT",

@@ -44,7 +44,7 @@ from ..ports import (
     UnitOfWork,
     UserSettingsRepository,
 )
-from .model_role_resolver import ROLE_PREFERENCE_PATHS
+from .model_role_resolver import ROLE_PREFERENCE_PATHS, role_preference
 
 CREDENTIAL_MODE_NONE = "none"
 CREDENTIAL_MODE_ENV = "env"
@@ -315,7 +315,7 @@ class ModelConfigurationService:
             model_kind=draft.kind,
             hidden=False,
             allow_memory_writes=draft.allow_memory_writes,
-            probe_result=dict(draft.probe_result) if draft.probe_result is not None else None,
+            probe_result=probe_result_summary(draft.probe_result),
             active=True,
             capabilities=_capabilities(draft, template, provider_type=provider_type),
             pricing=ModelProviderPricing(pricing_status="unpriced", pricing_source_provider=connection.preset),
@@ -369,7 +369,9 @@ class ModelConfigurationService:
             allow_memory_writes=(
                 patch.allow_memory_writes if patch.allow_memory_writes is not None else row.allow_memory_writes
             ),
-            probe_result=dict(patch.probe_result) if patch.probe_result is not None else row.probe_result,
+            probe_result=(
+                probe_result_summary(patch.probe_result) if patch.probe_result is not None else row.probe_result
+            ),
             hidden=patch.hidden if patch.hidden is not None else row.hidden,
         )
         (stored,) = await self._model_providers.upsert_many([updated])
@@ -416,7 +418,7 @@ class ModelConfigurationService:
         roles = tuple(
             f"{section}.{key}"
             for section, key in MODEL_ROLE_PREFERENCE_PATHS
-            if _preference(preferences, section, key) in model_provider_ids
+            if role_preference(preferences, section, key) in model_provider_ids
         )
         return ModelUsage(animas=tuple(animas), roles=roles)
 
@@ -429,7 +431,7 @@ class ModelConfigurationService:
         preferences = dict(settings.preferences)
         changed = False
         for section, key in MODEL_ROLE_PREFERENCE_PATHS:
-            if _preference(preferences, section, key) in model_provider_ids:
+            if role_preference(preferences, section, key) in model_provider_ids:
                 section_values = dict(preferences.get(section) or {})
                 section_values.pop(key, None)
                 preferences[section] = section_values
@@ -570,9 +572,43 @@ def _validated_context_window(value: int | None) -> int | None:
     return value
 
 
-def _preference(preferences: dict[str, Any], section: str, key: str) -> object:
-    values = preferences.get(section)
-    return values.get(key) if isinstance(values, dict) else None
+_PROBE_SUMMARY_FIELDS = (
+    "model",
+    "supports_streaming",
+    "structured_output_transport",
+    "supports_tools",
+    "tools_with_structured_output",
+    "context_window_tokens",
+    "embedding_dimensions",
+)
+
+
+def probe_result_summary(report: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Keep what a saved probe needs: its findings and each step's name, result and category.
+
+    Step details and notes can quote the model server's own error text, which may
+    echo a credential, so they are never stored.
+    """
+
+    if report is None:
+        return None
+    summary: dict[str, Any] = {}
+    for name in _PROBE_SUMMARY_FIELDS:
+        value = report.get(name)
+        if isinstance(value, bool | int) or (isinstance(value, str) and len(value) <= 256):
+            summary[name] = value
+    steps = report.get("steps")
+    if isinstance(steps, list):
+        summary["steps"] = [
+            {
+                "name": str(step.get("name"))[:64],
+                "ok": step.get("ok") is True,
+                "category": str(step["category"])[:64] if isinstance(step.get("category"), str) else None,
+            }
+            for step in steps[:32]
+            if isinstance(step, dict)
+        ]
+    return summary
 
 
 __all__ = [
@@ -592,4 +628,5 @@ __all__ = [
     "OwnerModelDraft",
     "OwnerModelPatch",
     "normalize_base_url",
+    "probe_result_summary",
 ]
