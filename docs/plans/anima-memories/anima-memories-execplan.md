@@ -48,7 +48,7 @@ version; 3.14 changes OpenAPI wording); never hand-edit generated output.
 - [x] Phase 2: memory workspace and create-Anima template (review #1 pass).
 - [x] Phase 3: live edits and the chat memory cue (backend review #2 pass,
       frontend review #1 pass).
-- [ ] Phase 4: Reflection.
+- [x] Phase 4: Reflection (review #2 pass).
 - [ ] Final integration review.
 - [ ] Owner gate G1: desktop acceptance with a live model.
 - [ ] PR opened; hosted Validation recorded.
@@ -168,6 +168,29 @@ Planning findings at `410425e` (unchanged at `b633af1`):
   forward, while the main renderer validates the entry ID before navigating.
   The `memory.updated` event also marks memory-entry and episode queries stale
   so the link never opens outdated content.
+- 2026-09-26, implementation (Phase 4 backend): "nothing to reflect" mirrors
+  episode processing: `409` with a readable string `detail`, creating no run and
+  leaving the open run alone; a missing `MEMORIES.md` also returns `409` asking
+  for repair. The summary is a separate `run.reflection` object
+  (`anima_id`, `anima_name`, `turn_count`, `remaining_turn_count`, `started_at`)
+  rather than a union inside `run.task`. A turn is the visible rows sharing a
+  chat and `run_id`; a turn whose assistant row recorded `updates_enabled: false`
+  is skipped whole. Coverage advances at approval only if it is still where the
+  run started (or already at this run's boundary), otherwise the approval
+  returns `409` and stays pending; undo restores the previous coverage only if
+  coverage still points at this run's boundary and no other applied change from
+  the run remains. Reflection runs can read user files but change only their
+  own `MEMORIES.md`, and never see identities. The turn tool
+  `read_reflection_turns` pages 50 turns, shortens each side past 2,000
+  characters and shows times in the owner's time zone.
+- 2026-09-26, implementation (Phase 4 review): a Reflection batch is the oldest
+  uncovered turns up to 400 turns and 200,000 characters of the text the model
+  reads (each side shortened past 2,000 characters), always at least one turn,
+  so long-reply histories cannot fail on the same batch forever. The Reflect
+  button appears in both Manual and Memory Manager modes; refusals share one
+  "Reflection did not start." toast carrying the server's reason; a dirty
+  `MEMORIES.md` draft asks for confirmation; failed and completed banners say
+  whether an applied change stands.
 - 2026-09-26, plan design: one branch and one PR; four phases ordered by
   dependency. Implementation details may change with evidence within the spec.
 
@@ -622,15 +645,95 @@ deterministic runtime, then one live-model Reflection if the owner provides a ke
 
 Completion: checks and evidence recorded; review has no unresolved blockers.
 
+Phase record: issue #160; starting source `59db411`. The backend was started by
+one agent that stalled twice (likely an untimed test run) and finished by a
+fresh agent with every test command under `timeout`. Backend evidence after
+repairs: `make check-test` 1994 passed, 7 skipped; ruff, format, mypy clean;
+import boundary 0 forbidden edges; `openapi-ts:check` current. Frontend
+evidence after repairs: `pnpm check`, `web:lint`, `build` pass; `web:test`
+320 files / 1949 tests. Browser evidence on the purge-reset task stack
+(deterministic runtime, 1440×900): Reflect with no chats switched to Memory
+Manager and showed "There are no new turns with Annie to reflect on" without a
+run; after one chat turn, Reflect showed "Reflecting on 1 turn with Annie", a
+proposal card labelled `Animas/Annie/MEMORIES.md` with a dated line under Our
+story, and Reflect disabled while pending; Approve produced Version 2 in
+Preview; Undo restored the file (Version 3) and the same turn became
+uncovered again; Reflect with Auto approve applied it without a card
+(Version 4); Reflect again returned 409 "no new turns"; a dirty draft raised
+"Reflect with an unsaved draft?" and Cancel kept Manual mode; Reflect is hidden
+for `IDENTITY.md`; at 375×812 the header fits the tabs and Reflect. The check
+found a horizontal overflow of the Memory Manager panel from an unbreakable
+path and "1 turns" wording in the deterministic runtime, both fixed below. Not
+performed: a live-model Reflection (owner gate G1).
+
 #### Code Review #1 Findings
 
-Not started.
+Backend (sdlc-reviewer, `59db411` working tree; focused pytest 162 + 349
+passed; scratch probes for coverage fencing and multi-change undo passed).
+Result: pass, all optional.
+
+- P4B-R1-F1: no service tests for a failed Reflection, the coverage-fencing
+  409, undo with another applied change, or turn shortening.
+- P4B-R1-F2: leftovers (unused helpers, duplicated branch, hardcoded constants,
+  wrong message for invalid content).
+- P4B-R1-F3: three copies of owner time-zone resolution.
+- P4B-R1-F4: the refusal message said "change" for refused reads.
+- P4B-R1-F5: 400 maximal turns could exceed model context on every attempt.
+- P4B-R1-F6: millisecond commit-order window around the boundary (theoretical).
+
+Frontend (sdlc-reviewer; focused vitest 172 passed, `tsc`, eslint, Prettier
+clean). Result: blocked.
+
+- P4F-R1-F1 (blocking): a failed Reflection's banner claimed `MEMORIES.md` was
+  unchanged even after a change from the run had been applied.
+- P4F-R1-F2 (optional): "Reflect anyway" did not recheck whether a run could
+  start.
+- P4F-R1-F3 (optional): Auto approve is not visible in Manual mode.
+- P4F-R1-F4 (optional): a doc sentence overstated query recovery; a completed
+  run still said "Reflecting on".
 
 #### Code Review #1 Revisions
 
-Not started.
+- P4B-R1-F1 accepted: four tests added (reflection tests 17 → 24 with F5).
+- P4B-R1-F2 accepted: leftovers removed, constants reused, invalid content
+  reported as invalid.
+- P4B-R1-F3 accepted: `time_zone_or_utc` and `preferred_time_zone` in
+  `domain/settings.py`; the episode recorder now falls back to UTC for a
+  malformed zone name instead of failing.
+- P4B-R1-F4 accepted: separate messages for refused Anima files and read-only
+  user files.
+- P4B-R1-F5 accepted: 200,000-character batch budget (Decision Log).
+- P4B-R1-F6 rejected: needs concurrent chats committing within milliseconds of
+  a Reflect; recorded here for awareness.
+- Browser findings accepted: shared `format_turn_count` pluralizes the
+  deterministic runtime's text; the Memory Manager panel root gained `min-w-0`
+  and message bodies wrap long tokens.
+- P4F-R1-F1 accepted: banners branch on whether the run has an applied,
+  not-undone change; tests added.
+- P4F-R1-F2 accepted: confirmation rechecks and explains why a run cannot
+  start.
+- P4F-R1-F3 rejected: Reflect switches to Memory Manager, where the setting is
+  visible; it is the same conversation setting as every other run.
+- P4F-R1-F4 accepted: doc corrected; completed runs say "Reflected on".
+- Also fixed: stale "modal" wording in the backend Memory Manager doc.
 
-## Final integration review
+#### Code Review #2 Findings
+
+Targeted recheck of all accepted Phase 4 revisions, backend and frontend:
+all verified (reflection/manager/episode/executor/fresh-install pytest 188
+passed; ruff, format, mypy, import boundary clean; web vitest 177 passed,
+`tsc`, eslint, Prettier clean). Result: pass. Optional notes: the model-facing
+mandate said "1 chat turns"; a few edited backend doc lines are unwrapped; a
+completed Reflection with an applied change uses the neutral banner style.
+
+#### Code Review #2 Revisions
+
+The mandate now uses `format_turn_count` (reflection tests 24 passed, ruff and
+format clean). Doc wrapping and banner styling left as is (cosmetic). Browser
+re-check: a general-run message naming `animas/<id>/MEMORIES.md` rendered the
+long path, and after Approve the Work pane stayed at its width with no
+horizontal scroll. Repair budget used: one of two.
+
 
 After Phase 4, one full review of the combined diff against spec R1–R10, reusing
 still-valid phase evidence, with at most two repair rounds. Confirm the docs,

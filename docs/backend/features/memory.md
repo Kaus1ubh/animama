@@ -172,13 +172,23 @@ persisted and never carry a cue.
 ## Memory Manager API
 
 The Memory Manager is a separate user-invoked workflow over user-scope memory
-and, in general runs, owned Anima identities. It proposes create/update patches
-for approval and keeps episode logs read-only. Approvals use optimistic
-versions; rejection leaves memory unchanged, and Undo is available only while
-the target still matches the approved version. Identity approvals, Auto approve
-and Undo use the trusted current-revision path described below, so an Anima
-rename does not block them; a deleted Anima's pending approval returns `409`
-and can still be rejected.
+and, in general runs, owned Anima identities and `MEMORIES.md` files (changed
+only when the owner asks). It proposes create/update patches for approval and
+keeps episode logs read-only. Approvals use optimistic versions; rejection
+leaves memory unchanged, and Undo is available only while the target still
+matches the approved version. Identity approvals, Auto approve and Undo use the
+trusted current-revision path described below, so an Anima rename does not
+block them; a deleted Anima's pending approval returns `409` and can still be
+rejected. Episode processing never reaches Anima files.
+
+A **Reflection** (`POST /v1/memory/manager/runs:reflect`) is a Memory Manager
+run bound to one Anima. It reads that Anima's chat turns that no applied
+Reflection has covered, oldest first and at most 400 turns or 200,000
+characters of turn text per run, and may propose
+changes only to that Anima's `MEMORIES.md`; other memory is read-only context.
+Turns taken with memory updates off are never read. Its turns count as covered
+only once its `MEMORIES.md` change is applied, and Undo of that change uncovers
+them again.
 
 The live runtime uses `OPENAI_API_KEY`, optional `OPENAI_BASE_URL`, and
 `ANIMAMA_MEMORY_MANAGER_AGENT_MODEL` (default `gpt-5.4-mini`). A nonempty
@@ -250,8 +260,8 @@ context during a tool loop. Its output is a compact `files` array containing
 only user-scope paths and descriptions. Generated episode logs are omitted from
 this list. The same navigation projection is injected into the normal Anima
 prompt, so directories, episode logs, and anima identity files are absent there;
-general Memory Manager runs additionally list identities (see
-[Memory Manager and episodic memory](memory-manager-and-episodic-memory.md)).
+general Memory Manager runs additionally list Anima identities and `MEMORIES.md`
+files (see [Memory Manager and episodic memory](memory-manager-and-episodic-memory.md)).
 
 When memory updates are enabled and the turn is not incognito, direct chat uses
 one write transport selected from the persisted model capability:
@@ -612,7 +622,7 @@ directory there, or moving or renaming an entry within it, returns `403`.
 
 Deleting an Anima (`DELETE /v1/animas/{anima_id}`) permanently removes all of
 its Anima-scoped memory entries and their versions, including `IDENTITY.md` and
-`MEMORIES.md`, in the same transaction as the Anima row. Memory Manager approvals and messages
+`MEMORIES.md`, and its Reflection coverage, in the same transaction as the Anima row. Memory Manager approvals and messages
 that quoted the identity remain as run history, so a pending proposal can still
 be rejected.
 A legacy directory obstructing the reserved path is not an identity file:

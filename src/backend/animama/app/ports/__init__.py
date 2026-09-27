@@ -6,6 +6,7 @@ application/runtime depend on. Implementations should live under
 """
 
 from .anima_chat_profile_port import AnimaChatProfileRepository
+from .anima_memory_reflection_port import AnimaMemoryReflectionRepository
 from .anima_port import AnimaRepository
 from .anima_presentation_port import AnimaPresentationRepository
 from .archive_port import ArchiveRepository
@@ -31,6 +32,7 @@ from .user_profile_port import (
 __all__ = [
     "ModelProviderRepository",
     "AnimaChatProfileRepository",
+    "AnimaMemoryReflectionRepository",
     "AnimaPresentationRepository",
     "AvatarRepository",
     "AnimaRepository",

@@ -109,6 +109,12 @@ def is_anima_identity(entry: MemoryEntry) -> bool:
     return _protected_anima_file_kind(entry) == ANIMA_IDENTITY_KIND
 
 
+def is_anima_memories(entry: MemoryEntry) -> bool:
+    """Return true for an Anima's ``MEMORIES.md``; like identity, the reserved path is authoritative."""
+
+    return _protected_anima_file_kind(entry) == ANIMA_MEMORIES_KIND
+
+
 def is_protected_anima_file(entry: MemoryEntry) -> bool:
     """Return true for an Anima's IDENTITY.md or MEMORIES.md.
 
@@ -1664,6 +1670,7 @@ __all__ = [
     "MemoryEntryService",
     "MemoryEntryValidationError",
     "is_anima_identity",
+    "is_anima_memories",
     "is_protected_anima_file",
     "is_protected_memory_entry",
     "is_protected_memory_kind",

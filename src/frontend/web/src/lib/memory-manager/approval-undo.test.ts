@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { PyMemoryManagerApproval } from "@/lib/content/catalogTypes";
 import {
   canShowMemoryManagerApprovalUndo,
+  isAppliedMemoryManagerApproval,
   memoryManagerApprovalStatusLabel,
 } from "@/lib/memory-manager/approval-undo";
 
@@ -47,5 +48,21 @@ describe("approval Undo presentation", () => {
     expect(
       memoryManagerApprovalStatusLabel(approval({ status: "rejected" })),
     ).toBe("Rejected");
+  });
+
+  it("treats only an approved change that was not undone as applied", () => {
+    expect(isAppliedMemoryManagerApproval(approval())).toBe(true);
+    // Undo reverts the file, so the change no longer stands.
+    expect(
+      isAppliedMemoryManagerApproval(
+        approval({ undone_at: "2026-07-16T20:00:00Z", undo_version: 3 }),
+      ),
+    ).toBe(false);
+    expect(
+      isAppliedMemoryManagerApproval(approval({ status: "pending" })),
+    ).toBe(false);
+    expect(
+      isAppliedMemoryManagerApproval(approval({ status: "rejected" })),
+    ).toBe(false);
   });
 });

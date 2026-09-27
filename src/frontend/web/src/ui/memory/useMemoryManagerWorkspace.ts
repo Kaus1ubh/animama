@@ -13,16 +13,17 @@ import {
   memoryManagerErrorMessage,
 } from "@/lib/memory-manager/errors";
 import {
-  canProcessPendingEpisodes,
   isEpisodeProcessingComposerLocked,
   isRecoverableMemoryManagerRun,
   memoryManagerRunCapabilities,
   resolveMemoryManagerSessionRunId,
+  specializedMemoryManagerRunBlockReason,
   startNewMemoryManagerConversation,
 } from "@/lib/memory-manager/workspace-state";
 import {
   createEpisodeProcessingOptimisticSubmission,
   createMemoryManagerOptimisticSubmission,
+  createReflectionOptimisticSubmission,
   memoryManagerMarkdownAnimationDurationMs,
   newMemoryManagerAssistantMessage,
   restoreMemoryManagerComposer,
@@ -36,6 +37,7 @@ import { useAppendMemoryManagerMessage } from "@/query/mutations/useAppendMemory
 import { useCompleteMemoryManagerRun } from "@/query/mutations/useCompleteMemoryManagerRun";
 import { useCreateEpisodeProcessingMemoryManagerRun } from "@/query/mutations/useCreateEpisodeProcessingMemoryManagerRun";
 import { useCreateMemoryManagerRun } from "@/query/mutations/useCreateMemoryManagerRun";
+import { useCreateReflectionMemoryManagerRun } from "@/query/mutations/useCreateReflectionMemoryManagerRun";
 import { useDecideMemoryManagerApproval } from "@/query/mutations/useDecideMemoryManagerApproval";
 import { useUndoMemoryManagerApproval } from "@/query/mutations/useUndoMemoryManagerApproval";
 
@@ -45,6 +47,13 @@ type UseMemoryManagerWorkspaceOptions = {
   onRunRecovered: (runId: string) => void;
   onRunCleared: () => void;
   onPendingEpisodesChanged: () => void;
+};
+
+/** The Anima whose `MEMORIES.md` a Reflection curates. */
+export type MemoryManagerReflectionTarget = {
+  animaId: string;
+  /** Owner-facing name used until the server-owned message arrives. */
+  animaName: string;
 };
 
 /** Owns inline manager state even while another workspace tab or mode is shown. */
@@ -71,6 +80,7 @@ export function useMemoryManagerWorkspace({
   const createRun = useCreateMemoryManagerRun();
   const createEpisodeProcessingRun =
     useCreateEpisodeProcessingMemoryManagerRun();
+  const createReflectionRun = useCreateReflectionMemoryManagerRun();
   const appendMessage = useAppendMemoryManagerMessage();
   const completeRun = useCompleteMemoryManagerRun();
   const decideApproval = useDecideMemoryManagerApproval();
@@ -110,6 +120,7 @@ export function useMemoryManagerWorkspace({
   const isBusy =
     createRun.isPending ||
     createEpisodeProcessingRun.isPending ||
+    createReflectionRun.isPending ||
     appendMessage.isPending ||
     completeRun.isPending ||
     decideApproval.isPending ||
@@ -135,12 +146,13 @@ export function useMemoryManagerWorkspace({
   const episodeProcessingComposerLocked = isEpisodeProcessingComposerLocked(
     snapshot?.run,
   );
-  const canProcessEpisodes = canProcessPendingEpisodes({
+  const specializedRunBlockReason = specializedMemoryManagerRunBlockReason({
     isBusy,
     isLoading,
     isError,
     hasPendingApproval,
   });
+  const canStartSpecializedRun = specializedRunBlockReason === null;
 
   useEffect(
     () => () => {
@@ -189,6 +201,63 @@ export function useMemoryManagerWorkspace({
     onRunRecovered(recoveredSnapshot.run.id);
   }, [currentRunQuery.isFetching, onRunRecovered, recoveredSnapshot, runId]);
 
+  /** Stops the previous reply's reveal before another request begins. */
+  const stopAssistantReveal = () => {
+    if (assistantAnimationTimeoutRef.current !== null) {
+      window.clearTimeout(assistantAnimationTimeoutRef.current);
+      assistantAnimationTimeoutRef.current = null;
+    }
+    setAnimatingAssistantMessageId(null);
+  };
+
+  /** Animates the reply added after one request's baseline until it is shown. */
+  const revealAssistantReply = (
+    messages: PyMemoryManagerRunResponse["messages"],
+    baselineMessageIds: readonly string[],
+  ) => {
+    const animatedMessage = newMemoryManagerAssistantMessage(
+      messages ?? [],
+      baselineMessageIds,
+    );
+    setAnimatingAssistantMessageId(animatedMessage?.id ?? null);
+    const revealDuration = animatedMessage
+      ? memoryManagerMarkdownAnimationDurationMs(animatedMessage.content)
+      : 0;
+    if (revealDuration > 0) {
+      assistantAnimationTimeoutRef.current = window.setTimeout(() => {
+        setAnimatingAssistantMessageId(null);
+        assistantAnimationTimeoutRef.current = null;
+      }, revealDuration);
+    }
+  };
+
+  /**
+   * Creates a specialized run behind its optimistic request line. Returns
+   * false when gated; request errors propagate after the line is removed.
+   */
+  const startSpecializedRun = async (
+    pendingSubmission: MemoryManagerOptimisticSubmission,
+    create: () => Promise<PyMemoryManagerRunResponse>,
+  ) => {
+    if (!canStartSpecializedRun || processingInFlightRef.current) return false;
+    processingInFlightRef.current = true;
+    stopAssistantReveal();
+    setOptimisticSubmission(pendingSubmission);
+    try {
+      const created = await create();
+      sessionRunIdsRef.current.add(created.run.id);
+      onRunCreated(created.run.id);
+      revealAssistantReply(
+        created.messages,
+        pendingSubmission.baselineMessageIds,
+      );
+      return true;
+    } finally {
+      setOptimisticSubmission(null);
+      processingInFlightRef.current = false;
+    }
+  };
+
   const submit = async () => {
     const content = composer.trim();
     if (
@@ -200,11 +269,7 @@ export function useMemoryManagerWorkspace({
     ) {
       return;
     }
-    if (assistantAnimationTimeoutRef.current !== null) {
-      window.clearTimeout(assistantAnimationTimeoutRef.current);
-      assistantAnimationTimeoutRef.current = null;
-    }
-    setAnimatingAssistantMessageId(null);
+    stopAssistantReveal();
     submissionInFlightRef.current = true;
     const pendingSubmission = createMemoryManagerOptimisticSubmission(
       content,
@@ -231,20 +296,10 @@ export function useMemoryManagerWorkspace({
         onRunCreated(created.run.id);
         updatedSnapshot = created;
       }
-      const animatedMessage = newMemoryManagerAssistantMessage(
-        updatedSnapshot.messages ?? [],
+      revealAssistantReply(
+        updatedSnapshot.messages,
         pendingSubmission.baselineMessageIds,
       );
-      setAnimatingAssistantMessageId(animatedMessage?.id ?? null);
-      const revealDuration = animatedMessage
-        ? memoryManagerMarkdownAnimationDurationMs(animatedMessage.content)
-        : 0;
-      if (revealDuration > 0) {
-        assistantAnimationTimeoutRef.current = window.setTimeout(() => {
-          setAnimatingAssistantMessageId(null);
-          assistantAnimationTimeoutRef.current = null;
-        }, revealDuration);
-      }
       setOptimisticSubmission(null);
     } catch (error) {
       setOptimisticSubmission(null);
@@ -350,50 +405,52 @@ export function useMemoryManagerWorkspace({
   };
 
   const processPending = async (pendingEpisodeCount: number) => {
-    if (!canProcessEpisodes || processingInFlightRef.current) return;
-    processingInFlightRef.current = true;
-    if (assistantAnimationTimeoutRef.current !== null) {
-      window.clearTimeout(assistantAnimationTimeoutRef.current);
-      assistantAnimationTimeoutRef.current = null;
-    }
-    setAnimatingAssistantMessageId(null);
-    const pendingSubmission = createEpisodeProcessingOptimisticSubmission(
-      pendingEpisodeCount,
-      snapshot?.messages ?? [],
-    );
-    setOptimisticSubmission(pendingSubmission);
     try {
-      const created = await createEpisodeProcessingRun.mutateAsync({
-        body: { auto_approve_diffs: autoApproveDiffs },
-      });
-      sessionRunIdsRef.current.add(created.run.id);
-      onRunCreated(created.run.id);
-      const animatedMessage = newMemoryManagerAssistantMessage(
-        created.messages ?? [],
-        pendingSubmission.baselineMessageIds,
+      const started = await startSpecializedRun(
+        createEpisodeProcessingOptimisticSubmission(
+          pendingEpisodeCount,
+          snapshot?.messages ?? [],
+        ),
+        () =>
+          createEpisodeProcessingRun.mutateAsync({
+            body: { auto_approve_diffs: autoApproveDiffs },
+          }),
       );
-      setAnimatingAssistantMessageId(animatedMessage?.id ?? null);
-      const revealDuration = animatedMessage
-        ? memoryManagerMarkdownAnimationDurationMs(animatedMessage.content)
-        : 0;
-      if (revealDuration > 0) {
-        assistantAnimationTimeoutRef.current = window.setTimeout(() => {
-          setAnimatingAssistantMessageId(null);
-          assistantAnimationTimeoutRef.current = null;
-        }, revealDuration);
-      }
-      setOptimisticSubmission(null);
-      onPendingEpisodesChanged();
+      if (started) onPendingEpisodesChanged();
     } catch (error) {
-      setOptimisticSubmission(null);
       if (error instanceof MemoryManagerApiError && error.status === 409) {
         onPendingEpisodesChanged();
       }
       toast.error("Failed to process pending episodes.", {
         description: memoryManagerErrorMessage(error),
       });
-    } finally {
-      processingInFlightRef.current = false;
+    }
+  };
+
+  /**
+   * Starts a Reflection for one Anima, superseding an active conversation.
+   * A refusal (such as nothing to reflect) keeps the current transcript and
+   * explains the backend reason; a model failure arrives as a failed run.
+   */
+  const reflect = async (target: MemoryManagerReflectionTarget) => {
+    try {
+      await startSpecializedRun(
+        createReflectionOptimisticSubmission(
+          target.animaName,
+          snapshot?.messages ?? [],
+        ),
+        () =>
+          createReflectionRun.mutateAsync({
+            body: {
+              anima_id: target.animaId,
+              auto_approve_diffs: autoApproveDiffs,
+            },
+          }),
+      );
+    } catch (error) {
+      toast.error("Reflection did not start.", {
+        description: memoryManagerErrorMessage(error),
+      });
     }
   };
 
@@ -407,15 +464,18 @@ export function useMemoryManagerWorkspace({
     autoApproveDiffs,
     setAutoApproveDiffs,
     capabilities,
-    canProcessEpisodes,
+    canStartSpecializedRun,
+    specializedRunBlockReason,
     episodeProcessingComposerLocked,
     hasPendingApproval,
     isBusy,
     isSending:
       createRun.isPending ||
       createEpisodeProcessingRun.isPending ||
+      createReflectionRun.isPending ||
       appendMessage.isPending,
     isProcessingEpisodes: createEpisodeProcessingRun.isPending,
+    isReflecting: createReflectionRun.isPending,
     isCompleting: completeRun.isPending,
     isDeciding: decideApproval.isPending,
     isUndoing: undoApproval.isPending,
@@ -426,6 +486,7 @@ export function useMemoryManagerWorkspace({
     undo,
     startNew,
     processPending,
+    reflect,
     retry: runId ? runQuery.refetch : currentRunQuery.refetch,
   };
 }

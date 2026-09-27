@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from animama.app.ports.anima_port import AnimaRepository
+from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.ports.memory_manager_runtime import (
     MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
@@ -12,6 +13,7 @@ from animama.app.ports.memory_manager_runtime import (
     MEMORY_MANAGER_RUNTIME_OUTCOME_WAITING_APPROVAL,
     MemoryManagerRuntimeResult,
 )
+from animama.app.services.anima_identity_memory import anima_memories_manager_path, manager_file_access_for_run
 from animama.app.services.memory_entry_service import MemoryEntryNotFoundError, MemoryEntryService
 from animama.domain.memory_entry import MemoryEntry
 from animama.domain.memory_manager import (
@@ -20,16 +22,21 @@ from animama.domain.memory_manager import (
     MemoryManagerApproval,
     MemoryManagerEpisodeTaskState,
     MemoryManagerMessage,
+    MemoryManagerReflectionTaskState,
     MemoryManagerRun,
+    format_turn_count,
 )
 
 from .episode_processing import EpisodeProcessingBatchItem, load_episode_processing_batch
+from .reflection import ReflectionTurnReader, reflection_task_or_none
 from .workspace import MemoryManagerPatchRejected, MemoryManagerVirtualWorkspace
 
 _MARKDOWN_PATH_RE = re.compile(r"(?P<path>[A-Za-z0-9._{}\\/-]+\.md)")
 _SISTER_RE = re.compile(r"\bsister\s+(?P<name>[A-Za-z][A-Za-z0-9_-]{0,63})\b", re.IGNORECASE)
 _DETERMINISTIC_NOTE_MAX_CHARS = 500
 _DETERMINISTIC_EPISODE_PATH = "notes/episodic-memory.md"
+_DETERMINISTIC_REFLECTION_EXCERPT_MAX_CHARS = 200
+_OUR_STORY_HEADING = "## Our story"
 
 
 class DeterministicMemoryManagerRuntime:
@@ -44,24 +51,23 @@ class DeterministicMemoryManagerRuntime:
         memory_entries: MemoryEntryService,
         memory_episodes: MemoryEpisodeRepository | None = None,
         animas: AnimaRepository | None = None,
+        chat_messages: ChatMessageRepository | None = None,
     ) -> None:
         self._user_id = user_id
         self._memory_entries = memory_entries
         self._memory_episodes = memory_episodes
         self._animas = animas
+        self._chat_messages = chat_messages
         self._workspace = MemoryManagerVirtualWorkspace(user_id=user_id, memory_entries=memory_entries)
-        self._identity_workspace = MemoryManagerVirtualWorkspace(
-            user_id=user_id,
-            memory_entries=memory_entries,
-            allow_anima_identities=True,
-        )
 
     def _workspace_for(self, run: MemoryManagerRun) -> MemoryManagerVirtualWorkspace:
-        """Only general runs may see or change Anima identities, matching the live runtime."""
+        """Use the run's file scope, matching the live runtime."""
 
-        if run.kind == MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING:
-            return self._workspace
-        return self._identity_workspace
+        return MemoryManagerVirtualWorkspace(
+            user_id=self._user_id,
+            memory_entries=self._memory_entries,
+            access=manager_file_access_for_run(run),
+        )
 
     async def run_user_message(
         self,
@@ -73,6 +79,13 @@ class DeterministicMemoryManagerRuntime:
             return await self._run_episode_processing(run=run, source_message_id=user_message.id)
         candidate_path = _extract_candidate_path(user_message.content)
         if candidate_path is None:
+            # Without a target path, a Reflection reflects on its batch; any other run explains itself.
+            try:
+                reflection = reflection_task_or_none(run)
+            except ValueError as exc:
+                return self._blocked_reflection_result(str(exc))
+            if reflection is not None:
+                return await self._run_reflection(run=run, task=reflection, source_message_id=user_message.id)
             return MemoryManagerRuntimeResult(
                 assistant_message=(
                     "I can help maintain memory. Include a target markdown path like `people/beth.md` "
@@ -193,6 +206,68 @@ class DeterministicMemoryManagerRuntime:
             metadata={"runtime": self.name, "resumed_decision": normalized},
             summary="Deterministic memory-manager test run",
             outcome=MEMORY_MANAGER_RUNTIME_OUTCOME_COMPLETED,
+        )
+
+    async def _run_reflection(
+        self,
+        *,
+        run: MemoryManagerRun,
+        task: MemoryManagerReflectionTaskState,
+        source_message_id: str,
+    ) -> MemoryManagerRuntimeResult:
+        """Propose one dated ``Our story`` line for the batch, or nothing when it is already there.
+
+        The line quotes the latest turn, so a batch whose latest turn text is
+        already in ``MEMORIES.md`` proposes nothing and leaves the turns uncovered.
+        """
+
+        if self._chat_messages is None:
+            return self._blocked_reflection_result("Reflection is not configured")
+        reader = ReflectionTurnReader(chat_messages=self._chat_messages, user_id=self._user_id, task=task)
+        turns = await reader.read_all()
+        latest = turns[-1] if turns else None
+        excerpt = " ".join((latest.user_text or latest.anima_text or "").split()) if latest is not None else ""
+        if len(excerpt) > _DETERMINISTIC_REFLECTION_EXCERPT_MAX_CHARS:
+            excerpt = f"{excerpt[: _DETERMINISTIC_REFLECTION_EXCERPT_MAX_CHARS - 3].rstrip()}..."
+        path = anima_memories_manager_path(task.anima_id)
+        workspace = self._workspace_for(run)
+        current = await _current_file_or_none(workspace, path)
+        current_content = (current.content or "") if current is not None else ""
+        if latest is None or not excerpt or excerpt in current_content:
+            return MemoryManagerRuntimeResult(
+                assistant_message=f"Nothing new from these turns is worth adding to {task.anima_name}'s MEMORIES.md.",
+                metadata={"runtime": self.name},
+                summary="Deterministic Reflection run",
+                outcome=MEMORY_MANAGER_RUNTIME_OUTCOME_COMPLETED,
+            )
+        turn_count = format_turn_count(len(turns))
+        note = f"- {reader.local_time(latest.position)[:10]}: {excerpt} ({turn_count} reflected)"
+        try:
+            approval = await workspace.plan_full_content(
+                path=path,
+                new_content=_with_our_story_line(current_content, note),
+                new_description=current.description if current is not None else None,
+                summary=f"Reflect on {turn_count} with {task.anima_name}",
+                metadata={"runtime": self.name, "source_message_id": source_message_id},
+            )
+        except MemoryManagerPatchRejected as exc:
+            return self._blocked_reflection_result(exc.detail)
+        return MemoryManagerRuntimeResult(
+            assistant_message=f"I prepared a reflection for {task.anima_name}'s MEMORIES.md. Review the diff.",
+            approvals=[approval],
+            serialized_agent_state=f"deterministic:{run.id}:reflection",
+            metadata={"runtime": self.name},
+            summary="Deterministic Reflection run",
+            outcome=MEMORY_MANAGER_RUNTIME_OUTCOME_WAITING_APPROVAL,
+        )
+
+    def _blocked_reflection_result(self, detail: str) -> MemoryManagerRuntimeResult:
+        return MemoryManagerRuntimeResult(
+            assistant_message=f"I could not reflect on these turns: {detail}.",
+            metadata={"runtime": self.name},
+            summary="Deterministic Reflection run",
+            error=detail,
+            outcome=MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
         )
 
     def _is_processing_run(self, run: MemoryManagerRun) -> bool:
@@ -339,6 +414,23 @@ async def _current_file_or_none(workspace: MemoryManagerVirtualWorkspace, path: 
         return await workspace.get_file_or_none(path=path)
     except MemoryManagerPatchRejected:
         return None
+
+
+def _with_our_story_line(content: str, line: str) -> str:
+    """Add ``line`` at the end of the ``## Our story`` section, or at the end of the file without one."""
+
+    lines = content.rstrip("\n").split("\n") if content.strip() else []
+    start = next((index for index, value in enumerate(lines) if value.strip() == _OUR_STORY_HEADING), None)
+    if start is None:
+        return "\n".join([*lines, line]) + "\n"
+    end = next(
+        (index for index in range(start + 1, len(lines)) if lines[index].startswith("## ")),
+        len(lines),
+    )
+    insert_at = end
+    while insert_at > start + 1 and not lines[insert_at - 1].strip():
+        insert_at -= 1
+    return "\n".join([*lines[:insert_at], line, *lines[insert_at:]]) + "\n"
 
 
 def _extract_candidate_path(content: str) -> str | None:

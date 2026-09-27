@@ -2631,6 +2631,27 @@ export const zPyMemoryManagerMessageCreateRequest = z.object({
 });
 
 /**
+ * PyMemoryManagerReflectionRunCreateRequest
+ */
+export const zPyMemoryManagerReflectionRunCreateRequest = z.object({
+    anima_id: z.string().min(1),
+    auto_approve_diffs: z.optional(z.boolean()).default(false)
+});
+
+/**
+ * PyMemoryManagerReflectionSummary
+ *
+ * What one Reflection run covers; its turns become covered only when its MEMORIES.md change is applied.
+ */
+export const zPyMemoryManagerReflectionSummary = z.object({
+    anima_id: z.string(),
+    anima_name: z.string(),
+    remaining_turn_count: z.int().gte(0),
+    started_at: z.iso.datetime(),
+    turn_count: z.int().gte(1)
+});
+
+/**
  * PyMemoryManagerRunCreateRequest
  */
 export const zPyMemoryManagerRunCreateRequest = z.object({
@@ -2674,7 +2695,11 @@ export const zPyMemoryManagerRun = z.object({
         z.null()
     ])),
     id: z.string(),
-    kind: z.optional(z.enum(['general', 'episode_processing'])),
+    kind: z.optional(z.enum([
+        'general',
+        'episode_processing',
+        'reflection'
+    ])),
     metadata: z.optional(z.record(z.string(), z.unknown())),
     model_name: z.optional(z.union([
         z.string(),
@@ -2682,6 +2707,10 @@ export const zPyMemoryManagerRun = z.object({
     ])),
     model_provider: z.optional(z.union([
         z.string(),
+        z.null()
+    ])),
+    reflection: z.optional(z.union([
+        zPyMemoryManagerReflectionSummary,
         z.null()
     ])),
     status: z.enum([
@@ -6501,6 +6530,17 @@ export const zCreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessE
  * Successful Response
  */
 export const zCreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPostResponse = zPyMemoryManagerRunResponse;
+
+export const zCreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostData = z.object({
+    body: zPyMemoryManagerReflectionRunCreateRequest,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zCreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostResponse = zPyMemoryManagerRunResponse;
 
 export const zListModelProvidersV1ModelProvidersGetData = z.object({
     body: z.optional(z.never()),

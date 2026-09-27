@@ -7,10 +7,11 @@ import type {
 import type { MemoryEntryDraft } from "./workspace-drafts";
 import {
   animaFolderFiles,
+  animaFolderForMemoriesEntry,
   buildMemoryAnimaFolders,
   isAnimaWorkspacePath,
   isReservedUserMemoryEntry,
-  animaIdForManagerPath,
+  animaIdForManagerIdentityPath,
   managerPathLabel,
   removedAnimaFileDrafts,
   resolveWorkspaceSelection,
@@ -359,15 +360,22 @@ describe("removed Anima file drafts", () => {
   });
 });
 
-describe("Memory Manager identity paths", () => {
+describe("Memory Manager Anima paths", () => {
   it("reads the Anima ID from identity manager paths only", () => {
-    expect(animaIdForManagerPath("animas/anima-1/IDENTITY.md")).toBe("anima-1");
-    expect(animaIdForManagerPath("animas/anima-1/identity.md")).toBe("anima-1");
-    expect(animaIdForManagerPath("animas/anima-1/notes.md")).toBeNull();
-    expect(animaIdForManagerPath("PROFILE.md")).toBeNull();
+    expect(animaIdForManagerIdentityPath("animas/anima-1/IDENTITY.md")).toBe(
+      "anima-1",
+    );
+    expect(animaIdForManagerIdentityPath("animas/anima-1/identity.md")).toBe(
+      "anima-1",
+    );
+    expect(
+      animaIdForManagerIdentityPath("animas/anima-1/MEMORIES.md"),
+    ).toBeNull();
+    expect(animaIdForManagerIdentityPath("animas/anima-1/notes.md")).toBeNull();
+    expect(animaIdForManagerIdentityPath("PROFILE.md")).toBeNull();
   });
 
-  it("labels identity targets with their current folder path", () => {
+  it("labels identity and memories targets with their current folder path", () => {
     const folders = buildMemoryAnimaFolders([
       identity("anima-1", "Annie"),
       identity("anima-2", "Annie"),
@@ -375,9 +383,45 @@ describe("Memory Manager identity paths", () => {
     expect(managerPathLabel("animas/anima-2/IDENTITY.md", folders)).toBe(
       "Animas/Annie (2)/IDENTITY.md",
     );
+    expect(managerPathLabel("animas/anima-2/MEMORIES.md", folders)).toBe(
+      "Animas/Annie (2)/MEMORIES.md",
+    );
+    expect(managerPathLabel("animas/anima-1/memories.md", folders)).toBe(
+      "Animas/Annie/MEMORIES.md",
+    );
     expect(managerPathLabel("animas/gone/IDENTITY.md", folders)).toBe(
       "animas/gone/IDENTITY.md",
     );
+    expect(managerPathLabel("animas/gone/MEMORIES.md", folders)).toBe(
+      "animas/gone/MEMORIES.md",
+    );
+    expect(managerPathLabel("animas/anima-1/notes.md", folders)).toBe(
+      "animas/anima-1/notes.md",
+    );
     expect(managerPathLabel("notes/a.md", folders)).toBe("notes/a.md");
+  });
+});
+
+describe("Reflect target", () => {
+  it("finds the Anima folder whose MEMORIES.md is selected", () => {
+    const folders = buildMemoryAnimaFolders([
+      identity("a", "Annie"),
+      identity("b", "Annie"),
+    ]);
+    expect(animaFolderForMemoriesEntry(folders, "memories-b")).toMatchObject({
+      animaId: "b",
+      label: "Annie (2)",
+    });
+  });
+
+  it("offers no target for identities, user files, missing files or no selection", () => {
+    const folders = buildMemoryAnimaFolders([
+      identity("a", "Annie"),
+      identity("b", "Caitlin", {}, null),
+    ]);
+    expect(animaFolderForMemoriesEntry(folders, "identity-a")).toBeNull();
+    expect(animaFolderForMemoriesEntry(folders, "profile")).toBeNull();
+    expect(animaFolderForMemoriesEntry(folders, "memories-b")).toBeNull();
+    expect(animaFolderForMemoriesEntry(folders, null)).toBeNull();
   });
 });

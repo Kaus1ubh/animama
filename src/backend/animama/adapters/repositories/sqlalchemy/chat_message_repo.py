@@ -3,15 +3,27 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from typing import Any
 
-from sqlalchemy import asc, desc, select, text
+from sqlalchemy import Select, String, and_, asc, cast, desc, exists, func, literal, not_, select, text, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from ....app.ports.chat_message_port import ChatMessageRepository
-from ....domain.chat import ChatMessage, ChatSearchResult
+from ....domain.chat import (
+    AnimaHistoryTurn,
+    AnimaHistoryTurnBatch,
+    ChatHistoryPosition,
+    ChatMessage,
+    ChatSearchResult,
+)
 from ....orm.chat_messages import ORMChatMessage
+from ....orm.chats import ORMChat
 from ...mappers.chat_message_map import chat_message_domain_to_orm, chat_message_orm_to_domain
+
+# An assistant reply stores this block when memory updates were off for its turn.
+_MEMORY_UPDATES_DISABLED = {"memory": {"updates_enabled": False}}
 
 
 def _snippet_for_query(content: str | None, query: str, *, max_chars: int = 220) -> str:
@@ -59,6 +71,104 @@ def _search_row_to_domain(row: Any, query: str) -> ChatSearchResult:
         turn=mapping["turn"],
         created_at=mapping["created_at"],
     )
+
+
+def _reflection_turn_key() -> Any:
+    """Group a turn's rows: they share a chat and run; a row without a run is its own turn."""
+
+    return func.coalesce(ORMChatMessage.run_id, literal("message:") + cast(ORMChatMessage.id, String))
+
+
+def _reflection_messages(
+    *columns: Any,
+    user_id: str,
+    anima_id: str,
+    after: ChatHistoryPosition | None,
+    through: ChatHistoryPosition | None,
+) -> Select[Any]:
+    """Select ``columns`` of the owner's visible user/assistant rows with one Anima that a Reflection may read.
+
+    A turn is the rows of one chat run: the owner's message and the Anima's
+    visible reply share ``chat_id`` and ``run_id``. When that reply recorded
+    memory updates as disabled, every row of the turn is excluded, including the
+    owner's message. A row without a run is a turn of its own. Positions compare
+    rows by ``(created_at, id)``: ``after`` is exclusive, ``through`` inclusive.
+    """
+
+    reply = aliased(ORMChatMessage)
+    turn_updates_disabled = exists().where(
+        reply.chat_id == ORMChatMessage.chat_id,
+        reply.run_id == ORMChatMessage.run_id,
+        reply.internal.is_(False),
+        reply.role == "assistant",
+        reply.message_data.contains(_MEMORY_UPDATES_DISABLED),
+    )
+    conditions = [
+        ORMChat.user_id == user_id,
+        ORMChat.anima_id == anima_id,
+        ORMChatMessage.internal.is_(False),
+        ORMChatMessage.role.in_(["user", "assistant"]),
+        # A row without a run has no partner; check its own flag.
+        not_(and_(ORMChatMessage.role == "assistant", ORMChatMessage.message_data.contains(_MEMORY_UPDATES_DISABLED))),
+        ~turn_updates_disabled,
+    ]
+    position = tuple_(ORMChatMessage.created_at, ORMChatMessage.id)
+    if after is not None:
+        conditions.append(position > tuple_(literal(after.created_at), literal(after.message_id)))
+    if through is not None:
+        conditions.append(position <= tuple_(literal(through.created_at), literal(through.message_id)))
+    return (
+        select(*columns)
+        .select_from(ORMChatMessage)
+        .join(ORMChat, ORMChat.id == ORMChatMessage.chat_id)
+        .where(*conditions)
+    )
+
+
+def _reflection_turns(
+    *,
+    user_id: str,
+    anima_id: str,
+    after: ChatHistoryPosition | None,
+    through: ChatHistoryPosition | None,
+) -> Select[Any]:
+    """Group readable rows into turns positioned at their last message, oldest first.
+
+    Each row is ``(chat_id, turn_key, last_created_at, last_message_id)``;
+    callers add a window count, offset or limit.
+    """
+
+    rows = _reflection_messages(
+        ORMChatMessage.id,
+        ORMChatMessage.chat_id,
+        ORMChatMessage.created_at,
+        _reflection_turn_key().label("turn_key"),
+        user_id=user_id,
+        anima_id=anima_id,
+        after=after,
+        through=through,
+    ).subquery()
+    last_created_at = func.max(rows.c.created_at).label("last_created_at")
+    last_message_id = func.max(rows.c.id).label("last_message_id")
+    return (
+        select(rows.c.chat_id, rows.c.turn_key, last_created_at, last_message_id)
+        .group_by(rows.c.chat_id, rows.c.turn_key)
+        .order_by(asc(last_created_at), asc(last_message_id))
+    )
+
+
+def _reflection_text(message: ORMChatMessage) -> str | None:
+    """Return what the owner saw: the reply's display or speech text, else the stored content."""
+
+    data = message.message_data if isinstance(message.message_data, Mapping) else {}
+    structured = data.get("structured")
+    if message.role == "assistant" and isinstance(structured, Mapping):
+        for key in ("display", "speech"):
+            value = structured.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    content = (message.content or "").strip()
+    return content or None
 
 
 class SQLAlchemyChatMessageRepository(ChatMessageRepository):
@@ -267,6 +377,82 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
             },
         )
         return [_search_row_to_domain(row, query) for row in rows]
+
+    async def select_reflection_batch(
+        self,
+        *,
+        user_id: str,
+        anima_id: str,
+        after: ChatHistoryPosition | None,
+        max_turns: int,
+    ) -> AnimaHistoryTurnBatch:
+        turns = _reflection_turns(user_id=user_id, anima_id=anima_id, after=after, through=None)
+        # The window count runs before LIMIT, so it counts every uncovered turn.
+        batch = turns.add_columns(func.count().over().label("uncovered_turn_count")).limit(max(1, int(max_turns)))
+        result = (await self._s.execute(batch)).all()
+        if not result:
+            return AnimaHistoryTurnBatch(turn_count=0, uncovered_turn_count=0, through=None)
+        last = result[-1]
+        return AnimaHistoryTurnBatch(
+            turn_count=len(result),
+            uncovered_turn_count=int(last.uncovered_turn_count),
+            through=ChatHistoryPosition(created_at=last.last_created_at, message_id=int(last.last_message_id)),
+        )
+
+    async def list_reflection_turns(
+        self,
+        *,
+        user_id: str,
+        anima_id: str,
+        after: ChatHistoryPosition | None,
+        through: ChatHistoryPosition,
+        offset: int = 0,
+        limit: int | None = None,
+    ) -> list[AnimaHistoryTurn]:
+        turns = _reflection_turns(user_id=user_id, anima_id=anima_id, after=after, through=through)
+        page = turns.offset(max(0, int(offset)))
+        if limit is not None:
+            page = page.limit(max(0, int(limit)))
+        page_turns = page.subquery()
+        turn_key = _reflection_turn_key()
+        stmt = (
+            _reflection_messages(
+                ORMChatMessage,
+                ORMChat.title,
+                turn_key.label("turn_key"),
+                user_id=user_id,
+                anima_id=anima_id,
+                after=after,
+                through=through,
+            )
+            .join(
+                page_turns,
+                and_(page_turns.c.chat_id == ORMChatMessage.chat_id, page_turns.c.turn_key == turn_key),
+            )
+            .order_by(asc(ORMChatMessage.created_at), asc(ORMChatMessage.id))
+        )
+        grouped: dict[tuple[str, str], dict[str, Any]] = {}
+        for message, chat_title, message_turn_key in (await self._s.execute(stmt)).all():
+            turn = grouped.setdefault(
+                (message.chat_id, message_turn_key),
+                {"chat_id": message.chat_id, "chat_title": chat_title, "user": [], "anima": []},
+            )
+            text_value = _reflection_text(message)
+            if text_value is not None:
+                turn["user" if message.role == "user" else "anima"].append(text_value)
+            # Rows arrive oldest first, so the last assignment is the turn's position.
+            turn["position"] = ChatHistoryPosition(created_at=message.created_at, message_id=message.id)
+        ordered = sorted(grouped.values(), key=lambda turn: turn["position"])
+        return [
+            AnimaHistoryTurn(
+                chat_id=turn["chat_id"],
+                chat_title=turn["chat_title"],
+                user_text="\n\n".join(turn["user"]) or None,
+                anima_text="\n\n".join(turn["anima"]) or None,
+                position=turn["position"],
+            )
+            for turn in ordered
+        ]
 
     async def append(self, message: ChatMessage) -> ChatMessage:
         orm = chat_message_domain_to_orm(message)

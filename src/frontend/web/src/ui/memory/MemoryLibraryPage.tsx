@@ -1,6 +1,13 @@
 "use client";
 
-import { AlertTriangle, Eye, Files, Loader2, Pencil } from "lucide-react";
+import {
+  AlertTriangle,
+  Eye,
+  Files,
+  Loader2,
+  Pencil,
+  Sparkles,
+} from "lucide-react";
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -11,6 +18,7 @@ import type {
 } from "@/lib/content/catalogTypes";
 import {
   animaFolderFiles,
+  animaFolderForMemoriesEntry,
   buildMemoryAnimaFolders,
   isAnimaWorkspacePath,
   removedAnimaFileDrafts,
@@ -98,7 +106,10 @@ import { MemoryRenameEntryDialog } from "@/ui/memory/MemoryRenameEntryDialog";
 import { MemoryVersionsDialog } from "@/ui/memory/MemoryVersionsDialog";
 import { MemoryWorkspacePreview } from "@/ui/memory/MemoryWorkspacePreview";
 import { MemoryWorkspaceSplitLayout } from "@/ui/memory/MemoryWorkspaceSplitLayout";
-import { useMemoryManagerWorkspace } from "@/ui/memory/useMemoryManagerWorkspace";
+import {
+  useMemoryManagerWorkspace,
+  type MemoryManagerReflectionTarget,
+} from "@/ui/memory/useMemoryManagerWorkspace";
 
 type MemoryLibraryPageProps = {
   search: MemoryLibrarySearch;
@@ -139,6 +150,8 @@ export function MemoryLibraryPage({
   const [drafts, setDrafts] = useState<MemoryEntryDrafts>({});
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [exitSaving, setExitSaving] = useState(false);
+  const [reflectionToConfirm, setReflectionToConfirm] =
+    useState<MemoryManagerReflectionTarget | null>(null);
   const initializedTreeRef = useRef(false);
   const moveReconciliationRef = useRef<Set<string> | null>(null);
 
@@ -790,6 +803,40 @@ export function MemoryLibraryPage({
         : `${entryToDelete.path} and its contents will be permanently removed. This includes ${deletionFileCount} ${deletionFileCount === 1 ? "file" : "files"}${deletionDirectoryCount > 0 ? ` and ${deletionDirectoryCount} nested ${deletionDirectoryCount === 1 ? "directory" : "directories"}` : ""}.`
     : "";
 
+  // Reflect curates the selected Anima's MEMORIES.md, in either work mode.
+  const reflectionFolder = animaFolderForMemoriesEntry(
+    animaFolders,
+    selectedEntryId,
+  );
+
+  /** Shows the Memory Manager and starts the Reflection there. */
+  const startReflection = (target: MemoryManagerReflectionTarget) => {
+    setReflectionToConfirm(null);
+    // The manager may have become busy or gained a pending approval while the
+    // draft confirmation was open, so recheck instead of failing silently.
+    if (!manager.canStartSpecializedRun) {
+      toast.error("Reflection did not start.", {
+        description: manager.specializedRunBlockReason ?? undefined,
+      });
+      return;
+    }
+    if (search.mode === "manager") setMobilePane("work");
+    else handleModeChange("manager");
+    void manager.reflect(target);
+  };
+
+  const handleReflect = () => {
+    if (!reflectionFolder || !manager.canStartSpecializedRun) return;
+    const target = {
+      animaId: reflectionFolder.animaId,
+      animaName: reflectionFolder.label,
+    };
+    // Reflection reads the saved file, so its proposal and an unsaved Manual
+    // draft of the same file would conflict with each other.
+    if (selectedHasDirtyDraft) setReflectionToConfirm(target);
+    else startReflection(target);
+  };
+
   const handleReverted = (entry: PyMemoryEntryResponse) => {
     setDrafts((current) => ({
       ...current,
@@ -889,7 +936,7 @@ export function MemoryLibraryPage({
                   mobilePane === "work" ? "flex" : "hidden",
                 )}
               >
-                <div className="border-border/40 flex min-h-12 shrink-0 items-center border-b px-3 py-2">
+                <div className="border-border/40 flex min-h-12 shrink-0 items-center gap-2 border-b px-3 py-2">
                   <Tabs
                     value={search.mode}
                     onValueChange={(value) =>
@@ -902,6 +949,25 @@ export function MemoryLibraryPage({
                       <TabsTrigger value="manager">Memory Manager</TabsTrigger>
                     </TabsList>
                   </Tabs>
+                  {reflectionFolder ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      aria-label={`Reflect on ${reflectionFolder.label}'s memories`}
+                      title={`Reflect on ${reflectionFolder.label}'s memories`}
+                      disabled={!manager.canStartSpecializedRun}
+                      onClick={handleReflect}
+                    >
+                      {manager.isReflecting ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="size-4" />
+                      )}
+                      Reflect
+                    </Button>
+                  ) : null}
                 </div>
                 <div className="flex min-h-0 flex-1 overflow-hidden">
                   {search.mode === "manual" ? (
@@ -1051,6 +1117,38 @@ export function MemoryLibraryPage({
                 <Loader2 className="size-4 animate-spin" />
               ) : null}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={reflectionToConfirm !== null}
+        onOpenChange={(open) => !open && setReflectionToConfirm(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reflect with an unsaved draft?</DialogTitle>
+            <DialogDescription>
+              Reflection reads the last saved version of{" "}
+              {reflectionToConfirm?.animaName}&apos;s MEMORIES.md and ignores
+              your unsaved Manual draft. The draft stays open, but once either
+              it or a Reflection proposal is saved, the other will conflict.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setReflectionToConfirm(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                reflectionToConfirm && startReflection(reflectionToConfirm)
+              }
+            >
+              Reflect anyway
             </Button>
           </DialogFooter>
         </DialogContent>

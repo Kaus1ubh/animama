@@ -78,7 +78,7 @@ def render_episode_processing_instructions(
         "`include_episodic_memory=false`. A hit under episodes/** is raw source material and never proves curation.",
         "Use the apply_patch tool when you want to update the user's curated memory files, with exactly one "
         "create_file or update_file "
-        "operation per approval. Never edit episodes/** or Anima identity files.",
+        "operation per approval. Never edit episodes/** or Anima files.",
         "For every curated file you create or update, keep its description as a concise, accurate overview of the "
         "file after the episodic changes. Preserve an existing description only when it still reflects the contents.",
         SENSITIVE_MEMORY_RULE,

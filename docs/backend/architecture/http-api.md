@@ -38,8 +38,8 @@ Tests use explicit fixture bootstrap and dependency overrides.
   delete lifecycle.
 - `server/routers/memory_entries.py`: scoped markdown memory entry tree
   listing, path lookup, create, patch, move/rename, and soft-delete routes.
-- `server/routers/memory_manager.py`: episodic-memory review and manual
-  memory-manager run/message/approval routes.
+- `server/routers/memory_manager.py`: episodic-memory review, Reflection and
+  manual memory-manager run/message/approval routes.
 - `server/routers/safety.py`: owner-visible crisis-resource regions.
 - `server/routers/archive.py`: archive metadata/passages and embedding search.
 - `server/routers/elevenlabs.py`: ElevenLabs clone, text-to-speech, sound
@@ -606,6 +606,7 @@ Memory APIs expose a scoped Markdown entry tree:
 - `GET /v1/memory/episodes?status=pending&limit=100`
 - `POST /v1/memory/manager/runs`
 - `POST /v1/memory/manager/runs:process-episodes`
+- `POST /v1/memory/manager/runs:reflect`
 - `GET /v1/memory/manager/runs/current`
 - `GET /v1/memory/manager/runs/{run_id}`
 - `POST /v1/memory/manager/runs/{run_id}:complete`
@@ -711,6 +712,21 @@ daily files, and changes task status to `processed`. The run itself remains
 `active`; later messages use general Memory Manager instructions on the same
 Responses cursor. Overflow and newly captured rows are not changed. Blocked or
 failed runtime results fail the run and leave the task and rows pending.
+
+`POST /v1/memory/manager/runs:reflect` accepts `anima_id` and
+`auto_approve_diffs`, and starts a Reflection over that owned Anima's oldest
+uncovered chat turns across all its chats, at most 400 turns or 200,000
+characters of turn text. It follows the same open-run rules: it supersedes an
+open run without a pending approval and returns `409` while one is pending. A missing or foreign Anima returns `404`.
+It also returns `409` without creating a run when the Anima's `MEMORIES.md`
+needs repair or no turn is uncovered (`There are no new turns with <name> to
+reflect on`). The `201` response is the normal run snapshot with
+`kind = "reflection"` and a `reflection` summary (`anima_id`, `anima_name`,
+`turn_count`, `remaining_turn_count`, `started_at`); `task` stays `null`.
+Proposals target `animas/<anima_id>/MEMORIES.md`. Approving one (manually or
+automatically) marks the run's turns covered in the same transaction; Undo of
+that approval uncovers them again. Rejection, a superseded run, failure or a
+`409` version conflict leave the file and coverage unchanged.
 
 Manager messages normally run a live OpenAI Agents SDK `ApplyPatchTool`
 workflow over a constrained virtual memory workspace;

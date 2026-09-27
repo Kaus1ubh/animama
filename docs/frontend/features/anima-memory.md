@@ -211,7 +211,8 @@ browser history starts a blank ordinary conversation. The only cross-session
 exception is a `waiting_approval` run, whose transcript and review card are
 restored so the proposed change cannot be stranded. Inline diff approval cards
 refresh the explorer and persisted preview after approved changes. Selecting a
-file remains visual context and does not change manager requests.
+file remains visual context and does not change manager requests; only Reflect
+acts on the selected file.
 
 App Settings → Memory & Emotion sets installation-wide defaults for memory,
 memory updates and emotion updates. Each Anima's settings offer "App default",
@@ -273,7 +274,44 @@ supersedes the current active conversation, while an unresolved approval blocks
 the action. A stale no-work response refreshes the pending count without
 replacing the current conversation.
 
-Every diff approval, in both general and episode-processing runs, offers
+While an Anima's `MEMORIES.md` is selected, in either work mode, the Work-pane
+header shows `Reflect` beside `Manual | Memory Manager` (accessible name
+`Reflect on <name>'s memories`). It switches to Memory Manager and calls
+`POST /v1/memory/manager/runs:reflect` with the Anima ID and the current Auto
+approve consent; the backend chooses the turns. Until the server-owned
+`Reflect on N turns with <name>.` exchange arrives, the transcript projects
+`Reflect on turns with <name>.` and an assistant loader. Reflect has the same
+locks as `Process episodes`: in-flight manager work, an unresolved run lookup
+or a pending approval. If that file has a dirty Manual draft, a confirmation
+first explains that the Reflection reads the saved file and that the draft and a
+Reflection proposal conflict with whichever is saved second; the draft stays
+open either way.
+
+A Reflection shows a status banner built from `run.reflection` and whether the
+run's approvals include an applied (approved, not undone) change. While open it
+reads, for example, `Reflecting on 12 turns with Annie · 3 more remain` and notes
+that the turns count as reflected only once a change from that Reflection is
+applied; a completed run reads `Reflected on 12 turns with Annie`. Its composer
+stays available, so follow-up messages refine the proposal as in any other
+conversation. A refused start (`409` for no new turns, a pending approval, a
+missing `MEMORIES.md` or a concurrent run; `404` for a deleted Anima) creates no
+run: the current transcript stays, a `Reflection did not start.` toast shows the
+backend reason, and the manager and Anima-folder queries refresh. The folders
+then show any repair state; a pending approval from another run is recovered
+only when no conversation is shown, so an open conversation stays in place until
+the owner selects New. If the manager becomes busy or gains a pending approval
+while the unsaved-draft confirmation is open, `Reflect anyway` closes it and the
+same toast explains why nothing started.
+
+A Reflection run can fail at start (for example, when the Memory Manager model
+is unavailable) or after an owner decision. With no applied change, its banner
+says the Reflection stopped with `MEMORIES.md` and those turns unchanged. An
+approval commits the file and the turns' coverage before the manager resumes,
+so if the run fails afterward the banner instead says the applied change stands
+and the turns count as reflected. In both cases the run error explains why it
+stopped.
+
+Every diff approval, in general, episode-processing and Reflection runs, offers
 Approve, plain Reject, and an optional Request changes interaction. Request
 changes rejects the current diff with trimmed feedback for the manager to use
 when resuming; decided cards display persisted feedback for audit. Rejection
@@ -281,11 +319,18 @@ does not itself imply that an episode is unworthy of memory, and the specialized
 run may propose a revised diff or complete the review without writing.
 
 General Memory Manager runs can propose changes to an Anima's identity when the
-request is about that Anima. Approval cards label such targets with the current
-workspace path (`Animas/<name>/IDENTITY.md`) instead of the model-facing
-`animas/<anima_id>/IDENTITY.md`. Approving, auto-approving or undoing an
-identity change refreshes that Anima's definition views. Episode processing
-never proposes identity changes.
+request is about that Anima, and to its `MEMORIES.md` when the owner asks; a
+Reflection changes only its own Anima's `MEMORIES.md`. Approval cards label
+these targets with the current workspace path (`Animas/<name>/IDENTITY.md` or
+`Animas/<name>/MEMORIES.md`) instead of the model-facing
+`animas/<anima_id>/...` path. Approving, auto-approving or undoing an identity
+change refreshes that Anima's definition views; a `MEMORIES.md` change refreshes
+only the memory-entry queries, including the Anima folders, so Manual and
+Preview show the new Version and a dirty draft becomes conflicted. Approving a
+Reflection proposal returns `409` when the file or the Anima's Reflection
+coverage changed after the Reflection started; the approval stays pending and
+the error toast shows the backend reason. Episode processing never proposes
+changes to Anima files.
 
 Approval previews show Markdown content changes and description changes as two
 separate channels. The Description section appears only when the value changes
@@ -303,14 +348,15 @@ decision remains visible as `Approved · Undone` and memory, entry, path, and
 version-history caches refresh. A `409 Conflict` refetches authoritative state
 and directs the user to Versions for historical recovery.
 
-`Auto approve` is off by default and captures consent at submission time for ordinary messages and
-specialized processing runs; enabling it does not approve an existing pending
-diff. The frontend sends that consent as `auto_approve_diffs` and does not issue
-automatic approval requests itself. The backend attributes newly generated
-diffs to the submitted message, approves them one at a time through the durable
-approval service, and resumes the manager until the chain completes or stops on
-an error or eight-decision limit. Any remaining diff stays available for manual
-review. Starting New resets Auto approve to off.
+`Auto approve` is off by default and captures consent at submission time for
+ordinary messages, episode processing and Reflections; enabling it does not
+approve an existing pending diff. The frontend sends that consent as
+`auto_approve_diffs` and does not issue automatic approval requests itself. The
+backend attributes newly generated diffs to the submitted message, approves them
+one at a time through the durable approval service, and resumes the manager
+until the chain completes or stops on an error or eight-decision limit. Any
+remaining diff stays available for manual review. Starting New resets Auto
+approve to off.
 The manager does not inherit main chat's model selector, uploads, dictation,
 voice mode, SSE streaming, TTS playback, avatar reactions, or Anima-scoped chat
 session controller.

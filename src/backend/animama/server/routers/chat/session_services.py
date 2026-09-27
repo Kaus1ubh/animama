@@ -4,7 +4,6 @@ from collections.abc import Awaitable, Callable, Mapping
 from contextlib import suppress
 from datetime import UTC, datetime
 from typing import Any, TypeVar
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from animama.adapters.memory_patch import AgentsSDKV4AMemoryPatchPlanner
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
@@ -16,6 +15,7 @@ from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import S
 from animama.app.chat import DirectChatMemoryToolService, memory_tool_specs
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.memory_episode_service import MemoryEpisodeService
+from animama.domain.settings import preferred_time_zone
 from animama.server.config import settings
 
 from .setup_helpers import chat_manager
@@ -54,18 +54,6 @@ class SessionBackedChatTurnRecorder:
         return await with_short_lived_session(self._session_factory, _record)
 
 
-def _timezone_from_preferences(preferences: dict[str, Any] | None) -> tuple[ZoneInfo, str]:
-    value = preferences.get("timezone") if isinstance(preferences, dict) else None
-    if isinstance(value, str):
-        name = value.strip()
-        if name:
-            try:
-                return ZoneInfo(name), name
-            except ZoneInfoNotFoundError:
-                pass
-    return ZoneInfo("UTC"), "UTC"
-
-
 class SessionBackedMemoryEpisodeRecorder:
     """Records episodic memory capture through fresh short-lived DB sessions."""
 
@@ -84,9 +72,7 @@ class SessionBackedMemoryEpisodeRecorder:
     ) -> Any:
         async def _record(session: Any) -> Any:
             user_settings = await SQLAlchemyUserSettingsRepository(session).get(user_id)
-            local_zone, local_timezone = _timezone_from_preferences(
-                dict(getattr(user_settings, "preferences", {}) or {})
-            )
+            local_zone, local_timezone = preferred_time_zone(getattr(user_settings, "preferences", None))
             occurred_at = datetime.now(UTC)
             local_date = occurred_at.astimezone(local_zone).date()
             uow = SQLAlchemyUnitOfWork(session)

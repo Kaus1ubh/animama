@@ -59,13 +59,30 @@ class PyMemoryManagerTaskSummary(BaseModel):
     processed_at: datetime | None = None
 
 
+class PyMemoryManagerReflectionSummary(BaseModel):
+    """What one Reflection run covers; its turns become covered only when its MEMORIES.md change is applied."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    anima_id: str
+    anima_name: str
+    # Turns in this run's batch: the Anima's oldest uncovered turns, at most 400.
+    turn_count: int = Field(..., ge=1)
+    # Uncovered turns beyond this batch, left for a later Reflection.
+    remaining_turn_count: int = Field(..., ge=0)
+    started_at: datetime
+
+
 class PyMemoryManagerRun(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str
     status: Literal["active", "waiting_approval", "completed", "failed"]
-    kind: Literal["general", "episode_processing"] = "general"
+    kind: Literal["general", "episode_processing", "reflection"] = "general"
+    # Set for episode-processing runs.
     task: PyMemoryManagerTaskSummary | None = None
+    # Set for Reflection runs.
+    reflection: PyMemoryManagerReflectionSummary | None = None
     model_provider: str | None = None
     model_name: str | None = None
     summary: str | None = None
@@ -146,6 +163,13 @@ class PyMemoryManagerEpisodeProcessingRunCreateRequest(BaseModel):
     auto_approve_diffs: bool = False
 
 
+class PyMemoryManagerReflectionRunCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    anima_id: str = Field(..., min_length=1)
+    auto_approve_diffs: bool = False
+
+
 class PyMemoryManagerMessageCreateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -187,6 +211,8 @@ __all__ = [
     "PyMemoryManagerEpisodeProcessingRunCreateRequest",
     "PyMemoryManagerMessage",
     "PyMemoryManagerMessageCreateRequest",
+    "PyMemoryManagerReflectionRunCreateRequest",
+    "PyMemoryManagerReflectionSummary",
     "PyMemoryManagerRun",
     "PyMemoryManagerRunCreateRequest",
     "PyMemoryManagerRunResponse",

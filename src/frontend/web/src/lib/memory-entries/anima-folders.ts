@@ -192,21 +192,49 @@ export function removedAnimaFileDrafts({
   return { drafts: next, notices };
 }
 
-const MANAGER_IDENTITY_PATH = /^animas\/([^/]+)\/identity\.md$/i;
+/** Model-facing Anima file paths: `animas/<anima_id>/IDENTITY.md|MEMORIES.md`. */
+const MANAGER_ANIMA_FILE_PATH = /^animas\/([^/]+)\/(identity|memories)\.md$/i;
+
+function parseManagerAnimaPath(path: string) {
+  const match = MANAGER_ANIMA_FILE_PATH.exec(path);
+  if (!match) return null;
+  return {
+    animaId: match[1],
+    file: match[2].toLowerCase() === "identity" ? "identity" : "memories",
+  } as const;
+}
 
 /**
  * Returns the Anima ID in a Memory Manager identity path
- * (`animas/<anima_id>/IDENTITY.md`), or null for user memory.
+ * (`animas/<anima_id>/IDENTITY.md`), or null for `MEMORIES.md` and user memory.
+ * Only identity changes advance the Anima definition.
  */
-export function animaIdForManagerPath(path: string) {
-  return MANAGER_IDENTITY_PATH.exec(path)?.[1] ?? null;
+export function animaIdForManagerIdentityPath(path: string) {
+  const parsed = parseManagerAnimaPath(path);
+  return parsed?.file === "identity" ? parsed.animaId : null;
 }
 
-/** Shows a Memory Manager target by its owner-facing workspace path. */
+/**
+ * Shows a Memory Manager target by its owner-facing workspace path, such as
+ * `Animas/Annie (2)/MEMORIES.md`; unknown Animas keep the model-facing path.
+ */
 export function managerPathLabel(path: string, folders: MemoryAnimaFolder[]) {
-  const animaId = animaIdForManagerPath(path);
-  if (!animaId) return path;
+  const parsed = parseManagerAnimaPath(path);
+  if (!parsed) return path;
+  const folder = folders.find((item) => item.animaId === parsed.animaId);
+  return folder?.[parsed.file].path ?? path;
+}
+
+/**
+ * Returns the Anima folder whose live `MEMORIES.md` has this entry ID, which
+ * is the file a Reflection curates; null for any other selection.
+ */
+export function animaFolderForMemoriesEntry(
+  folders: MemoryAnimaFolder[],
+  entryId: string | null | undefined,
+) {
+  if (!entryId) return null;
   return (
-    folders.find((folder) => folder.animaId === animaId)?.identity.path ?? path
+    folders.find((folder) => folder.memories.entry?.id === entryId) ?? null
   );
 }
