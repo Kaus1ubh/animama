@@ -80,7 +80,7 @@ Excluded, as in #144:
 - [x] Phase 1 (#147, `3fb6708`): `parakeet-stt-webgpu` pack produced and dependency-aware. Review #2 passed; the pack inventory hash (`76101656…`) awaits owner approval before a release build.
 - [x] Phase 2 (#148, `69ed94e`): Installed encoder served on desktop and self-host. Review #2 passed; built self-host verified at 200/404.
 - [x] Phase 3 (#149, `88542f5`): Experimental download control and status. Review #3 passed; native desktop visual check is Phase 4.
-- [ ] Phase 4: Signed candidate and native acceptance (owner-gated).
+- [x] Phase 4: v0.1.1 published as an R2 preview with both packs; native WebGPU acceptance passed (2026-09-26). Stable promotion is a separate release decision.
 - [x] Final integration review: passed (optional FI-F1 deferred).
 
 ## Surprises & Discoveries
@@ -523,9 +523,34 @@ separate owner authorization, and it overlaps the next app release.
 - the owner's publication approval
 - physical GPU acceptance, which agents cannot perform
 
-#### Code Review #1 Findings
+#### Results (2026-09-26)
 
-Not applicable unless code changes are needed.
+- **Owner approvals:** the owner approved the pack inventory `76101656…` and
+  core inventory `13f6218a…`, recorded in #164 along with the version bump to
+  0.1.1.
+- **First smoke run failed** at `fresh-launch` (`backend_readiness_mismatch`).
+  `/_desktop/health` reported the API's hard-coded version 0.1.0, so no app
+  version other than 0.1.0 could start. Fixed in #172, which passes the desktop
+  app version to the backend.
+- **Candidate:** built from `main` at `4e5f663`, signed, notarized and stapled,
+  with Gatekeeper accepting both the DMG and the app. The release scan passed
+  across 14 artifacts.
+- **Owner smoke:** the fresh-profile smoke passed 29/29, with the build ID
+  matching the candidate.
+- **Preview publication:** the owner published the preview. All 13 objects under
+  `desktop/v0.1.1/` download anonymously and match their hashes, and there is no
+  stable feed.
+- **Automated native check** on the installed app on an Apple silicon Mac, with
+  both packs downloaded from R2:
+  - WebGPU adapter present;
+  - installing the encoder first was refused with `pack_dependency_missing`;
+  - offline speech, then the encoder, installed and activated;
+  - the encoder mount returned `HEAD` 200 (1,238,960,452 bytes);
+  - removing offline speech was refused with `pack_dependent_installed`.
+- **Owner live check:** the owner confirmed WebGPU dictation with live previews
+  works in the installed app.
+- **Not performed:** a signed upgrade from an older version, and stable
+  promotion. Both belong to a later release step.
 
 ## Final integration review
 
@@ -592,7 +617,8 @@ Result: pass. Native desktop acceptance remains Phase 4.
 
 - The owner reviews the WebGPU pack inventory (`76101656…`) and the changed core
   inventory before a release build.
-- Phase 4 native acceptance on a WebGPU Mac, then the next app release.
+- ~~Phase 4 native acceptance~~ done with the v0.1.1 preview; stable promotion
+  remains a separate release decision.
 - FI-F1 follow-up.
 
 **Lessons:**
