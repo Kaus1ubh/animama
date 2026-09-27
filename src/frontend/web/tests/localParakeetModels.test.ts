@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { Server, IncomingMessage, ServerResponse } from "node:http";
 import { tmpdir } from "node:os";
@@ -119,6 +119,21 @@ describe("shared Parakeet model delivery", () => {
               },
         ),
       );
+      if (mode === "production") {
+        // The built URL must name an asset the backend's catalog installs.
+        const catalog = JSON.parse(
+          readFileSync(
+            new URL(
+              "../../../backend/animama/resources/model-assets.v1.json",
+              import.meta.url,
+            ),
+            "utf8",
+          ),
+        ) as { assets: { id: string }[] };
+        expect(catalog.assets.map((asset) => asset.id)).toContain(
+          "parakeet-tdt-0.6b-v2-webgpu-encoder",
+        );
+      }
       expect(config.define?.__CLIENT_PARAKEET_MODEL_BASE_URL__).toBe(
         JSON.stringify(
           mode === "embedded-desktop"
