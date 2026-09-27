@@ -17,7 +17,6 @@ from .._common import get_value
 
 OPENAI_RESPONSES_HTTP_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent"
 OPENAI_API = "responses"
-DEFAULT_BASE_URL = "https://api.openai.com/v1"
 OPENAI_STREAM_INCOMPLETE_CODE = "openai_stream_incomplete"
 OPENAI_MISSING_FINAL_ANSWER_PHASE_CODE = "openai_missing_final_answer_phase"
 

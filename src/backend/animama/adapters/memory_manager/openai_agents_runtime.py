@@ -145,7 +145,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         self._chat_messages = chat_messages
         self._model_provider = model_provider
         self._credentials = credential_resolver
-        self._openai_base_url = resolve_openai_base_url(openai_base_url or None)
+        self._openai_base_url = resolve_openai_base_url(openai_base_url)
         self._model = model_provider.model if model_provider is not None else ""
         self._timeout_seconds = max(0.1, float(timeout_seconds))
         self._runner = OpenAIAgentsRunner()

@@ -118,7 +118,7 @@ class OpenAICompatibleConnectionProbe:
         http_transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._credentials = credential_resolver
-        self._openai_base_url = resolve_openai_base_url(openai_base_url or None)
+        self._openai_base_url = resolve_openai_base_url(openai_base_url)
         self._default_timeout = default_timeout
         self._http_transport = http_transport
 

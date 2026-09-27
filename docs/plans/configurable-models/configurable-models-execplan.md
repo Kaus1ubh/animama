@@ -1710,6 +1710,18 @@ base-URL tests, probe and client tests pass (69 and 38 non-database tests);
 only 11 files this branch does not change. The full `make check-test` waits
 for a responsive Docker engine.
 
+### Final Integration Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck of repair round 1
+on `0d223f3`. No blocking findings: F1–F3, F5 and F6 resolved, the F4 deferral
+accepted, and the merge introduced no regression (the only other overlap,
+`redistribution-review.md`, merged coherently; `main`'s additive `SelectItem`
+`hint` prop does not affect Plan A; `main`'s new backend tests and the 2030 web
+tests pass). The committed SDK is byte-identical to an independent raw
+generation. Result: incomplete until the database-backed suite runs on a
+healthy engine. Optional: an unused Responses `DEFAULT_BASE_URL`, and the probe
+and Memory Manager passing `x or None` to the base-URL helper; both fixed.
+
 ## Validation and acceptance
 
 Spec acceptance (Plan A) and its evidence:
