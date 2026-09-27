@@ -1539,7 +1539,7 @@ Requirements: R13 for R1–R9; acceptance evidence. Depends on Phase 5.
 Checks: docs review against the delivered behavior, then the full validation
 set below.
 
-Phase record: issue #170; starting source `747faf6`; commits —.
+Phase record: issue #170; starting source `747faf6`; commit `c04b0a4`.
 
 Implementation notes (agent, within scope):
 
@@ -1641,6 +1641,11 @@ creation fix (removing the connection check fails only `inactive_connection`;
 removing `suits_role` fails `embedding` and `owner_without_window`). Ruff,
 format check, mypy, boundary imports, 61 focused tests and the link check
 passed.
+
+A full `make check-test` after F9 stalled at 94% when the host's Docker engine
+stopped responding (fixture errors across unrelated database tests, then the
+1,500 s timeout); the run before F9 passed 2161. The full suite is rerun on a
+healthy engine before pushing.
 
 ## Final integration review
 
