@@ -1687,7 +1687,7 @@ the owner the same day. Same branch and PR; depends on Phase 6.
      default, the app opens the last-used Anima.
 4. Tests, docs and a browser check at desktop width and 375 px.
 
-Phase record: issue #204; starting source `dd90124`; commits —.
+Phase record: issue #204; starting source `dd90124`; commit `98e972fe`. Evidence: `make check-test` 2220 passed, 7 skipped; `pnpm web:test` 2031 passed; `pnpm check` and `web:lint` pass.
 
 Implementation notes: the remap lives in the catalog seed
 (`alembic/seeds/01-seed-model-providers.sql`, rendered from
