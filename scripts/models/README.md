@@ -2,8 +2,8 @@
 
 Run from the Animama checkout with Python 3.11+ on macOS, Linux or native Windows.
 On Windows, use `py -3` where these examples use `python3`. Setup uses only
-Python's standard library and the public pinned Hugging Face files; no account,
-API key or Hugging Face SDK is required.
+Python's standard library and Animama's public, content-addressed model objects;
+no account, API key or Hugging Face SDK is required.
 
 ```sh
 python3 scripts/models/parakeet.py acquire
@@ -37,6 +37,23 @@ this manifest reuse the same bytes. `--manifest PATH` selects a local reviewed
 manifest or small build/test fixture; it never accepts arbitrary upstream URLs,
 repositories, moving revisions or inventory paths.
 
+Each ordinary base download uses
+`https://downloads.animama.ai/models/parakeet-tdt-0.6b-v2/<sha256>/<filename>`,
+including both notices. These are the same verified raw objects desktop packs
+use. A missing object fails without falling back to another source.
+
+Build/release maintainers can explicitly acquire the original pinned upstream
+weights and checked-in notices before the first model publication:
+
+```sh
+python3 scripts/models/parakeet.py acquire --source upstream
+```
+
+Both sources produce the same verified directory; existing valid caches and
+offline imports need no new download. The full/cold-cache Validation workflow
+uses this producer mode without publication credentials. Other model setup
+scripts retain their own manifest sources.
+
 To adopt an existing model copy without downloading:
 
 ```sh
@@ -65,7 +82,9 @@ stack records and processes before removing unused versions. Files are made
 read-only to discourage accidental edits, but the owning user can still alter
 them; consumers verify before use.
 
-Requests and redirects use HTTPS and a fixed reviewed Hugging Face host list.
+Requests and redirects use HTTPS and a fixed reviewed host list: Animama's
+download origin for normal base acquisition, or Hugging Face hosts for explicit
+upstream acquisition.
 The downloader sends no credentials and does not inherit environment proxies.
 HTTP errors, including throttling, fail with instructions to retry later; no
 automatic retries hide repeated failures. Interrupted/failed transfers restart

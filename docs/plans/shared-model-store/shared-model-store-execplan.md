@@ -196,7 +196,7 @@ Paths are repository-relative; inspect their current contents on resumption.
       are recorded under Planning validation below.
 - [x] Phase 1: shared model references and transport contracts.
 - [ ] Phase 2: verified per-file desktop installation.
-- [ ] Phase 3: self-host acquisition from shared objects.
+- [x] Phase 3: self-host acquisition from shared objects.
 - [x] Synchronize #188 with the accepted voice scope; integrate merged #195.
 - [x] Owner confirmed preserving #195 saved clones and source samples; pending
   download input stays in memory.
@@ -380,7 +380,7 @@ against the real release budgets: it failed on the old base ceiling and passes
 after the fix (4/4 focused contract tests). Independent targeted review #2 passed:
 canonical totals fit both ceilings and no direct regression was found. One repair
 round used; one remains. No model or approval identity changed. Phase 1 passed;
-the commit carrying this record completes its implementation boundary.
+commit `5fd8554b` completes its implementation boundary.
 
 ### Phase 2: Verified desktop model-file installation
 
@@ -444,7 +444,7 @@ Not started; two repair rounds available.
 **Requirements:** R1, R2, R4, R6. **Acceptance:** A1, A5.
 **Dependency:** Phase 1 reference contract; independent of Phase 2 runtime work.
 **Issue:** [#199](https://github.com/raymond-van/animama/issues/199).
-**Starting source/commit:** pending execution; integrated base `f89d3ed3`.
+**Starting source/commit:** `5fd8554b`; runs independently of Phase 2 and 4.
 
 1. Change ordinary `parakeet.py acquire` to derive the shared object URLs for
    all seven pinned files, including notices. Keep `verify`, `path`,
@@ -491,16 +491,28 @@ Use a fresh task-owned temporary root for network acceptance; retain any older
 verified cache while consumers still use it. If notice changes alter the manifest
 digest, verified offline import can reuse unchanged weights into the new set.
 
-**Evidence and remaining gates:** not run. Real public-object acquisition and
-browser speech checks remain pending publication of the final inputs.
+**Evidence and remaining gates:** the default acquisition test failed on the old
+Hugging Face route, then passed after the shared-object projection. Explicit
+producer/bootstrap and workflow tests failed before the source option/CI change
+and passed afterward. The combined model store, WebGPU, browser store, backend
+asset and Compose boundary suite passed 258 tests, with six native Windows-only
+tests skipped on macOS. Ruff, scoped format checks, `bash -n reset.sh` and patch
+whitespace checks passed. Existing generic helper callers retain their manifest
+sources. Real public-object acquisition and browser speech checks remain pending
+publication of the final inputs. No model objects were published.
 
 #### Code Review #1 Findings
 
-Not started; record source, checks and stable findings.
+Independent analysis of the four Phase 3 source/test/workflow/document files
+over `5fd8554b` found no concrete blocking issues. A separate check runner
+confirmed the CLI source help, existing immutable base `path`/`verify` offline,
+and the plan-scoped Ruff checks; existing 258-test evidence was reused.
 
 #### Code Review #1 Revisions
 
-Not started; two repair rounds available.
+No revisions required. Phase 3 review passed with both repair rounds unused.
+The commit carrying this record completes the phase implementation; real
+public-object acquisition remains an explicitly unperformed publication gate.
 
 ### Phase 4: Pocket core split and first-use cloning acquisition
 

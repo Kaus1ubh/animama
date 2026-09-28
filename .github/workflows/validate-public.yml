@@ -262,7 +262,7 @@ jobs:
           ANIMAMA_MODEL_ROOT: ${{ runner.temp }}/animama-models
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" model-inputs -- bash -e -o pipefail -c '
-          python3 scripts/models/parakeet.py acquire
+          python3 scripts/models/parakeet.py acquire --source upstream
           python3 scripts/models/parakeet.py verify
           python3 scripts/models/browser_speech.py acquire
           python3 scripts/models/browser_speech.py verify

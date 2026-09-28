@@ -227,6 +227,105 @@ def test_cli_status_and_root_precedence(inventory, monkeypatch, capsys):
     assert capsys.readouterr().out.strip() == str(i.root / store.MODEL_ID / i.manifest["digest"])
 
 
+def test_cli_default_acquires_every_pinned_object_and_reuses_the_cache(inventory, monkeypatch):
+    """Ordinary setup consumes the same seven immutable objects as desktop packs."""
+    i = inventory
+
+    def download(url, hosts=store.DOWNLOAD_HOSTS):
+        assert hosts == {"downloads.animama.ai"}
+        return i.transport(url)
+
+    monkeypatch.setattr(store, "open_download", download)
+    args = ["acquire", "--manifest", str(i.manifest_path), "--root", str(i.root)]
+    assert store.main(args) == 0
+    assert i.calls == [
+        f"https://downloads.animama.ai/models/{store.MODEL_ID}/{entry['sha256']}/{entry['path']}"
+        for entry in i.manifest["files"]
+    ]
+    monkeypatch.setattr(store, "open_download", lambda *_: pytest.fail("verified cache needs no network"))
+    assert store.main(args) == 0
+    assert store.main([*args, "--offline"]) == 0
+
+
+def test_cli_explicit_producer_bootstraps_without_published_objects(inventory, monkeypatch):
+    i = inventory
+
+    def upstream_only(url, hosts=store.DOWNLOAD_HOSTS):
+        assert hosts == store.DOWNLOAD_HOSTS
+        assert url.startswith("https://huggingface.co/")
+        return i.transport(url)
+
+    monkeypatch.setattr(store, "open_download", upstream_only)
+    args = ["acquire", "--manifest", str(i.manifest_path), "--root", str(i.root), "--source", "upstream"]
+    assert store.main(args) == 0
+    assert len(i.calls) == 5  # Producer notices are the reviewed local copies.
+    monkeypatch.setattr(store, "open_download", lambda *_: pytest.fail("consumer must reuse producer cache"))
+    assert store.main(args[:-2]) == 0
+
+
+@pytest.mark.parametrize("failure", ["missing", "corrupt", "interrupted"])
+def test_shared_acquisition_failure_has_no_upstream_fallback_or_partial_activation(inventory, monkeypatch, failure):
+    i = inventory
+    calls = []
+
+    def broken(url, hosts):
+        assert hosts == {"downloads.animama.ai"}
+        calls.append(url)
+        if failure == "missing":
+            raise store.ModelStoreError("Upstream HTTP 404; retry acquisition later")
+        if failure == "interrupted":
+            raise ConnectionResetError("fixture transfer interruption")
+        return io.BytesIO(b"corrupt")
+
+    monkeypatch.setattr(store, "open_download", broken)
+    args = ["acquire", "--manifest", str(i.manifest_path), "--root", str(i.root)]
+    assert store.main(args) == 1
+    assert len(calls) == 1
+    assert not (i.root / store.MODEL_ID / i.manifest["digest"]).exists()
+    assert not list((i.root / store.MODEL_ID).glob(".*.partial-*"))
+    monkeypatch.setattr(store, "open_download", lambda url, hosts: i.transport(url))
+    assert store.main(args) == 0
+
+
+def test_default_cli_offline_import_never_needs_shared_objects(inventory, monkeypatch, tmp_path):
+    i = inventory
+    original = tmp_path / "import"
+    original.mkdir()
+    for name, content in i.content.items():
+        (original / name).write_bytes(content)
+    monkeypatch.setattr(store, "open_download", lambda *_: pytest.fail("offline import needs no network"))
+    args = ["acquire", "--manifest", str(i.manifest_path), "--root", str(i.root)]
+    assert store.main([*args, "--offline", "--import-from", str(original)]) == 0
+
+
+def test_full_validation_bootstraps_base_inputs_without_a_published_model():
+    workflow = (SCRIPT.parents[2] / ".github/workflows/validate-public.yml").read_text()
+    commands = [line.strip() for line in workflow.splitlines() if "scripts/models/parakeet.py acquire" in line]
+    assert commands == ["python3 scripts/models/parakeet.py acquire --source upstream"]
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://huggingface.co/redirected-model",
+        "https://downloads.animama.ai.evil.example/model",
+        "https://token@downloads.animama.ai/model",
+        "http://downloads.animama.ai/model",
+    ],
+)
+def test_shared_download_rejects_redirects_outside_its_anonymous_https_origin(url):
+    req = request.Request("https://downloads.animama.ai/models/pinned")
+    with pytest.raises(store.ModelStoreError, match="unreviewed"):
+        store.ReviewedRedirects(store.RELEASE_HOSTS).redirect_request(req, None, 302, "Found", {}, url)
+
+
+def test_shared_source_is_scoped_to_base_inventory(inventory):
+    manifest = {**inventory.manifest, "model_id": "browser-speech"}
+    with pytest.raises(store.ModelStoreError, match="base inventory"):
+        store.acquire(manifest, inventory.root, shared_base_objects=True)
+    assert not inventory.root.exists()
+
+
 def test_content_length_rejected_before_read(inventory, tmp_path):
     entry = inventory.manifest["files"][0]
 
