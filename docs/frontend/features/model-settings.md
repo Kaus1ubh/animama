@@ -16,11 +16,18 @@ assignments on the server.
 
 ## Connections
 
-The section opens on tabs: **OpenAI** (the built-in connection), one tab per
-owner connection and a **+** tab that adds one. Each tab shows its connection's
-address and key state, Edit and Remove for owner connections, its models and a
-round **+** button that adds a model. Adding a connection opens its tab;
-removing one returns to OpenAI.
+The section opens on fixed tabs styled like the Library tabs (shared
+`underlineTabClassName` in `web/src/ui/components/tabs.tsx`): **OpenAI**,
+**Ollama**, **LM Studio**, **llama.cpp**, **vLLM** and **Custom**
+(`MODEL_SERVER_TABS` and `connectionServerTab` in
+`model-configuration-state.ts`). OpenAI holds the built-in connection. A local
+server tab holds that preset's connections; until one exists it shows the
+connect form with the server type fixed. Custom holds DeepSeek, Hugging Face
+and custom-URL connections; its **Add connection** button opens the same form
+with a choice among those three (shown directly while Custom is empty).
+Several connections on one tab are listed one after another. Each owner
+connection shows its name, address and key state with Edit and Remove; every
+connection lists its models and has a round **+** button that adds one.
 
 Each connection is an OpenAI-compatible server: Ollama, LM Studio, llama.cpp,
 vLLM, DeepSeek, Hugging Face or a custom URL. The preset fills the base URL,
@@ -62,10 +69,15 @@ The context window is required: it should be the size the server loads the
 model with, not the model's maximum. Each chat model can be barred from
 writing memories. Embedding models only need their ID.
 
-Built-in models can be hidden from model lists; owner models can be edited or
-removed. Removing something in use first asks for confirmation, naming the
-Animas and roles that use it; those Animas show the model as unavailable until
-another is picked, and the roles return to their defaults.
+Each model row shows its name, a tag and an Info button. The tag
+(`modelApiTag`) is **Responses** for a chat model on the Responses API,
+**Completions** for any other chat model and **Embeddings** for an embedding
+model. Info opens the model's details: read-only for built-in models, and the
+editable add-model form for owner models, which adds Remove. Both offer **Show
+in model lists**, which saves at once; a hidden model stays in use wherever it
+is already chosen. Removing something in use first asks for confirmation,
+naming the Animas and roles that use it; those Animas show the model as
+unavailable until another is picked, and the roles return to their defaults.
 
 ## Default models
 

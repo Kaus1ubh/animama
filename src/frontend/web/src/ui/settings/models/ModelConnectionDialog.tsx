@@ -159,7 +159,10 @@ export function ModelConnectionForm({
   onSavingChange,
   footer,
 }: {
-  /** At least one preset; a new connection starts from the first. */
+  /**
+   * At least one preset; a new connection starts from the first. With a
+   * single preset the server type is fixed and its choice is not shown.
+   */
   presets: readonly PyModelConnectionPreset[];
   connection?: PyModelConnection;
   /** Desktop with its embedded runtime: keys go to the encrypted vault. */
@@ -282,36 +285,38 @@ export function ModelConnectionForm({
         void save();
       }}
     >
-      <div className="space-y-2">
-        <Label htmlFor={`${formId}-preset`}>Server type</Label>
-        <Select
-          value={draft.preset}
-          disabled={saving}
-          onValueChange={(value) => {
-            const next = presets.find((item) => item.id === value);
-            if (!next) return;
-            setDetection(null);
-            // Editing keeps the owner's URL and key; a new connection
-            // takes the preset's defaults.
-            setDraft(
-              connection
-                ? { ...draft, preset: next.id }
-                : draftFromPreset(next),
-            );
-          }}
-        >
-          <SelectTrigger id={`${formId}-preset`} className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {presets.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {presets.length > 1 ? (
+        <div className="space-y-2">
+          <Label htmlFor={`${formId}-preset`}>Server type</Label>
+          <Select
+            value={draft.preset}
+            disabled={saving}
+            onValueChange={(value) => {
+              const next = presets.find((item) => item.id === value);
+              if (!next) return;
+              setDetection(null);
+              // Editing keeps the owner's URL and key; a new connection
+              // takes the preset's defaults.
+              setDraft(
+                connection
+                  ? { ...draft, preset: next.id }
+                  : draftFromPreset(next),
+              );
+            }}
+          >
+            <SelectTrigger id={`${formId}-preset`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {presets.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
       <div className="space-y-2">
         <Label htmlFor={`${formId}-name`}>Name</Label>
         <Input

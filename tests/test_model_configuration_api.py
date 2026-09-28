@@ -236,6 +236,9 @@ async def test_owner_models_are_unpriced_and_reactivate_after_removal(async_sess
     async with local_client(app) as client:
         connection = (await client.post("/v1/model-connections", json=_connection_body())).json()
         first = (await client.post(f"/v1/model-connections/{connection['id']}/models", json=_local_model_body())).json()
+        duplicate = await client.post(
+            f"/v1/model-connections/{connection['id']}/models", json=_local_model_body(label="Other")
+        )
         removed = await client.delete(f"/v1/model-providers/{first['id']}")
         catalog_after_removal = (await client.get("/v1/model-providers")).json()
         again = (
@@ -244,6 +247,7 @@ async def test_owner_models_are_unpriced_and_reactivate_after_removal(async_sess
             )
         ).json()
 
+    assert duplicate.status_code == 409 and duplicate.json()["detail"]["code"] == "model_already_added"
     assert removed.status_code == 200
     assert first["id"] not in {row["id"] for row in catalog_after_removal}
     assert again["id"] == first["id"]
@@ -559,7 +563,7 @@ async def test_owner_model_updates_change_only_the_given_fields(async_session, t
         model = (
             await client.post(
                 "/v1/model-connections/openai/models",
-                json={"model": "gpt-6-sol", "template_id": "OpenAIResponsesHTTPAgent:gpt-6-luna"},
+                json={"model": "gpt-6-sol-edit", "template_id": "OpenAIResponsesHTTPAgent:gpt-6-luna"},
             )
         ).json()
         updated = await client.patch(

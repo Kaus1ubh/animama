@@ -1740,6 +1740,61 @@ creation and role defaults all read the remapped value), dispositions accepted.
 Optional: document the settings-time remap (added to `model-catalog.md`); the
 warning can appear once per settings instance.
 
+### Phase 8 — Models section polish
+
+Owner request after reviewing Phase 7 (2026-09-28); owner decisions the same
+day. Same branch and PR; frontend and documentation, plus one backend fix found
+while testing: adding a model already active on a connection overwrote it
+(and removing the "duplicate" removed the owner's model), so it now returns
+`409 model_already_added`.
+
+1. **Tabs** styled like the `/a/library` tabs (underlined text tabs).
+2. **Fixed server-type tabs:** OpenAI, Ollama, LM Studio, llama.cpp, vLLM and
+   Custom.
+   - A local tab holds that server's connection. Until one exists, it shows
+     Detect and the connect form.
+   - Custom holds DeepSeek, Hugging Face and custom connections.
+3. **Model rows:** the model name, a colored right-aligned tag (Responses,
+   Completions or Embeddings) and an Info icon button. There is no hide toggle
+   and no facts line on the row.
+4. **Info modal:** details that are editable for owner models and read-only
+   for built-ins, a "Show in model lists" switch, and Remove for owner models.
+5. **Chat Completions** stays available for OpenAI models (owner decision).
+6. **Cleanup:** remove the stale commented `llama-build`/`llama-run` Compose
+   block, and delete the test connection "Scripted llama.cpp" from the task
+   stack.
+
+Phase record: issue #205; starting source `5677c8f`; commits —.
+
+#### Code Review #1 Findings
+
+Reviewer: independent `sdlc-reviewer`, full review of the staged changes on
+`5677c8f`. It verified shared Library tab styling (Library unchanged), the tab
+mapping, kept behaviors (keys, Detect, removal usage, defaults), owner-form
+state, the 409 handling and the Compose cleanup. Blocking: **P8-R1-F1** the
+409 was undocumented and the plan called the phase frontend-only. Optional: F2
+identical Info labels for one model on two APIs; F3 the owner Info modal
+ignored the busy state; F4 changing a connection's server type in Edit moved it
+off the open tab; F5 a local tab adds only one connection; F6 no message when
+presets fail to load; F7 hidden rows look visible; F8 32 px Info target; F9 a
+test id collision hints at shared test data.
+
+#### Code Review #1 Revisions
+
+- **F1 accepted.** `http-api.md`, `model-catalog.md` and this plan describe the
+  409.
+- **F2–F4 accepted.** Info labels include the tag; the owner modal honors the
+  busy state; Edit offers only the tab's server types.
+- **F5–F9 not changed:** F5 matches the owner's layout (a second host fits under
+  Custom); F6 and F8 are unchanged from before; F7 follows the owner's "no
+  toggle on the row"; F9 predates this phase.
+
+#### Code Review #2 Findings
+
+Reviewer: same independent `sdlc-reviewer`, targeted recheck. Result: pass;
+F1–F4 verified with no regression. Optional: a list line in `model-catalog.md`
+lost its indent (fixed).
+
 ## Final integration review
 
 Covers the combined Plan A diff against the spec's Plan A acceptance, reusing

@@ -24,6 +24,7 @@ import {
 } from "@/ui/components/dialog";
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
+import { Switch } from "@/ui/components/switch";
 import {
   Select,
   SelectContent,
@@ -120,10 +121,52 @@ function initialDraft(
   };
 }
 
+/** API name of a chat model, as shown in its details. */
+export function modelApiLabel(model: PyConfiguredModel): string {
+  return model.provider_type === RESPONSES
+    ? "Responses API"
+    : "Chat Completions API";
+}
+
 /**
- * Add a model to a connection, or edit an owner model. The owner can copy a
- * built-in model's capabilities, or Test the model to prefill them from the
- * server's answers; the context window is always the owner's to confirm.
+ * "Show in model lists" for a model's details. The change saves at once; a
+ * hidden model stays in use wherever it is already chosen.
+ */
+export function ModelVisibilitySwitch({
+  model,
+  disabled,
+}: {
+  model: PyConfiguredModel;
+  disabled?: boolean;
+}) {
+  const update = useUpdateModel();
+  return (
+    <label className="flex items-center justify-between gap-3 text-sm">
+      Show in model lists
+      <Switch
+        checked={!model.hidden}
+        disabled={disabled || update.isPending}
+        onCheckedChange={(checked) =>
+          void update
+            .mutateAsync({
+              modelProviderId: model.id,
+              body: { hidden: !checked },
+            })
+            .catch((error: unknown) =>
+              toast.error(modelConfigurationErrorMessage(error)),
+            )
+        }
+      />
+    </label>
+  );
+}
+
+/**
+ * Add a model to a connection, or show an owner model's details for editing.
+ * The owner can copy a built-in model's capabilities, or Test the model to
+ * prefill them from the server's answers; the context window is always the
+ * owner's to confirm. An existing model's details also offer "Show in model
+ * lists" and Remove.
  */
 export function OwnerModelDialog({
   open,
@@ -131,6 +174,8 @@ export function OwnerModelDialog({
   connection,
   model,
   templates,
+  onRemove,
+  disabled = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -138,6 +183,10 @@ export function OwnerModelDialog({
   model?: PyConfiguredModel;
   /** Built-in chat models whose capabilities can be copied. */
   templates: readonly PyConfiguredModel[];
+  /** Starts removing the model being edited; the caller confirms any usage. */
+  onRemove?: (model: PyConfiguredModel) => void;
+  /** Settings are busy elsewhere; nothing here may change. */
+  disabled?: boolean;
 }) {
   const formId = useId();
   const add = useAddOwnerModel();
@@ -150,13 +199,16 @@ export function OwnerModelDialog({
   const [report, setReport] = useState<PyModelProbeReport | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Reset per opening or model only, so a refetch (for example after "Show
+  // in model lists") keeps unsaved edits.
+  const modelId = model?.id;
   useEffect(() => {
     if (!open) return;
     setDraft(initialDraft(connection, model));
     setReport(null);
     discover.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset per opening only
-  }, [open, connection, model]);
+  }, [open, connection.id, modelId]);
 
   const editing = Boolean(model);
   const isChat = draft.kind === "chat";
@@ -169,7 +221,7 @@ export function OwnerModelDialog({
       ? !isChat
       : Number.isInteger(contextWindow) && contextWindow > 0;
   const valid = Boolean(draft.model.trim()) && contextValid;
-  const busy = saving || probe.isPending;
+  const busy = disabled || saving || probe.isPending;
   const change = (patch: Partial<Draft>) =>
     setDraft((current) => ({ ...current, ...patch }));
 
@@ -271,15 +323,15 @@ export function OwnerModelDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {editing
-              ? `Edit ${model?.model_label}`
-              : `Add a model to ${connection.name}`}
+            {model ? model.model_label : `Add a model to ${connection.name}`}
           </DialogTitle>
           <DialogDescription>
-            Test the model to check what it supports, then confirm its
-            capabilities and context window.
+            {model
+              ? `${model.model_kind === "embedding" ? "Embedding model" : `Chat model · ${modelApiLabel(model)}`} on ${connection.name}. Change its details, then save.`
+              : "Test the model to check what it supports, then confirm its capabilities and context window."}
           </DialogDescription>
         </DialogHeader>
+        {model ? <ModelVisibilitySwitch model={model} disabled={busy} /> : null}
         <form
           id={formId}
           className="space-y-4"
@@ -414,10 +466,7 @@ export function OwnerModelDialog({
                   </SelectItem>
                   {templateChoices.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
-                      {template.model_label}
-                      {template.provider_type === RESPONSES
-                        ? " (Responses API)"
-                        : " (Chat Completions API)"}
+                      {template.model_label} ({modelApiLabel(template)})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -536,6 +585,17 @@ export function OwnerModelDialog({
           ) : null}
         </form>
         <DialogFooter>
+          {model && onRemove ? (
+            <Button
+              type="button"
+              variant="ghost"
+              className="text-destructive hover:text-destructive sm:mr-auto"
+              disabled={busy}
+              onClick={() => onRemove(model)}
+            >
+              Remove
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="ghost"

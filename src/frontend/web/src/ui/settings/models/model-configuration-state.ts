@@ -1,5 +1,7 @@
 import type {
+  PyConfiguredModel,
   PyEmbeddingRefreshStatus,
+  PyModelConnection,
   PyModelConnectionDetection,
   PyModelProbeReport,
   PyModelProviderCatalogItem,
@@ -37,6 +39,54 @@ export function roleCandidates(
       (item.source !== "owner" || item.context_window_tokens != null)
     );
   });
+}
+
+/**
+ * The fixed tabs of the Models section, in order. OpenAI holds the built-in
+ * connection; each local server tab holds connections of its preset; Custom
+ * holds every other owner connection (DeepSeek, Hugging Face and custom URLs).
+ */
+export const MODEL_SERVER_TABS = [
+  { id: "openai", label: "OpenAI" },
+  { id: "ollama", label: "Ollama" },
+  { id: "lmstudio", label: "LM Studio" },
+  { id: "llamacpp", label: "llama.cpp" },
+  { id: "vllm", label: "vLLM" },
+  { id: "custom", label: "Custom" },
+] as const;
+
+export type ModelServerTab = (typeof MODEL_SERVER_TABS)[number]["id"];
+
+/** Presets offered by the Custom tab's Add connection form, in order. */
+export const CUSTOM_TAB_PRESET_IDS = ["deepseek", "huggingface", "custom"];
+
+const LOCAL_SERVER_TABS = new Set<string>([
+  "ollama",
+  "lmstudio",
+  "llamacpp",
+  "vllm",
+]);
+
+/** The Models tab that lists a connection. */
+export function connectionServerTab(
+  connection: Pick<PyModelConnection, "source" | "preset">,
+): ModelServerTab {
+  if (connection.source === "builtin") return "openai";
+  return LOCAL_SERVER_TABS.has(connection.preset)
+    ? (connection.preset as ModelServerTab)
+    : "custom";
+}
+
+/** The tag on a model's row: its API, or Embeddings for an embedding model. */
+export type ModelApiTag = "Responses" | "Completions" | "Embeddings";
+
+export function modelApiTag(
+  model: Pick<PyConfiguredModel, "model_kind" | "provider_type">,
+): ModelApiTag {
+  if (model.model_kind === "embedding") return "Embeddings";
+  return model.provider_type === "OpenAIResponsesHTTPAgent"
+    ? "Responses"
+    : "Completions";
 }
 
 const LOCAL_HOSTNAMES = new Set([

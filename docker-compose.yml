@@ -260,65 +260,6 @@ services:
     networks:
       - animama-network
 
-  # llama-build:
-  #   image: llama-cpp:latest
-  #   build: ../llama.cpp/.
-  #   working_dir: /app
-  #   volumes:
-  #     - ../llama.cpp:/app/llama.cpp:ro
-  #     - ccache_data:/root/.cache/ccache
-  #     - build_artifacts:/app/build
-  #   command: >
-  #     sh -c "
-  #       if [ -f /app/build/bin/llama-server ]; then
-  #         echo '--- Binary already exists, skipping build ---'
-  #         exit 0
-  #       fi &&
-  #       echo '--- Cleaning any previous partial build ---' &&
-  #       rm -rf /app/build/CMakeCache.txt /app/build/CMakeFiles &&
-  #       echo '--- Ensure libcuda.so.1 symlink exists ---' &&
-  #       ln -sf /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 &&
-  #       echo '--- Building llama.cpp binary ---' &&
-  #       ccache cmake -B /app/build -S /app/llama.cpp -G Ninja -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DGGML_CUDA=ON -DCMAKE_C_FLAGS='-march=native' -DCMAKE_CXX_FLAGS='-march=native' -DCMAKE_EXE_LINKER_FLAGS='-L/usr/local/cuda/lib64/stubs -Wl,-rpath-link,/usr/local/cuda/lib64/stubs' -DCMAKE_SHARED_LINKER_FLAGS='-L/usr/local/cuda/lib64/stubs -Wl,-rpath-link,/usr/local/cuda/lib64/stubs' &&
-  #       echo '--- Compiling with all available cores ---' &&
-  #       cmake --build /app/build --config Release -- -j$(nproc) &&
-  #       echo '--- Build complete! ---'
-  #     "
-
-  # llama-run:
-  #   image: llama-cpp:latest
-  #   build: ../llama.cpp/.
-  #   depends_on:
-  #     llama-build:
-  #       condition: service_completed_successfully
-  #   working_dir: /app
-  #   volumes:
-  #     - build_artifacts:/app/build:ro
-  #     - type: bind
-  #       source: ${LLAMA_MODEL_PATH:-${HOME}/llama-models}
-  #       target: /models
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: 1
-  #             capabilities: [ gpu ]
-  #   command: >
-  #     sh -c "/app/build/bin/llama-server -m /models/${LLAMA_MODEL_FILE} -c ${LLAMA_CONTEXT_SIZE} -b ${LLAMA_BATCH_SIZE} --parallel ${LLAMA_PARALLEL} --threads ${LLAMA_THREADS} ${LLAMA_CONT_BATCHING} ${LLAMA_NO_MMAP} --temp ${LLAMA_TEMP} --top-k ${LLAMA_TOP_K} --top-p ${LLAMA_TOP_P} --host 0.0.0.0 --port 8080 --flash-attn --cache-type-k ${LLAMA_K_CACHE} --cache-type-v ${LLAMA_V_CACHE} --n-gpu-layers ${LLAMA_GPU_LAYERS}"
-  #   ports:
-  #     - "8080:8080"
-  #   networks:
-  #     - animama-network
-  #   healthcheck:
-  #     test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 40s
-  #   env_file:
-  #     - .env
-
   parakeet:
     profiles:
       - voice
@@ -436,7 +377,3 @@ volumes:
   postgres-data:
   pgadmin-data:
   docling-cache:
-  ccache_data:
-    driver: local
-  build_artifacts:
-    driver: local

@@ -4,7 +4,12 @@ import { LibraryBig } from "lucide-react";
 
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
 import { AppShellPage } from "@/ui/app/AppShellPage";
+import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
+import {
+  UNDERLINE_TAB_LIST_CLASS,
+  underlineTabClassName,
+} from "@/ui/components/tabs";
 import { LibraryChatUploads } from "@/ui/library/LibraryChatUploads";
 import { LibraryContentInventory } from "@/ui/library/LibraryContentInventory";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
@@ -40,13 +45,16 @@ export function LibraryPage({
       </header>
       <nav
         aria-label="Library sections"
-        className="bg-background/95 sticky top-0 z-40 flex gap-1 overflow-x-auto border-b backdrop-blur-sm"
+        className={cn(
+          "bg-background/95 sticky top-0 z-40 backdrop-blur-sm",
+          UNDERLINE_TAB_LIST_CLASS,
+        )}
       >
         {SECTIONS.map(([value, label]) => (
           <button
             key={value}
             type="button"
-            className={`min-h-11 shrink-0 border-b-2 px-4 text-sm ${search.section === value ? "border-primary text-foreground" : "text-muted-foreground border-transparent"}`}
+            className={underlineTabClassName(search.section === value)}
             onClick={() => onSearchChange({ section: value })}
           >
             {label}

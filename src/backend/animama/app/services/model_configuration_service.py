@@ -305,6 +305,11 @@ class ModelConfigurationService:
             raise ModelConfigurationError("Templates describe chat models only", code="invalid_template")
         provider_type = _provider_type(connection, draft, template)
         existing = await self._model_providers.get_owner_row(connection.id, provider_type, model)
+        # A removed model comes back under its old id; an active one must not be overwritten.
+        if existing is not None and existing.active:
+            raise ModelConfigurationError(
+                f"{model} is already added to {connection.name}", code="model_already_added", status=409
+            )
         row = ModelProvider(
             id=existing.id if existing is not None else self._new_model_id(),
             model=model,

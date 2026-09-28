@@ -4,10 +4,12 @@ import type { PyModelProviderCatalogItem } from "@animama/runtime-contracts/api-
 import {
   DEFAULT_CAPABILITIES_DRAFT,
   capabilitiesFromProbe,
+  connectionServerTab,
   detectionMessage,
   embeddingsStatusText,
   keyWouldTravelInsecurely,
   modelConfigurationErrorMessage,
+  modelApiTag,
   modelInUseUsage,
   removalConsequences,
   removalUsageSummary,
@@ -255,5 +257,45 @@ describe("detectionMessage", () => {
     ).toBe(
       "Nothing is running at http://127.0.0.1:11434/v1. Start Ollama and try again.",
     );
+  });
+});
+
+describe("Models tabs and row tags", () => {
+  it("puts each connection under its server type's tab", () => {
+    expect(connectionServerTab({ source: "builtin", preset: "openai" })).toBe(
+      "openai",
+    );
+    expect(connectionServerTab({ source: "owner", preset: "ollama" })).toBe(
+      "ollama",
+    );
+    expect(connectionServerTab({ source: "owner", preset: "lmstudio" })).toBe(
+      "lmstudio",
+    );
+    expect(connectionServerTab({ source: "owner", preset: "llamacpp" })).toBe(
+      "llamacpp",
+    );
+    expect(connectionServerTab({ source: "owner", preset: "vllm" })).toBe(
+      "vllm",
+    );
+    for (const preset of ["deepseek", "huggingface", "custom", "unknown"])
+      expect(connectionServerTab({ source: "owner", preset })).toBe("custom");
+  });
+
+  it("tags embedding models, then chat models by API", () => {
+    expect(
+      modelApiTag({
+        model_kind: "embedding",
+        provider_type: "OpenAIResponsesHTTPAgent",
+      }),
+    ).toBe("Embeddings");
+    expect(
+      modelApiTag({
+        model_kind: "chat",
+        provider_type: "OpenAIResponsesHTTPAgent",
+      }),
+    ).toBe("Responses");
+    expect(
+      modelApiTag({ model_kind: "chat", provider_type: "OpenAIHTTPAgent" }),
+    ).toBe("Completions");
   });
 });

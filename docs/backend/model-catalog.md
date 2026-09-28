@@ -43,8 +43,8 @@ describes credentials, presets and compatibility options.
 - `model_kind` is `chat` or `embedding`. Embedding rows serve only the
   Embeddings model role; chat profiles and direct chat reject them.
 - Removal is soft (`active=false`) because chat profiles reference rows.
-  Re-adding a model to the same connection reactivates its row. Removing a
-  connection retires its rows.
+  Re-adding a removed model to the same connection reactivates its row; an
+  active one cannot be added twice. Removing a connection retires its rows.
 - Rows are unique on `(connection_id, provider_type, model, source)`, so two
   connections can serve the same model ID.
 

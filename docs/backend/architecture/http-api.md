@@ -712,7 +712,8 @@ carry a key value.
   built-in chat `template_id` whose capabilities are copied. `provider_type`
   may choose `OpenAIResponsesHTTPAgent` only on the built-in connection; other
   connections use Chat Completions. Re-adding a removed model on the same
-  connection reactivates its row.
+  connection reactivates its row; adding one that is already active on it
+  returns `409 model_already_added`.
 - `PATCH /v1/model-providers/{model_provider_id}`: edit an owner row's label,
   capabilities, context window (`clear_context_window` unsets it), memory
   writes, probe result or `hidden`. Built-in rows accept only `hidden`; other
