@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { usePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
@@ -9,6 +9,11 @@ import {
   isPocketCustomVoice,
   resolvePocketVoicePreference,
 } from "@/lib/speech/pocket/voice-preferences";
+import { loadVoiceCloneSample } from "@/lib/speech/pocket/voice-clones";
+import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
+import { useVoiceClones } from "@/query/hooks/useVoiceClones";
+import { useVoiceSelection } from "@/query/mutations/useVoiceSelection";
+import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
 import { toTtsProvider } from "@/lib/speech/tts-provider";
 import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
 import { PocketVoicePicker } from "@/ui/animas/PocketVoicePicker";
@@ -67,10 +72,10 @@ export function AnimaVoicesEditor() {
   } = useSettings();
   const runtime = usePocketTtsRuntime();
   const downloads = usePocketVoiceDownloads({ enabled: true });
-  const fileInput = useRef<HTMLInputElement>(null);
   const pending = useRef(false);
   const [saving, setSaving] = useState(false);
-  const disabled = isLoading || isUpdating || saving || !animaId;
+  const [cloning, setCloning] = useState(false);
+  const disabled = isLoading || isUpdating || saving || cloning || !animaId;
   const savedProvider = toTtsProvider(animaPreferences?.speech?.tts_provider);
   const configuredProvider = toTtsProvider(
     effectivePreferences.speech?.tts_provider,
@@ -92,6 +97,25 @@ export function AnimaVoicesEditor() {
     DEFAULT_POCKET_VOICE;
   const download = downloads.availability(pocketVoice);
   const savedElevenLabs = elevenLabsVoiceId(animaPreferences?.speech);
+  const loadout = useAnimaLoadout(animaId);
+  const library = useVoiceClones({
+    enabled: configuredProvider === "pocket_tts",
+  });
+  const selectVoice = useVoiceSelection(animaId ?? "");
+  const clones = library.data ?? [];
+  const selectedCloneId = loadout.data?.voice_source?.catalog_item_id ?? null;
+  const selectedClone = clones.find(
+    (clone) => clone.item_id === selectedCloneId,
+  );
+  const pocketDisabled =
+    disabled ||
+    !loadout.data ||
+    loadout.isError ||
+    library.isPending ||
+    library.isError;
+  const selectedVoice = selectedCloneId
+    ? `clone:${selectedCloneId}`
+    : pocketVoice;
 
   const saveProvider = async (provider: string) => {
     if (provider !== "pocket_tts" && provider !== "elevenlabs") return;
@@ -112,22 +136,47 @@ export function AnimaVoicesEditor() {
   };
 
   const savePocketVoice = async (voice: string) => {
-    if (disabled || pending.current || runtime.isEncodingVoice)
+    if (
+      pocketDisabled ||
+      pending.current ||
+      runtime.isEncodingVoice ||
+      !loadout.data
+    )
       throw new Error("Voice settings busy");
     pending.current = true;
     setSaving(true);
     try {
-      await updateAnimaPreferences({
-        speech: {
-          tts_pocket_anima_voice: voice,
-          tts_pocket_anima_custom_voice_available: isPocketCustomVoice(voice),
-        },
-      });
-      const state = downloads.availability(voice);
-      if (state?.status === "not_installed" || state?.status === "failed")
-        downloads.install(state.assetId);
+      if (voice.startsWith("clone:")) {
+        const clone = clones.find((item) => `clone:${item.item_id}` === voice);
+        if (!clone)
+          throw new Error(
+            "This saved voice is unavailable. Refresh the library.",
+          );
+        await selectVoice.mutateAsync({
+          clone,
+          expectedRevision: loadout.data.revision,
+        });
+      } else {
+        // Save the fallback before removing the catalog: on failure the visible
+        // clone binding still wins, so we never claim a preset is selected early.
+        await updateAnimaPreferences({
+          speech: {
+            tts_pocket_anima_voice: voice,
+            tts_pocket_anima_custom_voice_available: isPocketCustomVoice(voice),
+          },
+        });
+        if (selectedCloneId) {
+          await selectVoice.mutateAsync({
+            clone: null,
+            expectedRevision: loadout.data.revision,
+          });
+        }
+        const state = downloads.availability(voice);
+        if (state?.status === "not_installed" || state?.status === "failed")
+          downloads.install(state.assetId);
+      }
     } catch (error) {
-      toast.error("Failed to save PocketTTS voice. Try again.");
+      toast.error("Failed to select PocketTTS voice. Refresh and try again.");
       throw error;
     } finally {
       pending.current = false;
@@ -135,151 +184,157 @@ export function AnimaVoicesEditor() {
     }
   };
 
-  const uploadVoice = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0];
-    event.currentTarget.value = "";
-    if (!file || disabled || pending.current || runtime.isEncodingVoice) return;
-    pending.current = true;
-    setSaving(true);
-    try {
-      const encoded = await runtime.encodeVoiceFromFile(file);
-      await updateAnimaPreferences({
-        speech: {
-          tts_pocket_anima_voice: encoded.voiceName,
-          tts_pocket_anima_custom_voice_available: true,
-        },
-      });
-      toast.success("Custom Pocket voice ready for this session.");
-    } catch {
-      toast.error("Failed to prepare custom voice. Try again.");
-    } finally {
-      pending.current = false;
-      setSaving(false);
-    }
-  };
-
   return (
-    <div className="divide-y rounded-xl border">
-      <section className="space-y-3 p-4" aria-label="Voice provider">
-        <label htmlFor="anima-tts-provider" className="text-sm font-semibold">
-          TTS Provider
-        </label>
-        <Select
-          // An inherited value stays unselected so choosing that same provider
-          // still pins it to this Anima. Legacy Browser remains visible only.
-          value={savedProvider === "browser" ? "" : (savedProvider ?? "")}
-          onValueChange={(provider) => void saveProvider(provider)}
-          disabled={disabled}
-        >
-          <SelectTrigger
-            id="anima-tts-provider"
-            aria-label="TTS Provider"
-            className="w-full"
+    <div className="space-y-6 px-3">
+      <section className="space-y-2" aria-label="Voice provider">
+        <div className="flex items-center justify-between gap-4">
+          <label
+            htmlFor="anima-tts-provider"
+            className="shrink-0 text-sm font-semibold"
           >
-            <SelectValue
-              placeholder={
-                providerLabel
-                  ? `${providerLabel}${savedProvider ? "" : " (app)"}`
-                  : "Choose provider"
-              }
+            TTS Provider
+          </label>
+          <Select
+            // An inherited value stays unselected so choosing that same provider
+            // still pins it to this Anima. Legacy Browser remains visible only.
+            value={savedProvider === "browser" ? "" : (savedProvider ?? "")}
+            onValueChange={(provider) => void saveProvider(provider)}
+            disabled={disabled}
+          >
+            <SelectTrigger
+              id="anima-tts-provider"
+              aria-label="TTS Provider"
+              className="w-48 min-w-0"
             >
-              {savedProvider ? providerLabel : undefined}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="pocket_tts">PocketTTS</SelectItem>
-            <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
-          </SelectContent>
-        </Select>
+              <SelectValue
+                placeholder={
+                  providerLabel
+                    ? `${providerLabel}${savedProvider ? "" : " (app)"}`
+                    : "Choose provider"
+                }
+              >
+                {savedProvider ? providerLabel : undefined}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pocket_tts">PocketTTS</SelectItem>
+              <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
         {effectivePreferences.speech?.tts_enabled !== true ? (
           <p className="text-muted-foreground text-xs">
             Speech is off in application settings.
           </p>
         ) : null}
       </section>
-      <section className="space-y-3 p-4" aria-label="PocketTTS voice">
-        <ProviderHeading
-          name="PocketTTS"
-          active={activeProvider === "pocket_tts"}
-        />
-        <PocketVoicePicker
-          value={pocketVoice}
-          disabled={disabled || runtime.isEncodingVoice}
-          hasCustomVoice={runtime.hasCustomVoice}
-          onSelect={savePocketVoice}
-          availability={downloads.availability}
-          onDownload={downloads.install}
-        />
-        {download?.status === "downloading" ? (
-          <p role="status" className="text-muted-foreground text-xs">
-            Downloading {pocketVoiceLabel(pocketVoice)}…{" "}
-            {Math.round((download.progress ?? 0) * 100)}%
-          </p>
-        ) : download?.status === "failed" ? (
-          <p role="alert" className="text-destructive text-xs">
-            {pocketVoiceLabel(pocketVoice)} could not be downloaded. Open the
-            voice list to retry.
-          </p>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={disabled || runtime.isEncodingVoice}
-            onClick={() => fileInput.current?.click()}
-          >
-            {runtime.isEncodingVoice ? "Encoding…" : "Upload voice sample"}
-          </Button>
-          <span className="text-muted-foreground text-xs">
-            Custom voice for this session
-          </span>
-          <input
-            ref={fileInput}
-            type="file"
-            accept="audio/*"
-            className="hidden"
-            aria-label="Upload custom voice sample"
-            onChange={(event) => void uploadVoice(event)}
+      {configuredProvider === "pocket_tts" ? (
+        <section className="space-y-3" aria-label="PocketTTS voice">
+          <ProviderHeading
+            name="PocketTTS"
+            active={activeProvider === "pocket_tts"}
           />
-        </div>
-        {runtime.voiceUploadStatus ? (
-          <p role="status" className="text-muted-foreground text-xs">
-            {runtime.voiceUploadStatus}
-          </p>
-        ) : null}
-        {isPocketCustomVoice(pocketVoice) && !runtime.hasCustomVoice ? (
-          <p className="text-muted-foreground text-xs">
-            Upload the sample again to use this custom voice in this session.
-          </p>
-        ) : null}
-      </section>
-      <section className="space-y-3 p-4" aria-label="ElevenLabs voice">
-        <ProviderHeading
-          name="ElevenLabs"
-          active={activeProvider === "elevenlabs"}
-        />
-        <ElevenLabsVoiceForm
-          key={`${animaId}:${savedElevenLabs}`}
-          savedVoiceId={savedElevenLabs}
-          disabled={disabled}
-          onSave={async (voiceId) => {
-            if (disabled || pending.current) return;
-            pending.current = true;
-            setSaving(true);
-            try {
-              await updateAnimaPreferences({
-                speech: {
-                  elevenlabs: { primary_voice: { voice_id: voiceId } },
-                },
-              });
-              toast.success("ElevenLabs voice saved.");
-            } finally {
-              pending.current = false;
-              setSaving(false);
+          <PocketVoicePicker
+            value={selectedVoice}
+            disabled={pocketDisabled || runtime.isEncodingVoice}
+            unavailableSelection={
+              selectedCloneId && !selectedClone
+                ? "Saved voice unavailable"
+                : undefined
             }
-          }}
-        />
-      </section>
+            clones={clones.map((clone) => ({
+              id: `clone:${clone.item_id}`,
+              name: clone.name,
+              loadSample: (signal) => loadVoiceCloneSample(clone, signal),
+            }))}
+            hasCustomVoice={runtime.hasCustomVoice}
+            onSelect={savePocketVoice}
+            availability={downloads.availability}
+            onDownload={downloads.install}
+          />
+          {!selectedCloneId && download?.status === "downloading" ? (
+            <p role="status" className="text-muted-foreground text-xs">
+              Downloading {pocketVoiceLabel(pocketVoice)}…{" "}
+              {Math.round((download.progress ?? 0) * 100)}%
+            </p>
+          ) : !selectedCloneId && download?.status === "failed" ? (
+            <p role="alert" className="text-destructive text-xs">
+              {pocketVoiceLabel(pocketVoice)} could not be downloaded. Open the
+              voice list to retry.
+            </p>
+          ) : null}
+          {library.isError || loadout.isError ? (
+            <div role="alert" className="space-y-2 text-xs">
+              <p className="text-destructive">
+                Saved voices could not be loaded.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void library.refetch();
+                  void loadout.refetch();
+                }}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : null}
+          {selectedCloneId &&
+          !selectedClone &&
+          !library.isPending &&
+          !library.isError ? (
+            <p role="alert" className="text-destructive text-xs">
+              This saved voice is unavailable. Choose another voice.
+            </p>
+          ) : null}
+          <VoiceCloneLibrary
+            clones={clones}
+            selectedId={selectedCloneId}
+            disabled={
+              isLoading || isUpdating || saving || !animaId || library.isError
+            }
+            onSelect={savePocketVoice}
+            onBusyChange={setCloning}
+          />
+          {!selectedCloneId && isPocketCustomVoice(pocketVoice) ? (
+            <p className="text-muted-foreground text-xs">
+              This earlier custom voice is session-only. Upload and save a named
+              clone to keep it.
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+      {configuredProvider === "elevenlabs" ? (
+        <section className="space-y-3" aria-label="ElevenLabs voice">
+          <ProviderHeading
+            name="ElevenLabs"
+            active={activeProvider === "elevenlabs"}
+          />
+          <ElevenLabsVoiceForm
+            key={`${animaId}:${savedElevenLabs}`}
+            savedVoiceId={savedElevenLabs}
+            disabled={disabled}
+            onSave={async (voiceId) => {
+              if (disabled || pending.current) return;
+              pending.current = true;
+              setSaving(true);
+              try {
+                await updateAnimaPreferences({
+                  speech: {
+                    elevenlabs: { primary_voice: { voice_id: voiceId } },
+                  },
+                });
+                toast.success("ElevenLabs voice saved.");
+              } finally {
+                pending.current = false;
+                setSaving(false);
+              }
+            }}
+          />
+        </section>
+      ) : null}
     </div>
   );
 }

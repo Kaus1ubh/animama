@@ -88,6 +88,44 @@ describe("voice source samples", () => {
     expect(instances[0].pause).toHaveBeenCalled();
   });
 
+  it("loads a saved original through its admitted byte loader without public fetch", async () => {
+    const loadSample = vi.fn().mockResolvedValue(new Blob(["original"]));
+    const changed = vi.fn();
+    const player = createVoiceSamplePlayer(changed);
+    await player.play({ id: "clone:one", name: "My voice", loadSample });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(loadSample).toHaveBeenCalledWith(expect.any(AbortSignal));
+    expect(changed).toHaveBeenLastCalledWith({
+      voiceId: "clone:one",
+      status: "playing",
+      error: null,
+    });
+    await player.play(voice);
+    expect(instances[0].pause).toHaveBeenCalled();
+    player.dispose();
+  });
+
+  it("aborts a saved sample load when the selected voice changes", async () => {
+    let finish!: (blob: Blob) => void;
+    const loadSample = vi.fn<(signal: AbortSignal) => Promise<Blob>>(
+      () =>
+        new Promise<Blob>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const player = createVoiceSamplePlayer(vi.fn());
+    const playing = player.play({
+      id: "clone:one",
+      name: "My voice",
+      loadSample,
+    });
+    player.stop();
+    expect(loadSample.mock.calls[0][0].aborted).toBe(true);
+    finish(new Blob(["late original"]));
+    await playing;
+    expect(instances).toHaveLength(0);
+  });
+
   it("cancels pending playback on closure without reporting an error", async () => {
     let finish!: (value: unknown) => void;
     vi.mocked(fetch).mockImplementationOnce(

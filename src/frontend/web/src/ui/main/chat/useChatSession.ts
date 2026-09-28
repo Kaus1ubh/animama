@@ -251,9 +251,15 @@ export function useChatSession(args: UseChatSessionArgs) {
         emotionLabel: dominantEmotion?.group ?? "neutral",
         emotionIntensity: dominantEmotion?.intensity ?? 1,
         animaVoiceCatalogUrl: anima?.pocket_voice_catalog_url ?? null,
+        mountedVoice: mountedRuntimeContent.pocketVoice,
       };
     },
-    [anima?.id, anima?.pocket_voice_catalog_url, animaId],
+    [
+      anima?.id,
+      anima?.pocket_voice_catalog_url,
+      animaId,
+      mountedRuntimeContent.pocketVoice,
+    ],
   );
   const {
     startRun: startTtsRun,

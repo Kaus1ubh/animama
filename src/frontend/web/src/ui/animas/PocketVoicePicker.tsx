@@ -11,7 +11,6 @@ import {
 
 import {
   POCKET_VOICES,
-  type PocketVoice,
   type PocketVoiceGender,
 } from "@/lib/speech/pocket/voice-catalog";
 import { pocketVoiceLabel } from "@/lib/speech/pocket/voice-groups";
@@ -20,6 +19,7 @@ import {
   createVoiceSamplePlayer,
   IDLE_VOICE_SAMPLE,
   type VoiceSampleState,
+  type VoiceSampleSource,
 } from "@/lib/speech/pocket/voice-sample-player";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
@@ -65,6 +65,8 @@ type PocketVoicePickerProps = {
   value: string;
   disabled: boolean;
   hasCustomVoice: boolean;
+  clones?: VoiceSampleSource[];
+  unavailableSelection?: string;
   onSelect: (id: string) => Promise<void>;
   availability: (id: string) => PocketVoiceAvailability | null;
   onDownload: (assetId: string) => void;
@@ -82,7 +84,11 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
   const player = useMemo(() => createVoiceSamplePlayer(setSample), []);
   useEffect(() => () => player.dispose(), [player]);
   useEffect(() => player.stop(), [player, props.value]);
-  const voice = POCKET_VOICES.find((item) => item.id === props.value);
+  const voice =
+    props.clones?.find((item) => item.id === props.value) ??
+    POCKET_VOICES.find((item) => item.id === props.value);
+  const selectedName =
+    voice?.name ?? props.unavailableSelection ?? pocketVoiceLabel(props.value);
   const changeOpen = (next: boolean) => {
     player.stop();
     setOpen(next);
@@ -95,9 +101,9 @@ export function PocketVoicePicker(props: PocketVoicePickerProps) {
             variant="outline"
             disabled={props.disabled}
             className="min-w-0 flex-1 justify-between"
-            aria-label={`PocketTTS voice: ${pocketVoiceLabel(props.value)}`}
+            aria-label={`PocketTTS voice: ${selectedName}`}
           >
-            <span className="truncate">{pocketVoiceLabel(props.value)}</span>
+            <span className="truncate">{selectedName}</span>
             <ChevronDown className="size-4 shrink-0 opacity-60" />
           </Button>
         </PopoverTrigger>
@@ -131,6 +137,7 @@ export function PocketVoiceList({
   value,
   disabled,
   hasCustomVoice,
+  clones = [],
   onSelect,
   availability,
   onDownload,
@@ -142,6 +149,15 @@ export function PocketVoiceList({
   const [recommended, setRecommended] = useState(false);
   const [search, setSearch] = useState("");
   const voices = filteredPocketVoices({ gender, recommended, search });
+  const matchingClones =
+    gender === "any" && !recommended
+      ? clones.filter((clone) =>
+          clone.name
+            .toLocaleLowerCase()
+            .includes(search.trim().toLocaleLowerCase()),
+        )
+      : [];
+  const count = voices.length + matchingClones.length;
   const choose = async (id: string) => {
     try {
       await onSelect(id);
@@ -215,7 +231,7 @@ export function PocketVoiceList({
           {recommended ? " · Recommended" : ""}
         </span>
         <span>
-          {voices.length} {voices.length === 1 ? "voice" : "voices"}
+          {count} {count === 1 ? "voice" : "voices"}
         </span>
       </div>
       <div
@@ -223,6 +239,49 @@ export function PocketVoiceList({
         role="list"
         aria-label="Available PocketTTS voices"
       >
+        {matchingClones.length ? (
+          <p className="text-muted-foreground px-3 py-2 text-xs font-semibold">
+            Your voice clones
+          </p>
+        ) : null}
+        {matchingClones.map((clone) => (
+          <div
+            key={clone.id}
+            role="listitem"
+            className={cn(
+              "flex items-center gap-1 rounded-lg px-1",
+              value === clone.id && "bg-muted/60",
+            )}
+          >
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => void choose(clone.id)}
+              aria-label={`Select ${clone.name}`}
+              aria-pressed={value === clone.id}
+              className="hover:bg-muted/40 focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2.5 text-left outline-none focus-visible:ring-2 disabled:opacity-50"
+            >
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {clone.name}
+              </span>
+              {value === clone.id ? (
+                <Check className="size-4 shrink-0" />
+              ) : null}
+            </button>
+            <VoiceSampleButton
+              voice={clone}
+              sample={sample}
+              player={player}
+              compact
+            />
+            <div className="w-8 shrink-0" />
+          </div>
+        ))}
+        {matchingClones.length && voices.length ? (
+          <p className="text-muted-foreground px-3 py-2 text-xs font-semibold">
+            PocketTTS voices
+          </p>
+        ) : null}
         {voices.map((voice) => {
           const download = availability(voice.id);
           const downloading = download?.status === "downloading";
@@ -302,7 +361,7 @@ export function PocketVoiceList({
             </div>
           );
         })}
-        {!voices.length ? (
+        {!count ? (
           <p className="text-muted-foreground px-3 py-5 text-sm">
             No voices match these filters.
           </p>
@@ -337,7 +396,7 @@ function VoiceSampleButton({
   player,
   compact = false,
 }: VoiceSamplePlayback & {
-  voice: PocketVoice | undefined;
+  voice: VoiceSampleSource | undefined;
   compact?: boolean;
 }) {
   const active =

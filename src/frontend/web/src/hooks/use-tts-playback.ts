@@ -150,6 +150,7 @@ type ResolvedPocketVoiceSelection = {
   fallbackVoice?: string;
   animaId?: string;
   animaVoiceKey?: string;
+  assertAnimaCatalogActive?: () => void;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -793,15 +794,18 @@ export function useTtsPlayback(
 
   const resolvePocketVoiceSelectionForRun = useCallback(
     (runId: string): ResolvedPocketVoiceSelection => {
-      const fallbackVoice = resolvePocketFallbackVoiceForRun(runId);
       const selection = resolvePocketAnimaVoiceSelection(
         getPocketVoiceSelectionContext?.(runId) ?? null,
       );
+      const fallbackVoice = selection.assertAnimaCatalogActive
+        ? undefined
+        : resolvePocketFallbackVoiceForRun(runId);
       const animaCatalogReference =
         encodePocketAnimaCatalogReference(selection);
 
       return {
         fallbackVoice,
+        assertAnimaCatalogActive: selection.assertAnimaCatalogActive,
         ...(animaCatalogReference ? { animaId: animaCatalogReference } : {}),
         ...(selection.animaVoiceKey
           ? { animaVoiceKey: selection.animaVoiceKey }
@@ -877,6 +881,7 @@ export function useTtsPlayback(
             signal: abortController.signal,
             preservePlayback: true,
             endStream: nextChunk.endStream,
+            assertAnimaCatalogActive: voiceSelection.assertAnimaCatalogActive,
             ...(voiceSelection.fallbackVoice
               ? { voice: voiceSelection.fallbackVoice }
               : {}),

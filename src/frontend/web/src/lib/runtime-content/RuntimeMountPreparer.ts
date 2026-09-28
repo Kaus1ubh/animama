@@ -118,6 +118,9 @@ export class PreparedRuntimeMount {
   get diagnostics() {
     return this.snapshot.diagnostics;
   }
+  get isDisposed() {
+    return this.disposed;
+  }
 
   /** Preparation alone may publish newly verified roots; ownership never changes. */
   publish(snapshot: MountSnapshot): void {
@@ -239,6 +242,7 @@ function readyProjection(
   };
   const next = { ...runtime };
   next.avatar = project(runtime.avatar) as typeof runtime.avatar;
+  next.voice = project(runtime.voice) as typeof runtime.voice;
   next.idle_style = project(runtime.idle_style) as typeof runtime.idle_style;
   for (const key of [
     "gestures",
@@ -355,11 +359,15 @@ export class RuntimeMountPreparer {
       );
     }
     const executableRefs = projectedFileRefs(typed);
-    const essentialRootIds = new Set(rootIds(typed.avatar));
+    const avatarRootIds = new Set(rootIds(typed.avatar));
+    const essentialRootIds = new Set([
+      ...avatarRootIds,
+      ...rootIds(typed.voice),
+    ]);
     // Include the model's entire executable dependency closure, even when a
     // renderer dependency isn't directly mentioned by a top-level player lane.
     for (const root of descriptor.roots) {
-      if (!essentialRootIds.has(root.root_id)) continue;
+      if (!avatarRootIds.has(root.root_id)) continue;
       for (const member of descriptor.members) {
         if (
           root.member_refs.includes(member.file_ref) &&
@@ -389,7 +397,16 @@ export class RuntimeMountPreparer {
         (root.member_refs ?? []).filter((ref) => executableRefs.has(ref)),
       ]),
     );
-    const essentialRefs = new Set(projectedFileRefs(typed.avatar));
+    const avatarRefs = new Set(projectedFileRefs(typed.avatar));
+    for (const id of avatarRootIds) {
+      for (const ref of rootRefs.get(id) ?? []) avatarRefs.add(ref);
+    }
+    // Voice source samples are library assets. Only the projected embedding
+    // catalog is needed to speak, and it must be ready before the first reply.
+    const essentialRefs = new Set([
+      ...avatarRefs,
+      ...projectedFileRefs(typed.voice),
+    ]);
     for (const id of essentialRootIds) {
       for (const ref of rootRefs.get(id) ?? []) essentialRefs.add(ref);
     }
@@ -480,7 +497,7 @@ export class RuntimeMountPreparer {
             prepared,
             filesByIssuedUrl,
             rewritten,
-            essentialRefs,
+            avatarRefs,
           )
         : mount.data;
       published = true;

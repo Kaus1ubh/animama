@@ -187,6 +187,7 @@ def project_typed_runtime_catalog(
     }
     idle_style: dict[str, Any] | None = None
     avatar: dict[str, Any] | None = None
+    voice: dict[str, Any] | None = None
     supports: dict[str, dict[str, Any]] = {}
 
     for root in descriptor.roots:
@@ -209,6 +210,8 @@ def project_typed_runtime_catalog(
                 idle_style = projected.payload
             elif projected.lane == "avatar":
                 avatar = projected.payload
+            elif projected.lane == "voice":
+                voice = projected.payload
             elif projected.lane in lanes:
                 lanes[projected.lane].append(projected.payload)
 
@@ -339,6 +342,7 @@ def project_typed_runtime_catalog(
         "idle_style": idle_style,
         "music_tracks": lanes["music_track"],
         "avatar": avatar,
+        "voice": voice,
         "appearances": lanes["appearance"],
         "particle_effects": by_type["particle_effect"],
         "avatar_effects": by_type["avatar_effect"],

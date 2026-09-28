@@ -26,6 +26,8 @@ import {
 } from "@/lib/runtime-content/RuntimeMountPreparer";
 import { adaptRuntimeSnapshot } from "@/lib/runtime-content/runtimeSnapshotAdapter";
 import { createRuntimePreparationTimings } from "@/lib/runtime-content/runtimePreparationTimings";
+import { resolveMountedPocketVoice } from "@/lib/runtime-content/mountedPocketVoice";
+import type { MountedPocketVoice } from "@/lib/speech/pocket/anima-voice-selection";
 import type { AnimaRuntimeCatalogSnapshot } from "@/lib/runtime-content/types";
 import {
   renewAnimaRuntimeCatalog,
@@ -44,6 +46,7 @@ const ignoreVisualStatus = () => undefined;
 type MountedRuntimeContent = {
   data: AnimaRuntimeCatalogSnapshot | null;
   catalog: AnimaRuntimeCatalog | null;
+  pocketVoice: MountedPocketVoice | null;
   isPending: boolean;
   isError: boolean;
   error: unknown;
@@ -349,6 +352,7 @@ export function AnimaRouteProviders({ children }: AnimaRouteProvidersProps) {
     () => ({
       data: visible.data,
       catalog: visible.catalog,
+      pocketVoice: resolveMountedPocketVoice(typed, visible.mount),
       isPending: !typed && queryIsPending,
       isError: !typed && queryIsError,
       error: !typed ? queryError : visible.preparationError,
@@ -369,6 +373,7 @@ export function AnimaRouteProviders({ children }: AnimaRouteProvidersProps) {
       remountLatest,
       typed,
       visible.catalog,
+      visible.mount,
       visible.data,
       visible.diagnostics,
       visible.playbackStatus,

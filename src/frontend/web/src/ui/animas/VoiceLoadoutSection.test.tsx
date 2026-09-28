@@ -8,13 +8,43 @@ const fixtures = vi.hoisted(() => ({
   animaProvider: undefined as string | undefined,
   speech: {
     tts_enabled: false,
-    tts_provider: "browser",
+    tts_provider: "browser" as string | null,
     tts_pocket_anima_voice: "eve",
     elevenlabs: { primary_voice: { voice_id: "saved-voice" } },
   },
   warmup: vi.fn(),
   setVoice: vi.fn(),
   update: vi.fn(),
+  selectedCloneId: null as string | null,
+  clones: [] as Array<{ item_id: string; name: string }>,
+}));
+vi.mock("@/query/hooks/useAnimaLoadout", () => ({
+  useAnimaLoadout: () => ({
+    data: {
+      revision: 1,
+      voice_source: fixtures.selectedCloneId
+        ? { catalog_item_id: fixtures.selectedCloneId }
+        : null,
+    },
+    isError: false,
+  }),
+}));
+vi.mock("@/query/hooks/useVoiceClones", () => ({
+  useVoiceClones: () => ({
+    data: fixtures.clones,
+    isPending: false,
+    isError: false,
+  }),
+}));
+vi.mock("@/query/mutations/useVoiceSelection", () => ({
+  useVoiceSelection: () => ({ mutateAsync: vi.fn() }),
+}));
+vi.mock("@/query/mutations/useVoiceCloneActions", () => ({
+  useVoiceCloneActions: () => ({
+    saveVoiceClone: { mutateAsync: vi.fn() },
+    renameVoiceClone: { mutateAsync: vi.fn() },
+    deleteVoiceClone: { mutateAsync: vi.fn() },
+  }),
 }));
 vi.mock("@/ui/settings/SettingsProvider", () => ({
   useSettings: () => ({
@@ -49,22 +79,40 @@ describe("Anima voice configuration", () => {
     fixtures.speech.tts_enabled = false;
     fixtures.speech.tts_provider = "browser";
     fixtures.animaProvider = undefined;
+    fixtures.selectedCloneId = null;
+    fixtures.clones = [];
   });
-  it.each(["browser", "pocket_tts", "elevenlabs"])(
-    "keeps both voice controls editable with %s selected and TTS disabled",
-    (provider) => {
+  it.each([
+    ["pocket_tts", false],
+    ["pocket_tts", true],
+    ["elevenlabs", false],
+    ["elevenlabs", true],
+  ] as const)(
+    "shows only %s controls with TTS enabled=%s",
+    (provider, enabled) => {
       fixtures.speech.tts_provider = provider;
+      fixtures.speech.tts_enabled = enabled;
       const html = renderToStaticMarkup(<AnimaVoicesEditor />);
       expect(html).toContain('aria-label="TTS Provider"');
-      expect(html).toContain('aria-label="PocketTTS voice: Eve"');
-      expect(html).toContain('aria-label="Play Eve sample"');
-      expect(html).toContain('value="saved-voice"');
-      expect(html).not.toMatch(
-        /<input[^>]*id="anima-elevenlabs-voice"[^>]* disabled=""/,
-      );
-      expect(html).not.toMatch(
-        /<button[^>]* disabled=""[^>]*aria-label="PocketTTS voice/,
-      );
+      if (provider === "pocket_tts") {
+        expect(html).toContain('aria-label="PocketTTS voice: Eve"');
+        expect(html).toContain('aria-label="Play Eve sample"');
+        expect(html).toContain(">Voice Cloning</h3>");
+        expect(html.indexOf(">Voice Cloning</h3>")).toBeLessThan(
+          html.indexOf(">Upload voice sample</button>"),
+        );
+        expect(html).not.toContain('aria-label="ElevenLabs voice"');
+        expect(html).not.toMatch(
+          /<button[^>]* disabled=""[^>]*aria-label="PocketTTS voice/,
+        );
+      } else {
+        expect(html).toContain('value="saved-voice"');
+        expect(html).not.toContain('aria-label="PocketTTS voice"');
+        expect(html).not.toContain("Voice Cloning");
+        expect(html).not.toMatch(
+          /<input[^>]*id="anima-elevenlabs-voice"[^>]* disabled=""/,
+        );
+      }
       expect(html).not.toContain("Use application default");
       expect(html).not.toContain("PocketTTS status");
       expect(fixtures.warmup).not.toHaveBeenCalled();
@@ -79,6 +127,47 @@ describe("Anima voice configuration", () => {
     expect(html).toContain("Speech is off in application settings.");
     expect(fixtures.update).not.toHaveBeenCalled();
   });
+
+  it("shows a selected named clone and its sample instead of the fallback preset", () => {
+    fixtures.speech.tts_provider = "pocket_tts";
+    fixtures.clones = [
+      { item_id: "voice-1", name: "Storyteller" },
+      { item_id: "voice-2", name: "Narrator" },
+    ];
+    fixtures.selectedCloneId = "voice-1";
+    const html = renderToStaticMarkup(<AnimaVoicesEditor />);
+    expect(html).toContain('aria-label="PocketTTS voice: Storyteller"');
+    expect(html).toContain('aria-label="Play Storyteller sample"');
+    expect(html).toContain('aria-label="Use Narrator"');
+    expect(html).toContain("Original samples are retained.");
+    expect(html).not.toContain('aria-label="PocketTTS voice: Eve"');
+  });
+
+  it("labels an unavailable binding honestly while keeping preset selection available", () => {
+    fixtures.speech.tts_provider = "pocket_tts";
+    fixtures.selectedCloneId = "missing";
+    const html = renderToStaticMarkup(<AnimaVoicesEditor />);
+    expect(html).toContain(
+      'aria-label="PocketTTS voice: Saved voice unavailable"',
+    );
+    expect(html).toContain("Choose another voice.");
+    expect(html).not.toMatch(
+      /<button[^>]* disabled=""[^>]*aria-label="PocketTTS voice/,
+    );
+  });
+
+  it.each(["browser", null])(
+    "waits for a supported provider choice when the configured provider is %s",
+    (provider) => {
+      fixtures.speech.tts_provider = provider;
+      const html = renderToStaticMarkup(<AnimaVoicesEditor />);
+      expect(html).toContain('aria-label="TTS Provider"');
+      expect(html).not.toContain('aria-label="PocketTTS voice"');
+      expect(html).not.toContain('aria-label="ElevenLabs voice"');
+      expect(html).not.toContain("Voice Cloning");
+      expect(fixtures.update).not.toHaveBeenCalled();
+    },
+  );
 
   it("displays an explicit provider without marking it as inherited", () => {
     fixtures.animaProvider = "elevenlabs";

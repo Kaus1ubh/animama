@@ -47,7 +47,7 @@ from animama.orm.content_catalog import (
 )
 
 LEASE = timedelta(hours=24)
-RUNTIME_PROJECTION_VERSION = 4
+RUNTIME_PROJECTION_VERSION = 5
 SNAPSHOT_CLEANUP_BATCH_SIZE = 100
 
 

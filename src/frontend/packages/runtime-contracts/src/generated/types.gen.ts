@@ -1771,6 +1771,7 @@ export type PyAnimaRuntime = {
      * Sound Effects
      */
     sound_effects?: Array<PyRuntimeSupport>;
+    voice?: PyRuntimeVoice | null;
     /**
      * Warnings
      */
@@ -6513,6 +6514,39 @@ export type PyRuntimeSupport = {
      */
     runtime_root_ids?: Array<string>;
     source: PyRuntimeCatalogItemSource;
+};
+
+/**
+ * PyRuntimeVoice
+ *
+ * One equipped Pocket catalog; original recordings remain in the library.
+ */
+export type PyRuntimeVoice = {
+    /**
+     * Binding Id
+     */
+    binding_id: string;
+    /**
+     * Codec
+     */
+    codec?: string | null;
+    /**
+     * Files
+     */
+    files?: Array<PyRuntimeFile>;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Runtime Root Id
+     */
+    runtime_root_id: string;
+    source: PyRuntimeCatalogItemSource;
+    /**
+     * Voices
+     */
+    voices?: Array<string>;
 };
 
 /**

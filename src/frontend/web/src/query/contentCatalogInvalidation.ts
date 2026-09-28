@@ -34,6 +34,7 @@ export async function refreshContentCatalogViews(
       queryKeys.appearanceImages.all(owner),
       queryKeys.idleStyles.all(owner),
       queryKeys.musicTracks.all(owner),
+      queryKeys.voiceContent.all(owner),
     ].map((queryKey) => client.invalidateQueries({ queryKey })),
   );
 }

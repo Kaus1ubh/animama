@@ -3532,6 +3532,24 @@ export const zPyRuntimeSupport = z.object({
 });
 
 /**
+ * PyRuntimeVoice
+ *
+ * One equipped Pocket catalog; original recordings remain in the library.
+ */
+export const zPyRuntimeVoice = z.object({
+    binding_id: z.string(),
+    codec: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    files: z.optional(z.array(zPyRuntimeFile)),
+    name: z.string(),
+    runtime_root_id: z.string(),
+    source: zPyRuntimeCatalogItemSource,
+    voices: z.optional(z.array(z.string()))
+});
+
+/**
  * PyRuntimeWarning
  */
 export const zPyRuntimeWarning = z.object({
@@ -3573,6 +3591,10 @@ export const zPyAnimaRuntime = z.object({
     reactions: z.optional(z.array(zPyRuntimeAction)),
     scene_effects: z.optional(z.array(zPyRuntimeSupport)),
     sound_effects: z.optional(z.array(zPyRuntimeSupport)),
+    voice: z.optional(z.union([
+        zPyRuntimeVoice,
+        z.null()
+    ])),
     warnings: z.optional(z.array(zPyRuntimeWarning))
 });
 

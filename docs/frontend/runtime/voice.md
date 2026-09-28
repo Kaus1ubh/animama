@@ -998,13 +998,14 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   - Only the default state loads at startup. Others load on first use, and at
     most four more compact states stay cached.
   - It generates with temperature 0.3.
-- Anima Loadout → Voices configures PocketTTS and ElevenLabs independently of
-  the active provider or TTS being enabled. Its TTS Provider selector saves
+- Anima Loadout → Voices shows the selected provider's controls, including while
+  speech is disabled. Its TTS Provider selector saves
   `speech.tts_provider` for that Anima without changing the application enable
   flag or either voice. Animas without an override inherit the application provider,
   shown with an `(app)` suffix; inherited Browser TTS remains visible until the
   user selects PocketTTS or ElevenLabs. Loadout is outside the chat route, so the
-  saved provider applies when returning to chat. Provider credentials and model
+  saved provider applies when returning to chat. Switching providers preserves
+  the hidden provider's configuration. Provider credentials and model
   configuration remain in application settings. The Pocket list supports name/accent
   search, Any/Female/Male filtering and Recommended only. Choosing a voice saves
   an explicit Anima value; legacy missing values keep their existing fallback.
@@ -1015,8 +1016,20 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   from generated speech. Opening or closing the list, changing the selected voice,
   replacing a sample, or leaving Voices stops audio.
   The separate download button installs a voice without changing the selection.
-- Custom sample upload encodes a voice for the current runtime session. The
-  sample must be uploaded again after a reload; it is not a durable voice asset.
+- Voice Cloning saves multiple named voices in the shared Local Voice library.
+  A WAV, MP3 or Ogg recording (up to 25 MiB) is retained with its encoded Pocket
+  catalog. The browser encoder uses the first ten seconds; encoding runs locally.
+  Save adds the clone to the library without selecting it. Clones appear in the
+  Pocket voice picker, including a preview of their retained original recording.
+  Rename updates the shared name; deletion is blocked while any Anima uses it.
+  Existing session-only `custom` selections cannot be recovered automatically:
+  upload the original again and save a named clone to make it durable.
+- Clone selection uses the Anima's voice loadout binding. Chat prepares and
+  verifies the selected catalog bytes during runtime mount and supplies the
+  mount-owned resource to PocketTTS. Original samples stay in the library and
+  are fetched only for preview or editing. Selecting a preset removes the clone
+  binding; changing the TTS provider preserves it. A missing or invalid equipped
+  clone reports an error instead of silently using another voice.
 - Downloadable voices install through `/v1/model-assets`
   (`usePocketVoiceDownloads`, `voice-downloads.ts`) on desktop and self-host.
   - Picking one saves the preference and starts the install; the worker loads
