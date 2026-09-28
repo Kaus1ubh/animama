@@ -79,7 +79,7 @@ export function AppearanceModeSetting() {
 
   return (
     <SettingsRow
-      label="Mode"
+      label="Theme"
       control={
         <div
           role="radiogroup"

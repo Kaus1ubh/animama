@@ -254,16 +254,6 @@ function renderSettingEntries(
   highlightedEntryId: string | null,
   section: ApplicationSettingsSection,
 ): ReactNode {
-  const blocks: Array<{ key: string; group?: string; items: SettingEntry[] }> =
-    [];
-  for (const entry of entries) {
-    const previous = blocks.at(-1);
-    if (entry.group && previous?.group === entry.group) {
-      previous.items.push(entry);
-    } else {
-      blocks.push({ key: entry.id, group: entry.group, items: [entry] });
-    }
-  }
   // The wrapper is the search reveal target; it stays a direct child of the
   // group's divider list so row separators are unchanged.
   const renderItem = (item: SettingEntry) => (
@@ -279,23 +269,29 @@ function renderSettingEntries(
       {item.render()}
     </div>
   );
+  // Theme controls form one continuous list, including expanded colours.
+  if (section === "Appearance") {
+    return <SettingsGroup>{entries.map(renderItem)}</SettingsGroup>;
+  }
+
+  const blocks: Array<{ key: string; group?: string; items: SettingEntry[] }> =
+    [];
+  for (const entry of entries) {
+    const previous = blocks.at(-1);
+    if (entry.group && previous?.group === entry.group) {
+      previous.items.push(entry);
+    } else {
+      blocks.push({ key: entry.id, group: entry.group, items: [entry] });
+    }
+  }
   return (
-    <div
-      className={cn(
-        "flex flex-col [&>*:not(:first-child)]:mt-6 [&>*:not(:first-child)]:pt-6",
-        section !== "Appearance" &&
-          "[&>*:not(:first-child)]:border-border/40 [&>*:not(:first-child)]:border-t",
-      )}
-    >
+    <div className="[&>*:not(:first-child)]:border-border/40 flex flex-col [&>*:not(:first-child)]:mt-6 [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:pt-6">
       {blocks.map((block) =>
         block.group ? (
           <SettingsGroup
             key={block.key}
             title={
-              block.group === "Visual style" ||
-              block.group === "Defaults for Animas"
-                ? undefined
-                : block.group
+              block.group === "Defaults for Animas" ? undefined : block.group
             }
             description={GROUP_DESCRIPTIONS[block.group]}
           >
@@ -1229,8 +1225,8 @@ export function ApplicationSettingsModal({
       id: "appearance-mode",
       section: "Appearance",
       group: "Theme",
-      label: "Mode",
-      keywords: ["theme", "dark", "light", "system", "dark mode"],
+      label: "Theme",
+      keywords: ["theme", "mode", "dark", "light", "system", "dark mode"],
       render: () => <AppearanceModeSetting />,
     },
     ...APPEARANCE_COLOR_TOKENS.filter((token) => token.group === "basic").map(
