@@ -998,10 +998,17 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   - Only the default state loads at startup. Others load on first use, and at
     most four more compact states stay cached.
   - It generates with temperature 0.3.
-- The Anima settings voice picker groups the voices into Female and Male
-  (`voice-groups.ts`), with recommended voices first and accent tags as hints.
-  A downloadable voice that is not installed shows a small download glyph, and
-  a progress ring while it downloads.
+- Anima Loadout → Voices configures PocketTTS and ElevenLabs independently of
+  the active provider or TTS being enabled. The Pocket list supports name/accent
+  search, Any/Female/Male filtering and Recommended only. Choosing a voice saves
+  an explicit Anima value; legacy missing values keep their existing fallback.
+- Each catalog voice has a pinned upstream source recording. The play button
+  fetches that recording only on click, without credentials or referrer, and
+  never installs or selects a voice. Samples require internet and can differ
+  from generated speech. Closing the picker or replacing a sample stops audio.
+  The separate download button installs a voice without changing the selection.
+- Custom sample upload encodes a voice for the current runtime session. The
+  sample must be uploaded again after a reload; it is not a durable voice asset.
 - Downloadable voices install through `/v1/model-assets`
   (`usePocketVoiceDownloads`, `voice-downloads.ts`) on desktop and self-host.
   - Picking one saves the preference and starts the install; the worker loads

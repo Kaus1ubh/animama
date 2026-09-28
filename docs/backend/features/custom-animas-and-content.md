@@ -141,8 +141,9 @@ retry retains the first result if the second fails. Spec version is metadata,
 not the stable owner/starter identity. Successful or deleted slots are never
 rewritten by a later spec version.
 
-Current defaults are Annie version 2 (`AvatarSample_A_1_New`) and Caitlyn
-version 4 (`AvatarSample_R1`), with matching Included portraits when available.
+Newly provisioned starters use Annie version 3 (`AvatarSample_A_1_New`, Eve Pocket
+voice) and Caitlyn version 5 (`AvatarSample_R1`, Azelma Pocket voice), with matching
+Included portraits when available.
 Their identities write out every section of the `IDENTITY.md` template.
 Existing ready/deleted starter receipts are preserved. Automatic adoption uses
 the historical `avt_chibi_2` identifier only to recognize existing data.

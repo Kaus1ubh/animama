@@ -1495,11 +1495,9 @@ export function ApplicationSettingsModal({
               {currentTtsOption.reason}
             </p>
           ) : null}
-          {ttsEnabled && selectedTtsProvider === "pocket_tts" ? (
-            <p className="text-muted-foreground text-xs">
-              Choose a Pocket voice in Anima Settings.
-            </p>
-          ) : null}
+          <p className="text-muted-foreground text-xs">
+            Choose voices for each Anima in Loadout → Voices.
+          </p>
         </SettingsRow>
       ),
     },
