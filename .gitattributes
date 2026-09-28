@@ -45,6 +45,9 @@ src/frontend/desktop/runtime/notices/sentencepiece-emscripten-license.txt -text 
 models/parakeet-tdt-0.6b-v2/manifest.json text eol=lf
 models/parakeet-tdt-0.6b-v2/README.md -text -whitespace
 models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md -text -whitespace
+models/pocket-tts-voices/manifest.json text eol=lf
+models/pocket-tts-voices/README.md -text -whitespace
+models/pocket-tts-voices/ATTRIBUTION.md -text -whitespace
 
 # Browser model manifest binds exact notice bytes on every platform.
 src/frontend/desktop/runtime/notices/pocket-tts-attribution.txt -text

@@ -14,8 +14,7 @@ the tooling reference. CI publication remains unconfigured.
 
 ## What people see
 
-A signed, configured app checks the public GitHub release feed 15 seconds after
-startup. Offline checks time out without blocking the application. Settings →
+A signed, configured app checks its release feed 15 seconds after startup. Offline checks time out without blocking the application. Settings →
 General also offers **Check for updates**. A notice offers **Download update**;
 the separate **Restart to install** action asks for confirmation before stopping
 local services. Closing the notice or quitting normally does not install a
@@ -24,9 +23,12 @@ downloaded update. Unpackaged or unconfigured builds do not offer updates.
 Only the registered main window can check, download, or restart. Renderer IPC
 accepts no release URL, version, token, executable, or filesystem path. It returns
 bounded status, byte counts, progress, and safe error categories. The updater
-uses a separate Electron network session restricted to the configured public
-GitHub repository and its asset CDN. No Animama account or GitHub token is
-required for the installed application.
+uses a separate Electron network session restricted to the build's sealed
+distribution (see [Distribution selection](#distribution-selection)): for R2,
+only `<base_url>/latest-mac.yml` and `<base_url>/v<version>/` files; for GitHub,
+only the configured repository's releases and asset CDN. Pack downloads follow
+the same rule, and R2 builds follow no redirects. No Animama account or token
+is required for the installed application.
 
 The pinned `electron-updater` 6.8.9 adapter sets `autoDownload=false` and
 `autoInstallOnAppQuit=false`, permits stable forward arm64 updates only, and
@@ -42,36 +44,60 @@ strand referenced expanded content is blocked. The required free space is two
 download archives, two installed app copies, twice the current PGDATA byte count,
 and a 256 MiB reserve. Existing data or packs are never assumed reclaimable.
 
+## Distribution selection
+
+`release-policy.json` records two reviewed destinations: Cloudflare R2 served at
+`https://downloads.animama.ai/desktop` (bucket `animama-releases`), and the GitHub
+repository `raymond-van/animama-releases`. Staging and every release command
+select one with `ANIMAMA_RELEASE_DISTRIBUTION=r2|github`; unset means `r2`, and
+any other value fails. The choice is sealed into the staged
+`runtime/update-policy.json` and every pack URL, and `desktop:dist:mac` refuses
+a selection that differs from the one used for staging. Installed apps never read
+this variable and have no runtime override.
+
+| Distribution | Update feed                   | Installers, notices and packs                                     |
+| ------------ | ----------------------------- | ----------------------------------------------------------------- |
+| `r2`         | `<base_url>/latest-mac.yml`   | `<base_url>/v<version>/<asset>`                                   |
+| `github`     | The repository's release feed | `https://github.com/<owner>/<repo>/releases/download/v<version>/` |
+
+An app only ever updates from the distribution it was built for, and it accepts
+only a feed in that distribution's format. Moving installed users between
+distributions is not supported: R2 is the distribution for releases, and a
+change would require users to download the new build manually. `signing-report.json` records the
+distribution sealed into the candidate, and the publisher refuses a candidate
+whose recorded distribution differs from the current selection.
+
 ## Release inputs and permissions
 
-Keep source and the distribution repository private. A signed candidate builder
-uses explicitly configured repository coordinates to pin future installer/update
-and pack URLs, but does not query GitHub, require a GitHub token or upload assets.
-Only preview/stable publication checks anonymous public repository access, before
-preparing promotion reports or making authenticated API calls. It then rechecks
-visibility through the authenticated API before uploading. A local signed build
-does not approve public distribution; notarization still submits binaries to Apple.
-Neither path infers the repository from the source remote or embeds a token in the app.
+Keep source private. A signed candidate builder uses the selected distribution
+to pin future installer/update and pack URLs, but does not contact it, require a
+token or upload assets. A local signed build does not approve public
+distribution; notarization still submits binaries to Apple. Neither path infers
+a destination from the source remote or embeds a token in the app.
 
-The configured distribution repository is `raymond-van/animama-releases`.
-It supplies pinned future URLs, not an available private download feed.
-`feature-pack-releases.json` records pack policy and exact inventory receipts;
-`release-policy.json` records the core inventory receipt. A source or notice
-change requires fresh matching review rather than reuse of an older hash.
+The publisher uses the candidate's recorded distribution. Before preparing
+promotion reports or reading credentials, it checks the destination anonymously:
+for GitHub, public repository access (rechecked through the authenticated API
+before uploading); for R2, that the custom domain answers and the public feed
+does not already name this or a newer version. If the feed already names this
+version, the release is complete; verify it instead of publishing again. The destinations supply pinned future URLs, not a private download
+feed. `feature-pack-releases.json` records pack policy and exact inventory
+receipts; `release-policy.json` records the core inventory receipt. A source or
+notice change requires fresh matching review rather than reuse of an older hash.
 
-The manual publisher uses the GitHub Releases API without a local distribution
-checkout. Release assets are uploaded separately from source commits. Neither
+Both publishers work without a local distribution checkout: GitHub through the
+Releases API, R2 through its S3 API with a bucket-scoped token. Release assets are uploaded separately from source commits. Neither
 source commits nor candidate builds publish a release. The checked-in workflow
 is manually dispatched, with publishing disabled by default and separate gates.
 Changing the eventual source/history or distribution arrangement requires an
 explicit publication decision; these commands do not select one.
 
-| Input                                           | Required operator decision                                                                                                                                                                           |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `desktop/runtime/release-policy.json`           | Intended GitHub `owner`/`repo` (may remain private while building), stable channel, human redistribution receipt                                                                                     |
-| `desktop/runtime/feature-pack-releases.json`    | The same repository and exact `v<app-version>` release URL, approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity, document-helper designated requirement |
-| `desktop/runtime/macos-acceptance.example.json` | Template only; a reviewer must supply the actual DMG hash, date, identity, prior signed version, and completed checks                                                                                |
-| `desktop/runtime/size-baseline.json`            | Update only from a successfully released artifact, never a partial stage or estimate                                                                                                                 |
+| Input                                           | Required operator decision                                                                                                                                                                                     |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `desktop/runtime/release-policy.json`           | Both distributions (R2 public base URL and bucket; GitHub `owner`/`repo`), stable channel, human redistribution receipt                                                                                        |
+| `desktop/runtime/feature-pack-releases.json`    | Approved active-pack hashes, explicit deferred-pack status, Apple Team ID, Developer ID identity, document-helper designated requirement. Pack URLs are derived from the selected distribution, never set here |
+| `desktop/runtime/macos-acceptance.example.json` | Template only; a reviewer must supply the actual DMG hash, date, identity, prior signed version, and completed checks                                                                                          |
+| `desktop/runtime/size-baseline.json`            | Update only from a successfully released artifact, never a partial stage or estimate                                                                                                                           |
 
 Review the [current content gate](runtime-staging.md#current-content-gate),
 third-party inputs and required notices. `NOASSERTION` and a generated inventory
@@ -156,7 +182,7 @@ pnpm desktop:dist:mac
 ```
 
 This command verifies the audit and exactly the active reviewed packs (currently
-Parakeet only), rejects deferred entries, signs nested
+the two Parakeet packs), rejects deferred entries, signs nested
 Mach-O files/bundles, adds the review receipt, recomputes the runtime manifest,
 and only then seals the outer app. It notarizes and staples the app, builds the
 DMG/update ZIP, notarizes both, signs/staples the DMG, and verifies Gatekeeper.
@@ -244,22 +270,25 @@ Test migration failure/recovery with a disposable profile, preserving its dump.
 Record the exact candidate DMG hash and an **older** signed test version in the
 acceptance receipt. Never downgrade a profile already opened by the new app.
 
-With the current embedded catalog, pack installation needs anonymous public URLs
-before native download acceptance can finish. Keeping the repository private
-does not add private download support; failures must remain recoverable and must
+With the current embedded catalog, pack installation needs the selected
+distribution to serve anonymous public URLs before native download acceptance
+can finish. A private destination does not add private download support; failures must remain recoverable and must
 not block the core app. No token, feed override or unsigned-worker bypass is allowed.
 Public preview and QA feeds are currently not authorized. A different private
 testing transport would require separate design/approval, not a build flag.
 If the owner later approves public distribution, after the required-name smoke
 passes, separately approve a **public testing preview**:
-the same signed app, packs and notices become a GitHub prerelease, without the
-stable update feed or final acceptance reports. It is not marked latest and the
-installed stable updater ignores it. This is still public distribution, so all
+the same signed app, packs and notices are published without the stable update
+feed or final acceptance reports, so the installed stable updater ignores them.
+On GitHub they form a prerelease that is not marked latest. On R2 they become
+public objects under `desktop/v<version>/`, permanently locked by the bucket
+rule, so a preview cannot be withdrawn and its version cannot be reused. This is still public distribution, so all
 source/license/signing approvals and a separate preview-publication approval
 are required. Do not publish a preview merely because a build succeeded.
 
 For a first release there is no existing signed predecessor. Build one for QA
-with the same app ID/Team ID and a dedicated public QA distribution repository.
+with the same app ID/Team ID and a dedicated public QA destination (a separate
+GitHub repository or R2 base URL in reviewed QA release inputs).
 After explicit authorization, mirror the exact candidate ZIP/feed/packs there
 to test the updater before production promotion. The candidate's own embedded
 policy may point to production after replacement. The older private QA build
@@ -267,8 +296,8 @@ must contain the candidate's exact compatible pack entries, including their
 production-preview URLs; otherwise it tests incompatible-pack retention, not
 preservation of an active compatible pack. Configure this through reviewed QA
 release inputs committed to `main`, not by changing an installed profile. Do not add a runtime feed URL
-override or give installed apps a private-repository token. Creating that QA
-repository or publishing to it is a separate operator action, not something this
+override or give installed apps a token. Creating that QA destination or
+publishing to it is a separate operator action, not something this
 workflow silently does. Without this native upgrade evidence, stable promotion stays
 closed.
 
@@ -321,12 +350,12 @@ The standalone commands are the manual mechanism; credentials and authorization
 for public distribution remain separate. Do not change visibility or billing,
 or create unprotected environments, to bypass an approval gate.
 
-| Environment                 | Secrets and purpose                                                                                                                                                                       |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `desktop-macos-signing`     | `ANIMAMA_MACOS_CERTIFICATE_BASE64` (P12), `ANIMAMA_MACOS_CERTIFICATE_PASSWORD`, `ANIMAMA_APPLE_ID`, `ANIMAMA_APPLE_APP_PASSWORD`                                                          |
-| `desktop-macos-smoke`       | `ANIMAMA_SMOKE_OPENAI_KEY` for the explicitly requested real API smoke                                                                                                                    |
-| `desktop-macos-preview`     | Scoped `ANIMAMA_RELEASE_TOKEN`; require separate approval to expose test binaries/packs publicly, without a stable feed                                                                   |
-| `desktop-macos-publication` | Scoped `ANIMAMA_RELEASE_TOKEN` for the public distribution repo and exact human `ANIMAMA_MACOS_ACCEPTANCE` JSON; require separate `raymond-van` approval under the sole-maintainer policy |
+| Environment                 | Secrets and purpose                                                                                                                                                                                                          |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `desktop-macos-signing`     | `ANIMAMA_MACOS_CERTIFICATE_BASE64` (P12), `ANIMAMA_MACOS_CERTIFICATE_PASSWORD`, `ANIMAMA_APPLE_ID`, `ANIMAMA_APPLE_APP_PASSWORD`                                                                                             |
+| `desktop-macos-smoke`       | `ANIMAMA_SMOKE_OPENAI_KEY` for the explicitly requested real API smoke                                                                                                                                                       |
+| `desktop-macos-preview`     | Scoped `ANIMAMA_RELEASE_TOKEN` (GitHub) or `ANIMAMA_R2_ACCOUNT_ID`, `ANIMAMA_R2_ACCESS_KEY_ID`, `ANIMAMA_R2_SECRET_ACCESS_KEY` (R2); require separate approval to expose test binaries/packs publicly, without a stable feed |
+| `desktop-macos-publication` | The same distribution credentials and the exact human `ANIMAMA_MACOS_ACCEPTANCE` JSON; require separate `raymond-van` approval under the sole-maintainer policy                                                              |
 
 The signing helper creates a temporary CI Keychain, imports credentials without
 printing them, stores the notary profile, and restores/deletes its Keychain in an
@@ -338,8 +367,9 @@ If CI publication is configured, the initial release does not dispatch
 deferred. After committing reviewed Parakeet/core inputs, dispatch `release`. The workflow checks/tests,
 stages/audits, signs the candidate, and runs the required-name fresh-profile smoke. With
 `publish=false` it stops there. With `publish=true`, a protected preview job first
-requires explicit approval for public testing. It uploads immutable candidate
-assets/notices as a prerelease, leaving the stable feed private. The stable
+requires explicit approval for public testing. It publishes the immutable
+candidate assets and notices as a preview (a GitHub prerelease, or locked R2
+version objects) without changing the stable feed. The stable
 publication job then waits at a different protected environment while you test
 native behavior and the actual upgrade. Only approve it after supplying the exact
 manual receipt. Inspect artifacts at each gate; do not approve in anticipation.
@@ -349,8 +379,14 @@ review its private Actions artifact, then update the release workflow to import
 that exact approved run before marking the pack active. Never reuse a helper by
 filename or rebuild it after its inventory approval.
 
-The standalone publisher requires all candidate/smoke directories above, the
-scoped token and an explicit command for the requested stage. Preview requires
+The `distribution` workflow input (default `r2`) sets
+`ANIMAMA_RELEASE_DISTRIBUTION` for every job. The workflow does not yet run the
+release scan, so its publish jobs refuse candidates until a reviewed scan
+receipt is part of the CI candidate.
+
+The standalone publisher requires all candidate/smoke directories above, a
+passing `release-scan.json` covering every candidate file, the selected
+distribution's credentials and an explicit command for the requested stage. Preview requires
 the passing required-name setup smoke and explicit public-distribution approval; it does not
 manufacture native acceptance:
 
@@ -364,14 +400,79 @@ After manual acceptance, supply its JSON and promote the same bytes:
 node desktop/scripts/runtime/publish-macos.mjs --confirm-publication
 ```
 
-It verifies local checksums, smoke hashes and manual acceptance, creates/resumes
-only a draft or testing prerelease of the exact version, uploads a fixed artifact
-list, and verifies GitHub's asset digests before promotion. Stable publication
-adds the feed, checksum index and acceptance reports without replacing preview
-payloads. Interrupted uploads leave a draft or preview without stable promotion.
-Retry accepts only byte-identical completed assets; conflicts need inspection.
-An already stable release is never replaced. If promotion's result is uncertain,
-inspect the remote state before retrying. Use a new version for corrections.
+It verifies local checksums, smoke hashes, manual acceptance and scan coverage,
+then uploads a fixed artifact list:
+
+- **GitHub:** creates or resumes only a draft or testing prerelease of the exact
+  version and verifies GitHub's asset digests before promotion.
+- **R2:** uploads each file create-only (`If-None-Match: *`) to
+  `<base>/v<version>/<name>`, signed with its SHA-256 so R2 rejects altered
+  bytes, with `Cache-Control: public, max-age=31536000, immutable`. It then
+  downloads every object through the public domain and compares SHA-256. A
+  preview stops there. Stable promotion rechecks the feed and writes
+  `<base>/latest-mac.yml` last (`Cache-Control: no-cache`), then reads it back.
+
+Stable publication adds the feed, checksum index and acceptance reports without
+replacing preview payloads. Interrupted uploads leave the previous stable feed in
+place. Retry accepts only byte-identical existing objects; a differing object
+stops publication for inspection. An already stable release is never replaced. If
+promotion's result is uncertain, inspect the remote state before retrying. Use a
+new version for corrections.
+
+### R2 operator setup
+
+- Connect the custom domain `downloads.animama.ai` to the `animama-releases`
+  bucket and keep the `r2.dev` public URL disabled.
+- Add a bucket lock rule with indefinite retention on the prefix `desktop/v`, so
+  published versions cannot be deleted or overwritten. The feed
+  `desktop/latest-mac.yml` stays outside the rule.
+- Add a second rule with indefinite retention on the prefix `models/` before
+  publishing any model object (see [Model objects](#model-objects)).
+- Create an R2 API token with **Object Read & Write** on `animama-releases` only.
+  Pass its account ID, access key ID and secret as `ANIMAMA_R2_ACCOUNT_ID`,
+  `ANIMAMA_R2_ACCESS_KEY_ID` and `ANIMAMA_R2_SECRET_ACCESS_KEY` for the publish
+  command only; never commit, print or package them.
+- Versioned objects are cached at Cloudflare's edge for up to a year. Deleting
+  an object from the bucket does not remove cached copies; purge the exact URLs
+  (Caching → Configuration → Custom Purge) as well. The feed is served
+  `no-cache`; do not add a cache rule that caches `desktop/latest-mac.yml`.
+
+### Model objects
+
+Model files that the app downloads at runtime are published once under
+`models/<model-id>/<file-sha256>/<file-name>`, independent of app versions. A
+file's key is its own SHA-256, so published objects never change and an
+unchanged file is never uploaded again. The packaged model-asset catalog pins
+these URLs (see [downloaded model assets](../../backend/operations/model-assets.md#downloaded-model-assets)).
+
+From `src/frontend`, with the set already acquired into the model store:
+
+```sh
+pnpm --filter animama-desktop models:stage --model parakeet-tdt-0.6b-v2-webgpu
+ANIMAMA_GITLEAKS=<verified-gitleaks> pnpm --filter animama-desktop release:scan --candidate release/models/parakeet-tdt-0.6b-v2-webgpu
+pnpm --filter animama-desktop models:publish --model parakeet-tdt-0.6b-v2-webgpu --dry-run
+pnpm --filter animama-desktop models:publish --model parakeet-tdt-0.6b-v2-webgpu --confirm-publication
+```
+
+- `models:stage` copies the verified store set and its tracked `manifest.json`
+  into `desktop/release/models/<model-id>/` with an artifact index; it never
+  downloads.
+- `models:publish` refuses a candidate that differs from the tracked manifest,
+  lacks a passing scan of its exact files, or does not create every catalog URL
+  under that model.
+- For each file it first asks the bucket, through a signed `HEAD`, whether the
+  key exists. An existing object is never uploaded again, even if the public
+  domain has not served it yet; otherwise it uploads create-only with immutable
+  caching. Transfers allow extra time in proportion to the file's size.
+- Every object must then be served anonymously as exactly its bytes: `200`, no
+  `Content-Encoding`, the exact `Content-Length` and SHA-256, the same
+  conditions the app's downloader enforces.
+- `--dry-run` lists the keys and scan status without reading credentials. A
+  missing or stale scan is refused before credentials are read. Publishing uses
+  the same `ANIMAMA_R2_*` token as releases and needs owner approval.
+
+A corrected file has a new hash and therefore a new key; update the catalog to
+it. Never replace a published object.
 
 The canonical generated evidence is the fixed set in `desktop/release/publish`,
 with `SHA256SUMS.txt` and `signing-report.json`. See the [evidence map](release-process.md#evidence-and-actual-artifact-names)

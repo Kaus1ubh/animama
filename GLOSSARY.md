@@ -94,6 +94,57 @@ such as speech recognition, expanded Included content or document processing.
 It is distinct from a portable content import/export package and a wheel/npm
 software package set; installation alone does not equip an Anima.
 
+## App settings
+
+Installation-wide preferences chosen in App Settings, stored in
+`user_settings` for the installation owner. For memory and emotion behaviour
+they are defaults that every Anima follows unless it sets its own value.
+Per-machine choices such as the microphone device are local to that machine,
+not App settings.
+
+## Anima settings
+
+Per-Anima preferences stored in `anima_settings`. A memory or emotion value
+here overrides the App settings default for that Anima only; choosing
+"App default" removes the override. Distinct from the **Loadout**, which selects content.
+
+## Anima memories
+
+An Anima's own `MEMORIES.md`: its first-person record of its relationship and
+shared history with the installation owner, such as milestones, nicknames, how
+the two relate and open threads. It belongs to one Anima and is included in that
+Anima's every turn while memory influence is on. Facts about the owner that every Anima should know belong in
+shared memory such as `PROFILE.md`; episodes are the shared log of what happened.
+See [ADR 0009](docs/adr/0009-shared-user-memory-and-per-anima-relationship-memory.md).
+
+## Reflection
+
+An owner-started Memory Manager conversation that reads one Anima's turns not yet
+covered by an applied Reflection and proposes a curated edit of its Anima
+memories. It never runs automatically. Turns count as covered only once its change
+is applied.
+
+## Companion guardrail
+
+The fixed, server-owned **Companion Guardrails** instruction section that ends
+every chat turn's provider instructions: honesty about being an AI, no
+therapist claims, no manipulative retention and a caring crisis response. No
+identity, memory, setting or safety switch removes it; see
+[ADR 0008](docs/adr/0008-non-overridable-companion-guardrail.md).
+
+## AI notice
+
+The app-rendered line reminding the user that an Anima is an AI, not a person.
+The backend decides when it is due (a start notice on the first turn of each
+local day, and a reminder during a long continuing interaction); it is not
+assistant text and is never spoken or saved in the chat.
+
+## Continuing interaction
+
+A run of turns with the same installation owner, across Animas, where each turn
+starts less than 30 minutes after the previous one. AI-notice reminders are
+measured from its start or the last notice, whichever is later.
+
 ## Using these terms
 
 For implemented behavior, consult the [backend](docs/backend/README.md) and

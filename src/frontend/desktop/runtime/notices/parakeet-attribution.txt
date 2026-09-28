@@ -11,8 +11,9 @@ parakeet-tdt-0.6b-v2-onnx, revision db4a768f5795e0f508187a34241fbeeef6ebb0d3.
 https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx/blob/db4a768f5795e0f508187a34241fbeeef6ebb0d3/ATTRIBUTION.md
 
 These are upstream adaptations of the original NVIDIA model: ONNX conversion,
-INT8 quantization, and a rebuilt preprocessor. Animama redistributes a subset;
-no FP16 or FP32 model is included. Preserve this attribution, the CC BY 4.0
+INT8 quantization, and a rebuilt preprocessor. The parakeet-stt pack
+redistributes a subset with no FP16 or FP32 model; the optional FP16 encoder
+pack carries its own notice. Preserve this attribution, the CC BY 4.0
 reference, the source ATTRIBUTION.md and the identified changes with model
 source archives and optional packs. No endorsement by NVIDIA is implied.
 The producer's config/vocab manifest hashes are stale; direct files at the

@@ -35,6 +35,26 @@ class PyMemoryEntryListResponse(BaseModel):
     entries: list[PyMemoryEntryHeader] = Field(default_factory=list)
 
 
+class PyAnimaIdentityItem(BaseModel):
+    """One owned Anima and its content-free protected file headers, in creation order."""
+
+    anima_id: str
+    display_name: str
+    aggregate_revision: int = Field(..., ge=1)
+    identity_status: Literal["ready", "repair_required"]
+    created_at: datetime | None = None
+    entry: PyMemoryEntryHeader | None = Field(
+        None, description="Live IDENTITY.md header, or null when the identity needs explicit repair."
+    )
+    memories_entry: PyMemoryEntryHeader | None = Field(
+        None, description="Live MEMORIES.md header, or null when it is missing and needs repair."
+    )
+
+
+class PyAnimaIdentityListResponse(BaseModel):
+    identities: list[PyAnimaIdentityItem] = Field(default_factory=list)
+
+
 class PyMemoryEntryVersionFieldChange(BaseModel):
     old: str | None = None
     new: str | None = None

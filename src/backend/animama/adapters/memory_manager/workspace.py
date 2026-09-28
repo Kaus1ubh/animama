@@ -4,24 +4,36 @@ from __future__ import annotations
 
 from typing import Any
 
-from animama.adapters.memory_patch import AgentsSDKV4AMemoryPatchPlanner
+from animama.adapters.memory_patch import AgentsSDKV4AMemoryPatchPlanner, MemoryPatchTarget, resolve_patch_target
 from animama.app.ports.memory_manager_runtime import MemoryManagerRuntimeApprovalRequest
 from animama.app.ports.memory_patch_port import MemoryPatchCandidate, MemoryPatchPlanError, MemoryPatchPlanner
+from animama.app.services.anima_identity_memory import (
+    EPISODE_PROCESSING_MANAGER_FILE_ACCESS,
+    ManagerFileAccess,
+    parse_anima_manager_path,
+)
 from animama.app.services.memory_entry_diff import build_memory_unified_diff
 from animama.app.services.memory_entry_service import (
-    MemoryEntryNotFoundError,
+    MEMORY_ENTRY_ANIMAS_ROOT_PATH,
     MemoryEntryService,
     MemoryEntryValidationError,
     is_protected_memory_entry,
-    is_protected_memory_path,
     normalize_memory_entry_description,
-    normalize_memory_file_path,
 )
-from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE, MemoryEntry
+from animama.domain.anima_definition import (
+    ANIMA_MEMORIES_MAX_BYTES,
+    ANIMA_MEMORIES_PATH,
+    ANIMA_MEMORIES_TOO_LARGE,
+    AnimaDefinitionError,
+    normalize_anima_memories,
+)
+from animama.domain.memory_entry import MemoryEntry
 from animama.domain.memory_manager import (
     MEMORY_PATCH_OPERATION_CREATE,
     MEMORY_PATCH_OPERATION_UPDATE,
 )
+
+from .reflection import REFLECTION_MEMORIES_TARGET_CHARS
 
 
 class MemoryManagerPatchRejected(Exception):
@@ -41,10 +53,25 @@ class MemoryManagerVirtualWorkspace:
         user_id: str,
         memory_entries: MemoryEntryService,
         patch_planner: MemoryPatchPlanner | None = None,
+        access: ManagerFileAccess = EPISODE_PROCESSING_MANAGER_FILE_ACCESS,
     ) -> None:
+        """``access`` is the run's file scope (see ``manager_file_access_for_run``).
+
+        The default reaches user memory only, like episode processing.
+        """
+
         self._user_id = user_id
         self._memory_entries = memory_entries
-        self._patch_planner = patch_planner or AgentsSDKV4AMemoryPatchPlanner(memory_entries=memory_entries)
+        self._access = access
+        self._patch_planner = patch_planner or AgentsSDKV4AMemoryPatchPlanner(
+            memory_entries=memory_entries,
+            manager_access=access,
+        )
+
+    async def get_file_or_none(self, *, path: str) -> MemoryEntry | None:
+        """Return the current file a model path addresses, or ``None`` if it is new."""
+
+        return (await self._resolve_target(path)).current
 
     async def plan_v4a_operation(
         self,
@@ -66,6 +93,7 @@ class MemoryManagerVirtualWorkspace:
         except MemoryPatchPlanError as exc:
             raise MemoryManagerPatchRejected(str(exc)) from exc
 
+        _require_anima_memories_fit(contents)
         return _approval_request_from_contents(contents, metadata=metadata)
 
     async def plan_full_content(
@@ -79,18 +107,18 @@ class MemoryManagerVirtualWorkspace:
     ) -> MemoryManagerRuntimeApprovalRequest:
         """Create an approval preview from already-resolved full file content."""
 
-        clean_path, _normalized_path = _validate_editable_file_path(path)
+        target = await self._resolve_target(path)
+        clean_path, current = target.path, target.current
         if not isinstance(new_content, str):
             raise MemoryManagerPatchRejected("Memory file content must be a string")
+        if target.anima_file is not None and current is None:
+            raise MemoryManagerPatchRejected(f"{clean_path} does not exist")
+        if target.is_identity and not new_content.strip():
+            raise MemoryManagerPatchRejected("Anima identity cannot be blank")
         try:
             normalized_description = normalize_memory_entry_description(new_description)
         except MemoryEntryValidationError as exc:
             raise MemoryManagerPatchRejected(exc.detail) from exc
-        current = await _get_entry_by_path_or_none(
-            self._memory_entries,
-            user_id=self._user_id,
-            path=clean_path,
-        )
         if current is not None and is_protected_memory_entry(current):
             raise MemoryManagerPatchRejected("Generated episode logs are read-only")
         if (
@@ -117,24 +145,39 @@ class MemoryManagerVirtualWorkspace:
                 else f"Update `{clean_path}` from this memory-manager request."
             ),
         )
+        _require_anima_memories_fit(resolved)
         return _approval_request_from_contents(resolved, metadata=metadata)
 
+    async def _resolve_target(self, path: str) -> MemoryPatchTarget:
+        try:
+            return await resolve_patch_target(
+                self._memory_entries,
+                user_id=self._user_id,
+                path=path,
+                manager_access=self._access,
+            )
+        except MemoryPatchPlanError as exc:
+            raise MemoryManagerPatchRejected(str(exc)) from exc
 
-async def _get_entry_by_path_or_none(
-    memory_entries: MemoryEntryService,
-    *,
-    user_id: str,
-    path: str,
-) -> MemoryEntry | None:
+
+def _require_anima_memories_fit(contents: MemoryPatchCandidate) -> None:
+    """Refuse an oversized or invalid MEMORIES.md proposal so the model can fix it and retry."""
+
+    in_animas_root = contents.path.startswith(f"{MEMORY_ENTRY_ANIMAS_ROOT_PATH}/")
+    anima_file = parse_anima_manager_path(contents.path) if in_animas_root else None
+    if anima_file is None or anima_file.filename != ANIMA_MEMORIES_PATH or contents.new_content is None:
+        return
     try:
-        return await memory_entries.get_entry_by_path(
-            user_id=user_id,
-            anima_id=None,
-            path=path,
-            type=MEMORY_ENTRY_TYPE_FILE,
-        )
-    except MemoryEntryNotFoundError:
-        return None
+        normalize_anima_memories(contents.new_content)
+    except AnimaDefinitionError as exc:
+        if exc.code == ANIMA_MEMORIES_TOO_LARGE:
+            raise MemoryManagerPatchRejected(
+                f"{contents.path} would exceed its {ANIMA_MEMORIES_MAX_BYTES // 1024} KiB limit; condense older "
+                f"moments and keep it well under {REFLECTION_MEMORIES_TARGET_CHARS:,} characters"
+            ) from exc
+        raise MemoryManagerPatchRejected(
+            f"{contents.path} content is invalid ({exc.code}); remove NUL and unencodable characters"
+        ) from exc
 
 
 def _approval_request_from_contents(
@@ -160,27 +203,6 @@ def _approval_request_from_contents(
         ),
         operation_metadata=dict(metadata or {}),
     )
-
-
-def _validate_readable_file_path(path: str) -> tuple[str, str]:
-    clean_path, normalized_path = _normalize_manager_file_path(path)
-    if normalized_path == "animas" or normalized_path.startswith("animas/"):
-        raise MemoryManagerPatchRejected("Anima-scoped identity files are not readable here")
-    return clean_path, normalized_path
-
-
-def _validate_editable_file_path(path: str) -> tuple[str, str]:
-    clean_path, normalized_path = _validate_readable_file_path(path)
-    if is_protected_memory_path(clean_path):
-        raise MemoryManagerPatchRejected("Generated episode logs are read-only")
-    return clean_path, normalized_path
-
-
-def _normalize_manager_file_path(path: str) -> tuple[str, str]:
-    try:
-        return normalize_memory_file_path(path)
-    except MemoryEntryValidationError as exc:
-        raise MemoryManagerPatchRejected(exc.detail) from exc
 
 
 __all__ = [

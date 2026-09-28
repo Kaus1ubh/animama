@@ -12,16 +12,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from animama.app.ports.memory_entry_port import MemoryEntryRepository, MemoryEntryRepositoryConflictError
+from animama.domain.anima_definition import ANIMA_IDENTITY_PATH, ANIMA_MEMORIES_PATH
 from animama.domain.memory_entry import (
     MEMORY_ENTRY_OPERATION_DELETE,
     MEMORY_ENTRY_OPERATION_MOVE,
     MEMORY_ENTRY_TYPE_FILE,
+    AnimaIdentitySummary,
     MemoryEntry,
     MemoryEntryHeader,
     MemoryEntrySearchResult,
     MemoryEntryVersion,
 )
 from animama.domain.memory_episode import MEMORY_EPISODE_LOG_ENTRY_KIND
+from animama.orm.anima import ORMAnima
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
 
 _MEMORY_ENTRY_NAMESPACE_CONSTRAINTS = frozenset(
@@ -484,6 +487,54 @@ class SQLAlchemyMemoryEntryRepository(MemoryEntryRepository):
         stmt = stmt.order_by(ORMMemoryEntry.type.asc(), ORMMemoryEntry.normalized_path.asc())
         result = await self._s.execute(stmt)
         return [self._row_to_header(row._mapping) for row in result]
+
+    async def list_anima_identity_summaries(self, *, user_id: str) -> list[AnimaIdentitySummary]:
+        identity_join = (
+            (ORMMemoryEntry.anima_id == ORMAnima.id)
+            & (ORMMemoryEntry.user_id == user_id)
+            & (ORMMemoryEntry.type == MEMORY_ENTRY_TYPE_FILE)
+            & (ORMMemoryEntry.normalized_path == ANIMA_IDENTITY_PATH.casefold())
+            & ORMMemoryEntry.deleted_at.is_(None)
+        )
+        stmt = (
+            select(
+                ORMAnima.id.label("anima_row_id"),
+                ORMAnima.display_name.label("anima_display_name"),
+                ORMAnima.aggregate_revision.label("anima_aggregate_revision"),
+                ORMAnima.identity_status.label("anima_identity_status"),
+                ORMAnima.created_at.label("anima_created_at"),
+                *self._header_columns(),
+            )
+            .select_from(ORMAnima)
+            .outerjoin(ORMMemoryEntry, identity_join)
+            .where(ORMAnima.user_id == user_id)
+            .order_by(ORMAnima.created_at.asc(), ORMAnima.id.asc())
+        )
+        result = await self._s.execute(stmt)
+        rows = [item._mapping for item in result]
+        memories_stmt = select(*self._header_columns()).where(
+            ORMMemoryEntry.user_id == user_id,
+            ORMMemoryEntry.anima_id.is_not(None),
+            ORMMemoryEntry.type == MEMORY_ENTRY_TYPE_FILE,
+            ORMMemoryEntry.normalized_path == ANIMA_MEMORIES_PATH.casefold(),
+            ORMMemoryEntry.deleted_at.is_(None),
+        )
+        memories = {
+            header.anima_id: header
+            for header in (self._row_to_header(item._mapping) for item in await self._s.execute(memories_stmt))
+        }
+        return [
+            AnimaIdentitySummary(
+                anima_id=row["anima_row_id"],
+                display_name=row["anima_display_name"],
+                aggregate_revision=row["anima_aggregate_revision"],
+                identity_status=row["anima_identity_status"],
+                created_at=row["anima_created_at"],
+                identity=self._row_to_header(row) if row["id"] is not None else None,
+                memories=memories.get(row["anima_row_id"]),
+            )
+            for row in rows
+        ]
 
     async def list_live_children(self, *, user_id: str, parent_id: str) -> list[MemoryEntry]:
         stmt = (

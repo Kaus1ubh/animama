@@ -17,6 +17,7 @@ from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.usage import Usage
 
+from ..memory_cue import MESSAGE_DATA_MEMORY_KEY
 from .constants import OPENAI_RESPONSES_PROVIDER
 from .types import DirectChatTurnRequest
 
@@ -192,8 +193,12 @@ def assistant_messages_for_persistence(
     final: ModelClientFinal,
     model_provider: ModelProvider,
     internal_tool_messages: list[ChatMessage] | None = None,
+    memory: Mapping[str, Any] | None = None,
 ) -> ChatMessage | list[ChatMessage]:
-    """Build final assistant history rows, including any internal tool rows."""
+    """Build final assistant history rows, including any internal tool rows.
+
+    ``memory`` is the turn's memory block, stored on the final visible message.
+    """
 
     assistant_msg = assistant_message(
         request=request,
@@ -203,6 +208,7 @@ def assistant_messages_for_persistence(
         model_provider=model_provider,
         usage=final.usage,
         raw_provider_message=assistant_final_provider_message(final),
+        memory=memory,
     )
     if internal_tool_messages:
         return [*internal_tool_messages, assistant_msg]
@@ -218,6 +224,7 @@ def assistant_message(
     model_provider: ModelProvider,
     usage: Usage | None,
     raw_provider_message: dict[str, Any],
+    memory: Mapping[str, Any] | None = None,
 ) -> ChatMessage:
     """Build the public assistant message that will be written to chat history."""
 
@@ -232,6 +239,7 @@ def assistant_message(
             structured=structured,
             final=final,
             model_provider=model_provider,
+            memory=memory,
         ),
         usage=usage,
         turn=None,
@@ -247,8 +255,13 @@ def assistant_message_data(
     structured: Mapping[str, Any],
     final: ModelClientFinal,
     model_provider: ModelProvider,
+    memory: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Build JSONB-safe assistant `message_data` for durable chat history."""
+    """Build JSONB-safe assistant `message_data` for durable chat history.
+
+    ``memory`` becomes `message_data["memory"]`: whether memory updates were
+    enabled for the turn and its successful `MEMORIES.md` change, if any.
+    """
 
     raw_provider_metadata = json_safe_copy(final.raw_provider_metadata)
     data: dict[str, Any] = {
@@ -262,6 +275,8 @@ def assistant_message_data(
     openai_metadata = openai_metadata_from_final(raw_provider_metadata, model_provider=model_provider)
     if openai_metadata is not None:
         data["openai"] = openai_metadata
+    if memory is not None:
+        data[MESSAGE_DATA_MEMORY_KEY] = json_safe_copy(memory)
     return data
 
 

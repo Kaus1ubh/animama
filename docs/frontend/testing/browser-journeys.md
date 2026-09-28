@@ -256,7 +256,8 @@ For a fresh accountless check:
 5. Open App Settings → General, edit Display Name, and confirm the response
    contains only the private display name and that it cannot be cleared.
 6. Restart with `./reset.sh`, reopen the same origin, and confirm setup does not
-   return, local state remains, and root launch opens the last visited Anima.
+   return, local state remains, and root launch opens the last visited Anima
+   (while Default Anima is "Last opened").
 7. Confirm the user menu has no account-management or logout control.
 
 Boundary-negative behavior is covered by the FastAPI admission and real Uvicorn

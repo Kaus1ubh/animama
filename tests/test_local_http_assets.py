@@ -14,7 +14,14 @@ import pytest
 from starlette.requests import Request
 
 from animama.local.http import assets as asset_module
-from animama.local.http.assets import IMMUTABLE_APP_ASSET_CACHE, PARAKEET_MOUNT, LocalAssets, ModelFile, ModelMount
+from animama.local.http.assets import (
+    IMMUTABLE_APP_ASSET_CACHE,
+    PARAKEET_MOUNT,
+    PARAKEET_WEBGPU_MOUNT,
+    LocalAssets,
+    ModelFile,
+    ModelMount,
+)
 
 pytestmark = pytest.mark.asyncio
 _HTML = b'<html><script src="/assets/app-abcdefgh.js"></script></html>'
@@ -384,6 +391,28 @@ async def test_absent_model_mount_never_falls_through_to_the_built_tree(web_root
     async with _client(LocalAssets(web_root)) as client:
         response = await client.get(_model_url(), headers={"accept": "text/html"})
         assert response.status_code == 404 and response.headers["cache-control"] == "no-store"
+
+
+async def test_webgpu_encoder_mount_is_separate_and_absent_until_its_pack_is_active(
+    web_root: Path, model_mount: ModelMount
+) -> None:
+    encoder = PARAKEET_WEBGPU_MOUNT + "encoder.onnx"
+    # The base pack alone never serves the encoder path, nor the base files under it.
+    async with _client(LocalAssets(web_root, model_mount)) as client:
+        assert (await client.head(encoder)).status_code == 404
+        assert (await client.head(encoder + "?v=" + _VERSION)).status_code == 404
+    # Each pack keeps its own version: the encoder never accepts the base pack's.
+    webgpu_mount = ModelMount(model_mount.root, "0.1.0-bbbbbbbbbbbbbbbb", model_mount.files)
+    async with _client(LocalAssets(web_root, model_mount, webgpu_mount)) as client:
+        assert (await client.head(encoder + "?v=" + _VERSION)).status_code == 404
+        response = await client.head(encoder + "?v=" + webgpu_mount.version)
+        assert response.status_code == 200
+        assert response.headers["etag"] == '"' + model_mount.files[0].sha256 + '"'
+        unversioned = await client.get(encoder)
+        assert unversioned.content == _MODEL
+        assert unversioned.headers["cache-control"] == "no-cache"
+        assert (await client.get(PARAKEET_WEBGPU_MOUNT + "private.txt")).status_code == 404
+        assert (await client.get(_model_url())).status_code == 200
 
 
 @pytest.mark.parametrize("replacement", ["size", "symlink", "hardlink", "directory"])

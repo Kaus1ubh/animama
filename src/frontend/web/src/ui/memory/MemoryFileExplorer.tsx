@@ -38,11 +38,15 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  UserRound,
+  Users,
+  Wrench,
 } from "lucide-react";
 import { Fragment, useCallback, useMemo, useState } from "react";
 
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
 import { useElementSize } from "@/hooks/useElementSize";
+import { isReservedUserMemoryEntry } from "@/lib/memory-entries/anima-folders";
 import {
   memoryExplorerProtectedRowActions,
   memoryExplorerRowActions,
@@ -118,6 +122,10 @@ type MemoryFileExplorerProps = {
   ) => void;
   onCollapsedChange: (collapsed: boolean) => void;
   onRetry: () => void;
+  /** Anima whose `MEMORIES.md` repair is in flight. */
+  repairingAnimaId?: string | null;
+  /** Recreates an Anima's missing `MEMORIES.md` from its template. */
+  onRepairAnimaMemories?: (animaId: string) => void;
 };
 
 const memoryExplorerCollisionDetection: CollisionDetection = (args) =>
@@ -185,6 +193,14 @@ function ExplorerContextActions({
   ));
 }
 
+/** Indents an Anima folder's missing-file notice like one of its rows. */
+function missingFileNoticeClass(compact: boolean) {
+  return cn(
+    "text-muted-foreground border-border/60 border-l py-2 text-xs",
+    compact ? "ml-1 px-1.5" : "ml-3 px-3",
+  );
+}
+
 function memoryExplorerDirectoryIds(nodes: MemoryWorkspaceTreeNode[]) {
   const ids: string[] = [];
   const visit = (node: MemoryWorkspaceTreeNode) => {
@@ -204,6 +220,16 @@ function NodeIcon({
   node: MemoryWorkspaceTreeNode;
   expanded: boolean;
 }) {
+  if (node.kind === "anima-root") {
+    return (
+      <Users className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
+    );
+  }
+  if (node.kind === "anima-directory") {
+    return (
+      <UserRound className="size-4 shrink-0 text-rose-600 dark:text-rose-400" />
+    );
+  }
   if (node.kind === "episode-root") {
     return (
       <CalendarDays className="size-4 shrink-0 text-violet-600 dark:text-violet-400" />
@@ -245,6 +271,8 @@ function ExplorerRow({
   onEntryRename,
   onEntryDelete,
   onMoveRequest,
+  repairingAnimaId,
+  onRepairAnimaMemories,
 }: {
   node: MemoryWorkspaceTreeNode;
   entries: PyMemoryEntryHeader[];
@@ -264,6 +292,8 @@ function ExplorerRow({
   onEntryRename: (entry: PyMemoryEntryHeader) => void;
   onEntryDelete: (entry: PyMemoryEntryHeader) => void;
   onMoveRequest?: (entry: PyMemoryEntryHeader) => void;
+  repairingAnimaId: string | null;
+  onRepairAnimaMemories?: (animaId: string) => void;
 }) {
   const expandable =
     node.children.length > 0 ||
@@ -274,12 +304,25 @@ function ExplorerRow({
   const selected = isFile && entry?.id === selectedEntryId;
   const focused = node.id === focusedNodeId;
   const dirty = entry ? dirtyEntryIds.has(entry.id) : false;
-  const path = entry?.path ?? node.label;
+  const path =
+    (node.kind === "file" ? node.displayPath : undefined) ??
+    entry?.path ??
+    node.label;
+  // Flag the pre-existing root entry occupying the reserved `animas` name.
+  const reservedConflict = Boolean(
+    entry && !entry.parent_id && isReservedUserMemoryEntry(entry),
+  );
+  const repairNeeded =
+    node.kind === "anima-directory" &&
+    (node.identityMissing || node.memoriesMissing);
   const moveable = Boolean(entry && canMoveMemoryEntry(entry));
   const actions = (
     entry
       ? memoryExplorerRowActions(entry)
-      : node.kind === "episode-root" || node.kind === "episode-month"
+      : node.kind === "episode-root" ||
+          node.kind === "episode-month" ||
+          node.kind === "anima-root" ||
+          node.kind === "anima-directory"
         ? memoryExplorerProtectedRowActions("directory")
         : []
   ).filter((action) => {
@@ -401,6 +444,27 @@ function ExplorerRow({
                 title="Unsaved changes"
               />
             ) : null}
+            {reservedConflict ? (
+              <span
+                className="shrink-0"
+                title="This name is reserved for Anima identities. Rename it, or move its contents out, to edit them."
+              >
+                <AlertTriangle
+                  aria-hidden
+                  className="size-3.5 text-amber-600 dark:text-amber-400"
+                />
+                <span className="sr-only">Reserved name</span>
+              </span>
+            ) : null}
+            {repairNeeded ? (
+              <span className="shrink-0" title="Needs repair">
+                <AlertTriangle
+                  aria-hidden
+                  className="size-3.5 text-amber-600 dark:text-amber-400"
+                />
+                <span className="sr-only">Needs repair</span>
+              </span>
+            ) : null}
           </span>
           {node.kind === "episode-file" ? (
             <span className="text-muted-foreground block truncate text-[10px] leading-3">
@@ -459,6 +523,11 @@ function ExplorerRow({
       ) : (
         row
       )}
+      {expanded && node.kind === "anima-directory" && node.identityMissing ? (
+        <p className={missingFileNoticeClass(compact)}>
+          This Anima&apos;s identity is missing and needs repair.
+        </p>
+      ) : null}
       {expanded && node.children.length > 0 ? (
         <ul
           className={cn(
@@ -489,13 +558,44 @@ function ExplorerRow({
               onEntryRename={onEntryRename}
               onEntryDelete={onEntryDelete}
               onMoveRequest={onMoveRequest}
+              repairingAnimaId={repairingAnimaId}
+              onRepairAnimaMemories={onRepairAnimaMemories}
             />
           ))}
         </ul>
-      ) : expanded && node.kind === "episode-root" ? (
+      ) : expanded &&
+        (node.kind === "episode-root" || node.kind === "anima-root") ? (
         <p className="text-muted-foreground border-border/60 ml-3 border-l px-3 py-2 text-xs">
-          No episodes yet.
+          {node.kind === "episode-root" ? "No episodes yet." : "No Animas yet."}
         </p>
+      ) : null}
+      {expanded && node.kind === "anima-directory" && node.memoriesMissing ? (
+        <div
+          className={cn(
+            missingFileNoticeClass(compact),
+            "flex flex-wrap items-center gap-2",
+          )}
+        >
+          <span>MEMORIES.md is missing.</span>
+          {onRepairAnimaMemories ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              disabled={Boolean(repairingAnimaId)}
+              aria-label={`Repair MEMORIES.md for ${node.label}`}
+              onClick={() => onRepairAnimaMemories(node.animaId)}
+            >
+              {repairingAnimaId === node.animaId ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <Wrench className="size-3" />
+              )}
+              Repair
+            </Button>
+          ) : null}
+        </div>
       ) : null}
     </li>
   );
@@ -669,6 +769,8 @@ export function MemoryFileExplorer({
   onMove,
   onCollapsedChange,
   onRetry,
+  repairingAnimaId = null,
+  onRepairAnimaMemories,
 }: MemoryFileExplorerProps) {
   const [explorerElement, setExplorerElement] = useState<HTMLDivElement | null>(
     null,
@@ -890,6 +992,8 @@ export function MemoryFileExplorer({
                         onEntryRename={onEntryRename}
                         onEntryDelete={onEntryDelete}
                         onMoveRequest={onMoveRequest}
+                        repairingAnimaId={repairingAnimaId}
+                        onRepairAnimaMemories={onRepairAnimaMemories}
                       />
                     ))}
                   </ul>

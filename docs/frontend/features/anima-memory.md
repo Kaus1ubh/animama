@@ -7,14 +7,34 @@ Query hooks.
 ## Current User-Facing Surfaces
 
 `/a/memories` provides an installation-wide file explorer, Manual editor,
-Memory Manager and Markdown preview. Upload management and retrieval diagnostics
+Memory Manager and Markdown preview covering user memory and every owned
+Anima's identity and memories. Upload management and retrieval diagnostics
 live in [Library Chat Uploads](user-file-uploads.md).
 
-The workspace loads content-free entry headers recursively. Its left explorer
-keeps ordinary physical directories explicit but replaces the generated
-`episodes/**` storage hierarchy with one virtual `Episodes` root. That root is
-always the first explorer item, remains visible with an empty state before any
-episodes exist, and cannot be displaced by newly created memory entries.
+The workspace loads content-free user entry headers recursively and the
+`GET /v1/memory/anima-identities` listing. Its left explorer starts with a
+virtual `Animas` root, then a virtual `Episodes` root, then ordinary physical
+entries. Both virtual roots are always present, show an empty state when they
+have no children, and cannot be displaced by newly created memory entries.
+
+`Animas` holds one folder per owned Anima in creation order, each containing
+only that Anima's Anima-scoped `IDENTITY.md` followed by its relationship
+`MEMORIES.md`. Folders show the current name; later Animas sharing a name
+receive ` (2)`, ` (3)`, and so on, skipping any suffix another Anima already uses
+as its real name. The owner-facing path, such as `Animas/Annie (2)/MEMORIES.md`,
+appears in tooltips, filtering and Preview; renames and new Animas refresh the
+listing through the Anima definition and creation cache invalidations. If the
+listing fails to load, user memory remains available and a toast offers Refresh.
+
+A folder with a missing file shows a warning icon. Expanded, it states that the
+identity is missing and needs repair, or that `MEMORIES.md` is missing with a
+Repair action. Repair calls `POST /v1/memory/anima-memories/{anima_id}:repair`,
+which recreates the file from its template and never overwrites an existing
+one, then refreshes the listing; failures appear as a toast. The two states are
+independent: an Anima can have its identity and no `MEMORIES.md`.
+
+The generated `episodes/**` storage hierarchy is replaced by the virtual
+`Episodes` root.
 Canonical `episodes/YYYY/MM/YYYY-MM-DD.md` files are grouped by newest month and
 displayed with friendly dates. Malformed or historical episode paths remain
 visible under `Other episodes`. Generated episode files are read-only.
@@ -38,13 +58,21 @@ New file accepts either a leaf name or a relative path. For example,
 current creation target and then selects `launch.md`. The final `.md` extension
 is added when omitted. New directory remains a single-segment operation.
 
-Generated episodes, virtual episode groups, `PROFILE.md`, files, the source's
-current parent, the source itself, and descendants of a directory being moved
-are not valid move targets as applicable. Creation and moves are disabled while
-a virtual episode group or generated episode is focused. Creation otherwise
+Generated episodes, virtual episode groups, the virtual Animas root and folders,
+`IDENTITY.md` and `MEMORIES.md` files, `PROFILE.md`, files, the source's current
+parent, the source itself, and descendants of a directory being moved are not
+valid move targets as applicable. `IDENTITY.md` and `MEMORIES.md` rows keep
+their protected row menus: they cannot be renamed, moved or deleted. Creation
+and moves are disabled while a virtual episode group, generated episode, Animas
+folder or Anima file is focused. Creation otherwise
 targets the focused physical directory or the selected ordinary file's parent.
 The explorer initially selects `PROFILE.md`, then the first ordinary file by
 path, then the newest episode.
+
+User memory cannot use the reserved `animas` path. A user `animas` directory
+created before that reservation stays visible with a warning; its files open
+read-only in Manual until they are moved or the directory is renamed, and it
+cannot receive new children or moves. Rename, move and delete remain available.
 
 Move requests use the existing version-aware patch endpoint and are not
 applied optimistically. On success the explorer refetches the server tree while
@@ -89,6 +117,17 @@ Conflict recovery offers `Use latest` and `Save over latest`. Discard and delete
 require confirmation, and required entries plus generated episodes retain
 their existing protection.
 
+Identity drafts also carry the Anima aggregate revision, exactly like the
+`/a/animas/:animaId/identity` editor: a concurrent name, Avatar, loadout or
+identity change conflicts while keeping the draft, and a blank identity is
+rejected before any request. Saves and reverts refresh that Anima's definition
+views. `MEMORIES.md` is not part of the Anima definition: its drafts are guarded
+by version only, never conflict with identity, name, Avatar or loadout edits, may
+be saved blank, and do not refresh definition views. If an Anima is deleted, its
+folder disappears on the next refresh and drafts for its files are dropped; the
+same happens to a draft whose file becomes missing. A dirty dropped draft
+produces a warning that its unsaved text could not be saved.
+
 Dirty drafts do not interrupt normal workspace navigation. Leaving
 `/a/memories` opens a prompt with Stay, Discard and leave, and sequential Save
 and leave actions. Browser reload or close uses the native unsaved-changes
@@ -127,7 +166,13 @@ read-only. The dialog has no arbitrary two-version selector.
 ## Route State
 
 The canonical route search state uses `tab=memory|uploads` and
-`mode=manual|manager`, with optional `entryId`, file `path`, and `managerRunId`.
+`mode=manual|manager`, with optional `entryId`, file `path`, and `managerRunId`. An
+Anima file is selected by `entryId`, so renaming its Anima keeps the selection;
+a `path` such as `Animas/Annie/MEMORIES.md` resolves through the current folder
+labels and is then replaced with that file's `entryId`. Links from other pages,
+such as the chat [memory cue](../runtime/chat.md#memory-cue)'s Open in Memories,
+use `entryId`. The Anima management and chat profile Memories tabs instead open
+the file editor in place.
 Task prompts are not route state. File and manager-run updates replace the
 current history entry, while tab and Manual/Memory Manager mode changes push
 history. Explorer search, expansion, collapse, focus, responsive pane, drafts,
@@ -167,10 +212,13 @@ browser history starts a blank ordinary conversation. The only cross-session
 exception is a `waiting_approval` run, whose transcript and review card are
 restored so the proposed change cannot be stranded. Inline diff approval cards
 refresh the explorer and persisted preview after approved changes. Selecting a
-file remains visual context and does not change manager requests.
+file remains visual context and does not change manager requests; only Reflect
+acts on the selected file.
 
-App Settings includes a Memory section with a Memory Manager model
-selector. Its choices come from the existing model catalog and are limited to
+App Settings → Memory & Emotion sets installation-wide defaults for memory,
+memory updates and emotion updates. Each Anima's settings offer "App default",
+On or Off; turning memory off also stops memory updates. The same section has a
+Memory Manager model selector. Its choices come from the existing model catalog and are limited to
 the OpenAI Responses provider. The choice is installation-wide and applies to new
 request-local manager runtime instances; System default clears the override and
 uses `ANIMAMA_MEMORY_MANAGER_AGENT_MODEL` from the backend environment.
@@ -227,12 +275,63 @@ supersedes the current active conversation, while an unresolved approval blocks
 the action. A stale no-work response refreshes the pending count without
 replacing the current conversation.
 
-Every diff approval, in both general and episode-processing runs, offers
+While an Anima's `MEMORIES.md` is selected, in either work mode, the Work-pane
+header shows `Reflect` beside `Manual | Memory Manager` (accessible name
+`Reflect on <name>'s memories`). It switches to Memory Manager and calls
+`POST /v1/memory/manager/runs:reflect` with the Anima ID and the current Auto
+approve consent; the backend chooses the turns. Until the server-owned
+`Reflect on N turns with <name>.` exchange arrives, the transcript projects
+`Reflect on turns with <name>.` and an assistant loader. Reflect has the same
+locks as `Process episodes`: in-flight manager work, an unresolved run lookup
+or a pending approval. If that file has a dirty Manual draft, a confirmation
+first explains that the Reflection reads the saved file and that the draft and a
+Reflection proposal conflict with whichever is saved second; the draft stays
+open either way.
+
+A Reflection shows a status banner built from `run.reflection` and whether the
+run's approvals include an applied (approved, not undone) change. While open it
+reads, for example, `Reflecting on 12 turns with Annie · 3 more remain` and notes
+that the turns count as reflected only once a change from that Reflection is
+applied; a completed run reads `Reflected on 12 turns with Annie`. Its composer
+stays available, so follow-up messages refine the proposal as in any other
+conversation. A refused start (`409` for no new turns, a pending approval, a
+missing `MEMORIES.md` or a concurrent run; `404` for a deleted Anima) creates no
+run: the current transcript stays, a `Reflection did not start.` toast shows the
+backend reason, and the manager and Anima-folder queries refresh. The folders
+then show any repair state; a pending approval from another run is recovered
+only when no conversation is shown, so an open conversation stays in place until
+the owner selects New. If the manager becomes busy or gains a pending approval
+while the unsaved-draft confirmation is open, `Reflect anyway` closes it and the
+same toast explains why nothing started.
+
+A Reflection run can fail at start (for example, when the Memory Manager model
+is unavailable) or after an owner decision. With no applied change, its banner
+says the Reflection stopped with `MEMORIES.md` and those turns unchanged. An
+approval commits the file and the turns' coverage before the manager resumes,
+so if the run fails afterward the banner instead says the applied change stands
+and the turns count as reflected. In both cases the run error explains why it
+stopped.
+
+Every diff approval, in general, episode-processing and Reflection runs, offers
 Approve, plain Reject, and an optional Request changes interaction. Request
 changes rejects the current diff with trimmed feedback for the manager to use
 when resuming; decided cards display persisted feedback for audit. Rejection
 does not itself imply that an episode is unworthy of memory, and the specialized
 run may propose a revised diff or complete the review without writing.
+
+General Memory Manager runs can propose changes to an Anima's identity when the
+request is about that Anima, and to its `MEMORIES.md` when the owner asks; a
+Reflection changes only its own Anima's `MEMORIES.md`. Approval cards label
+these targets with the current workspace path (`Animas/<name>/IDENTITY.md` or
+`Animas/<name>/MEMORIES.md`) instead of the model-facing
+`animas/<anima_id>/...` path. Approving, auto-approving or undoing an identity
+change refreshes that Anima's definition views; a `MEMORIES.md` change refreshes
+only the memory-entry queries, including the Anima folders, so Manual and
+Preview show the new Version and a dirty draft becomes conflicted. Approving a
+Reflection proposal returns `409` when the file or the Anima's Reflection
+coverage changed after the Reflection started; the approval stays pending and
+the error toast shows the backend reason. Episode processing never proposes
+changes to Anima files.
 
 Approval previews show Markdown content changes and description changes as two
 separate channels. The Description section appears only when the value changes
@@ -250,14 +349,15 @@ decision remains visible as `Approved · Undone` and memory, entry, path, and
 version-history caches refresh. A `409 Conflict` refetches authoritative state
 and directs the user to Versions for historical recovery.
 
-`Auto approve` is off by default and captures consent at submission time for ordinary messages and
-specialized processing runs; enabling it does not approve an existing pending
-diff. The frontend sends that consent as `auto_approve_diffs` and does not issue
-automatic approval requests itself. The backend attributes newly generated
-diffs to the submitted message, approves them one at a time through the durable
-approval service, and resumes the manager until the chain completes or stops on
-an error or eight-decision limit. Any remaining diff stays available for manual
-review. Starting New resets Auto approve to off.
+`Auto approve` is off by default and captures consent at submission time for
+ordinary messages, episode processing and Reflections; enabling it does not
+approve an existing pending diff. The frontend sends that consent as
+`auto_approve_diffs` and does not issue automatic approval requests itself. The
+backend attributes newly generated diffs to the submitted message, approves them
+one at a time through the durable approval service, and resumes the manager
+until the chain completes or stops on an error or eight-decision limit. Any
+remaining diff stays available for manual review. Starting New resets Auto
+approve to off.
 The manager does not inherit main chat's model selector, uploads, dictation,
 voice mode, SSE streaming, TTS playback, avatar reactions, or Anima-scoped chat
 session controller.
@@ -265,7 +365,8 @@ session controller.
 ## Anima Identity
 
 Anima management pages read the anima-scoped `IDENTITY.md` entry and open the
-memory editor from `/a/animas/:animaId/identity`. This surface intentionally
+memory editor from `/a/animas/:animaId/identity`; the Memory workspace edits the
+same entry and version history. This surface intentionally
 retains `MemoryEntryEditorModal`. Its editable branch composes the shared
 CodeMirror editor and sanitized GFM preview. It keeps both the memory version
 and Anima aggregate revision from the loaded baseline. A concurrent name,
@@ -274,12 +375,17 @@ their original guards for explicit resolution. Revert sends both current
 guards and creates a new identity version rather than replacing history.
 
 The backend enforces nonblank identity and prevents renaming, moving, deleting,
-kind changes, or AI Undo for the required identity file, including untyped
-legacy `IDENTITY.md` entries. Chat never uses a mutable Avatar fallback for a
-missing identity. Legacy repair state requires explicit owner repair; a
-directory obstructing the reserved path can be explicitly moved first.
+or kind changes for the required identity file, including untyped
+legacy `IDENTITY.md` entries. `MEMORIES.md` has the same protection, may be
+blank and is limited to 16 KiB; nothing else can be created in or moved into an
+Anima's scope. Chat never uses a mutable Avatar fallback for a missing identity.
+Legacy repair state requires explicit owner repair; a directory obstructing the
+reserved path can be explicitly moved first.
 
 Backend direct chat can generate user-scope episodic logs after completed
-non-incognito turns with notable `remember` text. These files are generated
+non-incognito turns with notable `remember` text. Model-authored memory
+(`remember`, chat memory tools and Memory Manager) keeps secrets and specific
+health, self-harm and crisis details out of memory unless the user asks; see
+[memory](../../backend/features/memory.md). These files are generated
 projections of backend episode rows and cannot be changed by users or ordinary
 chat memory write tools.

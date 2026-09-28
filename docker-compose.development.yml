@@ -79,6 +79,7 @@ services:
       - VITE_DISABLE_WEBUI_TRACES=true
       - VITE_DISABLE_WEBUI_TELEMETRY=true
       - VITE_CLIENT_PARAKEET_MODEL_DIR=/app/parakeet-tdt-0.6b-v2
+      - VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR=/app/parakeet-tdt-0.6b-v2-webgpu
       - ANIMAMA_BROWSER_MODEL_DIR=/opt/animama/browser-models
     networks:
       - animama-network
@@ -102,6 +103,8 @@ services:
           create_host_path: false
       # The package builder carries the existing project notice into tarballs.
       - ./LICENSE:/LICENSE:ro
+      # The Safety page bundles the canonical crisis protocol from the repository.
+      - ./docs/safety:/docs/safety:ro
       # Vite's compatibility middleware reads legacy public URLs from the one
       # canonical Included tree while frontend consumers migrate to file refs.
       - type: bind
@@ -122,6 +125,14 @@ services:
       - type: bind
         source: ${ANIMAMA_PARAKEET_MODEL_DIR:?Run python3 scripts/models/parakeet.py acquire then ./reset.sh or source the generated stack record}
         target: /app/parakeet-tdt-0.6b-v2
+        read_only: true
+        bind:
+          create_host_path: false
+      # Optional experimental WebGPU encoder. Without an acquired set this is
+      # the checked-in notices directory, so the encoder request returns 404.
+      - type: bind
+        source: ${ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR:-./models/parakeet-tdt-0.6b-v2-webgpu}
+        target: /app/parakeet-tdt-0.6b-v2-webgpu
         read_only: true
         bind:
           create_host_path: false

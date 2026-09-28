@@ -82,3 +82,13 @@ This tests model tooling without installing the backend dependency graph.
 The single hosted Validation job runs on Linux; native Windows execution is a
 separate validation step and is not established by that job. Native Windows
 application/packaging support remains separately gated.
+
+## Optional WebGPU encoder
+
+`python3 scripts/models/parakeet_webgpu.py acquire|verify|path` manages the
+optional FP16 encoder used by the experimental WebGPU speech setting. It uses the
+same store, options and exit codes as `parakeet.py`. It downloads about 1.24 GB
+from the pinned `ysdede/parakeet-tdt-0.6b-v2-onnx` revision and verifies a
+three-file inventory (encoder, README and attribution) under
+`<store>/parakeet-tdt-0.6b-v2-webgpu/<manifest-digest>`. The base Parakeet set
+remains required.

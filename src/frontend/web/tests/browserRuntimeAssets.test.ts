@@ -119,10 +119,10 @@ afterEach(async () => {
 });
 
 describe("verified browser runtime inputs", () => {
-  it("preserves all 19 reviewed target paths and independent distribution copies", () => {
+  it("preserves all 35 reviewed target paths and independent distribution copies", () => {
     const value = fixture();
     const assets = resolveBrowserRuntimeAssets(value);
-    expect(assets).toHaveLength(19);
+    expect(assets).toHaveLength(35);
     const builtRoot = path.join(value.root, "dist");
     copyBrowserRuntimeAssets(assets, builtRoot);
     rmSync(value.modelDirectory, { recursive: true });
@@ -132,7 +132,7 @@ describe("verified browser runtime inputs", () => {
         manifestPath: value.manifestPath,
         builtRoot,
       }),
-    ).toHaveLength(19);
+    ).toHaveLength(35);
   });
   it("rejects extra built bytes and unsafe output links", () => {
     const value = fixture();
@@ -190,7 +190,7 @@ describe("verified browser runtime inputs", () => {
       manifestPath: value.manifestPath,
       builtRoot,
     });
-    expect(builtAssets).toHaveLength(19);
+    expect(builtAssets).toHaveLength(35);
     const preview = await listen(builtAssets, builtRoot);
     expect(await (await fetch(`${preview}/${relative}`)).text()).toBe(
       "user-catalog",
@@ -220,7 +220,7 @@ describe("verified browser runtime inputs", () => {
     ).toThrow("unlisted files");
     rmSync(bad);
     symlinkSync(
-      path.join(builtRoot, "onnx/models/pocket-tts/voices.bin"),
+      path.join(builtRoot, "onnx/models/pocket-tts/bundle.json"),
       path.join(directory, "test-anima_voices.bin"),
     );
     expect(() =>
@@ -279,7 +279,7 @@ describe("verified browser runtime inputs", () => {
     cpSync(packagePath, physical, { recursive: true });
     rmSync(packagePath, { recursive: true });
     symlinkSync(physical, packagePath, "junction");
-    expect(resolveBrowserRuntimeAssets(value)).toHaveLength(19);
+    expect(resolveBrowserRuntimeAssets(value)).toHaveLength(35);
     const payload = path.join(physical, "dist/ort.min.mjs");
     rmSync(payload);
     symlinkSync(
@@ -305,7 +305,7 @@ describe("verified browser runtime inputs", () => {
       listen(resolveBrowserRuntimeAssets(first)),
       listen(resolveBrowserRuntimeAssets(second)),
     ]);
-    const route = "/onnx/models/pocket-tts/voices.bin";
+    const route = "/onnx/models/pocket-tts/voices/eve.safetensors";
     expect(await (await fetch(a + route)).text()).toBe("firstbytes");
     expect(await (await fetch(b + route)).text()).toBe("otherbytes");
     expect(await (await fetch(a + route)).text()).toBe("firstbytes");

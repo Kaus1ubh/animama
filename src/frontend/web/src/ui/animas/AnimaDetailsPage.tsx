@@ -80,6 +80,7 @@ import { EmotionalState } from "@/ui/components/emotional-state";
 import { RuntimeImageFrame } from "@/ui/components/runtime-image-frame";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Switch } from "@/ui/components/switch";
+import { AnimaMemoriesSection } from "@/ui/animas/AnimaMemoriesSection";
 import { AnimaIdentitySection } from "@/ui/animas/AnimaIdentitySection";
 import { AnimaSettingsModal } from "@/ui/main/header/AnimaSettingsModal";
 
@@ -93,6 +94,7 @@ export type AnimaDetailsPageProps = {
 
 const TAB_LABELS: Record<AnimaManagementTab, string> = {
   overview: "Identity",
+  memories: "Memories",
   emotions: "Emotions",
   loadout: "Loadout",
   settings: "Settings",
@@ -155,32 +157,6 @@ function ManagementError({
         </CardContent>
       </Card>
     </AppShellPage>
-  );
-}
-
-function IdentityTab({
-  animaId,
-  identity,
-  identityLoading,
-  identityError,
-  fallbackIdentity,
-}: {
-  animaId: string;
-  identity: string;
-  identityLoading: boolean;
-  identityError: boolean;
-  fallbackIdentity: string;
-}) {
-  return (
-    <div className="xl:h-full xl:min-h-0">
-      <AnimaIdentitySection
-        animaId={animaId}
-        identity={identity}
-        identityLoading={identityLoading}
-        identityError={identityError}
-        fallbackIdentity={fallbackIdentity}
-      />
-    </div>
   );
 }
 
@@ -302,7 +278,7 @@ function ManagementPanel({
             }}
             className="mt-3"
           >
-            <TabsList className="border-border/70 grid h-auto w-full grid-cols-4 rounded-none border-b bg-transparent p-0">
+            <TabsList className="border-border/70 grid h-auto w-full grid-cols-5 rounded-none border-b bg-transparent p-0">
               {ANIMA_MANAGEMENT_TABS.map((tab) => (
                 <TabsTrigger
                   key={tab}
@@ -322,7 +298,7 @@ function ManagementPanel({
           }`}
         >
           {activeTab === "overview" ? (
-            <IdentityTab
+            <AnimaIdentitySection
               key={anima.id}
               animaId={anima.id}
               identity={identity}
@@ -330,6 +306,8 @@ function ManagementPanel({
               identityError={identityError}
               fallbackIdentity={fallbackIdentity}
             />
+          ) : activeTab === "memories" ? (
+            <AnimaMemoriesSection key={anima.id} animaId={anima.id} />
           ) : activeTab === "emotions" ? (
             <EmotionsTab anima={anima} />
           ) : activeTab === "loadout" ? (

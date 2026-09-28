@@ -1,6 +1,13 @@
 "use client";
 
-import { AlertTriangle, Eye, Files, Loader2, Pencil } from "lucide-react";
+import {
+  AlertTriangle,
+  Eye,
+  Files,
+  Loader2,
+  Pencil,
+  Sparkles,
+} from "lucide-react";
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -9,6 +16,15 @@ import type {
   PyMemoryEntryHeader,
   PyMemoryEntryResponse,
 } from "@/lib/content/catalogTypes";
+import {
+  animaFolderFiles,
+  animaFolderForMemoriesEntry,
+  buildMemoryAnimaFolders,
+  isAnimaWorkspacePath,
+  removedAnimaFileDrafts,
+  resolveWorkspaceSelection,
+  type MemoryAnimaFolder,
+} from "@/lib/memory-entries/anima-folders";
 import {
   MemoryEntryApiError,
   isMemoryEntryConflict,
@@ -23,7 +39,9 @@ import {
 } from "@/lib/memory-entries/library-search";
 import {
   canDeleteMemoryEntry,
+  BLANK_ANIMA_IDENTITY_MESSAGE,
   canEditMemoryEntry,
+  isBlankAnimaIdentityDraft,
   isEpisodeLogEntry,
 } from "@/lib/memory-entries/protection";
 import {
@@ -56,6 +74,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useMemoryEpisodes } from "@/query/hooks/useMemoryEpisodes";
 import {
+  useAnimaIdentities,
   useMemoryEntries,
   useMemoryEntry,
   useMemoryEntryByPath,
@@ -63,6 +82,7 @@ import {
 import { useDeleteMemoryEntry } from "@/query/mutations/useDeleteMemoryEntry";
 import { useMoveMemoryEntry } from "@/query/mutations/useMoveMemoryEntry";
 import { usePatchMemoryEntry } from "@/query/mutations/usePatchMemoryEntry";
+import { useRepairAnimaMemories } from "@/query/mutations/useRepairAnimaMemories";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { Button } from "@/ui/components/button";
 import {
@@ -86,7 +106,10 @@ import { MemoryRenameEntryDialog } from "@/ui/memory/MemoryRenameEntryDialog";
 import { MemoryVersionsDialog } from "@/ui/memory/MemoryVersionsDialog";
 import { MemoryWorkspacePreview } from "@/ui/memory/MemoryWorkspacePreview";
 import { MemoryWorkspaceSplitLayout } from "@/ui/memory/MemoryWorkspaceSplitLayout";
-import { useMemoryManagerWorkspace } from "@/ui/memory/useMemoryManagerWorkspace";
+import {
+  useMemoryManagerWorkspace,
+  type MemoryManagerReflectionTarget,
+} from "@/ui/memory/useMemoryManagerWorkspace";
 
 type MemoryLibraryPageProps = {
   search: MemoryLibrarySearch;
@@ -127,22 +150,67 @@ export function MemoryLibraryPage({
   const [drafts, setDrafts] = useState<MemoryEntryDrafts>({});
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [exitSaving, setExitSaving] = useState(false);
+  const [reflectionToConfirm, setReflectionToConfirm] =
+    useState<MemoryManagerReflectionTarget | null>(null);
   const initializedTreeRef = useRef(false);
   const moveReconciliationRef = useRef<Set<string> | null>(null);
 
-  const entriesQuery = useMemoryEntries({ animaId: null, recursive: true });
-  const entries = entriesQuery.data?.entries ?? EMPTY_ENTRIES;
-  const tree = useMemo(() => buildMemoryWorkspaceTree(entries), [entries]);
-  const selectedHeader = useMemo(
-    () =>
-      entries.find(
-        (entry) =>
-          entry.type === "file" &&
-          ((search.entryId && entry.id === search.entryId) ||
-            (search.path && entry.path === search.path)),
-      ) ?? null,
-    [entries, search.entryId, search.path],
+  const userEntriesQuery = useMemoryEntries({ animaId: null, recursive: true });
+  const identitiesQuery = useAnimaIdentities();
+  const animaFolders = useMemo(
+    () => buildMemoryAnimaFolders(identitiesQuery.data?.identities ?? []),
+    [identitiesQuery.data],
   );
+  // Selection falls back only once both sources have settled; an identity
+  // listing failure still leaves user memory usable.
+  const workspaceLoaded =
+    userEntriesQuery.isSuccess &&
+    (identitiesQuery.isSuccess || identitiesQuery.isError);
+  const workspaceFetching =
+    userEntriesQuery.isFetching || identitiesQuery.isFetching;
+  /** Refreshes user memory and identities; returns the user-memory result. */
+  const refreshWorkspace = async () => {
+    const [users] = await Promise.all([
+      userEntriesQuery.refetch(),
+      identitiesQuery.refetch(),
+    ]);
+    return users;
+  };
+  // Each Anima's live identity and memories files, in folder display order.
+  const animaFiles = useMemo(
+    () =>
+      animaFolders
+        .flatMap(animaFolderFiles)
+        .flatMap(({ entry, path }) => (entry ? [{ entry, path }] : [])),
+    [animaFolders],
+  );
+  // User memory plus the Anima file headers, so selection, drafts and dirty
+  // indicators treat Anima files like any other workspace file.
+  const entries = useMemo(() => {
+    const userEntries = userEntriesQuery.data?.entries ?? EMPTY_ENTRIES;
+    return animaFiles.length > 0
+      ? [...userEntries, ...animaFiles.map((file) => file.entry)]
+      : userEntries;
+  }, [animaFiles, userEntriesQuery.data]);
+  const workspacePathById = useMemo(
+    () => new Map(animaFiles.map((file) => [file.entry.id, file.path])),
+    [animaFiles],
+  );
+  const tree = useMemo(
+    () => buildMemoryWorkspaceTree(entries, undefined, animaFolders),
+    [animaFolders, entries],
+  );
+  const selection = useMemo(
+    () =>
+      resolveWorkspaceSelection({
+        entries,
+        folders: animaFolders,
+        entryId: search.entryId,
+        path: search.path,
+      }),
+    [animaFolders, entries, search.entryId, search.path],
+  );
+  const selectedHeader = selection.header;
   const detailId = selectedHeader?.id ?? search.entryId ?? null;
   const detailById = useMemoryEntry(detailId, {
     enabled: Boolean(detailId),
@@ -150,7 +218,9 @@ export function MemoryLibraryPage({
   const detailByPath = useMemoryEntryByPath({
     path: search.path,
     type: "file",
-    enabled: !detailId && Boolean(search.path),
+    // Anima file label paths resolve only through the loaded folder list.
+    enabled:
+      !detailId && Boolean(search.path) && !isAnimaWorkspacePath(search.path),
   });
   const selectedEntry = detailById.data ?? detailByPath.data ?? null;
   const selectedEntryId = selectedHeader?.id ?? selectedEntry?.id ?? null;
@@ -195,6 +265,7 @@ export function MemoryLibraryPage({
   const patchEntry = usePatchMemoryEntry();
   const moveEntry = useMoveMemoryEntry();
   const deleteEntry = useDeleteMemoryEntry();
+  const repairMemories = useRepairAnimaMemories();
   const manager = useMemoryManagerWorkspace({
     runId: search.managerRunId,
     onRunCreated: (runId) =>
@@ -215,13 +286,57 @@ export function MemoryLibraryPage({
     onPendingEpisodesChanged: () => void pendingEpisodes.refetch(),
   });
 
+  // Deleting an Anima removes its files. Drafts for them can no longer be
+  // saved, so drop them and tell the owner when unsaved text is discarded.
+  const previousFoldersRef = useRef<MemoryAnimaFolder[] | null>(null);
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
   useEffect(() => {
-    if (!entriesQuery.isSuccess || moveReconciliationRef.current) return;
+    if (!identitiesQuery.isSuccess) return;
+    const previous = previousFoldersRef.current;
+    previousFoldersRef.current = animaFolders;
+    if (!previous) return;
+    const result = removedAnimaFileDrafts({
+      previous,
+      current: animaFolders,
+      drafts: draftsRef.current,
+    });
+    if (result.drafts === draftsRef.current) return;
+    setDrafts(result.drafts);
+    for (const notice of result.notices) {
+      toast.warning(
+        notice.reason === "deleted"
+          ? `${notice.label} was deleted.`
+          : `${notice.label}'s ${notice.fileName} is unavailable.`,
+        {
+          id: `anima-file-removed:${notice.entryId}`,
+          description: `Unsaved ${notice.fileName} changes could not be saved and were discarded.`,
+        },
+      );
+    }
+  }, [animaFolders, identitiesQuery.isSuccess]);
+
+  useEffect(() => {
+    if (identitiesQuery.isError) {
+      toast.error("Could not load Anima identities.", {
+        id: "anima-identities-error",
+        description: "User memory is still available. Refresh to retry.",
+      });
+    }
+  }, [identitiesQuery.isError]);
+
+  useEffect(() => {
+    if (!workspaceLoaded || moveReconciliationRef.current) return;
     const requestedId = selectedHeader?.id ?? search.entryId ?? null;
     const nextEntryId = resolveMemoryWorkspaceFileId(entries, requestedId);
     if (nextEntryId === requestedId && !search.path) return;
+    // User-file path URLs stay readable; Anima file label paths are pinned to
+    // their entry ID so a rename cannot retarget or lose the selection.
     const pathMatches =
-      search.path && selectedHeader?.id === nextEntryId && !search.entryId;
+      search.path &&
+      selectedHeader?.id === nextEntryId &&
+      !search.entryId &&
+      !selection.pinEntryId;
     if (pathMatches) return;
     const staleEntryId = search.entryId;
     if (
@@ -239,22 +354,23 @@ export function MemoryLibraryPage({
     onSearchChange({ entryId: nextEntryId, path: null }, { replace: true });
   }, [
     entries,
-    entriesQuery.isSuccess,
+    workspaceLoaded,
     onSearchChange,
     search.entryId,
     search.path,
     selectedHeader?.id,
+    selection.pinEntryId,
   ]);
 
   useEffect(() => {
-    if (!entriesQuery.isSuccess || initializedTreeRef.current) return;
+    if (!workspaceLoaded || initializedTreeRef.current) return;
     initializedTreeRef.current = true;
     const initial = defaultMemoryWorkspaceExpandedIds(tree);
     for (const id of memoryWorkspaceAncestorIds(tree, selectedEntryId)) {
       initial.add(id);
     }
     setExpandedNodeIds(initial);
-  }, [entriesQuery.isSuccess, selectedEntryId, tree]);
+  }, [workspaceLoaded, selectedEntryId, tree]);
 
   useEffect(() => {
     if (!selectedEntryId) return;
@@ -305,6 +421,11 @@ export function MemoryLibraryPage({
       expectedVersion = draft.baseVersion,
       expectedAggregateRevision = draft.baseAggregateRevision,
     ) => {
+      const header = entries.find((entry) => entry.id === draft.entryId);
+      if (header && isBlankAnimaIdentityDraft(header, draft.content)) {
+        toast.error(BLANK_ANIMA_IDENTITY_MESSAGE);
+        throw new Error(BLANK_ANIMA_IDENTITY_MESSAGE);
+      }
       try {
         const updated = await patchEntry.mutateAsync({
           entryId: draft.entryId,
@@ -344,7 +465,7 @@ export function MemoryLibraryPage({
         throw error;
       }
     },
-    [detailById, patchEntry, selectedEntryId],
+    [detailById, entries, patchEntry, selectedEntryId],
   );
 
   const handleSaveCurrent = async (forceLatestVersion: boolean) => {
@@ -404,7 +525,7 @@ export function MemoryLibraryPage({
       const selectedWasDeleted = Boolean(
         selectedEntryId && affectedIds.has(selectedEntryId),
       );
-      const refreshed = await entriesQuery.refetch();
+      const refreshed = await refreshWorkspace();
       if (selectedWasDeleted) {
         const nextEntryId = refreshed.isError
           ? null
@@ -487,7 +608,7 @@ export function MemoryLibraryPage({
         search.path && selectedBefore
           ? projectMemoryMovePath(selectedBefore.path, source.path, moved.path)
           : null;
-      const refreshed = await entriesQuery.refetch();
+      const refreshed = await refreshWorkspace();
 
       if (refreshed.data && !refreshed.isError) {
         setDrafts((current) =>
@@ -539,7 +660,7 @@ export function MemoryLibraryPage({
         toast.error(`The ${operation} result is uncertain.`, {
           description: `Refreshing before another ${operation} is attempted.`,
         });
-        const refreshed = await entriesQuery.refetch();
+        const refreshed = await refreshWorkspace();
         const refreshedSource = refreshed.isError
           ? null
           : refreshed.data?.entries?.find((entry) => entry.id === source.id);
@@ -601,7 +722,19 @@ export function MemoryLibraryPage({
     parentId?: string | null,
   ) => {
     if (parentId === undefined && creationTarget.disabled) {
-      toast.error("Generated episodes cannot contain user-created files.");
+      toast.error(
+        focusedNode?.kind === "episode-root" ||
+          focusedNode?.kind === "episode-month" ||
+          focusedNode?.kind === "episode-file"
+          ? "Generated episodes cannot contain user-created files."
+          : focusedNode?.kind === "anima-root" ||
+              focusedNode?.kind === "anima-directory" ||
+              (focusedNode &&
+                "entry" in focusedNode &&
+                focusedNode.entry.anima_id)
+            ? "Anima folders only contain each Anima's identity and memories."
+            : "The animas path is reserved for Anima identities.",
+      );
       return;
     }
     setCreateKind(kind);
@@ -609,6 +742,21 @@ export function MemoryLibraryPage({
       parentId === undefined ? creationTarget.parentId : parentId,
     );
     setCreateOpen(true);
+  };
+
+  /** Recreates a missing `MEMORIES.md`; the refreshed listing shows it. */
+  const handleRepairAnimaMemories = async (animaId: string) => {
+    const label =
+      animaFolders.find((folder) => folder.animaId === animaId)?.label ??
+      "This Anima";
+    try {
+      await repairMemories.mutateAsync({ animaId });
+      toast.success(`${label}'s MEMORIES.md was repaired.`);
+    } catch (error) {
+      toast.error(`Failed to repair ${label}'s MEMORIES.md.`, {
+        description: memoryEntryErrorMessage(error),
+      });
+    }
   };
 
   const handleCreated = (entry: PyMemoryEntryResponse) => {
@@ -654,6 +802,40 @@ export function MemoryLibraryPage({
         ? `${entryToDelete.path} is empty and will be permanently removed.`
         : `${entryToDelete.path} and its contents will be permanently removed. This includes ${deletionFileCount} ${deletionFileCount === 1 ? "file" : "files"}${deletionDirectoryCount > 0 ? ` and ${deletionDirectoryCount} nested ${deletionDirectoryCount === 1 ? "directory" : "directories"}` : ""}.`
     : "";
+
+  // Reflect curates the selected Anima's MEMORIES.md, in either work mode.
+  const reflectionFolder = animaFolderForMemoriesEntry(
+    animaFolders,
+    selectedEntryId,
+  );
+
+  /** Shows the Memory Manager and starts the Reflection there. */
+  const startReflection = (target: MemoryManagerReflectionTarget) => {
+    setReflectionToConfirm(null);
+    // The manager may have become busy or gained a pending approval while the
+    // draft confirmation was open, so recheck instead of failing silently.
+    if (!manager.canStartSpecializedRun) {
+      toast.error("Reflection did not start.", {
+        description: manager.specializedRunBlockReason ?? undefined,
+      });
+      return;
+    }
+    if (search.mode === "manager") setMobilePane("work");
+    else handleModeChange("manager");
+    void manager.reflect(target);
+  };
+
+  const handleReflect = () => {
+    if (!reflectionFolder || !manager.canStartSpecializedRun) return;
+    const target = {
+      animaId: reflectionFolder.animaId,
+      animaName: reflectionFolder.label,
+    };
+    // Reflection reads the saved file, so its proposal and an unsaved Manual
+    // draft of the same file would conflict with each other.
+    if (selectedHasDirtyDraft) setReflectionToConfirm(target);
+    else startReflection(target);
+  };
 
   const handleReverted = (entry: PyMemoryEntryResponse) => {
     setDrafts((current) => ({
@@ -707,14 +889,14 @@ export function MemoryLibraryPage({
                   pendingEpisodeCount={pendingEpisodeCount}
                   expandedDirectoryIds={expandedNodeIds}
                   collapsed={explorerCollapsed}
-                  isLoading={entriesQuery.isLoading}
-                  isError={entriesQuery.isError}
+                  isLoading={userEntriesQuery.isLoading}
+                  isError={userEntriesQuery.isError}
                   controls={{
                     query: treeQuery,
-                    isRefreshing: entriesQuery.isFetching,
+                    isRefreshing: workspaceFetching,
                     creationDisabled: creationTarget.disabled,
                     onQueryChange: setTreeQuery,
-                    onRefresh: () => void entriesQuery.refetch(),
+                    onRefresh: () => void refreshWorkspace(),
                     onCreateFile: (parentId) =>
                       openCreateDialog("file", parentId),
                     onCreateDirectory: (parentId) =>
@@ -734,7 +916,15 @@ export function MemoryLibraryPage({
                     void handleMoveEntry(source, destination.id)
                   }
                   onCollapsedChange={setExplorerCollapsed}
-                  onRetry={() => void entriesQuery.refetch()}
+                  onRetry={() => void refreshWorkspace()}
+                  repairingAnimaId={
+                    repairMemories.isPending
+                      ? (repairMemories.variables?.animaId ?? null)
+                      : null
+                  }
+                  onRepairAnimaMemories={(animaId) =>
+                    void handleRepairAnimaMemories(animaId)
+                  }
                 />
               </section>
             }
@@ -746,7 +936,7 @@ export function MemoryLibraryPage({
                   mobilePane === "work" ? "flex" : "hidden",
                 )}
               >
-                <div className="border-border/40 flex min-h-12 shrink-0 items-center border-b px-3 py-2">
+                <div className="border-border/40 flex min-h-12 shrink-0 items-center gap-2 border-b px-3 py-2">
                   <Tabs
                     value={search.mode}
                     onValueChange={(value) =>
@@ -759,6 +949,25 @@ export function MemoryLibraryPage({
                       <TabsTrigger value="manager">Memory Manager</TabsTrigger>
                     </TabsList>
                   </Tabs>
+                  {reflectionFolder ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      aria-label={`Reflect on ${reflectionFolder.label}'s memories`}
+                      title={`Reflect on ${reflectionFolder.label}'s memories`}
+                      disabled={!manager.canStartSpecializedRun}
+                      onClick={handleReflect}
+                    >
+                      {manager.isReflecting ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Sparkles className="size-4" />
+                      )}
+                      Reflect
+                    </Button>
+                  ) : null}
                 </div>
                 <div className="flex min-h-0 flex-1 overflow-hidden">
                   {search.mode === "manual" ? (
@@ -798,6 +1007,11 @@ export function MemoryLibraryPage({
               >
                 <MemoryWorkspacePreview
                   entry={selectedEntry}
+                  displayPath={
+                    selectedEntry
+                      ? workspacePathById.get(selectedEntry.id)
+                      : undefined
+                  }
                   value={previewValue}
                   description={previewDescription}
                   isLoading={selectedLoading}
@@ -903,6 +1117,38 @@ export function MemoryLibraryPage({
                 <Loader2 className="size-4 animate-spin" />
               ) : null}
               Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={reflectionToConfirm !== null}
+        onOpenChange={(open) => !open && setReflectionToConfirm(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reflect with an unsaved draft?</DialogTitle>
+            <DialogDescription>
+              Reflection reads the last saved version of{" "}
+              {reflectionToConfirm?.animaName}&apos;s MEMORIES.md and ignores
+              your unsaved Manual draft. The draft stays open, but once either
+              it or a Reflection proposal is saved, the other will conflict.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setReflectionToConfirm(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() =>
+                reflectionToConfirm && startReflection(reflectionToConfirm)
+              }
+            >
+              Reflect anyway
             </Button>
           </DialogFooter>
         </DialogContent>

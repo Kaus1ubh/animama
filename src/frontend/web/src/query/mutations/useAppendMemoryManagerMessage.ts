@@ -10,7 +10,10 @@ import type {
 import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
-import { publishMemoryManagerSnapshot } from "@/query/mutations/memoryManagerMutationCache";
+import {
+  invalidateApprovedIdentityDefinitions,
+  publishMemoryManagerSnapshot,
+} from "@/query/mutations/memoryManagerMutationCache";
 
 export type AppendMemoryManagerMessageArgs = {
   runId: string;
@@ -47,6 +50,11 @@ export function useAppendMemoryManagerMessage() {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.memoryEntries.all(userKey),
         });
+        void invalidateApprovedIdentityDefinitions(
+          queryClient,
+          userKey,
+          snapshot.approvals ?? [],
+        );
       }
     },
   });

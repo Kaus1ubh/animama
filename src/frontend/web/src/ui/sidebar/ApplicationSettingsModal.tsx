@@ -7,10 +7,24 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Info, Keyboard } from "lucide-react";
+import {
+  AudioLines,
+  Brain,
+  Database,
+  Info,
+  Keyboard,
+  KeyRound,
+  LifeBuoy,
+  Palette,
+  Settings2,
+  SlidersHorizontal,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
+import { SafetySettingsSection } from "@/ui/settings/SafetySettingsSection";
 
 import {
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
@@ -19,6 +33,7 @@ import {
   ELEVENLABS_TTS_MODEL_OPTIONS,
   ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS,
   isElevenLabsFinalizedTtsModelId,
+  isParakeetWebgpuPreferred,
   mergePreferences,
   resolveElevenLabsV3FinalizedChunking,
   toElevenLabsTtsModelId,
@@ -39,6 +54,37 @@ import {
   type DesktopShortcutAction,
   type DesktopShortcutMap,
 } from "@/lib/settings/desktop-shortcuts";
+import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
+import {
+  APPEARANCE_COLOR_GROUP_LABELS,
+  APPEARANCE_COLOR_TOKENS,
+} from "@/lib/theme/appearance-overrides";
+import { BEHAVIOR_FLAGS } from "@/lib/settings/behavior-defaults";
+import {
+  AboutVersionSetting,
+  CopyDiagnosticsSetting,
+  OpenLogsSetting,
+} from "@/ui/settings/AboutSettings";
+import {
+  AppBehaviorSetting,
+  behaviorLabel,
+  ResetAppSettingsSetting,
+} from "@/ui/settings/BehaviorDataSettings";
+import {
+  DefaultAnimaSetting,
+  DefaultChatModelSetting,
+} from "@/ui/settings/GeneralDefaultsSettings";
+import {
+  MicrophoneDeviceSetting,
+  MicrophoneSensitivitySetting,
+  MicrophoneTestSetting,
+} from "@/ui/settings/MicrophoneSettings";
+import {
+  AdvancedColorsToggleSetting,
+  AppearanceColorSetting,
+  ResetColorsSetting,
+  AppearanceModeSetting,
+} from "@/ui/settings/AppearanceSettings";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { useModelProviders } from "@/query/hooks/useModelProviders";
 import {
@@ -65,9 +111,28 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { useSettings } from "@/ui/settings/SettingsProvider";
-import { DesktopCredentialsPanel } from "@/ui/settings/DesktopCredentialsPanel";
+import {
+  DesktopCredentialsPanel,
+  useDesktopCredentialsAvailable,
+} from "@/ui/settings/DesktopCredentialsPanel";
 import { DesktopFeaturePacksPanel } from "@/ui/settings/DesktopFeaturePacksPanel";
 import { DesktopUpdatesPanel } from "@/ui/settings/DesktopUpdatesPanel";
+import { ParakeetWebgpuDetails } from "@/ui/settings/ExperimentalSettings";
+import {
+  getSttSettingsOptions,
+  getSttSettingsPreference,
+  getSttSettingsSelection,
+} from "@/lib/speech/stt-settings";
+import {
+  FLAT_SETTINGS_PANEL_CLASS_NAME,
+  SettingsGroup,
+  SettingsRow,
+} from "@/ui/settings/SettingsLayout";
+import { SettingsSearch } from "@/ui/settings/SettingsSearch";
+import {
+  availableSettingsSections,
+  type SettingsSearchEntry,
+} from "@/ui/settings/settings-search";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
 import {
@@ -108,41 +173,142 @@ function ShortcutRecorder({
   onKeyDown,
 }: ShortcutRecorderProps) {
   return (
-    <div className="border-border/70 bg-background/50 grid gap-3 rounded-lg border px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-      <div className="min-w-0">
-        <p className="text-foreground text-sm font-medium">{label}</p>
-        {description ? (
-          <p className="text-muted-foreground text-xs">{description}</p>
-        ) : null}
-      </div>
-      <Button
-        type="button"
-        variant={isRecording ? "default" : "outline"}
-        className={cn(
-          "min-h-9 min-w-36 justify-center font-mono text-xs",
-          isRecording ? "animate-pulse" : "",
-        )}
-        disabled={disabled}
-        onClick={onStartRecording}
-        onBlur={() => {
-          if (isRecording) onCancelRecording();
-        }}
-        onKeyDown={onKeyDown}
-        aria-label={`Record ${label} shortcut`}
-      >
-        <Keyboard className="h-3.5 w-3.5" />
-        {isRecording
-          ? allowMouseShortcut
-            ? "Press keys or mouse"
-            : "Press keys"
-          : formatDesktopShortcut(shortcut)}
-      </Button>
-    </div>
+    <SettingsRow
+      label={label}
+      description={description}
+      control={
+        <Button
+          type="button"
+          variant={isRecording ? "default" : "outline"}
+          className={cn(
+            "min-h-9 min-w-36 justify-center font-mono text-xs",
+            isRecording ? "animate-pulse" : "",
+          )}
+          disabled={disabled}
+          onClick={onStartRecording}
+          onBlur={() => {
+            if (isRecording) onCancelRecording();
+          }}
+          onKeyDown={onKeyDown}
+          aria-label={`Record ${label} shortcut`}
+        >
+          <Keyboard className="h-3.5 w-3.5" />
+          {isRecording
+            ? allowMouseShortcut
+              ? "Press keys or mouse"
+              : "Press keys"
+            : formatDesktopShortcut(shortcut)}
+        </Button>
+      }
+    />
   );
 }
 
-const sections = ["General", "Voice", "Memory", "Advanced"] as const;
+const sections = [
+  "General",
+  "Appearance",
+  "Voice",
+  "Shortcuts",
+  "Memory & Emotion",
+  "Safety",
+  "API Keys",
+  "Data",
+  "Advanced",
+  "About",
+] as const;
 type ApplicationSettingsSection = (typeof sections)[number];
+
+/**
+ * One searchable setting. Consecutive entries sharing a `group` render inside
+ * one SettingsGroup; entries without a group render a self-titled panel.
+ */
+type SettingEntry = SettingsSearchEntry<ApplicationSettingsSection> & {
+  id: string;
+  /** Hidden entries are neither rendered nor searchable (e.g. unavailable sub-options). */
+  hidden?: boolean;
+  /** Collapsed entries stay searchable but render only while expanded. */
+  collapsed?: boolean;
+  render: () => ReactNode;
+};
+
+const SECTION_ICONS: Record<ApplicationSettingsSection, LucideIcon> = {
+  General: Settings2,
+  Appearance: Palette,
+  Voice: AudioLines,
+  Shortcuts: Keyboard,
+  "Memory & Emotion": Brain,
+  Safety: LifeBuoy,
+  "API Keys": KeyRound,
+  Data: Database,
+  Advanced: SlidersHorizontal,
+  About: Info,
+};
+
+/** Delay before a search-revealed setting's highlight fades. */
+const REVEAL_HIGHLIGHT_MS = 1600;
+
+const GROUP_DESCRIPTIONS: Record<string, string> = {
+  "Desktop shortcuts": "Press to talk also supports a mouse button.",
+};
+
+const SELECT_TRIGGER_CLASS_NAME = "w-56";
+
+/** Render entries in order, merging consecutive same-group entries into one group. */
+function renderSettingEntries(
+  entries: readonly SettingEntry[],
+  highlightedEntryId: string | null,
+  section: ApplicationSettingsSection,
+): ReactNode {
+  // The wrapper is the search reveal target; it stays a direct child of the
+  // group's divider list so row separators are unchanged.
+  const renderItem = (item: SettingEntry) => (
+    <div
+      key={item.id}
+      data-setting-id={item.id}
+      className={cn(
+        // empty:hidden collapses panels that render nothing in this runtime.
+        "-mx-3 rounded-lg px-3 empty:hidden motion-safe:transition-colors motion-safe:duration-700",
+        highlightedEntryId === item.id && "bg-primary/10",
+      )}
+    >
+      {item.render()}
+    </div>
+  );
+  // Theme controls form one continuous list, including expanded colours.
+  if (section === "Appearance") {
+    return <SettingsGroup>{entries.map(renderItem)}</SettingsGroup>;
+  }
+
+  const blocks: Array<{ key: string; group?: string; items: SettingEntry[] }> =
+    [];
+  for (const entry of entries) {
+    const previous = blocks.at(-1);
+    if (entry.group && previous?.group === entry.group) {
+      previous.items.push(entry);
+    } else {
+      blocks.push({ key: entry.id, group: entry.group, items: [entry] });
+    }
+  }
+  return (
+    <div className="[&>*:not(:first-child)]:border-border/40 flex flex-col [&>*:not(:first-child)]:mt-6 [&>*:not(:first-child)]:border-t [&>*:not(:first-child)]:pt-6">
+      {blocks.map((block) =>
+        block.group ? (
+          <SettingsGroup
+            key={block.key}
+            title={
+              block.group === "Defaults for Animas" ? undefined : block.group
+            }
+            description={GROUP_DESCRIPTIONS[block.group]}
+          >
+            {block.items.map(renderItem)}
+          </SettingsGroup>
+        ) : (
+          renderItem(block.items[0]!)
+        ),
+      )}
+    </div>
+  );
+}
 
 const OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent";
 const SYSTEM_MEMORY_MANAGER_MODEL = "__system_default__";
@@ -192,6 +358,9 @@ export function ApplicationSettingsModal({
   );
   const [selectedSttProvider, setSelectedSttProvider] =
     useState<SttProvider | null>(null);
+  const [parakeetWebgpuPreferred, setParakeetWebgpuPreferred] = useState(
+    isParakeetWebgpuPreferred(resolvedUserPreferences),
+  );
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [ttsStreamChunks, setTtsStreamChunks] = useState(true);
   const [selectedTtsProvider, setSelectedTtsProvider] =
@@ -213,6 +382,15 @@ export function ApplicationSettingsModal({
     useState(false);
   const [activeSection, setActiveSection] =
     useState<ApplicationSettingsSection>("General");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [advancedColorsOpen, setAdvancedColorsOpen] = useState(false);
+  const [revealRequest, setRevealRequest] = useState<{
+    id: string;
+    nonce: number;
+  } | null>(null);
+  const [highlightedEntryId, setHighlightedEntryId] = useState<string | null>(
+    null,
+  );
   const [isInitializing, setIsInitializing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const runtimeCapabilities = useRuntimeCapabilities();
@@ -239,6 +417,12 @@ export function ApplicationSettingsModal({
   const savedSttProvider = toSttProvider(
     resolvedUserPreferences?.speech?.stt_provider,
   );
+  const savedParakeetWebgpuPreferred = isParakeetWebgpuPreferred(
+    resolvedUserPreferences,
+  );
+  useEffect(() => {
+    setParakeetWebgpuPreferred(savedParakeetWebgpuPreferred);
+  }, [savedParakeetWebgpuPreferred]);
   const savedTtsProvider = toTtsProvider(
     resolvedUserPreferences?.speech?.tts_provider,
   );
@@ -350,6 +534,10 @@ export function ApplicationSettingsModal({
     setRecordingShortcutAction(null);
     setAvatarTransformControlsEnabled(savedAvatarTransformControlsEnabled);
     setActiveSection("General");
+    setSearchQuery("");
+    setAdvancedColorsOpen(false);
+    setRevealRequest(null);
+    setHighlightedEntryId(null);
   }, [
     savedAvatarTransformControlsEnabled,
     open,
@@ -450,8 +638,38 @@ export function ApplicationSettingsModal({
     };
   }, [open, platform]);
 
+  // After a search selection renders its section, scroll the setting into
+  // view, move focus to its control and briefly highlight the row.
+  useEffect(() => {
+    if (!revealRequest) return;
+    const target = document.querySelector<HTMLElement>(
+      `[data-setting-id="${revealRequest.id}"]`,
+    );
+    if (!target) return;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    target.scrollIntoView({
+      block: "center",
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+    const control =
+      target.querySelector<HTMLElement>(
+        // Prefer visible controls over the transparent native colour picker.
+        '[role="switch"]:not(:disabled), [role="combobox"]:not(:disabled), input:not(:disabled):not([type="color"])',
+      ) ?? target.querySelector<HTMLElement>("button:not(:disabled)");
+    control?.focus({ preventScroll: true });
+    setHighlightedEntryId(revealRequest.id);
+    const timer = window.setTimeout(
+      () => setHighlightedEntryId(null),
+      REVEAL_HIGHLIGHT_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [revealRequest]);
+
   const sttProviderOptions = useMemo(
-    () => getSttProviderOptions(parakeetAvailable, platform),
+    () =>
+      getSttSettingsOptions(getSttProviderOptions(parakeetAvailable, platform)),
     [parakeetAvailable, platform],
   );
   const ttsProviderOptions = useMemo(
@@ -459,8 +677,12 @@ export function ApplicationSettingsModal({
     [platform],
   );
 
+  const selectedSttOption = getSttSettingsSelection(
+    selectedSttProvider,
+    parakeetWebgpuPreferred,
+  );
   const currentSttOption = sttProviderOptions.find(
-    (option) => option.id === selectedSttProvider,
+    (option) => option.id === selectedSttOption,
   );
   const currentTtsOption = ttsProviderOptions.find(
     (option) => option.id === selectedTtsProvider,
@@ -482,10 +704,11 @@ export function ApplicationSettingsModal({
 
   const handleSttProviderChange = useCallback(
     (value: string) => {
-      const nextProvider = toSttProvider(value);
-      if (!nextProvider || isSaving || isInitializing) return;
+      const nextSpeech = getSttSettingsPreference(value);
+      if (!nextSpeech || isSaving || isInitializing) return;
+      const nextProvider = nextSpeech.stt_provider;
       const nextOption = sttProviderOptions.find(
-        (option) => option.id === nextProvider,
+        (option) => option.id === value,
       );
       if (!nextOption || nextOption.disabled) {
         if (nextOption?.reason) {
@@ -494,14 +717,17 @@ export function ApplicationSettingsModal({
         return;
       }
       const previousProvider = selectedSttProvider;
+      const previousWebgpu = parakeetWebgpuPreferred;
       setSelectedSttProvider(nextProvider);
+      setParakeetWebgpuPreferred(
+        nextSpeech.stt_parakeet_webgpu ?? previousWebgpu,
+      );
       setIsSaving(true);
 
-      void updateUserPreferences({
-        speech: { stt_provider: nextProvider },
-      })
+      void updateUserPreferences({ speech: nextSpeech })
         .catch(() => {
           setSelectedSttProvider(previousProvider);
+          setParakeetWebgpuPreferred(previousWebgpu);
           toast.error("Failed to update STT provider.");
         })
         .finally(() => setIsSaving(false));
@@ -510,6 +736,7 @@ export function ApplicationSettingsModal({
       isInitializing,
       isSaving,
       selectedSttProvider,
+      parakeetWebgpuPreferred,
       sttProviderOptions,
       updateUserPreferences,
     ],
@@ -885,7 +1112,654 @@ export function ApplicationSettingsModal({
   );
 
   const isBusy = isSaving || isInitializing;
+  // The updates panel renders nothing while updates are unavailable (browser,
+  // unpackaged or unsupported desktop), so its entry is hidden then too.
+  const desktopUpdates = useDesktopUpdates();
+  const credentialsAvailable = useDesktopCredentialsAvailable();
+  const desktopShortcutsAvailable =
+    platform.isDesktop && Boolean(platform.desktopBridge.shortcuts);
   const isAudioBusy = isBusy;
+
+  const settingEntries: SettingEntry[] = [
+    {
+      id: "display-name",
+      section: "General",
+      group: "Profile",
+      label: "Display name",
+      keywords: ["name", "user", "profile"],
+      render: () => (
+        <DisplayNameSettings
+          className={cn(FLAT_SETTINGS_PANEL_CLASS_NAME, "py-3")}
+        />
+      ),
+    },
+    {
+      id: "default-anima",
+      section: "General",
+      group: "Defaults",
+      label: "Default Anima",
+      keywords: ["startup", "open", "pinned", "last opened"],
+      render: () => <DefaultAnimaSetting disabled={isBusy} />,
+    },
+    {
+      id: "default-chat-model",
+      section: "General",
+      group: "Defaults",
+      label: "Default chat model",
+      keywords: ["model", "llm", "new anima", "openai", "provider"],
+      render: () => <DefaultChatModelSetting disabled={isBusy} />,
+    },
+    {
+      id: "volume",
+      section: "General",
+      group: "Audio",
+      label: "Volume",
+      keywords: ["sound", "mute", "tts", "sfx", "sound effects"],
+      render: () => (
+        <AudioVolumePanel
+          disabled={isAudioBusy}
+          showTitle={false}
+          className="py-3"
+          volumeCardClassName={FLAT_SETTINGS_PANEL_CLASS_NAME}
+        />
+      ),
+    },
+    {
+      id: "provider-keys",
+      section: "API Keys",
+      label: "API keys",
+      keywords: [
+        "api key",
+        "credentials",
+        "openai",
+        "deepseek",
+        "hugging face",
+        "gemini",
+        "elevenlabs",
+      ],
+      hidden: !credentialsAvailable,
+      render: () => (
+        <DesktopCredentialsPanel
+          className={FLAT_SETTINGS_PANEL_CLASS_NAME}
+          showTitle={false}
+        />
+      ),
+    },
+    {
+      id: "feature-packs",
+      section: "General",
+      label: "Optional feature packs",
+      keywords: [
+        "offline speech",
+        "parakeet",
+        "document processing",
+        "included content",
+        "download",
+      ],
+      hidden: !platform.isDesktop,
+      render: () => (
+        <DesktopFeaturePacksPanel className={FLAT_SETTINGS_PANEL_CLASS_NAME} />
+      ),
+    },
+    {
+      id: "about-version",
+      section: "About",
+      group: "Animama",
+      label: "Version",
+      keywords: ["about", "version", "platform", "build"],
+      render: () => <AboutVersionSetting />,
+    },
+    {
+      id: "updates",
+      section: "About",
+      label: "Desktop updates",
+      keywords: ["update", "version", "upgrade", "restart"],
+      hidden: desktopUpdates.status.state === "unavailable",
+      render: () => (
+        <DesktopUpdatesPanel className={FLAT_SETTINGS_PANEL_CLASS_NAME} />
+      ),
+    },
+    {
+      id: "open-logs",
+      section: "About",
+      group: "Diagnostics",
+      label: "Open logs folder",
+      keywords: ["logs", "troubleshooting", "debug", "support"],
+      hidden: !platform.isDesktop || !platform.desktopBridge.runtime,
+      render: () => <OpenLogsSetting />,
+    },
+    {
+      id: "copy-diagnostics",
+      section: "About",
+      group: "Diagnostics",
+      label: "Copy diagnostics summary",
+      keywords: ["diagnostics", "bug report", "support", "troubleshooting"],
+      render: () => <CopyDiagnosticsSetting />,
+    },
+    {
+      id: "appearance-mode",
+      section: "Appearance",
+      group: "Theme",
+      label: "Theme",
+      keywords: ["theme", "mode", "dark", "light", "system", "dark mode"],
+      render: () => <AppearanceModeSetting />,
+    },
+    ...APPEARANCE_COLOR_TOKENS.filter((token) => token.group === "basic").map(
+      (token): SettingEntry => ({
+        id: `appearance-${token.key}`,
+        section: "Appearance",
+        group: APPEARANCE_COLOR_GROUP_LABELS.basic,
+        label: `${token.label} colour`,
+        keywords: ["theme", "color", "colour", "override", "hex"],
+        render: () => <AppearanceColorSetting token={token} />,
+      }),
+    ),
+    {
+      id: "appearance-reset-colours",
+      section: "Appearance",
+      group: APPEARANCE_COLOR_GROUP_LABELS.basic,
+      label: "Reset colours",
+      keywords: ["theme", "color", "colour", "reset", "default"],
+      render: () => <ResetColorsSetting />,
+    },
+    {
+      id: "appearance-advanced-toggle",
+      section: "Appearance",
+      label: "Advanced colours",
+      keywords: ["theme", "color", "colour", "custom", "advanced"],
+      render: () => (
+        <AdvancedColorsToggleSetting
+          open={advancedColorsOpen}
+          onToggle={() => setAdvancedColorsOpen((value) => !value)}
+        />
+      ),
+    },
+    ...APPEARANCE_COLOR_TOKENS.filter((token) => token.group !== "basic").map(
+      (token): SettingEntry => ({
+        id: `appearance-${token.key}`,
+        section: "Appearance",
+        group: `Advanced · ${APPEARANCE_COLOR_GROUP_LABELS[token.group]}`,
+        label: `${token.label} colour`,
+        keywords: ["theme", "color", "colour", "advanced", "hex"],
+        collapsed: true,
+        render: () => <AppearanceColorSetting token={token} />,
+      }),
+    ),
+    {
+      id: "microphone-device",
+      section: "Voice",
+      group: "Microphone",
+      label: "Microphone input device",
+      keywords: ["mic", "microphone", "input", "device", "headset", "usb"],
+      render: () => (
+        <MicrophoneDeviceSetting
+          usesSystemRecognizer={
+            selectedSttProvider === "browser_external" ||
+            selectedSttProvider === "browser_local"
+          }
+        />
+      ),
+    },
+    {
+      id: "microphone-sensitivity",
+      section: "Voice",
+      group: "Microphone",
+      label: "Microphone sensitivity",
+      keywords: ["mic", "voice detection", "vad", "noise", "quiet"],
+      render: () => <MicrophoneSensitivitySetting disabled={isBusy} />,
+    },
+    {
+      id: "microphone-test",
+      section: "Voice",
+      group: "Microphone",
+      label: "Test microphone",
+      keywords: ["mic", "level", "meter", "input level"],
+      render: () => <MicrophoneTestSetting />,
+    },
+    {
+      id: "stt-provider",
+      section: "Voice",
+      group: "Speech-to-Text",
+      label: "Speech-to-Text provider",
+      description: currentSttOption?.description,
+      keywords: [
+        "stt",
+        "dictation",
+        "microphone",
+        "transcription",
+        "parakeet",
+        "voice mode",
+        "cpu",
+        "gpu",
+        "webgpu",
+        "experimental",
+        "live previews",
+      ],
+      render: () => (
+        <SettingsRow
+          label="Provider"
+          description={currentSttOption?.description}
+          control={
+            <Select
+              value={selectedSttOption}
+              onValueChange={handleSttProviderChange}
+              disabled={isBusy}
+            >
+              <SelectTrigger
+                className={SELECT_TRIGGER_CLASS_NAME}
+                aria-label="Speech-to-Text provider"
+              >
+                <SelectValue placeholder="Select provider">
+                  {selectedSttOption === "parakeet_webgpu"
+                    ? "Parakeet (WebGPU)"
+                    : currentSttOption?.label}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {sttProviderOptions.map((option) => (
+                  <SelectItem
+                    key={option.id}
+                    value={option.id}
+                    disabled={option.disabled}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        >
+          {currentSttOption?.reason ? (
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              {currentSttOption.reason}
+            </p>
+          ) : null}
+          <ParakeetWebgpuDetails
+            selected={selectedSttOption === "parakeet_webgpu"}
+          />
+          {parakeetAvailable === false ? (
+            <DesktopFeaturePacksPanel
+              only="parakeet-stt"
+              className="bg-muted/20 rounded-lg border-0 p-4"
+            />
+          ) : null}
+          {isInitializing ? (
+            <p className="text-muted-foreground text-xs">
+              Preparing provider defaults...
+            </p>
+          ) : null}
+        </SettingsRow>
+      ),
+    },
+    {
+      id: "tts-enabled",
+      section: "Voice",
+      group: "Text-to-Speech",
+      label: "Enable Text-to-Speech",
+      keywords: ["tts", "text-to-speech", "speak", "voice output"],
+      render: () => (
+        <SettingsRow
+          label="Enable Text-to-Speech"
+          control={
+            <Switch
+              checked={ttsEnabled}
+              onCheckedChange={handleTtsEnabledChange}
+              disabled={isBusy}
+              aria-label="Enable Text-to-Speech"
+            />
+          }
+        />
+      ),
+    },
+    {
+      id: "tts-stream",
+      section: "Voice",
+      group: "Text-to-Speech",
+      label: "Stream chunked Text-to-Speech",
+      description: "Start speaking before the full response is ready.",
+      keywords: ["tts", "streaming", "latency"],
+      render: () => (
+        <SettingsRow
+          label="Stream chunked Text-to-Speech"
+          description={
+            selectedElevenLabsModelIsFinalized
+              ? "Unavailable with Eleven v3."
+              : "Start speaking before the full response is ready."
+          }
+          control={
+            <Switch
+              checked={
+                selectedElevenLabsModelIsFinalized ? false : ttsStreamChunks
+              }
+              onCheckedChange={handleTtsStreamChunksChange}
+              disabled={
+                isBusy || !ttsEnabled || selectedElevenLabsModelIsFinalized
+              }
+              aria-label="Stream chunked Text-to-Speech"
+            />
+          }
+        />
+      ),
+    },
+    {
+      id: "tts-provider",
+      section: "Voice",
+      group: "Text-to-Speech",
+      label: "Text-to-Speech provider",
+      keywords: ["tts", "text-to-speech", "pocket", "elevenlabs", "voice"],
+      render: () => (
+        <SettingsRow
+          label="Provider"
+          description={
+            !ttsEnabled
+              ? "Enable Text-to-Speech to select a provider."
+              : currentTtsOption?.description
+          }
+          control={
+            <Select
+              value={selectedTtsProvider ?? undefined}
+              onValueChange={handleTtsProviderChange}
+              disabled={isBusy || !ttsEnabled}
+            >
+              <SelectTrigger
+                className={SELECT_TRIGGER_CLASS_NAME}
+                aria-label="Text-to-Speech provider"
+              >
+                <SelectValue placeholder="Select provider" />
+              </SelectTrigger>
+              <SelectContent>
+                {ttsProviderOptions.map((option) => (
+                  <SelectItem
+                    key={option.id}
+                    value={option.id}
+                    disabled={option.disabled}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        >
+          {currentTtsOption?.reason && ttsEnabled ? (
+            <p className="text-xs text-amber-600 dark:text-amber-500">
+              {currentTtsOption.reason}
+            </p>
+          ) : null}
+          {ttsEnabled && selectedTtsProvider === "pocket_tts" ? (
+            <p className="text-muted-foreground text-xs">
+              Choose a Pocket voice in Anima Settings.
+            </p>
+          ) : null}
+        </SettingsRow>
+      ),
+    },
+    {
+      id: "elevenlabs-model",
+      section: "Voice",
+      group: "Text-to-Speech",
+      label: "ElevenLabs model",
+      keywords: ["tts", "eleven v3", "flash", "turbo"],
+      hidden: !ttsEnabled || selectedTtsProvider !== "elevenlabs",
+      render: () => (
+        <SettingsRow
+          label="ElevenLabs model"
+          description={currentElevenLabsModelOption?.description}
+          control={
+            <Select
+              value={selectedElevenLabsModelId}
+              onValueChange={handleElevenLabsModelChange}
+              disabled={isBusy}
+            >
+              <SelectTrigger
+                className={SELECT_TRIGGER_CLASS_NAME}
+                aria-label="ElevenLabs model"
+              >
+                <SelectValue placeholder="Select model" />
+              </SelectTrigger>
+              <SelectContent>
+                {ELEVENLABS_TTS_MODEL_OPTIONS.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        />
+      ),
+    },
+    {
+      id: "elevenlabs-audio-grouping",
+      section: "Voice",
+      group: "Text-to-Speech",
+      label: "Audio grouping",
+      keywords: ["tts", "elevenlabs", "eleven v3", "chunking", "sentence"],
+      hidden: !ttsEnabled || !selectedElevenLabsModelIsFinalized,
+      render: () => (
+        <SettingsRow
+          label="Audio grouping"
+          description={
+            currentElevenLabsV3FinalizedChunkingOption?.description ??
+            "Sentence grouping starts fastest."
+          }
+          control={
+            <Select
+              value={selectedElevenLabsV3FinalizedChunking}
+              onValueChange={handleElevenLabsV3FinalizedChunkingChange}
+              disabled={isBusy}
+            >
+              <SelectTrigger
+                className={SELECT_TRIGGER_CLASS_NAME}
+                aria-label="Eleven v3 audio grouping"
+              >
+                <SelectValue placeholder="Select grouping" />
+              </SelectTrigger>
+              <SelectContent>
+                {ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        />
+      ),
+    },
+    ...shortcutRows.map(
+      (row): SettingEntry => ({
+        id: `shortcut-${row.action}`,
+        section: "Shortcuts",
+        group: "Desktop shortcuts",
+        label: DESKTOP_SHORTCUT_ACTION_LABELS[row.action],
+        description: row.description,
+        keywords: ["shortcut", "hotkey", "keyboard", "key binding"],
+        hidden: !desktopShortcutsAvailable,
+        render: () => (
+          <ShortcutRecorder
+            label={DESKTOP_SHORTCUT_ACTION_LABELS[row.action]}
+            description={row.description}
+            shortcut={desktopShortcuts[row.action]}
+            isRecording={recordingShortcutAction === row.action}
+            disabled={isBusy}
+            allowMouseShortcut={row.allowMouseShortcut === true}
+            onStartRecording={() => handleShortcutRecordingStart(row.action)}
+            onCancelRecording={() => setRecordingShortcutAction(null)}
+            onKeyDown={(event) => handleShortcutKeyDown(row.action, event)}
+          />
+        ),
+      }),
+    ),
+    ...BEHAVIOR_FLAGS.map(
+      (flag): SettingEntry => ({
+        id: `behavior-${flag}`,
+        section: "Memory & Emotion",
+        group: "Defaults for Animas",
+        label: behaviorLabel(flag),
+        keywords: ["memory", "emotion", "default", "inherit", "anima settings"],
+        render: () => <AppBehaviorSetting flag={flag} disabled={isBusy} />,
+      }),
+    ),
+    {
+      id: "memory-manager-model",
+      section: "Memory & Emotion",
+      group: "Memory Manager",
+      label: "Memory Manager model",
+      keywords: ["openai", "responses", "llm"],
+      render: () => (
+        <SettingsRow
+          label="Model"
+          control={
+            <Select
+              value={savedMemoryManagerModel ?? SYSTEM_MEMORY_MANAGER_MODEL}
+              onValueChange={handleMemoryManagerModelChange}
+              disabled={isBusy}
+            >
+              <SelectTrigger
+                className={SELECT_TRIGGER_CLASS_NAME}
+                aria-label="Memory Manager model"
+              >
+                <SelectValue placeholder="Select model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={SYSTEM_MEMORY_MANAGER_MODEL}>
+                  System default
+                </SelectItem>
+                {savedMemoryManagerModel && !currentMemoryManagerModel ? (
+                  <SelectItem value={savedMemoryManagerModel} disabled>
+                    {savedMemoryManagerModel} (unavailable)
+                  </SelectItem>
+                ) : null}
+                {memoryManagerModels.map((provider) => (
+                  <SelectItem key={provider.id} value={provider.model}>
+                    {provider.model_label ?? provider.model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        >
+          {modelProviders.isLoading ? (
+            <p className="text-muted-foreground text-xs">
+              Loading OpenAI Responses models...
+            </p>
+          ) : null}
+          {modelProviders.isError ? (
+            <p className="text-destructive text-xs">
+              OpenAI Responses models could not be loaded.
+            </p>
+          ) : null}
+        </SettingsRow>
+      ),
+    },
+    {
+      id: "safety",
+      section: "Safety",
+      label: "Crisis resources region and AI reminder",
+      keywords: [
+        "safety",
+        "crisis",
+        "help",
+        "hotline",
+        "988",
+        "region",
+        "reminder",
+        "ai notice",
+        "protocol",
+      ],
+      render: () => (
+        <SafetySettingsSection
+          safety={resolvedUserPreferences.safety}
+          updateUserPreferences={updateUserPreferences}
+          disabled={isBusy}
+        />
+      ),
+    },
+    {
+      id: "reset-app-settings",
+      section: "Data",
+      group: "App data",
+      label: "Reset app settings",
+      keywords: ["reset", "defaults", "restore", "clear"],
+      // Close so controls holding local copies reload the restored values.
+      render: () => (
+        <ResetAppSettingsSetting onReset={() => onOpenChange(false)} />
+      ),
+    },
+    {
+      id: "chat-markdown",
+      section: "Advanced",
+      group: "Messages",
+      label: "Render assistant Markdown",
+      keywords: ["chat", "formatting"],
+      render: () => (
+        <SettingsRow
+          label="Render assistant Markdown"
+          control={
+            <Switch
+              checked={chatMarkdownEnabled}
+              onCheckedChange={setChatMarkdownEnabled}
+              aria-label="Render assistant Markdown"
+            />
+          }
+        />
+      ),
+    },
+    {
+      id: "avatar-transform-controls",
+      section: "Advanced",
+      group: "Avatar controls",
+      label: "Enable avatar transform controls",
+      keywords: ["move", "rotate", "scale", "orbit", "zoom", "camera"],
+      render: () => (
+        <SettingsRow
+          label={
+            <span className="flex items-center gap-2">
+              Enable avatar transform controls
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex h-5 w-5 items-center justify-center rounded-full transition focus-visible:ring-2 focus-visible:outline-none"
+                    aria-label="Avatar transform controls help"
+                  >
+                    <Info className="h-3.5 w-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" sideOffset={6} className="max-w-xs">
+                  {AVATAR_TRANSFORM_CONTROLS_TOOLTIP}
+                </TooltipContent>
+              </Tooltip>
+            </span>
+          }
+          control={
+            <Switch
+              checked={avatarTransformControlsEnabled}
+              onCheckedChange={handleAvatarTransformControlsChange}
+              disabled={isBusy}
+              aria-label="Enable avatar transform controls"
+            />
+          }
+        />
+      ),
+    },
+  ];
+
+  const visibleEntries = settingEntries.filter((entry) => !entry.hidden);
+  // Sections without any available setting (e.g. About in a browser before it
+  // gains browser-visible rows) are left out of navigation and search.
+  const availableSections = availableSettingsSections(sections, visibleEntries);
+  const shownSection = availableSections.includes(activeSection)
+    ? activeSection
+    : (availableSections[0] ?? "General");
+
+  /** Dropdown selection: open the entry's section, then reveal and focus it. */
+  const handleSearchSelectEntry = (entry: SettingEntry) => {
+    if (entry.collapsed) setAdvancedColorsOpen(true);
+    setActiveSection(entry.section);
+    setRevealRequest({ id: entry.id, nonce: Date.now() });
+  };
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -897,382 +1771,41 @@ export function ApplicationSettingsModal({
           closeLabel="Close App Settings"
           sidebarLabel="Application"
           sidebarTitle="App Settings"
-          sections={sections}
-          activeSection={activeSection}
+          sections={availableSections}
+          sectionIcons={SECTION_ICONS}
+          activeSection={shownSection}
           onSectionChange={setActiveSection}
-          headerTitle={activeSection}
-          gridClassName="md:grid-cols-[220px_minmax(0,1fr)]"
-          contentClassName="gap-5"
+          avoidSidebar
+          sidebarHeader={
+            <SettingsSearch
+              query={searchQuery}
+              onQueryChange={setSearchQuery}
+              entries={visibleEntries}
+              sections={availableSections}
+              sectionIcons={SECTION_ICONS}
+              onSelectSection={setActiveSection}
+              onSelectEntry={handleSearchSelectEntry}
+            />
+          }
+          onEscapeKeyDown={(event) => {
+            // Esc clears an active search first instead of closing the dialog.
+            if (!searchQuery) return;
+            event.preventDefault();
+            setSearchQuery("");
+          }}
+          headerTitle={shownSection}
+          gridClassName="md:grid-cols-[240px_minmax(0,1fr)]"
+          contentClassName="gap-6"
         >
-          {activeSection === "General" ? <DisplayNameSettings /> : null}
-
-          {activeSection === "General" ? (
-            <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
-              <div>
-                <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase">
-                  Audio
-                </p>
-              </div>
-              <AudioVolumePanel
-                disabled={isAudioBusy}
-                volumeCardClassName="px-4 py-3"
-              />
-            </section>
-          ) : null}
-
-          {activeSection === "General" ? <DesktopCredentialsPanel /> : null}
-          {activeSection === "General" ? <DesktopFeaturePacksPanel /> : null}
-          {activeSection === "General" ? <DesktopUpdatesPanel /> : null}
-
-          {activeSection === "Voice" ? (
-            <>
-              <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
-                <div>
-                  <h3 className="text-foreground text-base font-semibold">
-                    Desktop shortcuts
-                  </h3>
-                  <p className="text-muted-foreground mt-2 text-xs">
-                    Press to talk also supports a mouse button.
-                  </p>
-                </div>
-
-                <div className="grid gap-3">
-                  {shortcutRows.map((row) => (
-                    <ShortcutRecorder
-                      key={row.action}
-                      label={DESKTOP_SHORTCUT_ACTION_LABELS[row.action]}
-                      description={row.description}
-                      shortcut={desktopShortcuts[row.action]}
-                      isRecording={recordingShortcutAction === row.action}
-                      disabled={isBusy}
-                      allowMouseShortcut={row.allowMouseShortcut === true}
-                      onStartRecording={() =>
-                        handleShortcutRecordingStart(row.action)
-                      }
-                      onCancelRecording={() => setRecordingShortcutAction(null)}
-                      onKeyDown={(event) =>
-                        handleShortcutKeyDown(row.action, event)
-                      }
-                    />
-                  ))}
-                </div>
-              </section>
-
-              <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
-                <div>
-                  <h3 className="text-foreground text-base font-semibold">
-                    Speech-to-text provider
-                  </h3>
-                </div>
-                <div className="grid gap-2">
-                  <Select
-                    value={selectedSttProvider ?? undefined}
-                    onValueChange={handleSttProviderChange}
-                    disabled={isBusy}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sttProviderOptions.map((option) => (
-                        <SelectItem
-                          key={option.id}
-                          value={option.id}
-                          disabled={option.disabled}
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {currentSttOption?.description ? (
-                    <p className="text-muted-foreground text-xs">
-                      {currentSttOption.description}
-                    </p>
-                  ) : null}
-                  {currentSttOption?.reason ? (
-                    <p className="text-xs text-amber-600 dark:text-amber-500">
-                      {currentSttOption.reason}
-                    </p>
-                  ) : null}
-                  {parakeetAvailable === false ? (
-                    <DesktopFeaturePacksPanel only="parakeet-stt" />
-                  ) : null}
-                  {isInitializing ? (
-                    <p className="text-muted-foreground text-xs">
-                      Preparing provider defaults...
-                    </p>
-                  ) : null}
-                </div>
-              </section>
-
-              <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
-                <div>
-                  <h3 className="text-foreground text-base font-semibold">
-                    Text-to-speech
-                  </h3>
-                </div>
-
-                <div className="border-border/70 bg-background/50 flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
-                  <div>
-                    <p className="text-foreground text-sm font-medium">
-                      Enable TTS
-                    </p>
-                  </div>
-                  <Switch
-                    checked={ttsEnabled}
-                    onCheckedChange={handleTtsEnabledChange}
-                    disabled={isBusy}
-                    aria-label="Enable text-to-speech"
-                  />
-                </div>
-
-                <div className="border-border/70 bg-background/50 flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
-                  <div>
-                    <p className="text-foreground text-sm font-medium">
-                      Stream chunked TTS
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {selectedElevenLabsModelIsFinalized
-                        ? "Unavailable with Eleven v3."
-                        : "Start speaking before the full response is ready."}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={
-                      selectedElevenLabsModelIsFinalized
-                        ? false
-                        : ttsStreamChunks
-                    }
-                    onCheckedChange={handleTtsStreamChunksChange}
-                    disabled={
-                      isBusy ||
-                      !ttsEnabled ||
-                      selectedElevenLabsModelIsFinalized
-                    }
-                    aria-label="Stream chunked text-to-speech"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <p className="text-muted-foreground text-sm">Provider</p>
-                  <Select
-                    value={selectedTtsProvider ?? undefined}
-                    onValueChange={handleTtsProviderChange}
-                    disabled={isBusy || !ttsEnabled}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ttsProviderOptions.map((option) => (
-                        <SelectItem
-                          key={option.id}
-                          value={option.id}
-                          disabled={option.disabled}
-                        >
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {!ttsEnabled ? (
-                    <p className="text-muted-foreground text-xs">
-                      Enable TTS to select a provider.
-                    </p>
-                  ) : currentTtsOption?.description ? (
-                    <p className="text-muted-foreground text-xs">
-                      {currentTtsOption.description}
-                    </p>
-                  ) : null}
-                  {currentTtsOption?.reason && ttsEnabled ? (
-                    <p className="text-xs text-amber-600 dark:text-amber-500">
-                      {currentTtsOption.reason}
-                    </p>
-                  ) : null}
-                  {ttsEnabled && selectedTtsProvider === "elevenlabs" ? (
-                    <div className="mt-2 grid gap-2">
-                      <p className="text-muted-foreground text-sm">
-                        ElevenLabs model
-                      </p>
-                      <Select
-                        value={selectedElevenLabsModelId}
-                        onValueChange={handleElevenLabsModelChange}
-                        disabled={isBusy}
-                      >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select model" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ELEVENLABS_TTS_MODEL_OPTIONS.map((option) => (
-                            <SelectItem key={option.id} value={option.id}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {currentElevenLabsModelOption?.description ? (
-                        <p className="text-muted-foreground text-xs">
-                          {currentElevenLabsModelOption.description}
-                        </p>
-                      ) : null}
-                      {selectedElevenLabsModelIsFinalized ? (
-                        <div className="mt-2 grid gap-2">
-                          <p className="text-muted-foreground text-sm">
-                            Audio grouping
-                          </p>
-                          <Select
-                            value={selectedElevenLabsV3FinalizedChunking}
-                            onValueChange={
-                              handleElevenLabsV3FinalizedChunkingChange
-                            }
-                            disabled={isBusy}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select grouping" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS.map(
-                                (option) => (
-                                  <SelectItem key={option.id} value={option.id}>
-                                    {option.label}
-                                  </SelectItem>
-                                ),
-                              )}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-muted-foreground text-xs">
-                            {currentElevenLabsV3FinalizedChunkingOption?.description ??
-                              "Sentence grouping starts fastest."}
-                          </p>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {ttsEnabled && selectedTtsProvider === "pocket_tts" ? (
-                    <p className="text-muted-foreground text-xs">
-                      Choose a Pocket voice in Anima Settings.
-                    </p>
-                  ) : null}
-                </div>
-              </section>
-            </>
-          ) : null}
-
-          {activeSection === "Memory" ? (
-            <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
-              <div>
-                <h3 className="text-foreground text-base font-semibold">
-                  Memory Manager
-                </h3>
-              </div>
-
-              <div className="grid gap-2">
-                <p className="text-foreground text-sm font-medium">Model</p>
-                <Select
-                  value={savedMemoryManagerModel ?? SYSTEM_MEMORY_MANAGER_MODEL}
-                  onValueChange={handleMemoryManagerModelChange}
-                  disabled={isBusy}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SYSTEM_MEMORY_MANAGER_MODEL}>
-                      System default
-                    </SelectItem>
-                    {savedMemoryManagerModel && !currentMemoryManagerModel ? (
-                      <SelectItem value={savedMemoryManagerModel} disabled>
-                        {savedMemoryManagerModel} (unavailable)
-                      </SelectItem>
-                    ) : null}
-                    {memoryManagerModels.map((provider) => (
-                      <SelectItem key={provider.id} value={provider.model}>
-                        {provider.model_label ?? provider.model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {modelProviders.isLoading ? (
-                  <p className="text-muted-foreground text-xs">
-                    Loading OpenAI Responses models...
-                  </p>
-                ) : null}
-                {modelProviders.isError ? (
-                  <p className="text-destructive text-xs">
-                    OpenAI Responses models could not be loaded.
-                  </p>
-                ) : null}
-              </div>
-            </section>
-          ) : null}
-
-          {activeSection === "Advanced" ? (
-            <>
-              <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
-                <div>
-                  <h3 className="text-foreground text-base font-semibold">
-                    Messages
-                  </h3>
-                </div>
-
-                <div className="border-border/70 bg-background/50 flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
-                  <div>
-                    <p className="text-foreground text-sm font-medium">
-                      Render assistant Markdown
-                    </p>
-                  </div>
-                  <Switch
-                    checked={chatMarkdownEnabled}
-                    onCheckedChange={setChatMarkdownEnabled}
-                    aria-label="Render assistant Markdown"
-                  />
-                </div>
-              </section>
-
-              <section className="border-border/60 bg-muted/10 flex flex-col gap-4 rounded-xl border p-5">
-                <div>
-                  <h3 className="text-foreground text-base font-semibold">
-                    Avatar controls
-                  </h3>
-                </div>
-
-                <div className="border-border/70 bg-background/50 flex items-center justify-between gap-4 rounded-lg border px-4 py-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <p className="text-foreground text-sm font-medium">
-                        Enable avatar transform controls
-                      </p>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex h-5 w-5 items-center justify-center rounded-full transition focus-visible:ring-2 focus-visible:outline-none"
-                            aria-label="Avatar transform controls help"
-                          >
-                            <Info className="h-3.5 w-3.5" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent
-                          side="top"
-                          sideOffset={6}
-                          className="max-w-xs"
-                        >
-                          {AVATAR_TRANSFORM_CONTROLS_TOOLTIP}
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={avatarTransformControlsEnabled}
-                    onCheckedChange={handleAvatarTransformControlsChange}
-                    disabled={isBusy}
-                    aria-label="Enable avatar transform controls"
-                  />
-                </div>
-              </section>
-            </>
-          ) : null}
+          {renderSettingEntries(
+            visibleEntries.filter(
+              (entry) =>
+                entry.section === shownSection &&
+                (!entry.collapsed || advancedColorsOpen),
+            ),
+            highlightedEntryId,
+            shownSection,
+          )}
         </SectionedModalFrame>
       </Dialog.Portal>
     </Dialog.Root>

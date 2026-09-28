@@ -48,6 +48,10 @@ export class PocketTTSCore extends EventEmitter {
       playbackStrategy: options.playbackStrategy || "adaptive",
       enableVoiceCloning: options.enableVoiceCloning !== false,
       defaultVoice: options.defaultVoice || null,
+      // Built-in voice IDs, in picker order; the worker loads each on first use.
+      voices: Array.isArray(options.voices) ? [...options.voices] : [],
+      // Same-origin state URLs for downloadable voices, keyed by voice ID.
+      voiceUrls: options.voiceUrls ? { ...options.voiceUrls } : {},
       maxVoiceSeconds: options.maxVoiceSeconds || 10,
       onEvent: typeof options.onEvent === "function" ? options.onEvent : null,
       workerUrl:
@@ -202,15 +206,10 @@ export class PocketTTSCore extends EventEmitter {
     await this._sendWorkerMessage(
       "load",
       {
-        models: {
-          mimi_encoder: "/onnx/models/pocket-tts/mimi_encoder.onnx",
-          text_conditioner: "/onnx/models/pocket-tts/text_conditioner.onnx",
-          flow_lm_main: "/onnx/models/pocket-tts/flow_lm_main_int8.onnx",
-          flow_lm_flow: "/onnx/models/pocket-tts/flow_lm_flow_int8.onnx",
-          mimi_decoder: "/onnx/models/pocket-tts/mimi_decoder_int8.onnx",
-          tokenizer: "/onnx/models/pocket-tts/tokenizer.model",
-          voices: "/onnx/models/pocket-tts/voices.bin",
-        },
+        voices: this.options.voices,
+        voiceUrls: this.options.voiceUrls,
+        defaultVoice: this.options.defaultVoice,
+        // Model URLs default to the worker's reviewed bundle layout.
         runtime: {
           ortModuleUrl: this.options.ortModuleUrl,
           ortWasmBaseUrl: this.options.ortWasmBaseUrl,

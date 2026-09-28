@@ -150,7 +150,7 @@ def test_main_prompts_for_missing_choices_and_prints_summary(
     assert result == 0
     assert artifact.is_file()
     assert f"Generated: {artifact}" in captured.out
-    assert "Sources: 10" in captured.out
+    assert "Sources: 12" in captured.out
     assert f"Source bytes: {expected_source_bytes}" in captured.out
 
 

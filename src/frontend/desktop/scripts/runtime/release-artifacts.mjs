@@ -16,17 +16,31 @@ async function sha512(file) {
   return hash.digest("base64");
 }
 
-/** Feed metadata is derived from the final signed bytes, never hand-entered estimates. */
-export async function updateFeed(directory, manifest, installedBytes, catalog) {
+/**
+ * Feed metadata is derived from the final signed bytes, never hand-entered
+ * estimates. An R2 feed sits above per-version folders, so its file paths
+ * include the folder and it carries the tag GitHub would otherwise supply.
+ */
+export async function updateFeed(
+  directory,
+  manifest,
+  installedBytes,
+  catalog,
+  distribution,
+) {
   const version = manifest.app_version;
   if (!/^\d+\.\d+\.\d+$/u.test(version))
     throw new Error("Invalid release version");
   if (manifest.minimum_os !== "15.0")
     throw new Error("Update feed requires the macOS 15 runtime manifest");
+  if (!["r2", "github"].includes(distribution?.kind))
+    throw new Error("Update feed requires the selected release distribution");
+  const folder = distribution.kind === "r2" ? `v${version}/` : "";
   const files = [];
   for (const extension of ["zip", "dmg"]) {
-    const url = `Animama-${version}-arm64.${extension}`;
-    const file = path.join(directory, url);
+    const name = `Animama-${version}-arm64.${extension}`;
+    const url = `${folder}${name}`;
+    const file = path.join(directory, name);
     const stat = lstatSync(file);
     if (
       !stat.isFile() ||
@@ -42,6 +56,7 @@ export async function updateFeed(directory, manifest, installedBytes, catalog) {
   }
   return {
     version,
+    ...(distribution.kind === "r2" ? { tag: `v${version}` } : {}),
     files,
     path: files[0].url,
     sha512: files[0].sha512,
@@ -164,6 +179,18 @@ export function releaseSbom(manifest, inventory) {
       })),
     ],
   };
+}
+
+/** The distribution a candidate was built for, as its signing report records it; null if absent. */
+export function candidateDistribution(directory) {
+  try {
+    const distribution = readJson(
+      path.join(directory, "signing-report.json"),
+    ).distribution;
+    return ["r2", "github"].includes(distribution?.kind) ? distribution : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Publish only a fixed allowlist, not release directories, build logs, or source maps. */

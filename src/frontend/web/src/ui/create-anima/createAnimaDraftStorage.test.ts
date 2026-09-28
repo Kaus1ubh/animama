@@ -163,6 +163,23 @@ describe("owner-scoped creation recovery", () => {
     );
     expect(customHeading).toMatchObject({
       kind: "draft",
+      draft: {
+        identity_markdown: defaultAnimaIdentityMarkdown("Captain Rowan"),
+      },
+    });
+
+    editable.identity_markdown = `# Captain Rowan\n${PREVIOUS_DEFAULT_ANIMA_IDENTITY_MARKDOWN}\nCustom`;
+    const customBody = migrateCreationRecord(
+      JSON.stringify({
+        schema_version: 2,
+        writer: "00000000-0000-4000-8000-000000000001",
+        sequence: 11,
+        kind: "draft",
+        draft: editable,
+      }),
+    );
+    expect(customBody).toMatchObject({
+      kind: "draft",
       draft: { identity_markdown: editable.identity_markdown },
     });
   });

@@ -180,6 +180,8 @@ async def test_desktop_readiness_is_private_bounded_and_absent_from_openapi(
 
     token = "a" * 64
     monkeypatch.setenv("ANIMAMA_DESKTOP_BUILD_ID", "b" * 64)
+    # A released app version differs from the API schema version (0.1.0).
+    monkeypatch.setenv("ANIMAMA_DESKTOP_APP_VERSION", "0.1.1")
     monkeypatch.setenv("ANIMAMA_PROCESS_START_TOKEN", "11111111-1111-4111-8111-111111111111")
     app = create_local_app(
         runtime_settings=Settings(
@@ -196,16 +198,20 @@ async def test_desktop_readiness_is_private_bounded_and_absent_from_openapi(
             response = await client.get("/_desktop/health", headers=headers)
             assert response.status_code == 404
             assert token not in response.text
-        assert (await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})).status_code == 503
+        starting = await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})
+        assert (starting.status_code, starting.json()) == (503, {"detail": "runtime_starting"})
+        # Failed startup reconciliation is terminal for this process, so the
+        # supervisor receives a specific code instead of waiting for its deadline.
         app.state.local_bootstrap_state = SimpleNamespace(principal_id="desktop-owner", content_ready=False)
-        assert (await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})).status_code == 503
+        failed = await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})
+        assert (failed.status_code, failed.json()) == (503, {"detail": {"code": "content_startup_failed"}})
         app.state.local_bootstrap_state.content_ready = True
         app.state.local_http_lifecycle.mark_ready("desktop-owner")
         ready = await client.get("/_desktop/health", headers={"X-Animama-Desktop-Control": token})
         assert ready.status_code == 200
         assert ready.json() == {
             "schema_version": 1,
-            "runtime_version": "0.1.0",
+            "runtime_version": "0.1.1",
             "build_id": "b" * 64,
             "alembic_head": ScriptDirectory.from_config(resources.alembic_config()).get_current_head(),
             "installation_principal_id": "desktop-owner",

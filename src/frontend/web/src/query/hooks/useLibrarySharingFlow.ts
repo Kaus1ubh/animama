@@ -119,6 +119,11 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
     if (!imported.result) return;
     void client.invalidateQueries({ queryKey: queryKeys.content.all(owner) });
     void client.invalidateQueries({ queryKey: queryKeys.animas.all(owner) });
+    if (imported.result.anima_id) {
+      void client.invalidateQueries({
+        queryKey: queryKeys.memoryEntries.animaIdentities(owner),
+      });
+    }
     void invalidateContentCatalogViews(client, owner);
   }, [client, owner, imported.result]);
 

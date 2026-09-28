@@ -21,6 +21,7 @@ import {
 } from "@/lib/memory-manager/approval-feedback";
 import {
   canShowMemoryManagerApprovalUndo,
+  isAppliedMemoryManagerApproval,
   memoryManagerApprovalStatusLabel,
 } from "@/lib/memory-manager/approval-undo";
 import {
@@ -29,7 +30,10 @@ import {
   type MemoryManagerOptimisticSubmission,
   type MemoryManagerTranscriptItem,
 } from "@/lib/memory-manager/transcript-projection";
-import { episodeProcessingPresentation } from "@/lib/memory-manager/workspace-state";
+import {
+  episodeProcessingPresentation,
+  reflectionPresentation,
+} from "@/lib/memory-manager/workspace-state";
 import { cn } from "@/lib/utils";
 import { Response as PlainTextResponse } from "@/ui/components/animated-text-response";
 import { Button } from "@/ui/components/button";
@@ -48,6 +52,8 @@ import { Message, MessageContent } from "@/ui/components/message";
 import MessageLoaderV2 from "@/ui/components/message-loader-v2";
 import { Response as StreamdownResponse } from "@/ui/components/streamdown-response";
 import { Textarea } from "@/ui/components/textarea";
+import { managerPathLabel } from "@/lib/memory-entries/anima-folders";
+import { useMemoryAnimaFolders } from "@/query/hooks/useMemoryEntries";
 import { MemoryDiffViewer } from "@/ui/memory/MemoryDiffViewer";
 
 type MemoryManagerChatPanelProps = {
@@ -105,9 +111,14 @@ function ApprovalCard({
     [feedback],
   );
   const feedbackErrorId = `approval-feedback-error-${approval.id}`;
+  const animaFolders = useMemoryAnimaFolders();
   return (
     <div className="w-full min-w-0 space-y-3">
-      <MemoryDiffViewer preview={approval.preview} className="min-w-0" />
+      <MemoryDiffViewer
+        preview={approval.preview}
+        pathLabel={managerPathLabel(approval.preview.path, animaFolders)}
+        className="min-w-0"
+      />
       {approval.decision_feedback ? (
         <div className="border-border/70 bg-muted/30 rounded-lg border px-3 py-2 text-sm">
           <p className="text-foreground font-medium">Rejection feedback</p>
@@ -310,7 +321,9 @@ function TranscriptItem({
         <MessageContent
           animateOnEnter={message.animateOnEnter}
           className={cn(
-            "min-w-0",
+            // Long unbroken tokens such as manager paths must wrap rather
+            // than widen the Work pane; code blocks keep their own scroll.
+            "min-w-0 [overflow-wrap:anywhere]",
             message.role === "assistant" && "w-full max-w-full",
           )}
           from={message.role}
@@ -377,7 +390,13 @@ export function MemoryManagerChatPanel({
   );
   const failed = snapshot?.run.status === "failed";
   const completed = snapshot?.run.status === "completed";
-  const processingStatus = episodeProcessingPresentation(snapshot?.run);
+  const processingStatus =
+    episodeProcessingPresentation(snapshot?.run) ??
+    reflectionPresentation(snapshot?.run, {
+      hasAppliedChange: (snapshot?.approvals ?? []).some(
+        isAppliedMemoryManagerApproval,
+      ),
+    });
   const composerDisabled =
     isBusy || hasPendingApproval || episodeProcessingComposerLocked;
 

@@ -35,6 +35,11 @@ Confirm `MERGED` and retain the merge commit. For an already-merged PR, verify i
 identity and resume below; a closed, unmerged PR is not a successful merge.
 Reconcile an uncertain response by reading the PR, not blindly repeating the merge.
 
+The owner's merge request also confirms that the PR's owner checks are done. After
+the merge, close the parent and any phase issues the PR delivered that are still
+open (for example, only referenced with `Refs #N`), each with a comment naming the
+PR. Leave open only issues for work the PR explicitly deferred.
+
 ## 2. Update the primary checkout
 
 Verify it is on the configured base branch, clean and not being modified by

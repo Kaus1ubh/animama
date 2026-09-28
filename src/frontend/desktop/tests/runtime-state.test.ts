@@ -362,6 +362,7 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
         local_http_schema_version: 1,
         core_content_inventory_id: id,
         pack_catalog_id: id,
+        database_schema_sha256: "d".repeat(64),
         files,
       };
       writeFileSync(path.join(root, "manifest.json"), JSON.stringify(manifest));
@@ -384,6 +385,8 @@ describe.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
       { schema: "animama-desktop-runtime/1" },
       { local_http_schema_version: 0 },
       { gateway_schema_version: 1 },
+      { database_schema_sha256: undefined },
+      { database_schema_sha256: "not-a-digest" },
     ])(
       "rejects old or mixed runtime composition before native launch: %j",
       async (change) => {
@@ -435,6 +438,32 @@ describe("owned processes and secret-safe logs", () => {
       "key-fixture",
     ])
       expect(safe).not.toContain(value);
+  });
+
+  it("keeps ordinary words readable when an implausibly short value is registered", () => {
+    const redactor = new SecretRedactor();
+    redactor.add("a", "key/1", "x.y");
+    expect(redactor.redact("Runtime starting: migrations")).toBe(
+      "Runtime starting: migrations",
+    );
+    expect(redactor.redact("value=a id:key/1 path=monkey/12")).toBe(
+      "value=[REDACTED] id:[REDACTED] path=monkey/12",
+    );
+    expect(redactor.redact("wildcard=xzy literal=x.y")).toBe(
+      "wildcard=xzy literal=[REDACTED]",
+    );
+    expect(redactor.redact("encoded=key%2F1&next=a")).toBe(
+      "encoded=[REDACTED]&next=[REDACTED]",
+    );
+  });
+
+  it("still redacts real-length keys embedded in other text", () => {
+    const redactor = new SecretRedactor();
+    const key = "sk-proj-0123456789abcdefghijklmn";
+    redactor.add(key);
+    expect(redactor.redact(`prefix${key}suffix a`)).toBe(
+      "prefix[REDACTED]suffix a",
+    );
   });
 
   it("never adopts or signals a live process from an earlier record", () => {

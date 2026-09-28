@@ -18,6 +18,8 @@ import {
 import {
   canDeleteMemoryEntry,
   canEditMemoryEntry,
+  BLANK_ANIMA_IDENTITY_MESSAGE,
+  isBlankAnimaIdentityDraft,
 } from "@/lib/memory-entries/protection";
 import {
   useMemoryEntry,
@@ -127,12 +129,8 @@ export function MemoryEntryEditorModal({
   const handleSave = async (forceLatestVersion = false) => {
     if (!entry || !draft) return;
     if (!canEditMemoryEntry(entry)) return;
-    if (
-      entry.scope === "anima" &&
-      entry.kind === "anima_identity" &&
-      !draftContent.trim()
-    ) {
-      toast.error("Anima identity cannot be blank.");
+    if (isBlankAnimaIdentityDraft(entry, draftContent)) {
+      toast.error(BLANK_ANIMA_IDENTITY_MESSAGE);
       return;
     }
 

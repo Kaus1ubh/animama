@@ -133,6 +133,20 @@ automatically purge it, or treat its snapshot as restore-compatible with the new
 history. See [Database operations](development.md#database) for the reset and
 Local/private-file boundary.
 
+Because an edited baseline keeps the same Alembic head, the runtime manifest
+also records `database_schema_sha256`. Staging bootstraps a disposable profile
+database with the bundled PostgreSQL and frozen backend, then hashes its
+`pg_dump --schema-only --no-owner --no-privileges --no-comments` output with
+version headers and per-run `\restrict` keys removed. The supervisor hashes
+the profile the same way and stops with `database_schema_mismatch` before
+launching any service if the digests differ. It checks a profile already at the
+packaged head before bootstrap, so seeds never run against a stale schema, and
+checks a fresh or upgraded profile after bootstrap.
+A future real migration must therefore produce the same schema as a fresh
+baseline. If content reconciliation fails at backend startup, `/_desktop/health`
+returns a terminal `content_startup_failed` and the supervisor reports it
+immediately instead of waiting for the readiness deadline.
+
 Before upgrading an existing schema, the supervisor runs bundled `pg_dump` in
 custom format, verifies the archive with `pg_restore --list`, fsyncs and publishes
 it atomically. A retry reuses the original dump. After two distinct successful

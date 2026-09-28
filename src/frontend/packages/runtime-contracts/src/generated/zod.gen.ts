@@ -465,6 +465,18 @@ export const zBodySaveVoiceContent = z.object({
 });
 
 /**
+ * CompanionSafetyCapability
+ *
+ * Operator safety configuration; owner preferences are in user settings.
+ */
+export const zCompanionSafetyCapability = z.object({
+    ai_notice_enabled: z.boolean(),
+    crisis_detection_enabled: z.boolean(),
+    enabled: z.boolean(),
+    operator_reminder_hours: z.number()
+});
+
+/**
  * ContentKind
  *
  * Readable-library content kinds and their runtime ownership boundaries.
@@ -492,6 +504,51 @@ export const zContentKind = z.enum([
 export const zCreateMissingStarterRepair = z.object({
     action: z.literal('create_missing'),
     starter_id: z.enum(['starter:annie', 'starter:caitlyn'])
+});
+
+/**
+ * CrisisContact
+ */
+export const zCrisisContact = z.object({
+    kind: z.enum([
+        'phone',
+        'sms',
+        'chat'
+    ]),
+    label: z.string().min(1).max(80),
+    value: z.string().min(1).max(300)
+});
+
+/**
+ * CrisisService
+ */
+export const zCrisisService = z.object({
+    contacts: z.array(zCrisisContact).min(1),
+    description: z.optional(z.union([
+        z.string().max(300),
+        z.null()
+    ])),
+    name: z.string().min(1).max(120)
+});
+
+/**
+ * CrisisResourceRegion
+ *
+ * Resources for one region; ``source_url`` and ``verified_on`` record the review.
+ */
+export const zCrisisResourceRegion = z.object({
+    code: z.string().regex(/^([A-Z]{2}|fallback)$/),
+    emergency_number: z.optional(z.union([
+        z.string().regex(/^[0-9]{2,4}$/),
+        z.null()
+    ])),
+    label: z.string().min(1).max(80),
+    services: z.array(zCrisisService),
+    source_url: z.union([
+        z.url().min(1).max(2083),
+        z.null()
+    ]),
+    verified_on: z.iso.date()
 });
 
 /**
@@ -1146,34 +1203,6 @@ export const zPyAnimaDispatchOptions = z.object({
 });
 
 /**
- * PyAnimaChatRequest
- */
-export const zPyAnimaChatRequest = z.object({
-    attached_file_ids: z.optional(z.union([
-        z.array(z.string()).max(50),
-        z.null()
-    ])),
-    chat_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    dispatch_options: z.optional(z.union([
-        zPyAnimaDispatchOptions,
-        z.null()
-    ])),
-    message: z.string(),
-    model_provider_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    run_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])),
-    runtime_revision: z.string().max(128)
-});
-
-/**
  * PyArchive
  *
  * Archive metadata DTO.
@@ -1592,6 +1621,54 @@ export const zPyCatalogPreviewSource = z.object({
 });
 
 /**
+ * PyChatClientContext
+ *
+ * Client-reported context used only for safety presentation (spec R2, R5).
+ */
+export const zPyChatClientContext = z.object({
+    locale: z.optional(z.union([
+        z.string().max(64),
+        z.null()
+    ])),
+    time_zone: z.optional(z.union([
+        z.string().max(64),
+        z.null()
+    ]))
+});
+
+/**
+ * PyAnimaChatRequest
+ */
+export const zPyAnimaChatRequest = z.object({
+    attached_file_ids: z.optional(z.union([
+        z.array(z.string()).max(50),
+        z.null()
+    ])),
+    chat_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    client_context: z.optional(z.union([
+        zPyChatClientContext,
+        z.null()
+    ])),
+    dispatch_options: z.optional(z.union([
+        zPyAnimaDispatchOptions,
+        z.null()
+    ])),
+    message: z.string(),
+    model_provider_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    run_id: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    runtime_revision: z.string().max(128)
+});
+
+/**
  * PyChatCreate
  */
 export const zPyChatCreate = z.object({
@@ -1860,6 +1937,26 @@ export const zPyContentRescan = z.object({
 export const zPyContentSaveResult = z.object({
     item: zPyContentItem,
     operation_id: z.string()
+});
+
+/**
+ * PyCrisisResourceRegionOption
+ */
+export const zPyCrisisResourceRegionOption = z.object({
+    code: z.string(),
+    label: z.string()
+});
+
+/**
+ * PyCrisisResources
+ */
+export const zPyCrisisResources = z.object({
+    preferred_region: z.union([
+        z.string(),
+        z.null()
+    ]),
+    regions: z.array(zPyCrisisResourceRegionOption),
+    resolved: zCrisisResourceRegion
 });
 
 /**
@@ -2425,6 +2522,42 @@ export const zPyLoadoutPlan = z.object({
 });
 
 /**
+ * PyMemoryCueEpisode
+ *
+ * The `remember` note this turn recorded in the shared episode log.
+ */
+export const zPyMemoryCueEpisode = z.object({
+    text: z.string()
+});
+
+/**
+ * PyMemoryCueMemories
+ *
+ * This turn's change to the Anima's `MEMORIES.md`: its last version and added text (up to 600 characters).
+ */
+export const zPyMemoryCueMemories = z.object({
+    entry_id: z.string(),
+    excerpt: z.string(),
+    version: z.int()
+});
+
+/**
+ * PyMemoryCue
+ *
+ * What a turn remembered, shown as a memory cue on its final visible assistant message.
+ */
+export const zPyMemoryCue = z.object({
+    episode: z.union([
+        zPyMemoryCueEpisode,
+        z.null()
+    ]),
+    memories: z.union([
+        zPyMemoryCueMemories,
+        z.null()
+    ])
+});
+
+/**
  * PyMemoryEntryCreateRequest
  */
 export const zPyMemoryEntryCreateRequest = z.object({
@@ -2505,6 +2638,37 @@ export const zPyMemoryEntryHeader = z.object({
         z.null()
     ])),
     version: z.int()
+});
+
+/**
+ * PyAnimaIdentityItem
+ *
+ * One owned Anima and its content-free protected file headers, in creation order.
+ */
+export const zPyAnimaIdentityItem = z.object({
+    aggregate_revision: z.int().gte(1),
+    anima_id: z.string(),
+    created_at: z.optional(z.union([
+        z.iso.datetime(),
+        z.null()
+    ])),
+    display_name: z.string(),
+    entry: z.optional(z.union([
+        zPyMemoryEntryHeader,
+        z.null()
+    ])),
+    identity_status: z.enum(['ready', 'repair_required']),
+    memories_entry: z.optional(z.union([
+        zPyMemoryEntryHeader,
+        z.null()
+    ]))
+});
+
+/**
+ * PyAnimaIdentityListResponse
+ */
+export const zPyAnimaIdentityListResponse = z.object({
+    identities: z.optional(z.array(zPyAnimaIdentityItem))
 });
 
 /**
@@ -2869,6 +3033,27 @@ export const zPyMemoryManagerMessageCreateRequest = z.object({
 });
 
 /**
+ * PyMemoryManagerReflectionRunCreateRequest
+ */
+export const zPyMemoryManagerReflectionRunCreateRequest = z.object({
+    anima_id: z.string().min(1),
+    auto_approve_diffs: z.optional(z.boolean()).default(false)
+});
+
+/**
+ * PyMemoryManagerReflectionSummary
+ *
+ * What one Reflection run covers; its turns become covered only when its MEMORIES.md change is applied.
+ */
+export const zPyMemoryManagerReflectionSummary = z.object({
+    anima_id: z.string(),
+    anima_name: z.string(),
+    remaining_turn_count: z.int().gte(0),
+    started_at: z.iso.datetime(),
+    turn_count: z.int().gte(1)
+});
+
+/**
  * PyMemoryManagerRunCreateRequest
  */
 export const zPyMemoryManagerRunCreateRequest = z.object({
@@ -2912,7 +3097,11 @@ export const zPyMemoryManagerRun = z.object({
         z.null()
     ])),
     id: z.string(),
-    kind: z.optional(z.enum(['general', 'episode_processing'])),
+    kind: z.optional(z.enum([
+        'general',
+        'episode_processing',
+        'reflection'
+    ])),
     metadata: z.optional(z.record(z.string(), z.unknown())),
     model_name: z.optional(z.union([
         z.string(),
@@ -2920,6 +3109,10 @@ export const zPyMemoryManagerRun = z.object({
     ])),
     model_provider: z.optional(z.union([
         z.string(),
+        z.null()
+    ])),
+    reflection: z.optional(z.union([
+        zPyMemoryManagerReflectionSummary,
         z.null()
     ])),
     status: z.enum([
@@ -3048,6 +3241,57 @@ export const zPyMemoryManagerRunResponse = z.object({
 });
 
 /**
+ * PyModelAssetState
+ */
+export const zPyModelAssetState = z.object({
+    bytes_downloaded: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
+    content_url: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
+    id: z.string(),
+    license_ref: z.string(),
+    media_type: z.string(),
+    reason: z.optional(z.union([
+        z.enum([
+            'asset_download_failed',
+            'asset_host_not_allowed',
+            'asset_size_invalid',
+            'asset_hash_invalid',
+            'asset_store_failed',
+            'asset_insufficient_space'
+        ]),
+        z.null()
+    ])),
+    required_free_bytes: z.int(),
+    size_bytes: z.int(),
+    status: z.enum([
+        'not_installed',
+        'downloading',
+        'installed',
+        'failed'
+    ]),
+    total_bytes: z.optional(z.union([
+        z.int(),
+        z.null()
+    ]))
+});
+
+/**
+ * PyModelAssetList
+ */
+export const zPyModelAssetList = z.object({
+    assets: z.array(zPyModelAssetState),
+    free_bytes: z.union([
+        z.int(),
+        z.null()
+    ])
+});
+
+/**
  * PyModelProviderCatalogItem
  */
 export const zPyModelProviderCatalogItem = z.object({
@@ -3101,6 +3345,7 @@ export const zPyModelProviderCatalogItem = z.object({
  * PyOnboardingCompleteRequest
  */
 export const zPyOnboardingCompleteRequest = z.object({
+    adult_confirmed: z.boolean(),
     display_name: z.string().min(1).max(80)
 });
 
@@ -4310,6 +4555,10 @@ export const zPyChatMessage = z.object({
         z.null()
     ])),
     internal: z.optional(z.boolean()).default(false),
+    memory_cue: z.optional(z.union([
+        zPyMemoryCue,
+        z.null()
+    ])),
     message_type: z.optional(z.union([
         z.string(),
         z.null()
@@ -5090,6 +5339,7 @@ export const zUserFileProcessingCapability = z.object({
  * RuntimeCapabilities
  */
 export const zRuntimeCapabilities = z.object({
+    companion_safety: zCompanionSafetyCapability,
     offline_speech_asset_version: z.union([
         z.string(),
         z.null()
@@ -6518,6 +6768,30 @@ export const zPreviewIdleStyleData = z.object({
  */
 export const zPreviewIdleStyleResponse = zPyTypedContentPreview;
 
+export const zListAnimaIdentitiesV1MemoryAnimaIdentitiesGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponse = zPyAnimaIdentityListResponse;
+
+export const zRepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        anima_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zRepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponse = zPyMemoryEntryHeader;
+
 export const zDebugSearchMemoryFilesV1MemoryDebugSearchMemoryFilesPostData = z.object({
     body: zPySearchMemoryFilesDebugRequest,
     path: z.optional(z.never()),
@@ -6787,6 +7061,80 @@ export const zCreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessE
  */
 export const zCreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPostResponse = zPyMemoryManagerRunResponse;
 
+export const zCreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostData = z.object({
+    body: zPyMemoryManagerReflectionRunCreateRequest,
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zCreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostResponse = zPyMemoryManagerRunResponse;
+
+export const zListModelAssetsV1ModelAssetsGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zListModelAssetsV1ModelAssetsGetResponse = zPyModelAssetList;
+
+export const zRemoveModelAssetV1ModelAssetsAssetIdDeleteData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        asset_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zRemoveModelAssetV1ModelAssetsAssetIdDeleteResponse = zPyModelAssetState;
+
+export const zGetModelAssetV1ModelAssetsAssetIdGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        asset_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zGetModelAssetV1ModelAssetsAssetIdGetResponse = zPyModelAssetState;
+
+export const zGetModelAssetContentV1ModelAssetsAssetIdContentGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        asset_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+export const zGetModelAssetContentV1ModelAssetsAssetIdContentGetResponse = z.union([
+    z.string(),
+    z.unknown()
+]);
+
+export const zInstallModelAssetV1ModelAssetsAssetIdInstallPostData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        asset_id: z.string()
+    }),
+    query: z.optional(z.never())
+});
+
+/**
+ * Successful Response
+ */
+export const zInstallModelAssetV1ModelAssetsAssetIdInstallPostResponse = zPyModelAssetState;
+
 export const zListModelProvidersV1ModelProvidersGetData = z.object({
     body: z.optional(z.never()),
     path: z.optional(z.never()),
@@ -6993,6 +7341,22 @@ export const zCompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostData = z.o
  * Successful Response
  */
 export const zCompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostResponse = zPyRuntimeContext;
+
+export const zGetCrisisResourcesV1SafetyCrisisResourcesGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.optional(z.never()),
+    query: z.optional(z.object({
+        locale: z.optional(z.union([
+            z.string().max(64),
+            z.null()
+        ]))
+    }))
+});
+
+/**
+ * Successful Response
+ */
+export const zGetCrisisResourcesV1SafetyCrisisResourcesGetResponse = zPyCrisisResources;
 
 export const zListSceneEffectsData = z.object({
     body: z.optional(z.never()),

@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import type { PyChatResponse } from "@/lib/content/catalogTypes";
 import type { ChatMessage } from "@/ui/main/chat/useChatSession";
+import type { ChatCrisisSupport } from "@animama/product-ui/chat";
+import type { AiNoticeKind } from "@/lib/safety/aiNotice";
 
 const QUICK_CHAT_RENDER_READY_FALLBACK_MS = 150;
 const QUICK_CHAT_BASE_HEIGHT_PX = 760;
@@ -32,6 +34,8 @@ export type DesktopQuickChatVoiceState = {
 export type DesktopQuickChatSnapshot = {
   activeChat: PyChatResponse | null;
   animaId: string;
+  /** Names the Anima in mirrored memory cue details. */
+  animaName?: string | null;
   chatId: string | null;
   input: string;
   inputPlaceholder: string;
@@ -43,6 +47,14 @@ export type DesktopQuickChatSnapshot = {
   promptSuggestions: DesktopQuickChatPromptSuggestion[];
   showPromptSuggestions: boolean;
   voice: DesktopQuickChatVoiceState;
+  /** Mirrored AI notice and crisis card from the main window's session (spec R2, R4). */
+  safety?: DesktopQuickChatSafetyState | null;
+};
+
+export type DesktopQuickChatSafetyState = {
+  notice: { kind: AiNoticeKind; animaName: string | null } | null;
+  noticeVisible: boolean;
+  crisis: ChatCrisisSupport | null;
 };
 
 export type DesktopQuickChatCommand =
@@ -54,7 +66,10 @@ export type DesktopQuickChatCommand =
   | { type: "start-voice-mode" }
   | { type: "stop-mic-session" }
   | { type: "toggle-voice-mute" }
-  | { type: "refresh-model-state" };
+  | { type: "refresh-model-state" }
+  | { type: "dismiss-crisis-card" }
+  /** Opens a memory cue's `MEMORIES.md` entry in the main window's Memory workspace. */
+  | { type: "open-memory-entry"; entryId: string };
 
 export type DesktopQuickChatCommandHandlers = {
   setInput: (input: string) => void;
@@ -66,6 +81,8 @@ export type DesktopQuickChatCommandHandlers = {
   stopMicSession: () => void;
   toggleVoiceMute: () => void;
   refreshModelState: () => void;
+  dismissCrisisCard: () => void;
+  openMemoryEntry: (entryId: string) => void;
 };
 
 type UseDesktopQuickChatOwnerArgs = {
@@ -107,13 +124,29 @@ function createQuickChatRuntimeMessage(
   };
 }
 
-function isQuickChatCommand(value: unknown): value is DesktopQuickChatCommand {
+/**
+ * Memory entry IDs are generated as `mem-<uuid>`. The ID crosses a process
+ * boundary before it becomes a route search value, so accept only a bounded
+ * token of letters, digits, `-` and `_`.
+ */
+function isMemoryEntryId(value: unknown): value is string {
+  return (
+    typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(value)
+  );
+}
+
+/** Exported for tests: unknown command types from the Quick Chat window are ignored. */
+export function isQuickChatCommand(
+  value: unknown,
+): value is DesktopQuickChatCommand {
   if (!isRecord(value) || typeof value.type !== "string") return false;
   switch (value.type) {
     case "set-input":
       return typeof value.input === "string";
     case "submit-text":
       return typeof value.text === "string";
+    case "open-memory-entry":
+      return isMemoryEntryId(value.entryId);
     case "submit":
     case "stop":
     case "start-dictation":
@@ -121,18 +154,26 @@ function isQuickChatCommand(value: unknown): value is DesktopQuickChatCommand {
     case "stop-mic-session":
     case "toggle-voice-mute":
     case "refresh-model-state":
+    case "dismiss-crisis-card":
       return true;
     default:
       return false;
   }
 }
 
-function isQuickChatSnapshot(
+/** Exported for tests. */
+export function isQuickChatSnapshot(
   value: unknown,
 ): value is DesktopQuickChatSnapshot {
   if (!isRecord(value)) return false;
   if (!(isRecord(value.activeChat) || value.activeChat === null)) return false;
   if (typeof value.animaId !== "string") return false;
+  if (
+    "animaName" in value &&
+    !(typeof value.animaName === "string" || value.animaName === null)
+  ) {
+    return false;
+  }
   if (!(typeof value.chatId === "string" || value.chatId === null)) {
     return false;
   }
@@ -153,6 +194,9 @@ function isQuickChatSnapshot(
     typeof value.showPromptSuggestions !== "boolean" ||
     !isRecord(value.voice)
   ) {
+    return false;
+  }
+  if ("safety" in value && !(value.safety === null || isRecord(value.safety))) {
     return false;
   }
   return true;
@@ -258,6 +302,12 @@ export function useDesktopQuickChatOwner({
           return;
         case "refresh-model-state":
           currentHandlers.refreshModelState();
+          return;
+        case "dismiss-crisis-card":
+          currentHandlers.dismissCrisisCard();
+          return;
+        case "open-memory-entry":
+          currentHandlers.openMemoryEntry(message.payload.entryId);
           return;
       }
     });

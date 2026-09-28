@@ -24,9 +24,18 @@ The route accepts `PyAnimaChatRequest`:
   "dispatch_options": {
     "main_structured_response": true,
     "incognito": false
+  },
+  "client_context": {
+    "time_zone": "America/Toronto",
+    "locale": "en-US"
   }
 }
 ```
+
+`client_context` is optional and used only for companion safety: the IANA
+`time_zone` sets the local calendar day for the AI notice (unknown or missing
+zones use UTC), and the BCP 47 `locale` selects the crisis-resource region when
+the owner has not chosen one.
 
 `message` is trimmed by the schema and must be non-empty. `chat_id` is the
 thread identifier. The backend creates `chat-<uuid>` and `run-<uuid>` values
@@ -74,12 +83,19 @@ Responses-backed chats by the same mismatch fence.
 receives the same request-level controls used by chat settings: memory
 influence, memory updates, emotion influence, emotion updates, incognito,
 main-structured response, native tools, and reasoning effort. Direct chat always
-opens the anima identity file because it is anima configuration. When
+opens the anima identity file because it is anima configuration. With memory
+influence enabled it also opens the Anima's `MEMORIES.md` and places it as
+`# Anima Memories` directly after `# Anima Identity`; a missing, blank or
+unreadable file is omitted without failing the turn. When
 `disable_memory_influence` is true, direct chat still keeps anima identity
-active; the transient memory file list developer message is omitted. Provider
-rows that expose `supports_developer_role: false`, such as DeepSeek and
-Hugging Face, receive the memory file list at the end of the system instruction
-instead of as a separate `developer` message.
+active; `MEMORIES.md` and the memory file list are omitted.
+That message, placed just before the user message, holds the memory file list,
+the attached-file list and, always last, the
+[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
+Provider rows that expose `supports_developer_role: false`, such as DeepSeek
+and Hugging Face, receive every `developer` message folded in order into the
+end of the system instruction, so the guardrail remains the final instruction
+text.
 The model catalog separates complete `native_tool_support` from
 `requestable_native_tool_support`. Clients may send only the latter through
 `dispatch_options.native_tools`; backend-owned capabilities such as memory
@@ -114,20 +130,28 @@ fails setup. Either selection must name an active direct model provider.
 1. The local HTTP boundary admits the request and resolves the installation
    principal. Setup validates Anima/chat ownership, the issued runtime snapshot,
    model capabilities, and chat API-standard compatibility before opening SSE.
-2. The executor loads required `IDENTITY.md`, current memory/attachment
-   navigation, and local history when the provider needs replay. It assembles
-   the prompt and closes the setup database session before upstream streaming.
+   It also resolves [companion safety](#companion-safety), which never blocks
+   the turn.
+2. The executor loads required `IDENTITY.md`, optional `MEMORIES.md`, current
+   memory/attachment navigation, and local history when the provider needs
+   replay. It assembles
+   the prompt, ending with the Companion Guardrails, and closes the setup
+   database session before upstream streaming.
 3. The route starts the request-local event bridge and model task, plus eligible
-   title/TTS work. The executor runs bounded memory-tool rounds and validates
-   the final structured response. At the tool limit, it makes one no-tools
-   attempt to produce the final answer; further tool calls fail the turn.
+   title/TTS work. While the model task runs, it records the AI-notice decision
+   and yields any `safety.ai_notice` frame before draining provider events. The executor runs bounded memory-tool rounds
+   and validates the final structured response. At the tool limit, it makes one
+   no-tools attempt to produce the final answer, restating the guardrail after
+   the limit instruction; further tool calls fail the turn.
 4. Structured speech/display can stream before completion. Final validation
    controls corrections, Gesture selection, emotion, and durable persistence;
    raw provider observations remain internal.
 5. A fresh short-lived session persists non-incognito chat messages, tool rows,
-   usage, model selection, and memory fingerprints. Memory tool writes commit
-   separately and survive a later model or final-parse failure. Eligible episode
-   capture is best-effort after visible persistence.
+   usage, model selection, memory fingerprints and the reply's memory block.
+   Memory tool writes commit separately and survive a later model or
+   final-parse failure. Eligible episode capture is best-effort after visible
+   persistence; the executor then emits `memory.updated` when the turn
+   remembered anything.
 6. The route drains events, emits any saved title, waits for TTS and applicable
    compaction, then emits one `run.completed`. Cleanup settles request-local
    tasks without closing shared model clients.
@@ -137,9 +161,48 @@ See [memory](../features/memory.md), [user files](../features/user-files.md), an
 
 ## What It Deliberately Does Not Do
 
-Direct chat runs one companion turn. Memory tools operate only on user-scope
-files and cannot edit Anima identity, move/delete files, or change arbitrary
-metadata. Workflow orchestration requires a separate API contract.
+Direct chat runs one companion turn. Memory tools operate on user-scope files
+plus the Anima's own `MEMORIES.md` (through `[self]/MEMORIES.md`), and cannot
+edit Anima identity, move/delete files, or change arbitrary metadata. Workflow orchestration requires a separate API contract.
+
+## Companion Safety
+
+`server/routers/chat/safety.py` and `app/safety/` own per-turn safety. The
+user-facing contract is the [safety and crisis protocol](../../safety/crisis-protocol.md).
+
+- **Companion Guardrails.** `COMPANION_GUARDRAILS` is always the final
+  instruction text of every provider request, including in the forced-final
+  tool-limit request. No setting disables it
+  ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)).
+- **Effective configuration.** Setup combines operator settings
+  (`ANIMAMA_COMPANION_SAFETY_ENABLED`, `ANIMAMA_AI_NOTICE_ENABLED`,
+  `ANIMAMA_AI_NOTICE_REMINDER_HOURS`, `ANIMAMA_CRISIS_DETECTION_ENABLED`,
+  `ANIMAMA_CRISIS_RESOURCES_PATH`) with the owner's
+  `user_settings.preferences.safety`. The global switch turns the AI notice,
+  moderation and crisis card off together. Owners may choose
+  `crisis_resource_region` and a `reminder_hours` value that applies only when
+  it is shorter than the operator interval. Reminder hours must be 0.25–168,
+  and an invalid resource table fails startup. Each operator override of a
+  safe default logs a startup warning.
+- **AI notice.** `app/safety/ai_notice.py` decides per owner principal, across
+  Animas, under a `companion_safety_state` row lock. A `start` notice is due on
+  the first turn of each local calendar day; a `reminder` is due once the
+  reminder interval (default 3 hours) has passed since the later of the
+  continuing interaction's start and the last notice. Turns less than 30
+  minutes apart continue an interaction. If the state cannot be read or
+  written, the notice is shown anyway.
+- **Crisis detection.** For OpenAI Responses rows, round 0 requests
+  [inline moderation](model-client-providers.md#provider-behavior); a
+  self-harm result emits one `safety.crisis_support` card after the reply text
+  and before `run.completed`. Other providers get no crisis card; the
+  guardrail's crisis rule still applies. Crisis resources resolve from the
+  owner's region, then the `client_context` locale, then the fallback entry.
+
+Crisis turns stream, persist and update memory like any other turn. Safety
+code never logs message text or detection results (crisis frames are excluded
+from SSE frame logging) and stores no detection results. Opt-in model-client
+prompt previews (`ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS`, on by default in Compose)
+can still include the user message.
 
 ## SSE Events
 
@@ -154,6 +217,9 @@ The direct endpoint uses this frontend SSE contract:
 - `event: emotion.update`
 - `event: avatar.gesture.requested`
 - `event: chat.title.updated`
+- `event: safety.ai_notice`
+- `event: safety.crisis_support`
+- `event: memory.updated`
 - `event: error`
 - `event: run.completed`
 
@@ -261,6 +327,30 @@ currently mounted catalog.
 untitled, non-incognito chats and is capped at 48 characters after server-side
 sanitization. Title-generation failures are logged and do not emit `error`.
 
+`safety.ai_notice` frames include `type="safety.ai_notice"`, `run_id`,
+`kind` (`start` or `reminder`), and nullable `anima_name`. When due, the frame
+precedes every provider-derived frame of the turn. Clients render it as app UI,
+never as assistant text.
+
+`safety.crisis_support` frames include `type="safety.crisis_support"`,
+`run_id`, `source` (`local` or `moderation`), and `resources`, the resolved
+crisis-resource region entry (`code`, `label`, nullable `emergency_number`,
+`services` with `phone`, `sms` or `chat` contacts, nullable `source_url`, and
+`verified_on`; the fallback entry has no services, emergency number or source). A `local` card precedes provider frames. A `moderation` card
+comes from an executor `EventType.CRISIS_SUPPORT` domain event, formatted by
+`sse_runtime.py`, and arrives after the reply text but before `run.completed`.
+Each turn emits at most one crisis card.
+
+`memory.updated` frames (ID `memory-updated-<run_id>`) carry
+`{"type": "memory.updated", "run_id", "message_id", "memory_cue"}`.
+`message_id` is the persisted final visible assistant message (`null` only if
+the recorder did not expose it) and `memory_cue` is the object described in
+[Chat Memory Cue](../features/memory.md#chat-memory-cue), with at least one of
+`episode` or `memories` present. The executor emits it after persistence and
+episode capture, so it arrives after the reply text and before `run.completed`,
+at most once per turn. Incognito turns and turns that remembered nothing emit
+none.
+
 `run.completed` is emitted once after safe side effects have run and includes
 both `run_id` and the resolved `chat_id`. For normal non-voice text, completion
 is usually only the run/chat terminal marker because structured speech/display
@@ -292,7 +382,10 @@ the direct turn observer persists only a compact `stream_event_summary` under
 final response ID also expose compact continuation, phase, output item, native
 tool, and stream-summary metadata under `message_data.openai` so manual
 history replay can preserve assistant `phase` values when the
-`previous_response_id` cursor is unavailable or stale.
+`previous_response_id` cursor is unavailable or stale. The final visible
+assistant row also stores `message_data.memory` (`updates_enabled` and the
+turn's `MEMORIES.md` change); see
+[Chat Memory Cue](../features/memory.md#chat-memory-cue).
 
 Normal chat persistence also reserves per-chat `chat_messages.turn` values from
 `chats.next_turn`. The value starts at `1` for each chat and increments for each
@@ -317,12 +410,16 @@ stores the resulting summary in `chat_compactions`. Compaction summaries are not
 streamed as `user.response` events and are not inserted into `chat_messages`.
 Compaction model usage stays on the `chat_compactions` row rather than the
 chat's `cum_*` counters. Active compaction summaries record `start_turn` and
-`end_turn`; the next prompt uses the summary as a system continuity message plus
-exact visible messages with `turn > end_turn` when the selected provider
-serializes local context. If an OpenAI Responses turn continues from a chat-row
-`openai_previous_response_id`, the request sends only the new user input and the
-cursor, so the active summary is not physically included in that provider
-payload.
+`end_turn`; the next prompt uses the summary as a `developer` continuity
+message ahead of the exact visible messages with `turn > end_turn` when the
+selected provider serializes local context. If an OpenAI Responses turn
+continues from a chat-row `openai_previous_response_id`, the request sends only
+the new user input and the cursor, so the active summary is not physically
+included in that provider payload.
+
+Before provider frames, the route records the AI-notice cadence for the owner
+in `companion_safety_state` through its own short-lived session. That row
+holds timestamps and the local notice date only, never message content.
 
 Emotion persistence reuses `persist_sse_side_effect(...)`. Current-run
 `EMOTION_UPDATE` events are persisted with

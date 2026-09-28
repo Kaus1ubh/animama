@@ -19,6 +19,7 @@ import type { UpdateCandidate } from "../updates/policy.js";
 import {
   FeaturePackManager,
   PackInUseError,
+  type ActivePack,
   type ActivePacks,
   type PackTransition,
 } from "../feature-packs/manager.js";
@@ -37,13 +38,19 @@ import {
 import { assertLoopbackPortAvailable, unusedLoopbackPort } from "./ports.js";
 import { PrivatePostgres } from "./postgres.js";
 import { MigrationBackup } from "./migrations.js";
-import { readBackendReadiness, readDesktopControlJson } from "./readiness.js";
+import {
+  readBackendReadiness,
+  readDesktopControlJson,
+  readTerminalStartupFailure,
+} from "./readiness.js";
+import { databaseSchemaDigest } from "./schema.js";
 import { OwnedProcesses, type OwnedProcess, runCommand } from "./processes.js";
 import { runtimeRedactor } from "./redaction.js";
 import {
   CredentialVault,
   type Encryption,
   validateCredential,
+  validateCredentialChanges,
   validateProvider,
 } from "./vault.js";
 
@@ -64,6 +71,22 @@ export type SupervisorOptions = {
   onPackProgress?(status: FeaturePackStatus): void;
   quiesceRenderers?(): Promise<void>;
 };
+
+/** The backend's private model-mount configuration for one verified active pack. */
+function modelMountJson(pack: ActivePack): string {
+  return JSON.stringify({
+    root: pack.root,
+    version: versionDirectory(pack.manifest),
+    files: pack.manifest.files.map(
+      ({ path, size_bytes, sha256, media_type }) => ({
+        path,
+        size_bytes,
+        sha256,
+        media_type,
+      }),
+    ),
+  });
+}
 
 /** Own the entire local process graph; never infer authority from a port or PID. */
 export class RuntimeSupervisor {
@@ -173,6 +196,13 @@ export class RuntimeSupervisor {
             ),
           }
         : {}),
+      ...(this.activePacks["parakeet-stt-webgpu"]
+        ? {
+            ANIMAMA_PARAKEET_WEBGPU_ASSET_VERSION: versionDirectory(
+              this.activePacks["parakeet-stt-webgpu"].manifest,
+            ),
+          }
+        : {}),
       ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID: this.documentInstance,
       ...(this.activePacks["document-processing"]
         ? {
@@ -182,6 +212,7 @@ export class RuntimeSupervisor {
           }
         : {}),
       ANIMAMA_DESKTOP_BUILD_ID: this.manifest.build_id,
+      ANIMAMA_DESKTOP_APP_VERSION: this.options.appVersion,
       ANIMAMA_LOCAL_BIND_HOST: "127.0.0.1",
       ANIMAMA_LOG_TO_FILE: "0",
       ANIMAMA_LOG_TO_CONSOLE: "1",
@@ -195,6 +226,8 @@ export class RuntimeSupervisor {
     if (!this.applicationOrigin)
       throw new RuntimeError("runtime_not_initialized");
     const parakeet = this.activePacks["parakeet-stt"];
+    // The pack manager never activates the encoder without the base pack.
+    const webgpu = this.activePacks["parakeet-stt-webgpu"];
     return {
       ...this.environment(),
       ANIMAMA_PUBLIC_ORIGIN: this.applicationOrigin.origin,
@@ -202,20 +235,10 @@ export class RuntimeSupervisor {
       ANIMAMA_DESKTOP_RENDERER_CAPABILITY: this.rendererCapability,
       ANIMAMA_DESKTOP_CONTROL_TOKEN: this.controlToken,
       ...(parakeet
-        ? {
-            ANIMAMA_PARAKEET_MODEL_MOUNT_JSON: JSON.stringify({
-              root: parakeet.root,
-              version: versionDirectory(parakeet.manifest),
-              files: parakeet.manifest.files.map(
-                ({ path, size_bytes, sha256, media_type }) => ({
-                  path,
-                  size_bytes,
-                  sha256,
-                  media_type,
-                }),
-              ),
-            }),
-          }
+        ? { ANIMAMA_PARAKEET_MODEL_MOUNT_JSON: modelMountJson(parakeet) }
+        : {}),
+      ...(webgpu
+        ? { ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON: modelMountJson(webgpu) }
         : {}),
     };
   }
@@ -358,6 +381,10 @@ export class RuntimeSupervisor {
           before.alembic_head !== this.manifest.alembic_head
         )
           await backup.prepare(before.alembic_head, this.manifest.alembic_head);
+        // Check a current-revision profile before seeds run, so a seed that no
+        // longer fits its schema cannot mask the mismatch as a migration failure.
+        const current = before.alembic_head === this.manifest.alembic_head;
+        if (current) await this.verifyDatabaseSchema(backup);
         let database: DatabaseState;
         try {
           database = await this.databaseCommand("bootstrap");
@@ -373,6 +400,7 @@ export class RuntimeSupervisor {
           backup.failed();
           throw new RuntimeError("database_version_mismatch");
         }
+        if (!current) await this.verifyDatabaseSchema(backup);
         backup.complete(database.alembic_head);
         this.stage("backend");
         const cleanupEnvironment = this.environment();
@@ -418,6 +446,21 @@ export class RuntimeSupervisor {
         }
       }
     });
+  }
+  /**
+   * A development baseline edited in place keeps its Alembic head, so compare
+   * the live schema with the staged fresh database before any service uses it.
+   */
+  private async verifyDatabaseSchema(backup: MigrationBackup): Promise<void> {
+    const digest = await databaseSchemaDigest(
+      this.postgres!.bin("pg_dump"),
+      this.databaseEnv,
+      this.options.paths.base,
+    );
+    if (digest !== this.manifest!.database_schema_sha256) {
+      backup.failed();
+      throw new RuntimeError("database_schema_mismatch");
+    }
   }
   private async startBackend(principalId: string): Promise<void> {
     const origin = this.applicationOrigin!;
@@ -470,7 +513,8 @@ export class RuntimeSupervisor {
           ready = true;
           break;
         }
-        await response.body?.cancel();
+        const failure = await readTerminalStartupFailure(response);
+        if (failure) throw new RuntimeError(failure);
       } catch (error) {
         if (error instanceof RuntimeError) throw error;
       }
@@ -834,28 +878,43 @@ export class RuntimeSupervisor {
     const key = validateProvider(provider);
     const plaintext =
       value === undefined ? undefined : validateCredential(value);
-    if (plaintext) runtimeRedactor.add(plaintext);
+    return this.changeCredentials([{ provider: key, value: plaintext }]).then(
+      (statuses) => statuses.find((item) => item.provider === key)!,
+    );
+  }
+  /**
+   * Save or remove several provider keys with one backend quiesce and one
+   * consumer restart. Every changed provider records the same failure if the
+   * batch cannot finish, and saved keys stay saved for Retry.
+   */
+  changeCredentials(changes: unknown): Promise<CredentialStatus[]> {
+    const batch = validateCredentialChanges(changes);
+    for (const change of batch)
+      if (change.value) runtimeRedactor.add(change.value);
     return this.serialize(async () => {
       if (!this.vault || this.current.state !== "ready")
         throw new RuntimeError("runtime_not_ready");
-      this.credentialFailures.delete(key);
+      const vault = this.vault;
+      for (const change of batch)
+        this.credentialFailures.delete(change.provider);
       this.stage("backend");
       let quiesced = false;
       let saved = false;
       try {
         await this.quiesceBackend();
         quiesced = true;
-        if (plaintext === undefined) this.vault.delete(key);
-        else this.vault.set(key, plaintext);
+        // One encrypted write: either every change is saved or none is.
+        vault.apply(batch);
         saved = true;
         await this.restartConsumers();
-        return this.credentials().find((item) => item.provider === key)!;
+        return this.credentials();
       } catch (error) {
         // Record before recovery emits ready: the old IPC caller no longer exists.
-        this.credentialFailures.set(key, {
-          error: runtimeErrorCode(error),
-          saved,
-        });
+        for (const change of batch)
+          this.credentialFailures.set(change.provider, {
+            error: runtimeErrorCode(error),
+            saved,
+          });
         try {
           if (!quiesced) await this.restartConsumers();
           else throw error;
@@ -866,7 +925,7 @@ export class RuntimeSupervisor {
             code: runtimeErrorCode(recoveryError),
           });
         }
-        return this.credentials().find((item) => item.provider === key)!;
+        return this.credentials();
       }
     });
   }

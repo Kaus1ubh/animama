@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
+from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.domain.memory_episode import MemoryEpisodeItem
 from animama.domain.memory_manager import MemoryManagerEpisodeTaskState, MemoryManagerRun
 
@@ -77,9 +78,11 @@ def render_episode_processing_instructions(
         "`include_episodic_memory=false`. A hit under episodes/** is raw source material and never proves curation.",
         "Use the apply_patch tool when you want to update the user's curated memory files, with exactly one "
         "create_file or update_file "
-        "operation per approval. Never edit episodes/** or Anima identity files.",
+        "operation per approval. Never edit episodes/** or Anima files.",
         "For every curated file you create or update, keep its description as a concise, accurate overview of the "
         "file after the episodic changes. Preserve an existing description only when it still reflects the contents.",
+        SENSITIVE_MEMORY_RULE,
+        "Treat an episode note as an explicit request to remember such details only when it says the user asked.",
         "A final response asserts that you reviewed the entire fixed batch.",
         "",
         "# Pending episode batch",

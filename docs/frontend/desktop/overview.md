@@ -9,8 +9,8 @@ account or hosted Animama account is needed to open the app.
 The runtime includes optional packs, guarded application updates, upgrade
 snapshot retention and signing tools. Release acceptance remains pending for
 fresh matching artifacts, complete starter inputs, minimum-OS and native tests,
-and explicit publication approval. Private GitHub pack/update downloads are
-unsupported. Start with [Installation](installation.md),
+and explicit publication approval. Pack and update downloads come only from the
+public distribution selected at build time. Start with [Installation](installation.md),
 [Feature packs](feature-packs.md) and [Troubleshooting](troubleshooting.md).
 Maintainers use the [manual release process](release-process.md) and
 [Runtime staging](runtime-staging.md).
@@ -148,14 +148,16 @@ window and accept zero arguments; recovery can open only the fixed backup folder
 
 Embedded setup and Settings show optional OpenAI, DeepSeek, Hugging Face,
 Gemini, and ElevenLabs key controls. Keys are never read back or saved to
-browser storage. Saving or removing one first drains local work, then encrypts
+browser storage. A save applies one change or a batch (`credentials.apply`,
+validated as at most one change per provider): it first drains local work, then encrypts
 the vault through Electron `safeStorage` and restarts FastAPI and the installed
 document worker with the new environment. PostgreSQL, the stable origin, and local ownership do
 not change. Unavailable secure storage fails closed; it never falls back to
 plaintext storage. Browser and external-stack development do not show these
 desktop credential controls.
 
-A busy or failed drain leaves the previous credential unchanged. Main retains
+A busy or failed drain leaves the previous credentials unchanged; a failed batch
+records the same failure for each provider in it. Main retains
 one bounded failure status per provider across product-window recreation, so
 reopening Settings explains why the change did not finish. A new accepted attempt clears that provider's
 previous failure. If the vault was already updated before a service restart
@@ -247,7 +249,7 @@ manually to bypass references or leases.
 
 ## Application Updates
 
-A signed, configured macOS app checks the public GitHub feed after startup and
+A signed, configured macOS app checks its release feed after startup and
 on demand in Settings → General. Checks never download. Download and confirmed
 Restart are separate actions; normal Quit does not install. Offline checks do
 not prevent startup. Unpackaged and unconfigured builds hide these controls.
@@ -339,7 +341,9 @@ Desktop windows use:
 
 The session permission guard currently allows only media permissions from the
 configured web origin. Navigation guards block or externalize URLs outside the
-configured origin.
+configured origin. Besides external HTTP(S) URLs, only crisis-card `tel:` and
+`sms:` links whose target is digits with an optional leading `+` are handed to
+the operating system.
 
 IPC handlers resolve target windows from `event.sender`. Renderers do not choose
 window ids, target webContents ids, or arbitrary URLs.

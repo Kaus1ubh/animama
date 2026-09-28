@@ -1600,3 +1600,36 @@ or changed. Full transfer journeys, builds and native checks were not repeated.
 Code Review #1 Findings: independent analysis passed with no actionable findings;
 independent checks review also passed using the scoped evidence and a fresh
 whitespace check. Revisions: none required. Both repair rounds remain unused.
+
+### Main update and imported-playback investigation (2026-09-28)
+
+Resume from `83bb84d` with an ordinary merge of `origin/main` at `623b4d38`.
+Preserve legacy creation receipts and package materialization alongside main's
+owner model preferences, fresh `MEMORIES.md`, and redesigned settings. Remove
+BGM controls from the new settings layout. Successful Anima import invalidates
+the new identity listing. Generate the API client and route tree from the merged
+source rather than editing generated conflicts.
+
+Merge checks: 82 backend cases passed before correcting two stale expectations
+for the newly initialized memory file; all six cross-installation cases then
+passed, including private-memory exclusion. Backend scoped lint/format/types and
+import boundaries pass. 53 creation/settings and 35 sharing tests pass, along
+with frontend scoped lint/format, package builds and web types. Independent
+resolution reviews passed with no findings; E2E source types and generated-client
+verification (17 files) pass. Whitespace relative to main passes; an unrelated
+trailing blank line already in main’s safety plan is left unchanged.
+
+The owner requests playback validation after ZIP round trips across applicable
+Library, creator, Anima and Gesture/Reaction integration surfaces, plus a manual
+imported-Anima chat. Earlier evidence only proved installation, not this matrix.
+A previously reproduced imported `Angry-2` reported preview unavailable; source
+inspection identifies a possible companion-filename/reference mismatch. Reproduce
+with an isolated fixture, fix the import boundary with a failing regression test,
+and validate each surface separately before claiming completion.
+
+Use fresh disposable stack `animama-sharing-playback-0c75` at
+`http://animama-sharing-playback-0c75.localhost:8560`, record
+`.animama-stacks/sharing-playback.env`, because main changes the baseline schema.
+Keep the prior development/built stacks and their data intact. Automated journeys
+use deterministic model clients and exact fixture-ledger cleanup. Real-provider
+chat requires the requested bounded budget; mock success is reported separately.

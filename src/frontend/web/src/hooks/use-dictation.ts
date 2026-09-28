@@ -19,6 +19,14 @@ import {
   transcribeClientParakeetWindow,
 } from "@/lib/speech/client-parakeet/client";
 import {
+  DEFAULT_PARAKEET_PREVIEW_CONFIG,
+  createParakeetPreviewController,
+  shouldEnableParakeetPreviews,
+  type ParakeetPreview,
+  type ParakeetPreviewController,
+} from "@/lib/speech/client-parakeet/preview-controller";
+import type { ClientParakeetBackend } from "@/lib/speech/client-parakeet/worker-protocol";
+import {
   type BrowserRecognitionStopReason,
   appendTranscript,
   clearBrowserSpeechInterimText,
@@ -30,7 +38,15 @@ import {
 } from "@/hooks/voice/browser-recognition-runtime";
 import { useVoiceEndTurnCoordinator } from "@/hooks/voice/use-voice-end-turn-coordinator";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
+import {
+  microphoneAudioConstraints,
+  openSelectedMicrophone,
+  readSelectedMicrophoneId,
+  vadThresholdsForSensitivity,
+  type VadThresholds,
+} from "@/lib/voice/microphone-preferences";
 import { useSettings } from "@/ui/settings/SettingsProvider";
+import { isParakeetWebgpuPreferred } from "@/lib/settings/preferences";
 import {
   startAcousticTurn,
   type AcousticTurnGateState,
@@ -137,11 +153,10 @@ const SMART_TURN_SAMPLE_RATE = 16000;
 const SMART_TURN_MODEL_WINDOW_SAMPLES = SMART_TURN_SAMPLE_RATE * 8;
 const SMART_TURN_SHORT_UTTERANCE_MAX_MS = 2000;
 
-const MICVAD_POSITIVE_SPEECH_THRESHOLD = 0.3; // determines the threshold over which a probability is considered to indicate the presence of speech. default: 0.3
-const MICVAD_NEGATIVE_SPEECH_THRESHOLD = 0.25; // determines the threshold under which a probability is considered to indicate the absence of speech. default: 0.25
+// Positive/negative speech thresholds and minimum speech length come from the
+// microphone sensitivity preference (see lib/voice/microphone-preferences.ts).
 const MICVAD_REDEMPTION_MS = 1400; // number of milliseconds of speech-negative frames to wait before ending a speech segment. default: 1400, 200 recommended when paired with smart-turn
 const MICVAD_PRESPEECH_PAD_MS = 200; // number of milliseconds of audio to prepend to a speech segment. default: 800
-const MICVAD_MINSPEECH_MS = 180; // minimum duration in milliseconds for a speech segment. default: 400
 
 // We stream raw PCM16 over WS to keep latency low and avoid codec overhead.
 // The mic provides Float32 frames, so we must convert to PCM16 continuously.
@@ -234,7 +249,19 @@ export function useDictation(options: UseDictationOptions = {}) {
   const [error, setError] = useState<Error | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const { effectivePreferences } = useSettings();
+  // Read at each Parakeet start so a settings change applies to the next session.
+  const parakeetWebgpuPreferredRef = useRef(false);
+  parakeetWebgpuPreferredRef.current =
+    isParakeetWebgpuPreferred(effectivePreferences);
   const platform = useRuntimePlatform();
+  // Read at VAD start so a sensitivity change applies to the next session.
+  const micVadThresholdsRef = useRef<VadThresholds>(
+    vadThresholdsForSensitivity(undefined),
+  );
+  const micSensitivity = effectivePreferences?.speech?.mic_sensitivity;
+  useEffect(() => {
+    micVadThresholdsRef.current = vadThresholdsForSensitivity(micSensitivity);
+  }, [micSensitivity]);
 
   const runIdRef = useRef<string | null>(null);
   const runIdTimerRef = useRef<number | null>(null);
@@ -275,6 +302,11 @@ export function useDictation(options: UseDictationOptions = {}) {
   const parakeetSessionCounterRef = useRef(0);
   const activeParakeetSessionIdRef = useRef<number | null>(null);
   const parakeetJobCounterRef = useRef(0);
+  const parakeetPreviewControllerRef = useRef<ParakeetPreviewController | null>(
+    null,
+  );
+  /** Display-only interim text; never written to gate state or speech buffers. */
+  const parakeetPreviewRef = useRef<ParakeetPreview | null>(null);
   const pendingFlushSmartTurnOverrideRef =
     useRef<PendingFlushSmartTurnOverride | null>(null);
 
@@ -469,6 +501,36 @@ export function useDictation(options: UseDictationOptions = {}) {
       });
     },
     [publishTranscriptPreview],
+  );
+
+  const publishParakeetPreview = useCallback(
+    (args: { turnId: string; mode: DictationMode; interimText: string }) => {
+      const buffers = browserSpeechTextBuffersRef.current;
+      publishTranscriptPreview({
+        provider: "parakeet",
+        mode: args.mode,
+        turnId: args.turnId,
+        finalText: buffers?.turnId === args.turnId ? buffers.finalText : "",
+        interimText: args.interimText,
+      });
+    },
+    [publishTranscriptPreview],
+  );
+
+  /** Remove the interim preview for a window once its final result or rejection arrives. */
+  const clearParakeetPreview = useCallback(
+    (args: { windowId: string | null; mode: DictationMode }) => {
+      const preview = parakeetPreviewRef.current;
+      if (!preview) return;
+      if (args.windowId !== null && preview.windowId !== args.windowId) return;
+      parakeetPreviewRef.current = null;
+      publishParakeetPreview({
+        turnId: preview.turnId,
+        mode: args.mode,
+        interimText: "",
+      });
+    },
+    [publishParakeetPreview],
   );
 
   const clearBrowserInterimPreview = useCallback(
@@ -1244,6 +1306,9 @@ export function useDictation(options: UseDictationOptions = {}) {
     if (provider === "parakeet") {
       const runId = runIdRef.current;
       activeParakeetSessionIdRef.current = null;
+      parakeetPreviewControllerRef.current?.reset();
+      parakeetPreviewControllerRef.current = null;
+      parakeetPreviewRef.current = null;
       setIsDictationPreparing(false);
       setRunId(null);
       teardownBrowserVisualizerStream();
@@ -1310,6 +1375,14 @@ export function useDictation(options: UseDictationOptions = {}) {
           provider,
           mode: "voice",
         });
+      } else {
+        // Pausing MicVAD without a flush discards the open window without any
+        // VAD callback, so previews must end here. A flushed window keeps its
+        // preview until the final that `onSpeechEnd` queues replaces it.
+        parakeetPreviewControllerRef.current?.reset();
+        if (options?.flushPendingSpeech !== true) {
+          clearParakeetPreview({ windowId: null, mode: "voice" });
+        }
       }
       clearVoiceSilenceResetTimer();
       lastAcceptedSpeechAtRef.current = null;
@@ -1333,6 +1406,7 @@ export function useDictation(options: UseDictationOptions = {}) {
     },
     [
       clearBrowserInterimPreview,
+      clearParakeetPreview,
       clearVoiceSilenceResetTimer,
       isVoiceMicMuted,
       logger,
@@ -1398,12 +1472,14 @@ export function useDictation(options: UseDictationOptions = {}) {
         interimSegments: [],
       });
       browserSpeechTextBuffersRef.current = nextBuffers;
+      // A later window may already be previewing while this final lands.
+      const preview = parakeetPreviewRef.current;
       publishTranscriptPreview({
         provider: "parakeet",
         mode: "voice",
         turnId: args.turnId,
         finalText: nextBuffers.finalText,
-        interimText: nextBuffers.interimText,
+        interimText: preview?.turnId === args.turnId ? preview.text : "",
       });
     },
     [publishTranscriptPreview, syncGateDebugStats],
@@ -1465,6 +1541,8 @@ export function useDictation(options: UseDictationOptions = {}) {
           );
           return;
         }
+
+        clearParakeetPreview({ windowId: args.windowId, mode: args.mode });
 
         logger.info("ClientParakeet", "Speech window transcription ready", {
           jobId,
@@ -1553,6 +1631,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         ) {
           return;
         }
+        clearParakeetPreview({ windowId: args.windowId, mode: args.mode });
         const errorObj =
           err instanceof Error
             ? err
@@ -1570,11 +1649,95 @@ export function useDictation(options: UseDictationOptions = {}) {
     [
       appendSmartTurnAudioSegment,
       armVoiceSilenceResetTimer,
+      clearParakeetPreview,
       commitParakeetVoiceTranscript,
       logger,
       runSmartTurnSemanticCheck,
       submitPendingVoiceEndTurn,
     ],
+  );
+
+  /**
+   * Create the live-preview controller for one Parakeet capture session. Preview
+   * text is display-only and is dropped whenever the session, mode, run or turn
+   * has moved on, or an assistant run owns the Voice Mode floor.
+   */
+  const createParakeetPreviewSession = useCallback(
+    (args: {
+      sessionId: number;
+      runId: string;
+      mode: DictationMode;
+      backend: ClientParakeetBackend;
+    }): ParakeetPreviewController | null => {
+      parakeetPreviewControllerRef.current?.reset();
+      parakeetPreviewControllerRef.current = null;
+      clearParakeetPreview({ windowId: null, mode: args.mode });
+      if (!shouldEnableParakeetPreviews(args.backend)) return null;
+
+      const isCurrentSession = (turnId: string) =>
+        activeParakeetSessionIdRef.current === args.sessionId &&
+        activeProviderRef.current === "parakeet" &&
+        modeRef.current === args.mode &&
+        runIdRef.current === args.runId &&
+        turnIdRef.current === turnId &&
+        isDictatingRef.current;
+      // Voice Mode yields to the assistant's run and speech, like final text.
+      const canShowPreview = (turnId: string) => {
+        if (!isCurrentSession(turnId)) return false;
+        if (args.mode !== "voice") return true;
+        const runtimeState = useAvatarRuntimeStore.getState();
+        return !runtimeState.activeRunId && !runtimeState.activeSpeechRunId;
+      };
+
+      const controller = createParakeetPreviewController({
+        config: {
+          ...DEFAULT_PARAKEET_PREVIEW_CONFIG,
+          sampleRateHz: DEFAULT_SAMPLE_RATE,
+          preSpeechPadMs: MICVAD_PRESPEECH_PAD_MS,
+        },
+        now: () => performance.now(),
+        transcribe: async ({ turnId, windowId, audio }) => {
+          const result = await transcribeClientParakeetWindow({
+            kind: "preview",
+            jobId: createJobId(),
+            runId: args.runId,
+            turnId,
+            windowId,
+            audio,
+            sampleRateHz: DEFAULT_SAMPLE_RATE,
+          });
+          return { text: result.text, decodeMs: result.transcribeMs };
+        },
+        shouldPreview: canShowPreview,
+        onPreview: (preview) => {
+          if (!canShowPreview(preview.turnId)) return;
+          parakeetPreviewRef.current = preview;
+          publishParakeetPreview({
+            turnId: preview.turnId,
+            mode: args.mode,
+            interimText: preview.text,
+          });
+        },
+        onEvent: (event) => {
+          if (event.type === "preview_ready") {
+            logger.debug("ClientParakeet", "Preview transcription ready", {
+              ...event,
+            });
+            return;
+          }
+          logger.info(
+            "ClientParakeet",
+            event.type === "budget_exceeded"
+              ? "Stopped previews for a speech window over the decode budget"
+              : "Preview transcription failed; stopped previews for the window",
+            { ...event },
+          );
+        },
+      });
+      parakeetPreviewControllerRef.current = controller;
+      return controller;
+    },
+    [clearParakeetPreview, logger, publishParakeetPreview],
   );
 
   const startParakeetVisualizerStream = useCallback(
@@ -1586,13 +1749,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         return;
       }
       try {
-        const visualizerStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-        });
+        const visualizerStream = await openSelectedMicrophone();
 
         if (
           activeParakeetSessionIdRef.current !== sessionId ||
@@ -1734,7 +1891,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           turnIdRef.current === turnId;
 
         const parakeetLoadPromise = loadClientParakeetWorker({
-          backend: "wasm",
+          preferWebgpu: parakeetWebgpuPreferredRef.current,
           sampleRateHz: DEFAULT_SAMPLE_RATE,
         });
 
@@ -1919,6 +2076,12 @@ export function useDictation(options: UseDictationOptions = {}) {
 
         const { createAndStartMicVad, createMicVadCallbacks } =
           await import("@/hooks/voice/mic-vad-runtime");
+        const previewController = createParakeetPreviewSession({
+          sessionId,
+          runId,
+          mode,
+          backend: loadResult.backend,
+        });
         const micVadCallbacks = createMicVadCallbacks({
           provider: "parakeet",
           logger,
@@ -1935,7 +2098,16 @@ export function useDictation(options: UseDictationOptions = {}) {
           syncGateDebugStats,
           setAvatarPhaseFromVad,
           armVoiceSilenceResetTimer,
+          onVadFrame: (frame) => previewController?.pushFrame(frame),
+          onSpeechWindowStarted: ({ turnId: speechTurnId, windowId }) =>
+            previewController?.startWindow({ turnId: speechTurnId, windowId }),
+          onSpeechWindowInvalidated: ({ windowId }) => {
+            previewController?.endWindow(windowId);
+            clearParakeetPreview({ windowId, mode });
+          },
           onAcceptedSpeechEnd: ({ audio, turnId: speechTurnId, windowId }) => {
+            // The final decode below replaces this window's preview when it lands.
+            previewController?.endWindow(windowId);
             const currentTurnId = turnIdRef.current;
             if (
               activeParakeetSessionIdRef.current !== sessionId ||
@@ -1968,11 +2140,14 @@ export function useDictation(options: UseDictationOptions = {}) {
         const vad = await createAndStartMicVad({
           baseAssetPath: VAD_BASE_ASSET_PATH,
           onnxWasmBasePath: VAD_ONNX_WASM_BASE_PATH,
-          positiveSpeechThreshold: MICVAD_POSITIVE_SPEECH_THRESHOLD,
-          negativeSpeechThreshold: MICVAD_NEGATIVE_SPEECH_THRESHOLD,
+          ...micVadThresholdsRef.current,
           redemptionMs: MICVAD_REDEMPTION_MS,
           preSpeechPadMs: MICVAD_PRESPEECH_PAD_MS,
-          minSpeechMs: MICVAD_MINSPEECH_MS,
+          // Only override vad-web's own stream when a device was chosen
+          // (Parakeet; browser recognition cannot target a device).
+          ...(readSelectedMicrophoneId()
+            ? { getStream: openSelectedMicrophone }
+            : {}),
           ...micVadCallbacks,
         });
 
@@ -2077,8 +2252,10 @@ export function useDictation(options: UseDictationOptions = {}) {
     },
     [
       armVoiceSilenceResetTimer,
+      clearParakeetPreview,
       clearTranscriptPreview,
       clearVoiceSilenceResetTimer,
+      createParakeetPreviewSession,
       logger,
       runSmartTurnSemanticCheck,
       setAvatarPhaseFromVad,
@@ -2108,11 +2285,9 @@ export function useDictation(options: UseDictationOptions = {}) {
       }
       try {
         const visualizerStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
+          // Browser speech recognition always listens on the system default
+          // microphone, so its visualizer and VAD must use the same input.
+          audio: microphoneAudioConstraints(null),
         });
 
         const isStillCurrentRecognition =
@@ -2296,11 +2471,9 @@ export function useDictation(options: UseDictationOptions = {}) {
         const vad = await createAndStartMicVad({
           baseAssetPath: VAD_BASE_ASSET_PATH,
           onnxWasmBasePath: VAD_ONNX_WASM_BASE_PATH,
-          positiveSpeechThreshold: MICVAD_POSITIVE_SPEECH_THRESHOLD, // determines the threshold over which a probability is considered to indicate the presence of speech. default: 0.3
-          negativeSpeechThreshold: MICVAD_NEGATIVE_SPEECH_THRESHOLD, // determines the threshold under which a probability is considered to indicate the absence of speech. default: 0.25
-          redemptionMs: MICVAD_REDEMPTION_MS, // number of milliseconds of speech-negative frames to wait before ending a speech segment. default: 1400, 200 recommended when paired with smart-turn
-          preSpeechPadMs: MICVAD_PRESPEECH_PAD_MS, // number of milliseconds of audio to prepend to a speech segment. default: 800
-          minSpeechMs: MICVAD_MINSPEECH_MS, // minimum duration in milliseconds for a speech segment. default: 400
+          ...micVadThresholdsRef.current,
+          redemptionMs: MICVAD_REDEMPTION_MS,
+          preSpeechPadMs: MICVAD_PRESPEECH_PAD_MS,
           ...micVadCallbacks,
         });
         vadRef.current = vad;

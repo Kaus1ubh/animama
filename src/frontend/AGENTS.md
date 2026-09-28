@@ -226,7 +226,7 @@ or migration behavior.
   shared store and exact dependency files described in
   `../../docs/backend/operations/model-assets.md`; do not restore ONNX payloads to
   `web/public` or substitute different runtime versions.
-- Vite verifies the 19 browser engine files before serving/building and copies
+- Vite verifies the 35 browser engine files before serving/building and copies
   them into built artifacts. Keep every variant, same-origin URL and notice;
   installed artifacts must not depend on a developer cache.
 - Use root-relative public URLs for runtime fetches.
@@ -272,12 +272,15 @@ or migration behavior.
   Signing, updates and installed-artifact smoke tools require exact source/input
   review, matching artifacts and native acceptance. Read
   `../../docs/frontend/desktop/releases.md` before using those commands.
-  Never auto-fill approval receipts, embed a GitHub token, run smoke against an
-  existing user profile or publish as part of an ordinary build. Signed candidate
-  builds do not query GitHub or require a public repository. Preview/stable
-  publication requires anonymous and authenticated visibility checks and explicit
-  approval. Private candidate installation does not enable private pack/update
-  downloads. Do not add bypasses or change visibility to finish tests.
+  Never auto-fill approval receipts, embed a token or R2 credential, run smoke
+  against an existing user profile or publish as part of an ordinary build.
+  `ANIMAMA_RELEASE_DISTRIBUTION` (default `r2`) is read only by build and
+  release tooling and sealed into the app; the installed app never reads it, so
+  never add a runtime override. Signed candidate builds do
+  not contact the distribution. Preview/stable publication requires a passing
+  `pnpm desktop:release:scan` receipt, anonymous destination checks and explicit
+  approval. A destination that is not publicly served cannot deliver packs or
+  updates. Do not add bypasses or change visibility to finish tests.
   Native smoke uses a separate macOS account with verified absent app/profile
   data. Initial publication is manual by `raymond-van` from reviewed `main`
   inputs; CI publication is unconfigured. Follow

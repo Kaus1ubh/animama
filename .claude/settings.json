@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run pytest -q)",
+      "Bash(uv run --no-sync pytest -q)",
+      "Bash(uv run ruff check)",
+      "Bash(uv run --no-sync ruff check)",
+      "Bash(uv run ruff format --check)",
+      "Bash(make format-check)",
+      "Bash(make lint)",
+      "Bash(make mypy)",
+      "Bash(make check)",
+      "Bash(make check-test)",
+      "Bash(pnpm check)",
+      "Bash(pnpm web:lint)",
+      "Bash(pnpm web:test)",
+      "Bash(pnpm prettier:check)",
+      "Bash(pnpm e2e:check:source)",
+      "Bash(pnpm exec tsc -b)",
+      "Bash(docker compose ls)",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__take_screenshot",
+      "mcp__chrome-devtools__list_console_messages",
+      "mcp__chrome-devtools__list_network_requests"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-edited-file.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

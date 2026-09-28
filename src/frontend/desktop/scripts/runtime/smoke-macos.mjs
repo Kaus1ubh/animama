@@ -26,14 +26,11 @@ import { verifySignedApp } from "./macos-signing.mjs";
 import { classifySmokeRequest } from "./smoke-policy.mjs";
 
 /** Runs in the renderer; delete through the normal vault API and verify status only. */
-export async function removeTemporarySmokeProvider() {
-  const credentials = window.animamaDesktop.credentials;
-  await credentials.delete("openai");
-  const status = (await credentials.list()).find(
+export async function temporarySmokeProviderRemoved() {
+  const status = (await window.animamaDesktop.credentials.list()).find(
     (entry) => entry.provider === "openai",
   );
-  if (!status || status.configured)
-    throw new Error("temporary_provider_cleanup_failed");
+  return Boolean(status) && !status.configured;
 }
 
 /** Exercise the real signed artifact using its canonical profile; never add packaged developer overrides. */
@@ -237,11 +234,33 @@ export async function smokeMac(args) {
     const record = readJson(path.join(userData, "runtime/processes.json"));
     evidence("owned_children_stopped", record.children.length === 0);
   };
+  /**
+   * A key change restarts local services, which destroys the product window and
+   * reopens it on the same route. Start the change, wait for the old window to
+   * close, then continue in its ready replacement.
+   */
+  const acrossRestart = async (page, change) => {
+    const closed = page.waitForEvent("close", { timeout: 120_000 });
+    await change();
+    await closed;
+    return readyPage();
+  };
   const cleanupProvider = async () => {
     if (!providerMayBeSaved) return;
     if (!application) application = await launch();
-    const page = await readyPage();
-    await page.evaluate(removeTemporarySmokeProvider);
+    const current = await readyPage();
+    if (!(await current.evaluate(temporarySmokeProviderRemoved))) {
+      // The IPC reply never arrives: its caller window is replaced.
+      const page = await acrossRestart(current, () =>
+        current.evaluate(() => {
+          void window.animamaDesktop.credentials
+            .delete("openai")
+            .catch(() => undefined);
+        }),
+      );
+      if (!(await page.evaluate(temporarySmokeProviderRemoved)))
+        throw new Error("temporary_provider_cleanup_failed");
+    }
     evidence("temporary_provider_removed", true);
     providerMayBeSaved = false;
   };
@@ -310,11 +329,13 @@ export async function smokeMac(args) {
     step = "provider-and-first-run";
     // Set before submission: even a failed save response may have persisted it.
     providerMayBeSaved = true;
-    await page.getByLabel("API key", { exact: true }).fill(provider);
-    await page.getByRole("button", { name: "Save key", exact: true }).click();
+    await page.getByLabel("OpenAI", { exact: true }).fill(provider);
+    page = await acrossRestart(page, () =>
+      page.getByRole("button", { name: "Save", exact: true }).click(),
+    );
     await page
-      .getByText("Key saved. Local services are ready.", { exact: true })
-      .waitFor({ timeout: 120_000 });
+      .getByRole("heading", { name: "What should Animama call you?" })
+      .waitFor({ timeout: 60_000 });
     const providerStatuses = await page.evaluate(() =>
       window.animamaDesktop.credentials.list(),
     );
@@ -334,12 +355,9 @@ export async function smokeMac(args) {
     await page
       .getByLabel("Display name", { exact: true })
       .fill("Desktop smoke");
-    await page
-      .getByRole("button", {
-        name: "Continue",
-        exact: true,
-      })
-      .click();
+    evidence("adult_confirmation_required", await continueButton.isDisabled());
+    await page.getByLabel("I am 18 or older", { exact: true }).check();
+    await continueButton.click();
     await page.waitForURL(/\/a(?:\/|$)/u, { timeout: 60_000 });
     const context = await request(page, "/v1/runtime-context");
     evidence(
@@ -611,7 +629,8 @@ export async function smokeMac(args) {
       report.passed = false;
       report.cleanup_required =
         "Remove the temporary OpenAI credential from this test account in Animama settings.";
-      report.failed_step = "temporary-provider-cleanup";
+      // Keep the step that failed first; cleanup failure is reported separately.
+      report.failed_step ??= "temporary-provider-cleanup";
     });
     if (application)
       await close().catch(() => {

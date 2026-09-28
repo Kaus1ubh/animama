@@ -34,7 +34,7 @@ from animama.server.local_runtime import LocalRuntimePaths
 _log = get_logger("server.local_installation_bootstrap")
 
 LOCAL_OWNER_BOOTSTRAP_POLICY = OwnerBootstrapPolicy(
-    profile_template_version="1",
+    profile_template_version="2",
     starter_anima_ids=tuple(spec.id for spec in STARTER_ANIMA_SPECS),
 )
 

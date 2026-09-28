@@ -3,16 +3,26 @@
 Feature packs add optional local capabilities. The installation owner remains
 the same when a pack is installed, removed or reinstalled. No online Animama
 account is required. **No production pack release is available.** The producer emits catalog entries
-only for active, approved exact inputs. Configured private GitHub URLs cannot
-serve anonymous installed-app downloads.
+only for active, approved exact inputs, with URLs in the release folder of the
+distribution selected at build time (see [Distribution selection](releases.md#distribution-selection)).
+The app downloads only from that distribution; a destination that is not yet
+publicly served cannot deliver packs.
 
 ## What each pack adds
 
-| Name in Settings                     | Catalog ID                  | Behavior without it                                                                                                                |
-| ------------------------------------ | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Offline speech recognition           | `parakeet-stt`              | Dictation and Voice Mode are unavailable. Text chat, avatars, PocketTTS and microphone permission do not depend on it.             |
-| Expanded Included content (deferred) | `expanded-included-content` | Not offered in the first release. Both core starters retain their required content.                                                |
-| Document processing (deferred)       | `document-processing`       | Not offered in the first release. Originals can still be uploaded and stored; new extraction/indexing requests remain unavailable. |
+| Name in Settings                     | Catalog ID                  | Behavior without it                                                                                                                  |
+| ------------------------------------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Offline speech recognition           | `parakeet-stt`              | Dictation and Voice Mode are unavailable. Text chat, avatars, PocketTTS and microphone permission do not depend on it.               |
+| GPU speech encoder                   | `parakeet-stt-webgpu`       | Offline speech runs on the CPU without live previews. Requires `parakeet-stt`, which cannot be removed while this pack is installed. |
+| Expanded Included content (deferred) | `expanded-included-content` | Not offered in the first release. Both core starters retain their required content.                                                  |
+| Document processing (deferred)       | `document-processing`       | Not offered in the first release. Originals can still be uploaded and stored; new extraction/indexing requests remain unavailable.   |
+
+The GPU speech encoder is offered only beside App Settings → Voice →
+Speech-to-Text → Provider for **Parakeet (WebGPU · Experimental)**, after the
+renderer finds a WebGPU adapter. The general pack list shows it only when its
+files remain installed, for removal or recovery. If the encoder was left inactive
+because offline speech was missing at startup, reinstall offline speech, then
+select Retry: its retained, verified files are reactivated without downloading.
 
 The expanded-content and document-processing packs are deferred from the
 initial catalog and hidden in Settings on a fresh installation. If old pack files remain,
@@ -58,7 +68,10 @@ Choose different content or remove the relevant optional selection, close
 previews and let outstanding leases expire, then retry. Do not delete pack
 directories by hand to bypass these checks.
 
-Removing Parakeet disables its dictation path. Removing the document pack keeps
+The GPU speech encoder depends on offline speech recognition: remove the
+encoder first (`pack_dependent_installed`), and install offline speech before
+the encoder (`pack_dependency_missing`). Removing Parakeet disables its
+dictation path. Removing the document pack keeps
 originals and queued jobs; they can resume after reinstalling a compatible
 worker. Removing expanded content withdraws its catalog entries. Local creations
 and unrelated content are not deleted. `pack_cleanup_pending` means a pack is

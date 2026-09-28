@@ -8,7 +8,14 @@ from typing import Any
 
 from animama.app.ports.memory_patch_port import MemoryPatchCandidate, MemoryPatchPlanError, MemoryPatchPlanner
 from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
+from animama.app.services.anima_identity_memory import (
+    ANIMA_SELF_MEMORIES_ALIAS,
+    ANIMA_SELF_MEMORIES_MISSING_MESSAGE,
+    get_anima_memories_or_none,
+    is_anima_self_memories_alias,
+)
 from animama.app.services.memory_entry_service import (
+    MEMORY_ENTRY_ANIMAS_ROOT_PATH,
     MemoryEntryConflictError,
     MemoryEntryError,
     MemoryEntryNotFoundError,
@@ -24,10 +31,12 @@ from animama.app.services.user_memory_read_tools import (
     MAX_MEMORY_READ_FILES,
     UserMemoryReadToolService,
 )
-from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE
+from animama.domain.anima_definition import ANIMA_MEMORIES_MAX_BYTES, ANIMA_MEMORIES_PATH, ANIMA_MEMORIES_TOO_LARGE
+from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE, MemoryEntry
 from animama.domain.memory_manager import MEMORY_PATCH_OPERATION_CREATE, MEMORY_PATCH_OPERATION_UPDATE
 from animama.domain.user_file_processing import UserFileReadableChunk
 
+from .memory_cue import AnimaMemoriesTurn
 from .memory_search import search_uploaded_files
 
 MEMORY_TOOL_LIST_FILES = "memory_list_files"
@@ -69,7 +78,11 @@ class MemoryToolPathError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class MemoryToolExecutionContext:
-    """Request-local metadata used for memory tool execution and write audits."""
+    """Request-local metadata used for memory tool execution and write audits.
+
+    ``anima_memories`` is the turn's shared ``MEMORIES.md`` state. When it is
+    ``None`` (memory influence is off) the ``[self]/MEMORIES.md`` alias is refused.
+    """
 
     user_id: str
     anima_id: str
@@ -79,6 +92,7 @@ class MemoryToolExecutionContext:
     model_provider_id: str
     model: str
     native_memory_patch_enabled: bool = False
+    anima_memories: AnimaMemoriesTurn | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,7 +167,7 @@ class DirectChatMemoryToolService:
         except MemoryToolPathError as exc:
             return _tool_error("invalid_path", str(exc), retryable=False)
         except MemoryEntryValidationError as exc:
-            return _tool_error("invalid_request", exc.detail, retryable=False)
+            return _validation_error(exc)
         except MemoryEntryConflictError as exc:
             return _tool_error("conflict", exc.detail, retryable=True)
         except MemoryEntryNotFoundError as exc:
@@ -193,6 +207,7 @@ class DirectChatMemoryToolService:
                 operation_type=operation_type,
                 path=path,
                 diff=diff if isinstance(diff, str) else None,
+                self_anima_id=context.anima_id if context.anima_memories is not None else None,
             )
             stored = await self._commit_native_patch_candidate(
                 candidate,
@@ -201,7 +216,7 @@ class DirectChatMemoryToolService:
             )
             return _tool_ok(
                 {
-                    "path": stored.path,
+                    "path": candidate.path if candidate.path == ANIMA_SELF_MEMORIES_ALIAS else stored.path,
                     "operation": candidate.operation,
                     "version": stored.version,
                 }
@@ -209,7 +224,7 @@ class DirectChatMemoryToolService:
         except MemoryPatchPlanError as exc:
             return _tool_error("patch_rejected", str(exc), retryable=False)
         except MemoryEntryValidationError as exc:
-            return _tool_error("invalid_request", exc.detail, retryable=False)
+            return _validation_error(exc)
         except MemoryEntryConflictError as exc:
             return _tool_error("conflict", exc.detail, retryable=True)
         except MemoryEntryNotFoundError as exc:
@@ -252,7 +267,11 @@ class DirectChatMemoryToolService:
             user_id=context.user_id,
             entry_id=candidate.target_entry_id,
         )
-        if current.path != candidate.path:
+        is_self_memories = candidate.path == ANIMA_SELF_MEMORIES_ALIAS
+        if is_self_memories:
+            if (current.anima_id, current.path) != (context.anima_id, ANIMA_MEMORIES_PATH):
+                raise MemoryEntryConflictError("MEMORIES.md changed while applying the patch")
+        elif current.path != candidate.path:
             raise MemoryEntryConflictError("Memory entry path changed while applying the patch")
         if is_protected_memory_entry(current):
             raise MemoryEntryProtectedError("Generated episode logs are read-only")
@@ -264,7 +283,7 @@ class DirectChatMemoryToolService:
         )
         metadata["last_ai_write"]["tool_type"] = "apply_patch"
         metadata["last_ai_write"]["operation"] = candidate.operation
-        return await self._memory_entries.patch_entry(
+        stored = await self._memory_entries.patch_entry(
             user_id=context.user_id,
             entry_id=current.id,
             expected_version=candidate.expected_version,
@@ -275,16 +294,29 @@ class DirectChatMemoryToolService:
             metadata=metadata,
             metadata_set=True,
         )
+        if is_self_memories:
+            _record_self_memories_write(
+                context,
+                previous_version=candidate.expected_version,
+                previous_content=candidate.old_content or "",
+                stored=stored,
+            )
+        return stored
 
     async def _list_files(self, *, context: MemoryToolExecutionContext) -> str:
         return _tool_payload(await self._user_memory_reads.list_files(user_id=context.user_id))
 
     async def _read_files(self, arguments: Mapping[str, Any], *, context: MemoryToolExecutionContext) -> str:
+        anima_memories = context.anima_memories
         return _tool_payload(
             await self._user_memory_reads.read_files(
                 user_id=context.user_id,
                 paths=arguments.get("paths"),
                 native_patch_mode=context.native_memory_patch_enabled,
+                self_anima_id=context.anima_id if anima_memories is not None else None,
+                on_self_memories_read=(
+                    (lambda entry: anima_memories.saw(entry.version)) if anima_memories is not None else None
+                ),
             )
         )
 
@@ -424,24 +456,32 @@ class DirectChatMemoryToolService:
         context: MemoryToolExecutionContext,
         tool_call_id: str,
     ) -> str:
-        relative_path = _normalize_tool_file_path(arguments.get("path"))
+        path_argument = arguments.get("path")
+        is_self_memories = _is_self_memories_path(path_argument)
+        relative_path = ANIMA_SELF_MEMORIES_ALIAS if is_self_memories else _normalize_tool_file_path(path_argument)
         if is_protected_memory_path(relative_path):
             return _protected_memory_file_error(path=relative_path)
         replacements = _replacement_args(arguments.get("replacements"))
         update_description = _bool_arg(arguments.get("update_description"), default=False)
         description = _nullable_string_arg(arguments.get("description"), field="description")
 
-        try:
-            current = await self._memory_entries.get_entry_by_path(
-                user_id=context.user_id,
-                anima_id=None,
-                path=relative_path,
-                type=MEMORY_ENTRY_TYPE_FILE,
-            )
-        except MemoryEntryNotFoundError:
-            return _tool_error("not_found", "Memory file not found", path=relative_path, retryable=True)
-        if is_protected_memory_entry(current):
-            return _protected_memory_file_error(path=relative_path)
+        if is_self_memories:
+            self_memories = await self._self_memories(context)
+            if self_memories is None:
+                return _self_memories_unavailable_error(context)
+            current = self_memories
+        else:
+            try:
+                current = await self._memory_entries.get_entry_by_path(
+                    user_id=context.user_id,
+                    anima_id=None,
+                    path=relative_path,
+                    type=MEMORY_ENTRY_TYPE_FILE,
+                )
+            except MemoryEntryNotFoundError:
+                return _tool_error("not_found", "Memory file not found", path=relative_path, retryable=True)
+            if is_protected_memory_entry(current):
+                return _protected_memory_file_error(path=relative_path)
 
         content = current.content or ""
         applied: list[dict[str, Any]] = []
@@ -484,9 +524,16 @@ class DirectChatMemoryToolService:
             ),
             metadata_set=True,
         )
+        if is_self_memories:
+            _record_self_memories_write(
+                context,
+                previous_version=current.version,
+                previous_content=current.content or "",
+                stored=stored,
+            )
         return _tool_ok(
             {
-                "path": stored.path,
+                "path": relative_path if is_self_memories else stored.path,
                 "replacements_applied": sum(replacement["count"] for replacement in applied),
             }
         )
@@ -498,6 +545,8 @@ class DirectChatMemoryToolService:
         context: MemoryToolExecutionContext,
         tool_call_id: str,
     ) -> str:
+        if _is_self_memories_path(arguments.get("path")):
+            return await self._replace_self_memories(arguments, context=context, tool_call_id=tool_call_id)
         relative_path = _normalize_tool_file_path(arguments.get("path"))
         if is_protected_memory_path(relative_path):
             return _protected_memory_file_error(path=relative_path)
@@ -575,6 +624,128 @@ class DirectChatMemoryToolService:
                 "mode": mode,
             }
         )
+
+    async def _replace_self_memories(
+        self,
+        arguments: Mapping[str, Any],
+        *,
+        context: MemoryToolExecutionContext,
+        tool_call_id: str,
+    ) -> str:
+        """Replace the turn's own MEMORIES.md, fenced on the version the Anima last saw."""
+
+        mode = _string_arg(arguments.get("mode"), field="mode")
+        if mode != "replace":
+            return _tool_error(
+                "file_exists",
+                f"{ANIMA_SELF_MEMORIES_ALIAS} already exists and cannot be created; "
+                "use mode replace or memory_apply_patch to edit it",
+                path=ANIMA_SELF_MEMORIES_ALIAS,
+                retryable=False,
+            )
+        content = _string_arg(arguments.get("content"), field="content", allow_empty=True)
+        description = _nullable_string_arg(arguments.get("description"), field="description")
+        current = await self._self_memories(context)
+        if current is None:
+            return _self_memories_unavailable_error(context)
+        assert context.anima_memories is not None  # _self_memories returned a file.
+        seen_version = context.anima_memories.seen_version
+        if seen_version != current.version:
+            # A whole-file rewrite from stale content would erase a newer edit.
+            return _tool_error(
+                "conflict",
+                f"{ANIMA_SELF_MEMORIES_ALIAS} changed since you last saw it; "
+                "read it again with memory_read_files, then retry",
+                path=ANIMA_SELF_MEMORIES_ALIAS,
+                retryable=True,
+            )
+        stored = await self._memory_entries.put_file_by_path(
+            user_id=context.user_id,
+            anima_id=context.anima_id,
+            path=ANIMA_MEMORIES_PATH,
+            content=content,
+            kind=current.kind,
+            # The description is not in the instructions, so a null keeps the stored one.
+            description=current.description if description is None else description,
+            metadata=_metadata_with_ai_write(
+                current.metadata,
+                context=context,
+                tool_name=MEMORY_TOOL_WRITE_FILE,
+                tool_call_id=tool_call_id,
+            ),
+            expected_version=seen_version,
+        )
+        _record_self_memories_write(
+            context,
+            previous_version=current.version,
+            previous_content=current.content or "",
+            stored=stored,
+        )
+        return _tool_ok({"path": ANIMA_SELF_MEMORIES_ALIAS, "mode": mode})
+
+    async def _self_memories(self, context: MemoryToolExecutionContext) -> MemoryEntry | None:
+        """Load the turn's own MEMORIES.md, or ``None`` when this turn cannot reach it."""
+
+        if context.anima_memories is None:
+            return None
+        return await get_anima_memories_or_none(
+            self._memory_entries,
+            user_id=context.user_id,
+            anima_id=context.anima_id,
+        )
+
+
+def _is_self_memories_path(value: object) -> bool:
+    """Return whether a tool path is the ``[self]/MEMORIES.md`` alias; reject other bracketed paths."""
+
+    try:
+        return is_anima_self_memories_alias(value)
+    except MemoryEntryValidationError as exc:
+        raise MemoryToolPathError(exc.detail) from exc
+
+
+def _record_self_memories_write(
+    context: MemoryToolExecutionContext,
+    *,
+    previous_version: int,
+    previous_content: str,
+    stored: MemoryEntry,
+) -> None:
+    """Report a successful MEMORIES.md write to the turn for fencing and its memory cue."""
+
+    if context.anima_memories is None:
+        return
+    context.anima_memories.record_write(
+        entry_id=stored.id,
+        previous_version=previous_version,
+        previous_content=previous_content,
+        version=stored.version,
+        content=stored.content or "",
+    )
+
+
+def _self_memories_unavailable_error(context: MemoryToolExecutionContext) -> str:
+    if context.anima_memories is None:
+        message = f"{ANIMA_SELF_MEMORIES_ALIAS} is not available in this turn because memory is turned off"
+    else:
+        message = ANIMA_SELF_MEMORIES_MISSING_MESSAGE
+    return _tool_error("not_found", message, path=ANIMA_SELF_MEMORIES_ALIAS, retryable=False)
+
+
+def _validation_error(exc: MemoryEntryValidationError) -> str:
+    """Map a service validation error to a tool error, with an actionable MEMORIES.md size message."""
+
+    if exc.detail == ANIMA_MEMORIES_TOO_LARGE:
+        return _tool_error(
+            "memories_too_large",
+            f"This edit would make {ANIMA_SELF_MEMORIES_ALIAS} larger than its "
+            f"{ANIMA_MEMORIES_MAX_BYTES // 1024} KiB limit, so nothing was saved. Condense it instead: merge "
+            "repeated moments, shorten older history and drop resolved open threads, keeping the whole file "
+            "well under about 6,000 characters.",
+            path=ANIMA_SELF_MEMORIES_ALIAS,
+            retryable=True,
+        )
+    return _tool_error("invalid_request", exc.detail, retryable=False)
 
 
 def _protected_memory_file_error(
@@ -762,7 +933,8 @@ def _read_uploaded_file_chunks_tool() -> dict[str, Any]:
 def _apply_patch_tool() -> dict[str, Any]:
     return _function_tool(
         MEMORY_TOOL_APPLY_PATCH,
-        "Apply exact text replacements to one existing user-root markdown memory file.",
+        "Apply exact text replacements to one existing user-root markdown memory file, or to your own "
+        f"`{ANIMA_SELF_MEMORIES_ALIAS}` when it is available.",
         _object_schema(
             {
                 "path": {"type": "string"},
@@ -788,7 +960,8 @@ def _apply_patch_tool() -> dict[str, Any]:
 def _write_file_tool() -> dict[str, Any]:
     return _function_tool(
         MEMORY_TOOL_WRITE_FILE,
-        "Create or replace one user-root markdown memory file.",
+        "Create or replace one user-root markdown memory file. Your own "
+        f"`{ANIMA_SELF_MEMORIES_ALIAS}`, when available, can only be replaced.",
         _object_schema(
             {
                 "path": {"type": "string"},
@@ -824,9 +997,10 @@ def _normalize_relative_tool_path(value: object, *, allow_empty: bool) -> str:
     segments = path.split("/")
     if any(segment == "" for segment in segments):
         raise MemoryToolPathError("Memory tool paths cannot contain empty segments")
-    first = segments[0].lower()
-    if first == "animas" or segments[0].startswith("["):
-        raise MemoryToolPathError("Memory tools may only access current user-root files")
+    if segments[0].casefold() == MEMORY_ENTRY_ANIMAS_ROOT_PATH or segments[0].startswith("["):
+        raise MemoryToolPathError(
+            "Memory tools may only access current user-root files; animas/ is reserved for Anima identities"
+        )
     for segment in segments:
         if segment in {".", ".."}:
             raise MemoryToolPathError("Memory tool paths cannot contain . or .. segments")

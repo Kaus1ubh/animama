@@ -32,6 +32,7 @@ from animama.domain.memory_entry import (
     MEMORY_ENTRY_OPERATION_REVERT,
     MEMORY_ENTRY_TYPE_DIRECTORY,
     MEMORY_ENTRY_TYPE_FILE,
+    AnimaIdentitySummary,
     MemoryEntry,
     MemoryEntryHeader,
     MemoryEntrySearchResult,
@@ -186,6 +187,10 @@ class _FakeMemoryEntryRepository:
         else:
             entries = [entry for entry in live if entry.parent_id == parent_id]
         return sorted(entries, key=lambda entry: entry.normalized_path)
+
+    async def list_anima_identity_summaries(self, *, user_id: str) -> list[AnimaIdentitySummary]:
+        # This fake stores memory only; Anima rows live in the SQL-backed tests.
+        return []
 
     async def list_entry_headers(
         self,
@@ -1104,7 +1109,7 @@ async def test_move_and_rename_update_descendant_path_caches() -> None:
 
 @pytest.mark.asyncio
 async def test_move_rejects_cycles_cross_scope_and_parenting_under_files() -> None:
-    service, _repo, _uow = _service(animas=_FakeAnimaRepository())
+    service, repo, _uow = _service(animas=_FakeAnimaRepository())
     notes = await service.create_entry(user_id="user-1", type=MEMORY_ENTRY_TYPE_DIRECTORY, name="notes")
     child_dir = await service.create_entry(
         user_id="user-1",
@@ -1118,12 +1123,21 @@ async def test_move_rejects_cycles_cross_scope_and_parenting_under_files() -> No
         name="profile.md",
         content="Profile",
     )
-    anima_dir = await service.create_entry(
+    # Anima scopes admit no directories now; a legacy one still cannot become a cross-scope parent.
+    anima_dir = MemoryEntry(
+        id="mem-legacy-anima-dir",
         user_id="user-1",
         anima_id="anima-1",
+        parent_id=None,
         type=MEMORY_ENTRY_TYPE_DIRECTORY,
         name="facts",
+        normalized_name="facts",
+        path="facts",
+        normalized_path="facts",
+        version=1,
+        metadata={},
     )
+    repo.entries[anima_dir.id] = anima_dir
 
     with pytest.raises(MemoryEntryConflictError):
         await service.patch_entry(

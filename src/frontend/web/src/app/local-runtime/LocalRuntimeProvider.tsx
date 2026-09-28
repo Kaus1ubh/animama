@@ -28,16 +28,24 @@ export type LocalRuntimeState =
       displayName: string | null;
     };
 
+/** First-run input: a required private name and the owner's 18+ confirmation. */
+export type LocalOnboardingInput = {
+  displayName: string;
+  adultConfirmed: boolean;
+};
+
 type LocalRuntimeContextValue = {
   state: LocalRuntimeState;
   retry: () => void;
-  completeOnboarding: (displayName: string) => Promise<void>;
+  completeOnboarding: (input: LocalOnboardingInput) => Promise<void>;
 };
 
 export type LocalRuntimeApi = {
   ensureBootstrap: () => Promise<PyRuntimeContext>;
   getContext: () => Promise<PyRuntimeContext>;
-  completeOnboarding: (displayName: string) => Promise<PyRuntimeContext>;
+  completeOnboarding: (
+    input: LocalOnboardingInput,
+  ) => Promise<PyRuntimeContext>;
 };
 
 const LocalRuntimeContext = createContext<LocalRuntimeContextValue | null>(
@@ -75,10 +83,10 @@ const localRuntimeApi: LocalRuntimeApi = {
         throwOnError: true,
       })
     ).data,
-  completeOnboarding: async (displayName) =>
+  completeOnboarding: async ({ displayName, adultConfirmed }) =>
     (
       await completeRuntimeOnboardingV1RuntimeOnboardingCompletePost({
-        body: { display_name: displayName },
+        body: { display_name: displayName, adult_confirmed: adultConfirmed },
         responseValidator: undefined,
         throwOnError: true,
       })
@@ -118,12 +126,12 @@ export function loadLocalRuntimeContext(
   return pending;
 }
 
-/** Complete the idempotent first-run transition with a required private name. */
+/** Complete the idempotent first-run transition with a name and 18+ confirmation. */
 export async function completeLocalRuntimeOnboarding(
-  displayName: string,
+  input: LocalOnboardingInput,
   api: LocalRuntimeApi = localRuntimeApi,
 ): Promise<LocalRuntimeState> {
-  return readyState(await api.completeOnboarding(displayName));
+  return readyState(await api.completeOnboarding(input));
 }
 
 /** Select the credential-free main-window destination from backend state. */
@@ -161,9 +169,12 @@ export function LocalRuntimeProvider({ children }: { children: ReactNode }) {
   }, [attempt]);
 
   const retry = useCallback(() => setAttempt((value) => value + 1), []);
-  const completeOnboarding = useCallback(async (displayName: string) => {
-    setState(await completeLocalRuntimeOnboarding(displayName));
-  }, []);
+  const completeOnboarding = useCallback(
+    async (input: LocalOnboardingInput) => {
+      setState(await completeLocalRuntimeOnboarding(input));
+    },
+    [],
+  );
   const value = useMemo<LocalRuntimeContextValue>(
     () => ({ state, retry, completeOnboarding }),
     [completeOnboarding, retry, state],

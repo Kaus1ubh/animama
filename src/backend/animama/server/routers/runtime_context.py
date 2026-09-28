@@ -7,12 +7,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.repositories.sqlalchemy.companion_safety_repo import SQLAlchemyCompanionSafetyRepository
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
 from animama.app.services.owner_bootstrap_service import BOOTSTRAP_STEPS
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfileInvalidError, UserProfileNotFoundError
 from animama.local.installation_repository import SQLAlchemyInstallationSettingsRepository
 from animama.server.installation_personalization import (
+    AdultConfirmationRequiredError,
     InstallationBootstrapIncompleteError,
     InstallationPersonalizationService,
     InstallationPrincipalMismatchError,
@@ -43,6 +45,7 @@ async def _context(
     if state is not None and state.principal_id != principal.id:
         raise HTTPException(status_code=403, detail={"code": "installation_principal_mismatch"})
     completed_at = await SQLAlchemyInstallationSettingsRepository(session).get_first_run_completed_at()
+    age_status = await SQLAlchemyCompanionSafetyRepository(session).get_age_status(principal.id)
     profile = await SQLAlchemyUserProfileRepository(session).get_profile(principal.id)
     display_name = profile.display_name if profile is not None else None
 
@@ -55,7 +58,10 @@ async def _context(
         failed_steps=failed,
         # Earlier development builds allowed Skip. Reopen setup for an unnamed
         # profile without resetting its durable owner or completion timestamp.
-        first_run_complete=completed_at is not None and bool(display_name and display_name.strip()),
+        # First run also requires the owner's 18+ confirmation (companion safety R6).
+        first_run_complete=completed_at is not None
+        and bool(display_name and display_name.strip())
+        and age_status == "adult",
         display_name=display_name,
     )
 
@@ -99,7 +105,10 @@ async def complete_runtime_onboarding(
         await InstallationPersonalizationService(session).complete_onboarding(
             principal_id=principal.id,
             display_name=payload.display_name,
+            adult_confirmed=payload.adult_confirmed,
         )
+    except AdultConfirmationRequiredError as exc:
+        raise HTTPException(status_code=422, detail={"code": "adult_confirmation_required"}) from exc
     except (InstallationBootstrapIncompleteError, UserProfileNotFoundError) as exc:
         raise HTTPException(status_code=409, detail={"code": "installation_bootstrap_incomplete"}) from exc
     except InstallationPrincipalMismatchError as exc:

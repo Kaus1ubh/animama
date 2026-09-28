@@ -25,6 +25,7 @@
     "id": {
       "enum": [
         "parakeet-stt",
+        "parakeet-stt-webgpu",
         "expanded-included-content",
         "document-processing"
       ]
@@ -41,7 +42,8 @@
     "architecture": { "enum": ["arm64", "x64", "data-only"] },
     "url": {
       "type": "string",
-      "pattern": "^https://github\\.com/[^/]+/[^/]+/releases/download/[^/]+/[^/]+$"
+      "pattern": "^https://[^/?#@:]+(/[^/?#]+)+\\.tar\\.zst$",
+      "description": "A release folder of the distribution sealed in the app's update policy: an R2 <base_url>/v<version>/ folder or the configured GitHub repository's release download path."
     },
     "archive_bytes": { "type": "integer", "minimum": 1 },
     "archive_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },

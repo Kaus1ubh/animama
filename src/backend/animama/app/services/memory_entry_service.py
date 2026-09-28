@@ -12,7 +12,11 @@ from typing import Any, NoReturn
 from animama.domain.anima_definition import (
     ANIMA_IDENTITY_KIND,
     ANIMA_IDENTITY_PATH,
+    ANIMA_MEMORIES_KIND,
+    ANIMA_MEMORIES_PATH,
+    ANIMA_MEMORIES_TEMPLATE,
     AnimaDefinitionError,
+    normalize_anima_memories,
     normalize_identity,
 )
 from animama.domain.memory_entry import (
@@ -24,6 +28,7 @@ from animama.domain.memory_entry import (
     MEMORY_ENTRY_OPERATION_UPDATE,
     MEMORY_ENTRY_TYPE_DIRECTORY,
     MEMORY_ENTRY_TYPE_FILE,
+    AnimaIdentitySummary,
     MemoryEntry,
     MemoryEntryHeader,
     MemoryEntryHeaderListing,
@@ -46,12 +51,22 @@ MEMORY_ENTRY_DEFAULT_MAX_BYTES = 32 * 1024
 MEMORY_ENTRY_MAX_PATH_CHARS = 512
 MEMORY_ENTRY_MAX_NAME_CHARS = 128
 MEMORY_ENTRY_EPISODES_ROOT_PATH = "episodes"
+# Presented by the Memory workspace as the virtual per-Anima identity directory.
+MEMORY_ENTRY_ANIMAS_ROOT_PATH = "animas"
+ANIMA_MEMORIES_DESCRIPTION = "Shared history with the user"
 MEMORY_ENTRY_VERSION_DEFAULT_LIMIT = 50
 MEMORY_ENTRY_VERSION_MAX_LIMIT = 100
 _MEMORY_ENTRY_VERSION_CONSTRAINT = "uq_memory_entry_versions_entry_version"
 
 _CONTROL_CHAR_RE = re.compile(r"[\x00-\x1f\x7f]")
 _ENTRY_NAME_RE = re.compile(r"^[A-Za-z0-9._\-{}]+$")
+# An Anima scope holds exactly these root files, keyed by normalized path to
+# their canonical spelling and bound kind.
+_PROTECTED_ANIMA_FILES = {
+    ANIMA_IDENTITY_PATH.casefold(): (ANIMA_IDENTITY_PATH, ANIMA_IDENTITY_KIND),
+    ANIMA_MEMORIES_PATH.casefold(): (ANIMA_MEMORIES_PATH, ANIMA_MEMORIES_KIND),
+}
+_PROTECTED_ANIMA_FILE_BY_KIND = {kind: path for path, kind in _PROTECTED_ANIMA_FILES.values()}
 
 
 class MemoryEntryError(Exception):
@@ -91,11 +106,32 @@ def new_memory_entry_id() -> str:
 def is_anima_identity(entry: MemoryEntry) -> bool:
     """The reserved path is authoritative even for an old, untyped seed."""
 
-    return (
-        entry.anima_id is not None
-        and entry.type == MEMORY_ENTRY_TYPE_FILE
-        and (entry.normalized_path == ANIMA_IDENTITY_PATH.casefold() or entry.kind == ANIMA_IDENTITY_KIND)
-    )
+    return _protected_anima_file_kind(entry) == ANIMA_IDENTITY_KIND
+
+
+def is_anima_memories(entry: MemoryEntry) -> bool:
+    """Return true for an Anima's ``MEMORIES.md``; like identity, the reserved path is authoritative."""
+
+    return _protected_anima_file_kind(entry) == ANIMA_MEMORIES_KIND
+
+
+def is_protected_anima_file(entry: MemoryEntry) -> bool:
+    """Return true for an Anima's IDENTITY.md or MEMORIES.md.
+
+    Both are required and cannot be renamed, moved, deleted or retyped. Only the
+    identity belongs to the Anima definition and its aggregate revision.
+    """
+
+    return _protected_anima_file_kind(entry) is not None
+
+
+def _protected_anima_file_kind(entry: MemoryEntry) -> str | None:
+    if entry.anima_id is None or entry.type != MEMORY_ENTRY_TYPE_FILE:
+        return None
+    reserved = _PROTECTED_ANIMA_FILES.get(entry.normalized_path)
+    if reserved is not None:
+        return reserved[1]
+    return entry.kind if entry.kind in _PROTECTED_ANIMA_FILE_BY_KIND else None
 
 
 def normalize_memory_entry_name(name: str) -> tuple[str, str]:
@@ -190,6 +226,18 @@ def is_protected_memory_path(path: str) -> bool:
         return False
     return normalized_path == MEMORY_ENTRY_EPISODES_ROOT_PATH or normalized_path.startswith(
         f"{MEMORY_ENTRY_EPISODES_ROOT_PATH}/"
+    )
+
+
+def is_reserved_user_memory_path(path: str) -> bool:
+    """Return true when a user-scope path collides with the virtual Animas directory."""
+
+    try:
+        _clean_path, normalized_path = normalize_memory_entry_path(path)
+    except MemoryEntryValidationError:
+        return False
+    return normalized_path == MEMORY_ENTRY_ANIMAS_ROOT_PATH or normalized_path.startswith(
+        f"{MEMORY_ENTRY_ANIMAS_ROOT_PATH}/"
     )
 
 
@@ -347,6 +395,11 @@ class MemoryEntryService:
             recursive=recursive,
         )
         return MemoryEntryHeaderListing(parent_id=parent_id, recursive=recursive, entries=entries)
+
+    async def list_anima_identities(self, *, user_id: str) -> list[AnimaIdentitySummary]:
+        """List the owner's Animas in creation order with content-free identity headers."""
+
+        return await self._memory_entries.list_anima_identity_summaries(user_id=user_id)
 
     async def get_entry(self, *, user_id: str, entry_id: str) -> MemoryEntry:
         entry = await self._memory_entries.get_entry(user_id=user_id, entry_id=entry_id)
@@ -547,6 +600,7 @@ class MemoryEntryService:
             )
             if not allow_system_managed:
                 self._require_unprotected_new_entry(path=target_path, kind=kind)
+            self._require_unreserved_path(anima_id=scope_anima_id, path=target_path)
             stored = await self._create_entry(
                 user_id=user_id,
                 anima_id=scope_anima_id,
@@ -605,12 +659,13 @@ class MemoryEntryService:
                     self._require_unprotected_existing_entry(current)
                     if is_protected_memory_kind(kind):
                         raise MemoryEntryProtectedError("Generated episode logs are read-only")
+                self._require_editable_reserved_path(current)
                 self._require_expected_version(current=current, expected_version=expected_version)
                 stored = await self._update_file_entry(
                     current=current,
                     content=content,
                     kind=kind,
-                    kind_set=kind is not None or not is_anima_identity(current),
+                    kind_set=kind is not None or not is_protected_anima_file(current),
                     description=description,
                     description_set=True,
                     metadata=metadata,
@@ -627,6 +682,7 @@ class MemoryEntryService:
                 raise MemoryEntryConflictError("Memory entry does not exist at the expected version")
             if not allow_system_managed:
                 self._require_unprotected_new_entry(path=clean_path, kind=kind)
+            self._require_unreserved_path(anima_id=anima_id, path=clean_path)
             parts = clean_path.split("/")
             parent = None
             if len(parts) > 1:
@@ -681,7 +737,17 @@ class MemoryEntryService:
         parent_id: str | None = None,
         parent_id_set: bool = False,
         allow_system_managed: bool = False,
+        use_current_aggregate_revision: bool = False,
     ) -> MemoryEntry:
+        """Edit or move one entry under optimistic version checks.
+
+        Identity edits normally require the caller's ``expected_aggregate_revision``.
+        Trusted internal writers (Memory Manager approvals) set
+        ``use_current_aggregate_revision`` to lock the Anima at its current
+        revision instead, so only newer identity content, not an unrelated rename,
+        makes their already-reviewed write stale.
+        """
+
         move_requested = name_set or parent_id_set
         edit_requested = content_set or kind_set or description_set or metadata_set
         if not move_requested and not edit_requested:
@@ -690,10 +756,11 @@ class MemoryEntryService:
             raise MemoryEntryValidationError("Patch cannot mix move or rename fields with file or metadata edits")
 
         try:
-            await self._lock_identity_entry(
+            identity_revision = await self._lock_identity_entry(
                 user_id=user_id,
                 entry_id=entry_id,
                 expected_revision=expected_aggregate_revision,
+                use_current=use_current_aggregate_revision,
             )
             current = await self._memory_entries.get_entry_for_update(user_id=user_id, entry_id=entry_id)
             if current is None:
@@ -704,7 +771,7 @@ class MemoryEntryService:
             self._require_expected_version(current=current, expected_version=expected_version)
 
             if move_requested:
-                self._require_not_identity(current)
+                self._require_not_protected_anima_file(current)
                 stored = await self._move_entry(
                     current=current,
                     name=name,
@@ -717,6 +784,7 @@ class MemoryEntryService:
             else:
                 if not allow_system_managed and is_protected_memory_kind(kind if kind_set else current.kind):
                     raise MemoryEntryProtectedError("Generated episode logs are read-only")
+                self._require_editable_reserved_path(current)
                 stored = await self._update_file_entry(
                     current=current,
                     content=content,
@@ -730,7 +798,7 @@ class MemoryEntryService:
                     content_set=content_set,
                     change_metadata=change_metadata,
                 )
-            await self._record_identity_change(stored, expected_aggregate_revision, reason="identity_update")
+            await self._record_identity_change(stored, identity_revision, reason="identity_update")
             await self._commit_if_enabled()
         except MemoryEntryRepositoryConflictError as exc:
             await self._raise_repository_conflict(exc)
@@ -755,7 +823,7 @@ class MemoryEntryService:
             if current is None:
                 raise MemoryEntryNotFoundError("Memory entry not found")
             await self._require_anima_scope_owned(user_id=user_id, anima_id=current.anima_id)
-            self._require_not_identity(current)
+            self._require_not_protected_anima_file(current)
             if not allow_system_managed:
                 self._require_unprotected_existing_entry(current)
             self._require_expected_version(current=current, expected_version=expected_version)
@@ -795,10 +863,21 @@ class MemoryEntryService:
         old_content: str,
         old_description: str | None,
         change_metadata: dict[str, Any],
+        use_current_aggregate_revision: bool = False,
     ) -> MemoryEntry:
-        """Restore one approved update's prior content and description."""
+        """Restore one approved update's prior content and description.
+
+        An Anima identity can be restored only by a trusted caller that locks the
+        Anima's current revision; the restored identity must still be nonblank.
+        """
 
         try:
+            identity_revision = await self._lock_identity_entry(
+                user_id=user_id,
+                entry_id=entry_id,
+                expected_revision=None,
+                use_current=use_current_aggregate_revision,
+            )
             current = await self._memory_entries.get_entry_for_update(
                 user_id=user_id,
                 entry_id=entry_id,
@@ -809,7 +888,6 @@ class MemoryEntryService:
             if current.deleted_at is not None:
                 raise MemoryEntryConflictError("Memory entry is no longer live")
             await self._require_anima_scope_owned(user_id=user_id, anima_id=current.anima_id)
-            self._require_not_identity(current)
             self._require_unprotected_existing_entry(current)
             if current.type != MEMORY_ENTRY_TYPE_FILE:
                 raise MemoryEntryValidationError("Only memory files can be undone")
@@ -826,6 +904,7 @@ class MemoryEntryService:
                 operation=MEMORY_ENTRY_OPERATION_UNDO,
                 change_metadata=change_metadata,
             )
+            await self._record_identity_change(stored, identity_revision, reason="identity_undo")
             await self._commit_if_enabled()
         except MemoryEntryRepositoryConflictError as exc:
             await self._raise_repository_conflict(exc)
@@ -855,7 +934,7 @@ class MemoryEntryService:
             if current.deleted_at is not None:
                 raise MemoryEntryConflictError("Memory entry is no longer live")
             await self._require_anima_scope_owned(user_id=user_id, anima_id=current.anima_id)
-            self._require_not_identity(current)
+            self._require_not_protected_anima_file(current)
             self._require_unprotected_existing_entry(current)
             if current.type != MEMORY_ENTRY_TYPE_FILE:
                 raise MemoryEntryValidationError("Only memory files can be undone")
@@ -910,6 +989,7 @@ class MemoryEntryService:
             await self._require_anima_scope_owned(user_id=user_id, anima_id=current.anima_id)
             if is_protected_memory_entry(current):
                 raise MemoryEntryValidationError("Generated episode logs are read-only")
+            self._require_editable_reserved_path(current)
             if current.type != MEMORY_ENTRY_TYPE_FILE:
                 raise MemoryEntryValidationError("Only memory files can be reverted")
             self._require_expected_version(current=current, expected_version=expected_version)
@@ -985,15 +1065,18 @@ class MemoryEntryService:
 
         path = f"{parent.path}/{clean_name}" if parent is not None else clean_name
         normalized_path = f"{parent.normalized_path}/{normalized_name}" if parent is not None else normalized_name
-        identity_location = anima_id is not None and normalized_path == ANIMA_IDENTITY_PATH.casefold()
-        if kind == ANIMA_IDENTITY_KIND and not identity_location:
-            raise MemoryEntryValidationError("Anima identity must be the Anima-scoped IDENTITY.md file")
-        if identity_location:
-            if type != MEMORY_ENTRY_TYPE_FILE or kind not in {None, ANIMA_IDENTITY_KIND}:
-                raise MemoryEntryValidationError("Anima identity must be a file with kind anima_identity")
-            content = self._normalize_identity(content)
-            kind = ANIMA_IDENTITY_KIND
-            clean_name = path = ANIMA_IDENTITY_PATH
+        if anima_id is not None:
+            self._require_protected_anima_file_path(normalized_path)
+            reserved_path, reserved_kind = _PROTECTED_ANIMA_FILES[normalized_path]
+            if type != MEMORY_ENTRY_TYPE_FILE or kind not in {None, reserved_kind}:
+                raise MemoryEntryValidationError(f"{reserved_path} must be a file with kind {reserved_kind}")
+            content = self._normalize_protected_content(reserved_kind, content)
+            kind = reserved_kind
+            clean_name = path = reserved_path
+        elif kind in _PROTECTED_ANIMA_FILE_BY_KIND:
+            raise MemoryEntryValidationError(
+                f"Kind {kind} belongs only to the Anima-scoped {_PROTECTED_ANIMA_FILE_BY_KIND[kind]} file"
+            )
         if len(path) > MEMORY_ENTRY_MAX_PATH_CHARS:
             raise MemoryEntryValidationError("Memory entry path is too long")
         existing = await self._memory_entries.get_entry_by_path_for_update(
@@ -1103,12 +1186,15 @@ class MemoryEntryService:
         if content_set and current.type != MEMORY_ENTRY_TYPE_FILE:
             raise MemoryEntryValidationError("Only file entries can store content")
         next_content = content if content_set else current.content
-        if is_anima_identity(current):
-            if kind_set and kind != ANIMA_IDENTITY_KIND:
-                raise MemoryEntryProtectedError("Anima identity kind cannot be changed")
-            next_content = self._normalize_identity(next_content)
-        elif kind_set and kind == ANIMA_IDENTITY_KIND:
-            raise MemoryEntryValidationError("Anima identity must be the Anima-scoped IDENTITY.md file")
+        protected_kind = _protected_anima_file_kind(current)
+        if protected_kind is not None:
+            if kind_set and kind != protected_kind:
+                raise MemoryEntryProtectedError(f"{current.path} kind cannot be changed")
+            next_content = self._normalize_protected_content(protected_kind, next_content)
+        elif kind_set and kind in _PROTECTED_ANIMA_FILE_BY_KIND:
+            raise MemoryEntryValidationError(
+                f"Kind {kind} belongs only to the Anima-scoped {_PROTECTED_ANIMA_FILE_BY_KIND[kind]} file"
+            )
         content_sha256 = current.content_sha256
         size_bytes = current.size_bytes
         if current.type == MEMORY_ENTRY_TYPE_FILE:
@@ -1183,12 +1269,13 @@ class MemoryEntryService:
         next_normalized_path = (
             f"{target_parent.normalized_path}/{normalized_name}" if target_parent is not None else normalized_name
         )
-        if current.anima_id is not None and next_normalized_path == ANIMA_IDENTITY_PATH.casefold():
-            raise MemoryEntryProtectedError(
-                "Use explicit identity repair instead of moving another file to IDENTITY.md"
-            )
+        if current.anima_id is not None:
+            if next_normalized_path in _PROTECTED_ANIMA_FILES:
+                raise MemoryEntryProtectedError(f"Use explicit repair instead of moving another entry to {next_path}")
+            self._require_protected_anima_file_path(next_normalized_path)
         if not allow_system_managed and is_protected_memory_path(next_path):
             raise MemoryEntryProtectedError("Generated episode logs are read-only")
+        self._require_unreserved_path(anima_id=current.anima_id, path=next_path)
         if len(next_path) > MEMORY_ENTRY_MAX_PATH_CHARS:
             raise MemoryEntryValidationError("Memory entry path is too long")
 
@@ -1275,16 +1362,99 @@ class MemoryEntryService:
             metadata=metadata,
         )
 
+    async def initialize_anima_memories(self, *, user_id: str, anima_id: str) -> MemoryEntry:
+        """Seed MEMORIES.md from its template inside a materializer's transaction.
+
+        Unlike identity it takes no aggregate lock: relationship memory is not
+        part of the Anima definition.
+        """
+
+        if self._commit_on_write:
+            raise MemoryEntryConfigurationError("Memories initialization requires a caller-owned transaction")
+        await self._require_anima_scope_owned(user_id=user_id, anima_id=anima_id)
+        return await self._create_anima_memories(user_id=user_id, anima_id=anima_id)
+
+    async def repair_anima_memories(self, *, user_id: str, anima_id: str) -> MemoryEntry:
+        """Recreate a missing MEMORIES.md from the template; otherwise change nothing.
+
+        An existing file, including one the owner saved blank, is returned as is.
+        Locking the Anima serializes concurrent repairs with each other and with
+        Anima deletion, so neither a duplicate conflict nor an orphan can result.
+        """
+
+        try:
+            await self._lock_anima(user_id=user_id, anima_id=anima_id)
+            current = await self._memory_entries.get_entry_by_path(
+                user_id=user_id,
+                anima_id=anima_id,
+                normalized_path=ANIMA_MEMORIES_PATH.casefold(),
+                type=MEMORY_ENTRY_TYPE_FILE,
+            )
+            if current is not None:
+                # End the read-only transaction so the Anima lock is not held.
+                await self._rollback_if_enabled()
+                return current
+            stored = await self._create_anima_memories(
+                user_id=user_id,
+                anima_id=anima_id,
+                change_metadata={"source_type": "anima_memories_repair"},
+            )
+            await self._commit_if_enabled()
+        except MemoryEntryRepositoryConflictError as exc:
+            await self._raise_repository_conflict(exc)
+        except Exception:
+            await self._rollback_if_enabled()
+            raise
+        self._log.info("MemoryEntryService.repair_anima_memories.created", user_id=user_id, anima_id=anima_id)
+        return stored
+
+    async def _create_anima_memories(
+        self,
+        *,
+        user_id: str,
+        anima_id: str,
+        change_metadata: dict[str, Any] | None = None,
+    ) -> MemoryEntry:
+        return await self._create_entry(
+            user_id=user_id,
+            anima_id=anima_id,
+            parent=None,
+            type=MEMORY_ENTRY_TYPE_FILE,
+            name=ANIMA_MEMORIES_PATH,
+            content=ANIMA_MEMORIES_TEMPLATE,
+            kind=ANIMA_MEMORIES_KIND,
+            description=ANIMA_MEMORIES_DESCRIPTION,
+            metadata=None,
+            change_metadata=change_metadata,
+        )
+
     def _normalize_identity(self, content: str | None) -> str:
         try:
             return normalize_identity(content or "", max_bytes=self._max_file_bytes)
         except AnimaDefinitionError as exc:
             raise MemoryEntryValidationError(exc.code) from exc
 
+    def _normalize_protected_content(self, kind: str, content: str | None) -> str:
+        if kind == ANIMA_IDENTITY_KIND:
+            return self._normalize_identity(content)
+        if content is None:
+            raise MemoryEntryValidationError("Memory file content is required")
+        try:
+            return normalize_anima_memories(content, max_bytes=self._max_file_bytes)
+        except AnimaDefinitionError as exc:
+            raise MemoryEntryValidationError(exc.code) from exc
+
     @staticmethod
-    def _require_not_identity(entry: MemoryEntry) -> None:
-        if is_anima_identity(entry):
-            raise MemoryEntryProtectedError("Required Anima identity cannot be moved, renamed, deleted, or AI-undone")
+    def _require_not_protected_anima_file(entry: MemoryEntry) -> None:
+        if is_protected_anima_file(entry):
+            raise MemoryEntryProtectedError(f"Required Anima file {entry.path} cannot be moved, renamed, or deleted")
+
+    @staticmethod
+    def _require_protected_anima_file_path(normalized_path: str) -> None:
+        """Keep an Anima scope to its root IDENTITY.md and MEMORIES.md files."""
+
+        if normalized_path not in _PROTECTED_ANIMA_FILES:
+            raise MemoryEntryProtectedError("Anima folders contain only IDENTITY.md and MEMORIES.md")
 
     async def _lock_identity_scope(
         self,
@@ -1293,19 +1463,27 @@ class MemoryEntryService:
         anima_id: str | None,
         path: str,
         expected_revision: int | None,
-    ) -> None:
+        use_current: bool = False,
+    ) -> int | None:
+        """Lock an identity's Anima definition and return the revision to record.
+
+        ``use_current`` locks whatever revision is current rather than requiring
+        the caller's expected revision; it is reserved for trusted internal writers.
+        """
+
         if anima_id is None or path.casefold() != ANIMA_IDENTITY_PATH.casefold():
-            return
+            return expected_revision
         await self._require_anima_scope_owned(user_id=user_id, anima_id=anima_id)
-        if expected_revision is None:
+        if expected_revision is None and not use_current:
             raise MemoryEntryConflictError("Expected aggregate revision is required for Anima identity")
         assert self._animas is not None
         try:
-            await self._animas.lock_definition(
+            locked = await self._animas.lock_definition(
                 user_id=user_id,
                 anima_id=anima_id,
-                expected_revision=expected_revision,
+                expected_revision=None if use_current else expected_revision,
             )
+            return locked.aggregate_revision
         except AnimaDefinitionError as exc:
             if exc.code == "anima_not_found":
                 raise MemoryEntryNotFoundError("Anima not found") from exc
@@ -1313,17 +1491,26 @@ class MemoryEntryService:
                 f"Anima aggregate revision conflict (current {exc.current_revision})"
             ) from exc
 
-    async def _lock_identity_entry(self, *, user_id: str, entry_id: str, expected_revision: int | None) -> None:
+    async def _lock_identity_entry(
+        self,
+        *,
+        user_id: str,
+        entry_id: str,
+        expected_revision: int | None,
+        use_current: bool = False,
+    ) -> int | None:
         # Discover scope without taking a memory row lock: all definition
         # writers acquire Anima -> memory/loadout locks in the same order.
         entry = await self._memory_entries.get_entry(user_id=user_id, entry_id=entry_id)
         if entry is not None and is_anima_identity(entry):
-            await self._lock_identity_scope(
+            return await self._lock_identity_scope(
                 user_id=user_id,
                 anima_id=entry.anima_id,
                 path=ANIMA_IDENTITY_PATH,
                 expected_revision=expected_revision,
+                use_current=use_current,
             )
+        return expected_revision
 
     async def _record_identity_change(self, entry: MemoryEntry, expected_revision: int | None, *, reason: str) -> None:
         if not is_anima_identity(entry):
@@ -1376,6 +1563,16 @@ class MemoryEntryService:
         await self._require_anima_scope_owned(user_id=user_id, anima_id=entry.anima_id)
         return entry
 
+    async def _lock_anima(self, *, user_id: str, anima_id: str) -> None:
+        """Lock the owned Anima row at its current revision; a missing Anima is not found."""
+
+        await self._require_anima_scope_owned(user_id=user_id, anima_id=anima_id)
+        assert self._animas is not None
+        try:
+            await self._animas.lock_definition(user_id=user_id, anima_id=anima_id, expected_revision=None)
+        except AnimaDefinitionError as exc:
+            raise MemoryEntryNotFoundError("Anima not found") from exc
+
     async def _require_anima_scope_owned(self, *, user_id: str, anima_id: str | None) -> None:
         if anima_id is None:
             return
@@ -1423,6 +1620,20 @@ class MemoryEntryService:
             raise MemoryEntryProtectedError("Generated episode logs are read-only")
 
     @staticmethod
+    def _require_unreserved_path(*, anima_id: str | None, path: str) -> None:
+        if anima_id is None and is_reserved_user_memory_path(path):
+            raise MemoryEntryProtectedError("The animas path is reserved for Anima identities")
+
+    @staticmethod
+    def _require_editable_reserved_path(entry: MemoryEntry) -> None:
+        # Entries created before the reservation stay readable and can be moved,
+        # renamed, or deleted, but are not edited in place under the reserved path.
+        if entry.anima_id is None and is_reserved_user_memory_path(entry.path):
+            raise MemoryEntryProtectedError(
+                "The animas path is reserved for Anima identities; move or rename this entry before editing it"
+            )
+
+    @staticmethod
     def _require_unprotected_new_entry(*, path: str, kind: str | None) -> None:
         if is_protected_memory_path(path) or is_protected_memory_kind(kind):
             raise MemoryEntryProtectedError("Generated episode logs are read-only")
@@ -1444,6 +1655,7 @@ class MemoryEntryService:
 
 
 __all__ = [
+    "MEMORY_ENTRY_ANIMAS_ROOT_PATH",
     "MEMORY_ENTRY_DEFAULT_MAX_BYTES",
     "MEMORY_ENTRY_EPISODES_ROOT_PATH",
     "MEMORY_ENTRY_MAX_NAME_CHARS",
@@ -1457,9 +1669,13 @@ __all__ = [
     "MemoryEntryProtectedError",
     "MemoryEntryService",
     "MemoryEntryValidationError",
+    "is_anima_identity",
+    "is_anima_memories",
+    "is_protected_anima_file",
     "is_protected_memory_entry",
     "is_protected_memory_kind",
     "is_protected_memory_path",
+    "is_reserved_user_memory_path",
     "new_memory_entry_id",
     "normalize_memory_directory_path",
     "normalize_memory_entry_description",

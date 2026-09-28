@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -31,6 +31,18 @@ vi.mock("@/hooks/useDesktopFeaturePacks", () => ({
     ],
   }),
 }));
+vi.mock("@tanstack/react-router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tanstack/react-router")>()),
+  Link: ({
+    to,
+    children,
+    className,
+  }: {
+    to: string;
+    children: ReactNode;
+    className?: string;
+  }) => createElement("a", { href: to, className }, children),
+}));
 vi.mock("@/ui/settings/DesktopCredentialsPanel", () => ({
   DesktopCredentialsPanel: () => null,
 }));
@@ -58,9 +70,22 @@ describe("local first-run setup", () => {
     );
     expect(html).toContain('type="checkbox"');
     expect(html).not.toContain("checked=");
+    expect(html).toContain("I am 18 or older");
     expect(html).not.toContain(">Skip<");
     expect(html).toContain("Install offline speech recognition");
     expect(fixture.run).not.toHaveBeenCalled();
     expect(fixture.completeOnboarding).not.toHaveBeenCalled();
+  });
+
+  it("requires the 18+ confirmation and states the AI and minors notices", () => {
+    const html = renderToStaticMarkup(createElement(Route.options.component!));
+    expect(html).toContain("Animas are AI companions, not people.");
+    expect(html).toContain("may not be suitable for some minors");
+    expect(html).toMatch(
+      /<input[^>]*type="checkbox"[^>]*name="adult-confirmed"/u,
+    );
+    expect(html).not.toMatch(/professional help/iu);
+    expect(html).toContain('href="/safety"');
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Continue<\/button>/u);
   });
 });

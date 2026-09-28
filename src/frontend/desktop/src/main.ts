@@ -141,6 +141,7 @@ else {
       });
       updates = new DesktopUpdateController({
         version: app.getVersion(),
+        distribution: policy.distribution,
         adapter,
         disk: () => supervisor!.updateDisk(),
         preflight: (candidate) => supervisor!.preflightUpdate(candidate),
@@ -356,6 +357,10 @@ else {
     changeCredential: (provider, value) => {
       if (!supervisor) throw new RuntimeError("embedded_runtime_unavailable");
       return supervisor.changeCredential(provider, value);
+    },
+    changeCredentials: (changes) => {
+      if (!supervisor) throw new RuntimeError("embedded_runtime_unavailable");
+      return supervisor.changeCredentials(changes);
     },
     featurePacks: () => supervisor?.featurePacks().list() ?? [],
     changePack: (action, id) => {

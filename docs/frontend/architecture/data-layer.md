@@ -157,12 +157,15 @@ mutations. Only a ready provider supplies `installation_principal_id` to shared
 features through `RuntimeOwnerContext`. First-run state remains local to the
 local composition.
 
-`/` chooses `/setup` or `/a` from the backend's `first_run_complete` boolean.
-Continue requires a nonblank private name and calls
-`POST /v1/runtime/onboarding:complete`; repeating the request after a lost
+`/` chooses `/setup` or `/a` from the backend's `first_run_complete` boolean,
+which also requires the owner's recorded 18+ confirmation. Continue requires a
+nonblank private name and the 18+ checkbox, and calls
+`POST /v1/runtime/onboarding:complete` with `adult_confirmed: true`; repeating the request after a lost
 response returns the completed context. `/a/` shares the owned Anima and user
-settings queries, waits for both, and opens the remembered owned Anima or the
-first in stable creation order. Desktop PiP
+settings queries, waits for both, and opens the pinned default Anima
+(`preferences.startup.default_anima_id`, set in App Settings → General) when it
+is still owned, otherwise the remembered owned Anima or the first in stable
+creation order. Desktop PiP
 and quick-chat windows wait for readiness without rendering setup.
 
 `useUserProfile` reads the minimal private profile and
@@ -269,8 +272,13 @@ version's adjacent detail. Query keys are scoped under
 `queryKeys.memoryEntries` by user, nullable `anima_id`, parent, path, entry ID,
 and immutable version history.
 
-The `/a/memories` page uses those hooks for user-scope markdown entries. Anima
-details use the same hooks for the selected anima's `IDENTITY.md` editor route.
+The `/a/memories` page uses those hooks for user-scope markdown entries and
+`useAnimaIdentities` (`queryKeys.memoryEntries.animaIdentities`) for the virtual
+Animas folders; Anima definition changes also invalidate that listing and the
+Anima's identity detail entries under `queryKeys.memoryEntries.details`. The
+same listing supplies each Anima's `MEMORIES.md` header (`useAnimaMemoriesEntry`),
+and `useRepairAnimaMemories` resolves only after refetching it. Anima details use
+the same hooks for the selected anima's `IDENTITY.md` editor route.
 The shared editor keeps draft state local to the modal and saves with the
 draft's `expected_version`. Anima identity responses also provide
 `aggregate_revision`, captured as `baseAggregateRevision` and sent as

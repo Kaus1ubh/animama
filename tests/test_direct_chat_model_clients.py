@@ -23,6 +23,7 @@ from animama.app.model_clients.event_types import (
     sanitize_model_client_stream_event as sanitize_model_client_stream_event_from_event_types,
 )
 from animama.app.model_clients.prompt import prompt_last_user_message
+from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.app.services.direct_model_prompt_runner import _collect_final
 from animama.domain import ModelProvider
 from animama.domain.chat import ChatMessage, MessageRole
@@ -298,7 +299,7 @@ def test_direct_chat_prompt_assembler_emits_system_history_then_current_message(
         ("assistant", "second"),
         ("developer", "compacted context"),
         ("assistant", "third"),
-        ("developer", "# List of memory files\n\nfiles: []"),
+        ("developer", f"# List of memory files\n\nfiles: []\n\n{COMPANION_GUARDRAILS.strip()}"),
         ("user", "current"),
     ]
     system_message = prompt.messages[0]["content"]
@@ -372,7 +373,8 @@ def test_direct_chat_prompt_assembler_lists_attached_upload_overviews_in_request
     folded_content = folded_prompt.messages[0]["content"]
     assert isinstance(folded_content, str)
     assert "Do not default to reading `PROFILE.md`" in folded_content
-    assert folded_content.endswith('        title: "Milestones"')
+    assert folded_content.endswith(COMPANION_GUARDRAILS.strip())
+    assert folded_content.index('title: "Milestones"') < folded_content.index("# Companion Guardrails")
     assert 'filename: "first-notes.md"' in folded_content
     assert "chunk_count: 12" in folded_content
     assert 'description: "Project notes and milestones."' in folded_content
@@ -396,11 +398,13 @@ def test_direct_chat_prompt_assembler_bounds_attachment_context_deterministicall
 
     first = assembler.assemble(user_message="Summarize", anima_identity="Identity", attached_files=attachments)
     second = assembler.assemble(user_message="Summarize", anima_identity="Identity", attached_files=attachments)
-    first_context = first.messages[-2]["content"]
+    first_trailing = first.messages[-2]["content"]
     second_context = second.messages[-2]["content"]
 
-    assert isinstance(first_context, str)
-    assert first_context == second_context
+    assert isinstance(first_trailing, str)
+    assert first_trailing.endswith(COMPANION_GUARDRAILS.strip())
+    first_context = first_trailing.removesuffix(f"\n\n{COMPANION_GUARDRAILS.strip()}")
+    assert first_trailing == second_context
     assert len(first_context) <= MAX_ATTACHED_FILE_CONTEXT_CHARS
     assert "attachment_context_truncated: true" in first_context
     assert "outline_truncated: true" in first_context

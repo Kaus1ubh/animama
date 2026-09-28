@@ -48,6 +48,9 @@ DOWNLOAD_HOSTS = {
     "cas-bridge.xethub.hf.co",
     "us.aws.cdn.hf.co",
 }
+# Animama's own release distribution (the `animama-releases` R2 bucket). Only
+# manifest entries with a `release` source may download from it.
+RELEASE_HOSTS = {"downloads.animama.ai"}
 CHUNK_SIZE = 1024 * 1024
 
 
@@ -270,7 +273,7 @@ def verify(manifest: dict, root: Path) -> Path:
     return verify_directory(manifest, root / manifest["model_id"] / manifest["digest"])
 
 
-def validate_url(url: str) -> None:
+def validate_url(url: str, hosts: set[str] = DOWNLOAD_HOSTS) -> None:
     """Allow only reviewed HTTPS download origins, with no URL credentials."""
     parsed = parse.urlsplit(url)
     try:
@@ -279,7 +282,7 @@ def validate_url(url: str) -> None:
         allowed = False
     if (
         parsed.scheme != "https"
-        or parsed.hostname not in DOWNLOAD_HOSTS
+        or parsed.hostname not in hosts
         or parsed.username is not None
         or parsed.password is not None
         or parsed.fragment
@@ -291,8 +294,12 @@ def validate_url(url: str) -> None:
 class ReviewedRedirects(request.HTTPRedirectHandler):
     """Rebuild redirected requests instead of forwarding headers or credentials."""
 
+    def __init__(self, hosts: set[str] = DOWNLOAD_HOSTS) -> None:
+        super().__init__()
+        self.hosts = hosts
+
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        validate_url(newurl)
+        validate_url(newurl, self.hosts)
         redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
         if redirected is not None:
             redirected.headers.clear()
@@ -301,14 +308,14 @@ class ReviewedRedirects(request.HTTPRedirectHandler):
         return redirected
 
 
-def open_download(url: str):
+def open_download(url: str, hosts: set[str] = DOWNLOAD_HOSTS):
     """Use anonymous HTTPS without environment proxy credentials or SDK caches."""
-    validate_url(url)
-    opener = request.build_opener(request.ProxyHandler({}), ReviewedRedirects())
+    validate_url(url, hosts)
+    opener = request.build_opener(request.ProxyHandler({}), ReviewedRedirects(hosts))
     try:
         response = opener.open(request.Request(url, headers={"User-Agent": "Animama-model-setup/1"}), timeout=60)
         try:
-            validate_url(response.url)
+            validate_url(response.url, hosts)
             if response.status != 200:
                 raise ModelStoreError("Unexpected upstream status; retry explicit acquisition later")
             return response
@@ -443,6 +450,10 @@ def acquire(
                     stream = regular_file(source_path / relative.name)
                 elif "local" in entry["source"]:
                     stream = regular_file(manifest["directory"] / entry["path"])
+                elif entry["source"].get("kind") == "release":
+                    url = entry["source"]["url"]
+                    validate_url(url, RELEASE_HOSTS)
+                    stream = transport(url) if transport else open_download(url, RELEASE_HOSTS)
                 else:
                     source = entry["source"]
                     url = f"https://huggingface.co/{source['repository']}/resolve/{source['revision']}/{source['path']}"

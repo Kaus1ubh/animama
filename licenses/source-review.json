@@ -5550,6 +5550,49 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "models/parakeet-tdt-0.6b-v2-webgpu/ATTRIBUTION.md",
+      "candidate_license": "CC-BY-4.0 (model derivative)",
+      "basis": "Retained third-party code/model review: parakeet-webgpu-source",
+      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
+      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3",
+      "copyright": "NVIDIA; upstream conversion by ysdede",
+      "evidence": [
+        "licenses/third-party/code-and-models.json"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/parakeet-webgpu-attribution.txt"
+      ],
+      "conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "models/parakeet-tdt-0.6b-v2-webgpu/README.md",
+      "candidate_license": "CC-BY-4.0 (model derivative)",
+      "basis": "Retained third-party code/model review: parakeet-webgpu-source",
+      "source": "https://huggingface.co/ysdede/parakeet-tdt-0.6b-v2-onnx",
+      "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3",
+      "copyright": "NVIDIA; upstream conversion by ysdede",
+      "evidence": [
+        "licenses/third-party/code-and-models.json"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/parakeet-webgpu-attribution.txt"
+      ],
+      "conditions": [
+        "Preserve notices in every source and binary distribution; verify the exact final candidate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "models/parakeet-tdt-0.6b-v2-webgpu/manifest.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Original Phase 2 model-store implementation, manifest, tests or documentation; third-party payloads remain separately mapped",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "models/parakeet-tdt-0.6b-v2/ATTRIBUTION.md",
       "candidate_license": "CC-BY-4.0 (model derivatives); MIT (onnx-asr tooling attribution)",
       "basis": "Retained third-party code/model review: parakeet-source",
@@ -9010,6 +9053,21 @@
       ],
       "notices": [
         "src/frontend/desktop/runtime/notices/parakeet-onnx-asr-mit.txt"
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/desktop/runtime/notices/parakeet-webgpu-attribution.txt",
+      "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
+      "basis": "License or notice document; do not relabel its underlying third-party terms",
+      "copyright": "Respective upstream holders identified in the preserved document",
+      "source": "Document text and adjacent source mappings",
+      "revision": "Reviewed source document bytes",
+      "evidence": [
+        "src/frontend/desktop/runtime/notices/parakeet-webgpu-attribution.txt"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/parakeet-webgpu-attribution.txt"
       ],
       "review": "prepared-not-release-approved"
     },

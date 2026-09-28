@@ -10,6 +10,14 @@ import {
 import { toast } from "sonner";
 
 import { usePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
+import {
+  animaBehaviorOverride,
+  appBehaviorEnabled,
+  behaviorPatch,
+  effectiveBehaviorEnabled,
+  type BehaviorFlag,
+  type BehaviorOverride,
+} from "@/lib/settings/behavior-defaults";
 import { toTtsProvider } from "@/lib/speech/tts-provider";
 import {
   POCKET_TTS_CUSTOM_VOICE,
@@ -17,17 +25,27 @@ import {
   isPocketCustomVoice,
   resolvePocketVoicePreference,
   toPocketVoicePreference,
+  type PocketVoiceAvailability,
 } from "@/lib/speech/pocket/voice-preferences";
+import {
+  groupPocketVoices,
+  pocketVoiceLabel,
+} from "@/lib/speech/pocket/voice-groups";
+import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
+import { pocketVoicePickAction } from "@/lib/speech/pocket/voice-downloads";
+import { PocketVoiceDownloadIcon } from "@/ui/main/header/PocketVoiceDownloadIcon";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/ui/components/select";
-import { Switch } from "@/ui/components/switch";
 import {
   Tooltip,
   TooltipContent,
@@ -35,25 +53,44 @@ import {
 } from "@/ui/components/tooltip";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 
-type SettingRowProps = {
+/** What the status line adds for a saved downloadable voice, per install state. */
+const POCKET_DOWNLOAD_STATUS_COPY: Record<
+  PocketVoiceAvailability["status"],
+  string
+> = {
+  installed: "",
+  unknown: "",
+  downloading: " (downloading; the default voice speaks until it is ready)",
+  not_installed: " (not downloaded yet; it downloads on the next reply)",
+  failed: " (download failed; retrying on the next reply)",
+};
+
+type InheritableSettingRowProps = {
   label: string;
   description: string;
   tooltip: string;
-  checked: boolean;
+  value: BehaviorOverride;
+  /** The App Settings value shown for "Use app default". */
+  appEnabled: boolean;
   disabled?: boolean;
-  onChange: (checked: boolean) => void;
+  onChange: (value: BehaviorOverride) => void;
 };
 
 const ANIMAMA_DEFAULT_VOICE_VALUE = "__anima_default__";
 
-function SettingRow({
+/**
+ * A memory/emotion behaviour that follows App Settings unless this Anima sets
+ * its own value.
+ */
+function InheritableSettingRow({
   label,
   description,
   tooltip,
-  checked,
+  value,
+  appEnabled,
   disabled,
   onChange,
-}: SettingRowProps) {
+}: InheritableSettingRowProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -67,11 +104,22 @@ function SettingRow({
             <p className="text-foreground text-sm font-medium">{label}</p>
             <p className="text-muted-foreground text-xs">{description}</p>
           </div>
-          <Switch
-            checked={checked}
+          <Select
+            value={value}
             disabled={disabled}
-            onCheckedChange={onChange}
-          />
+            onValueChange={(next) => onChange(next as BehaviorOverride)}
+          >
+            <SelectTrigger className="w-48 shrink-0" aria-label={label}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="inherit">
+                App default ({appEnabled ? "On" : "Off"})
+              </SelectItem>
+              <SelectItem value="on">On</SelectItem>
+              <SelectItem value="off">Off</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </TooltipTrigger>
       <TooltipContent sideOffset={6}>{tooltip}</TooltipContent>
@@ -82,6 +130,7 @@ function SettingRow({
 export function AnimaSettingsModal() {
   const {
     effectivePreferences,
+    userPreferences,
     animaPreferences,
     updateAnimaPreferences,
     isLoading,
@@ -104,9 +153,11 @@ export function AnimaSettingsModal() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isBusy = isLoading || isUpdating;
 
-  const emotionUpdatesEnabled = !effectivePreferences.emotion?.disable_updates;
-  const memoryEnabled = !effectivePreferences.memory?.disable_influence;
-  const memoryUpdatesEnabled = !effectivePreferences.memory?.disable_updates;
+  const memoryEnabled = effectiveBehaviorEnabled(
+    userPreferences,
+    animaPreferences,
+    "memory_influence",
+  );
 
   const activeProvider = toTtsProvider(
     effectivePreferences.speech?.tts_provider,
@@ -114,6 +165,10 @@ export function AnimaSettingsModal() {
   const ttsEnabled = effectivePreferences.speech?.tts_enabled === true;
   const pocketProviderEnabled = ttsEnabled && activeProvider === "pocket_tts";
 
+  const pocketVoiceGroups = useMemo(
+    () => groupPocketVoices(pocketVoices),
+    [pocketVoices],
+  );
   const effectivePocketVoice = resolvePocketVoicePreference(
     effectivePreferences.speech,
   );
@@ -129,6 +184,9 @@ export function AnimaSettingsModal() {
     : ANIMAMA_DEFAULT_VOICE_VALUE;
 
   const canEditPocketSettings = pocketProviderEnabled && !isBusy;
+  const pocketVoiceDownloads = usePocketVoiceDownloads({
+    enabled: pocketProviderEnabled,
+  });
 
   useEffect(() => {
     if (!pocketProviderEnabled) return;
@@ -137,42 +195,18 @@ export function AnimaSettingsModal() {
     });
   }, [pocketProviderEnabled, warmupPocket]);
 
-  const handleEmotionUpdates = useCallback(
-    (checked: boolean) => {
+  const handleBehaviorChange = useCallback(
+    (flag: BehaviorFlag, choice: BehaviorOverride) => {
       if (isBusy) return;
-      void updateAnimaPreferences({
-        emotion: { disable_updates: !checked },
-      }).catch(() => toast("Failed to update emotion settings."));
+      void updateAnimaPreferences(behaviorPatch(flag, choice)).catch(() =>
+        toast(
+          flag === "emotion_updates"
+            ? "Failed to update emotion settings."
+            : "Failed to update memory settings.",
+        ),
+      );
     },
     [isBusy, updateAnimaPreferences],
-  );
-
-  const handleMemoryEnabled = useCallback(
-    (checked: boolean) => {
-      if (isBusy) return;
-      const disableUpdates = !checked;
-      void updateAnimaPreferences({
-        memory: {
-          disable_influence: !checked,
-          ...(disableUpdates ? { disable_updates: true } : {}),
-        },
-      }).catch(() => toast("Failed to update memory settings."));
-    },
-    [isBusy, updateAnimaPreferences],
-  );
-
-  const handleMemoryUpdates = useCallback(
-    (checked: boolean) => {
-      if (isBusy) return;
-      if (!memoryEnabled && checked) {
-        toast("Enable memory first to allow updates.");
-        return;
-      }
-      void updateAnimaPreferences({
-        memory: { disable_updates: !checked },
-      }).catch(() => toast("Failed to update memory settings."));
-    },
-    [isBusy, memoryEnabled, updateAnimaPreferences],
   );
 
   const persistAnimaPocketVoice = useCallback(
@@ -217,6 +251,24 @@ export function AnimaSettingsModal() {
         return;
       }
 
+      // A downloadable voice that isn't installed is saved and installed (never
+      // sent to the worker, which would 404); replies use the default voice
+      // until the download finishes.
+      const download = pocketVoiceDownloads.availability(value);
+      const action = pocketVoicePickAction(download);
+      if (action !== "select") {
+        void persistAnimaPocketVoice(value)
+          .then(() => {
+            if (action === "install" && download) {
+              pocketVoiceDownloads.install(download.assetId);
+            }
+          })
+          .catch(() => {
+            toast.error("Failed to update anima Pocket voice.");
+          });
+        return;
+      }
+
       void (async () => {
         await setPocketVoice(value);
         await persistAnimaPocketVoice(value);
@@ -230,6 +282,7 @@ export function AnimaSettingsModal() {
       isEncodingVoice,
       persistAnimaPocketVoice,
       setPocketVoice,
+      pocketVoiceDownloads,
     ],
   );
 
@@ -283,10 +336,14 @@ export function AnimaSettingsModal() {
       return "PocketTTS failed to initialize for this route.";
     }
     if (animaHasPocketOverride && animaOverrideVoice) {
-      return `Anima override is active: ${animaOverrideVoice}.`;
+      const download = pocketVoiceDownloads.availability(animaOverrideVoice);
+      const pending = download
+        ? POCKET_DOWNLOAD_STATUS_COPY[download.status]
+        : "";
+      return `Anima override is active: ${pocketVoiceLabel(animaOverrideVoice)}${pending}.`;
     }
     if (effectivePocketVoice) {
-      return `Using application fallback voice: ${effectivePocketVoice}.`;
+      return `Using application fallback voice: ${pocketVoiceLabel(effectivePocketVoice)}.`;
     }
     return "Using PocketTTS default voice.";
   }, [
@@ -296,6 +353,7 @@ export function AnimaSettingsModal() {
     animaOverrideVoice,
     pocketPhase,
     pocketReady,
+    pocketVoiceDownloads,
     ttsEnabled,
   ]);
 
@@ -306,13 +364,16 @@ export function AnimaSettingsModal() {
           Emotion
         </p>
         <div className="mt-3 grid gap-3">
-          <SettingRow
-            label="Enable emotion updates"
+          <InheritableSettingRow
+            label="Emotion updates"
             description="Update emotional state during chat. When off, new emotion reactions stop; gestures still play."
             tooltip="When off, the existing mood is preserved and gestures still play."
-            checked={emotionUpdatesEnabled}
+            value={animaBehaviorOverride(animaPreferences, "emotion_updates")}
+            appEnabled={appBehaviorEnabled(userPreferences, "emotion_updates")}
             disabled={isBusy}
-            onChange={handleEmotionUpdates}
+            onChange={(choice) =>
+              handleBehaviorChange("emotion_updates", choice)
+            }
           />
         </div>
       </div>
@@ -322,21 +383,31 @@ export function AnimaSettingsModal() {
           Memory
         </p>
         <div className="mt-3 grid gap-3">
-          <SettingRow
-            label="Enable memory"
+          <InheritableSettingRow
+            label="Memory"
             description="Read saved memories during chat. IDENTITY.md and conversation history remain active when off."
-            tooltip="Turning this off also disables memory updates; existing memories are not deleted."
-            checked={memoryEnabled}
+            tooltip="Turning this off also turns memory updates off; existing memories are not deleted."
+            value={animaBehaviorOverride(animaPreferences, "memory_influence")}
+            appEnabled={appBehaviorEnabled(userPreferences, "memory_influence")}
             disabled={isBusy}
-            onChange={handleMemoryEnabled}
+            onChange={(choice) =>
+              handleBehaviorChange("memory_influence", choice)
+            }
           />
-          <SettingRow
-            label="Enable memory updates"
-            description="Save new memories during chat. Turning this off does not stop chat history from being saved."
-            tooltip="Existing memories remain readable while memory is enabled."
-            checked={memoryUpdatesEnabled}
+          <InheritableSettingRow
+            label="Memory updates"
+            description={
+              memoryEnabled
+                ? "Save new memories during chat. Turning this off does not stop chat history from being saved."
+                : "Off while memory is off for this Anima."
+            }
+            tooltip="Memory updates require memory to be on."
+            value={animaBehaviorOverride(animaPreferences, "memory_updates")}
+            appEnabled={appBehaviorEnabled(userPreferences, "memory_updates")}
             disabled={!memoryEnabled || isBusy}
-            onChange={handleMemoryUpdates}
+            onChange={(choice) =>
+              handleBehaviorChange("memory_updates", choice)
+            }
           />
         </div>
       </div>
@@ -390,11 +461,36 @@ export function AnimaSettingsModal() {
                   <SelectItem value={ANIMAMA_DEFAULT_VOICE_VALUE}>
                     Use application default
                   </SelectItem>
-                  {pocketVoices.map((voiceName) => (
-                    <SelectItem key={voiceName} value={voiceName}>
-                      {voiceName}
-                    </SelectItem>
+                  {pocketVoiceGroups.map((group) => (
+                    <SelectGroup key={group.label}>
+                      <SelectSeparator />
+                      <SelectLabel>{group.label}</SelectLabel>
+                      {group.voices.map((voice) => (
+                        <SelectItem
+                          key={voice.id}
+                          value={voice.id}
+                          hint={
+                            <>
+                              {[
+                                voice.recommended ? "Recommended" : null,
+                                voice.accent,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                              <PocketVoiceDownloadIcon
+                                availability={pocketVoiceDownloads.availability(
+                                  voice.id,
+                                )}
+                              />
+                            </>
+                          }
+                        >
+                          {voice.name}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
+                  <SelectSeparator />
                   <SelectItem
                     value={POCKET_TTS_CUSTOM_VOICE}
                     disabled={!hasCustomVoice}

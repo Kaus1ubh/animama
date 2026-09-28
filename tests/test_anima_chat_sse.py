@@ -18,6 +18,7 @@ from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToo
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from animama.app.chat.memory_context import ANIMA_MEMORIES_WRITE_GUIDANCE
 from animama.app.main_structured_response import MAIN_STRUCTURED_RESPONSE_FORMAT, MAIN_STRUCTURED_RESPONSE_KIND
 from animama.app.model_catalog import DEEPSEEK_BASE_URL, HUGGINGFACE_ROUTER_BASE_URL
 from animama.app.model_clients import (
@@ -51,7 +52,7 @@ from animama.orm.anima import ORMAnima
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
 from animama.server.deps import get_current_principal
-from animama.server.routers import router as api_router
+from animama.server.routers import chats as chats_router, router as api_router
 from animama.server.routers.anima import chat_anima_direct_sse, router
 from animama.server.routers.chat import (
     chat_sse,
@@ -722,6 +723,59 @@ async def _seed_anima_identity_file(async_session, *, anima_id: str, user_id: st
         )
     )
     await async_session.commit()
+
+
+async def _seed_anima_memories_file(async_session, *, anima_id: str, content: str) -> str:  # noqa: ANN001
+    entry_id = f"mem-memories-{anima_id}"
+    async_session.add(
+        ORMMemoryEntry(
+            id=entry_id,
+            user_id="user-1",
+            anima_id=anima_id,
+            parent_id=None,
+            type="file",
+            name="MEMORIES.md",
+            normalized_name="memories.md",
+            path="MEMORIES.md",
+            normalized_path="memories.md",
+            content=content,
+            content_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            version=1,
+            size_bytes=len(content.encode("utf-8")),
+            kind="anima_memories",
+            description="Shared history with the user",
+            metadata_={},
+        )
+    )
+    await async_session.commit()
+    return entry_id
+
+
+def _self_memories_patch_final() -> ModelClientFinal:
+    return ModelClientFinal(
+        text="",
+        usage=Usage(requests=1, input_tokens=5, output_tokens=1, total_tokens=6),
+        tool_calls=(
+            ModelClientToolCall(
+                id="call-memories",
+                name="memory_apply_patch",
+                arguments=json.dumps(
+                    {
+                        "path": "[self]/MEMORIES.md",
+                        "replacements": [
+                            {
+                                "old_text": "We met at the lake.",
+                                "new_text": "We met at the lake.\nMira calls me her lake twin.",
+                                "replace_all": False,
+                            }
+                        ],
+                        "update_description": False,
+                        "description": None,
+                    }
+                ),
+            ),
+        ),
+    )
 
 
 async def _seed_user_memory_file(
@@ -4330,11 +4384,146 @@ async def test_chat_sse_cleans_up_when_stream_closes_early(monkeypatch) -> None:
         user=RequestPrincipal(id="user-1"),
     )
 
-    first_chunk = await anext(_stream_body(response))
+    body = _stream_body(response)
+    first_chunk = await anext(body)
     first_chunk_text = first_chunk.decode() if isinstance(first_chunk, bytes) else first_chunk
-    assert "event: user.response" in first_chunk_text
+    # The AI notice precedes provider output on the first turn of the day.
+    assert "event: safety.ai_notice" in first_chunk_text
+    reply_chunk = await anext(body)
+    reply_chunk_text = reply_chunk.decode() if isinstance(reply_chunk, bytes) else reply_chunk
+    assert "event: user.response" in reply_chunk_text
 
     await _stream_body(response).aclose()
 
     assert session.close_calls == 1
     assert model_client.close_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_memory_updated_carries_the_cue_the_history_api_returns(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-memory-cue"
+    chat_id = "chat-db-memory-cue"
+    run_id = "run-db-memory-cue"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    memories_body = "# Memories\n\n## Our story\nWe met at the lake.\n"
+    entry_id = await _seed_anima_memories_file(async_session, anima_id=anima_id, content=memories_body)
+    await _seed_default_chat_model_provider(async_session)
+    model_client = _RouteModelClient(
+        finals=[
+            _self_memories_patch_final(),
+            ModelClientFinal(
+                text=_direct_structured_response(
+                    speech="Lake twins it is.",
+                    remember="Mira shared her lake twin nickname.",
+                ),
+                usage=Usage(requests=1, input_tokens=7, output_tokens=3, total_tokens=10),
+            ),
+        ]
+    )
+    _install_db_route_mocks(monkeypatch, async_session_factory, model_client=model_client)
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(message="Call me your lake twin", run_id=run_id, chat_id=chat_id),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    system = _text(model_client.seen_specs[0].prompt.messages[0]["content"])
+    assert "# Anima Memories" in system and ANIMA_MEMORIES_WRITE_GUIDANCE.strip() in system
+    assert not any("event: error" in chunk for chunk in chunks)
+    memory_frame_index = next(i for i, chunk in enumerate(chunks) if "event: memory.updated" in chunk)
+    completed_frame_index = next(i for i, chunk in enumerate(chunks) if "event: run.completed" in chunk)
+    assert memory_frame_index < completed_frame_index
+    assert f"id: memory-updated-{run_id}" in chunks[memory_frame_index]
+    assert _event_count(chunks, "memory.updated") == 1
+    assistant = await async_session.scalar(
+        select(ORMChatMessage).where(
+            ORMChatMessage.chat_id == chat_id,
+            ORMChatMessage.role == "assistant",
+            ORMChatMessage.internal.is_(False),
+        )
+    )
+    assert assistant is not None
+    memories_cue = {"entry_id": entry_id, "version": 2, "excerpt": "Mira calls me her lake twin."}
+    assert _event_data(chunks, "memory.updated") == {
+        "type": "memory.updated",
+        "run_id": run_id,
+        "message_id": assistant.id,
+        "memory_cue": {"episode": {"text": "Mira shared her lake twin nickname."}, "memories": memories_cue},
+    }
+    assert assistant.message_data["memory"] == {"updates_enabled": True, "memories": memories_cue}
+    stored = await async_session.get(ORMMemoryEntry, entry_id)
+    assert stored is not None
+    await async_session.refresh(stored)
+    assert stored.content == memories_body.replace("lake.\n", "lake.\nMira calls me her lake twin.\n")
+
+    history = await chats_router.list_chat_messages(chat_id, user=RequestPrincipal(id="user-1"), session=async_session)
+    cues = [message.memory_cue for message in history.messages]
+    assert cues[0] is None  # The user message never carries a cue.
+    assert cues[-1] is not None
+    assert cues[-1].model_dump() == _event_data(chunks, "memory.updated")["memory_cue"]
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_incognito_turn_neither_edits_memories_nor_emits_memory_updated(
+    monkeypatch,
+    async_session,
+    async_session_factory,
+) -> None:
+    anima_id = "anima-db-memory-incognito"
+    chat_id = "chat-db-memory-incognito"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    async_session.add(ORMChat(id=chat_id, anima_id=anima_id, user_id="user-1", metadata_={}))
+    await async_session.commit()
+    await _seed_anima_identity_file(async_session, anima_id=anima_id)
+    memories_body = "# Memories\n\n## Our story\nWe met at the lake.\n"
+    entry_id = await _seed_anima_memories_file(async_session, anima_id=anima_id, content=memories_body)
+    await _seed_default_chat_model_provider(async_session)
+    model_client = _RouteModelClient(
+        finals=[
+            _self_memories_patch_final(),
+            ModelClientFinal(
+                text=_direct_structured_response(speech="Noted.", remember="Mira shared a nickname."),
+                usage=Usage(requests=1, input_tokens=7, output_tokens=3, total_tokens=10),
+            ),
+        ]
+    )
+    _install_db_route_mocks(
+        monkeypatch,
+        async_session_factory,
+        chat_options={"incognito": True},
+        model_client=model_client,
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        _chat_request(
+            message="Call me your lake twin",
+            run_id="run-db-memory-incognito",
+            chat_id=chat_id,
+            dispatch_options={"incognito": True},
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    system = _text(model_client.seen_specs[0].prompt.messages[0]["content"])
+    assert "[self]/MEMORIES.md" not in system
+    assert "memory_apply_patch" not in {
+        _function_tool(tool)["function"]["name"] for tool in model_client.seen_specs[0].prompt.tools
+    }
+    assert any("event: run.completed" in chunk for chunk in chunks)
+    assert _event_count(chunks, "memory.updated") == 0
+    stored = await async_session.get(ORMMemoryEntry, entry_id)
+    assert stored is not None
+    await async_session.refresh(stored)
+    assert (stored.version, stored.content) == (1, memories_body)

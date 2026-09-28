@@ -12,6 +12,7 @@ from animama.app.ports.owner_profile_bootstrap_port import OwnerProfileBootstrap
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.owner_bootstrap_service import (
     PROFILE_MEMORY_PATH,
+    PROFILE_TEMPLATE_V2,
     OwnerBootstrapPolicy,
     OwnerBootstrapService,
 )
@@ -19,7 +20,7 @@ from animama.domain.memory_entry import MEMORY_ENTRY_TYPE_FILE
 from animama.domain.settings import UserSettings
 
 POLICY = OwnerBootstrapPolicy(
-    profile_template_version="1",
+    profile_template_version="2",
     starter_anima_ids=("starter:annie", "starter:caitlyn"),
 )
 
@@ -103,15 +104,14 @@ async def test_owner_bootstrap_is_idempotent_preserves_edits_and_isolates_two_ow
 
     second_profile = await profiles.get_profile(second_owner)
     assert second_profile is not None and second_profile.display_name is None
-    assert (
-        await memories.get_entry_by_path(
-            user_id=second_owner,
-            anima_id=None,
-            normalized_path=PROFILE_MEMORY_PATH.casefold(),
-            type=MEMORY_ENTRY_TYPE_FILE,
-        )
-        is not None
+    second_memory = await memories.get_entry_by_path(
+        user_id=second_owner,
+        anima_id=None,
+        normalized_path=PROFILE_MEMORY_PATH.casefold(),
+        type=MEMORY_ENTRY_TYPE_FILE,
     )
+    assert second_memory is not None and second_memory.content == PROFILE_TEMPLATE_V2
+    assert (second_memory.metadata or {})["installation_bootstrap"]["template_version"] == "2"
     assert (
         await memories.get_entry_by_path(
             user_id=second_owner,
@@ -150,3 +150,17 @@ async def test_owner_bootstrap_reports_bounded_failure_and_retries(async_session
     second = await service.ensure(owner_id=owner_id, policy=POLICY)
     assert first.failed_steps == ("local_profile",)
     assert second.ready
+
+
+def test_profile_template_v2_is_the_owner_profile_shape() -> None:
+    headings = [line for line in PROFILE_TEMPLATE_V2.splitlines() if line.startswith("#")]
+    assert headings == [
+        "# About me",
+        "## Basics",
+        "## Life right now",
+        "## People",
+        "## Interests",
+        "## Goals",
+        "## Routines",
+        "## How I like to be treated",
+    ]

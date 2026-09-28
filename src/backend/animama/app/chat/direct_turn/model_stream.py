@@ -12,6 +12,7 @@ from animama.app.model_clients import (
     ModelClientDelta,
     ModelClientError,
     ModelClientFinal,
+    ModelClientModeration,
     ModelClientRequest,
     ModelClientToolCall,
     ModelClientToolResult,
@@ -21,10 +22,12 @@ from animama.app.model_clients import (
 )
 from animama.app.model_clients.event_summary import ModelClientStreamEventObserver
 from animama.app.model_clients.prompt import copy_direct_chat_prompt, prompt_messages
+from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain.chat import ChatMessage
 from animama.domain.usage import Usage
 from animama.logging import get_logger
 
+from ..memory_cue import AnimaMemoriesTurn
 from ..memory_tools import DirectChatMemoryToolService, MemoryToolExecutionContext
 from .constants import (
     MAX_MEMORY_TOOL_ROUNDS,
@@ -76,11 +79,15 @@ class DirectTurnModelStreamCollector:
         memory_tool_service: DirectChatMemoryToolService | None,
         load_chat_context: Callable[[str], Awaitable[Any]],
         build_prompt: Callable[..., DirectChatPrompt],
+        anima_memories: AnimaMemoriesTurn | None = None,
     ) -> None:
         self._stream = stream
         self._memory_tool_service = memory_tool_service
         self._load_chat_context = load_chat_context
         self._build_prompt = build_prompt
+        # The turn's MEMORIES.md state, shared by every tool call; None keeps the
+        # [self]/MEMORIES.md alias unavailable (memory influence is off).
+        self._anima_memories = anima_memories
 
     async def collect(
         self,
@@ -109,6 +116,7 @@ class DirectTurnModelStreamCollector:
             max_tool_rounds=MAX_MEMORY_TOOL_ROUNDS,
         )
 
+        round_zero_moderation: ModelClientModeration | None = None
         for round_index in range(MAX_MEMORY_TOOL_ROUNDS + 1):
             # Each round must consume the provider stream until the adapter emits
             # `final` or raises. Chat Completions reaches that point after a
@@ -136,6 +144,8 @@ class DirectTurnModelStreamCollector:
                 return None, internal_messages
             usage_total.add(final.usage)
             usage_seen = True
+            if round_index == 0:
+                round_zero_moderation = final.input_moderation
             tool_calls = tuple(final.tool_calls)
             _log.info(
                 "Direct chat model round final received",
@@ -165,7 +175,14 @@ class DirectTurnModelStreamCollector:
                     elapsed_ms=elapsed_ms(started_at),
                     aggregated_usage=True,
                 )
-                return _final_with_usage(final, usage_total if usage_seen else final.usage), internal_messages
+                return (
+                    _final_with_usage(
+                        final,
+                        usage_total if usage_seen else final.usage,
+                        input_moderation=round_zero_moderation,
+                    ),
+                    internal_messages,
+                )
 
             if round_index >= MAX_MEMORY_TOOL_ROUNDS:
                 # Ask the model for a final answer without tools instead of
@@ -233,6 +250,7 @@ class DirectTurnModelStreamCollector:
                     return _final_with_usage(
                         forced_final,
                         usage_total if usage_seen else forced_final.usage,
+                        input_moderation=round_zero_moderation,
                     ), internal_messages
                 raise DirectChatTurnStreamError(
                     request=prepared.request,
@@ -492,6 +510,7 @@ class DirectTurnModelStreamCollector:
             model_provider_id=model_request.model_provider.id,
             model=model_request.model_provider.model,
             native_memory_patch_enabled=model_request.provider_options.memory_apply_patch_enabled,
+            anima_memories=self._anima_memories,
         )
         if tool_call.tool_type == "apply_patch":
             if tool_call.name != "apply_patch":
@@ -612,8 +631,14 @@ def _direct_turn_log_context(
     return context
 
 
-def _final_with_usage(final: ModelClientFinal, usage: Usage) -> ModelClientFinal:
-    """Return the final model result with usage aggregated across tool rounds."""
+def _final_with_usage(
+    final: ModelClientFinal, usage: Usage, *, input_moderation: ModelClientModeration | None
+) -> ModelClientFinal:
+    """Return the final model result with usage aggregated across tool rounds.
+
+    ``input_moderation`` comes from round 0, the only round whose new input is the
+    user's message; later rounds only add tool exchanges.
+    """
 
     return ModelClientFinal(
         text=final.text,
@@ -624,6 +649,7 @@ def _final_with_usage(final: ModelClientFinal, usage: Usage) -> ModelClientFinal
         },
         structured_payload=final.structured_payload,
         tool_calls=final.tool_calls,
+        input_moderation=input_moderation,
     )
 
 
@@ -777,7 +803,8 @@ def _model_request_with_appended_messages(
     return ModelClientRequest(
         model_provider=model_request.model_provider,
         prompt=copy_direct_chat_prompt(prompt, messages=(*prompt_messages(prompt), *messages)),
-        provider_options=model_request.provider_options,
+        # Moderation is requested only on round 0, whose input is the user's message.
+        provider_options=replace(model_request.provider_options, moderation_model=None),
         continuation=openai_responses_continuation_from_final(model_request, previous_final),
     )
 
@@ -799,7 +826,12 @@ def _model_request_forced_final_without_tools(
     """Build a follow-up request that asks for a final answer without tools."""
 
     prompt = model_request.prompt
-    final_instruction = {"role": "developer", "content": MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION}
+    # Restate the Companion Guardrails after the limit instruction so they remain the
+    # final instruction text on every request (ADR 0008).
+    final_instruction = {
+        "role": "developer",
+        "content": f"{MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION}\n\n{COMPANION_GUARDRAILS.strip()}",
+    }
     return ModelClientRequest(
         model_provider=model_request.model_provider,
         prompt=copy_direct_chat_prompt(

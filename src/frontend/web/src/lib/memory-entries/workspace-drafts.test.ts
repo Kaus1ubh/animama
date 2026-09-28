@@ -108,6 +108,28 @@ describe("memory workspace drafts", () => {
     expect(synced.conflict).toBe(false);
   });
 
+  it("guards MEMORIES.md by version only, including a blank draft", () => {
+    const memories: PyMemoryEntryResponse = {
+      ...entry("memories", 2, "saved"),
+      scope: "anima",
+      anima_id: "annie",
+      name: "MEMORIES.md",
+      path: "MEMORIES.md",
+      kind: "anima_memories",
+      aggregate_revision: null,
+    };
+    const blank = updateMemoryEntryDraft(createMemoryEntryDraft(memories), {
+      content: "",
+    });
+
+    expect(blank).not.toHaveProperty("baseAggregateRevision");
+    expect(isMemoryEntryDraftDirty(blank)).toBe(true);
+    expect(syncMemoryEntryDraft(blank, memories)).toBe(blank);
+    expect(
+      syncMemoryEntryDraft(blank, { ...memories, version: 3 }).conflict,
+    ).toBe(true);
+  });
+
   it("saves dirty drafts sequentially and stops after a failure", async () => {
     const one = updateMemoryEntryDraft(
       createMemoryEntryDraft(entry("one", 1, "saved")),

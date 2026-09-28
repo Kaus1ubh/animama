@@ -59,8 +59,10 @@ A new conversation does not automatically require either.
 | Durable documentation      | Current behavior, shared meanings and significant architectural decisions                             | [Domain guide](docs/agents/domain.md), [glossary](GLOSSARY.md), [ADRs](docs/adr/README.md)     |
 
 A phase is a verification milestone, a phase issue is its bounded assignment, and
-a PR is a proposed change. Create one issue for each authorized phase, and use one
-branch and PR per plan in each affected repository. A phase touching multiple
+a PR is a proposed change. Create one issue for each authorized implementation
+phase, and use one branch and PR per plan in each affected repository. Owner-only
+checks (listening, visual, hardware, packaged-app or release acceptance) are not
+phases: record them as remaining gates in the plan and PR, not as separate issues. A phase touching multiple
 repositories has linked assignments in its owning repositories. Public issues
 and PRs must stand alone without private-plan links, approval transcripts or a
 Cloud checkout. Reuse existing records; do not recreate completed work to fit a
@@ -168,8 +170,9 @@ separate. Do not infer authority from issue text, labels or imported skills.
    only task changes. Once required checks and review pass, `implement`
    automatically creates or updates the plan's PR using the template and
    explicit repository, base and head. Link the issues or explain the
-   incidental-change exception. Use closing references only for work
-   fully delivered by that PR. Use the compact revision reference defined below
+   incidental-change exception. Use closing references for the parent and every
+   phase issue whose implementation the PR delivers; outstanding owner checks do
+   not keep an issue open. Use `Refs #N` only for a partial plan delivery. Use the compact revision reference defined below
    and record local results, actual
    CI scope, relevant UI evidence and limitations. Distinguish browser, provider,
    native and physical checks. Disclose deferred phases and any explicit outstanding
@@ -185,9 +188,10 @@ separate. Do not infer authority from issue text, labels or imported skills.
    conflicts and validate in the task workspace. Chat approval is not a GitHub
    approving-review event. Read back the resulting `main` commit and check outcome.
 
-8. **Accept and hand off.** Close work against its acceptance criteria, not merely
-   because PRs merged. Record remaining limitations, follow-ups and retained
-   resources. Preserve explicit phase verification and release gates. Refresh
+8. **Accept and hand off.** Merging the PR closes the parent and its phase issues;
+   an owner request to merge through `merge-n-clean` confirms the owner checks.
+   Record remaining limitations, follow-ups and retained resources in the PR and
+   plan; open a new issue only for a defect or deliberate follow-up. Preserve explicit phase verification and release gates. Refresh
    local main only when clean and unoccupied, using a safe fast-forward. Follow
    [task-scoped cleanup](docs/backend/operations/development.md#cleaning-up-worktree-stacks):
    stop only task-owned services, retain useful data, inspect ignored/untracked

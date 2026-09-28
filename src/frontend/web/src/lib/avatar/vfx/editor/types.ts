@@ -39,10 +39,15 @@ export type AvatarEffectHoverSettings = {
   side: AvatarVFXSide | null;
   requiresMirror: boolean;
   skinBackdrop: boolean;
+  forceBlink: boolean;
+  autoDisableEyeMaterials: boolean;
+  faceCleanup: boolean;
+  disableTargetRoles: AvatarVFXTargetRole[];
 };
 
 export type AvatarEffectFaceSettings = {
   anchor: AvatarVFXTextureAnchor;
+  faceCleanup: boolean;
   layout: AvatarVFXTextureLayout;
   pivot: AvatarVFXTexturePivot;
   side: AvatarVFXSide;
@@ -51,6 +56,7 @@ export type AvatarEffectFaceSettings = {
 
 export type AvatarEffectTextureSettings = {
   targetRole: AvatarVFXTargetRole;
+  disableTargetRoles: AvatarVFXTargetRole[];
   assetShape: AvatarVFXAssetShape;
   applyMode: AvatarVFXApplyMode;
   side: AvatarVFXSide | null;
@@ -63,6 +69,7 @@ export type AvatarEffectEditorDocument = {
   description: string;
   kind: AvatarVFXKind;
   region: AvatarVFXRegion;
+  regionMode: "automatic" | "custom";
   transform: AvatarVFXTransform;
   animationConfig: AvatarVFXAnimationConfig | null;
   lifetime: AvatarVFXLifetime | null;

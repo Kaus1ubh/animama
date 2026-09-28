@@ -23,32 +23,69 @@ import parakeet as store  # noqa: E402
 MODEL_ID = "browser-speech"
 REPOSITORY = Path(__file__).resolve().parents[2]
 DEFAULT_MANIFEST = REPOSITORY / "models" / MODEL_ID / "manifest.json"
-POCKET_ONNX = {
-    "flow_lm_flow_int8.onnx",
+# Pocket TTS english_2026-04 bundle: INT8 flow LM, FP32 flow head, decoder,
+# encoder and text conditioner, plus runtime metadata.
+POCKET_BUNDLE = {
     "flow_lm_main_int8.onnx",
-    "mimi_decoder_int8.onnx",
+    "flow_lm_flow.onnx",
+    "mimi_decoder.onnx",
     "mimi_encoder.onnx",
     "text_conditioner.onnx",
+    "tokenizer.model",
+    "bos_before_voice.npy",
+    "bundle.json",
 }
-POCKET_OTHER = {"tokenizer.model", "voices.bin"}
+POCKET_BUNDLE_REVISION = "58a6d00cf13d239b6748cb0769f35c580a8f606c"
+# Core voice states: the `core` voices of the owner-curated selection
+# (scripts/voices/selection.json); the others download on demand (pocket_voices.py).
+# Kyutai precomputed states come from Hugging Face; self-encoded VCTK states from
+# Animama's release host under content-addressed names. Every voice must carry a
+# license that permits commercial use.
+VOICE_SELECTION = REPOSITORY / "scripts" / "voices" / "selection.json"
+POCKET_VOICE_REVISION = "4e1e0a3e611c51c0b4ed8174fc10f32a54644303"
+POCKET_VOICE_LICENSES = {"CC-BY-4.0", "CC0-1.0"}  # CC0 is permitted, though every shipped state is CC BY 4.0 today.
+# Animama-hosted states use the immutable models/<model-id>/<sha256>/<file> layout.
+RELEASE_VOICE_PREFIX = "https://downloads.animama.ai/models/pocket-tts-voices/"
 SMART_TURN = "smart-turn-v3.2-cpu.onnx"
 NOTICE_NAMES = {"pocket-tts-attribution.txt", "pocket-tts-onnx-license.txt", "smart-turn-bsd-2-clause.txt"}
 NOTICE_PATHS = {f"src/frontend/desktop/runtime/notices/{name}" for name in NOTICE_NAMES}
 
 
+def load_voice_selection(path: Path = VOICE_SELECTION) -> list[dict]:
+    """Every curated voice; IDs become file names, so only safe names are accepted."""
+    voices = json.loads(path.read_text())["voices"]
+    if any(not re.fullmatch(r"[a-z0-9_]{1,64}", voice["id"]) for voice in voices):
+        raise ValueError("voice IDs must be lowercase letters, digits or underscores")
+    return voices
+
+
+def shipped_voices(path: Path = VOICE_SELECTION) -> dict[str, str]:
+    """Map each core voice file name to its source kind (`huggingface` or `release`)."""
+    return {
+        f"{voice['id']}.safetensors": "release" if voice["source"].startswith("vctk-") else "huggingface"
+        for voice in load_voice_selection(path)
+        if voice["delivery"] == "core"
+    }
+
+
+def expected_voice_source(name: str, kind: str, sha256: str) -> dict:
+    """The only reviewed source for a voice state."""
+    if kind == "release":
+        return {"kind": "release", "url": f"{RELEASE_VOICE_PREFIX}{sha256}/{name}"}
+    return {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": POCKET_VOICE_REVISION,
+        "path": f"languages/english_2026-04/embeddings/{name}",
+    }
+
+
 def expected_source(name: str) -> dict:
     """Restrict download ownership, full revisions and paths to reviewed upstreams."""
-    if name in POCKET_ONNX:
+    if name in POCKET_BUNDLE:
         repository, revision, path = (
-            "spaces/codexxx/pocket-tts-web",
-            "6fbae64699d94f60dde9c3975984b383a6a3d950",
-            f"onnx/{name}",
-        )
-    elif name in POCKET_OTHER:
-        repository, revision, path = (
-            "spaces/KevinAHM/pocket-tts-web",
-            "3cf6daa623e2b09992c972cab32568ee8679a154",
-            name,
+            "KevinAHM/pocket-tts-onnx",
+            POCKET_BUNDLE_REVISION,
+            f"onnx/english_2026-04/{name}",
         )
     elif name == SMART_TURN:
         repository, revision, path = "pipecat-ai/smart-turn-v3", "f766f81d3cfdf7737ac64aad813d91bbfd56bf93", name
@@ -76,16 +113,23 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> dict:
         if value["schema_version"] != 1 or value["model_id"] != MODEL_ID:
             raise ValueError("unsupported schema or model")
         entries = value["files"]
-        if len(entries) != 8 or {entry["path"] for entry in entries} != POCKET_ONNX | POCKET_OTHER | {SMART_TURN}:
-            raise ValueError("expected the exact eight-file browser speech inventory")
+        voices = shipped_voices()
+        expected_names = POCKET_BUNDLE | set(voices) | {SMART_TURN}
+        if len(entries) != len(expected_names) or {entry["path"] for entry in entries} != expected_names:
+            raise ValueError("expected the exact browser speech inventory: the bundle, Smart Turn and shipped voices")
         for entry in entries:
             name = entry["path"]
             validate_bytes(entry)
-            group = "smart-turn" if name == SMART_TURN else "pocket-tts"
-            if entry["target"] != f"models/{group}/{name}" or entry["source"] != expected_source(name):
+            if name in voices:
+                group, source = "pocket-tts/voices", expected_voice_source(name, voices[name], entry["sha256"])
+                licensed = entry["license"] in POCKET_VOICE_LICENSES
+            else:
+                group = "smart-turn" if name == SMART_TURN else "pocket-tts"
+                source = expected_source(name)
+                licensed = entry["license"] == ("BSD-2-Clause" if name == SMART_TURN else "CC-BY-4.0")
+            if entry["target"] != f"models/{group}/{name}" or entry["source"] != source:
                 raise ValueError(f"unreviewed source or target for {name}")
-            license_id = "BSD-2-Clause" if name == SMART_TURN else "CC-BY-NC-4.0"
-            if entry["license"] != license_id:
+            if not licensed:
                 raise ValueError(f"unexpected license for {name}")
         notices = value["notices"]
         if len(notices) != 3 or {entry["path"] for entry in notices} != NOTICE_PATHS:

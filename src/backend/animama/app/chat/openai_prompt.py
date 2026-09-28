@@ -23,11 +23,14 @@ from animama.app.model_clients.types import (
     MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
     MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
 )
+from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.user_file_processing import UserFileOutlineItem
 
 from .direct_turn.types import DirectChatAttachmentContext
 from .memory_context import (
+    ANIMA_MEMORIES_GUIDANCE,
+    ANIMA_MEMORIES_WRITE_GUIDANCE,
     MAIN_STRUCTURED_OUTPUT_GUIDANCE,
     MEMORY_SYSTEM_GUIDANCE,
     NATIVE_MEMORY_PATCH_GUIDANCE,
@@ -57,6 +60,8 @@ class DirectChatPromptAssembler:
         user_message: str,
         anima_identity: str,
         anima_name: str | None = None,
+        anima_memories: str | None = None,
+        anima_memories_writable: bool = False,
         response_format_guidance: str | None = None,
         native_memory_patch_enabled: bool = False,
         memory_map: str | None = None,
@@ -74,8 +79,13 @@ class DirectChatPromptAssembler:
     ) -> DirectChatPrompt:
         memory_map_text = memory_map.strip() if isinstance(memory_map, str) and memory_map.strip() else None
         attached_files_text = _render_attached_user_file_map(attached_files)
-        request_context_text = (
-            "\n\n".join(section for section in (memory_map_text, attached_files_text) if section is not None) or None
+        # Request context and the Companion Guardrails form the trailing
+        # instructions. The guardrail is always last so no identity, memory or earlier
+        # instruction can override it.
+        trailing_instruction_text = "\n\n".join(
+            section
+            for section in (memory_map_text, attached_files_text, COMPANION_GUARDRAILS.strip())
+            if section is not None
         )
         messages: list[ChatCompletionMessageParam] = [
             _text_message(
@@ -83,9 +93,10 @@ class DirectChatPromptAssembler:
                 _direct_chat_system_instruction(
                     anima_identity,
                     anima_name=anima_name,
+                    anima_memories=anima_memories,
+                    anima_memories_writable=anima_memories_writable,
                     response_format_guidance=response_format_guidance,
                     native_memory_patch_enabled=native_memory_patch_enabled,
-                    request_context=request_context_text if not supports_developer_role else None,
                 ),
             )
         ]
@@ -98,8 +109,11 @@ class DirectChatPromptAssembler:
                     if phase is not None:
                         assistant_phases_by_message_index[str(len(messages))] = phase
                 messages.append(message)
-        if request_context_text is not None and supports_developer_role:
-            messages.append(_text_message("developer", request_context_text))
+        messages.append(_text_message("developer", trailing_instruction_text))
+        if not supports_developer_role:
+            messages, assistant_phases_by_message_index = _fold_developer_messages_into_system(
+                messages, assistant_phases_by_message_index
+            )
         messages.append(_text_message("user", user_message))
         return DirectChatPrompt(
             messages=tuple(messages),
@@ -120,23 +134,64 @@ def _direct_chat_system_instruction(
     anima_identity: str,
     *,
     anima_name: str | None = None,
+    anima_memories: str | None = None,
+    anima_memories_writable: bool = False,
     response_format_guidance: str | None = None,
     native_memory_patch_enabled: bool = False,
-    request_context: str | None = None,
 ) -> str:
     guidance = response_format_guidance.strip() if isinstance(response_format_guidance, str) else ""
     memory_guidance = MEMORY_SYSTEM_GUIDANCE.strip()
+    # The alias is advertised only when this turn can edit MEMORIES.md; its
+    # content is already in these instructions, so a read-only turn needs no path.
+    if anima_memories_writable:
+        memory_guidance = f"{memory_guidance}\n\n{ANIMA_MEMORIES_WRITE_GUIDANCE.strip()}"
     if native_memory_patch_enabled:
         memory_guidance = f"{memory_guidance}\n\n{NATIVE_MEMORY_PATCH_GUIDANCE.strip()}"
     sections = [
         "# Core Instructions\n\n" + render_core_companion_instruction(anima_name).strip(),
         "# Anima Identity\n\n" + anima_identity.strip(),
+    ]
+    # The Anima's relationship memory follows its identity; it is omitted when
+    # memory influence is off or the file has nothing to say.
+    if isinstance(anima_memories, str) and anima_memories.strip():
+        sections.append(f"# Anima Memories\n\n{ANIMA_MEMORIES_GUIDANCE}\n\n{anima_memories.strip()}")
+    sections += [
         "# Memory Guidance\n\n" + memory_guidance,
         "# Response Guidance\n\n" + (guidance or MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()),
     ]
-    if isinstance(request_context, str) and request_context.strip():
-        sections.append(request_context.strip())
     return "\n\n".join(sections)
+
+
+def _fold_developer_messages_into_system(
+    messages: list[ChatCompletionMessageParam],
+    assistant_phases_by_message_index: Mapping[str, str],
+) -> tuple[list[ChatCompletionMessageParam], dict[str, str]]:
+    """Append developer text, in order, to the leading system message.
+
+    Keeps the trailing Companion Guardrails last for providers without a developer role,
+    and re-indexes recorded assistant phases for the shortened message list.
+    """
+
+    developer_parts: list[str] = []
+    remaining: list[ChatCompletionMessageParam] = []
+    new_index_by_old: dict[str, str] = {}
+    for index, message in enumerate(messages):
+        if _message_role(message) == "developer":
+            content = message.get("content")
+            if isinstance(content, str) and content.strip():
+                developer_parts.append(content.strip())
+            continue
+        new_index_by_old[str(index)] = str(len(remaining))
+        remaining.append(message)
+    system_content = remaining[0].get("content")
+    system_text = system_content if isinstance(system_content, str) else ""
+    remaining[0] = _text_message("system", "\n\n".join((system_text, *developer_parts)))
+    phases = {
+        new_index_by_old[index]: phase
+        for index, phase in assistant_phases_by_message_index.items()
+        if index in new_index_by_old
+    }
+    return remaining, phases
 
 
 @dataclass(frozen=True, slots=True)

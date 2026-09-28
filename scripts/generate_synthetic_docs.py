@@ -31,8 +31,10 @@ SIZE_PRESETS: tuple[SizePreset, ...] = ("xxsmall", "xsmall", "small", "large", "
 XXSMALL_SOURCE_PATHS = (
     "docs/backend/README.md",
     "docs/backend/features/user-files.md",
+    "docs/backend/features/user-profiles-and-usernames.md",
     "docs/frontend/README.md",
     "docs/frontend/features/user-file-uploads.md",
+    "docs/frontend/features/user-profiles.md",
 )
 XSMALL_SOURCE_PATHS = (
     *XXSMALL_SOURCE_PATHS,
@@ -45,11 +47,13 @@ SMALL_SOURCE_PATHS = (
     "docs/backend/runtime/chat.md",
     "docs/backend/features/memory.md",
     "docs/backend/features/user-files.md",
+    "docs/backend/features/user-profiles-and-usernames.md",
     "docs/frontend/README.md",
     "docs/frontend/architecture/overview.md",
     "docs/frontend/architecture/data-layer.md",
     "docs/frontend/runtime/chat.md",
     "docs/frontend/features/user-file-uploads.md",
+    "docs/frontend/features/user-profiles.md",
 )
 LARGE_SOURCE_PATHS = (
     *SMALL_SOURCE_PATHS,

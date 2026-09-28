@@ -10,6 +10,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -30,13 +31,17 @@ def inventory(tmp_path):
         content[entry["path"]] = data
         entry["size"] = len(data)
         entry["sha256"] = hashlib.sha256(data).hexdigest()
+        if entry["source"].get("kind") == "release":
+            voice = entry["path"].removesuffix(".safetensors")
+            entry["source"]["url"] = f"{browser.RELEASE_VOICE_PREFIX}{entry['sha256']}/{voice}.safetensors"
     path = tmp_path / "browser-manifest.json"
     path.write_text(json.dumps(value))
     calls = []
+    by_url = {download_url(entry): entry["path"] for entry in value["files"]}
 
     def transport(url):
         calls.append(url)
-        return io.BytesIO(content[url.rsplit("/", 1)[1]])
+        return io.BytesIO(content[by_url[url]])
 
     return SimpleNamespace(
         manifest=browser.load_manifest(path),
@@ -48,17 +53,63 @@ def inventory(tmp_path):
     )
 
 
+def download_url(entry: dict[str, Any]) -> str:
+    source = entry["source"]
+    if source.get("kind") == "release":
+        return str(source["url"])
+    return f"https://huggingface.co/{source['repository']}/resolve/{source['revision']}/{source['path']}"
+
+
+def shipped_voices() -> list[dict[str, Any]]:
+    voices: list[dict[str, Any]] = json.loads((browser.REPOSITORY / "scripts/voices/selection.json").read_text())[
+        "voices"
+    ]
+    return voices
+
+
 def test_pinned_sources_flat_store_and_offline_reuse(inventory):
     i = inventory
     result = store.acquire(i.manifest, i.root, transport=i.transport)
     assert result == i.root / "browser-speech" / i.manifest["digest"]
     assert {p.name for p in result.iterdir()} == set(i.content)
-    assert len(i.calls) == 8
-    for entry, url in zip(i.manifest["files"], i.calls, strict=True):
-        source = entry["source"]
-        assert url == f"https://huggingface.co/{source['repository']}/resolve/{source['revision']}/{source['path']}"
+    assert i.calls == [download_url(entry) for entry in i.manifest["files"]]
     assert store.acquire(i.manifest, i.root, offline=True, transport=lambda _: pytest.fail("network")) == result
     assert store.verify(i.manifest, i.root) == result
+
+
+def test_pinned_april_bundle_and_voice_states(inventory):
+    targets = {entry["path"]: entry["target"] for entry in inventory.manifest["files"]}
+    assert targets["flow_lm_flow.onnx"] == "models/pocket-tts/flow_lm_flow.onnx"
+    assert targets["mimi_decoder.onnx"] == "models/pocket-tts/mimi_decoder.onnx"
+    assert targets["bundle.json"] == "models/pocket-tts/bundle.json"
+    voices = {voice["id"] for voice in shipped_voices() if voice["delivery"] == "core"}
+    assert len(voices) == 15 and {"eve", "azelma", "jane", "javert", "marius", "noah"} <= voices
+    assert "mary" not in voices  # Downloaded on demand since 2026-09-27.
+    for voice in voices:
+        assert targets[f"{voice}.safetensors"] == f"models/pocket-tts/voices/{voice}.safetensors"
+    assert "voices.bin" not in targets
+    assert len(targets) == len(voices) + 9
+
+
+def test_self_encoded_voices_come_only_from_the_release_host(inventory):
+    kinds = {}
+    for entry in inventory.manifest["files"]:
+        if not entry["target"].startswith("models/pocket-tts/voices/"):
+            continue
+        source = entry["source"]
+        kinds[entry["path"]] = source.get("kind", "huggingface")
+        assert entry["license"] in {"CC-BY-4.0", "CC0-1.0"}
+        if source.get("kind") == "release":
+            voice = entry["path"].removesuffix(".safetensors")
+            assert source["url"] == (
+                f"https://downloads.animama.ai/models/pocket-tts-voices/{entry['sha256']}/{voice}.safetensors"
+            )
+    expected = {
+        f"{v['id']}.safetensors": "release" if v["source"].startswith("vctk-") else "huggingface"
+        for v in shipped_voices()
+        if v["delivery"] == "core"
+    }
+    assert kinds == expected
 
 
 def test_nested_legacy_import_preserves_files(inventory, tmp_path):
@@ -80,7 +131,7 @@ def test_versions_coexist_and_concurrent_acquisition_downloads_once(inventory):
         jobs = [pool.submit(store.acquire, i.manifest, i.root, transport=i.transport) for _ in range(2)]
     original = jobs[0].result()
     assert original == jobs[1].result()
-    assert len(i.calls) == 8
+    assert len(i.calls) == len(i.manifest["files"])
     i.path.write_text(i.path.read_text() + "\n")
     changed = browser.load_manifest(i.path)
     next_version = store.acquire(changed, i.root, transport=i.transport)
@@ -112,6 +163,46 @@ def test_parakeet_and_browser_versions_have_separate_namespaces(inventory, tmp_p
         browser.load_manifest(parakeet_path)
     with pytest.raises(store.ModelStoreError, match="unsupported"):
         store.load_manifest(i.path)
+
+
+def release_entry(value: dict[str, Any]) -> dict[str, Any]:
+    entry: dict[str, Any] = next(e for e in value["files"] if e["source"].get("kind") == "release")
+    return entry
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["release-host", "release-digest", "release-port", "unselected-voice", "noncommercial-voice", "missing-voice"],
+)
+def test_manifest_rejects_unreviewed_voice_entries(inventory, change):
+    i = inventory
+    value = json.loads(i.path.read_bytes())
+    entry = release_entry(value)
+    if change == "release-host":
+        entry["source"]["url"] = entry["source"]["url"].replace("downloads.animama.ai", "example.com")
+    elif change == "release-digest":
+        entry["source"]["url"] = entry["source"]["url"].replace(entry["sha256"], "0" * 64)
+    elif change == "release-port":
+        entry["source"]["url"] = entry["source"]["url"].replace("animama.ai/", "animama.ai:8443/")
+    elif change == "unselected-voice":
+        entry["path"] = "unlisted.safetensors"
+        entry["target"] = "models/pocket-tts/voices/unlisted.safetensors"
+    elif change == "noncommercial-voice":
+        entry["license"] = "CC-BY-NC-4.0"
+    else:
+        value["files"].remove(entry)
+    i.path.write_text(json.dumps(value))
+    with pytest.raises(store.ModelStoreError):
+        browser.load_manifest(i.path)
+
+
+def test_release_host_is_allowed_only_for_release_sources():
+    url = "https://downloads.animama.ai/models/pocket-tts-voices/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/x.safetensors"
+    store.validate_url(url, hosts=store.RELEASE_HOSTS)
+    with pytest.raises(store.ModelStoreError):
+        store.validate_url(url)
+    with pytest.raises(store.ModelStoreError):
+        store.validate_url("https://huggingface.co/x", hosts=store.RELEASE_HOSTS)
 
 
 @pytest.mark.parametrize("change", ["path", "target", "source", "revision", "license", "notice", "hash", "size"])
@@ -163,7 +254,7 @@ def test_interrupted_staging_is_removed_and_existing_corruption_is_not_repaired(
         store.acquire(i.manifest, i.root, transport=interrupted)
     assert not list((i.root / "browser-speech").glob("*.partial-*"))
     result = store.acquire(i.manifest, i.root, transport=i.transport)
-    corrupt = result / "voices.bin"
+    corrupt = result / "bundle.json"
     corrupt.chmod(0o644)
     corrupt.write_bytes(b"bad")
     with pytest.raises(store.ModelStoreError, match="not changed"):

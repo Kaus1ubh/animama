@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from openai import APIStatusError, AsyncOpenAI
 
+from animama.adapters.model_clients.openai_responses.support import DEFAULT_BASE_URL
 from animama.adapters.openai_agents import OpenAIAgentsRunner, OpenAIAgentsRunOutput
 from animama.app.chat.memory_tools import (
     MEMORY_TOOL_LIST_FILES,
@@ -16,6 +17,7 @@ from animama.app.chat.memory_tools import (
     MEMORY_TOOL_SEARCH_MEMORY_FILES,
 )
 from animama.app.ports.anima_port import AnimaRepository
+from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.ports.memory_manager_runtime import (
     MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
@@ -26,6 +28,8 @@ from animama.app.ports.memory_manager_runtime import (
     MemoryManagerRuntimeConfigurationError,
     MemoryManagerRuntimeResult,
 )
+from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
+from animama.app.services.anima_identity_memory import ManagerFileAccess, manager_file_access_for_run
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.user_memory_read_tools import UserMemoryReadToolService
 from animama.domain.memory_manager import (
@@ -34,11 +38,19 @@ from animama.domain.memory_manager import (
     MemoryManagerApproval,
     MemoryManagerEpisodeTaskState,
     MemoryManagerMessage,
+    MemoryManagerReflectionTaskState,
     MemoryManagerRun,
 )
 from animama.logging import get_logger
 
 from .episode_processing import load_episode_processing_batch, render_episode_processing_instructions
+from .reflection import (
+    MEMORY_TOOL_READ_REFLECTION_TURNS,
+    ReflectionTurnReader,
+    reflection_page_count,
+    reflection_task_or_none,
+    render_reflection_instructions,
+)
 from .workspace import MemoryManagerPatchRejected, MemoryManagerVirtualWorkspace
 
 if TYPE_CHECKING:
@@ -62,6 +74,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         memory_entries: MemoryEntryService,
         memory_episodes: MemoryEpisodeRepository | None = None,
         animas: AnimaRepository | None = None,
+        chat_messages: ChatMessageRepository | None = None,
         api_key: str | None,
         base_url: str | None,
         model: str,
@@ -71,9 +84,11 @@ class OpenAIAgentsMemoryManagerRuntime:
         self._memory_entries = memory_entries
         self._memory_episodes = memory_episodes
         self._animas = animas
-        self._user_memory_reads = UserMemoryReadToolService(memory_entries=memory_entries)
+        self._chat_messages = chat_messages
         self._api_key = (api_key or "").strip()
-        self._base_url = (base_url or "").strip().rstrip("/") or None
+        # Always pass an explicit endpoint: when omitted, the SDK falls back to the
+        # OPENAI_BASE_URL env var, which Compose sets to an empty string by default.
+        self._base_url = (base_url or "").strip().rstrip("/") or DEFAULT_BASE_URL
         self._model = model.strip() or "gpt-5.4-mini"
         self._timeout_seconds = max(0.1, float(timeout_seconds))
         self._runner = OpenAIAgentsRunner()
@@ -88,7 +103,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         """Run the live memory manager for a new user message."""
 
         self._require_api_key()
-        workspace = MemoryManagerVirtualWorkspace(user_id=self._user_id, memory_entries=self._memory_entries)
+        workspace = self._workspace_for_run(run)
         client = self._client()
         try:
             agent, run_config = await self._build_agent(
@@ -102,7 +117,7 @@ class OpenAIAgentsMemoryManagerRuntime:
                 input_value=user_message.content,
                 context=_context_for_run(run),
                 run_config=run_config,
-                max_turns=_MAX_MANAGER_TURNS,
+                max_turns=_max_turns_for_run(run),
                 previous_response_id=run.openai_previous_response_id,
                 auto_previous_response_id=True,
             )
@@ -148,7 +163,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             )
 
         self._require_api_key()
-        workspace = MemoryManagerVirtualWorkspace(user_id=self._user_id, memory_entries=self._memory_entries)
+        workspace = self._workspace_for_run(run)
         client = self._client()
         try:
             editor = _committed_approval_patch_editor(approval=approval if decision == "approve" else None)
@@ -185,7 +200,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             output = await self._runner.resume_state(
                 agent=agent,
                 state=state,
-                max_turns=_MAX_MANAGER_TURNS,
+                max_turns=_max_turns_for_run(run),
                 run_config=run_config,
             )
             return await self._runtime_result_from_sdk_output(
@@ -211,18 +226,19 @@ class OpenAIAgentsMemoryManagerRuntime:
         finally:
             await client.close()
 
+    def _workspace_for_run(self, run: MemoryManagerRun) -> MemoryManagerVirtualWorkspace:
+        return MemoryManagerVirtualWorkspace(
+            user_id=self._user_id,
+            memory_entries=self._memory_entries,
+            access=manager_file_access_for_run(run),
+        )
+
     def _require_api_key(self) -> None:
         if not self._api_key:
             raise MemoryManagerRuntimeConfigurationError("OPENAI_API_KEY is required for the memory manager")
 
     def _client(self) -> AsyncOpenAI:
-        kwargs: dict[str, Any] = {
-            "api_key": self._api_key,
-            "timeout": self._timeout_seconds,
-        }
-        if self._base_url:
-            kwargs["base_url"] = self._base_url
-        return AsyncOpenAI(**kwargs)
+        return AsyncOpenAI(api_key=self._api_key, base_url=self._base_url, timeout=self._timeout_seconds)
 
     async def _build_agent(
         self,
@@ -234,19 +250,24 @@ class OpenAIAgentsMemoryManagerRuntime:
     ) -> tuple[Agent[Any], RunConfig]:
         from agents import Agent, ApplyPatchTool, ModelSettings, OpenAIResponsesModel, RunConfig, function_tool
 
-        memory_map = await self._user_memory_reads.render_memory_map(user_id=self._user_id)
+        user_memory_reads = UserMemoryReadToolService(
+            memory_entries=self._memory_entries,
+            manager_access=manager_file_access_for_run(run),
+        )
+        memory_map = await user_memory_reads.render_memory_map(user_id=self._user_id)
+        reflection = self._reflection_task(run)
 
         @function_tool(name_override=MEMORY_TOOL_LIST_FILES)
         async def memory_list_files() -> dict[str, Any]:
             """List user memory files."""
 
-            return await self._user_memory_reads.list_files(user_id=self._user_id)
+            return await user_memory_reads.list_files(user_id=self._user_id)
 
         @function_tool(name_override=MEMORY_TOOL_READ_FILES)
         async def memory_read_files(paths: str | list[str]) -> dict[str, Any]:
             """Read patchable user memory documents by relative markdown path."""
 
-            return await self._user_memory_reads.read_files(
+            return await user_memory_reads.read_files(
                 user_id=self._user_id,
                 paths=paths,
                 native_patch_mode=True,
@@ -262,11 +283,27 @@ class OpenAIAgentsMemoryManagerRuntime:
             Episode logs may optionally be excluded.
             """
 
-            return await self._user_memory_reads.search_files(
+            return await user_memory_reads.search_files(
                 user_id=self._user_id,
                 query=query,
                 include_episodic_memory=include_episodic_memory,
             )
+
+        tools: list[Any] = [memory_list_files, memory_read_files, search_memory_files]
+        if reflection is not None:
+            turn_reader = self._reflection_turn_reader(reflection)
+
+            @function_tool(name_override=MEMORY_TOOL_READ_REFLECTION_TURNS)
+            async def read_reflection_turns(page: int) -> dict[str, Any]:
+                """Read one page of this Reflection's chat turns, oldest first, starting at page 1.
+
+                Follow next_page until has_more is false.
+                """
+
+                return await turn_reader.read_page(page)
+
+            tools.append(read_reflection_turns)
+        tools.append(ApplyPatchTool(editor=editor, needs_approval=True))
 
         instructions = await self._instructions_for_run(run=run, memory_map=memory_map)
         agent = Agent(
@@ -282,12 +319,7 @@ class OpenAIAgentsMemoryManagerRuntime:
                     )
                 },
             ),
-            tools=[
-                memory_list_files,
-                memory_read_files,
-                search_memory_files,
-                ApplyPatchTool(editor=editor, needs_approval=True),
-            ],
+            tools=tools,
         )
         run_config = RunConfig(
             tracing_disabled=False,
@@ -302,8 +334,22 @@ class OpenAIAgentsMemoryManagerRuntime:
         )
         return agent, run_config
 
+    def _reflection_task(self, run: MemoryManagerRun) -> MemoryManagerReflectionTaskState | None:
+        try:
+            return reflection_task_or_none(run)
+        except ValueError as exc:
+            raise MemoryManagerRuntimeConfigurationError(str(exc)) from exc
+
+    def _reflection_turn_reader(self, task: MemoryManagerReflectionTaskState) -> ReflectionTurnReader:
+        if self._chat_messages is None:
+            raise MemoryManagerRuntimeConfigurationError("Reflection is not configured")
+        return ReflectionTurnReader(chat_messages=self._chat_messages, user_id=self._user_id, task=task)
+
     async def _instructions_for_run(self, *, run: MemoryManagerRun, memory_map: str) -> str:
-        general = _instructions(memory_map=memory_map)
+        general = _instructions(memory_map=memory_map, access=manager_file_access_for_run(run))
+        reflection = self._reflection_task(run)
+        if reflection is not None:
+            return f"{general}\n\n{render_reflection_instructions(task=reflection)}"
         if run.kind != MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING:
             return general
         try:
@@ -404,7 +450,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             resumed = await self._runner.resume_state(
                 agent=agent,
                 state=state,
-                max_turns=_MAX_MANAGER_TURNS,
+                max_turns=_max_turns_for_run(run),
                 run_config=run_config,
             )
             return await self._runtime_result_from_sdk_output(
@@ -505,7 +551,8 @@ def _committed_approval_patch_editor(*, approval: MemoryManagerApproval | None) 
                 return ApplyPatchResult(status="failed", output=f"Patch for `{operation.path}` was not approved.")
             metadata = dict(self._approval.operation_metadata or {})
             if (
-                operation.path == self._approval.target_path
+                # Stored paths compare case-insensitively; identity targets are canonicalized.
+                operation.path.casefold() == self._approval.target_path.casefold()
                 and operation.type == metadata.get("sdk_operation_type")
                 and operation.diff == metadata.get("v4a_diff")
             ):
@@ -529,7 +576,51 @@ def _context_for_run(run: MemoryManagerRun) -> dict[str, Any]:
     }
 
 
-def _instructions(*, memory_map: str) -> str:
+def _max_turns_for_run(run: MemoryManagerRun) -> int:
+    """Give a Reflection one extra model turn per page of chat turns it must read."""
+
+    try:
+        task = reflection_task_or_none(run)
+    except ValueError:
+        return _MAX_MANAGER_TURNS
+    return _MAX_MANAGER_TURNS + (reflection_page_count(task) if task is not None else 0)
+
+
+_ANIMA_FILES_INSTRUCTIONS = (
+    "Entries under animas/<anima_id>/ belong to one Anima; the map's anima field names it. Entries are in Anima "
+    "creation order; when names repeat, the workspace labels the second and later ones Name (2), Name (3), and so "
+    "on. Never create, delete or move an Anima file, and never add other files under animas/.\n"
+)
+_ANIMA_IDENTITY_INSTRUCTIONS = (
+    "animas/<anima_id>/IDENTITY.md is that Anima's required identity. Read it when the user asks about an Anima. "
+    "Propose an update_file change to an identity only when the user's request is about that Anima's identity or "
+    "personality, and never empty it.\n"
+)
+_ANIMA_MEMORIES_INSTRUCTIONS = (
+    "animas/<anima_id>/MEMORIES.md is that Anima's own first-person record of its relationship with the user, "
+    "which the Anima and Reflection maintain. Propose an update_file change to it only when the user explicitly "
+    "asks to change that Anima's MEMORIES.md. "
+    f"{SENSITIVE_MEMORY_RULE} Never record or frame the relationship as the Anima missing the user or feeling "
+    "lonely without them, as jealousy, or in a way that discourages the user's other relationships.\n"
+)
+
+
+def _anima_file_instructions(access: ManagerFileAccess) -> str:
+    """Describe the Anima files a general run may reach; Reflection mode supplies its own mandate."""
+
+    if access.anima_id is not None or not access.anima_files:
+        return ""
+    return "".join(
+        (
+            _ANIMA_FILES_INSTRUCTIONS,
+            _ANIMA_IDENTITY_INSTRUCTIONS if access.anima_identities else "",
+            _ANIMA_MEMORIES_INSTRUCTIONS if access.anima_memories else "",
+        )
+    )
+
+
+def _instructions(*, memory_map: str, access: ManagerFileAccess | None = None) -> str:
+    anima_guidance = _anima_file_instructions(access) if access is not None else ""
     return (
         "You are Animama's user memory manager. Help the user maintain durable markdown memory files.\n"
         "You work only in the virtual user memory workspace. Do not ask for or assume shell access.\n"
@@ -553,6 +644,7 @@ def _instructions(*, memory_map: str) -> str:
         "When proposing a memory edit, use apply_patch with exactly one create_file or update_file operation. "
         "Never request delete_file. Only use relative POSIX paths ending in .md.\n"
         "The user must approve apply_patch changes before they become durable.\n"
+        f"{anima_guidance}"
         f"\n{memory_map}"
     )
 

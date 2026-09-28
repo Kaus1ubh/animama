@@ -38,6 +38,14 @@ describe("memory explorer row actions", () => {
     ]);
   });
 
+  it("lets a pre-existing reserved animas directory move out but not gain children", () => {
+    expect(
+      memoryExplorerRowActions(entry("animas", "directory")).map(
+        (action) => action.id,
+      ),
+    ).toEqual(["rename", "move", "delete"]);
+  });
+
   it("adds child creation actions to ordinary directories", () => {
     expect(
       memoryExplorerRowActions(entry("projects", "directory")).map(
@@ -69,6 +77,16 @@ describe("memory explorer row actions", () => {
         entry("profile.md", "file", { kind: "user_profile" }),
       ),
     ).toEqual(protectedFileActions);
+    for (const [path, kind] of [
+      ["IDENTITY.md", "anima_identity"],
+      ["MEMORIES.md", "anima_memories"],
+    ]) {
+      expect(
+        memoryExplorerRowActions(
+          entry(path, "file", { scope: "anima", anima_id: "annie", kind }),
+        ),
+      ).toEqual(protectedFileActions);
+    }
   });
 
   it("shows every directory action disabled for virtual episode groups", () => {

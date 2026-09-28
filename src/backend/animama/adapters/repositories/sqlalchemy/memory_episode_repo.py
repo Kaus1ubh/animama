@@ -204,6 +204,26 @@ class SQLAlchemyMemoryEpisodeRepository(MemoryEpisodeRepository):
         result = await self._s.execute(stmt)
         return [self._row_to_domain(row._mapping) for row in result]
 
+    async def list_items_by_source_message_ids(
+        self,
+        *,
+        user_id: str,
+        source_message_ids: Iterable[str],
+    ) -> list[MemoryEpisodeItem]:
+        unique_ids = tuple(dict.fromkeys(source_message_ids))
+        if not unique_ids:
+            return []
+        stmt = (
+            select(*self._item_columns())
+            .where(
+                ORMMemoryEpisodeItem.user_id == user_id,
+                ORMMemoryEpisodeItem.source_message_id.in_(unique_ids),
+            )
+            .order_by(ORMMemoryEpisodeItem.occurred_at.asc(), ORMMemoryEpisodeItem.id.asc())
+        )
+        result = await self._s.execute(stmt)
+        return [self._row_to_domain(row._mapping) for row in result]
+
     async def update_items_status(
         self,
         *,

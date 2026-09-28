@@ -1,6 +1,5 @@
 {
   "schema": "animama-pack-release-inputs/1",
-  "release_base_url": "https://github.com/raymond-van/animama-releases/releases/download/v0.1.0",
   "macos": {
     "team_id": "9XHPMZ723L",
     "signing_identity": "Developer ID Application: RAYMOND VAN (9XHPMZ723L)",
@@ -12,6 +11,12 @@
       "version": "0.1.0",
       "approved_inventory_sha256": "455b762854e365fbd5715e7a778f4c1771962c7bd38f12280cb54b731a791588",
       "license_refs": ["parakeet-input"]
+    },
+    "parakeet-stt-webgpu": {
+      "release_status": "active",
+      "version": "0.1.1",
+      "approved_inventory_sha256": null,
+      "license_refs": ["parakeet-webgpu-input"]
     },
     "expanded-included-content": {
       "release_status": "deferred",

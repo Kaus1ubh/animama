@@ -7,6 +7,7 @@ import type {
 } from "@/lib/content/catalogTypes";
 import { queryKeys } from "@/query/keys";
 import {
+  invalidateApprovedIdentityDefinitions,
   publishMemoryManagerApproval,
   publishMemoryManagerSnapshot,
 } from "./memoryManagerMutationCache";
@@ -112,5 +113,47 @@ describe("memory manager mutation cache", () => {
     );
     expect(byId?.approvals).toEqual([undone]);
     expect(currentRun?.approvals).toEqual([undone]);
+  });
+});
+
+describe("identity approval invalidation", () => {
+  function approval(
+    path: string,
+    status: PyMemoryManagerApproval["status"],
+  ): PyMemoryManagerApproval {
+    return {
+      id: `${path}-${status}`,
+      run_id: "run",
+      status,
+      operation_metadata: {},
+      can_undo: false,
+      preview: {
+        operation: "update",
+        path,
+        unified_diff: "",
+      },
+    } as PyMemoryManagerApproval;
+  }
+
+  it("refreshes definitions only for approved identity targets", async () => {
+    const queryClient = new QueryClient();
+    const annie = queryKeys.animas.detail("owner", "anima-1");
+    const caitlin = queryKeys.animas.detail("owner", "anima-2");
+    const reflected = queryKeys.animas.detail("owner", "anima-3");
+    queryClient.setQueryData(annie, {});
+    queryClient.setQueryData(caitlin, {});
+    queryClient.setQueryData(reflected, {});
+
+    await invalidateApprovedIdentityDefinitions(queryClient, "owner", [
+      approval("animas/anima-1/IDENTITY.md", "approved"),
+      approval("animas/anima-2/IDENTITY.md", "pending"),
+      // MEMORIES.md is not part of the Anima definition.
+      approval("animas/anima-3/MEMORIES.md", "approved"),
+      approval("notes/a.md", "approved"),
+    ]);
+
+    expect(queryClient.getQueryState(annie)?.isInvalidated).toBe(true);
+    expect(queryClient.getQueryState(caitlin)?.isInvalidated).toBe(false);
+    expect(queryClient.getQueryState(reflected)?.isInvalidated).toBe(false);
   });
 });

@@ -714,6 +714,52 @@ def test_old_stack_record_can_render_management_without_browser_cache() -> None:
     assert mount["bind"].get("create_host_path", False) is False
 
 
+def test_built_self_host_downloads_the_webgpu_encoder_instead_of_mounting_it() -> None:
+    server = _rendered_compose(())["services"]["animama-server"]
+    # Built self-host installs the encoder in the app into its data root; only
+    # development stacks mount an operator-provided set.
+    assert not any("parakeet-webgpu" in v["target"] for v in server["volumes"])
+    data = next(v for v in server["volumes"] if v["target"] == "/var/lib/animama/data")
+    assert data.get("read_only", False) is False
+    assert not (REPO_ROOT / "models/parakeet-tdt-0.6b-v2-webgpu/encoder-model.fp16.onnx").exists()
+
+
+def test_optional_webgpu_encoder_is_a_dev_only_readonly_mount_with_a_notices_fallback() -> None:
+    base = _rendered_compose(())["services"]
+    assert not any(
+        v["target"] == "/app/parakeet-tdt-0.6b-v2-webgpu" for s in base.values() for v in s.get("volumes", [])
+    )
+    environment = {
+        k: v for k, v in os.environ.items() if k not in {"COMPOSE_FILE", "ANIMAMA_PARAKEET_WEBGPU_MODEL_DIR"}
+    }
+    environment["ANIMAMA_PARAKEET_MODEL_DIR"] = "/recorded/parakeet/version"
+    rendered = subprocess.run(
+        [
+            "docker",
+            "compose",
+            "-f",
+            "docker-compose.yml",
+            "-f",
+            "docker-compose.development.yml",
+            "config",
+            "--format",
+            "json",
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    web = json.loads(rendered.stdout)["services"]["web"]
+    mount = next(v for v in web["volumes"] if v["target"] == "/app/parakeet-tdt-0.6b-v2-webgpu")
+    # Without an acquired set, the checked-in notices directory keeps Compose valid.
+    assert mount["source"] == str(REPO_ROOT / "models/parakeet-tdt-0.6b-v2-webgpu")
+    assert mount["read_only"] is True
+    assert mount["bind"].get("create_host_path", False) is False
+    assert web["environment"]["VITE_CLIENT_PARAKEET_WEBGPU_MODEL_DIR"] == "/app/parakeet-tdt-0.6b-v2-webgpu"
+
+
 @pytest.mark.parametrize("development", [False, True])
 @pytest.mark.parametrize("configured", [False, True])
 def test_compose_forwards_auxiliary_controls_and_openai_endpoint(

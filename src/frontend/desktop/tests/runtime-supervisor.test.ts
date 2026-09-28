@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RuntimeSupervisor } from "../src/main-process/runtime/supervisor.js";
 import { runtimePaths } from "../src/main-process/runtime/paths.js";
 import { atomicWrite } from "../src/main-process/runtime/atomic-file.js";
+import { normalizeSchemaDump } from "../src/main-process/runtime/schema.js";
 import {
   manifestDigest,
   versionDirectory,
@@ -48,11 +49,15 @@ const fixture = vi.hoisted(() => {
     alembic_head: state.alembic_head,
     installation_principal_id: state.installation_principal_id,
   };
+  // Stands in for the bundled pg_dump --schema-only output of a current profile.
+  const schema =
+    "-- Dumped from database version 16.15\nCREATE TABLE public.fixture (id integer);\n";
   return {
     launches,
     owners,
     state,
     health,
+    schema,
     ready: vi.fn(),
     quiesce: vi.fn(),
     available: vi.fn(),
@@ -153,8 +158,15 @@ beforeEach(() => {
     alembic_head: fixture.state.alembic_head,
     postgresql: { pgvector: "0.8.6" },
     local_http_schema_version: 1,
+    database_schema_sha256: createHash("sha256")
+      .update(normalizeSchemaDump(fixture.schema))
+      .digest("hex"),
   });
-  fixture.command.mockResolvedValue(JSON.stringify(fixture.state));
+  fixture.command.mockImplementation(async (executable, args) =>
+    executable === "pg_dump" && args[0] === "--schema-only"
+      ? fixture.schema
+      : JSON.stringify(fixture.state),
+  );
   fixture.available.mockResolvedValue(undefined);
   fixture.ready.mockImplementation(async () => {
     const child = fixture.launches
@@ -218,58 +230,69 @@ function create(
 /** A data-only fixture exercises custody and transitions, not real model inference. */
 function seedSpeechPack(
   options: ReturnType<typeof create>["options"],
-  id: "parakeet-stt" | "expanded-included-content" = "parakeet-stt",
+  id:
+    | "parakeet-stt"
+    | "expanded-included-content"
+    | ("parakeet-stt" | "parakeet-stt-webgpu")[] = "parakeet-stt",
   appVersions = ["0.1.0"],
 ) {
-  const manifest: PackManifest = {
-    schema: "animama-feature-pack/1",
-    id,
-    display_name: "Fixture speech",
-    version: "0.1.0",
-    app_versions: appVersions,
-    platform: "data-only",
-    architecture: "data-only",
-    url: "https://github.com/example/animama/releases/download/v0.1.0/speech.tar.zst",
-    archive_bytes: 100,
-    archive_sha256: "a".repeat(64),
-    installed_bytes: 2,
-    minimum_peak_free_bytes: 100,
-    license_refs: ["fixture"],
-    signing: null,
-    files: [
-      {
-        path: "config.json",
-        size_bytes: 2,
-        sha256: createHash("sha256").update("{}").digest("hex"),
-        media_type: "application/json",
-        mode: "0644",
-      },
-    ],
-  };
-  const root = path.join(
-    options.paths.packs,
-    `${id}/versions`,
-    versionDirectory(manifest),
+  const manifests = (Array.isArray(id) ? id : [id]).map(
+    (packId): PackManifest => ({
+      schema: "animama-feature-pack/1",
+      id: packId,
+      display_name: "Fixture speech",
+      version: "0.1.0",
+      app_versions: appVersions,
+      platform: "data-only",
+      architecture: "data-only",
+      url: `https://github.com/example/animama/releases/download/v0.1.0/${packId}.tar.zst`,
+      archive_bytes: 100,
+      archive_sha256: "a".repeat(64),
+      installed_bytes: 2,
+      minimum_peak_free_bytes: 100,
+      license_refs: ["fixture"],
+      signing: null,
+      files: [
+        {
+          path: "config.json",
+          size_bytes: 2,
+          sha256: createHash("sha256").update("{}").digest("hex"),
+          media_type: "application/json",
+          mode: "0644",
+        },
+      ],
+    }),
   );
-  mkdirSync(root, { recursive: true });
-  writeFileSync(path.join(root, "config.json"), "{}", { mode: 0o644 });
-  writeFileSync(path.join(root, PACK_METADATA), JSON.stringify(manifest));
+  const roots = manifests.map((manifest) => {
+    const root = path.join(
+      options.paths.packs,
+      `${manifest.id}/versions`,
+      versionDirectory(manifest),
+    );
+    mkdirSync(root, { recursive: true });
+    writeFileSync(path.join(root, "config.json"), "{}", { mode: 0o644 });
+    writeFileSync(path.join(root, PACK_METADATA), JSON.stringify(manifest));
+    return root;
+  });
   atomicWrite(
     path.join(options.paths.packs, "active.json"),
     JSON.stringify({
       schema: 1,
-      packs: {
-        [id]: {
-          directory: versionDirectory(manifest),
-          digest: manifestDigest(manifest),
-        },
-      },
+      packs: Object.fromEntries(
+        manifests.map((manifest) => [
+          manifest.id,
+          {
+            directory: versionDirectory(manifest),
+            digest: manifestDigest(manifest),
+          },
+        ]),
+      ),
     }),
   );
   const catalog = {
     schema: "animama-pack-catalog/1",
     app_version: "0.1.0",
-    entries: [manifest],
+    entries: manifests,
   };
   writeFileSync(
     path.join(options.runtimeRoot, "pack-catalog.json"),
@@ -278,7 +301,7 @@ function seedSpeechPack(
       ...catalog,
     }),
   );
-  return root;
+  return roots[0];
 }
 
 async function defaultFetch(input: unknown): Promise<Response> {
@@ -671,6 +694,54 @@ describe("runtime supervision", () => {
     },
   );
 
+  it("applies several credential changes with one backend restart", async () => {
+    const current = create();
+    await current.runtime.start();
+    await current.runtime.changeCredential("gemini", "fixture-old-gemini");
+    const before = fixture.launches.filter(
+      (child) => child.name === "fastapi",
+    ).length;
+    const statuses = await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-openai" },
+      { provider: "elevenlabs", value: "fixture-elevenlabs" },
+      { provider: "gemini" },
+    ]);
+    const launches = fixture.launches.filter(
+      (child) => child.name === "fastapi",
+    );
+    expect(launches).toHaveLength(before + 1);
+    expect(launches.at(-1)?.env).toMatchObject({
+      OPENAI_API_KEY: "fixture-openai",
+      ELEVENLABS_API_KEY: "fixture-elevenlabs",
+    });
+    expect(launches.at(-1)?.env.GEMINI_API_KEY).toBeUndefined();
+    expect(
+      Object.fromEntries(
+        statuses.map((status) => [status.provider, status.configured]),
+      ),
+    ).toMatchObject({ openai: true, elevenlabs: true, gemini: false });
+    expect(JSON.stringify(statuses)).not.toContain("fixture-openai");
+  });
+
+  it("records a failed batch against every provider in it and keeps the vault unchanged", async () => {
+    const current = create();
+    await current.runtime.start();
+    await current.runtime.changeCredential("gemini", "fixture-old-gemini");
+    fixture.quiesce.mockRejectedValueOnce(new Error("busy"));
+    const statuses = await current.runtime.changeCredentials([
+      { provider: "openai", value: "fixture-openai" },
+      { provider: "gemini" },
+    ]);
+    const byProvider = Object.fromEntries(
+      statuses.map((status) => [status.provider, status]),
+    );
+    expect(byProvider.openai).toMatchObject({ configured: false });
+    expect(byProvider.gemini).toMatchObject({ configured: true });
+    expect(byProvider.openai?.error).toBeTruthy();
+    expect(byProvider.gemini?.error).toBeTruthy();
+    expect(byProvider.elevenlabs?.error).toBeUndefined();
+  });
+
   it("retains a saved credential after restart failure and clears its failure when Retry consumes it", async () => {
     const current = create();
     await current.runtime.start();
@@ -726,6 +797,97 @@ describe("runtime supervision", () => {
     expect(fixture.owners.every((children) => children.size === 0)).toBe(true);
   });
 
+  it("stops before launching services when a current-revision profile has a stale schema", async () => {
+    fixture.command.mockImplementation(async (executable, args) =>
+      executable === "pg_dump" && args[0] === "--schema-only"
+        ? "CREATE TABLE public.fixture (id integer, stale text);\n"
+        : JSON.stringify(fixture.state),
+    );
+    const current = create();
+    await current.runtime.start();
+    expect(current.runtime.status()).toEqual({
+      state: "error",
+      code: "database_schema_mismatch",
+    });
+    expect(fixture.launches.map((child) => child.name)).toEqual(["postgres"]);
+    // Repeatable seeds never run against a schema they may not fit.
+    expect(
+      fixture.command.mock.calls.some(([, args]) => args[1] === "bootstrap"),
+    ).toBe(false);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+    expect(fixture.owners.every((children) => children.size === 0)).toBe(true);
+    expect(
+      existsSync(path.join(current.options.paths.pgData, "PG_VERSION")),
+    ).toBe(true);
+  });
+
+  it.each([
+    [
+      "a current-revision profile before seeding",
+      fixture.state.alembic_head,
+      ["provision", "inspect", "--schema-only", "bootstrap"],
+    ],
+    [
+      "a fresh profile after bootstrap",
+      null,
+      ["provision", "inspect", "bootstrap", "--schema-only"],
+    ],
+  ])(
+    "verifies %s and before launching services",
+    async (_name, head, expected) => {
+      fixture.command.mockImplementation(async (executable, args) => {
+        if (executable === "pg_dump" && args[0] === "--schema-only")
+          return fixture.schema;
+        return JSON.stringify(
+          args[1] === "bootstrap"
+            ? fixture.state
+            : { ...fixture.state, alembic_head: head },
+        );
+      });
+      const current = create();
+      await current.runtime.start();
+      expect(current.runtime.status().state).toBe("ready");
+      const operations = fixture.command.mock.calls.map(([executable, args]) =>
+        executable === "pg_dump" ? args[0] : args[1],
+      );
+      expect(operations).toEqual(expected);
+      expect(
+        fixture.command.mock.calls.find(
+          ([executable]) => executable === "pg_dump",
+        )?.[2],
+      ).toMatchObject({ PGPORT: "41236" });
+    },
+  );
+
+  it("reports a terminal content startup failure without waiting for the readiness deadline", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json(
+        { detail: { code: "content_startup_failed" } },
+        { status: 503 },
+      ),
+    );
+    const current = create();
+    await current.runtime.start();
+    expect(current.runtime.status()).toEqual({
+      state: "error",
+      code: "content_startup_failed",
+    });
+    expect(vi.mocked(fetch)).toHaveBeenCalledOnce();
+    expect(fixture.owners.every((children) => children.size === 0)).toBe(true);
+  });
+
+  it("keeps polling while the backend reports ordinary startup progress", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        Response.json({ detail: "runtime_starting" }, { status: 503 }),
+      )
+      .mockResolvedValueOnce(new Response("not json", { status: 503 }));
+    const current = create();
+    await current.runtime.start();
+    expect(current.runtime.status().state).toBe("ready");
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(3);
+  });
+
   it("recovers after an owned backend exit without deleting initialized data", async () => {
     const current = create();
     await current.runtime.start();
@@ -760,6 +922,11 @@ describe("runtime supervision", () => {
       current.runtime.rendererCapability,
     );
     expect(backend.env.ANIMAMA_INTERNAL_GATEWAY_TOKEN).toBeUndefined();
+    // The backend echoes this in /_desktop/health; a hard-coded API version
+    // there blocked startup of any app version other than 0.1.0.
+    expect(backend.env.ANIMAMA_DESKTOP_APP_VERSION).toBe(
+      current.options.appVersion,
+    );
     const mount = JSON.parse(backend.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON!);
     expect(mount.files).toEqual([
       {
@@ -775,6 +942,66 @@ describe("runtime supervision", () => {
       expect(worker.env.ANIMAMA_DESKTOP_CONTROL_TOKEN).toBeUndefined();
       expect(worker.env.ANIMAMA_DESKTOP_RENDERER_CAPABILITY).toBeUndefined();
       expect(worker.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON).toBeUndefined();
+    }
+  });
+
+  it("mounts the GPU encoder beside offline speech only for the owned HTTP child", async () => {
+    const current = create();
+    seedSpeechPack(current.options, ["parakeet-stt", "parakeet-stt-webgpu"]);
+    await current.runtime.start();
+    const backend = fixture.launches.find((child) => child.name === "fastapi")!;
+    const base = JSON.parse(backend.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON!);
+    const gpu = JSON.parse(
+      backend.env.ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON!,
+    );
+    expect(gpu.root).toContain(
+      path.join(current.options.paths.packs, "parakeet-stt-webgpu"),
+    );
+    expect(gpu.root).not.toBe(base.root);
+    expect(gpu.version).toBe(backend.env.ANIMAMA_PARAKEET_WEBGPU_ASSET_VERSION);
+    for (const worker of fixture.launches.filter(
+      (child) => child.name !== "fastapi",
+    ))
+      expect(
+        worker.env.ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON,
+      ).toBeUndefined();
+  });
+
+  it("never mounts the GPU encoder without offline speech", async () => {
+    const current = create();
+    seedSpeechPack(current.options, ["parakeet-stt-webgpu"]);
+    await current.runtime.start();
+    const backend = fixture.launches.find((child) => child.name === "fastapi")!;
+    expect(
+      backend.env.ANIMAMA_PARAKEET_WEBGPU_MODEL_MOUNT_JSON,
+    ).toBeUndefined();
+    expect(backend.env.ANIMAMA_PARAKEET_MODEL_MOUNT_JSON).toBeUndefined();
+  });
+
+  it("passes no companion-safety override to any packaged child", async () => {
+    // Packaged builds must run with the safe defaults (spec R8); a shell
+    // variable on the owner's machine must not relax them.
+    const names = [
+      "ANIMAMA_COMPANION_SAFETY_ENABLED",
+      "ANIMAMA_AI_NOTICE_ENABLED",
+      "ANIMAMA_AI_NOTICE_REMINDER_HOURS",
+      "ANIMAMA_CRISIS_DETECTION_ENABLED",
+      "ANIMAMA_CRISIS_RESOURCES_PATH",
+    ];
+    for (const name of names) vi.stubEnv(name, "false");
+    try {
+      const current = create();
+      await current.runtime.start();
+      expect(fixture.launches.length).toBeGreaterThan(0);
+      for (const child of fixture.launches) {
+        expect(
+          Object.keys(child.env).filter((key) =>
+            /^ANIMAMA_(COMPANION_SAFETY|AI_NOTICE|CRISIS)/u.test(key),
+          ),
+        ).toEqual([]);
+      }
+    } finally {
+      vi.unstubAllEnvs();
     }
   });
 

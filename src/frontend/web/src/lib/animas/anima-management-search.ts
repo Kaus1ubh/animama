@@ -6,6 +6,7 @@ export type AnimaListSearch = {
 
 export const ANIMA_MANAGEMENT_TABS = [
   "overview",
+  "memories",
   "emotions",
   "loadout",
   "settings",
@@ -105,6 +106,23 @@ export function resolveSelectedAnimaId(
     return requestedAnimaId;
   }
   return orderedAnimaIds[0] ?? null;
+}
+
+/**
+ * The Anima the app opens at startup: the owner's pinned default Anima when it
+ * is still owned, otherwise the last opened one, otherwise the first.
+ */
+export function resolveStartupAnimaId(
+  orderedAnimaIds: readonly string[],
+  {
+    pinnedAnimaId,
+    lastActiveAnimaId,
+  }: { pinnedAnimaId?: string | null; lastActiveAnimaId?: string | null },
+): string | null {
+  if (pinnedAnimaId && orderedAnimaIds.includes(pinnedAnimaId)) {
+    return pinnedAnimaId;
+  }
+  return resolveSelectedAnimaId(orderedAnimaIds, lastActiveAnimaId);
 }
 
 /**

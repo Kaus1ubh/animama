@@ -61,6 +61,8 @@ class DirectChatTurnRequest:
     runtime_gesture_ids: tuple[str, ...] | None = None
     runtime_gesture_descriptors: tuple[RuntimeGestureDescriptor, ...] = ()
     node_id: str = DIRECT_CHAT_NODE_ID
+    provider_moderation: bool = False
+    """Request provider-side moderation scores where the provider supports them (spec R3)."""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "request_options", DirectChatOptions.from_value(self.request_options))

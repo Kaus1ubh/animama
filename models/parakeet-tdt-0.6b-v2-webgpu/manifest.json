@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "model_id": "parakeet-tdt-0.6b-v2-webgpu",
+  "license": "CC-BY-4.0",
+  "files": [
+    {
+      "path": "ATTRIBUTION.md",
+      "size": 887,
+      "sha256": "2efaf55f2a670c11528f44496933d96c906d0d7117d08e71d3218f9ca3adc24b",
+      "source": {
+        "local": "ATTRIBUTION.md"
+      }
+    },
+    {
+      "path": "README.md",
+      "size": 766,
+      "sha256": "4f23ceb429f54a04d55bb174961fdc7b864d01d19459332c350a66f044eb9618",
+      "source": {
+        "local": "README.md"
+      }
+    },
+    {
+      "path": "encoder-model.fp16.onnx",
+      "size": 1238960452,
+      "sha256": "ad8bb0acaec339c32ffbdedb869bd60f7103d0f6c00e56c7a2c2ab57df7462a2",
+      "source": {
+        "repository": "ysdede/parakeet-tdt-0.6b-v2-onnx",
+        "revision": "db4a768f5795e0f508187a34241fbeeef6ebb0d3",
+        "path": "encoder-model.fp16.onnx"
+      }
+    }
+  ]
+}

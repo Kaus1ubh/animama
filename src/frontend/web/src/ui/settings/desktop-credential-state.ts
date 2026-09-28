@@ -1,4 +1,5 @@
 import type {
+  CredentialChange,
   CredentialProvider,
   CredentialStatus,
   CredentialsBridge,
@@ -40,4 +41,57 @@ export async function applyCredentialChange(
   )
     throw new Error("credential_change_failed");
   return entries;
+}
+
+/**
+ * Pending edits in the API keys form, per provider: a new key to save, or a
+ * request to remove the saved key. Blank inputs are not changes.
+ */
+export type CredentialDrafts = Partial<
+  Record<CredentialProvider, { value?: string; remove?: boolean }>
+>;
+
+/** Turn form drafts into a batch; trimmed values, removal only when not replacing. */
+export function credentialChangesFromDrafts(
+  drafts: CredentialDrafts,
+): CredentialChange[] {
+  const changes: CredentialChange[] = [];
+  for (const [provider, draft] of Object.entries(drafts) as Array<
+    [CredentialProvider, CredentialDrafts[CredentialProvider]]
+  >) {
+    const value = draft?.value?.trim();
+    if (value) changes.push({ provider, value });
+    else if (draft?.remove) changes.push({ provider });
+  }
+  return changes;
+}
+
+/**
+ * Apply a batch with one local-service restart. Resolves with every provider's
+ * status only when each change is confirmed by main's saved status; otherwise
+ * rejects with `failed` (the providers that did not change) and `statuses`.
+ * Typed keys are never kept for a retry; the owner re-enters them.
+ */
+export async function applyCredentialChanges(
+  bridge: CredentialsBridge,
+  changes: readonly CredentialChange[],
+): Promise<CredentialStatus[]> {
+  const statuses = await bridge.apply([...changes]);
+  const failed = changes
+    .filter((change) => {
+      const status = statuses.find((item) => item.provider === change.provider);
+      return (
+        !status ||
+        status.error ||
+        status.restartRequired ||
+        status.configured !== (change.value !== undefined)
+      );
+    })
+    .map((change) => change.provider);
+  if (failed.length > 0)
+    throw Object.assign(new Error("credential_change_failed"), {
+      failed,
+      statuses,
+    });
+  return statuses;
 }

@@ -103,8 +103,12 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
+  hint,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+}: React.ComponentProps<typeof SelectPrimitive.Item> & {
+  /** Secondary text shown in the list but not in the trigger. */
+  hint?: React.ReactNode;
+}) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -123,6 +127,9 @@ function SelectItem({
         </SelectPrimitive.ItemIndicator>
       </span>
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      {hint ? (
+        <span className="text-muted-foreground ml-auto text-xs">{hint}</span>
+      ) : null}
     </SelectPrimitive.Item>
   );
 }

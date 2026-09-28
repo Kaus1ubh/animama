@@ -11,7 +11,9 @@ import {
 import {
   localParakeetModelPlugin,
   resolveLocalParakeetModelDir,
+  resolveLocalParakeetWebgpuModelDir,
 } from "./vite-plugins/local-parakeet-models";
+import { resolveAppVersion } from "./vite-plugins/app-version";
 import { browserRuntimeAssetsPlugin } from "./vite-plugins/browser-runtime-assets";
 import {
   localAPIProxy,
@@ -21,8 +23,13 @@ import {
 
 const webRoot = fileURLToPath(new URL(".", import.meta.url));
 const webSrc = fileURLToPath(new URL("./src", import.meta.url));
+const appVersion = resolveAppVersion();
 const publicPackagesRoot = fileURLToPath(
   new URL("../packages", import.meta.url),
+);
+// The Safety page renders the canonical protocol document from the repository.
+const safetyDocsRoot = fileURLToPath(
+  new URL("../../../docs/safety", import.meta.url),
 );
 const includedContentRoot = fileURLToPath(
   new URL("../../../content/included", import.meta.url),
@@ -43,6 +50,27 @@ export const includedContentAliases: readonly IncludedContentAlias[] = [
 ] as const;
 const publicParakeetModelBaseUrl = "/onnx/models/parakeet-tdt-0.6b-v2";
 const localParakeetModelBaseUrl = "/__client-parakeet-models";
+// The optional WebGPU encoder and where each build gets it. Vite serves an
+// operator-provided directory, embedded desktop its active encoder pack, and
+// built self-host the model asset downloaded in the app. A HEAD probe decides
+// availability, so an absent encoder is simply a 404.
+const localParakeetWebgpuModelBaseUrl = "/__client-parakeet-webgpu-models";
+const parakeetWebgpuEncoderName = "encoder-model.fp16.onnx";
+const parakeetWebgpuEncoders = {
+  pack: `/onnx/models/parakeet-tdt-0.6b-v2-webgpu/${parakeetWebgpuEncoderName}`,
+  operator: `${localParakeetWebgpuModelBaseUrl}/${parakeetWebgpuEncoderName}`,
+  "model-asset": "/v1/model-assets/parakeet-tdt-0.6b-v2-webgpu-encoder/content",
+} as const;
+const parakeetWebgpuEncoder = (
+  source: keyof typeof parakeetWebgpuEncoders,
+) => ({
+  source,
+  url: parakeetWebgpuEncoders[source],
+});
+// The encoder's reviewed attribution is bundled for the settings panel.
+const parakeetWebgpuNoticesRoot = fileURLToPath(
+  new URL("../../../models/parakeet-tdt-0.6b-v2-webgpu", import.meta.url),
+);
 const rechartsEsToolkitCompat = fileURLToPath(
   new URL("./src/lib/recharts/es-toolkit-compat", import.meta.url),
 );
@@ -146,6 +174,10 @@ export default defineConfig(({ mode, command, isPreview }) => {
               modelDir: resolveLocalParakeetModelDir,
               routeBaseUrl: localParakeetModelBaseUrl,
             }),
+            localParakeetModelPlugin({
+              modelDir: resolveLocalParakeetWebgpuModelDir,
+              routeBaseUrl: localParakeetWebgpuModelBaseUrl,
+            }),
           ]
         : []),
     ],
@@ -176,8 +208,18 @@ export default defineConfig(({ mode, command, isPreview }) => {
       ...(command === "build" || isPreview
         ? { "import.meta.env.VITE_ENABLE_DEBUG_PANEL": JSON.stringify("false") }
         : {}),
+      __ANIMAMA_APP_VERSION__: JSON.stringify(appVersion),
       __CLIENT_PARAKEET_MODEL_BASE_URL__: JSON.stringify(
         clientParakeetModelBaseUrl,
+      ),
+      __CLIENT_PARAKEET_WEBGPU_ENCODER__: JSON.stringify(
+        embeddedDesktop
+          ? parakeetWebgpuEncoder("pack")
+          : useLocalParakeetModels
+            ? parakeetWebgpuEncoder("operator")
+            : command === "build"
+              ? parakeetWebgpuEncoder("model-asset")
+              : null,
       ),
     },
     optimizeDeps: {
@@ -236,7 +278,12 @@ export default defineConfig(({ mode, command, isPreview }) => {
       strictPort: true,
       proxy: localAPIProxy(localDevelopmentOrigins().apiTarget),
       fs: {
-        allow: [webRoot, publicPackagesRoot],
+        allow: [
+          webRoot,
+          publicPackagesRoot,
+          safetyDocsRoot,
+          parakeetWebgpuNoticesRoot,
+        ],
       },
     },
     preview: {

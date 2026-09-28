@@ -6,7 +6,12 @@ node_modules/
 
 .env
 **/.env
+**/.env.*
+!**/.env.example
 .animama-stack.env
+# Signing keys and certificates stay outside the repository.
+*.p12
+*.p8
 .venv/
 
 .ua/
@@ -164,3 +169,6 @@ content/included/**/.DS_Store
 
 # Local brand-generation notes.
 /docs/frontend/brand-assets.md
+
+# Claude Code personal overrides (shared settings live in .claude/settings.json)
+.claude/settings.local.json

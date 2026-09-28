@@ -6,6 +6,11 @@ import {
   type FeaturePackId,
 } from "../../../../shared/desktop-runtime.js";
 import { RuntimeError } from "../runtime/errors.js";
+import {
+  isReleaseDistribution,
+  isReleaseTag,
+  type ReleaseDistribution,
+} from "../updates/policy.js";
 
 export type PackFile = {
   path: string;
@@ -31,7 +36,12 @@ export type PackManifest = {
   files: PackFile[];
   signing: { publisher: string; requirement: string } | null;
 };
-export type PackCatalog = { entries: PackManifest[]; development: boolean };
+export type PackCatalog = {
+  entries: PackManifest[];
+  development: boolean;
+  /** The build's sealed transport; null only for unpackaged runtimes without a staged policy. */
+  distribution: ReleaseDistribution | null;
+};
 export const PACK_METADATA = ".animama-pack.json";
 const MAX_CATALOG_BYTES = 24 * 1024 * 1024;
 const MAX_PACK_BYTES = 2 * 1024 ** 3;
@@ -104,11 +114,59 @@ export function requiredFreeBytes(manifest: PackManifest): number {
   );
 }
 
-/** URLs are supplied by the embedded catalog, never by a renderer or redirect filename. */
+const GITHUB_ASSET_HOSTS = [
+  "github.com",
+  "release-assets.githubusercontent.com",
+  "objects.githubusercontent.com",
+];
+
+/** Is this catalog URL a pack archive in the sealed distribution's release folders? */
+function isReleasePackUrl(
+  url: URL,
+  distribution: ReleaseDistribution | null,
+): boolean {
+  if (url.search || !url.pathname.endsWith(".tar.zst")) return false;
+  if (distribution?.kind === "r2") {
+    // <base>/v<version>/<archive>
+    const base = new URL(distribution.base_url);
+    const rest = url.pathname.startsWith(`${base.pathname}/`)
+      ? url.pathname.slice(base.pathname.length + 1).split("/")
+      : [];
+    return (
+      url.origin === base.origin &&
+      rest.length === 2 &&
+      isReleaseTag(rest[0]) &&
+      Boolean(rest[1])
+    );
+  }
+  // /<owner>/<repo>/releases/download/<tag>/<archive>; a runtime without a
+  // staged policy (tests and unpackaged development) keeps the any-repository rule.
+  const [, owner, repo, releases, download, tag, name, ...extra] =
+    url.pathname.split("/");
+  return (
+    url.hostname === "github.com" &&
+    releases === "releases" &&
+    download === "download" &&
+    Boolean(owner && repo && tag && name) &&
+    extra.length === 0 &&
+    (!distribution ||
+      (owner === distribution.owner && repo === distribution.repo))
+  );
+}
+
+/**
+ * URLs are supplied by the embedded catalog, never by a renderer or redirect
+ * filename, and must match the transport sealed in this build. GitHub assets
+ * redirect to its CDN; R2 serves objects directly, so R2 builds never follow a
+ * redirect.
+ */
 export function downloadUrl(
   value: string,
-  development: boolean,
-  redirect = false,
+  options: {
+    development: boolean;
+    distribution: ReleaseDistribution | null;
+    redirect?: boolean;
+  },
 ): URL {
   let url: URL;
   try {
@@ -117,21 +175,16 @@ export function downloadUrl(
     throw new RuntimeError("pack_url_invalid");
   }
   const fixture =
-    development && url.protocol === "http:" && url.hostname === "127.0.0.1";
+    options.development &&
+    url.protocol === "http:" &&
+    url.hostname === "127.0.0.1";
   const release =
     url.protocol === "https:" &&
     !url.port &&
-    (redirect
-      ? [
-          "github.com",
-          "release-assets.githubusercontent.com",
-          "objects.githubusercontent.com",
-        ].includes(url.hostname)
-      : url.hostname === "github.com" &&
-        /^\/[^/]+\/[^/]+\/releases\/download\/[^/]+\/[^/]+\.tar\.zst$/u.test(
-          url.pathname,
-        ) &&
-        !url.search);
+    (options.redirect
+      ? options.distribution?.kind !== "r2" &&
+        GITHUB_ASSET_HOSTS.includes(url.hostname)
+      : isReleasePackUrl(url, options.distribution));
   if ((!fixture && !release) || url.username || url.password || url.hash)
     throw new RuntimeError("pack_url_invalid");
   return url;
@@ -141,6 +194,7 @@ export function downloadUrl(
 export function validateManifest(
   value: unknown,
   development = false,
+  distribution: ReleaseDistribution | null = null,
 ): PackManifest {
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new RuntimeError("pack_manifest_invalid");
@@ -192,7 +246,7 @@ export function validateManifest(
     item.files.length > MAX_ENTRIES
   )
     throw new RuntimeError("pack_manifest_invalid");
-  downloadUrl(item.url, development);
+  downloadUrl(item.url, { development, distribution });
   if (item.id === "document-processing") {
     if (
       !item.signing ||
@@ -268,6 +322,31 @@ export async function readBoundedJson(
   return JSON.parse(await readFile(file, "utf8"));
 }
 
+/**
+ * The update policy sealed beside the catalog names the build's transport.
+ * Every staged runtime has one; only an unpackaged runtime without it falls
+ * back to the generic GitHub rule.
+ */
+async function sealedDistribution(
+  runtimeRoot: string,
+): Promise<ReleaseDistribution | null> {
+  let policy: unknown;
+  try {
+    policy = await readBoundedJson(
+      path.join(runtimeRoot, "update-policy.json"),
+      4096,
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw new RuntimeError("pack_catalog_invalid");
+  }
+  const distribution = (policy as { distribution?: unknown } | null)
+    ?.distribution;
+  if (!isReleaseDistribution(distribution))
+    throw new RuntimeError("pack_catalog_invalid");
+  return distribution;
+}
+
 /** A development catalog is explicit and forbidden in a packaged application. */
 export async function loadPackCatalog(options: {
   runtimeRoot: string;
@@ -281,6 +360,7 @@ export async function loadPackCatalog(options: {
   )
     throw new RuntimeError("development_override_forbidden");
   const development = Boolean(options.fixturePath);
+  const distribution = await sealedDistribution(options.runtimeRoot);
   const raw = (await readBoundedJson(
     options.fixturePath ?? path.join(options.runtimeRoot, "pack-catalog.json"),
   )) as Record<string, unknown>;
@@ -290,11 +370,11 @@ export async function loadPackCatalog(options: {
     body.schema !== "animama-pack-catalog/1" ||
     body.app_version !== options.appVersion ||
     !Array.isArray(body.entries) ||
-    body.entries.length > 3
+    body.entries.length > featurePackIds.length
   )
     throw new RuntimeError("pack_catalog_invalid");
   const entries = body.entries.map((entry) =>
-    validateManifest(entry, development),
+    validateManifest(entry, development, distribution),
   );
   if (
     new Set(entries.map((entry) => entry.id)).size !== entries.length ||
@@ -307,5 +387,5 @@ export async function loadPackCatalog(options: {
     )
   )
     throw new RuntimeError("pack_catalog_incompatible");
-  return { entries, development };
+  return { entries, development, distribution };
 }

@@ -18,6 +18,30 @@ export async function readBackendReadiness(
   return (await readDesktopControlJson(response)) as BackendReadiness;
 }
 
+/**
+ * Return a terminal startup failure code, or null while the backend may still
+ * become ready. Unrecognized bodies are not UI authority and keep the bounded
+ * readiness deadline.
+ */
+export async function readTerminalStartupFailure(
+  response: Response,
+): Promise<string | null> {
+  if (response.status !== 503) {
+    await response.body?.cancel();
+    return null;
+  }
+  try {
+    const body = (await readDesktopControlJson(response)) as {
+      detail?: { code?: unknown };
+    };
+    return body.detail?.code === "content_startup_failed"
+      ? body.detail.code
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Control responses have explicit bounds even if a private port was occupied. */
 export async function readDesktopControlJson(
   response: Response,

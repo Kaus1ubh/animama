@@ -3,6 +3,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import type { ChangeEvent } from "react";
+import { CompanionSafetyView } from "@/ui/safety/CompanionSafetyView";
 
 import {
   useDesktopQuickChatConsumer,
@@ -140,6 +141,7 @@ function DesktopQuickChatRoute() {
         <ChatInterfaceView
           activeChat={snapshot.activeChat}
           activeMode={snapshot.voice.activeMode}
+          animaName={snapshot.animaName ?? null}
           autoFocusInput
           canChat={snapshot.canChat}
           chatMarkdownEnabled={snapshot.chatMarkdownEnabled ?? true}
@@ -166,6 +168,10 @@ function DesktopQuickChatRoute() {
           onInputChange={handleInputChange}
           onMicSessionStop={() => sendCommand({ type: "stop-mic-session" })}
           onModelChange={() => sendCommand({ type: "refresh-model-state" })}
+          onOpenMemoryEntry={(entryId) =>
+            // The main process hides Quick Chat and brings the main window forward.
+            sendCommand({ type: "open-memory-entry", entryId })
+          }
           onPromptSuggestionSelect={handlePromptSuggestionSelect}
           onStop={() => sendCommand({ type: "stop" })}
           onStreamingAnimationComplete={() => {}}
@@ -176,6 +182,19 @@ function DesktopQuickChatRoute() {
           promptSuggestions={snapshot.promptSuggestions}
           quickChatSurface
           showPromptSuggestions={false}
+          safetySlot={
+            snapshot.safety ? (
+              <CompanionSafetyView
+                notice={snapshot.safety.notice}
+                noticeVisible={snapshot.safety.noticeVisible}
+                crisis={snapshot.safety.crisis}
+                onDismissCrisis={() =>
+                  sendCommand({ type: "dismiss-crisis-card" })
+                }
+                className="mt-2"
+              />
+            ) : null
+          }
         />
       </main>
     </SettingsProvider>

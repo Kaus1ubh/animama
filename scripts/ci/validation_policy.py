@@ -81,6 +81,7 @@ SHARED_TESTS = {
     "test_included_content_integrity.py",
     "test_model_store.py",
     "test_browser_model_store.py",
+    "test_webgpu_model_store.py",
     "test_generate_synthetic_docs.py",
 }
 
@@ -103,6 +104,10 @@ def _path(value: object) -> bool:
 def _area(path: str, excluded: set[str]) -> str | None:
     p = PurePosixPath(path)
     if path in excluded or p.name in {"AGENTS.md", "SKILL.md", "PLANS.md"}:
+        return None
+    # docs/safety is bundled into the web app (Safety page and dialog), so it is
+    # a frontend build input rather than documentation-only.
+    if path.startswith("docs/safety/"):
         return None
     if path.startswith("docs/") and p.suffix == ".md":
         return "docs"

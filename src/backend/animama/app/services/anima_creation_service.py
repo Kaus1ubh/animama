@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from animama.app.anima_creation_contract import (
@@ -11,6 +12,7 @@ from animama.app.anima_creation_contract import (
     LegacyCreateAnimaRequest,
     canonical_spec_hash,
 )
+from animama.app.chat.api_standard import chat_api_standard_for_provider
 from animama.app.ports.anima_aggregate_port import AnimaAggregateUnitOfWork
 from animama.app.ports.anima_creation_port import AnimaCreationRepository, CreationReceipt
 from animama.domain.anima_creation_error import AnimaCreationError, AnimaCreationIssue
@@ -31,11 +33,14 @@ class AnimaCreationService:
         receipts: AnimaCreationRepository,
         sources: AnimaCreationSources,
         default_model_provider_id: str,
+        preferred_model_provider_id: Callable[[str], Awaitable[str | None]] | None = None,
     ) -> None:
         self.uow = uow
         self.receipts = receipts
         self.sources = sources
         self.default_model_provider_id = default_model_provider_id
+        # Reads the owner's App Settings default chat model for new Animas.
+        self.preferred_model_provider_id = preferred_model_provider_id
         self.materializer = AnimaAggregateMaterializer(
             default_model_provider_id=default_model_provider_id, max_identity_bytes=sources.max_identity_bytes
         )
@@ -49,6 +54,22 @@ class AnimaCreationService:
                 retryable=True,
                 message="The installation's configured model is unavailable.",
             )
+
+    async def _model_provider_id(self, *, user_id: str, for_update: bool = False) -> str:
+        """The owner's preferred model when it is known and active, else the default.
+
+        An unavailable or non-chat preference never blocks creation; it falls back to the
+        installation's configured model, which ``_defaults`` requires.
+        """
+
+        preferred = await self.preferred_model_provider_id(user_id) if self.preferred_model_provider_id else None
+        if preferred:
+            model = await self.uow.model_providers.get(preferred, for_update=for_update)
+            # Only models that direct chat supports; others would fail the
+            # new Anima's first turn with chat_api_standard_unsupported.
+            if model is not None and model.active and chat_api_standard_for_provider(model) is not None:
+                return preferred
+        return self.default_model_provider_id
 
     async def validate(self, *, user_id: str, spec: AnimaSpec) -> dict[str, Any]:
         """Read-only preflight; it neither reserves a key nor creates runtime."""
@@ -109,7 +130,10 @@ class AnimaCreationService:
         try:
             resolved = await self.sources.resolve(user_id=user_id, spec=spec)
             await self._defaults(for_update=True)
-            anima = await self.materializer.materialize(user_id=user_id, spec=resolved.resolved, uow=self.uow)
+            model_provider_id = await self._model_provider_id(user_id=user_id, for_update=True)
+            anima = await self.materializer.materialize(
+                user_id=user_id, spec=resolved.resolved, uow=self.uow, model_provider_id=model_provider_id
+            )
             result = {
                 "schema_version": 1,
                 "anima_id": anima.id,

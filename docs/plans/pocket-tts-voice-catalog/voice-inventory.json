@@ -1,0 +1,2932 @@
+{
+  "schema": "animama-pocket-voice-inventory/1",
+  "sources": {
+    "kyutai_states": {
+      "repository": "kyutai/pocket-tts-without-voice-cloning",
+      "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+      "path": "languages/english_2026-04/embeddings/{name}.safetensors",
+      "license_basis": "Kyutai publishes the precomputed states under the repository's CC BY 4.0 license; each source recording's own license is listed per voice",
+      "license": "CC-BY-4.0"
+    },
+    "clips": {
+      "repository": "kyutai/tts-voices",
+      "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+      "vctk_path": "vctk/{speaker}_023_enhanced.wav",
+      "license": "CC-BY-4.0 (CSTR VCTK Corpus, University of Edinburgh; Kyutai-enhanced)"
+    },
+    "vctk_metadata": {
+      "url": "https://datashare.ed.ac.uk/server/api/core/bitstreams/535f4286-e54c-4038-838c-a02285e32cb2/content",
+      "archive": "VCTK-Corpus-0.92.zip",
+      "archive_size": 11747302977,
+      "archive_md5": "8a6ba2946b36fcbef0212cad601f4bfa",
+      "handle": "https://datashare.ed.ac.uk/handle/10283/3443"
+    }
+  },
+  "speaker_info": {
+    "member": "speaker-info.txt",
+    "size": 4028,
+    "sha256": "ee6447edab776828e0c2e726c04a4965c4602c32047b14fac2f5294d18728eee"
+  },
+  "candidates": [
+    {
+      "id": "alba",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/alba.safetensors",
+        "sha256": "69c32db63ca56843d994f81f343f62e0bf2d73f7e4c9bc73e44bb1110b1d8845",
+        "recording": "kyutai/tts-voices alba-mackenna/casual.wav (voice-acted by Alba MacKenna)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "candidate",
+      "shipped": false,
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": [
+          "noisy"
+        ]
+      }
+    },
+    {
+      "id": "anna",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/anna.safetensors",
+        "sha256": "5ea82f78db006c9fd34e32ddd5aae82674b5b32646097977436458d00af80dfa",
+        "recording": "kyutai/tts-voices vctk/p228_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Southern England",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "anna",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "azelma",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/azelma.safetensors",
+        "sha256": "9f3e69f29075f991fd47774566865ef0e0e637cb5a35992c9919761b5b84b1de",
+        "recording": "kyutai/tts-voices vctk/p303_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Canadian",
+      "region": "Toronto",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "azelma",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "bill_boerst",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/bill_boerst.safetensors",
+        "sha256": "75610127d44e0b05b442154f80f89f993df235aecc6cad7070f11000d006c188",
+        "recording": "kyutai/tts-voices voice-zero/bill_boerst.wav (Voice-Zero, LibriVox)"
+      },
+      "license": "CC0-1.0",
+      "gender": "male",
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "bill_boerst",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "caro_davy",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/caro_davy.safetensors",
+        "sha256": "a5961b63a2e7a5cfd7edc383aa9042fb70fd14a9dee6310cdc633881a7f2449a",
+        "recording": "kyutai/tts-voices voice-zero/caro_davy.wav (Voice-Zero, LibriVox)"
+      },
+      "license": "CC0-1.0",
+      "gender": "female",
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "caro_davy",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "charles",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/charles.safetensors",
+        "sha256": "299edc20182eeccfbf94e308626f259da4fbf339daa8d5905218f2b1774639b8",
+        "recording": "kyutai/tts-voices vctk/p254_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Surrey",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "charles",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "cosette",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/cosette.safetensors",
+        "sha256": "c4fdc15f5a3a20c44dd0064a37e87d15d25562936e8dbad7e07b9832015a545d",
+        "recording": "kyutai/tts-voices expresso/ex04-ex02_confused_001_channel1_499s.wav (Expresso)"
+      },
+      "license": "CC-BY-NC-4.0",
+      "gender": null,
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "excluded:license CC-BY-NC-4.0",
+      "shipped": false
+    },
+    {
+      "id": "daan",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/daan.safetensors",
+        "sha256": "a4d98b891a2850d19edd0f9bbcc6b550bcdac7a2ce29fe6be8a9110f915303d4",
+        "recording": "not documented by Kyutai"
+      },
+      "license": "NOASSERTION",
+      "gender": null,
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "excluded:no documented source recording",
+      "shipped": false
+    },
+    {
+      "id": "eponine",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/eponine.safetensors",
+        "sha256": "bda3b76a384ff355fe0350736387765946304ae8ca16e59f60ea3296a1c99cc6",
+        "recording": "kyutai/tts-voices vctk/p262_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Scottish",
+      "region": "Edinburgh",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "eponine",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "estelle",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/estelle.safetensors",
+        "sha256": "ccebef7f51762c7fc08870f5ecf268e8713551ae2c9f7984ddaec0c1e1c77153",
+        "recording": "kyutai/tts-voices unmute-prod-website/developpeuse-3.wav (Kyutai recording)"
+      },
+      "license": "CC0-1.0",
+      "gender": "female",
+      "accent": "French",
+      "region": null,
+      "labels": "manual",
+      "status": "candidate",
+      "shipped": false,
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": [
+          "lead-silence"
+        ]
+      }
+    },
+    {
+      "id": "eve",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/eve.safetensors",
+        "sha256": "ea9c2faf862a6c9d2cb61910fdf02842ae56940382cc8c1000fdb1b43269692b",
+        "recording": "kyutai/tts-voices vctk/p361_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "New Jersey",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "eve",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "fantine",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/fantine.safetensors",
+        "sha256": "51a8a4355d7f912d4959e4b1918314fda85ad47eba0a33a1d78a4a505d3465f5",
+        "recording": "kyutai/tts-voices vctk/p244_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Manchester",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "fantine",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "george",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/george.safetensors",
+        "sha256": "0c1c6c57c55a98d81254b33728150c7776f40647fe95258d1a6c1a02780b5d02",
+        "recording": "kyutai/tts-voices vctk/p315_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "American",
+      "region": "New England Text and mic2 files unavailable",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": [
+          "clipping"
+        ]
+      }
+    },
+    {
+      "id": "giovanni",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/giovanni.safetensors",
+        "sha256": "a5ee718157ec1c6fd9c1e66a7733c7e6337d474a74a7da756455d27717885c59",
+        "recording": "kyutai/pocket-tts common_voice_it_36520747 (Common Voice, licence unconfirmed)"
+      },
+      "license": "NOASSERTION",
+      "gender": null,
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "excluded:unconfirmed Common Voice source",
+      "shipped": false
+    },
+    {
+      "id": "jane",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/jane.safetensors",
+        "sha256": "37386227ca8ec5bf1b8e516c13d132ce5ff5437a304fe90129a1c62f41d9a008",
+        "recording": "kyutai/tts-voices vctk/p339_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "Pennsylvania",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "jane",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "javert",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/javert.safetensors",
+        "sha256": "0ae88e03ca4e76a0e16cbf321a807428febda9d9e9bc0358c02e7f9c9e2c263b",
+        "recording": "kyutai/tts-voices voice-donations/Butter.wav (Unmute Voice Donation Project, Kyutai)"
+      },
+      "license": "CC0-1.0",
+      "gender": "male",
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "javert",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": [
+          "lead-silence"
+        ]
+      }
+    },
+    {
+      "id": "jean",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/jean.safetensors",
+        "sha256": "90be4b8f50bb4d2dbe27e3fb4e31417cf6a57928931f0a60426a1748821a3d12",
+        "recording": "kyutai/tts-voices ears/p010/freeform_speech_01_enhanced.wav (EARS)"
+      },
+      "license": "CC-BY-NC-4.0",
+      "gender": null,
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "excluded:license CC-BY-NC-4.0",
+      "shipped": false
+    },
+    {
+      "id": "juergen",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/juergen.safetensors",
+        "sha256": "e74d67b38339fc01118e3bbe2c90d6d40e601b161dbf7be906421956ba80a532",
+        "recording": "kyutai/pocket-tts de-DE-juergen.mp3 (no documented source)"
+      },
+      "license": "NOASSERTION",
+      "gender": null,
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "excluded:no documented source recording",
+      "shipped": false
+    },
+    {
+      "id": "lola",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/lola.safetensors",
+        "sha256": "34972e86b07b17272a8061460054a08119399cace9454979052b9e2d96664e8c",
+        "recording": "kyutai/pocket-tts common_voice_es_19762977 (Common Voice, licence unconfirmed)"
+      },
+      "license": "NOASSERTION",
+      "gender": null,
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "excluded:unconfirmed Common Voice source",
+      "shipped": false
+    },
+    {
+      "id": "marius",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/marius.safetensors",
+        "sha256": "04f84efcb77a0547ba582c058db496f7ff4920891d49d37b9950d128422582a8",
+        "recording": "kyutai/tts-voices voice-donations/Selfie.wav (Unmute Voice Donation Project, Kyutai)"
+      },
+      "license": "CC0-1.0",
+      "gender": "male",
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "marius",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "mary",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/mary.safetensors",
+        "sha256": "a8f2adf260cab966fe0a113d6b549d6efdeaa79de544ae0ff34b5b6a41445a59",
+        "recording": "kyutai/tts-voices vctk/p333_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "Indiana",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "mary",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "michael",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/michael.safetensors",
+        "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d",
+        "recording": "kyutai/tts-voices vctk/p360_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "American",
+      "region": "New Jersey",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "michael",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "paul",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/paul.safetensors",
+        "sha256": "ed7a019168f94dfe77009f1b0de59387abc6fbb0db954d38ce722ecb77da61aa",
+        "recording": "kyutai/tts-voices vctk/p259_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Nottingham",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "paul",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "peter_yearsley",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/peter_yearsley.safetensors",
+        "sha256": "dd977a6e15591e347c9a23fa7cc09e35a65b462917f5eeb162baff6dc9e3f685",
+        "recording": "kyutai/tts-voices voice-zero/peter_yearsley.wav (Voice-Zero, LibriVox)"
+      },
+      "license": "CC0-1.0",
+      "gender": "male",
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "candidate",
+      "shipped": false,
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "rafael",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/rafael.safetensors",
+        "sha256": "ac19f099f6cd839875a629c3e2e91e0dfc2c197acf2875db168d0ae244fb58bd",
+        "recording": "kyutai/pocket-tts g-Vi8PgmSY0-enhanced-v2.wav (no documented source)"
+      },
+      "license": "NOASSERTION",
+      "gender": null,
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "excluded:no documented source recording",
+      "shipped": false
+    },
+    {
+      "id": "stuart_bell",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/stuart_bell.safetensors",
+        "sha256": "5a49da7ca5df05d02587ec4a0981c0d318e045f68e24423c4203ce474d9b33dc",
+        "recording": "kyutai/tts-voices voice-zero/stuart_bell.wav (Voice-Zero, LibriVox)"
+      },
+      "license": "CC0-1.0",
+      "gender": "male",
+      "accent": null,
+      "region": null,
+      "labels": "manual",
+      "status": "candidate",
+      "shipped": false,
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vera",
+      "kind": "kyutai-state",
+      "source": {
+        "repository": "kyutai/pocket-tts-without-voice-cloning",
+        "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+        "path": "languages/english_2026-04/embeddings/vera.safetensors",
+        "sha256": "4bf50ddd957b5d218b264fdcf18efbbc7384d12da3eca98ca19b9e8dd6976acc",
+        "recording": "kyutai/tts-voices vctk/p229_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Southern England",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p225",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p225_023_enhanced.wav",
+        "sha256": "10d947a5f12cc0f3b009a91d8b22c2f9e4ecd3c42d9f63ecfbe5b8facb74004c",
+        "recording": "CSTR VCTK Corpus 0.92 p225_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Southern England",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "a9b0e877000e6c908818547954ee4926f74c46ef41f28fe22003a4380b8ef47e",
+      "screening": {
+        "mean_wer": 0.0151,
+        "max_wer": 0.0909,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p226",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p226_023_enhanced.wav",
+        "sha256": "24d12e5ffae86407fd8190448bb630c2ce60dc955ad6254dd7262d4aaf1b1f72",
+        "recording": "CSTR VCTK Corpus 0.92 p226_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Surrey",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "8cbf22c84da2fbeb0ae7e43824f14b6768642ff0cfcb8424da911c81288dc7fb",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p227",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p227_023_enhanced.wav",
+        "sha256": "d1731d079f91210b30600554b38b2a8d122ab3692362ea750d71a6333157c500",
+        "recording": "CSTR VCTK Corpus 0.92 p227_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Cumbria",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "d962783e4467d7791ee336758c469b457a381df660cd4813de1c81a36ef3a8a6",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p230",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p230_023_enhanced.wav",
+        "sha256": "4ffb6cb47fa22decca80fcac43d409b611a2f95cdc460a6a4f52e408ac261ff2",
+        "recording": "CSTR VCTK Corpus 0.92 p230_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Stockton-on-tees",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "36687de2ec98bd8c882ff6642d97399bedd6e9e7ea4b57e7c6c6babbda3a686a",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p231",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p231_023_enhanced.wav",
+        "sha256": "27dc3a8c5c9986790e5dabcf86886730a98b223a0f66a16089255bbbc6e68bcd",
+        "recording": "CSTR VCTK Corpus 0.92 p231_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Southern England",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "harriet",
+      "encoded_state_sha256": "0b158269b1011fa778897b68e52277d9eb144bd37629b288b58563045a32b796",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p232",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p232_023_enhanced.wav",
+        "sha256": "02c719693c27f21a996e2ead6232f1385686ae301267227efc96fe309ee91031",
+        "recording": "CSTR VCTK Corpus 0.92 p232_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Southern England",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "oliver",
+      "encoded_state_sha256": "1876b7995b7695010f35d8e2e8eb4015adb1cd17fb2b784f6e2a958326fe47cb",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p233",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p233_023_enhanced.wav",
+        "sha256": "5bacaf703700acff37966b3ce8c1274138dd5975704bcccd9084977395a46a19",
+        "recording": "CSTR VCTK Corpus 0.92 p233_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Staffordshire",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "imogen",
+      "encoded_state_sha256": "4c9e1b09ecce22f62e435a948528b9cf28c4cef3bc63dce38a3b08131f13de10",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p234",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p234_023_enhanced.wav",
+        "sha256": "99ec2afad7ec1800a02804678c32ec33df3ee38ffa19c25c7fdfa98c9349dca3",
+        "recording": "CSTR VCTK Corpus 0.92 p234_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Scottish",
+      "region": "West Dumfries",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "daea102314b8d278c7193bca3857493dcfcde5ccc67d62cad7d46b2e241a2544",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p236",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p236_023_enhanced.wav",
+        "sha256": "dc369354c36fac04cdab3cc52399602c8611f3002d4d0c7cb4ab0f1d26929211",
+        "recording": "CSTR VCTK Corpus 0.92 p236_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Manchester",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "clara",
+      "encoded_state_sha256": "a36e524390d6a21e7407ab18029a03afd9289b3b406868da01c8c76294cd6173",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p237",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p237_023_enhanced.wav",
+        "sha256": "3e6d261afc38bb70d0189d8e0e10e41757927eea65139647da995921d9d4366d",
+        "recording": "CSTR VCTK Corpus 0.92 p237_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Fife",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "27b9eb98d2ba31460dbe761bc4f355f94956e3478b8c8b6a78fd9dd227a1947d",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p238",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p238_023_enhanced.wav",
+        "sha256": "2245c6fd311608cbebea11a308ddefea8be46447706b2d147a8f40380ad5b208",
+        "recording": "CSTR VCTK Corpus 0.92 p238_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "NorthernIrish",
+      "region": "Belfast",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "niamh",
+      "encoded_state_sha256": "25727e57f344b38ac5af414686bcee7aaa9ba0d75dde0bf678df12e94303c492",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p239",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p239_023_enhanced.wav",
+        "sha256": "2fc606759f8dfa04a0e8bdcb9d96355363efc30584e83956c24484ea34d9c772",
+        "recording": "CSTR VCTK Corpus 0.92 p239_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "SW England",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "2fdb3b0e077f7e0eb0b7df9fa5fcd0e26f850363d8ce9813b51a260c8242be23",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p240",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p240_023_enhanced.wav",
+        "sha256": "c67a0910cce67c04ee0a83daf336c8bba9846eb2b7a6ac276c667a2fff837a21",
+        "recording": "CSTR VCTK Corpus 0.92 p240_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Southern England",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "1a9960cd4f715bb912b56e835f6be683b17f4c4ed97450cc2cfbfc8dbc259ef5",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p241",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p241_023_enhanced.wav",
+        "sha256": "e8b0d94eeb0441b1c6195efb1e59e64a31d83c6aea1255dfc8463a21b280b6de",
+        "recording": "CSTR VCTK Corpus 0.92 p241_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Perth",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "callum",
+      "encoded_state_sha256": "60980a12993a2b236276c213cd57466bc6ffae9851ddf6426eb355ae95024fa5",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p243",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p243_023_enhanced.wav",
+        "sha256": "c5b5068c991015339bddff1d6de5d68270f7ff96efd71489c1853eaeadddfef1",
+        "recording": "CSTR VCTK Corpus 0.92 p243_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "London",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "07971c872fd097d79c4cabb83decee504e4b717c9d1f4736f4ab1f260d52993f",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p245",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p245_023_enhanced.wav",
+        "sha256": "6133dfbf8eb61cc46df46e70637441c87c9629abc9d04bf5a84de7173c3c1685",
+        "recording": "CSTR VCTK Corpus 0.92 p245_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Irish",
+      "region": "Dublin",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "97e780608f45753f2acb677864050ba40a2b561a472380ad04a2d494b410b7e1",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p246",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p246_023_enhanced.wav",
+        "sha256": "08398d66e8cdca4ad25cd1e7f6ed61c90b4917090c1377cb00848a767fa19efa",
+        "recording": "CSTR VCTK Corpus 0.92 p246_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Selkirk",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "16d7498026c5251729a8e580a93ad9534fe156fefc2baadba3c7226df6654bdd",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p247",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p247_023_enhanced.wav",
+        "sha256": "b0f462c74157a57b622cdcebc0a9d878e329fc86b0a3e7b5c68c318ba49f1af1",
+        "recording": "CSTR VCTK Corpus 0.92 p247_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Argyll",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "a2adf3e17eb02a558ad9f320c40fa4975e7b79ba329f3456e630e5822beeb705",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p248",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p248_023_enhanced.wav",
+        "sha256": "795e02903a3ffaabdb27a075f4151d19d8e7f5907a13241928283d601d775bf4",
+        "recording": "CSTR VCTK Corpus 0.92 p248_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Indian",
+      "region": "",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "efb20669f2c451ab5ddda3c4dd9eef6a25f118824f4d3d709fcf81e40065a2a4",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p249",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p249_023_enhanced.wav",
+        "sha256": "016e665a98f3c5ae6fb430242c659a0f00193be7f8528837003dc0a55be42f8b",
+        "recording": "CSTR VCTK Corpus 0.92 p249_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Scottish",
+      "region": "Aberdeen",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "f7012d776dc6ff6911d60e737405eb1b8d47ebd693f606ee7c43ed01e3357b6b",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p250",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p250_023_enhanced.wav",
+        "sha256": "92f14f051042d4c79bb57852e72ca41cda8e3f4703b2403fff54ea81d1e4ff10",
+        "recording": "CSTR VCTK Corpus 0.92 p250_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "SE England",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "176ee710926003bbdf95246d8af3f5e6c85ab64a1325e4b045ccbb1d09741707",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p251",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p251_023_enhanced.wav",
+        "sha256": "5666c909e99d9c5bd204763d9e8418fa6ff5f50c50bc1c62a3b449d500726c0b",
+        "recording": "CSTR VCTK Corpus 0.92 p251_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Indian",
+      "region": "",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "f5b0aad579cc61d8f6ae2522ee79c9db06c65262d9515e4764302d5ec9fcedba",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p252",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p252_023_enhanced.wav",
+        "sha256": "abc6de3786fb616b983422e3e0d53e685046a21c18e80e4e7c296eb31c629beb",
+        "recording": "CSTR VCTK Corpus 0.92 p252_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Edinburgh",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "18d70cb738b18b226f2e58fc87aa60988af8d8e7f8ff41b5fe89a46b0478812c",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p253",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p253_023_enhanced.wav",
+        "sha256": "a2d3f18a7b520eb1c1cd02ae66cb7e3fdc577720a42828bc09b1b2ba89b689ee",
+        "recording": "CSTR VCTK Corpus 0.92 p253_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Welsh",
+      "region": "Cardiff",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "2f94edb1f199158d349f50f95a2c0c4cdc5f027bdeaef80a6a57ae8f2dfd325b",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p255",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p255_023_enhanced.wav",
+        "sha256": "456b106ec940aa31875b7541c1dc8e7cdb3acc66e8f37d77efa77305211dba77",
+        "recording": "CSTR VCTK Corpus 0.92 p255_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Galloway",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "cbb958661c915380e64772a00bdc7f46ac284261558bed30c0b54f9f3848ed6f",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p256",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p256_023_enhanced.wav",
+        "sha256": "f9518f910a7596ae0537fabd7923a1916f99eb84532df5aa44051c170a4f71d0",
+        "recording": "CSTR VCTK Corpus 0.92 p256_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Birmingham",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "bc6f690ad413ba6f1643331bd21c65ee1ef6f7844d6a076bb163f691a7d07268",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p257",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p257_023_enhanced.wav",
+        "sha256": "b0ea2a63c7fbfd473a04e0c27835927cb1713acd46cfd29dddcfea9d2a2e1536",
+        "recording": "CSTR VCTK Corpus 0.92 p257_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Southern England",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "1764c39b60e3ef1867d5d78e61c2dd7c44df110236ed307c7e69923062febd54",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p258",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p258_023_enhanced.wav",
+        "sha256": "daa70985bb3bbc9758ad793ee590d71659944668b2bca506a2e1679a4ef2f316",
+        "recording": "CSTR VCTK Corpus 0.92 p258_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Southern England",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "d9c4507b2532d9fd2d1ff2db5d8cf1655c1e7c61966b3153bb438727e8da4554",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p260",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p260_023_enhanced.wav",
+        "sha256": "e46592cf7d5e5b8a177f712bb09772a2085442fc3e4c937d3ea3cd8976cd9d1b",
+        "recording": "CSTR VCTK Corpus 0.92 p260_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Orkney",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "593ce2baca3508173657ba7106bfe4fec1f32a4e5b5ce2c01f1a93803c27c7c1",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p261",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p261_023_enhanced.wav",
+        "sha256": "536a4b3d7c9f7b9ddaa24d162aabf7019caf83af47edf91e20750d93c087a606",
+        "recording": "CSTR VCTK Corpus 0.92 p261_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "NorthernIrish",
+      "region": "Belfast",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "b137e76b32062907a51d3a6741117f0f9a5bb049663526db0646750e73db7d07",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p263",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p263_023_enhanced.wav",
+        "sha256": "754ecb14ad7635014f79e2723084158fe1b13bcaab612709db3ff44ad5b12ee2",
+        "recording": "CSTR VCTK Corpus 0.92 p263_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Aberdeen",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "a05a479be3cfead03b171fd5ddcdda296af8f6ce4d8fe1b20955e9edb5181732",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p264",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p264_023_enhanced.wav",
+        "sha256": "8a52057ad300cd07ac96fa294ff3b9acbd735be145897ceaacab51dec2fe6b29",
+        "recording": "CSTR VCTK Corpus 0.92 p264_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Scottish",
+      "region": "West Lothian",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "95fb4e7a1af49134aa039f52581d06f13d57f384abc071582c61e0c3b9448532",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p265",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p265_023_enhanced.wav",
+        "sha256": "5f489cacc86a01f145309ac0033635dc744500b087008cc6bf74f21672cdc297",
+        "recording": "CSTR VCTK Corpus 0.92 p265_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Scottish",
+      "region": "Ross",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "8a23d243f818c9c8110de026fd65c21f300171d7e535c4b0408ee353010dda29",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p266",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p266_023_enhanced.wav",
+        "sha256": "711d98b58263a34ff6228e0319fdac5eb71979f80de9a8dba560aa1f5a6c9327",
+        "recording": "CSTR VCTK Corpus 0.92 p266_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Irish",
+      "region": "Athlone",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "siobhan",
+      "encoded_state_sha256": "f25466ac5591049147913c5146a97a29d76055e9cfb238a0993df535540d8254",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p267",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p267_023_enhanced.wav",
+        "sha256": "f0ce25f0aa84994bea5587f6b1b1c94767ab692c3efc0ac15b9a8733bce71062",
+        "recording": "CSTR VCTK Corpus 0.92 p267_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Yorkshire",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "beatrice",
+      "encoded_state_sha256": "1c949b29f0c5c17f2f0bbde876679ab051f4ee6e05ef59ef405fa223e74b9d04",
+      "screening": {
+        "mean_wer": 0.0555,
+        "max_wer": 0.3333,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p269",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p269_023_enhanced.wav",
+        "sha256": "8884cf1a8465e30cb5eeff80c4847be33bdc3ece6f50ab3ca4960a1999b7beff",
+        "recording": "CSTR VCTK Corpus 0.92 p269_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Newcastle",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "073cca805d66ae9a914c531db625d73fdd2603d123d280ba10655acd6f1e3dd2",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p270",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p270_023_enhanced.wav",
+        "sha256": "1ff9bcfc72038adff8f8855e2d8c92cfe8ddd61a8c9073c487444b047412044f",
+        "recording": "CSTR VCTK Corpus 0.92 p270_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Yorkshire",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "1cf8564e1d869d7384936727cc8a1739c14488adb9c732fb5fcc9790fee9b9db",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p271",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p271_023_enhanced.wav",
+        "sha256": "acbe2ac15a6ed5973b62b4758cc09685acfeee286834dd3e268d84a1d2351818",
+        "recording": "CSTR VCTK Corpus 0.92 p271_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Fife",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "ce7ffd1b25531e2058f257a048c446aed1c659008e430802e4f89ce09d5d5435",
+      "screening": {
+        "mean_wer": 0.0555,
+        "max_wer": 0.3333,
+        "flags": [
+          "clipping"
+        ]
+      }
+    },
+    {
+      "id": "vctk-p272",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p272_023_enhanced.wav",
+        "sha256": "e0b527d9938c784086b6a39c8957ad89afbdc0d8962d06e5d4a4849d156ee487",
+        "recording": "CSTR VCTK Corpus 0.92 p272_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Edinburgh",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "d8c8c75a65fe0eed982d70f4ef623f0763bc361d10a07bca2fa361b4150a354e",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": [
+          "lead-silence"
+        ]
+      }
+    },
+    {
+      "id": "vctk-p273",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p273_023_enhanced.wav",
+        "sha256": "1904de3bd24ba74856f209b4bb0c288155178cc858d88ebc304ddbc45e6b4b35",
+        "recording": "CSTR VCTK Corpus 0.92 p273_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Suffolk",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "7d057be0954a8f1d4baf01a4e04dcdbaffc12d754ac7aa4c984d127ec9d4aa45",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p274",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p274_023_enhanced.wav",
+        "sha256": "f56dce71150bc4678e3d634a4950f472950148418723ca2c8bc2401fb6d635a3",
+        "recording": "CSTR VCTK Corpus 0.92 p274_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Essex",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "a14de0241d06dab3f53d56583f57fc9b13fd097d638a30511e6ec3ce57421ac9",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p275",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p275_023_enhanced.wav",
+        "sha256": "6cb81cc452e0885268a4005c517067c135b4ea90f0edbc14e175c3c5dc46c325",
+        "recording": "CSTR VCTK Corpus 0.92 p275_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Midlothian",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "a28fac0078cc5de9bc3ddee4d3b4a9c08106ea4e2044432db1c3bbd9c5c83c27",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p276",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p276_023_enhanced.wav",
+        "sha256": "8b75ce202cdb26fcdb38f1c93997a60b3e5bbe6aa08924c929894e8ac8107e13",
+        "recording": "CSTR VCTK Corpus 0.92 p276_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Oxford",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "florence",
+      "encoded_state_sha256": "3ce4b176fd3edb984fd29fde8675aed38ff85b3fa341d1fffdc2361fe66309f5",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p277",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p277_023_enhanced.wav",
+        "sha256": "ebc0865df96d19507de22c5209f2c6cf5928fc41331128e426e82881b058fe7d",
+        "recording": "CSTR VCTK Corpus 0.92 p277_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "NE England",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "ae9615f8f42a1ae7bda3d18181c996c15928766b23b9f0007b1261b01d982511",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p278",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p278_023_enhanced.wav",
+        "sha256": "35b7f1ebc97073bee1999c5e3d1b5e787a71c66925e3f719b0eebc5cca39b629",
+        "recording": "CSTR VCTK Corpus 0.92 p278_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Cheshire",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "cfe3f7ffc2f36c09d143db055dc0c570e87622e1b02c69ce9f3847618a9b4253",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p279",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p279_023_enhanced.wav",
+        "sha256": "61b0527b9536dcdf4bce5a3c96085edc8e71677c117538452b9f3e185fd17047",
+        "recording": "CSTR VCTK Corpus 0.92 p279_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Leicester",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "7d95461962d6fd629834550f40299425bc908ff2b94e04e7d59eb588dbd7398d",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p280",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p280_023_enhanced.wav",
+        "sha256": "ee47c676c5776ea5668637057451f76d1fb755f14dee5b8101848fe55ea8a1e0",
+        "recording": "CSTR VCTK Corpus 0.92 p280_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Unknown",
+      "region": "France mic2 files unavailable",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "7c42e45de8f5f4ba83917ee1560bb83e37106cc14b5a21a71fe7dd315d9d09da",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p281",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p281_023_enhanced.wav",
+        "sha256": "225dc8f5d7cab905bff232b1003609312b569a42a97461bdd90a3b56c934c657",
+        "recording": "CSTR VCTK Corpus 0.92 p281_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Edinburgh",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "d537c9019ed714bed7bbca87c5b757ce6bb3ad581b3f96b1755b4e8c7987210a",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p282",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p282_023_enhanced.wav",
+        "sha256": "43ae5af8a328c73a4fe7a61a756f6f12b723ae94995cd12ac02d0b2a9329042e",
+        "recording": "CSTR VCTK Corpus 0.92 p282_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "English",
+      "region": "Newcastle",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "a2cdc35900e8dbb55291f5ce6e92971a1cc5090108172c78a2843aa1d925783f",
+      "screening": {
+        "mean_wer": 0.0833,
+        "max_wer": 0.5,
+        "flags": [
+          "unintelligible-prompt"
+        ]
+      }
+    },
+    {
+      "id": "vctk-p283",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p283_023_enhanced.wav",
+        "sha256": "b1f3e39bd035da4f4dc400ee27feab100188267c73865a7a6fc5f00a645ed2a8",
+        "recording": "CSTR VCTK Corpus 0.92 p283_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Irish",
+      "region": "Cork",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "aoife",
+      "encoded_state_sha256": "b34e164350e588856f1f8a8dbe9b3dc409fe3128d957b9077477c2e8a4c05a4f",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p284",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p284_023_enhanced.wav",
+        "sha256": "9ac0540541ed9b62daae71877ca5c141e1ddf2fc430bac408a001a7443754ba1",
+        "recording": "CSTR VCTK Corpus 0.92 p284_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Fife",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "ba0fcf376eefddb1ad822d8262d3db1c9b1c5ac40250796ac6fbcb6a51545b7f",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p285",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p285_023_enhanced.wav",
+        "sha256": "47992679a621cb379abddc6f264ce8b03f95c2d7ae8386bcc3b7c28da51e3f51",
+        "recording": "CSTR VCTK Corpus 0.92 p285_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Scottish",
+      "region": "Edinburgh",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "b27c16466062c8729dfe1ce749028332329b9612fa5d33cc496a4536a6aa8413",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p286",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p286_023_enhanced.wav",
+        "sha256": "2fbb5e240330d7639cd2fc3c6cd2f1030968b3286f4fab9614bf741a6abde9b4",
+        "recording": "CSTR VCTK Corpus 0.92 p286_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "Newcastle",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "371d321682e16b39baffcc47c657b451060f8079c47ca51e7433750ca16a2879",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p287",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p287_023_enhanced.wav",
+        "sha256": "499d863c806fa58c3a38662a7cd78232dd446d67aaf6f4edd64a400ce2b478a4",
+        "recording": "CSTR VCTK Corpus 0.92 p287_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "English",
+      "region": "York",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "6499cd4efce176bbf1314363543e98c2febff10e1b1663bf1f5e47a1e9659b3f",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p288",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p288_023_enhanced.wav",
+        "sha256": "bc0fc3cc02eee4b88fbd0e417bfe55768068d39def4c649f92401ace5081e5f2",
+        "recording": "CSTR VCTK Corpus 0.92 p288_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Irish",
+      "region": "Dublin",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "815687b667624f2b6aa5b0baff598fae410d0e0e40477ba266892ab96c7b6d84",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p292",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p292_023_enhanced.wav",
+        "sha256": "81efeb6ade018e0444d088a46e8a263e65ee78910b43254e05533630687c233f",
+        "recording": "CSTR VCTK Corpus 0.92 p292_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "NorthernIrish",
+      "region": "Belfast",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "d22c12c35422fbf099865fac2ce0e9e9f070b603b354692e83367a3e954c7a53",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p293",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p293_023_enhanced.wav",
+        "sha256": "63cbced8adea4587dff10a62ff27d83f61f76987ef383fdfa4ae25aba2bdfcc4",
+        "recording": "CSTR VCTK Corpus 0.92 p293_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "NorthernIrish",
+      "region": "Belfast",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "c1f7d3ae03c51e61fd90da0db2d54b4e55b3f831a5b7f72735bb2dda1fa7dbd5",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p294",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p294_023_enhanced.wav",
+        "sha256": "4d3113ac66bd2da5535b40968aa2183dddc9ff7615a317ba7f45c2745ee073c0",
+        "recording": "CSTR VCTK Corpus 0.92 p294_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "San Francisco",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "madison",
+      "encoded_state_sha256": "3b54e4f44dd2d6ab17e0a3c91cc81f6f7342c75644ab837ce581f58c7f7225bc",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p297",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p297_023_enhanced.wav",
+        "sha256": "c0ed4cbc8607e1fbea58f8584211a3b1d256deae06031ca95eb63948b54465be",
+        "recording": "CSTR VCTK Corpus 0.92 p297_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "New York",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "b1ddf58229435aff2ca51b054351b68ce8591ea23a138c67128b1f8e7ae7ae5f",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": [
+          "lead-silence"
+        ]
+      }
+    },
+    {
+      "id": "vctk-p298",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p298_023_enhanced.wav",
+        "sha256": "dbd6744e8c5ef4efa5558f9521455f99685b8e69423442f4dce9573794b83e60",
+        "recording": "CSTR VCTK Corpus 0.92 p298_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Irish",
+      "region": "Tipperary",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "d6528659822e0ed12a7a70bfe447f5b466aff54dafb8400f5c0b9bfe300dcfcd",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p299",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p299_023_enhanced.wav",
+        "sha256": "6d5a9d1bb7a6d19e27fac1db58e7b4ba4e0b6470140ee38e5315e10a306d8274",
+        "recording": "CSTR VCTK Corpus 0.92 p299_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "California",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "brooke",
+      "encoded_state_sha256": "e31bf978caf66618a567221499d8a312b1f5df848cdb840bd49ee7385fe49364",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p300",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p300_023_enhanced.wav",
+        "sha256": "20dda731556a27079a4d8577d7c239c4016c8abe6bff9fc7061b7fecc00d71f9",
+        "recording": "CSTR VCTK Corpus 0.92 p300_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "California",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "olivia",
+      "encoded_state_sha256": "5384d691e7f2133c3451fbbb1770c154546bb755908d2d59b7abdad50cf1cd8f",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p301",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p301_023_enhanced.wav",
+        "sha256": "1c87f0c9edf514bce1d8054b856ab9eda3a24f64d25327484e747204781e7c63",
+        "recording": "CSTR VCTK Corpus 0.92 p301_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "North Carolina",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "a077f1f56f0d88cb5e11fb37c57179c30b661eaa12dce8afa9c2d77c9eb01118",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p302",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p302_023_enhanced.wav",
+        "sha256": "886d70644f1a8deb5faa3513b58deed2866bfc9397c08232992fe64c88c047bd",
+        "recording": "CSTR VCTK Corpus 0.92 p302_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Canadian",
+      "region": "Montreal",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "1f0ee8a26c909f8cc7b1fabb1bed5f1e3d3d2c6db95ec2e8fbb02a02edab8361",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p304",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p304_023_enhanced.wav",
+        "sha256": "16c0b33de3a65ec79932b451a1f4eac52801e887f2a37f33bbee4f9d39621f76",
+        "recording": "CSTR VCTK Corpus 0.92 p304_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "NorthernIrish",
+      "region": "Belfast",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "3db6774ce1239068f0fe595050c44aa67268b831bbae557c0fac68dbd4e7c4be",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": [
+          "clipping"
+        ]
+      }
+    },
+    {
+      "id": "vctk-p305",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p305_023_enhanced.wav",
+        "sha256": "cfc626611faf30f1e07362f05d7fe7215dfc870c51d00323e53e06764c7a3270",
+        "recording": "CSTR VCTK Corpus 0.92 p305_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "Philadelphia",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "grace",
+      "encoded_state_sha256": "1cd6607e55ed506321c23be1c1a4fad10a8cfa931eab8989727a08f690cbdc90",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p306",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p306_023_enhanced.wav",
+        "sha256": "69dce9424a821e85b2706d66d954f99f0537adf707a452b240c337683681affc",
+        "recording": "CSTR VCTK Corpus 0.92 p306_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "New York",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "0628a771f202d158e33ee9e3aa04567cf55d75435d673e2f37726f8724fc20ac",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p307",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p307_023_enhanced.wav",
+        "sha256": "bff500f7c087047746f85f455cc396da92ce228d9f2799ab16148bea2a89bf0d",
+        "recording": "CSTR VCTK Corpus 0.92 p307_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Canadian",
+      "region": "Ontario",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "chloe",
+      "encoded_state_sha256": "52961169e494bdf03f9124ab1b393398ee3448f445608373a87e211ffdfa9ff0",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p308",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p308_023_enhanced.wav",
+        "sha256": "eee1a93972d397a2bc35ccb3e6432db4fed7577b1325fd66a196833442d3dbc8",
+        "recording": "CSTR VCTK Corpus 0.92 p308_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "Alabama",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "emily",
+      "encoded_state_sha256": "9d3efc5c0156f77c59a57867c1a33460404ea2ad3499abcfe52ccc7dd9491409",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p310",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p310_023_enhanced.wav",
+        "sha256": "c7d190b69b3181632937c8588e5a76370535ab0c05e3a67bd1f2a8640ce8c361",
+        "recording": "CSTR VCTK Corpus 0.92 p310_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "Tennessee",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "7e6a7341129640949bf70111d61d4e24e4c7e6a838f7316107ba56d0f0604be0",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p311",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p311_023_enhanced.wav",
+        "sha256": "23c727d9f1ed758ac29aa923a82b98dbfb6b7fb0b9af3c21d0edd7fdef2ca834",
+        "recording": "CSTR VCTK Corpus 0.92 p311_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "American",
+      "region": "Iowa",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "ethan",
+      "encoded_state_sha256": "a68cc487102c39aa0defca97f069dadc88d4b51cada769176e86fc545b5c5b45",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p312",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p312_023_enhanced.wav",
+        "sha256": "adea2d0ca94b57596db0956ca60bc9c2eab6d6b4fcb29815b9a7f0a585f2eb54",
+        "recording": "CSTR VCTK Corpus 0.92 p312_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Canadian",
+      "region": "Hamilton",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "0ca856855aa5aba5a4cf0d38987065f5b0b18e1147a5214eb32a0fc0186d22a3",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p313",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p313_023_enhanced.wav",
+        "sha256": "c2c3a61a387ecd7e0e0fddefb02011c68080493f0054f271e87406c6f5a1182d",
+        "recording": "CSTR VCTK Corpus 0.92 p313_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Irish",
+      "region": "County Down",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "b2334cbb532e868468def5757bba2aa874d5e823d38a7050587509512e8902aa",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p314",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p314_023_enhanced.wav",
+        "sha256": "bf2d03b7414a3258c64268aedf6f844f3925a1762384300e6b9ef12da1ee1e2b",
+        "recording": "CSTR VCTK Corpus 0.92 p314_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "SouthAfrican",
+      "region": "Cape Town",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "thandi",
+      "encoded_state_sha256": "ed185fd0c78eebc6e691167c62d4ece39347699d6185330a5d93ad36af55bea9",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p316",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p316_023_enhanced.wav",
+        "sha256": "4be1d36682a8c136241b5c5e3d90fce3e6ff608d3079b54e2f87e7d4bd54d4ec",
+        "recording": "CSTR VCTK Corpus 0.92 p316_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Canadian",
+      "region": "Alberta",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "c69ce5fc695ec8d3a99d82bf4a63fbf63188be2c9085e7f793f77a85c2eb7580",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p317",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p317_023_enhanced.wav",
+        "sha256": "31a1c82db643ce2872bfa1dfd55e45663548fe0927e7226fdfff0b01501e4c8e",
+        "recording": "CSTR VCTK Corpus 0.92 p317_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Canadian",
+      "region": "Hamilton",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "leah",
+      "encoded_state_sha256": "907f96ce9313d403cc81fbc32db09615eead3beedd2374363eb28882b2b99f6b",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p318",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p318_023_enhanced.wav",
+        "sha256": "9e5b046f031ff3140674632fc81b44a89879f4871266ff47c8b2137a724ed4ad",
+        "recording": "CSTR VCTK Corpus 0.92 p318_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "Napa",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "74f375d778e0bbd4115e1d5c8b42af217fe7fa7f49a9d8ef36488680b630f48c",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p323",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p323_023_enhanced.wav",
+        "sha256": "646446783d624f3e993f8c0af41b94de093c4ef8916d7a1d2dbb45fa3d6ca3d2",
+        "recording": "CSTR VCTK Corpus 0.92 p323_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "SouthAfrican",
+      "region": "Pretoria",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "dcf33cff5f85cc01328de335f667042eb2a97bf2debbfd55de2ed6d6bc8729f9",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p326",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p326_023_enhanced.wav",
+        "sha256": "07ba4e711bb128934d55f2342bb5cd2a1cd371de2ccac6e3a52d5e05ae88ba6b",
+        "recording": "CSTR VCTK Corpus 0.92 p326_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Australian",
+      "region": "English Sydney",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "jack",
+      "encoded_state_sha256": "8becddb09431d78aab79674ce7245bd4379a94d3ed3a9d59056bc8608c0db7da",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p329",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p329_023_enhanced.wav",
+        "sha256": "143a1275a68d2473ea7e9afe5cb2a54fb96802541d25e41d049d3024c888d710",
+        "recording": "CSTR VCTK Corpus 0.92 p329_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "86cb27db37ceb74455695004fc41f5a16aad1c994b04b131824f9a3c0ea3b161",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p330",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p330_023_enhanced.wav",
+        "sha256": "6a2f6433938dc03e12964fde29505777c41b8a007bc931c5072bc0f613765f7d",
+        "recording": "CSTR VCTK Corpus 0.92 p330_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "d8949a91c0359957860621bc5aae411cc4d44da616548d21b84b4bf5d1fef326",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p334",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p334_023_enhanced.wav",
+        "sha256": "effdff487b38a388cfc0395ad6852c84524f054f29417e9728e1cd63ba642bb1",
+        "recording": "CSTR VCTK Corpus 0.92 p334_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "American",
+      "region": "Chicago",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "noah",
+      "encoded_state_sha256": "737ca868cff2fca0024fd28ae34027e99fde040a156f5d6d43b63b59ddf41db2",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p335",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p335_023_enhanced.wav",
+        "sha256": "2f04473d7aa6369d1aac13c589653b97f1c412ca7a5233b875f195ba43fd0d3c",
+        "recording": "CSTR VCTK Corpus 0.92 p335_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "NewZealand",
+      "region": "English",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "2f9a8f5a55bbec01a0e0ab1bf291a7975520567e039e115e15fd63962243a137",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p336",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p336_023_enhanced.wav",
+        "sha256": "50dd49e9d41c0f9ad0a693980dca7af2385fd1c54e1b39ec25977ae9a8707752",
+        "recording": "CSTR VCTK Corpus 0.92 p336_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "SouthAfrican",
+      "region": "Johannesburg",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "8a03fbff1eecf4194c932928db8e3ebcc06b51717ec60af81f19a756a7550ff8",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p341",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p341_023_enhanced.wav",
+        "sha256": "0c3112f123b314ae6f28813d067b3531fe6246a17f76213e57a719d2c2dcbbd2",
+        "recording": "CSTR VCTK Corpus 0.92 p341_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "American",
+      "region": "Ohio",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "8732f7522ec5d6e6a21f75f025d43c77848afd4cd517de9018dc5c0e274b5354",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": [
+          "lead-silence"
+        ]
+      }
+    },
+    {
+      "id": "vctk-p343",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p343_023_enhanced.wav",
+        "sha256": "6c3fa31ac6258f936ece44888c8885516c5db0098fc5494d91a8c02e1d0d6a7c",
+        "recording": "CSTR VCTK Corpus 0.92 p343_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "Canadian",
+      "region": "Alberta",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "sophie",
+      "encoded_state_sha256": "0ff96b6617a1cdb13c9563c1641c660c46bb271b89a85dd79603ae8a3e6289a2",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p345",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p345_023_enhanced.wav",
+        "sha256": "da03bc427058b722a5e7082994457bd6b42352e9b3236014538c8c1dc23afd9a",
+        "recording": "CSTR VCTK Corpus 0.92 p345_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "American",
+      "region": "Florida",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "68b8c46a87f9a8ea6921e6f6a9a858fc603a0c88a0a9862d9e6b3e305f5583aa",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p347",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p347_023_enhanced.wav",
+        "sha256": "8dd1a5c49c164bec56cc1d747e341cab9d19c5fc21de5717440b2666d617f274",
+        "recording": "CSTR VCTK Corpus 0.92 p347_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "SouthAfrican",
+      "region": "Johannesburg",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "684fdd950168b537cc6c5bd2cbd73bbe256cd9af830385e06dc1dfa9a1da1fa9",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p351",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p351_023_enhanced.wav",
+        "sha256": "7f053caccc3d21ee3145f9509cb0c022f4db9173588cc3f8c60ae5212c622117",
+        "recording": "CSTR VCTK Corpus 0.92 p351_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "NorthernIrish",
+      "region": "Derry",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "orla",
+      "encoded_state_sha256": "ad0d7aabb9ae1a5a07b1cc8aae7367a75a87b4aa487f6fbed5543e92da459c76",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p363",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p363_023_enhanced.wav",
+        "sha256": "08fe6efe9e571b4916a02d2d4448cd741086c0ca37c9f117a98f10de8319ac88",
+        "recording": "CSTR VCTK Corpus 0.92 p363_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Canadian",
+      "region": "Toronto",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "0e0e19705835930892cb625823fd70c6ddd38ce2cb7462e749164b24dd87e1bc",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p364",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p364_023_enhanced.wav",
+        "sha256": "d3002fdc019b9a3fea1098deb07caf08743902e8e34f04fad1e9f66fc084ffcf",
+        "recording": "CSTR VCTK Corpus 0.92 p364_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Irish",
+      "region": "Donegal",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "b55c4404fd022d24b8f0a92fea06ccde7d3f1849596b404b7539dbf8bc990b9e",
+      "screening": {
+        "mean_wer": 0.0303,
+        "max_wer": 0.1818,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p374",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p374_023_enhanced.wav",
+        "sha256": "eb4f0471dec5b6c835fb562a19af6c7d72fd534a351e544d851e7e4cb6ef76a7",
+        "recording": "CSTR VCTK Corpus 0.92 p374_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Australian",
+      "region": "English",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "99939f710c5fc6e2730dcd02be0ae648e24c685a7f3db9a82571503c33356174",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-p376",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/p376_023_enhanced.wav",
+        "sha256": "7201e56bf9201b23c3cea0cbfee15635deeebff806f4f469c882a32dab1a12fa",
+        "recording": "CSTR VCTK Corpus 0.92 p376_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "male",
+      "accent": "Indian",
+      "region": "",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": false,
+      "encoded_state_sha256": "58825055579e9b54331f766e8bc59bf9e588da101e44c291bb36441dcd1aef51",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    },
+    {
+      "id": "vctk-s5",
+      "kind": "vctk-clip",
+      "source": {
+        "repository": "kyutai/tts-voices",
+        "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+        "path": "vctk/s5_023_enhanced.wav",
+        "sha256": "ae9440afa0e15cba199bef2668d8814c39f0cba167599830487fdb0502c8fc7c",
+        "recording": "CSTR VCTK Corpus 0.92 s5_023 (mic1, Kyutai-enhanced)"
+      },
+      "license": "CC-BY-4.0",
+      "gender": "female",
+      "accent": "British",
+      "region": "new speaker, more data would be released for training a speaker-dependent model",
+      "labels": "vctk-speaker-info",
+      "status": "candidate",
+      "shipped": true,
+      "shipped_id": "lucy",
+      "encoded_state_sha256": "42eb95ebbc8bcdee780b533f24d7b0846afa529332eb7b82025a54366400fbe1",
+      "screening": {
+        "mean_wer": 0.0,
+        "max_wer": 0.0,
+        "flags": []
+      }
+    }
+  ]
+}

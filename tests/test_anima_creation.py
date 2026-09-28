@@ -7,7 +7,7 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 from pydantic import ValidationError
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.app.anima_creation_contract import AnimaSpec, CreateAnimaRequest, canonical_spec_hash
@@ -48,16 +48,23 @@ async def test_direct_creation_is_exact_atomic_and_has_no_runtime_or_provider(as
         assert anima.display_name == "Test  Companion"
         assert anima.aggregate_revision == 1 and anima.identity_status == "ready"
         assert all(value == 0 for value in anima.emotional_state.values())
-        identity = await async_session.scalar(select(ORMMemoryEntry).where(ORMMemoryEntry.anima_id == anima.id))
+        files = {
+            entry.path: entry
+            for entry in await async_session.scalars(select(ORMMemoryEntry).where(ORMMemoryEntry.anima_id == anima.id))
+        }
+        assert set(files) == {"IDENTITY.md", "MEMORIES.md"}
+        identity = files["IDENTITY.md"]
         assert identity.content == "# Test\n\nKeep two spaces.  \n"
         assert identity.version == 1 and identity.kind == "anima_identity"
+        assert files["MEMORIES.md"].version == 1 and files["MEMORIES.md"].kind == "anima_memories"
+        # Each file starts with exactly its creation Version.
         assert (
             await async_session.scalar(
                 select(func.count())
                 .select_from(ORMMemoryEntryVersion)
                 .where(ORMMemoryEntryVersion.anima_id == anima.id)
             )
-            == 1
+            == 2
         )
         assert await async_session.get(ORMAnimaDefinitionRevision, (anima.id, 1)) is not None
         settings = await async_session.scalar(select(ORMAnimaSettings).where(ORMAnimaSettings.anima_id == anima.id))
@@ -507,3 +514,65 @@ async def test_retired_source_creation_retry_replays_before_current_kind_validat
             rejected = await client.post("/v1/animas", json={**old_payload, "idempotency_key": "unknown-old-key"})
             assert rejected.status_code == 422, rejected.text
             assert rejected.json()["detail"]["issues"][0]["code"] == "content_kind_retired"
+
+
+@pytest.mark.parametrize(
+    ("preference", "expect_preferred"),
+    [("active", True), ("inactive", False), ("no_chat", False), ("unknown", False), (None, False)],
+)
+async def test_new_anima_uses_owner_default_model_when_available(async_session, tmp_path, preference, expect_preferred):
+    """App Settings' default chat model applies to new Animas; unusable values fall back."""
+
+    from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
+    from animama.domain.settings import UserSettings
+    from animama.orm.settings import ORMUserSettings
+    from animama.server.routers.anima_creation import preferred_default_model_reader
+
+    async with anima_creation_fixture(async_session, tmp_path) as fixture:
+        active_id, inactive_id, no_chat_id = (f"test:{uuid4().hex}" for _ in range(3))
+        async_session.add_all(
+            [
+                ORMModelProvider(
+                    id=model_id,
+                    provider_type=provider_type,
+                    model=model_id,
+                    active=active,
+                    model_label="Preferred",
+                    provider_label="Fixture",
+                )
+                for model_id, provider_type, active in (
+                    (active_id, "OpenAIResponsesHTTPAgent", True),
+                    (inactive_id, "OpenAIResponsesHTTPAgent", False),
+                    # Active but not supported by direct chat.
+                    (no_chat_id, "GeminiAgent", True),
+                )
+            ]
+        )
+        stored = {
+            "active": active_id,
+            "inactive": inactive_id,
+            "no_chat": no_chat_id,
+            "unknown": "test:missing",
+            None: None,
+        }[preference]
+        await SQLAlchemyUserSettingsRepository(async_session).upsert(
+            UserSettings(
+                user_id=fixture.owner,
+                preferences={"chat": {"default_model_provider_id": stored}} if stored else {},
+            )
+        )
+        await async_session.commit()
+        try:
+            service = fixture.service(async_session)
+            service.preferred_model_provider_id = preferred_default_model_reader(async_session)
+            result = await service.create(user_id=fixture.owner, request=fixture.request())
+            profile = await async_session.get(ORMAnimaChatProfile, result["anima_id"])
+            assert profile.default_model_provider_id == (active_id if expect_preferred else fixture.provider)
+        finally:
+            await async_session.execute(delete(ORMUserSettings).where(ORMUserSettings.user_id == fixture.owner))
+            await async_session.commit()
+    # Fixture cleanup removed the Animas that referenced these providers.
+    await async_session.execute(
+        delete(ORMModelProvider).where(ORMModelProvider.id.in_((active_id, inactive_id, no_chat_id)))
+    )
+    await async_session.commit()

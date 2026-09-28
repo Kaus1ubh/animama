@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import os
 
 from fastapi import FastAPI, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from animama.app.safety.config import safety_override_warnings
 from animama.local.database import LocalDatabase
 from animama.local.http.composition import install_local_http
 from animama.logging_config import configure_logging
@@ -16,9 +18,12 @@ from animama.server.deps import get_async_session_factory
 from animama.server.local_http import local_assets, local_http_config, local_telemetry
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
+from animama.server.model_assets import close_model_asset_service, model_asset_service_for
 from animama.server.routers import router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
 from animama.server.telemetry import setup_telemetry
+
+logger = logging.getLogger(__name__)
 
 
 def create_local_app(
@@ -55,14 +60,21 @@ def create_local_app(
             """Identify this exact owned child without exposing browser credentials."""
             require_desktop_control(request)
             state = getattr(application.state, "local_bootstrap_state", None)
-            if state is None or not state.content_ready or not lifecycle.ready:
+            if state is not None and not state.content_ready:
+                # Nothing updates content_ready after startup, so this process
+                # can never become ready. A distinct terminal code lets the
+                # supervisor stop waiting.
+                raise HTTPException(status_code=503, detail={"code": "content_startup_failed"})
+            if state is None or not lifecycle.ready:
                 raise HTTPException(status_code=503, detail="runtime_starting")
             from alembic.script import ScriptDirectory
             from animama.runtime.resources import alembic_config
 
             return {
                 "schema_version": 1,
-                "runtime_version": application.version,
+                # The desktop app version, not this API's schema version: the
+                # supervisor refuses a backend reporting any other value.
+                "runtime_version": os.getenv("ANIMAMA_DESKTOP_APP_VERSION", application.version),
                 "build_id": os.getenv("ANIMAMA_DESKTOP_BUILD_ID", "development"),
                 "alembic_head": ScriptDirectory.from_config(alembic_config()).get_current_head(),
                 "installation_principal_id": state.principal_id,
@@ -77,6 +89,8 @@ def create_local_app(
 
         paths = initialize_local_runtime(local_settings)
         application.state.local_runtime_paths = paths
+        # Discard staging left by an interrupted install before serving requests.
+        model_asset_service_for(application)
         bootstrap = create_local_installation_bootstrap_service(
             session_factory=get_async_session_factory(application),
             paths=paths,
@@ -97,6 +111,7 @@ def create_local_app(
 
     @application.on_event("shutdown")
     async def stop_accountless_runtime() -> None:  # pragma: no cover - startup IO
+        await close_model_asset_service(application)
         await stop_content_runtime(application)
         if database is not None:
             await database.close()
@@ -107,6 +122,11 @@ def create_local_app(
             configure_logging()
         except Exception:
             pass
+
+    @application.on_event("startup")
+    async def warn_companion_safety_overrides() -> None:
+        for warning in safety_override_warnings(local_settings.companion_safety):
+            logger.warning("Companion safety override: %s", warning)
 
     @application.on_event("startup")
     async def init_model_clients() -> None:  # pragma: no cover - simple IO

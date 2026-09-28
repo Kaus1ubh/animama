@@ -19,6 +19,14 @@ import {
   writeJson,
 } from "./common.mjs";
 
+// Configure-time paths are compiled into PostgreSQL. Build against this neutral
+// prefix and install through DESTDIR so the build machine's directories never
+// ship; the relocatable binaries resolve their files relative to bin/ at runtime.
+// The prefix must not contain "postgres" or "pgsql", or configure drops the
+// postgresql/ subdirectories that staging expects.
+const INSTALL_PREFIX = "/opt/animama";
+const installedRoot = (work) => path.join(work, "destdir", INSTALL_PREFIX);
+
 /** Build pinned sources with the Xcode toolchain, never a Homebrew database. */
 export function buildPostgres(target) {
   const lock = readJson(path.join(sourceRoot, "native-components.lock.json"));
@@ -59,7 +67,8 @@ export function buildPostgres(target) {
     // Source archives are exact, digest-pinned upstream inputs, not user packs.
     run("tar", ["-xf", archive, "-C", work]);
   }
-  const prefix = path.join(work, "installed");
+  const prefix = installedRoot(work);
+  const destdir = `DESTDIR=${path.join(work, "destdir")}`;
   const pg = path.join(work, `postgresql-${lock.postgresql.version}`);
   const vector = path.join(work, `pgvector-${lock.pgvector.version}`);
   const jobs = String(Math.min(cpus().length, 8));
@@ -71,24 +80,28 @@ export function buildPostgres(target) {
   };
   run(
     path.join(pg, "configure"),
-    [`--prefix=${prefix}`, ...lock.postgresql.configure],
+    [`--prefix=${INSTALL_PREFIX}`, ...lock.postgresql.configure],
     { cwd: pg, env },
   );
   run("make", ["-j", jobs], { cwd: pg, env });
-  run("make", ["install"], { cwd: pg, env });
-  run("make", ["-j", jobs, "install"], {
+  run("make", ["install", destdir], { cwd: pg, env });
+  run("make", ["-j", jobs, "install", destdir], {
     cwd: path.join(pg, "contrib", "pg_trgm"),
     env,
   });
+  // pg_config is relocatable: from the DESTDIR copy it reports DESTDIR paths.
+  // Those absolute header paths reach __FILE__ in the extension, so map the
+  // build tree away. PostgreSQL itself compiles with relative include paths,
+  // and it records its build flags, so it must not receive this flag.
+  const prefixMap = `-ffile-prefix-map=${work}=.`;
+  const vectorMake = lock.pgvector.make.map((arg) =>
+    arg.startsWith("CFLAGS=") ? `${arg} ${prefixMap}` : arg,
+  );
+  if (!vectorMake.some((arg) => arg.endsWith(prefixMap)))
+    throw new Error("The pgvector make inputs need a CFLAGS= entry");
   run(
     "make",
-    [
-      "-j",
-      jobs,
-      "install",
-      `PG_CONFIG=${prefix}/bin/pg_config`,
-      ...lock.pgvector.make,
-    ],
+    ["-j", jobs, "install", `PG_CONFIG=${prefix}/bin/pg_config`, ...vectorMake],
     { cwd: vector, env },
   );
 
@@ -97,7 +110,7 @@ export function buildPostgres(target) {
 
 /** Keep only the server/client closure and builtin language/text/encoding support. */
 function stagePostgres(target, lock, work) {
-  const prefix = path.join(work, "installed");
+  const prefix = installedRoot(work);
   const pg = path.join(work, `postgresql-${lock.postgresql.version}`);
   const vector = path.join(work, `pgvector-${lock.pgvector.version}`);
 
@@ -168,8 +181,8 @@ function stagePostgres(target, lock, work) {
     const links = run("otool", ["-L", file], { capture: true });
     for (const line of links.split("\n").slice(1)) {
       const linked = line.trim().split(" (", 1)[0];
-      if (linked.startsWith(prefix)) {
-        const installed = path.relative(prefix, linked);
+      if (linked.startsWith(`${INSTALL_PREFIX}/`)) {
+        const installed = path.posix.relative(INSTALL_PREFIX, linked);
         const relocated = path.posix.relative(
           path.posix.dirname(relative),
           installed,

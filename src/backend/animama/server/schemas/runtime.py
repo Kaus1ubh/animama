@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from .base import Base
 from .user_profile import DisplayName
@@ -23,6 +23,7 @@ class PyOnboardingCompleteRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     display_name: DisplayName
+    adult_confirmed: bool = Field(description="The owner confirms they are 18 or older; first run requires true.")
 
 
 __all__ = ["PyOnboardingCompleteRequest", "PyRuntimeContext"]

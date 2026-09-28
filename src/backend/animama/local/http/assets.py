@@ -1,4 +1,4 @@
-"""Built React assets and the installation's verified optional Parakeet mount.
+"""Built React assets and the installation's verified optional Parakeet mounts.
 
 This responder registers no routes and supplies no browser admission policy.
 The local composition calls it only after admission and product routes. Its
@@ -12,7 +12,7 @@ import json
 import os
 import re
 import stat
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from email.utils import formatdate, parsedate_to_datetime
 from pathlib import Path
@@ -25,6 +25,8 @@ from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.types import Receive, Scope, Send
 
 PARAKEET_MOUNT = "/onnx/models/parakeet-tdt-0.6b-v2/"
+# The optional FP16 encoder pack; it is served only while its pack is active.
+PARAKEET_WEBGPU_MOUNT = "/onnx/models/parakeet-tdt-0.6b-v2-webgpu/"
 IMMUTABLE_APP_ASSET_CACHE = "public, max-age=31536000, immutable"
 _MAX_MANIFEST_BYTES = 4 * 1024 * 1024
 _FINGERPRINTED_CODE = re.compile(r"assets/[^/]+-[\w-]{8,}\.(?:js|css)", re.ASCII)
@@ -248,9 +250,11 @@ class _FileStream(Response):
         start: int = 0,
         status: int = 200,
         model: ModelFile | None = None,
+        not_found: Callable[[Request], Response] = _error,
     ) -> None:
         super().__init__(status_code=status, headers=headers)
         self._request, self._root, self._name = request, root, name
+        self._not_found = not_found
         self._metadata, self._model, self._start = metadata, model, start
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -266,7 +270,7 @@ class _FileStream(Response):
         try:
             handle = await anyio.to_thread.run_sync(open_checked)
         except (OSError, ValueError):
-            await _error(self._request)(scope, receive, send)
+            await self._not_found(self._request)(scope, receive, send)
             return
 
         # This outer owner closes even when the client disconnects before the
@@ -288,16 +292,21 @@ class _FileStream(Response):
 
 
 class LocalAssets:
-    """Serve built browser files and one optional verified model-pack mount.
+    """Serve built browser files and the optional verified model-pack mounts.
 
     Roots and inventories come from the local composition, never request data.
     Construct a new instance for a different application build or active pack.
+    An unconfigured mount answers 404 and never falls through to the built tree.
     """
 
-    def __init__(self, web_root: Path, model_mount: ModelMount | None = None) -> None:
+    def __init__(
+        self,
+        web_root: Path,
+        model_mount: ModelMount | None = None,
+        webgpu_model_mount: ModelMount | None = None,
+    ) -> None:
         self._root = web_root.resolve()
-        self._mount = model_mount
-        self._models = {file.path: file for file in model_mount.files} if model_mount else {}
+        self._mounts = {PARAKEET_MOUNT: model_mount, PARAKEET_WEBGPU_MOUNT: webgpu_model_mount}
         self._inventory: frozenset[str] | None = None
 
     async def response(self, request: Request) -> Response:
@@ -314,8 +323,9 @@ class LocalAssets:
         name = path[1:].removesuffix("/")
         if (path != "/" and not _safe_name(name)) or _matches_prefix(path, _PRIVATE_PREFIXES):
             return _error(request)
-        if path == PARAKEET_MOUNT[:-1] or path.startswith(PARAKEET_MOUNT):
-            return await self._model_response(request, path[len(PARAKEET_MOUNT) :])
+        for prefix, mount in self._mounts.items():
+            if path == prefix[:-1] or path.startswith(prefix):
+                return await self._model_response(request, mount, path[len(prefix) :])
         try:
             if name:
                 try:
@@ -371,43 +381,66 @@ class LocalAssets:
             return Response(content=html if request.method == "GET" else None, headers=headers)
         return _FileStream(request, self._root, name, metadata, headers)
 
-    async def _model_response(self, request: Request, name: str) -> Response:
-        mount, model = self._mount, self._models.get(name)
+    async def _model_response(self, request: Request, mount: ModelMount | None, name: str) -> Response:
+        model = next((file for file in mount.files if file.path == name), None) if mount else None
         versions = request.query_params.getlist("v")
         if mount is None or model is None or (versions and versions != [mount.version]):
             return _error(request)
+        cache_control = "private, max-age=31536000, immutable" if versions else "no-cache"
+        return await verified_file_response(request, mount.root, model, cache_control=cache_control)
+
+
+async def verified_file_response(
+    request: Request,
+    root: Path,
+    model: ModelFile,
+    *,
+    cache_control: str,
+    not_found: Callable[[Request], Response] = _error,
+) -> Response:
+    """Serve one digest-pinned file below a trusted root with ETag and Range.
+
+    The file's identity, link count and length are checked when opened; the
+    digest is trusted from the verified inventory rather than rehashed. Missing
+    or ineligible files return ``not_found(request)``, by default the ordinary
+    JSON 404.
+    """
+
+    name = model.path
+    try:
+        metadata, _ = await anyio.to_thread.run_sync(_inspect_file, root, name, model)
+    except (OSError, ValueError):
+        return not_found(request)
+    etag = f'"{model.sha256}"'
+    headers = {
+        "content-type": model.media_type,
+        "x-content-type-options": "nosniff",
+        "accept-ranges": "bytes",
+        "cache-control": cache_control,
+        "etag": etag,
+    }
+    if _unchanged(request, etag):
+        return Response(status_code=304, headers=headers)
+    start, end, status = 0, metadata.st_size - 1, 200
+    requested_range = request.headers.get("range")
+    if requested_range and request.headers.get("if-range", etag) == etag:
         try:
-            metadata, _ = await anyio.to_thread.run_sync(_inspect_file, mount.root, name, model)
-        except (OSError, ValueError):
-            return _error(request)
-        etag = f'"{model.sha256}"'
-        headers = {
-            "content-type": model.media_type,
-            "x-content-type-options": "nosniff",
-            "accept-ranges": "bytes",
-            "cache-control": "private, max-age=31536000, immutable" if versions else "no-cache",
-            "etag": etag,
-        }
-        if _unchanged(request, etag):
-            return Response(status_code=304, headers=headers)
-        start, end, status = 0, metadata.st_size - 1, 200
-        requested_range = request.headers.get("range")
-        if requested_range and request.headers.get("if-range", etag) == etag:
-            try:
-                match = re.fullmatch(r"bytes=([0-9]*)-([0-9]*)", requested_range)
-                if match is None or not any(match.groups()):
-                    raise ValueError("Only a single byte range is supported")
-                first, last = match.groups()
-                start = int(first) if first else max(0, metadata.st_size - int(last))
-                end = min(int(last), end) if first and last else end
-                if start > end or start < 0:
-                    raise ValueError("Unsatisfiable range")
-            except ValueError:
-                headers.update({"content-range": f"bytes */{metadata.st_size}", "cache-control": "no-store"})
-                return Response(status_code=416, headers=headers)
-            status = 206
-            headers["content-range"] = f"bytes {start}-{end}/{metadata.st_size}"
-        headers["content-length"] = str(max(0, end - start + 1))
-        if request.method == "HEAD" or not metadata.st_size:
-            return Response(status_code=status, headers=headers)
-        return _FileStream(request, mount.root, name, metadata, headers, start=start, status=status, model=model)
+            match = re.fullmatch(r"bytes=([0-9]*)-([0-9]*)", requested_range)
+            if match is None or not any(match.groups()):
+                raise ValueError("Only a single byte range is supported")
+            first, last = match.groups()
+            start = int(first) if first else max(0, metadata.st_size - int(last))
+            end = min(int(last), end) if first and last else end
+            if start > end or start < 0:
+                raise ValueError("Unsatisfiable range")
+        except ValueError:
+            headers.update({"content-range": f"bytes */{metadata.st_size}", "cache-control": "no-store"})
+            return Response(status_code=416, headers=headers)
+        status = 206
+        headers["content-range"] = f"bytes {start}-{end}/{metadata.st_size}"
+    headers["content-length"] = str(max(0, end - start + 1))
+    if request.method == "HEAD" or not metadata.st_size:
+        return Response(status_code=status, headers=headers)
+    return _FileStream(
+        request, root, name, metadata, headers, start=start, status=status, model=model, not_found=not_found
+    )

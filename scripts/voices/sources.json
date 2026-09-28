@@ -1,0 +1,731 @@
+{
+  "schema": "animama-pocket-voice-sources/1",
+  "kyutai_states": {
+    "repository": "kyutai/pocket-tts-without-voice-cloning",
+    "revision": "4e1e0a3e611c51c0b4ed8174fc10f32a54644303",
+    "path": "languages/english_2026-04/embeddings/{name}.safetensors",
+    "license_basis": "Kyutai publishes the precomputed states under the repository's CC BY 4.0 license; each source recording's own license is listed per voice",
+    "license": "CC-BY-4.0"
+  },
+  "clips": {
+    "repository": "kyutai/tts-voices",
+    "revision": "323332d33f997de8394f24a193e1a76df720e01a",
+    "vctk_path": "vctk/{speaker}_023_enhanced.wav",
+    "license": "CC-BY-4.0 (CSTR VCTK Corpus, University of Edinburgh; Kyutai-enhanced)"
+  },
+  "vctk_metadata": {
+    "url": "https://datashare.ed.ac.uk/server/api/core/bitstreams/535f4286-e54c-4038-838c-a02285e32cb2/content",
+    "archive": "VCTK-Corpus-0.92.zip",
+    "archive_size": 11747302977,
+    "archive_md5": "8a6ba2946b36fcbef0212cad601f4bfa",
+    "handle": "https://datashare.ed.ac.uk/handle/10283/3443"
+  },
+  "kyutai_voices": [
+    {
+      "name": "alba",
+      "recording": "kyutai/tts-voices alba-mackenna/casual.wav (voice-acted by Alba MacKenna)",
+      "license": "CC-BY-4.0",
+      "gender": "female"
+    },
+    {
+      "name": "anna",
+      "recording": "kyutai/tts-voices vctk/p228_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p228"
+    },
+    {
+      "name": "azelma",
+      "recording": "kyutai/tts-voices vctk/p303_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p303"
+    },
+    {
+      "name": "bill_boerst",
+      "recording": "kyutai/tts-voices voice-zero/bill_boerst.wav (Voice-Zero, LibriVox)",
+      "license": "CC0-1.0",
+      "gender": "male"
+    },
+    {
+      "name": "caro_davy",
+      "recording": "kyutai/tts-voices voice-zero/caro_davy.wav (Voice-Zero, LibriVox)",
+      "license": "CC0-1.0",
+      "gender": "female"
+    },
+    {
+      "name": "charles",
+      "recording": "kyutai/tts-voices vctk/p254_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p254"
+    },
+    {
+      "name": "cosette",
+      "recording": "kyutai/tts-voices expresso/ex04-ex02_confused_001_channel1_499s.wav (Expresso)",
+      "license": "CC-BY-NC-4.0"
+    },
+    {
+      "name": "daan",
+      "recording": "not documented by Kyutai",
+      "license": "NOASSERTION",
+      "exclude": "no documented source recording"
+    },
+    {
+      "name": "eponine",
+      "recording": "kyutai/tts-voices vctk/p262_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p262"
+    },
+    {
+      "name": "estelle",
+      "recording": "kyutai/tts-voices unmute-prod-website/developpeuse-3.wav (Kyutai recording)",
+      "license": "CC0-1.0",
+      "gender": "female",
+      "accent": "French"
+    },
+    {
+      "name": "eve",
+      "recording": "kyutai/tts-voices vctk/p361_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p361"
+    },
+    {
+      "name": "fantine",
+      "recording": "kyutai/tts-voices vctk/p244_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p244"
+    },
+    {
+      "name": "george",
+      "recording": "kyutai/tts-voices vctk/p315_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p315"
+    },
+    {
+      "name": "giovanni",
+      "recording": "kyutai/pocket-tts common_voice_it_36520747 (Common Voice, licence unconfirmed)",
+      "license": "NOASSERTION",
+      "exclude": "unconfirmed Common Voice source"
+    },
+    {
+      "name": "jane",
+      "recording": "kyutai/tts-voices vctk/p339_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p339"
+    },
+    {
+      "name": "javert",
+      "recording": "kyutai/tts-voices voice-donations/Butter.wav (Unmute Voice Donation Project, Kyutai)",
+      "license": "CC0-1.0",
+      "gender": "male",
+      "note": "voice-donations source restored by the owner at G1 (2026-09-26)"
+    },
+    {
+      "name": "jean",
+      "recording": "kyutai/tts-voices ears/p010/freeform_speech_01_enhanced.wav (EARS)",
+      "license": "CC-BY-NC-4.0"
+    },
+    {
+      "name": "juergen",
+      "recording": "kyutai/pocket-tts de-DE-juergen.mp3 (no documented source)",
+      "license": "NOASSERTION",
+      "exclude": "no documented source recording"
+    },
+    {
+      "name": "lola",
+      "recording": "kyutai/pocket-tts common_voice_es_19762977 (Common Voice, licence unconfirmed)",
+      "license": "NOASSERTION",
+      "exclude": "unconfirmed Common Voice source"
+    },
+    {
+      "name": "marius",
+      "recording": "kyutai/tts-voices voice-donations/Selfie.wav (Unmute Voice Donation Project, Kyutai)",
+      "license": "CC0-1.0",
+      "gender": "male",
+      "note": "voice-donations source restored by the owner at G1 (2026-09-26)"
+    },
+    {
+      "name": "mary",
+      "recording": "kyutai/tts-voices vctk/p333_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p333"
+    },
+    {
+      "name": "michael",
+      "recording": "kyutai/tts-voices vctk/p360_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p360"
+    },
+    {
+      "name": "paul",
+      "recording": "kyutai/tts-voices vctk/p259_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p259"
+    },
+    {
+      "name": "peter_yearsley",
+      "recording": "kyutai/tts-voices voice-zero/peter_yearsley.wav (Voice-Zero, LibriVox)",
+      "license": "CC0-1.0",
+      "gender": "male"
+    },
+    {
+      "name": "rafael",
+      "recording": "kyutai/pocket-tts g-Vi8PgmSY0-enhanced-v2.wav (no documented source)",
+      "license": "NOASSERTION",
+      "exclude": "no documented source recording"
+    },
+    {
+      "name": "stuart_bell",
+      "recording": "kyutai/tts-voices voice-zero/stuart_bell.wav (Voice-Zero, LibriVox)",
+      "license": "CC0-1.0",
+      "gender": "male"
+    },
+    {
+      "name": "vera",
+      "recording": "kyutai/tts-voices vctk/p229_023_enhanced.wav (CSTR VCTK Corpus, University of Edinburgh)",
+      "license": "CC-BY-4.0",
+      "vctk_speaker": "p229"
+    }
+  ],
+  "pins": {
+    "kyutai_states": {
+      "alba": {
+        "size": 6194424,
+        "sha256": "69c32db63ca56843d994f81f343f62e0bf2d73f7e4c9bc73e44bb1110b1d8845"
+      },
+      "anna": {
+        "size": 7816440,
+        "sha256": "5ea82f78db006c9fd34e32ddd5aae82674b5b32646097977436458d00af80dfa"
+      },
+      "azelma": {
+        "size": 7963896,
+        "sha256": "9f3e69f29075f991fd47774566865ef0e0e637cb5a35992c9919761b5b84b1de"
+      },
+      "bill_boerst": {
+        "size": 6735096,
+        "sha256": "75610127d44e0b05b442154f80f89f993df235aecc6cad7070f11000d006c188"
+      },
+      "caro_davy": {
+        "size": 5260536,
+        "sha256": "a5961b63a2e7a5cfd7edc383aa9042fb70fd14a9dee6310cdc633881a7f2449a"
+      },
+      "charles": {
+        "size": 6194424,
+        "sha256": "299edc20182eeccfbf94e308626f259da4fbf339daa8d5905218f2b1774639b8"
+      },
+      "cosette": {
+        "size": 6194424,
+        "sha256": "c4fdc15f5a3a20c44dd0064a37e87d15d25562936e8dbad7e07b9832015a545d"
+      },
+      "daan": {
+        "size": 4228912,
+        "sha256": "a4d98b891a2850d19edd0f9bbcc6b550bcdac7a2ce29fe6be8a9110f915303d4"
+      },
+      "eponine": {
+        "size": 6931704,
+        "sha256": "bda3b76a384ff355fe0350736387765946304ae8ca16e59f60ea3296a1c99cc6"
+      },
+      "estelle": {
+        "size": 8258808,
+        "sha256": "ccebef7f51762c7fc08870f5ecf268e8713551ae2c9f7984ddaec0c1e1c77153"
+      },
+      "eve": {
+        "size": 6538488,
+        "sha256": "ea9c2faf862a6c9d2cb61910fdf02842ae56940382cc8c1000fdb1b43269692b"
+      },
+      "fantine": {
+        "size": 6538488,
+        "sha256": "51a8a4355d7f912d4959e4b1918314fda85ad47eba0a33a1d78a4a505d3465f5"
+      },
+      "george": {
+        "size": 6243576,
+        "sha256": "0c1c6c57c55a98d81254b33728150c7776f40647fe95258d1a6c1a02780b5d02"
+      },
+      "giovanni": {
+        "size": 4621552,
+        "sha256": "a5ee718157ec1c6fd9c1e66a7733c7e6337d474a74a7da756455d27717885c59"
+      },
+      "jane": {
+        "size": 7374072,
+        "sha256": "37386227ca8ec5bf1b8e516c13d132ce5ff5437a304fe90129a1c62f41d9a008"
+      },
+      "javert": {
+        "size": 6194424,
+        "sha256": "0ae88e03ca4e76a0e16cbf321a807428febda9d9e9bc0358c02e7f9c9e2c263b"
+      },
+      "jean": {
+        "size": 6194424,
+        "sha256": "90be4b8f50bb4d2dbe27e3fb4e31417cf6a57928931f0a60426a1748821a3d12"
+      },
+      "juergen": {
+        "size": 6243576,
+        "sha256": "e74d67b38339fc01118e3bbe2c90d6d40e601b161dbf7be906421956ba80a532"
+      },
+      "lola": {
+        "size": 5948664,
+        "sha256": "34972e86b07b17272a8061460054a08119399cace9454979052b9e2d96664e8c"
+      },
+      "marius": {
+        "size": 6194424,
+        "sha256": "04f84efcb77a0547ba582c058db496f7ff4920891d49d37b9950d128422582a8"
+      },
+      "mary": {
+        "size": 6194424,
+        "sha256": "a8f2adf260cab966fe0a113d6b549d6efdeaa79de544ae0ff34b5b6a41445a59"
+      },
+      "michael": {
+        "size": 7275768,
+        "sha256": "8937f724ac4719b9aa51ea0ba1f18f9de0af7a663ad6263558266c1a53c9722d"
+      },
+      "paul": {
+        "size": 6980856,
+        "sha256": "ed7a019168f94dfe77009f1b0de59387abc6fbb0db954d38ce722ecb77da61aa"
+      },
+      "peter_yearsley": {
+        "size": 3736816,
+        "sha256": "dd977a6e15591e347c9a23fa7cc09e35a65b462917f5eeb162baff6dc9e3f685"
+      },
+      "rafael": {
+        "size": 6194424,
+        "sha256": "ac19f099f6cd839875a629c3e2e91e0dfc2c197acf2875db168d0ae244fb58bd"
+      },
+      "stuart_bell": {
+        "size": 5260536,
+        "sha256": "5a49da7ca5df05d02587ec4a0981c0d318e045f68e24423c4203ce474d9b33dc"
+      },
+      "vera": {
+        "size": 6735096,
+        "sha256": "4bf50ddd957b5d218b264fdcf18efbbc7384d12da3eca98ca19b9e8dd6976acc"
+      }
+    },
+    "vctk_clips": {
+      "p225": {
+        "size": 777934,
+        "sha256": "10d947a5f12cc0f3b009a91d8b22c2f9e4ecd3c42d9f63ecfbe5b8facb74004c"
+      },
+      "p226": {
+        "size": 777836,
+        "sha256": "24d12e5ffae86407fd8190448bb630c2ce60dc955ad6254dd7262d4aaf1b1f72"
+      },
+      "p227": {
+        "size": 811484,
+        "sha256": "d1731d079f91210b30600554b38b2a8d122ab3692362ea750d71a6333157c500"
+      },
+      "p228": {
+        "size": 804630,
+        "sha256": "0a6de25cf12bf1540beb85979f306a92be81fecc051c547c5395e7e5237a3856"
+      },
+      "p229": {
+        "size": 691416,
+        "sha256": "309cf91a895830f15842b398f69a4962cb1f7e0bfab10e25dd27838e826c204b"
+      },
+      "p230": {
+        "size": 884610,
+        "sha256": "4ffb6cb47fa22decca80fcac43d409b611a2f95cdc460a6a4f52e408ac261ff2"
+      },
+      "p231": {
+        "size": 591402,
+        "sha256": "27dc3a8c5c9986790e5dabcf86886730a98b223a0f66a16089255bbbc6e68bcd"
+      },
+      "p232": {
+        "size": 641892,
+        "sha256": "02c719693c27f21a996e2ead6232f1385686ae301267227efc96fe309ee91031"
+      },
+      "p233": {
+        "size": 675420,
+        "sha256": "5bacaf703700acff37966b3ce8c1274138dd5975704bcccd9084977395a46a19"
+      },
+      "p234": {
+        "size": 610236,
+        "sha256": "99ec2afad7ec1800a02804678c32ec33df3ee38ffa19c25c7fdfa98c9349dca3"
+      },
+      "p236": {
+        "size": 663120,
+        "sha256": "dc369354c36fac04cdab3cc52399602c8611f3002d4d0c7cb4ab0f1d26929211"
+      },
+      "p237": {
+        "size": 671308,
+        "sha256": "3e6d261afc38bb70d0189d8e0e10e41757927eea65139647da995921d9d4366d"
+      },
+      "p238": {
+        "size": 830488,
+        "sha256": "2245c6fd311608cbebea11a308ddefea8be46447706b2d147a8f40380ad5b208"
+      },
+      "p239": {
+        "size": 603592,
+        "sha256": "2fc606759f8dfa04a0e8bdcb9d96355363efc30584e83956c24484ea34d9c772"
+      },
+      "p240": {
+        "size": 646158,
+        "sha256": "c67a0910cce67c04ee0a83daf336c8bba9846eb2b7a6ac276c667a2fff837a21"
+      },
+      "p241": {
+        "size": 660140,
+        "sha256": "e8b0d94eeb0441b1c6195efb1e59e64a31d83c6aea1255dfc8463a21b280b6de"
+      },
+      "p243": {
+        "size": 800262,
+        "sha256": "c5b5068c991015339bddff1d6de5d68270f7ff96efd71489c1853eaeadddfef1"
+      },
+      "p244": {
+        "size": 674852,
+        "sha256": "5f07d4e2a3f20a15572aae885156b43ef3fc12ef3812996fd135680d9956448b"
+      },
+      "p245": {
+        "size": 827302,
+        "sha256": "6133dfbf8eb61cc46df46e70637441c87c9629abc9d04bf5a84de7173c3c1685"
+      },
+      "p246": {
+        "size": 772500,
+        "sha256": "08398d66e8cdca4ad25cd1e7f6ed61c90b4917090c1377cb00848a767fa19efa"
+      },
+      "p247": {
+        "size": 674924,
+        "sha256": "b0f462c74157a57b622cdcebc0a9d878e329fc86b0a3e7b5c68c318ba49f1af1"
+      },
+      "p248": {
+        "size": 855504,
+        "sha256": "795e02903a3ffaabdb27a075f4151d19d8e7f5907a13241928283d601d775bf4"
+      },
+      "p249": {
+        "size": 735448,
+        "sha256": "016e665a98f3c5ae6fb430242c659a0f00193be7f8528837003dc0a55be42f8b"
+      },
+      "p250": {
+        "size": 637056,
+        "sha256": "92f14f051042d4c79bb57852e72ca41cda8e3f4703b2403fff54ea81d1e4ff10"
+      },
+      "p251": {
+        "size": 709768,
+        "sha256": "5666c909e99d9c5bd204763d9e8418fa6ff5f50c50bc1c62a3b449d500726c0b"
+      },
+      "p252": {
+        "size": 725904,
+        "sha256": "abc6de3786fb616b983422e3e0d53e685046a21c18e80e4e7c296eb31c629beb"
+      },
+      "p253": {
+        "size": 674430,
+        "sha256": "a2d3f18a7b520eb1c1cd02ae66cb7e3fdc577720a42828bc09b1b2ba89b689ee"
+      },
+      "p254": {
+        "size": 639272,
+        "sha256": "6b681a429198f16e378d53bccb08d06939da7b00144a7696111d4f8f76be7756"
+      },
+      "p255": {
+        "size": 819696,
+        "sha256": "456b106ec940aa31875b7541c1dc8e7cdb3acc66e8f37d77efa77305211dba77"
+      },
+      "p256": {
+        "size": 794920,
+        "sha256": "f9518f910a7596ae0537fabd7923a1916f99eb84532df5aa44051c170a4f71d0"
+      },
+      "p257": {
+        "size": 551322,
+        "sha256": "b0ea2a63c7fbfd473a04e0c27835927cb1713acd46cfd29dddcfea9d2a2e1536"
+      },
+      "p258": {
+        "size": 692148,
+        "sha256": "daa70985bb3bbc9758ad793ee590d71659944668b2bca506a2e1679a4ef2f316"
+      },
+      "p259": {
+        "size": 717182,
+        "sha256": "7aba504fe0b3b16478b69eb27ce6007e3cb42b0c1915b5f1c6a6024ae37d679b"
+      },
+      "p260": {
+        "size": 641092,
+        "sha256": "e46592cf7d5e5b8a177f712bb09772a2085442fc3e4c937d3ea3cd8976cd9d1b"
+      },
+      "p261": {
+        "size": 628374,
+        "sha256": "536a4b3d7c9f7b9ddaa24d162aabf7019caf83af47edf91e20750d93c087a606"
+      },
+      "p262": {
+        "size": 716330,
+        "sha256": "a13c27fb47627b05223691a0ef2974358a18c886e6c2f9d2762ff1d02c20926b"
+      },
+      "p263": {
+        "size": 673186,
+        "sha256": "754ecb14ad7635014f79e2723084158fe1b13bcaab612709db3ff44ad5b12ee2"
+      },
+      "p264": {
+        "size": 834116,
+        "sha256": "8a52057ad300cd07ac96fa294ff3b9acbd735be145897ceaacab51dec2fe6b29"
+      },
+      "p265": {
+        "size": 941896,
+        "sha256": "5f489cacc86a01f145309ac0033635dc744500b087008cc6bf74f21672cdc297"
+      },
+      "p266": {
+        "size": 684850,
+        "sha256": "711d98b58263a34ff6228e0319fdac5eb71979f80de9a8dba560aa1f5a6c9327"
+      },
+      "p267": {
+        "size": 727124,
+        "sha256": "f0ce25f0aa84994bea5587f6b1b1c94767ab692c3efc0ac15b9a8733bce71062"
+      },
+      "p269": {
+        "size": 667502,
+        "sha256": "8884cf1a8465e30cb5eeff80c4847be33bdc3ece6f50ab3ca4960a1999b7beff"
+      },
+      "p270": {
+        "size": 827560,
+        "sha256": "1ff9bcfc72038adff8f8855e2d8c92cfe8ddd61a8c9073c487444b047412044f"
+      },
+      "p271": {
+        "size": 1059684,
+        "sha256": "acbe2ac15a6ed5973b62b4758cc09685acfeee286834dd3e268d84a1d2351818"
+      },
+      "p272": {
+        "size": 650156,
+        "sha256": "e0b527d9938c784086b6a39c8957ad89afbdc0d8962d06e5d4a4849d156ee487"
+      },
+      "p273": {
+        "size": 796534,
+        "sha256": "1904de3bd24ba74856f209b4bb0c288155178cc858d88ebc304ddbc45e6b4b35"
+      },
+      "p274": {
+        "size": 754562,
+        "sha256": "f56dce71150bc4678e3d634a4950f472950148418723ca2c8bc2401fb6d635a3"
+      },
+      "p275": {
+        "size": 689290,
+        "sha256": "6cb81cc452e0885268a4005c517067c135b4ea90f0edbc14e175c3c5dc46c325"
+      },
+      "p276": {
+        "size": 720920,
+        "sha256": "8b75ce202cdb26fcdb38f1c93997a60b3e5bbe6aa08924c929894e8ac8107e13"
+      },
+      "p277": {
+        "size": 781918,
+        "sha256": "ebc0865df96d19507de22c5209f2c6cf5928fc41331128e426e82881b058fe7d"
+      },
+      "p278": {
+        "size": 707516,
+        "sha256": "35b7f1ebc97073bee1999c5e3d1b5e787a71c66925e3f719b0eebc5cca39b629"
+      },
+      "p279": {
+        "size": 583542,
+        "sha256": "61b0527b9536dcdf4bce5a3c96085edc8e71677c117538452b9f3e185fd17047"
+      },
+      "p280": {
+        "size": 762474,
+        "sha256": "ee47c676c5776ea5668637057451f76d1fb755f14dee5b8101848fe55ea8a1e0"
+      },
+      "p281": {
+        "size": 725222,
+        "sha256": "225dc8f5d7cab905bff232b1003609312b569a42a97461bdd90a3b56c934c657"
+      },
+      "p282": {
+        "size": 673960,
+        "sha256": "43ae5af8a328c73a4fe7a61a756f6f12b723ae94995cd12ac02d0b2a9329042e"
+      },
+      "p283": {
+        "size": 748150,
+        "sha256": "b1f3e39bd035da4f4dc400ee27feab100188267c73865a7a6fc5f00a645ed2a8"
+      },
+      "p284": {
+        "size": 611678,
+        "sha256": "9ac0540541ed9b62daae71877ca5c141e1ddf2fc430bac408a001a7443754ba1"
+      },
+      "p285": {
+        "size": 632852,
+        "sha256": "47992679a621cb379abddc6f264ce8b03f95c2d7ae8386bcc3b7c28da51e3f51"
+      },
+      "p286": {
+        "size": 789332,
+        "sha256": "2fbb5e240330d7639cd2fc3c6cd2f1030968b3286f4fab9614bf741a6abde9b4"
+      },
+      "p287": {
+        "size": 718024,
+        "sha256": "499d863c806fa58c3a38662a7cd78232dd446d67aaf6f4edd64a400ce2b478a4"
+      },
+      "p288": {
+        "size": 707636,
+        "sha256": "bc0fc3cc02eee4b88fbd0e417bfe55768068d39def4c649f92401ace5081e5f2"
+      },
+      "p292": {
+        "size": 718592,
+        "sha256": "81efeb6ade018e0444d088a46e8a263e65ee78910b43254e05533630687c233f"
+      },
+      "p293": {
+        "size": 798610,
+        "sha256": "63cbced8adea4587dff10a62ff27d83f61f76987ef383fdfa4ae25aba2bdfcc4"
+      },
+      "p294": {
+        "size": 864364,
+        "sha256": "4d3113ac66bd2da5535b40968aa2183dddc9ff7615a317ba7f45c2745ee073c0"
+      },
+      "p297": {
+        "size": 819986,
+        "sha256": "c0ed4cbc8607e1fbea58f8584211a3b1d256deae06031ca95eb63948b54465be"
+      },
+      "p298": {
+        "size": 627552,
+        "sha256": "dbd6744e8c5ef4efa5558f9521455f99685b8e69423442f4dce9573794b83e60"
+      },
+      "p299": {
+        "size": 677552,
+        "sha256": "6d5a9d1bb7a6d19e27fac1db58e7b4ba4e0b6470140ee38e5315e10a306d8274"
+      },
+      "p300": {
+        "size": 810936,
+        "sha256": "20dda731556a27079a4d8577d7c239c4016c8abe6bff9fc7061b7fecc00d71f9"
+      },
+      "p301": {
+        "size": 723764,
+        "sha256": "1c87f0c9edf514bce1d8054b856ab9eda3a24f64d25327484e747204781e7c63"
+      },
+      "p302": {
+        "size": 724656,
+        "sha256": "886d70644f1a8deb5faa3513b58deed2866bfc9397c08232992fe64c88c047bd"
+      },
+      "p303": {
+        "size": 823852,
+        "sha256": "60e3d26cdf2efdec5df712152c839928f4d5522821e6554ae11fd96c57ab1026"
+      },
+      "p304": {
+        "size": 681968,
+        "sha256": "16c0b33de3a65ec79932b451a1f4eac52801e887f2a37f33bbee4f9d39621f76"
+      },
+      "p305": {
+        "size": 753732,
+        "sha256": "cfc626611faf30f1e07362f05d7fe7215dfc870c51d00323e53e06764c7a3270"
+      },
+      "p306": {
+        "size": 939728,
+        "sha256": "69dce9424a821e85b2706d66d954f99f0537adf707a452b240c337683681affc"
+      },
+      "p307": {
+        "size": 754426,
+        "sha256": "bff500f7c087047746f85f455cc396da92ce228d9f2799ab16148bea2a89bf0d"
+      },
+      "p308": {
+        "size": 655532,
+        "sha256": "eee1a93972d397a2bc35ccb3e6432db4fed7577b1325fd66a196833442d3dbc8"
+      },
+      "p310": {
+        "size": 983464,
+        "sha256": "c7d190b69b3181632937c8588e5a76370535ab0c05e3a67bd1f2a8640ce8c361"
+      },
+      "p311": {
+        "size": 688326,
+        "sha256": "23c727d9f1ed758ac29aa923a82b98dbfb6b7fb0b9af3c21d0edd7fdef2ca834"
+      },
+      "p312": {
+        "size": 732188,
+        "sha256": "adea2d0ca94b57596db0956ca60bc9c2eab6d6b4fcb29815b9a7f0a585f2eb54"
+      },
+      "p313": {
+        "size": 915046,
+        "sha256": "c2c3a61a387ecd7e0e0fddefb02011c68080493f0054f271e87406c6f5a1182d"
+      },
+      "p314": {
+        "size": 722332,
+        "sha256": "bf2d03b7414a3258c64268aedf6f844f3925a1762384300e6b9ef12da1ee1e2b"
+      },
+      "p315": {
+        "size": 642692,
+        "sha256": "29a41f93bf5236e5b21501091d7774c255d5f3d4e62fa4f9fdf0a92a793c84ae"
+      },
+      "p316": {
+        "size": 819064,
+        "sha256": "4be1d36682a8c136241b5c5e3d90fce3e6ff608d3079b54e2f87e7d4bd54d4ec"
+      },
+      "p317": {
+        "size": 716936,
+        "sha256": "31a1c82db643ce2872bfa1dfd55e45663548fe0927e7226fdfff0b01501e4c8e"
+      },
+      "p318": {
+        "size": 767518,
+        "sha256": "9e5b046f031ff3140674632fc81b44a89879f4871266ff47c8b2137a724ed4ad"
+      },
+      "p323": {
+        "size": 885740,
+        "sha256": "646446783d624f3e993f8c0af41b94de093c4ef8916d7a1d2dbb45fa3d6ca3d2"
+      },
+      "p326": {
+        "size": 686902,
+        "sha256": "07ba4e711bb128934d55f2342bb5cd2a1cd371de2ccac6e3a52d5e05ae88ba6b"
+      },
+      "p329": {
+        "size": 864472,
+        "sha256": "143a1275a68d2473ea7e9afe5cb2a54fb96802541d25e41d049d3024c888d710"
+      },
+      "p330": {
+        "size": 784348,
+        "sha256": "6a2f6433938dc03e12964fde29505777c41b8a007bc931c5072bc0f613765f7d"
+      },
+      "p333": {
+        "size": 639084,
+        "sha256": "a35b0468382218e9f37a9a7494d1e4b74deaf18d7ced22265b4e325bb55c183f"
+      },
+      "p334": {
+        "size": 611768,
+        "sha256": "effdff487b38a388cfc0395ad6852c84524f054f29417e9728e1cd63ba642bb1"
+      },
+      "p335": {
+        "size": 949094,
+        "sha256": "2f04473d7aa6369d1aac13c589653b97f1c412ca7a5233b875f195ba43fd0d3c"
+      },
+      "p336": {
+        "size": 835968,
+        "sha256": "50dd49e9d41c0f9ad0a693980dca7af2385fd1c54e1b39ec25977ae9a8707752"
+      },
+      "p339": {
+        "size": 759340,
+        "sha256": "2f12e7f155eb3118f55425394f1b049e5b1b67bdc9b3932c8ba4521420aeb84a"
+      },
+      "p341": {
+        "size": 860416,
+        "sha256": "0c3112f123b314ae6f28813d067b3531fe6246a17f76213e57a719d2c2dcbbd2"
+      },
+      "p343": {
+        "size": 796694,
+        "sha256": "6c3fa31ac6258f936ece44888c8885516c5db0098fc5494d91a8c02e1d0d6a7c"
+      },
+      "p345": {
+        "size": 743024,
+        "sha256": "da03bc427058b722a5e7082994457bd6b42352e9b3236014538c8c1dc23afd9a"
+      },
+      "p347": {
+        "size": 838992,
+        "sha256": "8dd1a5c49c164bec56cc1d747e341cab9d19c5fc21de5717440b2666d617f274"
+      },
+      "p351": {
+        "size": 625336,
+        "sha256": "7f053caccc3d21ee3145f9509cb0c022f4db9173588cc3f8c60ae5212c622117"
+      },
+      "p360": {
+        "size": 751140,
+        "sha256": "b6743e9195e5e3fd34fe9d1633ae93f7ffab787b249e45f6467d7d6f7a6ee6ad"
+      },
+      "p361": {
+        "size": 671872,
+        "sha256": "396e7cbd066b0f3fb6d67fa26e7904076958239d736d4390f15b5fe88feb14cd"
+      },
+      "p363": {
+        "size": 641960,
+        "sha256": "08fe6efe9e571b4916a02d2d4448cd741086c0ca37c9f117a98f10de8319ac88"
+      },
+      "p364": {
+        "size": 867912,
+        "sha256": "d3002fdc019b9a3fea1098deb07caf08743902e8e34f04fad1e9f66fc084ffcf"
+      },
+      "p374": {
+        "size": 838990,
+        "sha256": "eb4f0471dec5b6c835fb562a19af6c7d72fd534a351e544d851e7e4cb6ef76a7"
+      },
+      "p376": {
+        "size": 679340,
+        "sha256": "7201e56bf9201b23c3cea0cbfee15635deeebff806f4f469c882a32dab1a12fa"
+      },
+      "s5": {
+        "size": 757134,
+        "sha256": "ae9440afa0e15cba199bef2668d8814c39f0cba167599830487fdb0502c8fc7c"
+      }
+    },
+    "speaker_info": {
+      "member": "speaker-info.txt",
+      "size": 4028,
+      "sha256": "ee6447edab776828e0c2e726c04a4965c4602c32047b14fac2f5294d18728eee"
+    }
+  }
+}

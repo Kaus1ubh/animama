@@ -8,6 +8,7 @@ from .anima_loadout import (
     ORMAnimaLoadoutMutationReceipt,
     ORMAnimaRuntimeSnapshot,
 )
+from .anima_memory_reflection import ORMAnimaMemoryReflection
 from .archive import ORMArchive
 from .archive_passage import ORMArchivePassage
 from .avatar import ORMAvatar
@@ -16,6 +17,7 @@ from .base import Base, vector_type
 from .chat_compactions import ORMChatCompaction
 from .chat_messages import ORMChatMessage
 from .chats import ORMChat
+from .companion_safety import ORMCompanionSafetyState
 from .content_catalog import (
     ORMAnimaContentBinding,
     ORMContentCatalogDependency,
@@ -60,6 +62,7 @@ UserSettings = ORMUserSettings
 AnimaSettings = ORMAnimaSettings
 
 __all__ = [
+    "ORMCompanionSafetyState",
     "Base",
     "vector_type",
     "ORMArchive",
@@ -84,6 +87,7 @@ __all__ = [
     "ORMAnimaLoadout",
     "ORMAnimaLoadoutDiagnostic",
     "ORMAnimaLoadoutMutationReceipt",
+    "ORMAnimaMemoryReflection",
     "ORMAnimaRuntimeSnapshot",
     "ORMUserSettings",
     "ORMAnimaSettings",

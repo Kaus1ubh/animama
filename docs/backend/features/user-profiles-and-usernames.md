@@ -25,21 +25,26 @@ profile without teaching the shared service about `installation_settings`.
 
 The same owner bootstrap ensures settings, configured Starter Animas and
 receipts, and the initial user-scope `PROFILE.md`. That memory document carries
-closed `installation_bootstrap` metadata containing template version `1` and
+closed `installation_bootstrap` metadata containing template version `2` and
 the managed entry version. Existing profile data, settings, Starter state, and
 memory content are never overwritten by bootstrap retries.
 
-`POST /v1/runtime/onboarding:complete` requires a nonblank display name. In one
-transaction it locks installation settings, the profile, and `PROFILE.md`; saves
-the normalized display name; updates only the template's preferred-name line
-when the metadata, version, and expected content still match; appends the normal
+`POST /v1/runtime/onboarding:complete` requires a nonblank display name and
+`adult_confirmed: true`; without the 18+ confirmation it returns 422
+`adult_confirmation_required`. In one transaction it locks installation
+settings, the profile, and `PROFILE.md`; saves the normalized display name;
+records the owner's `adult` age status (source `self_attestation`) in
+`companion_safety_state`; sets the `Preferred name:` line (replacing an existing one,
+otherwise under a Basics heading, the first heading or the top) while the file's
+`managed_entry_version` still equals its current version, so it works with any
+template wording and stops once anything else edits the file; appends the normal
 memory version; and writes `first_run_completed_at` once. A pre-commit failure
 rolls the whole operation back. Replaying a response lost after commit returns
 the completed state without adding another memory version.
 
-Runtime context reports first run complete only when the timestamp and a
-nonblank stored name both exist. An installation with a completion timestamp
-but no name opens setup; adding a name retains its principal, content, and
+Runtime context reports first run complete only when the timestamp, a
+nonblank stored name, and an `adult` age status all exist. An installation with
+a completion timestamp but no name or no 18+ confirmation opens setup; adding a name retains its principal, content, and
 original completion timestamp. The nullable bootstrap column is not a supported way to
 clear an already chosen name.
 

@@ -131,6 +131,44 @@ describe("privileged runtime IPC", () => {
     expect(operations.changeCredential).not.toHaveBeenCalled();
   });
 
+  it("applies a validated credential batch only for the registered main frame", async () => {
+    const applied = vi.fn(async () => []);
+    operations.changeCredentials = applied;
+    await expect(
+      invoke("credentials:apply", main.event, [
+        { provider: "openai", value: "fixture-key" },
+        { provider: "gemini" },
+      ]),
+    ).resolves.toEqual([]);
+    expect(applied).toHaveBeenCalledWith([
+      { provider: "openai", value: "fixture-key" },
+      { provider: "gemini" },
+    ]);
+    await expect(
+      invoke("credentials:apply", recovery.event, [{ provider: "openai" }]),
+    ).rejects.toThrow("ipc_caller_rejected");
+    for (const invalid of [
+      [],
+      "openai",
+      [{ provider: "openai" }, { provider: "openai" }],
+      [{ provider: "openai", value: "fixture-key", path: "/tmp" }],
+      [{ provider: "../path" }],
+      [{ provider: "openai", value: "x".repeat(8193) }],
+      [
+        { provider: "openai" },
+        { provider: "deepseek" },
+        { provider: "huggingface" },
+        { provider: "gemini" },
+        { provider: "elevenlabs" },
+        { provider: "openai" },
+      ],
+    ])
+      await expect(
+        invoke("credentials:apply", main.event, invalid),
+      ).rejects.toThrow(/credential_(changes|provider|value)_invalid/);
+    expect(applied).toHaveBeenCalledOnce();
+  });
+
   it("exposes unavailable future pack/update operations explicitly", async () => {
     await expect(
       invoke("feature-packs:install", main.event, "expanded-included-content"),
@@ -278,6 +316,46 @@ describe("privileged runtime IPC", () => {
   });
 });
 
+/** Run the emitted page script without browser or Electron dependencies. */
+async function loadRuntimePage(url: string, windowRole: string) {
+  const elements = new Map<string, Record<string, unknown>>();
+  const element = (selector: string) => {
+    if (!elements.has(selector)) elements.set(selector, {});
+    return elements.get(selector)!;
+  };
+  const reload = vi.fn();
+  let render: ((status: RuntimeStatus) => void) | undefined;
+  const location = new URL(url);
+  const script = createRuntimePage().match(
+    /<script nonce="[^"]+">([\s\S]*?)<\/script>/u,
+  )![1]!;
+  runInNewContext(script, {
+    location: {
+      protocol: location.protocol,
+      origin: location.origin,
+      reload,
+    },
+    document: {
+      querySelector: element,
+      getElementById: (id: string) => element(`#${id}`),
+    },
+    window: {
+      animamaDesktop: {
+        windowRole,
+        runtime: {
+          status: async () => ({ state: "starting", stage: "backend" }),
+          onStatus: (callback: (status: RuntimeStatus) => void) => {
+            render = callback;
+          },
+        },
+      },
+    },
+  });
+  // Include the page's initial status query.
+  await Promise.resolve();
+  return { element, reload, render: render! };
+}
+
 describe("independent runtime recovery page", () => {
   it.each([
     ["http://127.0.0.1:41234", "main", false],
@@ -287,45 +365,26 @@ describe("independent runtime recovery page", () => {
   ])(
     "never navigates or reloads itself on readiness: %s (%s)",
     async (url, windowRole, shouldReload) => {
-      const elements = new Map<string, Record<string, unknown>>();
-      const element = (selector: string) => {
-        if (!elements.has(selector)) elements.set(selector, {});
-        return elements.get(selector)!;
-      };
-      const reload = vi.fn();
-      let render: ((status: RuntimeStatus) => void) | undefined;
-      const location = new URL(url);
-      // Exercise the emitted page script, including its initial status query,
-      // without introducing browser or Electron dependencies into this check.
-      const script = createRuntimePage().match(
-        /<script nonce="[^"]+">([\s\S]*?)<\/script>/u,
-      )![1]!;
-      runInNewContext(script, {
-        location: {
-          protocol: location.protocol,
-          origin: location.origin,
-          reload,
-        },
-        document: {
-          querySelector: element,
-          getElementById: (id: string) => element(`#${id}`),
-        },
-        window: {
-          animamaDesktop: {
-            windowRole,
-            runtime: {
-              status: async () => ({ state: "starting", stage: "backend" }),
-              onStatus: (callback: (status: RuntimeStatus) => void) => {
-                render = callback;
-              },
-            },
-          },
-        },
-      });
-      await Promise.resolve();
-      expect(reload).not.toHaveBeenCalled();
-      render!({ state: "ready", origin: "http://127.0.0.1:41234" });
-      expect(reload).toHaveBeenCalledTimes(shouldReload ? 1 : 0);
+      const page = await loadRuntimePage(url, windowRole);
+      expect(page.reload).not.toHaveBeenCalled();
+      page.render({ state: "ready", origin: "http://127.0.0.1:41234" });
+      expect(page.reload).toHaveBeenCalledTimes(shouldReload ? 1 : 0);
+    },
+  );
+
+  it.each([
+    ["database_schema_mismatch", true],
+    ["content_startup_failed", false],
+  ])(
+    "explains %s, preserves data and names the development reset",
+    async (code, retryHidden) => {
+      const page = await loadRuntimePage("data:text/html,recovery", "recovery");
+      page.render({ state: "error", code });
+      const message = String(page.element("#message").textContent);
+      expect(message).toMatch(/local data is preserved/iu);
+      expect(message).toContain("pnpm desktop:mac:reset");
+      expect(page.element("#code").textContent).toBe(code);
+      expect(page.element("#retry").hidden).toBe(retryHidden);
     },
   );
 });

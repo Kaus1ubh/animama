@@ -21,6 +21,9 @@ test("complete accountless first-run setup on the isolated installation", async 
     await page
       .getByLabel("Display name", { exact: true })
       .fill("Browser Fixture");
+    // First run requires the 18+ confirmation (companion safety R6).
+    await expect(next).toBeDisabled();
+    await page.getByLabel("I am 18 or older", { exact: true }).check();
     await next.click();
   }
   await page.waitForURL((url) => url.pathname.startsWith("/a"));

@@ -15,6 +15,7 @@ import {
   type PackFile,
   type PackManifest,
 } from "../../src/main-process/feature-packs/catalog.js";
+import type { ReleaseDistribution } from "../../src/main-process/updates/policy.js";
 import {
   hashFile,
   realDirectory,
@@ -22,8 +23,32 @@ import {
 import { extractPack } from "../../src/main-process/feature-packs/extract.js";
 import { verifyExecutablePack } from "../../src/main-process/feature-packs/signature.js";
 
+/**
+ * A public HTTPS release folder (GitHub release download path or R2 version
+ * folder) whose last path segment is the release tag.
+ */
+function isReleaseFolder(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !url.port &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash &&
+      url.href === value &&
+      /\/[^/]+$/u.test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 type ReleaseInputs = {
+  /** Derived from the selected distribution at staging; never committed. */
   release_base_url: string;
+  distribution?: ReleaseDistribution | null;
   macos: { team_id: string | null; designated_requirement: string | null };
   packs: Record<
     FeaturePackId,
@@ -42,18 +67,27 @@ type ReleaseInputs = {
 };
 const titles: Record<FeaturePackId, string> = {
   "parakeet-stt": "Offline speech recognition",
+  "parakeet-stt-webgpu": "GPU speech encoder",
   "expanded-included-content": "Expanded Included content",
   "document-processing": "Document processing",
 };
-const parakeetFiles = new Set([
-  "ATTRIBUTION.md",
-  "README.md",
-  "encoder-model.int8.onnx",
-  "decoder_joint-model.int8.onnx",
-  "nemo128.onnx",
-  "vocab.txt",
-  "config.json",
-]);
+/** Model packs carry an exact payload; their input review note is never shipped. */
+const modelPackFiles: Partial<Record<FeaturePackId, Set<string>>> = {
+  "parakeet-stt": new Set([
+    "ATTRIBUTION.md",
+    "README.md",
+    "encoder-model.int8.onnx",
+    "decoder_joint-model.int8.onnx",
+    "nemo128.onnx",
+    "vocab.txt",
+    "config.json",
+  ]),
+  "parakeet-stt-webgpu": new Set([
+    "ATTRIBUTION.md",
+    "README.md",
+    "encoder-model.fp16.onnx",
+  ]),
+};
 
 /** Inspect immutable staged inputs, retaining mode and hash rather than file-name guesses. */
 export async function inventoryPack(
@@ -61,6 +95,7 @@ export async function inventoryPack(
   id: FeaturePackId,
 ): Promise<PackFile[]> {
   await realDirectory(root);
+  const allowed = modelPackFiles[id];
   const files: PackFile[] = [];
   const visit = async (relative: string): Promise<void> => {
     for (const name of (await readdir(path.join(root, relative))).sort()) {
@@ -78,9 +113,9 @@ export async function inventoryPack(
         continue;
       }
       // The input review note is not part of the model/configuration release.
-      if (id === "parakeet-stt" && key === "PACK-REVIEW.txt") continue;
-      if (id === "parakeet-stt" && !parakeetFiles.has(key))
-        throw new Error("Unexpected Parakeet payload");
+      if (allowed && key === "PACK-REVIEW.txt") continue;
+      if (allowed && !allowed.has(key))
+        throw new Error("Unexpected model pack payload");
       if (metadata.nlink !== 1) throw new Error("Hardlinked pack input");
       const media =
         path.extname(name) === ".json"
@@ -102,8 +137,8 @@ export async function inventoryPack(
     }
   };
   await visit("");
-  if (id === "parakeet-stt" && files.length !== parakeetFiles.size)
-    throw new Error("Missing Parakeet model/configuration input");
+  if (allowed && files.length !== allowed.size)
+    throw new Error("Missing model pack input");
   return files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 
@@ -117,6 +152,8 @@ export async function buildPackArchive(options: {
   >;
   writeTar(source: string, files: PackFile[], output: string): Promise<void>;
   development?: boolean;
+  /** The selected transport; the manifest URL must belong to it. */
+  distribution?: ReleaseDistribution | null;
 }): Promise<PackManifest> {
   const tar = `${options.output}.tar.partial`;
   const compressed = `${options.output}.partial`;
@@ -136,6 +173,7 @@ export async function buildPackArchive(options: {
         minimum_peak_free_bytes: 1,
       },
       options.development,
+      options.distribution ?? null,
     );
     manifest.minimum_peak_free_bytes = requiredFreeBytes(manifest);
     await extractPack(
@@ -171,9 +209,7 @@ export async function buildFeaturePacks(options: {
   const versionPattern = /^\d{1,5}\.\d{1,5}\.\d{1,5}$/u;
   if (
     !versionPattern.test(options.appVersion) ||
-    !/^https:\/\/github\.com\/[^/?#]+\/[^/?#]+\/releases\/download\/[^/?#]+$/u.test(
-      options.release.release_base_url,
-    )
+    !isReleaseFolder(options.release.release_base_url)
   )
     throw new Error("Invalid fixed pack release configuration");
   for (const id of featurePackIds) {
@@ -250,6 +286,7 @@ export async function buildFeaturePacks(options: {
       root,
       output: path.join(options.output, filename),
       writeTar: options.writeTar,
+      distribution: options.release.distribution ?? null,
       manifest: {
         schema: "animama-feature-pack/1",
         id,

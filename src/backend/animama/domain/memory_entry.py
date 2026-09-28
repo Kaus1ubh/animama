@@ -161,6 +161,23 @@ class MemoryEntryHeaderListing:
 
 
 @dataclass(slots=True)
+class AnimaIdentitySummary:
+    """One owned Anima with its protected file headers, for cross-Anima memory views.
+
+    ``identity`` or ``memories`` is ``None`` when that required file is missing
+    and needs explicit repair; the Anima is still listed so the owner can see it.
+    """
+
+    anima_id: str
+    display_name: str
+    aggregate_revision: int
+    identity_status: str
+    created_at: datetime | None
+    identity: MemoryEntryHeader | None
+    memories: MemoryEntryHeader | None = None
+
+
+@dataclass(slots=True)
 class MemoryEntrySearchResult:
     """Full-text search hit for a current memory file entry."""
 
@@ -170,6 +187,7 @@ class MemoryEntrySearchResult:
 
 
 __all__ = [
+    "AnimaIdentitySummary",
     "MEMORY_ENTRY_OPERATION_CREATE",
     "MEMORY_ENTRY_OPERATION_DELETE",
     "MEMORY_ENTRY_OPERATION_MOVE",

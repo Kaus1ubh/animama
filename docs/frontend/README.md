@@ -27,12 +27,15 @@ Feature guides:
 - `features/anima-memory.md` (filesystem workspace and Memory Manager)
 - `features/user-file-uploads.md`
 - `features/library.md`
-- `features/user-profiles.md` (private display-name setup and personalization)
+- `features/user-profiles.md` (private display-name setup, 18+ confirmation,
+  and personalization)
 - `features/emotional-voice-catalog.md`
 
 Runtime guides:
 
-- `runtime/chat.md`
+- `runtime/chat.md` (includes companion safety: AI notice, crisis card, Quick
+  Chat mirror, Settings → Safety, and the protocol dialog and `/safety` page;
+  see the [safety and crisis protocol](../safety/crisis-protocol.md))
 - `runtime/voice.md`
 - `runtime/elevenlabs-tts.md` (ElevenLabs realtime and v3 finalized TTS)
 - `runtime/sound.md`

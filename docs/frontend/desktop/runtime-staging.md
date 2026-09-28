@@ -20,16 +20,26 @@ root:
 
 ```sh
 python3 scripts/models/parakeet.py acquire
+python3 scripts/models/parakeet_webgpu.py acquire
 python3 scripts/models/browser_speech.py acquire
 ```
 
-Then run from `src/frontend`:
+The WebGPU encoder is about 1.24 GB. Then run from `src/frontend`:
 
 ```sh
 pnpm desktop:runtime:stage -- --platform darwin --arch arm64
 pnpm desktop:runtime:audit -- --platform darwin --arch arm64
 pnpm desktop:test -- runtime-packaging
 ```
+
+Staging installs its pinned Python interpreter under
+`/Users/Shared/animama-build/uv-python`, not in your home directory, because
+the frozen backend records the interpreter's install paths. The native
+PostgreSQL build likewise uses the neutral prefix `/opt/animama`. Neither
+location needs to exist on the user's Mac. Staging refuses to run if
+`/Users/Shared/animama-build` or its `uv-python` directory is owned by another
+account or writable by others; remove or fix that directory rather than
+bypassing the check.
 
 The strict target parser rejects cross-builds and unsupported combinations before
 deleting outputs or downloading dependencies. Windows native staging is unsupported. `desktop:dist:mac` and `desktop:smoke:mac` use the
@@ -75,7 +85,7 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 4. Builds Vite in `embedded-desktop` mode, without duplicate Included aliases.
    The stage filter and independent audit reject unapproved portrait copies
    listed in `desktop/scripts/runtime/desktop-web.mjs`.
-   The browser-runtime manifest verifies all 19 PocketTTS, VAD, Smart Turn and
+   The browser-runtime manifest verifies all 35 PocketTTS, VAD, Smart Turn and
    ORT assets from the shared model store and exact dependency versions. Vite
    copies every reviewed variant into the runtime; the independent audit checks
    the built inventory and hashes without relying on a developer cache. These
@@ -90,7 +100,10 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
 5. Bundles Electron main/preload with esbuild and copies only the native input
    hook's runtime closure. No other JavaScript package may resolve from a
    developer's `node_modules` at runtime.
-6. Produces normalized file inventories, license notices, pack inputs, app-matched
+6. Bootstraps a disposable database in a temporary directory with the staged
+   PostgreSQL and frozen backend, then records its normalized schema digest as
+   the manifest's `database_schema_sha256`. The directory is removed afterwards.
+7. Produces normalized file inventories, license notices, pack inputs, app-matched
    catalog entries for approved inputs, a non-secret `update-policy.json`, and exact
    byte reports. The compressed feasibility archive is **not** a signed DMG or
    update ZIP. Their overhead is measured by the signed-release producer.
@@ -115,7 +128,7 @@ mappings and the pending artifact review.
 
 ## Verified browser engine inputs
 
-`models/browser-speech/manifest.json` pins the eight shared Pocket TTS/Smart Turn
+`models/browser-speech/manifest.json` pins the 24 shared Pocket TTS/Smart Turn
 files. `models/browser-runtime/manifest.json` binds those plus nine ORT 1.24.2
 files from `onnxruntime-web-assets` and two VAD 0.0.30 files from its pinned
 package. Package installation supplies dependency files; staging only verifies
@@ -135,12 +148,15 @@ runtime staging.
 
 ## Verified Parakeet producer inputs
 
-Before producing the Parakeet pack, run `python3 scripts/models/parakeet.py acquire`
-from the repository root, or import a previous source copy using the
+Before producing the Parakeet packs, run `python3 scripts/models/parakeet.py acquire`
+and `python3 scripts/models/parakeet_webgpu.py acquire` from the repository root,
+or import previous source copies using the
 [model-store workflow](../../backend/operations/model-assets.md). Set the absolute
 `ANIMAMA_MODEL_ROOT` only when selecting a different store. Staging consumes the
-tracked manifest and verifies each local file; it does not query Hugging Face or
-infer weights from Git's tracked-file list. The pack requires its seven pinned files, exact payload hashes and attribution.
+tracked manifests and verifies each local file; it does not query Hugging Face or
+infer weights from Git's tracked-file list. `parakeet-stt` requires its seven
+pinned files and `parakeet-stt-webgpu` its FP16 encoder, each with exact payload
+hashes and attribution. An active pack whose inputs are missing fails staging.
 Inventory review, signing, hosting and native acceptance remain separate gates.
 
 This developer/producer cache is not an installed app model directory. Installed
@@ -163,8 +179,8 @@ versions, license references, explicit `active`/`deferred` release status, and
 approved inventory digest for each supported ID. Expanded Included content and
 document processing are `deferred` for the first release: their development
 inputs remain but they produce no archive/catalog entry or release size gate and
-require no initial-release approval. Parakeet is the only active pack and remains
-bound to its owner-approved exact digest. A null or changed digest produces a
+require no initial-release approval. The two Parakeet packs are active; each ships
+only when bound to its owner-approved exact digest. A null or changed digest produces a
 review report, not an installable catalog entry. Do not fill in approval hashes
 without reviewing redistribution
 rights and required notices. No files are uploaded by this command.

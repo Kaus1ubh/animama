@@ -24,8 +24,12 @@ class Embedder:
 
         from openai import AsyncOpenAI
 
+        from animama.adapters.model_clients.openai_responses.support import DEFAULT_BASE_URL
+
         api_key = os.getenv("OPENAI_API_KEY")
-        self._client = AsyncOpenAI(api_key=api_key)
+        # An empty OPENAI_BASE_URL (the Compose default) must not reach the SDK as ''.
+        base_url = (os.getenv("OPENAI_BASE_URL") or "").strip().rstrip("/") or DEFAULT_BASE_URL
+        self._client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self._model = model
 
     async def embed_texts(self, texts: Iterable[str]) -> list[list[float]]:

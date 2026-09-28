@@ -9,6 +9,7 @@ import {
 import { extractPack } from "../../src/main-process/feature-packs/extract.js";
 import { hashFile } from "../../src/main-process/feature-packs/files.js";
 import { verifyExecutablePack } from "../../src/main-process/feature-packs/signature.js";
+import type { ReleaseDistribution } from "../../src/main-process/updates/policy.js";
 
 type Options = {
   root: string;
@@ -16,6 +17,7 @@ type Options = {
   appVersion: string;
   release: {
     release_base_url: string;
+    distribution?: ReleaseDistribution | null;
     macos: { team_id: string; designated_requirement: string };
     packs: {
       "document-processing": {
@@ -37,6 +39,7 @@ export async function exportWorkerInput(options: Options): Promise<void> {
     root: options.root,
     output: path.join(options.exchange, "document-worker-input.tar.zst"),
     writeTar: options.writeTar,
+    distribution: options.release.distribution ?? null,
     manifest: {
       schema: "animama-feature-pack/1",
       id: "document-processing",
@@ -84,6 +87,8 @@ export async function importWorkerInput(options: Options): Promise<void> {
     await readBoundedJson(
       path.join(options.exchange, "document-worker-input.json"),
     ),
+    false,
+    options.release.distribution ?? null,
   );
   const release = options.release.packs["document-processing"];
   if (

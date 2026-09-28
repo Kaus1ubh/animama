@@ -496,6 +496,33 @@ function normalizeHoverEntry(
       ...base,
       kind: "hover",
       hoverKind,
+      ...(raw.forceBlink !== undefined
+        ? {
+            forceBlink: readOptionalBoolean(
+              raw.forceBlink,
+              "forceBlink",
+              context,
+            ),
+          }
+        : {}),
+      ...(raw.autoDisableEyeMaterials !== undefined
+        ? {
+            autoDisableEyeMaterials: readOptionalBoolean(
+              raw.autoDisableEyeMaterials,
+              "autoDisableEyeMaterials",
+              context,
+            ),
+          }
+        : {}),
+      ...(raw.faceCleanup !== undefined
+        ? {
+            faceCleanup: readOptionalBoolean(
+              raw.faceCleanup,
+              "faceCleanup",
+              context,
+            ),
+          }
+        : {}),
       ...(readOptionalEnumArray<AvatarVFXTargetRole>(
         raw.disableTargetRoles,
         "disableTargetRoles",
@@ -552,6 +579,15 @@ function normalizeHoverEntry(
       ...base,
       kind: "hover",
       hoverKind,
+      ...(raw.faceCleanup !== undefined
+        ? {
+            faceCleanup: readOptionalBoolean(
+              raw.faceCleanup,
+              "faceCleanup",
+              context,
+            ),
+          }
+        : {}),
       ...(raw.skinBackdrop !== undefined
         ? {
             skinBackdrop: readOptionalBoolean(
@@ -597,6 +633,15 @@ function normalizeFaceAnchoredEntry(
       ...base,
       kind: "face_anchored",
       anchor,
+      ...(raw.faceCleanup !== undefined
+        ? {
+            faceCleanup: readOptionalBoolean(
+              raw.faceCleanup,
+              "faceCleanup",
+              context,
+            ),
+          }
+        : {}),
       ...(readOptionalEnumValue<AvatarVFXTexturePivot>(
         raw.pivot,
         "pivot",

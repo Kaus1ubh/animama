@@ -132,6 +132,18 @@ CREATE TABLE anima_loadouts (
 
 -- animama-statement --
 
+CREATE TABLE anima_memory_reflections (
+    anima_id character varying NOT NULL,
+    user_id character varying NOT NULL,
+    covered_through_created_at timestamp without time zone NOT NULL,
+    covered_through_message_id integer NOT NULL,
+    run_id character varying NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_anima_memory_reflections_message_id_positive CHECK ((covered_through_message_id >= 1))
+);
+
+-- animama-statement --
+
 CREATE TABLE anima_runtime_snapshots (
     id character varying NOT NULL,
     owner_user_id character varying NOT NULL,
@@ -361,6 +373,23 @@ CREATE TABLE chats (
     last_updated_by_id character varying,
     CONSTRAINT ck_chats_api_standard_valid CHECK (((api_standard IS NULL) OR ((api_standard)::text = ANY ((ARRAY['chat_completions'::character varying, 'responses'::character varying])::text[])))),
     CONSTRAINT ck_chats_last_model_client_valid CHECK (((last_model_client IS NULL) OR ((last_model_client)::text = ANY ((ARRAY['openai_chat_completions'::character varying, 'openai_responses'::character varying])::text[]))))
+);
+
+-- animama-statement --
+
+CREATE TABLE companion_safety_state (
+    user_id character varying NOT NULL,
+    age_status character varying DEFAULT 'unknown'::character varying NOT NULL,
+    age_status_source character varying,
+    age_status_recorded_at timestamp with time zone,
+    last_notice_at timestamp with time zone,
+    last_notice_local_date date,
+    interaction_started_at timestamp with time zone,
+    last_turn_started_at timestamp with time zone,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT ck_companion_safety_state_age_status CHECK (((age_status)::text = ANY ((ARRAY['unknown'::character varying, 'adult'::character varying, 'minor'::character varying])::text[]))),
+    CONSTRAINT ck_companion_safety_state_age_status_source CHECK (((age_status_source IS NULL) OR ((age_status_source)::text = 'self_attestation'::text)))
 );
 
 -- animama-statement --
@@ -644,7 +673,7 @@ CREATE TABLE memory_manager_runs (
     completed_at timestamp without time zone,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    CONSTRAINT ck_memory_manager_runs_memory_manager_runs_kind_valid CHECK (((kind)::text = ANY ((ARRAY['general'::character varying, 'episode_processing'::character varying])::text[]))),
+    CONSTRAINT ck_memory_manager_runs_memory_manager_runs_kind_valid CHECK (((kind)::text = ANY ((ARRAY['general'::character varying, 'episode_processing'::character varying, 'reflection'::character varying])::text[]))),
     CONSTRAINT ck_memory_manager_runs_memory_manager_runs_status_valid CHECK (((status)::text = ANY ((ARRAY['active'::character varying, 'waiting_approval'::character varying, 'completed'::character varying, 'failed'::character varying])::text[])))
 );
 
@@ -896,6 +925,11 @@ ALTER TABLE ONLY anima_loadouts
 
 -- animama-statement --
 
+ALTER TABLE ONLY anima_memory_reflections
+    ADD CONSTRAINT pk_anima_memory_reflections PRIMARY KEY (anima_id);
+
+-- animama-statement --
+
 ALTER TABLE ONLY anima_runtime_snapshots
     ADD CONSTRAINT pk_anima_runtime_snapshots PRIMARY KEY (id);
 
@@ -943,6 +977,11 @@ ALTER TABLE ONLY chat_messages
 
 ALTER TABLE ONLY chats
     ADD CONSTRAINT pk_chats PRIMARY KEY (id);
+
+-- animama-statement --
+
+ALTER TABLE ONLY companion_safety_state
+    ADD CONSTRAINT pk_companion_safety_state PRIMARY KEY (user_id);
 
 -- animama-statement --
 
@@ -1504,6 +1543,11 @@ ALTER TABLE ONLY anima_loadout_mutation_receipts
 
 ALTER TABLE ONLY anima_loadouts
     ADD CONSTRAINT fk_anima_loadouts_anima_id_anima FOREIGN KEY (anima_id) REFERENCES anima(id) ON DELETE CASCADE;
+
+-- animama-statement --
+
+ALTER TABLE ONLY anima_memory_reflections
+    ADD CONSTRAINT fk_anima_memory_reflections_anima_id_anima FOREIGN KEY (anima_id) REFERENCES anima(id) ON DELETE CASCADE;
 
 -- animama-statement --
 

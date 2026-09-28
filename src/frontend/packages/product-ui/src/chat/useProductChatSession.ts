@@ -23,6 +23,11 @@ import {
   findRestorableChatModel,
 } from "../lib/chat/model-provider-compatibility";
 import { buildChatSseRequestBody } from "../lib/chat/chat-sse-request";
+import {
+  currentChatClientContext,
+  type ChatAiNotice,
+  type ChatCrisisSupport,
+} from "../lib/chat/companion-safety";
 import { isRuntimeRemountRequired } from "../lib/runtime-errors";
 import { runtimeRemountRecovery } from "../lib/chat/runtimeRemountRecovery";
 import {
@@ -30,6 +35,7 @@ import {
   mapServerMessagesForDisplay,
   type ChatDisplayMessage,
 } from "../lib/chat/display-message-mapping";
+import type { ChatMemoryCue } from "../lib/chat/memory-cue";
 import {
   appendStructuredSpeechVisemeInputs,
   createStructuredResponseStreamState,
@@ -108,6 +114,13 @@ export type UseProductChatSessionArgs = {
   getAttachedFileIds?: () => string[];
   openDraftChatRoute: () => void | Promise<void>;
   replaceChatRoute: (chatId: string) => void | Promise<void>;
+  safety?: ChatSafetyEffects;
+};
+
+/** Receives the app-rendered AI notice and crisis card for each turn (spec R2, R4). */
+export type ChatSafetyEffects = {
+  onAiNotice?: (notice: ChatAiNotice) => void;
+  onCrisisSupport?: (card: ChatCrisisSupport) => void;
 };
 
 export type PendingModelSwitch = {
@@ -196,7 +209,12 @@ export function useProductChatSession({
   openDraftChatRoute,
   routeChatId = null,
   replaceChatRoute,
+  safety,
 }: UseProductChatSessionArgs): UseProductChatSessionResult {
+  // Safety handlers change identity per render; read the latest through a ref so
+  // the submit callback need not be rebuilt.
+  const safetyRef = useRef(safety);
+  safetyRef.current = safety;
   // ---------------------------------------------------------------------------
   // Route + shared runtime dependencies.
   // ---------------------------------------------------------------------------
@@ -226,6 +244,11 @@ export function useProductChatSession({
     useState<PendingModelSwitch | null>(null);
   const [streamingSegments, setStreamingSegments] = useState<string[]>([]);
   const [streamingDisplayText, setStreamingDisplayText] = useState("");
+  // The active run's `memory.updated` cue. The ref keeps it readable when
+  // completion arrives in the same network chunk, before React re-renders.
+  const [streamingMemoryCue, setStreamingMemoryCue] =
+    useState<ChatMemoryCue | null>(null);
+  const streamingMemoryCueRef = useRef<ChatMemoryCue | null>(null);
   const [
     isAwaitingStreamingAnimationFinalization,
     setIsAwaitingStreamingAnimationFinalization,
@@ -336,9 +359,11 @@ export function useProductChatSession({
     setStreamingRunId(null);
     setStreamingSegments([]);
     setStreamingDisplayText("");
+    setStreamingMemoryCue(null);
     setIsAwaitingStreamingAnimationFinalization(false);
     streamingSegmentsRef.current = [];
     streamingDisplayTextRef.current = "";
+    streamingMemoryCueRef.current = null;
     structuredResponseStateRef.current = createStructuredResponseStreamState();
     pendingStreamFinalizationRef.current = null;
   }, []);
@@ -610,18 +635,20 @@ export function useProductChatSession({
         (Date.parse(b.createdAt ?? "") || 0),
     );
     if (streamingRunId) {
-      combined.push({
-        id: chatRunMessageId(streamingRunId, "assistant"),
-        role: "assistant",
-        text: streamingText,
-        isPending: !streamingText,
-        animateOnEnter: true,
-        animateTextEffect: Boolean(streamingText),
-        streamingSegments,
-      });
+      const streamed: ChatMessage[] = [
+        {
+          id: chatRunMessageId(streamingRunId, "assistant"),
+          role: "assistant",
+          text: streamingText,
+          isPending: !streamingText,
+          animateOnEnter: true,
+          animateTextEffect: Boolean(streamingText),
+          streamingSegments,
+        },
+      ];
       const displayText = streamingDisplayText.trim();
       if (displayText && displayText !== streamingText.trim()) {
-        combined.push({
+        streamed.push({
           id: chatRunMessageId(streamingRunId, "assistant", 1),
           role: "assistant",
           text: displayText,
@@ -629,6 +656,15 @@ export function useProductChatSession({
           animateTextEffect: true,
         });
       }
+      // Like a persisted reply, the cue sits on the run's last bubble.
+      const last = streamed[streamed.length - 1];
+      if (streamingMemoryCue && !last.isPending) {
+        streamed[streamed.length - 1] = {
+          ...last,
+          memoryCue: streamingMemoryCue,
+        };
+      }
+      combined.push(...streamed);
     }
     return combined;
   }, [
@@ -636,6 +672,7 @@ export function useProductChatSession({
     localMessages,
     streamingRunId,
     streamingDisplayText,
+    streamingMemoryCue,
     streamingSegments,
     streamingText,
   ]);
@@ -886,8 +923,10 @@ export function useProductChatSession({
         setStreamingRunId(runId);
         setStreamingSegments([]);
         setStreamingDisplayText("");
+        setStreamingMemoryCue(null);
         streamingSegmentsRef.current = [];
         streamingDisplayTextRef.current = "";
+        streamingMemoryCueRef.current = null;
         structuredResponseStateRef.current =
           createStructuredResponseStreamState();
         if (ttsEnabled) {
@@ -1068,7 +1107,10 @@ export function useProductChatSession({
             requestableNativeTools: activeModelProvider
               ? (activeModelProvider.requestable_native_tool_support ?? [])
               : undefined,
+            clientContext: currentChatClientContext(),
           }),
+          onAiNotice: (notice) => safetyRef.current?.onAiNotice?.(notice),
+          onCrisisSupport: (card) => safetyRef.current?.onCrisisSupport?.(card),
           onToken: (token, data) => {
             logger.info("Chat", "SSE received token", { token });
             // is_delta controls how this event's text mutates the current part:
@@ -1233,6 +1275,22 @@ export function useProductChatSession({
               queryKey: queryKeys.animaLoadouts.runtime(userKey, animaId),
             });
           },
+          onMemoryUpdated: (memoryCue) => {
+            streamingMemoryCueRef.current = memoryCue;
+            setStreamingMemoryCue(memoryCue);
+            // The turn wrote memory the Memory workspace may hold cached, and
+            // the cue links there, so mark the written family stale.
+            if (memoryCue.memories) {
+              void queryClient.invalidateQueries({
+                queryKey: queryKeys.memoryEntries.all(userKey),
+              });
+            }
+            if (memoryCue.episode) {
+              void queryClient.invalidateQueries({
+                queryKey: queryKeys.memoryEpisodes.all(userKey),
+              });
+            }
+          },
           onChatTitleUpdated: (data) => {
             const title = data.title?.trim() ?? "";
             const eventChatId = data.chat_id ?? resolvedChatId;
@@ -1318,13 +1376,19 @@ export function useProductChatSession({
               },
             ];
             if (assistantTexts.length) {
+              // These rows stand in for server history without a refetch (new
+              // chats never refetch), so they carry the streamed cue on the
+              // last reply row, as the history API would.
+              const memoryCue = streamingMemoryCueRef.current;
               assistantTexts.forEach((assistantText, index) => {
+                const isLast = index === assistantTexts.length - 1;
                 nextMessages.push({
                   chat_id: resolvedChatId,
                   run_id: runId,
                   role: "assistant",
                   content: assistantText,
                   created_at: new Date(now + index + 1).toISOString(),
+                  ...(isLast && memoryCue ? { memory_cue: memoryCue } : {}),
                 });
               });
             } else {

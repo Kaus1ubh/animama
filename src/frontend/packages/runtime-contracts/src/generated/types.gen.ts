@@ -845,6 +845,30 @@ export type BodySaveVoiceContent = {
 };
 
 /**
+ * CompanionSafetyCapability
+ *
+ * Operator safety configuration; owner preferences are in user settings.
+ */
+export type CompanionSafetyCapability = {
+    /**
+     * Ai Notice Enabled
+     */
+    ai_notice_enabled: boolean;
+    /**
+     * Crisis Detection Enabled
+     */
+    crisis_detection_enabled: boolean;
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Operator Reminder Hours
+     */
+    operator_reminder_hours: number;
+};
+
+/**
  * ContentKind
  *
  * Readable-library content kinds and their runtime ownership boundaries.
@@ -906,6 +930,74 @@ export type CreateMissingStarterRepair = {
      * Starter Id
      */
     starter_id: 'starter:annie' | 'starter:caitlyn';
+};
+
+/**
+ * CrisisContact
+ */
+export type CrisisContact = {
+    /**
+     * Kind
+     */
+    kind: 'phone' | 'sms' | 'chat';
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Value
+     */
+    value: string;
+};
+
+/**
+ * CrisisResourceRegion
+ *
+ * Resources for one region; ``source_url`` and ``verified_on`` record the review.
+ */
+export type CrisisResourceRegion = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Emergency Number
+     */
+    emergency_number?: string | null;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Services
+     */
+    services: Array<CrisisService>;
+    /**
+     * Source Url
+     */
+    source_url: string | null;
+    /**
+     * Verified On
+     */
+    verified_on: string;
+};
+
+/**
+ * CrisisService
+ */
+export type CrisisService = {
+    /**
+     * Contacts
+     */
+    contacts: Array<CrisisContact>;
+    /**
+     * Description
+     */
+    description?: string | null;
+    /**
+     * Name
+     */
+    name: string;
 };
 
 /**
@@ -1811,6 +1903,7 @@ export type PyAnimaChatRequest = {
      * Chat Id
      */
     chat_id?: string | null;
+    client_context?: PyChatClientContext | null;
     dispatch_options?: PyAnimaDispatchOptions | null;
     /**
      * Message
@@ -1867,6 +1960,52 @@ export type PyAnimaDispatchOptions = {
      */
     reasoning_effort?: string | null;
     tts?: PyAnimaTtsRunOptions | null;
+};
+
+/**
+ * PyAnimaIdentityItem
+ *
+ * One owned Anima and its content-free protected file headers, in creation order.
+ */
+export type PyAnimaIdentityItem = {
+    /**
+     * Aggregate Revision
+     */
+    aggregate_revision: number;
+    /**
+     * Anima Id
+     */
+    anima_id: string;
+    /**
+     * Created At
+     */
+    created_at?: string | null;
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Live IDENTITY.md header, or null when the identity needs explicit repair.
+     */
+    entry?: PyMemoryEntryHeader | null;
+    /**
+     * Identity Status
+     */
+    identity_status: 'ready' | 'repair_required';
+    /**
+     * Live MEMORIES.md header, or null when it is missing and needs repair.
+     */
+    memories_entry?: PyMemoryEntryHeader | null;
+};
+
+/**
+ * PyAnimaIdentityListResponse
+ */
+export type PyAnimaIdentityListResponse = {
+    /**
+     * Identities
+     */
+    identities?: Array<PyAnimaIdentityItem>;
 };
 
 /**
@@ -3246,6 +3385,26 @@ export type PyCatalogPreviewSource = {
 };
 
 /**
+ * PyChatClientContext
+ *
+ * Client-reported context used only for safety presentation (spec R2, R5).
+ */
+export type PyChatClientContext = {
+    /**
+     * Locale
+     *
+     * BCP 47 locale, e.g. en-US.
+     */
+    locale?: string | null;
+    /**
+     * Time Zone
+     *
+     * IANA time zone, e.g. America/Toronto.
+     */
+    time_zone?: string | null;
+};
+
+/**
  * PyChatCreate
  */
 export type PyChatCreate = {
@@ -3295,6 +3454,7 @@ export type PyChatMessage = {
      * Internal
      */
     internal?: boolean;
+    memory_cue?: PyMemoryCue | null;
     /**
      * Message Type
      */
@@ -3881,6 +4041,35 @@ export type PyContentSelection = {
      * Type
      */
     type?: 'catalog';
+};
+
+/**
+ * PyCrisisResourceRegionOption
+ */
+export type PyCrisisResourceRegionOption = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Label
+     */
+    label: string;
+};
+
+/**
+ * PyCrisisResources
+ */
+export type PyCrisisResources = {
+    /**
+     * Preferred Region
+     */
+    preferred_region: string | null;
+    /**
+     * Regions
+     */
+    regions: Array<PyCrisisResourceRegionOption>;
+    resolved: CrisisResourceRegion;
 };
 
 /**
@@ -4645,6 +4834,48 @@ export type PyLoadoutPlan = {
 };
 
 /**
+ * PyMemoryCue
+ *
+ * What a turn remembered, shown as a memory cue on its final visible assistant message.
+ */
+export type PyMemoryCue = {
+    episode: PyMemoryCueEpisode | null;
+    memories: PyMemoryCueMemories | null;
+};
+
+/**
+ * PyMemoryCueEpisode
+ *
+ * The `remember` note this turn recorded in the shared episode log.
+ */
+export type PyMemoryCueEpisode = {
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
+ * PyMemoryCueMemories
+ *
+ * This turn's change to the Anima's `MEMORIES.md`: its last version and added text (up to 600 characters).
+ */
+export type PyMemoryCueMemories = {
+    /**
+     * Entry Id
+     */
+    entry_id: string;
+    /**
+     * Excerpt
+     */
+    excerpt: string;
+    /**
+     * Version
+     */
+    version: number;
+};
+
+/**
  * PyMemoryEntryCreateRequest
  */
 export type PyMemoryEntryCreateRequest = {
@@ -5351,6 +5582,48 @@ export type PyMemoryManagerMessageCreateRequest = {
 };
 
 /**
+ * PyMemoryManagerReflectionRunCreateRequest
+ */
+export type PyMemoryManagerReflectionRunCreateRequest = {
+    /**
+     * Anima Id
+     */
+    anima_id: string;
+    /**
+     * Auto Approve Diffs
+     */
+    auto_approve_diffs?: boolean;
+};
+
+/**
+ * PyMemoryManagerReflectionSummary
+ *
+ * What one Reflection run covers; its turns become covered only when its MEMORIES.md change is applied.
+ */
+export type PyMemoryManagerReflectionSummary = {
+    /**
+     * Anima Id
+     */
+    anima_id: string;
+    /**
+     * Anima Name
+     */
+    anima_name: string;
+    /**
+     * Remaining Turn Count
+     */
+    remaining_turn_count: number;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Turn Count
+     */
+    turn_count: number;
+};
+
+/**
  * PyMemoryManagerRun
  */
 export type PyMemoryManagerRun = {
@@ -5373,7 +5646,7 @@ export type PyMemoryManagerRun = {
     /**
      * Kind
      */
-    kind?: 'general' | 'episode_processing';
+    kind?: 'general' | 'episode_processing' | 'reflection';
     /**
      * Metadata
      */
@@ -5388,6 +5661,7 @@ export type PyMemoryManagerRun = {
      * Model Provider
      */
     model_provider?: string | null;
+    reflection?: PyMemoryManagerReflectionSummary | null;
     /**
      * Status
      */
@@ -5517,6 +5791,66 @@ export type PyMemoryPatchPreview = {
 };
 
 /**
+ * PyModelAssetList
+ */
+export type PyModelAssetList = {
+    /**
+     * Assets
+     */
+    assets: Array<PyModelAssetState>;
+    /**
+     * Free Bytes
+     */
+    free_bytes: number | null;
+};
+
+/**
+ * PyModelAssetState
+ */
+export type PyModelAssetState = {
+    /**
+     * Bytes Downloaded
+     */
+    bytes_downloaded?: number | null;
+    /**
+     * Content Url
+     */
+    content_url?: string | null;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * License Ref
+     */
+    license_ref: string;
+    /**
+     * Media Type
+     */
+    media_type: string;
+    /**
+     * Reason
+     */
+    reason?: 'asset_download_failed' | 'asset_host_not_allowed' | 'asset_size_invalid' | 'asset_hash_invalid' | 'asset_store_failed' | 'asset_insufficient_space' | null;
+    /**
+     * Required Free Bytes
+     */
+    required_free_bytes: number;
+    /**
+     * Size Bytes
+     */
+    size_bytes: number;
+    /**
+     * Status
+     */
+    status: 'not_installed' | 'downloading' | 'installed' | 'failed';
+    /**
+     * Total Bytes
+     */
+    total_bytes?: number | null;
+};
+
+/**
  * PyModelProviderCatalogItem
  */
 export type PyModelProviderCatalogItem = {
@@ -5594,6 +5928,12 @@ export type PyModelProviderCatalogItem = {
  * PyOnboardingCompleteRequest
  */
 export type PyOnboardingCompleteRequest = {
+    /**
+     * Adult Confirmed
+     *
+     * The owner confirms they are 18 or older; first run requires true.
+     */
+    adult_confirmed: boolean;
     /**
      * Display Name
      */
@@ -7736,6 +8076,7 @@ export type ReviewedPackageImport = {
  * RuntimeCapabilities
  */
 export type RuntimeCapabilities = {
+    companion_safety: CompanionSafetyCapability;
     /**
      * Offline Speech Asset Version
      */
@@ -11091,6 +11432,52 @@ export type PreviewIdleStyleResponses = {
 
 export type PreviewIdleStyleResponse = PreviewIdleStyleResponses[keyof PreviewIdleStyleResponses];
 
+export type ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/memory/anima-identities';
+};
+
+export type ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyAnimaIdentityListResponse;
+};
+
+export type ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponse = ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses[keyof ListAnimaIdentitiesV1MemoryAnimaIdentitiesGetResponses];
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostData = {
+    body?: never;
+    path: {
+        /**
+         * Anima Id
+         */
+        anima_id: string;
+    };
+    query?: never;
+    url: '/v1/memory/anima-memories/{anima_id}:repair';
+};
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostError = RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostErrors[keyof RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostErrors];
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyMemoryEntryHeader;
+};
+
+export type RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponse = RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses[keyof RepairAnimaMemoriesV1MemoryAnimaMemoriesAnimaIdRepairPostResponses];
+
 export type DebugSearchMemoryFilesV1MemoryDebugSearchMemoryFilesPostData = {
     body: PySearchMemoryFilesDebugRequest;
     path?: never;
@@ -11671,6 +12058,179 @@ export type CreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpi
 
 export type CreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPostResponse = CreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPostResponses[keyof CreateEpisodeProcessingMemoryManagerRunV1MemoryManagerRunsProcessEpisodesPostResponses];
 
+export type CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostData = {
+    body: PyMemoryManagerReflectionRunCreateRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/memory/manager/runs:reflect';
+};
+
+export type CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostError = CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostErrors[keyof CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostErrors];
+
+export type CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: PyMemoryManagerRunResponse;
+};
+
+export type CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostResponse = CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostResponses[keyof CreateReflectionMemoryManagerRunV1MemoryManagerRunsReflectPostResponses];
+
+export type ListModelAssetsV1ModelAssetsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/model-assets';
+};
+
+export type ListModelAssetsV1ModelAssetsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelAssetList;
+};
+
+export type ListModelAssetsV1ModelAssetsGetResponse = ListModelAssetsV1ModelAssetsGetResponses[keyof ListModelAssetsV1ModelAssetsGetResponses];
+
+export type RemoveModelAssetV1ModelAssetsAssetIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Asset Id
+         */
+        asset_id: string;
+    };
+    query?: never;
+    url: '/v1/model-assets/{asset_id}';
+};
+
+export type RemoveModelAssetV1ModelAssetsAssetIdDeleteErrors = {
+    /**
+     * A consumer refused removal (code and details) or the asset is busy.
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveModelAssetV1ModelAssetsAssetIdDeleteError = RemoveModelAssetV1ModelAssetsAssetIdDeleteErrors[keyof RemoveModelAssetV1ModelAssetsAssetIdDeleteErrors];
+
+export type RemoveModelAssetV1ModelAssetsAssetIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelAssetState;
+};
+
+export type RemoveModelAssetV1ModelAssetsAssetIdDeleteResponse = RemoveModelAssetV1ModelAssetsAssetIdDeleteResponses[keyof RemoveModelAssetV1ModelAssetsAssetIdDeleteResponses];
+
+export type GetModelAssetV1ModelAssetsAssetIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Asset Id
+         */
+        asset_id: string;
+    };
+    query?: never;
+    url: '/v1/model-assets/{asset_id}';
+};
+
+export type GetModelAssetV1ModelAssetsAssetIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetModelAssetV1ModelAssetsAssetIdGetError = GetModelAssetV1ModelAssetsAssetIdGetErrors[keyof GetModelAssetV1ModelAssetsAssetIdGetErrors];
+
+export type GetModelAssetV1ModelAssetsAssetIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyModelAssetState;
+};
+
+export type GetModelAssetV1ModelAssetsAssetIdGetResponse = GetModelAssetV1ModelAssetsAssetIdGetResponses[keyof GetModelAssetV1ModelAssetsAssetIdGetResponses];
+
+export type GetModelAssetContentV1ModelAssetsAssetIdContentGetData = {
+    body?: never;
+    path: {
+        /**
+         * Asset Id
+         */
+        asset_id: string;
+    };
+    query?: never;
+    url: '/v1/model-assets/{asset_id}/content';
+};
+
+export type GetModelAssetContentV1ModelAssetsAssetIdContentGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetModelAssetContentV1ModelAssetsAssetIdContentGetError = GetModelAssetContentV1ModelAssetsAssetIdContentGetErrors[keyof GetModelAssetContentV1ModelAssetsAssetIdContentGetErrors];
+
+export type GetModelAssetContentV1ModelAssetsAssetIdContentGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: Blob | File;
+    /**
+     * Partial content
+     */
+    206: unknown;
+};
+
+export type GetModelAssetContentV1ModelAssetsAssetIdContentGetResponse = GetModelAssetContentV1ModelAssetsAssetIdContentGetResponses[keyof GetModelAssetContentV1ModelAssetsAssetIdContentGetResponses];
+
+export type InstallModelAssetV1ModelAssetsAssetIdInstallPostData = {
+    body?: never;
+    path: {
+        /**
+         * Asset Id
+         */
+        asset_id: string;
+    };
+    query?: never;
+    url: '/v1/model-assets/{asset_id}:install';
+};
+
+export type InstallModelAssetV1ModelAssetsAssetIdInstallPostErrors = {
+    /**
+     * The asset is being removed; detail code model_asset_busy.
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InstallModelAssetV1ModelAssetsAssetIdInstallPostError = InstallModelAssetV1ModelAssetsAssetIdInstallPostErrors[keyof InstallModelAssetV1ModelAssetsAssetIdInstallPostErrors];
+
+export type InstallModelAssetV1ModelAssetsAssetIdInstallPostResponses = {
+    /**
+     * Successful Response
+     */
+    202: PyModelAssetState;
+};
+
+export type InstallModelAssetV1ModelAssetsAssetIdInstallPostResponse = InstallModelAssetV1ModelAssetsAssetIdInstallPostResponses[keyof InstallModelAssetV1ModelAssetsAssetIdInstallPostResponses];
+
 export type ListModelProvidersV1ModelProvidersGetData = {
     body?: never;
     path?: never;
@@ -12079,6 +12639,36 @@ export type CompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostResponses = 
 };
 
 export type CompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostResponse = CompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostResponses[keyof CompleteRuntimeOnboardingV1RuntimeOnboardingCompletePostResponses];
+
+export type GetCrisisResourcesV1SafetyCrisisResourcesGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Locale
+         */
+        locale?: string | null;
+    };
+    url: '/v1/safety/crisis-resources';
+};
+
+export type GetCrisisResourcesV1SafetyCrisisResourcesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCrisisResourcesV1SafetyCrisisResourcesGetError = GetCrisisResourcesV1SafetyCrisisResourcesGetErrors[keyof GetCrisisResourcesV1SafetyCrisisResourcesGetErrors];
+
+export type GetCrisisResourcesV1SafetyCrisisResourcesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: PyCrisisResources;
+};
+
+export type GetCrisisResourcesV1SafetyCrisisResourcesGetResponse = GetCrisisResourcesV1SafetyCrisisResourcesGetResponses[keyof GetCrisisResourcesV1SafetyCrisisResourcesGetResponses];
 
 export type ListSceneEffectsData = {
     body?: never;

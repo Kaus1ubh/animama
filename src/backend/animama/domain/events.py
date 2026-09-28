@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 
 from .emotions import EmotionValue
 
@@ -21,6 +21,8 @@ class EventType(str, Enum):
     ERROR = "error"
     DROP = "drop"
     CONTROL_SHUTDOWN = "control.shutdown"
+    CRISIS_SUPPORT = "safety.crisis_support"
+    MEMORY_UPDATED = "memory.updated"
 
 
 @dataclass(slots=True)
@@ -34,6 +36,31 @@ class EmotionUpdatePayload:
     emotional_intensity: int | None = None
     promoted_emotion: str | None = None
     demoted_emotion: str | None = None
+
+
+@dataclass(slots=True)
+class CrisisSupportPayload:
+    """A crisis signal for one run; the route adds localized resources (spec R4).
+
+    Carries no message text. ``source`` is ``"local"`` or ``"moderation"``.
+    """
+
+    run_id: str
+    source: Literal["moderation"]
+
+
+@dataclass(slots=True)
+class MemoryUpdatedPayload:
+    """What one persisted turn remembered, for the chat's memory cue.
+
+    ``memory_cue`` is ``{"episode": {"text"} | None, "memories": {"entry_id",
+    "version", "excerpt"} | None}`` with at least one part present;
+    ``message_id`` is the turn's final visible assistant message.
+    """
+
+    run_id: str
+    message_id: int | None
+    memory_cue: Mapping[str, Any]
 
 
 @dataclass(slots=True)

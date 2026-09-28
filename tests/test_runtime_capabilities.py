@@ -126,6 +126,14 @@ async def test_private_control_is_not_a_browser_api_and_contains_no_paths(async_
         assert result.json()["removable"] is True
         assert result.json()["blockers"] == []
         assert str(tmp_path) not in result.text
+        app.state.runtime_settings.animama_parakeet_webgpu_asset_version = "0.1.0-bbbbbbbbbbbbbbbb"
+        webgpu = await client.post(
+            "/_desktop/feature-packs/parakeet-stt-webgpu:removal-check",
+            headers={"X-Animama-Desktop-Control": "c" * 64},
+        )
+        assert webgpu.status_code == 200
+        assert webgpu.json()["pack_version"] == "0.1.0-bbbbbbbbbbbbbbbb"
+        assert webgpu.json()["removable"] is True
         assert (
             await client.post(
                 "/_desktop/feature-packs/unknown:removal-check", headers={"X-Animama-Desktop-Control": "c" * 64}

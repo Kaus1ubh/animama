@@ -171,6 +171,17 @@ User Profile router schema -> UserProfileService -> UserProfileRepository -> SQL
 See [Local User Profile](../features/user-profiles-and-usernames.md) for the
 current API and privacy rules.
 
+### Companion Safety State
+
+`ORMCompanionSafetyState` maps `companion_safety_state`, one row per owner
+principal keyed by `user_id`. It never stores message content. `age_status` is
+`unknown`, `adult` or `minor` (default `unknown`), with nullable
+`age_status_source` (`self_attestation`) and `age_status_recorded_at`; first-run
+completion records `adult` in the same transaction. The AI-notice cadence uses
+`last_notice_at`, `last_notice_local_date`, `interaction_started_at`, and
+`last_turn_started_at`; `chat:sse` locks the row while it decides whether a
+notice is due. See [companion safety](../runtime/chat.md#companion-safety).
+
 ### Content Catalog And Anima Loadouts
 
 Each valid catalog item owns its current readable revision, registered files,
@@ -323,11 +334,15 @@ path index:
 - `ORMMemoryManagerRun`, `ORMMemoryManagerMessage`, and
   `ORMMemoryManagerApproval` map to `memory_manager_runs`,
   `memory_manager_messages`, and `memory_manager_approvals`. Runs persist a
-  constrained `kind` (`general` or `episode_processing`) and an optional
-  versioned private `task_state`. An episode-processing task stores the fixed
+  constrained `kind` (`general`, `episode_processing` or `reflection`) and an
+  optional versioned private `task_state`. An episode-processing task stores the fixed
   ordered episode IDs, run-local aliases `E01` through `E50`, batch size,
   `has_more`, timestamps, and `processing` or `processed` status; episode text
-  is reloaded from its source rows rather than copied into the run. Runs also
+  is reloaded from its source rows rather than copied into the run. A
+  Reflection task stores its Anima ID and name, the coverage it started from
+  (position and run ID, or none), the batch boundary position, batch and total
+  uncovered turn counts, start time and the owner's time zone; turn text is
+  read from chat history rather than copied into the run. Runs also
   store the internal nullable `openai_previous_response_id` Responses cursor
   and serialized Agents SDK state while an approval is paused. Visible
   messages form the UI/audit transcript. Approval rows contain target path,
@@ -342,10 +357,21 @@ path index:
   status is `active` or `waiting_approval`. Superseded active runs retain their
   transcript and durable runtime state and record
   `metadata.completion_reason = "superseded_by_new_run"`.
+- `ORMAnimaMemoryReflection` maps to `anima_memory_reflections`, one row per
+  Anima (primary key `anima_id`, `ON DELETE CASCADE` to `anima`) recording
+  Reflection coverage: `user_id`, the covered-through chat message position
+  (`covered_through_created_at`, `covered_through_message_id`), the `run_id`
+  of the Reflection that set it, and `updated_at`. Turns at or before that
+  position are covered. No row means nothing is covered. Only an applied
+  Reflection `MEMORIES.md` change moves it, in the approval's transaction;
+  Undo of that change restores the previous position. `run_id` has no foreign
+  key, so coverage does not depend on manager-run retention.
 
 Neither the Responses cursor nor private task state is projected through the
-public manager API. The API exposes only run kind and a safe task summary with
-status, batch size, `has_more`, `started_at`, and `processed_at`. Visible
+public manager API. The API exposes only run kind, a safe episode task summary with
+status, batch size, `has_more`, `started_at`, and `processed_at`, and a
+Reflection summary with the Anima ID and name, turn count, remaining turn count
+and `started_at`. Visible
 messages remain the UI/audit transcript, while the cursor is the live
 model-context chain. Serialized agent state is separate: it stores an exact
 paused Apply Patch interruption and is cleared after the SDK resumes without
@@ -413,13 +439,16 @@ generated episode-log snapshots are readable through the same interface.
 Source/provenance details for seeded files belong in memory-entry `metadata`
 instead of dedicated columns. Materialization seeds an anima-scoped `IDENTITY.md`
 entry with `kind = "anima_identity"` and
-`description = "Initial identity of {anima.display_name}"`. Starter adoption
+`description = "Initial identity of {anima.display_name}"`, plus a template
+`MEMORIES.md` with `kind = "anima_memories"`. An anima scope admits only these
+two root files. Starter adoption
 can inspect persisted `avatar_identity_seed` metadata and Version 1 history;
 ordinary creation does not invent that adoption evidence.
 
 Normal direct chat fetches cached path `IDENTITY.md` in the active anima scope
-at turn setup as required anima configuration and inserts only the identity
-markdown content into the system instruction. Installation bootstrap creates a
+at turn setup as required anima configuration and inserts its markdown content
+into the system instruction, followed by the content of `MEMORIES.md` when
+memory influence is enabled and the file is nonblank. Installation bootstrap creates a
 user-scope `PROFILE.md` entry for the installation owner with `kind = "user_profile"`
 and `description = "Private installation-owner profile"`. Its guarded bootstrap
 metadata allows first-run preferred-name synchronization until the owner edits it.
@@ -434,7 +463,9 @@ The list is not persisted as a chat message or memory-entry version; persisted
 version/SHA fingerprints used for backend refresh checks. When
 `disable_memory_influence` is true, direct chat omits the list but still keeps
 required anima identity. AI memory tools can list/read/search/write user-scope
-file entries only; they cannot access anima-scoped identity entries.
+file entries and read/edit the active Anima's own `MEMORIES.md` through the
+`[self]/MEMORIES.md` alias; they cannot access identities or other Animas'
+files.
 
 The Memory Manager commits an approved create or update through
 `MemoryEntryService` and resumes the paused Agents SDK state. Specialized
@@ -444,6 +475,14 @@ that exact batch processed, regenerates every affected daily episode file,
 changes task state to `processed`, and leaves the run `active` for ordinary
 follow-up conversation. Blocked or failed execution leaves task state
 `processing` and the fixed rows pending.
+
+Reflection reads chat history by Anima, joining `chat_messages` to
+`chats.anima_id` across all of the owner's chats with that Anima. A turn is the
+visible user and assistant rows sharing a chat and `run_id` (a row without a
+run is its own turn), ordered by its last message's `(created_at, id)`.
+Internal rows are never read, and every row of a turn whose assistant row has
+`message_data.memory.updates_enabled = false` is skipped; a missing flag counts
+as enabled. Incognito turns are never persisted.
 
 The Alembic baseline creates these tables on fresh installations;
 application startup does not create them from live ORM metadata.
@@ -531,6 +570,9 @@ columns; it does not backfill legacy databases.
   item IDs, assistant `phase`/`phase_counts`, `message_phases`, annotations,
   native tool summaries, unknown output item types, and
   `stream_event_summary`.
+- `message_data.memory`, on the final visible assistant row of a persisted
+  direct-chat turn: `updates_enabled` and the turn's `MEMORIES.md` change
+  (`{entry_id, version, excerpt}` or `null`), read back as the chat memory cue.
 - Stored/debug payloads may contain `message_data.raw_response`; normal
   chat-history responses remove raw-provider details before returning messages
   to clients
@@ -599,6 +641,8 @@ rows by default and exposes them only with `include_internal=true`.
 Settings models store user-level settings and anima-level settings. Anima
 settings affect dispatch behavior, including memory influence, memory updates,
 emotional analysis, and presentation flags for animation or visual effects.
+User preferences may hold `safety.crisis_resource_region` and
+`safety.reminder_hours`; malformed values fall back to defaults.
 
 ### Avatar And Uploads
 

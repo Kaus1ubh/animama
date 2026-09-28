@@ -84,6 +84,9 @@ for playback internals.
   `display`, and speak only `speech`
 - emotion updates -> update avatar runtime store
 - same-run, same-revision avatar gesture requests -> queue one-shot gesture planner events
+- same-run AI notice and crisis card events -> the route's
+  [companion safety](#companion-safety) state
+- same-run `memory.updated` -> the reply's [memory cue](#memory-cue)
 - run completion -> finalize run state + cache messages; talking ends on TTS audio-ended
 
 5. `displayMessages` merges persisted server messages + local optimistic message + in-flight assistant stream.
@@ -119,9 +122,9 @@ unless desktop PiP is active. The chat panel stays mounted as the primary
 surface.
 
 Assistant chat bubbles render streamed and persisted text with Streamdown
-Markdown by default. The session-only App Settings toggle "Render
-assistant Markdown" can turn this off for the current app session, which falls
-back to the plaintext renderer and sparkle animation path. User bubbles always
+Markdown by default. The App Settings → Advanced toggle "Render assistant
+Markdown" (saved as `presentation.render_markdown`) can turn this off, which
+falls back to the plaintext renderer and sparkle animation path. User bubbles always
 render as plaintext.
 
 ### Model selector behavior
@@ -201,6 +204,8 @@ Responsibilities:
 - `streamingSegments` + `streamingSegmentsRef`: incremental assistant output.
 - `streamingDisplayText` + `streamingDisplayTextRef`: visible-only display text
   for main structured responses.
+- `streamingMemoryCue` + `streamingMemoryCueRef`: the run's validated
+  `memory.updated` cue, shown on the last streaming bubble.
 
 Derived state:
 
@@ -265,7 +270,8 @@ Derived state:
   point where the sidebar chat list receives that chat row.
 - `onComplete`: calls `completeTtsRun(runId)` for TTS runs, or requests
   non-TTS avatar completion after text animation and planner presentation work
-  drain; then writes user+assistant messages into cache, clears
+  drain; then writes user+assistant messages into cache (the last assistant
+  row carries the streamed cue as `memory_cue`), clears
   streaming/local pending state, invalidates chat lists, and replaces route for
   new chats. New chats skip chat-list invalidation until a title update has
   arrived, preventing a temporary `Untitled chat` sidebar row.
@@ -393,6 +399,12 @@ Type guards map incoming chunks to:
 - gesture requests (`avatar.gesture.requested` with `gesture` and
   `runtime_revision`) ->
   `onAvatarGestureRequested`
+- `safety.ai_notice` (`type` field) -> `onAiNotice`
+- `safety.crisis_support` (`type` field, with `source` and `resources`) ->
+  `onCrisisSupport`
+- `memory.updated` (`type` field) -> `onMemoryUpdated` with a cue validated by
+  `parseMemoryCue`; a frame whose cue has no valid part is logged and dropped.
+  It is checked before the shape-based reply, error, emotion and gesture guards
 - run completed (contains `run_id` without `text`, `emotions`, or `gesture`) ->
   `onComplete`
 - error event (contains `error`) -> `onError`
@@ -422,6 +434,82 @@ Final status tracked for metrics:
 - `ok`
 - `error`
 - `cancelled` (aborted before error/completion)
+
+## Companion safety
+
+The user-facing contract is the
+[safety and crisis protocol](../../safety/crisis-protocol.md); the backend
+cadence and detection rules are in
+[backend chat](../../backend/runtime/chat.md#companion-safety).
+
+`useProductChatSession` sends `client_context` (browser time zone and locale)
+with every turn and forwards `safety.ai_notice` and `safety.crisis_support`
+through its optional `safety` argument (`ChatSafetyEffects`). Types and guards
+live in `packages/product-ui/src/lib/chat/companion-safety.ts`.
+
+`CompanionSafetyProvider` (`web/src/ui/safety/`) wraps `MainShell` in the Anima
+route, keyed by Anima, so its state survives canvas-mode switches that unmount
+the chat panel. It renders:
+
+- **AI notice.** App text such as "You're talking with <name>, an AI — not a
+  person." below the chat input, or bottom-center over the scene in Avatar-only
+  mode through `MainShell`'s `avatarOnlyOverlay`. It is never spoken or added to
+  the transcript. It stays visible until its turn completes, fails, stops or its
+  chat panel unmounts, and for at least 8 seconds, then fades
+  (`web/src/lib/safety/aiNotice.ts`).
+- **Crisis card.** Localized crisis services with call, text and chat links, the
+  region's emergency number, and a "Safety and crisis protocol" link. In the
+  main window it sits in the chat panel's bottom-right corner, or is lifted just
+  above the input region when it would overlap it
+  (`web/src/ui/main/chat/crisisCardCorner.ts`); in Avatar-only mode it uses the
+  scene's bottom-right corner. Quick Chat shows it below the input. It stays
+  until dismissed; a later positive turn replaces it.
+
+`SafetyProtocolDialog` opens `docs/safety/crisis-protocol.md`, bundled with
+Vite's `?raw` import, in place so reading it never interrupts the turn. The
+same document is the `/safety` route, reachable before first run. Vite's
+`server.fs.allow`, the production `Dockerfile`, and the development Compose
+mount include `docs/safety` for that import. Quick Chat mirrors the notice and
+card through its snapshot `safety` field and sends `dismiss-crisis-card`
+([Quick chat](../desktop/quick-chat.md#runtime-mirror)).
+
+Settings → Safety chooses the crisis-resource region (or Automatic, from the
+browser locale) and a reminder interval no longer than the operator's
+(`companion_safety.operator_reminder_hours` from runtime capabilities), and
+links the protocol. Both are saved under user preferences `safety`. First-run
+setup requires an 18+ confirmation checkbox before Continue.
+
+## Memory cue
+
+A reply whose turn recorded a `remember` episode, changed the Anima's
+`MEMORIES.md`, or both shows a small `Brain` icon button named "Memory updated"
+at the foot of its last bubble. The backend contract is in
+[backend chat](../../backend/runtime/chat.md#sse-events); types, the `memory.updated`
+guard and `parseMemoryCue` live in
+`packages/product-ui/src/lib/chat/memory-cue.ts`.
+
+- **Streaming.** The session keeps the run's cue and attaches it to the last
+  streaming bubble: the display bubble when structured display differs from
+  speech, otherwise the speech bubble.
+- **Completion.** New chats never refetch history, so `onComplete` copies the
+  cue onto the last assistant row it writes into the messages cache.
+- **Reload.** `mapServerMessagesForDisplay()` maps `PyChatMessage.memory_cue`
+  onto the last bubble of that assistant row. Cues with no valid part are
+  ignored.
+- **Caches.** The event invalidates memory-entry queries for a `MEMORIES.md`
+  part and memory-episode queries for an episode note, so the Memory workspace
+  refetches what the turn wrote.
+
+`ChatConversation` renders host content through `renderAssistantAccessory`, so
+the package stays router-free. `ChatInterfaceView` renders `MemoryCue`
+(`web/src/ui/main/chat/MemoryCue.tsx`), whose popover lists the episode note
+under `Noted in episodes` and the added `MEMORIES.md` text under
+`Added to <Anima>'s memories` (`Updated <Anima>'s memories` when the change
+added no text). Only the `MEMORIES.md` part has an Open in Memories link,
+to `/a/memories?tab=memory&mode=manual&entryId=<entry_id>`; a pending episode
+note has no file of its own. Quick Chat mirrors the cue and opens the file
+through the main window ([Quick chat](../desktop/quick-chat.md#runtime-mirror)).
+Avatar-only mode renders no transcript and so no cue.
 
 ## Speech integration
 

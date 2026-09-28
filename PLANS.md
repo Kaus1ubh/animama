@@ -54,7 +54,9 @@ spec; material changes to behavior, scope or constraints require an owner decisi
 Organize phases around verifiable outcomes. Each phase names its requirements,
 issue, starting revision, intended changes, checks, completion criteria and any
 human, hardware, provider or release gate. Default to one branch and PR per plan
-in each affected repository and one issue per authorized phase. New phases may
+in each affected repository and one issue per authorized implementation phase;
+human, hardware, provider and release gates stay in the plan and PR, not in
+separate issues. New phases may
 advance after their required checks and review pass within the authorized scope;
 preserve every explicit gate in an existing plan unless the owner changes it.
 

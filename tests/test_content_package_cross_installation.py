@@ -36,7 +36,7 @@ from animama.domain.anima_creation import (
     ResolvedGestureSelection,
     ResolvedReactionSelection,
 )
-from animama.domain.anima_definition import DEFAULT_ANIMA_VOICE_ID
+from animama.domain.anima_definition import ANIMA_MEMORIES_TEMPLATE, DEFAULT_ANIMA_VOICE_ID
 from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentSource, ContentStatus
 from animama.domain.emotions import TRACKED_EMOTIONS
 from animama.orm import ORMAnima, ORMAnimaSettings, ORMChat, ORMChatMessage, ORMMemoryEntry, ORMMemoryEntryVersion
@@ -320,6 +320,16 @@ async def _private_sentinels(installation: _Installation, anima_id: str, prefix:
             size_bytes=len(old_identity),
         )
     )
+    memories = prefix + "_MEMORIES"
+    await session.execute(
+        update(ORMMemoryEntry)
+        .where(ORMMemoryEntry.anima_id == anima_id, ORMMemoryEntry.normalized_path == "memories.md")
+        .values(
+            content=memories,
+            content_sha256=hashlib.sha256(memories.encode()).hexdigest(),
+            size_bytes=len(memories),
+        )
+    )
     await session.execute(
         update(ORMAnimaSettings)
         .where(ORMAnimaSettings.anima_id == anima_id)
@@ -468,13 +478,22 @@ async def test_full_anima_transfer_preserves_images_privacy_copy_isolation_and_r
             == 0
         )
         assert "SENDER_PRIVATE" not in json.dumps(settings.preferences)
-        identity_history = (
+        memory_history = (
             await receiver.session.scalars(
                 select(ORMMemoryEntryVersion).where(ORMMemoryEntryVersion.anima_id == first.anima_id)
             )
         ).all()
-        assert len(identity_history) == 1 and identity_history[0].version == 1
-        assert identity_history[0].content == reviewed.anima.identity_markdown
+        assert len(memory_history) == 2 and all(entry.version == 1 for entry in memory_history)
+        assert {entry.path: entry.content for entry in memory_history} == {
+            "IDENTITY.md": reviewed.anima.identity_markdown,
+            "MEMORIES.md": ANIMA_MEMORIES_TEMPLATE,
+        }
+        memories = await receiver.session.scalar(
+            select(ORMMemoryEntry).where(
+                ORMMemoryEntry.anima_id == first.anima_id, ORMMemoryEntry.normalized_path == "memories.md"
+            )
+        )
+        assert memories is not None and memories.content == ANIMA_MEMORIES_TEMPLATE and memories.version == 1
         image_hashes: set[str] = set()
         entry_names = {item.package_entry_id: item.display_name for item in export.manifest.entries}
         for result_item in first.items:

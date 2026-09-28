@@ -79,12 +79,20 @@ export async function measure(target, manifest) {
   const expanded = expandedDeferred
     ? null
     : await archive(target, "expanded-input-feasibility", [expandedPath]);
-  const parakeetPath = path.join(target.output, "pack-inputs/parakeet-stt");
-  const parakeetDeferred = deferred("parakeet-stt");
-  const parakeet =
-    !parakeetDeferred && existsSync(parakeetPath)
-      ? await archive(target, "parakeet-input-feasibility", [parakeetPath])
-      : null;
+  // Model packs are measured from their staged inputs until approved archives exist.
+  const modelPacks = {};
+  for (const id of ["parakeet-stt", "parakeet-stt-webgpu"]) {
+    const input = path.join(target.output, "pack-inputs", id);
+    const measured =
+      !deferred(id) && existsSync(input)
+        ? await archive(target, `${id}-input-feasibility`, [input])
+        : null;
+    modelPacks[id] = {
+      installed_bytes: measured?.sizes[id] ?? null,
+      download_bytes: measured?.download_bytes ?? null,
+      ...(deferred(id) ? { state: "deferred" } : {}),
+    };
+  }
   const documentDeferred = deferred("document-processing");
   const report = {
     schema: "animama-size-report/1",
@@ -104,11 +112,7 @@ export async function measure(target, manifest) {
         download_bytes: expanded?.download_bytes ?? null,
         ...(expandedDeferred ? { state: "deferred" } : {}),
       },
-      "parakeet-stt": {
-        installed_bytes: parakeet?.sizes["parakeet-stt"] ?? null,
-        download_bytes: parakeet?.download_bytes ?? null,
-        ...(parakeetDeferred ? { state: "deferred" } : {}),
-      },
+      ...modelPacks,
       "document-processing": {
         installed_bytes: null,
         download_bytes: null,

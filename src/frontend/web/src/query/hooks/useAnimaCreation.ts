@@ -368,6 +368,10 @@ export function useAnimaCreationOperations() {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.animas.all(owner),
         });
+        // A new Anima adds an identity folder to the Memory workspace.
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.memoryEntries.animaIdentities(owner),
+        });
         return result.data;
       } catch (error) {
         if (error instanceof AnimaCreationApiError) throw error;
